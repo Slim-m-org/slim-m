@@ -49,7 +49,7 @@ void main() {
         ),
       );
 
-      expect(tester.widget<AppIconButton>(sendButton).onPressed, isNull);
+      expect(sendButton, findsNothing, reason: 'the mic stands in when empty');
 
       await tester.tap(attachButton);
       await tester.pumpAndSettle();
@@ -103,7 +103,7 @@ void main() {
       await tester.tap(removeAttachmentButton('holiday.png'));
       await tester.pump();
 
-      expect(tester.widget<AppIconButton>(sendButton).onPressed, isNull);
+      expect(sendButton, findsNothing, reason: 'back to the mic');
     });
 
     // The owner's report: the caret leaves the input once a file is picked,

@@ -92,6 +92,22 @@ class MessageEdited extends ServerEvent {
   final int? opSeq;
 }
 
+/// A message was deleted (soft, but gone from every live view).
+class MessageDeleted extends ServerEvent {
+  const MessageDeleted({
+    required this.channelId,
+    required this.messageId,
+    this.opSeq,
+  });
+
+  final String channelId;
+  final String messageId;
+
+  /// This delete's place in the channel's message-op stream, null against a
+  /// server that has none.
+  final int? opSeq;
+}
+
 /// Keepalive reply.
 class PongEvent extends ServerEvent {
   const PongEvent();

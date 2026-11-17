@@ -14,10 +14,15 @@ enum ReportSubject {
 
   /// A bot's private message. The server kept no copy, so a report carries the
   /// text the reporter was shown.
-  ephemeralMessage;
+  ephemeralMessage,
+
+  /// Pictures someone stamped on the reporter's shared screen (decision 0121).
+  /// Filed naming the stamp; the report's subject is then the sender.
+  screenStamp;
 
   String get wire => switch (this) {
         ephemeralMessage => 'ephemeral_message',
+        screenStamp => 'screen_stamp',
         _ => name,
       };
 
@@ -28,6 +33,7 @@ enum ReportSubject {
   static ReportSubject parse(String value) => switch (value) {
         'message' => ReportSubject.message,
         'ephemeral_message' => ReportSubject.ephemeralMessage,
+        'screen_stamp' => ReportSubject.screenStamp,
         _ => ReportSubject.user,
       };
 }
@@ -45,6 +51,7 @@ class Report {
     required this.subjectAuthorId,
     required this.createdAt,
     this.channelPermissions,
+    this.pictureIds = const [],
   });
 
   final String id;
@@ -80,6 +87,10 @@ class Report {
   /// caller must treat as unknown rather than as zero permissions.
   final int? channelPermissions;
 
+  /// A [ReportSubject.screenStamp] report's pictures, as attachment ids, while
+  /// they are kept. Empty for every other kind.
+  final List<String> pictureIds;
+
   factory Report.fromJson(Map<String, dynamic> json) => Report(
         id: json['id'] as String,
         reporterId: json['reporter_id'] as String?,
@@ -91,6 +102,9 @@ class Report {
         subjectAuthorId: json['subject_author_id'] as String?,
         createdAt: json['created_at'] as int,
         channelPermissions: json['channel_permissions'] as int?,
+        pictureIds: [
+          ...?(json['picture_ids'] as List<dynamic>?)?.whereType<String>(),
+        ],
       );
 }
 

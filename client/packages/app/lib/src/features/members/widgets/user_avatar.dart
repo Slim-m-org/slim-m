@@ -12,8 +12,10 @@ import '../providers/avatar_bytes.dart';
 import '../providers/avatar_version.dart';
 import '../providers/presence_devices.dart';
 import '../providers/presence_view.dart';
+import '../providers/profile_colour_key.dart';
 import '../providers/user_profiles.dart';
 import '../../../widgets/image_decode.dart';
+import 'profile_colour.dart';
 
 /// A person's picture, or their initials when they have none (or no [userId]:
 /// a deleted account), at one of the [AppAvatarSize] steps.
@@ -22,9 +24,11 @@ import '../../../widgets/image_decode.dart';
 /// footer, the rows and the card all share; leave it off where the dot would
 /// only repeat something beside it. It needs at least [AppAvatarSize.s24].
 ///
-/// The picture's cache key comes from the signed-in user's own profile for
-/// oneself, and from [userProfileProvider] for anybody else. A caller that
-/// already holds the version ([UserAvatar.known]) skips that lookup.
+/// The picture's cache key and the initials disc's colour come from the
+/// signed-in user's own profile for oneself, and from [userProfileProvider]
+/// for anybody else. A caller that already holds the version
+/// ([UserAvatar.known]) skips that lookup, and passes [profileColour] when it
+/// holds that too.
 class UserAvatar extends ConsumerWidget {
   const UserAvatar({
     super.key,
@@ -36,8 +40,11 @@ class UserAvatar extends ConsumerWidget {
     this.speaking = false,
     this.ringColor,
     this.semanticLabel,
+    this.speakingLabel = 'speaking',
     this.placeholder,
     this.image,
+    this.profileColour,
+    this.surfaceColor,
   }) : _known = null;
 
   const UserAvatar.known({
@@ -51,8 +58,11 @@ class UserAvatar extends ConsumerWidget {
     this.speaking = false,
     this.ringColor,
     this.semanticLabel,
+    this.speakingLabel = 'speaking',
     this.placeholder,
     this.image,
+    this.profileColour,
+    this.surfaceColor,
   }) : _known = (avatarUpdatedAt,);
 
   final String name;
@@ -66,13 +76,34 @@ class UserAvatar extends ConsumerWidget {
   final Color? ringColor;
   final String? semanticLabel;
 
+  /// How the accessible name reads the [speaking] ring.
+  final String speakingLabel;
+
   /// Drawn instead of initials on a square avatar with no picture (a bot).
   final Widget? placeholder;
 
   /// A picture that is not this person's own, such as a linked account's; skips the avatar lookup.
   final ImageProvider? image;
 
+  /// The person's profile colour, which their initials disc is a deep shade
+  /// of. Null looks it up, or on [UserAvatar.known] takes the id's preset.
+  final Color? profileColour;
+
+  /// The surface under the avatar, when not the base one; see [AppAvatar.surfaceColor].
+  final Color? surfaceColor;
+
   final (int?,)? _known;
+
+  /// One colour per person: theirs, else the preset the server would give them.
+  Color? _tint(WidgetRef ref, String? id) {
+    if (profileColour != null || id == null) return profileColour;
+    if (shape != AppAvatarShape.circle) return null;
+    final key = _known != null || image != null
+        ? null
+        : ref.watch(profileColourKeyProvider(id));
+    return profileColourOf(index: key?.index, rgb: key?.rgb) ??
+        defaultProfileColour(id);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -103,6 +134,7 @@ class UserAvatar extends ConsumerWidget {
       name: name,
       // The id, so one person keeps one colour across every name form and every rename; see AppAvatar.tintKey.
       tintKey: id,
+      tintColor: _tint(ref, id),
       image: picture,
       size: size,
       shape: shape,
@@ -115,7 +147,9 @@ class UserAvatar extends ConsumerWidget {
       speaking: speaking,
       ringColor: ringColor,
       semanticLabel: semanticLabel,
+      speakingLabel: speakingLabel,
       placeholder: placeholder,
+      surfaceColor: surfaceColor,
     );
     // The ring's pulse is a ticker; a hidden window should not run it, but an unfocused one is still watched.
     return TickerMode(

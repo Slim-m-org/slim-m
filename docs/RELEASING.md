@@ -40,7 +40,7 @@ Taken from `client-v0.89.0` as it stands now.
 | `slim-m-client-<version>-1.fc44.x86_64.rpm` | `release.yml` |
 | `slim-m-client-<version>-linux-amd64.tar.gz` | `release.yml` |
 | `slim-m-client-<version>.flatpak` | `release.yml` |
-| `slim-m-client-android.apk` | `release.yml` |
+| `slim-m-client-android-<abi>.apk` (arm64-v8a, armeabi-v7a, x86_64) | `release.yml` |
 | `slim-m-client-<version>-windows-x64.zip` | `desktop-clients.yml` |
 | `slim-m-client-<version>-macos.zip` | `desktop-clients.yml` |
 | `manifest.json` | `update-manifest.yml`, called by `release.yml` and `desktop-clients.yml`, the last to attach signs |

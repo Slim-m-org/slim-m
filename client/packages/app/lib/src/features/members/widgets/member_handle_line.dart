@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The `@username` line of a member card, with a copy button after the handle.
+/// The `@username` line of a member card, with a copy button after the handle;
+/// for someone with no display name of their own, the name line itself.
 library;
 
 import 'package:flutter/material.dart';
@@ -11,15 +12,28 @@ import '../../../providers/toasts.dart';
 
 /// The copy icon shows on hover or focus, and always at touch density, where
 /// there is no hover to reveal it. It stays focusable while hidden.
+///
+/// At touch density the whole line copies, and a finger reaches it from a
+/// [AppSizes.rowTouch] area that rises over the line above, so the line keeps
+/// the height of its text (desktop-vs-mobile law 2).
 class MemberHandleLine extends ConsumerStatefulWidget {
   const MemberHandleLine({
     super.key,
     required this.username,
     required this.extras,
     required this.style,
+    this.nameStyle,
+    this.name,
   });
 
   final String username;
+
+  /// Draws the bare username in this style, as the card's name, for someone
+  /// whose display name is only their username; null draws the `@handle`.
+  final TextStyle? nameStyle;
+
+  /// What [nameStyle] draws, when the display name differs from the username only by case.
+  final String? name;
 
   /// Pronouns and the like, drawn after the copy button.
   final List<String> extras;
@@ -52,7 +66,7 @@ class _MemberHandleLineState extends ConsumerState<MemberHandleLine> {
       iconSize: AppSizes.icon16,
       onPressed: _copy,
     );
-    return MouseRegion(
+    final line = MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: Row(
@@ -60,12 +74,16 @@ class _MemberHandleLineState extends ConsumerState<MemberHandleLine> {
         children: [
           Flexible(
             child: Text(
-              '@${widget.username}',
+              widget.nameStyle == null
+                  ? '@${widget.username}'
+                  : widget.name ?? widget.username,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: widget.style.merge(
-                AppText.code.copyWith(fontSize: AppText.caption.fontSize),
-              ),
+              style:
+                  widget.nameStyle ??
+                  widget.style.merge(
+                    AppText.code.copyWith(fontSize: AppText.caption.fontSize),
+                  ),
             ),
           ),
           Focus(
@@ -75,7 +93,7 @@ class _MemberHandleLineState extends ConsumerState<MemberHandleLine> {
               opacity: visible ? 1 : 0,
               // A hidden icon is still the way a screen reader copies the handle.
               alwaysIncludeSemantics: true,
-              child: touch ? button : _lineHigh(button),
+              child: _lineHigh(button),
             ),
           ),
           if (widget.extras.isNotEmpty)
@@ -90,10 +108,20 @@ class _MemberHandleLineState extends ConsumerState<MemberHandleLine> {
         ],
       ),
     );
+    if (!touch) return line;
+    return AppTouchHitArea(
+      alignment: Alignment.bottomLeft,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        excludeFromSemantics: true,
+        onTap: _copy,
+        child: line,
+      ),
+    );
   }
 }
 
-/// With a mouse the copy button is drawn at full size but lays out no taller than the handle, so the card's lines stay together.
+/// The copy button is drawn at full size but lays out no taller than the handle, so the card's lines stay together.
 Widget _lineHigh(Widget button) => SizedBox(
   width: AppSizes.controlSm,
   height: _handleLineHeight,

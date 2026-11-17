@@ -20,6 +20,8 @@ import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/members/providers/presence_controller.dart';
 import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
+import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/role_ladder.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../support/call_header_fixture.dart' show FakePresence;
@@ -53,6 +55,9 @@ Widget _harness(
   Map<String, api.PresenceState> presence = const {
     'user-maya': api.PresenceState.online,
   },
+  RoleLadder? ladder,
+  List<api.Role> roles = const [],
+  api.Me? me,
 }) => ProviderScope(
   key: UniqueKey(),
   overrides: [
@@ -61,7 +66,9 @@ Widget _harness(
     ),
     myPermissionsProvider.overrideWithValue(permissions),
     membersProvider.overrideWith((ref) async => members),
-    rolesProvider.overrideWith((ref) async => const <api.Role>[]),
+    rolesProvider.overrideWith((ref) async => roles),
+    if (ladder != null) roleLadderProvider.overrideWithValue(ladder),
+    if (me != null) meProvider.overrideWith((ref) async => me),
   ],
   child: MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),
@@ -81,8 +88,16 @@ void main() {
     await tester.pump();
 
     expect(find.text('maya'), findsOneWidget);
-    expect(find.text('@maya'), findsOneWidget);
-    expect(find.text('Online'), findsOneWidget);
+    expect(
+      find.text('@maya'),
+      findsNothing,
+      reason: 'with no display name of her own, the username shows once',
+    );
+    expect(
+      find.text('Online'),
+      findsNothing,
+      reason: 'presence is the dot on the avatar, not a word line',
+    );
     expect(find.text('Message'), findsOneWidget);
     expect(find.text('Block'), findsOneWidget);
     expect(find.byTooltip('Add note'), findsOneWidget);
@@ -121,19 +136,21 @@ void main() {
     await tester.pump();
 
     final name = tester.getTopLeft(find.text('maya'));
-    final handle = tester.getTopLeft(find.text('@maya'));
+    final joined = tester.getTopLeft(find.textContaining('Joined'));
     final message = tester.getTopLeft(find.text('Message'));
-    expect(handle.dy, greaterThan(name.dy));
-    expect(message.dy, greaterThan(handle.dy));
+    expect(joined.dy, greaterThan(name.dy));
+    expect(message.dy, greaterThan(joined.dy));
   });
 
-  testWidgets('roles show as chips, beside the join date, for everyone', (
+  testWidgets('roles show as pills in their own case, with the join date', (
     tester,
   ) async {
     await tester.pumpWidget(_harness(_body(_other)));
     await tester.pump();
 
-    expect(find.text('MOD'), findsOneWidget);
+    expect(find.text('ROLES'), findsOneWidget);
+    expect(find.text('mod'), findsOneWidget);
+    expect(find.text('MOD'), findsNothing);
     expect(find.textContaining('Joined'), findsOneWidget);
   });
 
@@ -202,24 +219,6 @@ void main() {
     expect(find.text('maya'), findsOneWidget);
   });
 
-  testWidgets('presence is a word beside its dot, never the dot alone', (
-    tester,
-  ) async {
-    for (final (state, word) in const [
-      (api.PresenceState.online, 'Online'),
-      (api.PresenceState.away, 'Away'),
-      (api.PresenceState.dnd, 'Do not disturb'),
-      (api.PresenceState.offline, 'Offline'),
-    ]) {
-      await tester.pumpWidget(
-        _harness(_body(_other), presence: {_other.id: state}),
-      );
-      await tester.pump();
-      expect(find.text(word), findsOneWidget, reason: '$state');
-      expect(find.byType(AppStatusDot), findsWidgets, reason: '$state');
-    }
-  });
-
   testWidgets('nobody reported yet reads as no word and no dot', (
     tester,
   ) async {
@@ -283,5 +282,115 @@ void main() {
       await tester.pump();
       expect(find.textContaining('Timed out'), findsNothing);
     });
+  });
+
+  testWidgets('no Moderate row for a member at or above you on the ladder', (
+    tester,
+  ) async {
+    api.UserProfile at(int? top, {bool owner = false}) => api.UserProfile(
+      id: _other.id,
+      username: _other.username,
+      displayName: _other.displayName,
+      createdAt: 0,
+      topRolePosition: top,
+      isOwner: owner,
+    );
+    const ladder = RoleLadder(permissions: Perm.kickMembers, topPosition: 5);
+    for (final (member, shown) in [
+      (at(4), true),
+      (at(null), true),
+      (at(5), false),
+      (at(1, owner: true), false),
+    ]) {
+      await tester.pumpWidget(
+        _harness(_body(member), permissions: Perm.kickMembers, ladder: ladder),
+      );
+      await tester.pump();
+      expect(
+        find.text('Moderate...'),
+        shown ? findsOneWidget : findsNothing,
+        reason: 'top ${member.topRolePosition}, owner ${member.isOwner}',
+      );
+    }
+  });
+
+  testWidgets('a reset code is never offered on a card at or above yours', (
+    tester,
+  ) async {
+    api.UserProfile at(int? top, {bool owner = false}) => api.UserProfile(
+      id: _other.id,
+      username: _other.username,
+      displayName: _other.displayName,
+      createdAt: 0,
+      topRolePosition: top,
+      isOwner: owner,
+    );
+    const ladder = RoleLadder(permissions: Perm.administrator, topPosition: 5);
+    for (final (member, shown) in [
+      (at(4), true),
+      (at(5), false),
+      (at(1, owner: true), false),
+    ]) {
+      await tester.pumpWidget(
+        _harness(
+          _body(member),
+          permissions: Perm.administrator,
+          ladder: ladder,
+        ),
+      );
+      await tester.pump();
+      expect(
+        find.text('Moderate...'),
+        shown ? findsOneWidget : findsNothing,
+        reason: 'top ${member.topRolePosition}, owner ${member.isOwner}',
+      );
+    }
+  });
+
+  testWidgets('your own card offers your roles below your highest', (
+    tester,
+  ) async {
+    api.Role role(String id, int position) => api.Role(
+      id: id,
+      name: id,
+      permissions: 0,
+      isEveryone: false,
+      createdAt: 0,
+      position: position,
+    );
+    const self = api.UserProfile(
+      id: 'user-self',
+      username: 'self',
+      displayName: 'self',
+      createdAt: 0,
+      roles: ['lead', 'crew'],
+      roleIds: ['lead', 'crew'],
+      roleColors: [null, null],
+    );
+    await tester.pumpWidget(
+      _harness(
+        _body(self),
+        permissions: Perm.manageRoles,
+        roles: [role('lead', 5), role('crew', 2)],
+        ladder: const RoleLadder(permissions: Perm.manageRoles, topPosition: 5),
+        me: const api.Me(
+          id: 'user-self',
+          username: 'self',
+          displayName: 'self',
+          createdAt: 0,
+          permissions: Perm.manageRoles,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Profile settings'), findsOneWidget, reason: 'own card');
+    expect(find.bySemanticsLabel('Roles for self'), findsOneWidget);
+    expect(find.bySemanticsLabel('Remove crew from self'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Remove lead from self'),
+      findsNothing,
+      reason: 'dropping your own highest role is past the ladder',
+    );
   });
 }

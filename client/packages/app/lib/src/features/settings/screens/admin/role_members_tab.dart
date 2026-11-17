@@ -13,21 +13,27 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../members/providers/member_presence.dart' show membersProvider;
+import '../../../../providers/admin_providers.dart' show roleLadderProvider;
 import '../../../../providers/providers.dart';
+import '../../../../role_ladder.dart';
 import '../../../members/widgets/bot_avatar_placeholder.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../../members/widgets/user_avatar.dart';
+import '../../../members/widgets/profile_colour.dart';
 
 /// A group past this size collapses to this many rows plus a "+N more"
 /// summary, matching the design's own worked example.
 const _collapseAt = 5;
 
 class RoleMembersTab extends ConsumerStatefulWidget {
-  const RoleMembersTab({super.key, required this.role});
+  const RoleMembersTab({super.key, required this.role, this.locked = false});
 
   final api.Role role;
+
+  /// The role is not below the viewer's highest, so its holders are listed without add or remove.
+  final bool locked;
 
   @override
   ConsumerState<RoleMembersTab> createState() => _RoleMembersTabState();
@@ -45,11 +51,17 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
     super.dispose();
   }
 
-  List<api.UserProfile> _candidates(List<api.UserProfile> members) {
+  List<api.UserProfile> _candidates(
+    List<api.UserProfile> members,
+    RoleLadder ladder,
+  ) {
     final needle = _search.text.trim().toLowerCase();
     if (needle.isEmpty) return const [];
     return members
         .where((m) => !m.roleIds.contains(widget.role.id))
+        .where(
+          (m) => ladder.lockOf(widget.role, member: m, held: false) == null,
+        )
         .where(
           (m) =>
               m.displayName.toLowerCase().contains(needle) ||
@@ -99,28 +111,38 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
             .toList();
         final bots = holders.where((m) => m.isBot).toList();
         final people = holders.where((m) => !m.isBot).toList();
-        final candidates = _candidates(list);
+        final role = widget.role;
+        final ladder = ref.watch(roleLadderProvider);
+        final locked = widget.locked || role.isManagedByBot || role.isBotsRole;
+        final candidates = locked
+            ? const <api.UserProfile>[]
+            : _candidates(list, ladder);
+        final remove = locked ? null : _remove;
+        bool removable(api.UserProfile m) =>
+            ladder.lockOf(role, member: m, held: true) == null;
 
         return Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.s24,
-                AppSpacing.s16,
-                AppSpacing.s24,
-                0,
+            if (!locked)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s24,
+                  AppSpacing.s16,
+                  AppSpacing.s24,
+                  0,
+                ),
+                child: AppInput(
+                  controller: _search,
+                  placeholder: 'Search members to add',
+                  icon: const Icon(AppIcons.search),
+                  semanticLabel: 'Search members to add',
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) {
+                    if (candidates.isEmpty) return;
+                    unawaited(_add(candidates.first));
+                  },
+                ),
               ),
-              child: AppInput(
-                controller: _search,
-                placeholder: 'Search members to add',
-                icon: const Icon(AppIcons.search),
-                semanticLabel: 'Search members to add',
-                onChanged: (_) => setState(() {}),
-                onSubmitted: (_) {
-                  if (candidates.isNotEmpty) unawaited(_add(candidates.first));
-                },
-              ),
-            ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(
@@ -158,16 +180,18 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
                       holders: bots,
                       expanded: _expandBots,
                       onExpand: () => setState(() => _expandBots = true),
-                      onRemove: _remove,
+                      onRemove: remove,
+                      removable: removable,
                     ),
                   _HolderGroup(
                     title: 'People',
                     holders: people,
                     expanded: _expandPeople,
                     onExpand: () => setState(() => _expandPeople = true),
-                    onRemove: _remove,
+                    onRemove: remove,
+                    removable: removable,
                     emptyTitle: 'No people hold this role',
-                    emptyDetail: 'Search above to add someone.',
+                    emptyDetail: locked ? null : 'Search above to add someone.',
                   ),
                 ],
               ),
@@ -220,6 +244,7 @@ Widget _avatar(BuildContext context, api.UserProfile member) =>
       name: member.displayName,
       userId: member.id,
       avatarUpdatedAt: member.avatarUpdatedAt,
+      profileColour: profileColourOfUser(member),
       size: AppAvatarSize.s28,
       shape: member.isBot ? AppAvatarShape.square : AppAvatarShape.circle,
       placeholder: member.isBot
@@ -234,6 +259,7 @@ class _HolderGroup extends StatelessWidget {
     required this.expanded,
     required this.onExpand,
     required this.onRemove,
+    required this.removable,
     this.emptyTitle,
     this.emptyDetail,
   });
@@ -242,7 +268,12 @@ class _HolderGroup extends StatelessWidget {
   final List<api.UserProfile> holders;
   final bool expanded;
   final VoidCallback onExpand;
-  final ValueChanged<api.UserProfile> onRemove;
+
+  /// Null lists the holders without a Remove button.
+  final ValueChanged<api.UserProfile>? onRemove;
+
+  /// Whether the viewer may take the role from this holder, which the owner's own roles never are.
+  final bool Function(api.UserProfile) removable;
   final String? emptyTitle;
   final String? emptyDetail;
 
@@ -271,13 +302,16 @@ class _HolderGroup extends StatelessWidget {
               leading: _avatar(context, holder),
               label: holder.displayName,
               meta: '@${holder.username}',
-              trailing: AppButton(
-                label: 'Remove',
-                semanticLabel: 'Remove ${holder.displayName}',
-                variant: AppButtonVariant.ghost,
-                size: AppButtonSize.sm,
-                onPressed: () => onRemove(holder),
-              ),
+              trailing: switch (onRemove) {
+                final remove? when removable(holder) => AppButton(
+                  label: 'Remove',
+                  semanticLabel: 'Remove ${holder.displayName}',
+                  variant: AppButtonVariant.ghost,
+                  size: AppButtonSize.sm,
+                  onPressed: () => remove(holder),
+                ),
+                _ => null,
+              },
             ),
         if (hidden.isNotEmpty)
           FocusableTapTarget(

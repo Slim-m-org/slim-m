@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A colour picker: a saturation/value square, a hue slider, a hex field and
-/// a preview, with Save and Cancel.
+/// a preview, with a confirm button (Save by default) and Cancel.
 ///
 /// [showAppColourPicker] opens it with `showAppSheet`, so a bottom sheet on a
 /// phone and a centred dialog on a desktop
@@ -16,48 +16,55 @@ import '../../colour_contrast.dart';
 import '../../colour_hex.dart';
 import '../core/button.dart';
 import '../surfaces/sheet.dart';
+import '../surfaces/sheet_header.dart';
 import 'colour_picker_surfaces.dart';
 import 'focusable_tap_target.dart' show focusRingGap, focusRingWidth;
 import 'input.dart';
 
 /// Opens the picker on [initial]. Resolves the saved colour, or null on cancel.
+///
+/// [caption] sits under [title]; [extraBuilder] adds a line under the hex field.
 Future<Color?> showAppColourPicker(
   BuildContext context, {
   required Color initial,
   String title = 'Custom colour',
+  String? caption,
+  String confirmLabel = 'Save',
   ValueChanged<Color>? onChanged,
+  ColourPickerExtraBuilder? extraBuilder,
 }) =>
     showAppSheet<Color>(
       context,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.s16,
-          0,
-          AppSpacing.s16,
-          AppSpacing.s16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: AppText.body.copyWith(
-                color: Theme.of(context).extension<AppTokens>()!.textPrimary,
-                fontWeight: AppWeights.semi,
-              ),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppSheetHeader(title, caption: caption),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s16,
+              0,
+              AppSpacing.s16,
+              AppSpacing.s16,
             ),
-            const SizedBox(height: AppSpacing.s12),
-            AppColourPicker(
+            child: AppColourPicker(
               initial: initial,
+              confirmLabel: confirmLabel,
               onChanged: onChanged,
+              extraBuilder: extraBuilder,
               onSave: (c) => Navigator.of(context).pop(c),
               onCancel: () => Navigator.of(context).pop(),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+
+/// Builds a line under the hex field from the colour as it is dragged or typed.
+typedef ColourPickerExtraBuilder = Widget Function(
+  BuildContext context,
+  Color colour,
+);
 
 /// The square and slider reserve a focus ring; the rows below line up with their edge.
 const _ringInset =
@@ -70,9 +77,14 @@ class AppColourPicker extends StatefulWidget {
     required this.onSave,
     required this.onCancel,
     this.onChanged,
+    this.confirmLabel = 'Save',
+    this.confirmVariant = AppButtonVariant.primary,
+    this.extraBuilder,
+    this.beside = false,
   });
 
   static const hexFieldKey = Key('colour_picker_hex');
+  static const confirmKey = Key('colour_picker_confirm');
 
   /// Called with each colour as it is dragged or typed, for a live preview.
   final ValueChanged<Color>? onChanged;
@@ -80,6 +92,18 @@ class AppColourPicker extends StatefulWidget {
   final Color initial;
   final ValueChanged<Color> onSave;
   final VoidCallback onCancel;
+
+  /// Names the button that keeps the colour: Done where the colour is part
+  /// of a larger form that saves on its own.
+  final String confirmLabel;
+  final AppButtonVariant confirmVariant;
+
+  /// Extra lines between the hex field and the buttons, rebuilt as the colour moves.
+  final ColourPickerExtraBuilder? extraBuilder;
+
+  /// The square and hue on the left, the fields and buttons on the right, for
+  /// a picker opened inline in a wide form where height is short.
+  final bool beside;
 
   @override
   State<AppColourPicker> createState() => _AppColourPickerState();
@@ -134,68 +158,107 @@ class _AppColourPickerState extends State<AppColourPicker> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final colour = _typed ?? _hsv.toColor();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AspectRatio(
-          aspectRatio: 1.8,
-          child: SaturationValueSquare(hsv: _hsv, onChanged: _fromSurface),
-        ),
-        const SizedBox(height: AppSpacing.s12),
-        HueSlider(hsv: _hsv, onChanged: _fromSurface),
-        const SizedBox(height: AppSpacing.s12),
-        Padding(
-          padding: _ringInset,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _PreviewChip(colour: colour, surface: tokens.surfaceRaised),
-              const SizedBox(width: AppSpacing.s12),
-              Expanded(
-                child: AppInput(
-                  key: AppColourPicker.hexFieldKey,
-                  controller: _hex,
-                  mono: true,
-                  autocorrect: false,
-                  semanticLabel: 'Hex colour',
-                  placeholder: '#RRGGBB',
-                  errorText: _error,
-                  onChanged: _fromText,
-                  onSubmitted: (_) => _save(),
-                ),
+    final surfaces = [
+      AspectRatio(
+        aspectRatio: widget.beside ? 2 : 1.8,
+        child: SaturationValueSquare(hsv: _hsv, onChanged: _fromSurface),
+      ),
+      const SizedBox(height: AppSpacing.s12),
+      HueSlider(hsv: _hsv, onChanged: _fromSurface),
+    ];
+    final fields = [
+      Padding(
+        padding: _ringInset,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: _inputRing),
+              child:
+                  _PreviewChip(colour: colour, surface: tokens.surfaceRaised),
+            ),
+            const SizedBox(width: AppSpacing.s12),
+            Expanded(
+              child: AppInput(
+                key: AppColourPicker.hexFieldKey,
+                controller: _hex,
+                mono: true,
+                autocorrect: false,
+                semanticLabel: 'Hex colour',
+                placeholder: '#RRGGBB',
+                errorText: _error,
+                onChanged: _fromText,
+                onSubmitted: (_) => _save(),
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+      if (widget.extraBuilder case final extra?) ...[
+        const SizedBox(height: AppSpacing.s12),
+        Padding(padding: _ringInset, child: extra(context, colour)),
+      ],
+      const SizedBox(height: AppSpacing.s16),
+      Padding(padding: _ringInset, child: _buttons()),
+    ];
+    if (!widget.beside) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ...surfaces,
+          const SizedBox(height: AppSpacing.s12),
+          ...fields,
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: AppSpacing.s16,
+      children: [
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: surfaces,
           ),
         ),
-        const SizedBox(height: AppSpacing.s16),
-        Padding(
-          padding: _ringInset,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            spacing: AppSpacing.s8,
-            children: [
-              AppButton(
-                label: 'Cancel',
-                variant: AppButtonVariant.ghost,
-                onPressed: widget.onCancel,
-              ),
-              AppButton(
-                label: 'Save',
-                variant: AppButtonVariant.primary,
-                disabled: _typed == null,
-                onPressed: _save,
-              ),
-            ],
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: fields,
           ),
         ),
       ],
     );
   }
+
+  Widget _buttons() => Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        spacing: AppSpacing.s8,
+        children: [
+          AppButton(
+            label: 'Cancel',
+            variant: AppButtonVariant.ghost,
+            onPressed: widget.onCancel,
+          ),
+          AppButton(
+            key: AppColourPicker.confirmKey,
+            label: widget.confirmLabel,
+            variant: widget.confirmVariant,
+            disabled: _typed == null,
+            onPressed: _save,
+          ),
+        ],
+      );
 }
 
 /// Matches the hex field beside it.
 const double _inputHeight = 38;
+
+/// The focus ring `AppInput` reserves outside the border the chip lines up with.
+const double _inputRing = 4;
 
 class _PreviewChip extends StatelessWidget {
   const _PreviewChip({required this.colour, required this.surface});

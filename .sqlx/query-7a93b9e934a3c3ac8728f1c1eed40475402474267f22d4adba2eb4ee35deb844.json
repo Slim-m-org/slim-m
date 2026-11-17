@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE channel_categories SET deleted_at = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "7a93b9e934a3c3ac8728f1c1eed40475402474267f22d4adba2eb4ee35deb844"
+}

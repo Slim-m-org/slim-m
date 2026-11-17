@@ -40,7 +40,7 @@ use crate::ids::{ChannelId, UserId};
 #[derive(Debug, Clone)]
 pub struct AuditLogEntry {
     pub id: i64,
-    /// Null once the actor's account has been anonymized.
+    /// Null once the actor's account has been anonymized, and for an act the server did itself.
     pub actor_id: Option<UserId>,
     pub subject_id: UserId,
     pub action: String,
@@ -192,14 +192,7 @@ impl Store {
             builder.push(" AND r.resolved_at <= ");
             builder.push_bind(ceiling);
         }
-        if !hidden_channels.is_empty() {
-            builder.push(" AND (r.channel_id IS NULL OR r.channel_id NOT IN (");
-            let mut separated = builder.separated(", ");
-            for channel_id in hidden_channels {
-                separated.push_bind(*channel_id);
-            }
-            builder.push("))");
-        }
+        super::stamp_reports::push_hidden_channel_filter(&mut builder, hidden_channels);
         builder.push(" ORDER BY r.resolved_at DESC, r.id DESC LIMIT ");
         builder.push_bind(limit);
 

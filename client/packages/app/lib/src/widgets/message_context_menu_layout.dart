@@ -27,6 +27,8 @@ class MessageMenuLayout extends SingleChildLayoutDelegate {
     required this.anchor,
     required this.padding,
     this.above = false,
+    this.alignEnd = false,
+    this.flipAbove,
   });
 
   final Offset anchor;
@@ -34,6 +36,13 @@ class MessageMenuLayout extends SingleChildLayoutDelegate {
   /// Treats [anchor] as the menu's bottom-left, for a trigger near the bottom edge.
   final bool above;
   final EdgeInsets padding;
+
+  /// Treats [anchor]'s x as the menu's right edge, for a trigger at the end of its row.
+  final bool alignEnd;
+
+  /// The trigger's top edge: a menu with no room below [anchor] opens above
+  /// this instead of sliding up over the trigger, when it fits there.
+  final double? flipAbove;
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
@@ -44,16 +53,24 @@ class MessageMenuLayout extends SingleChildLayoutDelegate {
     return loose.copyWith(maxHeight: math.min(loose.maxHeight, room));
   }
 
+  double _top(double maxY, Size childSize) {
+    if (above) return anchor.dy - childSize.height;
+    final flip = flipAbove;
+    if (flip == null || anchor.dy <= maxY) return anchor.dy;
+    final flipped = flip - childSize.height;
+    return flipped >= padding.top ? flipped : anchor.dy;
+  }
+
   @override
   Offset getPositionForChild(Size size, Size childSize) {
     final maxX = size.width - padding.right - childSize.width;
     final maxY = size.height - padding.bottom - childSize.height;
     return Offset(
-      anchor.dx.clamp(padding.left, math.max(padding.left, maxX)),
-      (above ? anchor.dy - childSize.height : anchor.dy).clamp(
-        padding.top,
-        math.max(padding.top, maxY),
+      (alignEnd ? anchor.dx - childSize.width : anchor.dx).clamp(
+        padding.left,
+        math.max(padding.left, maxX),
       ),
+      _top(maxY, childSize).clamp(padding.top, math.max(padding.top, maxY)),
     );
   }
 
@@ -61,5 +78,7 @@ class MessageMenuLayout extends SingleChildLayoutDelegate {
   bool shouldRelayout(MessageMenuLayout oldDelegate) =>
       anchor != oldDelegate.anchor ||
       padding != oldDelegate.padding ||
-      above != oldDelegate.above;
+      above != oldDelegate.above ||
+      alignEnd != oldDelegate.alignEnd ||
+      flipAbove != oldDelegate.flipAbove;
 }

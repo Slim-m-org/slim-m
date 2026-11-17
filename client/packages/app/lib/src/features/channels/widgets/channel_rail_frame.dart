@@ -5,25 +5,23 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_rtc/rtc.dart';
 
-import '../../../desktop/update_watch.dart';
+import '../../accounts/providers/account_providers.dart';
 import '../../accounts/widgets/account_switcher.dart';
+import '../../composer/widgets/voice_recording_marker.dart';
 import '../../members/providers/presence_view.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/server_info.dart';
 import '../../members/providers/status_text.dart';
 import '../../../providers/sync_controller.dart';
 import '../../../sync/providers/sync_failure.dart';
-import '../../voice/providers/voice_controller.dart';
-import '../../voice/providers/mic_status.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../../routing/breakpoints.dart';
-import '../../../routing/routes.dart';
 import '../../members/widgets/presence_menu.dart';
 import 'rail_call_summary.dart';
+import 'rail_footer_controls.dart';
+import 'rail_notes_button.dart';
 import 'space_icon_badge.dart';
 import 'space_menu_button.dart';
 
@@ -211,128 +209,28 @@ class RailConnectionBar extends ConsumerWidget {
   }
 }
 
-VoidCallback? _micAction({
-  required bool inCall,
-  required bool stuck,
-  required VoiceController voiceController,
-}) {
-  if (!inCall) return null;
-  return stuck
-      ? voiceController.devices.resetMicrophone
-      : voiceController.toggleMicrophone;
-}
-
-/// The mic/deafen toggles in [RailUserFooter]'s row, shown only while in a
-/// call: out of one they could do nothing, and the call dock carries the rest.
-///
-/// Takes [VoiceFlags] rather than the full [VoiceState] on purpose: the
-/// footer has no use for the roster, and typing this as the narrower flags
-/// object makes it impossible for a future caller to thread it back in.
-List<Widget> railVoiceToggleButtons({
-  required VoiceFlags voice,
-  required VoiceController voiceController,
-  MicStatus micStatus = MicStatus.ok,
-}) {
-  if (!voice.callLive) return const [];
-  final trouble = voice.microphoneEnabled ? micStatus.trouble : null;
-  return [
-    AppIconButton(
-      icon: voice.microphoneEnabled && trouble == null
-          ? AppIcons.mic
-          : AppIcons.micOff,
-      semanticLabel: trouble ?? (voice.microphoneEnabled ? 'Mute' : 'Unmute'),
-      tooltip: trouble,
-      variant: voice.microphoneEnabled && trouble == null
-          ? AppIconButtonVariant.ghost
-          : AppIconButtonVariant.dangerGhost,
-      onPressed: _micAction(
-        inCall: true,
-        stuck: micStatus == MicStatus.unavailable && trouble != null,
-        voiceController: voiceController,
-      ),
-    ),
-    AppIconButton(
-      icon: voice.deafened ? AppIcons.headphonesOff : AppIcons.headphones,
-      semanticLabel: voice.deafened ? 'Undeafen' : 'Deafen',
-      variant: voice.deafened
-          ? AppIconButtonVariant.dangerGhost
-          : AppIconButtonVariant.ghost,
-      onPressed: voiceController.toggleDeafen,
-    ),
-  ];
-}
-
-/// The personal-settings nav button beside [railVoiceToggleButtons].
-///
-/// Carries a dot when an update is waiting. The banner says the same thing in
-/// words, but it is dismissible and this is not: once the banner is gone the
-/// only remaining sign used to be relaunching and hitting the splash check
-/// again. The dot points at the pane that can act on it, and About is where
-/// the two version numbers and the manual re-check live.
-Widget railSettingsButton(BuildContext context) => Consumer(
-  builder: (context, ref, _) {
-    final pending = ref.watch(updatePendingProvider);
-    final button = AppIconButton(
-      icon: AppIcons.settings,
-      semanticLabel: pending
-          ? 'Personal settings, an update is available'
-          : 'Personal settings',
-      onPressed: () => context.push(Routes.personalSettings),
-    );
-    if (!pending) return button;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        button,
-        // The dot means "something is waiting" by being there, not by its hue.
-        const Positioned(
-          top: 2,
-          right: 2,
-          child: ExcludeSemantics(child: _UpdateDot(key: updateBadgeDotKey)),
-        ),
-      ],
-    );
-  },
-);
-
-/// Finds the gear's dot in a test, which nothing else about the rail can be
-/// mistaken for.
-const updateBadgeDotKey = Key('rail-gear-update-dot');
-
-/// The gear's pending-update dot. Sized against nothing in particular: it has
-/// to read as a mark on the icon rather than as a second control, and 8 is the
-/// smallest that survives a HiDPI downscale without turning into a smudge.
-class _UpdateDot extends StatelessWidget {
-  const _UpdateDot({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Container(
-      width: 8,
-      height: 8,
-      decoration: BoxDecoration(
-        color: tokens.accent,
-        shape: BoxShape.circle,
-        // A ring of the surface behind it, so the dot stays legible on the glyph.
-        border: Border.all(color: tokens.surfaceSunken, width: 1.5),
-      ),
-    );
-  }
-}
-
-/// Below this footer width the name line gives way to the controls: avatar,
-/// three buttons and their insets leave too little for a readable name.
+/// Below this footer width the controls alone may not fit, so they scale down
+/// and the name line gives way to them.
 const double _footerNameMinWidth = 200;
 
+/// The narrowest the name line is drawn at; in less (a call's mic and deafen
+/// beside Notes and the gear) only the presence dot says who and how.
+const double _footerNameMinRoom = 64;
+
+/// Flutter's own gap between a tooltip and the centre of what it names.
+const double _tooltipGap = 24;
+
+/// The member's bar at the foot of the rail, under a call row while a call is
+/// live anywhere but the channel on screen (decision 0111, 2026-11-16), and
+/// under a recording row while a voice message records off screen.
 class RailUserFooter extends ConsumerWidget {
   const RailUserFooter({super.key, this.activeChannelId});
 
   /// The channel currently shown beside or instead of this rail. A call
-  /// already live in that channel has its own full call UI, so the footer's
-  /// call-elsewhere row (name, duration, leave) is gated on this; mic and
-  /// deafen are not, since they control whichever call is live regardless of
-  /// which channel is on screen.
+  /// already live in that channel has its own full call UI, so the call row
+  /// (name, duration, leave) is gated on this; mic and deafen are not, since
+  /// they control whichever call is live regardless of which channel is on
+  /// screen. It is also what lights the Notes button.
   ///
   /// This row's status line is the person's own presence word from
   /// [presenceForProvider], whatever the socket is doing: the Space's
@@ -346,27 +244,57 @@ class RailUserFooter extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final me = ref.watch(meProvider);
-    final selfId = ref.watch(sessionProvider).tokens?.userId;
     final voice = ref.watch(voiceFlagsProvider);
-    final voiceController = ref.read(voiceControllerProvider.notifier);
-    final micStatus = ref.watch(micStatusProvider).valueOrNull ?? MicStatus.ok;
-    final inCall = voice.callLive;
     // A call in the channel already on screen has its own full call UI.
-    final callChannelId = voice.channelId;
-    final inCallElsewhere =
-        inCall && callChannelId != null && callChannelId != activeChannelId;
-
-    final statusLabel = ref.watch(ownPresenceProvider).word;
-    // A typed status joins the presence word rather than replacing it, so both facts the member pane shows about you show here too (design review note 7).
-    final statusText = selfId == null
+    final callHere =
+        voice.callLive &&
+        voice.channelId != null &&
+        voice.channelId != activeChannelId;
+    final otherCommunity = voice.callLive
         ? null
-        : ref.watch(statusTextProvider((userId: selfId, snapshot: null)));
-    final secondLine = [?statusLabel, ?statusText].join(' · ');
+        : ref.watch(accountsSnapshotProvider).callElsewhere;
+    final Widget? callRow;
+    if (callHere) {
+      callRow = const RailCallRow();
+    } else if (otherCommunity case final entry?) {
+      callRow = RailCommunityCallRow(entry: entry);
+    } else {
+      callRow = null;
+    }
+    final toggles = RailVoiceToggles(otherAccount: otherCommunity?.container);
+    final recording = recordingElsewhere(context, ref, activeChannelId);
+    return _FooterStack(
+      recordingRow: recording == null
+          ? null
+          : _FooterRow(child: VoiceRecordingRow(channelId: recording)),
+      callRow: callRow == null ? null : _FooterRow(child: callRow),
+      bar: _FooterRow(
+        paddingKey: const Key('rail-footer-padding'),
+        safeBottom: true,
+        child: _UserBar(toggles: toggles, activeChannelId: activeChannelId),
+      ),
+    );
+  }
+}
 
-    // Mirrors [RailHeader]: the raised bar and its top border bleed to the
-    // screen edge while [SafeArea] lifts the content off the home indicator.
+/// One raised row of the footer. Mirrors [RailHeader]: the fill and its top
+/// border bleed to the screen edge while [SafeArea] insets only the content.
+class _FooterRow extends StatelessWidget {
+  const _FooterRow({
+    required this.child,
+    this.paddingKey,
+    this.safeBottom = false,
+  });
+
+  final Widget child;
+  final Key? paddingKey;
+
+  /// Only the lowest row lifts its content off the home indicator.
+  final bool safeBottom;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Container(
       decoration: BoxDecoration(
         color: tokens.surfaceRaised,
@@ -374,9 +302,10 @@ class RailUserFooter extends ConsumerWidget {
       ),
       child: SafeArea(
         top: false,
+        bottom: safeBottom,
         right: !_railHasNeighbour(context),
         child: Padding(
-          key: const Key('rail-footer-padding'),
+          key: paddingKey,
           // Slimmed from fromLTRB(12, 8, 10, 8) on the owner's own request:
           // AppSpacing has no step between s4 and s8, so s4 is the nearest
           // real reduction rather than a new number.
@@ -384,74 +313,147 @@ class RailUserFooter extends ConsumerWidget {
             horizontal: AppSpacing.s8,
             vertical: AppSpacing.s4,
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final controls = [
-                ...railVoiceToggleButtons(
-                  voice: voice,
-                  voiceController: voiceController,
-                  micStatus: micStatus,
-                ),
-                if (inCallElsewhere) railLeaveCallButton(voiceController.leave),
-                railSettingsButton(context),
-              ];
-              return Row(
-                children: [
-                  const PresenceMenuButton(),
-                  const SizedBox(width: 9),
-                  // At ChannelRail.compactWidth the controls win, scaled down if a notch inset leaves too little; the presence dot still says who and how.
-                  if (constraints.maxWidth < _footerNameMinWidth)
-                    Expanded(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: controls,
-                        ),
-                      ),
-                    )
-                  else if (inCallElsewhere)
-                    Expanded(
-                      child: RailCallSummary(
-                        key: railCallSummaryKey,
-                        channelId: callChannelId,
-                        connectedAt: voice.connectedAt,
-                        screenSharing: voice.screenSharing,
-                      ),
-                    )
-                  else
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            me.valueOrNull?.displayName ?? '',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.ui.copyWith(
-                              color: tokens.textPrimary,
-                              fontWeight: AppWeights.medium,
-                              height: 1.25,
-                            ),
-                          ),
-                          Text(
-                            secondLine,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.micro.copyWith(
-                              color: tokens.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (constraints.maxWidth >= _footerNameMinWidth) ...controls,
-                ],
-              );
-            },
-          ),
+          child: child,
         ),
+      ),
+    );
+  }
+}
+
+/// Avatar, name and status, then mic and deafen in a call, Notes and the gear.
+class _UserBar extends ConsumerWidget {
+  const _UserBar({required this.toggles, required this.activeChannelId});
+
+  final Widget toggles;
+  final String? activeChannelId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final me = ref.watch(meProvider);
+    final selfId = ref.watch(sessionProvider).tokens?.userId;
+    final statusLabel = ref.watch(ownPresenceProvider).word;
+    // A typed status joins the presence word rather than replacing it, so both facts the member pane shows about you show here too (design review note 7).
+    final statusText = selfId == null
+        ? null
+        : ref.watch(statusTextProvider((userId: selfId, snapshot: null)));
+    final secondLine = [?statusLabel, ?statusText].join(' · ');
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final controls = [
+          toggles,
+          RailNotesButton(activeChannelId: activeChannelId),
+          railSettingsButton(context),
+        ];
+        final named = constraints.maxWidth >= _footerNameMinWidth;
+        return Row(
+          children: [
+            const PresenceMenuButton(),
+            const SizedBox(width: 9),
+            // At ChannelRail.compactWidth the controls win, scaled down if a notch inset leaves too little; the presence dot still says who and how.
+            if (!named)
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: controls,
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, room) => room.maxWidth < _footerNameMinRoom
+                      ? const SizedBox.shrink()
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              me.valueOrNull?.displayName ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.ui.copyWith(
+                                color: tokens.textPrimary,
+                                fontWeight: AppWeights.medium,
+                                height: 1.25,
+                              ),
+                            ),
+                            Text(
+                              secondLine,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.micro.copyWith(
+                                color: tokens.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            if (named) ...controls,
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// The recording and call rows over the user bar, with every tooltip opening
+/// upward and the bar's lifted clear of the call row, so none covers its Leave.
+class _FooterStack extends StatefulWidget {
+  const _FooterStack({
+    required this.recordingRow,
+    required this.callRow,
+    required this.bar,
+  });
+
+  final Widget? recordingRow;
+  final Widget? callRow;
+  final Widget bar;
+
+  @override
+  State<_FooterStack> createState() => _FooterStackState();
+}
+
+class _FooterStackState extends State<_FooterStack> {
+  final _callRowKey = GlobalKey();
+  double _callRowHeight = 0;
+
+  void _measure(Duration _) {
+    if (!mounted) return;
+    final box = _callRowKey.currentContext?.findRenderObject() as RenderBox?;
+    final height = box != null && box.hasSize ? box.size.height : 0.0;
+    if (height != _callRowHeight) setState(() => _callRowHeight = height);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final callRow = widget.callRow;
+    // The row's height is only known after layout, and a text scale can change it.
+    if (callRow != null || _callRowHeight != 0) {
+      WidgetsBinding.instance.addPostFrameCallback(_measure);
+    }
+    final upward = TooltipTheme.of(context).copyWith(preferBelow: false);
+    return TooltipTheme(
+      data: upward,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ?widget.recordingRow,
+          if (callRow != null) KeyedSubtree(key: _callRowKey, child: callRow),
+          TooltipTheme(
+            data: upward.copyWith(
+              // The bar's controls sit lower in their taller row, so the extra step keeps the tip off the row's top border.
+              verticalOffset:
+                  (upward.verticalOffset ?? _tooltipGap) +
+                  _callRowHeight +
+                  AppSpacing.s4,
+            ),
+            child: widget.bar,
+          ),
+        ],
       ),
     );
   }

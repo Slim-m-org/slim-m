@@ -24,6 +24,13 @@ void main() {
     expect(options.encoding, isNot(microphonePublishOptions().encoding));
   });
 
+  test('shared audio is published at the stereo bitrate', () {
+    expect(
+      screenShareAudioPublishOptions().encoding,
+      lk.AudioEncoding.presetMusicHighQualityStereo,
+    );
+  });
+
   test('shared audio does not use DTX', () {
     expect(screenShareAudioPublishOptions().dtx, isFalse);
   });

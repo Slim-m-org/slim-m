@@ -31,11 +31,27 @@ pub fn small_png() -> Vec<u8> {
 
 /// A two-frame GIF: the shape a profile picture must refuse.
 pub fn animated_gif() -> Vec<u8> {
-    let mut out = b"GIF89a\x10\x00\x10\x00\x80\x00\x00".to_vec();
+    animated_gif_on(16, 16)
+}
+
+/// A two-frame GIF of 16 px frames on a `width` x `height` canvas.
+pub fn animated_gif_on(width: u16, height: u16) -> Vec<u8> {
+    gif_of_frames(width, height, &[16, 16])
+}
+
+/// A GIF on a `width` x `height` canvas with a 16 px tall frame at its top left for each of
+/// `frame_widths`, which may reach past the canvas.
+pub fn gif_of_frames(width: u16, height: u16, frame_widths: &[u16]) -> Vec<u8> {
+    let mut out = b"GIF89a".to_vec();
+    out.extend_from_slice(&width.to_le_bytes());
+    out.extend_from_slice(&height.to_le_bytes());
+    out.extend_from_slice(&[0x80, 0x00, 0x00]);
     out.extend_from_slice(&[0; 6]);
-    for _ in 0..2 {
+    for frame_width in frame_widths {
         out.extend_from_slice(&[0x21, 0xF9, 4, 0, 0, 0, 0, 0]);
-        out.extend_from_slice(&[0x2C, 0, 0, 0, 0, 0x10, 0, 0x10, 0, 0]);
+        out.extend_from_slice(&[0x2C, 0, 0, 0, 0]);
+        out.extend_from_slice(&frame_width.to_le_bytes());
+        out.extend_from_slice(&[0x10, 0, 0]);
         out.extend_from_slice(&[2, 2, 0x4C, 0x01, 0]);
     }
     out.push(0x3B);

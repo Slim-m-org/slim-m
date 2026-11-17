@@ -38,6 +38,8 @@ import '../../../messages/widgets/message_jump.dart';
 import '../../../messages/widgets/message_text.dart';
 import '../../../members/widgets/moderation_unavailable_caption.dart';
 import '../../../../widgets/run_guarded.dart';
+import '../../../canvas/widgets/stamp_view.dart';
+import '../../../screen_overlay/providers/stamp_content.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_value_row.dart';
 import '../../../channels/screens/channel_screen.dart'
@@ -186,6 +188,7 @@ class _ReportCardState extends ConsumerState<ReportCard>
         api.ReportSubject.message => 'Reported message',
         api.ReportSubject.ephemeralMessage => 'Reported private message',
         api.ReportSubject.user => 'Reported user',
+        api.ReportSubject.screenStamp => 'Reported pictures',
       },
       children: [
         _subjectBlock(facts),
@@ -236,6 +239,11 @@ class _ReportCardState extends ConsumerState<ReportCard>
             style: AppText.caption.copyWith(color: tokens.textSecondary),
           ),
         if (snapshot != null) _snapshotBox(tokens, snapshot),
+        if (report.pictureIds.isNotEmpty)
+          _StampedPictures(
+            pictureIds: report.pictureIds,
+            reporter: reporterLabel(report.reporterId, facts.profiles),
+          ),
       ],
     );
   }
@@ -395,4 +403,53 @@ class _ReportFacts {
 
   bool get hasQuickActions =>
       canJump || canDeleteMessage || canTimeOut || canRemove;
+}
+
+/// A picture square in a report about stamps.
+const _stampedPictureSide = AppSizes.icon28 * 2;
+
+/// The pictures a screen-stamp report carries (decision 0121), kept while the report is open.
+class _StampedPictures extends StatelessWidget {
+  const _StampedPictures({required this.pictureIds, required this.reporter});
+
+  final List<String> pictureIds;
+  final String reporter;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Stamped on $reporter's shared screen",
+          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.s4),
+        Wrap(
+          spacing: AppSpacing.s4,
+          runSpacing: AppSpacing.s4,
+          children: [
+            for (final id in pictureIds)
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: tokens.surfaceSunken,
+                  borderRadius: BorderRadius.circular(AppRadii.control),
+                ),
+                child: SizedBox.square(
+                  dimension: _stampedPictureSide,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.s4),
+                    child: StampView(
+                      content: PictureStamp(id),
+                      semanticLabel: 'Reported picture',
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
 }

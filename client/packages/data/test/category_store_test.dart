@@ -18,8 +18,16 @@ api.ChannelCategory _category({
   required String id,
   String name = 'Category',
   int position = 0,
+  String? parentId,
 }) =>
-    api.ChannelCategory(id: id, name: name, position: position, createdAt: 1);
+    api.ChannelCategory(
+      id: id,
+      name: name,
+      position: position,
+      createdAt: 1,
+      parentId: parentId,
+      serverNests: true,
+    );
 
 void main() {
   late SlimmDatabase db;
@@ -126,5 +134,51 @@ void main() {
 
     final rows = await store.allCategories();
     expect(rows.map((r) => r.id), ['cat-b']);
+  });
+
+  test('replaceCategories moves an existing row to its new parent and back',
+      () async {
+    await store.replaceCategories([
+      _category(id: 'gamers'),
+      _category(id: 'cs2'),
+    ]);
+
+    await store.replaceCategories([
+      _category(id: 'gamers'),
+      _category(id: 'cs2', parentId: 'gamers'),
+    ]);
+    var rows = {for (final r in await store.allCategories()) r.id: r};
+    expect(rows['cs2']!.parentId, 'gamers');
+
+    await store.replaceCategories([
+      _category(id: 'gamers'),
+      _category(id: 'cs2'),
+    ]);
+    rows = {for (final r in await store.allCategories()) r.id: r};
+    expect(rows['cs2']!.parentId, isNull);
+  });
+
+  test('upsertCategory writes the parent of a moved category', () async {
+    await store.upsertCategory(_category(id: 'gamers'));
+    await store.upsertCategory(_category(id: 'cs2'));
+
+    await store.upsertCategory(_category(id: 'cs2', parentId: 'gamers'));
+
+    final rows = {for (final r in await store.allCategories()) r.id: r};
+    expect(rows['cs2']!.parentId, 'gamers');
+  });
+
+  test('removeCategory lifts its sub-categories to the top level', () async {
+    await store.replaceCategories([
+      _category(id: 'gamers'),
+      _category(id: 'cs2', parentId: 'gamers'),
+      _category(id: 'minecraft', parentId: 'gamers', position: 1),
+    ]);
+
+    await store.removeCategory('gamers');
+
+    final rows = await store.allCategories();
+    expect(rows.map((r) => r.id), ['cs2', 'minecraft']);
+    expect(rows.map((r) => r.parentId), [null, null]);
   });
 }

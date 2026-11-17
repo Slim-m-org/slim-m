@@ -44,8 +44,9 @@ extension SlimmApiRoles on SlimmApi {
 
   /// Renames a role, changes its permissions, and/or its `mentionable` or
   /// `hoist` flag. Requires MANAGE_ROLES. Every field is optional; a field left null
-  /// is unchanged. Refused if a permissions change would leave the
-  /// deployment with no administrator.
+  /// is unchanged, and [clearColor] takes the colour away. Refused if a permissions
+  /// change would leave the deployment with no administrator, and for a role not
+  /// below the caller's highest.
   Future<Role> updateRole({
     required String roleId,
     String? name,
@@ -53,7 +54,9 @@ extension SlimmApiRoles on SlimmApi {
     bool? mentionable,
     bool? hoist,
     int? color,
+    bool clearColor = false,
   }) async {
+    assert(color == null || !clearColor, 'set a colour or clear it, not both');
     final json = await send(
       'PATCH',
       '/roles/$roleId',
@@ -62,7 +65,7 @@ extension SlimmApiRoles on SlimmApi {
         if (permissions != null) 'permissions': permissions,
         if (mentionable != null) 'mentionable': mentionable,
         if (hoist != null) 'hoist': hoist,
-        if (color != null) 'color': color,
+        if (color != null || clearColor) 'color': color,
       },
     );
     return Role.fromJson(json as Map<String, dynamic>);

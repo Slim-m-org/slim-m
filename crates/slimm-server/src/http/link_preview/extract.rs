@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Pulls the preview fields out of a page's HTML head: OpenGraph first, then
-//! the plain `<title>`/`<meta name="description">`, then Twitter card tags.
+//! Pulls the preview fields out of a page's HTML head: OpenGraph and Twitter
+//! card tags first, then the plain `<title>`/`<meta name="description">`.
 //!
 //! A focused scanner over `<meta>` and `<title>`, not a full HTML parse:
 //! these tags are a flat shape, the input is already bounded to a head-sized
@@ -38,6 +38,8 @@ pub(super) struct Preview {
     /// name a reader cannot click is less useful. Always `None` straight out
     /// of [`extract`].
     pub author_url: Option<String>,
+    /// A track's or episode's length from `music:duration`, in seconds.
+    pub duration_s: Option<u32>,
 }
 
 impl Preview {
@@ -59,6 +61,7 @@ pub(super) const MAX_FIELD_CHARS: usize = 500;
 pub(super) fn extract(html: &str) -> Option<Preview> {
     let mut p = Preview::default();
     let mut plain_title: Option<String> = None;
+    let mut plain_description: Option<String> = None;
 
     for tag in MetaTags::new(html) {
         match tag {
@@ -74,14 +77,20 @@ pub(super) fn extract(html: &str) -> Option<Preview> {
                 "twitter:title" => set(&mut p.title, content),
                 "twitter:description" => set(&mut p.description, content),
                 "twitter:image" | "twitter:image:src" => set(&mut p.image, content),
-                "description" => set(&mut p.description, content),
+                "description" => set(&mut plain_description, content),
+                "music:duration" => {
+                    p.duration_s = p.duration_s.or_else(|| duration(&content));
+                }
                 _ => {}
             },
         }
     }
-    // Only fall back to <title> when OpenGraph/Twitter gave no title.
+    // Only fall back to <title> and the plain description when OpenGraph/Twitter gave none.
     if p.title.is_none() {
         p.title = plain_title;
+    }
+    if p.description.is_none() {
+        p.description = plain_description;
     }
     if p.is_empty() { None } else { Some(p) }
 }
@@ -93,6 +102,17 @@ fn set(field: &mut Option<String>, value: String) {
             field.replace(cap(trimmed));
         }
     }
+}
+
+/// The longest `music:duration` believed, a day; anything else is a typo or a lie.
+const MAX_DURATION_S: u32 = 86_400;
+
+fn duration(content: &str) -> Option<u32> {
+    content
+        .trim()
+        .parse::<u32>()
+        .ok()
+        .filter(|s| (1..=MAX_DURATION_S).contains(s))
 }
 
 pub(super) fn cap(s: &str) -> String {
@@ -208,15 +228,63 @@ fn attr(inner: &str, name: &str) -> Option<String> {
     None
 }
 
-/// Decodes the handful of HTML entities that actually show up in OG values.
-/// `&amp;` must run last so it does not re-decode an already-decoded `&`.
+/// The longest entity name decoded, `#x10FFFF`; anything longer stays literal text.
+const MAX_ENTITY_NAME: usize = 8;
+
+/// Decodes the named entities that show up in OG values plus numeric ones,
+/// in one pass so a decoded `&` is never read as the start of another entity.
 fn decode_entities(s: &str) -> String {
-    s.replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&apos;", "'")
-        .replace("&amp;", "&")
+    let mut out = String::with_capacity(s.len());
+    let mut rest = s;
+    while let Some(amp) = rest.find('&') {
+        out.push_str(&rest[..amp]);
+        let tail = &rest[amp..];
+        match decode_entity(tail) {
+            Some((ch, len)) => {
+                out.push(ch);
+                rest = &tail[len..];
+            }
+            None => {
+                out.push('&');
+                rest = &tail[1..];
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// The character [tail]'s leading entity stands for, and how many bytes it spans.
+fn decode_entity(tail: &str) -> Option<(char, usize)> {
+    let semi = tail
+        .bytes()
+        .skip(1)
+        .take(MAX_ENTITY_NAME + 1)
+        .position(|b| b == b';')?
+        + 1;
+    let ch = match &tail[1..semi] {
+        "lt" => '<',
+        "gt" => '>',
+        "quot" => '"',
+        "apos" => '\'',
+        "amp" => '&',
+        name => numeric_entity(name)?,
+    };
+    Some((ch, semi + 1))
+}
+
+/// `#NNN` or `#xHH`, refusing NUL, surrogates and anything past Unicode's range.
+fn numeric_entity(name: &str) -> Option<char> {
+    let digits = name.strip_prefix('#')?;
+    let (digits, radix) = match digits.strip_prefix(['x', 'X']) {
+        Some(hex) => (hex, 16),
+        None => (digits, 10),
+    };
+    if digits.is_empty() || !digits.chars().all(|c| c.is_digit(radix)) {
+        return None;
+    }
+    let code = u32::from_str_radix(digits, radix).ok()?;
+    char::from_u32(code).filter(|&c| c != '\0')
 }
 
 #[cfg(test)]
@@ -252,6 +320,16 @@ mod tests {
         let html = "<title>Plain</title>\
           <meta property=\"og:title\" content=\"OG Wins\">";
         assert_eq!(extract(html).unwrap().title.as_deref(), Some("OG Wins"));
+    }
+
+    #[test]
+    fn opengraph_description_wins_over_an_earlier_plain_one() {
+        let html = "<meta name=\"description\" content=\"Listen to this episode on Spotify. A long blurb\">\
+          <meta property=\"og:description\" content=\"The Show \u{b7} Episode\">";
+        assert_eq!(
+            extract(html).unwrap().description.as_deref(),
+            Some("The Show \u{b7} Episode")
+        );
     }
 
     #[test]
@@ -302,6 +380,65 @@ mod tests {
         let p = extract(html).unwrap();
         assert_eq!(p.title.as_deref(), Some("Fine"));
         assert_eq!(p.description, None);
+    }
+
+    #[test]
+    fn reads_a_plausible_music_duration() {
+        let track = r#"<meta name="music:duration" content="336"/><title>t</title>"#;
+        assert_eq!(extract(track).unwrap().duration_s, Some(336));
+        for bad in ["0", "-5", "86401", "3.5", "soon", ""] {
+            let html = format!(r#"<meta name="music:duration" content="{bad}"/><title>t</title>"#);
+            assert_eq!(extract(&html).unwrap().duration_s, None, "{bad}");
+        }
+    }
+
+    #[test]
+    fn decodes_numeric_entities_in_one_pass() {
+        assert_eq!(decode_entities("Don&#x27;t"), "Don't");
+        assert_eq!(decode_entities("Don&#X27;t &#8217;"), "Don't \u{2019}");
+        assert_eq!(decode_entities("&amp;#39;"), "&#39;");
+        assert_eq!(
+            decode_entities("&lt;b&gt; &quot;x&quot; &apos;"),
+            "<b> \"x\" '"
+        );
+    }
+
+    #[test]
+    fn a_malformed_entity_stays_literal() {
+        for raw in [
+            "&#xZZ;",
+            "&#;",
+            "&#x;",
+            "&#0;",
+            "&#xD800;",
+            "&#x110000;",
+            "&#+65;",
+            "&#99999999999;",
+            "&nbsp;",
+            "AT&T",
+            "&amp",
+            "&",
+        ] {
+            assert_eq!(decode_entities(raw), raw);
+        }
+    }
+
+    #[test]
+    fn an_entity_beside_multibyte_text_decodes() {
+        assert_eq!(
+            decode_entities("Caf\u{e9}&amp;\u{e9}t\u{e9}"),
+            "Caf\u{e9}&\u{e9}t\u{e9}"
+        );
+        assert_eq!(
+            decode_entities("&\u{e9}\u{e9}\u{e9}\u{e9};"),
+            "&\u{e9}\u{e9}\u{e9}\u{e9};"
+        );
+    }
+
+    #[test]
+    fn spotify_writes_apostrophes_as_hex_entities() {
+        let html = r#"<meta property="og:title" content="Don&#x27;t Stop"/>"#;
+        assert_eq!(extract(html).unwrap().title.as_deref(), Some("Don't Stop"));
     }
 
     /// Hostile pages fill the whole 256 KiB fetch bound; each must scan in linear time.

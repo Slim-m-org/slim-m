@@ -34,8 +34,25 @@ class _SpyPlugin implements FlutterLocalNotificationsPlugin {
     DidReceiveBackgroundNotificationResponseCallback?
         onDidReceiveBackgroundNotificationResponse,
   }) async {
+    initSettings = initializationSettings;
     onResponse = onDidReceiveNotificationResponse;
     return true;
+  }
+
+  InitializationSettings? initSettings;
+  NotificationDetails? shownDetails;
+  String? shownPayload;
+
+  @override
+  Future<void> show(
+    int id,
+    String? title,
+    String? body,
+    NotificationDetails? notificationDetails, {
+    String? payload,
+  }) async {
+    shownDetails = notificationDetails;
+    shownPayload = payload;
   }
 
   @override
@@ -125,6 +142,63 @@ void main() {
         notifications.show('New message', channel: LocalAlertChannel.messages),
         completes,
       );
+    });
+
+    test('Windows posts a toast under the app user model id, payload intact',
+        () async {
+      final plugin = _SpyPlugin();
+      final notifications = LocalNotifications(
+        plugin: plugin,
+        isAndroid: false,
+        isLinux: false,
+        isWindows: true,
+      );
+
+      await notifications.show(
+        'hello',
+        channel: LocalAlertChannel.calls,
+        title: 'Alice',
+        payload: 'where',
+      );
+
+      expect(
+          plugin.initSettings?.windows?.appUserModelId, windowsAppUserModelId);
+      expect(plugin.shownPayload, 'where');
+      expect(
+        plugin.shownDetails?.windows?.scenario,
+        WindowsNotificationScenario.urgent,
+        reason: 'a ring is the one alert allowed to break through',
+      );
+    });
+
+    test('cancelling on Windows also asks the runner to take the toast down',
+        () async {
+      const channel = MethodChannel('test/windows_toasts');
+      final removed = <Object?>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        removed.add(call.arguments);
+        return true;
+      });
+      addTearDown(() => TestDefaultBinaryMessengerBinding
+          .instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null));
+      final notifications = LocalNotifications(
+        plugin: _SpyPlugin(),
+        isAndroid: false,
+        isLinux: false,
+        isWindows: true,
+        windowsToasts: channel,
+      );
+
+      await notifications.cancel(LocalAlertChannel.calls);
+
+      expect(removed, [
+        {
+          'tag': '${LocalAlertChannel.calls.notificationId}',
+          'aumid': windowsAppUserModelId,
+        },
+      ]);
     });
 
     test('Linux initializes and posts through the plugin, with no channels',
@@ -266,6 +340,43 @@ void main() {
 
       expect(granted, isFalse);
       expect(requester.calls, 1);
+    });
+  });
+
+  group('LocalNotifications.cancelShown', () {
+    Future<List<int>> cancelled(
+      Set<int> stale, {
+      bool isAndroid = true,
+    }) async {
+      final cancels = <int>[];
+      _mockPlugin((call) async {
+        switch (call.method) {
+          case 'getActiveNotifications':
+            return [
+              for (final id in [7, 8, 9])
+                {'id': id, 'channelId': 'messages_v1'},
+            ];
+          case 'cancel':
+            cancels.add((call.arguments as Map)['id'] as int);
+        }
+        return true;
+      });
+      addTearDown(() => _mockPlugin(null));
+      await LocalNotifications(isAndroid: isAndroid, isLinux: false)
+          .cancelShown(stale);
+      return cancels;
+    }
+
+    test('cancels only the shown notifications named stale', () async {
+      expect(await cancelled({8, 99}), [8]);
+    });
+
+    test('an empty stale set never reaches the plugin', () async {
+      expect(await cancelled({}), isEmpty);
+    });
+
+    test('off Android there is nothing to cancel', () async {
+      expect(await cancelled({7}, isAndroid: false), isEmpty);
     });
   });
 }

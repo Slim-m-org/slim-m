@@ -84,11 +84,11 @@ void main() {
     },
   );
 
-  testWidgets('a target past the transcript ceiling is unreachable with the '
-      'larger page size too', (tester) async {
+  testWidgets('a deleted target past the transcript ceiling is unreachable '
+      'with the larger page size too', (tester) async {
     final harness = await mountChannel(
       tester,
-      serverSeqs: _range(1, 1300),
+      serverSeqs: [..._range(1, 99), ..._range(101, 1300)],
       seededSeqs: _range(1251, 1300),
       messagePageSize: MessagePageSize.large,
     );

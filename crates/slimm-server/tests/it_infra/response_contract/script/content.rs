@@ -318,6 +318,20 @@ pub(super) async fn message_calls(c: &mut Contract, root: &str, channel: &str) -
         )
         .await;
     let attachment = text(&attachment, "id");
+    // A voice message exercises the `voice`, `duration_ms` and `waveform` fields of `Attachment`.
+    let waveform: String = (0..64).map(|n| format!("{n:02x}")).collect();
+    let voice = c
+        .call(
+            "uploadAttachment",
+            "POST",
+            &format!(
+                "/attachments?filename=voice.ogg&voice=true&duration_ms=2500&waveform={waveform}"
+            ),
+            Some(root),
+            Payload::Bytes(b"OggS-contract-voice".to_vec()),
+        )
+        .await;
+    let voice = text(&voice, "id");
     let messages = format!("/channels/{channel}/messages");
     let sent = c
         .json(
@@ -328,7 +342,7 @@ pub(super) async fn message_calls(c: &mut Contract, root: &str, channel: &str) -
             json!({
                 "id": Uuid::now_v7().to_string(),
                 "content": "the first message",
-                "attachment_ids": [attachment],
+                "attachment_ids": [attachment, voice],
             }),
         )
         .await;

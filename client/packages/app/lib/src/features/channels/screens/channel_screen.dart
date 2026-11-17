@@ -25,12 +25,14 @@ import '../providers/channel_drafts.dart';
 import '../providers/channel_history.dart';
 import '../providers/channel_search_controller.dart';
 import '../../messages/providers/message_actions.dart';
+import '../../messages/providers/message_context_window.dart';
 import '../../messages/providers/message_jump.dart';
 import '../providers/mounted_channels.dart';
 import '../../../providers/providers.dart';
 import '../../messages/providers/reply_mention_preference.dart';
 import '../../../routing/breakpoints.dart';
 import '../../members/widgets/blocked_dm_notice.dart';
+import '../../messages/widgets/message_transcript_widgets.dart' show DmAudience;
 import '../widgets/channel_attachment_drop_zone.dart';
 import '../widgets/channel_header.dart';
 import '../../composer/widgets/composer_attachments.dart' show StagedSend;
@@ -195,6 +197,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   void initState() {
     super.initState();
     _mountedChannels.register(widget.channelId);
+    // A context window from an earlier visit must not greet this one; deferred because providers cannot change while the tree builds.
+    final channelId = widget.channelId;
+    Future.microtask(
+      () => ref.read(messageContextWindowProvider(channelId).notifier).close(),
+    );
     unawaited(_hydrateExtras());
     // Fresh or reused (see [ReadMarker]), this must open on this channel's own draft.
     _composer.text = _drafts.draftFor(widget.channelId);
@@ -227,6 +234,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       // A jump neither finished nor consumed before the switch must not
       // replay against whichever channel is open next.
       ref.read(messageJumpProvider.notifier).cancelFor(oldWidget.channelId);
+      ref
+          .read(messageContextWindowProvider(oldWidget.channelId).notifier)
+          .close();
       _replyingTo = null;
       _scrollTracker.resetForChannelSwitch();
       _drafts.save(oldWidget.channelId, _composer.text);
@@ -264,6 +274,8 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     // A staged file is a message on its own, so only a send carrying neither
     // text nor attachment is the one to drop.
     if (text.isEmpty && attachmentIds.isEmpty) return;
+    // The sent row lands in the live window, so a context window would hide it.
+    leaveContextWindow(ref, widget.channelId, _scrollTracker);
     _composer.clear();
     _drafts.clear(widget.channelId);
     // Read and cleared before the first await, same as the composer text.
@@ -315,7 +327,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       ref.read(appFocusedProvider) && ref.read(accountActiveProvider);
 
   void _markReadUpToLatest(int seq, int lastReadSeq, bool manuallyUnread) {
-    if (!_watched) return;
+    // A search's context window is not the live channel, so its bottom is not the newest message.
+    if (!_watched ||
+        ref.read(messageContextWindowProvider(widget.channelId)) != null) {
+      return;
+    }
     _readMarker.advance(
       widget.channelId,
       seq: seq,
@@ -381,9 +397,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     final blockedDm = dmPartnerId != null && blocked.contains(dmPartnerId);
     // Ored with the store's own answer; see isThread's doc comment.
     final isThread = widget.isThread || channel?.parentMessageId != null;
-    // Only a real named channel gets "#name"; shared so the transcript and composer cannot drift.
-    final hashChannelName = channel?.kind == 'text' ? channelName : null;
     final isVoice = channel?.kind == 'voice';
+    // Only a real named channel (text or voice) gets its name; shared so the transcript and composer cannot drift.
+    final hashChannelName = channel?.kind == 'text' || isVoice
+        ? channelName
+        : null;
     // Below kCompactWidth an open search is a page of its own, not a bar over the transcript.
     final searchPage = !layout.showsBothPanes && search.open;
 
@@ -417,7 +435,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
               CompactChannelSearchBar(
                 controller: _searchController,
                 scope: channelSearchScope(
-                  name: isVoice ? channelName : hashChannelName,
+                  name: hashChannelName,
                   isVoice: isVoice,
                   isThread: isThread,
                 ),
@@ -439,8 +457,13 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
               streams: _streams,
               scrollTracker: _scrollTracker,
               composer: _composer,
-              hashChannelName: isVoice ? channelName : hashChannelName,
+              hashChannelName: hashChannelName,
               isVoice: isVoice,
+              dmAudience: channel?.isPersonalSpace ?? false
+                  ? DmAudience.self
+                  : channel?.isGroupDm ?? false
+                  ? DmAudience.group
+                  : DmAudience.pair,
               searchPage: searchPage,
               channelTopic: channel?.topic,
               isThread: isThread,

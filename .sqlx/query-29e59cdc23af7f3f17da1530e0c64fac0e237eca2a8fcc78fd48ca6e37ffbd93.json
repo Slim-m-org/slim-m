@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS(\n                   SELECT 1 FROM screen_stamps\n                   WHERE sha256 = ? AND created_at >= ? AND (target_id = ? OR sender_id = ?)\n               ) AS \"found!: bool\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "found!: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "29e59cdc23af7f3f17da1530e0c64fac0e237eca2a8fcc78fd48ca6e37ffbd93"
+}

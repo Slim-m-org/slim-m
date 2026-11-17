@@ -36,7 +36,7 @@
 use serde::Serialize;
 
 use crate::config::Config;
-use crate::ids::{ChannelId, UserId};
+use crate::ids::{ChannelId, DeviceId, UserId};
 use crate::permissions::Permissions;
 
 mod call_record;
@@ -121,6 +121,10 @@ pub const LISTENER_IDENTITY_PREFIX: &str = "listener-";
 /// The participant attribute carrying a deafened listener, read by every client.
 pub const DEAFENED_ATTRIBUTE: &str = "deafened";
 const DEAFENED_ATTRIBUTE_ON: &str = "true";
+
+/// The participant attribute carrying the [`VoiceService::device_tag`] a token was minted for,
+/// so the roster can tell a member's own device apart.
+pub const DEVICE_ATTRIBUTE: &str = "slimm.device";
 
 /// Mints LiveKit room tokens and evicts participants.
 #[derive(Clone)]
@@ -227,6 +231,17 @@ impl VoiceService {
         self.inner.is_some()
     }
 
+    /// What everyone in `channel_id`'s room sees in place of `device_id`, which stays private.
+    /// None when voice is off.
+    pub fn device_tag(&self, channel_id: ChannelId, device_id: DeviceId) -> Option<String> {
+        let enabled = self.inner.as_ref()?;
+        Some(token::device_tag(
+            &enabled.api_secret,
+            channel_id,
+            device_id,
+        ))
+    }
+
     #[cfg(test)]
     fn room_service_url(&self) -> Option<&str> {
         self.inner
@@ -263,12 +278,14 @@ impl VoiceService {
         user_id: UserId,
         permissions: Permissions,
         display_name: &str,
+        device_id: DeviceId,
     ) -> Result<RoomToken, VoiceError> {
         let Some(enabled) = self.inner.as_ref() else {
             return Err(VoiceError::Unavailable);
         };
 
         let room = room_for_channel(channel_id);
+        let device = token::device_tag(&enabled.api_secret, channel_id, device_id);
         let can_publish = permissions.contains(Permissions::SPEAK);
         let can_publish_data = permissions.contains(Permissions::USE_CANVAS);
         let now = unix_secs();
@@ -296,6 +313,7 @@ impl VoiceService {
                 nbf: now,
                 exp: expires,
                 video: grants,
+                attributes: Some([(DEVICE_ATTRIBUTE, device.as_str())].into()),
             },
         )?;
 
@@ -343,6 +361,7 @@ impl VoiceService {
                     can_update_own_metadata: false,
                     hidden: true,
                 },
+                attributes: None,
             },
         )?;
         Ok(RoomToken {

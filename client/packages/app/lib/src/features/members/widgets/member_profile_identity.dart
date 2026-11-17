@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The profile-first content between the header and the actions: an about
-/// line, role badges, and a join date. Split out of `member_profile_sections
-/// .dart` to keep that file under the review budget.
+/// The profile-first content around the header: an about line and a join
+/// date; the roles are `member_profile_roles.dart`'s. Split out of
+/// `member_profile_sections.dart` to keep that file under the review budget.
 ///
 /// Each piece is *absent* rather than present-and-empty, the same rule the
 /// rest of the card follows: an account with no about line shows no about
@@ -22,8 +22,11 @@ String formatJoinDate(int createdAtMs) {
   return 'Joined ${_shortMonths[dt.month - 1]} ${dt.year}';
 }
 
+/// Finds the About block in tests.
+const memberProfileAboutKey = Key('member-profile-about');
+
 /// The member's own "About" text, labelled so it is not read as their typed
-/// status, which sits beside the presence word above. [onEdit] adds a pencil
+/// status, which has its own line under their name. [onEdit] adds a pencil
 /// on your own card; with no text it becomes a prompt to write one.
 class MemberProfileAbout extends StatelessWidget {
   const MemberProfileAbout({super.key, required this.about, this.onEdit});
@@ -43,37 +46,46 @@ class MemberProfileAbout extends StatelessWidget {
         fontStyle: about.isEmpty ? FontStyle.italic : null,
       ),
     );
+    // The pencil's box, kept clear of the text; it sits over the block's bottom gap rather than growing it.
+    final pencilBox = onEdit == null
+        ? 0.0
+        : AppTouchTargets.of(context)
+        ? AppSizes.rowTouch
+        : AppSizes.rowPointer;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        AppSpacing.s12,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      key: memberProfileAboutKey,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
+      child: Stack(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 2,
-              children: [
-                Text(
-                  'ABOUT',
-                  style: AppText.label.copyWith(color: tokens.textSecondary),
-                ),
-                body,
-              ],
+          Padding(
+            padding: EdgeInsets.only(right: pencilBox, bottom: AppSpacing.s12),
+            child: SizedBox(
+              width: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: 2,
+                children: [
+                  Text(
+                    'ABOUT',
+                    style: AppText.label.copyWith(color: tokens.textSecondary),
+                  ),
+                  body,
+                ],
+              ),
             ),
           ),
           if (onEdit != null)
-            AppIconButton(
-              icon: AppIcons.edit,
-              iconSize: AppSizes.icon16,
-              semanticLabel: 'Edit about',
-              tooltip: 'Edit about',
-              size: AppIconButtonSize.sm,
-              onPressed: onEdit,
+            Positioned(
+              top: 0,
+              right: 0,
+              child: AppIconButton(
+                icon: AppIcons.edit,
+                iconSize: AppSizes.icon16,
+                semanticLabel: 'Edit about',
+                tooltip: 'Edit about',
+                size: AppIconButtonSize.sm,
+                onPressed: onEdit,
+              ),
             ),
         ],
       ),
@@ -81,19 +93,15 @@ class MemberProfileAbout extends StatelessWidget {
   }
 }
 
-/// Role badges on the left, the join date on the right, one line each.
-///
-/// The invite code a moderator can see rides in the date's tooltip rather than
-/// a second line that pushes the card around.
-class MemberProfileRolesAndJoin extends StatelessWidget {
-  const MemberProfileRolesAndJoin({
+/// The join date, muted, closing the name block; the invite code a moderator
+/// can see rides in its tooltip rather than a line of its own.
+class MemberProfileJoined extends StatelessWidget {
+  const MemberProfileJoined({
     super.key,
-    required this.roles,
     required this.createdAt,
     this.inviteCode,
   });
 
-  final List<String> roles;
   final int createdAt;
 
   /// Present only for a viewer who can manage roles; see `UserProfile.inviteCode`.
@@ -108,33 +116,12 @@ class MemberProfileRolesAndJoin extends StatelessWidget {
       softWrap: false,
       style: AppText.caption.copyWith(color: tokens.textSecondary),
     );
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        AppSpacing.s12,
+    return switch (inviteCode) {
+      final code? => Tooltip(
+        message: 'Joined with invite $code',
+        child: joined,
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Wrap(
-              spacing: AppSpacing.s4,
-              runSpacing: AppSpacing.s4,
-              children: [
-                for (final role in roles)
-                  AppBadge(variant: AppBadgeVariant.tag, label: role),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.s8),
-          if (inviteCode case final code?)
-            Tooltip(message: 'Joined with invite $code', child: joined)
-          else
-            joined,
-        ],
-      ),
-    );
+      null => joined,
+    };
   }
 }

@@ -28,7 +28,7 @@ use super::user_status::{
     validate_pronouns, validate_status_text,
 };
 use crate::hub::Event;
-use crate::ids::{RoleId, UserId};
+use crate::ids::UserId;
 use crate::ratelimit::Class;
 use crate::store::{Store, User};
 
@@ -89,13 +89,11 @@ pub(super) struct UserDto {
     /// When this user's profile banner image was last set, or `null` for the
     /// profile colour. A cache-busting version on `GET /users/{userId}/banner`.
     banner_updated_at: Option<i64>,
-    /// Role names this member holds, for a client to render a badge (e.g.
-    /// "Op") beside them. Excludes `@everyone`: every member holds that one,
-    /// so including it would put a meaningless badge on every row. Empty
-    /// rather than omitted for a member with nothing beyond it - the same
-    /// "always present, empty means none" convention `MessageDto::reactions`
-    /// already follows. Deliberately no colour: badges use the design
-    /// system's accent, not a per-role one.
+    /// Role names this member holds, highest position first. Excludes
+    /// `@everyone`: every member holds that one, so including it would put a
+    /// meaningless badge on every row. Empty rather than omitted for a member
+    /// with nothing beyond it - the same "always present, empty means none"
+    /// convention `MessageDto::reactions` already follows.
     roles: Vec<String>,
     /// The same roles as ids, positionally matching [`Self::roles`].
     ///
@@ -104,12 +102,19 @@ pub(super) struct UserDto {
     /// client deciding "does this member hold that role" by name would answer
     /// yes for both of them.
     role_ids: Vec<String>,
+    /// The same roles' palette colours, positionally matching [`Self::roles`]:
+    /// an index, or `null` for a role nobody gave one. A member's name wears
+    /// the first non-null entry, so no client needs `GET /roles` to colour it.
+    role_colors: Vec<Option<i64>>,
     /// The hoisted role this member is listed under in the member pane, or
     /// `null` when none of theirs is hoisted. Always one of [`Self::role_ids`].
     hoisted_role_id: Option<String>,
     /// That role's hierarchy position, so a client orders sections exactly
     /// without `GET /roles`, which needs MANAGE_ROLES.
     hoisted_role_position: Option<i64>,
+    /// The position of this member's highest role, or `null` for none: where the role ladder
+    /// stands them, so a client offers moderation only to members below its own.
+    top_role_position: Option<i64>,
     /// When this member's timeout lifts, in Unix milliseconds, or `null` if
     /// they are not timed out. An elapsed timeout reads as `null` rather than
     /// as a past deadline, so a client never has to do the comparison to know
@@ -156,6 +161,9 @@ pub(super) struct UserDto {
     /// `GET /members` at all (it is not a participant), so this is only ever
     /// seen by resolving a message's own author id.
     is_webhook: bool,
+    /// Whether this member is the Space owner, whom no one else can moderate
+    /// or take roles from. Never drawn; a client only uses it to hide what it would refuse.
+    is_owner: bool,
 }
 
 /// The colour a card shows before its owner ever picks one: a stable index
@@ -181,12 +189,12 @@ pub(super) async fn to_dto(store: &Store, user: User) -> anyhow::Result<UserDto>
 /// query per row.
 pub(super) async fn to_dtos(store: &Store, users: Vec<User>) -> anyhow::Result<Vec<UserDto>> {
     let ids: Vec<UserId> = users.iter().map(|u| u.id).collect();
-    let roles: HashMap<UserId, Vec<(RoleId, String)>> =
-        store.roles_for_users(&ids).await?.into_iter().collect();
+    let roles: HashMap<UserId, Vec<_>> = store.roles_for_users(&ids).await?.into_iter().collect();
     // Batched for the same reason the roles above are; see this function's note.
     let timed_out = store.timed_out_among_until(&ids).await?;
     let hoisted = store.hoisted_roles_for_users(&ids).await?;
     let nicknames = store.nicknames_for(&ids).await?;
+    let owner = store.space_owner().await?;
     Ok(users
         .into_iter()
         .map(|user| {
@@ -203,10 +211,12 @@ pub(super) async fn to_dtos(store: &Store, users: Vec<User>) -> anyhow::Result<V
                 created_at: user.created_at,
                 avatar_updated_at: user.avatar_updated_at,
                 banner_updated_at: user.banner_updated_at,
-                roles: held.iter().map(|(_, name)| name.clone()).collect(),
-                role_ids: held.iter().map(|(id, _)| id.to_string()).collect(),
+                roles: held.iter().map(|role| role.name.clone()).collect(),
+                role_ids: held.iter().map(|role| role.id.to_string()).collect(),
+                role_colors: held.iter().map(|role| role.color).collect(),
                 hoisted_role_id: hoisted.get(&user.id).map(|role| role.id.to_string()),
                 hoisted_role_position: hoisted.get(&user.id).map(|role| role.position),
+                top_role_position: held.first().map(|role| role.position),
                 timed_out_until: timed_out.get(&user.id).copied(),
                 status_text: user.status_text,
                 pronouns: user.pronouns,
@@ -218,6 +228,7 @@ pub(super) async fn to_dtos(store: &Store, users: Vec<User>) -> anyhow::Result<V
                 invite_code: None,
                 is_bot: user.is_bot,
                 is_webhook: user.is_webhook,
+                is_owner: owner == Some(user.id),
             }
         })
         .collect())
@@ -268,6 +279,11 @@ struct MeDto {
     /// A bot's assigned command prefix; absent for a person and for a bot with none.
     #[serde(skip_serializing_if = "Option::is_none")]
     bot_prefix: Option<String>,
+    /// Whether the caller is the Space owner, who stands above every role.
+    is_owner: bool,
+    /// The highest position among the caller's roles, `None` for none: where the role ladder
+    /// stands them.
+    top_role_position: Option<i64>,
 }
 
 /// The editable half of a profile.
@@ -328,6 +344,8 @@ async fn get_me(
         .user_profile(ctx.user_id)
         .await?
         .ok_or(ApiError::Unauthorized)?;
+    // First, so an owner handed on just now already holds everything in `permissions`.
+    let is_owner = super::space_owner::settled_owner(&state).await? == Some(ctx.user_id);
     let permissions = state.store.base_permissions(ctx.user_id).await?;
     let timeout = state.store.member_timeout(ctx.user_id).await?;
     let visibility = state.store.presence_visibility(ctx.user_id).await?;
@@ -350,6 +368,8 @@ async fn get_me(
         profile_color_rgb: user.profile_color_rgb,
         presence_visibility: visibility.unwrap_or_default().as_str().to_owned(),
         bot_prefix: state.store.bot_prefix(ctx.user_id).await?,
+        is_owner,
+        top_role_position: super::role_ladder::top_position(&state, ctx.user_id).await?,
     }))
 }
 

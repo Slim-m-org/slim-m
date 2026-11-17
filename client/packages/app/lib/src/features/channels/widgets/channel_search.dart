@@ -8,16 +8,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import '../../messages/providers/message_search.dart'
-    show matchedAttachmentName;
+    show matchedAttachmentName, matchedVoiceTranscript;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../settings/providers/display_density.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../messages/widgets/author_label.dart';
 import '../../messages/widgets/message_text.dart';
+import '../../palette/widgets/command_palette_items.dart'
+    show searchHitSpokenLabel;
 import '../../palette/widgets/command_palette_rows.dart'
     show PaletteSectionHeader;
 import 'compact_channel_search.dart';
+import '../../members/providers/mention_names.dart' show mentionNamesProvider;
 
 class ChannelSearchBar extends StatelessWidget {
   const ChannelSearchBar({
@@ -314,7 +317,11 @@ class SearchResultRow extends ConsumerWidget {
     );
     return Semantics(
       button: true,
-      label: 'Message from $name: ${message.content}',
+      label: searchHitSpokenLabel(
+        message,
+        authorName: name,
+        mentionNames: ref.watch(mentionNamesProvider),
+      ),
       onTap: () => onSelect(message),
       child: ExcludeSemantics(
         child: AppFocusRing(
@@ -349,7 +356,15 @@ class SearchResultRow extends ConsumerWidget {
                       knownRoleNames: knownRoleNames,
                       customEmoji: customEmoji,
                     ),
-                  if (matchedAttachmentName(message) case final file?)
+                  if (matchedVoiceTranscript(message) case final said?) ...[
+                    Text(
+                      said,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.ui.copyWith(color: tokens.textPrimary),
+                    ),
+                    const _AttachmentMatchLine(file: 'a voice message'),
+                  ] else if (matchedAttachmentName(message) case final file?)
                     _AttachmentMatchLine(file: file),
                 ],
               ),

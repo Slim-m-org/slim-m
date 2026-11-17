@@ -6,3 +6,7 @@ DELETE /push/quiet-hours api path removed without deprecation
 GET /push/quiet-hours api path removed without deprecation
 PUT /push/quiet-hours api path removed without deprecation
 GET /reports/history added the new `bot_token_reissue` enum value to the `items/oneOf[#/components/schemas/AuditLogHistoryEntry]/action` response property for the response status `200`
+GET /reports added the new `screen_stamp` enum value to the `items/subject_kind` response property for the response status `200`
+GET /reports/history added the new `screen_stamp` enum value to the `items/oneOf[#/components/schemas/ResolvedReportHistoryEntry]/subject_kind` response property for the response status `200`
+GET /reports/mine/{reportId} added the new `screen_stamp` enum value to the `subject_kind` response property for the response status `200`
+GET /version added the new `screen_stamps` enum value to the `capabilities/items/` response property for the response status `200`

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM channel_overwrites WHERE channel_id IN\n           (SELECT id FROM channels WHERE room_lobby_id = ? AND deleted_at IS NULL)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "c5f8fec7d605219c2e1916a3262e05944b686214f599b684b3d8031470022b0c"
+}

@@ -41,6 +41,12 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _liveSeqMeta =
+      const VerificationMeta('liveSeq');
+  @override
+  late final GeneratedColumn<int> liveSeq = GeneratedColumn<int>(
+      'live_seq', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _lastReadSeqMeta =
       const VerificationMeta('lastReadSeq');
   @override
@@ -185,6 +191,7 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
         createdAt,
         topic,
         cursor,
+        liveSeq,
         lastReadSeq,
         mentionedSeq,
         manuallyUnread,
@@ -244,6 +251,10 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
     if (data.containsKey('cursor')) {
       context.handle(_cursorMeta,
           cursor.isAcceptableOrUnknown(data['cursor']!, _cursorMeta));
+    }
+    if (data.containsKey('live_seq')) {
+      context.handle(_liveSeqMeta,
+          liveSeq.isAcceptableOrUnknown(data['live_seq']!, _liveSeqMeta));
     }
     if (data.containsKey('last_read_seq')) {
       context.handle(
@@ -366,6 +377,8 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
           .read(DriftSqlType.string, data['${effectivePrefix}topic']),
       cursor: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}cursor'])!,
+      liveSeq: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}live_seq']),
       lastReadSeq: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}last_read_seq'])!,
       mentionedSeq: attachedDatabase.typeMapping
@@ -423,15 +436,19 @@ class Channel extends DataClass implements Insertable<Channel> {
   /// The highest `seq` this client holds for the channel: the sync cursor.
   final int cursor;
 
+  /// The highest `seq` among this channel's messages still standing here, which unlike [cursor] falls back when that message is deleted.
+  /// Null on a row written before it was tracked; read it through `standingSeq`.
+  final int? liveSeq;
+
   /// How far the user has read, mirrored from the server.
   final int lastReadSeq;
 
   /// The highest `seq` of a message in this channel that mentioned the
-  /// caller, the same "sync cursor" shape [cursor] already is: advanced by
-  /// [MessageStore.applyMessage] whenever an applied `api.Message` carries
-  /// `mentionsMe`, never lowered. `mentionedSeq > lastReadSeq` is the rail's
-  /// unread-mention flag, the same `cursor > lastReadSeq` comparison already
-  /// drives the plain unread dot - see `rail_channel.dart`.
+  /// caller: advanced by [MessageStore.applyMessage] whenever an applied
+  /// `api.Message` carries `mentionsMe`, and walked back to the newest mention
+  /// still held when that message is deleted. `mentionedSeq > lastReadSeq` is
+  /// the rail's unread-mention flag, beside `standingSeq > lastReadSeq` for the
+  /// plain dot - see `rail_channel.dart`.
   final int mentionedSeq;
 
   /// The reader asked to see this channel as unread even though they have
@@ -529,6 +546,7 @@ class Channel extends DataClass implements Insertable<Channel> {
       required this.createdAt,
       this.topic,
       required this.cursor,
+      this.liveSeq,
       required this.lastReadSeq,
       required this.mentionedSeq,
       this.manuallyUnread,
@@ -558,6 +576,9 @@ class Channel extends DataClass implements Insertable<Channel> {
       map['topic'] = Variable<String>(topic);
     }
     map['cursor'] = Variable<int>(cursor);
+    if (!nullToAbsent || liveSeq != null) {
+      map['live_seq'] = Variable<int>(liveSeq);
+    }
     map['last_read_seq'] = Variable<int>(lastReadSeq);
     map['mentioned_seq'] = Variable<int>(mentionedSeq);
     if (!nullToAbsent || manuallyUnread != null) {
@@ -612,6 +633,9 @@ class Channel extends DataClass implements Insertable<Channel> {
       topic:
           topic == null && nullToAbsent ? const Value.absent() : Value(topic),
       cursor: Value(cursor),
+      liveSeq: liveSeq == null && nullToAbsent
+          ? const Value.absent()
+          : Value(liveSeq),
       lastReadSeq: Value(lastReadSeq),
       mentionedSeq: Value(mentionedSeq),
       manuallyUnread: manuallyUnread == null && nullToAbsent
@@ -667,6 +691,7 @@ class Channel extends DataClass implements Insertable<Channel> {
       createdAt: serializer.fromJson<int>(json['createdAt']),
       topic: serializer.fromJson<String?>(json['topic']),
       cursor: serializer.fromJson<int>(json['cursor']),
+      liveSeq: serializer.fromJson<int?>(json['liveSeq']),
       lastReadSeq: serializer.fromJson<int>(json['lastReadSeq']),
       mentionedSeq: serializer.fromJson<int>(json['mentionedSeq']),
       manuallyUnread: serializer.fromJson<bool?>(json['manuallyUnread']),
@@ -698,6 +723,7 @@ class Channel extends DataClass implements Insertable<Channel> {
       'createdAt': serializer.toJson<int>(createdAt),
       'topic': serializer.toJson<String?>(topic),
       'cursor': serializer.toJson<int>(cursor),
+      'liveSeq': serializer.toJson<int?>(liveSeq),
       'lastReadSeq': serializer.toJson<int>(lastReadSeq),
       'mentionedSeq': serializer.toJson<int>(mentionedSeq),
       'manuallyUnread': serializer.toJson<bool?>(manuallyUnread),
@@ -726,6 +752,7 @@ class Channel extends DataClass implements Insertable<Channel> {
           int? createdAt,
           Value<String?> topic = const Value.absent(),
           int? cursor,
+          Value<int?> liveSeq = const Value.absent(),
           int? lastReadSeq,
           int? mentionedSeq,
           Value<bool?> manuallyUnread = const Value.absent(),
@@ -751,6 +778,7 @@ class Channel extends DataClass implements Insertable<Channel> {
         createdAt: createdAt ?? this.createdAt,
         topic: topic.present ? topic.value : this.topic,
         cursor: cursor ?? this.cursor,
+        liveSeq: liveSeq.present ? liveSeq.value : this.liveSeq,
         lastReadSeq: lastReadSeq ?? this.lastReadSeq,
         mentionedSeq: mentionedSeq ?? this.mentionedSeq,
         manuallyUnread:
@@ -786,6 +814,7 @@ class Channel extends DataClass implements Insertable<Channel> {
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       topic: data.topic.present ? data.topic.value : this.topic,
       cursor: data.cursor.present ? data.cursor.value : this.cursor,
+      liveSeq: data.liveSeq.present ? data.liveSeq.value : this.liveSeq,
       lastReadSeq:
           data.lastReadSeq.present ? data.lastReadSeq.value : this.lastReadSeq,
       mentionedSeq: data.mentionedSeq.present
@@ -838,6 +867,7 @@ class Channel extends DataClass implements Insertable<Channel> {
           ..write('createdAt: $createdAt, ')
           ..write('topic: $topic, ')
           ..write('cursor: $cursor, ')
+          ..write('liveSeq: $liveSeq, ')
           ..write('lastReadSeq: $lastReadSeq, ')
           ..write('mentionedSeq: $mentionedSeq, ')
           ..write('manuallyUnread: $manuallyUnread, ')
@@ -868,6 +898,7 @@ class Channel extends DataClass implements Insertable<Channel> {
         createdAt,
         topic,
         cursor,
+        liveSeq,
         lastReadSeq,
         mentionedSeq,
         manuallyUnread,
@@ -897,6 +928,7 @@ class Channel extends DataClass implements Insertable<Channel> {
           other.createdAt == this.createdAt &&
           other.topic == this.topic &&
           other.cursor == this.cursor &&
+          other.liveSeq == this.liveSeq &&
           other.lastReadSeq == this.lastReadSeq &&
           other.mentionedSeq == this.mentionedSeq &&
           other.manuallyUnread == this.manuallyUnread &&
@@ -924,6 +956,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
   final Value<int> createdAt;
   final Value<String?> topic;
   final Value<int> cursor;
+  final Value<int?> liveSeq;
   final Value<int> lastReadSeq;
   final Value<int> mentionedSeq;
   final Value<bool?> manuallyUnread;
@@ -950,6 +983,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     this.createdAt = const Value.absent(),
     this.topic = const Value.absent(),
     this.cursor = const Value.absent(),
+    this.liveSeq = const Value.absent(),
     this.lastReadSeq = const Value.absent(),
     this.mentionedSeq = const Value.absent(),
     this.manuallyUnread = const Value.absent(),
@@ -977,6 +1011,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     required int createdAt,
     this.topic = const Value.absent(),
     this.cursor = const Value.absent(),
+    this.liveSeq = const Value.absent(),
     this.lastReadSeq = const Value.absent(),
     this.mentionedSeq = const Value.absent(),
     this.manuallyUnread = const Value.absent(),
@@ -1007,6 +1042,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     Expression<int>? createdAt,
     Expression<String>? topic,
     Expression<int>? cursor,
+    Expression<int>? liveSeq,
     Expression<int>? lastReadSeq,
     Expression<int>? mentionedSeq,
     Expression<bool>? manuallyUnread,
@@ -1034,6 +1070,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       if (createdAt != null) 'created_at': createdAt,
       if (topic != null) 'topic': topic,
       if (cursor != null) 'cursor': cursor,
+      if (liveSeq != null) 'live_seq': liveSeq,
       if (lastReadSeq != null) 'last_read_seq': lastReadSeq,
       if (mentionedSeq != null) 'mentioned_seq': mentionedSeq,
       if (manuallyUnread != null) 'manually_unread': manuallyUnread,
@@ -1064,6 +1101,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       Value<int>? createdAt,
       Value<String?>? topic,
       Value<int>? cursor,
+      Value<int?>? liveSeq,
       Value<int>? lastReadSeq,
       Value<int>? mentionedSeq,
       Value<bool?>? manuallyUnread,
@@ -1090,6 +1128,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       createdAt: createdAt ?? this.createdAt,
       topic: topic ?? this.topic,
       cursor: cursor ?? this.cursor,
+      liveSeq: liveSeq ?? this.liveSeq,
       lastReadSeq: lastReadSeq ?? this.lastReadSeq,
       mentionedSeq: mentionedSeq ?? this.mentionedSeq,
       manuallyUnread: manuallyUnread ?? this.manuallyUnread,
@@ -1132,6 +1171,9 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     }
     if (cursor.present) {
       map['cursor'] = Variable<int>(cursor.value);
+    }
+    if (liveSeq.present) {
+      map['live_seq'] = Variable<int>(liveSeq.value);
     }
     if (lastReadSeq.present) {
       map['last_read_seq'] = Variable<int>(lastReadSeq.value);
@@ -1202,6 +1244,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
           ..write('createdAt: $createdAt, ')
           ..write('topic: $topic, ')
           ..write('cursor: $cursor, ')
+          ..write('liveSeq: $liveSeq, ')
           ..write('lastReadSeq: $lastReadSeq, ')
           ..write('mentionedSeq: $mentionedSeq, ')
           ..write('manuallyUnread: $manuallyUnread, ')
@@ -1350,6 +1393,16 @@ class $MessagesTable extends Messages
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("link_previews_removed" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _mentionsMeMeta =
+      const VerificationMeta('mentionsMe');
+  @override
+  late final GeneratedColumn<bool> mentionsMe = GeneratedColumn<bool>(
+      'mentions_me', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("mentions_me" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _pendingMeta =
       const VerificationMeta('pending');
   @override
@@ -1395,6 +1448,7 @@ class $MessagesTable extends Messages
         forwardedContent,
         forwardedRemoved,
         linkPreviewsRemoved,
+        mentionsMe,
         pending,
         failed,
         failureReason
@@ -1512,6 +1566,12 @@ class $MessagesTable extends Messages
           linkPreviewsRemoved.isAcceptableOrUnknown(
               data['link_previews_removed']!, _linkPreviewsRemovedMeta));
     }
+    if (data.containsKey('mentions_me')) {
+      context.handle(
+          _mentionsMeMeta,
+          mentionsMe.isAcceptableOrUnknown(
+              data['mentions_me']!, _mentionsMeMeta));
+    }
     if (data.containsKey('pending')) {
       context.handle(_pendingMeta,
           pending.isAcceptableOrUnknown(data['pending']!, _pendingMeta));
@@ -1573,6 +1633,8 @@ class $MessagesTable extends Messages
           DriftSqlType.bool, data['${effectivePrefix}forwarded_removed'])!,
       linkPreviewsRemoved: attachedDatabase.typeMapping.read(
           DriftSqlType.bool, data['${effectivePrefix}link_previews_removed'])!,
+      mentionsMe: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}mentions_me'])!,
       pending: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}pending'])!,
       failed: attachedDatabase.typeMapping
@@ -1632,6 +1694,10 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
   /// Stored so a cold start hides them without a REST read; nothing clears it.
   final bool linkPreviewsRemoved;
 
+  /// Whether this message mentions the reader, as the server last said.
+  /// Lets a deleted mention walk the channel's `mentionedSeq` back to the one before it.
+  final bool mentionsMe;
+
   /// True while the send is in flight. The UI shows these differently and they
   /// are replaced in place by the server's copy on acknowledgement.
   final bool pending;
@@ -1662,6 +1728,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       this.forwardedContent,
       required this.forwardedRemoved,
       required this.linkPreviewsRemoved,
+      required this.mentionsMe,
       required this.pending,
       required this.failed,
       this.failureReason});
@@ -1710,6 +1777,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     }
     map['forwarded_removed'] = Variable<bool>(forwardedRemoved);
     map['link_previews_removed'] = Variable<bool>(linkPreviewsRemoved);
+    map['mentions_me'] = Variable<bool>(mentionsMe);
     map['pending'] = Variable<bool>(pending);
     map['failed'] = Variable<bool>(failed);
     if (!nullToAbsent || failureReason != null) {
@@ -1762,6 +1830,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           : Value(forwardedContent),
       forwardedRemoved: Value(forwardedRemoved),
       linkPreviewsRemoved: Value(linkPreviewsRemoved),
+      mentionsMe: Value(mentionsMe),
       pending: Value(pending),
       failed: Value(failed),
       failureReason: failureReason == null && nullToAbsent
@@ -1799,6 +1868,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       forwardedRemoved: serializer.fromJson<bool>(json['forwardedRemoved']),
       linkPreviewsRemoved:
           serializer.fromJson<bool>(json['linkPreviewsRemoved']),
+      mentionsMe: serializer.fromJson<bool>(json['mentionsMe']),
       pending: serializer.fromJson<bool>(json['pending']),
       failed: serializer.fromJson<bool>(json['failed']),
       failureReason: serializer.fromJson<String?>(json['failureReason']),
@@ -1828,6 +1898,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       'forwardedContent': serializer.toJson<String?>(forwardedContent),
       'forwardedRemoved': serializer.toJson<bool>(forwardedRemoved),
       'linkPreviewsRemoved': serializer.toJson<bool>(linkPreviewsRemoved),
+      'mentionsMe': serializer.toJson<bool>(mentionsMe),
       'pending': serializer.toJson<bool>(pending),
       'failed': serializer.toJson<bool>(failed),
       'failureReason': serializer.toJson<String?>(failureReason),
@@ -1853,6 +1924,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           Value<String?> forwardedContent = const Value.absent(),
           bool? forwardedRemoved,
           bool? linkPreviewsRemoved,
+          bool? mentionsMe,
           bool? pending,
           bool? failed,
           Value<String?> failureReason = const Value.absent()}) =>
@@ -1891,6 +1963,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
             : this.forwardedContent,
         forwardedRemoved: forwardedRemoved ?? this.forwardedRemoved,
         linkPreviewsRemoved: linkPreviewsRemoved ?? this.linkPreviewsRemoved,
+        mentionsMe: mentionsMe ?? this.mentionsMe,
         pending: pending ?? this.pending,
         failed: failed ?? this.failed,
         failureReason:
@@ -1937,6 +2010,8 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       linkPreviewsRemoved: data.linkPreviewsRemoved.present
           ? data.linkPreviewsRemoved.value
           : this.linkPreviewsRemoved,
+      mentionsMe:
+          data.mentionsMe.present ? data.mentionsMe.value : this.mentionsMe,
       pending: data.pending.present ? data.pending.value : this.pending,
       failed: data.failed.present ? data.failed.value : this.failed,
       failureReason: data.failureReason.present
@@ -1967,6 +2042,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           ..write('forwardedContent: $forwardedContent, ')
           ..write('forwardedRemoved: $forwardedRemoved, ')
           ..write('linkPreviewsRemoved: $linkPreviewsRemoved, ')
+          ..write('mentionsMe: $mentionsMe, ')
           ..write('pending: $pending, ')
           ..write('failed: $failed, ')
           ..write('failureReason: $failureReason')
@@ -1994,6 +2070,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
         forwardedContent,
         forwardedRemoved,
         linkPreviewsRemoved,
+        mentionsMe,
         pending,
         failed,
         failureReason
@@ -2021,6 +2098,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           other.forwardedContent == this.forwardedContent &&
           other.forwardedRemoved == this.forwardedRemoved &&
           other.linkPreviewsRemoved == this.linkPreviewsRemoved &&
+          other.mentionsMe == this.mentionsMe &&
           other.pending == this.pending &&
           other.failed == this.failed &&
           other.failureReason == this.failureReason);
@@ -2045,6 +2123,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
   final Value<String?> forwardedContent;
   final Value<bool> forwardedRemoved;
   final Value<bool> linkPreviewsRemoved;
+  final Value<bool> mentionsMe;
   final Value<bool> pending;
   final Value<bool> failed;
   final Value<String?> failureReason;
@@ -2068,6 +2147,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     this.forwardedContent = const Value.absent(),
     this.forwardedRemoved = const Value.absent(),
     this.linkPreviewsRemoved = const Value.absent(),
+    this.mentionsMe = const Value.absent(),
     this.pending = const Value.absent(),
     this.failed = const Value.absent(),
     this.failureReason = const Value.absent(),
@@ -2092,6 +2172,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     this.forwardedContent = const Value.absent(),
     this.forwardedRemoved = const Value.absent(),
     this.linkPreviewsRemoved = const Value.absent(),
+    this.mentionsMe = const Value.absent(),
     this.pending = const Value.absent(),
     this.failed = const Value.absent(),
     this.failureReason = const Value.absent(),
@@ -2119,6 +2200,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     Expression<String>? forwardedContent,
     Expression<bool>? forwardedRemoved,
     Expression<bool>? linkPreviewsRemoved,
+    Expression<bool>? mentionsMe,
     Expression<bool>? pending,
     Expression<bool>? failed,
     Expression<String>? failureReason,
@@ -2149,6 +2231,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
       if (forwardedRemoved != null) 'forwarded_removed': forwardedRemoved,
       if (linkPreviewsRemoved != null)
         'link_previews_removed': linkPreviewsRemoved,
+      if (mentionsMe != null) 'mentions_me': mentionsMe,
       if (pending != null) 'pending': pending,
       if (failed != null) 'failed': failed,
       if (failureReason != null) 'failure_reason': failureReason,
@@ -2175,6 +2258,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
       Value<String?>? forwardedContent,
       Value<bool>? forwardedRemoved,
       Value<bool>? linkPreviewsRemoved,
+      Value<bool>? mentionsMe,
       Value<bool>? pending,
       Value<bool>? failed,
       Value<String?>? failureReason,
@@ -2200,6 +2284,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
       forwardedContent: forwardedContent ?? this.forwardedContent,
       forwardedRemoved: forwardedRemoved ?? this.forwardedRemoved,
       linkPreviewsRemoved: linkPreviewsRemoved ?? this.linkPreviewsRemoved,
+      mentionsMe: mentionsMe ?? this.mentionsMe,
       pending: pending ?? this.pending,
       failed: failed ?? this.failed,
       failureReason: failureReason ?? this.failureReason,
@@ -2266,6 +2351,9 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     if (linkPreviewsRemoved.present) {
       map['link_previews_removed'] = Variable<bool>(linkPreviewsRemoved.value);
     }
+    if (mentionsMe.present) {
+      map['mentions_me'] = Variable<bool>(mentionsMe.value);
+    }
     if (pending.present) {
       map['pending'] = Variable<bool>(pending.value);
     }
@@ -2303,6 +2391,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
           ..write('forwardedContent: $forwardedContent, ')
           ..write('forwardedRemoved: $forwardedRemoved, ')
           ..write('linkPreviewsRemoved: $linkPreviewsRemoved, ')
+          ..write('mentionsMe: $mentionsMe, ')
           ..write('pending: $pending, ')
           ..write('failed: $failed, ')
           ..write('failureReason: $failureReason, ')
@@ -2336,8 +2425,14 @@ class $ChannelCategoriesTable extends ChannelCategories
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _parentIdMeta =
+      const VerificationMeta('parentId');
   @override
-  List<GeneratedColumn> get $columns => [id, name, position];
+  late final GeneratedColumn<String> parentId = GeneratedColumn<String>(
+      'parent_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [id, name, position, parentId];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2363,6 +2458,10 @@ class $ChannelCategoriesTable extends ChannelCategories
       context.handle(_positionMeta,
           position.isAcceptableOrUnknown(data['position']!, _positionMeta));
     }
+    if (data.containsKey('parent_id')) {
+      context.handle(_parentIdMeta,
+          parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta));
+    }
     return context;
   }
 
@@ -2378,6 +2477,8 @@ class $ChannelCategoriesTable extends ChannelCategories
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       position: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}position'])!,
+      parentId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}parent_id']),
     );
   }
 
@@ -2392,16 +2493,26 @@ class ChannelCategoryRow extends DataClass
   final String id;
   final String name;
 
-  /// Sort key among the deployment's live categories: lower sorts first.
+  /// Sort key among its siblings, lower first: the top-level categories, or
+  /// one parent's sub-categories (decision 0120).
   final int position;
+
+  /// The top-level category this one sits in, or null for a top-level one.
+  final String? parentId;
   const ChannelCategoryRow(
-      {required this.id, required this.name, required this.position});
+      {required this.id,
+      required this.name,
+      required this.position,
+      this.parentId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
     map['position'] = Variable<int>(position);
+    if (!nullToAbsent || parentId != null) {
+      map['parent_id'] = Variable<String>(parentId);
+    }
     return map;
   }
 
@@ -2410,6 +2521,9 @@ class ChannelCategoryRow extends DataClass
       id: Value(id),
       name: Value(name),
       position: Value(position),
+      parentId: parentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentId),
     );
   }
 
@@ -2420,6 +2534,7 @@ class ChannelCategoryRow extends DataClass
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       position: serializer.fromJson<int>(json['position']),
+      parentId: serializer.fromJson<String?>(json['parentId']),
     );
   }
   @override
@@ -2429,20 +2544,27 @@ class ChannelCategoryRow extends DataClass
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'position': serializer.toJson<int>(position),
+      'parentId': serializer.toJson<String?>(parentId),
     };
   }
 
-  ChannelCategoryRow copyWith({String? id, String? name, int? position}) =>
+  ChannelCategoryRow copyWith(
+          {String? id,
+          String? name,
+          int? position,
+          Value<String?> parentId = const Value.absent()}) =>
       ChannelCategoryRow(
         id: id ?? this.id,
         name: name ?? this.name,
         position: position ?? this.position,
+        parentId: parentId.present ? parentId.value : this.parentId,
       );
   ChannelCategoryRow copyWithCompanion(ChannelCategoriesCompanion data) {
     return ChannelCategoryRow(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       position: data.position.present ? data.position.value : this.position,
+      parentId: data.parentId.present ? data.parentId.value : this.parentId,
     );
   }
 
@@ -2451,37 +2573,42 @@ class ChannelCategoryRow extends DataClass
     return (StringBuffer('ChannelCategoryRow(')
           ..write('id: $id, ')
           ..write('name: $name, ')
-          ..write('position: $position')
+          ..write('position: $position, ')
+          ..write('parentId: $parentId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, position);
+  int get hashCode => Object.hash(id, name, position, parentId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is ChannelCategoryRow &&
           other.id == this.id &&
           other.name == this.name &&
-          other.position == this.position);
+          other.position == this.position &&
+          other.parentId == this.parentId);
 }
 
 class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
   final Value<String> id;
   final Value<String> name;
   final Value<int> position;
+  final Value<String?> parentId;
   final Value<int> rowid;
   const ChannelCategoriesCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.position = const Value.absent(),
+    this.parentId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ChannelCategoriesCompanion.insert({
     required String id,
     required String name,
     this.position = const Value.absent(),
+    this.parentId = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         name = Value(name);
@@ -2489,12 +2616,14 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<int>? position,
+    Expression<String>? parentId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (position != null) 'position': position,
+      if (parentId != null) 'parent_id': parentId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2503,11 +2632,13 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
       {Value<String>? id,
       Value<String>? name,
       Value<int>? position,
+      Value<String?>? parentId,
       Value<int>? rowid}) {
     return ChannelCategoriesCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
       position: position ?? this.position,
+      parentId: parentId ?? this.parentId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2524,6 +2655,9 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
     if (position.present) {
       map['position'] = Variable<int>(position.value);
     }
+    if (parentId.present) {
+      map['parent_id'] = Variable<String>(parentId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2536,6 +2670,7 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('position: $position, ')
+          ..write('parentId: $parentId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3328,6 +3463,7 @@ typedef $$ChannelsTableCreateCompanionBuilder = ChannelsCompanion Function({
   required int createdAt,
   Value<String?> topic,
   Value<int> cursor,
+  Value<int?> liveSeq,
   Value<int> lastReadSeq,
   Value<int> mentionedSeq,
   Value<bool?> manuallyUnread,
@@ -3355,6 +3491,7 @@ typedef $$ChannelsTableUpdateCompanionBuilder = ChannelsCompanion Function({
   Value<int> createdAt,
   Value<String?> topic,
   Value<int> cursor,
+  Value<int?> liveSeq,
   Value<int> lastReadSeq,
   Value<int> mentionedSeq,
   Value<bool?> manuallyUnread,
@@ -3402,6 +3539,9 @@ class $$ChannelsTableFilterComposer
 
   ColumnFilters<int> get cursor => $composableBuilder(
       column: $table.cursor, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get liveSeq => $composableBuilder(
+      column: $table.liveSeq, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get lastReadSeq => $composableBuilder(
       column: $table.lastReadSeq, builder: (column) => ColumnFilters(column));
@@ -3490,6 +3630,9 @@ class $$ChannelsTableOrderingComposer
 
   ColumnOrderings<int> get cursor => $composableBuilder(
       column: $table.cursor, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get liveSeq => $composableBuilder(
+      column: $table.liveSeq, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get lastReadSeq => $composableBuilder(
       column: $table.lastReadSeq, builder: (column) => ColumnOrderings(column));
@@ -3581,6 +3724,9 @@ class $$ChannelsTableAnnotationComposer
   GeneratedColumn<int> get cursor =>
       $composableBuilder(column: $table.cursor, builder: (column) => column);
 
+  GeneratedColumn<int> get liveSeq =>
+      $composableBuilder(column: $table.liveSeq, builder: (column) => column);
+
   GeneratedColumn<int> get lastReadSeq => $composableBuilder(
       column: $table.lastReadSeq, builder: (column) => column);
 
@@ -3665,6 +3811,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             Value<int> createdAt = const Value.absent(),
             Value<String?> topic = const Value.absent(),
             Value<int> cursor = const Value.absent(),
+            Value<int?> liveSeq = const Value.absent(),
             Value<int> lastReadSeq = const Value.absent(),
             Value<int> mentionedSeq = const Value.absent(),
             Value<bool?> manuallyUnread = const Value.absent(),
@@ -3692,6 +3839,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             createdAt: createdAt,
             topic: topic,
             cursor: cursor,
+            liveSeq: liveSeq,
             lastReadSeq: lastReadSeq,
             mentionedSeq: mentionedSeq,
             manuallyUnread: manuallyUnread,
@@ -3719,6 +3867,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             required int createdAt,
             Value<String?> topic = const Value.absent(),
             Value<int> cursor = const Value.absent(),
+            Value<int?> liveSeq = const Value.absent(),
             Value<int> lastReadSeq = const Value.absent(),
             Value<int> mentionedSeq = const Value.absent(),
             Value<bool?> manuallyUnread = const Value.absent(),
@@ -3746,6 +3895,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             createdAt: createdAt,
             topic: topic,
             cursor: cursor,
+            liveSeq: liveSeq,
             lastReadSeq: lastReadSeq,
             mentionedSeq: mentionedSeq,
             manuallyUnread: manuallyUnread,
@@ -3808,6 +3958,7 @@ typedef $$MessagesTableCreateCompanionBuilder = MessagesCompanion Function({
   Value<String?> forwardedContent,
   Value<bool> forwardedRemoved,
   Value<bool> linkPreviewsRemoved,
+  Value<bool> mentionsMe,
   Value<bool> pending,
   Value<bool> failed,
   Value<String?> failureReason,
@@ -3832,6 +3983,7 @@ typedef $$MessagesTableUpdateCompanionBuilder = MessagesCompanion Function({
   Value<String?> forwardedContent,
   Value<bool> forwardedRemoved,
   Value<bool> linkPreviewsRemoved,
+  Value<bool> mentionsMe,
   Value<bool> pending,
   Value<bool> failed,
   Value<String?> failureReason,
@@ -3910,6 +4062,9 @@ class $$MessagesTableFilterComposer
   ColumnFilters<bool> get linkPreviewsRemoved => $composableBuilder(
       column: $table.linkPreviewsRemoved,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get mentionsMe => $composableBuilder(
+      column: $table.mentionsMe, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get pending => $composableBuilder(
       column: $table.pending, builder: (column) => ColumnFilters(column));
@@ -3994,6 +4149,9 @@ class $$MessagesTableOrderingComposer
       column: $table.linkPreviewsRemoved,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get mentionsMe => $composableBuilder(
+      column: $table.mentionsMe, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get pending => $composableBuilder(
       column: $table.pending, builder: (column) => ColumnOrderings(column));
 
@@ -4069,6 +4227,9 @@ class $$MessagesTableAnnotationComposer
   GeneratedColumn<bool> get linkPreviewsRemoved => $composableBuilder(
       column: $table.linkPreviewsRemoved, builder: (column) => column);
 
+  GeneratedColumn<bool> get mentionsMe => $composableBuilder(
+      column: $table.mentionsMe, builder: (column) => column);
+
   GeneratedColumn<bool> get pending =>
       $composableBuilder(column: $table.pending, builder: (column) => column);
 
@@ -4120,6 +4281,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             Value<String?> forwardedContent = const Value.absent(),
             Value<bool> forwardedRemoved = const Value.absent(),
             Value<bool> linkPreviewsRemoved = const Value.absent(),
+            Value<bool> mentionsMe = const Value.absent(),
             Value<bool> pending = const Value.absent(),
             Value<bool> failed = const Value.absent(),
             Value<String?> failureReason = const Value.absent(),
@@ -4144,6 +4306,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             forwardedContent: forwardedContent,
             forwardedRemoved: forwardedRemoved,
             linkPreviewsRemoved: linkPreviewsRemoved,
+            mentionsMe: mentionsMe,
             pending: pending,
             failed: failed,
             failureReason: failureReason,
@@ -4168,6 +4331,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             Value<String?> forwardedContent = const Value.absent(),
             Value<bool> forwardedRemoved = const Value.absent(),
             Value<bool> linkPreviewsRemoved = const Value.absent(),
+            Value<bool> mentionsMe = const Value.absent(),
             Value<bool> pending = const Value.absent(),
             Value<bool> failed = const Value.absent(),
             Value<String?> failureReason = const Value.absent(),
@@ -4192,6 +4356,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             forwardedContent: forwardedContent,
             forwardedRemoved: forwardedRemoved,
             linkPreviewsRemoved: linkPreviewsRemoved,
+            mentionsMe: mentionsMe,
             pending: pending,
             failed: failed,
             failureReason: failureReason,
@@ -4225,6 +4390,7 @@ typedef $$ChannelCategoriesTableCreateCompanionBuilder
   required String id,
   required String name,
   Value<int> position,
+  Value<String?> parentId,
   Value<int> rowid,
 });
 typedef $$ChannelCategoriesTableUpdateCompanionBuilder
@@ -4232,6 +4398,7 @@ typedef $$ChannelCategoriesTableUpdateCompanionBuilder
   Value<String> id,
   Value<String> name,
   Value<int> position,
+  Value<String?> parentId,
   Value<int> rowid,
 });
 
@@ -4252,6 +4419,9 @@ class $$ChannelCategoriesTableFilterComposer
 
   ColumnFilters<int> get position => $composableBuilder(
       column: $table.position, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get parentId => $composableBuilder(
+      column: $table.parentId, builder: (column) => ColumnFilters(column));
 }
 
 class $$ChannelCategoriesTableOrderingComposer
@@ -4271,6 +4441,9 @@ class $$ChannelCategoriesTableOrderingComposer
 
   ColumnOrderings<int> get position => $composableBuilder(
       column: $table.position, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get parentId => $composableBuilder(
+      column: $table.parentId, builder: (column) => ColumnOrderings(column));
 }
 
 class $$ChannelCategoriesTableAnnotationComposer
@@ -4290,6 +4463,9 @@ class $$ChannelCategoriesTableAnnotationComposer
 
   GeneratedColumn<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<String> get parentId =>
+      $composableBuilder(column: $table.parentId, builder: (column) => column);
 }
 
 class $$ChannelCategoriesTableTableManager extends RootTableManager<
@@ -4324,24 +4500,28 @@ class $$ChannelCategoriesTableTableManager extends RootTableManager<
             Value<String> id = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<int> position = const Value.absent(),
+            Value<String?> parentId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ChannelCategoriesCompanion(
             id: id,
             name: name,
             position: position,
+            parentId: parentId,
             rowid: rowid,
           ),
           createCompanionCallback: ({
             required String id,
             required String name,
             Value<int> position = const Value.absent(),
+            Value<String?> parentId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ChannelCategoriesCompanion.insert(
             id: id,
             name: name,
             position: position,
+            parentId: parentId,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

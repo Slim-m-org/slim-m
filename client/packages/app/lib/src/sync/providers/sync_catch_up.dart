@@ -140,7 +140,7 @@ class SyncCatchUp {
     bool isCurrent() => _isCurrent(generation);
     if (delta.reset) {
       // Either cursor is too far behind to stream: local state is untrusted.
-      await _resetScope(generation, api, store, delta.channelId);
+      await _resetScope(generation, api, store, delta);
       return isCurrent() ? false : null;
     }
     await store.applyMessages(delta.messages, advance: CursorAdvance.always);
@@ -180,23 +180,26 @@ class SyncCatchUp {
     final outcome = await applyOps(store, delta.channelId, delta.ops);
     if (!isCurrent()) return _OpsStep.stale;
     if (outcome != OpsOutcome.needsReset) return _OpsStep.proceed;
-    await _resetScope(generation, api, store, delta.channelId);
+    await _resetScope(generation, api, store, delta);
     return _OpsStep.reset;
   }
 
   /// Drops a scope's cached messages and both its cursors, then refetches the
   /// newest page.
   ///
-  /// [MessageStore.resetChannel] clears the op cursor to null as well as
-  /// rewinding the message one, so the next catch-up adopts a fresh head
-  /// rather than asking from a seq the server may have swept past.
+  /// The op cursor restarts at the head [delta] reported, which was read
+  /// before the page is: an op landing after the page was read is then still
+  /// ahead of the cursor. Left null, the next catch-up adopted whatever the
+  /// head had become, and an edit or delete in between was never applied.
   Future<void> _resetScope(
     int generation,
     SlimmApi api,
     MessageStore store,
-    String channelId,
+    ScopeDelta delta,
   ) async {
+    final channelId = delta.channelId;
     await store.resetChannel(channelId);
+    await store.setOpCursor(channelId, delta.opLatestSeq);
     final fresh = await retryWhenRateLimited(
       () => api.listMessages(channelId, limit: 50),
       wait: _ref.read(rateLimitWaitProvider),

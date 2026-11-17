@@ -59,7 +59,7 @@ final _sourceOutputs = jsonEncode([
 final _sinkInputs = jsonEncode([
   {
     'index': 600,
-    'sink': 943,
+    'sink': 5,
     'properties': {'application.process.id': '4242'}
   },
 ]);
@@ -223,6 +223,34 @@ void main() {
         isTrue);
     expect(pactl.moves, [
       ['move-source-output', '500', 'sink_mic'],
+    ]);
+  });
+
+  test('a stream already on the chosen node is not moved again', () async {
+    final moves = <List<String>>[];
+    Future<ProcessResult> pactl(List<String> args) async {
+      if (args.first.startsWith('move-')) moves.add(args);
+      final out = switch (args) {
+        ['-f', 'json', 'list', 'sinks'] => _sinks,
+        ['-f', 'json', 'list', 'sink-inputs'] => jsonEncode([
+            for (final (index, sink) in [(600, 943), (601, 5)])
+              {
+                'index': index,
+                'sink': sink,
+                'properties': {'application.process.id': '4242'},
+              },
+          ]),
+        _ => '',
+      };
+      return ProcessResult(0, 0, out, '');
+    }
+
+    final pulse = PulseAudio(run: pactl, processId: 4242);
+    const arctis = 'pulse:alsa_output.usb-Arctis.analog-stereo';
+    expect(
+        await pulse.moveOwnStreams(capture: false, deviceId: arctis), isTrue);
+    expect(moves, [
+      ['move-sink-input', '601', 'alsa_output.usb-Arctis.analog-stereo'],
     ]);
   });
 

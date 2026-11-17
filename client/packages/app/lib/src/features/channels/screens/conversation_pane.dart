@@ -120,6 +120,7 @@ class ConversationPane extends ConsumerWidget {
           channelId: channelId,
           name: channel?.name ?? '',
           topic: channel?.topic,
+          restricted: channel?.restricted ?? false,
         ),
         Expanded(child: body),
       ],
@@ -127,20 +128,30 @@ class ConversationPane extends ConsumerWidget {
   }
 
   Widget _unresolved(WidgetRef ref) {
+    final removed = ref.watch(removedRoomsProvider);
+    final deleted = ref.watch(deletedChannelsProvider);
+    final lost = ref.watch(lostChannelsProvider);
     final fallback = fallbackChannel(
       last: ref.read(lastTextChannelProvider),
       previous: ref.read(previousTextChannelProvider),
-      gone: channelId,
+      gone: {channelId, ...removed, ...deleted.keys, ...lost.keys},
     );
-    if (ref.watch(removedRoomsProvider).contains(channelId)) {
+    if (removed.contains(channelId)) {
       return _LeaveRemovedRoom(fallback: fallback);
     }
-    final deletedName = ref.watch(deletedChannelsProvider)[channelId];
-    if (deletedName == null) return UnlistedChannel(channelId: channelId);
-    return _LeaveRemovedRoom(
-      fallback: fallback,
-      notice: '#$deletedName was deleted',
-    );
+    if (deleted[channelId] case final name?) {
+      return _LeaveRemovedRoom(
+        fallback: fallback,
+        notice: '#$name was deleted',
+      );
+    }
+    if (lost[channelId] case final name?) {
+      return _LeaveRemovedRoom(
+        fallback: fallback,
+        notice: 'You no longer have access to #$name',
+      );
+    }
+    return UnlistedChannel(channelId: channelId);
   }
 
   String _stage({
@@ -197,11 +208,13 @@ class _VoiceConversationHeader extends ConsumerWidget {
     required this.channelId,
     required this.name,
     this.topic,
+    required this.restricted,
   });
 
   final String channelId;
   final String name;
   final String? topic;
+  final bool restricted;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -214,6 +227,7 @@ class _VoiceConversationHeader extends ConsumerWidget {
       name: name,
       topic: topic,
       isVoice: true,
+      restricted: restricted,
       searchOpen: search.open,
       // Search lives in the docked chat, so opening it opens the pane it searches.
       onToggleSearch: () {

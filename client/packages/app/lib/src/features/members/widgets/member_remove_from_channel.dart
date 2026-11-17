@@ -10,7 +10,8 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../permissions.dart';
-import '../../../providers/admin_providers.dart' show rolesProvider;
+import '../../../providers/admin_providers.dart'
+    show roleLadderProvider, rolesProvider;
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../../channels/providers/channel_permissions.dart';
 import '../providers/member_presence.dart' show channelMembersProvider;
@@ -31,21 +32,26 @@ bool offersRemoveFromChannel(
   api.UserProfile profile,
 ) {
   final channel = ref.watch(channelByIdProvider(channelId)).valueOrNull;
-  if (channel == null || !canRemoveFromChannel(ref, channelId)) return false;
+  // A temporary room's overwrites follow its lobby, so the server refuses any written to it.
+  if (channel == null || channel.roomOwnerId != null) return false;
+  if (!canRemoveFromChannel(ref, channelId)) return false;
+  if (!ref.watch(roleLadderProvider).outranks(profile)) return false;
   // GET /roles needs MANAGE_ROLES, so it is asked only past that gate, and the row waits for it so it never shows for an administrator and leaves.
   final roles = ref.watch(rolesProvider);
   final settled = roles.hasValue || roles.hasError;
   return settled && !memberIsAdministrator(profile, roles.valueOrNull);
 }
 
-/// Whether [profile]'s roles carry administrator, which no overwrite can deny.
+/// Whether no overwrite can deny [profile]: the Space owner, or a member whose
+/// roles carry administrator.
 bool memberIsAdministrator(api.UserProfile profile, List<api.Role>? roles) =>
-    roles?.any(
-      (r) =>
-          profile.roleIds.contains(r.id) &&
-          r.permissions.hasPermission(Perm.administrator),
-    ) ??
-    false;
+    profile.isOwner ||
+    (roles?.any(
+          (r) =>
+              profile.roleIds.contains(r.id) &&
+              r.permissions.hasPermission(Perm.administrator),
+        ) ??
+        false);
 
 /// Denies [memberId] the channel, keeping whatever else their overwrite says.
 Future<void> denyMemberChannel(

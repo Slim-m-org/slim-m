@@ -98,9 +98,11 @@ class _FakeClient:
 
     def __init__(self):
         self.clicks = []
+        self.exact = []
 
-    def click(self, label, settle=1.5):
+    def click(self, label, settle=1.5, exact=False):
         self.clicks.append(label)
+        self.exact.append(exact)
 
     def shot(self, name):
         pass
@@ -122,6 +124,8 @@ class MutePropagatesTest(unittest.TestCase):
             a = _FakeClient()
             e2e_voice.mute_propagates(a, _FakeClient(), "room-1")
         self.assertEqual(a.clicks, [L.MUTE, L.UNMUTE])
+        self.assertEqual(a.exact, [True, False],
+                         "a loose Mute also matches Unmute, and turns a closed microphone on")
 
     def test_fails_if_the_unmute_never_took(self):
         one_muted = [_participant("alice", True), _participant("bob", False)]

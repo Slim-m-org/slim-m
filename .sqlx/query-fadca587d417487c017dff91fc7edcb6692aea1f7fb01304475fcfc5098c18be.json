@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO soundboard_clips (id, name, sha256, duration_ms, uploader_id, created_at, emoji)\n             VALUES (?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "fadca587d417487c017dff91fc7edcb6692aea1f7fb01304475fcfc5098c18be"
+}

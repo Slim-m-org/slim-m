@@ -244,6 +244,20 @@ void main() {
     });
   });
 
+  test('a mark from a member who is not in my call paints nothing', () {
+    fakeAsync((async) {
+      final rig = OverlayRig();
+      async.flushMicrotasks();
+      rig.annotate(from: 'not-in-the-call');
+      async.elapse(const Duration(seconds: 1));
+      expect(rig.overlay.draws, isEmpty);
+
+      rig.annotate();
+      async.elapse(overlayFrameInterval * 2);
+      expect(rig.overlay.draws.last.single, isA<OverlayStroke>());
+    });
+  });
+
   test('a mark that arrives while the setting is off paints nothing', () {
     fakeAsync((async) {
       final rig = OverlayRig(allow: false);

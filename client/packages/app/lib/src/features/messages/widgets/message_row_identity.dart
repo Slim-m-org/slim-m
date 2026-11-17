@@ -18,6 +18,7 @@ import '../../settings/providers/display_preferences.dart';
 import '../../members/providers/user_profiles.dart';
 import 'author_label.dart';
 import 'author_profile_tap_target.dart';
+import '../../members/widgets/role_color.dart';
 import '../../members/widgets/user_avatar.dart';
 
 /// `HH:mm` or a 12-hour equivalent, following [use24Hour]. Fixed width
@@ -366,6 +367,7 @@ class MessageRowHeader extends ConsumerWidget {
             resolution: resolution,
           );
     final isBot = assumeBot || (resolution.profile?.isBot ?? false);
+    final nameColor = memberNameColor(resolution.profile, tokens.surfaceBase);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.s4),
       child: Row(
@@ -383,7 +385,7 @@ class MessageRowHeader extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.body.copyWith(
-                    color: tokens.textPrimary,
+                    color: nameColor ?? tokens.textPrimary,
                     fontWeight: AppWeights.semi,
                   ),
                 ),

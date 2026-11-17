@@ -9,9 +9,11 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_api/api.dart' show ChannelOrderGroup;
+import 'package:slimm_api/api.dart' show CategoryOrderGroup, ChannelOrderGroup;
+import 'package:slimm_app/src/features/channels/widgets/category_tree.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_reorder.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_carry_slot.dart';
+import 'package:slimm_app/src/features/channels/widgets/rail_category_slots.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_drag_lift.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_drop_slots.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_insertion_line.dart';
@@ -79,7 +81,8 @@ Future<_Rail> _pump(
             sections: sections ?? _sections(),
             canManage: true,
             onReorder: rail.channelReports.add,
-            onReorderCategories: rail.categoryReports.add,
+            onReorderCategories: (groups) =>
+                rail.categoryReports.add(_topLevel(groups)),
             rowBuilder: (c, _) => GestureDetector(
               onTap: () => rail.taps.add(c.id),
               child: SizedBox(height: _rowH, child: Text(c.id)),
@@ -124,6 +127,9 @@ double _lineY(WidgetTester tester) =>
 
 Rect _rect(WidgetTester tester, String text) =>
     tester.getRect(find.text(text).first);
+
+List<String> _topLevel(List<CategoryOrderGroup> groups) =>
+    groups.firstWhere((g) => g.parentId == null).categoryIds;
 
 List<String>? _ids(List<ChannelOrderGroup> groups, String? categoryId) => groups
     .where((g) => g.categoryId == categoryId)
@@ -376,10 +382,16 @@ void main() {
     });
 
     test('a category dropped beside itself is no move', () {
-      expect(categoryIdsAfterDrop(['x', 'y', 'z'], 'y', 1), null);
-      expect(categoryIdsAfterDrop(['x', 'y', 'z'], 'y', 2), null);
-      expect(categoryIdsAfterDrop(['x', 'y', 'z'], 'y', 3), ['x', 'z', 'y']);
-      expect(categoryIdsAfterDrop(['x', 'y', 'z'], 'z', 0), ['z', 'x', 'y']);
+      final tree = CategoryTree([_cat('x'), _cat('y'), _cat('z')]);
+      List<String>? after(String id, int index) {
+        final groups = categoryGroupsAfterDrop(tree, id, DropSlot(0, index, 0));
+        return groups == null ? null : _topLevel(groups);
+      }
+
+      expect(after('y', 1), null);
+      expect(after('y', 2), null);
+      expect(after('y', 3), ['x', 'z', 'y']);
+      expect(after('z', 0), ['z', 'x', 'y']);
     });
   });
 }

@@ -94,6 +94,32 @@ final class OutgoingCallLifecycleTests: XCTestCase {
     XCTAssertNil(lifecycle.activeCallId, "a refused request must not still look active")
   }
 
+  func testACallKitRefusalToStartIsReportedWithItsCode() {
+    let controller = RecordingController()
+    controller.startError = NSError(domain: "CXErrorDomain", code: 6)
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider())
+    var events: [[String: Any]] = []
+    lifecycle.onEvent = { events.append($0) }
+
+    lifecycle.callStarted(id: UUID(), displayName: "Voice call")
+
+    XCTAssertEqual(events.count, 1)
+    XCTAssertEqual(events.first?["step"] as? String, "start")
+    XCTAssertEqual(events.first?["result"] as? String, "failed")
+    XCTAssertEqual(events.first?["code"] as? Int, 6)
+  }
+
+  func testAStartSkippedForACallStillReportedIsReported() {
+    let lifecycle = OutgoingCallLifecycle(controller: RecordingController(), provider: RecordingProvider())
+    var results: [String] = []
+    lifecycle.onEvent = { results.append($0["result"] as? String ?? "") }
+
+    lifecycle.callStarted(id: UUID(), displayName: "First")
+    lifecycle.callStarted(id: UUID(), displayName: "Second")
+
+    XCTAssertEqual(results, ["ok", "skipped"])
+  }
+
   func testHandleStartActionReportsStartedConnectingAndFulfills() {
     let controller = RecordingController()
     let provider = RecordingProvider()

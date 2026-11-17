@@ -1,6 +1,6 @@
 # 0113 - Call transcripts are part of the call, kept by the server
 
-Status: accepted, 2026-11-11.
+Status: accepted, 2026-11-11; amended 2026-11-16 (see the end).
 Amends 0105 (call audio) and 0066 (call history).
 
 ## The ask
@@ -83,3 +83,20 @@ Analytics reads the tables directly later; nothing analytic is built in this pha
 ## Not in this phase
 
 Live transcript while the call runs, per-channel modes, summaries, and exporting a transcript as a file.
+
+## Amendment 2026-11-16: live lines, end time and language
+
+Each line now also keeps `end_at` (ms, segment end) and `language` (a lowercase tag such as `en`, as the listener heard it).
+The listener already sent both, so nothing new is collected; lines kept before migration 0195 have them null.
+The read routes, search hits and the member export carry them (additive).
+
+Lines are now sent live, as `call.transcript_line {channel_id, transcript_id, line}`, the moment the server keeps them.
+A line reaches only the people in the call at that moment (the server's in-memory call roster) who hold `VIEW_CHANNEL` and `VIEW_TRANSCRIPTS` on the channel.
+Hidden presence changes nothing: someone hidden in the call gets the lines, and someone hidden outside it does not.
+Someone who left stops getting lines from the next one on.
+A bot in the call counts like anyone else: it gets lines only with both permissions, as it could already read the route.
+The event is durable, so a reader who falls behind resyncs; a client applies lines by `seq` and reads the transcript route to fill a gap or catch up after a reconnect.
+
+Nothing else changes about who can read.
+Anyone with the two permissions can still read the transcript route at any time, in the call or not, as before.
+No screen shows lines live in the call yet; captions, summaries and the rest of "Not in this phase" are still to come.

@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.dart';
 import 'package:slimm_app/src/features/messages/widgets/reactions_row.dart';
-import 'package:slimm_app/src/features/emoji/widgets/standard_emoji.dart';
+import 'package:slimm_app/src/features/emoji/providers/standard_emoji.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _anger = '\u{1F4A2}';

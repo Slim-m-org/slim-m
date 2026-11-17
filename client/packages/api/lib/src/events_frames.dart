@@ -4,22 +4,6 @@ part of 'events.dart';
 // A `part of` rather than its own library: `ServerEvent` is `sealed`, and Dart
 // only allows a sealed class to be extended from inside its own library.
 
-/// A message was deleted (soft, but gone from every live view).
-class MessageDeleted extends ServerEvent {
-  const MessageDeleted({
-    required this.channelId,
-    required this.messageId,
-    this.opSeq,
-  });
-
-  final String channelId;
-  final String messageId;
-
-  /// This delete's place in the channel's message-op stream, null against a
-  /// server that has none.
-  final int? opSeq;
-}
-
 /// A message's reaction tallies changed. Carries the whole current set
 /// rather than a delta, so a client can replace its stored counts outright
 /// instead of reconciling an add or remove against what it already has.
@@ -225,6 +209,14 @@ class MemberJoined extends ServerEvent {
   final String userId;
 }
 
+/// Space ownership passed to [userId], who now holds every permission. A
+/// [ProfileChanged] for the same member comes with it for their `isOwner`.
+class OwnerChanged extends ServerEvent {
+  const OwnerChanged({required this.userId});
+
+  final String userId;
+}
+
 /// A user changed their display name. Carries only the id, never the new
 /// name: the value lives in exactly one place, a user's own profile, and a
 /// receiver re-asks for it (`SlimmApiUsers.getUser`/`listUsers`) rather than
@@ -398,7 +390,7 @@ class VoiceCallAudioChanged extends ServerEvent {
 }
 
 /// A transcript of [channelId]'s call started or ended, so an open call view
-/// reads it again. Lines are not pushed.
+/// reads it again. Lines come as [CallTranscriptLineAdded].
 class CallTranscriptChanged extends ServerEvent {
   const CallTranscriptChanged({
     required this.channelId,

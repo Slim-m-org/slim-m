@@ -83,3 +83,22 @@ String formatPlaybackTime(Duration d) {
   if (parts.hours == 0) return '${parts.minutes}:$ss';
   return '${parts.hours}:${parts.minutes.toString().padLeft(2, '0')}:$ss';
 }
+
+/// A soundboard clip's length to a tenth of a second, `1.5 s`: clips are at
+/// most 5 s, where [formatPlaybackTime]'s whole seconds would read `0:01`.
+String formatClipLength(int durationMs) =>
+    '${((durationMs < 0 ? 0 : durationMs) / 1000).toStringAsFixed(1)} s';
+
+/// `1.2 MB`, `2 GB`: whole bytes, one decimal from KB up that a whole value
+/// drops, in binary steps to TB. The one byte-size label on every screen.
+String formatByteSize(int bytes) {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  var value = bytes.toDouble();
+  var unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  final text = value.toStringAsFixed(unit == 0 ? 0 : 1);
+  return '${text.endsWith('.0') ? text.substring(0, text.length - 2) : text} ${units[unit]}';
+}

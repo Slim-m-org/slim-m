@@ -18,7 +18,16 @@ import 'package:flutter/painting.dart';
 /// steps outside pure geometry; `note` carries typed text inside its own box;
 /// `shape` is one of [CanvasShapeKind] drawn from its own box; `text` is
 /// typed text with no fill.
-enum CanvasObjectKind { stroke, image, note, shape, text }
+enum CanvasObjectKind {
+  stroke,
+  image,
+  note,
+  shape,
+  text,
+
+  /// A board stamp (decision 0121): one emoji, painted from a bitmap the app bakes, like an image.
+  emoji,
+}
 
 /// Which primitive a [CanvasObjectKind.shape] object draws. A line and an
 /// arrow are always the diagonal of the object's own box - top-left corner to
@@ -171,7 +180,8 @@ class CanvasStrokeInput {
   /// which bytes to fetch and decode. Null for every other kind.
   final String? attachmentId;
 
-  /// A [CanvasObjectKind.note]'s own text. Null for every other kind. Only a
+  /// A [CanvasObjectKind.note]'s own text, or a [CanvasObjectKind.emoji]'s
+  /// reaction key. Null for every other kind. Only a
   /// note can be revised after placement ([CanvasDocument.setNoteText]); a
   /// stroke's ink and an image's bytes cannot.
   final String? text;

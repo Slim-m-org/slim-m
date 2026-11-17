@@ -27,8 +27,8 @@ Widget _harness(Widget child, ProviderContainer container) =>
       ),
     );
 
-/// The voice API, with this account listed in the rosters of [occupied].
-http.Client _api(Set<String> occupied) {
+/// The voice API, with this account listed in the rosters of [occupied], as this device's own connection in [mine].
+http.Client _api(Set<String> occupied, {Set<String> mine = const {}}) {
   final base = voiceApi();
   return MockClient((request) async {
     final path = request.url.path;
@@ -38,7 +38,12 @@ http.Client _api(Set<String> occupied) {
       return http.Response(
         jsonEncode({
           'participants': [
-            if (self) {'user_id': tokens.userId, 'display_name': 'Me'},
+            if (self)
+              {
+                'user_id': tokens.userId,
+                'display_name': 'Me',
+                'this_device': mine.contains(channel),
+              },
           ],
         }),
         200,
@@ -53,8 +58,12 @@ void main() {
   final harness = VoiceHarness();
   tearDown(harness.dispose);
 
-  VoiceController setUpController(FakeSession session, Set<String> occupied) {
-    return harness.controllerWith(session, _api(occupied));
+  VoiceController setUpController(
+    FakeSession session,
+    Set<String> occupied, {
+    Set<String> mine = const {},
+  }) {
+    return harness.controllerWith(session, _api(occupied, mine: mine));
   }
 
   Future<void> settle(WidgetTester tester) async {
@@ -153,6 +162,53 @@ void main() {
     await settle(tester);
 
     expect(find.text('Join here'), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('a connection this device left behind joins without asking', (
+    tester,
+  ) async {
+    final session = FakeSession();
+    final controller = setUpController(
+      session,
+      {'channel-1'},
+      mine: {'channel-1'},
+    );
+    await tester.pumpWidget(
+      _harness(const VoiceScreen(channelId: 'channel-1'), harness.container),
+    );
+    await settle(tester);
+    await settle(tester);
+
+    expect(find.text('Join here'), findsNothing);
+    expect(controller.state.channelId, 'channel-1');
+    await unmount(tester);
+  });
+
+  testWidgets('the rail seeing this device in a call is not another device', (
+    tester,
+  ) async {
+    final session = FakeSession();
+    final controller = setUpController(
+      session,
+      {'channel-a'},
+      mine: {'channel-a'},
+    );
+    final rail = harness.container.listen(
+      voiceRosterProvider('channel-a'),
+      (_, _) {},
+    );
+    await settle(tester);
+
+    await tester.pumpWidget(
+      _harness(const VoiceScreen(channelId: 'channel-b'), harness.container),
+    );
+    await settle(tester);
+    await settle(tester);
+
+    expect(find.text('Join here'), findsNothing);
+    expect(controller.state.channelId, 'channel-b');
+    rail.close();
     await unmount(tester);
   });
 

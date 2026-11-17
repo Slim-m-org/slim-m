@@ -11,7 +11,7 @@ use crate::support;
 /// The current use count of `code`.
 async fn uses(store: &Store, code: &str) -> i64 {
     store
-        .list_invites(None, None, 100)
+        .list_invites(slimm_server::store::InviteScope::all(), None, 100)
         .await
         .unwrap()
         .into_iter()

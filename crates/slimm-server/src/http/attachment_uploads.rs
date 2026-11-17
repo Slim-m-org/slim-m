@@ -274,6 +274,8 @@ async fn complete(
             content_type: content_type.to_owned(),
             size,
             spoiler: false,
+            voice: None,
+            transcript: None,
             original: None,
         })),
     ))

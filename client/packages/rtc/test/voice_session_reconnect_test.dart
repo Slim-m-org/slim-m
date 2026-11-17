@@ -178,6 +178,48 @@ void main() {
       expect(_names(call.session), ['me']);
     });
 
+    test(
+        'a restart the SDK never reports as finished lets go once everyone is back',
+        () async {
+      final call = await JoinedCall.join(people: {'bob': FakePeer('bob')});
+      addTearDown(call.session.dispose);
+      call.room.emit(const lk.RoomReconnectingEvent());
+      call.room.people.clear();
+      call.room
+          .emit(lk.ParticipantDisconnectedEvent(participant: FakePeer('bob')));
+      await pumpEventQueue();
+      expect(_names(call.session), ['me', 'bob']);
+
+      call.room.people
+        ..['bob'] = FakePeer('bob')
+        ..['cy'] = FakePeer('cy');
+      call.room.emit(lk.ParticipantConnectedEvent(participant: FakePeer('cy')));
+      await pumpEventQueue();
+
+      expect(call.session.health.reconnect.restarting.value, isTrue,
+          reason: 'the SDK never said the restart was over');
+      expect(_names(call.session), ['me', 'bob', 'cy'],
+          reason: 'the room is back, so the roster follows it again');
+    });
+
+    test('a restart keeps holding while someone shown is still missing',
+        () async {
+      final call = await JoinedCall.join(
+        people: {'bob': FakePeer('bob'), 'cy': FakePeer('cy')},
+      );
+      addTearDown(call.session.dispose);
+      call.room.emit(const lk.RoomReconnectingEvent());
+      call.room.people.clear();
+      await pumpEventQueue();
+
+      call.room.people['cy'] = FakePeer('cy');
+      call.room.emit(lk.ParticipantConnectedEvent(participant: FakePeer('cy')));
+      await pumpEventQueue();
+
+      expect(_names(call.session), ['me', 'bob', 'cy'],
+          reason: 'half a rebuilt room must not read as bob leaving');
+    });
+
     test('video work carries on while the roster waits', () async {
       final camera = FakeCameraPublication();
       final call = await JoinedCall.join(
@@ -210,6 +252,28 @@ void main() {
       expect(call.session.health.reconnect.active.value, isTrue);
       expect(_names(call.session), ['me'],
           reason: 'a resume must not freeze a roster that is still true');
+      expect(call.session.glitchWatch.running, isTrue);
+    });
+
+    test('stays live when the SDK announces it with an attempt first',
+        () async {
+      final call = await JoinedCall.join(people: {'bob': FakePeer('bob')});
+      addTearDown(call.session.dispose);
+
+      call.room.emit(const lk.RoomAttemptReconnectEvent(
+        attempt: 1,
+        maxAttemptsRetry: 10,
+        nextRetryDelaysInMs: 0,
+      ));
+      call.room.emit(const lk.RoomResumingEvent());
+      call.room.people.clear();
+      call.room
+          .emit(lk.ParticipantDisconnectedEvent(participant: FakePeer('bob')));
+      await pumpEventQueue();
+
+      expect(call.session.health.reconnect.active.value, isTrue);
+      expect(_names(call.session), ['me'],
+          reason: 'the attempt ahead of a resume must not freeze the roster');
       expect(call.session.glitchWatch.running, isTrue);
     });
 
@@ -246,6 +310,41 @@ void main() {
       call.room.emit(const lk.RoomReconnectedEvent());
       await pumpEventQueue();
       expect(call.session.glitchWatch.running, isTrue);
+    });
+  });
+
+  group('the end of a full restart', () {
+    test('is announced once the call is back, a resume never is', () async {
+      final call = await JoinedCall.join();
+      addTearDown(call.session.dispose);
+      var restarts = 0;
+      final sub = call.session.transportRestarts.listen((_) => restarts++);
+      addTearDown(sub.cancel);
+
+      call.room.emit(const lk.RoomResumingEvent());
+      call.room.emit(const lk.RoomReconnectedEvent());
+      await pumpEventQueue();
+      expect(restarts, 0, reason: 'a resume keeps the same participant');
+
+      call.room.emit(const lk.RoomReconnectingEvent());
+      call.room.emit(const lk.RoomReconnectedEvent());
+      await pumpEventQueue();
+      expect(restarts, 1);
+    });
+
+    test('is not announced for a call left mid-restart', () async {
+      final call = await JoinedCall.join();
+      addTearDown(call.session.dispose);
+      var restarts = 0;
+      final sub = call.session.transportRestarts.listen((_) => restarts++);
+      addTearDown(sub.cancel);
+      call.room.emit(const lk.RoomReconnectingEvent());
+      await pumpEventQueue();
+
+      await call.session.leave();
+      await pumpEventQueue();
+
+      expect(restarts, 0);
     });
   });
 

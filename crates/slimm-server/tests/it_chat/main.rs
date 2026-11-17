@@ -62,6 +62,7 @@ mod read_marker_noop;
 mod read_states_batch;
 mod reply_mention;
 mod retention_publish_burst;
+mod send_dropped_request;
 mod send_retry_repairs;
 mod space_link_previews;
 mod thread_listing;

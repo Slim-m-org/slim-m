@@ -33,6 +33,8 @@ void main() {
                 channelName: 'general',
                 hasText: false,
                 canSend: false,
+                canRecord: false,
+                onVoiceSent: (_) {},
                 onSend: () async {},
                 onTyping: (_) {},
                 onOpenActions: () {},

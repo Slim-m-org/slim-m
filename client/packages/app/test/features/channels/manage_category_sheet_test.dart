@@ -104,7 +104,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'Board games');
     await tester.pump();
-    await tester.tap(find.text('Save changes'));
+    await tester.tap(find.text('Save name'));
     await tester.pumpAndSettle();
 
     final patch = r.requests.singleWhere((req) => req.method == 'PATCH');
@@ -153,7 +153,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'Board games');
     await tester.pump();
-    await tester.tap(find.text('Save changes'));
+    await tester.tap(find.text('Save name'));
     await tester.pumpAndSettle();
 
     expect(find.byType(AppErrorState), findsOneWidget);

@@ -16,7 +16,8 @@ import 'package:flutter/rendering.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../widgets/image_decode.dart';
-import '../../../emoji/widgets/standard_emoji.dart';
+import '../../../emoji/providers/standard_emoji.dart';
+import '../../widgets/settings_file_thumb.dart';
 import 'emoji_bulk_plan.dart';
 import 'emoji_name.dart';
 
@@ -262,17 +263,12 @@ class _Thumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    const size = AppSizes.icon32;
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        border: Border.all(color: tokens.borderSubtle),
-        borderRadius: BorderRadius.circular(AppRadii.control),
-      ),
+    const size = SettingsFileThumb.size;
+    return SettingsFileThumb(
       child: Image.memory(
         Uint8List.fromList(bytes),
+        width: size,
+        height: size,
         fit: BoxFit.contain,
         gaplessPlayback: true,
         cacheWidth: decodeEdge(context, size),

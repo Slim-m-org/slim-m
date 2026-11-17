@@ -10,11 +10,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
 
-import '../features/auth/providers/account_state_refresh.dart';
+import '../features/channels/providers/category_nesting.dart';
 import '../features/channels/providers/channel_refresher.dart';
-import '../features/messages/providers/failed_send_retry.dart';
+import '../features/channels/providers/last_text_channel.dart';
 import 'providers.dart';
-import 'server_info.dart';
 import 'app_lifecycle.dart';
 import '../sync/providers/reconnect_backoff.dart';
 import '../sync/providers/sync_identity_hold.dart';
@@ -24,8 +23,8 @@ import '../sync/providers/sync_catch_up.dart';
 import '../sync/providers/sync_event_applier.dart';
 import '../sync/providers/sync_frame_queue.dart';
 import '../sync/providers/sync_reconnector.dart';
+import '../sync/providers/sync_live_refresh.dart';
 import '../sync/providers/sync_session_end.dart';
-
 import '../sync/providers/sync_status.dart';
 
 export '../sync/providers/sync_catch_up.dart'
@@ -121,7 +120,14 @@ class SyncController extends StateNotifier<SyncStatus> {
   );
   late final SyncCatchUp _catchUp;
   late final SyncEventApplier _applier;
-  final _channelRefresher = ChannelRefresher();
+  late final _channelRefresher = ChannelRefresher(
+    onLost: (lost) {
+      final notifier = _ref.read(lostChannelsProvider.notifier);
+      notifier.state = {...notifier.state, ...lost};
+    },
+    onCategoriesNest: (nests) =>
+        _ref.read(categoriesNestProvider.notifier).state = nests,
+  );
 
   /// Whether this controller has been live before, which tells a reconnect from
   /// the first connect of a session.
@@ -240,6 +246,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     bool ended = false,
     bool allowed = false,
     double? aspect,
+    bool stamps = false,
   }) => _connection?.canvasScreenAnnotation(
     channelId,
     targetUserId,
@@ -251,6 +258,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     ended: ended,
     allowed: allowed,
     aspect: aspect,
+    stamps: stamps,
   );
 
   /// Tells the server the world rectangle this user is looking at; the same
@@ -313,20 +321,13 @@ class SyncController extends StateNotifier<SyncStatus> {
 
       _reconnector.connected();
       state = SyncStatus.live;
-      refreshAccountNotificationState(_ref, reconnect: _wasLive);
-      if (_wasLive) refreshRosterAfterReconnect(_ref);
-      refreshServerInfo(_ref, reconnect: _wasLive);
-      _wasLive = true;
-      _ref.read(hasFailedSinceLiveProvider.notifier).state = false;
-      _ref.read(syncFailureProvider.notifier).state = null;
-      // A DB read failure here must not read as this connect itself having failed; retryMessage's own catch already covers a failed resend.
-      unawaited(
-        retryFailedSends(
-          _ref.read,
-          store,
-          isCurrent: () => generation == _generation,
-        ).catchError(ignoreError(LogTag.sync, 'resend unsent messages')),
+      afterSyncLive(
+        _ref,
+        store,
+        reconnect: _wasLive,
+        isCurrent: () => generation == _generation,
       );
+      _wasLive = true;
     } on FrameBacklogOverflow catch (error, stack) {
       if (generation == _generation) {
         _reconnector.onBacklogOverflow(error, stack);
@@ -398,6 +399,10 @@ class SyncController extends StateNotifier<SyncStatus> {
     );
     return frames;
   }
+
+  /// Completes once every frame this socket has delivered so far is in the
+  /// store, so a reader can tell a channel still arriving from one that never will.
+  Future<void> framesApplied() => _frames?.applied() ?? Future.value();
 
   /// Applies one live event the way [_attach]'s listener would, without
   /// needing a real socket. For tests only.

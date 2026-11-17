@@ -119,3 +119,9 @@ int? screenNumberFromLabel(String label) {
   ).firstMatch(label);
   return match == null ? null : int.tryParse(match.group(1)!);
 }
+
+/// The window handle a Windows capturer's window source id carries, or null for anything else.
+int? windowHandleFromSourceId(String id) {
+  final handle = int.tryParse(id.trim());
+  return handle == null || handle <= 0 ? null : handle;
+}

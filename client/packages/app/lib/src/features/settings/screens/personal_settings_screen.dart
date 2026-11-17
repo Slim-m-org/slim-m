@@ -29,6 +29,8 @@ import '../../members/widgets/profile_fields_section.dart';
 import '../../members/widgets/report_status_section.dart';
 import '../widgets/settings_panes.dart';
 import '../widgets/settings_profile_preview.dart';
+import '../widgets/theme_editor_page.dart';
+import '../widgets/theme_gallery.dart';
 import '../widgets/totp_section.dart';
 import '../widgets/troubleshooting_pane.dart';
 import '../../auth/widgets/change_password_section.dart';
@@ -40,7 +42,9 @@ class PersonalSettingsScreen extends ConsumerWidget {
   const PersonalSettingsScreen({
     super.key,
     this.initialPaneId,
+    this.initialPageId,
     this.onPaneChanged,
+    this.onPageChanged,
     this.hasDesktopPane,
     this.focusAbout = false,
   });
@@ -51,8 +55,14 @@ class PersonalSettingsScreen extends ConsumerWidget {
   /// The pane to open on, when something deep-links to one.
   final String? initialPaneId;
 
+  /// See [SettingsPanesScaffold.initialPageId].
+  final String? initialPageId;
+
   /// See [SettingsPanesScaffold.onPaneChanged].
   final ValueChanged<String?>? onPaneChanged;
+
+  /// See [SettingsPanesScaffold.onPageChanged].
+  final void Function(String paneId, String? pageId)? onPageChanged;
 
   /// Null asks the host: the Desktop pane exists where the app runs as a desktop app.
   final bool? hasDesktopPane;
@@ -62,7 +72,9 @@ class PersonalSettingsScreen extends ConsumerWidget {
     return SettingsPanesScaffold(
       searchEntries: ref.watch(personalSearchEntriesProvider),
       initialPaneId: initialPaneId,
+      initialPageId: initialPageId,
       onPaneChanged: onPaneChanged,
+      onPageChanged: onPageChanged,
       title: 'Settings',
       // Reached with go(), which replaces, so there is no stack to pop.
       backTooltip: 'Back to channels',
@@ -110,6 +122,10 @@ class PersonalSettingsScreen extends ConsumerWidget {
               label: 'Appearance',
               icon: AppIcons.appearance,
               builder: (context) => const AppearanceSettingsSection(),
+              subPages: {
+                'themes': () => [themesSubPage()],
+                'new-theme': () => [themesSubPage(), themeEditorSubPage(null)],
+              },
             ),
             if (hasDesktopPane ?? isDesktopHost)
               SettingsPane(

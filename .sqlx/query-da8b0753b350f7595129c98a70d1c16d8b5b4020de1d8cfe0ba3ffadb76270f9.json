@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: ChannelCategoryId\",\n                  parent_id AS \"parent_id: ChannelCategoryId\",\n                  position AS \"position!: i64\"\n           FROM channel_categories WHERE deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: ChannelCategoryId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "parent_id: ChannelCategoryId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "position!: i64",
+        "ordinal": 2,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "da8b0753b350f7595129c98a70d1c16d8b5b4020de1d8cfe0ba3ffadb76270f9"
+}

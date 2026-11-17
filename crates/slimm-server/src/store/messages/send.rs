@@ -153,11 +153,21 @@ impl Store {
         .await?;
 
         if !attachment_ids.is_empty() {
-            link_attachments(&mut tx, id, author_id, attachment_ids, spoiler_ids).await?;
+            let forwarded_from = forward.as_ref().map(|source| source.named);
+            link_attachments(
+                &mut tx,
+                id,
+                author_id,
+                attachment_ids,
+                spoiler_ids,
+                forwarded_from,
+            )
+            .await?;
         }
 
-        if let Some(origin) = &forward {
-            crate::store::messages::message_forwards::insert_forward(&mut tx, id, origin).await?;
+        if let Some(source) = &forward {
+            crate::store::messages::message_forwards::insert_forward(&mut tx, id, &source.origin)
+                .await?;
         }
 
         if let Some(stamp) = stamp {

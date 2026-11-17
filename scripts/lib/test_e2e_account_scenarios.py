@@ -86,6 +86,9 @@ class _QualityClient:
     def ev(self, expr):
         return self.stored
 
+    def dismiss_overlay(self, settle=0.4):
+        self.clicked.append("Escape")
+
 
 class ShareQualityTest(unittest.TestCase):
     def setUp(self):

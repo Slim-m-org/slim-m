@@ -32,7 +32,7 @@ class AdminSetupController extends StateNotifier<AdminSetupState> {
   Future<void> _check() async {
     try {
       final me = await _ref.read(meProvider.future);
-      if (!me.permissions.hasPermission(Perm.manageServer)) return;
+      if (!me.heldPermissions.hasPermission(Perm.manageServer)) return;
       await _ref.read(firstRunControllerProvider.notifier).ready;
       final setup = await _ref.read(spaceSetupProvider.future);
       if (mounted && setup.owed) state = (active: true, replay: false);

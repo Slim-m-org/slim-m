@@ -102,7 +102,7 @@ async fn deleting_an_account_still_names_sessions_revoked_earlier() {
         .session_id;
     store.revoke_session(first_session).await.unwrap();
 
-    let revoked = store.delete_account(member.id).await.unwrap();
+    let revoked = store.delete_account(member.id).await.unwrap().revoked;
 
     assert_eq!(revoked.len(), 2);
     assert!(revoked.contains(&first_session));

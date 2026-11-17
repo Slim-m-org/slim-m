@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 const Set<String> spaceScopedKeys = {
   'slimm.appearance.theme',
   'slimm.appearance.space_default_theme',
+  'slimm.appearance.recent_themes',
   'slimm.appearance.time_format',
   'slimm.appearance.message_density',
   'slimm.appearance.group_spacing',
@@ -32,6 +33,8 @@ const Set<String> spaceScopedKeys = {
   'slimm.voice.hold_music_volume',
   'slimm.voice.hold_music_unsent',
   'slimm.voice.call_ring_sound_enabled',
+  'slimm.voice.soundboard_sounds',
+  'slimm.voice.call_in_progress',
 };
 
 /// Where [key] is stored for the Space at [origin].

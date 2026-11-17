@@ -7,6 +7,8 @@ use sqlx::QueryBuilder;
 
 use super::RedeemError;
 use crate::ids::{RoleId, UserId};
+use crate::permissions::{Permissions, evaluate};
+use crate::store::space_owner::live_owner;
 use crate::store::{Store, now_ms};
 
 impl Store {
@@ -46,13 +48,11 @@ impl Store {
         record_redemption(&mut tx, code, user_id, now).await?;
 
         if let Some(role_id) = role_grant {
-            sqlx::query!(
-                "INSERT OR IGNORE INTO member_roles (user_id, role_id) VALUES (?, ?)",
-                user_id,
-                role_id
-            )
-            .execute(&mut *tx)
-            .await?;
+            if redeemer_may_take(&mut tx, user_id, role_id).await? {
+                apply_role_grant(&mut tx, code, user_id, role_id).await?;
+            } else {
+                tracing::info!(%role_id, "a manager redeemed an invite for a role they could not grant; joined without it");
+            }
         }
 
         tx.commit().await?;
@@ -150,4 +150,131 @@ pub(in crate::store) async fn record_redemption(
     .execute(&mut **tx)
     .await?;
     Ok(())
+}
+
+/// Gives `user_id` the role `code` grants, but only while its creator could still grant it by
+/// hand: a creator demoted or removed since the invite was made no longer hands out the role.
+pub(in crate::store) async fn apply_role_grant(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    code: &str,
+    user_id: UserId,
+    role_id: RoleId,
+) -> Result<(), sqlx::Error> {
+    if !creator_still_grants(tx, code, role_id).await? {
+        tracing::info!(%role_id, "an invite's creator can no longer grant its role; joined without it");
+        return Ok(());
+    }
+    sqlx::query!(
+        "INSERT OR IGNORE INTO member_roles (user_id, role_id) VALUES (?, ?)",
+        user_id,
+        role_id
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+/// The checks `http::invites::resolve_grant` ran at creation, against the creator as they are now.
+async fn creator_still_grants(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    code: &str,
+    role_id: RoleId,
+) -> Result<bool, sqlx::Error> {
+    let grant = sqlx::query!(
+        r#"SELECT u.id AS "creator!: UserId",
+                  r.permissions AS "permissions!: Permissions", r.position AS "position!: i64",
+                  (r.managed_bot_id IS NOT NULL OR r.is_bots_role = 1) AS "bot_held!: bool"
+           FROM invites i JOIN roles r ON r.id = ?
+           JOIN users u ON u.id = i.created_by AND u.deleted_at IS NULL
+           WHERE i.code = ?
+             AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id)"#,
+        role_id,
+        code
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+    let Some(grant) = grant.filter(|g| !g.bot_held) else {
+        return Ok(false);
+    };
+    let creator = Standing::of(tx, grant.creator).await?;
+    Ok(creator.grants(grant.position, grant.permissions))
+}
+
+/// Refuses a manager climbing the ladder through an invite: someone who manages roles gets the
+/// invite's role only if they could have granted it to themselves by hand.
+async fn redeemer_may_take(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    redeemer: UserId,
+    role_id: RoleId,
+) -> Result<bool, sqlx::Error> {
+    let role = sqlx::query!(
+        r#"SELECT permissions AS "permissions!: Permissions", position AS "position!: i64"
+           FROM roles WHERE id = ?"#,
+        role_id
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+    let Some(role) = role else {
+        return Ok(false);
+    };
+    let standing = Standing::of(tx, redeemer).await?;
+    Ok(!standing.granted.contains(Permissions::MANAGE_ROLES)
+        || standing.grants(role.position, role.permissions))
+}
+
+/// Where one account stands for granting a role by hand, read inside the redemption.
+struct Standing {
+    is_owner: bool,
+    granted: Permissions,
+    top: Option<i64>,
+}
+
+impl Standing {
+    async fn of(
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        user_id: UserId,
+    ) -> Result<Self, sqlx::Error> {
+        let is_owner = live_owner(tx).await? == Some(user_id);
+        let held = sqlx::query!(
+            r#"SELECT permissions AS "permissions!: Permissions", position AS "position!: i64",
+                  is_everyone AS "is_everyone!: bool"
+           FROM roles
+           WHERE is_everyone = 1
+              OR id IN (SELECT role_id FROM member_roles WHERE user_id = ?)"#,
+            user_id
+        )
+        .fetch_all(&mut **tx)
+        .await?;
+        let everyone = held
+            .iter()
+            .filter(|r| r.is_everyone)
+            .fold(Permissions::NONE, |bits, r| bits.union(r.permissions));
+        let roles: Vec<Permissions> = held
+            .iter()
+            .filter(|r| !r.is_everyone)
+            .map(|r| r.permissions)
+            .collect();
+        let granted = match is_owner {
+            true => Permissions::ALL,
+            false => evaluate(everyone, &roles, None, &[], None),
+        };
+        let top = held
+            .iter()
+            .filter(|r| !r.is_everyone)
+            .map(|r| r.position)
+            .max();
+        Ok(Self {
+            is_owner,
+            granted,
+            top,
+        })
+    }
+
+    /// Whether this account could grant a role at `position` carrying `permissions` by hand.
+    fn grants(&self, position: i64, permissions: Permissions) -> bool {
+        let ranks = self.is_owner || self.top.is_some_and(|top| position < top);
+        ranks
+            && self.granted.contains(Permissions::MANAGE_ROLES)
+            && self.granted.contains(permissions)
+    }
 }

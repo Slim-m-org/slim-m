@@ -74,6 +74,7 @@ async fn youtube_preview_from(
         video: Some(video),
         author_name: oembed.and_then(|o| o.author_name),
         author_url,
+        duration_s: None,
     }
 }
 
@@ -84,20 +85,20 @@ fn is_http_url(s: &str) -> bool {
     Url::parse(s).is_ok_and(|u| u.scheme() == "http" || u.scheme() == "https")
 }
 
-/// The fields this server reads out of YouTube's oembed JSON.
-struct OembedData {
-    title: Option<String>,
-    thumbnail: Option<String>,
-    author_name: Option<String>,
-    author_url: Option<String>,
+/// The fields this server reads out of a provider's oembed JSON.
+#[derive(Default)]
+pub(super) struct OembedData {
+    pub title: Option<String>,
+    pub thumbnail: Option<String>,
+    pub author_name: Option<String>,
+    pub author_url: Option<String>,
 }
 
-/// Fetches YouTube's oembed JSON for [start] through the same guarded
-/// [`follow`] the page fetch uses, against [oembed_endpoint] (always
-/// [`YOUTUBE_OEMBED_ENDPOINT`] outside a test). `None` on any failure - the
-/// caller falls back to a deterministic thumbnail, a generic title and no
-/// channel.
-async fn fetch_oembed(
+/// Fetches the oembed JSON for [start] from [oembed_endpoint] (YouTube's or
+/// Spotify's, or a loopback fake in a test) through the same guarded
+/// [`follow`] the page fetch uses. `None` on any failure, which each caller
+/// degrades from.
+pub(super) async fn fetch_oembed(
     client: &Client,
     start: &str,
     allow_private: bool,
@@ -143,6 +144,7 @@ mod tests {
         VideoInfo {
             provider: VideoProvider::Youtube,
             id: "dQw4w9WgXcQ".to_string(),
+            kind: None,
         }
     }
 

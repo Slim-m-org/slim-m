@@ -70,6 +70,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
         onPointerLeft: widget.onPointerLeft,
         onPointerMoved: widget.onPointerMoved,
         onShapePlace: widget.onShapePlace,
+        stamping: widget.stamping,
         onNotePlace: widget.onNotePlace,
         onTextPlace: widget.onTextPlace,
         onSelectLongPress: widget.onSelectLongPress,

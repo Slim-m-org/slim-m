@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Posts that read as mentions on an everything default: channels this account
-/// cannot post in, and posts by bots and webhooks. A channel override still wins.
+/// cannot post in, posts by bots and webhooks, and a voice channel's chat. A
+/// channel override still wins. A lobby's chat never alerts.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -141,6 +142,36 @@ void main() {
           alertMessage('dm-1', 'hello', authorId: 'feedbot'),
         ),
         isTrue,
+      );
+    });
+  });
+
+  group("a voice channel's chat", () {
+    final mention = alertMessage('voice-1', 'hi @nick', mentionsMe: true);
+
+    test('alerts only for a mention by default', () async {
+      await wire(AlertRig());
+
+      expect(await alertsFor(rig, alertMessage('voice-1', 'gg')), isFalse);
+      expect(await alertsFor(rig, mention), isTrue);
+    });
+
+    test('an override for the channel gets every message', () async {
+      await wire(AlertRig(overrides: {'voice-1': 'everything'}));
+
+      expect(await alertsFor(rig, alertMessage('voice-1', 'gg')), isTrue);
+    });
+
+    test("a lobby's chat never alerts, a mention included", () async {
+      await wire(AlertRig(overrides: {'lobby-1': 'everything'}));
+
+      expect(await alertsFor(rig, alertMessage('lobby-1', 'gg')), isFalse);
+      expect(
+        await alertsFor(
+          rig,
+          alertMessage('lobby-1', 'hi @nick', mentionsMe: true),
+        ),
+        isFalse,
       );
     });
   });

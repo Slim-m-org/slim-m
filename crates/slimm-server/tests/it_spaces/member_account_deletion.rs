@@ -205,14 +205,20 @@ async fn the_last_administrator_cannot_be_deleted_by_another_admin() {
         .unwrap()
         .access_token;
 
-    // With two administrators, deleting one is allowed.
+    // The second administrator cannot delete the Space owner at all.
     assert_eq!(
         delete_account(&w.app, &w.admin_id, &other_token).await,
+        StatusCode::FORBIDDEN
+    );
+
+    // With two administrators, deleting one is allowed.
+    assert_eq!(
+        delete_account(&w.app, &other.id.to_string(), &w.admin_token).await,
         StatusCode::NO_CONTENT
     );
 
     // Now there is one left, and nothing may take it.
-    let last = delete_account(&w.app, &other.id.to_string(), &other_token).await;
+    let last = delete_account(&w.app, &w.admin_id, &w.admin_token).await;
     assert_eq!(
         last,
         StatusCode::BAD_REQUEST,

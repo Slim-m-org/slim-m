@@ -404,3 +404,78 @@ async fn an_empty_room_has_no_call_age() {
         .unwrap();
     assert!(json_body(response).await["call_age_ms"].is_null());
 }
+
+#[tokio::test]
+async fn only_the_asking_devices_own_connection_is_marked_this_device() {
+    let (store, _guard) = support::new_store("slimm-voice-roster-test").await;
+    store
+        .create_role("everyone", Permissions::VIEW_CHANNEL, true)
+        .await
+        .unwrap();
+    let channel = store.create_channel("general", "voice").await.unwrap();
+    let account = store
+        .create_account("alice", "alice", "not-a-real-hash")
+        .await
+        .unwrap();
+    store.bootstrap_deployment(account.id).await.unwrap();
+    let laptop = store.open_session(account.id, "laptop").await.unwrap();
+    let phone = store.open_session(account.id, "phone").await.unwrap();
+    let (_, bob_id) = member(&store, "bob").await;
+    let device = slimm_server::voice::DEVICE_ATTRIBUTE;
+    let laptop_tag = voice_at(&unreachable_url())
+        .device_tag(channel.id, laptop.device_id)
+        .unwrap();
+    let voice = voice_at(
+        &spawn_room_service(json!([
+            { "identity": account.id.to_string(), "name": "alice on the laptop",
+              "attributes": { (device): laptop_tag } },
+            // A call joined before device tags still shows the raw id.
+            { "identity": account.id.to_string(), "name": "alice on the phone",
+              "attributes": { (device): phone.device_id.to_string() } },
+            { "identity": bob_id, "name": "bob",
+              "attributes": { (device): laptop_tag } },
+        ]))
+        .await,
+    );
+    let app = app(store.clone(), voice);
+
+    let marks = |token: String| {
+        let app = app.clone();
+        let uri = format!("/channels/{}/voice/roster", channel.id);
+        async move {
+            let response = app
+                .oneshot(request("GET", &uri, Some(&token)))
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            json_body(response).await["participants"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|p| {
+                    (
+                        p["display_name"].as_str().unwrap().to_owned(),
+                        p["this_device"].as_bool().unwrap(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        }
+    };
+    let shown = |laptop: bool, phone: bool| {
+        vec![
+            ("alice on the laptop".to_owned(), laptop),
+            ("alice on the phone".to_owned(), phone),
+            ("bob".to_owned(), false),
+        ]
+    };
+    assert_eq!(
+        marks(laptop.access_token.clone()).await,
+        shown(true, false),
+        "the laptop's own connection is marked, and nobody else's ever is"
+    );
+    assert_eq!(
+        marks(phone.access_token.clone()).await,
+        shown(false, true),
+        "seen from the phone, the laptop's connection is another device"
+    );
+}

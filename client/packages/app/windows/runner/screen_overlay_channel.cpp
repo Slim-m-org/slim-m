@@ -50,6 +50,12 @@ std::wstring WideFromUtf8(const std::string& utf8) {
   return wide;
 }
 
+std::string TextOf(const EncodableValue* value) {
+  if (value == nullptr) return std::string();
+  const auto* s = std::get_if<std::string>(value);
+  return s == nullptr ? std::string() : *s;
+}
+
 slimm_overlay::Shape ShapeOf(const EncodableMap& map) {
   slimm_overlay::Shape shape;
   std::string kind;
@@ -71,17 +77,17 @@ slimm_overlay::Shape ShapeOf(const EncodableMap& map) {
         shape.text = WideFromUtf8(*s);
       }
     }
+  } else if (kind == "stamp") {
+    shape.kind = slimm_overlay::Shape::Kind::kStamp;
+    shape.points = {NumberOf(Field(map, "x"), 0), NumberOf(Field(map, "y"), 0)};
+    shape.image = TextOf(Field(map, "image"));
+    shape.size = NumberOf(Field(map, "size"), 0);
+    shape.scale = NumberOf(Field(map, "scale"), 1);
   } else {
     shape.kind = slimm_overlay::Shape::Kind::kStroke;
     shape.points = NumbersOf(Field(map, "points"));
   }
   return shape;
-}
-
-std::string TextOf(const EncodableValue* value) {
-  if (value == nullptr) return std::string();
-  const auto* s = std::get_if<std::string>(value);
-  return s == nullptr ? std::string() : *s;
 }
 
 std::vector<uint8_t> BytesOf(const EncodableValue* value) {
@@ -164,6 +170,8 @@ void RegisterScreenOverlayChannel(flutter::BinaryMessenger* messenger) {
   channel = std::make_unique<flutter::MethodChannel<EncodableValue>>(
       messenger, "slimm/screen_overlay",
       &flutter::StandardMethodCodec::GetInstance());
+  slimm_overlay::SetDisplaysChangedHandler(
+      [] { channel->InvokeMethod("displaysChanged", nullptr); });
   channel->SetMethodCallHandler(
       [](const flutter::MethodCall<EncodableValue>& call,
          std::unique_ptr<flutter::MethodResult<EncodableValue>> result) {
@@ -175,10 +183,15 @@ void RegisterScreenOverlayChannel(flutter::BinaryMessenger* messenger) {
           result->Success(SupportReply());
         } else if (method == "show") {
           int monitor = 0;
+          const EncodableValue* window = nullptr;
           if (args != nullptr) {
             monitor = static_cast<int>(NumberOf(Field(*args, "monitor"), 0));
+            window = Field(*args, "window");
           }
-          result->Success(EncodableValue(slimm_overlay::Show(monitor)));
+          bool shown = window != nullptr
+              ? slimm_overlay::ShowOverWindow(static_cast<int64_t>(NumberOf(window, 0)))
+              : slimm_overlay::Show(monitor);
+          result->Success(EncodableValue(shown));
         } else if (method == "draw") {
           std::vector<slimm_overlay::Shape> shapes;
           const EncodableValue* raw = args == nullptr ? nullptr : Field(*args, "shapes");
@@ -196,6 +209,14 @@ void RegisterScreenOverlayChannel(flutter::BinaryMessenger* messenger) {
         } else if (method == "panel") {
           slimm_overlay::SetPanel(args == nullptr ? slimm_overlay::Panel()
                                                   : PanelOf(*args));
+          result->Success();
+        } else if (method == "putImage") {
+          bool held = args != nullptr &&
+                      slimm_overlay::PutStampImage(TextOf(Field(*args, "key")),
+                                                   BytesOf(Field(*args, "png")));
+          result->Success(EncodableValue(held));
+        } else if (method == "dropImage") {
+          if (args != nullptr) slimm_overlay::DropStampImage(TextOf(Field(*args, "key")));
           result->Success();
         } else if (method == "appMonitor") {
           result->Success(EncodableValue(slimm_overlay::AppMonitor()));

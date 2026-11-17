@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO message_attachments\n                 (message_id, sha256, position, filename, spoiler, voice_duration_ms, voice_waveform)\n             SELECT ?, a.sha256, ?,\n                    CASE WHEN s.sha256 IS NULL THEN u.filename ELSE s.filename END,\n                    MAX(COALESCE(s.spoiler, 0), ?),\n                    CASE WHEN s.sha256 IS NULL THEN u.voice_duration_ms ELSE s.voice_duration_ms END,\n                    CASE WHEN s.sha256 IS NULL THEN u.voice_waveform ELSE s.voice_waveform END\n             FROM attachments a\n             LEFT JOIN attachment_uploaders u ON u.sha256 = a.sha256 AND u.uploaded_by = ?\n             LEFT JOIN message_attachments s ON s.message_id = ? AND s.sha256 = a.sha256\n             WHERE a.sha256 = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "8905ff8e1e1e1ac889c92763513b9f503f44c553a8617797f3058259c2415220"
+}

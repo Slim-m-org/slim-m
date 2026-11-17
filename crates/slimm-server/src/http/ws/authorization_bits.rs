@@ -28,6 +28,8 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::Canvas(CanvasEvent::ObjectEdited { .. })
         | Event::Canvas(CanvasEvent::MediaSlotChanged { .. })
         | Event::Canvas(CanvasEvent::ObjectLockChanged { .. }) => Some(Permissions::USE_CANVAS),
+        // The bit the transcript read route needs, so a live line reaches no one it would 404.
+        Event::CallTranscriptLine { .. } => Some(Permissions::VIEW_TRANSCRIPTS),
         Event::Message(MessageEvent::Created { .. })
         | Event::Message(MessageEvent::Edited { .. })
         | Event::Message(MessageEvent::Deleted { .. })
@@ -40,6 +42,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::Message(MessageEvent::PollVoted { .. })
         | Event::Message(MessageEvent::ComponentsChanged { .. })
         | Event::Message(MessageEvent::EmbedsChanged { .. })
+        | Event::Message(MessageEvent::VoiceTranscript { .. })
         | Event::Message(MessageEvent::LinkPreviewsRemoved { .. })
         | Event::TypingStarted { .. }
         | Event::TypingStopped { .. }
@@ -66,6 +69,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::MemberRemoved(_)
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)
+        | Event::OwnerChanged(_)
         | Event::ProfileChanged(_)
         | Event::BotUiChanged(_)
         | Event::RoleChanged { .. }
@@ -84,6 +88,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
         | Event::VoiceNotice { .. }
+        | Event::SoundboardPlayed { .. }
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => None,
     }

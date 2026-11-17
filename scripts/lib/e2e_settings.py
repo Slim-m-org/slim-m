@@ -13,7 +13,7 @@ import e2e_labels as L
 def _open_personal(client):
     """Each scenario starts from the channel list, so each finds its own way."""
     if '#/settings' not in (client.ev('location.href') or '') or \
-            client.find(L.ROLES):
+            client.find(L.INVITES):
         client.click(L.PERSONAL_SETTINGS, settle=3)
 
 
@@ -28,7 +28,8 @@ def personal_settings_reachable(client):
     client.click(L.PERSONAL_SETTINGS, settle=3)
     client.wait_url('#/settings')
     client.wait_for(L.CHANGE_AVATAR)
-    assert not client.find(L.ROLES), \
+    # The profile preview has its own Roles section, so Invites marks Space settings.
+    assert not client.find(L.INVITES), \
         'personal settings is showing Space settings'
     client.shot('personal-settings')
     print('  personal settings opens on its own, with no Space section in it')

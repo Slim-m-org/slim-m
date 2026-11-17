@@ -18,7 +18,7 @@ test('switching to the dark theme in Settings repaints the app and is remembered
     await alice.click(L.APPEARANCE_PANE);
     await alice.see(L.THEME_ROW);
   });
-  await step('she opens the Color theme row, which lists the themes, and picks Dark', async () => {
+  await step('she opens Browse themes, which lists the themes, and picks Dark', async () => {
     await alice.click(L.THEME_ROW);
     await alice.see(L.THEME_DARK);
     await alice.click(L.THEME_DARK);

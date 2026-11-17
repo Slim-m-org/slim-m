@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What a viewer's feed keeps: marks only over a screen whose sharer allowed
-/// drawing, and no board that has nothing left to show.
+/// What a viewer's feed keeps: marks only from my call over a screen whose
+/// sharer allowed drawing, and no board that has nothing left to show.
 library;
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_annotation_board.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_annotation_consent.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_annotation_feed.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_state.dart';
+import 'package:slimm_rtc/rtc.dart';
+
+import 'overlay_rig.dart';
 
 api.CanvasScreenAnnotation _consent(String sharer, {bool allowed = true}) =>
     api.CanvasScreenAnnotation(
@@ -23,9 +28,10 @@ api.CanvasScreenAnnotation _consent(String sharer, {bool allowed = true}) =>
 api.CanvasScreenAnnotation _stroke(
   String target, {
   String id = 'm1',
+  String channel = 'call',
   bool ended = true,
 }) => api.CanvasScreenAnnotation(
-  channelId: 'call',
+  channelId: channel,
   userId: 'viewer',
   targetUserId: target,
   kind: 'stroke',
@@ -43,7 +49,12 @@ void main() {
 
   setUp(() {
     now = DateTime(2026, 11, 10, 12);
-    feed = ScreenAnnotationFeed(selfId: () => 'me', clock: () => now);
+    feed = ScreenAnnotationFeed(
+      selfId: () => 'me',
+      callChannelId: () => 'call',
+      callMembers: () => const ['me', 'sharer', 'viewer'],
+      clock: () => now,
+    );
     notified = 0;
     feed.addListener(() => notified++);
   });
@@ -71,6 +82,20 @@ void main() {
     expect(feed.boardCount, 1);
   });
 
+  test('a mark relayed on another channel is dropped', () {
+    feed.handle(_consent('sharer'));
+    feed.handle(_stroke('sharer', channel: 'other-call'));
+    feed.handle(_stroke('me', channel: 'other-call'));
+    expect(feed.boardCount, 0);
+  });
+
+  test('a mark over a sharer who is not in my call is dropped', () {
+    feed.handle(_consent('outsider'));
+    feed.handle(_stroke('outsider'));
+    expect(feed.marksFor('outsider'), isEmpty);
+    expect(feed.boardCount, 0);
+  });
+
   test('a mark over my own screen is kept for my preview of it', () {
     feed.handle(_stroke('me'));
     expect(feed.marksFor('me'), hasLength(1));
@@ -91,12 +116,13 @@ void main() {
     expect(feed.marksFor('sharer'), isEmpty);
   });
 
-  test('the rest of a mark in progress lands after consent is withdrawn', () {
+  test('withdrawn consent takes every mark off the screen at once', () {
     feed.handle(_consent('sharer'));
     feed.handle(_stroke('sharer', ended: false));
     feed.handle(_consent('sharer', allowed: false));
+    expect(feed.marksFor('sharer'), isEmpty);
     feed.handle(_stroke('sharer', ended: true));
-    expect(feed.marksFor('sharer').single.finishedAt, isNotNull);
+    expect(feed.marksFor('sharer'), isEmpty);
   });
 
   test('a board with nothing left is dropped when the next frame folds', () {
@@ -122,4 +148,68 @@ void main() {
     feed.applyLocal(_stroke('sharer'));
     expect(feed.marksFor('sharer'), hasLength(1));
   });
+
+  group('in the app, a mark sent from another call', () {
+    test('never reaches my own preview of my share', () {
+      fakeAsync((async) {
+        final rig = OverlayRig();
+        final feed = rig.container.read(screenAnnotationFeedProvider);
+        async.flushMicrotasks();
+
+        rig.annotate(from: 'bob', channel: 'other-call');
+        rig.annotate(from: 'bob');
+        async.flushMicrotasks();
+        expect(feed.marksFor('me'), isEmpty);
+        expect(feed.boardCount, 0);
+
+        rig.annotate();
+        async.flushMicrotasks();
+        expect(feed.marksFor('me'), hasLength(1));
+      });
+    });
+
+    test('never reaches the tile of a sharer who allowed drawing', () {
+      fakeAsync((async) {
+        final rig = OverlayRig(initial: _watching);
+        final feed = rig.container.read(screenAnnotationFeedProvider);
+        async.flushMicrotasks();
+        rig.sync.events.add(_consent('sharer'));
+
+        rig.annotate(target: 'sharer', from: 'bob', channel: 'other-call');
+        rig.annotate(target: 'sharer', from: 'bob');
+        async.flushMicrotasks();
+        expect(feed.marksFor('sharer'), isEmpty);
+        expect(feed.boardCount, 0);
+
+        rig.annotate(target: 'sharer');
+        async.flushMicrotasks();
+        expect(feed.marksFor('sharer'), hasLength(1));
+      });
+    });
+  });
 }
+
+/// I am in the call watching 'sharer', with 'viewer' beside me; 'bob' is in another call.
+final _watching = VoiceState(
+  channelId: 'call',
+  state: VoiceSessionState.connected,
+  participants: [
+    const VoiceParticipant(
+      identity: 'me',
+      name: 'me',
+      isSpeaking: false,
+      isMuted: false,
+      isLocal: true,
+      isScreenSharing: false,
+    ),
+    const VoiceParticipant(
+      identity: 'sharer',
+      name: 'sharer',
+      isSpeaking: false,
+      isMuted: false,
+      isLocal: false,
+      isScreenSharing: true,
+    ),
+    rigViewer(),
+  ],
+);

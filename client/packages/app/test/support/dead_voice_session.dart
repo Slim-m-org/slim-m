@@ -16,6 +16,8 @@ class DeadVoiceSession with VideoQualityRecorder implements VoiceSession {
   @override
   Stream<VoiceSessionState> get states => const Stream.empty();
   @override
+  Stream<void> get transportRestarts => const Stream.empty();
+  @override
   Stream<List<VoiceParticipant>> get participantChanges => const Stream.empty();
   @override
   List<VoiceParticipant> get participants => const [];
@@ -161,6 +163,10 @@ class DeadVoiceSession with VideoQualityRecorder implements VoiceSession {
   }) async => ScreenShareOutcome.stopped;
   @override
   Future<bool> setDeafened(bool value) async => true;
+  @override
+  Future<String?> Function()? audioSessionReader;
+  @override
+  void noteCallSystemEvent(String line) => diagnostics.noteEvent(line);
   @override
   Future<void> dispose() async {}
 }

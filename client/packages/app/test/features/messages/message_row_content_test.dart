@@ -144,7 +144,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('notes.txt'), findsOneWidget);
-    expect(find.text('2.0 KB'), findsOneWidget);
+    expect(find.text('2 KB'), findsOneWidget);
   });
 
   /// The picker is revealed on hover and opens a floating panel, so reaching the

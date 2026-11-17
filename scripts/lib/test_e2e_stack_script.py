@@ -2,6 +2,7 @@
 """e2e-stack.sh's functions, driven one at a time against a stub docker and no real stack."""
 import http.server
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -135,6 +136,22 @@ class StartSfuTest(StackScriptCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("livekit never came up", result.stdout)
         self.assertIn("stub livekit: could not bind", result.stdout)
+
+
+class SpeakerDetectionTest(unittest.TestCase):
+    """The e2e SFU decides who is speaking exactly the way prod's does."""
+
+    @staticmethod
+    def _pairs(text):
+        return dict(p.strip().split(": ") for p in text.split(",") if p.strip())
+
+    def test_matches_docker_compose_voice(self):
+        script = Path(STACK).read_text()
+        default = re.search(r'LK_AUDIO="\$\{E2E_LK_AUDIO:-([^}]*)\}"', script).group(1)
+        compose = (Path(STACK).parents[1] / "docker-compose.voice.yml").read_text()
+        block = re.search(r"\n( +)audio:\n((?:\1 +\w+: \S+\n)+)", compose).group(2)
+        prod = dict(line.strip().split(": ") for line in block.splitlines())
+        self.assertEqual(self._pairs(default), prod)
 
 
 class StartServerTest(StackScriptCase):

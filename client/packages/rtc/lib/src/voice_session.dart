@@ -145,8 +145,20 @@ class VoiceSession {
   /// Per-person quality and the last call's summary; see [VoiceHealth].
   VoiceHealth get health => _core.healthWatch.health;
 
+  /// Fires when livekit rebuilt the connection of the call still in progress,
+  /// which rejoins this client as a new participant with none of its attributes.
+  Stream<void> get transportRestarts => _core.flow.restarts;
+
   /// What a call report needs, kept apart from the debug log; see [CallDiagnostics].
   CallDiagnostics get diagnostics => _core.healthWatch.diagnostics;
+
+  /// Reads the platform audio session as one phrase for the join check; the
+  /// app sets it where it owns a native reader (iOS).
+  set audioSessionReader(Future<String?> Function()? read) =>
+      _core.joinProbe.audioSession = read;
+
+  /// Files a CallKit or audio session event into the call's timeline and reads the audio right after it.
+  void noteCallSystemEvent(String line) => _core.joinProbe.noteEvent(line);
 
   /// Per-track video stats, sampled while somebody watches, listens or we publish video.
   CallStatsSampler get callStats => _core.stats.sampler;
@@ -161,8 +173,8 @@ class VoiceSession {
   // Microphone.
 
   /// Mutes or unmutes the local microphone; returns whether it ended in the requested state, since a token without SPEAK or a denied OS permission mean no and the UI must show what happened.
-  Future<bool> setMicrophoneEnabled(bool enabled) =>
-      _core.micRecovery.setEnabled(enabled);
+  Future<bool> setMicrophoneEnabled(bool enabled) => _core.joinProbe.noteToggle(
+      'Mic ${enabled ? 'on' : 'off'}', _core.micRecovery.setEnabled(enabled));
 
   /// Whether the mic is healthy, being brought back, or given up on.
   MicStatus get micStatus => _core.micRecovery.status;
@@ -314,8 +326,9 @@ class VoiceSession {
       _core.listener.setLocallyMuted(identity, muted);
 
   /// Silences (or restores) every remote participant locally; false when there is no call to affect.
-  Future<bool> setDeafened(bool deafened) =>
-      _core.listener.setDeafened(deafened);
+  Future<bool> setDeafened(bool deafened) => _core.joinProbe.noteToggle(
+      'Deafen ${deafened ? 'on' : 'off'}',
+      _core.listener.setDeafened(deafened));
 
   // Screen share.
 

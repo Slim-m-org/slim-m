@@ -83,4 +83,55 @@ void main() {
       expect(find.text('Priya'), findsOneWidget);
     });
   }
+
+  testWidgets('a failed load is an AppErrorState, and a 403 offers no Retry', (
+    tester,
+  ) async {
+    var status = 500;
+    final container = ProviderContainer(
+      overrides: [
+        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+        mockApiOverride((request) async {
+          if (request.url.path == '/me') {
+            return http.Response(
+              jsonEncode({
+                'id': 'self',
+                'username': 'self',
+                'display_name': 'Self',
+                'created_at': 0,
+                'permissions': 0,
+              }),
+              200,
+            );
+          }
+          if (request.url.path == '/presence') return http.Response('[]', 200);
+          return http.Response(jsonEncode({'error': 'x'}), status);
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: const Scaffold(body: AppMemberPane(channelId: null)),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.byWidgetPredicate((w) => w is AppErrorState), findsOneWidget);
+    expect(find.byWidgetPredicate((w) => w is TextButton), findsNothing);
+    expect(find.widgetWithText(AppButton, 'Retry'), findsOneWidget);
+
+    status = 403;
+    await tester.tap(find.text('Retry'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Could not load members.'), findsOneWidget);
+    expect(find.text('Retry'), findsNothing);
+  });
 }

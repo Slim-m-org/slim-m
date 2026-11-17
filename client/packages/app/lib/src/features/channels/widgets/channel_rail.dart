@@ -8,7 +8,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -29,7 +28,9 @@ import '../../palette/widgets/command_palette.dart';
 import '../../../widgets/context_menu_region.dart';
 import 'create_category_sheet.dart';
 import 'create_channel_sheet.dart';
+import 'rail_notes_button.dart';
 import 'rail_participant_drag.dart';
+import 'rail_pending_order.dart';
 import '../../settings/widgets/personal_account_sections.dart';
 
 /// The channel id in [path], or null when [path] is not a channel route.
@@ -97,8 +98,8 @@ class ChannelRail extends ConsumerStatefulWidget {
   static const double mediumWidth = 240;
 
   /// The compact rail: every channel name still fits beside its glyph at
-  /// this width, and [RailUserFooter] drops its name line to keep all three
-  /// controls. See [channelRailExpandedProvider].
+  /// this width, and [RailUserFooter] drops its name line to keep every
+  /// control. See [channelRailExpandedProvider].
   static const double compactWidth = 200;
 
   @override
@@ -118,7 +119,7 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
     final selected = selectedChannelId(context);
     final me = ref.watch(effectiveMeProvider);
     final canManageChannels =
-        me != null && me.permissions.hasPermission(Perm.manageChannels);
+        me != null && me.heldPermissions.hasPermission(Perm.manageChannels);
     final orderState = ref.watch(channelOrderControllerProvider);
     final orderController = ref.read(channelOrderControllerProvider.notifier);
 
@@ -212,6 +213,19 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
                               null,
                     ),
                   )
+                else if (ref.watch(notesOpenFailureProvider)
+                    case final failure?)
+                  Positioned(
+                    left: AppSpacing.s8,
+                    right: AppSpacing.s8,
+                    bottom: AppSpacing.s8,
+                    child: AppErrorState(
+                      message: failure,
+                      onDismiss: () =>
+                          ref.read(notesOpenFailureProvider.notifier).state =
+                              null,
+                    ),
+                  )
                 else if (orderState.error != null)
                   Positioned(
                     left: AppSpacing.s8,
@@ -221,6 +235,24 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
                       message: orderState.error!,
                       onRetry: () => unawaited(orderController.retry()),
                       onDismiss: orderController.dismiss,
+                    ),
+                  )
+                else if (ref.watch(categoryOrderControllerProvider).error
+                    case final error?)
+                  Positioned(
+                    left: AppSpacing.s8,
+                    right: AppSpacing.s8,
+                    bottom: AppSpacing.s8,
+                    child: AppErrorState(
+                      message: error,
+                      onRetry: () => unawaited(
+                        ref
+                            .read(categoryOrderControllerProvider.notifier)
+                            .retry(),
+                      ),
+                      onDismiss: ref
+                          .read(categoryOrderControllerProvider.notifier)
+                          .dismiss,
                     ),
                   ),
               ],
@@ -253,7 +285,7 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
             StreamBuilder<List<ChannelCategoryRow>>(
               stream: _categories.of(store),
               builder: (context, categorySnapshot) {
-                final channels = _withPendingOrder(
+                final channels = withPendingChannelOrder(
                   channelSnapshot.data ?? const <Channel>[],
                   orderState.pendingOrder,
                 );
@@ -264,8 +296,10 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
                 if (empty != null) return empty;
                 final list = _railList(
                   channels: channels,
-                  categories:
-                      categorySnapshot.data ?? const <ChannelCategoryRow>[],
+                  categories: withPendingCategoryOrder(
+                    categorySnapshot.data ?? const <ChannelCategoryRow>[],
+                    ref.watch(categoryOrderControllerProvider).pendingOrder,
+                  ),
                   selected: selected,
                   canManageChannels: canManageChannels,
                   orderController: orderController,
@@ -359,36 +393,6 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
     itemsBuilder: railBackgroundMenuItems,
     child: list,
   );
-}
-
-/// Renders [pending] (a reorder this client is waiting on, or has just had
-/// refused) over [channels], rather than the plain arrangement the local
-/// store still holds - the store is not rewritten until the server confirms
-/// it. A channel [pending] does not name (a DM, or one that arrived
-/// concurrently) keeps its stored category and position.
-List<Channel> _withPendingOrder(
-  List<Channel> channels,
-  List<api.ChannelOrderGroup>? pending,
-) {
-  if (pending == null) return channels;
-  final byId = {for (final channel in channels) channel.id: channel};
-  final named = <String>{};
-  final overridden = <Channel>[];
-  for (final group in pending) {
-    for (var i = 0; i < group.channelIds.length; i++) {
-      final original = byId[group.channelIds[i]];
-      if (original == null) continue;
-      named.add(original.id);
-      overridden.add(
-        original.repositioned(categoryId: group.categoryId, position: i),
-      );
-    }
-  }
-  return [
-    ...overridden,
-    for (final channel in channels)
-      if (!named.contains(channel.id)) channel,
-  ];
 }
 
 /// The "Create channel / Create category" menu of the rail's blank space.

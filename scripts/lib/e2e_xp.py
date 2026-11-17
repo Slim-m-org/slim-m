@@ -77,11 +77,18 @@ def join(client):
     client.wait_for(L.IN_CALL)
 
 
+def watch_in_call(client):
+    """Logs the "in call" label on this page from now on; once per page, so a second call adds no observer."""
+    client.ev("window.__xp.inCallWatched || (window.__xp.inCallWatched = true, "
+              f"window.__xp.watchLabels([{json.dumps(L.IN_CALL)}]));")
+
+
 def timed_join(client, timeout=30):
     """Taps the voice channel row and returns the page's event log from the tap on.
 
     Raises when the "in call" label never shows, so a missed tap is a failure and not an empty row.
     """
+    watch_in_call(client)
     mark = client.ev("window.__xp.events.length")
     client.ev("window.__xp.seen = {};")
     client.wait_for(L.VOICE_CHANNEL)

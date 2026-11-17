@@ -38,7 +38,8 @@ import 'move_participant_popover.dart';
 import '../../channels/providers/channel_permissions.dart'
     show myChannelPermissionsProvider;
 import '../../../permissions.dart';
-import '../../../providers/admin_providers.dart' show myPermissionsProvider;
+import '../../../providers/admin_providers.dart'
+    show myPermissionsProvider, roleLadderProvider;
 
 /// The rows one call participant's quick-actions menu offers. This device's
 /// own tile gets only its stream rows: no muting or viewing your own profile
@@ -52,6 +53,7 @@ List<Widget> participantCallMenuItems(
   api.UserProfile? knownProfile,
   String? channelId,
   bool withFullscreen = true,
+  bool withStreams = true,
 }) {
   List<Widget> streamRows({required bool autofocusVolume}) =>
       participantStreamMenuItems(
@@ -87,7 +89,10 @@ List<Widget> participantCallMenuItems(
       supportsVolume: controller.volumes.supportsParticipantVolume,
       hasProfile: profile != null,
       showModeration: gates?.showModeration ?? false,
-      canMove: sourceChannel != null && _canMove(ref, sourceChannel),
+      canMove:
+          sourceChannel != null &&
+          _canMove(ref, sourceChannel) &&
+          (profile == null || ref.read(roleLadderProvider).outranks(profile)),
     ),
   );
 
@@ -177,7 +182,10 @@ List<Widget> participantCallMenuItems(
           },
         ),
       },
-    ...streamRows(autofocusVolume: !actions.contains(ParticipantAction.volume)),
+    if (withStreams)
+      ...streamRows(
+        autofocusVolume: !actions.contains(ParticipantAction.volume),
+      ),
   ];
 }
 

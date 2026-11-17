@@ -10,6 +10,7 @@ import '../../members/providers/user_profiles.dart';
 import 'voice_call_controls.dart' show CallDockButton;
 import '../../../widgets/floating_dock_card.dart';
 import '../../members/widgets/user_avatar.dart';
+import '../../members/widgets/profile_colour.dart';
 
 /// At or above `kCompactWidth`: a floating card, the same
 /// `FloatingDockCard` shape a call's own controls already use, positioned
@@ -49,6 +50,9 @@ class ExpandedIncomingCallRow extends ConsumerWidget {
             name: name,
             userId: profile?.id,
             avatarUpdatedAt: profile?.avatarUpdatedAt,
+            profileColour: profile == null
+                ? null
+                : profileColourOfUser(profile),
             size: AppAvatarSize.s32,
           ),
           const SizedBox(width: AppSpacing.s8),

@@ -47,7 +47,12 @@ class CallStageFitView extends StatefulWidget {
   onOpenProfile;
   final void Function(String identity) onStopWatching;
   final void Function(String? identity) onFocus;
-  final List<Widget> Function(BuildContext, VoiceParticipant, VoidCallback)?
+  final List<Widget> Function(
+    BuildContext,
+    VoiceParticipant,
+    VoidCallback, {
+    bool withStreams,
+  })?
   menuItemsBuilder;
 
   @override
@@ -167,6 +172,7 @@ class _CallStageFitViewState extends State<CallStageFitView> {
       widget.controller,
       onStopWatching: () => widget.onStopWatching(identity),
       onFocus: pinned ? null : () => widget.onFocus(identity),
+      personItems: _personItems(context, person),
     );
     final entering = AppFadeIn(offset: 0, child: tile);
     if (pinned) return entering;
@@ -174,6 +180,16 @@ class _CallStageFitViewState extends State<CallStageFitView> {
       onTap: () => widget.onFocus(identity),
       child: entering,
     );
+  }
+
+  /// A sharer has no tile of their own (decision 0114), so their share's menu carries their voice rows too.
+  List<Widget> Function(VoidCallback close)? _personItems(
+    BuildContext context,
+    VoiceParticipant person,
+  ) {
+    final build = widget.menuItemsBuilder;
+    if (build == null) return null;
+    return (close) => build(context, person, close, withStreams: false);
   }
 
   List<Widget> _peopleTiles(

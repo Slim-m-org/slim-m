@@ -9,10 +9,12 @@ use uuid::Uuid;
 use super::Store;
 use super::overwrites_batch::OverwriteBatchEntry;
 use super::permissions::ChannelOverwrite;
+use super::sub_category_overwrites::{copy_into_synced_sub_categories, synced_channels_beneath};
+use super::voice_rooms::copy_lobby_overwrites_into_rooms;
 use crate::ids::{ChannelCategoryId, ChannelId};
 use crate::permissions::Permissions;
 
-/// Replaces `channel`'s overwrites with `category`'s and marks it synced.
+/// Replaces `channel`'s overwrites with `category`'s, and its rooms' with them, and marks it synced.
 pub(super) async fn copy_category_overwrites(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel: ChannelId,
@@ -39,7 +41,7 @@ pub(super) async fn copy_category_overwrites(
     )
     .execute(&mut **tx)
     .await?;
-    Ok(())
+    copy_lobby_overwrites_into_rooms(tx, channel).await
 }
 
 /// Marks `channel` as holding its own overwrites, after an edit of its own.
@@ -105,28 +107,30 @@ impl Store {
         Ok(row.map(|r| (r.allow, r.deny)))
     }
 
-    /// The live channels in `category` that are synced to it.
-    pub async fn synced_channels_in(
-        &self,
-        category: ChannelCategoryId,
-    ) -> anyhow::Result<Vec<ChannelId>> {
-        Ok(sqlx::query_scalar!(
-            r#"SELECT id AS "id!: ChannelId" FROM channels
-               WHERE category_id = ? AND permissions_synced = 1 AND deleted_at IS NULL"#,
-            category
-        )
-        .fetch_all(&self.pool)
-        .await?)
-    }
-
-    /// Applies `entries` to `category` (an all-zero pair removes that target)
-    /// and copies the result into every synced channel, in one transaction.
+    /// Applies `entries` (an all-zero pair removes that target) and copies the result
+    /// down through everything synced beneath it; a sub-category's own save un-syncs it.
     pub async fn set_category_overwrites(
         &self,
         category: ChannelCategoryId,
         entries: &[OverwriteBatchEntry],
     ) -> anyhow::Result<()> {
         let mut tx = self.begin_write().await?;
+        let nested = sqlx::query_scalar!(
+            r#"SELECT parent_id IS NOT NULL AS "nested!: bool"
+               FROM channel_categories WHERE id = ?"#,
+            category
+        )
+        .fetch_optional(&mut *tx)
+        .await?
+        .unwrap_or(false);
+        if nested {
+            sqlx::query!(
+                "UPDATE channel_categories SET permissions_synced = 0 WHERE id = ?",
+                category
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
         for entry in entries {
             if entry.allow == Permissions::NONE && entry.deny == Permissions::NONE {
                 sqlx::query!(
@@ -155,15 +159,11 @@ impl Store {
             .execute(&mut *tx)
             .await?;
         }
-        let synced = sqlx::query_scalar!(
-            r#"SELECT id AS "id!: ChannelId" FROM channels
-               WHERE category_id = ? AND permissions_synced = 1 AND deleted_at IS NULL"#,
-            category
-        )
-        .fetch_all(&mut *tx)
-        .await?;
-        for channel in synced {
-            copy_category_overwrites(&mut tx, channel, category).await?;
+        if !nested {
+            copy_into_synced_sub_categories(&mut tx, category).await?;
+        }
+        for (channel, home) in synced_channels_beneath(&mut *tx, category).await? {
+            copy_category_overwrites(&mut tx, channel, home).await?;
         }
         tx.commit().await?;
         Ok(())

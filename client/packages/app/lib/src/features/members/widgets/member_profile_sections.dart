@@ -15,16 +15,17 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../format.dart';
-import '../providers/presence_view.dart';
 import '../providers/status_text.dart';
 import 'member_handle_line.dart';
 import 'member_moderation_gates.dart' show timeoutActive;
+import 'member_profile_identity.dart';
 import 'member_profile_status_line.dart';
 import 'user_avatar.dart';
 import 'profile_colour.dart';
+import 'role_color.dart';
 
-/// Avatar, name, handle, and the presence word beside its dot - never the
-/// dot alone, which is the rule every surface in this app follows.
+/// Avatar with its presence dot, name, handle, the status they typed, and the
+/// join date. Someone whose display name is only their username shows it once.
 class MemberProfileHeader extends ConsumerWidget {
   const MemberProfileHeader({
     super.key,
@@ -32,11 +33,15 @@ class MemberProfileHeader extends ConsumerWidget {
     required this.isSelf,
     required this.inCallTogether,
     this.callChannelName,
+    this.inviteCode,
   });
 
   final api.UserProfile profile;
   final bool isSelf;
   final bool inCallTogether;
+
+  /// The invite they joined with, shown to a moderator in the join date's tooltip.
+  final String? inviteCode;
 
   /// Refines the shared-call line to name the room. Absent where the caller
   /// does not have the name to hand - the voice screen reads its channel from
@@ -47,7 +52,6 @@ class MemberProfileHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final presence = ref.watch(presenceForProvider(profile.id));
     final timedOut = timeoutActive(profile.timedOutUntil);
     final secondary = AppText.caption.copyWith(color: tokens.textSecondary);
     final extras = [
@@ -57,48 +61,61 @@ class MemberProfileHeader extends ConsumerWidget {
       ?profile.pronouns,
     ];
 
+    final nameStyle = AppText.body.copyWith(
+      color:
+          memberNameColor(profile, tokens.surfaceRaised) ?? tokens.textPrimary,
+      fontWeight: AppWeights.semi,
+    );
+    final handleOnly = _namedByHandle(profile);
     final handleLine = MemberHandleLine(
       username: profile.username,
       extras: extras,
       style: secondary,
+      nameStyle: handleOnly ? nameStyle : null,
+      name: profile.displayName.trim(),
     );
 
-    final statusLine = inCallTogether
-        ? Row(
-            children: [
-              Icon(AppIcons.speaker, size: 12, color: tokens.accent),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  callChannelName == null
-                      ? 'in this call with you'
-                      : 'in $callChannelName with you',
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.caption.copyWith(color: tokens.accent),
-                ),
-              ),
-            ],
-          )
-        : MemberProfileStatusLine(
-            presence: presence,
-            statusText: ref.watch(
-              statusTextProvider((
-                userId: profile.id,
-                snapshot: profile.statusText,
-              )),
+    final statusText = ref.watch(
+      statusTextProvider((userId: profile.id, snapshot: profile.statusText)),
+    );
+    final statusLine = statusText != null || isSelf
+        ? AppTouchHitArea(
+            // Your own line is a button; a finger reaches it down over the join date.
+            touch: isSelf ? null : false,
+            alignment: Alignment.topLeft,
+            child: _belowHandle(
+              MemberProfileStatusLine(statusText: statusText, editable: isSelf),
             ),
-            editable: isSelf,
-          );
+          )
+        : null;
+    final callLine = inCallTogether
+        ? _belowHandle(
+            Row(
+              children: [
+                Icon(AppIcons.speaker, size: 12, color: tokens.accent),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    callChannelName == null
+                        ? 'in this call with you'
+                        : 'in $callChannelName with you',
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption.copyWith(color: tokens.accent),
+                  ),
+                ),
+              ],
+            ),
+          )
+        : null;
 
-    final name = Text(
-      profile.displayName,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      style: AppText.body.copyWith(
-        color: tokens.textPrimary,
-        fontWeight: AppWeights.semi,
-      ),
-    );
+    final name = handleOnly
+        ? handleLine
+        : Text(
+            profile.displayName,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: nameStyle,
+          );
 
     final avatar = Opacity(
       // The avatar only, never the text, which would cost its contrast.
@@ -114,31 +131,25 @@ class MemberProfileHeader extends ConsumerWidget {
           child: UserAvatar.known(
             userId: profile.id,
             avatarUpdatedAt: profile.avatarUpdatedAt,
+            profileColour: profileColourOfUser(profile),
             name: profile.displayName,
             size: AppAvatarSize.s56,
-            // The status line below carries presence, once, with its word.
-            presence: false,
+            presence: true,
+            surfaceColor: tokens.surfaceRaised,
             // The ring here means "in a call with you", so the name says that.
             speaking: inCallTogether,
             // The profile colour; absent on an older server reads as no ring.
             ringColor: inCallTogether
                 ? null
                 : profileRingColour(profile, tokens.surfaceRaised),
-            semanticLabel: inCallTogether
-                ? '${profile.displayName}, in a call with you'
-                : null,
+            speakingLabel: 'in a call with you',
           ),
         ),
       ),
     );
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        AppSpacing.s12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -168,13 +179,33 @@ class MemberProfileHeader extends ConsumerWidget {
             )
           else
             name,
-          handleLine,
-          Padding(padding: const EdgeInsets.only(top: 2), child: statusLine),
+          if (!handleOnly) handleLine,
+          ?statusLine,
+          ?callLine,
+          // Lets a press through to your own status line; the bottom gap gives its reach room.
+          IgnorePointer(
+            ignoring: isSelf,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.s12),
+              child: MemberProfileJoined(
+                createdAt: profile.createdAt,
+                inviteCode: inviteCode,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
+
+/// The status and call lines sit a little further from the handle than the name block's own spacing.
+Widget _belowHandle(Widget line) =>
+    Padding(padding: const EdgeInsets.only(top: 2), child: line);
+
+/// No display name of their own: the server fills it with the username.
+bool _namedByHandle(api.UserProfile profile) =>
+    profile.displayName.trim().toLowerCase() == profile.username.toLowerCase();
 
 /// The sheet-coloured border that separates the avatar from the banner behind it.
 const double _avatarGap = 3;

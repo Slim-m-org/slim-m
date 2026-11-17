@@ -6,7 +6,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../preset_options.dart';
 import '../../../../widgets/confirm_dialog.dart';
@@ -18,6 +17,7 @@ import '../../widgets/settings_save_feedback.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_segmented_block.dart';
 import 'retention_section.dart' show retentionDeletesHistory;
+import '../../../../widgets/load_error_block.dart';
 
 const _modes = <(String, CallTranscriptionMode)>[
   ('Off', CallTranscriptionMode.off),
@@ -102,13 +102,9 @@ class _ModeCardState extends ConsumerState<_ModeCard>
             else if (current != null)
               SettingsSubRow(label: _modeConsequence(current)),
             if (settings.hasError && current == null)
-              SettingsCardBlock(
-                children: [
-                  AppErrorState(
-                    message: 'Could not load this setting.',
-                    onRetry: () => ref.invalidate(spaceSettingsProvider),
-                  ),
-                ],
+              LoadErrorBlock(
+                message: 'Could not load this setting.',
+                onRetry: () => ref.invalidate(spaceSettingsProvider),
               ),
           ],
         ),
@@ -137,17 +133,17 @@ class _RetentionCardState extends ConsumerState<_RetentionCard>
     if (retentionDeletesHistory(from: current, to: days)) {
       final confirmed = await confirmDangerousAction(
         context,
-        title: 'Delete transcripts older than $days days?',
+        title: 'Delete call transcripts older than $days days?',
         message:
             'They are deleted within the next few hours, for everyone. '
             'This cannot be undone.',
-        confirmLabel: 'Delete old transcripts',
+        confirmLabel: 'Delete old call transcripts',
       );
       if (!confirmed || !mounted) return;
     }
     await saveOptimistic(
       days,
-      whatFailed: 'change transcript retention',
+      whatFailed: 'change call transcript retention',
       action: () => ref
           .read(settingsActionsProvider)
           .setSpaceSettings(
@@ -174,16 +170,21 @@ class _RetentionCardState extends ConsumerState<_RetentionCard>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionCard(
-          title: 'Transcript retention',
-          description: 'Older transcripts are deleted.',
+          title: 'Call transcript retention',
+          description: 'Older call transcripts are deleted.',
           children: [
             SettingsSegmentedBlock(
-              semanticLabel: 'Transcript retention window',
+              semanticLabel: 'Call transcript retention window',
               labels: [for (final option in options) option.$1],
               selectedIndex: options.indexWhere((o) => o.$2 == current),
               disabled: saving || current == null,
               onSelected: (i) => _set(options[i].$2, current: current!),
             ),
+            if (settings.hasError && current == null)
+              LoadErrorBlock(
+                message: 'Could not load this setting.',
+                onRetry: () => ref.invalidate(spaceSettingsProvider),
+              ),
           ],
         ),
         SettingsSaveFeedback(

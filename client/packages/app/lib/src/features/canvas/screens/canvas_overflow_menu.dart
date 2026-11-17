@@ -25,6 +25,8 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../providers/canvas_grid_snap.dart';
 import 'canvas_chat_toggle.dart';
+import '../../voice/providers/voice_chat_unread.dart';
+import '../../voice/widgets/voice_chat_unread_dot.dart';
 import '../widgets/canvas_clear_scope.dart';
 import '../widgets/canvas_clear_sheet.dart';
 import 'canvas_people_sheet.dart';
@@ -237,28 +239,23 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
             groupId: _tapGroup,
             child: Semantics(
               expanded: open,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  AppIconButton(
-                    icon: AppIcons.moreVertical,
-                    semanticLabel: 'More canvas actions',
-                    tooltip: 'More canvas actions',
-                    onPressed: _toggle,
-                  ),
-                  if (widget.chatChannelId case final id?)
-                    Consumer(
-                      builder: (context, ref, _) =>
-                          ref.watch(canvasHasChatProvider(id)) &&
-                              ref.watch(canvasChatUnreadProvider(id))
-                          ? const Positioned(
-                              top: AppSpacing.s4,
-                              right: AppSpacing.s4,
-                              child: CanvasUnreadDot(),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                ],
+              child: Consumer(
+                builder: (context, ref, button) {
+                  final id = widget.chatChannelId;
+                  return VoiceChatToggleDot(
+                    unread:
+                        id != null &&
+                        ref.watch(canvasHasChatProvider(id)) &&
+                        ref.watch(voiceChatUnreadProvider(id)),
+                    toggle: button!,
+                  );
+                },
+                child: AppIconButton(
+                  icon: AppIcons.moreVertical,
+                  semanticLabel: 'More canvas actions',
+                  tooltip: 'More canvas actions',
+                  onPressed: _toggle,
+                ),
               ),
             ),
           ),
@@ -361,7 +358,7 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
           builder: (context, ref, _) => !ref.watch(canvasHasChatProvider(id))
               ? const SizedBox.shrink()
               : AppMenuItem(
-                  label: ref.watch(canvasChatUnreadProvider(id))
+                  label: ref.watch(voiceChatUnreadProvider(id))
                       ? 'Text chat, new messages'
                       : 'Text chat',
                   leading: AppIcons.chat,

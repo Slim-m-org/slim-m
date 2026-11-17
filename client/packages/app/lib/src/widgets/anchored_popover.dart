@@ -23,12 +23,16 @@ class AnchoredPopover extends StatelessWidget {
     required this.origin,
     required this.anchorSize,
     required this.child,
+    this.above = false,
   });
 
   final Offset origin;
   final Size anchorSize;
 
   final Widget child;
+
+  /// Opens above the anchor, aligned to its left edge, for a control in the bottom dock that a popover must not cover.
+  final bool above;
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +46,7 @@ class AnchoredPopover extends StatelessWidget {
               origin: origin,
               anchorSize: anchorSize,
               padding: padding,
+              above: above,
             ),
             child: SingleChildScrollView(child: child),
           ),
@@ -60,21 +65,33 @@ class _AnchoredPopoverLayout extends SingleChildLayoutDelegate {
     required this.origin,
     required this.anchorSize,
     required this.padding,
+    required this.above,
   });
 
   final Offset origin;
   final Size anchorSize;
   final EdgeInsets padding;
+  final bool above;
 
   static const double _gap = 8;
 
   @override
-  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
-      BoxConstraints.loose(constraints.biggest).deflate(padding);
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
+    final loose = BoxConstraints.loose(constraints.biggest).deflate(padding);
+    if (!above) return loose;
+    final room = math.max(0.0, origin.dy - _gap - padding.top);
+    return loose.copyWith(maxHeight: math.min(loose.maxHeight, room));
+  }
 
   @override
   Offset getPositionForChild(Size size, Size childSize) {
     final maxLeft = size.width - padding.right - childSize.width;
+    if (above) {
+      return Offset(
+        origin.dx.clamp(padding.left, math.max(padding.left, maxLeft)),
+        math.max(padding.top, origin.dy - _gap - childSize.height),
+      );
+    }
     final rightOfAnchor = origin.dx + anchorSize.width + _gap;
     final fitsRight =
         rightOfAnchor + childSize.width <= size.width - padding.right;
@@ -97,5 +114,6 @@ class _AnchoredPopoverLayout extends SingleChildLayoutDelegate {
   bool shouldRelayout(_AnchoredPopoverLayout oldDelegate) =>
       origin != oldDelegate.origin ||
       anchorSize != oldDelegate.anchorSize ||
-      padding != oldDelegate.padding;
+      padding != oldDelegate.padding ||
+      above != oldDelegate.above;
 }

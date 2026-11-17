@@ -1,126 +1,272 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The rail footer's call-elsewhere row: a way back to a call live in a
-/// channel other than the one currently on screen, plus a way to leave it
-/// without navigating there first.
-///
-/// Its own file so `channel_rail_frame.dart` carries the footer's wiring
-/// without also carrying this row's content.
+/// The rail footer's call row: back to a call live elsewhere, and Leave without
+/// going there. See docs/decisions/0111-personal-space-is-called-notes.md.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_platform/platform.dart';
 
 import '../providers/channel_by_id_provider.dart';
+import '../../accounts/providers/account_providers.dart';
+import '../../accounts/widgets/call_elsewhere_view.dart';
 import '../../../routing/routes.dart';
-import '../../voice/screens/dm_call_pane.dart';
+import '../../../widgets/shortcut_label.dart';
+import '../../voice/providers/dm_call.dart';
+import '../../voice/providers/voice_controller.dart';
+import '../../voice/providers/voice_flags.dart';
+import '../../voice/widgets/call_dock_button.dart';
 import '../../voice/widgets/call_participant_tiles.dart';
+import 'rail_footer_press_target.dart';
 
 /// The summary's root, for tests to find it without matching its type.
 const railCallSummaryKey = Key('rail_call_summary');
 
-/// The call's channel and duration, standing in for [RailUserFooter]'s
-/// name line while a call elsewhere is live, so the footer stays one bar.
-///
-/// Leave is [railLeaveCallButton], placed in the footer's control row; mic and
-/// deafen are the footer's own toggles and are not repeated here.
-class RailCallSummary extends ConsumerStatefulWidget {
-  const RailCallSummary({
-    super.key,
-    required this.channelId,
-    required this.connectedAt,
-    required this.screenSharing,
-  });
+/// The call row's own root.
+const railCallRowKey = Key('rail_call_row');
 
-  final String channelId;
-  final DateTime? connectedAt;
-  final bool screenSharing;
+/// The call row for this community's own call.
+class RailCallRow extends ConsumerWidget {
+  const RailCallRow({super.key});
 
   @override
-  ConsumerState<RailCallSummary> createState() => _RailCallSummaryState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final voice = ref.watch(voiceFlagsProvider);
+    final channelId = voice.channelId;
+    if (channelId == null) return const SizedBox.shrink();
+    return _CallRow(
+      channelName: ref.watch(channelByIdProvider(channelId)).valueOrNull?.name,
+      voice: voice,
+      onOpen: () async {
+        // A no-op for a real voice channel; load-bearing for a DM.
+        ref.read(dmCallOpenProvider.notifier).state = channelId;
+        context.go(Routes.channel(channelId));
+      },
+      onLeave: () =>
+          unawaited(ref.read(voiceControllerProvider.notifier).leave()),
+    );
+  }
 }
 
-class _RailCallSummaryState extends ConsumerState<RailCallSummary> {
-  bool _pressed = false;
+/// The call row for [entry]'s call while another community is on screen: its
+/// name leads the second line, a tap switches to it first, and the pill hides.
+class RailCommunityCallRow extends StatelessWidget {
+  const RailCommunityCallRow({super.key, required this.entry});
+
+  final AccountEntry entry;
+
+  @override
+  Widget build(BuildContext context) => CallElsewhereView(
+    entry: entry,
+    builder: (context, call) => _CallRow(
+      channelName: call.channelName,
+      voice: call.voice,
+      community: call.community,
+      onOpen: call.open,
+      onLeave: () => unawaited(call.controller.leave()),
+    ),
+  );
+}
+
+/// The call's speaker glyph over the avatar column, its channel and timer,
+/// and Leave last, over the gear.
+class _CallRow extends StatelessWidget {
+  const _CallRow({
+    required this.channelName,
+    required this.voice,
+    required this.onOpen,
+    required this.onLeave,
+    this.community,
+  });
+
+  final String? channelName;
+  final VoiceFlags voice;
+  final String? community;
+  final Future<void> Function() onOpen;
+  final VoidCallback onLeave;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final channelName = ref
-        .watch(channelByIdProvider(widget.channelId))
-        .valueOrNull
-        ?.name;
-    final name = channelName ?? 'In a call';
-
-    return Semantics(
-      button: true,
-      label: channelName == null
-          ? 'Back to the call'
-          : 'Back to the call in $channelName',
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => setState(() => _pressed = true),
-        onTapUp: (_) => setState(() => _pressed = false),
-        onTapCancel: () => setState(() => _pressed = false),
-        onTap: () {
-          AppHaptics.selection();
-          // A no-op for a real voice channel; load-bearing for a DM.
-          ref.read(dmCallOpenProvider.notifier).state = widget.channelId;
-          context.go(Routes.channel(widget.channelId));
-        },
-        child: AnimatedOpacity(
-          opacity: _pressed ? 0.6 : 1,
-          duration: AppMotion.reduced(context, AppMotion.fast),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.ui.copyWith(
-                  color: tokens.textPrimary,
-                  fontWeight: AppWeights.medium,
-                  height: 1.25,
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (widget.connectedAt case final since?)
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: CallDuration(since: since),
-                      ),
-                    ),
-                  if (widget.screenSharing)
-                    Flexible(
-                      child: Text(
-                        ' - sharing',
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.micro.copyWith(color: tokens.accent),
-                      ),
-                    ),
-                ],
-              ),
-            ],
+    return Row(
+      key: railCallRowKey,
+      children: [
+        // The avatar column's own width, so the glyph sits over the avatar.
+        SizedBox(
+          width: AppSizes.rowTouch,
+          child: Icon(
+            AppIcons.voice,
+            size: AppSizes.icon20,
+            color: tokens.accent,
           ),
         ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: RailCallSummary(
+            key: railCallSummaryKey,
+            channelName: channelName,
+            connectedAt: voice.connectedAt,
+            screenSharing: voice.screenSharing,
+            community: community,
+            onOpen: onOpen,
+          ),
+        ),
+        _OverGear(child: railLeaveCallButton(onLeave)),
+      ],
+    );
+  }
+}
+
+/// Holds [child] in the gear's own footprint, so a dock chip, whose focus ring
+/// keeps its gap outside the chip, still centres over the gear below it.
+class _OverGear extends StatelessWidget {
+  const _OverGear({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: AppTouchTargets.of(context)
+        ? AppSizes.rowTouch
+        : AppSizes.rowPointer,
+    child: OverflowBox(
+      maxWidth: double.infinity,
+      maxHeight: double.infinity,
+      // The chip's hover fill is ink, which the footer's own fill would otherwise paint over.
+      child: Material(type: MaterialType.transparency, child: child),
+    ),
+  );
+}
+
+/// The call's channel and duration, a tap target back to the call.
+class RailCallSummary extends StatelessWidget {
+  const RailCallSummary({
+    super.key,
+    required this.channelName,
+    required this.connectedAt,
+    required this.screenSharing,
+    required this.onOpen,
+    this.community,
+  });
+
+  /// Null until the channel's row has loaded, which reads "In a call".
+  final String? channelName;
+  final DateTime? connectedAt;
+  final bool screenSharing;
+  final String? community;
+  final Future<void> Function() onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final channelName = this.channelName;
+    final community = this.community;
+
+    return RailFooterPressTarget(
+      tooltip: channelName == null ? 'Go to the call' : 'Go to $channelName',
+      semanticLabel: [
+        channelName == null
+            ? 'Back to the call'
+            : 'Back to the call in $channelName',
+        ?community,
+      ].join(', '),
+      onPressed: () => unawaited(onOpen()),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            channelName ?? 'In a call',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.ui.copyWith(
+              color: tokens.textPrimary,
+              fontWeight: AppWeights.medium,
+              height: 1.25,
+            ),
+          ),
+          _SecondLine(
+            community: community,
+            connectedAt: connectedAt,
+            screenSharing: screenSharing,
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Leaves the call from the footer without navigating to it first.
-Widget railLeaveCallButton(VoidCallback onLeave) => AppIconButton(
+/// The community (when it is not the one on screen), the timer and sharing.
+class _SecondLine extends StatelessWidget {
+  const _SecondLine({
+    required this.community,
+    required this.connectedAt,
+    required this.screenSharing,
+  });
+
+  final String? community;
+  final DateTime? connectedAt;
+  final bool screenSharing;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (community case final name?) ...[
+          Flexible(
+            flex: 3,
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textWidthBasis: TextWidthBasis.longestLine,
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ),
+          // Outside the name, so a long one keeps its separator from the timer.
+          Text(
+            ' · ',
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
+        ],
+        if (connectedAt case final since?)
+          Flexible(
+            flex: 2,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: CallDuration(since: since),
+            ),
+          ),
+        if (screenSharing)
+          Flexible(
+            child: Text(
+              ' - sharing',
+              overflow: TextOverflow.ellipsis,
+              style: AppText.micro.copyWith(color: tokens.accent),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Leaves the call from the rail without going there first: the dock's own
+/// Leave (decision 0047 point 2), at the footer's icon size so it sits over the gear.
+Widget railLeaveCallButton(VoidCallback onLeave) => CallDockButton(
   icon: AppIcons.leaveCall,
   semanticLabel: 'Leave call',
-  tooltip: 'Leave call',
-  // Red glyph, no box: the footer row keeps one weight, and leaving needs colour, not a frame.
-  variant: AppIconButtonVariant.dangerGhost,
+  tooltip: labelWithShortcut('Leave call', AppAction.leaveCall),
+  active: false,
+  destructive: true,
+  heavyOutline: true,
+  visualSize: AppSizes.icon28,
+  iconSize: AppSizes.icon20,
   // Instant: the in-call bar's own leave button asks nothing either.
   onPressed: onLeave,
 );

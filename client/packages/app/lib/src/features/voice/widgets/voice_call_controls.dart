@@ -52,7 +52,11 @@ import 'call_dock_hint.dart';
 import '../providers/call_dock_hint.dart' show DockHintTarget;
 import 'call_dock_button.dart';
 import 'share_options_menu.dart';
-import 'call_leave_button.dart' show labelWithShortcut, shortcutSuffix;
+import 'screen_stamps_received_sheet.dart';
+import '../../canvas/providers/armed_stamp.dart'
+    show canvasStampsSupportedProvider;
+import 'soundboard_button.dart';
+import '../../../widgets/shortcut_label.dart';
 
 export 'call_dock_button.dart';
 
@@ -164,7 +168,8 @@ class _CallControlsState extends ConsumerState<CallControls> {
     final shareOptions = _shareOptions(context);
     final listenOnly = listenOnlyReason(ref, voice);
     // Touch density is the width-derived compact test; that row has no room for a caret only quality asked for.
-    final showCaret = !touch || (voice.screenSharing && _canSwitchSource);
+    final showCaret =
+        !touch || (voice.screenSharing && _canSwitchSource && !widget.tight);
     final pairedAtTouch = showCaret && touch;
     // A tight row has no width for the mic's caret either; a long press opens its menu instead.
     final micCaret = !touch && !widget.tight;
@@ -176,6 +181,9 @@ class _CallControlsState extends ConsumerState<CallControls> {
         ? _switchCameraButton(context)
         : null;
     final extra = widget.extraControl;
+    final soundboard = canUseSoundboard(ref, voice.channelId)
+        ? SoundboardButton(channelId: voice.channelId!)
+        : null;
     final primary = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -208,6 +216,10 @@ class _CallControlsState extends ConsumerState<CallControls> {
             child: _shareButton(context, voice, showCaret: showCaret),
           ),
         ),
+        if (soundboard != null && !widget.tight) ...[
+          const SizedBox(width: AppSpacing.s8),
+          soundboard,
+        ],
         if (extra != null && !widget.tight) ...[
           const SizedBox(width: AppSpacing.s8),
           extra,
@@ -215,7 +227,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
       ],
     );
     if (!widget.tight) return primary;
-    final spilled = [?switchCamera, ?extra];
+    final spilled = [?switchCamera, ?soundboard, ?extra];
     return _spillColumn(primary, spilled);
   }
 
@@ -357,6 +369,8 @@ class _CallControlsState extends ConsumerState<CallControls> {
 
   bool get _canSwitchSource => widget.controller.video.screenShareNeedsSource;
 
+  bool get _stampsKept => ref.read(canvasStampsSupportedProvider);
+
   List<ControlOptionEntry> _shareOptions(BuildContext context) =>
       shareMenuEntries(
         ref,
@@ -376,6 +390,14 @@ class _CallControlsState extends ConsumerState<CallControls> {
             if (_shareRequestInFlight) return;
             unawaited(_startShare(context, stopFirst: true, preset: source));
           },
+          onPicturesOnScreen: _stampsKept
+              ? () => unawaited(
+                  showScreenStampsReceived(
+                    _shareButtonKey.currentContext ?? context,
+                    above: true,
+                  ),
+                )
+              : null,
         ),
       );
 

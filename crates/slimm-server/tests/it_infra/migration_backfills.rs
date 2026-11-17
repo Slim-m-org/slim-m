@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The data backfills inside migrations 0125 (a bot's assigned prefix) and
-//! 0144 (a canvas clear's affected count), run against rows that existed
-//! before them.
+//! The data backfills inside migrations 0125 (a bot's assigned prefix), 0144
+//! (a canvas clear's affected count), 0194 (voice data per message), 0197
+//! (the Space owner) and 0198 (distinct role positions), run against rows that existed before them.
 
 use std::path::Path;
 use std::time::Duration;
@@ -162,5 +162,221 @@ async fn undoing_a_clear_does_not_change_its_stored_count() {
         affected,
         Some(2),
         "the count must outlive the fence it was derived from"
+    );
+}
+
+fn sha(n: u8) -> String {
+    format!("x'{}'", format!("{n:02x}").repeat(32))
+}
+
+/// A row of voice data as stored: sha256, owner id, length and waveform.
+type StoredVoice = (Vec<u8>, Vec<u8>, Option<i64>, Option<Vec<u8>>);
+
+/// Voice data 0194 moved off the blob, as (sha256 first byte, user or message first byte, ms, first bucket).
+async fn voice_rows(
+    pool: &SqlitePool,
+    table: &str,
+    owner: &str,
+) -> Vec<(u8, u8, Option<i64>, Option<u8>)> {
+    let sql = format!(
+        "SELECT substr(sha256, 1, 1), substr({owner}, 1, 1), voice_duration_ms, substr(voice_waveform, 1, 1)
+         FROM {table} ORDER BY sha256, {owner}"
+    );
+    let rows: Vec<StoredVoice> = sqlx::query_as(&sql).fetch_all(pool).await.unwrap();
+    rows.into_iter()
+        .map(|(sha, owner, ms, wave)| (sha[0], owner[0], ms, wave.map(|w| w[0])))
+        .collect()
+}
+
+#[tokio::test]
+async fn every_voice_message_stays_one_and_only_a_sole_uploader_keeps_an_unsent_mark() {
+    let (pool, full, _guard) = pool_before(194).await;
+    let (alice, bob, channel) = (id(1), id(2), id(10));
+    let (recorded, reshared, plain) = (sha(0xa1), sha(0xa2), sha(0xa3));
+    let loud = "00".repeat(63);
+    seed(
+        &pool,
+        &format!(
+            "INSERT INTO users (id, username, display_name, password_hash, created_at) VALUES
+               ({alice}, 'alice', 'Alice', 'h', 1), ({bob}, 'bob', 'Bob', 'h', 1);
+             INSERT INTO channels (id, name, kind, position, created_at) VALUES
+               ({channel}, 'general', 'text', 0, 0);
+             INSERT INTO attachments (sha256, size, content_type, key_version, is_encrypted, created_at) VALUES
+               ({recorded}, 9, 'audio/ogg', 0, 0, 1), ({reshared}, 9, 'audio/ogg', 0, 0, 1),
+               ({plain}, 9, 'audio/mpeg', 0, 0, 1);
+             INSERT INTO attachment_voice (sha256, duration_ms, waveform) VALUES
+               ({recorded}, 4200, zeroblob(64)), ({reshared}, 900, x'07{loud}');
+             INSERT INTO attachment_uploaders (sha256, uploaded_by, uploaded_at) VALUES
+               ({recorded}, {alice}, 1), ({reshared}, {alice}, 1), ({reshared}, {bob}, 2),
+               ({plain}, {alice}, 1);
+             INSERT INTO messages (id, channel_id, author_id, seq, content, created_at) VALUES
+               ({m1}, {channel}, {alice}, 1, '', 1), ({m2}, {channel}, {bob}, 2, '', 2),
+               ({m3}, {channel}, {bob}, 3, '', 3);
+             INSERT INTO message_attachments (message_id, sha256, position) VALUES
+               ({m1}, {recorded}, 0), ({m2}, {recorded}, 0), ({m2}, {reshared}, 1),
+               ({m3}, {plain}, 0)",
+            m1 = id(0x21),
+            m2 = id(0x22),
+            m3 = id(0x23),
+        ),
+    )
+    .await;
+
+    full.run(&pool).await.unwrap();
+
+    assert_eq!(
+        voice_rows(&pool, "message_attachments", "message_id").await,
+        vec![
+            (0xa1, 0x21, Some(4200), Some(0)),
+            (0xa1, 0x22, Some(4200), Some(0)),
+            (0xa2, 0x22, Some(900), Some(7)),
+            (0xa3, 0x23, None, None),
+        ],
+        "every link of a voice blob still shows as a voice message"
+    );
+    assert_eq!(
+        voice_rows(&pool, "attachment_uploaders", "uploaded_by").await,
+        vec![
+            (0xa1, 0x01, Some(4200), Some(0)),
+            (0xa2, 0x01, None, None),
+            (0xa2, 0x02, None, None),
+            (0xa3, 0x01, None, None),
+        ]
+    );
+    let left: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'attachment_voice'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(left, 0, "nothing reads a per-blob mark any more");
+}
+
+async fn owner_after_0197(claimed_by: Option<u8>) -> Option<Vec<u8>> {
+    let (pool, full, _guard) = pool_before(197).await;
+    seed(
+        &pool,
+        &format!(
+            "INSERT INTO users (id, username, display_name, password_hash, created_at, is_bot) VALUES
+               ({bot}, 'bot', 'Bot', 'h', 1, 1),
+               ({removed}, 'removed', 'Removed', 'h', 2, 0),
+               ({gone}, 'gone', 'Gone', 'h', 3, 0),
+               ({first}, 'first', 'First', 'h', 4, 0),
+               ({later}, 'later', 'Later', 'h', 5, 0);
+             UPDATE users SET deleted_at = 9 WHERE id = {gone};
+             INSERT INTO space_removals (user_id, removed_at) VALUES ({removed}, 9);
+             UPDATE space_settings SET setup_claimed_by = {claimed}",
+            bot = id(1),
+            removed = id(2),
+            gone = id(3),
+            first = id(4),
+            later = id(5),
+            claimed = claimed_by.map_or("NULL".to_owned(), id),
+        ),
+    )
+    .await;
+    full.run(&pool).await.unwrap();
+    sqlx::query_scalar("SELECT owner_id FROM space_settings WHERE id = 1")
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn the_space_owner_is_the_claimer_while_they_are_still_a_member() {
+    assert_eq!(owner_after_0197(Some(5)).await, Some(vec![5u8; 16]));
+}
+
+/// Unrecorded, or recorded but deleted: the first human who joined and is still a member.
+#[tokio::test]
+async fn without_a_live_claimer_the_space_owner_is_the_first_human_member() {
+    assert_eq!(owner_after_0197(None).await, Some(vec![4u8; 16]));
+    assert_eq!(owner_after_0197(Some(3)).await, Some(vec![4u8; 16]));
+}
+
+/// Without a live claimer an administrator is preferred over an earlier plain member, as a
+/// hand-off chooses, and the owner keeps no timeout, since nobody could lift it.
+#[tokio::test]
+async fn without_a_live_claimer_the_space_owner_is_the_first_administrator_and_not_timed_out() {
+    let (pool, full, _guard) = pool_before(197).await;
+    let (member, admin, later, role) = (id(4), id(5), id(6), id(9));
+    let admin_bit = slimm_server::permissions::Permissions::ADMINISTRATOR.bits();
+    seed(
+        &pool,
+        &format!(
+            "INSERT INTO users (id, username, display_name, password_hash, created_at, is_bot) VALUES
+               ({member}, 'member', 'Member', 'h', 4, 0),
+               ({admin}, 'admin', 'Admin', 'h', 5, 0),
+               ({later}, 'later', 'Later', 'h', 6, 0);
+             INSERT INTO roles (id, name, permissions, position, created_at)
+               VALUES ({role}, 'admin', {admin_bit}, 100, 1);
+             INSERT INTO member_roles (user_id, role_id) VALUES ({admin}, {role}), ({later}, {role});
+             INSERT INTO member_timeouts (user_id, until, issued_by, issued_at)
+               VALUES ({admin}, 9000000000000, {later}, 1), ({later}, 9000000000000, {admin}, 1)"
+        ),
+    )
+    .await;
+    full.run(&pool).await.unwrap();
+
+    let owner: Option<Vec<u8>> =
+        sqlx::query_scalar("SELECT owner_id FROM space_settings WHERE id = 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(owner, Some(vec![5u8; 16]));
+    let timed_out: Vec<Vec<u8>> = sqlx::query_scalar("SELECT user_id FROM member_timeouts")
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        timed_out,
+        vec![vec![6u8; 16]],
+        "only the owner's timeout ends"
+    );
+}
+
+#[tokio::test]
+async fn roles_tied_at_the_default_take_distinct_positions_in_the_order_they_were_shown() {
+    // The Bots role is older than the tied human roles and still ranks below them.
+    let (pool, full, _guard) = pool_before(198).await;
+    seed(
+        &pool,
+        &format!(
+            "DELETE FROM roles;
+             INSERT INTO roles (id, name, permissions, position, is_everyone, created_at, is_bots_role)
+             VALUES ({everyone}, '@everyone', 0, 0, 1, 0, 0),
+                    ({admin}, 'admin', 1, 100, 0, 1, 0),
+                    ({early}, 'early', 0, 0, 0, 2, 0),
+                    ({late}, 'late', 0, 0, 0, 3, 0),
+                    ({bots}, 'Bots', 0, 0, 0, 1, 1),
+                    ({placed}, 'placed', 0, 5, 0, 5, 0)",
+            everyone = id(1),
+            admin = id(2),
+            early = id(3),
+            late = id(4),
+            bots = id(5),
+            placed = id(6),
+        ),
+    )
+    .await;
+
+    full.run(&pool).await.unwrap();
+
+    let positions: Vec<(String, i64)> =
+        sqlx::query_as("SELECT name, position FROM roles ORDER BY position DESC")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+    let expected = [
+        ("admin", 5),
+        ("placed", 4),
+        ("early", 3),
+        ("late", 2),
+        ("Bots", 1),
+        ("@everyone", 0),
+    ];
+    assert_eq!(
+        positions,
+        expected.map(|(name, at)| (name.to_owned(), at)).to_vec()
     );
 }

@@ -10,6 +10,7 @@ import 'audio_glitch_watch.dart';
 import 'audio_stats.dart';
 import 'call_diagnostics.dart';
 import 'call_stats.dart';
+import 'join_audio_probe.dart';
 import 'voice_health.dart';
 import 'voice_models.dart';
 
@@ -76,6 +77,32 @@ class VoiceHealthWatch {
     }
     return out;
   }
+
+  /// Each remote voice by name, readable or not, for [JoinAudioProbe].
+  Map<String, RemoteVoiceProbe> remoteVoiceProbes() {
+    final out = <String, RemoteVoiceProbe>{};
+    final remotes =
+        _host.room()?.remoteParticipants.values.toList() ?? const [];
+    for (final p in remotes) {
+      for (final pub in p.audioTrackPublications) {
+        if (pub.source != lk.TrackSource.microphone) continue;
+        final track = pub.track;
+        out[_nameOf(p.identity)] = track is lk.RemoteAudioTrack
+            ? (
+                blocked: pub.muted ? 'muted by them' : null,
+                playing: pub.enabled && track.mediaStreamTrack.enabled,
+                stats: _receiveStats(pub, track),
+              )
+            : (blocked: 'not subscribed', playing: false, stats: _noStats);
+      }
+    }
+    return out;
+  }
+
+  static Future<AudioReceiveSample?> _noStats() async => null;
+
+  /// What the microphone sends, for [JoinAudioProbe].
+  Future<AudioSendSample?> localVoiceStats() => _localVoiceStats();
 
   AudioStatsSource _receiveStats(
     lk.TrackPublication pub,

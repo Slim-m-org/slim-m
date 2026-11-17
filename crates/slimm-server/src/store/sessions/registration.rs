@@ -3,7 +3,7 @@
 //! primitive. Sessions and tokens live in the parent module.
 
 use super::super::bootstrap::{Bootstrap, claim_in};
-use super::super::invites::{record_redemption, spend_invite};
+use super::super::invites::{apply_role_grant, record_redemption, spend_invite};
 use super::super::{JoinPolicy, Store, now_ms};
 use crate::ids::UserId;
 
@@ -129,13 +129,7 @@ impl Store {
                 // Record it so this account cannot redeem the same code again for a second use; see SRV5.
                 record_redemption(&mut tx, code, id, now).await?;
                 if let Some(role_id) = spent {
-                    sqlx::query!(
-                        "INSERT OR IGNORE INTO member_roles (user_id, role_id) VALUES (?, ?)",
-                        id,
-                        role_id
-                    )
-                    .execute(&mut *tx)
-                    .await?;
+                    apply_role_grant(&mut tx, code, id, role_id).await?;
                 }
             }
         }

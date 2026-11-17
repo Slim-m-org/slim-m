@@ -11,8 +11,8 @@ import 'package:slimm_data/data.dart';
 import '../../features/channels/providers/channel_notification_overrides_controller.dart';
 import '../../features/channels/providers/channel_refresher.dart';
 import '../../features/channels/providers/last_text_channel.dart';
+import '../../features/channels/providers/open_channel_rehydrate.dart';
 import '../../providers/op_adjacency.dart';
-import '../../providers/server_info.dart';
 
 class SyncEventApplier {
   SyncEventApplier(
@@ -55,7 +55,7 @@ class SyncEventApplier {
         if (!await _placeLiveOp(message.channelId, opSeq, store, isCurrent)) {
           return;
         }
-        await store.applyMessage(message);
+        await store.applyEdited(message);
       case MessageLinkPreviewsRemoved(
         :final channelId,
         :final messageId,
@@ -89,6 +89,15 @@ class SyncEventApplier {
       case ChannelCreated(:final channel):
       case ChannelUpdated(:final channel):
         await store.upsertChannels([channel]);
+        // A heading this device never held would leave the channel drawn nowhere, or under the wrong one.
+        if (await _namesUnheldCategory(channel.categoryId, store)) {
+          if (!isCurrent()) return;
+          await _channelRefresher.refreshAfterChange(
+            api,
+            store,
+            isCurrent: isCurrent,
+          );
+        }
       case ChannelDeleted(:final channelId):
         await _onChannelDeleted(channelId, store);
       case OverwriteChanged():
@@ -103,7 +112,7 @@ class SyncEventApplier {
           isCurrent: isCurrent,
         );
       case SpaceSettingsChanged():
-        _ref.invalidate(serverInfoProvider);
+        unawaited(rehydrateIfTranscriptsTurnedOn(_ref));
       case ErrorEvent(:final needsResync) when needsResync:
         // The server closed a connection that fell behind; a restart re-runs catch-up.
         unawaited(_resyncAfterLag());
@@ -125,6 +134,19 @@ class SyncEventApplier {
       return;
     }
     await store.applyMessage(message);
+  }
+
+  /// Whether [categoryId], or the parent it sits under, is missing locally.
+  Future<bool> _namesUnheldCategory(
+    String? categoryId,
+    MessageStore store,
+  ) async {
+    if (categoryId == null) return false;
+    final held = {for (final c in await store.allCategories()) c.id: c};
+    final category = held[categoryId];
+    if (category == null) return true;
+    final parentId = category.parentId;
+    return parentId != null && !held.containsKey(parentId);
   }
 
   Future<void> _onChannelDeleted(String channelId, MessageStore store) async {

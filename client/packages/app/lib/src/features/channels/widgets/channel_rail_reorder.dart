@@ -7,7 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ViewportOffset;
-import 'package:slimm_api/api.dart' show ChannelOrderGroup;
+import 'package:slimm_api/api.dart' show CategoryOrderGroup, ChannelOrderGroup;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -16,7 +16,7 @@ import 'rail_drag_lift.dart';
 import 'rail_move_actions.dart';
 import '../../../widgets/hold_then_move_drag.dart';
 
-/// The gap a channel row keeps from the rail's left edge; wider than a header's own so rows read as nested under it.
+/// The gap a channel row keeps from the rail's left edge, wider than a header's own so rows read as nested under it; one more level's worth for a sub-category, its header included.
 const kRailRowInset = AppSpacing.s16;
 
 /// One category's ordered channels, `null` for the implicit uncategorised
@@ -64,6 +64,7 @@ class ReorderableChannelRows extends StatefulWidget {
     this.carriedHeaderBuilder,
     this.carriedRowInset = 0,
     this.collapsed = const {},
+    this.categoriesNest = false,
   });
 
   final List<ChannelSection> sections;
@@ -84,7 +85,7 @@ class ReorderableChannelRows extends StatefulWidget {
 
   /// A touch row was held and released without moving, which opens its options.
   final ValueChanged<Channel>? onHeldInPlace;
-  final ValueChanged<List<String>>? onReorderCategories;
+  final ValueChanged<List<CategoryOrderGroup>>? onReorderCategories;
   final Widget Function(Channel channel)? carriedRowBuilder;
 
   /// The gap [rowBuilder] leaves left of a row's face, which the lifted copy
@@ -92,6 +93,9 @@ class ReorderableChannelRows extends StatefulWidget {
   final double carriedRowInset;
   final Widget Function(ChannelCategoryRow? category)? carriedHeaderBuilder;
   final Set<String> collapsed;
+
+  /// Whether a lifted header may be filed under another (decision 0120).
+  final bool categoriesNest;
 
   /// Builds one channel's row, told whether *this render* actually wraps it
   /// in a drag listener - false in the plain-[Column] branch, true in the
@@ -129,6 +133,7 @@ class _ReorderableChannelRowsState extends State<ReorderableChannelRows> {
         rowBuilder: widget.rowBuilder,
         carriedRowBuilder: widget.carriedRowBuilder,
         carriedRowInset: widget.carriedRowInset,
+        categoriesNest: widget.categoriesNest,
         carriedHeaderBuilder: widget.carriedHeaderBuilder,
         headerBuilder: widget.headerBuilder,
         onReorder: widget.onReorder,

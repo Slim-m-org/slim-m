@@ -47,8 +47,8 @@ void main() {
   for (final (width, rows) in [
     (743.0, 2),
     (744.0, 1),
-    (389.0, 3),
-    (390.0, 2),
+    (390.0, 3),
+    (391.0, 2),
   ]) {
     testWidgets('a $width wide pane draws the dock as $rows row(s)', (
       tester,

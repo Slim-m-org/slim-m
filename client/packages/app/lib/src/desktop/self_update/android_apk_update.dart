@@ -15,8 +15,10 @@ import 'package:path_provider/path_provider.dart';
 import 'install_fs.dart';
 import 'self_update.dart';
 import 'self_update_failure.dart';
+import 'update_manifest.dart';
 
-/// The key the signed manifest lists the apk under; see scripts/update-manifest.py.
+/// The key releases before the per-ABI split list their one fat apk under;
+/// newer ones keep it as an alias of the arm64-v8a apk. See scripts/update-manifest.py.
 const androidUpdatePlatformKey = 'android';
 
 /// The cache subdirectory the app's FileProvider shares with the installer.
@@ -55,6 +57,7 @@ typedef FetchVerifiedUpdate =
       required String platformKey,
       required Directory stagingDir,
       required http.Client client,
+      String? fallbackPlatformKey,
     });
 
 /// Deletes everything staged in [staging] except [keep], so the folder never
@@ -75,11 +78,14 @@ Future<ApkInstallOutcome?> updateAndroidApk({
   required http.Client client,
   ApkInstaller installer = const ChannelApkInstaller(),
   FetchVerifiedUpdate fetch = fetchVerifiedUpdate,
+  String? architecture,
 }) async {
+  final abiKey = androidApkPlatformKey(architecture ?? hostArchitecture());
   final staging = Directory('${cacheDir.path}/$androidUpdateCacheDir');
   final update = await fetch(
     currentVersion: currentVersion,
-    platformKey: androidUpdatePlatformKey,
+    platformKey: abiKey ?? androidUpdatePlatformKey,
+    fallbackPlatformKey: androidUpdatePlatformKey,
     stagingDir: staging,
     client: client,
   );

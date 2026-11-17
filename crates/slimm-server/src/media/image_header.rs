@@ -7,6 +7,9 @@
 //! a 30000x30000 canvas, which passes any byte cap and then asks every viewer
 //! to allocate gigabytes to draw it.
 
+use std::io::{self, BufReader, Read};
+use std::path::Path;
+
 use super::content_type::{is_inline, sniff_content_type};
 
 /// No uploaded picture may hold more pixels than this, whatever its purpose.
@@ -178,43 +181,90 @@ pub fn gif_canvas(bytes: &[u8]) -> Option<ImageHeader> {
 /// A GIF animates when it holds more than one image; counting them means
 /// walking every block, since a frame count is stored nowhere.
 fn gif(b: &[u8]) -> Option<(u32, u32, bool)> {
-    let (width, height) = (le16(b, 6)?, le16(b, 8)?);
-    let flags = *b.get(10)?;
-    let mut at = 13;
-    if flags & 0x80 != 0 {
-        at += 3 << ((flags & 0x07) + 1);
+    walk_gif(&mut &b[..])
+}
+
+/// [`gif`] over a GIF read from its first byte. Every frame must lie inside the logical
+/// screen, since some decoders grow the canvas to fit one that does not, past any cap on it.
+/// Running out of bytes between blocks after a frame ends the walk as the trailer does, since
+/// many encoders leave the trailer off.
+fn walk_gif(r: &mut impl Read) -> Option<(u32, u32, bool)> {
+    let mut screen = [0u8; 13];
+    r.read_exact(&mut screen).ok()?;
+    if &screen[..4] != b"GIF8" {
+        return None;
     }
+    let (width, height) = (le16(&screen, 6)?, le16(&screen, 8)?);
+    skip_colour_table(r, screen[10])?;
     let mut frames = 0u32;
     loop {
-        match *b.get(at)? {
+        let mut introducer = [0u8; 1];
+        if r.read(&mut introducer).ok()? == 0 {
+            return (frames > 0).then_some((width, height, frames > 1));
+        }
+        match introducer[0] {
             0x3B => return Some((width, height, frames > 1)),
-            0x21 => at = skip_sub_blocks(b, at + 2)?,
+            0x21 => {
+                skip(r, 1)?;
+                skip_sub_blocks(r)?;
+            }
             0x2C => {
+                let mut frame = [0u8; 9];
+                r.read_exact(&mut frame).ok()?;
+                let right = le16(&frame, 0)? + le16(&frame, 4)?;
+                let bottom = le16(&frame, 2)? + le16(&frame, 6)?;
+                if right > width || bottom > height {
+                    return None;
+                }
                 frames += 1;
-                if frames > 1 {
-                    return Some((width, height, true));
-                }
-                let local = *b.get(at + 9)?;
-                at += 10;
-                if local & 0x80 != 0 {
-                    at += 3 << ((local & 0x07) + 1);
-                }
-                at = skip_sub_blocks(b, at + 1)?;
+                skip_colour_table(r, frame[8])?;
+                skip(r, 1)?;
+                skip_sub_blocks(r)?;
             }
             _ => return None,
         }
     }
 }
 
-fn skip_sub_blocks(b: &[u8], mut at: usize) -> Option<usize> {
-    loop {
-        let len = usize::from(*b.get(at)?);
-        at += 1;
-        if len == 0 {
-            return Some(at);
-        }
-        at = at.checked_add(len)?;
+/// The header of the GIF at `path`, walked to its last block so no frame past its canvas hides
+/// beyond what a probe reads; `None` for anything else.
+pub async fn gif_file(path: &Path) -> Option<ImageHeader> {
+    let path = path.to_owned();
+    let walked = tokio::task::spawn_blocking(move || {
+        walk_gif(&mut BufReader::new(std::fs::File::open(path).ok()?))
+    })
+    .await
+    .ok()??;
+    let (width, height, animated) = walked;
+    Some(ImageHeader {
+        content_type: "image/gif",
+        width,
+        height,
+        animated,
+    })
+}
+
+/// Skips the colour table a GIF's packed `flags` byte announces, if any.
+fn skip_colour_table(r: &mut impl Read, flags: u8) -> Option<()> {
+    if flags & 0x80 == 0 {
+        return Some(());
     }
+    skip(r, 3 << ((flags & 0x07) + 1))
+}
+
+fn skip_sub_blocks(r: &mut impl Read) -> Option<()> {
+    loop {
+        let mut len = [0u8; 1];
+        r.read_exact(&mut len).ok()?;
+        if len[0] == 0 {
+            return Some(());
+        }
+        skip(r, u64::from(len[0]))?;
+    }
+}
+
+fn skip(r: &mut impl Read, len: u64) -> Option<()> {
+    (io::copy(&mut r.by_ref().take(len), &mut io::sink()).ok()? == len).then_some(())
 }
 
 /// The first chunk names the format: VP8X (extended, which carries the

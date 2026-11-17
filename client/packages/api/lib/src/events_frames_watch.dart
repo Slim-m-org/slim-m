@@ -38,3 +38,35 @@ class WatchTick extends ServerEvent {
   /// and a new session, so a lower one is older.
   final int epoch;
 }
+
+/// A member played a soundboard clip in a call this account is in. Delivered
+/// only to the accounts in that call, never persisted, so a client plays it
+/// once when it arrives and never replays one from a resync.
+class SoundboardPlayed extends ServerEvent {
+  const SoundboardPlayed({
+    required this.channelId,
+    required this.clipId,
+    required this.playerId,
+  });
+
+  final String channelId;
+  final String clipId;
+
+  /// Whose per-person volume the clip plays at.
+  final String playerId;
+}
+
+/// A line just kept in [transcriptId], sent only to the people in the call
+/// who may read it. Apply by [TranscriptLine.seq]; a gap means one was
+/// missed and the transcript route fills it.
+class CallTranscriptLineAdded extends ServerEvent {
+  const CallTranscriptLineAdded({
+    required this.channelId,
+    required this.transcriptId,
+    required this.line,
+  });
+
+  final String channelId;
+  final String transcriptId;
+  final TranscriptLine line;
+}

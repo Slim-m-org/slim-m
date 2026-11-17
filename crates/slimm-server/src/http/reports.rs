@@ -25,8 +25,10 @@ use axum::routing::{get, patch};
 use serde::{Deserialize, Serialize};
 
 use self::reports_cursor::parse_history_cursor;
+pub(in crate::http) use self::reports_guards::report_visible_in;
 use self::reports_guards::{missing_or_closed, require_manage_messages};
 use self::reports_mine::my_report_status;
+use self::reports_pictures::Viewer;
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
@@ -40,6 +42,7 @@ use crate::store::{ModerationHistoryItem, Report};
 pub(super) mod reports_cursor;
 pub(super) mod reports_guards;
 pub(super) mod reports_mine;
+mod reports_pictures;
 
 const BODY_LIMIT: usize = 4 * 1024;
 
@@ -89,6 +92,9 @@ struct ReportDto {
     /// answer - a DM report's own bitmask structurally never carries
     /// MANAGE_MESSAGES, since a DM has no such permission for anyone.
     channel_permissions: Option<i64>,
+    /// A `screen_stamp` report's pictures, as attachment ids, while they are kept.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    picture_ids: Option<Vec<String>>,
 }
 
 impl From<Report> for ReportDto {
@@ -104,6 +110,7 @@ impl From<Report> for ReportDto {
             subject_author_id: report.subject_author_id.map(|id| id.to_string()),
             created_at: report.created_at,
             channel_permissions: None,
+            picture_ids: None,
         }
     }
 }
@@ -191,7 +198,7 @@ async fn list(
         .permissions_in_channels(ctx.user_id, &channel_ids)
         .await?;
 
-    let dtos = reports
+    let mut dtos: Vec<ReportDto> = reports
         .into_iter()
         .map(|report| {
             let permissions = report.channel_id.map(|id| {
@@ -207,6 +214,8 @@ async fn list(
             }
         })
         .collect();
+    let viewer = Viewer::Moderator(ctx.user_id);
+    reports_pictures::fill_reports(&state, viewer, &mut dtos).await?;
     Ok(Json(dtos))
 }
 
@@ -245,11 +254,13 @@ enum ModerationHistoryItemDto {
         resolved_at: i64,
         resolved_by: Option<String>,
         resolution: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        picture_ids: Option<Vec<String>>,
     },
     #[serde(rename = "audit_log")]
     AuditLog {
         id: String,
-        /// Null once the actor's account has been anonymized.
+        /// Null once the actor's account has been anonymized, and for an act the server did itself.
         actor_id: Option<String>,
         subject_id: String,
         action: String,
@@ -277,6 +288,7 @@ impl From<ModerationHistoryItem> for ModerationHistoryItemDto {
                     .expect("the history feed only ever carries resolved reports"),
                 resolved_by: report.resolved_by.map(|id| id.to_string()),
                 resolution: report.resolution,
+                picture_ids: None,
             },
             ModerationHistoryItem::Audit(entry) => Self::AuditLog {
                 id: entry.id.to_string(),
@@ -319,23 +331,24 @@ async fn history(
     };
     let limit = params.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
 
-    let hidden = if base.contains(Permissions::VIEW_MODERATION_HISTORY) {
-        Vec::new()
+    let (hidden, viewer) = if base.contains(Permissions::VIEW_MODERATION_HISTORY) {
+        (Vec::new(), Viewer::Everything)
     } else {
         let report_channel_ids = state.store.report_channel_ids_including_resolved().await?;
-        hidden_channels(&state, ctx.user_id, &report_channel_ids).await?
+        let hidden = hidden_channels(&state, ctx.user_id, &report_channel_ids).await?;
+        (hidden, Viewer::Moderator(ctx.user_id))
     };
     let items = state
         .store
         .moderation_history(after, &hidden, limit)
         .await?;
 
-    Ok(Json(
-        items
-            .into_iter()
-            .map(ModerationHistoryItemDto::from)
-            .collect(),
-    ))
+    let mut dtos: Vec<_> = items
+        .into_iter()
+        .map(ModerationHistoryItemDto::from)
+        .collect();
+    reports_pictures::fill_history(&state, viewer, &mut dtos).await?;
+    Ok(Json(dtos))
 }
 
 /// The channels this caller may not read reports from: every live non-DM
@@ -433,9 +446,11 @@ async fn resolve(
     let Some(channel_id) = state.store.open_report_channel(report_id).await? else {
         return Err(missing_or_closed(&state, report_id).await?);
     };
-    if let Some(channel_id) = channel_id
-        && !report_visible_in(&state, ctx.user_id, channel_id).await
-    {
+    let channels = match channel_id {
+        Some(channel_id) => vec![channel_id],
+        None => state.store.stamp_report_channels(report_id).await?,
+    };
+    if !channels.is_empty() && !visible_in_any(&state, ctx.user_id, &channels).await {
         return Err(ApiError::NotFound("report not found"));
     }
 
@@ -451,6 +466,16 @@ async fn resolve(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// A stamp report spanning channels is a moderator's to close when they moderate any of them.
+async fn visible_in_any(state: &AppState, user_id: UserId, channels: &[ChannelId]) -> bool {
+    for channel_id in channels {
+        if report_visible_in(state, user_id, *channel_id).await {
+            return true;
+        }
+    }
+    false
+}
+
 /// The bar for [`history`]: either bit clears it.
 async fn require_history_access(
     state: &AppState,
@@ -461,25 +486,4 @@ async fn require_history_access(
         return Err(ApiError::Forbidden);
     }
     Ok(base)
-}
-
-/// Whether a base-level moderator may see or act on a report in this channel.
-///
-/// The caller has already passed the deployment-wide `MANAGE_MESSAGES` check.
-/// A report in a live text or voice channel is further restricted to that
-/// channel's own moderators, so a moderator excluded from one channel cannot
-/// reach into it. A report in a DM or a since-deleted channel has no such
-/// moderators to defer to, so it stays with the deployment moderators rather
-/// than falling into a per-channel check that grants it to nobody. That hole
-/// was accepting DM harassment reports and hiding them forever.
-async fn report_visible_in(state: &AppState, user_id: UserId, channel_id: ChannelId) -> bool {
-    match state.store.channel_scopes_moderation(channel_id).await {
-        Ok(false) => true,
-        Ok(true) => state
-            .store
-            .has_permission(user_id, channel_id, MODERATES_CHANNEL)
-            .await
-            .unwrap_or(false),
-        Err(_) => false,
-    }
 }

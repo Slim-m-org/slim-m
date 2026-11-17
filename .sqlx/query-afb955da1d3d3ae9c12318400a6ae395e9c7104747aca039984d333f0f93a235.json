@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DISTINCT channel_id AS \"channel_id!: ChannelId\"\n               FROM screen_stamps WHERE report_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "afb955da1d3d3ae9c12318400a6ae395e9c7104747aca039984d333f0f93a235"
+}

@@ -9,7 +9,9 @@ use slimm_server::permissions::Permissions;
 use sqlx::SqlitePool;
 use tower::ServiceExt;
 
-use crate::bot_permissioning::harness::{admin, app, create_bot, harness, json_body, request};
+use crate::bot_permissioning::harness::{
+    admin, app, create_bot, harness, json_body, request, someone_else_owns,
+};
 
 async fn role_names_of(pool: &SqlitePool, user: UserId) -> Vec<String> {
     sqlx::query_scalar::<_, String>(
@@ -130,7 +132,7 @@ async fn a_role_less_bot_can_be_reissued_and_revoked() {
 
 #[tokio::test]
 async fn a_weaker_caller_still_cannot_repermission_a_role_less_bot() {
-    let (store, _pool, _guard) = harness("slimm-bot-shared-weaker").await;
+    let (store, pool, _guard) = harness("slimm-bot-shared-weaker").await;
     store
         .create_role(
             "everyone",
@@ -139,7 +141,8 @@ async fn a_weaker_caller_still_cannot_repermission_a_role_less_bot() {
         )
         .await
         .unwrap();
-    let (_admin, root) = admin(&store, "root").await;
+    let (admin_id, root) = admin(&store, "root").await;
+    someone_else_owns(&store, &pool, admin_id).await;
     let app = app(store.clone());
     let (bot_id, _, _) = create_bot(&app, &root, "helper", 0).await;
 

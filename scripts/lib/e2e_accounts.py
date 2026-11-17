@@ -9,6 +9,8 @@ an account setting changed, that a second device inherits the choice.
 import time
 import urllib.error
 
+import e2e_session
+
 from e2e_api import Api
 
 PUSH_PREVIEW = "/push/preview"
@@ -40,11 +42,7 @@ def usernames_ignore_case(client, sign_in, server, secret, admin_api):
             f"registering {name!r} beside the existing account got {status}"
     print("  registering ALICE and Bob beside alice and bob was refused (409)")
 
-    origin = client.ev("location.origin")
-    client.send("Storage.clearDataForOrigin",
-                {"origin": origin, "storageTypes": "all"})
-    client.send("Page.navigate", {"url": f"{origin}/"})
-    time.sleep(4)
+    e2e_session.sign_out(client)
     sign_in(client, server, "BOB", secret)
     client.wait_for("general")
     other = Api(server)

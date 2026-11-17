@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE space_settings SET setup_claimed_by = ?, owner_id = ? WHERE id = 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f79b479f550d55b7837b91ff0989a7d60d6a79c04fcd826391b69ca879f4f566"
+}

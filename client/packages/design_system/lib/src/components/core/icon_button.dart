@@ -13,6 +13,7 @@ import '../../app_tokens.dart';
 import '../../press_tracking.dart';
 import '../../touch_targets.dart';
 import 'control_with_options.dart';
+import 'spinner.dart';
 
 /// `danger` states the consequence at rest, for a destructive action sitting
 /// among ordinary ones. `dangerGhost` withholds it until hover, for the case
@@ -61,8 +62,10 @@ class AppIconButton extends StatefulWidget {
     this.touch,
     this.iconSize = AppSizes.icon20,
     this.tooltip,
+    this.excludeTooltipFromSemantics,
     this.focusNode,
     this.suppressOwnHoverFill = false,
+    this.busy = false,
   });
 
   final IconData icon;
@@ -82,6 +85,11 @@ class AppIconButton extends StatefulWidget {
   final bool? touch;
   final double iconSize;
   final String? tooltip;
+
+  /// Keeps [tooltip] out of what a screen reader hears, for a label that
+  /// already says it. Null keeps it out only when it repeats [semanticLabel].
+  final bool? excludeTooltipFromSemantics;
+
   final FocusNode? focusNode;
 
   /// True when an enclosing control already paints its own hover tint that
@@ -95,6 +103,10 @@ class AppIconButton extends StatefulWidget {
   /// hover, the same "share one mechanism" call `MessageRow.hoverFillKey`
   /// already made for its own hover fill.
   final bool suppressOwnHoverFill;
+
+  /// Swaps the icon for a spinner and ignores presses, while the control keeps
+  /// its focus, so a keyboard user is not dropped when work starts.
+  final bool busy;
 
   @override
   State<AppIconButton> createState() => _AppIconButtonState();
@@ -164,7 +176,8 @@ class _AppIconButtonState extends State<AppIconButton> with PressTracking {
         // A held press belongs to the options; hover still shows the tooltip.
         triggerMode:
             joined ? TooltipTriggerMode.manual : TooltipTriggerMode.longPress,
-        excludeFromSemantics: widget.tooltip == widget.semanticLabel,
+        excludeFromSemantics: widget.excludeTooltipFromSemantics ??
+            widget.tooltip == widget.semanticLabel,
         child: control,
       );
     }
@@ -172,11 +185,14 @@ class _AppIconButtonState extends State<AppIconButton> with PressTracking {
     return control;
   }
 
+  void _press() {
+    if (!widget.busy) widget.onPressed!();
+  }
+
   Map<Type, Action<Intent>> _activateActions(bool enabled) {
     if (!enabled) return const <Type, Action<Intent>>{};
     return <Type, Action<Intent>>{
-      ActivateIntent:
-          CallbackAction<ActivateIntent>(onInvoke: (_) => widget.onPressed!()),
+      ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => _press()),
     };
   }
 
@@ -189,6 +205,7 @@ class _AppIconButtonState extends State<AppIconButton> with PressTracking {
       onTapCancel: enabled ? () => setPressed(false) : null,
       onTap: enabled
           ? () {
+              if (widget.busy) return;
               AppHaptics.selection();
               widget.onPressed!();
             }
@@ -250,7 +267,9 @@ class _AppIconButtonState extends State<AppIconButton> with PressTracking {
               border: Border.all(color: tokens.focusRing, width: 2),
             )
           : null,
-      child: Icon(widget.icon, size: widget.iconSize, color: ink),
+      child: widget.busy
+          ? const AppSpinner(size: AppSpinnerSize.sm)
+          : Icon(widget.icon, size: widget.iconSize, color: ink),
     );
   }
 

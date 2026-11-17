@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: EmojiId\" FROM custom_emoji WHERE name = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: EmojiId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "76ab66ad37837455f98d8e1580c2a6b87dc35a1ede70505b8f962ec5d419ced0"
+}

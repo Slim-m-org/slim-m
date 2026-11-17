@@ -35,6 +35,7 @@ extension SlimmApiSpace on SlimmApi {
       :welcomeMessage,
       :callTranscription,
       :callTranscriptRetentionDays,
+      :transcribeVoiceMessages,
     ) = update;
     assert(
       name != null ||
@@ -50,7 +51,8 @@ extension SlimmApiSpace on SlimmApi {
           welcomeChannelId != null ||
           welcomeMessage != null ||
           callTranscription != null ||
-          callTranscriptRetentionDays != null,
+          callTranscriptRetentionDays != null ||
+          transcribeVoiceMessages != null,
       'a settings PATCH must carry at least one field',
     );
     final json = await send(
@@ -75,6 +77,8 @@ extension SlimmApiSpace on SlimmApi {
         if (welcomeMessage != null) 'welcome_message': welcomeMessage,
         if (callTranscription != null)
           'call_transcription': callTranscription.wire,
+        if (transcribeVoiceMessages != null)
+          'transcribe_voice_messages': transcribeVoiceMessages,
         if (callTranscriptRetentionDays != null)
           'call_transcript_retention_days': callTranscriptRetentionDays == 0
               ? null

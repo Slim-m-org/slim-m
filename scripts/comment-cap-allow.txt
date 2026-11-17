@@ -47,13 +47,12 @@ client/packages/app/lib/src/features/members/widgets/avatar_settings_section.dar
 client/packages/app/lib/src/features/channels/widgets/channel_header.dart 3
 client/packages/app/lib/src/features/channels/widgets/channel_rail.dart 2
 client/packages/app/lib/src/features/channels/widgets/channel_rail_channel_rows.dart 1
-client/packages/app/lib/src/features/channels/widgets/channel_rail_frame.dart 4
-client/packages/app/lib/src/features/channels/widgets/channel_rail_sections.dart 2
+client/packages/app/lib/src/features/channels/widgets/channel_rail_frame.dart 3
+client/packages/app/lib/src/features/channels/widgets/channel_rail_sections.dart 1
 client/packages/app/lib/src/features/palette/widgets/command_palette.dart 1
 client/packages/app/lib/src/features/palette/widgets/command_palette_items.dart 1
 client/packages/app/lib/src/features/composer/widgets/composer.dart 1
 client/packages/app/lib/src/features/composer/widgets/composer_field.dart 4
-client/packages/app/lib/src/widgets/confirm_dialog.dart 1
 client/packages/app/lib/src/features/messages/widgets/fullscreen_image_viewer.dart 2
 client/packages/app/lib/src/features/settings/widgets/join_policy_row.dart 1
 client/packages/app/lib/src/features/members/widgets/member_pane.dart 1
@@ -105,7 +104,6 @@ client/packages/app/test/features/voice/voice_settings_screen_test.dart 1
 client/packages/app/test/features/voice/voice_share_indicator_test.dart 1
 client/packages/data/lib/src/connection/web.dart 1
 client/packages/data/lib/src/database.dart 2
-client/packages/data/lib/src/message_store.dart 1
 client/packages/data/test/message_store_test.dart 3
 client/packages/data/test/migration_test.dart 2
 client/packages/design_system/brand/generate.sh 6
@@ -115,7 +113,7 @@ client/packages/design_system/lib/src/app_tokens.dart 3
 client/packages/design_system/lib/src/components/core/avatar.dart 1
 client/packages/design_system/lib/src/components/core/badge.dart 3
 client/packages/design_system/lib/src/components/core/button.dart 2
-client/packages/design_system/lib/src/components/core/status_dot.dart 4
+client/packages/design_system/lib/src/components/core/status_dot.dart 3
 client/packages/design_system/lib/src/components/forms/chip.dart 1
 client/packages/design_system/lib/src/components/forms/focusable_tap_target.dart 2
 client/packages/design_system/lib/src/components/forms/input.dart 3
@@ -218,7 +216,7 @@ crates/slimm-server/tests/it_infra/response_contract/script.rs 2
 crates/slimm-server/tests/it_infra/response_contract/script/content.rs 1
 crates/slimm-server/tests/it_infra/response_contract/verdict.rs 1
 crates/slimm-server/tests/it_infra/response_contract/world.rs 1
-crates/slimm-server/tests/it_spaces/roles.rs 2
+crates/slimm-server/tests/it_spaces/roles.rs 1
 crates/slimm-server/tests/it_infra/safety.rs 3
 crates/slimm-server/tests/it_infra/token_sweep.rs 1
 crates/slimm-server/tests/it_realtime/typing.rs 6

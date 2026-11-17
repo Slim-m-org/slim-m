@@ -103,6 +103,7 @@ class _CanvasBoardObjectSemanticsState
       switch (document.kindOf(id)) {
         CanvasObjectKind.note => 'Note: ${document.textOf(id) ?? ''}',
         CanvasObjectKind.image => 'Image',
+        CanvasObjectKind.emoji => 'Emoji stamp',
         CanvasObjectKind.shape => 'Shape',
         CanvasObjectKind.text => 'Text: ${document.textOf(id) ?? ''}',
         CanvasObjectKind.stroke || null => 'Drawing',

@@ -30,9 +30,9 @@ import 'web_gain_io.dart' if (dart.library.js_interop) 'web_gain_web.dart'
     as web_gain;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
-/// Loudest a participant may be made, as a multiplier (+6 dB). Native
-/// `setVolume` is plain digital gain on decoded audio and hard-clips, so it
-/// stops here; the web graph also limits, so 200% never clips there.
+/// Loudest a participant may be made, as a multiplier (+6 dB). On desktop the
+/// fork carries gain above 100% through a soft limiter, and the web graph also
+/// limits; phones still hard-clip above 100%, so it stops here.
 const double kMaxParticipantVolume = 2.0;
 
 /// The default, and what every participant is until somebody moves a slider.

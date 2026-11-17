@@ -15,13 +15,25 @@ Color? profileColourOf({int? index, int? rgb}) {
   return presets[index % presets.length];
 }
 
+/// [profile]'s colour, as [profileColourOf] reads it.
+Color? profileColourOfUser(api.UserProfile profile) =>
+    profileColourOf(index: profile.profileColor, rgb: profile.profileColorRgb);
+
+/// The preset the server gives [userId] until its owner picks one (`default_profile_color`:
+/// the id's last byte), for when the profile is not to hand; a non-UUID id is hashed.
+Color defaultProfileColour(String userId) {
+  const presets = AppCanvasColors.cursors;
+  final tail = userId.length < 2 ? null : userId.substring(userId.length - 2);
+  final byte = tail == null ? null : int.tryParse(tail, radix: 16);
+  return presets[byte == null
+      ? stableIndexFor(userId, presets.length)
+      : byte % presets.length];
+}
+
 /// The member card's avatar ring, moved just far enough from [surface] to
 /// stay visible when a custom colour sits too close to it.
 Color? profileRingColour(api.UserProfile profile, Color surface) {
-  final colour = profileColourOf(
-    index: profile.profileColor,
-    rgb: profile.profileColorRgb,
-  );
+  final colour = profileColourOfUser(profile);
   return colour == null ? null : nudgeForContrast(colour, surface);
 }
 

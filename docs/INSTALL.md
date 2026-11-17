@@ -16,7 +16,7 @@ Ask them for both before you start.
 | Other Linux | The `.flatpak` or the `.tar.gz` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
 | Windows | `slim-m-setup-<version>.exe`, or the `-windows-x64.zip`, from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
 | macOS | The `-macos.zip` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
-| Android | Google Play internal testing, or the `-android.apk` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
+| Android | Google Play internal testing, or an `-android-*.apk` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
 | iPhone | Ask the space's owner for a TestFlight invite |
 
 ## The browser, which needs no install
@@ -106,7 +106,10 @@ Play re-signs the app, so a copy from Play cannot be updated with the apk below;
 
 ### Sideload the apk
 
-Download `slim-m-client-android.apk` and open it.
+Download `slim-m-client-android-arm64-v8a.apk` and open it.
+That is the one for nearly every phone.
+`slim-m-client-android-armeabi-v7a.apk` is for old 32-bit phones and `slim-m-client-android-x86_64.apk` for emulators.
+The app updates itself with the apk that matches its own CPU.
 
 Android will warn you, because this is a sideload.
 You will be asked to allow installs from whatever app you downloaded with (usually your browser), which means a trip into Settings the first time.
@@ -187,8 +190,9 @@ A release page lists several files, and most of them are not for you:
 | `slim-m-client-<version>-windows-x64.zip` | Windows |
 | `slim-m-setup-<version>.exe` | Windows installer, per user, no administrator rights |
 | `slim-m-client-<version>-macos.zip` | macOS |
-| `slim-m-client-android.apk` | Android, this is the one you want |
-| `SHA256SUMS`, `SHA256SUMS.android` | checksums for every download above; the Android file lists only the apk |
+| `slim-m-client-android-arm64-v8a.apk` | Android, this is the one you want |
+| `slim-m-client-android-armeabi-v7a.apk`, `slim-m-client-android-x86_64.apk` | Android on 32-bit phones and on emulators |
+| `SHA256SUMS`, `SHA256SUMS.android` | checksums for every download above; the Android file lists only the apks |
 | `manifest.json`, `manifest.json.sig` | the signed list the desktop app updates from; not for you to open |
 
 To check a download matches what was published, compare it against the checksums file:

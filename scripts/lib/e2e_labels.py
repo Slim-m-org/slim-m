@@ -27,7 +27,7 @@ APPEARANCE_PANE = "Appearance"
 CHANGE_AVATAR = "Change profile picture"
 CROP_TITLE = "Crop your picture"
 USE_PICTURE = "Use picture"
-THEME_ROW = "Color theme"
+THEME_ROW = "Browse themes"
 THEME_DARK = "Dark"
 BACK_TO_APPEARANCE = "Back to Appearance"
 
@@ -61,6 +61,50 @@ REPEAT_PASSWORD = "Repeat new password"
 PASSWORD_CHANGED = "Password changed."
 WRONG_PASSWORD = "That password is not correct."
 
+# Creating a channel and its permission grid (create_channel_sheet.dart, channel_permissions_*.dart)
+CREATE_CHANNEL_IN = "Create a channel in "
+CHANNEL_NAME = "Channel name"
+MAKE_PRIVATE = "Make this channel private"
+CREATE_CHANNEL = "Create channel"
+MANAGE_CHANNEL = "Manage "
+CHANNEL_SETTINGS = "Channel settings"
+ADD_ROLE_OR_MEMBER = "Add role or member"
+VIEW_CHANNELS = "View channels"
+FROM_THIS_GRID = " from this grid"
+DISCARD = "Discard"
+
+# The personal space every account has: the Notes button beside the rail's gear.
+NOTES = "Notes"
+
+# Group messages (new_group_dm_sheet.dart, group_dm_members_action.dart, group_dm_members_sheet.dart)
+NEW_GROUP_MESSAGE = "New group message"
+SEARCH_PEOPLE = "Search people"
+START_GROUP_WITH = "Start group with "
+GROUP_MEMBERS = "Group members"
+LEAVE_GROUP = "Leave group"
+GROUP_INTRO = "just between the people in this group"
+
+# Account and security > Two-factor (totp_section.dart, totp_enrol_sheet.dart, totp_code_sheet.dart)
+TOTP_TURN_ON = "Turn on two-factor authentication"
+TOTP_TURN_OFF = "Turn off two-factor authentication"
+TOTP_TURN_OFF_SUBMIT = "Turn off"
+TOTP_COPY_KEY = "Copy"
+TOTP_SETUP_FIELD = "Code from your authenticator app"
+TOTP_CONFIRM = "Turn on"
+TOTP_COPY_ALL = "Copy all"
+TOTP_RECOVERY_LEFT = "Recovery codes, "
+TOTP_CODE_FIELD = "Authentication code"
+DONE = "Done"
+SIGN_OUT = "Sign out"
+
+# Signing in (welcome and sign-in screens)
+CONNECT_TO_SPACE = "Connect to a Space"
+SERVER_ADDRESS = "Server address"
+CONTINUE = "Continue"
+USERNAME = "Username"
+PASSWORD = "Password"
+SIGN_IN = "Sign in"
+
 # The admin's reset code (reset_code_sheet.dart, reauth_sheet.dart)
 RESET_CODE_ROW = "Password reset code..."
 YOUR_PASSWORD = "Your password"
@@ -87,6 +131,9 @@ RES_720P = "720p"
 FPS_30 = "30 fps"
 FPS_60 = "60 fps"
 VOICE_PANE = "Voice and screen share"
+TROUBLESHOOTING_PANE = "Troubleshooting"
+LAST_CALL_AUDIO = "Last call audio"
+COPY_CALL_DIAGNOSTICS = "Copy call diagnostics"
 
 # Voice
 IN_CALL = "in call"
@@ -95,6 +142,10 @@ SHARING_NOTICE = "You are sharing your screen"
 STOP_SHARING = "Stop sharing"
 MUTE = "Mute"
 UNMUTE = "Unmute"
+# A call tile's own words for an open microphone (call_participant_tiles.dart).
+MIC_ON = "microphone on"
+# The banner while the SDK repairs the call's transport (voice_reconnect_banner.dart).
+RECONNECTING_CALL = "Reconnecting to the call"
 LEAVE_CALL = "Leave call"
 # A share hidden from its tile menu, and shown again from the person's (participant_stream_menu.dart).
 HIDE_STREAM = "Stop watching"
@@ -125,6 +176,10 @@ THREAD_SEND = "Send reply"
 REPLY_IN_THREAD = "Reply in thread"
 MENU_OVERFLOW = "Message actions"
 MENU_DELETE = "Delete"
+MENU_EDIT = "Edit"
+MENU_PIN = "Pin"
+MENU_UNPIN = "Unpin"
+PINNED_MESSAGES = "Pinned messages"
 MENU_COPY_TEXT = "Copy text"
 MENU_SELECT = "Select messages"
 MENU_REPORT = "Report message"

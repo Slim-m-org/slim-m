@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The forward picker draws each channel with the glyph the rail gives it: a
-/// lock for a private channel, a speaker for a voice one, a hash otherwise.
+/// lock for a private channel, a speaker for a voice one, a hash otherwise,
+/// and Notes the notebook rather than a letter avatar.
 library;
 
 import 'package:drift/native.dart';
@@ -67,6 +68,13 @@ void main() {
               isDm: false,
               isVoice: true,
             ),
+            ForwardTarget(
+              channelId: 'n',
+              label: 'Notes',
+              isDm: true,
+              isPersonalSpace: true,
+              userId: 'me',
+            ),
           ],
         ),
       ],
@@ -100,5 +108,6 @@ void main() {
       AppIcons.restrictedChannel,
     ]);
     expect(_glyphsOf(tester, 'vc'), [AppIcons.voice]);
+    expect(_glyphsOf(tester, 'Notes'), [AppIcons.notebook]);
   });
 }

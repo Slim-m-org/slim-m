@@ -59,7 +59,11 @@ class AlertRig {
     this.overrides = const {},
     this.parentFails = false,
     this.makeStore = MessageStore.new,
+    this.framesApplied,
   });
+
+  /// Stands in for sync applying the frames already received; idle by default.
+  final Future<void> Function()? framesApplied;
 
   /// Builds the store the policy reads, for a test that wants to observe how it is read.
   final MessageStore Function(SlimmDatabase db) makeStore;
@@ -95,7 +99,10 @@ class AlertRig {
 
   MessageAlertPolicy get policy => container.read(messageAlertPolicyProvider);
 
+  final _wasNewChannelWait = alertNewChannelWait;
+
   Future<void> start() async {
+    alertNewChannelWait = const Duration(milliseconds: 50);
     db = SlimmDatabase(NativeDatabase.memory());
     final store = makeStore(db);
     await store.upsertChannels([
@@ -106,6 +113,19 @@ class AlertRig {
         createdAt: 0,
       ),
       const api.Channel(id: 'dm-1', name: 'Alice', kind: 'dm', createdAt: 0),
+      const api.Channel(
+        id: 'voice-1',
+        name: 'hangout',
+        kind: 'voice',
+        createdAt: 0,
+      ),
+      const api.Channel(
+        id: 'lobby-1',
+        name: 'make-a-room',
+        kind: 'voice',
+        createdAt: 0,
+        createsRooms: true,
+      ),
       const api.Channel(
         id: 'thread-1',
         name: '',
@@ -121,6 +141,9 @@ class AlertRig {
           api.SessionStore(tokens: alertTokens),
         ),
         storeProvider.overrideWith((ref) async => store),
+        syncFramesAppliedProvider.overrideWithValue(
+          framesApplied ?? () async {},
+        ),
         mockApiOverride(_answer),
       ],
     );
@@ -204,6 +227,7 @@ class AlertRig {
   }
 
   Future<void> dispose() async {
+    alertNewChannelWait = _wasNewChannelWait;
     container.dispose();
     await db.close();
   }

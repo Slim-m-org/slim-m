@@ -87,6 +87,13 @@ void main() {
     });
   });
 
+  test('formatClipLength is seconds to a tenth, clamped at zero', () {
+    expect(formatClipLength(1500), '1.5 s');
+    expect(formatClipLength(0), '0.0 s');
+    expect(formatClipLength(4960), '5.0 s');
+    expect(formatClipLength(-20), '0.0 s');
+  });
+
   test('formatPlaybackTime is m:ss, h:mm:ss from an hour, clamped at zero', () {
     expect(formatPlaybackTime(const Duration(seconds: -1)), '0:00');
     expect(formatPlaybackTime(Duration.zero), '0:00');

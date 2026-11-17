@@ -41,6 +41,22 @@ class MessageEmbedsChanged extends ServerEvent {
   final List<Embed> embeds;
 }
 
+/// A voice message's transcript started, finished or failed. Lossy: reading
+/// the message is the catch-up.
+class MessageVoiceTranscript extends ServerEvent {
+  const MessageVoiceTranscript({
+    required this.channelId,
+    required this.messageId,
+    required this.attachmentId,
+    required this.transcript,
+  });
+
+  final String channelId;
+  final String messageId;
+  final String attachmentId;
+  final VoiceTranscript transcript;
+}
+
 /// The bot answered this account's button press, so the button can stop
 /// showing as pending. See docs/decisions/0039-bot-message-buttons.md.
 class InteractionAnswered extends ServerEvent {

@@ -43,6 +43,24 @@ void main() {
     );
   });
 
+  testWidgets('a group DM speaks to the group, not to two people', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const ChannelStartHeader(name: null, audience: DmAudience.group),
+      ),
+    );
+
+    expect(
+      find.text(
+        'Messages sent here are just between the people in this group.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('the two of you'), findsNothing);
+  });
+
   testWidgets('a voice channel says it is that channel\'s chat, not a DM', (
     tester,
   ) async {
@@ -57,5 +75,18 @@ void main() {
     );
     expect(find.textContaining('between the two of you'), findsNothing);
     expect(find.byIcon(AppIcons.voice), findsOneWidget);
+  });
+
+  testWidgets('your own notes read as notes, not a conversation', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(const ChannelStartHeader(name: null, audience: DmAudience.self)),
+    );
+
+    expect(find.text('Your notes'), findsOneWidget);
+    expect(find.textContaining('the two of you'), findsNothing);
+    expect(find.byIcon(AppIcons.notebook), findsOneWidget);
+    expect(find.byIcon(AppIcons.members), findsNothing);
   });
 }

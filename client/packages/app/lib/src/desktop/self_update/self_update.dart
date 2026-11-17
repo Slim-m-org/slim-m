@@ -45,8 +45,9 @@ class VerifiedUpdate {
   final File file;
 }
 
-/// Returns the verified download for [platformKey], or null when the newest
-/// release is not newer than [currentVersion]. Throws [SelfUpdateFailure] for
+/// Returns the verified download for [platformKey], or for
+/// [fallbackPlatformKey] when the manifest has no artifact under the first,
+/// or null when the newest release is not newer than [currentVersion]. Throws [SelfUpdateFailure] for
 /// every other stop, including a manifest with no artifact for this platform,
 /// which must never read as "nothing to do"; the staging
 /// directory then holds no finished file.
@@ -55,12 +56,22 @@ Future<VerifiedUpdate?> fetchVerifiedUpdate({
   required String platformKey,
   required Directory stagingDir,
   required http.Client client,
+  String? fallbackPlatformKey,
 }) => fetchVerifiedUpdateWith(
   currentVersion: currentVersion,
   platformKey: platformKey,
+  fallbackPlatformKey: fallbackPlatformKey,
   stagingDir: stagingDir,
   client: client,
 );
+
+/// [fallback]'s artifact, unless the manifest splits it into `fallback-*`
+/// keys: then it only aliases one of those, built for some other host.
+T? _fallback<T>(Map<String, T> artifacts, String? fallback) {
+  if (fallback == null) return null;
+  if (artifacts.keys.any((k) => k.startsWith('$fallback-'))) return null;
+  return artifacts[fallback];
+}
 
 /// [fetchVerifiedUpdate] with the trusted keys and free-space probe exposed,
 /// so a test can sign with its own key; production never passes either.
@@ -70,6 +81,7 @@ Future<VerifiedUpdate?> fetchVerifiedUpdateWith({
   required String platformKey,
   required Directory stagingDir,
   required http.Client client,
+  String? fallbackPlatformKey,
   List<String> trustedKeys = trustedUpdateKeys,
   FreeSpace freeSpace = freeSpaceOf,
 }) async {
@@ -103,7 +115,9 @@ Future<VerifiedUpdate?> fetchVerifiedUpdateWith({
     );
   }
   if (!isNewer(manifest.version, currentVersion)) return null;
-  final artifact = manifest.artifacts[platformKey];
+  final artifact =
+      manifest.artifacts[platformKey] ??
+      _fallback(manifest.artifacts, fallbackPlatformKey);
   if (artifact == null) {
     throw SelfUpdateFailure(
       SelfUpdateFailureKind.noArtifactForPlatform,

@@ -68,7 +68,7 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
               leading: AppIcons.retry,
               onTap: () {
                 _controller.hide();
-                unawaited(widget.port.relaunch());
+                unawaited(restartKeepingCall(ref, widget.port));
               },
             ),
           AppMenuItem(

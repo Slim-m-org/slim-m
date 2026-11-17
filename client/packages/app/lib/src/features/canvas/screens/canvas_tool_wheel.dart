@@ -22,6 +22,7 @@ enum CanvasWheelItem {
   note(CanvasTool.note, 'Note'),
   text(CanvasTool.text, 'Text'),
   shape(CanvasTool.shape, 'Shape'),
+  stamp(CanvasTool.stamp, 'Stamp'),
   eraser(CanvasTool.eraser, 'Eraser');
 
   const CanvasWheelItem(this.tool, this.label);
@@ -30,8 +31,9 @@ enum CanvasWheelItem {
   final String label;
 
   /// One rule with the tool strip, so the wheel never offers what the strip cannot.
-  bool isAvailable({required bool canDraw}) =>
-      tool.isAvailable(canDraw: canDraw);
+  bool isAvailable({required bool canDraw, bool stamps = true}) =>
+      tool.isAvailable(canDraw: canDraw) &&
+      (stamps || tool != CanvasTool.stamp);
 }
 
 /// Distance from the wheel's centre to each tool's centre.
@@ -103,6 +105,7 @@ class CanvasToolWheel extends StatefulWidget {
     required this.onPick,
     required this.onDismiss,
     this.openedByPointer = true,
+    this.stamps = true,
   });
 
   /// Overlay-local, already held inside the overlay by [canvasWheelCenter].
@@ -113,6 +116,9 @@ class CanvasToolWheel extends StatefulWidget {
   final CanvasTool tool;
   final CanvasShapeKind shapeKind;
   final bool canDraw;
+
+  /// Whether the server takes stamps; without it the Stamp item is offered but unavailable.
+  final bool stamps;
   final ValueChanged<CanvasWheelItem> onPick;
   final VoidCallback onDismiss;
 
@@ -143,12 +149,14 @@ class _CanvasToolWheelState extends State<CanvasToolWheel> {
     CanvasWheelItem.note => AppIcons.note,
     CanvasWheelItem.text => AppIcons.textBox,
     CanvasWheelItem.shape => canvasShapeKindIcon(widget.shapeKind),
+    CanvasWheelItem.stamp => AppIcons.stamp,
     CanvasWheelItem.eraser => AppIcons.eraser,
   };
 
   CanvasWheelItem get _firstFocus => CanvasWheelItem.values.firstWhere(
     (item) =>
-        item.isAvailable(canDraw: widget.canDraw) && item.tool == widget.tool,
+        item.isAvailable(canDraw: widget.canDraw, stamps: widget.stamps) &&
+        item.tool == widget.tool,
     orElse: () => CanvasWheelItem.move,
   );
 
@@ -256,7 +264,10 @@ class _CanvasToolWheelState extends State<CanvasToolWheel> {
           item: item,
           icon: _icon(item),
           current: item.tool == widget.tool,
-          available: item.isAvailable(canDraw: widget.canDraw),
+          available: item.isAvailable(
+            canDraw: widget.canDraw,
+            stamps: widget.stamps,
+          ),
           autofocus: item == _firstFocus,
           highlight: widget.highlight,
           onReach: (reached) {

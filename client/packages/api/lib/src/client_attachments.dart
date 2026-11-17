@@ -16,15 +16,30 @@ extension SlimmApiAttachments on SlimmApi {
   /// second copy. An id never referenced by a message is reclaimed
   /// automatically after a day, so upload right before sending rather than
   /// far ahead of it.
+  ///
+  /// With [voice] the upload is marked as a voice message, and the server
+  /// returns it with its length and waveform.
   Future<Attachment> uploadAttachment(
     List<int> bytes, {
     String? filename,
+    String? channelId,
+    VoiceInfo? voice,
   }) async {
     final json = await send(
       'POST',
       '/attachments',
       bytes: bytes,
-      query: filename == null ? null : {'filename': filename},
+      query: {
+        if (filename != null) 'filename': filename,
+        if (channelId != null) 'channel_id': channelId,
+        if (voice != null) ...{
+          'voice': 'true',
+          'duration_ms': '${voice.duration.inMilliseconds}',
+          'waveform': voice.waveform
+              .map((v) => v.toRadixString(16).padLeft(2, '0'))
+              .join(),
+        },
+      },
     );
     return Attachment.fromJson(json as Map<String, dynamic>);
   }

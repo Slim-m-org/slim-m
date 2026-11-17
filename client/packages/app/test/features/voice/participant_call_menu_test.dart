@@ -21,12 +21,14 @@ import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
+import 'package:slimm_app/src/role_ladder.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/participant_call_menu.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/async_wait.dart';
 import '../../support/reduced_motion_harness.dart';
 import 'voice_controller_harness.dart' show FakeSession, tokens;
 import '../../support/fake_sync.dart';
@@ -61,6 +63,7 @@ const _local = VoiceParticipant(
   int permissions = 0,
   List<api.UserProfile> members = const [_maya],
   FakeSession? withSession,
+  RoleLadder? ladder,
 }) {
   final session = withSession ?? FakeSession();
   final container = ProviderContainer(
@@ -77,6 +80,7 @@ const _local = VoiceParticipant(
       voiceControllerProvider.overrideWith(
         (ref) => VoiceController(ref, session: session),
       ),
+      if (ladder != null) roleLadderProvider.overrideWithValue(ladder),
     ],
   );
   addTearDown(container.dispose);
@@ -89,6 +93,7 @@ Widget _harness(
   ProviderContainer container,
   VoiceParticipant participant, {
   VoidCallback? onClose,
+  String? channelId,
 }) => reducedMotionApp(
   container: container,
   child: Consumer(
@@ -99,6 +104,7 @@ Widget _harness(
         ref,
         participant: participant,
         close: onClose ?? () {},
+        channelId: channelId,
       ),
     ),
   ),
@@ -176,9 +182,46 @@ void main() {
       await tester.tap(find.text('View profile'));
       await tester.pumpAndSettle();
 
-      expect(find.text('@maya'), findsOneWidget);
+      // Her display name is her username, so the card shows it once, with its copy button.
+      expect(find.byTooltip('Copy username'), findsOneWidget);
     },
   );
+
+  testWidgets('move is offered only for someone below you on the ladder', (
+    tester,
+  ) async {
+    const ladder = RoleLadder(permissions: Perm.moveMembers, topPosition: 5);
+    for (final (top, owner, shown) in [
+      (4, false, true),
+      (5, false, false),
+      (1, true, false),
+    ]) {
+      final member = api.UserProfile(
+        id: _maya.id,
+        username: _maya.username,
+        displayName: _maya.displayName,
+        createdAt: 0,
+        topRolePosition: top,
+        isOwner: owner,
+      );
+      final wired = _wire(
+        permissions: Perm.moveMembers,
+        members: [member],
+        ladder: ladder,
+      );
+      await wired.container.read(membersProvider.future);
+      await tester.pumpWidget(
+        _harness(wired.container, _remote, channelId: 'call'),
+      );
+      await tester.pump();
+      expect(
+        find.text('Move to...'),
+        shown ? findsOneWidget : findsNothing,
+        reason: 'top $top, owner $owner',
+      );
+    }
+    await pumpFrames(tester, frames: 50);
+  });
 
   testWidgets('moderate is absent with no moderation right', (tester) async {
     final none = _wire(permissions: 0);

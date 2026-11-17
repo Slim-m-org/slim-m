@@ -302,14 +302,23 @@ final probeApiProvider = Provider<SlimmApi Function(Uri)>(
 
 /// The local database. Opened once and closed with the container.
 final databaseProvider = FutureProvider<SlimmDatabase>((ref) async {
-  final db = SlimmDatabase(
-    await openSlimmDatabase(
-      keys: KeyStoreDatabaseKey(ref.read(keyStoreProvider)),
-      fileName: ref.read(accountSlotProvider)?.databaseFile,
-      onReset: (reason) =>
-          ref.read(databaseResetProvider.notifier).state = reason,
-    ),
-  );
+  final executor =
+      await openSlimmDatabase(
+        keys: KeyStoreDatabaseKey(ref.read(keyStoreProvider)),
+        fileName: ref.read(accountSlotProvider)?.databaseFile,
+        onReset: (reason) =>
+            ref.read(databaseResetProvider.notifier).state = reason,
+      ).onError<Object>((error, stack) {
+        // The rail can only name the error's type, which a release build minifies.
+        AppLog.error(
+          LogTag.data,
+          'The local database could not be opened',
+          error: error,
+          stack: stack,
+        );
+        Error.throwWithStackTrace(error, stack);
+      });
+  final db = SlimmDatabase(executor);
   ref.onDispose(db.close);
   return db;
 });

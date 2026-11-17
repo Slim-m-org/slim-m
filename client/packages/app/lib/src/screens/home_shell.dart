@@ -29,6 +29,7 @@ import '../features/screen_overlay/widgets/call_overlay_shortcut.dart';
 import '../features/voice/providers/live_quality_restart.dart';
 import '../features/voice/providers/voice_move_follower.dart';
 import '../features/voice/providers/voice_notice_controller.dart';
+import '../features/voice/widgets/call_restore_gate.dart';
 import '../features/voice/widgets/voice_notice_banner_host.dart';
 import '../providers/admin_providers.dart';
 import '../features/members/providers/blocks_controller.dart';
@@ -37,7 +38,10 @@ import '../features/voice/providers/hold_music_controller.dart';
 import '../features/channels/providers/channel_notification_overrides_controller.dart';
 import '../features/channels/providers/channel_by_id_provider.dart';
 import '../features/composer/providers/composer_focus.dart';
+import '../features/composer/widgets/voice_recording_marker.dart';
 import '../features/auth/providers/database_key_store.dart';
+import '../features/members/providers/member_presence.dart'
+    show memberModerationWatcherProvider;
 import '../features/members/providers/member_selection.dart';
 import '../features/modules/providers/module_sound_settings.dart';
 import '../features/settings/providers/notification_schedule_controller.dart';
@@ -61,6 +65,7 @@ import '../features/admin_alerts/widgets/admin_alert_banner_host.dart';
 import '../features/auth/widgets/new_device_banner_host.dart';
 import '../features/settings/widgets/rules_gate_banner_host.dart';
 import '../features/voice/widgets/push_to_talk_listener.dart';
+import '../features/channels/widgets/rail_notes_button.dart';
 import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/download_failures.dart';
 import '../widgets/update_banner_host.dart';
@@ -107,24 +112,26 @@ class HomeShell extends ConsumerWidget {
     final scaffold = _scaffold(context, ref, layout, facts);
 
     final shell = WhatsNewGate(
-      child: BotFormGate(
-        child: PushToTalkListener(
-          child: CallbackShortcuts(
-            bindings: _shortcutBindings(context, ref),
-            // CallbackShortcuts only fires for a focused descendant, so this
-            // default makes the shortcut work the instant the app opens.
-            child: Focus(
-              autofocus: true,
-              child: _LayoutBridge(
-                layout: layout,
-                child: NewDeviceBannerHost(
-                  child: VoiceNoticeBannerHost(
-                    child: AdminAlertBannerHost(
-                      child: RulesGateBannerHost(
-                        child: UpdateBannerHost(
-                          child: DownloadFailureHost(
-                            child: DatabaseResetNotice(
-                              child: AppBackgroundHost(child: scaffold),
+      child: CallRestoreGate(
+        child: BotFormGate(
+          child: PushToTalkListener(
+            child: CallbackShortcuts(
+              bindings: _shortcutBindings(context, ref),
+              // CallbackShortcuts only fires for a focused descendant, so this
+              // default makes the shortcut work the instant the app opens.
+              child: Focus(
+                autofocus: true,
+                child: _LayoutBridge(
+                  layout: layout,
+                  child: NewDeviceBannerHost(
+                    child: VoiceNoticeBannerHost(
+                      child: AdminAlertBannerHost(
+                        child: RulesGateBannerHost(
+                          child: UpdateBannerHost(
+                            child: DownloadFailureHost(
+                              child: DatabaseResetNotice(
+                                child: AppBackgroundHost(child: scaffold),
+                              ),
                             ),
                           ),
                         ),
@@ -148,6 +155,8 @@ class HomeShell extends ConsumerWidget {
     ref.watch(channelNotificationOverridesProvider.select((_) => null));
     // Session-lifetime, or permission invalidation only ran with RolesScreen open.
     ref.watch(roleChangeWatcherProvider);
+    // Session-lifetime, or someone who joined stayed out of every picker until a member pane opened.
+    ref.watch(memberModerationWatcherProvider);
     // Forces creation for the session; nothing here reads its own state.
     ref.watch(notificationSoundControllerProvider);
     // Session-lifetime, so hold music reacts to the call without a screen mounting it.
@@ -342,8 +351,8 @@ class HomeShell extends ConsumerWidget {
     String channelId,
   ) {
     // No rail here to carry the strip, so a call not on screen gets its own row.
-    final (callLive, voiceChannelId) = ref.watch(
-      voiceControllerProvider.select((s) => (s.callLive, s.channelId)),
+    final voiceChannelId = ref.watch(
+      voiceControllerProvider.select((s) => s.channelId),
     );
     final chatOverCall = voiceChatOverCall(ref, channelId);
     // The composer area carries the slim call pill while typing, so the composer sits on the keyboard.
@@ -356,7 +365,6 @@ class HomeShell extends ConsumerWidget {
           voiceChannelId == channelId &&
           !chatOverCall &&
           (!isDm || facts.dmCallOpen);
-      final showVoiceStrip = callLive && !callOnScreen;
       return CompactDrawerScaffold(
         channelId: channelId,
         onBack: facts.canvasFullscreen
@@ -388,7 +396,9 @@ class HomeShell extends ConsumerWidget {
                   ),
                 ),
               ),
-              if (showVoiceStrip && !keyboardUp) const VoiceStripIndicator(),
+              if (!keyboardUp) VoiceRecordingStrip(activeChannelId: channelId),
+              // The strip decides if a call is live, here or in another community.
+              if (!callOnScreen && !keyboardUp) const VoiceStripIndicator(),
             ],
           ),
         ),
@@ -405,6 +415,7 @@ class HomeShell extends ConsumerWidget {
     final focusComposer = activatorFor(AppAction.focusComposer);
     final openSettings = activatorFor(AppAction.openSettings);
     final openInbox = activatorFor(AppAction.openInbox);
+    final notes = activatorFor(AppAction.openNotes);
     final nextChannel = activatorFor(AppAction.nextChannel);
     final previousChannel = activatorFor(AppAction.previousChannel);
     final muteCall = activatorFor(AppAction.toggleMuteCall);
@@ -422,6 +433,13 @@ class HomeShell extends ConsumerWidget {
       if (openSettings != null)
         openSettings: () => context.push(Routes.personalSettings),
       if (openInbox != null) openInbox: () => showInboxSheet(context),
+      if (notes != null)
+        notes: () => unawaited(
+          openNotes(
+            ProviderScope.containerOf(context, listen: false),
+            GoRouter.of(context),
+          ),
+        ),
       if (nextChannel != null)
         nextChannel: () => unawaited(_cycleChannel(context, ref, 1)),
       if (previousChannel != null)
@@ -458,8 +476,9 @@ class HomeShell extends ConsumerWidget {
     if (ordered.isEmpty || !context.mounted) return;
     final current = selectedChannelId(context);
     final index = ordered.indexWhere((c) => c.id == current);
+    // From a channel the rail does not list (Notes), next starts at the top and previous at the bottom.
     final target = index == -1
-        ? ordered.first
+        ? (direction > 0 ? ordered.first : ordered.last)
         : ordered[(index + direction) % ordered.length];
     context.go(Routes.channel(target.id));
   }

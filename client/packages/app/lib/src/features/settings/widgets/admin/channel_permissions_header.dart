@@ -149,13 +149,22 @@ class HeaderCell extends StatelessWidget {
               allow: column.allowCount,
               deny: column.denyCount,
             ),
-            AppIconButton(
-              icon: AppIcons.dismiss,
-              iconSize: AppSizes.icon16,
-              size: AppIconButtonSize.sm,
-              semanticLabel: 'Remove ${column.label} from this grid',
-              onPressed: onRemove,
-            ),
+            if (column.locked)
+              AppIconButton(
+                icon: AppIcons.restrictedChannel,
+                iconSize: AppSizes.icon16,
+                size: AppIconButtonSize.sm,
+                semanticLabel: '${column.label} ranks level with or above you',
+                tooltip: 'Ranks level with or above you',
+              )
+            else
+              AppIconButton(
+                icon: AppIcons.dismiss,
+                iconSize: AppSizes.icon16,
+                size: AppIconButtonSize.sm,
+                semanticLabel: 'Remove ${column.label} from this grid',
+                onPressed: onRemove,
+              ),
           ],
         ),
       ),

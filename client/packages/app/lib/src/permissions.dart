@@ -7,6 +7,8 @@
 /// server-side from scratch regardless of what a caller can see.
 library;
 
+import 'package:slimm_api/api.dart' as api;
+
 import 'action_labels.dart';
 
 abstract final class Perm {
@@ -47,6 +49,9 @@ abstract final class Perm {
   /// Read a call's transcript, including in search (decision 0113).
   static const int viewTranscripts = 1 << 20;
 
+  /// Play a soundboard clip into a voice call (decision 0118).
+  static const int useSoundboard = 1 << 21;
+
   /// Every bit that has a name, in the fixed order the editor lists them.
   static const List<(int bit, String label)> editable = [
     (administrator, 'Administrator'),
@@ -70,7 +75,11 @@ abstract final class Perm {
     (viewModerationHistory, 'View moderation history'),
     (moveMembers, 'Move members between calls'),
     (viewTranscripts, 'View transcripts'),
+    (useSoundboard, 'Use the soundboard'),
   ];
+
+  /// Every named bit, which the server's evaluator resolves an administrator and the Space owner to.
+  static final int all = editable.fold(0, (bits, entry) => bits | entry.$1);
 
   /// [groups] flattened, in the same order - the channel permissions grid's
   /// row list, since a grid has no room for group headers of its own and
@@ -151,6 +160,11 @@ abstract final class Perm {
         'View transcripts',
         'Read what was said in calls, and find it in search.',
       ),
+      PermSpec(
+        useSoundboard,
+        'Use the soundboard',
+        'Play short clips into a call.',
+      ),
     ]),
     PermGroup('Channels & invites', [
       PermSpec(
@@ -228,6 +242,14 @@ class PermGroup {
 /// carry it as an ordinary bit a caller can check for directly.
 extension PermissionCheck on int {
   bool hasPermission(int required) => (this & required) == required;
+}
+
+/// The viewer's own deployment-wide bits, read the way the server rules them.
+extension HeldPermissions on api.Me {
+  /// Everything for the Space owner, whatever their roles; a timeout in force is already
+  /// subtracted from [api.Me.permissions], so a timed-out owner keeps the server's answer.
+  int get heldPermissions =>
+      isOwner && timedOutUntil == null ? Perm.all : permissions;
 }
 
 /// The human names of every permission in [bits], in grid order.

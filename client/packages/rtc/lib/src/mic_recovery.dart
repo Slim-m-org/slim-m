@@ -36,6 +36,7 @@ class MicRecoveryTiming {
     this.fallbackSettle = const Duration(seconds: 3),
     this.captureProbe = const Duration(milliseconds: 1500),
     this.captureStall = const Duration(seconds: 5),
+    this.restartRepublish = const Duration(seconds: 10),
   });
 
   final Duration retryBase;
@@ -65,6 +66,10 @@ class MicRecoveryTiming {
 
   /// How long that counter may stand still before the capture counts as dead.
   final Duration captureStall;
+
+  /// How long a full restart may take to republish a wanted microphone before
+  /// the session publishes one; `LiveKitMicPort` drops whichever lands second.
+  final Duration restartRepublish;
 }
 
 /// Tells whether the capture's running sample total moved between two reads.

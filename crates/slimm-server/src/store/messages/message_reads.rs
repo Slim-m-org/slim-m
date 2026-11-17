@@ -42,6 +42,53 @@ impl Store {
         Ok(rows)
     }
 
+    /// A page centred on `seq`, newest-first like [`Store::list_messages`]:
+    /// the `limit / 2` live messages after it, then it and those before it.
+    /// Deleted rows are skipped, so the page is by live count, not seq span.
+    pub async fn list_messages_around(
+        &self,
+        channel_id: ChannelId,
+        seq: i64,
+        limit: i64,
+    ) -> anyhow::Result<Vec<Message>> {
+        let mut newer = self.list_messages_after(channel_id, seq, limit / 2).await?;
+        newer.reverse();
+        let older = self
+            .list_messages(channel_id, seq.checked_add(1), limit - newer.len() as i64)
+            .await?;
+        newer.extend(older);
+        Ok(newer)
+    }
+
+    /// Live messages with a `seq` strictly above `after_seq`, oldest-first.
+    async fn list_messages_after(
+        &self,
+        channel_id: ChannelId,
+        after_seq: i64,
+        limit: i64,
+    ) -> anyhow::Result<Vec<Message>> {
+        let rows = sqlx::query_as!(
+            Message,
+            r#"SELECT m.id AS "id!: MessageId", m.channel_id AS "channel_id!: ChannelId",
+                      m.author_id AS "author_id: UserId",
+                      u.display_name AS "author_display_name?: String",
+                      m.seq AS "seq!: Seq",
+                      m.content AS "content!", m.created_at AS "created_at!", m.edited_at,
+                      m.reply_to_id AS "reply_to_id: MessageId"
+               FROM messages m
+               LEFT JOIN users u ON u.id = m.author_id AND u.deleted_at IS NULL
+               WHERE m.channel_id = ? AND m.deleted_at IS NULL AND m.seq > ?
+               ORDER BY m.seq ASC
+               LIMIT ?"#,
+            channel_id,
+            after_seq,
+            limit
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
     /// Fetches a live message by id, or `None` if it is missing or deleted.
     pub async fn message(&self, id: MessageId) -> anyhow::Result<Option<Message>> {
         fetch_message(&self.pool, id).await

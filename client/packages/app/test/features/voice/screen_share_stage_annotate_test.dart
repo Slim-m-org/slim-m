@@ -33,6 +33,7 @@ class _Sync extends NoopSyncController {
     bool ended = false,
     bool allowed = false,
     double? aspect,
+    bool stamps = false,
   }) => frames.add((kind: kind, target: targetUserId, points: points));
 }
 
@@ -53,7 +54,11 @@ Future<_Sync> _pump(
   required bool allowed,
   String? sharerId = 'sharer',
 }) async {
-  final feed = ScreenAnnotationFeed(selfId: () => 'me');
+  final feed = ScreenAnnotationFeed(
+    selfId: () => 'me',
+    callChannelId: () => 'call',
+    callMembers: () => const ['me', 'sharer'],
+  );
   if (allowed) {
     feed.handle(
       const api.CanvasScreenAnnotation(

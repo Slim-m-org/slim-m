@@ -5,10 +5,12 @@ library;
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter/widgets.dart';
-import 'package:slimm_api/api.dart' show ChannelOrderGroup;
+import 'package:slimm_api/api.dart' show CategoryOrderGroup, ChannelOrderGroup;
 
+import 'category_tree.dart';
 import 'channel_move.dart';
 import 'channel_rail_reorder.dart' show ChannelSection;
+import 'rail_category_slots.dart';
 
 /// The step up and the step down for a channel row, each null where it lands nowhere.
 ({VoidCallback? up, VoidCallback? down}) channelMoveSteps(
@@ -72,24 +74,20 @@ Map<ShortcutActivator, VoidCallback> channelMoveShortcuts(
   };
 }
 
-/// Move category up and down for a header, over [ids] in their current order.
+/// Move category up and down for a header, among its own siblings only.
 Map<CustomSemanticsAction, VoidCallback> categoryMoveActions(
-  List<String> ids,
+  CategoryTree tree,
   String categoryId,
-  ValueChanged<List<String>>? onReorder,
+  ValueChanged<List<CategoryOrderGroup>>? onReorder,
 ) {
-  final at = ids.indexOf(categoryId);
-  void move(int to) {
-    final next = [...ids]..removeAt(at);
-    onReorder?.call(next..insert(to, categoryId));
-  }
-
+  final up = groupsAfterSiblingStep(tree, categoryId, -1);
+  final down = groupsAfterSiblingStep(tree, categoryId, 1);
   return {
-    if (at > 0)
+    if (up != null)
       const CustomSemanticsAction(label: 'Move category up'): () =>
-          move(at - 1),
-    if (at >= 0 && at < ids.length - 1)
+          onReorder?.call(up),
+    if (down != null)
       const CustomSemanticsAction(label: 'Move category down'): () =>
-          move(at + 1),
+          onReorder?.call(down),
   };
 }

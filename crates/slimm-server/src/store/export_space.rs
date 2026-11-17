@@ -18,8 +18,13 @@ const ROLES: &str = "SELECT id, name, permissions, position, is_everyone, mentio
         color, created_at
      FROM roles WHERE ?1 IS NOT NULL ORDER BY position DESC, id";
 
-const CATEGORIES: &str = "SELECT id, name, position, created_at FROM channel_categories
-     WHERE deleted_at IS NULL AND ?1 IS NOT NULL ORDER BY position, id";
+// Tree order, as `Store::list_categories` lists them.
+const CATEGORIES: &str = "SELECT c.id AS id, c.name AS name, c.position AS position,
+        c.created_at AS created_at, c.parent_id AS parent_id
+     FROM channel_categories c LEFT JOIN channel_categories p ON p.id = c.parent_id
+     WHERE c.deleted_at IS NULL AND ?1 IS NOT NULL
+     ORDER BY COALESCE(p.position, c.position), COALESCE(p.created_at, c.created_at),
+        COALESCE(p.id, c.id), c.parent_id IS NOT NULL, c.position, c.created_at, c.id";
 
 // Temporary voice rooms and direct messages are not part of the community.
 const CHANNELS: &str = concat!(

@@ -23,6 +23,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         Event::Message(MessageEvent::PollVoted { channel_id, .. }) => *channel_id,
         Event::Message(MessageEvent::ComponentsChanged { channel_id, .. }) => *channel_id,
         Event::Message(MessageEvent::EmbedsChanged { channel_id, .. }) => *channel_id,
+        Event::Message(MessageEvent::VoiceTranscript { channel_id, .. }) => *channel_id,
         Event::Message(MessageEvent::LinkPreviewsRemoved { channel_id, .. }) => *channel_id,
         Event::TypingStarted { channel_id, .. } | Event::TypingStopped { channel_id, .. } => {
             *channel_id
@@ -36,6 +37,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         Event::WatchTick { channel_id, .. } => *channel_id,
         Event::CallAudioChanged { channel_id, .. } => *channel_id,
         Event::CallTranscriptChanged { channel_id, .. } => *channel_id,
+        Event::CallTranscriptLine { channel_id, .. } => *channel_id,
         Event::CallRinging { channel_id, .. } => *channel_id,
         Event::CallRingEnded { channel_id, .. } => *channel_id,
         Event::DmChanged { channel_id } => *channel_id,
@@ -65,6 +67,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::MemberRemoved(_)
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)
+        | Event::OwnerChanged(_)
         | Event::ProfileChanged(_)
         | Event::BotUiChanged(_)
         | Event::RoleChanged { .. }
@@ -83,6 +86,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
         | Event::VoiceNotice { .. }
+        | Event::SoundboardPlayed { .. }
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => return None,
     })

@@ -8,7 +8,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart' show ScreenShareResolution;
 
 import '../../../../preset_options.dart';
@@ -19,6 +18,7 @@ import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_save_feedback.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_segmented_block.dart';
+import '../../../../widgets/load_error_block.dart';
 
 /// The screen-share resolution ceiling; index-matched to the segmented
 /// options below. All lie inside the server's settable range (360 to 2160),
@@ -100,14 +100,9 @@ class _ScreenShareCapSectionState extends ConsumerState<ScreenShareCapSection>
             if (current != null)
               SettingsSubRow(label: screenShareCapConsequence(current)),
             if (ceiling.hasError && current == null)
-              SettingsCardBlock(
-                children: [
-                  AppErrorState(
-                    message: 'Could not load the current ceiling.',
-                    onRetry: () =>
-                        ref.invalidate(spaceScreenShareCeilingProvider),
-                  ),
-                ],
+              LoadErrorBlock(
+                message: 'Could not load the current ceiling.',
+                onRetry: () => ref.invalidate(spaceScreenShareCeilingProvider),
               ),
           ],
         ),

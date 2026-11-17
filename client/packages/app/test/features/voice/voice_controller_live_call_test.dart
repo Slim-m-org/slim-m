@@ -266,7 +266,7 @@ void main() {
   /// to set "join muted" is whatever was last chosen mid-call - so leaving
   /// must not reset it back to the defaults.
   test(
-    'leaving preserves the mic and camera preference for the next join',
+    'leaving keeps the mic preference, and the camera never carries over',
     () async {
       final session = FakeSession();
       final controller = harness.controllerWith(session, voiceApi());
@@ -280,7 +280,7 @@ void main() {
       await controller.leave();
 
       expect(controller.state.microphoneEnabled, isFalse);
-      expect(controller.state.cameraEnabled, isTrue);
+      expect(controller.state.cameraEnabled, isFalse);
     },
   );
 

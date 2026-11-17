@@ -158,6 +158,71 @@ void main() {
     expect(text, contains('summary ${kDiagnosticsSummaryCap + 2}'));
   });
 
+  test('files each event at its time since the join', () {
+    diag.noteEvent('before any call');
+    diag.begin();
+    now = now.add(const Duration(milliseconds: 400));
+    diag.noteEvent('CallKit start request: ok');
+    now = now.add(const Duration(milliseconds: 2650));
+    diag.noteEvent('Audio check (3s after connect): mic on');
+    now = now.add(const Duration(seconds: 17));
+    diag
+      ..end()
+      ..noteEvent('CallKit end request: ok');
+
+    final text = diag.report(facts: _facts);
+
+    expect(text, isNot(contains('before any call')));
+    expect(
+      text,
+      contains('Timeline, from the join\n'
+          '+0.4s CallKit start request: ok\n'
+          '+3.0s Audio check (3s after connect): mic on\n'
+          '+20.1s CallKit end request: ok'),
+    );
+  });
+
+  test('says when nothing is on the timeline yet', () {
+    diag.begin();
+
+    expect(diag.report(facts: _facts),
+        contains('Timeline, from the join\nNothing recorded yet.'));
+  });
+
+  test('a rejoin keeps the call before it, a reconnect does not', () {
+    diag
+      ..begin()
+      ..noteEvent('first call');
+    now = now.add(const Duration(seconds: 14));
+    diag
+      ..end()
+      ..begin()
+      ..noteEvent('second call')
+      ..begin();
+
+    final text = diag.report(facts: _facts);
+
+    expect(text, contains('+0.0s second call'));
+    expect(
+      text,
+      contains('Previous call, which ran 14s\n+0.0s first call'),
+    );
+    expect('first call'.allMatches(text), hasLength(1));
+  });
+
+  test('keeps only the newest timeline lines', () {
+    diag.begin();
+    for (var i = 0; i < kDiagnosticsTimelineCap + 2; i++) {
+      diag.noteEvent('event $i.');
+    }
+
+    final text = diag.report(facts: _facts);
+
+    expect(text, isNot(contains('event 1.')));
+    expect(text, contains('event 2.'));
+    expect(text, contains('event ${kDiagnosticsTimelineCap + 1}.'));
+  });
+
   test('holds no token or address', () {
     diag.begin();
     diag.noteStats(_video(

@@ -136,62 +136,82 @@ class AppStatusDotPainter extends CustomPainter {
   final Color color;
   final Color backgroundColor;
 
+  /// Every shape stays inside the circle of the dot's width, so the round
+  /// cutout an avatar punches for its dot fits all five states alike.
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
-    final h = size.height;
-    final center = Offset(w / 2, h / 2);
+    final center = Offset(w / 2, size.height / 2);
+    final radius = w / 2;
     final fill = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
 
     switch (shape) {
       case AppStatusShape.filledDisc:
-        canvas.drawCircle(center, w / 2, fill);
+        canvas.drawCircle(center, radius, fill);
 
       case AppStatusShape.triangle:
-        final path = Path()
-          ..moveTo(w * 0.5, 0)
-          ..lineTo(w, h)
-          ..lineTo(0, h)
-          ..close();
-        canvas.drawPath(path, fill);
+        canvas.drawPath(_roundedTriangle(center, radius), fill);
 
       case AppStatusShape.notchedSquare:
-        // A fixed 3px corner, hardcoded in the source regardless of dot size; no
-        // [AppRadii] step is this small (6, the smallest, reads as a pill here).
+        final corner = radius * _squareCornerShare;
+        final half = (radius - corner) / math.sqrt2 + corner;
+        final square = Rect.fromCircle(center: center, radius: half);
         canvas.drawRRect(
-            RRect.fromRectAndRadius(
-                Offset.zero & size, const Radius.circular(3)),
-            fill);
-        final barHeight = math.max(2.0, h * 0.18);
+            RRect.fromRectAndRadius(square, Radius.circular(corner)), fill);
         canvas.drawRect(
-          Rect.fromCenter(center: center, width: w * 0.62, height: barHeight),
+          Rect.fromCenter(
+            center: center,
+            width: square.width * 0.62,
+            height: math.max(2.0, square.height * 0.18),
+          ),
           Paint()
             ..color = backgroundColor
             ..style = PaintingStyle.fill,
         );
 
       case AppStatusShape.hollowRing:
-        _drawRing(canvas, center, w, h, color);
+        _drawRing(canvas, center, w, color);
 
       case AppStatusShape.slashedRing:
-        _drawRing(canvas, center, w, h, color);
-        // A flat, non-scaling 2px bar, matching the source exactly; the ring it
-        // crosses does scale, since it alone must stay visible at small sizes.
+        final stroke = _drawRing(canvas, center, w, color);
+        // A flat, non-scaling 2px bar ending mid-stroke, so neither end pokes
+        // past the ring; the ring scales, since it alone must stay visible small.
         canvas.save();
         canvas.translate(center.dx, center.dy);
         canvas.rotate(-math.pi / 4);
         canvas.drawRect(
-          Rect.fromCenter(center: Offset.zero, width: w + 2, height: 2),
+          Rect.fromCenter(center: Offset.zero, width: w - stroke, height: 2),
           Paint()..color = color,
         );
         canvas.restore();
     }
   }
 
-  void _drawRing(
-      Canvas canvas, Offset center, double w, double h, Color ringColor) {
+  /// An upright triangle whose rounded corners touch the circle of [radius].
+  static Path _roundedTriangle(Offset center, double radius) {
+    final corner = radius * _triangleCornerShare;
+    final path = Path();
+    for (var i = 0; i < 3; i++) {
+      final direction = -math.pi / 2 + i * 2 * math.pi / 3;
+      final arcCentre =
+          center + Offset.fromDirection(direction, radius - corner);
+      path.arcTo(
+        Rect.fromCircle(center: arcCentre, radius: corner),
+        direction - math.pi / 3,
+        2 * math.pi / 3,
+        i == 0,
+      );
+    }
+    return path..close();
+  }
+
+  static const double _triangleCornerShare = 0.2;
+  static const double _squareCornerShare = 0.32;
+
+  /// Draws the ring and returns its stroke width.
+  double _drawRing(Canvas canvas, Offset center, double w, Color ringColor) {
     // Border-box sizing: the ring's outer edge sits on the box edge and the
     // stroke eats inward, so path radius = outer radius minus half the stroke.
     final strokeWidth = math.max(2.0, w * 0.26);
@@ -203,6 +223,7 @@ class AppStatusDotPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth,
     );
+    return strokeWidth;
   }
 
   @override

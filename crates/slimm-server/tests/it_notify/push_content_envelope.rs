@@ -200,3 +200,35 @@ async fn a_long_body_is_truncated_rather_than_sent_whole() {
         "the preview is the real message"
     );
 }
+
+/// A nickname set by an administrator is what the preview's sender and any
+/// `@username` in its body read as, so the title and the body agree; a member
+/// with none falls back to the account's own name.
+#[tokio::test]
+async fn the_preview_names_nicknamed_members_and_falls_back_for_the_rest() {
+    let world = world().await;
+    let recipient = account(&world.store, "reader", "Reader").await;
+    account(&world.store, "ada", "Ada Lovelace").await;
+    account(&world.store, "grace", "Grace Hopper").await;
+    let secret = register_push(&world.app, &recipient, "reader-token", true).await;
+    let id = |name: &'static str| {
+        let store = world.store.clone();
+        async move { store.live_user_id_by_username(name).await.unwrap().unwrap() }
+    };
+    let admin = id("author").await;
+    for (name, nickname) in [("author", "Captain Author"), ("ada", "Countess Ada")] {
+        let subject = id(name).await;
+        world
+            .store
+            .set_nickname(subject, nickname, admin)
+            .await
+            .unwrap();
+    }
+
+    send(&world, "hi @ada and @grace").await;
+    let body = wait_for_capture(&world.captured).await;
+    let envelope = unseal(entry_for(&body, "reader-token"), &secret);
+
+    assert_eq!(envelope["sender"], "Captain Author");
+    assert_eq!(envelope["body"], "hi @Countess Ada and @Grace Hopper");
+}

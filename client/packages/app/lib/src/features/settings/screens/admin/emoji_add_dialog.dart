@@ -37,21 +37,6 @@ import 'emoji_bulk_plan.dart';
 import 'emoji_intake.dart';
 import 'emoji_name.dart';
 
-/// Opens the add dialog with [initial] already staged, as a drop on the pane does.
-///
-/// Desktop-vs-mobile rule 4, a short task with a submit: a centred dialog on a
-/// desktop and a bottom sheet on a phone, over the pane it was opened from.
-/// Staged files ask before they are dropped, so a phone cannot drag it away.
-Future<void> showEmojiAddDialog(
-  BuildContext context, {
-  List<EmojiPick> initial = const [],
-}) => showAppSheet<void>(
-  context,
-  semanticLabel: ActionLabels.createEmoji,
-  enableDrag: false,
-  builder: (_) => EmojiAddDialog(initial: initial),
-);
-
 class EmojiAddDialog extends ConsumerStatefulWidget {
   const EmojiAddDialog({super.key, this.initial = const []});
 
@@ -325,7 +310,7 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
         enabled: !_running,
         label: 'Drop to add emoji',
         icon: AppIcons.image,
-        onDrop: (files) => unawaited(_drop(files)),
+        onDrop: (files, _) => unawaited(_drop(files)),
         child: Focus(
           autofocus: true,
           onKeyEvent: _onKey,

@@ -36,6 +36,8 @@ pub struct ForwardOrigin {
 /// latter; see [`Store::forward_source`].
 #[derive(Debug, Clone)]
 pub struct ForwardSource {
+    /// The message the sender named, whose attachment links the forward copies.
+    pub named: MessageId,
     /// The channel holding the message the sender named.
     pub named_in: ChannelId,
     pub origin: ForwardOrigin,
@@ -121,6 +123,7 @@ impl Store {
                 },
             };
             ForwardSource {
+                named: message_id,
                 named_in: r.channel_id,
                 origin,
             }

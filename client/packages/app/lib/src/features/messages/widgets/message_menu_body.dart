@@ -23,6 +23,8 @@ class MessageMenuBody extends StatelessWidget {
   });
 
   final MessageActions actions;
+
+  /// What Copy text copies; empty hides it, so it never empties the clipboard.
   final String content;
   final Set<String> reacted;
   final VoidCallback onAddReaction;
@@ -93,12 +95,13 @@ class MessageMenuBody extends StatelessWidget {
 
   List<Widget> _keepGroup() {
     return [
-      AppMenuItem(
-        label: 'Copy text',
-        leading: AppIcons.copy,
-        onTap: () =>
-            _run(() => Clipboard.setData(ClipboardData(text: content))),
-      ),
+      if (content.isNotEmpty)
+        AppMenuItem(
+          label: 'Copy text',
+          leading: AppIcons.copy,
+          onTap: () =>
+              _run(() => Clipboard.setData(ClipboardData(text: content))),
+        ),
       if (_a.canCopyLink)
         AppMenuItem(
           label: 'Copy message link',

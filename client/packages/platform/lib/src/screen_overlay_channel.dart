@@ -4,11 +4,31 @@
 /// unsupported, so the setting never offers what cannot work.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 
 import 'screen_overlay.dart';
 
 const screenOverlayChannelName = 'slimm/screen_overlay';
+
+/// What the runner calls when the monitor layout changed under an open overlay window.
+const screenOverlayDisplaysChanged = 'displaysChanged';
+
+// One per channel for every instance: a second method call handler would replace the first.
+final _displayNotices = <String, StreamController<void>>{};
+
+StreamController<void> _displayNoticesOf(MethodChannel channel) =>
+    _displayNotices.putIfAbsent(channel.name, () {
+      late final StreamController<void> notices;
+      notices = StreamController<void>.broadcast(
+        onListen: () => channel.setMethodCallHandler((call) async {
+          if (call.method == screenOverlayDisplaysChanged) notices.add(null);
+        }),
+        onCancel: () => channel.setMethodCallHandler(null),
+      );
+      return notices;
+    });
 
 class ChannelScreenOverlay implements ScreenOverlay {
   const ChannelScreenOverlay({
@@ -31,11 +51,12 @@ class ChannelScreenOverlay implements ScreenOverlay {
   }
 
   @override
-  Future<bool> show(List<int> monitors) async {
+  Future<bool> show(List<int> monitors, {int? window}) async {
     try {
       return await _channel.invokeMethod<bool>('show', {
             'monitor': monitors.first,
             'monitors': monitors,
+            if (window != null) 'window': window,
           }) ??
           false;
     } on PlatformException {
@@ -51,6 +72,32 @@ class ChannelScreenOverlay implements ScreenOverlay {
       await _channel.invokeMethod<void>('draw', {
         'shapes': [for (final s in shapes) s.toJson()],
       });
+    } on PlatformException {
+      return;
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  @override
+  Future<bool> putImage(String key, Uint8List png) async {
+    try {
+      return await _channel.invokeMethod<bool>(
+            'putImage',
+            {'key': key, 'png': png},
+          ) ??
+          false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
+  @override
+  Future<void> dropImage(String key) async {
+    try {
+      await _channel.invokeMethod<void>('dropImage', {'key': key});
     } on PlatformException {
       return;
     } on MissingPluginException {
@@ -79,6 +126,9 @@ class ChannelScreenOverlay implements ScreenOverlay {
       return;
     }
   }
+
+  @override
+  Stream<void> get displaysChanged => _displayNoticesOf(_channel).stream;
 
   @override
   Future<int?> appMonitor() async {

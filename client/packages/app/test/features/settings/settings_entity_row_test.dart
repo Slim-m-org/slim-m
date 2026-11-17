@@ -22,6 +22,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_entity_row.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_section_header.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _harness(Widget child) => MaterialApp(
@@ -29,7 +30,88 @@ Widget _harness(Widget child) => MaterialApp(
   home: Scaffold(body: child),
 );
 
+const _row = Key('row');
+
+/// A row in a settings card, as a catalog lists it, with three actions.
+Widget _carded({bool dense = false, bool touch = false, Widget? badge}) =>
+    _harness(
+      AppTouchTargets(
+        enabled: touch,
+        child: SettingsSectionCard(
+          children: [
+            SettingsEntityRow(
+              key: _row,
+              dense: dense,
+              headline: 'airhorn',
+              badge: badge,
+              actions: [
+                for (final icon in [
+                  AppIcons.play,
+                  AppIcons.edit,
+                  AppIcons.delete,
+                ])
+                  AppIconButton(
+                    key: ValueKey(icon),
+                    icon: icon,
+                    semanticLabel: '$icon',
+                    onPressed: () {},
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
 void main() {
+  testWidgets('a dense row tightens its padding inside a card too', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_carded());
+    final roomy = tester.getSize(find.byKey(_row)).height;
+    await tester.pumpWidget(_carded(dense: true));
+    final dense = tester.getSize(find.byKey(_row)).height;
+
+    expect(roomy, AppSizes.rowPointer + 20);
+    expect(dense, AppSizes.rowPointer + AppSpacing.s4 * 2);
+  });
+
+  testWidgets('a caption badge sits on the headline baseline', (tester) async {
+    await tester.pumpWidget(
+      _carded(badge: const Text('1.4 s', style: AppText.caption)),
+    );
+    double baseline(String text) {
+      final finder = find.text(text);
+      final box = tester.renderObject<RenderBox>(finder);
+      return tester.getTopLeft(finder).dy +
+          box.getDryBaseline(box.constraints, TextBaseline.alphabetic)!;
+    }
+
+    expect(baseline('1.4 s'), moreOrLessEquals(baseline('airhorn')));
+  });
+
+  testWidgets('pointer actions keep a gap; touch ones end on the inset', (
+    tester,
+  ) async {
+    Rect slot(IconData icon) => tester.getRect(find.byKey(ValueKey(icon)));
+
+    await tester.pumpWidget(_carded(dense: true));
+    expect(slot(AppIcons.edit).left - slot(AppIcons.play).right, AppSpacing.s4);
+    expect(
+      slot(AppIcons.delete).left - slot(AppIcons.edit).right,
+      AppSpacing.s4,
+    );
+
+    await tester.pumpWidget(_carded(dense: true, touch: true));
+    final visibleRight =
+        slot(AppIcons.delete).right - (AppSizes.rowTouch - AppSizes.icon28) / 2;
+    expect(
+      tester.getRect(find.byKey(_row)).right - visibleRight,
+      AppCardRowScope.inset,
+      reason: 'the trash outline, not its wider tap slot, ends on the inset',
+    );
+  });
+
   testWidgets('the inline failure annotates the row, below its own content', (
     tester,
   ) async {

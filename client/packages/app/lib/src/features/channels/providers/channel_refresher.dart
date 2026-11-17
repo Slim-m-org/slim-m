@@ -11,6 +11,7 @@ import 'dart:async';
 
 import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
+import 'package:slimm_data/data.dart' as local show Channel;
 
 import 'dms.dart';
 import '../../../providers/rate_limit_retry.dart';
@@ -19,6 +20,14 @@ import '../../../providers/rate_limit_retry.dart';
 /// their read markers, deduplicating a concurrent caller into the refresh
 /// already running rather than starting a second.
 class ChannelRefresher {
+  ChannelRefresher({this.onLost, this.onCategoriesNest});
+
+  /// Told the channels a refresh dropped because the server stopped listing them, by id with their name.
+  final void Function(Map<String, String> lost)? onLost;
+
+  /// Told whether a non-empty category listing came from a server that nests them.
+  final void Function(bool nests)? onCategoriesNest;
+
   Future<void>? _inFlight;
   Completer<void>? _trailing;
   _Request? _trailingRequest;
@@ -64,6 +73,7 @@ class ChannelRefresher {
     final categoriesFuture = api.listCategories();
     final dmsFuture = api.listDirectMessages();
     await Future.wait([channelsFuture, categoriesFuture, dmsFuture]);
+    final held = await store.allChannels();
     if (!isCurrent()) return;
     final channels = await channelsFuture;
     final categories = await categoriesFuture;
@@ -75,7 +85,12 @@ class ChannelRefresher {
     ];
     await store.replaceChannels(all);
     if (!isCurrent()) return;
+    final lost = lostChannels(held, {for (final c in all) c.id});
+    if (lost.isNotEmpty) onLost?.call(lost);
     await store.replaceCategories(categories);
+    if (categories.isNotEmpty) {
+      onCategoriesNest?.call(categories.first.serverNests);
+    }
 
     await _hydrateReadMarkers(api, store, isCurrent: isCurrent, wait: wait);
   }
@@ -116,6 +131,43 @@ class ChannelRefresher {
           manuallyUnread: read.state.manuallyUnread,
         ),
     ]);
+    await _sendMarkersAhead(api, store, states, isCurrent: isCurrent);
+  }
+
+  /// Sends the server each marker this device holds ahead of it.
+  ///
+  /// Reading moves the local marker first, so a send that failed, or a channel
+  /// read while offline, leaves the server behind with nothing to retry it:
+  /// the marker only moves forward, so hydration never notices, and every
+  /// other device keeps the channel unread. Best-effort and capped; whatever
+  /// is left is sent by the next refresh.
+  ///
+  /// A channel the server holds marked unread is skipped: marking it read
+  /// would clear that mark, which is newer than any debt left here.
+  Future<void> _sendMarkersAhead(
+    SlimmApi api,
+    MessageStore store,
+    List<ChannelReadState> states, {
+    required bool Function() isCurrent,
+  }) async {
+    final server = {
+      for (final s in states)
+        if (!s.state.manuallyUnread) s.channelId: s.state.lastReadSeq,
+    };
+    final ahead = [
+      for (final channel in await store.allChannels())
+        if (server[channel.id] case final seq? when channel.lastReadSeq > seq)
+          channel,
+    ];
+    for (final channel in ahead.take(_markersAheadPerRefresh)) {
+      if (!isCurrent()) return;
+      try {
+        await api.markRead(channelId: channel.id, seq: channel.lastReadSeq);
+      } on ApiException catch (error, stack) {
+        reportFailure(LogTag.ui, 'save the read position', error, stack);
+        return;
+      }
+    }
   }
 
   /// A server that predates `GET /read-states` answers 404 to it, and only
@@ -209,9 +261,27 @@ class ChannelRefresher {
   }
 }
 
+/// Most markers one refresh sends, so a store far ahead cannot spend the write limit.
+const _markersAheadPerRefresh = 25;
+
 class _Request {
   const _Request(this.api, this.store, this.isCurrent);
   final SlimmApi api;
   final MessageStore store;
   final bool Function() isCurrent;
 }
+
+/// The channels in [held] that [listed] no longer has, by id with their name.
+/// Threads are never listed and DMs and rooms leave by other paths, so neither counts.
+Map<String, String> lostChannels(
+  List<local.Channel> held,
+  Set<String> listed,
+) => {
+  for (final c in held)
+    if (!listed.contains(c.id) &&
+        c.parentMessageId == null &&
+        c.roomOwnerId == null &&
+        c.kind != 'dm' &&
+        c.name.isNotEmpty)
+      c.id: c.name,
+};

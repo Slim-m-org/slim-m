@@ -31,6 +31,7 @@ MessagesCompanion rowFor(api.Message message) {
     pending: const Value(false),
     failed: const Value(false),
     replyToId: Value(message.replyToId),
+    mentionsMe: Value(message.mentionsMe),
   );
   final withPreviews = message.linkPreviewsRemoved
       ? row.copyWith(linkPreviewsRemoved: const Value(true))
@@ -60,4 +61,32 @@ Future<void> removeForwardSnapshot(SlimmDatabase db, String messageId) async {
       forwardedAuthorAvatarUpdatedAt: Value(null),
     ),
   );
+}
+
+/// Whether a channel row exists locally.
+Future<bool> hasChannel(SlimmDatabase db, String channelId) async {
+  final row = await (db.select(db.channels)
+        ..where((c) => c.id.equals(channelId)))
+      .getSingleOrNull();
+  return row != null;
+}
+
+/// Whether any row is held under [messageId], delivered or not.
+Future<bool> hasRow(SlimmDatabase db, String messageId) async {
+  final row = await (db.select(db.messages)
+        ..where((m) => m.id.equals(messageId)))
+      .getSingleOrNull();
+  return row != null;
+}
+
+/// Whether [messageId] is held for [channelId], however far outside the watched window.
+Future<bool> hasMessage(
+  SlimmDatabase db,
+  String channelId,
+  String messageId,
+) async {
+  final row = await (db.select(db.messages)
+        ..where((m) => m.channelId.equals(channelId) & m.id.equals(messageId)))
+      .getSingleOrNull();
+  return row != null;
 }

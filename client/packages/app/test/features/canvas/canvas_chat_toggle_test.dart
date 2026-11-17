@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The canvas can open its voice channel's chat (decision: a docked pane
 /// where there is room, a sheet narrower) and says when a message waits.
+/// The canvas sits over its call here, where any message counts.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,9 +11,12 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_overflow_menu.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_chat_toggle.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_by_id_provider.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_text_pane.dart';
+import 'package:slimm_app/src/features/voice/widgets/voice_chat_unread_dot.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 Channel _channel({
@@ -34,6 +38,10 @@ Channel _channel({
   isPersonalSpace: false,
 );
 
+final _inCall = voiceFlagsProvider.overrideWithValue(
+  const VoiceFlags(channelId: 'c1', state: VoiceSessionState.connected),
+);
+
 Future<ProviderContainer> _pump(
   WidgetTester tester,
   Channel channel, {
@@ -45,6 +53,7 @@ Future<ProviderContainer> _pump(
   final container = ProviderContainer(
     overrides: [
       channelByIdProvider('c1').overrideWith((ref) => Stream.value(channel)),
+      _inCall,
     ],
   );
   addTearDown(container.dispose);
@@ -88,7 +97,7 @@ void main() {
     'a message that arrived while closed lights the dot, opening hides it',
     (tester) async {
       final container = await _pump(tester, _channel(cursor: 4, lastRead: 2));
-      expect(find.byKey(canvasChatUnreadKey), findsOneWidget);
+      expect(find.byKey(voiceChatUnreadKey), findsOneWidget);
       expect(
         find.bySemanticsLabel('Toggle text chat, new messages'),
         findsOneWidget,
@@ -97,18 +106,18 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Toggle text chat, new messages'));
       await tester.pump();
       expect(container.read(voiceChatPaneVisibleProvider), isTrue);
-      expect(find.byKey(canvasChatUnreadKey), findsNothing);
+      expect(find.byKey(voiceChatUnreadKey), findsNothing);
     },
   );
 
   testWidgets('a read channel shows no dot', (tester) async {
     await _pump(tester, _channel(cursor: 4, lastRead: 4));
-    expect(find.byKey(canvasChatUnreadKey), findsNothing);
+    expect(find.byKey(voiceChatUnreadKey), findsNothing);
   });
 
   testWidgets('a mention counts as unread too', (tester) async {
     await _pump(tester, _channel(cursor: 4, lastRead: 2, mentioned: 3));
-    expect(find.byKey(canvasChatUnreadKey), findsOneWidget);
+    expect(find.byKey(voiceChatUnreadKey), findsOneWidget);
   });
 
   testWidgets(
@@ -145,6 +154,7 @@ void main() {
           channelByIdProvider(
             'c1',
           ).overrideWith((ref) => Stream.value(channel)),
+          _inCall,
         ],
       );
       addTearDown(container.dispose);
@@ -190,7 +200,7 @@ void main() {
       tester,
     ) async {
       await pumpOverflow(tester, _channel(cursor: 3, lastRead: 1));
-      expect(find.byKey(canvasChatUnreadKey), findsOneWidget);
+      expect(find.byKey(voiceChatUnreadKey), findsOneWidget);
 
       await tester.tap(find.bySemanticsLabel('More canvas actions'));
       await tester.pump(const Duration(milliseconds: 600));
@@ -207,7 +217,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('More canvas actions'));
       await tester.pump(const Duration(milliseconds: 600));
       expect(find.text('Text chat'), findsNothing);
-      expect(find.byKey(canvasChatUnreadKey), findsNothing);
+      expect(find.byKey(voiceChatUnreadKey), findsNothing);
     });
 
     testWidgets('without a chat channel there is no row', (tester) async {

@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 #include "screen_overlay_panel.h"
 
+#include "screen_overlay_png.h"
+
 #include <glib.h>
 #include <pango/pangocairo.h>
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
 #include <map>
 #include <string>
 #include <vector>
@@ -32,21 +33,6 @@ constexpr double kFontPx = 11;
 
 // Pictures by user id, decoded from the PNG the app sends once per picture.
 std::map<std::string, cairo_surface_t*> g_avatars;
-
-struct PngSource {
-  const std::vector<uint8_t>* bytes;
-  size_t offset;
-};
-
-cairo_status_t ReadPng(void* closure, unsigned char* data, unsigned int length) {
-  PngSource* source = static_cast<PngSource*>(closure);
-  if (source->offset + length > source->bytes->size()) {
-    return CAIRO_STATUS_READ_ERROR;
-  }
-  memcpy(data, source->bytes->data() + source->offset, length);
-  source->offset += length;
-  return CAIRO_STATUS_SUCCESS;
-}
 
 void SetColor(cairo_t* cr, uint32_t argb, double alpha = 1) {
   cairo_set_source_rgba(cr, ((argb >> 16) & 0xFF) / 255.0,
@@ -156,20 +142,14 @@ void DrawMark(cairo_t* cr, const Panel& panel, bool deafened, double cx,
 void CacheAvatars(Panel* panel) {
   for (PanelRow& row : panel->rows) {
     if (row.avatar.empty()) continue;
-    PngSource source = {&row.avatar, 0};
-    cairo_surface_t* decoded =
-        cairo_image_surface_create_from_png_stream(ReadPng, &source);
+    cairo_surface_t* decoded = DecodePng(row.avatar);
     row.avatar.clear();
     auto held = g_avatars.find(row.id);
     if (held != g_avatars.end()) {
       cairo_surface_destroy(held->second);
       g_avatars.erase(held);
     }
-    if (cairo_surface_status(decoded) != CAIRO_STATUS_SUCCESS) {
-      cairo_surface_destroy(decoded);
-      continue;
-    }
-    g_avatars[row.id] = decoded;
+    if (decoded != nullptr) g_avatars[row.id] = decoded;
   }
 }
 

@@ -63,6 +63,10 @@ class ReconnectTracker {
   final ValueNotifier<bool> active = ValueNotifier(false);
 
   /// True while the peer connections are being rebuilt; a resume keeps the media path, so it never sets this.
+  ///
+  /// Only [started] with a restart sets it: the SDK announces every reconnect,
+  /// a resume included, with an attempt first, so an attempt says nothing
+  /// about which kind follows.
   final ValueNotifier<bool> restarting = ValueNotifier(false);
 
   bool _disposed = false;
@@ -109,8 +113,6 @@ class ReconnectTracker {
         'next retry in $nextDelayMs ms)',
       );
       active.value = true;
-      // A retry with no start seen cannot be told from a restart, so it is held as one.
-      restarting.value = true;
     }
   }
 

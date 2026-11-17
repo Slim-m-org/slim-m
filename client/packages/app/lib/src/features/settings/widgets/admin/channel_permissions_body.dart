@@ -14,6 +14,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../../permissions.dart';
 import 'channel_permissions_grid_rows.dart';
 import 'channel_permissions_header.dart';
+import '../viewport_pin.dart';
 
 class PermissionGridView extends StatefulWidget {
   const PermissionGridView({
@@ -45,6 +46,7 @@ class PermissionGridView extends StatefulWidget {
 class _PermissionGridViewState extends State<PermissionGridView> {
   final _body = ScrollController();
   final _header = ScrollController();
+  final _section = GlobalKey();
   final Set<String> _collapsed = {};
 
   /// Groups still worth showing for the current filter, each with the
@@ -101,7 +103,7 @@ class _PermissionGridViewState extends State<PermissionGridView> {
       );
       final rows = Stack(
         children: [
-          _rows(metrics),
+          _rows(metrics, box.maxWidth),
           if (metrics.scrolls)
             Positioned(
               left: metrics.labelWidth,
@@ -117,30 +119,56 @@ class _PermissionGridViewState extends State<PermissionGridView> {
             ),
         ],
       );
-      return Column(
-        mainAxisSize: widget.shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      final header = HeaderRow(
+        columns: widget.columns,
+        metrics: metrics,
+        controller: _header,
+        onAdd: widget.onAdd,
+        onRemove: widget.onRemove,
+      );
+      if (!widget.shrinkWrap) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            header,
+            Expanded(child: rows),
+          ],
+        );
+      }
+      // Inside a page that scrolls, the column names ride down with it so a row of cells never loses whose column is whose.
+      return Stack(
+        key: _section,
         children: [
-          HeaderRow(
-            columns: widget.columns,
-            metrics: metrics,
-            controller: _header,
-            onAdd: widget.onAdd,
-            onRemove: widget.onRemove,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(height: metrics.headerHeight),
+              rows,
+            ],
           ),
-          if (widget.shrinkWrap) rows else Expanded(child: rows),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: ViewportPin(
+              edge: ViewportEdge.top,
+              section: _section,
+              child: _PinnedHeaderSurface(child: header),
+            ),
+          ),
         ],
       );
     },
   );
 
-  Widget _rows(GridMetrics metrics) {
+  Widget _rows(GridMetrics metrics, double width) {
     final groups = _visibleGroups();
     if (groups.isEmpty) return const _NoMatches();
-    return _rowsFor(metrics, groups);
+    return _rowsFor(metrics, groups, width);
   }
 
-  Widget _rowsFor(GridMetrics metrics, List<PermGroup> groups) {
+  Widget _rowsFor(GridMetrics metrics, List<PermGroup> groups, double width) {
     final table = Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.s16),
       child: Row(
@@ -151,11 +179,20 @@ class _PermissionGridViewState extends State<PermissionGridView> {
             child: Column(
               children: [
                 for (final group in groups) ...[
-                  GroupHeaderRow(
-                    title: group.title,
-                    count: group.permissions.length,
-                    expanded: _isOpen(group),
-                    onToggle: () => _toggle(group),
+                  // A section title spans the whole row: the label column alone cut "Channels & invites" short.
+                  SizedBox(
+                    height: GridMetrics.groupHeaderHeight,
+                    child: OverflowBox(
+                      alignment: Alignment.centerLeft,
+                      minWidth: width,
+                      maxWidth: width,
+                      child: GroupHeaderRow(
+                        title: group.title,
+                        count: group.permissions.length,
+                        expanded: _isOpen(group),
+                        onToggle: () => _toggle(group),
+                      ),
+                    ),
                   ),
                   if (_isOpen(group))
                     for (final spec in group.permissions)
@@ -176,7 +213,15 @@ class _PermissionGridViewState extends State<PermissionGridView> {
                 child: Column(
                   children: [
                     for (final group in groups) ...[
-                      const SizedBox(height: GridMetrics.groupHeaderHeight),
+                      // Under the title's overflow, so a tap there still opens or closes the group.
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _toggle(group),
+                        child: const SizedBox(
+                          height: GridMetrics.groupHeaderHeight,
+                          width: double.infinity,
+                        ),
+                      ),
                       if (_isOpen(group))
                         for (final spec in group.permissions)
                           GridRow(
@@ -291,6 +336,27 @@ class _NoMatches extends StatelessWidget {
           style: AppText.ui.copyWith(color: tokens.textSecondary),
         ),
       ),
+    );
+  }
+}
+
+/// The card's own fill and side borders behind the column names, so a pinned header neither shows rows through it nor cuts the card's frame.
+class _PinnedHeaderSurface extends StatelessWidget {
+  const _PinnedHeaderSurface({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: tokens.surfaceRaised,
+        border: Border.symmetric(
+          vertical: BorderSide(color: tokens.borderSubtle),
+        ),
+      ),
+      child: child,
     );
   }
 }

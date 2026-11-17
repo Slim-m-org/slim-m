@@ -31,6 +31,7 @@ import '../features/settings/screens/admin/channel_permissions_screen.dart';
 import '../features/settings/screens/admin/dock_module_screen.dart';
 import '../features/settings/screens/admin/dock_screen.dart';
 import '../features/settings/screens/admin/emoji_screen.dart';
+import '../features/settings/screens/admin/soundboard_screen.dart';
 import '../features/settings/screens/admin/invites_screen.dart';
 import '../features/settings/screens/admin/customize_screen.dart';
 import '../features/settings/screens/admin/performance_screen.dart';
@@ -51,18 +52,21 @@ import '../features/channels/screens/channel_settings_screen.dart';
 import '../screens/home_shell.dart';
 import '../features/messages/screens/message_deep_link.dart';
 import '../features/settings/screens/debug_log_screen.dart';
-import '../features/settings/providers/theme_draft.dart' show ThemeEditorSeed;
-import '../features/settings/screens/theme_editor_screen.dart';
-import '../features/settings/screens/themes_screen.dart';
 import '../features/voice/screens/call_stats_screen.dart';
 import '../features/auth/screens/onboarding_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/messages/screens/thread_screen.dart';
 import 'breakpoints.dart';
+import 'launch_route.dart';
 import 'modal_page.dart';
 import 'page_transitions.dart';
 import 'routes.dart';
 import 'settings_pages.dart';
+
+/// Where Themes and the theme editor lived before they became pages of the
+/// Appearance pane; kept out of [Routes] because nothing navigates to them.
+const _oldThemesPath = '/settings/themes';
+const _oldThemeEditorPath = '/settings/themes/edit';
 
 /// The app's router.
 ///
@@ -90,7 +94,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   var disposed = false;
   ref.onDispose(() => disposed = true);
 
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: signedOutHome(),
     observers: [
       OverlayCoverObserver((stack) {
@@ -217,6 +221,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             modalPage(context, const EmojiScreen()),
       ),
       GoRoute(
+        path: Routes.adminSoundboard,
+        pageBuilder: (context, state) =>
+            modalPage(context, const SoundboardScreen()),
+      ),
+      GoRoute(
         path: Routes.adminAnalytics,
         pageBuilder: (context, state) =>
             modalPage(context, const AnalyticsScreen()),
@@ -271,16 +280,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             modalPage(context, const CallStatsScreen()),
       ),
       GoRoute(
-        path: Routes.personalThemes,
-        pageBuilder: (context, state) =>
-            modalPage(context, const ThemesScreen()),
+        path: _oldThemesPath,
+        redirect: (_, _) => Routes.personalSettingsPage('appearance', 'themes'),
       ),
       GoRoute(
-        path: Routes.personalThemeEditor,
-        pageBuilder: (context, state) => modalPage(
-          context,
-          ThemeEditorScreen(seed: state.extra as ThemeEditorSeed?),
-        ),
+        path: _oldThemeEditorPath,
+        redirect: (_, _) =>
+            Routes.personalSettingsPage('appearance', 'new-theme'),
       ),
       GoRoute(
         path: Routes.debugLog,
@@ -310,6 +316,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  final launch = ref.read(launchRouteProvider);
+  router.routerDelegate.addListener(
+    () => launch.showed(router.routerDelegate.currentConfiguration.uri.path),
+  );
+  return router;
 });
 
 String? _redirect({

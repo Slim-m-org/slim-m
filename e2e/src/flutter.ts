@@ -12,6 +12,9 @@ function cssString(text: string): string {
   return `"${escaped}"`;
 }
 
+/** Flutter web draws a heading as <h1>-<h6> (or <header>), not flt-semantics, so a sheet title is only found with these; matches scripts/lib/e2e_js.py. */
+const NAMED_NODES = 'flt-semantics, header, h1, h2, h3, h4, h5, h6';
+
 /**
  * One Flutter web client, driven through the accessibility tree it projects.
  *
@@ -49,18 +52,18 @@ export class FlutterApp {
    * when it has one and its own text otherwise, and both are in use.
    */
   text(label: string): Locator {
-    const byAria = this.page.locator(`flt-semantics[aria-label*=${cssString(label)} i]`);
+    const byAria = this.page.locator(`:is(${NAMED_NODES})[aria-label*=${cssString(label)} i]`);
     const byText = this.page
-      .locator('flt-semantics:not(:has(flt-semantics))')
+      .locator(`:is(${NAMED_NODES}):not(:has(flt-semantics))`)
       .filter({ hasText: new RegExp(escapeRegExp(label), 'i') });
     return byAria.or(byText);
   }
 
   /** The node whose whole name is the label, for names that are a prefix of other names. */
   exact(label: string): Locator {
-    const byAria = this.page.locator(`flt-semantics[aria-label=${cssString(label)} i]`);
+    const byAria = this.page.locator(`:is(${NAMED_NODES})[aria-label=${cssString(label)} i]`);
     const byText = this.page
-      .locator('flt-semantics:not(:has(flt-semantics))')
+      .locator(`:is(${NAMED_NODES}):not(:has(flt-semantics))`)
       .filter({ hasText: new RegExp(String.raw`^\s*${escapeRegExp(label)}\s*$`, 'i') });
     return byAria.or(byText);
   }

@@ -74,4 +74,120 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.130.0',
+    headline: 'Voice messages, a soundboard, and names in mentions',
+    points: [
+      WhatsNewPoint(
+        'Record a voice message with the mic button, which takes the place '
+        'of Send while the message box is empty. Spaces can turn on '
+        'transcripts in Space settings, under Voice.',
+      ),
+      WhatsNewPoint(
+        'Calls have a soundboard with a dozen starter clips. Admins add more '
+        'in Space settings, and anyone in the call can play one. Turn off '
+        'Soundboard sounds in Notifications to stop hearing them.',
+      ),
+      WhatsNewPoint(
+        'A category can hold sub-categories. Right-click it and pick Create '
+        'sub-category, or drag another category into it. Each has its own '
+        'permissions, so people see only the part meant for them.',
+      ),
+      WhatsNewPoint(
+        'Stamp an emoji, a GIF or a picture of your own on someone\'s '
+        'shared screen with the new Stamp tool, or drop a picture file on '
+        'it, if they let viewers draw. It fades after a few seconds. On the '
+        'canvas, a stamp stays like any other item. A sharer can report who '
+        'sent a picture for a day from Pictures on your screen.',
+      ),
+      WhatsNewPoint(
+        'A Spotify link shows its cover, name and length, with a Play on '
+        'Spotify button. On the web it plays in the chat; elsewhere it opens '
+        'in Spotify. Long pages such as GitHub and Wikipedia get a preview '
+        'now too.',
+      ),
+      WhatsNewPoint(
+        'Profiles have a new card: a colour band, your status as a dot on '
+        'your picture, and a Roles section. Names in the member list take '
+        'the colour of their top role.',
+      ),
+      WhatsNewPoint(
+        'Roles work as a ladder. You can only manage, kick or time out '
+        'people whose top role is below yours. Each Space has an owner, who '
+        'can do everything.',
+      ),
+      WhatsNewPoint(
+        'Appearance has a theme gallery. Pick a theme, or open one in the '
+        'editor to make your own.',
+      ),
+      WhatsNewPoint(
+        'Notes moved out of your direct messages to a button next to '
+        'Settings.',
+      ),
+      WhatsNewPoint(
+        'Right-click a voice channel and pick Open chat to read its chat '
+        'without joining. Voice channel chats notify you only for mentions '
+        'by default.',
+      ),
+      WhatsNewPoint(
+        'A mention reads as the name people use in this Space. Hover it to '
+        'see the username.',
+      ),
+      WhatsNewPoint(
+        'On Windows, messages and calls in the background show a '
+        'notification, flash the taskbar button and badge it with your '
+        'unread count.',
+      ),
+      WhatsNewPoint(
+        'Opening a search result from long ago shows it in place, with a '
+        'bar to jump back to the present.',
+      ),
+      WhatsNewPoint(
+        'Fixed "In a call on another device" showing after you left a call '
+        'or reloaded, and a Linux crash when joining a call without a '
+        'sound server.',
+      ),
+      WhatsNewPoint(
+        'A channel no longer stays unread after the message you had not '
+        'read yet is deleted.',
+      ),
+      WhatsNewPoint(
+        'When two channels you had open are deleted, the app goes back to '
+        'the channel list instead of flickering between them.',
+      ),
+      WhatsNewPoint(
+        'On the web, reloading keeps you on the page you were on, and links '
+        'and the back button keep working after it.',
+      ),
+      WhatsNewPoint(
+        'When slim-m restarts to update during a call, it puts you back in '
+        'the call. If it closes unexpectedly, it asks whether to rejoin.',
+      ),
+      WhatsNewPoint(
+        'In a voice call, the chat button shows a dot when the chat has new '
+        'messages.',
+      ),
+      WhatsNewPoint(
+        'After a call reconnects, people no longer hear your microphone '
+        'twice, and muting while you join is no longer lost.',
+      ),
+      WhatsNewPoint(
+        'Voice activity sensitivity only changes your own speaking ring now. '
+        'It used to hide quieter people speaking too.',
+      ),
+      WhatsNewPoint(
+        'Losing access to the channel you have open takes you back with a '
+        'notice instead of an error, and the permission grid keeps Save and '
+        'the column names in view while you edit.',
+      ),
+      WhatsNewPoint(
+        'On Windows, the call panel and drawing overlay move with your '
+        'screens when a monitor is plugged in or changed during a call.',
+      ),
+      WhatsNewPoint(
+        'Windows no longer asks to let slim-m through the firewall after '
+        'an update or when you test your microphone.',
+      ),
+    ],
+  ),
 ];

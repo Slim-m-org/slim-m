@@ -57,10 +57,12 @@ pumpCanvasCallDock(
   bool canFlipCamera = false,
   List<VoiceParticipant>? participants,
   Set<String> poorConnections = const {},
+  List<Override> overrides = const [],
 }) async {
   final session = withCall ? FakeSession(canFlipCamera: canFlipCamera) : null;
   final container = ProviderContainer(
     overrides: [
+      ...overrides,
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       channelBotUiProvider.overrideWith((ref, _) async => bots),
       if (poorConnections.isNotEmpty)

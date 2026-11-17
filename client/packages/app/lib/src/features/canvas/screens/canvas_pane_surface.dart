@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -21,6 +22,8 @@ import 'canvas_selection_semantics.dart';
 import 'canvas_tool_wheel_layer.dart';
 import 'canvas_world_edge_glow.dart';
 import 'canvas_zoom_indicator.dart';
+import 'canvas_stamp_placement.dart';
+import '../providers/armed_stamp.dart';
 
 /// Lays out the layers; the pane body owns the state and passes it in.
 class CanvasPaneSurface extends StatelessWidget {
@@ -153,6 +156,8 @@ class CanvasPaneSurface extends StatelessWidget {
           onTextPlace: actions.onTextPlace,
           onSelectLongPress: actions.onSelectLongPress,
           onShapePlace: actions.onShapePlace,
+          onStampPlace: actions.stamping?.place,
+          onStampDrag: actions.stamping?.drag,
           shapeKind: shapeKind,
           cursors: cursors,
           cursorColors: cursorColors,
@@ -183,24 +188,31 @@ class CanvasPaneSurface extends StatelessWidget {
           onToolChanged: actions.onToolChanged,
           wheel: toolWheel,
         ),
-        CanvasToolWheelLayer(
-          document: document,
-          controller: toolWheel,
-          tool: tool,
-          shapeKind: shapeKind,
-          canDraw: !canvasErrorBlocksDrawing(error),
-          isObjectAt: (world) =>
-              hitTestTopmost(
-                document,
-                world,
-                allowed: (stroke) => canvasMayActOn(
-                  stroke,
-                  canManage: canManage,
-                  selfId: selfId,
-                ),
-              ) !=
-              null,
-          onToolChanged: actions.onToolChanged,
+        if (actions.stamping case final stamping?)
+          Positioned.fill(
+            child: CanvasStampGhost(document: document, placement: stamping),
+          ),
+        Consumer(
+          builder: (context, ref, _) => CanvasToolWheelLayer(
+            stamps: ref.watch(canvasStampsSupportedProvider),
+            document: document,
+            controller: toolWheel,
+            tool: tool,
+            shapeKind: shapeKind,
+            canDraw: !canvasErrorBlocksDrawing(error),
+            isObjectAt: (world) =>
+                hitTestTopmost(
+                  document,
+                  world,
+                  allowed: (stroke) => canvasMayActOn(
+                    stroke,
+                    canManage: canManage,
+                    selfId: selfId,
+                  ),
+                ) !=
+                null,
+            onToolChanged: actions.onToolChanged,
+          ),
         ),
         CanvasBoardObjectSemantics(
           document: document,

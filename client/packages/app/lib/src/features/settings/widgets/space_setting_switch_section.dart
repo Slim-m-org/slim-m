@@ -6,7 +6,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/server_info.dart';
 import '../../../widgets/optimistic_setting_state.dart';
@@ -16,6 +15,7 @@ import '../providers/space_settings.dart';
 import 'settings_save_feedback.dart';
 import 'settings_section_header.dart';
 import 'settings_toggle_row.dart';
+import '../../../widgets/load_error_block.dart';
 
 class SpaceSettingSwitchSection extends ConsumerStatefulWidget {
   const SpaceSettingSwitchSection({
@@ -27,6 +27,8 @@ class SpaceSettingSwitchSection extends ConsumerStatefulWidget {
     required this.whatFailed,
     required this.read,
     required this.update,
+    this.unavailableReason,
+    this.isAvailable,
   });
 
   final String title;
@@ -38,6 +40,10 @@ class SpaceSettingSwitchSection extends ConsumerStatefulWidget {
   final String whatFailed;
   final bool Function(SpaceSettings settings) read;
   final SpaceSettingsUpdate Function(bool value) update;
+
+  /// Said under the switch when [isAvailable] answers false; it then cannot be turned on, only off.
+  final String? unavailableReason;
+  final bool Function(SpaceSettings settings)? isAvailable;
 
   @override
   ConsumerState<SpaceSettingSwitchSection> createState() =>
@@ -70,6 +76,8 @@ class _SpaceSettingSwitchSectionState
     ref.listen(spaceSettingsProvider, (_, next) => retireOptimistic(next));
     final stored = settings.valueOrNull;
     final current = optimistic ?? (stored == null ? null : widget.read(stored));
+    final available =
+        stored == null || (widget.isAvailable?.call(stored) ?? true);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -82,16 +90,17 @@ class _SpaceSettingSwitchSectionState
               description: widget.description,
               value: current ?? false,
               semanticLabel: widget.semanticLabel,
-              onChanged: current == null || saving ? null : _set,
+              onChanged:
+                  current == null || saving || (!available && current != true)
+                  ? null
+                  : (value) => available || !value ? _set(value) : null,
             ),
+            if (!available && widget.unavailableReason != null)
+              SettingsSubRow(label: widget.unavailableReason!),
             if (settings.hasError && current == null)
-              SettingsCardBlock(
-                children: [
-                  AppErrorState(
-                    message: 'Could not load the current setting.',
-                    onRetry: () => ref.invalidate(spaceSettingsProvider),
-                  ),
-                ],
+              LoadErrorBlock(
+                message: 'Could not load this setting.',
+                onRetry: () => ref.invalidate(spaceSettingsProvider),
               ),
           ],
         ),

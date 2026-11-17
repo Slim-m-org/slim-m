@@ -4,6 +4,7 @@
 /// review budget.
 library;
 
+import 'channel_standing.dart';
 import 'database.dart';
 
 /// The fields of a [Channel] the channel rail draws from: what
@@ -12,7 +13,7 @@ import 'database.dart';
 /// render them identically.
 ///
 /// `unread` and `mentioned` are derived rather than the raw
-/// `cursor`/`mentionedSeq`/`lastReadSeq` behind them: a channel already
+/// `standingSeq`/`mentionedSeq`/`lastReadSeq` behind them: a channel already
 /// unread (or already mentioned) stays that way through every further
 /// message, so only the flip in or out of either state belongs in the key.
 ///
@@ -54,7 +55,7 @@ RailChannelKey railChannelKey(Channel channel) => (
       createsRooms: channel.createsRooms,
       userLimit: channel.userLimit,
       roomLocked: channel.roomLocked,
-      unread: channel.cursor > channel.lastReadSeq ||
+      unread: channel.standingSeq > channel.lastReadSeq ||
           (channel.manuallyUnread ?? false),
       mentioned: channel.mentionedSeq > channel.lastReadSeq,
     );

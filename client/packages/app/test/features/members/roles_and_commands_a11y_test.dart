@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/widgets/member_moderate_roles.dart';
+import 'package:slimm_app/src/role_ladder.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _app(Widget child, {List<Override> overrides = const []}) =>
@@ -43,9 +44,14 @@ void main() {
       _app(
         MemberModerateRoles(
           roles: roles,
-          heldIds: const ['r1', 'r2'],
-          myPermissions: 0,
-          memberName: 'maya',
+          member: const api.UserProfile(
+            id: 'maya',
+            username: 'maya',
+            displayName: 'maya',
+            createdAt: 0,
+            roleIds: ['r1', 'r2'],
+          ),
+          ladder: const RoleLadder(permissions: 0),
           compact: true,
           onChanged: (_, _) {},
         ),

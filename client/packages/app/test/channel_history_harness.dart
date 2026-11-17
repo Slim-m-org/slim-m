@@ -323,6 +323,22 @@ class _FakeServer {
     if (request.method == 'GET' && path == '/channels/c1/messages/search') {
       return _jsonBody(searchHits);
     }
+    final single = RegExp(
+      r'^/channels/c1/messages/(?!search$)([^/]+)$',
+    ).firstMatch(path);
+    if (request.method == 'GET' && single != null) {
+      final seq = int.tryParse(single.group(1)!.replaceFirst('m', ''));
+      if (seq == null || !serverSeqs.contains(seq)) {
+        return http.Response(
+          jsonEncode({'error': 'not found'}),
+          404,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return _jsonBody(
+        _messageJson(channelMessage(seq, authorId: authorFor(seq))),
+      );
+    }
     if (request.method == 'GET' && path == '/channels/c1/messages') {
       requests.add(request.url);
       final older = request.url.queryParameters.containsKey('before');
@@ -404,6 +420,23 @@ List<Map<String, dynamic>> _page(
 ) {
   final before = int.tryParse(url.queryParameters['before'] ?? '');
   final limit = int.tryParse(url.queryParameters['limit'] ?? '') ?? 50;
+  final around = int.tryParse(url.queryParameters['around'] ?? '');
+  if (around != null) {
+    final newer = (serverSeqs.where((s) => s > around).toList()..sort())
+        .take(limit ~/ 2)
+        .toList();
+    final older =
+        (serverSeqs.where((s) => s <= around).toList()
+              ..sort((a, b) => b.compareTo(a)))
+            .take(limit - newer.length);
+    return [
+      for (final seq in [...newer.reversed, ...older])
+        _messageJson(
+          channelMessage(seq, authorId: authorFor(seq)),
+          withAttachment: attachmentSeqs.contains(seq),
+        ),
+    ];
+  }
   final seqs = serverSeqs.where((s) => before == null || s < before).toList()
     ..sort((a, b) => b.compareTo(a));
   return [

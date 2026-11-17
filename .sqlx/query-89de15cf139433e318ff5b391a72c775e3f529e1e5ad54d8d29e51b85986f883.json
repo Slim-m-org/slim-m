@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO attachment_transcripts (sha256, status, updated_at)\n             SELECT ?, 'pending', ? WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)\n             ON CONFLICT (sha256) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "89de15cf139433e318ff5b391a72c775e3f529e1e5ad54d8d29e51b85986f883"
+}

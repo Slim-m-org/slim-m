@@ -183,6 +183,13 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         "category.overwrites",
         CAT,
     ),
+    route(
+        Method::POST,
+        "/categories/{category_id}/overwrites/sync",
+        "category.overwrites_sync",
+        CAT,
+    ),
+    route(Method::PUT, "/categories/order", "category.reorder", None),
     route(Method::POST, "/invites", "invite.create", None),
     route(
         Method::DELETE,
@@ -209,6 +216,19 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         "/emoji/{emoji_id}",
         "emoji.delete",
         Some("emoji_id"),
+    ),
+    route(Method::POST, "/soundboard", "soundboard.create", None),
+    route(
+        Method::PATCH,
+        "/soundboard/{clip_id}",
+        "soundboard.rename",
+        Some("clip_id"),
+    ),
+    route(
+        Method::DELETE,
+        "/soundboard/{clip_id}",
+        "soundboard.delete",
+        Some("clip_id"),
     ),
     route(
         Method::POST,

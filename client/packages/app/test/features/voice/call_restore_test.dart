@@ -1,0 +1,344 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+/// The call this device was in comes back after the app restarts itself or
+/// crashes within five minutes, and never after a deliberate leave or quit.
+library;
+
+import 'dart:convert';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
+import 'package:slimm_app/src/features/voice/providers/call_restore.dart';
+import 'package:slimm_app/src/features/voice/providers/transcription_notice.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_elsewhere.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_platform/testing.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
+
+const _tokens = TokenPair(
+  userId: 'user-1',
+  accessToken: 'access',
+  refreshToken: 'refresh',
+  accessExpiresAt: 0,
+);
+
+final _flags = StateProvider<VoiceFlags>((ref) => const VoiceFlags());
+
+const _connected = VoiceFlags(
+  channelId: 'voice-1',
+  state: VoiceSessionState.connected,
+);
+
+class _Notice implements TranscriptionNoticeActions {
+  const _Notice({required this.due});
+
+  final bool due;
+
+  @override
+  Future<bool> isDue() async => due;
+
+  @override
+  Future<void> acknowledge() async {}
+}
+
+/// The field [key] of the stored record, read raw so a field the record drops reads as missing.
+Object? _stored(SharedPreferences prefs, String key) {
+  final raw = prefs.getString(callRestoreKey);
+  return raw == null ? null : (jsonDecode(raw) as Map<String, dynamic>)[key];
+}
+
+Future<SharedPreferences> _prefs([Map<String, Object> values = const {}]) {
+  SharedPreferences.setMockInitialValues(values);
+  return SharedPreferences.getInstance();
+}
+
+String _record({
+  String user = 'user-1',
+  required DateTime at,
+  bool restart = false,
+  bool muted = false,
+}) => CallToRestore(
+  channelId: 'voice-1',
+  userId: user,
+  at: at,
+  muted: muted,
+  restart: restart,
+).encode();
+
+ProviderContainer _container(
+  SharedPreferences prefs, {
+  String? channelName = 'Lounge',
+  String? elsewhere,
+  bool onScreen = true,
+  bool noticeDue = false,
+  List<CallToRestore>? rejoins,
+}) {
+  final container = ProviderContainer(
+    overrides: [
+      keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+      sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+      preferencesProvider.overrideWith((ref) async => prefs),
+      voiceFlagsProvider.overrideWith((ref) => ref.watch(_flags)),
+      restorableChannelProvider.overrideWithValue((_) async => channelName),
+      voiceElsewhereCheckProvider.overrideWithValue((_) async => elsewhere),
+      accountActiveProvider.overrideWith((ref) => onScreen),
+      transcriptionNoticeActionsProvider.overrideWithValue(
+        _Notice(due: noticeDue),
+      ),
+      if (rejoins != null)
+        rejoinRestoredCallProvider.overrideWithValue(
+          (call) async => rejoins.add(call),
+        ),
+    ],
+  );
+  addTearDown(container.dispose);
+  return container;
+}
+
+void main() {
+  final now = DateTime.utc(2026, 11, 15, 12);
+  setUp(CallRestore.resetClosing);
+
+  group('CallRestore', () {
+    test('a remembered call is handed back once', () async {
+      final prefs = await _prefs();
+      final restore = CallRestore(prefs, now: () => now);
+      await restore.remember(
+        channelId: 'voice-1',
+        userId: 'user-1',
+        muted: true,
+      );
+
+      final call = await restore.take('user-1');
+      expect(call?.channelId, 'voice-1');
+      expect(call?.muted, isTrue);
+      expect(call?.restart, isFalse);
+      expect(await restore.take('user-1'), isNull);
+    });
+
+    test('a call older than five minutes stays gone', () async {
+      final prefs = await _prefs({
+        callRestoreKey: _record(at: now.subtract(const Duration(minutes: 6))),
+      });
+      expect(await CallRestore(prefs, now: () => now).take('user-1'), isNull);
+    });
+
+    test("another account's call is left for that account", () async {
+      final prefs = await _prefs({
+        callRestoreKey: _record(user: 'user-2', at: now),
+      });
+      expect(await CallRestore(prefs, now: () => now).take('user-1'), isNull);
+      expect(prefs.getString(callRestoreKey), isNotNull);
+    });
+
+    test('a restart marks the call to come back on its own', () async {
+      final prefs = await _prefs({callRestoreKey: _record(at: now)});
+      final restore = CallRestore(prefs, now: () => now);
+      await restore.markRestart();
+      // The call torn down on the way out must not wipe it.
+      await restore.forget();
+
+      expect((await restore.take('user-1'))?.restart, isTrue);
+    });
+
+    test('a relaunch that fails gives the call back to this run', () async {
+      final prefs = await _prefs({callRestoreKey: _record(at: now)});
+      final restore = CallRestore(prefs, now: () => now);
+      await expectLater(
+        restore.relaunchKeepingCall(() async => throw StateError('no spawn')),
+        throwsStateError,
+      );
+      await restore.forget();
+      expect(
+        prefs.getString(callRestoreKey),
+        isNull,
+        reason: 'leaving the call still forgets it',
+      );
+      await restore.remember(
+        channelId: 'voice-1',
+        userId: 'user-1',
+        muted: false,
+      );
+      expect((await restore.take('user-1'))?.restart, isFalse);
+    });
+
+    test('a quit forgets the call, and nothing after it writes one', () async {
+      final prefs = await _prefs({callRestoreKey: _record(at: now)});
+      final restore = CallRestore(prefs, now: () => now);
+      await restore.markQuit();
+      await restore.remember(
+        channelId: 'voice-1',
+        userId: 'user-1',
+        muted: false,
+      );
+
+      expect(prefs.getString(callRestoreKey), isNull);
+    });
+
+    test('deafen is kept through a restart and one that fails', () async {
+      final prefs = await _prefs({
+        callRestoreKey: jsonEncode({
+          'channel': 'voice-1',
+          'user': 'user-1',
+          'at': now.toIso8601String(),
+          'muted': true,
+          'deafened': true,
+        }),
+      });
+      final restore = CallRestore(prefs, now: () => now);
+
+      await restore.markRestart();
+      expect(_stored(prefs, 'deafened'), isTrue);
+      expect(_stored(prefs, 'restart'), isTrue);
+
+      await restore.abandonRestart();
+      expect(_stored(prefs, 'deafened'), isTrue);
+      expect(_stored(prefs, 'restart'), isFalse);
+    });
+
+    test('an unreadable record is ignored', () async {
+      final prefs = await _prefs({callRestoreKey: '{not json'});
+      expect(await CallRestore(prefs, now: () => now).take('user-1'), isNull);
+    });
+  });
+
+  group('the watcher', () {
+    test('a connected call is written, and leaving it forgets it', () async {
+      final prefs = await _prefs();
+      final container = _container(prefs);
+      container.read(callRestoreWatchProvider);
+      container.read(_flags.notifier).state = const VoiceFlags(
+        channelId: 'voice-1',
+        state: VoiceSessionState.connected,
+        microphoneEnabled: false,
+      );
+      await pumpEventQueue();
+      final written = CallToRestore.decode(prefs.getString(callRestoreKey));
+      expect(written?.channelId, 'voice-1');
+      expect(written?.muted, isTrue);
+
+      container.read(_flags.notifier).state = const VoiceFlags();
+      await pumpEventQueue();
+      expect(prefs.getString(callRestoreKey), isNull);
+    });
+
+    test('deafening alone rewrites the record', () async {
+      final prefs = await _prefs();
+      final container = _container(prefs);
+      container.read(callRestoreWatchProvider);
+      container.read(_flags.notifier).state = _connected;
+      await pumpEventQueue();
+      expect(_stored(prefs, 'deafened'), isFalse);
+
+      container.read(_flags.notifier).state = const VoiceFlags(
+        channelId: 'voice-1',
+        state: VoiceSessionState.connected,
+        deafened: true,
+      );
+      await pumpEventQueue();
+
+      expect(_stored(prefs, 'deafened'), isTrue);
+    });
+
+    test('starting with no call leaves the last crash for the gate', () async {
+      final prefs = await _prefs({callRestoreKey: _record(at: now)});
+      final container = _container(prefs);
+      container.read(callRestoreWatchProvider);
+      container.read(_flags.notifier).state = const VoiceFlags(
+        state: VoiceSessionState.failed,
+      );
+      await pumpEventQueue();
+
+      expect(prefs.getString(callRestoreKey), isNotNull);
+    });
+  });
+
+  group('callToRestoreProvider', () {
+    test('a recent call comes back with its channel name', () async {
+      final prefs = await _prefs({callRestoreKey: _record(at: DateTime.now())});
+      final found = await _container(prefs).read(callToRestoreProvider)();
+
+      expect(found?.call.channelId, 'voice-1');
+      expect(found?.channelName, 'Lounge');
+    });
+
+    test('nothing comes back while in a call on another device', () async {
+      final prefs = await _prefs({callRestoreKey: _record(at: DateTime.now())});
+      final container = _container(prefs, elsewhere: 'voice-1');
+
+      expect(await container.read(callToRestoreProvider)(), isNull);
+    });
+
+    test('nothing comes back for a channel that is gone', () async {
+      final prefs = await _prefs({callRestoreKey: _record(at: DateTime.now())});
+      final container = _container(prefs, channelName: null);
+
+      expect(await container.read(callToRestoreProvider)(), isNull);
+    });
+
+    test('a live call keeps its own record', () async {
+      final prefs = await _prefs({callRestoreKey: _record(at: DateTime.now())});
+      final container = _container(prefs);
+      container.read(_flags.notifier).state = _connected;
+
+      expect(await container.read(callToRestoreProvider)(), isNull);
+      expect(
+        prefs.getString(callRestoreKey),
+        isNotNull,
+        reason: 'a restart straight after must still find the call',
+      );
+    });
+  });
+
+  group('a Space out of view', () {
+    Future<(SharedPreferences, List<CallToRestore>)> start({
+      bool restart = true,
+      bool onScreen = false,
+      bool noticeDue = false,
+    }) async {
+      final prefs = await _prefs({
+        callRestoreKey: _record(at: DateTime.now(), restart: restart),
+      });
+      final rejoins = <CallToRestore>[];
+      final container = _container(
+        prefs,
+        onScreen: onScreen,
+        noticeDue: noticeDue,
+        rejoins: rejoins,
+      );
+      await container.read(offScreenCallRestoreProvider)();
+      return (prefs, rejoins);
+    }
+
+    test('rejoins a call the app restarted itself out of', () async {
+      final (prefs, rejoins) = await start();
+
+      expect([for (final call in rejoins) call.channelId], ['voice-1']);
+      expect(prefs.getString(callRestoreKey), isNull);
+    });
+
+    test('leaves a crashed call for when the Space is opened', () async {
+      final (prefs, rejoins) = await start(restart: false);
+
+      expect(rejoins, isEmpty);
+      expect(prefs.getString(callRestoreKey), isNotNull);
+    });
+
+    test('leaves the call while the transcription notice is owed', () async {
+      final (prefs, rejoins) = await start(noticeDue: true);
+
+      expect(rejoins, isEmpty);
+      expect(prefs.getString(callRestoreKey), isNotNull);
+    });
+
+    test('the Space on screen leaves it to the gate', () async {
+      final (prefs, rejoins) = await start(onScreen: true);
+
+      expect(rejoins, isEmpty);
+      expect(prefs.getString(callRestoreKey), isNotNull);
+    });
+  });
+}

@@ -34,6 +34,7 @@ import '../../messages/providers/ephemeral_messages.dart';
 import '../../members/providers/member_presence.dart';
 import '../../messages/providers/message_actions.dart';
 import '../../messages/providers/message_editing.dart';
+import '../../messages/providers/message_context_window.dart';
 import '../../messages/providers/message_jump.dart';
 import '../providers/pins_controller.dart';
 import '../../../providers/providers.dart';
@@ -42,15 +43,33 @@ import '../../members/providers/user_profiles.dart';
 import '../widgets/channel_search.dart';
 import '../widgets/compact_channel_search.dart' show channelSearchScope;
 import '../../../widgets/dismiss_keyboard_on_drag.dart';
+import '../../messages/widgets/context_window_bar.dart';
 import '../../messages/widgets/ephemeral_report.dart';
 import '../../messages/widgets/jump_to_latest_button.dart';
 import '../../messages/widgets/message_jump.dart';
 import '../../messages/widgets/message_transcript.dart';
+import '../../messages/widgets/message_transcript_widgets.dart';
 import '../../messages/widgets/thread_parent_card.dart';
 import 'channel_message_actions.dart';
 import 'channel_screen.dart' show knownRoleNamesFrom, knownUsernamesFrom;
 import 'channel_screen_streams.dart';
 import 'channel_transcript_scroll.dart';
+
+/// Back to the live window at its newest message, from Jump to present or a
+/// send; does nothing while no context window is open.
+void leaveContextWindow(
+  WidgetRef ref,
+  String channelId,
+  TranscriptScrollTracker scrollTracker,
+) {
+  if (ref.read(messageContextWindowProvider(channelId)) == null) return;
+  final jump = ref.read(messageJumpProvider);
+  if (jumpArrivalFor(jump, channelId) case (:final token, messageId: _)) {
+    ref.read(messageJumpProvider.notifier).consume(token);
+  }
+  ref.read(messageContextWindowProvider(channelId).notifier).close();
+  scrollTracker.resetForChannelSwitch();
+}
 
 class ChannelTranscriptPane extends ConsumerWidget {
   const ChannelTranscriptPane({
@@ -64,6 +83,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
     required this.channelTopic,
     required this.isThread,
     this.isVoice = false,
+    this.dmAudience = DmAudience.pair,
     this.searchPage = false,
     required this.lastReadSeq,
     required this.syncedSeq,
@@ -87,6 +107,9 @@ class ChannelTranscriptPane extends ConsumerWidget {
 
   /// A voice channel's chat, whose empty state is not the text channel's.
   final bool isVoice;
+
+  /// Who a DM is between, whose empty state speaks to a pair, a group or only you.
+  final DmAudience dmAudience;
 
   /// The phone's search page is up: it shows in place of the transcript even
   /// before a query, and a jump arriving from elsewhere closes it.
@@ -227,6 +250,117 @@ class ChannelTranscriptPane extends ConsumerWidget {
       messageJumpProvider.select((s) => jumpNoticeFor(s, channelId)),
     );
     _closeSearchOnArrival(ref);
+    final contextWindow = ref.watch(messageContextWindowProvider(channelId));
+
+    final transcript = StreamBuilder<List<Message>>(
+      stream: contextWindow != null
+          ? streams.contextTranscript(contextWindow.messages)
+          : streams.transcript(store, channelId, history.window),
+      builder: (context, snapshot) {
+        final rows = snapshot.data ?? const <Message>[];
+        final transcript = visibleTranscript(rows, blocked);
+        final oldest = oldestDeliveredSeq(rows);
+        if (contextWindow == null) paging.syncOldest(oldest);
+        resolveAuthorProfiles(ref, [
+          ...transcript.messages.map((m) => m.authorId),
+          ...privateAnswers.map((m) => m.authorId),
+        ]);
+        // A deleted newest message leaves nothing to show, but must not leave the channel unread.
+        final readUpTo = math.max(transcript.newestSeq, syncedSeq);
+        scrollTracker.updateKnownSeqs(
+          latestSeq: readUpTo,
+          lastReadSeq: lastReadSeq,
+          manuallyUnread: manuallyUnread,
+        );
+        // Gated on the viewport and on the search being closed: scrolled into history, this rebuild is a message arriving somewhere unread.
+        if (scrollTracker.atLatest && !searchShowing && contextWindow == null) {
+          onMarkRead(readUpTo, lastReadSeq, manuallyUnread);
+        }
+        return MessageTranscript(
+          channelId: channelId,
+          selfId: ref.read(sessionProvider).tokens?.userId,
+          messages: transcript.messages,
+          privateAnswers: privateAnswers,
+          onDismissPrivate: (m) => ref
+              .read(ephemeralMessagesProvider.notifier)
+              .dismiss(channelId, m.id),
+          onReportPrivate: (m) => unawaited(reportEphemeralMessage(context, m)),
+          syncStatus: syncStatus,
+          historyKnown: historyKnown,
+          channelName: hashChannelName,
+          channelIsThread: isThread,
+          channelIsVoice: isVoice,
+          dmAudience: dmAudience,
+          channelTopic: channelTopic,
+          threadParent: isThread
+              ? ThreadParentSlot(channelId: channelId)
+              : null,
+          scrollController: scrollTracker.controller,
+          lastReadSeq: lastReadSeq,
+          knownUsernames: knownUsernames,
+          knownRoleNames: knownRoleNames,
+          customEmoji: customEmoji,
+          // A channel with nothing delivered has no history to page, so its oldest loaded row is vacuously its first.
+          history: contextWindow != null
+              ? const ChannelHistory(atStart: true)
+              : history.copyWith(
+                  atStart:
+                      history.atStart ||
+                      (oldest == null && syncStatus == SyncStatus.live),
+                ),
+          onLoadOlder: () => unawaited(paging.loadOlder()),
+          onRetryOlder: () => unawaited(paging.retry()),
+          // The policy itself lives in `channel_message_actions.dart`; this only supplies the pane's own state.
+          actionsFor: (message, hasExistingThread) => messageActionsFor(
+            ref,
+            context,
+            message,
+            channelId: channelId,
+            channelIsThread: isThread,
+            hasExistingThread: hasExistingThread,
+            myId: myId,
+            myPermissions: myPermissions,
+            pinnedIds: pinnedIds,
+            onReply: onReply,
+            onEdit: (m) => _startEdit(ref, m),
+            botUi: botUi,
+          ),
+          onRetry: (m) => unawaited(retryMessage(ref.read, m)),
+          onDiscard: (m) => unawaited(discardMessage(ref.read, m)),
+          // Failed text lands back in the composer to fix and resend; the row is then discarded, so nothing typed is lost.
+          onEditFailed: (m) => _onEditFailed(ref, m),
+          onPickReaction: (m, emoji) => unawaited(
+            setReaction(
+              ref,
+              m.id,
+              emoji,
+              wasActive: hasReacted(ref, m.id, emoji),
+            ),
+          ),
+          onReactionTap: (m, reaction) => unawaited(
+            setReaction(ref, m.id, reaction.emoji, wasActive: reaction.reacted),
+          ),
+          onVote: (m, option) => unawaited(castVote(ref, m.id, option)),
+          onRank: (m, ranking) => unawaited(castRanking(ref, m.id, ranking)),
+          onSubmitEdit: (m, content) => _submitEdit(context, m, content),
+          onCancelEdit: () => _cancelEdit(ref),
+          onJumpToReply: (replyToId) => jumpToMessage(
+            GoRouter.of(context),
+            ref.read,
+            currentChannelId: channelId,
+            channelId: channelId,
+            messageId: replyToId,
+          ),
+          jumpTargetId: jumpArrival?.messageId,
+          jumpToken: jumpArrival?.token,
+          onJumpArrived: jumpArrival == null
+              ? null
+              : () => ref
+                    .read(messageJumpProvider.notifier)
+                    .consume(jumpArrival.token),
+        );
+      },
+    );
 
     return Expanded(
       child: DismissKeyboardOnDrag(
@@ -241,150 +375,48 @@ class ChannelTranscriptPane extends ConsumerWidget {
               Visibility(
                 visible: !searchShowing,
                 maintainState: true,
-                child: Stack(
+                child: Column(
                   children: [
-                    StreamBuilder<List<Message>>(
-                      stream: streams.transcript(
-                        store,
-                        channelId,
-                        history.window,
-                      ),
-                      builder: (context, snapshot) {
-                        final rows = snapshot.data ?? const <Message>[];
-                        final transcript = visibleTranscript(rows, blocked);
-                        final oldest = oldestDeliveredSeq(rows);
-                        paging.syncOldest(oldest);
-                        resolveAuthorProfiles(ref, [
-                          ...transcript.messages.map((m) => m.authorId),
-                          ...privateAnswers.map((m) => m.authorId),
-                        ]);
-                        // A deleted newest message leaves nothing to show, but must not leave the channel unread.
-                        final readUpTo = math.max(
-                          transcript.newestSeq,
-                          syncedSeq,
-                        );
-                        scrollTracker.updateKnownSeqs(
-                          latestSeq: readUpTo,
-                          lastReadSeq: lastReadSeq,
-                          manuallyUnread: manuallyUnread,
-                        );
-                        // Gated on the viewport and on the search being closed: scrolled into history, this rebuild is a message arriving somewhere unread.
-                        if (scrollTracker.atLatest && !searchShowing) {
-                          onMarkRead(readUpTo, lastReadSeq, manuallyUnread);
-                        }
-                        return MessageTranscript(
-                          channelId: channelId,
-                          selfId: ref.read(sessionProvider).tokens?.userId,
-                          messages: transcript.messages,
-                          privateAnswers: privateAnswers,
-                          onDismissPrivate: (m) => ref
-                              .read(ephemeralMessagesProvider.notifier)
-                              .dismiss(channelId, m.id),
-                          onReportPrivate: (m) =>
-                              unawaited(reportEphemeralMessage(context, m)),
-                          syncStatus: syncStatus,
-                          historyKnown: historyKnown,
-                          channelName: hashChannelName,
-                          channelIsThread: isThread,
-                          channelIsVoice: isVoice,
-                          channelTopic: channelTopic,
-                          threadParent: isThread
-                              ? ThreadParentSlot(channelId: channelId)
-                              : null,
-                          scrollController: scrollTracker.controller,
-                          lastReadSeq: lastReadSeq,
-                          knownUsernames: knownUsernames,
-                          knownRoleNames: knownRoleNames,
-                          customEmoji: customEmoji,
-                          // A channel with nothing delivered has no history to page, so its oldest loaded row is vacuously its first.
-                          history: history.copyWith(
-                            atStart:
-                                history.atStart ||
-                                (oldest == null &&
-                                    syncStatus == SyncStatus.live),
-                          ),
-                          onLoadOlder: () => unawaited(paging.loadOlder()),
-                          onRetryOlder: () => unawaited(paging.retry()),
-                          // The policy itself lives in `channel_message_actions.dart`; this only supplies the pane's own state.
-                          actionsFor: (message, hasExistingThread) =>
-                              messageActionsFor(
-                                ref,
-                                context,
-                                message,
-                                channelId: channelId,
-                                channelIsThread: isThread,
-                                hasExistingThread: hasExistingThread,
-                                myId: myId,
-                                myPermissions: myPermissions,
-                                pinnedIds: pinnedIds,
-                                onReply: onReply,
-                                onEdit: (m) => _startEdit(ref, m),
-                                botUi: botUi,
-                              ),
-                          onRetry: (m) => unawaited(retryMessage(ref.read, m)),
-                          onDiscard: (m) =>
-                              unawaited(discardMessage(ref.read, m)),
-                          // Failed text lands back in the composer to fix and resend; the row is then discarded, so nothing typed is lost.
-                          onEditFailed: (m) => _onEditFailed(ref, m),
-                          onPickReaction: (m, emoji) => unawaited(
-                            setReaction(
-                              ref,
-                              m.id,
-                              emoji,
-                              wasActive: hasReacted(ref, m.id, emoji),
-                            ),
-                          ),
-                          onReactionTap: (m, reaction) => unawaited(
-                            setReaction(
-                              ref,
-                              m.id,
-                              reaction.emoji,
-                              wasActive: reaction.reacted,
-                            ),
-                          ),
-                          onVote: (m, option) =>
-                              unawaited(castVote(ref, m.id, option)),
-                          onRank: (m, ranking) =>
-                              unawaited(castRanking(ref, m.id, ranking)),
-                          onSubmitEdit: (m, content) =>
-                              _submitEdit(context, m, content),
-                          onCancelEdit: () => _cancelEdit(ref),
-                          onJumpToReply: (replyToId) => jumpToMessage(
-                            GoRouter.of(context),
-                            ref.read,
-                            currentChannelId: channelId,
-                            channelId: channelId,
-                            messageId: replyToId,
-                          ),
-                          jumpTargetId: jumpArrival?.messageId,
-                          jumpToken: jumpArrival?.token,
-                          onJumpArrived: jumpArrival == null
-                              ? null
-                              : () => ref
-                                    .read(messageJumpProvider.notifier)
-                                    .consume(jumpArrival.token),
-                        );
-                      },
-                    ),
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: ValueListenableBuilder<bool>(
-                          valueListenable: scrollTracker.scrolledAway,
-                          builder: (context, scrolledAway, _) =>
-                              JumpToLatestButton(
-                                visible: scrolledAway,
-                                onTap: () => scrollTracker.scrollToLatest(
-                                  duration: AppMotion.reduced(
-                                    context,
-                                    AppMotion.slow,
-                                  ),
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          transcript,
+                          if (contextWindow == null)
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              child: Center(
+                                child: ValueListenableBuilder<bool>(
+                                  valueListenable: scrollTracker.scrolledAway,
+                                  builder: (context, scrolledAway, _) =>
+                                      JumpToLatestButton(
+                                        visible: scrolledAway,
+                                        onTap: () =>
+                                            scrollTracker.scrollToLatest(
+                                              duration: AppMotion.reduced(
+                                                context,
+                                                AppMotion.slow,
+                                              ),
+                                            ),
+                                      ),
                                 ),
                               ),
-                        ),
+                            ),
+                        ],
                       ),
+                    ),
+                    // In flow, not over the list: a reversed list cannot scroll its newest row out from under a bar.
+                    AppRevealBand(
+                      child: contextWindow == null
+                          ? null
+                          : ContextWindowBar(
+                              onJumpToPresent: () => leaveContextWindow(
+                                ref,
+                                channelId,
+                                scrollTracker,
+                              ),
+                            ),
                     ),
                   ],
                 ),

@@ -23,6 +23,9 @@ class CallDockButton extends StatelessWidget {
     this.pending = false,
     this.unavailable = false,
     this.level,
+    this.semanticLabel,
+    this.visualSize = AppSizes.controlMd,
+    this.iconSize = AppSizes.icon16,
   });
 
   final IconData icon;
@@ -52,6 +55,14 @@ class CallDockButton extends StatelessWidget {
   /// edge in the ok colour, so "we can hear you" does not rest on colour.
   final double? level;
 
+  /// What a screen reader hears, when [tooltip] says more than the name (a
+  /// shortcut). Null reads [tooltip].
+  final String? semanticLabel;
+
+  /// The chip's drawn size and glyph, for a row whose other controls are smaller than a dock's.
+  final double visualSize;
+  final double iconSize;
+
   @override
   Widget build(BuildContext context) {
     if (!unavailable) return _chip(context, null, onPressed);
@@ -68,7 +79,6 @@ class CallDockButton extends StatelessWidget {
     // AppIconButton's own split: a fixed chip, invisible tap area growing to AppSizes.rowTouch at touch density.
     final touch = AppTouchTargets.of(context);
     final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
-    const visualSize = AppSizes.controlMd;
     final outerSize = visualSize > hitTarget ? visualSize : hitTarget;
 
     final radius = joined
@@ -81,6 +91,7 @@ class CallDockButton extends StatelessWidget {
         key: key,
         message: tooltip,
         showDuration: const Duration(seconds: 3),
+        excludeFromSemantics: semanticLabel == tooltip,
         // A held press belongs to the options; hover still shows the tooltip.
         triggerMode: joined || holdOpensOptions
             ? TooltipTriggerMode.manual
@@ -88,7 +99,7 @@ class CallDockButton extends StatelessWidget {
         child: Semantics(
           button: true,
           enabled: !unavailable,
-          label: tooltip,
+          label: semanticLabel ?? tooltip,
           child: _chipFocus(
             joined: joined,
             builder: (context, onFocusChange, focused) => InkWell(
@@ -131,8 +142,8 @@ class CallDockButton extends StatelessWidget {
     // Danger is outlined, never filled: unmistakable without being the brightest thing on screen.
     final border = destructive ? tokens.dangerBorder : tokens.borderSubtle;
     return Container(
-      width: AppSizes.controlMd,
-      height: AppSizes.controlMd,
+      width: visualSize,
+      height: visualSize,
       foregroundDecoration: joined
           ? appInsetFocusDecoration(
               context,
@@ -148,7 +159,7 @@ class CallDockButton extends StatelessWidget {
       child: pending
           ? _spinner(tokens)
           : _withLevel(
-              Icon(icon, size: AppSizes.icon16, color: _foreground(tokens)),
+              Icon(icon, size: iconSize, color: _foreground(tokens)),
               tokens,
             ),
     );

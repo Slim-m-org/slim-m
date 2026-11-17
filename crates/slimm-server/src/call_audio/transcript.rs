@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The server as a call-audio consumer (decision 0113): a transcript row per
 //! session, a line per accepted segment, and the `always` mode's start at the
-//! first join. Segment text goes to the database and nowhere else.
+//! first join. Segment text goes to the database, and live only to the people
+//! in the call who may read it.
+
+use std::sync::Arc;
 
 use super::session::{Consumer, Subject};
 use super::{AcceptedSegment, Outcome};
 use crate::http::AppState;
 use crate::hub::Event;
-use crate::ids::{CallTranscriptId, UserId};
-use crate::store::{NewTranscript, TranscriptionMode, now_ms};
+use crate::ids::{CallTranscriptId, ChannelId, UserId};
+use crate::store::{NewTranscript, NewTranscriptLine, TranscriptLine, TranscriptionMode, now_ms};
 
 /// What a person is shown about the server's own transcript.
 pub fn subject() -> Subject {
@@ -76,11 +79,29 @@ pub async fn close(state: &AppState, outcome: &Outcome) {
 
 pub async fn write_line(state: &AppState, segment: &AcceptedSegment) {
     let id = CallTranscriptId(segment.session_id);
-    let wrote = state
-        .store
-        .append_call_transcript_line(id, segment.user_id, segment.start_ms, &segment.text)
-        .await;
-    if let Err(err) = wrote {
-        tracing::warn!(%err, "could not write a call transcript line");
+    let line = NewTranscriptLine {
+        speaker: segment.user_id,
+        at: segment.start_ms,
+        end_at: Some(segment.end_ms.max(segment.start_ms)),
+        language: segment.language.as_deref(),
+        text: &segment.text,
+    };
+    match state.store.append_call_transcript_line(id, &line).await {
+        Ok(stored) => on_line(state, (segment.channel, id), stored),
+        Err(err) => tracing::warn!(%err, "could not write a call transcript line"),
     }
+}
+
+/// Runs once for each line as it is kept: today it sends the line to the people in the call.
+fn on_line(state: &AppState, (channel, id): (ChannelId, CallTranscriptId), line: TranscriptLine) {
+    let audience: Arc<[UserId]> = state.voice.live_state().present(channel).into();
+    if audience.is_empty() {
+        return;
+    }
+    state.hub.publish(Event::CallTranscriptLine {
+        channel_id: channel,
+        transcript_id: id,
+        audience,
+        line: Arc::new(line),
+    });
 }

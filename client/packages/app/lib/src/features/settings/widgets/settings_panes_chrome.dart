@@ -62,11 +62,20 @@ class NavHeader extends StatelessWidget {
     required this.title,
     required this.backTooltip,
     required this.backFallback,
+    this.onBack,
+    this.showBack = true,
   });
 
   final String title;
   final String backTooltip;
   final String backFallback;
+
+  /// Runs instead of closing straight away, for a page that asks first.
+  final VoidCallback? onBack;
+
+  /// False while a pane's sub-page shows its own back beside it; the title
+  /// then takes the arrow's place rather than keeping an empty indent.
+  final bool showBack;
 
   @override
   Widget build(BuildContext context) {
@@ -77,12 +86,13 @@ class NavHeader extends StatelessWidget {
       child: Row(
         spacing: AppSpacing.s8,
         children: [
-          AppIconButton(
-            icon: AppIcons.back,
-            semanticLabel: backTooltip,
-            tooltip: backTooltip,
-            onPressed: () => closeScreen(context, backFallback),
-          ),
+          if (showBack)
+            AppIconButton(
+              icon: AppIcons.back,
+              semanticLabel: backTooltip,
+              tooltip: backTooltip,
+              onPressed: onBack ?? () => closeScreen(context, backFallback),
+            ),
           Expanded(
             child: Semantics(
               header: true,

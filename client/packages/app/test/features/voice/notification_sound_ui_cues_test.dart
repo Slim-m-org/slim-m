@@ -106,6 +106,7 @@ Future<_Setup> _wire(Map<String, Object> prefs) async {
           ref,
           player: player,
           toggleHaptic: () => cues.add('toggle'),
+          callShown: () async {},
         ),
       ),
     ],

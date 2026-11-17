@@ -88,9 +88,8 @@ class OverlaySupport {
 /// [alpha] is already faded by the caller. Value equality is what lets the
 /// caller skip a frame that says what the last one did.
 sealed class OverlayShape {
-  const OverlayShape({required this.color, required this.alpha});
+  const OverlayShape({required this.alpha});
 
-  final Color color;
   final double alpha;
 
   Map<String, Object?> toJson();
@@ -99,10 +98,12 @@ sealed class OverlayShape {
 class OverlayStroke extends OverlayShape {
   const OverlayStroke({
     required this.points,
-    required super.color,
+    required this.color,
     required super.alpha,
     this.width = 4,
   });
+
+  final Color color;
 
   /// Flat x, y pairs.
   final List<double> points;
@@ -137,11 +138,12 @@ class OverlayEllipse extends OverlayShape {
     required this.y0,
     required this.x1,
     required this.y1,
-    required super.color,
+    required this.color,
     required super.alpha,
     this.width = 4,
   });
 
+  final Color color;
   final double x0, y0, x1, y1;
   final double width;
 
@@ -174,9 +176,11 @@ class OverlayNote extends OverlayShape {
     required this.x,
     required this.y,
     required this.text,
-    required super.color,
+    required this.color,
     required super.alpha,
   });
+
+  final Color color;
 
   /// Top-left corner.
   final double x, y;
@@ -203,6 +207,48 @@ class OverlayNote extends OverlayShape {
 
   @override
   int get hashCode => Object.hash(color, alpha, x, y, text);
+}
+
+/// A picture the runner already holds under [image] (see [ScreenOverlay.putImage]),
+/// centred at [x], [y]. [size] is its longest side as a fraction of the
+/// monitor's height and [scale] its pop-in. The json has no `points`, so a
+/// runner that misread it as a stroke would draw nothing.
+class OverlayStamp extends OverlayShape {
+  const OverlayStamp({
+    required this.image,
+    required this.x,
+    required this.y,
+    required this.size,
+    required super.alpha,
+    this.scale = 1,
+  });
+
+  final String image;
+  final double x, y, size, scale;
+
+  @override
+  Map<String, Object?> toJson() => {
+        't': 'stamp',
+        'image': image,
+        'x': x,
+        'y': y,
+        'size': size,
+        'scale': scale,
+        'alpha': alpha,
+      };
+
+  @override
+  bool operator ==(Object other) =>
+      other is OverlayStamp &&
+      other.image == image &&
+      other.alpha == alpha &&
+      other.x == x &&
+      other.y == y &&
+      other.size == size &&
+      other.scale == scale;
+
+  @override
+  int get hashCode => Object.hash(image, alpha, x, y, size, scale);
 }
 
 /// Which corner of the monitor the call panel sits in.
@@ -359,11 +405,18 @@ class OverlayPanel {
 abstract class ScreenOverlay {
   Future<OverlaySupport> support();
 
-  /// Covers each of [monitors] (indexes into [OverlaySupport.monitors]); false
-  /// when the window could not be made.
-  Future<bool> show(List<int> monitors);
+  /// Covers each of [monitors] (indexes into [OverlaySupport.monitors]), or,
+  /// on Windows, follows the shared window [window] (its handle) instead;
+  /// false when the window could not be made.
+  Future<bool> show(List<int> monitors, {int? window});
 
   Future<void> draw(List<OverlayShape> shapes);
+
+  /// Hands the runner a stamp's [png] to keep under [key] until [dropImage]
+  /// or the window closes; false when it refused the picture.
+  Future<bool> putImage(String key, Uint8List png);
+
+  Future<void> dropImage(String key);
 
   Future<void> hide();
 
@@ -372,4 +425,8 @@ abstract class ScreenOverlay {
 
   /// The monitor the app's own window is on, or null when the runner cannot tell.
   Future<int?> appMonitor();
+
+  /// Fires when the monitors are added, removed, moved or rescaled while an
+  /// overlay window is open, since that window still covers the old layout.
+  Stream<void> get displaysChanged;
 }

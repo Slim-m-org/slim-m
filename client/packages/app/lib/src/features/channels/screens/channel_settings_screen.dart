@@ -80,6 +80,8 @@ class ChannelSettingsScreen extends StatelessWidget {
 /// The gated section stack, top to bottom: general (name, topic) for a
 /// caller holding MANAGE_CHANNELS, permission overwrites for one holding
 /// MANAGE_ROLES, then a danger zone (delete) back under MANAGE_CHANNELS.
+/// A temporary room has no overwrites of its own (decision 0065), so it says
+/// so where the permissions would be.
 ///
 /// These are the same coarse, deployment-wide bits the row's own kebab
 /// already gated each half on before this screen existed
@@ -96,6 +98,8 @@ class ChannelSettingsPane extends ConsumerWidget {
   final Channel channel;
   final bool wasOpen;
 
+  bool get _isRoom => channel.roomOwnerId != null;
+
   List<Widget> _generalRows({
     required bool canManageRoles,
     required bool canManageServer,
@@ -103,7 +107,7 @@ class ChannelSettingsPane extends ConsumerWidget {
     final isDm = channel.kind == 'dm';
     final isVoice = channel.kind == 'voice';
     return [
-      if (canManageRoles) ChannelPrivateRow(channel: channel),
+      if (canManageRoles && !_isRoom) ChannelPrivateRow(channel: channel),
       ChannelSlowModeSection(channel: channel),
       if (!isDm) ChannelDefaultNotificationSection(channel: channel),
       if (canManageServer && !isDm) ChannelRetentionRow(channelId: channel.id),
@@ -137,7 +141,12 @@ class ChannelSettingsPane extends ConsumerWidget {
               canManageServer: canManageServer,
             ),
           ),
-        if (canManageRoles)
+        if (canManageRoles && _isRoom)
+          const SettingsNotice(
+            message: "This room uses its lobby's permissions.",
+            detail: 'Change them on the lobby.',
+          ),
+        if (canManageRoles && !_isRoom)
           ChannelPermissionsPane(initialChannel: channel, lockChannel: true),
         if (canManageChannels)
           ChannelDangerZoneSection(channel: channel, wasOpen: wasOpen),

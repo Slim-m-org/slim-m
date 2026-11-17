@@ -299,6 +299,20 @@ The heartbeat entry the abandoned call leaves behind is what the server's stalen
 The controller composes small collaborators for the rest of its surface: input settings, audio devices, participant volumes, camera hiding, video controls, screen share, rejoin, the SFU connect and the session-state sync.
 Each takes a `VoiceStateAccess` rather than the controller, and the controller exposes them as `input`, `devices`, `volumes`, `cameras`, `video` and `share`.
 
+## What a call that comes back keeps
+
+A join into the channel the call is already in is the same call coming back: the automatic rejoin after a drop, "Try again", a re-click.
+It keeps the microphone as the person left it, and so does a moderator's move, so neither opens a microphone that "Join muted" or a mute closed.
+The preference from before a muted join returns only when the call is left or the person switches channel themselves (`voice_rejoin_keeps_mute_test.dart`).
+
+Deafen is kept by the session whenever a join replaces a call that was never left, and cleared by a leave.
+The app tells the server again once the new connection is up, because the deafened mark lives on the participant.
+
+A mute or unmute asked while the session is still connecting cannot publish or silence anything yet.
+The session remembers it and the join opens the microphone accordingly, instead of with what it was started with.
+
+A hang-up waits `kLeaveGoodbyeWait` (2 s) for the SFU to acknowledge the leave, then disposes the room whatever it heard.
+
 ## Sync generations
 
 `SyncController` bumps a generation on every stop, fresh start and dispose.

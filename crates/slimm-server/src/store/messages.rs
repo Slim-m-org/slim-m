@@ -22,7 +22,7 @@ use anyhow::Context;
 pub(in crate::store) mod row;
 mod send;
 
-use self::message_forwards::ForwardOrigin;
+use self::message_forwards::ForwardSource;
 use self::message_module_origins::ModuleStamp;
 use self::message_ops::insert_message_op;
 use self::message_reads::fetch_message;
@@ -166,9 +166,9 @@ pub struct NewMessage<'a> {
     pub reply_to_id: Option<MessageId>,
     /// What this message forwards, already resolved by the caller with
     /// [`Store::forward_source`] and only after checking the sender can see
-    /// the origin's channel. The store writes what it is handed here, so
-    /// authorizing the origin is the caller's job and cannot be skipped.
-    pub forward: Option<ForwardOrigin>,
+    /// the named message's channel. The store writes what it is handed here,
+    /// so authorizing it is the caller's job and cannot be skipped.
+    pub forward: Option<ForwardSource>,
 }
 
 impl<'a> NewMessage<'a> {

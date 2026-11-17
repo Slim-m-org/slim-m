@@ -62,6 +62,8 @@ struct UploadParams {
     filename: Option<String>,
     /// Where the file is headed; see `attachment_uploads::may_attach`.
     channel_id: Option<String>,
+    #[serde(flatten)]
+    voice: super::attachment_voice::VoiceParams,
 }
 
 // --- Handlers ---
@@ -103,6 +105,7 @@ async fn upload(
     super::attachment_uploads::may_attach(&state, ctx.user_id, params.channel_id.as_deref())
         .await?;
 
+    let voice = params.voice.parse()?;
     let max_bytes = effective_attachment_max(&state).await?;
     // A fast-fail on a declared oversize; the true size is re-checked below.
     if let Some(declared) = content_length(&headers) {
@@ -124,6 +127,10 @@ async fn upload(
     }
     // Decided from the bytes only; `sniffable` guards the streamed-prefix seam.
     let content_type = media::attachment_content_type(sniffable(pending.sniff_prefix()));
+    if let Err(err) = super::attachment_voice::must_be_audio(voice.as_ref(), content_type) {
+        pending.abandon().await.ok();
+        return Err(err);
+    }
     // The true streamed size no Content-Length can hide; a refusal drops the temp.
     let mut reservation = match reserve_room(&state, pending.size() as i64, None).await {
         Ok(reservation) => reservation,
@@ -161,10 +168,20 @@ async fn upload(
         tracing::error!(error = %err, "failed to store a streamed attachment");
         ApiError::Internal
     })?;
-    state
-        .store
-        .store_attachment(&sha256, size, content_type, &filename, Some(ctx.user_id))
-        .await?;
+    match &voice {
+        Some(voice) => {
+            state
+                .store
+                .store_voice_attachment(&sha256, size, content_type, &filename, ctx.user_id, voice)
+                .await?
+        }
+        None => {
+            state
+                .store
+                .store_attachment(&sha256, size, content_type, &filename, Some(ctx.user_id))
+                .await?
+        }
+    }
     drop(placing);
     drop(reservation);
     state.media.prewarm_preview(&hex_id, content_type);
@@ -178,6 +195,8 @@ async fn upload(
             size,
             spoiler: false,
             original: None,
+            voice,
+            transcript: None,
         })),
     ))
 }
@@ -259,11 +278,17 @@ async fn fetch(
 
     // The uploader may always fetch what they uploaded, even before it is on any message
     // (previewing a just-picked GIF needs it); everyone else needs VIEW_CHANNEL on a
-    // referencing channel. `may_link` shares this rule.
+    // referencing channel, a rule `may_link` shares; a screen stamp adds a fetch-only grant.
     let allowed = state
         .store
         .can_fetch_attachment(ctx.user_id, &sha256)
-        .await?;
+        .await?
+        || super::screen_stamps::stamp_access::may_fetch_stamp_picture(
+            &state,
+            ctx.user_id,
+            &sha256,
+        )
+        .await;
     if !allowed {
         // 404, not 403, and the difference is the whole point. An attachment id
         // is the content's sha256, so anyone holding a candidate file can

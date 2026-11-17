@@ -32,6 +32,27 @@ void main() {
     await verifier.migrateAndValidate(db, db.schemaVersion);
   });
 
+  test('v30 upgrades to the current schema', () async {
+    final schema = await verifier.schemaAt(30);
+    final db = SlimmDatabase(schema.newConnection());
+    addTearDown(db.close);
+    await verifier.migrateAndValidate(db, db.schemaVersion);
+  });
+
+  test('v29 upgrades to the current schema', () async {
+    final schema = await verifier.schemaAt(29);
+    final db = SlimmDatabase(schema.newConnection());
+    addTearDown(db.close);
+    await verifier.migrateAndValidate(db, db.schemaVersion);
+  });
+
+  test('v28 upgrades to the current schema', () async {
+    final schema = await verifier.schemaAt(28);
+    final db = SlimmDatabase(schema.newConnection());
+    addTearDown(db.close);
+    await verifier.migrateAndValidate(db, db.schemaVersion);
+  });
+
   test('v27 upgrades to the current schema', () async {
     final schema = await verifier.schemaAt(27);
     final db = SlimmDatabase(schema.newConnection());

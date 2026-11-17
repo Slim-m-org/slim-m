@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE channels SET category_id = ?, position = ?, permissions_synced = 0\n             WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "c8c8959a2d79faedf9ad5190ecd0932fd82cad91bd1ef774c11a2004b0acfe5b"
+}

@@ -43,7 +43,7 @@ def _leave(client):
 def joins(a, b):
     """Listener `b` joins `JOINS` times while `a` talks; one summary per join."""
     xp.join(a)
-    b.ev(f"window.__xp.watchLabels([{json.dumps(L.IN_CALL)}]);")
+    xp.watch_in_call(b)
     time.sleep(5)
     rows = []
     for i in range(JOINS):

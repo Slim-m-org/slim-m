@@ -9,6 +9,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_presence_geometry.dart';
+import 'canvas_stamp_placement.dart';
 
 /// Immutable bundle of what [CanvasPaneSurface] reports back to the pane.
 @immutable
@@ -21,6 +22,7 @@ class CanvasPaneSurfaceActions {
     this.onPointerLeft,
     this.onPointerMoved,
     required this.onShapePlace,
+    this.stamping,
     required this.onNotePlace,
     this.onTextPlace,
     this.onSelectLongPress,
@@ -55,6 +57,9 @@ class CanvasPaneSurfaceActions {
   final VoidCallback? onPointerLeft;
   final PointerMoved? onPointerMoved;
   final ShapePlaced onShapePlace;
+
+  /// The board's Stamp tool, which places the armed stamp and previews a drag.
+  final CanvasStampPlacement? stamping;
   final ValueChanged<Offset> onNotePlace;
   final ValueChanged<Offset>? onTextPlace;
   final ValueChanged<Offset>? onSelectLongPress;

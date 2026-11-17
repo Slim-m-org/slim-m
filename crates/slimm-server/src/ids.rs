@@ -43,6 +43,7 @@ uuid_id!(
     "A canvas op identity: client-minted for a mutation, server-minted for a place."
 );
 uuid_id!(EmojiId, "A custom emoji identity.");
+uuid_id!(SoundClipId, "A soundboard clip identity.");
 uuid_id!(ThemeId, "A Space store theme identity.");
 uuid_id!(
     FavoriteId,

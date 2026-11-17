@@ -107,6 +107,7 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
         Event::MemberRemoved(UserId(id(6))),
         Event::MemberRestored(UserId(id(7))),
         Event::MemberJoined(UserId(id(8))),
+        Event::OwnerChanged(bob),
         Event::ProfileChanged(bob),
         Event::BotUiChanged(bob),
         Event::TypingStarted {
@@ -217,6 +218,19 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             channel_id: channel,
             transcript_id: slimm_server::ids::CallTranscriptId(id(12)),
             ended: true,
+        },
+        Event::CallTranscriptLine {
+            channel_id: channel,
+            transcript_id: slimm_server::ids::CallTranscriptId(id(12)),
+            audience: vec![alice].into(),
+            line: Arc::new(slimm_server::store::TranscriptLine {
+                seq: 3,
+                speaker_id: bob,
+                at: 1_700_000_000_007,
+                end_at: Some(1_700_000_000_009),
+                language: Some("en".into()),
+                text: "hello".into(),
+            }),
         },
         Event::DmChanged {
             channel_id: channel,

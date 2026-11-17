@@ -48,7 +48,7 @@ def _muting_releases_the_capture_after_the_grace(a, b, room_id):
     try:
         assert _mic_state(bob) == ("live", True), _mic_state(bob)
 
-        b.click(L.MUTE, settle=1)
+        b.click(L.MUTE, settle=1, exact=True)
         state = _mic_state(bob)
         print(f"  muted: mic track is {state}")
         assert state == ("live", False), "the capture should still be open inside the grace"
@@ -60,7 +60,7 @@ def _muting_releases_the_capture_after_the_grace(a, b, room_id):
         assert _mic_state(bob) == ("live", True), _mic_state(bob)
         print("  unmuted inside the grace: no reopen, track live")
 
-        b.click(L.MUTE, settle=0)
+        b.click(L.MUTE, settle=0, exact=True)
         waited = _wait_state(bob, "ended", RELEASE_WITHIN)
         print(f"  muted: mic track ended {waited:.1f} s later")
 

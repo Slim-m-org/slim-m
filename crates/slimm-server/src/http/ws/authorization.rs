@@ -75,8 +75,8 @@ pub(super) async fn authorize(
 
 /// Filters an event down to a wire frame, or the reason it is not delivered.
 ///
-/// Events with no channel to check go first (`deployment_frames`); the rest
-/// pass the view check, the canvas bit and the presence rules, in that order.
+/// Events with no channel to check go first (`deployment_frames`); the rest pass
+/// the call roster, the view check, the extra bit and the presence rules, in that order.
 pub(super) async fn authorize_unstamped(
     store: &Store,
     hub: &Hub,
@@ -92,6 +92,11 @@ pub(super) async fn authorize_unstamped(
     let Some(channel_id) = super::channel_scope::channel_of(&event) else {
         return Authorization::Withhold;
     };
+    if let Event::CallTranscriptLine { audience, .. } = &event
+        && !audience.contains(&ctx.user_id)
+    {
+        return Authorization::Withhold;
+    }
     // The one event whose subject may have just lost this very view.
     let held_it_before = matches!(
         &event,
@@ -352,6 +357,19 @@ async fn channel_frame(
             message_id: message_id.to_string(),
             embeds: super::super::embeds::dtos_from_stored(link_previews, (*embeds).clone()),
         },
+        Event::Message(MessageEvent::VoiceTranscript {
+            channel_id,
+            message_id,
+            attachment_id,
+            status,
+            text,
+        }) => ServerFrame::MessageVoiceTranscript {
+            channel_id: channel_id.to_string(),
+            message_id: message_id.to_string(),
+            attachment_id,
+            status,
+            text,
+        },
         Event::Message(MessageEvent::LinkPreviewsRemoved {
             channel_id,
             message_id,
@@ -429,6 +447,16 @@ async fn channel_frame(
             transcript_id: transcript_id.to_string(),
             ended,
         },
+        Event::CallTranscriptLine {
+            channel_id,
+            transcript_id,
+            line,
+            ..
+        } => ServerFrame::CallTranscriptLine {
+            channel_id: channel_id.to_string(),
+            transcript_id: transcript_id.to_string(),
+            line: (*line).clone().into(),
+        },
         Event::WatchTick {
             channel_id,
             bot_user_id,
@@ -495,6 +523,7 @@ async fn channel_frame(
         | Event::MemberRemoved(_)
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)
+        | Event::OwnerChanged(_)
         | Event::ProfileChanged(_)
         | Event::BotUiChanged(_)
         | Event::RoleChanged { .. }
@@ -513,6 +542,7 @@ async fn channel_frame(
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
         | Event::VoiceNotice { .. }
+        | Event::SoundboardPlayed { .. }
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => return Authorization::Withhold,
     }))

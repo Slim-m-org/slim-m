@@ -14,6 +14,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../../audio/call_start_yields.dart';
 import '../../../audio/sound_session_release.dart';
 import '../../../push/providers/push_channel_providers.dart';
 import 'call_foreground_keeper.dart';
@@ -116,22 +117,35 @@ class VoiceController extends StateNotifier<VoiceState> {
       shareResume: _shareResume,
       input: input,
       cameras: cameras,
+      republishDeafened: () => unawaited(devices.publishDeafenedState(true)),
       log: _log,
     );
     _endCallRequests = _callLifecycle.endCallRequests.listen((_) {
       unawaited(leave());
     });
+    _session.audioSessionReader = _callLifecycle.audioSessionLine;
+    _callSystemEvents = _callLifecycle.systemEvents.listen(
+      _session.noteCallSystemEvent,
+    );
     listenLevelDisplayed(_ref, _session.setLevelDisplayed);
     _reconnectDisplay = VoiceReconnectDisplay(
       _session.health.reconnect.active,
       access,
     );
-    _states = _session.states.listen(_sync.onSessionState);
+    _states = _session.states.listen((s) {
+      // A hang-up's own teardown states keep the hold, so its last roster cannot move the left screen.
+      if (state.channelId != null) _rosterHeld = false;
+      _sync.onSessionState(s);
+    });
+    _transportRestarts = _session.transportRestarts.listen(
+      (_) => _sync.onTransportRestarted(),
+    );
     _shareSourceLost = _session.screenShareSourceLost.listen(
       (_) => share.reportShareSourceLost(),
     );
     _cameraJoinOpens = _session.cameraJoinOpens.listen(_onCameraJoinOpen);
     _participants = _session.participantChanges.listen((p) {
+      if (_rosterHeld) return;
       _activity.observe(p);
       unawaited(_callClock.adoptServerStart(access));
       // Trust the session's view of the local participant over the local
@@ -186,13 +200,18 @@ class VoiceController extends StateNotifier<VoiceState> {
   final DateTime Function() _now;
   final CallActivityTracker _activity;
   late final StreamSubscription<VoiceSessionState> _states;
+  late final StreamSubscription<void> _transportRestarts;
   late final StreamSubscription<List<VoiceParticipant>> _participants;
   late final StreamSubscription<String> _shareSourceLost;
   late final StreamSubscription<CameraJoinOpen> _cameraJoinOpens;
   late final StreamSubscription<void> _endCallRequests;
+  late final StreamSubscription<String> _callSystemEvents;
 
   /// Bumped by every [join] and [leave], so a stale call's continuation can tell it was superseded.
   int _callGeneration = 0;
+
+  /// Set when a switch or a hang-up lets go of a room, so its roster cannot land on the next call; the session's next state in a call clears it.
+  bool _rosterHeld = false;
 
   /// Changes whenever a call starts or ends, for work that must not outlive its call.
   int get callGeneration => _callGeneration;
@@ -216,6 +235,14 @@ class VoiceController extends StateNotifier<VoiceState> {
 
   bool _muteNextJoin = false;
 
+  /// [join] for a move somebody else made: it never opens a microphone that is closed in this call.
+  Future<void> joinMoved(String channelId) {
+    _keepMicNextJoin = true;
+    return join(channelId);
+  }
+
+  bool _keepMicNextJoin = false;
+
   /// A channel switch (or a [leave]) mid-join starts or ends a newer call on
   /// this same instance, so every write below is guarded by [superseded]:
   /// reproduced without it, an abandoned join's belated failure landed as
@@ -224,6 +251,11 @@ class VoiceController extends StateNotifier<VoiceState> {
   Future<void> join(String channelId) async {
     final mutedByCaller = _muteNextJoin;
     _muteNextJoin = false;
+    // The same call coming back (a retry, a rejoin) or a move keeps the microphone as it is.
+    final keepMic = _keepMicNextJoin || state.channelId == channelId;
+    _keepMicNextJoin = false;
+    final callStarts = state.channelId == null;
+    final switching = !callStarts && state.channelId != channelId;
     // A recap belongs to the call that just ended, never to this new one.
     _activity.reset();
     if (state.channelId != channelId) _shareResume.forget();
@@ -237,13 +269,27 @@ class VoiceController extends StateNotifier<VoiceState> {
     // Set before the first await, so an arrival elsewhere reads this as busy (VoiceState.joining); clearJustLeft because any real join attempt is never a stale rejoin to suppress.
     state = state.copyWith(
       channelId: channelId,
-      microphoneEnabled: _joinMuted.preferenceAtJoin(state.microphoneEnabled),
+      microphoneEnabled: keepMic
+          ? state.microphoneEnabled
+          : _joinMuted.preferenceAtJoin(state.microphoneEnabled),
       clearError: true,
       clearRecap: true,
       joining: true,
       rejoining: _rejoin.autoAttemptChannel == channelId,
       clearJustLeft: true,
     );
+    // The old room stays connected until the session tears it down, which a stalled SFU can hold for seconds.
+    if (switching) {
+      _rosterHeld = true;
+      state = state.copyWith(
+        state: VoiceSessionState.idle,
+        participants: const [],
+        clearConnectedAt: true,
+      );
+    }
+    // Before the token round trip, so a muted join that fails there is retried muted.
+    if (mutedByCaller) state = _joinMuted.showMuted(state);
+    if (callStarts) await _ref.read(callStartYieldsProvider).callStarting();
     // Awaited before the connect: a ring stopping later would deactivate the call's audio session.
     await _ref.read(soundSessionReleaseProvider)();
     if (superseded()) return;
@@ -252,7 +298,22 @@ class VoiceController extends StateNotifier<VoiceState> {
 
   /// Supersedes any in-flight [join], and is superseded the same way: a leave
   /// overtaken by a newer call writes nothing (see docs/internals.md, voice call generations).
-  Future<void> leave() async {
+  Future<void> leave() {
+    final pending = _leaving;
+    // A second hang-up while nothing joined since is the same leave, so its recap and rejoin guard stay.
+    if (pending != null && state.channelId == null) return pending;
+    late final Future<void> run;
+    run = _leave().whenComplete(() {
+      if (identical(_leaving, run)) _leaving = null;
+    });
+    _leaving = run;
+    return run;
+  }
+
+  /// The [leave] still tearing down, if any.
+  Future<void>? _leaving;
+
+  Future<void> _leave() async {
     final generation = ++_callGeneration;
     share.cancelBroadcastDeadline();
     _shareResume.forget();
@@ -271,17 +332,27 @@ class VoiceController extends StateNotifier<VoiceState> {
     _autoRejoin.reset();
     _callClock.forget();
     _ref.read(joinTimingsProvider).finish();
+    // The mic/camera preference survives the reset (no lobby left to re-set them on); justLeftChannelId/justLeftAt are set only here, see VoiceState.rejoinGuardWindow.
+    final left = VoiceState(
+      microphoneEnabled: _joinMuted.preferenceAtLeave(state.microphoneEnabled),
+      // The live camera is still on here; a call never hands its camera to the next one, only a held preference.
+      cameraEnabled: _cameraPreference.atLeave(false),
+      recap: recap,
+      justLeftChannelId: channelId,
+      justLeftAt: channelId == null ? null : _now(),
+    );
+    // Shown before the teardown, which a stalled SFU can hold for seconds.
+    _rosterHeld = true;
+    state = left;
     await _session.leave();
     if (generation != _callGeneration) return;
     // Best-effort and fire-and-forget: this client already disconnected.
     if (channelId != null) unawaited(_heartbeat.forget(channelId));
-    // The mic/camera preference survives the reset (no lobby left to re-set them on); justLeftChannelId/justLeftAt are set only here, see VoiceState.rejoinGuardWindow.
-    state = VoiceState(
-      microphoneEnabled: _joinMuted.preferenceAtLeave(state.microphoneEnabled),
-      cameraEnabled: _cameraPreference.atLeave(state.cameraEnabled),
-      recap: recap,
-      justLeftChannelId: channelId,
-      justLeftAt: channelId == null ? null : _now(),
+    // Only what the teardown itself could have moved, so a choice made on the left screen meanwhile stays.
+    state = state.copyWith(
+      state: VoiceSessionState.idle,
+      participants: const [],
+      clearConnectedAt: true,
     );
   }
 
@@ -406,10 +477,12 @@ class VoiceController extends StateNotifier<VoiceState> {
     _autoRejoin.reset();
     _reconnectDisplay.dispose();
     unawaited(_states.cancel());
+    unawaited(_transportRestarts.cancel());
     unawaited(_participants.cancel());
     unawaited(_shareSourceLost.cancel());
     unawaited(_cameraJoinOpens.cancel());
     unawaited(_endCallRequests.cancel());
+    unawaited(_callSystemEvents.cancel());
     unawaited(_session.dispose());
     _callLifecycle.dispose();
     super.dispose();

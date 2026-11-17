@@ -103,6 +103,18 @@ class NestedCompositorIsolation(unittest.TestCase):
     def test_the_compositor_runs_on_its_own_session_bus(self):
         self.assertEqual(da.kwin_command()[:2], ["dbus-run-session", "--"])
 
+    def test_the_app_bus_activates_no_portal_backend(self):
+        with tempfile.TemporaryDirectory() as root, tempfile.TemporaryDirectory() as system:
+            for name in ("org.freedesktop.impl.portal.desktop.kde.service",
+                         "org.freedesktop.portal.Desktop.service",
+                         "org.freedesktop.secrets.service"):
+                open(os.path.join(system, name), "w").close()
+            conf = da.bus_config(root, (system,))
+            self.assertEqual(os.listdir(os.path.join(root, "bus-services")),
+                             ["org.freedesktop.secrets.service"])
+            with open(conf) as fh:
+                self.assertIn(os.path.join(root, "bus-services"), fh.read())
+
     def test_a_leftover_socket_file_does_not_answer(self):
         with tempfile.TemporaryDirectory() as root:
             path = os.path.join(root, "wayland-test")

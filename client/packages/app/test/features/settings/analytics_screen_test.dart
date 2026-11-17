@@ -297,7 +297,7 @@ void main() {
       expect(find.text('42'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
       expect(find.text('2'), findsOneWidget);
-      expect(find.text('2.0 KB'), findsOneWidget);
+      expect(find.text('2 KB'), findsOneWidget);
 
       // A screen reader gets the series as text, not only the chart's pixels.
       final daySemantics = tester.getSemantics(

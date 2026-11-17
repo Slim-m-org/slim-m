@@ -26,16 +26,17 @@ import '../../../widgets/run_guarded.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../messages/providers/message_search.dart';
 import '../../voice/providers/transcript_search.dart';
-import '../../settings/providers/personal_space_visibility.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/store_stream.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../channels/widgets/channel_rail.dart' show selectedChannelId;
+import '../../channels/widgets/category_tree.dart' show categoryPaths;
 import 'command_palette_compact.dart';
 import 'command_palette_items.dart';
 import 'command_palette_rows.dart';
 import 'palette_reveal.dart';
 import 'palette_transcript_items.dart';
+import '../../members/providers/mention_names.dart' show mentionNamesProvider;
 
 /// The design's floating card width; not on the spacing grid because it is
 /// the palette's own measured size, like the rail widths beside it. Never
@@ -258,7 +259,6 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     final members = ref.watch(membersProvider).valueOrNull ?? const [];
     final me = ref.watch(meProvider).valueOrNull;
     final permissions = ref.watch(myPermissionsProvider);
-    final personalSpaceHidden = ref.watch(personalSpaceVisibilityProvider);
     // Re-read every build, so a resize crossing it while open swaps shells live.
     final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
 
@@ -294,15 +294,12 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
             builder: (context, categorySnapshot) => _animatedResults((
               tokens: tokens,
               channels: channels,
-              categoryNames: {
-                for (final c
-                    in categorySnapshot.data ?? const <ChannelCategoryRow>[])
-                  c.id: c.name,
-              },
+              categoryNames: categoryPaths(
+                categorySnapshot.data ?? const <ChannelCategoryRow>[],
+              ),
               members: members,
               me: me,
               permissions: permissions,
-              personalSpaceHidden: personalSpaceHidden,
               compact: compact,
             )),
           );
@@ -383,7 +380,6 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
             inputs.channels,
             query,
             selfDisplayName: inputs.me?.displayName,
-            personalSpaceHidden: inputs.personalSpaceHidden,
             categoryNames: inputs.categoryNames,
             currentChannelId: widget.currentChannelId,
           ),
@@ -397,6 +393,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
             _messageResults,
             currentChannelId: widget.currentChannelId,
             channelsById: {for (final c in inputs.channels) c.id: c},
+            mentionNames: ref.watch(mentionNamesProvider),
           ),
         ),
       if (everything)
@@ -519,6 +516,5 @@ typedef _ResultInputs = ({
   List<api.UserProfile> members,
   api.Me? me,
   int permissions,
-  bool personalSpaceHidden,
   bool compact,
 });

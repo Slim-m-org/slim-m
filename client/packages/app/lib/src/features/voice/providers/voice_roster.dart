@@ -33,6 +33,9 @@ const voiceRosterLiveInterval = Duration(seconds: 60);
 /// The longest a failing poll backs off to.
 const voiceRosterMaxBackoff = Duration(minutes: 2);
 
+/// What a pre-join surface says while the roster is unknown, whether it has not answered yet or is failing.
+const voiceRosterUnknownLine = "Can't see who is here.";
+
 /// Whether the live socket is up, so events can be trusted to nudge the roster.
 final voiceRosterSocketLiveProvider = Provider<bool>(
   (ref) => ref.watch(syncControllerProvider) == SyncStatus.live,
@@ -207,7 +210,9 @@ class _RosterPoller {
           ? roster
           : roster.where((p) => p.userId != selfId).toList(growable: false);
       if (_controller.isClosed) return;
-      if (selfId != null) onSelf(roster.any((p) => p.userId == selfId));
+      if (selfId != null) {
+        onSelf(roster.any((p) => p.userId == selfId && !p.thisDevice));
+      }
       final age = snapshot.callAge;
       onCallStart(
         age == null || roster.isEmpty ? null : DateTime.now().subtract(age),

@@ -54,6 +54,7 @@ class VoiceRosterParticipant {
     required this.displayName,
     this.isSharingScreen = false,
     this.hasVideo = false,
+    this.thisDevice = false,
   });
 
   final String userId;
@@ -61,12 +62,16 @@ class VoiceRosterParticipant {
   final bool isSharingScreen;
   final bool hasVideo;
 
+  /// The caller's own connection from this device, which a reload or crash can leave behind; never another device's call.
+  final bool thisDevice;
+
   factory VoiceRosterParticipant.fromJson(Map<String, dynamic> json) =>
       VoiceRosterParticipant(
         userId: json['user_id'] as String,
         displayName: json['display_name'] as String,
         isSharingScreen: json['is_sharing_screen'] as bool? ?? false,
         hasVideo: json['has_video'] as bool? ?? false,
+        thisDevice: json['this_device'] as bool? ?? false,
       );
 }
 

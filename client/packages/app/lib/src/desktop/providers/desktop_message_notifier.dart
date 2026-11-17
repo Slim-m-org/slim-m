@@ -9,6 +9,8 @@
 /// [LocalNotifications.show]; on Android and iOS the platform push already
 /// does this, so this stays inert there.
 ///
+/// Also flashes the Windows taskbar button until the window is focused.
+///
 /// Only when the window is not focused. A focused desktop app shows its own
 /// unread state in the rail, and a second OS banner on top of the channel you
 /// are already reading is noise, not news. Own messages are skipped for the
@@ -42,6 +44,10 @@ import '../../features/accounts/providers/notification_target.dart';
 import 'desktop_message_text_settings.dart';
 import 'desktop_notification_text.dart';
 import '../../providers/live_events.dart';
+import '../../features/members/providers/member_presence.dart'
+    show memberProfileOverridesProvider, membersProvider;
+import '../../features/members/providers/mention_names.dart'
+    show mentionNamesFrom;
 import '../../features/messages/providers/message_alert_policy.dart';
 import '../../providers/providers.dart';
 import '../../push/providers/push_controller.dart';
@@ -50,6 +56,8 @@ final desktopMessageNotifierProvider = Provider<void>((ref) {
   // Android and iOS notify from platform push; only the desktop needs this.
   if (!isDesktopHost) return;
 
+  // Kept alive so an alert reads the roster from memory instead of refetching it.
+  ref.listen(membersProvider, (_, _) {});
   final notifier = _DesktopMessageNotifier(ref);
   final sub = ref.read(liveEventsProvider).listen(notifier.onServerEvent);
   ref.onDispose(sub.cancel);
@@ -83,11 +91,18 @@ class _DesktopMessageNotifier {
             storeProvider.future,
           )).channelRow(message.channelId)
         : null;
+    final live = _ref.read(memberProfileOverridesProvider);
+    final members = [
+      for (final m in showText ? await _roster() : const <api.UserProfile>[])
+        live[m.id] ?? m,
+    ];
     final text = desktopNotificationText(
       message,
       showText: showText,
       isDm: alert.isDm,
       channelName: channel?.name,
+      mentionNames: mentionNamesFrom(AsyncData(members)),
+      authorName: _authorName(members, message),
     );
     final origin = _ref.read(accountSlotProvider)?.account?.origin;
     final payload = origin == null
@@ -97,6 +112,7 @@ class _DesktopMessageNotifier {
             channelId: message.channelId,
           ).encode();
     final notifications = _ref.read(localNotificationsProvider);
+    if (!foreground) unawaited(_ref.read(taskbarAttentionProvider).flash());
     // The per-kind OS control only reaches a banner filed under the kind it is; see LocalAlertChannel.
     final alertChannel = alert.mentionsSelf
         ? LocalAlertChannel.mentions
@@ -110,5 +126,27 @@ class _DesktopMessageNotifier {
         payload: payload,
       ),
     );
+  }
+
+  Future<List<api.UserProfile>> _roster() async {
+    try {
+      return await _ref.read(membersProvider.future);
+    } catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.platform,
+        'Could not read the member list; the alert keeps the names as sent',
+        error,
+        stack,
+      );
+      return const [];
+    }
+  }
+
+  /// The author's name in this space, nickname first; null keeps the message's own.
+  String? _authorName(List<api.UserProfile> members, api.Message message) {
+    for (final member in members) {
+      if (member.id == message.authorId) return member.displayName;
+    }
+    return null;
   }
 }

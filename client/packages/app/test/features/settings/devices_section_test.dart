@@ -217,4 +217,29 @@ void main() {
       expect(find.text('Sign out others'), findsNothing);
     },
   );
+
+  testWidgets('a failed load offers Retry, which reloads the list', (
+    tester,
+  ) async {
+    var fetches = 0;
+    await _pump(tester, (request) {
+      if (request.method == 'GET' && request.url.path == '/devices') {
+        fetches += 1;
+        if (fetches == 1) return http.Response('{"error":"x"}', 500);
+        return http.Response(
+          '[${_deviceJson('this', 'This laptop', isCurrent: true)}]',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('{}', 404);
+    });
+
+    expect(find.text('Could not load devices.'), findsOneWidget);
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    await waitUntil(tester, () => fetches >= 2);
+
+    expect(find.text('This laptop'), findsOneWidget);
+  });
 }

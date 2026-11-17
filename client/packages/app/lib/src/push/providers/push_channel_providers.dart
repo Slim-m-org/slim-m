@@ -25,6 +25,11 @@ final fcmTokenChannelProvider = Provider<FcmTokenChannel>(
   (ref) => FcmTokenChannel(),
 );
 
+/// The Windows taskbar button; inert on every other host.
+final taskbarAttentionProvider = Provider<TaskbarAttention>(
+  (ref) => TaskbarAttention(),
+);
+
 /// The seam onto Android's local-notification channel: creating it, and
 /// asking for runtime permission to use it. A provider, for the same reason
 /// as the two above - a test can substitute one that reports "denied"

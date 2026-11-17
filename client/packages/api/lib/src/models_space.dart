@@ -46,6 +46,8 @@ class SpaceSettings {
     this.callTranscription = CallTranscriptionMode.off,
     this.callTranscriptRetentionDays = 30,
     this.callTranscriptionAvailable = true,
+    this.transcribeVoiceMessages = false,
+    this.transcribeVoiceMessagesAvailable = true,
   });
 
   /// The Space's name, shown in the channel list header and on invites.
@@ -96,6 +98,12 @@ class SpaceSettings {
   /// False when the server has no listener configured, so the mode cannot work.
   final bool callTranscriptionAvailable;
 
+  /// Whether the server turns voice messages into text.
+  final bool transcribeVoiceMessages;
+
+  /// False when the server has no speech listener, so it cannot be turned on.
+  final bool transcribeVoiceMessagesAvailable;
+
   /// `totp_policy` is absent from a server older than decision 0048, which
   /// reads as [TotpPolicy.optional] rather than failing the whole settings load
   /// over a field the rest of the screen does not need.
@@ -127,6 +135,10 @@ class SpaceSettings {
                 : 30,
         callTranscriptionAvailable:
             json['call_transcription_available'] as bool? ?? true,
+        transcribeVoiceMessages:
+            json['transcribe_voice_messages'] as bool? ?? false,
+        transcribeVoiceMessagesAvailable:
+            json['transcribe_voice_messages_available'] as bool? ?? true,
       );
 }
 
@@ -148,6 +160,7 @@ class SpaceSettingsUpdate {
     this.welcomeMessage,
     this.callTranscription,
     this.callTranscriptRetentionDays,
+    this.transcribeVoiceMessages,
   });
 
   final String? name;
@@ -166,4 +179,5 @@ class SpaceSettingsUpdate {
 
   /// Days to keep finished transcripts; `0` keeps them forever.
   final int? callTranscriptRetentionDays;
+  final bool? transcribeVoiceMessages;
 }

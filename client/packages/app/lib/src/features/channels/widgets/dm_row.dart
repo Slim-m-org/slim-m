@@ -16,11 +16,9 @@
 /// provider's own doc comment for the fix.
 ///
 /// "Close DM" is a real per-viewer hide on the server (`DELETE /dms/{userId}`,
-/// `store/dms.rs`'s `dm_hides`), not a client-only flag: unlike the personal
-/// space's own "Remove from list" (`personal_space_menu.dart`), which hides a
-/// channel that is entirely the caller's own, a client-only hide of a shared
-/// DM would silently disagree with every other device signed into the same
-/// account. It reverses itself once the other person sends something new, or
+/// `store/dms.rs`'s `dm_hides`), not a client-only flag: a client-only hide
+/// of a shared DM would silently disagree with every other device signed
+/// into the same account. It reverses itself once the other person sends something new, or
 /// the moment this device opens or messages them again.
 ///
 /// The avatar carries the peer's presence dot, the same [UserAvatar] dot
@@ -55,8 +53,8 @@ import '../../members/widgets/user_avatar.dart';
 import '../providers/channel_latest_message_at.dart';
 import 'channel_notifications_menu.dart';
 
-/// [channel] is never the caller's own personal space: that DM-shaped row is
-/// [PersonalSpaceRow], reached separately, since a self-conversation has no
+/// [channel] is never the caller's own personal space: Notes is the rail
+/// footer's `RailNotesButton`, not a row, and a self-conversation has no
 /// other participant to report or block.
 class DmRow extends ConsumerWidget {
   const DmRow({super.key, required this.channel, required this.selected});

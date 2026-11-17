@@ -110,7 +110,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(
-        find.text('@ada'),
+        find.text('@Ada'),
         findsOneWidget,
         reason:
             'rendered as its own Text widget only inside the chip, never '
@@ -121,7 +121,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('@ada'),
+        find.text('@Ada'),
         findsOneWidget,
         reason:
             'a failed /members refetch is not evidence the deployment has '

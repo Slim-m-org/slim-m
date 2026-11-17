@@ -71,14 +71,16 @@ async fn retire_principal(state: &AppState, module: &InstalledModule) {
     {
         tracing::warn!(%err, module = %module.id, "could not remove a module's channel overwrite");
     }
-    match state.store.delete_account(bot).await {
-        Ok(_) | Err(DeleteAccountError::UserNotFound) => {
-            super::super::members::announce_member_gone(state, bot).await;
-        }
+    let handoff = match state.store.delete_account(bot).await {
+        Ok(deleted) => deleted.handoff,
+        Err(DeleteAccountError::UserNotFound) => None,
         Err(err) => {
             tracing::warn!(?err, module = %module.id, "could not remove a module's principal");
+            return;
         }
-    }
+    };
+    super::super::members::announce_member_gone(state, bot).await;
+    super::super::space_owner::announce_handoff(state, handoff);
 }
 
 pub(in crate::http) async fn enable(

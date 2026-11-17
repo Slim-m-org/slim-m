@@ -21,6 +21,8 @@ use sqlx::QueryBuilder;
 pub(super) mod refs;
 
 use super::attachment_originals::insert_attachment;
+use super::attachment_voice::VoiceInfo;
+use super::voice_transcripts::VoiceTranscript;
 use super::{Store, now_ms};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
@@ -55,6 +57,10 @@ pub struct AttachmentSummary {
     pub spoiler: bool,
     /// The uploaded original kept beside this copy, when the space kept one.
     pub original: Option<OriginalInfo>,
+    /// Set when this is a voice message.
+    pub voice: Option<VoiceInfo>,
+    /// What was heard in a voice message, while the Space transcribes them.
+    pub transcript: Option<VoiceTranscript>,
 }
 
 /// An uploaded original kept beside a compressed attachment.
@@ -133,7 +139,8 @@ impl Store {
     }
 
     /// One attachment's metadata by content hash, regardless of whether it
-    /// has been attached to any message yet.
+    /// has been attached to any message yet. Never a voice message: that is
+    /// what a message or an upload made of the bytes, not the bytes themselves.
     pub async fn attachment_summary(
         &self,
         sha256: &[u8],
@@ -154,6 +161,8 @@ impl Store {
             size: r.size,
             spoiler: false,
             original: OriginalInfo::from_columns(r.original_size, r.original_filename),
+            voice: None,
+            transcript: None,
         }))
     }
 
@@ -247,9 +256,14 @@ impl Store {
         // length and SQLite has no array binding.
         let mut builder = QueryBuilder::new(
             "SELECT ma.message_id, a.sha256, COALESCE(ma.filename, a.filename) AS filename, \
-                    a.content_type, a.size, a.original_size, a.original_filename, ma.spoiler \
+                    a.content_type, a.size, a.original_size, a.original_filename, ma.spoiler, \
+                    ma.voice_duration_ms AS voice_ms, ma.voice_waveform AS voice_waveform, \
+                    t.status AS transcript_status, t.text AS transcript_text \
              FROM message_attachments ma \
              JOIN attachments a ON a.sha256 = ma.sha256 \
+             LEFT JOIN attachment_transcripts t ON t.sha256 = a.sha256 \
+                  AND ma.voice_duration_ms IS NOT NULL \
+                  AND (SELECT transcribe_voice_messages FROM space_settings WHERE id = 1) = 1 \
              WHERE ma.message_id IN (",
         );
         let mut separated = builder.separated(", ");
@@ -274,6 +288,14 @@ impl Store {
                 original: OriginalInfo::from_columns(
                     row.try_get("original_size")?,
                     row.try_get("original_filename")?,
+                ),
+                voice: VoiceInfo::from_columns(
+                    row.try_get("voice_ms")?,
+                    row.try_get("voice_waveform")?,
+                ),
+                transcript: VoiceTranscript::from_columns(
+                    row.try_get("transcript_status")?,
+                    row.try_get("transcript_text")?,
                 ),
             };
             match grouped.iter_mut().find(|(id, _)| *id == message_id) {
@@ -351,14 +373,17 @@ impl Store {
 /// transaction rather than exposed as its own `Store` method, since it only
 /// ever makes sense as part of that larger write.
 ///
-/// The link carries the name its author gave these bytes when they uploaded
-/// them, falling back to the blob's first name when they have none recorded.
+/// The link carries the name and voice mark from the author's own upload, the
+/// name falling back to the blob's first one when they have none recorded.
+///
+/// A forward copies the name, spoiler and voice mark of the named message's link
+/// instead, so it shows what that showed; its sender may add a spoiler, not drop one.
 ///
 /// Authorization is [`may_link`]'s job and runs before the write lock is
 /// taken; this is the existence half only.
 ///
 /// The existence check and the insert are one statement
-/// (`INSERT ... SELECT ... WHERE EXISTS`), so there is no separate
+/// (`INSERT ... SELECT ... FROM attachments`), so there is no separate
 /// check-then-insert race window: either the attachment row exists at the
 /// instant this runs and the link is created, or it does not and nothing is.
 pub(super) async fn link_attachments(
@@ -367,21 +392,28 @@ pub(super) async fn link_attachments(
     author_id: UserId,
     sha256_list: &[Vec<u8>],
     spoilers: &[Vec<u8>],
+    forwarded_from: Option<MessageId>,
 ) -> Result<(), LinkError> {
     for (position, sha256) in sha256_list.iter().enumerate() {
         let position = position as i64;
         let spoiler = spoilers.contains(sha256);
         let affected = sqlx::query!(
-            "INSERT INTO message_attachments (message_id, sha256, position, filename, spoiler)
-             SELECT ?, ?, ?, (SELECT filename FROM attachment_uploaders
-                              WHERE sha256 = ? AND uploaded_by = ?), ?
-             WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)",
+            "INSERT INTO message_attachments
+                 (message_id, sha256, position, filename, spoiler, voice_duration_ms, voice_waveform)
+             SELECT ?, a.sha256, ?,
+                    CASE WHEN s.sha256 IS NULL THEN u.filename ELSE s.filename END,
+                    MAX(COALESCE(s.spoiler, 0), ?),
+                    CASE WHEN s.sha256 IS NULL THEN u.voice_duration_ms ELSE s.voice_duration_ms END,
+                    CASE WHEN s.sha256 IS NULL THEN u.voice_waveform ELSE s.voice_waveform END
+             FROM attachments a
+             LEFT JOIN attachment_uploaders u ON u.sha256 = a.sha256 AND u.uploaded_by = ?
+             LEFT JOIN message_attachments s ON s.message_id = ? AND s.sha256 = a.sha256
+             WHERE a.sha256 = ?",
             message_id,
-            sha256,
             position,
-            sha256,
-            author_id,
             spoiler,
+            author_id,
+            forwarded_from,
             sha256
         )
         .execute(&mut **tx)

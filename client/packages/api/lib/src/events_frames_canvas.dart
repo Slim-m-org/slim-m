@@ -224,6 +224,11 @@ class CanvasScreenAnnotation extends ServerEvent {
     this.color,
     this.text,
     this.aspect,
+    this.size,
+    this.emoji,
+    this.attachment,
+    this.animated = false,
+    this.stamps = false,
   });
 
   final String channelId;
@@ -234,7 +239,7 @@ class CanvasScreenAnnotation extends ServerEvent {
   /// Whose shared screen it is over.
   final String targetUserId;
 
-  /// `consent`, `stroke`, `shape` or `note`.
+  /// `consent`, `stroke`, `shape`, `note` or `stamp`; any other is ignored.
   final String kind;
   final String? annotationId;
   final List<double> points;
@@ -243,6 +248,21 @@ class CanvasScreenAnnotation extends ServerEvent {
   final bool ended;
   final bool allowed;
   final double? aspect;
+
+  /// Stamp only: the longest side as a fraction of the shared screen's height.
+  final double? size;
+
+  /// Stamp only: a reaction key, when the stamp is an emoji.
+  final String? emoji;
+
+  /// Stamp only: an attachment id, when the stamp is a picture.
+  final String? attachment;
+
+  /// Stamp only: a GIF small enough for a tile to animate, as the server decided.
+  final bool animated;
+
+  /// Consent only: the sharer's client can show stamps.
+  final bool stamps;
 }
 
 /// The part of the shared board a member is looking at, in world units.

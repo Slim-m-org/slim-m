@@ -78,8 +78,9 @@ pub(in crate::http) const MAX_BODY_BYTES: usize = 8 * 1024;
 /// two tools decision 0004 names for the dock; neither needs a validation
 /// exception the way `image` does, since neither carries a field this route
 /// authorizes against - a note's text and a shape's own primitive both stay
-/// inside the opaque `props` every other kind's fields already do.
-const KINDS: [&str; 5] = ["stroke", "image", "note", "shape", "text"];
+/// inside the opaque `props` every other kind's fields already do. `emoji` is a
+/// board stamp (decision 0121), and its `props.emoji` is the second field read here.
+const KINDS: [&str; 6] = ["stroke", "image", "note", "shape", "text", "emoji"];
 
 /// The only kind-specific field this server reads out of an otherwise opaque
 /// `props`: which attachment an `image` object names. A raw sha256, not a hex
@@ -97,6 +98,16 @@ fn image_attachment(props: &Value) -> Result<Vec<u8>, ApiError> {
         .ok_or(ApiError::BadRequest(
             "props.attachment is not a valid attachment id",
         ))
+}
+
+/// An `emoji` object's `props.emoji`, which must be a reaction key so it cannot carry free text.
+fn check_emoji_key(props: &Value) -> Result<(), ApiError> {
+    props
+        .get("emoji")
+        .and_then(Value::as_str)
+        .filter(|key| super::super::reaction_emoji::is_reaction(key))
+        .map(|_| ())
+        .ok_or(ApiError::BadRequest("an emoji object needs props.emoji"))
 }
 
 #[derive(Deserialize)]
@@ -144,6 +155,9 @@ pub(super) fn validate_place(params: PlaceParams) -> Result<ValidatedPlace, ApiE
     }
     if params.kind == "text" {
         crate::canvas_text::check_text_props(&params.props).map_err(ApiError::BadRequest)?;
+    }
+    if params.kind == "emoji" {
+        check_emoji_key(&params.props)?;
     }
     let attachment = if params.kind == "image" {
         Some(image_attachment(&params.props)?)
@@ -196,16 +210,16 @@ pub(super) async fn canvas_access(
 }
 
 /// Whether the caller may draw on this channel now: [`canvas_access`], and no timeout.
-pub(super) async fn ensure_may_draw(
+pub(in crate::http) async fn ensure_may_draw(
     state: &AppState,
     user_id: crate::ids::UserId,
     channel_id: ChannelId,
-) -> Result<(), ApiError> {
-    canvas_access(state, user_id, channel_id).await?;
+) -> Result<Permissions, ApiError> {
+    let permissions = canvas_access(state, user_id, channel_id).await?;
     if state.store.timed_out_until(user_id).await?.is_some() {
         return Err(ApiError::Forbidden);
     }
-    Ok(())
+    Ok(permissions)
 }
 
 /// `POST /channels/{channel_id}/canvas/objects`.
@@ -249,8 +263,17 @@ pub(in crate::http) async fn place(
 
 #[cfg(test)]
 mod tests {
-    use super::image_attachment;
+    use super::{check_emoji_key, image_attachment};
     use serde_json::json;
+
+    #[test]
+    fn an_emoji_object_carries_one_reaction_key_and_no_free_text() {
+        assert!(check_emoji_key(&json!({ "emoji": "\u{1F44D}" })).is_ok());
+        assert!(check_emoji_key(&json!({ "emoji": ":party:" })).is_ok());
+        assert!(check_emoji_key(&json!({ "emoji": "hello there" })).is_err());
+        assert!(check_emoji_key(&json!({})).is_err());
+        assert!(check_emoji_key(&json!({ "emoji": 7 })).is_err());
+    }
 
     #[test]
     fn a_valid_attachment_id_parses_to_thirty_two_bytes() {

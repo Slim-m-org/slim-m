@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE attachment_uploaders SET voice_duration_ms = ?, voice_waveform = ?\n             WHERE sha256 = ? AND uploaded_by = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "31ad7899ba8a133475f2cb0ef5f1e4fbdb74588d637032b5c9aba0bb5cc26af2"
+}

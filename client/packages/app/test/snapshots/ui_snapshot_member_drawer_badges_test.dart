@@ -50,7 +50,7 @@ void main() {
           moduleMemberBadgesShownProvider.overrideWithValue(true),
         ],
         afterSettle: (tester) async {
-          await tester.tap(find.byTooltip('Members'));
+          await tester.tap(find.bySemanticsLabel('Show members'));
           await tester.pump(const Duration(milliseconds: 400));
         },
       );

@@ -258,7 +258,7 @@ jobs:
           flutter build appbundle --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
             --build-name=${{ steps.ver.outputs.version }} \
             --build-number=${{ github.run_number }}
-          flutter build apk --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
+          flutter build apk --release --split-per-abi --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
             --build-name=${{ steps.ver.outputs.version }} \
             --build-number=${{ github.run_number }}
 
@@ -280,21 +280,23 @@ jobs:
             ls -1 "$sdk/build-tools" || true
             exit 1
           fi
-          "$tool" verify --print-certs \
-            build/app/outputs/flutter-apk/app-release.apk > certs.txt 2>&1 || {
-              echo "::error::apksigner could not verify the release apk"
-              cat certs.txt
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            "$tool" verify --print-certs \
+              "build/app/outputs/flutter-apk/app-${abi}-release.apk" > certs.txt 2>&1 || {
+                echo "::error::apksigner could not verify the ${abi} release apk"
+                cat certs.txt
+                exit 1
+              }
+            cat certs.txt
+            if grep -q 'Android Debug' certs.txt; then
+              echo "::error::${abi} release apk is signed with the debug keystore; key.properties did not take effect"
               exit 1
-            }
-          cat certs.txt
-          if grep -q 'Android Debug' certs.txt; then
-            echo "::error::release apk is signed with the debug keystore; key.properties did not take effect"
-            exit 1
-          fi
-          if ! grep -qi "$EXPECTED_SHA256" certs.txt; then
-            echo "::error::signer is not Play's registered upload key (want $EXPECTED_SHA256)"
-            exit 1
-          fi
+            fi
+            if ! grep -qi "$EXPECTED_SHA256" certs.txt; then
+              echo "::error::${abi} signer is not Play's registered upload key (want $EXPECTED_SHA256)"
+              exit 1
+            fi
+          done
           echo "signed by the expected upload key"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -302,7 +304,7 @@ jobs:
         with:
           name: slim-m-client-android
           path: |
-            client/packages/app/build/app/outputs/flutter-apk/app-release.apk
+            client/packages/app/build/app/outputs/flutter-apk/app-*-release.apk
             client/packages/app/build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
       - {if: failure() && steps.gate.outputs.ready == 'true', uses: ./.github/actions/native-hooks-diagnose}

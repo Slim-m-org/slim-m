@@ -2,6 +2,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/desktop/providers/desktop_notification_text.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_inline.dart'
+    show rewriteMentions;
 
 api.Message _message(
   String content, {
@@ -73,6 +75,40 @@ void main() {
     expect(text.body, 'Photo');
   });
 
+  test('a voice message says so, and another audio file names itself', () {
+    String body(api.Attachment attachment) => desktopNotificationText(
+      _message('', attachments: [attachment]),
+      showText: true,
+      isDm: true,
+    ).body;
+    expect(
+      body(
+        api.Attachment(
+          id: 'v',
+          filename: 'voice-message.wav',
+          contentType: 'audio/wav',
+          size: 4,
+          voice: api.VoiceInfo(
+            duration: const Duration(seconds: 3),
+            waveform: List.filled(64, 0),
+          ),
+        ),
+      ),
+      'Voice message',
+    );
+    expect(
+      body(
+        const api.Attachment(
+          id: 's',
+          filename: 'song.mp3',
+          contentType: 'audio/mpeg',
+          size: 4,
+        ),
+      ),
+      'song.mp3',
+    );
+  });
+
   test('long text is cut on a rune boundary', () {
     final text = desktopNotificationText(
       _message('\u{1F600}' * 300),
@@ -102,5 +138,37 @@ void main() {
       channelName: 'general',
     );
     expect(text.body, 'New message');
+  });
+
+  group('mention names', () {
+    const names = {'ada': 'Countess Ada'};
+
+    String body(String content) => desktopNotificationText(
+      _message(content),
+      showText: true,
+      isDm: false,
+      mentionNames: names,
+    ).body;
+
+    test('a mention reads as the name in this space', () {
+      expect(body('hi @Ada, and @ghost.'), 'hi @Countess Ada, and @ghost.');
+    });
+
+    test('code, fences and escapes keep the username', () {
+      expect(body('`@ada` \\@ada'), '@ada @ada');
+      expect(
+        rewriteMentions('```\n@ada\n```\nthen @ada', names),
+        '```\n@ada\n```\nthen @Countess Ada',
+      );
+    });
+
+    test('with no names the text is untouched', () {
+      final text = desktopNotificationText(
+        _message('hi @ada'),
+        showText: true,
+        isDm: false,
+      );
+      expect(text.body, 'hi @ada');
+    });
   });
 }

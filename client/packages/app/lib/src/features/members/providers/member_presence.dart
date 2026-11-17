@@ -57,11 +57,14 @@ final channelMembersProvider = FutureProvider.autoDispose
       (ref, channelId) => _pagedMembers(ref, ref.watch(apiProvider), channelId),
     );
 
+/// Rebuilt on every sign-in: a reader that keeps the roster alive (the desktop
+/// notifier) would otherwise hold a stale session's failure past the next one.
 Future<List<api.UserProfile>> _pagedMembers(
   Ref ref,
   api.SlimmApi client,
   String? channelId,
 ) async {
+  if (!ref.watch(sessionProvider).isSignedIn) return const [];
   var superseded = false;
   ref.onDispose(() => superseded = true);
   final members = <api.UserProfile>[];
@@ -110,7 +113,8 @@ final presenceSeedProvider = FutureProvider.autoDispose.family<void, String?>((
 /// somebody joined (`api.MemberJoined`, on registration or an invite
 /// redemption - never a restore, which is its own event below), was timed
 /// out (their badge belongs on screen), had a timeout lifted, was removed
-/// (they belong off it), was restored (they belong back on it), or had a
+/// (they belong off it), was restored (they belong back on it), became the
+/// Space owner (their row's `isOwner` is wrong until refetched), or had a
 /// role granted or revoked (their role badges are wrong until refetched), or a
 /// role was edited (its name, order or hoist flag places members in the pane).
 ///
@@ -126,6 +130,7 @@ final memberModerationWatcherProvider = Provider.autoDispose<void>((ref) {
         event is api.MemberTimeoutChanged ||
         event is api.MemberRemoved ||
         event is api.MemberRestored ||
+        event is api.OwnerChanged ||
         event is api.MemberRoleChanged ||
         event is api.RoleChanged) {
       settle?.cancel();
@@ -175,7 +180,21 @@ class MemberProfileOverridesController
     extends StateNotifier<Map<String, api.UserProfile>> {
   MemberProfileOverridesController(this._ref) : super(const {}) {
     _sub = _ref.read(liveEventsProvider).listen((event) {
-      if (event is api.ProfileChanged) unawaited(_refetch(event.userId));
+      // An override outranks the refetched roster, so a role event refreshes it too.
+      final ids = switch (event) {
+        api.ProfileChanged(:final userId) => [userId],
+        api.MemberRoleChanged(:final userId) when state.containsKey(userId) => [
+          userId,
+        ],
+        api.RoleChanged(:final roleId) => [
+          for (final entry in state.entries)
+            if (entry.value.roleIds.contains(roleId)) entry.key,
+        ],
+        _ => const <String>[],
+      };
+      for (final id in ids) {
+        unawaited(_refetch(id));
+      }
     });
   }
 

@@ -14,6 +14,13 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// handles do not linger over a selection nothing can act on any more
   /// while the pen or eraser is active.
   void _onToolChanged(CanvasTool tool) {
+    if (tool == CanvasTool.stamp &&
+        ref.read(armedStampProvider).content == null) {
+      return showBoardStampPicker(
+        context,
+        onPicked: () => _onToolChanged(CanvasTool.stamp),
+      );
+    }
     if (tool != CanvasTool.pan) _document.selectedObjectId.value = null;
     // A deliberate pick stays through leaving fullscreen.
     _toolBeforeFullscreen = null;
@@ -68,6 +75,10 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     for (final tool in canvasToolOrder) {
       if (tool.shortcutKey != event.logicalKey) continue;
       if (!tool.isAvailable(canDraw: canDraw)) return KeyEventResult.ignored;
+      if (tool == CanvasTool.stamp &&
+          !ref.read(canvasStampsSupportedProvider)) {
+        return KeyEventResult.ignored;
+      }
       _onToolChanged(tool);
       return KeyEventResult.handled;
     }
@@ -258,6 +269,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       mentionInk: tokens.accent,
       mentionFill: tokens.accentSoft,
       linkInk: tokens.accent,
+      mentionNames: ref.watch(mentionNamesProvider),
     );
   }
 

@@ -28,13 +28,15 @@ enum CallTranscriptionMode {
       };
 }
 
-/// One transcribed line: who said it, when, and what.
+/// One transcribed line: who said it, when, in what language, and what.
 class TranscriptLine {
   const TranscriptLine({
     required this.seq,
     required this.speakerId,
     required this.at,
     required this.text,
+    this.endAt,
+    this.language,
   });
 
   /// Order within the transcript.
@@ -43,12 +45,20 @@ class TranscriptLine {
 
   /// When the segment started, in epoch milliseconds.
   final int at;
+
+  /// When it ended; null on lines kept before the server recorded it.
+  final int? endAt;
+
+  /// The language heard, such as `en`; null when the listener did not say.
+  final String? language;
   final String text;
 
   factory TranscriptLine.fromJson(Map<String, dynamic> json) => TranscriptLine(
         seq: json['seq'] as int,
         speakerId: json['speaker_id'] as String,
         at: json['at'] as int,
+        endAt: json['end_at'] as int?,
+        language: json['language'] as String?,
         text: json['text'] as String,
       );
 }

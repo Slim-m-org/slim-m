@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../../format.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_info_line.dart';
 import '../../widgets/settings_section_header.dart';
@@ -122,7 +123,7 @@ class _DockModuleDetailsState extends State<DockModuleDetails> {
             title: 'Stored data',
             detail:
                 '${storage.entries} of ${storage.maxEntries} entries, '
-                '${dockBytes(storage.bytes)} of ${dockBytes(storage.maxBytes)}',
+                '${formatByteSize(storage.bytes)} of ${formatByteSize(storage.maxBytes)}',
             trailing: AppButton(
               label: 'Clear data',
               variant: AppButtonVariant.secondary,

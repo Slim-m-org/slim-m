@@ -56,6 +56,7 @@ class ResolvedReportHistoryEntry extends ModerationHistoryItem {
     this.subjectAuthorId,
     this.resolvedBy,
     this.resolution,
+    this.pictureIds = const [],
   });
 
   @override
@@ -85,6 +86,10 @@ class ResolvedReportHistoryEntry extends ModerationHistoryItem {
   final String? resolvedBy;
   final ReportResolution? resolution;
 
+  /// A [ReportSubject.screenStamp] report's pictures while they are kept, as on
+  /// [Report.pictureIds]; the first sweep after it closed empties it.
+  final List<String> pictureIds;
+
   @override
   String get cursorKind => 'resolved_report';
 
@@ -105,6 +110,9 @@ class ResolvedReportHistoryEntry extends ModerationHistoryItem {
         resolvedAt: json['resolved_at'] as int,
         resolvedBy: json['resolved_by'] as String?,
         resolution: _resolutionOf(json['resolution']),
+        pictureIds: [
+          ...?(json['picture_ids'] as List<dynamic>?)?.whereType<String>(),
+        ],
       );
 }
 
@@ -137,6 +145,12 @@ enum AuditLogAction {
   nicknameSet,
   nicknameClear,
   voiceMove,
+
+  /// Ownership passed to the subject; the server's own act, so the actor is null.
+  ownerHandoff,
+
+  /// The subject's timeout ended because they became the owner; the actor is null.
+  ownerTimeoutEnded,
   unknown;
 
   static AuditLogAction parse(String wire) => switch (wire) {
@@ -158,6 +172,8 @@ enum AuditLogAction {
         'nickname_set' => AuditLogAction.nicknameSet,
         'nickname_clear' => AuditLogAction.nicknameClear,
         'voice_move' => AuditLogAction.voiceMove,
+        'owner_handoff' => AuditLogAction.ownerHandoff,
+        'owner_timeout_ended' => AuditLogAction.ownerTimeoutEnded,
         _ => AuditLogAction.unknown,
       };
 }
@@ -178,7 +194,8 @@ class AuditLogHistoryEntry extends ModerationHistoryItem {
   @override
   final String id;
 
-  /// Null once the actor's account has been anonymized.
+  /// Null once the actor's account has been anonymized, and always for
+  /// [AuditLogAction.ownerHandoff] and [AuditLogAction.ownerTimeoutEnded].
   final String? actorId;
   final String subjectId;
   final AuditLogAction action;

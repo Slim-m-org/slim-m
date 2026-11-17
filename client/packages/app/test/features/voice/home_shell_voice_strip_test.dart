@@ -32,7 +32,7 @@ Future<void> _expectStrip(
   required bool visible,
   Size size = const Size(390, 844),
   // The rail folds a call elsewhere into RailCallSummary, not a second strip.
-  Type indicator = VoiceStripIndicator,
+  Key indicator = voiceStripKey,
 }) async {
   final fixture = await fixtureContainer(
     extraOverrides: [
@@ -57,7 +57,7 @@ Future<void> _expectStrip(
   );
   await tester.pump(const Duration(milliseconds: 350));
 
-  expect(find.byType(indicator), visible ? findsOneWidget : findsNothing);
+  expect(find.byKey(indicator), visible ? findsOneWidget : findsNothing);
 
   await teardownFixture(tester, fixture.container, fixture.db);
 }
@@ -115,7 +115,7 @@ void main() {
           voice: inMainCall,
           visible: true,
           size: wide,
-          indicator: RailCallSummary,
+          indicator: railCallSummaryKey,
         );
       },
     );
@@ -129,7 +129,7 @@ void main() {
         voice: inMainCall,
         visible: false,
         size: wide,
-        indicator: RailCallSummary,
+        indicator: railCallSummaryKey,
       );
     });
   });

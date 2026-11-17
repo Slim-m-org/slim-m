@@ -17,8 +17,30 @@ CanvasStrokeInput? canvasStrokeInputFrom(api.CanvasObject object) {
     'note' => _noteInputFrom(object),
     'shape' => _shapeInputFrom(object),
     'text' => _textInputFrom(object),
+    'emoji' => _emojiInputFrom(object),
     _ => null,
   };
+}
+
+/// A board stamp's one emoji (decision 0121), carried as the object's text and painted from a baked bitmap.
+CanvasStrokeInput? _emojiInputFrom(api.CanvasObject object) {
+  final emoji = object.props['emoji'];
+  if (emoji is! String || emoji.isEmpty) return null;
+  return CanvasStrokeInput(
+    id: object.id,
+    seq: object.seq,
+    zIndex: object.zIndex,
+    x: object.x,
+    y: object.y,
+    w: object.w,
+    h: object.h,
+    points: const [],
+    width: 0,
+    colorKey: '',
+    authorId: object.authorId,
+    kind: CanvasObjectKind.emoji,
+    text: emoji,
+  );
 }
 
 /// The widest stroke a viewer paints, in world units: the pen's widest setting at the lowest zoom, rounded up.

@@ -83,14 +83,26 @@ const _mod = api.UserProfile(
   roles: ['Mod'],
 );
 
-Future<void> _pumpAt(WidgetTester tester, double width) async {
+const _bot = api.UserProfile(
+  id: 'ada',
+  username: 'ada',
+  displayName: 'Bartholomew',
+  createdAt: 0,
+  isBot: true,
+);
+
+Future<void> _pumpAt(
+  WidgetTester tester,
+  double width, {
+  api.UserProfile profile = _mod,
+}) async {
   tester.view.physicalSize = Size(width, 200);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await _pump(
     tester,
     inChannel: voiceChannel('v1', 'movie-room-late-night'),
-    body: const MemberRow(profile: _mod, isSelf: false),
+    body: MemberRow(profile: profile, isSelf: false),
   );
 }
 
@@ -109,8 +121,8 @@ void main() {
     );
   });
 
-  testWidgets('a wide row keeps both the badge and the chip', (tester) async {
-    await _pumpAt(tester, 390);
+  testWidgets('a wide row keeps both the Bot tag and the chip', (tester) async {
+    await _pumpAt(tester, 390, profile: _bot);
     expect(find.byType(AppBadge), findsOneWidget);
     expect(find.byType(MemberVoiceChip), findsOneWidget);
     expect(tester.takeException(), isNull);

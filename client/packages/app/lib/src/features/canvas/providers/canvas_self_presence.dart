@@ -11,7 +11,7 @@
 /// want to see myself on a canvas" once, and that answer should survive a
 /// relaunch the way `themeControllerProvider` and the voice settings keys
 /// already do (`providers.dart`'s own doc names them), not the per-account
-/// namespacing `personal_space_visibility.dart` needs: there is nothing
+/// namespacing `filed_reports.dart` needs: there is nothing
 /// account-specific to leak by sharing it across every account on this
 /// device.
 ///
@@ -51,9 +51,7 @@ class CanvasSelfPresenceController
 
   /// Bumped by every explicit [setHidden] call, so a load still in flight
   /// when the very first one of those lands does not clobber it back to
-  /// whatever was on disk before that write finished - the same generation
-  /// guard `personal_space_visibility.dart`'s own controller carries for the
-  /// identical shape of race.
+  /// whatever was on disk before that write finished.
   int _generation = 0;
 
   /// Resolves once the persisted state, if any, has been read. Exposed so a

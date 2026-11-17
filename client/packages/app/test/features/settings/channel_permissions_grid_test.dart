@@ -132,8 +132,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // initialsFor strips symbols and uppercases the first two characters.
-      expect(find.text('SA'), findsOneWidget);
+      // One letter per word; a handle splits on its symbols.
+      expect(find.text('SB'), findsOneWidget);
     },
   );
 

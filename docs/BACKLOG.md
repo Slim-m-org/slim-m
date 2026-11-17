@@ -102,7 +102,7 @@ Recorded so they are not re-litigated.
 Each can be revisited if the product's direction changes, but the default answer is no.
 
 - ~~Rich presence and game status:~~ Shipped, see decision [0044](decisions/0044-rich-presence.md), and see the 2026-09-30 sweep above. Original reasoning kept: per-OS process detection and a maintained games database is a privacy and upkeep burden that drifts into Discord-clone territory.
-- Soundboard for short audio clips: clip storage, call mixing, and upload moderation is non-essential ritual against the not-a-clone principle.
+- ~~Soundboard for short audio clips:~~ Shipped, see decision [0118](decisions/0118-soundboard.md). Original reasoning kept: clip storage, call mixing, and upload moderation is non-essential ritual against the not-a-clone principle. The owner reversed it on 2026-11-13 with Space-owned clips played locally by each listener, so nothing is mixed.
 - Heavy machine-learning noise suppression: a native DSP or ML dependency adds CPU cost while gaming; enable WebRTC's built-in echo cancellation and basic noise filter instead.
 - Client plugin or scripting system: a heavy maintenance and security surface with no viable sideloaded-code story under App Store rules; webhooks and the future bot API are the sanctioned path.
   Note this is about code running inside the *app*, and does not cover server-side extensions an operator runs themselves; see [0007](decisions/0007-extensions-and-untrusted-execution.md).

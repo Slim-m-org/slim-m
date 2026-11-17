@@ -25,7 +25,6 @@ NOT_BLACK_MEAN = 20.0  # live share 100-104, black 0
 MIN_SPREAD = 4.0  # live share 16-25, flat fill 0
 ALICE_SCREEN = "Alice's screen"
 FOCUS = f"Focus {ALICE_SCREEN}"
-SHOW_ALL = "Show all shares"
 # A video must decode new frames across this long to count as live.
 FRESH_SECONDS = 2.0
 # Longer than the cull's 3s dwell plus LiveKit's 1.5s settings debounce.
@@ -146,23 +145,24 @@ def _three_way(a, b, c, server, secret, sign_in, room_id, bob_id):
                           for v in seen))
         c.wait_for(ALICE_SCREEN)
         c.wait_for("Bob's screen")
-        mine = wait_for_videos(pa, every, 2)
-        theirs = wait_for_videos(pb, every, 2)
-        print(f"  alice and bob each decode {len(mine)} videos: their own "
-              f"preview and the other's share ({len(theirs)})")
+        # Decision 0114: your own share is a Stop sharing tile, never a live copy of your screen.
+        wait_for_videos(pa, every, 1)
+        wait_for_videos(pb, every, 1)
+        print("  alice and bob each decode the other's share, and not their own")
 
-        before = max(_area(v) for v in share_tiles(pc.videos(), every))
+        # The newest share already takes the big slot (decision 0114), so measure the focused share itself.
+        alice_sid = next(sid for who, sid in sids.items() if who != bob_id)
+        before = max(_area(v) for v in share_tiles(pc.videos(), [alice_sid]))
         ui.open_share_menu(c, ALICE_SCREEN, FOCUS)
         c.click(FOCUS, settle=2)
         c.wait_for(ALICE_SCREEN)
-        after = max(_area(v) for v in share_tiles(pc.videos(), every))
-        print(f"  focusing one share: largest video {before} -> {after} px")
+        after = max(_area(v) for v in share_tiles(pc.videos(), [alice_sid]))
+        print(f"  focusing alice's share: its video {before} -> {after} px")
         assert after > before * 1.1, "focusing a share did not enlarge it"
-        ui.open_share_menu(c, ALICE_SCREEN, SHOW_ALL)
-        c.click(SHOW_ALL, settle=2)
+        # Focusing pins a share rather than hiding the rest (decision 0114), so the other keeps playing.
         c.wait_for("Bob's screen")
         wait_for_videos(pc, every, 2)
-        print("  and showing all shares puts both back")
+        print("  and bob's share keeps playing beside it")
 
         _hidden_shares_stop_decoding(c, pc, every)
 

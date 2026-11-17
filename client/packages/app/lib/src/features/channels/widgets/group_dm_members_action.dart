@@ -5,26 +5,18 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/header_icon_action.dart';
 import 'group_dm_members_sheet.dart';
 
 class GroupDmMembersAction extends StatelessWidget {
-  const GroupDmMembersAction({
-    super.key,
-    required this.channelId,
-    this.touch = false,
-  });
+  const GroupDmMembersAction({super.key, required this.channelId});
 
   final String channelId;
 
-  /// The compact bar's 44dp target.
-  final bool touch;
-
   @override
-  Widget build(BuildContext context) => AppIconButton(
+  Widget build(BuildContext context) => HeaderIconAction(
     icon: AppIcons.members,
-    semanticLabel: 'Group members',
-    tooltip: touch ? null : 'Group members',
-    touch: touch,
+    label: 'Group members',
     onPressed: () => showGroupDmMembersSheet(context, channelId),
   );
 }

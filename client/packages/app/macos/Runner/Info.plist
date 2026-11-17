@@ -36,7 +36,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>slim-m uses the camera when you turn on video in a call.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>slim-m uses the microphone when you join a voice call.</string>
+	<string>slim-m uses the microphone in voice calls and to record voice messages.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

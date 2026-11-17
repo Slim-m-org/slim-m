@@ -40,11 +40,16 @@ void openVoiceChannel(
   String channelId, {
   required bool alreadySelected,
 }) {
-  context.go(Routes.channel(channelId));
+  final router = GoRouter.of(context);
+  // Leaving its open chat is a fresh arrival, which VoiceScreen joins itself.
+  final readingChat = Routes.opensChat(
+    router.routerDelegate.currentConfiguration.uri,
+  );
+  router.go(Routes.channel(channelId));
   if (voiceChannelTapShouldRejoin(
     voice: container.read(voiceFlagsProvider),
     channelId: channelId,
-    alreadySelected: alreadySelected,
+    alreadySelected: alreadySelected && !readingChat,
   )) {
     unawaited(_rejoinOrAsk(container, channelId));
   }

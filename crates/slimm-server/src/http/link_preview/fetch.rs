@@ -15,6 +15,7 @@ use url::Url;
 
 use super::extract::{Preview, extract};
 use super::oembed;
+use super::spotify;
 use super::ssrf::{GuardResolver, UrlError, validate};
 use super::video;
 
@@ -110,6 +111,52 @@ pub(super) async fn read_capped(
         .map_err(|_| FetchError::Unavailable)
 }
 
+const HEAD_CLOSE: &[u8] = b"</head>";
+
+/// Reads the start of an HTML page: at most [cap] bytes, keeping the first
+/// [cap] of a longer page instead of refusing it, and stopping at `</head>`
+/// once the head alone already gives a titled preview.
+pub(super) async fn read_head(
+    mut response: reqwest::Response,
+    cap: usize,
+) -> Result<Vec<u8>, FetchError> {
+    let mut body = Vec::new();
+    let mut head_checked = false;
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|_| FetchError::Unavailable)?
+    {
+        let search_from = body.len().saturating_sub(HEAD_CLOSE.len() - 1);
+        let room = cap - body.len();
+        body.extend_from_slice(&chunk[..chunk.len().min(room)]);
+        if body.len() >= cap {
+            break;
+        }
+        if !head_checked && let Some(end) = find_head_close(&body, search_from) {
+            head_checked = true;
+            // A page that streams its tags into the body (Next.js metadata streaming) keeps reading.
+            if head_has_title(&body[..end]) {
+                body.truncate(end);
+                break;
+            }
+        }
+    }
+    Ok(body)
+}
+
+/// The byte offset just past the first `</head>` at or after [from], in any letter case.
+fn find_head_close(body: &[u8], from: usize) -> Option<usize> {
+    body.get(from..)?
+        .windows(HEAD_CLOSE.len())
+        .position(|w| w.eq_ignore_ascii_case(HEAD_CLOSE))
+        .map(|at| from + at + HEAD_CLOSE.len())
+}
+
+fn head_has_title(head: &[u8]) -> bool {
+    extract(&String::from_utf8_lossy(head)).is_some_and(|p| p.title.is_some())
+}
+
 fn content_type(response: &reqwest::Response) -> String {
     response
         .headers()
@@ -119,11 +166,8 @@ fn content_type(response: &reqwest::Response) -> String {
         .to_ascii_lowercase()
 }
 
-/// Fetches [start]'s HTML and extracts a preview, with any relative
-/// `og:image`/`og:video` resolved to an absolute, re-validated URL (an
-/// embed URL is normally already absolute, but resolved the same way for
-/// consistency) so the caller can proxy the image and [`video::detect`] can
-/// check the video. `Ok(None)` when the page loaded but offered no preview.
+/// The preview for [start]: a recognized YouTube video or Spotify item gets
+/// its provider's card, anything else the page's own tags.
 pub(super) async fn fetch_preview(
     client: &Client,
     start: &str,
@@ -135,13 +179,31 @@ pub(super) async fn fetch_preview(
             oembed::youtube_preview(client, start, video, allow_private).await,
         ));
     }
+    if spotify::is_spotify_link(start) {
+        return spotify::spotify_preview(client, start, allow_private).await;
+    }
+    Ok(fetch_page(client, start, allow_private)
+        .await?
+        .map(|(_, preview)| preview))
+}
 
+/// Fetches [start]'s HTML and extracts a preview, with any relative
+/// `og:image`/`og:video` resolved to an absolute, re-validated URL (an
+/// embed URL is normally already absolute, but resolved the same way for
+/// consistency) so the caller can proxy the image and [`video::detect`] can
+/// check the video. Returns the page's final, redirect-resolved URL beside
+/// it; `Ok(None)` when the page loaded but offered no preview.
+pub(super) async fn fetch_page(
+    client: &Client,
+    start: &str,
+    allow_private: bool,
+) -> Result<Option<(Url, Preview)>, FetchError> {
     let (final_url, response) = follow(client, start, allow_private).await?;
     let ctype = content_type(&response);
     if !ctype.contains("text/html") && !ctype.contains("application/xhtml") {
         return Ok(None);
     }
-    let body = read_capped(response, MAX_HTML_BYTES).await?;
+    let body = read_head(response, MAX_HTML_BYTES).await?;
     let html = String::from_utf8_lossy(&body);
     let Some(mut preview) = extract(&html) else {
         return Ok(None);
@@ -158,7 +220,7 @@ pub(super) async fn fetch_preview(
         .and_then(|v| final_url.join(v).ok())
         .map(|abs| abs.to_string());
     preview.video = video::detect(final_url.as_str(), video_url.as_deref());
-    Ok(Some(preview))
+    Ok(Some((final_url, preview)))
 }
 
 /// Fetches [start] as an image for proxying, returning its bytes. The same SSRF guard applies: the image host is as

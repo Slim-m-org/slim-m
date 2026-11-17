@@ -42,6 +42,9 @@ fn fanning_out_a_screen_annotation_shares_its_payload() {
             ended: false,
             allowed: false,
             aspect: None,
+            audience: Vec::new(),
+            stamp: None,
+            stamps: false,
         }
         .into(),
     ));

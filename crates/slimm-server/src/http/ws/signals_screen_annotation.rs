@@ -3,13 +3,17 @@
 
 use std::sync::Arc;
 
+use tokio::sync::mpsc;
+
 use super::canvas_gate::{Frame, may_relay};
 use super::permission_cache::PermissionCache;
 use super::signals_canvas::valid_preview_color;
+use crate::http::AppState;
 use crate::hub::{CanvasEvent, Event, Hub, ScreenAnnotationEvent, ScreenAnnotationKind};
 use crate::ids::{ChannelId, UserId};
-use crate::ratelimit::{Class, RateLimiter};
-use crate::store::{SessionContext, Store};
+use crate::ratelimit::Class;
+use crate::store::SessionContext;
+use crate::voice::VoiceService;
 
 /// One `canvas.screen_annotation` frame's fields.
 pub(super) struct ScreenAnnotationFrame {
@@ -23,6 +27,7 @@ pub(super) struct ScreenAnnotationFrame {
     pub(super) ended: bool,
     pub(super) allowed: bool,
     pub(super) aspect: Option<f64>,
+    pub(super) stamps: bool,
 }
 
 /// Most coordinate pairs one annotation frame may carry.
@@ -34,20 +39,15 @@ const MAX_ANNOTATION_TEXT_CHARS: usize = 80;
 /// Widest and narrowest screen shape a consent frame may claim.
 const ASPECT_RANGE: std::ops::RangeInclusive<f64> = 0.2..=10.0;
 
-/// Relays a screen annotation, or a sharer's consent, on a channel's canvas.
+/// Relays a screen annotation, or a sharer's consent, to the people in a channel's call (decision 0096).
 ///
-/// Gated like ink (canvas access and not timed out) and charged by wire size
-/// against the stroke-preview budget. A consent frame is only believed from
-/// the sharer it speaks for. The server cannot know whether the sharer opted
-/// in: the sharer's own client drops every annotation it did not allow, which
-/// is the gate that matters because the overlay lives on that machine.
-/// Silent on every rejection.
+/// Gated like ink and charged against the stroke-preview budget here, where a consent is also
+/// remembered for the stamp route; the roster read and the publish run on `relay`.
 pub(super) async fn handle_canvas_screen_annotation(
-    store: &Store,
-    hub: &Hub,
-    limiter: &RateLimiter,
+    state: &AppState,
     ctx: &SessionContext,
     cache: &mut PermissionCache,
+    relay: &mut AnnotationRelay,
     frame: ScreenAnnotationFrame,
     frame_bytes: usize,
 ) {
@@ -55,16 +55,88 @@ pub(super) async fn handle_canvas_screen_annotation(
         return;
     };
     let key = format!("u:{}", ctx.user_id);
-    if !limiter.check_weighted(Class::CanvasStrokePreview, &key, frame_bytes as f64) {
+    if !state
+        .limiter
+        .check_weighted(Class::CanvasStrokePreview, &key, frame_bytes as f64)
+    {
         return;
     }
-    hub.presence().touch(ctx.user_id);
-    if !may_relay(store, hub, ctx, cache, event.channel_id, Frame::Ink).await {
+    state.hub.presence().touch(ctx.user_id);
+    if !may_relay(
+        &state.store,
+        &state.hub,
+        ctx,
+        cache,
+        event.channel_id,
+        Frame::Ink,
+    )
+    .await
+    {
         return;
     }
-    hub.publish(Event::Canvas(CanvasEvent::ScreenAnnotation(Arc::new(
-        event,
-    ))));
+    if event.kind == ScreenAnnotationKind::Consent {
+        let said = (event.allowed, event.stamps);
+        let now = std::time::Instant::now();
+        state
+            .hub
+            .screen_consent()
+            .record(event.channel_id, event.user_id, said, now);
+    }
+    relay.send(state, event);
+}
+
+/// Frames one connection may have waiting on a roster read; past it a frame is dropped, as a lagging ephemeral one is.
+const RELAY_QUEUE: usize = 32;
+
+/// One connection's annotation publisher: a task started by its first annotation and ended when the
+/// connection drops this, so the socket never waits on the SFU and the frames keep their order.
+#[derive(Default)]
+pub(super) struct AnnotationRelay {
+    queue: Option<mpsc::Sender<ScreenAnnotationEvent>>,
+}
+
+impl AnnotationRelay {
+    fn send(&mut self, state: &AppState, event: ScreenAnnotationEvent) {
+        let queue = self
+            .queue
+            .get_or_insert_with(|| spawn_relay(state.voice.clone(), state.hub.clone()));
+        let _ = queue.try_send(event);
+    }
+}
+
+fn spawn_relay(voice: VoiceService, hub: Hub) -> mpsc::Sender<ScreenAnnotationEvent> {
+    let (queue, mut waiting) = mpsc::channel(RELAY_QUEUE);
+    tokio::spawn(async move {
+        while let Some(mut event) = waiting.recv().await {
+            let Some(audience) = call_audience(&voice, &event).await else {
+                continue;
+            };
+            event.audience = audience;
+            hub.publish(Event::Canvas(CanvasEvent::ScreenAnnotation(Arc::new(
+                event,
+            ))));
+        }
+    });
+    queue
+}
+
+/// Everyone in the channel's call, from the shared roster the soundboard trusts; none when a mark's sender or sharer is not in it.
+async fn call_audience(voice: &VoiceService, event: &ScreenAnnotationEvent) -> Option<Vec<UserId>> {
+    let mut audience: Vec<UserId> = voice
+        .list_participants_shared(event.channel_id)
+        .await
+        .ok()?
+        .into_iter()
+        .map(|p| p.user_id)
+        .collect();
+    audience.sort_unstable();
+    audience.dedup();
+    // Consent needs no seat, so a withdrawal sent while leaving the call still lands.
+    let seated = event.kind == ScreenAnnotationKind::Consent
+        || [event.user_id, event.target_user_id]
+            .iter()
+            .all(|user| audience.binary_search(user).is_ok());
+    (seated && !audience.is_empty()).then_some(audience)
 }
 
 /// The relayed event for a well-formed frame from `sender`, or none.
@@ -75,6 +147,9 @@ fn checked_annotation(
     let channel_id = ChannelId(uuid::Uuid::parse_str(&frame.channel_id).ok()?);
     let target_user_id = UserId(uuid::Uuid::parse_str(&frame.target_user_id).ok()?);
     let kind = ScreenAnnotationKind::parse(&frame.kind)?;
+    if kind == ScreenAnnotationKind::Stamp {
+        return None;
+    }
     let annotation_id = match &frame.annotation_id {
         Some(raw) => Some(uuid::Uuid::parse_str(raw).ok()?),
         None => None,
@@ -106,6 +181,9 @@ fn checked_annotation(
         ended: frame.ended,
         allowed: consent && frame.allowed,
         aspect: if consent { aspect } else { None },
+        audience: Vec::new(),
+        stamp: None,
+        stamps: consent && frame.stamps,
     })
 }
 
@@ -114,7 +192,7 @@ fn points_fit_kind(kind: ScreenAnnotationKind, len: usize) -> bool {
         ScreenAnnotationKind::Consent => len == 0,
         ScreenAnnotationKind::Stroke => len.is_multiple_of(2),
         ScreenAnnotationKind::Shape => len == 4 || len == 0,
-        ScreenAnnotationKind::Note => len == 2,
+        ScreenAnnotationKind::Note | ScreenAnnotationKind::Stamp => len == 2,
     }
 }
 
@@ -134,6 +212,7 @@ mod screen_annotation_tests {
             ended: false,
             allowed: false,
             aspect: None,
+            stamps: false,
         }
     }
 
@@ -186,6 +265,28 @@ mod screen_annotation_tests {
     }
 
     #[test]
+    fn a_stamp_never_enters_through_the_socket() {
+        let mut f = frame("stamp");
+        f.points = vec![0.5, 0.5];
+        assert!(checked_annotation(sender(), f).is_none());
+    }
+
+    #[test]
+    fn the_stamps_flag_survives_only_on_consent() {
+        let who = sender();
+        let mut consent = frame("consent");
+        consent.annotation_id = None;
+        consent.points = vec![];
+        consent.target_user_id = who.to_string();
+        consent.allowed = true;
+        consent.stamps = true;
+        assert!(checked_annotation(who, consent).unwrap().stamps);
+        let mut stroke = frame("stroke");
+        stroke.stamps = true;
+        assert!(!checked_annotation(sender(), stroke).unwrap().stamps);
+    }
+
+    #[test]
     fn too_many_points_are_refused() {
         let mut f = frame("stroke");
         f.points = vec![0.5; MAX_ANNOTATION_POINTS * 2 + 2];
@@ -212,6 +313,7 @@ mod screen_annotation_tests {
             ended: f.ended,
             allowed: f.allowed,
             aspect: f.aspect,
+            stamps: f.stamps,
         }
     }
 }

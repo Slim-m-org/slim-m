@@ -65,6 +65,8 @@ class ContextMenuRegion extends StatefulWidget {
     this.focusNode,
     this.menuWidth = 200,
     this.tapRegionGroupId,
+    this.sheetHeaderBuilder,
+    this.sheetSemanticLabel,
   });
 
   /// Builds the menu's items given a callback that closes it. Called fresh
@@ -129,6 +131,13 @@ class ContextMenuRegion extends StatefulWidget {
   /// Taps inside a [TapRegion] of this group do not count as outside the menu, so a trigger can toggle it.
   final Object? tapRegionGroupId;
 
+  /// Names what the compact sheet acts on, drawn above its items; the anchored
+  /// menu stays untitled because it opens beside the thing itself.
+  final WidgetBuilder? sheetHeaderBuilder;
+
+  /// Names the compact sheet for a screen reader when it has no visible header.
+  final String? sheetSemanticLabel;
+
   @override
   State<ContextMenuRegion> createState() => ContextMenuRegionState();
 }
@@ -152,6 +161,22 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
 
   /// Whether the parent was last told this region is open.
   bool _toldOpen = false;
+
+  /// What the sheet last showed, kept while it slides away from a region an item took off screen.
+  List<Widget> _sheetItems = const [];
+  bool _active = true;
+
+  @override
+  void activate() {
+    super.activate();
+    _active = true;
+  }
+
+  @override
+  void deactivate() {
+    _active = false;
+    super.deactivate();
+  }
 
   @override
   void dispose() {
@@ -181,6 +206,10 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
 
   /// Whether the anchored menu or the sheet is showing.
   bool get isOpen => _controller.isShowing || _sheetOpen;
+
+  /// Where the anchored menu last opened, in the overlay's coordinates, for a
+  /// surface that one of its items opens in the same place.
+  Offset get anchor => _anchor;
 
   /// Closes the menu when it is open and opens it otherwise, for a trigger that owns both.
   void toggle({Offset? at}) => isOpen ? close() : open(at: at);
@@ -229,15 +258,27 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
     showAppSheet<void>(
       context,
       bare: true,
-      builder: (sheetContext) => SafeArea(
-        top: false,
-        child: AppSheetMenu(
-          children: widget.itemsBuilder(
+      semanticLabel: widget.sheetSemanticLabel,
+      builder: (sheetContext) {
+        if (_active) {
+          _sheetItems = widget.itemsBuilder(
             context,
             () => Navigator.of(sheetContext).pop(),
-          ),
-        ),
-      ),
+          );
+        }
+        final menu = AppSheetMenu(children: _sheetItems);
+        final header = widget.sheetHeaderBuilder?.call(sheetContext);
+        return SafeArea(
+          top: false,
+          child: header == null
+              ? menu
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [header, menu],
+                ),
+        );
+      },
     ).whenComplete(_onSheetClosed);
   }
 

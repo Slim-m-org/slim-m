@@ -126,6 +126,9 @@ class SettingsActions {
   Future<List<ChannelOverwrite>> syncChannelOverwrites(String channelId) =>
       _api.syncChannelOverwrites(channelId);
 
+  Future<CategoryOverwriteSet> syncCategoryOverwrites(String categoryId) =>
+      _api.syncCategoryOverwrites(categoryId);
+
   Future<void> deleteChannelOverwrite({
     required String channelId,
     required OverwriteTarget kind,

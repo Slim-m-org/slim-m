@@ -33,12 +33,6 @@ api.SpaceCapacity _capacity({
 );
 
 void main() {
-  test('bytes read as whole or one-decimal gigabytes', () {
-    expect(formatCapacityBytes(8 * _gib), '8 GB');
-    expect(formatCapacityBytes((7.5 * _gib).round()), '7.5 GB');
-    expect(formatCapacityBytes(2048 * _gib), '2 TB');
-  });
-
   test('the machine line names a container limit', () {
     expect(
       machineSummary(_capacity(limit: 2 * _gib)),

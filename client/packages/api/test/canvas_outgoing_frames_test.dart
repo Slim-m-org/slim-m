@@ -125,4 +125,13 @@ void main() {
     connection.canvasWatch(const []);
     expect((await next())['channel_ids'], isEmpty);
   });
+
+  test('a consent frame says stamps only when this client can show them',
+      () async {
+    connection.canvasScreenAnnotation('c1', 'me', 'consent',
+        allowed: true, aspect: 1.5, stamps: true);
+    connection.canvasScreenAnnotation('c1', 'me', 'consent', allowed: true);
+    expect((await next())['stamps'], true);
+    expect((await next()).containsKey('stamps'), isFalse);
+  });
 }

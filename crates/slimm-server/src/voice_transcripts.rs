@@ -1,0 +1,466 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+//! Background transcription of voice messages, for the Spaces that turned it on.
+//!
+//! The server never decodes audio: the stored bytes go to the speech listener,
+//! which already runs the engine for call transcripts (decision 0113), and the
+//! text comes back. One clip at a time, newest first, so a busy Space cannot
+//! starve the listener's calls. A listener that cannot take clips (down, too
+//! old for the route, or refusing the secret) pauses the sweep with the same
+//! growing backoff attachment text uses, and costs no clip an attempt. A clip
+//! the listener takes and keeps failing is marked failed and tried once a day
+//! after; a clip it refuses stays failed. Encrypted messages are never offered.
+
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::time::Duration;
+
+use tokio::io::AsyncReadExt;
+
+use crate::attachment_text::retry::Retries;
+use crate::call_audio::CallAudio;
+use crate::hub::{Event, Hub, MessageEvent};
+use crate::media::Media;
+use crate::state::AppState;
+use crate::store::{Store, TranscriptOutcome, VoiceCandidate};
+
+const SWEEP_INTERVAL: Duration = Duration::from_secs(10);
+const BATCH: i64 = 5;
+const MAX_PER_PASS: usize = 20;
+const RETRY_BACKOFF: Duration = Duration::from_secs(30);
+/// Failures before a clip is marked failed: about three hours of doubling backoff from 30 s.
+pub const MAX_ATTEMPTS: u32 = 10;
+/// How long a clip that ran out of attempts waits before its next single try.
+const GIVEN_UP_RETRY: Duration = Duration::from_secs(24 * 60 * 60);
+/// The one key of the listener's own backoff.
+const LISTENER: &[u8] = b"listener";
+/// Longer than a clip at the cap takes on a slow host.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+/// A five minute WAV is about 10 MB; this leaves room.
+const MAX_CLIP_BYTES: u64 = 24 * 1024 * 1024;
+
+/// What the engine heard.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Heard {
+    pub text: String,
+    pub language: Option<String>,
+}
+
+/// Why a clip has no text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Failure {
+    /// The listener took the clip and failed it; it may pass, so try again later.
+    Transient,
+    /// The engine refused this clip; trying again would not help.
+    Permanent,
+    /// No listener took the clip: down, busy, too old for the route, or refusing the secret.
+    Unavailable,
+}
+
+pub type EngineFuture<'a> = Pin<Box<dyn Future<Output = Result<Heard, Failure>> + Send + 'a>>;
+
+/// Speech to text on stored bytes, behind a trait so tests need no listener.
+pub trait SpeechEngine: Send + Sync {
+    fn transcribe(&self, bytes: Vec<u8>) -> EngineFuture<'_>;
+}
+
+/// The speech listener over its `/v1/transcribe` route.
+pub struct ListenerEngine {
+    http: reqwest::Client,
+    url: String,
+    secret: String,
+}
+
+impl ListenerEngine {
+    pub fn new(url: String, secret: String) -> Self {
+        let http = reqwest::Client::builder()
+            .timeout(REQUEST_TIMEOUT)
+            .build()
+            .expect("an HTTP client with a timeout builds");
+        Self { http, url, secret }
+    }
+
+    /// `None` when no listener is configured.
+    pub fn of(call_audio: &CallAudio) -> Option<Self> {
+        let (url, secret) = call_audio.transcribe_endpoint()?;
+        Some(Self::new(url, secret))
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct ListenerReply {
+    text: String,
+    language: Option<String>,
+}
+
+impl SpeechEngine for ListenerEngine {
+    fn transcribe(&self, bytes: Vec<u8>) -> EngineFuture<'_> {
+        Box::pin(async move {
+            let response = self
+                .http
+                .post(&self.url)
+                .bearer_auth(&self.secret)
+                .body(bytes)
+                .send()
+                .await
+                .map_err(|err| {
+                    if err.is_connect() {
+                        Failure::Unavailable
+                    } else {
+                        Failure::Transient
+                    }
+                })?;
+            let status = response.status();
+            if status == reqwest::StatusCode::UNPROCESSABLE_ENTITY {
+                return Err(Failure::Permanent);
+            }
+            if not_taken(status) {
+                return Err(Failure::Unavailable);
+            }
+            if !status.is_success() {
+                return Err(Failure::Transient);
+            }
+            let reply: ListenerReply = response.json().await.map_err(|_| Failure::Transient)?;
+            Ok(Heard {
+                text: reply.text.trim().to_owned(),
+                language: reply.language,
+            })
+        })
+    }
+}
+
+/// Statuses from a listener, or a proxy in front of it, that never looked at the clip.
+fn not_taken(status: reqwest::StatusCode) -> bool {
+    use reqwest::StatusCode;
+    matches!(
+        status,
+        StatusCode::UNAUTHORIZED
+            | StatusCode::FORBIDDEN
+            | StatusCode::NOT_FOUND
+            | StatusCode::METHOD_NOT_ALLOWED
+            | StatusCode::TOO_MANY_REQUESTS
+            | StatusCode::BAD_GATEWAY
+            | StatusCode::SERVICE_UNAVAILABLE
+            | StatusCode::GATEWAY_TIMEOUT
+    )
+}
+
+/// The sweep's state: which clips are backing off, and whether the listener is.
+pub struct VoiceTranscriber {
+    retries: Retries,
+    listener: Retries,
+}
+
+impl VoiceTranscriber {
+    pub fn new() -> Self {
+        Self::with_backoff(RETRY_BACKOFF)
+    }
+
+    pub fn with_backoff(backoff: Duration) -> Self {
+        Self {
+            retries: Retries::new(backoff),
+            listener: Retries::new(backoff),
+        }
+    }
+
+    /// One pass: transcribes a bounded number of waiting clips and returns how many it settled.
+    pub async fn run_pass(
+        &self,
+        store: &Store,
+        media: &Media,
+        hub: &Hub,
+        engine: &dyn SpeechEngine,
+    ) -> usize {
+        match store.transcribe_voice_messages().await {
+            Ok(true) => {}
+            Ok(false) => return 0,
+            Err(err) => {
+                tracing::warn!(error = %err, "voice transcript setting lookup failed");
+                return 0;
+            }
+        }
+        if !self.listener.waiting().is_empty() {
+            return 0;
+        }
+        let (mut attempted, mut done) = (0, 0);
+        while attempted < MAX_PER_PASS {
+            let batch = match store
+                .voice_awaiting_transcript(BATCH, &self.retries.waiting())
+                .await
+            {
+                Ok(batch) if !batch.is_empty() => batch,
+                Ok(_) => break,
+                Err(err) => {
+                    tracing::warn!(error = %err, "voice transcript lookup failed");
+                    break;
+                }
+            };
+            for candidate in batch {
+                attempted += 1;
+                match self.process(store, media, hub, engine, &candidate).await {
+                    Step::Settled => done += 1,
+                    Step::Later => {}
+                    // Every clip would get the same answer, so the rest wait for the next pass.
+                    Step::NoListener => return done,
+                }
+            }
+        }
+        done
+    }
+
+    async fn process(
+        &self,
+        store: &Store,
+        media: &Media,
+        hub: &Hub,
+        engine: &dyn SpeechEngine,
+        candidate: &VoiceCandidate,
+    ) -> Step {
+        let Some(bytes) = read_clip(media, candidate).await else {
+            self.retries.failed(&candidate.sha256);
+            return Step::Later;
+        };
+        // Right after the listener was out, a clip is only marked once the listener answers.
+        let probing = !self.listener.is_empty();
+        let marked = !probing
+            && match store.begin_voice_transcript(&candidate.sha256).await {
+                Ok(started) => started,
+                Err(err) => {
+                    tracing::warn!(error = %err, attachment = %candidate.hex, "could not mark a voice message pending");
+                    return Step::Later;
+                }
+            };
+        if marked {
+            announce(store, hub, candidate, "pending", "").await;
+        }
+        let answer = engine.transcribe(bytes).await;
+        if matches!(answer, Err(Failure::Unavailable)) {
+            if !probing {
+                tracing::warn!(
+                    "the speech listener is not taking voice messages; their transcripts wait for it"
+                );
+            }
+            // Also clears a mark left by a crash or an unstored result, which nothing would finish.
+            match store.abandon_voice_transcript(&candidate.sha256).await {
+                Ok(true) => announce(store, hub, candidate, "none", "").await,
+                Ok(false) => {}
+                Err(err) => {
+                    tracing::warn!(error = %err, attachment = %candidate.hex, "could not unmark a voice message the listener did not take");
+                }
+            }
+            self.listener.failed(LISTENER);
+            return Step::NoListener;
+        }
+        self.listener.settled(LISTENER);
+        let outcome = match &answer {
+            Ok(heard) => TranscriptOutcome::Heard {
+                text: &heard.text,
+                language: heard.language.as_deref(),
+            },
+            Err(Failure::Permanent) => TranscriptOutcome::Refused,
+            Err(_) => {
+                self.retries.failed(&candidate.sha256);
+                if !candidate.given_up && self.retries.attempts(&candidate.sha256) < MAX_ATTEMPTS {
+                    return Step::Later;
+                }
+                if !candidate.given_up {
+                    tracing::warn!(attachment = %candidate.hex, "gave up transcribing a voice message after {MAX_ATTEMPTS} tries");
+                }
+                TranscriptOutcome::GaveUp {
+                    retry_at: crate::store::now_ms() + GIVEN_UP_RETRY.as_millis() as i64,
+                }
+            }
+        };
+        match store
+            .finish_voice_transcript(&candidate.sha256, outcome)
+            .await
+        {
+            Ok(done) => {
+                self.retries.settled(&candidate.sha256);
+                if let Some(done) = done {
+                    announce(store, hub, candidate, done.status.as_str(), &done.text).await;
+                }
+                Step::Settled
+            }
+            Err(err) => {
+                tracing::warn!(error = %err, attachment = %candidate.hex, "could not store a voice transcript");
+                self.retries.failed(&candidate.sha256);
+                Step::Later
+            }
+        }
+    }
+}
+
+/// What became of one clip in a pass.
+enum Step {
+    Settled,
+    Later,
+    NoListener,
+}
+
+impl Default for VoiceTranscriber {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+async fn read_clip(media: &Media, candidate: &VoiceCandidate) -> Option<Vec<u8>> {
+    if candidate.size as u64 > MAX_CLIP_BYTES {
+        return None;
+    }
+    let (file, _) = media.open_attachment(&candidate.hex).await.ok()?;
+    let mut bytes = Vec::new();
+    file.take(MAX_CLIP_BYTES)
+        .read_to_end(&mut bytes)
+        .await
+        .ok()?;
+    Some(bytes)
+}
+
+/// Tells everyone who can see a voice message carrying the clip, so the line under it updates.
+async fn announce(
+    store: &Store,
+    hub: &Hub,
+    candidate: &VoiceCandidate,
+    status: &'static str,
+    text: &str,
+) {
+    let Ok(messages) = store.voice_messages_with_clip(&candidate.sha256).await else {
+        return;
+    };
+    for (channel_id, message_id) in messages {
+        hub.publish(Event::Message(MessageEvent::VoiceTranscript {
+            channel_id,
+            message_id,
+            attachment_id: candidate.hex.clone(),
+            status,
+            text: text.to_owned(),
+        }));
+    }
+}
+
+pub(crate) fn spawn_voice_transcript_sweep(state: AppState) {
+    let transcriber = Arc::new(VoiceTranscriber::new());
+    crate::sweeps::spawn_sweep(SWEEP_INTERVAL, move || {
+        let (state, transcriber) = (state.clone(), transcriber.clone());
+        async move {
+            let Some(engine) = ListenerEngine::of(&state.call_audio) else {
+                return;
+            };
+            transcriber
+                .run_pass(&state.store, &state.media, &state.hub, &engine)
+                .await;
+        }
+    });
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::Router;
+    use axum::http::{HeaderMap, StatusCode};
+    use axum::routing::post;
+
+    use super::*;
+
+    async fn stub(handler: axum::routing::MethodRouter) -> String {
+        let app = Router::new().route("/v1/transcribe", handler);
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, app).await });
+        format!("http://{addr}/v1/transcribe")
+    }
+
+    #[tokio::test]
+    async fn the_listener_engine_sends_the_bytes_with_the_secret_and_reads_the_text() {
+        let url = stub(post(
+            |headers: HeaderMap, body: axum::body::Bytes| async move {
+                assert_eq!(headers["authorization"], "Bearer s3cret");
+                assert_eq!(&body[..], b"clip");
+                axum::Json(
+                    serde_json::json!({"text": " hi there ", "language": "en", "duration_ms": 1}),
+                )
+            },
+        ))
+        .await;
+        let heard = ListenerEngine::new(url, "s3cret".into())
+            .transcribe(b"clip".to_vec())
+            .await
+            .unwrap();
+        assert_eq!(heard.text, "hi there");
+        assert_eq!(heard.language.as_deref(), Some("en"));
+    }
+
+    #[tokio::test]
+    async fn only_a_listener_that_took_the_clip_can_fail_it() {
+        let engine = |url: String| ListenerEngine::new(url, "s".into());
+        let answer = |status: StatusCode| async move {
+            let url = stub(post(move || async move { status })).await;
+            engine(url).transcribe(vec![1]).await
+        };
+        assert_eq!(
+            answer(StatusCode::UNPROCESSABLE_ENTITY).await,
+            Err(Failure::Permanent)
+        );
+        assert_eq!(
+            answer(StatusCode::INTERNAL_SERVER_ERROR).await,
+            Err(Failure::Transient)
+        );
+        for not_taken in [
+            StatusCode::NOT_FOUND,
+            StatusCode::METHOD_NOT_ALLOWED,
+            StatusCode::UNAUTHORIZED,
+            StatusCode::TOO_MANY_REQUESTS,
+            StatusCode::BAD_GATEWAY,
+            StatusCode::SERVICE_UNAVAILABLE,
+            StatusCode::GATEWAY_TIMEOUT,
+        ] {
+            assert_eq!(
+                answer(not_taken).await,
+                Err(Failure::Unavailable),
+                "{not_taken}"
+            );
+        }
+        let gone = "http://127.0.0.1:1/v1/transcribe".to_owned();
+        assert_eq!(
+            engine(gone).transcribe(vec![1]).await,
+            Err(Failure::Unavailable)
+        );
+    }
+
+    #[tokio::test]
+    async fn the_transcribe_address_sits_beside_the_control_address() {
+        let settings = |url: &str| crate::config::ListenerSettings {
+            url: url.into(),
+            secret: "x".repeat(32),
+            livekit_url: None,
+        };
+        let after_scheme = |url: &str, route: &str| {
+            let (_, rest) = url.split_once("://").unwrap();
+            rest.strip_suffix(route).unwrap().to_owned()
+        };
+        for (base, transcribe) in [
+            (
+                "wss://host.example/listener",
+                "https://host.example/listener/v1/transcribe",
+            ),
+            (
+                "ws://127.0.0.1:9400/",
+                "http://127.0.0.1:9400/v1/transcribe",
+            ),
+            ("ws://listener:9400", "http://listener:9400/v1/transcribe"),
+        ] {
+            let endpoint = CallAudio::new(Some(settings(base)))
+                .transcribe_endpoint()
+                .unwrap()
+                .0;
+            assert_eq!(endpoint, transcribe, "{base}");
+            let control = crate::call_audio::link::control_url(base);
+            assert_eq!(
+                after_scheme(&endpoint, "/v1/transcribe"),
+                after_scheme(&control, "/v1/control"),
+                "{base}"
+            );
+        }
+        assert!(CallAudio::disabled().transcribe_endpoint().is_none());
+    }
+}

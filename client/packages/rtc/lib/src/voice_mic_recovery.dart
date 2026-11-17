@@ -35,6 +35,7 @@ class VoiceMicRecoveryHost {
     required this.selectInput,
     required this.selectOutput,
     required this.micPublished,
+    required this.reconnecting,
   });
 
   final lk.Room? Function() room;
@@ -51,6 +52,9 @@ class VoiceMicRecoveryHost {
   final Future<bool> Function(AudioDevice? device) selectInput;
   final Future<bool> Function(AudioDevice? device) selectOutput;
   final void Function() micPublished;
+
+  /// Whether livekit is rebuilding the connection, which republishes the microphone itself.
+  final bool Function() reconnecting;
 }
 
 /// Owns whether the microphone is wanted and brings the capture back when it
@@ -101,6 +105,8 @@ class VoiceMicRecovery {
       timing: timing,
       wanted: () => micWanted && _connected(),
       enable: () async {
+        // Missing at the probe but republished by livekit since: that track is the good outcome.
+        if (_lostUnpublished && mic.hasTrack && mic.open) return true;
         // A track that failed mid-restart is still published but dead.
         if (mic.hasTrack) await mic.discard();
         _captureProgress.reset();
@@ -135,9 +141,10 @@ class VoiceMicRecovery {
         'is running; leaving it alone',
       ),
     );
-    _micLost = mic.lost.listen(
-      (_) => _recovery.onLost('track ended or unpublished'),
-    );
+    _micLost = mic.lost.listen((_) {
+      _lostUnpublished = false;
+      _recovery.onLost('track ended or unpublished');
+    });
     _micLevels = gate.readings.listen(_observeGateReading);
   }
 
@@ -169,6 +176,20 @@ class VoiceMicRecovery {
   Timer? _senderPoll;
   Timer? _captureProbe;
   final _captureProgress = CaptureProgress();
+
+  /// The [setEnabled] calls in flight, which publish on their own.
+  int _setting = 0;
+
+  /// Counts [setEnabled] calls, so one can tell a later ask overtook it.
+  int _asks = 0;
+  int _unpublishedProbes = 0;
+
+  /// The last loss was only a missing publication, so a track that has since
+  /// appeared is livekit's own republish rather than a dead one to replace.
+  bool _lostUnpublished = false;
+
+  /// Runs from the first probe that saw the full restart under way.
+  Stopwatch? _restartSeen;
 
   /// Whether the mic is healthy, being brought back, or given up on.
   MicStatus get status => _status;
@@ -203,17 +224,32 @@ class VoiceMicRecovery {
     if (!_statuses.isClosed) _statuses.add(next);
   }
 
+  bool? _askedWhileConnecting;
+
+  /// Whether the join opens the microphone: a mute or unmute asked while it
+  /// was connecting wins over [asked], what the join was started with.
+  bool wantedAtJoin(bool asked) => _askedWhileConnecting ?? asked;
+
   /// Mutes or unmutes the local microphone; returns whether it ended in the
   /// requested state, since a token without SPEAK or a denied OS permission
-  /// mean no and the UI must show what happened.
+  /// mean no and the UI must show what happened. The last ask wins: one
+  /// overtaken before it reached the microphone only says whether it agrees.
   Future<bool> setEnabled(bool enabled) async {
     if (_host.room() == null) return false;
+    // Nothing can be published before the connect, so the join applies this once it has.
+    if (_host.state() == VoiceSessionState.connecting) {
+      _askedWhileConnecting = enabled;
+    }
+    final ask = ++_asks;
     final intent = _wanted;
     _wanted = enabled;
     // A chosen microphone that came back since the last open is used again, not the default.
     if (enabled && switching.chosenInput != null) {
       await _host.forgetUnplugged();
+      // The later ask already reached the microphone, which applies asks in order.
+      if (ask != _asks) return _wanted == enabled;
     }
+    _setting++;
     try {
       final reopen = enabled && release.onUnmuting();
       final opened = Stopwatch()..start();
@@ -229,12 +265,15 @@ class VoiceMicRecovery {
       return true;
     } catch (e, stack) {
       reportFailure(LogTag.voice, 'turn the microphone on or off', e, stack);
-      _wanted = intent;
+      // A later ask stands; putting this one's old intent back would undo it.
+      if (ask == _asks) _wanted = intent;
       if (enabled && mic.hasTrack) release.onMuted();
       if (enabled) unawaited(noteFailure(classifyMicFailure(e)));
       _host.noteError(e);
       _host.refresh();
       return false;
+    } finally {
+      _setting--;
     }
   }
 
@@ -269,6 +308,7 @@ class VoiceMicRecovery {
   /// Reads the media source's sample counter on its own clock: the only sign
   /// of life, whatever the level says. A host that reports none is never restarted.
   Future<void> _probeCapture() async {
+    _watchUnpublished();
     final active = _connected() && micWanted && mic.open;
     if (!active) {
       _captureProgress.reset();
@@ -285,6 +325,35 @@ class VoiceMicRecovery {
       advancing: _captureProgress.advanced(seconds),
       active: true,
     );
+  }
+
+  /// Brings back a wanted microphone with no publication; a full restart first
+  /// gets [MicRecoveryTiming.restartRepublish] to republish it itself.
+  void _watchUnpublished() {
+    final holding = _awaitingRestartRepublish();
+    final missing = !mic.hasTrack &&
+        _setting == 0 &&
+        !_recovery.busy &&
+        !holding &&
+        _status != MicStatus.unavailable;
+    if (!missing) {
+      _unpublishedProbes = 0;
+      return;
+    }
+    // Two probes in a row, so the gap inside a healthy republish is not a loss.
+    if (++_unpublishedProbes < 2) return;
+    _unpublishedProbes = 0;
+    _lostUnpublished = true;
+    _recovery.onLost('wanted but not published');
+  }
+
+  bool _awaitingRestartRepublish() {
+    if (!_host.reconnecting()) {
+      _restartSeen = null;
+      return false;
+    }
+    final seen = _restartSeen ??= Stopwatch()..start();
+    return seen.elapsed < timing.restartRepublish;
   }
 
   /// Recovery that cannot reopen the mic hands over to the device fallback only
@@ -335,11 +404,15 @@ class VoiceMicRecovery {
 
   void stopWatch() {
     _wanted = false;
+    _askedWhileConnecting = null;
     _senderPoll?.cancel();
     _senderPoll = null;
     _captureProbe?.cancel();
     _captureProbe = null;
     _captureProgress.reset();
+    _unpublishedProbes = 0;
+    _lostUnpublished = false;
+    _restartSeen = null;
     fallback.reset();
     _follow.stop();
     _recovery.reset();
@@ -351,6 +424,7 @@ class VoiceMicRecovery {
   /// is retried like a lost one, so the person sees it and is not left unheard.
   void retryAfterJoin() {
     _wanted = true;
+    _lostUnpublished = false;
     _recovery.onLost('could not open at join');
   }
 
@@ -359,6 +433,7 @@ class VoiceMicRecovery {
   Future<bool> restartCapture(String reason) async {
     if (_host.room() == null || !micWanted) return false;
     unawaited(fallback.logDevices('restart: $reason'));
+    _lostUnpublished = false;
     if (!mic.hasTrack) return _recovery.recoverNow(reason);
     try {
       await mic.restart(switching.captureOptions());

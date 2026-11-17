@@ -10,6 +10,7 @@ import 'package:slimm_api/api.dart' hide Channel;
 import 'package:slimm_data/data.dart';
 
 import '../providers/channel_by_id_provider.dart';
+import '../providers/channel_notification_overrides_controller.dart';
 import '../../../widgets/optimistic_setting_state.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_save_feedback.dart';
@@ -54,7 +55,7 @@ class _ChannelDefaultNotificationSectionState
     // The stored row, so a save that landed earlier is what a later failure falls back to.
     final stored = ref.watch(channel).valueOrNull ?? widget.channel;
     final current = shown(
-      NotificationPreference.parse(stored.defaultNotification ?? 'everything'),
+      channelDefaultOf(stored),
       NotificationPreference.everything,
     );
     return Column(
@@ -65,7 +66,9 @@ class _ChannelDefaultNotificationSectionState
           description: channelDefaultNotificationHint,
           sheetTitle: channelDefaultNotificationLabel,
           value: current,
-          choices: channelDefaultNotificationChoices,
+          choices: stored.kind == 'voice'
+              ? voiceChannelDefaultNotificationChoices
+              : channelDefaultNotificationChoices,
           onChanged: (level) => saving ? null : _set(level),
         ),
         SettingsSaveFeedback(

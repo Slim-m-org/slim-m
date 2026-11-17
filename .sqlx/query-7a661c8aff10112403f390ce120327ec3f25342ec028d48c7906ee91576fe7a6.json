@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT permissions AS \"permissions!: Permissions\", position AS \"position!: i64\"\n           FROM roles WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "permissions!: Permissions",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "position!: i64",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "7a661c8aff10112403f390ce120327ec3f25342ec028d48c7906ee91576fe7a6"
+}

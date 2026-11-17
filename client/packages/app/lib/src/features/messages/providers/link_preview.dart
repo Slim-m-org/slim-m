@@ -13,6 +13,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
+import '../../../spotify/spotify_launch.dart';
 import '../../../providers/server_info.dart';
 import '../../../providers/cache_for.dart';
 import '../../../providers/providers.dart';
@@ -84,3 +85,7 @@ final linkPreviewImageBytesProvider = FutureProvider.autoDispose
         rethrow;
       }
     });
+
+/// Opens a Spotify item from its link preview card; replaced in tests.
+final spotifyItemOpenerProvider =
+    Provider<Future<bool> Function(SpotifyEntity)>((ref) => openInSpotify);

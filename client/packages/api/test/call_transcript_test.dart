@@ -49,6 +49,14 @@ void main() {
         'mode': 'always',
         'lines': [
           {'seq': 1, 'speaker_id': 'u2', 'at': 120, 'text': 'hello'},
+          {
+            'seq': 2,
+            'speaker_id': 'u2',
+            'at': 200,
+            'end_at': 900,
+            'language': 'en',
+            'text': 'again',
+          },
         ],
         'next_after_seq': 1,
       });
@@ -58,8 +66,10 @@ void main() {
     expect(seen.url.queryParameters, {'after_seq': '0', 'limit': '8'});
     expect(page.ongoing, isTrue);
     expect(page.mode, 'always');
-    expect(page.lines.single.text, 'hello');
-    expect(page.lines.single.speakerId, 'u2');
+    final [old, timed] = page.lines;
+    expect((old.text, old.speakerId), ('hello', 'u2'));
+    expect((old.endAt, old.language), (null, null));
+    expect((timed.at, timed.endAt, timed.language), (200, 900, 'en'));
     expect(page.nextAfterSeq, 1);
   });
 
@@ -163,6 +173,41 @@ void main() {
       (changed.channelId, changed.transcriptId, changed.ended),
       ('c1', 't1', true),
     );
+  });
+
+  test('call.transcript_line parses the line it carries', () {
+    final event = ServerEvent.parse(
+      jsonEncode({
+        'type': 'call.transcript_line',
+        'channel_id': 'c1',
+        'transcript_id': 't1',
+        'line': {
+          'seq': 4,
+          'speaker_id': 'u2',
+          'at': 300,
+          'end_at': 1300,
+          'language': 'nl',
+          'text': 'live',
+        },
+      }),
+    );
+    expect(event, isA<CallTranscriptLineAdded>());
+    final added = event as CallTranscriptLineAdded;
+    expect((added.channelId, added.transcriptId), ('c1', 't1'));
+    final line = added.line;
+    expect((line.seq, line.speakerId, line.text), (4, 'u2', 'live'));
+    expect((line.endAt, line.language), (1300, 'nl'));
+  });
+
+  test('call.transcript_line without a line object is ignored', () {
+    final event = ServerEvent.parse(
+      jsonEncode({
+        'type': 'call.transcript_line',
+        'channel_id': 'c1',
+        'transcript_id': 't1',
+      }),
+    );
+    expect(event, isNull);
   });
 
   test('the notice is due only in always mode and until acknowledged',

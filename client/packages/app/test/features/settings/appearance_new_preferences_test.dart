@@ -2,7 +2,7 @@
 /// The three rows #38 added to Appearance: the clock's 12/24-hour format, an
 /// in-app reduce-motion override, and the high-contrast toggle. Each has to
 /// be proven reachable by tapping it, the same property
-/// `theme_preference_test.dart` proves for the Theme row above them, since
+/// `theme_preference_test.dart` proves for the Theme card above them, since
 /// driving the controller directly would prove nothing about whether the row
 /// is wired to anything.
 library;
@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart
 import 'package:slimm_app/src/features/settings/providers/display_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/widgets/appearance_settings_section.dart';
+import 'package:slimm_app/src/features/settings/widgets/appearance_theme_card.dart';
 import 'package:slimm_app/src/features/settings/widgets/background_settings_card.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -45,6 +46,7 @@ Future<void> _pumpSection(
 
 Future<void> _chooseFrom(WidgetTester tester, String label) async {
   await tester.ensureVisible(find.text(label));
+  await tester.pump();
   await tester.tap(find.text(label));
   await tester.pump(const Duration(milliseconds: 100));
 }
@@ -52,19 +54,15 @@ Future<void> _chooseFrom(WidgetTester tester, String label) async {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('the pane is short: the theme row names the theme, and the '
+  testWidgets('the pane is short: the Theme card names the theme, and the '
       'background controls wait for a picture', (tester) async {
     final container = _container();
     container.read(themeControllerProvider.notifier).state =
         AppThemeChoice.forest;
     await _pumpSection(tester, container);
 
-    final row = find.byKey(AppearanceSettingsSection.themeRowKey);
-    expect(row, findsOneWidget);
-    expect(
-      find.descendant(of: row, matching: find.text('Forest')),
-      findsOneWidget,
-    );
+    expect(find.byKey(AppearanceThemeCard.browseKey), findsOneWidget);
+    expect(find.text('Forest'), findsOneWidget);
     expect(find.text('Theme store'), findsNothing);
     expect(find.byKey(BackgroundSettingsCard.dimSliderKey), findsNothing);
   });

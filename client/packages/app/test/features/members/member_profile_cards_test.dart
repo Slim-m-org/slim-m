@@ -169,29 +169,27 @@ void main() {
       await _pump(tester, _harness((_) => _card()));
 
       expect(find.text('@maya'), findsOneWidget);
-      expect(find.text('Away'), findsOneWidget);
+      expect(
+        find.text('Away'),
+        findsNothing,
+        reason: 'presence is the dot on the avatar, not a word line',
+      );
       expect(find.text('ABOUT'), findsOneWidget);
-      final presenceRow = find.ancestor(
-        of: find.text('Away'),
+      final statusRow = find.ancestor(
+        of: find.text('Out for lunch'),
         matching: find.byWidgetPredicate((w) => w is Row),
       );
+      expect(statusRow, findsWidgets, reason: 'the typed status is kept');
       expect(
         find.descendant(
-          of: presenceRow.first,
-          matching: find.text('Out for lunch'),
-        ),
-        findsOneWidget,
-        reason: 'the typed status sits beside the presence word',
-      );
-      expect(
-        find.descendant(
-          of: presenceRow.first,
+          of: statusRow.first,
           matching: find.textContaining('synth'),
         ),
         findsNothing,
         reason: 'the bio is not the status',
       );
-      expect(find.text('MEMBER'), findsOneWidget);
+      expect(find.text('ROLES'), findsOneWidget);
+      expect(find.text('member'), findsOneWidget);
       expect(find.textContaining('Joined'), findsOneWidget);
       expect(find.text('Message'), findsOneWidget);
       expect(find.byTooltip('Add note'), findsOneWidget);
@@ -292,7 +290,7 @@ void main() {
       await _pump(tester, _harness((_) => _card(), self: true));
 
       expect(find.text('YOU'), findsOneWidget);
-      expect(find.text('Online'), findsOneWidget);
+      expect(find.text('Online'), findsNothing);
       expect(find.text('Set status'), findsNothing);
       expect(find.text('Copy username'), findsNothing);
       expect(find.byTooltip('Copy username'), findsOneWidget);

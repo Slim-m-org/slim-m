@@ -11,6 +11,8 @@
 /// slot would have silently dropped the dot on every unread channel.
 library;
 
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +30,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../voice/voice_controller_harness.dart';
+import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
@@ -82,20 +85,36 @@ Widget _harness(Widget child) => ProviderScope(
 /// watches it itself rather than taking it as a constructor parameter (see
 /// the finding about `ChannelCategorySections` rebuilding every row on
 /// every voice-room event).
-Widget _voiceHarness(Widget child, {required VoiceState voice}) =>
-    ProviderScope(
-      overrides: [
-        sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-        mockApiOverride((_) async => http.Response('', 404)),
-        voiceControllerProvider.overrideWith(
-          (ref) => FixedVoiceController(ref, voice),
-        ),
-      ],
-      child: MaterialApp(
-        theme: buildTheme(Brightness.light, AppTokens.light),
-        home: Scaffold(body: child),
-      ),
-    );
+/// [allMessages] lists the channels this account asked to hear every message in.
+Widget _voiceHarness(
+  Widget child, {
+  required VoiceState voice,
+  Set<String> allMessages = const {},
+}) => ProviderScope(
+  overrides: [
+    sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+    mockApiOverride(
+      (request) async =>
+          request.url.path == '/notification-preferences/channels'
+          ? http.Response(
+              jsonEncode([
+                for (final id in allMessages)
+                  {'channel_id': id, 'preference': 'everything'},
+              ]),
+              200,
+              headers: {'content-type': 'application/json'},
+            )
+          : http.Response('', 404),
+    ),
+    voiceControllerProvider.overrideWith(
+      (ref) => FixedVoiceController(ref, voice),
+    ),
+  ],
+  child: MaterialApp(
+    theme: buildTheme(Brightness.light, AppTokens.light),
+    home: Scaffold(body: child),
+  ),
+);
 
 void main() {
   testWidgets(
@@ -228,35 +247,34 @@ void main() {
     },
   );
 
-  testWidgets(
-    'a voice channel with unread text shows the same unread dot a text '
-    'channel does',
-    (tester) async {
-      final channel = _channel(
-        'v1',
-        'General voice',
-        kind: 'voice',
-        cursor: 5,
-        lastReadSeq: 2,
-      );
-      await tester.pumpWidget(
-        _voiceHarness(
-          VoiceChannelRow(channel: channel, selected: false),
-          voice: const VoiceState(),
-        ),
-      );
-      await tester.pump();
+  testWidgets('a voice channel with unread text shows the same unread dot a text '
+      'channel does, once its member asked for every message', (tester) async {
+    final channel = _channel(
+      'v1',
+      'General voice',
+      kind: 'voice',
+      cursor: 5,
+      lastReadSeq: 2,
+    );
+    // Mentions only by default; voice_chat_mentions_default_test.dart pins that.
+    await tester.pumpWidget(
+      _voiceHarness(
+        VoiceChannelRow(channel: channel, selected: false),
+        voice: const VoiceState(),
+        allMessages: {'v1'},
+      ),
+    );
+    await pumpFrames(tester);
 
-      expect(
-        find.byKey(AppListRow.unreadDotKey),
-        findsOneWidget,
-        reason:
-            'a voice channel now has its own transcript and composer '
-            '(screens/voice_text_pane.dart), so unread text there must '
-            'show the same affordance an unread text channel does',
-      );
-    },
-  );
+    expect(
+      find.byKey(AppListRow.unreadDotKey),
+      findsOneWidget,
+      reason:
+          'a voice channel now has its own transcript and composer '
+          '(screens/voice_text_pane.dart), so unread text there must '
+          'show the same affordance an unread text channel does',
+    );
+  });
 
   testWidgets(
     'a voice channel caught up on text has no unread dot even while a call '

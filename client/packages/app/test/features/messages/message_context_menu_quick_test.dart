@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/control_swatch_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_context_menu.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_picker.dart';
 import 'package:slimm_app/src/features/emoji/widgets/quick_reactions.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -54,7 +55,6 @@ Future<void> _open(
   MessageActions actions, {
   Size window = const Size(900, 900),
   ValueChanged<String>? onPick,
-  VoidCallback? onAdd,
   Set<String> reacted = const {},
 }) async {
   tester.view.physicalSize = window;
@@ -65,7 +65,6 @@ Future<void> _open(
       MessageContextMenuRegion(
         content: 'hello',
         actions: actions,
-        onAddReaction: onAdd ?? noop,
         onPickReaction: onPick ?? (_) {},
         reactedEmoji: reacted,
         child: const SizedBox(width: 400, height: 200),
@@ -154,15 +153,14 @@ void main() {
     ]);
   });
 
-  testWidgets('the plus tile opens the picker', (tester) async {
-    var opened = 0;
-    await _open(tester, _actions(), onAdd: () => opened++);
+  testWidgets('the plus tile swaps the menu for the picker', (tester) async {
+    await _open(tester, _actions());
 
     await tester.tapAt(_tiles(tester).last.center);
     await tester.pumpAndSettle();
 
-    expect(opened, 1);
-    expect(find.byType(AppMenu), findsNothing);
+    expect(find.byWidgetPredicate((w) => w is EmojiPickerPanel), findsOne);
+    expect(find.text('Reply'), findsNothing, reason: 'the menu has closed');
   });
 
   testWidgets('report and block trail the menu, with no More page', (

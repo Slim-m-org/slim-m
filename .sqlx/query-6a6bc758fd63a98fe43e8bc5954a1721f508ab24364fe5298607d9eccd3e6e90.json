@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO attachment_uploaders (sha256, uploaded_by, uploaded_at, filename)\n             VALUES (?, ?, ?, ?)\n             ON CONFLICT (sha256, uploaded_by)\n             DO UPDATE SET filename = excluded.filename, uploaded_at = excluded.uploaded_at,\n                           voice_duration_ms = NULL, voice_waveform = NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "6a6bc758fd63a98fe43e8bc5954a1721f508ab24364fe5298607d9eccd3e6e90"
+}

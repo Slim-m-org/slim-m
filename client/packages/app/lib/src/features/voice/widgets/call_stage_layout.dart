@@ -70,8 +70,9 @@ class CallStageLayout extends ConsumerWidget {
   final List<Widget> Function(
     BuildContext context,
     VoiceParticipant participant,
-    VoidCallback close,
-  )?
+    VoidCallback close, {
+    bool withStreams,
+  })?
   menuItemsBuilder;
 
   @override

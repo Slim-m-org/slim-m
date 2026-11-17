@@ -63,8 +63,10 @@ The default server is run by the developer, so these count as collected.
 | Device ID | The push token and the install id. |
 | Other user content | Messages, polls, reactions. |
 | Photos or videos | Attachments the user sends. |
+| Audio data | Voice messages, which are stored recordings (decision 0119), kept until the message is deleted or removed by retention. |
 
-Call audio is left out on purpose: it passes through the voice server in real time and isn't kept, which Apple doesn't count as collected.
+Voice messages made Audio data a collected type (added 2026-11-16, PR #2412); App Store Connect's App Privacy answers have to match this table, and the owner updates them there.
+Call audio itself is still never recorded: it passes through the voice server in real time, and when a Space turns transcripts on, the listener holds it in memory only long enough to turn speech into text, which is kept as text.
 No analytics, no crash reporting service, no advertising data, no location.
 The location usage string exists only because an image picker links Core Location.
 

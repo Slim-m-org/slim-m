@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Every channel under its category, one compact row each, so picking one to
-/// edit is a single tap. A DM carries no overwrites and is left out.
+/// edit is a single tap. A DM carries no overwrites and a temporary room holds
+/// its lobby's, so both are left out.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../providers/providers.dart';
 import '../../../channels/providers/dms.dart' show dmChannelKind;
+import '../../../channels/widgets/category_tree.dart';
 import '../../../channels/widgets/channel_grouping.dart';
 import '../../../channels/widgets/channel_kind_icon.dart';
 
@@ -31,7 +33,10 @@ class ChannelPermissionsList extends ConsumerWidget {
         builder: (context, channels) {
           final groups = _groups([
             for (final c in channels.data ?? const <Channel>[])
-              if (c.kind != dmChannelKind && c.parentMessageId == null) c,
+              if (c.kind != dmChannelKind &&
+                  c.parentMessageId == null &&
+                  c.roomOwnerId == null)
+                c,
           ], categories.data ?? const []);
           final body = Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -60,11 +65,12 @@ class ChannelPermissionsList extends ConsumerWidget {
     List<ChannelCategoryRow> categories,
   ) {
     final byCategory = channelsByCategory(channels);
+    final tree = CategoryTree(categories);
     return [
       if (byCategory[null] case final loose?) _ChannelGroup('Channels', loose),
-      for (final category in categories)
+      for (final category in tree.ordered)
         if (byCategory[category.id] case final inside?)
-          _ChannelGroup(category.name, inside),
+          _ChannelGroup(tree.pathOf(category), inside),
     ];
   }
 }

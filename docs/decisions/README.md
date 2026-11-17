@@ -101,7 +101,7 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0089](0089-soft-dark-and-forest-themes.md) | Soft dark and Forest are the fifth and sixth app themes | accepted |
 | [0090](0090-modules-as-the-extension-surface.md) | Modules become the extension surface: events, interceptors, data, settings and UI slots, with connectors for the rest | accepted |
 | [0091](0091-module-platform-phase-1-contracts.md) | Module platform, phase 1 contracts | accepted |
-| [0092](0092-server-hardening-review-answers.md) | Server hardening review answers: strict peer moderation, own factor for TOTP policy, the rest accepted | accepted |
+| [0092](0092-server-hardening-review-answers.md) | Server hardening review answers: own factor for TOTP policy, the role ladder and the Space owner (2026-11-16), the rest accepted | accepted |
 | [0093](0093-attachment-text-extraction.md) | Search matches text inside text, code and PDF attachments, extracted in the background and bounded | accepted |
 | [0094](0094-canvas-mouse-controls-and-zoom-bounds.md) | Canvas mouse controls: right-hold tool wheel, board-cover zoom floor, screen-feel pen size | accepted |
 | [0095](0095-group-dms.md) | Group DMs: 3 to 8 participants, a roster table beside the pair table, blocks gate adds, a call rings everyone | accepted |
@@ -124,3 +124,11 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0113](0113-call-transcripts.md) | Call transcripts are part of the call, kept by the server, searchable, with a Space mode and retention | accepted |
 | [0114](0114-call-stage-fit.md) | The call stage fits shares, cameras and people into the box: pinned, bento and justified rows, cameras never hidden at the end | accepted |
 | [0115](0115-steam-game-status.md) | The game a member plays comes from their linked Steam account, not from the machine | accepted |
+| [0116](0116-context-window-for-old-search-hits.md) | An old search hit opens a read-only window around it | accepted |
+| [0117](0117-windows-window-share-overlay.md) | On Windows, viewers' marks on a shared window reach the sharer's screen | accepted |
+| [0118](0118-soundboard.md) | A soundboard of short clips the Space owns, played locally by each listener | accepted |
+| [0119](0119-voice-messages.md) | Voice messages, with optional transcripts from the speech listener the calls already use | accepted |
+| [0120](0120-nested-categories.md) | Categories nest two levels deep, and a sub-category's audience can be narrower than its parent's | accepted |
+| [0121](0121-stamps.md) | Stamps: emoji and pictures on a shared screen, which fade, and on the board, which stay | accepted |
+| [0122](0122-theme-gallery.md) | Theme gallery: themes as live miniatures inside Settings | accepted |
+| [0123](0123-spotify-link-cards.md) | Spotify links preview as the item, with a Play button that plays inline on web and opens Spotify elsewhere | accepted |

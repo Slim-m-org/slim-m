@@ -94,6 +94,17 @@ class UpdateManifestTest(unittest.TestCase):
         (self.assets / "slim-m-client-android.apk").unlink()
         self.assertEqual(self.build().returncode, 0)
 
+    def test_split_apks_are_listed_per_abi_with_the_old_key_aliasing_arm64(self):
+        for abi in ("arm64-v8a", "armeabi-v7a", "x86_64"):
+            (self.assets / f"slim-m-client-android-{abi}.apk").write_bytes(abi.encode())
+        self.assertEqual(self.build().returncode, 0)
+        arts = json.loads(self.manifest.read_text())["artifacts"]
+        for abi in ("arm64-v8a", "armeabi-v7a", "x86_64"):
+            self.assertTrue(arts[f"android-{abi}"]["url"].endswith(f"/slim-m-client-android-{abi}.apk"))
+        self.assertEqual(arts["android"], arts["android-arm64-v8a"])
+        self.signed()
+        self.assertEqual(self.verify("--dir", str(self.assets)).returncode, 0)
+
     def test_build_is_deterministic(self):
         self.build()
         first = self.manifest.read_bytes()

@@ -26,7 +26,7 @@ import '../../../providers/providers.dart';
 import '../../../providers/toasts.dart';
 import '../../../widgets/context_menu_region.dart';
 import '../../../widgets/viewport_freeze.dart';
-import '../../../widgets/attachment_format.dart';
+import '../../../format.dart';
 import '../../favorites/providers/favorite_actions.dart';
 import '../providers/message_api_actions.dart';
 import 'attachment_video_fullscreen.dart';

@@ -3,20 +3,21 @@
 //! a click-to-play affordance instead of loading a third-party player before
 //! the reader ever asks for it (see the parent module's privacy note).
 //!
-//! YouTube only for now; [`VideoProvider`] and [`detect`] carry a provider
-//! tag precisely so another provider's id parsing can sit beside this one
-//! later without a rewrite.
+//! [`detect`] finds YouTube videos; a Spotify item is recognized by
+//! [`super::spotify`] and carried in the same [`VideoInfo`].
 
 use serde::Serialize;
 use url::Url;
 
-/// A recognized playable video's own host. Only [`Youtube`](Self::Youtube)
-/// exists; the enum exists so the wire schema and a client already carry a
-/// `provider` slot for whatever comes next (Vimeo, say).
+use super::spotify::SpotifyKind;
+
+/// Whose player a recognized link plays in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub(super) enum VideoProvider {
     #[serde(rename = "youtube")]
     Youtube,
+    #[serde(rename = "spotify")]
+    Spotify,
 }
 
 /// A detected video: which provider, and its canonical id - never a full
@@ -26,6 +27,8 @@ pub(super) enum VideoProvider {
 pub(super) struct VideoInfo {
     pub provider: VideoProvider,
     pub id: String,
+    /// What a Spotify id names; always `None` for YouTube.
+    pub kind: Option<SpotifyKind>,
 }
 
 /// The longest id accepted. Real YouTube ids are 11 characters; this only
@@ -43,6 +46,7 @@ pub(super) fn detect(final_url: &str, og_video: Option<&str>) -> Option<VideoInf
         .map(|id| VideoInfo {
             provider: VideoProvider::Youtube,
             id,
+            kind: None,
         })
 }
 

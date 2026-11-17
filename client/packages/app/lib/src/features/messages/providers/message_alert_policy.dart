@@ -3,6 +3,8 @@
 /// Follows the server's push gate in order: own, blocked or deleted senders never alert; then the channel override, else the parent's for a thread, else the account's; the notification schedule has the last word.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -17,6 +19,7 @@ import '../../settings/providers/notification_schedule_controller.dart';
 import '../../settings/providers/notification_schedule_rules.dart';
 import '../../settings/providers/notification_sound_rules.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/sync_controller.dart';
 
 /// What an alert needs to know about a message it was allowed to raise.
 class MessageAlert {
@@ -33,10 +36,20 @@ class MessageAlert {
 @visibleForTesting
 var alertStateMaxAge = const Duration(minutes: 1);
 
+/// How long a message waits for a channel this device has not stored yet.
+@visibleForTesting
+var alertNewChannelWait = const Duration(seconds: 2);
+
 /// How long an alert waits for that refetch before it uses what it already has.
 /// A `var` so a test can shrink it.
 @visibleForTesting
 var alertRefreshWait = const Duration(seconds: 2);
+
+/// [SyncController.framesApplied], as a seam an alert can wait on.
+final syncFramesAppliedProvider = Provider<Future<void> Function()>(
+  (ref) =>
+      () => ref.read(syncControllerProvider.notifier).framesApplied(),
+);
 
 final messageAlertPolicyProvider = Provider<MessageAlertPolicy>(
   MessageAlertPolicy.new,
@@ -56,6 +69,21 @@ class MessageAlertPolicy {
   /// When each provider was last known good, for [alertStateMaxAge].
   final Map<Object, DateTime> _loadedAt = {};
 
+  /// The first message of a new DM arrives before sync stores its channel,
+  /// and without the row it would be judged as a channel. Sync applying that
+  /// frame is what stores it, or finds it never will be, as for a thread.
+  Future<Channel?> _channelRow(String channelId) async {
+    final store = await _ref.read(storeProvider.future);
+    final row = await store.channelRow(channelId);
+    if (row != null) return row;
+    try {
+      await _ref.read(syncFramesAppliedProvider)().timeout(alertNewChannelWait);
+    } on TimeoutException {
+      return null;
+    }
+    return store.channelRow(channelId);
+  }
+
   /// The alert [message] earns, or null when it should stay quiet.
   Future<MessageAlert?> evaluate(api.Message message) async {
     final selfId = _ref.read(sessionProvider).tokens?.userId;
@@ -67,8 +95,9 @@ class MessageAlertPolicy {
       return null;
     }
 
-    final store = await _ref.read(storeProvider.future);
-    final channel = await store.channelRow(message.channelId);
+    final channel = await _channelRow(message.channelId);
+    // A lobby's chat is never on screen, so the server pushes nothing for it either.
+    if (channel?.createsRooms == true) return null;
     final isDm = channel?.kind == 'dm';
     // The server resolves this per viewer, including role and broadcast rights the client cannot see.
     final mentionsSelf = !isDm && message.mentionsMe;

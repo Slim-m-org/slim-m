@@ -50,6 +50,7 @@ class _Release {
     this.schema = 1,
     Uint8List? payload,
     this.declaredSize,
+    this.keys = const ['linux-x64'],
   }) : payload =
            payload ?? Uint8List.fromList(List.generate(4096, (i) => i % 251));
 
@@ -59,6 +60,9 @@ class _Release {
   final Uint8List payload;
   final int? declaredSize;
 
+  /// The manifest's artifact keys, each over the same payload.
+  final List<String> keys;
+
   Uint8List manifest() => Uint8List.fromList(
     utf8.encode(
       '${const JsonEncoder.withIndent('  ').convert({
@@ -66,7 +70,7 @@ class _Release {
         'version': version,
         'tag': 'client-v$version',
         'artifacts': {
-          'linux-x64': {'url': '$_base/slim-m-client-$version-linux-amd64.tar.gz', 'sha256': _sha(payload), 'size': declaredSize ?? payload.length},
+          for (final k in keys) k: {'url': '$_base/slim-m-client-$version-${k == 'linux-x64' ? 'linux-amd64.tar.gz' : '$k.apk'}', 'sha256': _sha(payload), 'size': declaredSize ?? payload.length},
         },
       })}\n',
     ),
@@ -137,10 +141,12 @@ void main() {
     List<String>? keys,
     String current = '0.89.0',
     String platform = 'linux-x64',
+    String? fallback,
     FreeSpace? freeSpace,
   }) => fetchVerifiedUpdateWith(
     currentVersion: current,
     platformKey: platform,
+    fallbackPlatformKey: fallback,
     stagingDir: staging,
     client: client,
     trustedKeys: keys ?? [pub],
@@ -231,6 +237,48 @@ void main() {
       }
     },
   );
+
+  test('a missing platform key falls back to the named one', () async {
+    final client = await _server(_Release(key: key));
+    final update = await run(
+      client,
+      platform: 'android-x86_64',
+      fallback: 'linux-x64',
+    );
+    expect(update, isNotNull);
+  });
+
+  test('a release split by ABI never hands another ABI its apk through the '
+      'fallback', () async {
+    final client = await _server(
+      _Release(key: key, keys: const ['android', 'android-arm64-v8a']),
+    );
+    expect(
+      await failureOf(
+        run(client, platform: 'android-armeabi-v7a', fallback: 'android'),
+      ),
+      SelfUpdateFailureKind.noArtifactForPlatform,
+    );
+  });
+
+  test(
+    'a release from before the split still falls back to its one apk',
+    () async {
+      final client = await _server(_Release(key: key, keys: const ['android']));
+      final update = await run(
+        client,
+        platform: 'android-armeabi-v7a',
+        fallback: 'android',
+      );
+      expect(update!.file.path, endsWith('android.apk'));
+    },
+  );
+
+  test('the preferred key wins over the fallback', () async {
+    final client = await _server(_Release(key: key));
+    final update = await run(client, platform: 'linux-x64', fallback: 'macos');
+    expect(update!.file.path, endsWith('linux-amd64.tar.gz'));
+  });
 
   test('an arm64 host never receives the x64 entry', () async {
     final client = await _server(_Release(key: key));

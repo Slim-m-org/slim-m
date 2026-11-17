@@ -13,6 +13,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../permissions.dart';
+import '../../../widgets/load_error_block.dart';
 import '../../../providers/admin_providers.dart';
 import '../providers/member_presence.dart';
 import '../providers/member_selection.dart';
@@ -146,29 +147,14 @@ class _MembersError extends StatelessWidget {
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.s16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Could not load members.',
-              style: TextStyle(color: tokens.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            // A 403 means a lost permission, not a fault: retrying would only fail the same way.
-            if (error is! api.ForbiddenException) ...[
-              const SizedBox(height: AppSpacing.s12),
-              TextButton(onPressed: onRetry, child: const Text('Retry')),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.topCenter,
+    child: LoadErrorBlock(
+      message: 'Could not load members.',
+      // A 403 means a lost permission, not a fault: retrying would only fail the same way.
+      onRetry: error is api.ForbiddenException ? null : onRetry,
+    ),
+  );
 }
 
 class _RosterList extends ConsumerWidget {
@@ -189,9 +175,8 @@ class _RosterList extends ConsumerWidget {
       itemCount: entries.length,
       itemBuilder: (context, index) => switch (entries[index]) {
         RosterGroupLabel(:final text) => MemberGroupLabel(text),
-        RosterMember(:final profile, :final sectionRoleId) => MemberRow(
+        RosterMember(:final profile) => MemberRow(
           profile: profile,
-          sectionRoleId: sectionRoleId,
           isSelf: profile.id == myId,
           channelId: channelId,
         ),

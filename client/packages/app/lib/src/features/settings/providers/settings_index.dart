@@ -8,9 +8,11 @@ library;
 import 'package:slimm_platform/platform.dart';
 
 import '../../../routing/routes.dart' show desktopPane;
+import 'settings_index_appearance.dart';
 import 'settings_index_gates.dart';
 import 'settings_index_voice.dart';
 
+export 'settings_index_appearance.dart';
 export 'settings_index_gates.dart' show SettingsGate;
 export 'settings_index_space.dart';
 export 'settings_index_voice.dart';
@@ -200,62 +202,7 @@ const personalSettingsIndex = <SettingsEntry>[
     description: 'Changing it signs out your other devices.',
     keywords: ['change password', 'security'],
   ),
-  SettingsEntry(
-    'appearance',
-    'Badges in member list',
-    keywords: ['members', 'badge', 'modules', 'level'],
-  ),
-  SettingsEntry(
-    'appearance',
-    'Sections on profiles',
-    keywords: ['profile', 'level', 'xp', 'modules'],
-  ),
-  SettingsEntry(
-    'appearance',
-    'Theme',
-    keywords: [
-      'dark',
-      'light',
-      'colors',
-      'colours',
-      'mode',
-      'halloween',
-      'store',
-      'default',
-    ],
-  ),
-  SettingsEntry(
-    'appearance',
-    'High contrast',
-    description: 'Stronger borders and text.',
-    keywords: ['accessibility', 'contrast', 'theme'],
-  ),
-  SettingsEntry(
-    'appearance',
-    'Background',
-    description: 'A picture behind the chat, kept on this device.',
-    keywords: ['wallpaper', 'image', 'picture', 'vignette', 'blur', 'dim'],
-  ),
-  SettingsEntry(
-    'appearance',
-    'Clock',
-    keywords: ['time', '24 hour', '12 hour'],
-  ),
-  SettingsEntry(
-    'appearance',
-    'Motion',
-    keywords: ['animation', 'reduce motion', 'accessibility'],
-  ),
-  SettingsEntry('appearance', 'Density', keywords: ['compact', 'spacing']),
-  SettingsEntry('appearance', 'Thread lines'),
-  SettingsEntry('appearance', 'Space between groups', keywords: ['spacing']),
-  SettingsEntry(
-    'appearance',
-    'Interface scale',
-    keywords: ['zoom', 'size', 'font size', 'text size', 'bigger', 'smaller'],
-  ),
-  SettingsEntry('appearance', 'Messages', keywords: ['compact', 'density']),
-  SettingsEntry('appearance', 'Text and layout', keywords: ['font']),
+  ...appearanceSettingsIndex,
   SettingsEntry(
     'notifications',
     'Show message text',
@@ -297,6 +244,12 @@ const personalSettingsIndex = <SettingsEntry>[
     'notifications',
     'Dock module sounds',
     description: 'Lets modules play short sounds.',
+  ),
+  SettingsEntry(
+    'notifications',
+    'Soundboard sounds',
+    description: 'Hear clips people play in a call.',
+    keywords: ['soundboard', 'clips', 'sfx'],
   ),
   SettingsEntry(
     'notifications',

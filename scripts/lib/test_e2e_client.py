@@ -41,6 +41,25 @@ class ScriptedClient(e2e_client.Client):
         self.taps.append((x, y))
 
 
+class NeverShowsTest(unittest.TestCase):
+    def client(self, samples):
+        c = ScriptedClient({})
+        seq = iter(samples)
+        c.nodes = lambda: next(seq, [])
+        c.shot = lambda tag: None
+        return c
+
+    def test_a_label_that_shows_late_fails(self):
+        c = self.client([[], [], [{"t": "Rejoin the call?"}]])
+        with mock.patch.object(e2e_client.time, "sleep"):
+            with self.assertRaisesRegex(AssertionError, "showed"):
+                c.never_shows("Rejoin the call?", seconds=5)
+
+    def test_a_label_that_never_shows_passes(self):
+        c = self.client([])
+        c.never_shows("Rejoin the call?", seconds=0.3)
+
+
 class EvTest(unittest.TestCase):
     THREW = {"id": 1, "result": {"exceptionDetails": {
         "text": "Uncaught",
@@ -63,6 +82,30 @@ class EvTest(unittest.TestCase):
         self.assertEqual(c.taps, [])
 
 
+class ExactClickTest(unittest.TestCase):
+    """`Mute` sits inside `Unmute`, so a loose click on a closed microphone opened it."""
+
+    def test_a_whole_word_label_is_not_found_inside_its_opposite(self):
+        c = ScriptedClient(None)
+        c.nodes = lambda: [{"t": "Unmute", "x": 1, "y": 2, "field": False}]
+        self.assertIsNotNone(c.find("Mute"))
+        self.assertIsNone(c.find("Mute", exact=True))
+
+    def test_click_hands_exact_to_the_wait_and_to_the_script(self):
+        waits, scripts = [], []
+        c = ScriptedClient(None)
+        c.wait_for = lambda label, **kw: waits.append(kw) or {"x": 1, "y": 2}
+        c.ev = lambda expr: scripts.append(expr) or True
+        c.settle = lambda *args, **kw: None
+
+        c.click("Mute", exact=True)
+        c.click("Mute")
+
+        self.assertEqual(waits, [{"exact": True}, {"exact": False}])
+        self.assertIn("var exact=true;", scripts[0])
+        self.assertIn("var exact=false;", scripts[1])
+
+
 class NetworkEventsTest(unittest.TestCase):
     def setUp(self):
         self.addCleanup(e2e_client.REQUEST_URLS.clear)
@@ -83,6 +126,13 @@ class NetworkEventsTest(unittest.TestCase):
         client._note(self.sent("blob:http://localhost:8356/abc"))
         client._note({"method": "Network.requestWillBeSent", "params": {}})
         self.assertEqual(e2e_client.REQUEST_URLS, set())
+
+    def test_a_websocket_counts_as_a_request_to_its_path(self):
+        client = e2e_client.Client("a", 0)
+        client._note({"method": "Network.webSocketCreated",
+                      "params": {"url": "ws://localhost:8095/ws?token=x"}})
+        client._note({"method": "Network.webSocketCreated", "params": {}})
+        self.assertEqual(e2e_client.REQUEST_URLS, {"http://localhost:8095/ws?token=x"})
 
     def test_a_request_is_not_mistaken_for_a_console_line(self):
         client = e2e_client.Client("a", 0)

@@ -219,7 +219,7 @@ async fn deleting_an_account_anonymizes_a_forward_of_its_messages() {
             attachment_ids: &[],
             spoiler_ids: &[],
             reply_to_id: None,
-            forward: Some(source.origin),
+            forward: Some(source),
         })
         .await
         .unwrap();

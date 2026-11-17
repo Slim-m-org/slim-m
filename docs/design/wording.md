@@ -6,7 +6,7 @@ The copy limits under Settings copy are enforced by `test/gates/settings_copy_ga
 
 ## Verbs
 
-- Create for a server-side object: Create channel, Create category, Create role, Create invite, Create emoji, Create bot, Create webhook, Create a reset code.
+- Create for a server-side object: Create channel, Create category, Create role, Create invite, Create emoji, Create clip, Create bot, Create webhook, Create a reset code.
 - Add reaction for a reaction, everywhere (hover toolbar, context menu, picker). A reaction is attached to a message, not created.
 - Remove for taking someone out of the Space: "Remove from Space...", the "Removed members" pane and the "Remove members" permission. Never kick.
 - Ban stays its own word, because it is a different action.

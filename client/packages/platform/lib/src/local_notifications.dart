@@ -19,7 +19,9 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'host_platform.dart';
 
@@ -37,6 +39,13 @@ const securityChannelId = 'security_v1';
 const securityChannelName = 'Security alerts';
 const voiceChannelId = 'voice_v1';
 const voiceChannelName = 'Voice activity';
+
+/// What Windows files a toast under; the plugin registers it for the user.
+const windowsAppUserModelId = 'top.npcserver.slimm';
+
+/// The runner channel that removes a toast this app posted.
+const windowsToastsChannelName = 'slimm/windows_toasts';
+const _windowsActivationGuid = '6f1d2b5e-3c0a-4e7b-9a52-5d8e1c4b7a31';
 
 /// The Android channel a plain content-free alert posts through, and the
 /// stable notification id it replaces rather than stacks beside.
@@ -169,38 +178,46 @@ class _PluginPermissionRequester implements AndroidPermissionRequester {
 /// Displays the fixed local notification a data-only push needs on Android,
 /// and creates the versioned channel it displays through.
 ///
-/// Android and Linux only. iOS shows its alert straight from APNs with no
+/// Android, Linux and Windows. iOS shows its alert straight from APNs with no
 /// app code involved (a `kind` that should alert already carries a plain-text
 /// `aps.alert` the OS renders itself), and the web has no notification plugin
 /// behind this to call. Linux has no remote push, so nothing wakes a closed
 /// app - but a running desktop app posts through org.freedesktop.Notifications
 /// (the flutter_local_notifications_linux D-Bus backend, pure Dart, no native
 /// registration) when a message arrives unfocused; see `push_controller.dart`.
-/// macOS and Windows are not wired yet: each needs its own init settings
-/// (a GUID on Windows, entitlements on macOS) and is a separate change.
+/// Windows posts a toast through the plugin's own native library, which
+/// registers the [windowsAppUserModelId] for the current user on first use, so
+/// the installer needs no shortcut work for it. macOS is not wired yet.
 class LocalNotifications {
   LocalNotifications({
     FlutterLocalNotificationsPlugin? plugin,
     bool? isAndroid,
     bool? isLinux,
+    bool? isWindows,
     AndroidPermissionRequester? permissionRequester,
     Future<void> Function(String? payload)? onActivated,
+    MethodChannel? windowsToasts,
   })  : _onActivated = onActivated,
+        _windowsToasts =
+            windowsToasts ?? const MethodChannel(windowsToastsChannelName),
         _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
         _isAndroid = isAndroid ?? isAndroidHost,
         _isLinux = isLinux ?? isLinuxHost,
+        _isWindows = isWindows ?? isWindowsHost,
         _permissionRequester = permissionRequester;
 
   final FlutterLocalNotificationsPlugin _plugin;
+  final MethodChannel _windowsToasts;
   final bool _isAndroid;
   final bool _isLinux;
+  final bool _isWindows;
 
   /// Called when the person clicks a notification, with the payload it was shown with.
   final Future<void> Function(String? payload)? _onActivated;
 
   /// The platforms this actually displays on today. iOS/web render (or do
-  /// not) without this class; macOS/Windows are not wired yet.
-  bool get _supported => _isAndroid || _isLinux;
+  /// not) without this class; macOS is not wired yet.
+  bool get _supported => _isAndroid || _isLinux || _isWindows;
 
   /// Nullable rather than defaulted in the initializer list: the default wraps
   /// `_plugin`, and an initializer list cannot read a field it is still in the
@@ -244,6 +261,11 @@ class LocalNotifications {
       const InitializationSettings(
         android: AndroidInitializationSettings('@drawable/ic_stat_notify'),
         linux: LinuxInitializationSettings(defaultActionName: 'Open slim-m'),
+        windows: WindowsInitializationSettings(
+          appName: 'slim-m',
+          appUserModelId: windowsAppUserModelId,
+          guid: _windowsActivationGuid,
+        ),
       ),
       onDidReceiveNotificationResponse: (response) => unawaited(
         _onActivated?.call(response.payload) ?? Future<void>.value(),
@@ -300,6 +322,10 @@ class LocalNotifications {
               ? LinuxNotificationUrgency.critical
               : LinuxNotificationUrgency.normal,
         ),
+        windows: WindowsNotificationDetails(
+          scenario:
+              channel.critical ? WindowsNotificationScenario.urgent : null,
+        ),
       ),
       payload: payload,
     );
@@ -314,5 +340,34 @@ class LocalNotifications {
     if (!_supported) return;
     await _ensureReady();
     await _plugin.cancel(channel.notificationId);
+    if (_isWindows) await _removeWindowsToast(channel.notificationId);
+  }
+
+  /// The plugin's cancel needs package identity, which an installed or
+  /// unzipped build lacks, so the runner removes the toast by its AUMID.
+  Future<void> _removeWindowsToast(int id) async {
+    try {
+      await _windowsToasts.invokeMethod<bool>('remove', {
+        'tag': '$id',
+        'aumid': windowsAppUserModelId,
+      });
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.push, 'Could not take a toast down', error, stack);
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.push, 'Could not take a toast down', error, stack);
+    }
+  }
+
+  /// Takes down the notifications this app is showing whose id is in [staleIds], leaving every other one up.
+  Future<void> cancelShown(Set<int> staleIds) async {
+    if (!_isAndroid || staleIds.isEmpty) return;
+    await _ensureReady();
+    final shown = await _plugin.getActiveNotifications();
+    for (final notification in shown) {
+      final id = notification.id;
+      if (id != null && staleIds.contains(id)) await _plugin.cancel(id);
+    }
   }
 }

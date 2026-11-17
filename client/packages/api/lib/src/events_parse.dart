@@ -162,6 +162,16 @@ ServerEvent? overlayFrame(Map<String, dynamic> decoded) {
         messageId: decoded['message_id'] as String,
         components: ComponentRow.listFromJson(decoded['components']),
       ),
+    'message.voice_transcript'
+        when decoded['channel_id'] is String &&
+            decoded['message_id'] is String &&
+            decoded['attachment_id'] is String =>
+      MessageVoiceTranscript(
+        channelId: decoded['channel_id'] as String,
+        messageId: decoded['message_id'] as String,
+        attachmentId: decoded['attachment_id'] as String,
+        transcript: VoiceTranscript.fromJson(decoded),
+      ),
     'message.embeds'
         when decoded['channel_id'] is String &&
             decoded['message_id'] is String &&
@@ -235,6 +245,9 @@ ServerEvent? rosterFrame(Map<String, dynamic> decoded) {
     'member.joined' when decoded['user_id'] is String => MemberJoined(
         userId: decoded['user_id'] as String,
       ),
+    'owner.changed' when decoded['user_id'] is String => OwnerChanged(
+        userId: decoded['user_id'] as String,
+      ),
     'profile.changed' when decoded['user_id'] is String => ProfileChanged(
         userId: decoded['user_id'] as String,
       ),
@@ -295,6 +308,15 @@ ServerEvent? rosterFrame(Map<String, dynamic> decoded) {
         actorId: decoded['actor_id'] as String,
         activity: _voiceActivity(decoded['activity'])!,
       ),
+    'soundboard.played'
+        when decoded['channel_id'] is String &&
+            decoded['clip_id'] is String &&
+            decoded['player_id'] is String =>
+      SoundboardPlayed(
+        channelId: decoded['channel_id'] as String,
+        clipId: decoded['clip_id'] as String,
+        playerId: decoded['player_id'] as String,
+      ),
     _ => null,
   };
 }
@@ -349,6 +371,15 @@ ServerEvent? voiceFrame(Map<String, dynamic> decoded) {
         channelId: decoded['channel_id'] as String,
         transcriptId: decoded['transcript_id'] as String,
         ended: decoded['ended'] as bool? ?? false,
+      ),
+    'call.transcript_line'
+        when decoded['channel_id'] is String &&
+            decoded['transcript_id'] is String &&
+            decoded['line'] is Map =>
+      CallTranscriptLineAdded(
+        channelId: decoded['channel_id'] as String,
+        transcriptId: decoded['transcript_id'] as String,
+        line: TranscriptLine.fromJson(decoded['line'] as Map<String, dynamic>),
       ),
     'watch.tick'
         when decoded['channel_id'] is String &&

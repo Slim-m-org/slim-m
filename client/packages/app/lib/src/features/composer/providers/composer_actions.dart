@@ -36,6 +36,18 @@ class ComposerActions {
     resumeKey: resumeKey,
   );
 
+  Future<Attachment> uploadVoice(
+    List<int> bytes, {
+    required String filename,
+    required String channelId,
+    required VoiceInfo voice,
+  }) => _api.uploadAttachment(
+    bytes,
+    filename: filename,
+    channelId: channelId,
+    voice: voice,
+  );
+
   Future<FetchedBytes> fetchAttachment(
     String attachmentId, {
     int? previewWidth,

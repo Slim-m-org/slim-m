@@ -19,6 +19,14 @@ import 'voice_reconnect_tracker.dart';
 import 'voice_roster_snapshot.dart';
 import 'voice_session_core.dart';
 
+/// How long a hang-up waits for the SFU to acknowledge the leave it was sent.
+///
+/// livekit waits 10 s for its engine to report the disconnect and misses the
+/// report when a reconnect attempt is running, so without a bound of its own
+/// a hang-up during an outage stayed on screen for those 10 s. The room is
+/// disposed either way, which is what closes the connections.
+const kLeaveGoodbyeWait = Duration(seconds: 2);
+
 /// Owns the room, the call's state and its generation, and orders the
 /// teardown; every other part of the call is reached through [VoiceSessionCore].
 class VoiceCallFlow {
@@ -30,6 +38,7 @@ class VoiceCallFlow {
 
   final VoiceSessionCore _core;
   final _states = StreamController<VoiceSessionState>.broadcast();
+  final _restarts = StreamController<void>.broadcast();
 
   /// The room of the call in progress; cleared synchronously when one ends.
   lk.Room? room;
@@ -54,6 +63,9 @@ class VoiceCallFlow {
   int _generation = 0;
 
   Stream<VoiceSessionState> get states => _states.stream;
+
+  /// A full restart the call came back from; see [VoiceSession.transportRestarts].
+  Stream<void> get restarts => _restarts.stream;
 
   /// Joins a room with a server-minted token; [canPublish] only stops a listen-only join from opening the microphone, and rejoining leaves the old connection first.
   /// Overlapping calls serialize, so a second tap or a channel switch mid-connect waits and the state ends as the last caller asked.
@@ -86,12 +98,16 @@ class VoiceCallFlow {
   /// Leaves the call and resets deafen and mutes with it. Safe to call when not in one.
   ///
   /// A leave a newer join already superseded resets nothing: [_teardown] clears `room` before it awaits.
-  Future<void> leave() async {
+  Future<void> leave() => _end(replaced: false);
+
+  /// [replaced] is a join taking over a call nobody left, which stays deafened:
+  /// a rejoin after a drop, or a switch, must not start playing a call its listener silenced.
+  Future<void> _end({required bool replaced}) async {
     final generation = ++_generation;
     await _teardown();
     if (generation != _generation) return;
     _core.roster.set(const []);
-    _core.listener.resetForNewCall();
+    _core.listener.resetForNewCall(keepDeafened: replaced);
     // Gain deliberately survives: somebody you turned down stays turned down.
     lastDisconnect = null;
     droppedWhileSharing = false;
@@ -108,6 +124,7 @@ class VoiceCallFlow {
     await _core.stats.sampler.dispose();
     _core.healthWatch.health.dispose();
     _core.joinTimings.finish();
+    _core.joinProbe.dispose();
     // After `_teardown`, or its own `resetFacing()` writes past disposal.
     await _teardown();
     await _core.camera.dispose();
@@ -116,6 +133,7 @@ class VoiceCallFlow {
     await _core.micGate.gate.dispose();
     await _core.roster.dispose();
     await _states.close();
+    await _restarts.close();
   }
 
   Future<void> _join({
@@ -127,7 +145,7 @@ class VoiceCallFlow {
   }) async {
     if (disposed) return;
     _core.readiness.mayPublish = canPublish;
-    if (room != null) await leave();
+    if (room != null) await _end(replaced: true);
     // Claims the session past the leave above, whose own guard has run by now.
     _generation++;
     // A leave this join superseded never reached idle, which is what ends the old call's health.
@@ -150,9 +168,12 @@ class VoiceCallFlow {
       if (!identical(room, joining)) return;
       _core.joinTimings.mark(JoinStage.connected);
       // Apart from the connect: a muted preview or a token without SPEAK must not fail the join.
-      final micFailed =
-          microphoneEnabled && !await _core.micRecovery.setEnabled(true);
+      final wantMic = _core.micRecovery.wantedAtJoin(microphoneEnabled);
+      final micFailed = wantMic && !await _core.micRecovery.setEnabled(true);
       if (!identical(room, joining)) return;
+      if (microphoneEnabled) {
+        _core.joinProbe.noteEvent(micFailed ? 'Mic did not open' : 'Mic open');
+      }
       _core.refresh();
       _setState(VoiceSessionState.connected);
       // A slow webcam must not hold "connected" back; see CameraJoin.
@@ -168,8 +189,11 @@ class VoiceCallFlow {
           ),
         );
       }
-      if (micFailed) _core.micRecovery.retryAfterJoin();
-      if (!microphoneEnabled) await _core.readiness.primeMuted();
+      // Read again: a mute asked while that open was failing must not be retried open.
+      if (micFailed && _core.micRecovery.wantedAtJoin(true)) {
+        _core.micRecovery.retryAfterJoin();
+      }
+      if (!wantMic) await _core.readiness.primeMuted();
     } catch (e, stack) {
       reportFailure(LogTag.voice, 'join the call', e, stack);
       if (!identical(room, joining)) return;
@@ -252,7 +276,11 @@ class VoiceCallFlow {
   /// Pauses what a half-repaired transport would only mislead, and rebuilds the roster from the live room once it is back.
   void _onReconnectingChanged() {
     if (disposed) return;
-    if (_core.healthWatch.health.reconnect.restarting.value) {
+    final restarting = _core.healthWatch.health.reconnect.restarting.value;
+    if (room != null) {
+      _core.joinProbe.noteEvent(restarting ? 'Reconnecting' : 'Reconnected');
+    }
+    if (restarting) {
       _core.healthWatch.stop();
       // Tracks are forgotten so the grace period starts again once frames can flow.
       _core.stall.watchdog.observe(const []);
@@ -261,6 +289,7 @@ class VoiceCallFlow {
     if (room == null || state != VoiceSessionState.connected) return;
     _core.healthWatch.glitchWatch.start();
     _core.refresh();
+    if (!_restarts.isClosed) _restarts.add(null);
   }
 
   /// A disconnect this client did not ask for: the SFU removed this
@@ -334,9 +363,11 @@ class VoiceCallFlow {
     await _step(_core.share.control.stopActiveBroadcast);
     await _step(_core.share.control.dispose);
     if (leaving != null) {
-      await _step(leaving.disconnect);
+      await _step(() => leaving.disconnect().timeout(kLeaveGoodbyeWait));
       await _step(leaving.dispose);
     }
+    // The disconnect stops only published tracks.
+    await _step(_core.mic.stopUnpublished);
   }
 
   void _setState(VoiceSessionState next) {
@@ -345,6 +376,7 @@ class VoiceCallFlow {
     _core.micRecovery.syncWatch(next);
     _core.healthWatch.sync(next);
     _core.stats.syncDiagnostics(next);
+    _core.joinProbe.sync(next);
     final gate = _core.micGate;
     if (next == VoiceSessionState.connected) {
       unawaited(gate.apply());

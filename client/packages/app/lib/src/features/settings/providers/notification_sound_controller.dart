@@ -34,6 +34,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart' show AppHaptics;
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../../audio/after_frame_shown.dart';
 import '../../../audio/notification_sound.dart';
 import '../../../audio/sound_output_router.dart';
 import '../../voice/providers/dm_call_ring_controller.dart';
@@ -45,6 +46,7 @@ import 'ui_sound_settings.dart';
 import '../../channels/providers/mounted_channels.dart';
 import '../../../providers/app_lifecycle.dart';
 import '../../../providers/providers.dart';
+import '../../../audio/call_holds_audio_session.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_settings_controller.dart'
     show voiceSettingsControllerProvider;
@@ -62,11 +64,13 @@ class NotificationSoundController {
     HapticsCue? callRingHaptic,
     HapticsCue? mentionHaptic,
     HapticsCue? toggleHaptic,
-  }) : _player =
+    Future<void> Function()? callShown,
+  }) : _callShown = callShown ?? afterNextFrameShown,
+       _player =
            player ??
            AudioPlayersSoundPlayer(
              afterPlay: _ref.read(soundOutputRouterProvider).followChosenOutput,
-             inCall: () => _ref.read(voiceControllerProvider).channelId != null,
+             inCall: _ref.read(callHoldsAudioSessionProvider),
            ),
        _messageHaptic = messageHaptic ?? AppHaptics.selection,
        _callRingHaptic = callRingHaptic ?? AppHaptics.impact,
@@ -94,6 +98,10 @@ class NotificationSoundController {
 
   final Ref _ref;
   final SoundPlayer _player;
+
+  /// Resolves once the call stage is on screen; the join cue waits for it.
+  final Future<void> Function() _callShown;
+  bool _disposed = false;
   final HapticsCue _messageHaptic;
   final HapticsCue _callRingHaptic;
   final HapticsCue _mentionHaptic;
@@ -169,7 +177,7 @@ class NotificationSoundController {
     final wasIn = previous.state == VoiceSessionState.connected;
     final isIn = next.state == VoiceSessionState.connected;
     if (!wasIn && isIn && !previous.rejoining) {
-      _playUi(NotificationSound.selfJoin);
+      unawaited(_joinCueOnceShown());
     } else if (wasIn && !isIn && !next.rejoining) {
       _stopRingback();
       _playUi(NotificationSound.selfLeave);
@@ -188,6 +196,16 @@ class NotificationSoundController {
             ? NotificationSound.muteOff
             : NotificationSound.muteOn,
       );
+    }
+  }
+
+  /// The player's setup blocks the UI thread on Linux, so the call stage is drawn first.
+  Future<void> _joinCueOnceShown() async {
+    await _callShown();
+    if (_disposed) return;
+    final voice = _ref.read(voiceControllerProvider);
+    if (voice.state == VoiceSessionState.connected) {
+      _playUi(NotificationSound.selfJoin);
     }
   }
 
@@ -293,6 +311,7 @@ class NotificationSoundController {
   }
 
   void dispose() {
+    _disposed = true;
     unawaited(_messages.cancel());
     _voiceSub.close();
     _ringSub.close();

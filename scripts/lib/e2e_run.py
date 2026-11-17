@@ -23,14 +23,23 @@ import e2e_canvas_crowd
 import e2e_canvas_live
 import e2e_canvas_shapes
 import e2e_labels as L
+import e2e_large_upload
+import e2e_group_dm
 import e2e_invite_landing
 import e2e_media_slots
 import e2e_messaging
 import e2e_password
+import e2e_channel_notifications
+import e2e_message_edit
+import e2e_pins
+import e2e_roles_live
+import e2e_search
+import e2e_private_channel
 import e2e_markdown
 import e2e_composer
 import e2e_dm_call
 import e2e_members
+import e2e_mention_names
 import e2e_message_menu
 import e2e_reconcile
 import e2e_replies
@@ -38,9 +47,12 @@ import e2e_settings
 import e2e_coverage
 import e2e_sweep
 import e2e_threads
+import e2e_unread
 import e2e_voice
 import e2e_voice_health
+import e2e_soundboard
 import e2e_voice_deafen
+import e2e_voice_message
 import e2e_voice_move
 import e2e_voice_mic_release
 import e2e_voice_devices
@@ -51,6 +63,8 @@ import e2e_voice_share
 import e2e_share_quality
 import e2e_share_ramp
 import e2e_voice_noise
+import e2e_call_restore
+import e2e_voice_activity
 import e2e_voice_desktop
 import e2e_voice_desktop_volume
 import e2e_voice_encode
@@ -60,10 +74,13 @@ import e2e_voice_experience
 import e2e_voice_latency
 import e2e_voice_quality
 import e2e_voice_volume
+import e2e_voice_hangup
 import e2e_voice_network
+import e2e_voice_signal_drop
 import e2e_video_quality
 import e2e_voice_rejoin
 import e2e_tabs
+import e2e_two_factor
 import e2e_api
 import e2e_browsers
 import e2e_client
@@ -157,6 +174,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
             L.TEXT_CHANNEL)),
         ("messaging: an attachment", lambda: e2e_messaging.attach(
             a, b, L.TEXT_CHANNEL, upload(), admin)),
+        ("messaging: a 40 MB upload survives a channel switch and a dropped network",
+         lambda: e2e_large_upload.large_file_survives_a_switch_and_a_dropped_network(
+             a, b, admin, member)),
         ("messaging: a reply, and a reply to a deleted message",
          lambda: e2e_replies.reply_and_a_deleted_parent(
              a, b, L.TEXT_CHANNEL, admin)),
@@ -209,12 +229,39 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_invite_landing.signed_out_sees_the_card(
              b, sign_in, server, secret, a, admin, picture())),
         ("admin: creating a role", lambda: e2e_admin.create_role(a, admin)),
+        ("messaging: a recorded voice message reaches the channel and plays",
+         lambda: e2e_voice_message.recorded_message_reaches_the_channel_and_plays(
+             a, b, L.TEXT_CHANNEL, admin)),
+        ("messaging: a mention reads as the member's name in this space",
+         lambda: e2e_mention_names.mention_reads_the_name_in_this_space(
+             a, b, L.TEXT_CHANNEL, admin, member)),
+        ("messaging: unread follows what was read, a deleted message included",
+         lambda: e2e_unread.unread_follows_what_was_read(b, admin, member)),
+        ("permissions: a private channel follows who was added, live",
+         lambda: e2e_private_channel.private_channel_follows_who_was_added(
+             a, b, admin, member)),
+        ("messaging: editing and deleting your own message from its menu",
+         lambda: e2e_message_edit.edit_then_delete_own_message(a, b, admin)),
+        ("messaging: pinning from the menu, the pinned list, and unpinning",
+         lambda: e2e_pins.pin_list_and_unpin(a, b, admin, member)),
+        ("messaging: channel search follows the index, not the screen",
+         lambda: e2e_search.search_follows_the_index(a, admin)),
+        ("permissions: a role granted or removed changes an open menu live",
+         lambda: e2e_roles_live.role_change_reaches_an_open_screen(b, admin, member)),
+        ("account: muting a channel from its row menu is kept by the server",
+         lambda: e2e_channel_notifications.mute_from_the_row_menu(b, admin, member)),
+        ("messaging: a group message reaches everyone in it, and leaving ends it",
+         lambda: e2e_group_dm.group_message_reaches_everyone_and_leaving_ends_it(
+             a, b, admin, member, server)),
         ("admin: renaming a member shows the nickname everywhere",
          lambda: e2e_members.admin_renames_a_member(
              a, L.TEXT_CHANNEL, admin, member)),
         ("admin: a reset code asks for the admin's password",
          lambda: e2e_password.reset_code_asks_for_the_admins_password(
              a, server, secret, admin)),
+        ("account: two-factor sign-in, with a code and with a recovery code",
+         lambda: e2e_two_factor.sign_in_with_a_second_factor(
+             b, sign_in, server, secret, admin)),
         ("account: changing your password signs out your other devices",
          lambda: e2e_password.change_own_password(
              b, sign_in, server, secret, admin)),
@@ -308,13 +355,25 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice: leaving", lambda: e2e_voice.leave_call(a, b, room_id)),
         ("voice: re-clicking a channel already left rejoins it",
          lambda: e2e_voice_rejoin.rejoin_after_leaving(a, room_id)),
+        ("voice: a reload mid-call offers the call back, and a call left on purpose is not",
+         lambda: e2e_call_restore.reload_mid_call_offers_to_rejoin(a, room_id)),
         ("voice: join time, click to first remote audio",
          lambda: e2e_voice_join_time.join_time(a, b, room_id)),
         ("voice: a client that loses its network rejoins on its own",
          lambda: e2e_voice_network.rejoins_after_a_network_drop(
              a, b, room_id)),
+        ("voice: hanging up with the network down ends the call at once",
+         lambda: e2e_voice_hangup.hanging_up_offline_ends_the_call_at_once(
+             a, room_id)),
+        ("voice: a signal socket dropped while the microphone publishes leaves "
+         "one microphone that Mute reaches",
+         lambda: e2e_voice_signal_drop.a_signal_drop_mid_publish_converges(
+             a, b, room_id)),
         ("voice: noise suppression quiets the noise floor and keeps the voice",
          lambda: e2e_voice_noise.suppression_quiets_the_noise_floor(
+             a, server, secret, admin, sign_in, room_id)),
+        ("voice: the speaking ring lights for a soft voice you can hear",
+         lambda: e2e_voice_activity.ring_follows_a_soft_voice(
              a, server, secret, admin, sign_in, room_id)),
         ("voice: a listener's volume slider scales the sound, to silence, and "
          "survives rejoining",
@@ -327,6 +386,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice: deafening silences what you hear and nothing of what you say",
          lambda: e2e_voice_deafen.deafen_silences_playback_not_the_mic(
              a, b, room_id, admin.me()["id"], member.me()["id"])),
+        ("voice: a soundboard clip plays for everyone in the call, not a deafened listener",
+         lambda: e2e_soundboard.clip_plays_for_everyone_in_the_call(
+             a, b, admin, member, room_id)),
         ("voice: a moderator moves a member to another call and they hear her there",
          lambda: e2e_voice_move.moving_a_member_takes_their_call_with_them(
              a, b, admin, room_id, member.me()["id"])),

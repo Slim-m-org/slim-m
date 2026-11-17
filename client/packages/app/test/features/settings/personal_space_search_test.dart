@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A personal space removed from the rail (`personal_space_menu_test.dart`
-/// covers the removal itself) must still be reachable. This is the round
-/// trip the "Remove from list" notice promises, driven the way a person
-/// actually would: open the command palette, type their own name, pick
-/// the result, and see the rail row itself come back.
+/// Notes left the rail's Direct messages list for a button beside the gear
+/// (decision 0111's 2026-11-16 section), and must still be reachable from the
+/// command palette, driven the way a person would: open it, type, pick.
 ///
 /// Split out of `command_palette_test.dart` rather than added to it, which
 /// would have crossed that file's 500-line hard budget.
@@ -17,11 +15,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/dms.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
-import 'package:slimm_app/src/features/settings/providers/personal_space_visibility.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
@@ -64,9 +60,9 @@ const _personalChannel = Channel(
 /// query execution to deliver its first batch - work a fake-pumped widget
 /// test's clock cannot reliably wait out (this is a property of the drift
 /// integration these two widgets already share, not of anything this test
-/// is checking). This test is about the hide-then-find round trip, which
-/// needs a channel list that is simply *there*, not the store's own
-/// plumbing, so it substitutes one.
+/// is checking). This test is about finding Notes, which needs a channel
+/// list that is simply *there*, not the store's own plumbing, so it
+/// substitutes one.
 class _FakeStore extends MessageStore {
   _FakeStore(super.db);
 
@@ -80,9 +76,7 @@ class _FakeStore extends MessageStore {
 
 /// Only `/blocks` is ever hit: `blocksProvider` fetches it as soon as
 /// `HomeShell` mounts, and nothing else in this test opens the personal
-/// space over the network - it is already in the local store, and
-/// selecting the hidden one un-hides it locally rather than calling
-/// `openDirectMessage`.
+/// space over the network - it is already in the local store.
 http.Client _fakeClient() =>
     MockClient((request) async => http.Response('[]', 200));
 
@@ -170,14 +164,10 @@ Finder _inPalette(String text) =>
     find.descendant(of: find.byType(AppMenu), matching: find.text(text));
 
 void main() {
-  testWidgets(
-    'a hidden personal space is absent from a blank-query browse, but '
-    'searching the caller\'s own name finds it and reopening it restores '
-    'the rail row',
-    (tester) async {
-      SharedPreferences.setMockInitialValues({
-        personalSpaceHiddenKey('self'): true,
-      });
+  for (final query in ['not', 'Self']) {
+    testWidgets('typing "$query" finds Notes, and picking it opens Notes', (
+      tester,
+    ) async {
       final setup = _setup();
       addTearDown(setup.container.dispose);
       await _pump(tester, setup.container);
@@ -185,19 +175,13 @@ void main() {
       expect(
         find.text(personalSpaceName),
         findsNothing,
-        reason: 'hidden from the rail row it would otherwise pin',
+        reason: 'Notes is the footer button now, not a Direct messages row',
       );
 
       await _pressCtrlK(tester);
-      expect(
-        _inPalette(personalSpaceName),
-        findsNothing,
-        reason: 'a blank query browses everything, which defeats hiding it',
-      );
-
       await tester.enterText(
         find.byKey(const Key('command-palette-input')),
-        'Self',
+        query,
       );
       await tester.pumpAndSettle();
       expect(_inPalette(personalSpaceName), findsOneWidget);
@@ -208,13 +192,8 @@ void main() {
       expect(find.byKey(const Key('command-palette-input')), findsNothing);
       final context = tester.element(find.text('conversation').first);
       expect(GoRouterState.of(context).uri.path, '/channels/dm-self');
-      expect(
-        find.text(personalSpaceName),
-        findsOneWidget,
-        reason: 'selecting it is also how it comes back onto the rail',
-      );
 
       await _teardown(tester, setup.container, setup.db);
-    },
-  );
+    });
+  }
 }

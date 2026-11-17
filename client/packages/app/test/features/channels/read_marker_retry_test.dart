@@ -19,7 +19,14 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-Future<int> _putsAfterTwoAdvances(WidgetTester tester, int firstStatus) async {
+/// Advances to seq 5 twice. The second call passes [secondLastReadSeq] as the
+/// local marker, which the first call's own store write has already moved to 5.
+Future<int> _putsAfterTwoAdvances(
+  WidgetTester tester,
+  int firstStatus, {
+  int secondLastReadSeq = 5,
+  Duration retryAfter = Duration.zero,
+}) async {
   var puts = 0;
   late ReadMarker marker;
   await tester.pumpWidget(
@@ -30,9 +37,11 @@ Future<int> _putsAfterTwoAdvances(WidgetTester tester, int firstStatus) async {
         mockApiOverride((request) async {
           if (request.method == 'PUT') {
             puts++;
-            if (puts == 1) return http.Response('{}', firstStatus);
+            if (puts == 1 && firstStatus != 200) {
+              return http.Response('{}', firstStatus);
+            }
             return http.Response(
-              '{"last_read_seq": 5, "manually_unread": false}',
+              '{"last_read_seq": 5, "unread": 0, "manually_unread": false}',
               200,
               headers: {'content-type': 'application/json'},
             );
@@ -48,7 +57,7 @@ Future<int> _putsAfterTwoAdvances(WidgetTester tester, int firstStatus) async {
       child: MaterialApp(
         home: Consumer(
           builder: (context, ref, _) {
-            marker = ReadMarker(ref);
+            marker = ReadMarker(ref, retryAfter: retryAfter);
             return const SizedBox();
           },
         ),
@@ -58,7 +67,12 @@ Future<int> _putsAfterTwoAdvances(WidgetTester tester, int firstStatus) async {
   await tester.runAsync(() async {
     marker.advance('c1', seq: 5, lastReadSeq: 0, manuallyUnread: false);
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    marker.advance('c1', seq: 5, lastReadSeq: 0, manuallyUnread: false);
+    marker.advance(
+      'c1',
+      seq: 5,
+      lastReadSeq: secondLastReadSeq,
+      manuallyUnread: false,
+    );
     await Future<void>.delayed(const Duration(milliseconds: 300));
   });
   return puts;
@@ -79,5 +93,23 @@ void main() {
     tester,
   ) async {
     expect(await _putsAfterTwoAdvances(tester, 403), 1);
+  });
+
+  testWidgets('a marker the server already has is not sent again', (
+    tester,
+  ) async {
+    expect(await _putsAfterTwoAdvances(tester, 200), 1);
+  });
+
+  testWidgets('a failed markRead waits before it is retried', (tester) async {
+    expect(
+      await _putsAfterTwoAdvances(
+        tester,
+        503,
+        retryAfter: const Duration(minutes: 1),
+      ),
+      1,
+      reason: 'every rebuild while offline would otherwise send a request',
+    );
   });
 }

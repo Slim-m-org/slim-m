@@ -77,7 +77,6 @@ async fn changing_an_avatar_announces_the_profile_change() {
     let (root, _media_guard) = support::TestDirGuard::new("slimm-avatars-event");
     let media = Media::new(&root, 10 * 1024 * 1024).expect("create temp media directories");
     let hub = Hub::new();
-    let mut events = hub.subscribe();
     let app = support::app::builder(store.clone())
         .hub(hub.clone())
         .media(media)
@@ -91,6 +90,8 @@ async fn changing_an_avatar_announces_the_profile_change() {
     )
     .await;
     let user_id = me["id"].as_str().unwrap().to_owned();
+    // After `/me`, whose first read hands this unclaimed Space to alice and says so.
+    let mut events = hub.subscribe();
 
     let uploaded = app
         .clone()

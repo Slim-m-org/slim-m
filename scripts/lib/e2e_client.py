@@ -105,6 +105,11 @@ class Client:
             if url.startswith(("http://", "https://")):
                 REQUEST_URLS.add(url)
             return
+        if method == "Network.webSocketCreated":
+            url = params.get("url") or ""
+            if url.startswith(("ws://", "wss://")):
+                REQUEST_URLS.add("http" + url[2:])
+            return
         if method == "Log.entryAdded":
             entry = params.get("entry") or {}
             line = " ".join(str(entry.get(k) or "")
@@ -245,6 +250,15 @@ class Client:
         print(f"  {self.name}: elements holding {label!r}: {self.ev(e2e_js.holders(label))}")
         raise AssertionError(f"{self.name}: never saw {label!r}")
 
+    def never_shows(self, label, seconds):
+        """Fails if `label` shows at any sample over `seconds`: one look passes what appears a moment late."""
+        deadline = time.time() + seconds
+        while time.time() < deadline:
+            if self.find(label):
+                self.shot(f"unwanted-{label[:20].replace(' ', '-')}")
+                raise AssertionError(f"{self.name}: {label!r} showed")
+            time.sleep(POLL_SECONDS)
+
     def wheel_until(self, anchor, target, step=300, tries=8):
         """Scrolls the pane under `anchor` until `target` is inside the window.
 
@@ -274,18 +288,18 @@ class Client:
                        "clickCount": 1})
             time.sleep(0.06)
 
-    def click(self, label, settle=1.5, fixed=False):
+    def click(self, label, settle=1.5, fixed=False, exact=False):
         """Activate a widget the way a screen reader would.
 
         Dispatching a mouse event at the widget's coordinates hits whatever
         Flutter has layered over the canvas there and silently does nothing on
         some screens; clicking the semantics element itself is what the
-        framework listens for.
+        framework listens for. `exact` is [find]'s, for a label inside its opposite.
         """
-        self.wait_for(label)
-        hit = self.ev(e2e_js.click(json.dumps(label.lower())))
+        self.wait_for(label, exact=exact)
+        hit = self.ev(e2e_js.click(json.dumps(label.lower()), exact))
         if not hit:
-            n = self.wait_for(label)
+            n = self.wait_for(label, exact=exact)
             self.tap(n["x"], n["y"])
         self.settle(settle, fixed=fixed)
 

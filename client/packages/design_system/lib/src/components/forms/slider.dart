@@ -95,6 +95,10 @@ class AppSlider extends StatefulWidget {
   /// A `tall` trough drawn in two tones either side of the thumb: quiet before it, heard after.
   final bool splitTrack;
 
+  /// How far the normal track starts in from each side: the focus ring's gap
+  /// and width, then the overlay radius Material insets the track by.
+  static const double trackInset = focusRingGap + focusRingWidth + 12;
+
   @override
   State<AppSlider> createState() => _AppSliderState();
 }
@@ -235,7 +239,9 @@ class _AppSliderState extends State<AppSlider> {
 
   /// Sits above the thumb; the inset is the slider's own overlay radius, where its track starts.
   Widget _bubble(AppTokens tokens, String text, double value) {
-    final inset = focusRingGap + focusRingWidth + (widget.tall ? 14.0 : 12.0);
+    final inset = widget.tall
+        ? focusRingGap + focusRingWidth + 14.0
+        : AppSlider.trackInset;
     final span = widget.max - widget.min;
     final fraction = span <= 0 ? 0.0 : (value - widget.min) / span;
     return Positioned.fill(

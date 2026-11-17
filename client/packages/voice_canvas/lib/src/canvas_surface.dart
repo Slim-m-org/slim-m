@@ -72,6 +72,8 @@ class CanvasSurface extends StatefulWidget {
     this.onTextPlace,
     this.onSelectLongPress,
     this.onShapePlace,
+    this.onStampPlace,
+    this.onStampDrag,
     this.shapeKind = CanvasShapeKind.rectangle,
     this.tool = CanvasTool.pen,
     this.strokeWidth = 3,
@@ -224,6 +226,12 @@ class CanvasSurface extends StatefulWidget {
 
   /// Fires once [tool] is [CanvasTool.shape] and every pointer has lifted: a tap places the default size, a drag reports `draggedSize`.
   final ShapePlaced? onShapePlace;
+
+  /// Fires like [onShapePlace] while [tool] is [CanvasTool.stamp], with the dragged longest side.
+  final StampPlaced? onStampPlace;
+
+  /// Fires as a stamp drag sizes it, for the caller's preview; a null side ends the preview.
+  final void Function(Offset worldCenter, double? side)? onStampDrag;
 
   /// The shape kind the live drag preview draws; committing stays the caller's job over [onShapePlace].
   final CanvasShapeKind shapeKind;
@@ -389,6 +397,9 @@ class _CanvasSurfaceState extends State<CanvasSurface>
   /// guard), so a pinch always starts as one finger down alone.
   CanvasTool? _pendingPlacementTool;
   Offset? _pendingPlacementWorld;
+
+  /// Where a stamp drag has reached, in world coordinates.
+  Offset? _stampDragWorld;
 
   /// The eraser's own pointer-down point, held back for exactly the same
   /// reason [_pendingPlacementWorld] is: at `_down` time there is no way yet

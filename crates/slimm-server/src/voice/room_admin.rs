@@ -174,6 +174,7 @@ impl VoiceService {
                     can_update_own_metadata: false,
                     hidden: false,
                 },
+                attributes: None,
             },
         )
     }

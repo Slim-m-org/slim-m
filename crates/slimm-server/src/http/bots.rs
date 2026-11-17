@@ -18,6 +18,7 @@ use super::error::ApiError;
 use super::escalation::escalation_guard;
 use super::extract::{Authed, Json, Query, enforce, require_human, require_manage_server};
 use super::messages::parse_uuid;
+use super::role_ladder::Ladder;
 use super::roles::grantable;
 use crate::hub::Event;
 use crate::ids::UserId;
@@ -127,9 +128,9 @@ async fn caller_granted(state: &AppState, user_id: UserId) -> Result<Permissions
     Ok(state.store.granted_base_permissions(user_id).await?)
 }
 
-/// A bot is only manageable by someone who already holds what its managed role grants; a
-/// bot without one is guarded as holding nothing. Module principals have no token record,
-/// so they are not bots to manage.
+/// A bot is only manageable by someone who already holds every bit its roles grant and who
+/// outranks it on the role ladder, since its token acts with all of it. Module principals
+/// have no token record, so they are not bots to manage.
 async fn guard_over_bot(
     state: &AppState,
     caller: UserId,
@@ -138,10 +139,13 @@ async fn guard_over_bot(
     if !state.store.is_bot_account(bot_id).await? {
         return Err(ApiError::NotFound("no such bot"));
     }
-    let role = state.store.role_for_bot(bot_id).await?;
-    let held = role.as_ref().map_or(Permissions::NONE, |r| r.permissions);
+    let held = state.store.granted_base_permissions(bot_id).await?;
     escalation_guard(caller_granted(state, caller).await?, held)?;
-    Ok(role)
+    Ladder::of(state, caller)
+        .await?
+        .reach_member(state, bot_id)
+        .await?;
+    Ok(state.store.role_for_bot(bot_id).await?)
 }
 
 async fn list(
@@ -203,6 +207,20 @@ async fn create(
     // Effective, like `http::roles::create`'s identical read; see this file's own doc.
     let caller_effective = state.store.base_permissions(ctx.user_id).await?;
     let permissions = grantable(caller_effective, body.permissions)?;
+    let shared = state
+        .store
+        .list_roles()
+        .await?
+        .into_iter()
+        .find(|role| role.is_bots_role);
+    // The new bot holds the shared Bots role, and its own role starts at the bottom.
+    Ladder::of(&state, ctx.user_id)
+        .await?
+        .reach_role(shared.as_ref().map_or(0, |role| role.position.max(0)))?;
+    escalation_guard(
+        caller_granted(&state, ctx.user_id).await?,
+        shared.map_or(Permissions::NONE, |role| role.permissions),
+    )?;
 
     let prefix = match body.prefix.as_deref().map(str::trim) {
         Some(prefix) => {
@@ -301,6 +319,10 @@ async fn set_permissions(
     let bot_id = UserId(parse_uuid(&bot_id)?);
 
     let current = guard_over_bot(&state, ctx.user_id, bot_id).await?;
+    // The same reach `PATCH /roles` needs; a role this creates starts at the bottom.
+    Ladder::of(&state, ctx.user_id)
+        .await?
+        .reach_role(current.as_ref().map_or(0, |role| role.position))?;
 
     let caller_effective = state.store.base_permissions(ctx.user_id).await?;
     let permissions = grantable(caller_effective, req.permissions)?;

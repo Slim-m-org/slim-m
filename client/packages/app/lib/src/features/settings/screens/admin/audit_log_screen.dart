@@ -54,7 +54,7 @@ class AuditLogPane extends ConsumerWidget {
       data: (context, list) => ListView(
         children: [
           SettingsSectionCard(
-            title: 'Audit log',
+            title: 'Changes',
             description: 'Newest first.',
             children: [
               if (list.isEmpty)

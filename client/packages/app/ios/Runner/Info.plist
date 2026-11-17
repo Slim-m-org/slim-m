@@ -77,7 +77,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>slim-m uses the camera when you turn on video in a call or take a profile photo.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>slim-m uses the microphone when you join a voice call.</string>
+	<string>slim-m uses the microphone in voice calls and to record voice messages.</string>
 	<!-- Plain http only to .local names, unqualified hosts and private or loopback IP literals,
 	     for a self-hosted server on the owner's LAN. Public hosts stay on ATS; server_scheme_policy.dart refuses them too. -->
 	<key>NSAppTransportSecurity</key>

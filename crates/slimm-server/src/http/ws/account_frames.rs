@@ -66,6 +66,19 @@ pub(super) fn authorize(ctx: &SessionContext, event: &Event) -> Option<Authoriza
                 activity: activity.as_str(),
             },
         ),
+        Event::SoundboardPlayed {
+            user_id,
+            channel_id,
+            clip_id,
+            player_id,
+        } => (
+            *user_id,
+            ServerFrame::SoundboardPlayed {
+                channel_id: channel_id.to_string(),
+                clip_id: clip_id.to_string(),
+                player_id: player_id.to_string(),
+            },
+        ),
         _ => return None,
     };
     Some(if owner == ctx.user_id {

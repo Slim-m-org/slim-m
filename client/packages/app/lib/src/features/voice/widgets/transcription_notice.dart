@@ -6,8 +6,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/confirm_dialog.dart';
 import '../providers/transcription_notice.dart';
 
 const transcriptionNoticeJoinKey = Key('transcription-notice-join');
@@ -21,69 +21,17 @@ Future<bool> confirmTranscriptionNotice(
 ) async {
   final actions = ref.read(transcriptionNoticeActionsProvider);
   if (!await actions.isDue() || !context.mounted) return true;
-  final joined = await showAppSheet<bool>(
+  final joined = await confirmChoice(
     context,
-    builder: (context) => const _NoticeSheet(),
+    title: 'Calls in this Space are transcribed',
+    message:
+        'What is said is written down and kept with the call, '
+        'for members who may read it.',
+    confirmLabel: 'Join',
+    confirmKey: transcriptionNoticeJoinKey,
+    cancelKey: transcriptionNoticeCancelKey,
   );
-  if (joined != true) return false;
+  if (!joined) return false;
   await actions.acknowledge();
   return true;
-}
-
-class _NoticeSheet extends StatelessWidget {
-  const _NoticeSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        AppSpacing.s16,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Calls in this Space are transcribed',
-            style: AppText.body.copyWith(
-              color: tokens.textPrimary,
-              fontWeight: AppWeights.semi,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.s8),
-          Text(
-            'What is said is written down and kept with the call, '
-            'for members who may read it.',
-            style: AppText.body.copyWith(color: tokens.textSecondary),
-          ),
-          const SizedBox(height: AppSpacing.s16),
-          Row(
-            children: [
-              Expanded(
-                child: AppButton(
-                  key: transcriptionNoticeCancelKey,
-                  label: 'Cancel',
-                  variant: AppButtonVariant.ghost,
-                  onPressed: () => Navigator.of(context).pop(false),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.s8),
-              Expanded(
-                child: AppButton(
-                  key: transcriptionNoticeJoinKey,
-                  label: 'Join',
-                  variant: AppButtonVariant.primary,
-                  onPressed: () => Navigator.of(context).pop(true),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }

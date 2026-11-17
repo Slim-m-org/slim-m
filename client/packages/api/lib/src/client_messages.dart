@@ -13,14 +13,17 @@ import 'client_transport.dart';
 /// was a line-count boundary rather than a real one.
 extension SlimmApiMessages on SlimmApi {
   /// History, newest first. Pass the smallest `seq` already held as [before] to
-  /// page backwards.
+  /// page backwards. [around] reads the page centred on that `seq` instead and
+  /// is never combined with [before].
   Future<List<Message>> listMessages(
     String channelId, {
     int? before,
+    int? around,
     int? limit,
   }) async {
     final query = <String, String>{
       if (before != null) 'before': '$before',
+      if (around != null) 'around': '$around',
       if (limit != null) 'limit': '$limit',
     };
     final json = await send(

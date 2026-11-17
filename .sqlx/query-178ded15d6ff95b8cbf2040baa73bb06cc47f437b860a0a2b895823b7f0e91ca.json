@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE soundboard_clips SET emoji = NULL WHERE emoji = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "178ded15d6ff95b8cbf2040baa73bb06cc47f437b860a0a2b895823b7f0e91ca"
+}

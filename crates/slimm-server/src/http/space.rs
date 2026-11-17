@@ -74,6 +74,10 @@ struct SpaceSettingsDto {
     call_transcript_retention_days: Option<i64>,
     /// False when the call audio listener is not configured, so transcription cannot be turned on.
     call_transcription_available: bool,
+    /// Whether the server turns voice messages into text.
+    transcribe_voice_messages: bool,
+    /// False when the speech listener is not configured, so voice transcripts cannot be turned on.
+    transcribe_voice_messages_available: bool,
 }
 
 /// The PATCH body: only the fields present are written.
@@ -96,13 +100,16 @@ struct UpdateSpaceSettingsDto {
     /// Absent leaves it alone; null keeps transcripts forever.
     #[serde(default, deserialize_with = "present")]
     call_transcript_retention_days: Option<Option<i64>>,
+    transcribe_voice_messages: Option<bool>,
 }
 
-fn present<'de, D>(deserializer: D) -> Result<Option<Option<i64>>, D::Error>
+/// Tells a null field from an absent one, which `#[serde(default)]` leaves as `None`.
+pub(super) fn present<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
     D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
 {
-    Option::<i64>::deserialize(deserializer).map(Some)
+    Option::<T>::deserialize(deserializer).map(Some)
 }
 
 /// Parses the two transcript settings before anything is written. Turning transcription on
@@ -157,6 +164,8 @@ async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
         call_transcription: state.store.call_transcription().await?.as_str(),
         call_transcript_retention_days: state.store.call_transcript_retention_days().await?,
         call_transcription_available: state.call_audio.is_enabled(),
+        transcribe_voice_messages: state.store.transcribe_voice_messages().await?,
+        transcribe_voice_messages_available: state.call_audio.is_enabled(),
     })
 }
 
@@ -319,9 +328,15 @@ async fn update(
         && body.welcome_message.is_none()
         && body.call_transcription.is_none()
         && body.call_transcript_retention_days.is_none()
+        && body.transcribe_voice_messages.is_none()
     {
         return Err(ApiError::BadRequest(
-            "send name, join_policy, totp_policy, description, strong_noise_suppression, members_can_invite, hide_bots_in_member_list, a module display switch, a welcome field or a call transcript setting",
+            "send name, join_policy, totp_policy, description, strong_noise_suppression, members_can_invite, hide_bots_in_member_list, a module display switch, a welcome field, a call transcript setting or transcribe_voice_messages",
+        ));
+    }
+    if body.transcribe_voice_messages == Some(true) && !state.call_audio.is_enabled() {
+        return Err(ApiError::Conflict(
+            "voice message transcripts need the speech listener, which this server does not have",
         ));
     }
     let welcome = merged_welcome(&state, &body).await?;
@@ -334,6 +349,7 @@ async fn update(
         || body.hide_bots_in_member_list.is_some()
         || body.module_member_badges.is_some()
         || body.module_profile_sections.is_some()
+        || body.transcribe_voice_messages.is_some()
         || transcription.is_some();
     let description = body
         .description
@@ -388,6 +404,9 @@ async fn update(
     }
     if let Some(mode) = transcription {
         state.store.set_call_transcription(mode).await?;
+    }
+    if let Some(on) = body.transcribe_voice_messages {
+        state.store.set_transcribe_voice_messages(on).await?;
     }
     if let Some(days) = retention {
         state.store.set_call_transcript_retention_days(days).await?;

@@ -25,7 +25,12 @@ Widget participantTile(
   onOpenProfile, {
   double width = kCallTileMinWidth,
   double? height,
-  List<Widget> Function(BuildContext, VoiceParticipant, VoidCallback)?
+  List<Widget> Function(
+    BuildContext,
+    VoiceParticipant,
+    VoidCallback, {
+    bool withStreams,
+  })?
   menuItemsBuilder,
 }) {
   final showsCamera = participant.isCameraOn;

@@ -9,7 +9,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 void main() {
   test(
-    'the order is pan, pen, note, text, shape, eraser and covers every tool',
+    'the order is pan, pen, note, text, shape, stamp, eraser and covers every tool',
     () {
       expect(canvasToolOrder, [
         CanvasTool.pan,
@@ -17,6 +17,7 @@ void main() {
         CanvasTool.note,
         CanvasTool.text,
         CanvasTool.shape,
+        CanvasTool.stamp,
         CanvasTool.eraser,
       ]);
       expect(canvasToolOrder.first, CanvasTool.pan);
@@ -24,13 +25,14 @@ void main() {
     },
   );
 
-  test('the keys are H P N T S E in strip order, one per tool', () {
+  test('the keys are H P N T S M E in strip order, one per tool', () {
     expect(canvasToolOrder.map((tool) => tool.shortcutKey), [
       LogicalKeyboardKey.keyH,
       LogicalKeyboardKey.keyP,
       LogicalKeyboardKey.keyN,
       LogicalKeyboardKey.keyT,
       LogicalKeyboardKey.keyS,
+      LogicalKeyboardKey.keyM,
       LogicalKeyboardKey.keyE,
     ]);
   });
@@ -50,6 +52,7 @@ void main() {
         CanvasTool.note: false,
         CanvasTool.text: false,
         CanvasTool.shape: false,
+        CanvasTool.stamp: false,
         CanvasTool.eraser: true,
       },
     );

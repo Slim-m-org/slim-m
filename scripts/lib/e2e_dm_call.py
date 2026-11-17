@@ -48,7 +48,7 @@ def start_dm_and_call(a, b, admin_api, member_api):
     """Alice starts a DM with Bob, then both hold and leave a call in it."""
     existing = next(
         (c for c in admin_api.call('GET', '/dms')
-         if c['user']['display_name'] == 'Bob'), None)
+         if c['user']['display_name'] == 'Bob' and not c.get('group')), None)
     if existing:
         a.ev(f"location.hash = '#/channels/{existing['channel_id']}'")
         a.wait_for(L.COMPOSER)
@@ -69,7 +69,8 @@ def start_dm_and_call(a, b, admin_api, member_api):
     while time.time() < deadline and conversation is None:
         rows = member_api.call('GET', '/dms')
         conversation = next(
-            (c for c in rows if c['user']['display_name'] == 'Alice'), None)
+            (c for c in rows if c['user']['display_name'] == 'Alice'
+             and not c.get('group')), None)
         if conversation is None:
             time.sleep(0.25)
     assert conversation, "bob's own /dms never listed the conversation alice opened"
@@ -131,7 +132,7 @@ def a_missed_call_shows_up_in_the_dm(a, b, admin_api, member_api):
     """
     conversation = next(
         (c for c in member_api.call('GET', '/dms')
-         if c['user']['display_name'] == 'Alice'), None)
+         if c['user']['display_name'] == 'Alice' and not c.get('group')), None)
     assert conversation, "the DM the earlier scenario opened is gone"
     channel_id = conversation['channel_id']
 

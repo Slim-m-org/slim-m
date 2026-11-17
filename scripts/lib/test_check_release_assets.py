@@ -40,6 +40,10 @@ def judge(tag, names, published=OLD, manifest=None):
 
 
 class CheckReleaseAssetsTest(unittest.TestCase):
+    def test_a_release_with_the_split_arm64_apk_is_complete(self):
+        names = [n for n in CLIENT if n != "slim-m-client-android.apk"] + ["slim-m-client-android-arm64-v8a.apk"]
+        self.assertEqual(judge("client-v0.89.0", names)[0], "ok")
+
     def test_a_complete_client_release_passes(self):
         self.assertEqual(judge("client-v0.89.0", CLIENT), ("ok", []))
 

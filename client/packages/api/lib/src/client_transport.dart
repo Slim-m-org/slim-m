@@ -291,6 +291,7 @@ extension SlimmApiTransport on SlimmApi {
     var reason = 'request failed';
     var explained = false;
     int? missingPermissions;
+    String? code;
     ItemRefusal? item;
     Duration? bodyRetryAfter;
     try {
@@ -302,6 +303,9 @@ extension SlimmApiTransport on SlimmApi {
       if (decoded is Map<String, dynamic> &&
           decoded['missing_permissions'] is int) {
         missingPermissions = decoded['missing_permissions'] as int;
+      }
+      if (decoded is Map<String, dynamic> && decoded['code'] is String) {
+        code = decoded['code'] as String;
       }
       if (decoded is Map<String, dynamic> &&
           decoded['item_index'] is int &&
@@ -332,6 +336,7 @@ extension SlimmApiTransport on SlimmApi {
       403 => ForbiddenException(
           reason,
           missingPermissions: missingPermissions,
+          code: code,
         ),
       404 => NotFoundException(reason, unexplained: !explained),
       409 => ConflictException(reason, item: item),

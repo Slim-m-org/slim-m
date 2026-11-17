@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! `Role.color` over `PATCH /roles/{roleId}`: a palette index a role manager
-//! sets, carried on every role read, and refused outside the palette.
+//! sets or clears with null, carried on every role read, and refused outside the palette.
 
 use axum::Router;
 use axum::http::StatusCode;
@@ -127,5 +127,20 @@ async fn only_a_role_manager_sets_a_colour() {
     let w = world().await;
     let (status, _) = w.set_color(&w.member, json!(3)).await;
     assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(w.listed_color().await, Value::Null);
+}
+
+#[tokio::test]
+async fn null_clears_the_colour_and_leaving_it_out_keeps_it() {
+    let w = world().await;
+    w.set_color(&w.admin, json!(3)).await;
+    let uri = format!("/roles/{}", w.role_id);
+    let (status, _) = call(&w.router, "PATCH", &uri, &w.admin, json!({"hoist": true})).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(w.listed_color().await, 3);
+
+    let (status, body) = w.set_color(&w.admin, Value::Null).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["color"], Value::Null);
     assert_eq!(w.listed_color().await, Value::Null);
 }

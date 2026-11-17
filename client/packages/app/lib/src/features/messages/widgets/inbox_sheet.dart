@@ -24,7 +24,7 @@ import '../providers/inbox.dart';
 import 'author_label.dart';
 import 'mark_read_action.dart';
 import 'message_jump.dart';
-import 'reply_target_summary.dart' show previewLine;
+import 'message_preview_text.dart';
 
 /// Marks the sizing box around the sheet's body, so a test can measure it.
 const inboxBodyBoxKey = Key('inbox_body_box');
@@ -185,9 +185,6 @@ class InboxRow extends ConsumerWidget {
       cachedDisplayName: message?.authorDisplayName,
       resolution: resolution,
     );
-    final snippet = message == null
-        ? null
-        : previewLine(message.content, const []);
     return ListTile(
       dense: density == AppDensity.compact,
       visualDensity: density.tileVisualDensity,
@@ -214,12 +211,12 @@ class InboxRow extends ConsumerWidget {
               secondary: '·  $where',
             )
           : Text(where, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        snippet ?? (entry.mentioned ? 'You were mentioned' : ''),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: tokens.textSecondary),
-      ),
+      subtitle: message == null
+          ? Text(
+              entry.mentioned ? 'You were mentioned' : '',
+              style: TextStyle(color: tokens.textSecondary),
+            )
+          : MessagePreviewText(messageId: message.id, content: message.content),
       trailing: entry.mentioned || entry.unread <= 0
           ? null
           : Text(

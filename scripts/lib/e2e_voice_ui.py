@@ -127,10 +127,26 @@ def set_slider(client, label, percent, maximum=200, tolerance=4, tries=40):
     return shown
 
 
+def _person_tile(client, name, timeout=30):
+    """Where to right-click for `name`'s menu: a sharer appears once, as their share (decision 0114)."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        tile = client.find(f"{name}, microphone")
+        if tile:
+            return tile["x"], tile["y"]
+        share = client.find(f"{name}'s screen")
+        if share:
+            # The grid caption sits under its tile, so aim up into the picture.
+            return share["x"], share["y"] - 60
+        time.sleep(0.25)
+    tile = client.wait_for(f"{name}, microphone", timeout=1)
+    return tile["x"], tile["y"]
+
+
 def open_tile_menu(client, name):
     """Right-click `name`'s call tile and wait for the menu's first row."""
-    tile = client.wait_for(f"{name}, microphone")
-    e2e_input.right_click(client, tile["x"], tile["y"])
+    x, y = _person_tile(client, name)
+    e2e_input.right_click(client, x, y)
     client.wait_for("Mute for me")
 
 
@@ -161,7 +177,7 @@ def open_volume_popover(client, name):
 def reset_volumes(client, name, labels):
     """Put `name`'s sliders back at 100%, so a failed run leaves nothing behind."""
     dismiss_popover(client)
-    if not client.find(f"{name}, microphone"):
+    if not (client.find(f"{name}, microphone") or client.find(f"{name}'s screen")):
         return
     open_volume_popover(client, name)
     for label in labels:

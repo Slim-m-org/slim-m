@@ -89,6 +89,7 @@ async fn a_description_a_noise_default_and_the_invite_switch_each_publish() {
         json!({"members_can_invite": true}),
         json!({"hide_bots_in_member_list": true}),
         json!({"module_member_badges": true}),
+        json!({"transcribe_voice_messages": false}),
     ] {
         w.patch(body.clone()).await;
         assert_eq!(settings_changed(&w.published()), 1, "{body}");

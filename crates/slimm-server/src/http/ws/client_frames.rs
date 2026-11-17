@@ -91,7 +91,7 @@ pub(super) enum ClientFrame {
         #[serde(default)]
         ended: bool,
     },
-    /// A viewer's annotation over someone's shared screen, or the sharer's own consent for viewers to draw; see [`super::signals_canvas::handle_canvas_screen_annotation`].
+    /// A viewer's annotation over someone's shared screen, or the sharer's own consent for viewers to draw; see [`super::signals_screen_annotation::handle_canvas_screen_annotation`].
     #[serde(rename = "canvas.screen_annotation")]
     CanvasScreenAnnotation {
         channel_id: String,
@@ -107,6 +107,8 @@ pub(super) enum ClientFrame {
         #[serde(default)]
         allowed: bool,
         aspect: Option<f64>,
+        #[serde(default)]
+        stamps: bool,
     },
     /// The world rectangle this client is looking at, so others can follow it
     /// or be summoned to it; gated like a cursor, see

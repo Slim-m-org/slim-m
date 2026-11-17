@@ -36,7 +36,7 @@ MIRRORS = {
     "about": ("http/user_status.rs", "ABOUT_MAX_CHARS"),
     "userNote": ("http/user_notes.rs", "MAX_NOTE_CHARS"),
     "message": ("http/messages/message_validation.rs", "MESSAGE_MAX_CHARS"),
-    "reportReason": ("http/safety.rs", "MAX_REASON_CHARS"),
+    "reportReason": ("store/stamp_reports.rs", "MAX_REASON_CHARS"),
     "pollQuestion": ("store/polls.rs", "MAX_QUESTION_CHARS"),
     "pollOption": ("store/polls.rs", "MAX_OPTION_CHARS"),
     "emojiName": ("emoji.rs", "MAX_NAME_LEN"),

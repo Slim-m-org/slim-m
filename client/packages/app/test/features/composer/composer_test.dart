@@ -57,7 +57,7 @@ void main() {
       ),
     );
 
-    expect(tester.widget<AppIconButton>(sendButton).onPressed, isNull);
+    expect(sendButton, findsNothing, reason: 'the mic stands in when empty');
 
     await tester.enterText(find.byType(TextField), '   ');
     await tester.pump();

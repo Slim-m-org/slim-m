@@ -34,7 +34,10 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     if (panning) return SystemMouseCursors.grabbing;
     if (!enabled) return SystemMouseCursors.basic;
     return switch (tool) {
-      CanvasTool.pen || CanvasTool.shape => SystemMouseCursors.precise,
+      CanvasTool.pen ||
+      CanvasTool.shape ||
+      CanvasTool.stamp =>
+        SystemMouseCursors.precise,
       CanvasTool.note || CanvasTool.text => SystemMouseCursors.text,
       CanvasTool.eraser => SystemMouseCursors.none,
       CanvasTool.pan => SystemMouseCursors.grab,
@@ -150,6 +153,10 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         _pendingPlacementTool = CanvasTool.shape;
         _pendingPlacementWorld = world;
         _shapeDraft.begin(screen, widget.shapeKind);
+      case CanvasTool.stamp:
+        _pendingPlacementTool = CanvasTool.stamp;
+        _pendingPlacementWorld = world;
+        _stampDragWorld = null;
       case CanvasTool.pen:
         _draft.begin(screen);
         widget.onDraftPoint?.call(world);
@@ -226,6 +233,8 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         break;
       case CanvasTool.shape:
         _shapeDraft.update(screen);
+      case CanvasTool.stamp:
+        _dragStamp(world);
       case CanvasTool.pen:
         _draft.extend(screen);
         widget.onDraftPoint?.call(world);
@@ -305,6 +314,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       case CanvasTool.note:
       case CanvasTool.text:
       case CanvasTool.shape:
+      case CanvasTool.stamp:
         if (lift == null) {
           _dropPlacement();
         } else {
@@ -334,6 +344,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       case CanvasTool.note:
       case CanvasTool.text:
       case CanvasTool.shape:
+      case CanvasTool.stamp:
         break;
     }
   }
@@ -357,6 +368,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       case CanvasTool.note:
       case CanvasTool.text:
       case CanvasTool.shape:
+      case CanvasTool.stamp:
         break;
     }
   }
@@ -377,9 +389,22 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
   }
 
   void _dropPlacement() {
+    if (_stampDragWorld != null) widget.onStampDrag?.call(Offset.zero, null);
     _pendingPlacementTool = null;
     _pendingPlacementWorld = null;
+    _stampDragWorld = null;
     _shapeDraft.cancel();
+  }
+
+  /// A stamp drag past a tap's slop sizes the stamp around where it went down.
+  void _dragStamp(Offset world) {
+    final centre = _pendingPlacementWorld;
+    if (centre == null) return;
+    final zoom = widget.document.camera.zoom;
+    final moved = (world - centre).distance * zoom;
+    if (_stampDragWorld == null && moved <= _selectTapSlop) return;
+    _stampDragWorld = world;
+    widget.onStampDrag?.call(centre, (world - centre).distance * 2);
   }
 
   void _dropDraft() {
@@ -433,6 +458,14 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
           size,
           flipX: size != null && flip.x,
           flipY: size != null && flip.y,
+        );
+      case CanvasTool.stamp:
+        final reach = _stampDragWorld;
+        _stampDragWorld = null;
+        if (reach != null) widget.onStampDrag?.call(world, null);
+        widget.onStampPlace?.call(
+          world,
+          reach == null ? null : (reach - world).distance * 2,
         );
       case CanvasTool.pen:
       case CanvasTool.eraser:

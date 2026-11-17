@@ -31,7 +31,7 @@ SYLLABLES = 4.0
 DUTY = 0.65
 
 
-def samples():
+def samples(amplitude=AMPLITUDE):
     for i in range(RATE * SECONDS):
         t = i / RATE
         # A syllable envelope: a raised-cosine burst, then a gap.
@@ -44,15 +44,15 @@ def samples():
             weight * math.sin(2 * math.pi * FUNDAMENTAL * (n + 1) * t)
             for n, weight in enumerate(HARMONICS)
         ) / sum(HARMONICS)
-        yield int(max(-1.0, min(1.0, tone * envelope * AMPLITUDE)) * 32767)
+        yield int(max(-1.0, min(1.0, tone * envelope * amplitude)) * 32767)
 
 
-def write(path):
+def write(path, amplitude=AMPLITUDE):
     with wave.open(path, "wb") as out:
         out.setnchannels(1)
         out.setsampwidth(2)
         out.setframerate(RATE)
-        out.writeframes(b"".join(struct.pack("<h", s) for s in samples()))
+        out.writeframes(b"".join(struct.pack("<h", s) for s in samples(amplitude)))
 
 
 if __name__ == "__main__":

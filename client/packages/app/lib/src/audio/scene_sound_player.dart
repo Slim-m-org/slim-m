@@ -20,7 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/modules/widgets/module_scene.dart' show SceneNote;
 import 'notification_sound.dart' show AudioPlayersSoundPlayer;
 import 'scene_synth.dart' as scene_synth;
-import '../features/voice/providers/voice_controller.dart';
+import 'call_holds_audio_session.dart';
 import 'sound_audio_context.dart';
 import 'sound_output_router.dart';
 
@@ -93,7 +93,7 @@ Uint8List _renderWav(List<List<double>> notes) {
 final moduleSoundPlayerProvider = Provider<ModuleSoundPlayer>((ref) {
   final player = AudioPlayersModuleSoundPlayer(
     afterPlay: ref.read(soundOutputRouterProvider).followChosenOutput,
-    inCall: () => ref.read(voiceControllerProvider).channelId != null,
+    inCall: ref.read(callHoldsAudioSessionProvider),
   );
   ref.onDispose(player.dispose);
   return player;

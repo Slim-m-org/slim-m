@@ -60,7 +60,13 @@ Future<void> advanceCursorHelper(
         ..where((c) => c.id.equals(channelId)))
       .getSingleOrNull();
   final newest = seqs.reduce(math.max);
-  if (row == null || row.cursor >= newest) return;
+  if (row == null) return;
+  // A row stands once it is stored, whether or not the cursor may move over it.
+  if ((row.liveSeq ?? row.cursor) < newest) {
+    await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
+        .write(ChannelsCompanion(liveSeq: Value(newest)));
+  }
+  if (row.cursor >= newest) return;
   final cursor = row.cursor;
   if (advance == CursorAdvance.whenContiguous && cursor > 0) {
     final nextHeld = seqs.where((seq) => seq > cursor).reduce(math.min);
@@ -68,6 +74,48 @@ Future<void> advanceCursorHelper(
   }
   await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
       .write(ChannelsCompanion(cursor: Value(newest)));
+}
+
+/// Drops one message row, walking the channel's standing seq and mention cursor back to the newest row left of each.
+/// A delivered or unheld message is remembered as deleted, so a late copy of it is not stored again.
+Future<void> discardRowHelper(MessageStore store, String id) async {
+  final db = store.db;
+  await db.transaction(() async {
+    final gone = await (db.select(db.messages)..where((m) => m.id.equals(id)))
+        .getSingleOrNull();
+    await (db.delete(db.messages)..where((m) => m.id.equals(id))).go();
+    // A row never delivered is an unsent draft; anything else is a server delete.
+    if (gone == null || gone.seq > 0) store.recentOps.removed(id);
+    if (gone == null || gone.seq <= 0) return;
+    final row = await channelRow(store, gone.channelId);
+    if (row == null) return;
+    final standing = row.liveSeq ?? row.cursor;
+    final newest = standing > gone.seq
+        ? standing
+        : await _newestHeldSeq(db, gone.channelId);
+    await (db.update(db.channels)..where((c) => c.id.equals(gone.channelId)))
+        .write(ChannelsCompanion(
+      liveSeq: Value(newest),
+      mentionedSeq: row.mentionedSeq == gone.seq
+          ? Value(await _newestHeldSeq(db, gone.channelId, mentionsOnly: true))
+          : const Value.absent(),
+    ));
+  });
+}
+
+Future<int> _newestHeldSeq(
+  SlimmDatabase db,
+  String channelId, {
+  bool mentionsOnly = false,
+}) async {
+  final mentions = mentionsOnly ? ' AND mentions_me = 1' : '';
+  final got = await db.customSelect(
+    'SELECT MAX(seq) AS newest FROM messages '
+    'WHERE channel_id = ? AND seq > 0$mentions',
+    variables: [Variable.withString(channelId)],
+    readsFrom: {db.messages},
+  ).getSingle();
+  return got.read<int?>('newest') ?? 0;
 }
 
 /// [advanceCursorHelper]'s own shape for `mentionedSeq`, only ever called for a

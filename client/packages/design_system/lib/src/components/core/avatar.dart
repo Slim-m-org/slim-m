@@ -2,12 +2,13 @@
 /// The user picture: round for a person, square for a non-human author (a
 /// webhook, a CI bot).
 ///
-/// A round avatar gets a generated tint from a closed six-colour list and
-/// mono initials; a square one gets none of that; the shape difference is
-/// what marks a non-human author, since it survives a screenshot the way a
-/// colour convention alone would not.
+/// A round avatar gets a tinted disc (a deep shade of the person's own colour,
+/// or one from a closed six-colour list) and mono initials; a square one gets
+/// none of that; the shape difference is what marks a non-human author, since
+/// it survives a screenshot the way a colour convention alone would not.
 library;
 
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ import 'package:flutter/rendering.dart';
 import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
+import '../../colour_contrast.dart';
 import '../../stable_index.dart';
 import 'avatar_geometry.dart';
 import 'avatar_shaped_image.dart';
@@ -38,31 +40,55 @@ const List<Color> _avatarTints = [
   Color(0xFF4F5B66),
 ];
 
-/// The disc colour a round avatar with no picture gets for [source], the same one wherever that person is drawn.
+/// The disc colour for [source] when there is no person's colour to draw from, the same one wherever it is drawn.
 Color avatarTintFor(String source) =>
     _avatarTints[stableIndexFor(source, _avatarTints.length)];
 
-/// Alphanumeric characters only, first two, uppercased. Not "first letter of
-/// first and last word": a punctuation-stripped prefix is what the source
-/// design actually does, and porting a friendlier-looking guess instead would
-/// mean the same person's initials differ between this port and the rest of
-/// the product.
-///
-/// Public because it is the one initials rule: `onboarding_shell.dart` used
-/// to carry its own copy without the symbol-stripping, so the same name
-/// rendered different initials in the server chip than everywhere else (the
-/// 2026-08-11 review's second-initials finding).
+/// One letter or digit for each of the first two words ("Nick Conn" NC, "Tester" T); a single word
+/// splits on its symbols ("nick.conn" NC). Public as the one rule every surface shares.
 String initialsFor(String name) {
-  final stripped = name.replaceAll(_notLetterOrDigit, '');
-  return String.fromCharCodes(stripped.runes.take(2)).toUpperCase();
+  var words = _initialWords(name.split(_space));
+  if (words.length < 2) words = _initialWords(name.split(_notLetterOrDigit));
+  return words.take(2).map(_firstRune).join().toUpperCase();
 }
+
+List<String> _initialWords(List<String> parts) => [
+      for (final part in parts)
+        if (part.replaceAll(_notLetterOrDigit, '') case final word
+            when word.isNotEmpty)
+          word,
+    ];
+
+String _firstRune(String word) => String.fromCharCode(word.runes.first);
+
+final RegExp _space = RegExp(r'\s+');
 
 /// Letters and digits in any script stay; symbols and punctuation go.
 final RegExp _notLetterOrDigit = RegExp(r'[^\p{L}\p{N}]', unicode: true);
 
-/// Light ink for the fixed tints above; every themed text colour inverts and
-/// would go illegible on them in dark.
+/// Light ink for every disc tint; every themed text colour inverts and would
+/// go illegible on them in dark.
 const Color avatarTintInk = Color(0xFFFFFFFF);
+
+/// The disc for a person whose colour is [colour]: its hue, muted and deepened until
+/// [avatarTintInk] reads on it at [_tintInkRatio], the same in either theme.
+Color avatarTintFromColour(Color colour) {
+  final hsl = HSLColor.fromColor(colour);
+  final saturation = math.min(hsl.saturation, _tintSaturationCap);
+  for (var step = 0;; step++) {
+    final lightness = math.max(0.0, _tintLightness - step * 0.01);
+    final shade = HSLColor.fromAHSL(1, hsl.hue, saturation, lightness);
+    if (contrastRatio(avatarTintInk, shade.toColor()) >= _tintInkRatio) {
+      return shade.toColor();
+    }
+  }
+}
+
+const double _tintSaturationCap = 0.45;
+const double _tintLightness = 0.40;
+
+/// Above AA's 4.5 so the bright hues deepen to about the depth of the dark ones.
+const double _tintInkRatio = 5.5;
 
 /// A person's (or bot's) picture, falling back to a tinted initials disc (or,
 /// for a square avatar, to [placeholder]) when [image] is null or fails to
@@ -76,6 +102,7 @@ class AppAvatar extends StatelessWidget {
     super.key,
     required this.name,
     this.tintKey,
+    this.tintColor,
     this.image,
     this.size = AppAvatarSize.s36,
     this.shape = AppAvatarShape.circle,
@@ -85,6 +112,8 @@ class AppAvatar extends StatelessWidget {
     this.ringColor,
     this.placeholder,
     this.semanticLabel,
+    this.speakingLabel = 'speaking',
+    this.surfaceColor,
   });
 
   /// The display name a round avatar's initials are derived from, the
@@ -99,6 +128,10 @@ class AppAvatar extends StatelessWidget {
   /// recoloured anyone who edited their name. Null falls back to [name],
   /// for content with no author identity - a channel, a system row.
   final String? tintKey;
+
+  /// The person's own colour; the disc is drawn in [avatarTintFromColour] of
+  /// it instead of a [tintKey] hash. Ignored on a square avatar.
+  final Color? tintColor;
   final ImageProvider? image;
 
   /// Diameter: one of the [AppAvatarSize] steps.
@@ -126,6 +159,10 @@ class AppAvatar extends StatelessWidget {
   /// other than speech.
   final bool speaking;
 
+  /// How the accessible name reads the [speaking] ring, for a surface where
+  /// it means something other than speech; the presence word still follows.
+  final String speakingLabel;
+
   /// A caller-supplied ring (a fingerprint-confirmation colour strip, for
   /// instance), drawn when [speaking] is false.
   final Color? ringColor;
@@ -137,10 +174,20 @@ class AppAvatar extends StatelessWidget {
 
   final String? semanticLabel;
 
+  /// What the avatar sits on, when that is not [AppTokens.surfaceBase]: the
+  /// marks punched out of the dot and the speaking glyph are drawn in it.
+  final Color? surfaceColor;
+
   /// The name, then whatever the ring and the dot show, so a screen reader
   /// hears what a sighted viewer sees.
-  String _label(String? presenceWord) => '$name${speaking ? ', speaking' : ''}'
+  String _label(String? presenceWord) =>
+      '$name${speaking ? ', $speakingLabel' : ''}'
       '${presenceWord == null ? '' : ', $presenceWord'}';
+
+  Color get _tint => switch (tintColor) {
+        final colour? => avatarTintFromColour(colour),
+        null => avatarTintFor(tintKey ?? name),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +199,7 @@ class AppAvatar extends StatelessWidget {
     final dot = presence != null && presence != AppPresence.unknown;
     final phone = dot && mobileOnly && presence == AppPresence.online;
     final geometry = AppAvatarGeometry(size, phone: phone);
+    final surface = surfaceColor ?? tokens.surfaceBase;
 
     Widget content = image == null
         ? _Face(
@@ -160,7 +208,7 @@ class AppAvatar extends StatelessWidget {
             tokens: tokens,
             geometry: geometry,
             withDot: dot,
-            tintSource: tintKey ?? name,
+            tint: _tint,
             placeholder: placeholder)
         : AppShapedImage(
             image: image!,
@@ -172,7 +220,7 @@ class AppAvatar extends StatelessWidget {
               tokens: tokens,
               geometry: geometry,
               withDot: dot,
-              tintSource: tintKey ?? name,
+              tint: _tint,
               placeholder: placeholder,
             ),
           );
@@ -187,7 +235,7 @@ class AppAvatar extends StatelessWidget {
         size: size,
         round: round,
         radius: radius,
-        glyphBackgroundColor: tokens.surfaceBase,
+        glyphBackgroundColor: surface,
         child: content,
       );
     } else if (ringColor != null) {
@@ -223,7 +271,7 @@ class AppAvatar extends StatelessWidget {
                     : AppStatusDot(
                         status: presence,
                         size: geometry.dotDiameter,
-                        backgroundColor: tokens.surfaceBase),
+                        backgroundColor: surface),
               ),
             ),
           ],
@@ -256,7 +304,7 @@ class _Face extends StatelessWidget {
     required this.tokens,
     required this.geometry,
     required this.withDot,
-    required this.tintSource,
+    required this.tint,
     required this.placeholder,
   });
 
@@ -269,8 +317,8 @@ class _Face extends StatelessWidget {
   /// initials may use.
   final bool withDot;
 
-  /// What [avatarTintFor] hashes: [AppAvatar.tintKey] resolved against the name.
-  final String tintSource;
+  /// The disc colour, resolved by [AppAvatar].
+  final Color tint;
   final Widget? placeholder;
 
   @override
@@ -287,7 +335,7 @@ class _Face extends StatelessWidget {
 
     final box = geometry.initialsBox(withDot: withDot);
     return AppShapedDisc(
-      color: avatarTintFor(tintSource),
+      color: tint,
       size: geometry.size,
       radius: geometry.size / 2,
       child: Center(

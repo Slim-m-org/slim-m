@@ -11,18 +11,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import '../../messages/providers/message_search.dart'
-    show matchedAttachmentName;
+    show matchedAttachmentName, matchedVoiceTranscript;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/dms.dart';
 import '../../channels/widgets/new_group_dm_sheet.dart';
-import '../../settings/providers/personal_space_visibility.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../../routing/routes.dart';
 import '../../messages/widgets/author_label.dart';
 import '../../messages/widgets/message_jump.dart';
 import '../../settings/screens/space_settings_section.dart';
+import '../../messages/widgets/message_inline.dart' show rewriteMentions;
 
 /// Which row layout a [PaletteResultItem] draws with.
 enum PaletteKind { channel, person, message, transcript, action }
@@ -88,9 +88,8 @@ class PaletteResultItem {
 ///
 /// A personal space's own name is the fixed sentinel [personalSpaceName],
 /// not the caller's own display name, so it also matches on
-/// [selfDisplayName] when given. That is what makes this the one way back
-/// once the row has been removed from the rail via "Remove from list": the
-/// rail row is gone, but typing your own name still finds the channel.
+/// [selfDisplayName] when given: someone looking for their own notes may
+/// type their own name.
 bool channelMatchesQuery(
   Channel channel,
   String query, {
@@ -132,28 +131,18 @@ const int paletteResultLimit = 8;
 
 /// Channels matching [query], text and voice alike. A DM is a person and is
 /// found under Members, so listing it here too showed everyone twice; only the
-/// personal space, which has no member row, stays.
-///
-/// [personalSpaceHidden] keeps a removed personal space out of a blank-query
-/// browse of everything - the whole point of removing its row - while
-/// [selfDisplayName] (via [channelMatchesQuery]) still surfaces it the
-/// moment a real query actually names the caller. Selecting it un-hides it:
-/// finding it again is also how it comes back onto the rail.
+/// personal space, Notes, which has no member row, stays - found by its name
+/// or by the caller's own display name (via [channelMatchesQuery]).
 List<PaletteResultItem> buildChannelItems(
   List<Channel> channels,
   String query, {
   String? selfDisplayName,
-  bool personalSpaceHidden = false,
   Map<String, String> categoryNames = const {},
   String? currentChannelId,
 }) => [
   for (final channel
       in channels
           .where((c) => c.kind != dmChannelKind || c.isPersonalSpace)
-          .where(
-            (c) =>
-                query.isNotEmpty || !(c.isPersonalSpace && personalSpaceHidden),
-          )
           .where(
             (c) =>
                 channelMatchesQuery(c, query, selfDisplayName: selfDisplayName),
@@ -165,19 +154,14 @@ List<PaletteResultItem> buildChannelItems(
       channel: channel,
       categoryName: categoryNames[channel.categoryId],
       isCurrent: channel.id == currentChannelId,
-      onSelect: (context, ref) async {
-        if (channel.isPersonalSpace) {
-          await ref.read(personalSpaceVisibilityProvider.notifier).show();
-        }
-        if (context.mounted) context.go(Routes.channel(channel.id));
-      },
+      onSelect: (context, ref) async => context.go(Routes.channel(channel.id)),
     ),
 ];
 
 /// Members matching [query], excluding [selfId]. A DM with yourself is a
-/// personal space now and opens fine, but it has its own dedicated row in
-/// the rail's Direct messages section - finding it by searching your own
-/// name here would be the opposite of obvious.
+/// personal space now and opens fine, but it is Notes, listed under Channels
+/// and reached from the rail's Notes button - finding it under People by
+/// your own name would be the opposite of obvious.
 List<PaletteResultItem> buildMemberItems(
   List<api.UserProfile> members,
   String query,
@@ -215,11 +199,13 @@ List<PaletteResultItem> buildMessageItems(
   List<api.Message> messages, {
   required String? currentChannelId,
   Map<String, Channel> channelsById = const {},
+  Map<String, String> mentionNames = const {},
 }) => [
   for (final message in messages)
     messageResultItem(
       message,
       channelLabel: paletteChannelLabel(channelsById[message.channelId]),
+      mentionNames: mentionNames,
       onSelect: (context, ref) async => jumpToMessage(
         GoRouter.of(context),
         ref.read,
@@ -237,21 +223,48 @@ PaletteResultItem messageResultItem(
   api.Message message, {
   required String channelLabel,
   String? authorName,
+  Map<String, String> mentionNames = const {},
   required Future<void> Function(BuildContext context, WidgetRef ref) onSelect,
 }) {
   final label = message.content.isEmpty
-      ? (matchedAttachmentName(message) ?? '')
+      ? (matchedVoiceTranscript(message) ??
+            matchedAttachmentName(message) ??
+            '')
       : message.content;
+  final spoken = searchHitSpokenLabel(
+    message,
+    authorName: authorName,
+    mentionNames: mentionNames,
+  );
   return PaletteResultItem(
     label: label,
-    semanticLabel: authorName == null
-        ? null
-        : 'Message from $authorName: $label',
+    semanticLabel: spoken == label ? null : spoken,
     kind: PaletteKind.message,
     message: message,
     messageChannelLabel: channelLabel,
     onSelect: onSelect,
   );
+}
+
+/// How a message hit is read aloud, the same in the palette and at every
+/// search width: what matched, and the file it was found in.
+String searchHitSpokenLabel(
+  api.Message message, {
+  String? authorName,
+  Map<String, String> mentionNames = const {},
+}) {
+  final said = matchedVoiceTranscript(message);
+  final file = said == null
+      ? matchedAttachmentName(message)
+      : 'a voice message';
+  final what = [
+    // Read aloud the way the chips show it: the member's name, not the stored @username.
+    if (message.content.isNotEmpty)
+      rewriteMentions(message.content, mentionNames),
+    ?said,
+    if (file != null) 'found in $file',
+  ].join(', ');
+  return authorName == null ? what : 'Message from $authorName: $what';
 }
 
 /// How a message hit names the conversation it was said in.

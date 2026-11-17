@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/diagnostics/debug_log.dart';
 import 'package:slimm_app/src/push/providers/push_controller.dart';
 import 'package:slimm_platform/platform.dart';
 import '../support/push_controller_harness.dart';
@@ -253,6 +254,37 @@ void main() {
       await container.read(pushControllerProvider.notifier).register();
 
       expect(container.read(pushControllerProvider), PushStatus.registered);
+    });
+  });
+
+  group('Android push without Firebase', () {
+    test('logging that the rotation stream is unavailable is not a provider '
+        'write during build', () async {
+      mockPushChannel((call) async => null);
+      final container = pushTestContainer(
+        session: SessionStore(),
+        httpClient: MockClient((_) async => http.Response('', 204)),
+        fcmChannel: FcmTokenChannel(
+          source: ThrowingRefreshFcmTokenSource(),
+          isAndroid: true,
+        ),
+      );
+      addTearDown(container.dispose);
+      addTearDown(() => AppLog.install(null));
+      AppLog.install(container.read(debugLogProvider.notifier));
+
+      expect(
+        () => container.read(pushControllerProvider.notifier),
+        returnsNormally,
+      );
+      await pumpEventQueue();
+
+      expect(
+        container
+            .read(debugLogProvider)
+            .any((e) => e.message.contains('push token changes')),
+        isTrue,
+      );
     });
   });
 }

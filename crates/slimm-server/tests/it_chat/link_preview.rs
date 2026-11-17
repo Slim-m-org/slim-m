@@ -85,6 +85,23 @@ async fn an_ordinary_page_is_not_flagged_playable() {
     let json = preview_json(store, &token, &upstream).await;
     assert_eq!(json["video_provider"], Value::Null);
     assert_eq!(json["video_id"], Value::Null);
+    assert_eq!(json["media_kind"], Value::Null);
+    assert_eq!(json["duration_ms"], Value::Null);
+}
+
+#[tokio::test]
+async fn a_page_that_declares_a_music_duration_carries_it_in_milliseconds() {
+    let (store, _guard) = support::new_store("slimm-link-preview-video-test").await;
+    let token = register(&store, "listener").await;
+    let upstream = fake_upstream(
+        "<meta property=\"og:title\" content=\"A song\">\
+         <meta name=\"music:duration\" content=\"336\">",
+    )
+    .await;
+
+    let json = preview_json(store, &token, &upstream).await;
+    assert_eq!(json["duration_ms"], 336_000);
+    assert_eq!(json["media_kind"], Value::Null);
 }
 
 #[tokio::test]

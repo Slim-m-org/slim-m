@@ -20,17 +20,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../features/channels/providers/channel_permissions.dart';
+import '../permissions.dart';
+import '../role_ladder.dart';
 import '../features/settings/providers/join_gate_providers.dart';
 import 'live_events.dart';
 import '../features/members/providers/member_presence.dart'
     show channelMembersProvider;
 import 'providers.dart';
 
-/// The caller's own base (deployment-level) permission bitmask, or 0 while
-/// [meProvider] is loading or failed: every gate here reads as "show
-/// nothing" rather than "show everything" until proven otherwise.
+/// The caller's own base (deployment-level) permission bitmask, every bit for
+/// the Space owner, or 0 while [meProvider] is loading or failed: every gate
+/// here reads as "show nothing" rather than "show everything" until proven
+/// otherwise.
 final myPermissionsProvider = Provider<int>(
-  (ref) => ref.watch(meProvider).valueOrNull?.permissions ?? 0,
+  (ref) => ref.watch(meProvider).valueOrNull?.heldPermissions ?? 0,
+);
+
+/// Where the caller stands on the role ladder; see [RoleLadder.of].
+final roleLadderProvider = Provider<RoleLadder>(
+  (ref) => RoleLadder.of(
+    ref.watch(meProvider).valueOrNull,
+    permissions: ref.watch(myPermissionsProvider),
+  ),
 );
 
 /// The invites loaded so far, newest first, and whether the server has more.
@@ -137,6 +148,15 @@ final categoryOverwritesProvider = FutureProvider.autoDispose
           ref.watch(apiProvider).getCategoryOverwrites(categoryId),
     );
 
+/// Whether a sub-category's overwrites follow its parent (decision 0120);
+/// null for a top-level category, which follows nothing.
+final categoryOverwritesSyncedProvider = FutureProvider.autoDispose
+    .family<bool?, String>(
+      (ref, categoryId) async =>
+          (await ref.watch(apiProvider).getCategoryOverwriteSet(categoryId))
+              .synced,
+    );
+
 /// Whether a channel's overwrites follow its category.
 final channelOverwritesSyncedProvider = FutureProvider.autoDispose
     .family<bool, String>(
@@ -156,19 +176,21 @@ final channelOverwritesSyncedProvider = FutureProvider.autoDispose
 /// watch as documentation of the dependency, not as the thing keeping this
 /// alive.
 ///
-/// Also the one place [channelPermissionsProvider] and
-/// [myVisibleChannelsProvider] are invalidated - see
+/// Also, with [refreshPermissionsAfterReconnect] beside it, the one place
+/// [channelPermissionsProvider] and [myVisibleChannelsProvider] are
+/// invalidated - see
 /// docs/decisions/0011-per-channel-permissions.md. A role or role-assignment
 /// change invalidates both bare, since either can change what the caller can
 /// do (and see) in every channel at once; a self [api.MemberTimeoutChanged]
 /// does the same and additionally refreshes [meProvider], closing the gap
 /// where a moderator timed out mid-session kept a stale reading until some
-/// unrelated refetch; an [api.OverwriteChanged] invalidates only the one
-/// channel's permissions it names, plus the visible list, since an overwrite
-/// can grant or revoke VIEW_CHANNEL and so change the list's membership -
-/// and, if [channelOverwritesProvider] is already mounted for that channel
-/// (its editor is open), that too, so a change from elsewhere never leaves
-/// the editor showing a stale allow/deny pair.
+/// unrelated refetch, and an [api.OwnerChanged] naming the caller, who now
+/// holds every permission, does the same; an [api.OverwriteChanged]
+/// invalidates only the one channel's permissions it names, plus the visible
+/// list, since an overwrite can grant or revoke VIEW_CHANNEL and so change
+/// the list's membership - and, if [channelOverwritesProvider] is already
+/// mounted for that channel (its editor is open), that too, so a change from
+/// elsewhere never leaves the editor showing a stale allow/deny pair.
 final roleChangeWatcherProvider = Provider.autoDispose<void>((ref) {
   final selfId = ref.read(sessionProvider).tokens?.userId;
   final sub = ref
@@ -180,7 +202,7 @@ final roleChangeWatcherProvider = Provider.autoDispose<void>((ref) {
 void _applyRoleEvent(Ref ref, Object event, String? selfId) {
   if (event is api.RoleChanged || event is api.MemberRoleChanged) {
     _onRoleChanged(ref, event);
-  } else if (event is api.MemberTimeoutChanged && event.userId == selfId) {
+  } else if (_movesOwnPermissions(event, selfId)) {
     ref.invalidate(meProvider);
     ref.invalidate(channelPermissionsProvider);
     _refreshVisibleChannels(ref);
@@ -192,6 +214,21 @@ void _applyRoleEvent(Ref ref, Object event, String? selfId) {
   } else if (event is api.OverwriteChanged) {
     _onOverwriteChanged(ref, event);
   }
+}
+
+bool _movesOwnPermissions(Object event, String? selfId) => switch (event) {
+  api.MemberTimeoutChanged(:final userId) ||
+  api.OwnerChanged(:final userId) => userId == selfId,
+  _ => false,
+};
+
+/// Refetches what a role change, timeout or hand-off missed while the socket was down would have
+/// moved: the caller's own permissions and ladder place, every channel's, and the role list.
+void refreshPermissionsAfterReconnect(Ref ref) {
+  ref.invalidate(meProvider);
+  ref.invalidate(channelPermissionsProvider);
+  _refreshVisibleChannels(ref);
+  if (ref.exists(rolesProvider)) ref.invalidate(rolesProvider);
 }
 
 // ref.invalidate on a never-watched provider mounts and fetches it.

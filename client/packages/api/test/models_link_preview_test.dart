@@ -83,4 +83,77 @@ void main() {
     final preview = LinkPreview.fromJson({'url': 'https://example.com'});
     expect(preview.embedUrl, isNull);
   });
+
+  group('a Spotify item', () {
+    const id = '3ccGTp44b5m3TwTCrolFjw';
+
+    LinkPreview spotify(Map<String, Object?> extra) => LinkPreview.fromJson({
+          'url': 'https://open.spotify.com/track/$id?si=x',
+          'title': 'Some Men Drown',
+          'site_name': 'Spotify',
+          'video_provider': 'spotify',
+          'video_id': id,
+          'media_kind': 'track',
+          'duration_ms': 336000,
+          ...extra,
+        });
+
+    test('reads its kind, id and duration, and is not a YouTube video', () {
+      final preview = spotify({});
+      expect(preview.videoProvider, LinkPreviewVideoProvider.spotify);
+      expect(preview.mediaKind, SpotifyKind.track);
+      expect(preview.durationMs, 336000);
+      expect(preview.isPlayableVideo, isFalse);
+      expect(preview.embedUrl, isNull);
+      expect(preview.spotify, SpotifyEntity.tryCreate(SpotifyKind.track, id));
+    });
+
+    test('builds its own links from kind and id', () {
+      final item = spotify({'media_kind': 'album'}).spotify!;
+      expect(item.webUrl.toString(), 'https://open.spotify.com/album/$id');
+      expect(item.appUri.toString(), 'spotify:album:$id');
+      expect(
+        item.embedUrl.toString(),
+        'https://open.spotify.com/embed/album/$id',
+      );
+    });
+
+    test('uses the compact player only for a track or an episode', () {
+      for (final kind in SpotifyKind.values) {
+        final item = SpotifyEntity.tryCreate(kind, id)!;
+        final compact =
+            kind == SpotifyKind.track || kind == SpotifyKind.episode;
+        expect(item.embedHeight, compact ? 152 : 352, reason: kind.name);
+      }
+    });
+
+    test('every wire kind decodes and an unknown one is null', () {
+      for (final kind in SpotifyKind.values) {
+        expect(SpotifyKind.fromWire(kind.name), kind);
+      }
+      expect(SpotifyKind.fromWire('audiobook'), isNull);
+      expect(SpotifyKind.fromWire(null), isNull);
+    });
+
+    test('a bad id, a missing kind or another provider is no Spotify item', () {
+      for (final bad in [
+        '3ccGTp44b5m3TwTCrolFj',
+        '3ccGTp44b5m3TwTCrolFjwX',
+        '3ccGTp44b5m3TwTCrolF/w',
+        '../../../../../../etc/x',
+      ]) {
+        expect(spotify({'video_id': bad}).spotify, isNull, reason: bad);
+      }
+      expect(spotify({'media_kind': null}).spotify, isNull);
+      expect(spotify({'media_kind': 'audiobook'}).spotify, isNull);
+      expect(spotify({'video_provider': 'youtube'}).spotify, isNull);
+    });
+
+    test('an older server with no media fields reads them as null', () {
+      final preview = LinkPreview.fromJson({'url': 'https://example.com'});
+      expect(preview.mediaKind, isNull);
+      expect(preview.durationMs, isNull);
+      expect(preview.spotify, isNull);
+    });
+  });
 }

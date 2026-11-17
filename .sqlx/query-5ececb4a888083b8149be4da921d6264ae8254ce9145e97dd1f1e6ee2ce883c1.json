@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) AS \"n!: i64\" FROM users\n                   WHERE deleted_at IS NULL AND is_bot = 0 AND is_webhook = 0 AND id != ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "n!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5ececb4a888083b8149be4da921d6264ae8254ce9145e97dd1f1e6ee2ce883c1"
+}

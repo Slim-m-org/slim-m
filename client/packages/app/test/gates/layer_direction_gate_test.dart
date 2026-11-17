@@ -16,7 +16,6 @@ const _knownExceptions = {
   'features/channels/widgets/channel_row_menu.dart -> features/channels/screens/channel_settings_screen.dart',
   'features/channels/widgets/compact_channel_app_bar.dart -> features/voice/screens/voice_text_pane.dart',
   'features/channels/widgets/dm_row.dart -> features/voice/screens/dm_call_pane.dart',
-  'features/channels/widgets/rail_call_summary.dart -> features/voice/screens/dm_call_pane.dart',
   'features/voice/widgets/call_mini_player.dart -> features/voice/screens/dm_call_pane.dart',
   'features/voice/widgets/dm_call_button.dart -> features/voice/screens/dm_call_pane.dart',
   'features/voice/widgets/voice_strip_indicator.dart -> features/voice/screens/dm_call_pane.dart',

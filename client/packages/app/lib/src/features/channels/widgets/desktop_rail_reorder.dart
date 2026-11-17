@@ -2,12 +2,12 @@
 /// Click-and-hold reordering of the channel rail at pointer widths.
 ///
 /// A held press lifts a channel or a category; the item follows the pointer
-/// as a floating copy, the original stays as a dimmed placeholder, and an
-/// insertion line shows where release will place it. Rows never shuffle while
-/// carrying. A plain click, a quick press and a short drag never lift, so
-/// selecting and scrolling are untouched. `docs/design/desktop-vs-mobile.md`
-/// rules 1 and 3: width picks this path, and the phone path lifts on a long
-/// press too.
+/// as a floating copy that keeps clear of the insertion line showing where
+/// release will place it, and the original stays as an empty slot. Rows
+/// never shuffle while carrying. A plain click, a quick press and a short
+/// drag never lift, so selecting and scrolling are untouched.
+/// `docs/design/desktop-vs-mobile.md` rules 1 and 3: width picks this path,
+/// and the phone path lifts on a long press too.
 library;
 
 import 'dart:async';
@@ -16,12 +16,14 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
-import 'package:slimm_api/api.dart' show ChannelOrderGroup;
+import 'package:slimm_api/api.dart' show CategoryOrderGroup, ChannelOrderGroup;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'category_tree.dart';
 import 'channel_rail_reorder.dart' show ChannelSection;
 import 'rail_autoscroll.dart';
+import 'rail_category_slots.dart';
 import 'rail_drop_slots.dart';
 import 'rail_move_actions.dart';
 import 'rail_carry_overlay.dart';
@@ -39,6 +41,7 @@ class DesktopRailReorder extends StatefulWidget {
     required this.headerBuilder,
     this.carriedHeaderBuilder,
     this.carriedRowInset = 0,
+    this.categoriesNest = false,
     required this.onReorder,
     required this.onReorderCategories,
   });
@@ -49,11 +52,16 @@ class DesktopRailReorder extends StatefulWidget {
 
   /// Builds the floating copy, which cannot reuse the original's global keys.
   final Widget Function(Channel channel)? carriedRowBuilder;
+
+  /// One level's indent: a top-level row's, and a sub-category header's.
   final double carriedRowInset;
+
+  /// Whether a carried category may be filed under another (decision 0120).
+  final bool categoriesNest;
   final Widget Function(ChannelCategoryRow? category)? carriedHeaderBuilder;
   final Widget Function(ChannelCategoryRow? category) headerBuilder;
   final ValueChanged<List<ChannelOrderGroup>> onReorder;
-  final ValueChanged<List<String>>? onReorderCategories;
+  final ValueChanged<List<CategoryOrderGroup>>? onReorderCategories;
 
   @override
   State<DesktopRailReorder> createState() => _DesktopRailReorderState();
@@ -65,6 +73,7 @@ class _Carry {
     required this.isCategory,
     required this.grab,
     required this.size,
+    required this.inset,
     required this.entry,
   });
 
@@ -72,6 +81,9 @@ class _Carry {
   final bool isCategory;
   final Offset grab;
   final Size size;
+
+  /// The gap left of the lifted item's face, by its depth.
+  final double inset;
   final OverlayEntry entry;
   DropSlot? slot;
 }
@@ -83,6 +95,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
   final _slot = ValueNotifier<DropSlot?>(null);
   final _boxKeys = <String, GlobalKey>{};
   final _pointer = ValueNotifier<Offset>(Offset.zero);
+  final _copyAt = ValueNotifier<Offset>(Offset.zero);
   late final AnimationController _lift = AnimationController(
     vsync: this,
     duration: AppMotion.base,
@@ -90,7 +103,24 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
   _Carry? _carry;
   Timer? _scrollTimer;
 
+  List<ChannelSection>? _treeOf;
+  CategoryTree? _treeCache;
+
   GlobalKey _keyFor(String id) => _boxKeys.putIfAbsent(id, GlobalKey.new);
+
+  CategoryTree get _tree {
+    if (!identical(_treeOf, widget.sections) || _treeCache == null) {
+      _treeOf = widget.sections;
+      _treeCache = treeOfSections(widget.sections);
+    }
+    return _treeCache!;
+  }
+
+  int _depthOf(int s) => _tree.depthOf(widget.sections[s].$1);
+
+  double _rowInset(int s) => widget.carriedRowInset * (1 + _depthOf(s));
+
+  double _headerInset(int s) => widget.carriedRowInset * _depthOf(s);
 
   @override
   void didUpdateWidget(covariant DesktopRailReorder oldWidget) {
@@ -114,6 +144,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     _stopCarry();
     _lift.dispose();
     _pointer.dispose();
+    _copyAt.dispose();
     _slot.dispose();
     super.dispose();
   }
@@ -142,26 +173,39 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
   List<Widget> _section(int s) {
     final (category, channels) = widget.sections[s];
     final carry = _carry;
-    final foldedAway =
+    final lifted =
         carry != null && carry.isCategory && carry.id == category?.id;
+    // A lifted parent carries its sub-categories with it.
+    final underLifted =
+        carry != null &&
+        carry.isCategory &&
+        carry.id == _tree.parentOf(category)?.id;
+    final foldedAway = lifted || underLifted;
     return [
-      _item(
-        _RailItem(
-          id: 'h:${category?.id}',
-          dimmed: foldedAway,
-          liftable: category != null,
-          isCategory: true,
-          liftId: category?.id ?? '',
-          actions: category == null
-              ? const {}
-              : categoryMoveActions(
-                  _categoryIds,
-                  category.id,
-                  widget.onReorderCategories,
-                ),
-          child: widget.headerBuilder(category),
+      if (underLifted)
+        KeyedSubtree(
+          key: _keyFor('h:${category?.id}'),
+          child: const SizedBox.shrink(),
+        )
+      else
+        _item(
+          _RailItem(
+            id: 'h:${category?.id}',
+            dimmed: lifted,
+            liftable: category != null,
+            isCategory: true,
+            liftId: category?.id ?? '',
+            inset: _headerInset(s),
+            actions: category == null
+                ? const {}
+                : categoryMoveActions(
+                    _tree,
+                    category.id,
+                    widget.onReorderCategories,
+                  ),
+            child: widget.headerBuilder(category),
+          ),
         ),
-      ),
       for (final channel in channels)
         foldedAway
             ? KeyedSubtree(
@@ -175,6 +219,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
                   liftable: true,
                   isCategory: false,
                   liftId: channel.id,
+                  inset: _rowInset(s),
                   actions: channelMoveActions(
                     WidgetsLocalizations.of(context),
                     widget.sections,
@@ -197,7 +242,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
   Widget _item(_RailItem entry) {
     Widget item = Semantics(
       customSemanticsActions: entry.actions,
-      child: entry.dimmed ? _slotFor(entry.isCategory) : entry.child,
+      child: entry.dimmed ? _slotFor(entry.inset) : entry.child,
     );
     if (entry.shortcuts.isNotEmpty) {
       item = CallbackShortcuts(bindings: entry.shortcuts, child: item);
@@ -210,12 +255,8 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
               GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
                 () => LongPressGestureRecognizer(duration: _holdDelay),
                 (r) => r
-                  ..onLongPressStart = ((d) => _liftItem(
-                    entry.id,
-                    entry.liftId,
-                    entry.isCategory,
-                    d.globalPosition,
-                  ))
+                  ..onLongPressStart = ((d) =>
+                      _liftItem(entry, d.globalPosition))
                   ..onLongPressMoveUpdate = ((d) => _move(d.globalPosition))
                   ..onLongPressEnd = ((d) => _drop(d.globalPosition))
                   ..onLongPressCancel = _cancel,
@@ -227,10 +268,8 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     return KeyedSubtree(key: _keyFor(entry.id), child: item);
   }
 
-  Widget _slotFor(bool isCategory) => RailCarrySlot(
-    height: _carry!.size.height,
-    inset: isCategory ? 0 : widget.carriedRowInset,
-  );
+  Widget _slotFor(double inset) =>
+      RailCarrySlot(height: _carry!.size.height, inset: inset);
 
   RenderBox? _boxOf(GlobalKey key) {
     final object = key.currentContext?.findRenderObject();
@@ -263,22 +302,24 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     return boxes;
   }
 
-  void _liftItem(String id, String liftId, bool isCategory, Offset global) {
+  void _liftItem(_RailItem item, Offset global) {
     if (_carry != null) return;
-    final box = _boxOf(_keyFor(id));
+    final box = _boxOf(_keyFor(item.id));
     if (box == null) return;
     final origin = box.localToGlobal(Offset.zero);
     final overlay = Overlay.of(context);
     late final _Carry carry;
     final entry = OverlayEntry(builder: (_) => _floating(carry));
     carry = _Carry(
-      id: liftId,
-      isCategory: isCategory,
+      id: item.liftId,
+      isCategory: item.isCategory,
       grab: global - origin,
       size: box.size,
+      inset: item.inset,
       entry: entry,
     );
     _pointer.value = global;
+    _copyAt.value = origin;
     overlay.insert(entry);
     HardwareKeyboard.instance.addHandler(_onKey);
     _scrollTimer = Timer.periodic(
@@ -302,11 +343,10 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
       context,
       RailCarryOverlay(
         copy: copy,
-        pointer: _pointer,
+        at: _copyAt,
         slot: _slot,
-        grab: carry.grab,
         size: carry.size,
-        inset: carry.isCategory ? 0 : widget.carriedRowInset,
+        inset: carry.inset,
         lift: _lift,
         link: _link,
         listWidth: () => _boxOf(_stackKey)?.size.width ?? 0,
@@ -335,23 +375,44 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     if (carry == null || stack == null || !mounted) return;
     final y = stack.globalToLocal(_pointer.value).dy;
     final boxes = _measure(stack);
+    final closed = closedSections(widget.sections, _tree, widget.collapsed);
     final slot = carry.isCategory
-        ? categorySlotAt(boxes, _namedSections(), y)
-        : channelSlotAt(boxes, _closedSections(), y);
-    if (slot == carry.slot) return;
-    carry.slot = slot;
-    _slot.value = slot;
+        ? categorySlotAt(
+            boxes,
+            CategoryCarry(
+              sections: widget.sections,
+              tree: _tree,
+              carriedId: carry.id,
+              closed: closed,
+              inset: widget.carriedRowInset,
+              nests: widget.categoriesNest,
+            ),
+            y,
+          )
+        : channelSlotAt(
+            boxes,
+            closed,
+            y,
+            insetOf: (s) => widget.carriedRowInset * _depthOf(s),
+          );
+    if (slot != carry.slot) {
+      carry.slot = slot;
+      _slot.value = slot;
+    }
+    final held = _pointer.value - carry.grab;
+    final lineY = slot == null
+        ? null
+        : stack.localToGlobal(Offset(0, slot.y)).dy;
+    _copyAt.value = Offset(
+      held.dx,
+      carriedCopyTop(
+        held: held.dy,
+        height: carry.size.height,
+        pointerY: _pointer.value.dy,
+        lineY: lineY,
+      ),
+    );
   }
-
-  List<int> _namedSections() => [
-    for (var s = 0; s < widget.sections.length; s++)
-      if (widget.sections[s].$1 != null) s,
-  ];
-
-  Set<int> _closedSections() => {
-    for (var s = 0; s < widget.sections.length; s++)
-      if (widget.collapsed.contains(widget.sections[s].$1?.id)) s,
-  };
 
   void _autoScroll() {
     if (autoScrollRail(context, _pointer.value.dy)) _retarget();
@@ -376,7 +437,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     _endCarry();
     if (slot == null) return;
     if (carry.isCategory) {
-      final next = categoryIdsAfterDrop(_categoryIds, carry.id, slot.index);
+      final next = categoryGroupsAfterDrop(_tree, carry.id, slot);
       if (next != null) widget.onReorderCategories?.call(next);
       return;
     }
@@ -415,6 +476,7 @@ class _RailItem {
     required this.liftable,
     required this.isCategory,
     required this.liftId,
+    required this.inset,
     required this.actions,
     this.shortcuts = const {},
     required this.child,
@@ -425,6 +487,9 @@ class _RailItem {
   final bool liftable;
   final bool isCategory;
   final String liftId;
+
+  /// The gap left of the item's face, which its carried copy and slot keep.
+  final double inset;
   final Map<CustomSemanticsAction, VoidCallback> actions;
   final Map<ShortcutActivator, VoidCallback> shortcuts;
   final Widget child;

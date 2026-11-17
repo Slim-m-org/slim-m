@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Three hand-rolled `OverlayPortal` popovers - the Space menu, the status
-/// menu, and the personal space kebab - never adopted `ContextMenuFocus`'s
-/// own `ContextMenuKeyboardScope`, the route `ContextMenuRegion` and both
-/// canvas menus already use. Escape did nothing and focus never moved into
-/// the opened menu on any of the three; a tap outside was the only way to
-/// close them from the keyboard's own escape key.
+/// Hand-rolled `OverlayPortal` popovers - the Space menu and the status
+/// menu - never adopted `ContextMenuFocus`'s own `ContextMenuKeyboardScope`,
+/// the route `ContextMenuRegion` and both canvas menus already use. Escape
+/// did nothing and focus never moved into the opened menu; a tap outside was
+/// the only way to close them from the keyboard's own escape key.
 library;
 
 import 'package:drift/native.dart';
@@ -15,12 +14,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/features/settings/widgets/personal_space_menu.dart';
 import 'package:slimm_app/src/features/members/widgets/presence_menu.dart';
 import 'package:slimm_app/src/features/channels/widgets/space_menu_button.dart';
 import 'package:slimm_data/data.dart';
@@ -123,31 +120,6 @@ Future<void> _pumpPresenceMenu(WidgetTester tester) async {
   await tester.pump();
 }
 
-Future<void> _pumpPersonalSpaceKebab(WidgetTester tester) async {
-  SharedPreferences.setMockInitialValues(const {});
-  final container = ProviderContainer(
-    overrides: [
-      keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-      sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-    ],
-  );
-  addTearDown(container.dispose);
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(
-        theme: buildTheme(Brightness.dark, AppTokens.dark),
-        home: Scaffold(
-          body: Center(
-            child: PersonalSpaceKebab(visible: true, onFocusChange: (_) {}),
-          ),
-        ),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
-
 void main() {
   testWidgets('Escape closes the Space menu', (tester) async {
     await _pumpSpaceMenu(tester);
@@ -171,17 +143,5 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(find.text('Do not disturb'), findsNothing);
-  });
-
-  testWidgets('Escape closes the personal space kebab', (tester) async {
-    await _pumpPersonalSpaceKebab(tester);
-
-    await tester.tap(find.bySemanticsLabel('Personal space options'));
-    await tester.pumpAndSettle();
-    expect(find.text('Remove from list'), findsOneWidget);
-
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-    await tester.pumpAndSettle();
-    expect(find.text('Remove from list'), findsNothing);
   });
 }

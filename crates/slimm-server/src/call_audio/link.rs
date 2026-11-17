@@ -53,7 +53,12 @@ pub fn spawn(settings: &ListenerSettings) -> (Link, mpsc::UnboundedReceiver<Link
 
 /// `base` with the control path appended.
 pub fn control_url(base: &str) -> String {
-    format!("{}/v1/control", base.trim_end_matches('/'))
+    listener_url(base, "/v1/control")
+}
+
+/// `base` with `route` appended, keeping any path prefix a proxy in front of the listener needs.
+pub fn listener_url(base: &str, route: &str) -> String {
+    format!("{}{route}", base.trim_end_matches('/'))
 }
 
 async fn run(

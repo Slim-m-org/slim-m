@@ -36,6 +36,8 @@ use canvas::{
     canvas_ops_write, canvas_purge,
 };
 mod categories;
+mod category_delete;
+mod category_order;
 mod category_overwrites;
 mod channels;
 pub(crate) use channels::channel_slow_mode;
@@ -55,6 +57,7 @@ mod linked_accounts;
 mod member_gate;
 mod members_bulk;
 mod messages;
+mod soundboard;
 use messages::{
     message_embeds, message_forwards, message_history, message_module_origins, message_ops,
     message_retention, message_search, messages_bulk,
@@ -67,6 +70,7 @@ mod modules;
 mod scene_refresh;
 use modules::{module_health, module_kv, module_permissions, module_stats};
 mod attachment_text;
+mod attachment_voice;
 mod data_exports;
 mod export_capacity;
 mod export_member;
@@ -86,6 +90,7 @@ mod push;
 mod reactions;
 mod read_markers;
 mod read_state;
+mod voice_transcripts;
 pub use read_state::{SeqHeads, UNREAD_COUNT_CAP};
 mod recovery;
 mod refresh_rotation;
@@ -101,16 +106,20 @@ mod login_throttle;
 mod media_compression;
 mod safety;
 mod saved_messages;
+mod screen_stamps;
 mod sessions;
 mod sign_in_alert;
 mod space;
 mod space_landing;
 mod space_link_previews;
 mod space_module_display;
+mod space_owner;
 mod space_setup;
 mod space_themes;
 mod space_welcome;
+mod stamp_reports;
 mod storage;
+mod sub_category_overwrites;
 mod thread_listing;
 mod threads;
 mod timeouts;
@@ -126,7 +135,7 @@ mod voice_sessions;
 mod watch_sessions;
 mod webhooks;
 
-pub use account_deletion::DeleteAccountError;
+pub use account_deletion::{DeleteAccountError, DeletedAccount};
 pub use admin_alerts::{AdminAlert, Raised, ResolvedAlert};
 pub use admin_audit::AdminAuditEntry;
 pub use analytics::{
@@ -135,6 +144,7 @@ pub use analytics::{
 pub use apps::{AppLaunch, AppSurface, CreateAppSurfaceError};
 pub use attachment_originals::KeptOriginal;
 pub use attachment_text::TextCandidate;
+pub use attachment_voice::{MAX_VOICE_MS, VoiceInfo, WAVEFORM_BUCKETS};
 pub use attachments::{AttachmentSummary, LinkError, MAX_ATTACHMENTS_PER_MESSAGE, OriginalInfo};
 pub use bootstrap::Bootstrap;
 pub use bot_command_options::BotCommandOption;
@@ -149,7 +159,7 @@ pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
 pub use call_transcripts::{
     CallTranscript, HIGHLIGHT_CLOSE, HIGHLIGHT_OPEN, MAX_TRANSCRIPT_RETENTION_DAYS, NewTranscript,
-    TranscriptHit, TranscriptLine, TranscriptionMode,
+    NewTranscriptLine, TranscriptHit, TranscriptLine, TranscriptionMode,
 };
 pub use calls::CallRecord;
 pub use canvas::canvas_batch::{BatchError, BatchItem};
@@ -168,7 +178,8 @@ pub use canvas_ops_write::{
     CanvasOpRequest, ClearScope, MAX_REMOVE_IDS_PER_OP, SubmitOpError, SubmittedOp,
 };
 pub use canvas_purge::PurgeError;
-pub use categories::CreatedCategory;
+pub use categories::{CategoryUpdate, CategoryWriteError, CreatedCategory};
+pub use category_order::{CategoryOrderGroup, CategoryReorderOutcome, ReorderCategoriesError};
 pub use channel_create::{ChannelDefaults, CreateChannelError, CreatedChannel};
 pub use channel_notification_prefs::NotificationChoice;
 pub use channel_order::{ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
@@ -194,7 +205,7 @@ pub use group_dms::{
     GROUP_DM_MAX_PARTICIPANTS, GROUP_DM_MIN_PARTICIPANTS, GroupDmError, LeftGroup,
 };
 pub use interactions::{Interaction, InteractionInput, InteractionKind, SubmissionClaim};
-pub use invites::{Invite, InviteCheck, InviteMetadata, RedeemError};
+pub use invites::{GrantReach, Invite, InviteCheck, InviteMetadata, InviteScope, RedeemError};
 pub use linked_accounts::{AccountLinkError, LinkedAccount, PendingLink, normalize_handoff};
 pub use login_throttle::{
     ACCOUNT_FREE_FAILURES, ACCOUNT_MAX_DELAY_MS, FORGET_AFTER_MS, FREE_FAILURES, MAX_DELAY_MS,
@@ -249,13 +260,22 @@ pub use role_update::RoleChanges;
 pub use roles::{CreateRoleError, CreatedRole, ROLE_COLOR_COUNT, Role, RoleGuardError};
 pub use safety::Device;
 pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};
+pub use screen_stamps::{
+    NewScreenStamp, ReportPicture, SCREEN_STAMP_TTL_MS, ScreenStamp, StampInsert, StampSender,
+};
 pub use sessions::{Account, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens};
+pub use soundboard::{
+    ClipEmoji, MAX_SOUNDBOARD_CLIPS, SoundClip, SoundClipChange, SoundClipError, StarterClipRow,
+    StarterSeeded,
+};
 pub use space::{JoinPolicy, MAX_SCREEN_SHARE_MAX_HEIGHT, MIN_SCREEN_SHARE_MAX_HEIGHT};
 pub use space_landing::{MAX_SPACE_DESCRIPTION_CHARS, SpaceLanding};
 pub use space_module_display::ModuleDisplay;
+pub use space_owner::{Handoff, Ownership};
 pub use space_setup::SpaceSetup;
 pub use space_themes::{PublishError, SpaceTheme, ThemePicture};
 pub use space_welcome::{MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome};
+pub use stamp_reports::{MAX_REASON_CHARS, SCREEN_STAMP_KIND};
 pub use storage::{ChannelStorage, DatabaseBytes, MAX_STORAGE_CHANNEL_ROWS, SweepStatus};
 pub use thread_listing::ThreadListItem;
 pub use threads::{
@@ -271,6 +291,7 @@ pub use voice_call_events::{
     CALL_HISTORY_RETENTION_DAYS, CanvasActivity, VoiceEvent, VoiceEventKind,
 };
 pub use voice_sessions::{SessionScope, VOICE_SESSION_RETENTION_DAYS, VoiceSession};
+pub use voice_transcripts::{TranscriptOutcome, TranscriptStatus, VoiceCandidate, VoiceTranscript};
 pub use watch_sessions::{
     WATCH_SESSION_TTL_MS, WatchSample, WatchSession, WatchSessionWrite, WatchWriteOutcome,
 };

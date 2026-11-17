@@ -42,7 +42,7 @@ const _adminRole = api.Role(
   createdAt: 0,
 );
 
-data.Channel _channel(String kind) => data.Channel(
+data.Channel _channel(String kind, {String? roomOwnerId}) => data.Channel(
   id: _channelId,
   name: 'secret',
   kind: kind,
@@ -54,6 +54,7 @@ data.Channel _channel(String kind) => data.Channel(
   joinMuted: false,
   position: 0,
   slowModeSeconds: 0,
+  roomOwnerId: roomOwnerId,
 );
 
 ({ProviderContainer container, List<http.Request> writes, List<int> rolesReads})
@@ -64,6 +65,7 @@ _wire({
   bool failWrite = false,
   List<api.Role> roles = const <api.Role>[],
   api.UserProfile member = _other,
+  String? roomOwnerId,
 }) {
   final writes = <http.Request>[];
   final rolesReads = <int>[];
@@ -78,7 +80,7 @@ _wire({
         return roles;
       }),
       channelByIdProvider.overrideWith(
-        (ref, id) => Stream.value(_channel(kind)),
+        (ref, id) => Stream.value(_channel(kind, roomOwnerId: roomOwnerId)),
       ),
       if (selfProfile != null)
         meProvider.overrideWith((ref) async => selfProfile),
@@ -193,6 +195,61 @@ void main() {
       member: admin,
     );
     await _open(tester, wired.container, profile: admin);
+    expect(find.text(label), findsNothing);
+  });
+
+  testWidgets('hidden for the Space owner, whom no overwrite denies', (
+    tester,
+  ) async {
+    const owner = api.UserProfile(
+      id: 'user-maya',
+      username: 'maya',
+      displayName: 'maya',
+      createdAt: 0,
+      isOwner: true,
+    );
+    final wired = _wire(channelPermissions: Perm.manageRoles, member: owner);
+    await _open(tester, wired.container, profile: owner);
+    expect(find.text(label), findsNothing);
+  });
+
+  testWidgets('hidden in a temporary room, which follows its lobby', (
+    tester,
+  ) async {
+    final wired = _wire(
+      channelPermissions: Perm.manageRoles,
+      kind: 'voice',
+      roomOwnerId: 'user-bob',
+    );
+    await _open(tester, wired.container);
+    expect(find.text(label), findsNothing);
+    expect(wired.rolesReads, isEmpty, reason: 'a room never needs the roles');
+  });
+
+  testWidgets('hidden for a member level with or above you on the ladder', (
+    tester,
+  ) async {
+    const senior = api.UserProfile(
+      id: 'user-maya',
+      username: 'maya',
+      displayName: 'maya',
+      createdAt: 0,
+      topRolePosition: 8,
+    );
+    final wired = _wire(
+      channelPermissions: Perm.manageRoles,
+      member: senior,
+      selfProfile: const api.Me(
+        id: 'user-mod',
+        username: 'mod',
+        displayName: 'mod',
+        createdAt: 0,
+        permissions: Perm.manageRoles,
+        topRolePosition: 5,
+        reportsRoleLadder: true,
+      ),
+    );
+    await _open(tester, wired.container, profile: senior);
     expect(find.text(label), findsNothing);
   });
 

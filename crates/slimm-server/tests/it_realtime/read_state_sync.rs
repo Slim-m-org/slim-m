@@ -402,3 +402,60 @@ async fn sync_far_behind_cursor_asks_for_reset() {
     assert_eq!(scope["reset"], true);
     assert_eq!(scope["messages"].as_array().unwrap().len(), 0);
 }
+
+/// What a client holds after a reset is the newest *live* message, so a
+/// channel whose newest thousand were all deleted must not tell it to reset
+/// again: nothing a reset fetches would move its cursor, and every later
+/// catch-up would wipe the channel and refetch it for good.
+#[tokio::test]
+async fn sync_does_not_reset_over_a_gap_that_holds_only_deleted_messages() {
+    let f = setup(Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES)).await;
+    let channel = f.store.create_channel("general", "text").await.unwrap();
+    let mut ids = Vec::new();
+    for i in 0..1002 {
+        let sent = f
+            .store
+            .send_message(NewMessage::plain(
+                channel.id,
+                f.user_id,
+                MessageId::generate(),
+                &format!("m{i}"),
+            ))
+            .await
+            .unwrap();
+        ids.push(sent.message.id);
+    }
+    for id in &ids[1..] {
+        f.store.delete_message(*id, f.user_id).await.unwrap();
+    }
+
+    // The cursor a reset leaves: seq 1, the only message still standing.
+    let sync = |after_seq: i64| {
+        let app = f.app.clone();
+        let body =
+            json!({ "scopes": [{ "channel_id": channel.id.to_string(), "after_seq": after_seq }] });
+        let token = f.token.clone();
+        async move {
+            json_body(
+                app.oneshot(request("POST", "/sync", &token, Some(body)))
+                    .await
+                    .unwrap(),
+            )
+            .await
+        }
+    };
+    let caught_up = sync(1).await;
+    assert_eq!(caught_up["scopes"][0]["reset"], false, "{caught_up}");
+    assert_eq!(caught_up["scopes"][0]["has_more"], false);
+    assert_eq!(caught_up["scopes"][0]["messages"], json!([]));
+
+    // A client that holds nothing is one message behind, not a thousand.
+    let cold = sync(0).await;
+    assert_eq!(cold["scopes"][0]["reset"], false, "{cold}");
+    assert_eq!(cold["scopes"][0]["messages"].as_array().unwrap().len(), 1);
+
+    // Once the last one goes too there is nothing left to be behind on.
+    f.store.delete_message(ids[0], f.user_id).await.unwrap();
+    let empty = sync(0).await;
+    assert_eq!(empty["scopes"][0]["reset"], false, "{empty}");
+}

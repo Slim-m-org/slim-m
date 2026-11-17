@@ -25,15 +25,19 @@ class Channels extends Table {
   /// The highest `seq` this client holds for the channel: the sync cursor.
   IntColumn get cursor => integer().withDefault(const Constant(0))();
 
+  /// The highest `seq` among this channel's messages still standing here, which unlike [cursor] falls back when that message is deleted.
+  /// Null on a row written before it was tracked; read it through `standingSeq`.
+  IntColumn get liveSeq => integer().nullable()();
+
   /// How far the user has read, mirrored from the server.
   IntColumn get lastReadSeq => integer().withDefault(const Constant(0))();
 
   /// The highest `seq` of a message in this channel that mentioned the
-  /// caller, the same "sync cursor" shape [cursor] already is: advanced by
-  /// [MessageStore.applyMessage] whenever an applied `api.Message` carries
-  /// `mentionsMe`, never lowered. `mentionedSeq > lastReadSeq` is the rail's
-  /// unread-mention flag, the same `cursor > lastReadSeq` comparison already
-  /// drives the plain unread dot - see `rail_channel.dart`.
+  /// caller: advanced by [MessageStore.applyMessage] whenever an applied
+  /// `api.Message` carries `mentionsMe`, and walked back to the newest mention
+  /// still held when that message is deleted. `mentionedSeq > lastReadSeq` is
+  /// the rail's unread-mention flag, beside `standingSeq > lastReadSeq` for the
+  /// plain dot - see `rail_channel.dart`.
   IntColumn get mentionedSeq => integer().withDefault(const Constant(0))();
 
   /// The reader asked to see this channel as unread even though they have
@@ -145,8 +149,12 @@ class ChannelCategories extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
 
-  /// Sort key among the deployment's live categories: lower sorts first.
+  /// Sort key among its siblings, lower first: the top-level categories, or
+  /// one parent's sub-categories (decision 0120).
   IntColumn get position => integer().withDefault(const Constant(0))();
+
+  /// The top-level category this one sits in, or null for a top-level one.
+  TextColumn get parentId => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -259,6 +267,10 @@ class Messages extends Table {
   BoolColumn get linkPreviewsRemoved =>
       boolean().withDefault(const Constant(false))();
 
+  /// Whether this message mentions the reader, as the server last said.
+  /// Lets a deleted mention walk the channel's `mentionedSeq` back to the one before it.
+  BoolColumn get mentionsMe => boolean().withDefault(const Constant(false))();
+
   /// True while the send is in flight. The UI shows these differently and they
   /// are replaced in place by the server's copy on acknowledgement.
   BoolColumn get pending => boolean().withDefault(const Constant(false))();
@@ -326,7 +338,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 28;
+  int get schemaVersion => 31;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -434,6 +446,23 @@ class SlimmDatabase extends _$SlimmDatabase {
             () => _addColumnOnce(m, messages, messages.linkPreviewsRemoved)),
         _UpgradeStep(
             28, () => _addColumnOnce(m, channels, channels.dmMemberIds)),
+        _UpgradeStep(29, () async {
+          await _addColumnOnce(m, channels, channels.liveSeq);
+          await m.database.customStatement(
+              'UPDATE channels SET live_seq = COALESCE((SELECT MAX(seq) FROM messages '
+              'WHERE messages.channel_id = channels.id AND seq > 0), cursor)');
+        }),
+        // The row at a channel's mention cursor is the one mention already known.
+        _UpgradeStep(30, () async {
+          await _addColumnOnce(m, messages, messages.mentionsMe);
+          await m.database.customStatement(
+              'UPDATE messages SET mentions_me = 1 WHERE seq > 0 AND seq = '
+              '(SELECT mentioned_seq FROM channels WHERE channels.id = messages.channel_id)');
+        }),
+        _UpgradeStep(
+            31,
+            () => _addColumnOnce(
+                m, channelCategories, channelCategories.parentId)),
       ];
 
   /// How each schema version is reached. Most add a column in place that the

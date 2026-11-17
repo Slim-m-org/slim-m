@@ -2,6 +2,7 @@
 #include "screen_overlay.h"
 
 #include "screen_overlay_panel.h"
+#include "screen_overlay_stamps.h"
 
 #include <dlfcn.h>
 #include <gtk/gtk.h>
@@ -179,6 +180,7 @@ gboolean OnDraw(GtkWidget* widget, cairo_t* cr, gpointer) {
       case Shape::Kind::kStroke: DrawStroke(cr, s, w, h); break;
       case Shape::Kind::kEllipse: DrawEllipse(cr, s, w, h); break;
       case Shape::Kind::kNote: DrawNote(cr, s, w, h); break;
+      case Shape::Kind::kStamp: DrawStamp(cr, s, w, h); break;
     }
   }
   if (g_panel.present && MonitorOf(widget) == g_panel.monitor) {
@@ -317,6 +319,7 @@ void Hide() {
   g_shapes.clear();
   g_panel = Panel();
   ForgetAvatars();
+  ForgetStampImages();
   std::vector<GtkWidget*> open = g_windows;
   for (GtkWidget* window : open) gtk_widget_destroy(window);
   g_windows.clear();

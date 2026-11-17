@@ -45,19 +45,28 @@ class UnauthorizedException extends ApiException {
 /// The caller is authenticated but not allowed. Also returned for a channel
 /// that does not exist, so absence is not distinguishable from denial.
 class ForbiddenException extends ApiException {
-  const ForbiddenException(super.message, {this.missingPermissions});
+  const ForbiddenException(super.message, {this.missingPermissions, this.code});
 
   /// The permission bits the server says the caller lacked, when it names any
   /// (a channel overwrite write that would grant more than the caller holds).
   final int? missingPermissions;
 
+  /// The server's stable reason, such as `role_hierarchy`, when it names one.
+  final String? code;
+
   /// The server refused a moderation act on somebody of the caller's own rank.
   bool get isEqualRankRefusal => message == equalRankRefusal;
+
+  /// The role ladder refused: the role or member is not below the caller's highest role.
+  bool get isRoleLadderRefusal => code == roleLadderCode;
+
+  /// Mirrors `LADDER_CODE` in the server's `http/role_ladder.rs`.
+  static const roleLadderCode = 'role_hierarchy';
 
   /// The server wants the admin's own second factor before a policy change.
   bool get needsOwnSecondFactor => message == ownSecondFactorRefusal;
 
-  /// Mirrors `EQUAL_RANK_REFUSED` in the server's `http/escalation.rs`.
+  /// Mirrors `EQUAL_RANK_REFUSED` in the server's `http/role_ladder.rs`.
   static const equalRankRefusal = 'you cannot act on someone of equal rank';
 
   /// Mirrors `POLICY_NEEDS_OWN_FACTOR` in the server's `http/space.rs`.

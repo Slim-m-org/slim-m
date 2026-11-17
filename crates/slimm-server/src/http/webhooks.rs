@@ -29,6 +29,7 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
+use axum::middleware::from_fn;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use serde::{Deserialize, Serialize};
@@ -41,7 +42,7 @@ use super::error::ApiError;
 use super::extract::{Json, Query, RateLimited, WEBHOOK};
 use super::messages::{parse_uuid, validate_content};
 use super::module_hooks::{Draft, HookPoint, intercept};
-use super::post_commit::after_commit;
+use super::post_commit::{after_commit, run_to_completion};
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{MessageId, WebhookId};
 use crate::ratelimit::Class;
@@ -55,7 +56,10 @@ const BODY_LIMIT: usize = 64 * 1024;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/webhooks/{webhook_id}/{token}", post(deliver))
+        .route(
+            "/webhooks/{webhook_id}/{token}",
+            post(deliver).layer(from_fn(run_to_completion)),
+        )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 

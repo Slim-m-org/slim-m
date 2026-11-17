@@ -17,7 +17,7 @@ import '../../members/providers/user_profiles.dart';
 import 'author_label.dart';
 import '../../emoji/widgets/custom_emoji_image.dart';
 import '../../../widgets/sheet_item_list.dart';
-import '../../emoji/widgets/standard_emoji.dart';
+import '../../emoji/providers/standard_emoji.dart';
 import '../../members/widgets/user_avatar.dart';
 
 /// "Ada", "Ada and Bob", "Ada, Bob and Cy", then "Ada, Bob and 3 others": the

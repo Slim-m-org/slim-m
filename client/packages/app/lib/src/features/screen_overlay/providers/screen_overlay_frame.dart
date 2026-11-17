@@ -9,15 +9,19 @@ import 'package:slimm_platform/platform.dart';
 
 import '../../canvas/providers/canvas_pen_style.dart';
 import 'screen_annotation_board.dart';
+import 'screen_annotation_call.dart';
+import 'stamp_content.dart';
 
 /// Stroke width on the sharer's screen, in logical pixels.
 const overlayInkWidth = 4.0;
 
-/// The paint list for [marks] at [now]; a mark with too few points to draw is left out.
+/// The paint list for [marks] at [now]; a mark with too few points to draw is left out, and so is a stamp whose picture the runner does not hold, which [heldImage] names.
 List<OverlayShape> overlayShapesFor(
   List<ScreenAnnotation> marks,
-  DateTime now,
-) {
+  DateTime now, {
+  String? Function(StampContent content)? heldImage,
+  bool reduceMotion = false,
+}) {
   final shapes = <OverlayShape>[];
   for (final mark in marks) {
     final alpha = mark.alphaAt(now);
@@ -60,6 +64,20 @@ List<OverlayShape> overlayShapesFor(
             alpha: alpha,
           ),
         );
+      case ScreenAnnotationKind.stamp when p.length == 2:
+        final content = mark.stamp;
+        final key = content == null ? null : heldImage?.call(content);
+        if (key == null) break;
+        shapes.add(
+          OverlayStamp(
+            image: key,
+            x: p[0],
+            y: p[1],
+            size: mark.size,
+            scale: mark.scaleAt(now, reduceMotion: reduceMotion),
+            alpha: alpha,
+          ),
+        );
       default:
         break;
     }
@@ -69,16 +87,17 @@ List<OverlayShape> overlayShapesFor(
 
 /// Whether the sharer's own client shows [frame] on their screen.
 ///
-/// This is the gate that matters: the server relays any member's mark, but the
-/// overlay lives on the sharer's machine and only paints what the sharer allowed.
+/// This is the gate that matters: the overlay lives on the sharer's machine and
+/// only paints what the sharer allowed, drawn by someone in [callMembers].
 bool overlayAccepts(
   api.CanvasScreenAnnotation frame, {
   required bool overlayActive,
   required String? selfId,
   required String? callChannelId,
+  required Iterable<String> callMembers,
 }) =>
     overlayActive &&
     frame.kind != 'consent' &&
     selfId != null &&
     frame.targetUserId == selfId &&
-    frame.channelId == callChannelId;
+    markInCall(frame, callChannelId: callChannelId, callMembers: callMembers);

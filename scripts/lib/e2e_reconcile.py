@@ -52,14 +52,21 @@ def survives_an_absence(away, watcher, channel, api):
     # Over the API: this is about reaching an absent client, not about who wrote.
     api.edit_message(channel_id, stored_edit["id"], edited_after)
     api.delete_message(channel_id, stored_delete["id"])
-    time.sleep(2)
+    assert api.message_with(channel_id, edited_after)["id"] == stored_edit["id"], \
+        "the server did not take the edit the away client must catch up on"
+    assert all(m["id"] != stored_delete["id"] for m in api.messages(channel_id)), \
+        "the server still lists the message the away client must drop"
 
     away.come_back(home)
     away.click(channel)
     away.wait_for(L.COMPOSER)
 
     away.wait_for(edited_after)
-    print(f"  {away.name} came back to the edited text")
+    deadline = time.time() + 20
+    while away.find(edited_before):
+        assert time.time() < deadline, f"{away.name} shows the old text beside the edited one"
+        time.sleep(0.25)
+    print(f"  {away.name} came back to the edited text, the old text gone")
 
     deadline = time.time() + 20
     while time.time() < deadline:

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Keeps the iPhone icon badge equal to the channels the rail shows as unread.
+/// Keeps the iPhone icon badge, and the Windows taskbar button's overlay,
+/// equal to the channels the rail shows as unread.
 ///
 /// The notification service extension raises the badge when a push arrives
 /// while the app is away; this corrects it whenever the app sees read state
@@ -11,6 +12,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../features/accounts/providers/account_providers.dart';
 import '../features/accounts/providers/account_unread.dart';
+import '../push/providers/push_channel_providers.dart';
 
 final appBadgeChannelProvider = Provider<AppBadgeChannel>(
   (ref) => AppBadgeChannel(),
@@ -33,10 +35,7 @@ final appBadgeSyncProvider = Provider<void>((ref) {
     for (final e in entries)
       ...?e.container.read(readChannelIdsProvider).valueOrNull,
   };
-  ref
-      .read(appBadgeChannelProvider)
-      .sync(
-        count: appBadgeCount(entries.map((e) => e.unread)),
-        readChannelIds: read,
-      );
+  final count = appBadgeCount(entries.map((e) => e.unread));
+  ref.read(appBadgeChannelProvider).sync(count: count, readChannelIds: read);
+  ref.read(taskbarAttentionProvider).setBadge(count);
 });

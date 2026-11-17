@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT 1 AS \"hit!: i64\" FROM channel_categories\n           WHERE parent_id = ? AND deleted_at IS NULL LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "hit!: i64",
+        "ordinal": 0,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "d734c5ef66ed32272109853554796017ff6f820ebd777fd01048b320c4282966"
+}

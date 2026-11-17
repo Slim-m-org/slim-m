@@ -145,6 +145,24 @@ Future<MessageSearchResult> _runSearch(
   }
 }
 
+/// What a voice message said, when a search hit matched through its transcript;
+/// null for any other hit, so the caller shows the file's name instead.
+String? matchedVoiceTranscript(api.Message message) {
+  final id = message.matchedAttachmentId;
+  if (id == null) return null;
+  for (final attachment in message.attachments) {
+    final transcript = attachment.transcript;
+    if (attachment.id == id &&
+        attachment.voice != null &&
+        transcript != null &&
+        transcript.status == api.VoiceTranscriptStatus.ready &&
+        transcript.text.isNotEmpty) {
+      return transcript.text;
+    }
+  }
+  return null;
+}
+
 /// The file a search hit matched through, or null when the message's own text
 /// matched. Falls back to a generic name when the attachment is not on the hit.
 String? matchedAttachmentName(api.Message message) {

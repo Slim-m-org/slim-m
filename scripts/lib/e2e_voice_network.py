@@ -17,16 +17,22 @@ RECOVERY_SECONDS = int(os.environ.get("E2E_RECOVERY_SECONDS", "90"))
 
 
 def _timeline(a, b, room_id, seconds):
-    """Prints what each side believes once a second-ish, so a failure says who evicted whom."""
+    """Prints what each side believes once a second-ish, so a failure says who evicted whom.
+
+    Alice's count alone proves nothing: her roster is held while her call
+    restarts, so it reads 2 through the whole outage. Her banner coming down
+    is what says her side is back.
+    """
     deadline = time.time() + seconds
     while time.time() < deadline:
         parts = sfu_participants(room_id)
         states = ",".join(p["state"] for p in parts)
         a_in = a.find("2 in call") is not None
         b_in = b.find("2 in call") is not None
+        repairing = a.find(L.RECONNECTING_CALL) is not None
         print(f"    t={int(time.time() % 1000)} sfu=[{states}] "
-              f"alice sees 2={a_in} bob sees 2={b_in}")
-        if len(parts) == 2 and a_in and b_in:
+              f"alice sees 2={a_in} reconnecting={repairing} bob sees 2={b_in}")
+        if len(parts) == 2 and a_in and b_in and not repairing:
             return True
         time.sleep(1)
     return False

@@ -420,3 +420,46 @@ List<String> extractLinkPreviewUrls(String content, {int max = 2}) {
   walk(parseInline(content));
   return urls;
 }
+
+/// [content] with each `@username` found in [names] (lower-cased keys) written
+/// as `@<shown name>`, for text read outside the transcript (a notification).
+/// Fenced blocks and inline code are left as typed, and a mention is cut the
+/// same way [parseInline] cuts it.
+String rewriteMentions(String content, Map<String, String> names) {
+  if (names.isEmpty || !content.contains('@')) return content;
+  final out = StringBuffer();
+  var copied = 0;
+  var fenced = false;
+  var i = 0;
+  while (i < content.length) {
+    final lineStart = i == 0 || content[i - 1] == '\n';
+    if (lineStart && content.startsWith('```', i)) {
+      fenced = !fenced;
+      i += 3;
+    } else if (fenced || _isEscapeAt(content, i)) {
+      i += fenced ? 1 : 2;
+    } else if (content[i] == '`') {
+      final close = _codeSpanEnd(content, i);
+      i = close == -1 ? i + 1 : close + 1;
+    } else if (content[i] == '@') {
+      final m = _mentionPattern.matchAsPrefix(content, i);
+      if (m == null) {
+        i++;
+        continue;
+      }
+      final end = _trimMentionEnd(content, i, m.end);
+      final shown = names[content.substring(i + 1, end).toLowerCase()];
+      if (shown != null) {
+        out
+          ..write(content.substring(copied, i))
+          ..write('@$shown');
+        copied = end;
+      }
+      i = end;
+    } else {
+      i++;
+    }
+  }
+  out.write(content.substring(copied));
+  return out.toString();
+}

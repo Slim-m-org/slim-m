@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DISTINCT channel_id AS \"channel_id!: ChannelId\" FROM screen_stamps\n               WHERE sha256 = ? AND created_at >= ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "535c1c5e781aafacea7ad76dab88f0e4e5164249f9acea5931537c33f28f27c2"
+}

@@ -84,7 +84,7 @@ class VoiceCallDock extends StatefulWidget {
 ///
 /// [VoiceState.channelId] is what identifies "a call" here: it is set once a
 /// call is joined and stays fixed for that call's whole lifetime (this dock
-/// only ever builds while connected, per `_InCall`'s own guard), and only
+/// only ever builds while connected, per `VoiceInCall`'s own guard), and only
 /// takes on a new value once a real new call starts. Tracking it directly,
 /// rather than trusting a caller to remount this widget with a fresh key,
 /// keeps the rise correct even pumped in isolation the way

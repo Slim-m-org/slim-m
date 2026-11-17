@@ -94,17 +94,40 @@ void main() {
       bool keyboardUp = true,
       VoiceSessionState state = VoiceSessionState.connected,
       String? call = 'c-main',
+      bool otherCommunity = false,
     }) => showsCallKeyboardPill(
       width: width,
       keyboardUp: keyboardUp,
       state: state,
       callChannelId: call,
       channelId: 'c-general',
+      callElsewhere: otherCommunity,
     );
     expect(shows(), isTrue);
     expect(shows(width: kCompactWidth), isFalse);
     expect(shows(keyboardUp: false), isFalse);
     expect(shows(state: VoiceSessionState.idle), isFalse);
     expect(shows(call: 'c-general'), isFalse);
+
+    const idle = VoiceSessionState.idle;
+    expect(shows(state: idle, call: null, otherCommunity: true), isTrue);
+    expect(
+      shows(state: idle, call: null, otherCommunity: true, keyboardUp: false),
+      isFalse,
+    );
+    expect(
+      shows(
+        state: idle,
+        call: null,
+        otherCommunity: true,
+        width: kCompactWidth,
+      ),
+      isFalse,
+    );
+    expect(
+      shows(call: 'c-general', otherCommunity: true),
+      isFalse,
+      reason: 'a call here on screen already, whatever another community holds',
+    );
   });
 }

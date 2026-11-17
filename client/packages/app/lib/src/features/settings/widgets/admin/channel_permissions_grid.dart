@@ -21,6 +21,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../permissions.dart';
 import '../../../../providers/admin_providers.dart';
+import '../../../../providers/providers.dart' show meProvider;
 import '../../../channels/providers/channel_permissions.dart';
 import '../../../members/providers/member_presence.dart'
     show channelMembersProvider, membersProvider;
@@ -34,6 +35,7 @@ import 'channel_permissions_card.dart';
 import 'channel_permissions_columns.dart';
 import 'channel_permissions_picker.dart';
 import '../../providers/settings_actions.dart';
+import '../viewport_pin.dart';
 
 class ChannelPermissionsGrid extends ConsumerStatefulWidget {
   const ChannelPermissionsGrid({super.key, required Channel this.channel})
@@ -55,6 +57,8 @@ class ChannelPermissionsGrid extends ConsumerStatefulWidget {
 
 class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
     with GuardedActionState<ChannelPermissionsGrid> {
+  final _section = GlobalKey();
+
   /// `column.key` -> (allow, deny), for every column currently shown -
   /// loaded overwrites plus anything a pending edit or a freshly added
   /// column has touched.
@@ -185,27 +189,11 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
 
   Future<void> _pickTarget() async {
     if (_saving) return;
-    final column = await pickGridColumn(context, taken: _pending.keys.toSet());
+    final column = await pickGridColumn(
+      context,
+      taken: {..._pending.keys, ..._reach().outrankedKeys},
+    );
     if (column != null && mounted) _addColumn(column);
-  }
-
-  int _escalation(int myPermissions) {
-    var bits = 0;
-    for (final key in _removed) {
-      final (_, deny) = _original[key] ?? (0, 0);
-      bits |= deny & ~myPermissions;
-    }
-    for (final entry in _pending.entries) {
-      final (oldAllow, oldDeny) = _original[entry.key] ?? (0, 0);
-      bits |= escalatedBits(
-        oldAllow: oldAllow,
-        oldDeny: oldDeny,
-        newAllow: entry.value.$1,
-        newDeny: entry.value.$2,
-        myPermissions: myPermissions,
-      );
-    }
-    return bits;
   }
 
   /// Clears removals one at a time and forgets each once done, so a later
@@ -236,9 +224,29 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
     }
   }
 
+  OverwriteReach _reach() => OverwriteReach(
+    ladder: ref.read(roleLadderProvider),
+    selfId: ref.read(meProvider).valueOrNull?.id,
+    roles: ref.read(rolesProvider).valueOrNull ?? const [],
+    members: ref.read(membersProvider).valueOrNull ?? const [],
+  );
+
   Future<void> _save() async {
-    final blocked = _escalation(
-      _categoryId == null
+    // Checked before any removal is sent: the server refuses the whole batch for one of these.
+    final outranked = _reach().outrankedLabels({
+      ..._removed,
+      for (final e in _pending.entries)
+        if (_original[e.key] != e.value) e.key,
+    });
+    if (outranked.isNotEmpty) {
+      setActionError(outrankedMessage(outranked));
+      return;
+    }
+    final blocked = pendingEscalation(
+      original: _original,
+      pending: _pending,
+      removed: _removed,
+      myPermissions: _categoryId == null
           ? ref.read(myChannelPermissionsProvider(widget.channel!.id))
           : ref.read(myPermissionsProvider),
     );
@@ -276,6 +284,10 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
                     ),
                 ],
               );
+          // A sub-category's own save stops it following its parent.
+          if (ref.exists(categoryOverwritesSyncedProvider(categoryId))) {
+            ref.invalidate(categoryOverwritesSyncedProvider(categoryId));
+          }
         } else if (edits.isNotEmpty) {
           await ref
               .read(settingsActionsProvider)
@@ -330,6 +342,9 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
     final rolesAsync = ref.watch(rolesProvider);
     final membersAsync = ref.watch(membersProvider);
     final myPermissions = _ceiling(ref);
+    ref
+      ..watch(roleLadderProvider)
+      ..watch(meProvider);
 
     if (!overwritesAsync.hasValue ||
         !rolesAsync.hasValue ||
@@ -387,18 +402,28 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
     List<api.UserProfile> members,
   ) {
     final everyone = roles.where((r) => r.isEveryone).firstOrNull;
+    final reach = _reach();
     return [
-      if (everyone != null)
-        GridColumn(
-          kind: api.OverwriteTarget.role,
-          id: everyone.id,
-          label: everyone.name,
-          isBot: false,
-        ),
-      for (final key in _pending.keys)
-        if (everyone == null || key != 'role:${everyone.id}')
-          if (resolveGridColumn(key, roles, members) case final column?) column,
-    ].map((c) => gridColumnWithCounts(c, _pending[c.key] ?? (0, 0))).toList();
+          if (everyone != null)
+            GridColumn(
+              kind: api.OverwriteTarget.role,
+              id: everyone.id,
+              label: everyone.name,
+              isBot: false,
+            ),
+          for (final key in _pending.keys)
+            if (everyone == null || key != 'role:${everyone.id}')
+              if (resolveGridColumn(key, roles, members) case final column?)
+                column,
+        ]
+        .map(
+          (c) => gridColumnWithCounts(
+            c,
+            _pending[c.key] ?? (0, 0),
+            locked: !reach.reaches(c.key),
+          ),
+        )
+        .toList();
   }
 
   Widget _buildGrid(
@@ -422,6 +447,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       grid: view,
     );
     return Column(
+      key: _section,
       mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -433,18 +459,25 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
             child: AppErrorState(message: error, onDismiss: clearActionError),
           ),
         if (shrinkWrap) card else Expanded(child: card),
-        if (_isDirty)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.s12),
-            child: SettingsSaveBar(
-              changeCount: _changeCount,
-              saving: _saving,
-              onDiscard: _discard,
-              onSave: _save,
-            ),
-          ),
+        if (_isDirty) _saveBar(shrinkWrap: shrinkWrap),
       ],
     );
+  }
+
+  /// In a page that scrolls, the bar holds to the bottom of the view while the grid is on screen, so an edit far down never hides it.
+  Widget _saveBar({required bool shrinkWrap}) {
+    final bar = Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.s12),
+      child: SettingsSaveBar(
+        changeCount: _changeCount,
+        saving: _saving,
+        onDiscard: _discard,
+        onSave: _save,
+      ),
+    );
+    return shrinkWrap
+        ? ViewportPin(edge: ViewportEdge.bottom, section: _section, child: bar)
+        : bar;
   }
 
   Widget _cell(GridColumn column, PermSpec spec, int myPermissions) {
@@ -456,7 +489,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       key: ValueKey('cell:${column.key}:${spec.bit}'),
       state: state,
       changed: state != CellState.resolve(origAllow, origDeny, spec.bit),
-      disabled: !grantable || _saving,
+      disabled: !grantable || _saving || column.locked,
       label: '${spec.label}, ${column.label}',
       onTap: () => _cycle(column, spec.bit, grantable),
     );

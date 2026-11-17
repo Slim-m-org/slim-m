@@ -23,6 +23,7 @@ import 'totp_enrol_sheet.dart';
 import 'totp_failures.dart';
 import 'totp_recovery_codes.dart';
 import '../providers/settings_actions.dart';
+import '../../../widgets/load_error_block.dart';
 
 final totpStatusProvider = FutureProvider.autoDispose<api.TotpStatus>(
   (ref) => ref.watch(settingsActionsProvider).totpStatus(),
@@ -48,13 +49,9 @@ class TotpSection extends ConsumerWidget {
       loading: () =>
           const AppListRow(label: 'Two-factor authentication', meta: 'Loading'),
       // A fixed sentence, never the exception itself; see `JoinPolicyRow`.
-      error: (e, _) => SettingsCardBlock(
-        children: [
-          AppErrorState(
-            message: 'Could not load your two-factor settings.',
-            onRetry: () => ref.invalidate(totpStatusProvider),
-          ),
-        ],
+      error: (e, _) => LoadErrorBlock(
+        message: 'Could not load your two-factor settings.',
+        onRetry: () => ref.invalidate(totpStatusProvider),
       ),
       data: (loaded) => totpSectionHidden(loaded)
           ? const SizedBox.shrink()

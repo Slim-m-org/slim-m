@@ -10,8 +10,14 @@ import '../../../spotify/spotify_link.dart';
 import '../../../spotify/spotify_link_status.dart';
 import 'linked_accounts.dart';
 import 'settings_index.dart';
+import 'stored_theme.dart';
 
-enum SettingsGate { spotifyConfigured, spotifyLinked, steamLinked }
+enum SettingsGate {
+  spotifyConfigured,
+  spotifyLinked,
+  steamLinked,
+  spaceDefaultTheme,
+}
 
 bool _open(Ref ref, SettingsGate gate) => switch (gate) {
   SettingsGate.spotifyConfigured => _spotifyConfigured(ref),
@@ -21,6 +27,8 @@ bool _open(Ref ref, SettingsGate gate) => switch (gate) {
   SettingsGate.steamLinked =>
     ref.watch(myLinkedAccountsProvider).valueOrNull?.any((l) => l.isSteam) ??
         false,
+  SettingsGate.spaceDefaultTheme =>
+    ref.watch(spaceDefaultThemeProvider) != null,
 };
 
 bool _spotifyConfigured(Ref ref) =>

@@ -98,6 +98,14 @@ pub(crate) async fn message_audience(
     reply_ping: Option<UserId>,
     mass_authority: Option<UserId>,
 ) -> anyhow::Result<(Vec<UserId>, HashSet<UserId>)> {
+    // A lobby's own chat is never on screen (decision 0065), so nothing in it wakes anyone.
+    if store
+        .channel(channel_id)
+        .await?
+        .is_some_and(|channel| channel.room.creates_rooms)
+    {
+        return Ok((Vec::new(), HashSet::new()));
+    }
     // Push registrations first, permissions second; see the note above.
     let candidates = store.users_with_push_devices().await?;
     let blockers = store.blockers_of(author_id).await?;

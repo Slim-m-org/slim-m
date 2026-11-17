@@ -22,12 +22,16 @@ class GridColumn {
     required this.isBot,
     this.allowCount = 0,
     this.denyCount = 0,
+    this.locked = false,
   });
 
   final api.OverwriteTarget kind;
   final String id;
   final String label;
   final bool isBot;
+
+  /// A role or member level with or above the viewer, whose overwrite the server will not let them write.
+  final bool locked;
 
   /// Permissions this column currently allows and denies, so its header says
   /// what the overwrite does without scanning every row.

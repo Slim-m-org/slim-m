@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
+import '../../../audio/call_start_yields.dart';
 import '../../../desktop/desktop_window_shell.dart';
 import '../../../diagnostics/debug_log.dart';
 import '../../../diagnostics/debug_log_persistence.dart';
@@ -37,6 +38,8 @@ AccountHost createAccountHost(DesktopWindowShell shell) {
     persistence: const PrefsDebugLogPersistence(),
     echo: kDebugMode,
   );
+  // One for every account, so a call joined in any of them makes the others' sounds give way.
+  final callStartYields = CallStartYields();
   late final AccountHost host;
   host = AccountHost(
     store: accounts,
@@ -50,6 +53,7 @@ AccountHost createAccountHost(DesktopWindowShell shell) {
         keyStoreProvider.overrideWithValue(keyStore),
         accountSlotProvider.overrideWithValue(slot),
         accountHostProvider.overrideWith((ref) => host),
+        callStartYieldsProvider.overrideWithValue(callStartYields),
         desktopWindowShellProvider.overrideWithValue(shell),
       ],
     ),

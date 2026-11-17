@@ -14,6 +14,9 @@ const _openChatQuery = 'chat';
 /// the same reason as [_openChatQuery].
 const settingsPaneQuery = 'pane';
 
+/// The query key [Routes.personalSettingsPage] sets: a page inside a pane.
+const settingsPageQuery = 'page';
+
 /// The query key that asks a settings pane to focus one of its fields.
 const settingsFocusQuery = 'focus';
 
@@ -40,6 +43,10 @@ abstract final class Routes {
       '$personalSettings?$settingsPaneQuery=$paneId';
   static const spaceSettings = '/settings/space';
 
+  /// [personalSettingsPane] with one of its pages open; see [settingsPageQuery].
+  static String personalSettingsPage(String paneId, String pageId) =>
+      '${personalSettingsPane(paneId)}&$settingsPageQuery=$pageId';
+
   /// The profile pane, with the About field focused.
   static String personalSettingsAbout() =>
       '${personalSettingsPane('profile')}&$settingsFocusQuery=$settingsFocusAbout';
@@ -47,8 +54,6 @@ abstract final class Routes {
   /// [spaceSettings] opened on one pane; see [settingsPaneQuery].
   static String spaceSettingsPane(String paneId) =>
       '$spaceSettings?$settingsPaneQuery=$paneId';
-  static const personalThemes = '/settings/themes';
-  static const personalThemeEditor = '/settings/themes/edit';
   static const adminReports = '/settings/reports';
   static const adminInvites = '/settings/invites';
   static const adminCustomize = '/settings/customize';
@@ -63,6 +68,7 @@ abstract final class Routes {
   static const adminOverwrites = '/settings/permissions';
   static const channelSettings = '/settings/channel';
   static const adminEmoji = '/settings/emoji';
+  static const adminSoundboard = '/settings/soundboard';
   static const adminAnalytics = '/settings/analytics';
   static const adminPerformance = '/settings/performance';
   static const adminSpaceVoice = '/settings/space-voice';
