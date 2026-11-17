@@ -151,6 +151,36 @@ impl Store {
         Ok(removed > 0)
     }
 
+    /// Moves every reaction stored under a key `rekey` renames to its new key,
+    /// dropping a reactor's row that would then repeat. Returns the rows moved.
+    pub async fn rekey_reactions(
+        &self,
+        rekey: impl Fn(&str) -> Option<String>,
+    ) -> anyhow::Result<u64> {
+        let keys: Vec<String> = sqlx::query_scalar("SELECT DISTINCT emoji FROM reactions")
+            .fetch_all(&self.pool)
+            .await?;
+        let mut moved = 0;
+        for (old, new) in keys
+            .iter()
+            .filter_map(|old| rekey(old).map(|new| (old, new)))
+        {
+            let mut tx = self.begin_write().await?;
+            moved += sqlx::query("UPDATE OR IGNORE reactions SET emoji = ? WHERE emoji = ?")
+                .bind(&new)
+                .bind(old)
+                .execute(&mut *tx)
+                .await?
+                .rows_affected();
+            sqlx::query("DELETE FROM reactions WHERE emoji = ?")
+                .bind(old)
+                .execute(&mut *tx)
+                .await?;
+            tx.commit().await?;
+        }
+        Ok(moved)
+    }
+
     /// Summaries for one message, ordered by first use so the row does not
     /// reshuffle under the reader as counts change.
     pub async fn reactions_for_message(

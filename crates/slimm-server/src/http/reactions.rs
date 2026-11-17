@@ -23,6 +23,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
 use super::messages::parse_uuid;
+use super::reaction_emoji::canonical;
 use super::viewable_message::viewable_message;
 use crate::hub::{Event, MessageEvent, ReactionMoved};
 use crate::ids::MessageId;
@@ -78,6 +79,7 @@ async fn add(
     if !super::reaction_emoji::is_reaction(&emoji) {
         return Err(ApiError::BadRequest("that is not a usable emoji"));
     }
+    let emoji = canonical(&emoji).into_owned();
 
     let added = match state
         .store
@@ -115,6 +117,7 @@ async fn remove(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let message_id = MessageId(parse_uuid(&message_id)?);
     let channel_id = authorize(&state, ctx.user_id, message_id).await?;
+    let emoji = canonical(&emoji).into_owned();
 
     let removed = state
         .store
@@ -127,6 +130,17 @@ async fn remove(
     });
     publish(&state, (channel_id, message_id), moved).await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Folds every stored reaction key into [`canonical`]'s form, run once at startup so rows
+/// from before the fold merge with new ones.
+pub async fn rekey_stored_reactions(store: &crate::store::Store) -> anyhow::Result<u64> {
+    store
+        .rekey_reactions(|emoji| match canonical(emoji) {
+            std::borrow::Cow::Owned(form) => Some(form),
+            std::borrow::Cow::Borrowed(_) => None,
+        })
+        .await
 }
 
 /// Tells live connections the message's reactions changed.
@@ -210,7 +224,13 @@ async fn list_reactors(
 
     let mut rows = state
         .store
-        .reaction_reactor_page(message_id, ctx.user_id, &emoji, after, limit + 1)
+        .reaction_reactor_page(
+            message_id,
+            ctx.user_id,
+            &canonical(&emoji),
+            after,
+            limit + 1,
+        )
         .await?;
     let has_more = rows.len() as i64 > limit;
     rows.truncate(limit as usize);

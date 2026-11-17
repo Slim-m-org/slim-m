@@ -6,6 +6,40 @@
 //! chip resolves it at draw time, so a deleted emoji keeps its reactions), or a
 //! custom emoji's id. Anything else is a sentence under somebody's message.
 
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
+/// The picker's emoji that carry U+FE0F, keyed by their text without it; every
+/// other picker emoji is sent bare. Generated from `tests/fixtures/picker_emoji.json`.
+static VS16_FORMS: LazyLock<HashMap<String, &'static str>> = LazyLock::new(|| {
+    include_str!("picker_vs16_forms.txt")
+        .lines()
+        .map(|form| (without_vs16(form), form))
+        .collect()
+});
+
+fn without_vs16(text: &str) -> String {
+    text.chars()
+        .filter(|c| *c != VARIATION_SELECTOR_16)
+        .collect()
+}
+
+/// The key a reaction is stored under: an emoji takes the picker's form whether
+/// or not U+FE0F was sent, so U+2764 and U+2764 U+FE0F are one reaction.
+/// Shortcodes and ids are kept as sent.
+pub(crate) fn canonical(text: &str) -> Cow<'_, str> {
+    if !matches!(parse(text), Some(ReactionEmoji::Single(_))) {
+        return Cow::Borrowed(text);
+    }
+    let bare = without_vs16(text);
+    let form = VS16_FORMS.get(&bare).map_or(bare.as_str(), |form| form);
+    match form == text {
+        true => Cow::Borrowed(text),
+        false => Cow::Owned(form.to_owned()),
+    }
+}
+
 /// Longer than a custom emoji's name may be: the standard set runs to 67.
 const MAX_SHORTCODE_LEN: usize = 80;
 
@@ -141,7 +175,40 @@ fn is_pictographic(c: char) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{ReactionEmoji, is_reaction, parse};
+    use super::{ReactionEmoji, canonical, is_reaction, parse};
+
+    #[test]
+    fn an_emoji_takes_the_pickers_form_with_or_without_vs16() {
+        assert_eq!(canonical("\u{2764}"), "\u{2764}\u{FE0F}");
+        assert_eq!(canonical("\u{2764}\u{FE0F}"), "\u{2764}\u{FE0F}");
+        assert_eq!(canonical("\u{1F44D}\u{FE0F}"), "\u{1F44D}");
+        assert_eq!(
+            canonical("\u{1F3F3}\u{200D}\u{1F308}"),
+            "\u{1F3F3}\u{FE0F}\u{200D}\u{1F308}"
+        );
+        assert_eq!(canonical(":heart:"), ":heart:");
+        assert_eq!(canonical("\u{1FAE8}\u{FE0F}"), "\u{1FAE8}");
+    }
+
+    /// The forms file is exactly the fixture's emoji that carry U+FE0F.
+    #[test]
+    fn the_vs16_forms_match_the_picker_fixture() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/picker_emoji.json")).unwrap();
+        let mut expected: Vec<&str> = fixture["chars"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|c| c.as_str())
+            .filter(|c| c.contains('\u{FE0F}'))
+            .collect();
+        expected.sort_unstable();
+        let listed: Vec<&str> = include_str!("picker_vs16_forms.txt").lines().collect();
+        assert_eq!(
+            listed, expected,
+            "regenerate picker_vs16_forms.txt from the fixture"
+        );
+    }
 
     #[test]
     fn each_form_reads_as_its_kind() {

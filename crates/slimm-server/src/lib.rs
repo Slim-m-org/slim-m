@@ -142,6 +142,12 @@ pub async fn run() -> anyhow::Result<()> {
     store.seal_totp_secrets().await?;
     log_server_identity(&store).await?;
     warn_if_unclaimed(&store).await?;
+    if let Err(error) = http::rekey_stored_reactions(&store).await {
+        tracing::warn!(
+            ?error,
+            "could not fold reaction keys; reactions with and without U+FE0F stay apart"
+        );
+    }
     sweeps::spawn_token_sweep(store.clone());
     let media = media::Media::new(config.attachments_dir.clone(), config.attachment_max_bytes)?
         .with_total_ceiling(config.max_total_attachment_bytes);

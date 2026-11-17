@@ -57,6 +57,7 @@ mod poll_send_tail;
 mod polls;
 mod polls_ranked;
 mod reaction_reactors;
+mod reaction_variation_selector;
 mod reactions;
 mod read_bounds;
 mod read_marker_noop;
