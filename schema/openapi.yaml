@@ -5300,7 +5300,13 @@ paths:
         behind the same redirect handling as the page fetch, made only for a
         recognized video and never for an ordinary link; a failed or slow
         oembed request degrades to a generic title and no author rather than
-        failing the unfurl.
+        failing the unfurl. A Spotify link (open.spotify.com, spotify.link)
+        is fetched as its canonical item URL, without the sharer's query,
+        and makes one oembed request to Spotify beside the page fetch; the
+        card takes its title from oembed and its summary line, cover and
+        duration from the page, so it survives either one failing. A page
+        longer than 256 KiB is previewed from its start, which holds its
+        head.
       parameters:
         - name: url
           in: query
@@ -19093,20 +19099,36 @@ components:
           type: [string, "null"]
           description: >
             Set together with video_id when the linked page was recognized as
-            a playable video during unfurl, purely from its URL or an
-            og:video tag - detecting the provider and id makes no extra
-            request. Only "youtube" exists today. When set, a client should
-            render a click-to-play affordance instead of the static card, and
-            must not contact the provider until the reader taps. Null for an
-            ordinary link. Detection is separate from populating this video's
-            title/image/author, which does make one further request - see
-            author_name.
+            playable media during unfurl, purely from its URL or an og:video
+            tag - detecting the provider and id makes no extra request.
+            "youtube" or "spotify" (the field name predates Spotify, and now
+            means playable media); a client treats any other value as null.
+            When set, a client should render a click-to-play affordance
+            instead of the static card, and must not contact the provider
+            until the reader taps. Null for an ordinary link. Detection is
+            separate from populating this item's title/image/author, which
+            does make one further request - see author_name.
         video_id:
           type: [string, "null"]
           description: >
-            The provider's own canonical video id (paired with
-            video_provider), never a URL - a client builds its own playback
-            URL from provider and id. Null unless video_provider is set.
+            The provider's own canonical id (paired with video_provider),
+            never a URL - a client builds its own playback URL from provider
+            and id. A YouTube id is at most 32 of [A-Za-z0-9_-]; a Spotify
+            id is exactly 22 base62 characters. Null unless video_provider is
+            set.
+        media_kind:
+          type: [string, "null"]
+          description: >
+            What a Spotify video_id names: "track", "album", "playlist",
+            "artist", "show" or "episode". A client builds the item's web
+            link, app link and embed from media_kind and video_id together.
+            Null for YouTube and for an ordinary link.
+        duration_ms:
+          type: [integer, "null"]
+          description: >
+            The linked track's or episode's length in milliseconds, from the
+            page's music:duration tag, when it declared a plausible one (one
+            second to one day). Null otherwise.
         author_name:
           type: [string, "null"]
           description: >

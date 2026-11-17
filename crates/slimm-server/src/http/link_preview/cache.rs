@@ -66,6 +66,7 @@ pub(super) struct CachedPreview {
     pub video: Option<VideoInfo>,
     pub author_name: Option<String>,
     pub author_url: Option<String>,
+    pub duration_s: Option<u32>,
     inserted_at: i64,
 }
 
@@ -149,6 +150,7 @@ impl Cache {
             video: preview.video,
             author_name: preview.author_name,
             author_url: preview.author_url,
+            duration_s: preview.duration_s,
             inserted_at: now,
         };
         let mut previews = lock(&self.previews);
@@ -347,6 +349,7 @@ mod tests {
                 video: Some(VideoInfo {
                     provider: VideoProvider::Youtube,
                     id: "dQw4w9WgXcQ".to_owned(),
+                    kind: None,
                 }),
                 ..Preview::default()
             },

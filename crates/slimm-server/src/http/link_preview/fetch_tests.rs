@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The guarded fetch against a loopback upstream: every hop re-validated, the
-//! redirect, size and content-type caps, and the image proxy's sniffing
-//! (issue 2110).
+//! redirect, size and content-type caps, reading only a page's head, and the
+//! image proxy's sniffing (issue 2110).
+
+use std::convert::Infallible;
+use std::time::{Duration, Instant};
 
 use axum::Router;
+use axum::body::{Body, Bytes};
 use axum::http::{HeaderMap, StatusCode, header};
-use axum::response::Html;
+use axum::response::{Html, IntoResponse};
 use axum::routing::get;
+use futures_util::StreamExt;
 use tokio::net::TcpListener;
 
 use super::fetch::{FetchError, MAX_HTML_BYTES, build_client, fetch_image, fetch_preview, follow};
@@ -45,11 +50,50 @@ async fn upstream() -> String {
                 )
             }),
         )
-        .route("/fake.png", get(|| async { Html("<p>not an image</p>") }));
+        .route("/fake.png", get(|| async { Html("<p>not an image</p>") }))
+        .route("/big-head", get(|| async { Html(big_page()) }))
+        .route("/stalls-after-head", get(|| async { stalls_after(HEAD) }))
+        .route("/head-in-pieces", get(|| async { head_in_pieces() }))
+        .route(
+            "/tags-in-body",
+            get(|| async {
+                Html(format!(
+                    "<head></head><body>{}<meta property=\"og:title\" content=\"late\"></body>",
+                    "a".repeat(1024)
+                ))
+            }),
+        );
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
     format!("http://{addr}")
+}
+
+const HEAD: &str = "<html><head><meta property=\"og:title\" content=\"Head\"></head>";
+
+/// A 300 KB page whose tags all sit in its head, like Spotify's and GitHub's.
+fn big_page() -> String {
+    format!("{HEAD}<body>{}</body></html>", "a".repeat(300 * 1024))
+}
+
+/// Sends [start] and then holds the connection open without ever finishing the body.
+fn stalls_after(start: &'static str) -> impl IntoResponse {
+    let first = futures_util::stream::once(async move { Ok::<_, Infallible>(Bytes::from(start)) });
+    let body = Body::from_stream(first.chain(futures_util::stream::pending()));
+    ([(header::CONTENT_TYPE, "text/html")], body)
+}
+
+/// [HEAD] three bytes at a time, so `</head>` arrives split across chunks, then a stall.
+fn head_in_pieces() -> impl IntoResponse {
+    let pieces = HEAD
+        .as_bytes()
+        .chunks(3)
+        .map(|c| Ok::<_, Infallible>(Bytes::copy_from_slice(c)))
+        .collect::<Vec<_>>();
+    let body = Body::from_stream(
+        futures_util::stream::iter(pieces).chain(futures_util::stream::pending()),
+    );
+    ([(header::CONTENT_TYPE, "text/html")], body)
 }
 
 fn redirect(to: &str) -> (StatusCode, HeaderMap) {
@@ -87,8 +131,58 @@ async fn caps_and_content_types_end_a_preview_cleanly() {
     assert_eq!(missing.err(), Some(FetchError::Unavailable));
     let json = fetch_preview(&client, &format!("{base}/json"), true).await;
     assert!(matches!(json, Ok(None)));
+}
+
+#[tokio::test]
+async fn a_page_past_the_cap_previews_from_its_start() {
+    let base = upstream().await;
+    let client = build_client(true);
     let huge = fetch_preview(&client, &format!("{base}/huge"), true).await;
-    assert_eq!(huge.err(), Some(FetchError::Unavailable));
+    let preview = huge.expect("a long page is read up to the cap, not refused");
+    assert_eq!(preview.and_then(|p| p.title).as_deref(), Some("x"));
+    let big = fetch_preview(&client, &format!("{base}/big-head"), true).await;
+    assert_eq!(big.unwrap().and_then(|p| p.title).as_deref(), Some("Head"));
+}
+
+#[tokio::test]
+async fn a_page_that_stalls_after_its_head_still_previews_quickly() {
+    let base = upstream().await;
+    let started = Instant::now();
+    let stalled = fetch_preview(
+        &build_client(true),
+        &format!("{base}/stalls-after-head"),
+        true,
+    )
+    .await;
+    assert_eq!(
+        stalled.unwrap().and_then(|p| p.title).as_deref(),
+        Some("Head")
+    );
+    assert!(
+        started.elapsed() < Duration::from_secs(2),
+        "{:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test]
+async fn a_head_close_split_across_chunks_is_still_found() {
+    let base = upstream().await;
+    let started = Instant::now();
+    let url = format!("{base}/head-in-pieces");
+    let pieces = fetch_preview(&build_client(true), &url, true).await;
+    assert_eq!(
+        pieces.unwrap().and_then(|p| p.title).as_deref(),
+        Some("Head")
+    );
+    assert!(started.elapsed() < Duration::from_secs(2));
+}
+
+#[tokio::test]
+async fn tags_streamed_into_the_body_after_an_empty_head_are_still_read() {
+    let base = upstream().await;
+    let late = fetch_preview(&build_client(true), &format!("{base}/tags-in-body"), true).await;
+    assert_eq!(late.unwrap().and_then(|p| p.title).as_deref(), Some("late"));
 }
 
 #[tokio::test]

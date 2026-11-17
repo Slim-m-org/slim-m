@@ -19,6 +19,9 @@
 //! is already the one place an SSRF-guarded fetch and an allowlist decision
 //! are made for a pasted link.
 //!
+//! A Spotify link (decision 0123) is fetched as its canonical item URL and
+//! carded from the page's tags plus Spotify's oembed, fetched side by side.
+//!
 //! A recognized video's title/thumbnail/channel are a separate matter from
 //! detection: [`oembed`] fills them in from the provider's oembed endpoint,
 //! a second SSRF-guarded request behind the same [`fetch::follow`] the page
@@ -35,6 +38,9 @@ mod fetch_tests;
 mod flight;
 mod image_token;
 mod oembed;
+mod spotify;
+#[cfg(test)]
+mod spotify_tests;
 mod ssrf;
 mod video;
 
@@ -185,7 +191,9 @@ struct PreviewParams {
 /// nothing about that provider is ever contacted until the reader taps.
 /// `author_name`/`author_url` are the page's author or publisher, if known -
 /// a YouTube video's channel today, from the same oembed request that fills
-/// in the video's title and thumbnail (see [`oembed`]).
+/// in the video's title and thumbnail (see [`oembed`]). `media_kind` says
+/// what a Spotify `video_id` names, and `duration_ms` is the page's own
+/// `music:duration`.
 #[derive(Serialize)]
 struct LinkPreviewDto {
     url: String,
@@ -195,12 +203,15 @@ struct LinkPreviewDto {
     image_token: Option<String>,
     video_provider: Option<video::VideoProvider>,
     video_id: Option<String>,
+    media_kind: Option<spotify::SpotifyKind>,
+    duration_ms: Option<u32>,
     author_name: Option<String>,
     author_url: Option<String>,
 }
 
 fn to_dto(url: &str, cached: CachedPreview) -> LinkPreviewDto {
     let video_provider = cached.video.as_ref().map(|v| v.provider);
+    let media_kind = cached.video.as_ref().and_then(|v| v.kind);
     let video_id = cached.video.map(|v| v.id);
     LinkPreviewDto {
         url: url.to_owned(),
@@ -210,6 +221,8 @@ fn to_dto(url: &str, cached: CachedPreview) -> LinkPreviewDto {
         image_token: cached.image_token,
         video_provider,
         video_id,
+        media_kind,
+        duration_ms: cached.duration_s.map(|s| s * 1000),
         author_name: cached.author_name,
         author_url: cached.author_url,
     }
@@ -236,7 +249,9 @@ async fn preview(
     validate(&params.url, service.allow_private)
         .map_err(|_| ApiError::BadRequest("that link cannot be previewed"))?;
 
-    let key = cache::cache_key(&params.url);
+    // Every share of one Spotify item is one fetch and one cache entry, and the sharer's ?si= never leaves.
+    let target = spotify::fetch_target(&params.url);
+    let key = cache::cache_key(&target);
     if let Some(cached) = service.cache.preview(&key) {
         return Ok(axum::Json(to_dto(&params.url, cached)));
     }
@@ -249,7 +264,7 @@ async fn preview(
         .cell()
         .get_or_init(|| async {
             fetched_here.store(true, Ordering::Relaxed);
-            match fetch_preview(&service.client, &params.url, service.allow_private).await {
+            match fetch_preview(&service.client, &target, service.allow_private).await {
                 Ok(Some(preview)) => cache::Outcome::Found(service.cache.insert(&key, preview)),
                 Ok(None) | Err(FetchError::Unavailable) => {
                     service.cache.record_miss(&key);

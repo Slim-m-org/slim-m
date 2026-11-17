@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart' show SpotifyEntity, SpotifyKind;
 import 'package:slimm_app/src/spotify/spotify_launch.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -64,5 +65,67 @@ void main() {
     );
     expect(ok, isTrue);
     expect(modes, [LaunchMode.externalApplication]);
+  });
+
+  group('openInSpotify', () {
+    final item = SpotifyEntity.tryCreate(
+      SpotifyKind.track,
+      '3ccGTp44b5m3TwTCrolFjw',
+    )!;
+    final web = Uri.parse(
+      'https://open.spotify.com/track/3ccGTp44b5m3TwTCrolFjw',
+    );
+    final app = Uri.parse('spotify:track:3ccGTp44b5m3TwTCrolFjw');
+
+    Future<List<(Uri, LaunchMode)>> open({
+      required bool phone,
+      bool installed = false,
+      bool appOpens = true,
+    }) async {
+      final opened = <(Uri, LaunchMode)>[];
+      final asked = <Uri>[];
+      await openInSpotify(
+        item,
+        phone: phone,
+        canOpen: (uri) async {
+          asked.add(uri);
+          return installed;
+        },
+        opener: (uri, mode) async {
+          opened.add((uri, mode));
+          if (mode == LaunchMode.externalNonBrowserApplication) return phone;
+          return uri.scheme != 'spotify' || appOpens;
+        },
+      );
+      if (phone) expect(asked, isEmpty, reason: 'an app link needs no scheme');
+      if (!phone) expect(asked, [app]);
+      return opened;
+    }
+
+    test('a phone opens the item through its app link', () async {
+      expect(await open(phone: true), [
+        (web, LaunchMode.externalNonBrowserApplication),
+      ]);
+    });
+
+    test('a desktop with Spotify installed opens the spotify: URI', () async {
+      expect(await open(phone: false, installed: true), [
+        (app, LaunchMode.externalApplication),
+      ]);
+    });
+
+    test('a desktop without Spotify opens the browser', () async {
+      expect(await open(phone: false), [(web, LaunchMode.externalApplication)]);
+    });
+
+    test(
+      'a stale Spotify registration still falls back to the browser',
+      () async {
+        expect(await open(phone: false, installed: true, appOpens: false), [
+          (app, LaunchMode.externalApplication),
+          (web, LaunchMode.externalApplication),
+        ]);
+      },
+    );
   });
 }
