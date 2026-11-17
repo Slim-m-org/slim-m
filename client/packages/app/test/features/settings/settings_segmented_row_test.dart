@@ -102,6 +102,43 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('stacked controls on a phone all span the same width', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    Widget row(String label, List<String> labels) => SettingsSegmentedRow<int>(
+      label: label,
+      value: 0,
+      choices: [
+        for (final (i, l) in labels.indexed) SettingsChoice(value: i, label: l),
+      ],
+      onChanged: (_) {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        home: Scaffold(
+          body: Column(
+            children: [
+              row('Speaker', const ['Default', 'Headset']),
+              row('Quality', const ['Auto', 'Low', 'High']),
+              row('Watching quality', const ['Space default', 'Standard']),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final widths = {
+      for (final e in find.byType(AppSegmentedControl).evaluate())
+        tester.getSize(find.byWidget(e.widget)).width,
+    };
+    expect(widths, hasLength(1), reason: 'ragged: $widths');
+    expect(tester.takeException(), isNull);
+  });
+
   test('only a problem reads as a warning banner', () {
     expect(notificationBannerStyle(PushStatus.registered).warn, isFalse);
     expect(
