@@ -24,12 +24,9 @@ void main() {
     test('the author may edit their own', () {
       expect(canEditMessage(message(authorId: _me), _me), isTrue);
     });
-    test(
-      'no one may edit another author, even a moderator (not offered here)',
-      () {
-        expect(canEditMessage(message(authorId: 'other'), _me), isFalse);
-      },
-    );
+    test('no one may edit another author, moderators included', () {
+      expect(canEditMessage(message(authorId: 'other'), _me), isFalse);
+    });
     test('a pending or failed send has nothing stored to edit', () {
       expect(
         canEditMessage(message(authorId: _me, pending: true), _me),

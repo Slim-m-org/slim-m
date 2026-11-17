@@ -212,7 +212,22 @@ async fn authorize_manage(
         .has_permission(user_id, channel_id, Permissions::MANAGE_MESSAGES)
         .await?
     {
-        return Err(ApiError::Forbidden);
+        let in_dm = state
+            .store
+            .channel(channel_id)
+            .await?
+            .is_some_and(|c| c.kind == crate::store::DM_CHANNEL_KIND);
+        return Err(match in_dm {
+            true => ApiError::Coded {
+                status: StatusCode::FORBIDDEN,
+                message: "pins are not available in direct messages",
+                code: DM_PINS_CODE,
+            },
+            false => ApiError::Forbidden,
+        });
     }
     Ok(())
 }
+
+/// Mirrors `ForbiddenException.dmPinsCode` in the client.
+const DM_PINS_CODE: &str = "dm_pins_unavailable";

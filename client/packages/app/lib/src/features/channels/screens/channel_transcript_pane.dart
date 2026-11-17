@@ -160,6 +160,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
       currentChannelId: channelId,
       channelId: hit.channelId,
       messageId: hit.id,
+      inThread: hit.threadParentChannelId != null,
     );
   }
 

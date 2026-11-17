@@ -24,3 +24,4 @@ mod fts_order;
 mod operators_content;
 mod operators_identity;
 mod partial_words;
+mod threads;

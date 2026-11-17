@@ -154,7 +154,7 @@ crates/slimm-server/src/http/channels.rs 2
 crates/slimm-server/src/http/dms.rs 1
 crates/slimm-server/src/http/error.rs 1
 crates/slimm-server/src/http/invites.rs 1
-crates/slimm-server/src/http/messages.rs 6
+crates/slimm-server/src/http/messages.rs 5
 crates/slimm-server/src/http/overwrites.rs 2
 crates/slimm-server/src/http/pins.rs 1
 crates/slimm-server/src/http/polls.rs 2

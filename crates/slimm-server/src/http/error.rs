@@ -49,6 +49,11 @@ pub(crate) enum ApiError {
         message: &'static str,
         code: &'static str,
     },
+    /// A write refused because the caller is timed out, with when it lifts and why.
+    TimedOut {
+        until: i64,
+        reason: Option<String>,
+    },
     NotFound(&'static str),
     Conflict(&'static str),
     /// Like [`ApiError::Conflict`], naming the other party, which is only known at request time.
@@ -116,10 +121,18 @@ struct ErrorBody {
     item_index: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     item_code: Option<&'static str>,
-    /// Only [`ApiError::Coded`] sets this: why, as a stable word.
+    /// Only [`ApiError::Coded`] and [`ApiError::TimedOut`] set this: why, as a stable word.
     #[serde(skip_serializing_if = "Option::is_none")]
     code: Option<&'static str>,
+    /// Only [`ApiError::TimedOut`] sets these two: when the timeout lifts, and its reason if given.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timed_out_until: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timeout_reason: Option<String>,
 }
+
+/// The `code` of an [`ApiError::TimedOut`]; mirrors `ForbiddenException.timedOutCode` in the client.
+const TIMED_OUT_CODE: &str = "timed_out";
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
@@ -142,7 +155,12 @@ impl IntoResponse for ApiError {
         };
         let code = match &self {
             ApiError::Coded { code, .. } => Some(*code),
+            ApiError::TimedOut { .. } => Some(TIMED_OUT_CODE),
             _ => None,
+        };
+        let (timed_out_until, timeout_reason) = match &self {
+            ApiError::TimedOut { until, reason } => (Some(*until), reason.clone()),
+            _ => (None, None),
         };
         let (status, error): (StatusCode, Cow<'static, str>) = match self {
             ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, message.into()),
@@ -154,6 +172,7 @@ impl IntoResponse for ApiError {
                 "cannot grant a permission you do not hold".into(),
             ),
             ApiError::ForbiddenBecause(message) => (StatusCode::FORBIDDEN, message.into()),
+            ApiError::TimedOut { .. } => (StatusCode::FORBIDDEN, "you are timed out".into()),
             ApiError::NotFound(message) => (StatusCode::NOT_FOUND, message.into()),
             ApiError::Conflict(message) => (StatusCode::CONFLICT, message.into()),
             ApiError::ForbiddenDetail(message) => (StatusCode::FORBIDDEN, message.into()),
@@ -204,6 +223,8 @@ impl IntoResponse for ApiError {
                 item_index,
                 item_code,
                 code,
+                timed_out_until,
+                timeout_reason,
             }),
         )
             .into_response();

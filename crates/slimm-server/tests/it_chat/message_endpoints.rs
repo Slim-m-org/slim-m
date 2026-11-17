@@ -6,7 +6,6 @@ use axum::Router;
 use axum::http::StatusCode;
 use serde_json::json;
 use slimm_server::auth::Auth;
-use slimm_server::ids::UserId;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
 use tower::ServiceExt;
@@ -245,63 +244,6 @@ async fn no_view_permission_hides_the_channel() {
         .await
         .unwrap();
     assert_eq!(listed.status(), StatusCode::FORBIDDEN);
-}
-
-#[tokio::test]
-async fn editing_another_users_message_needs_manage() {
-    let (store, _guard) = support::new_store("slimm-msg-test").await;
-    store
-        .create_role(
-            "everyone",
-            Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES),
-            true,
-        )
-        .await
-        .unwrap();
-    let mods = store
-        .create_role("mods", Permissions::MANAGE_MESSAGES, false)
-        .await
-        .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
-    let app = app(store.clone());
-
-    let (alice_token, _alice) = register(&store, "alice").await;
-    let (bob_token, bob_id) = register(&store, "bob").await;
-
-    // Alice sends a message.
-    let uri = format!("/channels/{}/messages", channel.id);
-    let message_id = Uuid::now_v7().to_string();
-    let sent = app
-        .clone()
-        .oneshot(request(
-            "POST",
-            &uri,
-            Some(&alice_token),
-            Some(json!({ "id": message_id, "content": "alice's message" })),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(sent.status(), StatusCode::OK);
-
-    let edit_uri = format!("/channels/{}/messages/{}", channel.id, message_id);
-    let edit = |token: &str| {
-        request(
-            "PATCH",
-            &edit_uri,
-            Some(token),
-            Some(json!({ "content": "edited by bob" })),
-        )
-    };
-
-    // Bob, an ordinary member, cannot edit Alice's message.
-    let forbidden = app.clone().oneshot(edit(&bob_token)).await.unwrap();
-    assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
-
-    // Give Bob the mods role; now he can.
-    let bob = UserId(Uuid::parse_str(&bob_id).unwrap());
-    store.assign_role(bob, mods).await.unwrap();
-    let allowed = app.clone().oneshot(edit(&bob_token)).await.unwrap();
-    assert_eq!(allowed.status(), StatusCode::OK);
 }
 
 #[tokio::test]

@@ -64,6 +64,15 @@ struct SearchParams {
     /// `before:YYYY-MM-DD`. Named `before_date` on the wire for the same
     /// reason, and because `before` already means "seq cursor" here.
     before_date: Option<String>,
+    /// Also search the live threads of the channels in scope. Opt-in because a
+    /// client from before thread hits opens one as if the thread were a channel.
+    include_threads: Option<bool>,
+}
+
+/// The channels a search covers, and whether their live threads come along.
+struct SearchScope<'a> {
+    channels: &'a [ChannelId],
+    with_threads: bool,
 }
 
 /// Full-text search within one channel, or within an `in:`-named one.
@@ -113,7 +122,10 @@ async fn search(
     run_search(
         &state,
         ctx.user_id,
-        &channel_ids,
+        SearchScope {
+            channels: &channel_ids,
+            with_threads: params.include_threads.unwrap_or(false),
+        },
         query,
         &filters,
         params.before,
@@ -153,7 +165,10 @@ async fn search_all(
     run_search(
         &state,
         ctx.user_id,
-        &channel_ids,
+        SearchScope {
+            channels: &channel_ids,
+            with_threads: params.include_threads.unwrap_or(false),
+        },
         query,
         &filters,
         params.before,
@@ -261,12 +276,12 @@ async fn resolve_scope(
 }
 
 /// The shared tail both routes run once their channel scope and filters are
-/// resolved: run the FTS5 query over `channel_ids`, then enrich with
-/// reactions exactly like plain message history does.
+/// resolved: run the FTS5 query over the scope's channels (and their live
+/// threads when asked), then enrich with reactions like plain history does.
 async fn run_search(
     state: &AppState,
     user_id: UserId,
-    channel_ids: &[ChannelId],
+    scope: SearchScope<'_>,
     query: Option<&str>,
     filters: &MessageSearchFilters,
     before: Option<i64>,
@@ -282,9 +297,15 @@ async fn run_search(
         None => None,
     };
     let query = fts.as_ref();
+    let threads = match scope.with_threads {
+        true => state.store.live_threads_of(scope.channels).await?,
+        false => Default::default(),
+    };
+    let mut channels = scope.channels.to_vec();
+    channels.extend(threads.keys().copied());
     let messages = match state
         .store
-        .search_messages_prepared(channel_ids, query, filters, before, limit)
+        .search_messages_prepared(&channels, query, filters, before, limit)
         .await
     {
         Ok(rows) => rows,
@@ -298,6 +319,10 @@ async fn run_search(
     };
 
     let ids: Vec<MessageId> = messages.iter().map(|m| m.id).collect();
+    let thread_parents: Vec<Option<String>> = messages
+        .iter()
+        .map(|m| threads.get(&m.channel_id).map(ToString::to_string))
+        .collect();
     let mut dtos = with_reactions(state, user_id, messages).await?;
     if let Some(q) = query {
         let mut matched = state
@@ -307,6 +332,9 @@ async fn run_search(
         for (id, dto) in ids.iter().zip(dtos.iter_mut()) {
             dto.matched_attachment_id = matched.remove(id);
         }
+    }
+    for (dto, parent) in dtos.iter_mut().zip(thread_parents) {
+        dto.thread_parent_channel_id = parent;
     }
     Ok(Json(dtos))
 }

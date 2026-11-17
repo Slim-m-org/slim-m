@@ -112,6 +112,7 @@ pub(crate) mod scene_refresh;
 pub use module_events::{EventConsumer, spawn_module_events};
 pub use module_schedule::run_due as run_scheduled_modules;
 pub use module_timers::run_due as run_module_timers;
+pub use reactions::rekey_stored_reactions;
 pub use scene_refresh::run_due as run_scene_refreshes;
 pub use storage::BackupStatusDir;
 mod link_preview_removal;
@@ -177,6 +178,7 @@ mod watch_session;
 mod webhooks;
 mod webhooks_admin;
 mod welcome;
+mod write_refusal;
 mod ws;
 
 /// The wire-protocol envelope version a client negotiates on connect. Bumped

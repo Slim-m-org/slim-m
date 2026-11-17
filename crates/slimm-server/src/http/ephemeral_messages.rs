@@ -112,7 +112,7 @@ async fn send_ephemeral(
     let attachment_ids = parse_attachment_ids(&req.attachment_ids)?;
     let embeds = build_embeds(req.embeds, &state.link_previews)?;
     let carries_more = !attachment_ids.is_empty() || !embeds.is_empty();
-    let content = validate_content(&req.content, carries_more)?;
+    let content = &*validate_content(&req.content, carries_more)?;
     if !state.store.is_bot(ctx.user_id).await? {
         return Err(ApiError::Forbidden);
     }

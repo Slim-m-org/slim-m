@@ -4458,7 +4458,12 @@ paths:
       operationId: editMessage
       tags: [messages]
       summary: Edit a message.
-      description: Allowed for the author, or a member with MANAGE_MESSAGES.
+      description: >
+        Allowed for the author only, who also needs SEND_MESSAGES. Nobody
+        else edits a message, a member with MANAGE_MESSAGES or ADMINISTRATOR
+        included: they can delete it instead. A caller who can see the
+        channel but did not write the message gets a 403 with
+        `code: not_author`.
       requestBody:
         required: true
         content:
@@ -6154,8 +6159,12 @@ paths:
         least one of `q` and those filters is required. Results are
         permission-filtered exactly like listing and keyset paginated on
         `seq` the same way. A `q` that is not valid FTS5 syntax, such as
-        `.iso`, searches its words as prefixes instead. Attachment file names
-        are searched along with message text and extracted file text. `in` is the one filter with an oracle-safety rule of its
+        `.iso`, searches its words as prefixes instead, and one with no
+        words left, such as a lone `*`, answers 400. Attachment file names
+        are searched along with message text and extracted file text. With
+        `include_threads=true`, replies in the channel's live threads are
+        searched with it, and each such hit carries `thread_parent_channel_id`;
+        page those with `before_id`, since a thread's `seq` is its own. `in` is the one filter with an oracle-safety rule of its
         own: a channel name that does not exist, or that exists but the
         caller cannot view, answers with an empty array rather than a 403 or
         404, so it cannot be used to learn a hidden channel exists.
@@ -6236,6 +6245,15 @@ paths:
           schema:
             type: string
             format: date
+        - name: include_threads
+          in: query
+          description: >
+            `true` also searches the live threads of the channels in scope,
+            and each hit inside one carries `thread_parent_channel_id`. Off
+            when absent, so a client that predates thread hits never gets one
+            it would open as if the thread were a channel.
+          schema:
+            type: boolean
       responses:
         "200":
           description: Matching messages, newest first.
@@ -6264,8 +6282,8 @@ paths:
         /channels/{channelId}/messages/search`: same query language, same
         operators, same result shape, but with no path channel to scope it.
         By default the scope is every channel the caller holds VIEW_CHANNEL
-        in (DMs and threads excluded, the same set `GET /channels` lists);
-        `in` narrows that to one named channel exactly as it does on the
+        in (DMs excluded, the same set `GET /channels` lists), plus the
+        live threads hanging off those channels when `include_threads=true`; `in` narrows that to one named channel exactly as it does on the
         per-channel route, with the same oracle-safety answer for an
         unviewable or nonexistent name. `q` is optional under the same rule
         as the per-channel route: at least one of `q` and the other filters
@@ -6349,6 +6367,15 @@ paths:
           schema:
             type: string
             format: date
+        - name: include_threads
+          in: query
+          description: >
+            `true` also searches the live threads of the channels in scope,
+            and each hit inside one carries `thread_parent_channel_id`. Off
+            when absent, so a client that predates thread hits never gets one
+            it would open as if the thread were a channel.
+          schema:
+            type: boolean
       responses:
         "200":
           description: Matching messages across every viewable channel, newest first.
@@ -6381,6 +6408,9 @@ paths:
           The reaction, URL-encoded: one emoji, the `:shortcode:` of a custom
           emoji, or a custom emoji's id. Anything else is refused with 400 when
           adding; removing is not checked, so an old reaction can always go.
+          An emoji is stored in the form the app's picker uses whether or not
+          it was sent with U+FE0F, so U+2764 and U+2764 U+FE0F are one
+          reaction keyed `\u2764\ufe0f`, on add, remove and this list alike.
         schema:
           type: string
     get:
@@ -13297,8 +13327,27 @@ components:
             role, or the member's highest role, is not strictly below the
             caller's own highest role, or the member is the Space owner.
             `role_follows_bot` on a 409 from granting or revoking by hand a role
-            a bot holds by being a bot. Absent on every other error; read an
-            unknown value as a refusal for another reason.
+            a bot holds by being a bot. On a 403 from sending, editing,
+            reacting or making a poll in a channel the caller can see:
+            `timed_out` (with `timed_out_until` and `timeout_reason`),
+            `blocked` in a direct message where either side blocked the other,
+            and `left_group` for a group the caller posted in and is no longer
+            on. `dm_pins_unavailable` on a 403 from pinning or unpinning in a
+            direct message. `not_author` on a 403 from editing a message the
+            caller did not write. A channel the caller cannot see, or one that does
+            not exist, still answers the bare 403 with no code. Absent on every
+            other error; read an unknown value as a refusal for another reason.
+        timed_out_until:
+          type: integer
+          format: int64
+          description: >
+            With `code: timed_out` only: when the caller's timeout lifts, unix
+            milliseconds.
+        timeout_reason:
+          type: string
+          description: >
+            With `code: timed_out` only, and only when the moderator gave one:
+            the timeout's reason.
 
     Version:
       type: object
@@ -18810,6 +18859,13 @@ components:
             attachment whose extracted text or file name matched. Absent when the message's
             own text matched. Text and code files and the text layer of PDFs
             are searched; there is no OCR for images.
+        thread_parent_channel_id:
+          type: string
+          format: uuid
+          description: >-
+            Only on a search result posted inside a thread: the channel the
+            thread's parent message is in, so a client can open the thread
+            rather than the thread's own channel id as if it were a channel.
         link_previews_removed:
           type: boolean
           description: >-
@@ -19672,7 +19728,13 @@ components:
             Must not be blank unless the message carries something else:
             `attachment_ids` is non-empty, or `forwarded_from_id` is set. A
             message carrying a file or a forward needs no text of its own,
-            and a blank one carrying neither is a 400.
+            and a blank one carrying neither is a 400. Blank includes text of
+            only characters that draw nothing (zero-width spaces, joiners,
+            braille and hangul blanks, variation selectors). Control
+            characters other than line breaks and tabs, and the bidi
+            overrides U+202D and U+202E, are removed before the message is
+            stored, here and on an edit; bidi embeddings and isolates are
+            kept. `\r\n` and a lone `\r` are stored as `\n`.
         attachment_ids:
           type: array
           description: >
@@ -19834,6 +19896,9 @@ components:
           type: string
           minLength: 1
           maxLength: 4000
+          description: >
+            Held to `SendMessageRequest.content`'s rules: blank text is a 400,
+            and control and bidi override characters are removed.
         embeds:
           type: array
           description: >-

@@ -131,13 +131,7 @@ async fn send(
     if !attachment_ids.is_empty() {
         needed = needed.union(Permissions::ATTACH_FILES);
     }
-    if !state
-        .store
-        .has_permission(ctx.user_id, channel_id, needed)
-        .await?
-    {
-        return Err(ApiError::Forbidden);
-    }
+    super::write_refusal::require(&state, ctx.user_id, channel_id, needed).await?;
     super::module_hooks::check_permission(
         &state,
         ctx.user_id,
@@ -148,7 +142,7 @@ async fn send(
     // A forward with no note of its own is a complete message; so is one
     // that is only attachments.
     let carries_more = !attachment_ids.is_empty() || req.forwarded_from_id.is_some();
-    let content = validate_content(&req.content, carries_more)?;
+    let content = &*validate_content(&req.content, carries_more)?;
     let id = MessageId(parse_uuid(&req.id)?);
     let embeds = embeds::honored_for_send(&state, ctx.user_id, req.embeds).await?;
     let components =
@@ -333,7 +327,7 @@ async fn list(
 }
 
 /// Soft-deletes a message. Deleting your own is allowed; deleting another's
-/// needs MANAGE_MESSAGES, the same split as edit.
+/// needs MANAGE_MESSAGES, which is the one thing a moderator does to it.
 ///
 /// The row is fetched regardless of `deleted_at`, because a second delete must
 /// succeed rather than 404, and telling "already gone" apart from "never
@@ -371,8 +365,7 @@ async fn delete(
         .filter(|m| m.channel_id == channel_id)
         .ok_or(ApiError::NotFound("message not found"))?;
 
-    // Deleting your own message is allowed; deleting another's needs manage
-    // rights, same split as edit.
+    // Deleting your own message is allowed; deleting another's needs manage rights.
     let is_author = message.author_id == Some(ctx.user_id);
     if !is_author
         && !state
@@ -407,6 +400,9 @@ async fn delete(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// Mirrors `ForbiddenException.notAuthorCode` in the client.
+const NOT_AUTHOR_CODE: &str = "not_author";
+
 /// Edits a message. Rate-limited like the other writes in this module: an edit
 /// re-runs the FTS5 re-index trigger, so leaving it uncapped let one account
 /// churn the search index as fast as it could send requests.
@@ -417,6 +413,9 @@ async fn delete(
 /// keeps a complete substitute for sending, by rewriting anything they ever
 /// posted. Deleting is left on authorship alone, because a delete publishes
 /// an id rather than words.
+///
+/// Nobody else edits it, moderators and administrators included: words shown
+/// under someone's name are theirs, and a moderator removes a message instead.
 async fn edit(
     Authed(ctx): Authed,
     parts: Parts,
@@ -444,20 +443,15 @@ async fn edit(
         .filter(|m| m.channel_id == channel_id)
         .ok_or(ApiError::NotFound("message not found"))?;
 
-    // Your own needs send rights, another's needs manage rights; see the note.
-    let is_author = message.author_id == Some(ctx.user_id);
-    let needed = if is_author {
-        Permissions::SEND_MESSAGES
-    } else {
-        Permissions::MANAGE_MESSAGES
-    };
-    if !state
-        .store
-        .has_permission(ctx.user_id, channel_id, needed)
-        .await?
-    {
-        return Err(ApiError::Forbidden);
+    if message.author_id != Some(ctx.user_id) {
+        return Err(ApiError::Coded {
+            status: StatusCode::FORBIDDEN,
+            message: "only the author can edit a message",
+            code: NOT_AUTHOR_CODE,
+        });
     }
+    super::write_refusal::require(&state, ctx.user_id, channel_id, Permissions::SEND_MESSAGES)
+        .await?;
 
     // Read once and used three times: whether the note may be emptied, the
     // live frame, and this response.
@@ -470,7 +464,7 @@ async fn edit(
         .map(|(_, summary)| summary);
 
     // An edit carries no attachment list, so nothing stands in for cleared text - unless the message forwards something.
-    let content = validate_content(&req.content, forwarded.is_some())?;
+    let content = &*validate_content(&req.content, forwarded.is_some())?;
     let intercepted = intercept(
         &state,
         &Draft {
@@ -486,7 +480,7 @@ async fn edit(
     .await?;
     let content = intercepted.text(content);
     // Built before the text changes, so a refused embed leaves the edit undone rather than half done.
-    let replacement = embeds::honored_for_edit(&state, ctx.user_id, is_author, req.embeds).await?;
+    let replacement = embeds::honored_for_edit(&state, ctx.user_id, req.embeds).await?;
     let updated = match state
         .store
         .edit_message(message_id, content, ctx.user_id)
@@ -501,12 +495,16 @@ async fn edit(
             code_runs_cleared,
         } => {
             intercepted.save_annotations(&state, message.id).await;
-            let author = message.author_id.unwrap_or(ctx.user_id);
-            // Content changed, so the mention set may have too; see refresh_after_edit for the author-vs-editor choice.
+            // Content changed, so the mention set may have too.
             after_commit(
                 "its mentions",
-                self::message_mentions::refresh_after_edit(&state, channel_id, author, &message)
-                    .await,
+                self::message_mentions::refresh_after_edit(
+                    &state,
+                    channel_id,
+                    ctx.user_id,
+                    &message,
+                )
+                .await,
             );
 
             state.hub.publish(Event::Message(MessageEvent::Edited {
