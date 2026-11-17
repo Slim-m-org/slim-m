@@ -252,6 +252,7 @@ class _ChannelCategorySectionsState
           : (revealed, onFocusChange) => AddChannelGlyph(
               categoryId: category?.id,
               categoryName: place,
+              initialKind: kindToAddIn(category, view.channelsOf(category)),
               revealed: revealed && !carried,
               onFocusChange: onFocusChange,
             ),

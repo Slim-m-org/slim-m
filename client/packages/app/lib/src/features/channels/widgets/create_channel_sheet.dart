@@ -108,7 +108,9 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
     if (_restricted) await _grantAudience(created.id);
     if (!mounted) return null;
     final router = GoRouter.of(context);
-    return () => router.go(Routes.channel(created.id));
+    // Selected, never joined: the voice screen offers Join like any visit to read.
+    final route = Routes.channel(created.id, openChat: _kind == 'voice');
+    return () => router.go(route);
   }
 
   /// The channel already exists by now and a retry re-sends the same id, so a failure here leaves it usable and the sheet open to try again.
