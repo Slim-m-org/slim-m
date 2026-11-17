@@ -208,6 +208,32 @@ void main() {
     }
   });
 
+  testWidgets('presence read before the first connect is asked again once '
+      'live, since a change in between never arrives as an event', (
+    tester,
+  ) async {
+    final rig = _Rig(tester);
+    await rig.start();
+    try {
+      await tester.runAsync(() async {
+        rig.container.read(sessionProvider).set(_tokens);
+        rig.container.listen(presenceSeedProvider(null), (_, __) {});
+        await rig.container.read(presenceSeedProvider(null).future);
+      });
+      expect(rig.presenceAsked, [
+        ['u1', 'u2'],
+      ]);
+
+      await rig.connect();
+
+      expect(rig.presenceAsked, hasLength(2));
+      expect(rig.presenceAsked.last, ['u1', 'u2']);
+      expect(rig.rosterPages, 1);
+    } finally {
+      await rig.close();
+    }
+  });
+
   test(
     'an older lookup that answers last cannot overwrite a newer one',
     () async {
