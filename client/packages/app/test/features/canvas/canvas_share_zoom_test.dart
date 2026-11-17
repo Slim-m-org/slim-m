@@ -31,7 +31,6 @@ Future<CanvasDocument> _pump(WidgetTester tester) async {
   final feed = ScreenAnnotationFeed(
     selfId: () => 'me',
     callChannelId: () => 'call',
-    callMembers: () => const ['me', 'sharer'],
   );
   addTearDown(feed.dispose);
   await tester.pumpWidget(

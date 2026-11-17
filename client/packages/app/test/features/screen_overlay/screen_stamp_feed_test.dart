@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// What a viewer's feed does with a stamp: fetch its picture, start its clock
 /// once the picture is in, and never fetch anything for a blocked author or
-/// one outside my call.
+/// one from another call.
 library;
 
 import 'dart:async';
@@ -40,7 +40,6 @@ void main() {
     feed = ScreenAnnotationFeed(
       selfId: () => 'me',
       callChannelId: () => 'c',
-      callMembers: () => const ['me', 'sharer', 'viewer'],
       clock: () => now,
       isBlocked: blocked.contains,
       loadStamp: (content) {
@@ -77,12 +76,22 @@ void main() {
     expect(feed.marksFor('sharer'), isEmpty);
   });
 
-  test('a stamp from someone outside my call fetches nothing', () {
+  test('a stamp from another call fetches nothing', () {
     feed.handle(_consent('sharer'));
-    feed.handle(stampFrame(user: 'outsider', attachment: 'abc'));
+    feed.handle(stampFrame(channel: 'other-call', attachment: 'abc'));
     expect(loads, isEmpty);
     expect(feed.marksFor('sharer'), isEmpty);
   });
+
+  test(
+    'a stamp sent the moment its sender joined is not held for my roster',
+    () {
+      feed.handle(_consent('sharer'));
+      feed.handle(stampFrame(user: 'just-joined', attachment: 'abc'));
+      expect(loads, [const PictureStamp('abc')]);
+      expect(feed.marksFor('sharer'), hasLength(1));
+    },
+  );
 
   test('a stamp over a sharer who allows nothing fetches nothing', () {
     feed.handle(stampFrame(attachment: 'abc'));

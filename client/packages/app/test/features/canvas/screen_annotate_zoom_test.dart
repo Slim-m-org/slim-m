@@ -59,7 +59,6 @@ class _Rig {
   final feed = ScreenAnnotationFeed(
     selfId: () => 'me',
     callChannelId: () => 'call',
-    callMembers: () => const ['me', 'sharer', 'viewer'],
   );
   final zoom = ShareZoomController();
   late _Sync sync;

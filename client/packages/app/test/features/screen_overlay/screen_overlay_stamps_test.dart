@@ -102,11 +102,23 @@ void main() {
     });
   });
 
-  test('a stamp from someone outside my call bakes nothing', () {
+  test('a stamp sent the moment its sender joined paints at once', () {
     fakeAsync((async) {
       final rig = OverlayRig();
       async.flushMicrotasks();
-      rig.stamp(user: 'stranger');
+      rig.stamp(user: 'just-joined');
+      async.flushMicrotasks();
+      async.elapse(overlayFrameInterval * 2);
+      expect(rig.overlay.puts, ['e:\u{1F389}']);
+      expect(rig.overlay.draws.last.single, isA<OverlayStamp>());
+    });
+  });
+
+  test('a stamp from another call bakes nothing', () {
+    fakeAsync((async) {
+      final rig = OverlayRig();
+      async.flushMicrotasks();
+      rig.stamp(channel: 'other-call');
       async.flushMicrotasks();
       async.elapse(overlayFrameInterval * 2);
       expect(rig.stamps.baked, isEmpty);

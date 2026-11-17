@@ -88,16 +88,15 @@ List<OverlayShape> overlayShapesFor(
 /// Whether the sharer's own client shows [frame] on their screen.
 ///
 /// This is the gate that matters: the overlay lives on the sharer's machine and
-/// only paints what the sharer allowed, drawn by someone in [callMembers].
+/// only paints what the sharer allowed, drawn in the call they are in.
 bool overlayAccepts(
   api.CanvasScreenAnnotation frame, {
   required bool overlayActive,
   required String? selfId,
   required String? callChannelId,
-  required Iterable<String> callMembers,
 }) =>
     overlayActive &&
     frame.kind != 'consent' &&
     selfId != null &&
     frame.targetUserId == selfId &&
-    markInCall(frame, callChannelId: callChannelId, callMembers: callMembers);
+    markInCall(frame, callChannelId: callChannelId);

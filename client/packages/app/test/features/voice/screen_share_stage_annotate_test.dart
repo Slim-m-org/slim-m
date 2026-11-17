@@ -57,7 +57,6 @@ Future<_Sync> _pump(
   final feed = ScreenAnnotationFeed(
     selfId: () => 'me',
     callChannelId: () => 'call',
-    callMembers: () => const ['me', 'sharer'],
   );
   if (allowed) {
     feed.handle(

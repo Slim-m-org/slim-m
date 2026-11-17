@@ -4,14 +4,10 @@ library;
 
 import 'package:slimm_api/api.dart' as api;
 
-/// Whether [frame] was drawn in the call on [callChannelId], by someone in [callMembers] over the screen of someone in it.
+/// Whether [frame] was drawn in the call on [callChannelId], so a mark from a call I left never paints.
 ///
-/// The rule the server relays by, kept here too so a server without it cannot paint a mark from another call.
+/// Not the LiveKit roster: the server already seats both people, and the roster lags a fresh joiner.
 bool markInCall(
   api.CanvasScreenAnnotation frame, {
   required String? callChannelId,
-  required Iterable<String> callMembers,
-}) =>
-    frame.channelId == callChannelId &&
-    callMembers.contains(frame.userId) &&
-    callMembers.contains(frame.targetUserId);
+}) => frame.channelId == callChannelId;

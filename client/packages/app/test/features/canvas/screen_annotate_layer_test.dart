@@ -89,7 +89,6 @@ class _Rig {
   late final feed = ScreenAnnotationFeed(
     selfId: () => 'me',
     callChannelId: () => 'call',
-    callMembers: () => const ['me', 'sharer', 'viewer-2'],
     clock: () => now,
   );
   late _Sync sync;
