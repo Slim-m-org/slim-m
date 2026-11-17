@@ -48,7 +48,10 @@ Future<http.Response?> _answerSend(http.Request request) async {
   );
 }
 
-Future<HistoryHarness> _mountInContext(WidgetTester tester) async {
+Future<HistoryHarness> _mountInContext(
+  WidgetTester tester, {
+  List<String>? reads,
+}) async {
   final harness = await mountChannel(
     tester,
     serverSeqs: _range(1, 1600),
@@ -57,7 +60,12 @@ Future<HistoryHarness> _mountInContext(WidgetTester tester) async {
     overrides: [
       myChannelPermissionsProvider.overrideWith((ref, _) => Perm.sendMessages),
     ],
-    answerFirst: _answerSend,
+    answerFirst: (request) async {
+      if (request.method == 'PUT' && request.url.path == '/channels/c1/read') {
+        reads?.add(request.body);
+      }
+      return _answerSend(request);
+    },
   );
   await harness.container
       .read(messageContextWindowProvider('c1').notifier)
@@ -109,6 +117,31 @@ void main() {
       tester.getRect(_transcript).contains(tester.getCenter(sent)),
       isTrue,
     );
+
+    await _unmount(tester);
+  });
+
+  testWidgets('at the bottom of the window, messages that arrived since are '
+      'not marked read until Jump to present', (tester) async {
+    final reads = <String>[];
+    final harness = await _mountInContext(tester, reads: reads);
+    final before = (await harness.store.channelRow('c1'))!.lastReadSeq;
+    reads.clear();
+
+    await harness.store.applyMessage(channelMessage(1601));
+    await flush(tester);
+    expect((await harness.store.channelRow('c1'))!.cursor, 1601);
+    transcriptScroll(tester).jumpTo(40);
+    await flush(tester);
+    transcriptScroll(tester).jumpTo(0);
+    await flush(tester);
+
+    expect(reads, isEmpty, reason: 'nothing past the window was shown');
+    expect((await harness.store.channelRow('c1'))!.lastReadSeq, before);
+
+    await tester.tap(find.text('Jump to present'));
+    await flush(tester);
+    expect((await harness.store.channelRow('c1'))!.lastReadSeq, 1601);
 
     await _unmount(tester);
   });
