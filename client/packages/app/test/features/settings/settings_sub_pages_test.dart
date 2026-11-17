@@ -134,6 +134,23 @@ Future<void> _tap(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
+  testWidgets('beside the nav a page has one back arrow: the nav\'s steps '
+      'aside', (tester) async {
+    final rig = _Rig();
+    await rig.pump(tester, _wide);
+    final navBack = find.byTooltip('Back to channels');
+    final title = tester.getTopLeft(find.text('Settings'));
+    expect(navBack.hitTestable(), findsOneWidget);
+
+    await _tap(tester, find.text('open page'));
+    expect(navBack.hitTestable(), findsNothing);
+    expect(find.byTooltip('Back to Appearance').hitTestable(), findsOneWidget);
+    expect(tester.getTopLeft(find.text('Settings')), title);
+
+    await _tap(tester, find.byTooltip('Back to Appearance'));
+    expect(navBack.hitTestable(), findsOneWidget);
+  });
+
   testWidgets('beside the nav a page takes the heading row and keeps close', (
     tester,
   ) async {
