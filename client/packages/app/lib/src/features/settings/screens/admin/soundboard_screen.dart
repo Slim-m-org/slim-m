@@ -105,7 +105,7 @@ class SoundboardPane extends ConsumerWidget {
             uploader: profiles[list[index].uploaderId]?.displayName,
           ),
           empty: const SettingsEmptyState(
-            icon: AppIcons.music,
+            icon: AppIcons.soundboard,
             title: 'No clips yet.',
             detail: 'Create one from an mp3 or wav file, up to 5 seconds.',
           ),

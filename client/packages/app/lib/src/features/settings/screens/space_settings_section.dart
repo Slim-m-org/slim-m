@@ -223,7 +223,7 @@ SettingsPaneGroup _configurationGroup(_SpaceAccess access) {
           id: 'soundboard',
           wide: true,
           label: 'Soundboard',
-          icon: AppIcons.music,
+          icon: AppIcons.soundboard,
           compactRoute: Routes.adminSoundboard,
           actions: const [
             SoundboardCreateButton(),

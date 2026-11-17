@@ -106,4 +106,58 @@ void main() {
           'the abandoned entry is what the staleness sweep is for',
     );
   });
+
+  test('a second hang-up during the teardown keeps the first one\'s recap '
+      'and rejoin guard', () async {
+    final session = FakeSession();
+    final controller = harness.controllerWith(session, voiceApi());
+
+    await controller.join('chan-1');
+    session.emitState(VoiceSessionState.connected);
+    await pumpEventQueue();
+
+    final teardown = Completer<void>();
+    session.leaveGate = teardown;
+    final first = controller.leave();
+    await pumpEventQueue();
+    expect(controller.state.justLeftChannelId, 'chan-1');
+    final recap = controller.state.recap;
+    expect(recap, isNotNull);
+
+    final second = controller.leave();
+    teardown.complete();
+    await Future.wait([first, second]);
+    await pumpEventQueue();
+
+    expect(controller.state.justLeftChannelId, 'chan-1');
+    expect(controller.state.justLeftAt, isNotNull);
+    expect(controller.state.recap, same(recap));
+  });
+
+  test('what the person changes on the left screen during the teardown '
+      'survives it', () async {
+    final session = FakeSession();
+    final controller = harness.controllerWith(session, voiceApi());
+
+    await controller.join('chan-1');
+    session.emitState(VoiceSessionState.connected);
+    await pumpEventQueue();
+
+    final teardown = Completer<void>();
+    session.leaveGate = teardown;
+    final leaving = controller.leave();
+    await pumpEventQueue();
+    expect(controller.state.cameraEnabled, isFalse);
+    controller.setCameraPreference(true);
+
+    session.emitState(VoiceSessionState.idle);
+    session.emitParticipants(const []);
+    teardown.complete();
+    await leaving;
+    await pumpEventQueue();
+
+    expect(controller.state.cameraEnabled, isTrue);
+    expect(controller.state.justLeftChannelId, 'chan-1');
+    expect(controller.state.state, VoiceSessionState.idle);
+  });
 }

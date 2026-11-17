@@ -369,10 +369,8 @@ class VoiceRejoinScreen extends ConsumerWidget {
 /// rather than an empty room ("nobody is here" would be a claim this client
 /// never checked) and rather than nothing at all, which read as a stalled
 /// load or a missing widget and was indistinguishable from either. A poll
-/// that has been failing for a while (`voiceRosterProvider`'s own
-/// [persistentRosterFailureThreshold]) gets a third, distinct sentence
-/// rather than staying indistinguishable from a poll that simply has not
-/// answered yet.
+/// that has been failing says the same [voiceRosterUnknownLine]: either way
+/// this client cannot see who is here, and two wordings read as two problems.
 ///
 /// [mergeLeftNotice] is true when the plain "You left this call." fallback
 /// would otherwise render directly below this: an empty roster then folds
@@ -390,9 +388,7 @@ class _WhoIsHere extends StatelessWidget {
     final roster = rosterAsync.valueOrNull;
     if (roster == null) {
       return Text(
-        rosterAsync.hasError
-            ? 'Could not check who is here.'
-            : "Can't tell who else is here right now.",
+        voiceRosterUnknownLine,
         textAlign: TextAlign.center,
         style: AppText.caption.copyWith(color: tokens.textSecondary),
       );

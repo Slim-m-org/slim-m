@@ -78,6 +78,9 @@ class ComposerVoiceBar extends ConsumerWidget {
         state.phase == VoicePhase.recording ||
         state.phase == VoicePhase.stopped ||
         (state.phase == VoicePhase.failed && state.clip != null);
+    // A refusal or a failed start holds no clip, so its Send can never act and a screen reader should not find it.
+    final nothingToSend =
+        state.phase == VoicePhase.failed && state.clip == null;
     return Row(
       key: const Key('composer-voice-bar'),
       children: [
@@ -93,11 +96,14 @@ class ComposerVoiceBar extends ConsumerWidget {
           child: _Body(state: state, tokens: tokens),
         ),
         const SizedBox(width: AppSpacing.s8),
-        AppIconButton(
-          icon: AppIcons.send,
-          semanticLabel: 'Send voice message',
-          tooltip: 'Send voice message',
-          onPressed: canSend ? () => _send(ref, recorder) : null,
+        ExcludeSemantics(
+          excluding: nothingToSend,
+          child: AppIconButton(
+            icon: AppIcons.send,
+            semanticLabel: 'Send voice message',
+            tooltip: 'Send voice message',
+            onPressed: canSend ? () => _send(ref, recorder) : null,
+          ),
         ),
       ],
     );

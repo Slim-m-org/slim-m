@@ -72,25 +72,29 @@ void main() {
     await controller.leave();
   });
 
-  testWidgets(
-    'confirming the switch leaves the first call and joins the second',
-    (tester) async {
-      final session = FakeSession();
-      final controller = harness.controllerWith(session, voiceApi());
-      await controller.join('channel-a');
-      session.emitState(VoiceSessionState.connected);
+  testWidgets('confirming the switch leaves the first call and joins the second', (
+    tester,
+  ) async {
+    final session = FakeSession();
+    final controller = harness.controllerWith(session, voiceApi());
+    await controller.join('channel-a');
+    session.emitState(VoiceSessionState.connected);
 
-      await tester.pumpWidget(
-        _harness(const VoiceScreen(channelId: 'channel-b'), harness.container),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      _harness(const VoiceScreen(channelId: 'channel-b'), harness.container),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Switch to this call'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Switch to this call'));
+    await tester.pumpAndSettle();
+    // The fake emits none of its own transitions; the real session ends on connected.
+    session.emitState(VoiceSessionState.connected);
+    await tester.pump();
 
-      expect(controller.state.channelId, 'channel-b');
-      expect(find.byType(VoiceSwitchPrompt), findsNothing);
-      await controller.leave();
-    },
-  );
+    expect(controller.state.channelId, 'channel-b');
+    expect(find.byType(VoiceSwitchPrompt), findsNothing);
+    await controller.leave();
+    // The connecting stage the switch passed through left the roster poll running.
+    harness.container.dispose();
+  });
 }

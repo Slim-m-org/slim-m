@@ -85,16 +85,13 @@ void main() {
 
       expect(find.text('This Space has no voice configured.'), findsOneWidget);
       expect(find.textContaining("Nobody's here"), findsNothing);
-      expect(
-        find.text("Can't tell who else is here right now."),
-        findsOneWidget,
-      );
+      expect(find.text("Can't see who is here."), findsOneWidget);
     },
   );
 
   testWidgets(
-    'a roster that has been failing rather than merely not yet answering '
-    'gets a distinct sentence',
+    'a roster that has been failing says the same one sentence as one that '
+    'has not answered',
     (tester) async {
       await _pump(
         tester,
@@ -104,14 +101,8 @@ void main() {
         ),
       );
 
-      expect(find.text('Could not check who is here.'), findsOneWidget);
-      expect(
-        find.text("Can't tell who else is here right now."),
-        findsNothing,
-        reason:
-            'a poll that has been failing reads differently from one '
-            'that simply has not answered yet',
-      );
+      expect(find.text("Can't see who is here."), findsOneWidget);
+      expect(find.text('Could not check who is here.'), findsNothing);
     },
   );
 

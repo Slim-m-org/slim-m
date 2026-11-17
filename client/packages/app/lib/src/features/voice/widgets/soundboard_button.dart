@@ -60,7 +60,7 @@ class _SoundboardButtonState extends State<SoundboardButton> {
       child: TapRegion(
         groupId: _group,
         child: CallDockButton(
-          icon: AppIcons.music,
+          icon: AppIcons.soundboard,
           tooltip: 'Soundboard',
           active: false,
           onPressed: () => _region.currentState?.toggle(),

@@ -112,8 +112,7 @@ class VoiceJoinBar extends ConsumerWidget {
           'are here',
         ),
         AsyncData() => compact ? "Nobody's here" : "Nobody's here right now",
-        AsyncError() => 'Could not check who is here.',
-        _ => "Can't tell who else is here right now.",
+        _ => voiceRosterUnknownLine,
       };
 
   String _subtitle(List<api.VoiceRosterParticipant> here, List<String> online) {
