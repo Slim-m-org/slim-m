@@ -177,11 +177,15 @@ void main() {
     expect(_cellOf(tester, 'role:${_everyone.id}').disabled, isFalse);
     expect(_cellOf(tester, 'role:${_admin.id}').disabled, isTrue);
     expect(_cellOf(tester, 'member:${_senior.id}').disabled, isTrue);
-    final remove = tester.widget<AppIconButton>(
-      find.widgetWithIcon(AppIconButton, AppIcons.dismiss).at(2),
+    expect(find.bySemanticsLabel('Remove admin from this grid'), findsNothing);
+    expect(
+      find.bySemanticsLabel('admin ranks level with or above you'),
+      findsOneWidget,
     );
-    expect(remove.semanticLabel, 'Remove admin from this grid');
-    expect(remove.onPressed, isNull);
+    expect(
+      find.bySemanticsLabel('Remove helper from this grid'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a save that touches a column now above you sends nothing', (
