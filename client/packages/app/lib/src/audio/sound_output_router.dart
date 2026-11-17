@@ -40,7 +40,8 @@ class SoundOutputRouter {
   /// Whether a Test speaker button would play where the person chose.
   bool get testable => supported || _chosenOutput() == null;
 
-  /// Moves the app's playing streams to the chosen speaker.
+  /// Moves the app's playing streams to the chosen speaker on every retry: a
+  /// stream that moved may be the call's, not this sound's; one already there is left.
   Future<void> followChosenOutput() async {
     final output = _chosenOutput();
     if (!supported || !isPulseDeviceId(output)) return;

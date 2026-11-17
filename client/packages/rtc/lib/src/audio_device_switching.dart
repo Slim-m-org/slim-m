@@ -321,17 +321,33 @@ class AudioDeviceSwitching {
     return true;
   }
 
+  Future<void>? _routing;
+  bool _routeAgain = false;
+
   /// Re-points this process's streams at the preferred sound server nodes;
   /// a new stream (a join, a restarted capture) starts on the server default.
-  Future<void> applyServerRouting() async {
-    final input = _preferredInputId;
-    final output = _preferredOutputId;
-    if (isPulseDeviceId(input)) {
-      await _pulse.moveOwnStreams(capture: true, deviceId: input!);
+  /// Asks that land while one runs share it and earn one more pass, not one each.
+  Future<void> applyServerRouting() {
+    if (_routing case final running?) {
+      _routeAgain = true;
+      return running;
     }
-    if (isPulseDeviceId(output)) {
-      await _pulse.moveOwnStreams(capture: false, deviceId: output!);
-    }
+    final run = _routeUntilSettled().whenComplete(() => _routing = null);
+    return _routing = run;
+  }
+
+  Future<void> _routeUntilSettled() async {
+    do {
+      _routeAgain = false;
+      final input = _preferredInputId;
+      final output = _preferredOutputId;
+      if (isPulseDeviceId(input)) {
+        await _pulse.moveOwnStreams(capture: true, deviceId: input!);
+      }
+      if (isPulseDeviceId(output)) {
+        await _pulse.moveOwnStreams(capture: false, deviceId: output!);
+      }
+    } while (_routeAgain);
   }
 
   /// Keeps new playback streams of this process on the chosen speaker; the

@@ -7,6 +7,10 @@
 /// boundary on the camera side.
 library;
 
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' show LogLevel;
 import 'package:livekit_client/livekit_client.dart' as lk;
@@ -294,6 +298,33 @@ void main() {
       expect((await switching.inputs()).single.id, 'mic-1');
       expect((await switching.outputs()).single.id, 'spk-1');
     });
+  });
+
+  test('routing asked five times while one pass runs takes two passes',
+      () async {
+    final lists = <String>[];
+    final gate = Completer<void>();
+    Future<ProcessResult> pactl(List<String> args) async {
+      if (args case ['-f', 'json', 'list', final kind]) {
+        lists.add(kind);
+        await gate.future;
+      }
+      return ProcessResult(0, 0, jsonEncode(const []), '');
+    }
+
+    final switching = AudioDeviceSwitching(
+      const _FixedAudioDevices(),
+      pulse: PulseAudio(run: pactl, processId: 4242),
+    );
+    await switching.selectOutput(
+        null, const AudioDevice(id: 'pulse:sink_b', label: 'B'));
+    lists.clear();
+
+    final asks = [for (var i = 0; i < 5; i++) switching.applyServerRouting()];
+    gate.complete();
+    await Future.wait(asks);
+
+    expect(lists, ['sink-inputs', 'sink-inputs']);
   });
 
   test(

@@ -19,6 +19,7 @@ import 'package:slimm_rtc/rtc.dart'
 
 export 'src/desktop/startup_state.dart';
 
+import 'src/audio/sound_backend_warmup.dart';
 import 'src/features/settings/providers/resolved_theme.dart';
 import 'src/features/settings/providers/stored_theme.dart';
 import 'src/features/settings/providers/theme_store.dart';
@@ -154,6 +155,8 @@ Future<void> main([List<String> args = const []]) async {
 
   await WidgetsBinding.instance.waitUntilFirstFrameRasterized;
   await shell.lockSplashChrome();
+  // Off the UI thread now, so a join cue never pays GStreamer's first init on it.
+  unawaited(warmSoundBackend());
 }
 
 /// Mounts whichever account's container is active, so a switch swaps the
