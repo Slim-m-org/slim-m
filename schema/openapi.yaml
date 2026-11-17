@@ -6154,7 +6154,8 @@ paths:
         least one of `q` and those filters is required. Results are
         permission-filtered exactly like listing and keyset paginated on
         `seq` the same way. A `q` that is not valid FTS5 syntax, such as
-        `.iso`, searches its words as prefixes instead. Attachment file names
+        `.iso`, searches its words as prefixes instead, and one with no
+        words left, such as a lone `*`, answers 400. Attachment file names
         are searched along with message text and extracted file text. `in` is the one filter with an oracle-safety rule of its
         own: a channel name that does not exist, or that exists but the
         caller cannot view, answers with an empty array rather than a 403 or

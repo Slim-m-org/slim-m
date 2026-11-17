@@ -227,3 +227,33 @@ async fn search_stays_scoped_to_its_own_channel() {
     );
     assert_eq!(results[0]["channel_id"], channel_a.id.to_string());
 }
+
+/// Query syntax FTS5 refuses with no words left to fall back on is a 400,
+/// never a 500, whichever of FTS5's error messages it trips.
+#[tokio::test]
+async fn unparsable_fts_syntax_with_no_words_is_a_bad_request() {
+    let (store, _guard) = new_store().await;
+    store
+        .create_role("everyone", Permissions::VIEW_CHANNEL, true)
+        .await
+        .unwrap();
+    let channel = store.create_channel("general", "text").await.unwrap();
+    let app = app(store.clone());
+    let token = register(&store, "alice").await;
+
+    for q in ["*", "**", "%22", "(", "%5E*", "%7B%7D", "%2B"] {
+        for uri in [
+            format!("/channels/{}/messages/search?q={q}", channel.id),
+            format!("/search/messages?q={q}"),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(request("GET", &uri, Some(&token), None))
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST, "uri={uri}");
+            let body = json_body(response).await;
+            assert_eq!(body["error"], "that search query is not valid", "uri={uri}");
+        }
+    }
+}

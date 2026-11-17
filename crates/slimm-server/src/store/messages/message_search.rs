@@ -39,16 +39,21 @@ impl From<sqlx::Error> for SearchError {
     fn from(err: sqlx::Error) -> Self {
         if let sqlx::Error::Database(ref db_err) = err {
             let message = db_err.message();
-            if message.contains("fts5")
-                || message.contains("unterminated string")
-                || message.contains("no such column")
-            {
+            if FTS5_PARSE_ERRORS.iter().any(|m| message.contains(m)) {
                 return SearchError::InvalidQuery;
             }
         }
         SearchError::Internal(err.into())
     }
 }
+
+/// What FTS5's query parser says about a `MATCH` it refuses; none names a SQL fault.
+const FTS5_PARSE_ERRORS: [&str; 4] = [
+    "fts5",
+    "unterminated string",
+    "no such column",
+    "unknown special query",
+];
 
 /// The structured half of an advanced search, already resolved to SQL-ready
 /// values by `http::search`: a username to compare case-insensitively (live
@@ -116,28 +121,39 @@ impl Store {
     /// phrases ([`literal_fts_query`]), so `Win` finds `Win11_24H2.iso` and
     /// `Windows`, except a one-character word, which must match whole. Text
     /// written in FTS5 syntax ([`uses_fts_syntax`]) is `q` itself when it
-    /// parses, else its words. `None` when no word is left.
+    /// parses, else its words, and [`SearchError::InvalidQuery`] when it has
+    /// none. `None` when plain text has no word.
     pub async fn fts_query_for(&self, q: &str) -> Result<Option<FtsQuery>, SearchError> {
-        if uses_fts_syntax(q) {
-            match self.probe_fts(q).await {
+        let syntax_refused = uses_fts_syntax(q)
+            && match self.probe_fts(q).await {
                 Ok(()) => return Ok(Some(FtsQuery(q.to_owned()))),
-                Err(SearchError::InvalidQuery) => {}
+                Err(SearchError::InvalidQuery) => true,
                 Err(e) => return Err(e),
-            }
-        }
+            };
         let words = literal_fts_query(q);
-        Ok((!words.is_empty()).then_some(FtsQuery(words)))
+        match (words.is_empty(), syntax_refused) {
+            (false, _) => Ok(Some(FtsQuery(words))),
+            (true, true) => Err(SearchError::InvalidQuery),
+            (true, false) => Ok(None),
+        }
     }
 
     /// Join-free probe so FTS5 must parse `q`; not dead work, see [`Self::search_messages`].
+    /// Any plain SQLite error here is the parser's, since the statement has nothing else to fail.
     async fn probe_fts(&self, q: &str) -> Result<(), SearchError> {
-        sqlx::query_scalar!(
+        let probed = sqlx::query_scalar!(
             r#"SELECT 1 AS "one!: i64" FROM messages_fts WHERE messages_fts MATCH ? LIMIT 1"#,
             q
         )
         .fetch_optional(&self.pool)
-        .await?;
-        Ok(())
+        .await;
+        match probed {
+            Ok(_) => Ok(()),
+            Err(sqlx::Error::Database(e)) if e.code().as_deref() == Some(SQLITE_ERROR) => {
+                Err(SearchError::InvalidQuery)
+            }
+            Err(e) => Err(e.into()),
+        }
     }
 
     /// Full-text searches live messages across `channel_ids`, newest match
@@ -342,6 +358,9 @@ fn uses_fts_syntax(q: &str) -> bool {
         || q.split_whitespace()
             .any(|w| matches!(w, "AND" | "OR" | "NOT"))
 }
+
+/// SQLite's generic result code, which FTS5 raises for every query it cannot parse.
+const SQLITE_ERROR: &str = "1";
 
 /// Words with fewer base characters than this match whole: with no `prefix=`
 /// index, `"w"*` walks every term starting with `w` in every channel.
