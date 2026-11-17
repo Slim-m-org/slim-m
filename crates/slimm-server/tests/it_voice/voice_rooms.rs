@@ -246,6 +246,23 @@ async fn only_a_voice_channel_that_is_not_a_room_can_make_rooms() {
 }
 
 #[tokio::test]
+async fn a_lobby_can_be_created_in_one_call_and_never_as_text() {
+    let w = world("slimm-rooms-create").await;
+    let body = json!({"name": "lobby", "kind": "voice", "creates_rooms": true});
+    let (status, lobby) = w.call("POST", "/channels", &w.admin, body).await;
+    assert_eq!(status, StatusCode::OK, "{lobby}");
+    assert_eq!(lobby["creates_rooms"], true);
+    let uri = format!("/channels/{}/voice/room", lobby["id"].as_str().unwrap());
+    let (status, room) = w.call("POST", &uri, &w.alice.0, Value::Null).await;
+    assert_eq!(status, StatusCode::OK, "{room}");
+    assert_eq!(room["room_lobby_id"], lobby["id"]);
+
+    let body = json!({"name": "chat", "creates_rooms": true});
+    let (status, _) = w.call("POST", "/channels", &w.admin, body).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
 async fn the_owner_renames_locks_and_caps_their_room_and_nobody_else_can() {
     let w = world("slimm-rooms-owner").await;
     let room = w.open_room(&w.alice.0).await;
