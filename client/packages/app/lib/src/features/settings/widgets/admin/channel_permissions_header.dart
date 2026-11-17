@@ -12,6 +12,11 @@ import '../../../members/widgets/bot_avatar_placeholder.dart';
 import '../../../members/widgets/user_avatar.dart';
 import 'channel_permissions_grid_rows.dart';
 
+/// Why `@everyone` has no remove: its column is the base every member starts from.
+const everyoneColumnTooltip =
+    'Applies to everyone and cannot be removed. '
+    'Deny View channels here to make this private.';
+
 /// The principal columns' headers, kept in step with the body by
 /// [controller]; the body is what the user drags.
 class HeaderRow extends StatelessWidget {
@@ -149,7 +154,15 @@ class HeaderCell extends StatelessWidget {
               allow: column.allowCount,
               deny: column.denyCount,
             ),
-            if (column.locked)
+            if (column.isEveryone)
+              const AppIconButton(
+                icon: AppIcons.info,
+                iconSize: AppSizes.icon16,
+                size: AppIconButtonSize.sm,
+                semanticLabel: everyoneColumnTooltip,
+                tooltip: everyoneColumnTooltip,
+              )
+            else if (column.locked)
               AppIconButton(
                 icon: AppIcons.restrictedChannel,
                 iconSize: AppSizes.icon16,

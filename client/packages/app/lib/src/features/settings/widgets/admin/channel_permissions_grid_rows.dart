@@ -23,6 +23,7 @@ class GridColumn {
     this.allowCount = 0,
     this.denyCount = 0,
     this.locked = false,
+    this.isEveryone = false,
   });
 
   final api.OverwriteTarget kind;
@@ -32,6 +33,9 @@ class GridColumn {
 
   /// A role or member level with or above the viewer, whose overwrite the server will not let them write.
   final bool locked;
+
+  /// The `@everyone` role, whose column is always drawn and so is never removed.
+  final bool isEveryone;
 
   /// Permissions this column currently allows and denies, so its header says
   /// what the overwrite does without scanning every row.

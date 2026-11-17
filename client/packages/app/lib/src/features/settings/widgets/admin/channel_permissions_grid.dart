@@ -410,6 +410,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
               id: everyone.id,
               label: everyone.name,
               isBot: false,
+              isEveryone: true,
             ),
           for (final key in _pending.keys)
             if (everyone == null || key != 'role:${everyone.id}')
