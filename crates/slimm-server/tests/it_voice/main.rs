@@ -31,6 +31,7 @@ mod voice_deafened;
 mod voice_dm;
 mod voice_forget_heartbeat;
 mod voice_heartbeat;
+mod voice_join_announce;
 mod voice_kick_escalation;
 mod voice_kick_ladder;
 mod voice_move;

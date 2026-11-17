@@ -74,6 +74,9 @@ pub struct ParticipantInfo {
     joined_at_ms: Option<i64>,
     #[serde(default, alias = "joinedAt", deserialize_with = "lenient_i64")]
     joined_at: Option<i64>,
+    /// Whether the SFU has seen this participant publish a track; protojson leaves a false one out.
+    #[serde(default, alias = "isPublisher")]
+    pub is_publisher: bool,
 }
 
 impl WebhookEvent {
