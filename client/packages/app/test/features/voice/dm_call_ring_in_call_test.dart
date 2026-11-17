@@ -109,4 +109,19 @@ void main() {
 
     expect(rig.state.visibleIncoming, isNull);
   });
+
+  test('a join that fails before connecting leaves the ring showing', () async {
+    final rig = _rig();
+    await rig.rung();
+
+    rig.voice.set(
+      const VoiceState(state: VoiceSessionState.connecting, channelId: 'dm-1'),
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(rig.state.visibleIncoming?.ringId, 'ring-1');
+
+    rig.voice.hangUp();
+    await Future<void>.delayed(Duration.zero);
+    expect(rig.state.visibleIncoming?.ringId, 'ring-1');
+  });
 }

@@ -29,6 +29,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../../../routing/router.dart';
 import '../../../routing/routes.dart';
@@ -56,8 +57,17 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       if (previous != null && next == null && _answeredRingId != null) {
         _endCallKit();
       }
-      if (next != null) _joinedCall(next);
+      if (next != null) _forgetLastOutgoingEnd(next);
     });
+    // Only a join that connected answers the ring; one that fails leaves it to answer.
+    _ref.listen<String?>(
+      voiceControllerProvider.select(
+        (s) => s.state == VoiceSessionState.connected ? s.channelId : null,
+      ),
+      (_, next) {
+        if (next != null) _joinedCall(next);
+      },
+    );
   }
 
   final Ref _ref;
@@ -195,7 +205,6 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       );
       if (callKitRinging) _endCallKit();
     }
-    _forgetLastOutgoingEnd(channelId);
   }
 
   void _forgetLastOutgoingEnd(String channelId) {
