@@ -32,7 +32,6 @@ MessagesCompanion rowFor(api.Message message) {
     failed: const Value(false),
     replyToId: Value(message.replyToId),
     mentionsMe: Value(message.mentionsMe),
-    editedByModerator: Value(message.editedByModerator),
   );
   final withPreviews = message.linkPreviewsRemoved
       ? row.copyWith(linkPreviewsRemoved: const Value(true))

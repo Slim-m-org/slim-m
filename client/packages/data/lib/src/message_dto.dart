@@ -115,7 +115,6 @@ class Message {
     this.replyToId,
     this.forwarded,
     this.linkPreviewsRemoved = false,
-    this.editedByModerator = false,
     required this.pending,
     required this.failed,
     this.failureReason,
@@ -151,9 +150,6 @@ class Message {
   /// The cards under [content] were removed; they stay hidden.
   final bool linkPreviewsRemoved;
 
-  /// The current [content] is a moderator's edit rather than the author's.
-  final bool editedByModerator;
-
   /// True while the send is in flight. The UI shows these differently and
   /// they are replaced in place by the server's copy on acknowledgement.
   final bool pending;
@@ -180,7 +176,6 @@ class Message {
           other.replyToId == replyToId &&
           other.forwarded == forwarded &&
           other.linkPreviewsRemoved == linkPreviewsRemoved &&
-          other.editedByModerator == editedByModerator &&
           other.pending == pending &&
           other.failed == failed &&
           other.failureReason == failureReason);
@@ -198,7 +193,6 @@ class Message {
         replyToId,
         forwarded,
         linkPreviewsRemoved,
-        editedByModerator,
         pending,
         failed,
         failureReason,

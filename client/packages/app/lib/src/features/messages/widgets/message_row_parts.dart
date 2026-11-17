@@ -14,15 +14,11 @@ import '../../../routing/breakpoints.dart';
 
 import 'message_row_identity.dart' show formatMessageDay, formatMessageTime;
 
-/// The word "edited" after a message's text, "edited by a moderator" when
-/// [byModerator]. Underlined only when [onTap] can open the history behind it:
-/// an underline on something inert reads as a broken link, which is what the
-/// parenthesised, always-underlined version did.
+/// The word "edited" after a message's text. Underlined only when [onTap] can
+/// open the history behind it: an underline on something inert reads as a
+/// broken link, which is what the parenthesised, always-underlined version did.
 class EditedMarker extends StatelessWidget {
-  const EditedMarker({super.key, this.onTap, this.byModerator = false});
-
-  /// The current text is a moderator's edit rather than the author's.
-  final bool byModerator;
+  const EditedMarker({super.key, this.onTap});
 
   /// Opens the edit-history sheet when set. Null leaves the marker as inert
   /// text - the same treatment `ThreadRow` gives a thread a viewer cannot
@@ -32,9 +28,8 @@ class EditedMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final words = byModerator ? 'edited by a moderator' : 'edited';
     final label = Text(
-      words,
+      'edited',
       style: AppText.micro.copyWith(
         color: tokens.textSecondary,
         decoration: onTap == null ? null : TextDecoration.underline,
@@ -45,8 +40,7 @@ class EditedMarker extends StatelessWidget {
     if (onTap == null) return label;
     return Semantics(
       button: true,
-      label:
-          '${byModerator ? 'Edited by a moderator' : 'Edited'}. View edit history',
+      label: 'Edited. View edit history',
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(

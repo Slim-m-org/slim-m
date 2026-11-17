@@ -50,8 +50,6 @@ pub(super) struct MessageOpDto {
     pub forwarded_removed: bool,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub link_previews_removed: bool,
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub edited_by_moderator: bool,
 }
 
 /// What the ops half contributed to one scope.
@@ -163,7 +161,6 @@ fn dto_from(entry: MessageOpEntry) -> MessageOpDto {
         edited_at,
         forwarded_removed: entry.forwarded_removed,
         link_previews_removed: entry.link_previews_removed,
-        edited_by_moderator: entry.edited_by_moderator,
     }
 }
 
@@ -223,7 +220,6 @@ mod tests {
             edited_at: Some(seq),
             forwarded_removed: false,
             link_previews_removed: false,
-            edited_by_moderator: false,
         }
     }
 
@@ -237,7 +233,6 @@ mod tests {
             edited_at: None,
             forwarded_removed: false,
             link_previews_removed: false,
-            edited_by_moderator: false,
         }
     }
 

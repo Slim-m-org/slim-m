@@ -153,7 +153,6 @@ String? _systemAct(api.AuditLogAction action, String subject) =>
     AppBadgeVariant.tag,
     'Timeout ended',
   ),
-  api.AuditLogAction.messageEdited => (AppBadgeVariant.warn, 'Message edited'),
   api.AuditLogAction.unknown => (AppBadgeVariant.tag, 'Other action'),
 };
 

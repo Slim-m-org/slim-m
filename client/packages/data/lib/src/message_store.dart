@@ -419,14 +419,13 @@ class MessageStore {
   /// materialised as a row with no `seq`; it never writes `seq`, which
   /// belongs to the message stream and not to this one; and it never advances
   /// the message cursor, which would skip whatever sits between.
-  Future<void> applyEdit(String messageId, String content, int? editedAt,
-      {bool byModerator = false}) async {
+  Future<void> applyEdit(
+      String messageId, String content, int? editedAt) async {
     recentOps.edited(messageId, content, editedAt);
     await (db.update(db.messages)..where((m) => m.id.equals(messageId)))
         .write(MessagesCompanion(
       content: Value(content),
       editedAt: Value(editedAt),
-      editedByModerator: Value(byModerator),
     ));
   }
 

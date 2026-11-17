@@ -174,7 +174,6 @@ class Message {
     this.linkPreviewsRemoved = false,
     this.matchedAttachmentId,
     this.threadParentChannelId,
-    this.editedByModerator = false,
     this.embeds = const [],
     this.webhookUsername,
     this.viaModule,
@@ -287,9 +286,6 @@ class Message {
   /// off; [channelId] is then the thread's own. Null on every other message.
   final String? threadParentChannelId;
 
-  /// The current [content] is a moderator's edit rather than the author's.
-  final bool editedByModerator;
-
   /// Structured content a webhook or a bot attached; fixed once the message
   /// exists, like [attachments]. Always present, empty when there is none.
   final List<Embed> embeds;
@@ -353,7 +349,6 @@ class Message {
         linkPreviewsRemoved: json['link_previews_removed'] as bool? ?? false,
         matchedAttachmentId: json['matched_attachment_id'] as String?,
         threadParentChannelId: json['thread_parent_channel_id'] as String?,
-        editedByModerator: json['edited_by_moderator'] as bool? ?? false,
         embeds: (json['embeds'] as List<dynamic>?)
                 ?.map((e) => Embed.fromJson(e as Map<String, dynamic>))
                 .toList(growable: false) ??

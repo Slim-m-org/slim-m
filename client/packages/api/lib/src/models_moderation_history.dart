@@ -151,9 +151,6 @@ enum AuditLogAction {
 
   /// The subject's timeout ended because they became the owner; the actor is null.
   ownerTimeoutEnded,
-
-  /// The actor changed the text of one of the subject's messages.
-  messageEdited,
   unknown;
 
   static AuditLogAction parse(String wire) => switch (wire) {
@@ -177,7 +174,6 @@ enum AuditLogAction {
         'voice_move' => AuditLogAction.voiceMove,
         'owner_handoff' => AuditLogAction.ownerHandoff,
         'owner_timeout_ended' => AuditLogAction.ownerTimeoutEnded,
-        'message_edited' => AuditLogAction.messageEdited,
         _ => AuditLogAction.unknown,
       };
 }

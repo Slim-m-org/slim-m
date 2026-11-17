@@ -149,10 +149,6 @@ pub(crate) struct MessageDto {
     /// cards. Set by the read enrichment and by the edit response and frame; a
     /// created frame says `false`, and `message.link_previews_removed` carries the change.
     pub(crate) link_previews_removed: bool,
-    /// Whether the current text is a moderator's edit rather than the author's.
-    /// Set where `link_previews_removed` is; omitted when false.
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub(crate) edited_by_moderator: bool,
     /// On a search result found only through an attachment's extracted text,
     /// that attachment's id. Set by the search routes alone.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -339,7 +335,6 @@ impl From<Message> for MessageDto {
             code_runs: Vec::new(),
             mentions_me: false,
             link_previews_removed: false,
-            edited_by_moderator: false,
             matched_attachment_id: None,
             thread_parent_channel_id: None,
             embeds: Vec::new(),

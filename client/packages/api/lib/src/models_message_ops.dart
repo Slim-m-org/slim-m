@@ -42,7 +42,6 @@ sealed class MessageOp {
           editedAt: json['edited_at'] as int?,
           forwardedRemoved: json['forwarded_removed'] as bool? ?? false,
           linkPreviewsRemoved: json['link_previews_removed'] as bool? ?? false,
-          editedByModerator: json['edited_by_moderator'] as bool? ?? false,
         ),
       'delete' => MessageDeleteOp(
           seq: seq,
@@ -75,7 +74,6 @@ class MessageEditOp extends MessageOp {
     required this.editedAt,
     this.forwardedRemoved = false,
     this.linkPreviewsRemoved = false,
-    this.editedByModerator = false,
   });
 
   final String? content;
@@ -88,9 +86,6 @@ class MessageEditOp extends MessageOp {
   /// The message's link-preview cards were removed; hide them even when
   /// [content] is absent.
   final bool linkPreviewsRemoved;
-
-  /// The message's current text is a moderator's edit; read with [content].
-  final bool editedByModerator;
 }
 
 /// A message was deleted.
