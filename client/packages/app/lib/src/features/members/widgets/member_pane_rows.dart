@@ -45,6 +45,9 @@ void debugResetMemberRowBuildCounts() => debugMemberRowBuildCounts.clear();
 /// Below this row width module badges beside a voice chip crowd the name out.
 const double _badgeAndChipMinRow = 300;
 
+/// A member row's height, which is also the side of its selection circle's tap target.
+const double _rowHeight = 36;
+
 class MemberGroupLabel extends StatelessWidget {
   const MemberGroupLabel(this.text, {super.key});
 
@@ -160,9 +163,11 @@ class MemberRow extends ConsumerWidget {
         ref.read(memberSelectionProvider.notifier).toggle(profile.id);
 
     final tick = selecting
-        ? Padding(
-            padding: const EdgeInsets.only(left: AppSpacing.s8),
-            child: _SelectionTick(selected: selected, enabled: selectable),
+        ? _SelectionTick(
+            key: ValueKey('member-select-${profile.id}'),
+            name: displayed.displayName,
+            selected: selected,
+            onToggle: selectable ? toggle : null,
           )
         : null;
 
@@ -184,7 +189,7 @@ class MemberRow extends ConsumerWidget {
     final row = LayoutBuilder(
       builder: (context, box) => AppListRow(
         // Taller than a channel row: a 28px avatar's corner status dot crops at the default height.
-        height: 36,
+        height: _rowHeight,
         label: displayed.displayName,
         labelColor: offline ? dimmed(nameColor) : nameColor,
         // What they are playing wins over a typed status; the card shows the activity.
@@ -304,36 +309,59 @@ class MemberRow extends ConsumerWidget {
   }
 }
 
-/// The pick/not-picked mark shown once selection mode is on, so an unselected
-/// row states its own affordance instead of looking identical to a normal
-/// browsing row - the member-pane analogue of `message_selectable.dart`'s own
-/// tick for the transcript. Dimmed and non-interactive on its own for the
-/// viewer's own row, which selection mode never offers.
+/// The pick/not-picked circle shown once selection mode is on, so an
+/// unselected row states its own affordance, and a target of its own: the
+/// row-height square around it toggles the member, not only the row beside it.
+/// Dimmed and inert for the viewer's own row, which selection mode never offers.
 class _SelectionTick extends StatelessWidget {
-  const _SelectionTick({required this.selected, required this.enabled});
+  const _SelectionTick({
+    required this.name,
+    required this.selected,
+    required this.onToggle,
+    super.key,
+  });
 
+  final String name;
   final bool selected;
-  final bool enabled;
+  final VoidCallback? onToggle;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return ExcludeSemantics(
-      child: Opacity(
-        opacity: enabled ? 1 : 0.4,
-        child: Container(
-          width: AppSizes.icon16,
-          height: AppSizes.icon16,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: selected ? tokens.accentFill : Colors.transparent,
-            border: Border.all(
-              color: selected ? tokens.accentFill : tokens.borderStrong,
+    final enabled = onToggle != null;
+    return Semantics(
+      label: 'Select $name',
+      checked: selected,
+      enabled: enabled,
+      onTap: onToggle,
+      excludeSemantics: true,
+      child: MouseRegion(
+        cursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onToggle,
+          child: SizedBox.square(
+            dimension: _rowHeight,
+            child: Center(
+              child: Opacity(
+                opacity: enabled ? 1 : 0.4,
+                child: Container(
+                  width: AppSizes.icon16,
+                  height: AppSizes.icon16,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: selected ? tokens.accentFill : Colors.transparent,
+                    border: Border.all(
+                      color: selected ? tokens.accentFill : tokens.borderStrong,
+                    ),
+                  ),
+                  child: selected
+                      ? Icon(AppIcons.check, size: 11, color: tokens.accentOn)
+                      : null,
+                ),
+              ),
             ),
           ),
-          child: selected
-              ? Icon(AppIcons.check, size: 11, color: tokens.accentOn)
-              : null,
         ),
       ),
     );

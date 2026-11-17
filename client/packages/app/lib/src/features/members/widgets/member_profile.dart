@@ -13,7 +13,8 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/member_moderation_error.dart';
-import '../providers/member_presence.dart' show membersProvider;
+import '../providers/member_presence.dart'
+    show membersProvider, refreshRostersAfterModeration;
 import '../../voice/providers/voice_controller.dart';
 import '../../../widgets/confirm_dialog.dart';
 import 'member_actions.dart';
@@ -128,7 +129,9 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
           .read(memberActionsProvider)
           .timeOutMember(userId: widget.profile.id, duration: duration),
     );
-    if (ok && mounted) ref.invalidate(membersProvider);
+    if (ok && mounted) {
+      refreshRostersAfterModeration(ProviderScope.containerOf(context));
+    }
   }
 
   Future<void> _liftTimeout() async {
@@ -137,7 +140,9 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
       action: () =>
           ref.read(memberActionsProvider).liftMemberTimeout(widget.profile.id),
     );
-    if (ok && mounted) ref.invalidate(membersProvider);
+    if (ok && mounted) {
+      refreshRostersAfterModeration(ProviderScope.containerOf(context));
+    }
   }
 
   /// [channelId] is the call this member shares with the caller right now,

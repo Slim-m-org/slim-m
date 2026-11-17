@@ -18,7 +18,7 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../providers/member_moderation_error.dart';
 import '../../channels/providers/dms.dart' show openDirectMessage;
-import '../providers/member_presence.dart' show membersProvider;
+import '../providers/member_presence.dart' show refreshRostersAfterModeration;
 import '../../settings/providers/notification_schedule_controller.dart';
 import '../../../routing/routes.dart';
 import '../../../widgets/app_snackbar.dart';
@@ -166,7 +166,7 @@ Future<void> removeMemberFromSpace(
         container.read(memberActionsProvider).removeMember(userId: profile.id),
   ).then((failure) {
     if (failure == null) {
-      container.invalidate(membersProvider);
+      refreshRostersAfterModeration(container);
     } else {
       container.read(memberModerationErrorProvider.notifier).state = failure;
     }
