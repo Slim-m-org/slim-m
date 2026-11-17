@@ -318,11 +318,12 @@ class _RoleNavState extends ConsumerState<_RoleNav>
               ),
               child: const SizedBox(width: 10, height: 10),
             ),
-      label: role.isBotsRole ? 'All bots' : bot?.displayName ?? role.name,
+      label: role.name,
+      subtitle: bot?.displayName,
       meta: '${role.memberCount}',
-      height: 34,
+      height: bot == null ? 34 : null,
       selected: widget.showSelection && role.id == widget.selectedId,
-      // Rows stay at their real rank (decision 0092); the tag only says whose role it is.
+      // Rows stay at their real rank (decision 0092); the bot's name under the role's says whose it is.
       trailing: role.isManagedByBot || role.isBotsRole
           ? const AppBadge(variant: AppBadgeVariant.tag, label: 'Bot')
           : null,

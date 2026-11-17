@@ -60,27 +60,19 @@ class _CategoryUnsyncedNoticeState extends ConsumerState<CategoryUnsyncedNotice>
   bool _shown = false;
   bool _syncing = false;
 
-  /// What a save here does not reach: unsynced sub-categories, then unsynced
-  /// channels in this category or in a sub-category that follows it.
+  /// What a save here does not reach: unsynced sub-categories, then every
+  /// unsynced channel beneath, since "Sync all" re-syncs the sub-categories too.
   ({List<ChannelCategoryRow> subs, List<Channel> channels}) _unsynced() {
-    final followingSubs = <String>{widget.categoryId};
-    final subs = <ChannelCategoryRow>[];
-    for (final sub in widget.subCategories) {
-      final synced = ref
-          .watch(categoryOverwritesSyncedProvider(sub.id))
-          .valueOrNull;
-      if (synced == false) subs.add(sub);
-      if (synced == true) followingSubs.add(sub.id);
-    }
+    bool unsynced(AsyncValue<bool?> synced) => synced.valueOrNull == false;
     return (
-      subs: subs,
+      subs: [
+        for (final sub in widget.subCategories)
+          if (unsynced(ref.watch(categoryOverwritesSyncedProvider(sub.id))))
+            sub,
+      ],
       channels: [
         for (final channel in widget.channels)
-          if (followingSubs.contains(channel.categoryId) &&
-              ref
-                      .watch(channelOverwritesSyncedProvider(channel.id))
-                      .valueOrNull ==
-                  false)
+          if (unsynced(ref.watch(channelOverwritesSyncedProvider(channel.id))))
             channel,
       ],
     );

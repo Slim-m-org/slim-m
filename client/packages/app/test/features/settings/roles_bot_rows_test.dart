@@ -106,7 +106,7 @@ Future<void> _pump(
 }
 
 void main() {
-  testWidgets('bot roles render as bot rows at their real rank', (
+  testWidgets('bot roles keep their name and rank, with the bot under it', (
     tester,
   ) async {
     await _pump(
@@ -120,27 +120,29 @@ void main() {
       ],
       members: [
         _member('bot-t', 'Ticket Bot', bot: true),
-        _member('bot-w', 'Warn Bot', bot: true),
+        _member('bot-w', 'Admin', bot: true),
       ],
       home: const RolesPane(),
     );
 
-    expect(find.text('Ticket Bot'), findsOneWidget);
-    expect(find.text('Warn Bot'), findsOneWidget);
-    expect(find.text('All bots'), findsOneWidget);
-    const order = ['Ticket Bot', 'mod', 'All bots', 'Warn Bot', 'everyone'];
-    final tops = [for (final l in order) tester.getTopLeft(find.text(l)).dy];
+    const order = ['Tickets', 'mod', 'Bots', 'Warns', 'everyone'];
+    final tops = [
+      for (final l in order) tester.getTopLeft(find.text(l).first).dy,
+    ];
     expect(tops, [...tops]..sort(), reason: 'rows keep their real rank order');
-    for (final bot in ['Ticket Bot', 'All bots', 'Warn Bot']) {
+    for (final (role, bot) in [
+      ('Tickets', 'Ticket Bot'),
+      ('Bots', null),
+      ('Warns', 'Admin'),
+    ]) {
       final row = find.ancestor(
-        of: find.text(bot),
+        of: find.text(role),
         matching: find.byWidgetPredicate((w) => w is AppListRow),
       );
-      expect(
-        (tester.widget(row.first) as AppListRow).trailing,
-        isA<AppBadge>(),
-        reason: bot,
-      );
+      final widget = tester.widget(row.first) as AppListRow;
+      expect(widget.trailing, isA<AppBadge>(), reason: role);
+      expect(widget.label, role, reason: 'a bot never names its role row');
+      expect(widget.subtitle, bot, reason: role);
     }
     final modRow = find.ancestor(
       of: find.text('mod'),
