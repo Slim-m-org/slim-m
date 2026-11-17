@@ -18,6 +18,7 @@ import '../../../providers/providers.dart';
 import '../../../push/providers/push_controller.dart';
 import '../providers/sign_in_identity.dart';
 import '../../../routing/routes.dart';
+import '../../../server_address_input.dart';
 import '../../../server_address_reduction.dart';
 import '../../../server_scheme_policy.dart';
 import '../../../widgets/labeled_field.dart';
@@ -311,8 +312,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   /// The typed address when it can be submitted; otherwise shows why not.
   Uri? _submittableAddress() {
-    final address = Uri.tryParse(_server.text.trim());
-    if (address == null || !address.hasScheme || address.host.isEmpty) {
+    final address = parseServerAddress(_server.text);
+    if (address == null) {
       _badAddress();
       return null;
     }

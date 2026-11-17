@@ -120,13 +120,14 @@ class OnboardingScreen extends ConsumerWidget {
   }
 
   Future<void> _manualFlow(BuildContext context, WidgetRef ref) async {
-    final server = await showAppSheet<Uri>(
+    final chosen = await showAppSheet<ManualServerChoice>(
       context,
       builder: (context) => const ManualServerDialog(),
     );
-    if (server == null || !context.mounted) return;
+    if (chosen == null || !context.mounted) return;
 
-    if (await confirmServerIdentity(context, ref, server)) {
+    final (:server, :probe) = chosen;
+    if (await settleServerIdentity(context, ref, server, probe)) {
       onServerChosen(server, null);
     }
   }
