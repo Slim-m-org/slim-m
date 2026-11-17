@@ -15,6 +15,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
+import 'pactl_sharing.dart';
 import 'pulse_audio_parse.dart';
 import 'voice_models.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -66,8 +67,11 @@ Stream<String> subscribePactl({ProcessStarter start = Process.start}) {
   return lines.stream;
 }
 
-Future<ProcessResult> _runPactl(List<String> args) =>
-    Process.run('pactl', args);
+/// Shared by every [PulseAudio] in the app; see `pactl_sharing.dart`.
+final PactlRunner _runPactl =
+    sharingDeviceQueries((args) => Process.run('pactl', args));
+
+final PactlSubscriber _subscribePactl = sharedWhileListened(subscribePactl);
 
 class PulseAudio {
   /// Whether this platform has a sound server to ask.
@@ -75,7 +79,7 @@ class PulseAudio {
 
   PulseAudio({PactlRunner? run, PactlSubscriber? subscribe, int? processId})
       : _run = run ?? _runPactl,
-        _subscribe = subscribe ?? subscribePactl,
+        _subscribe = subscribe ?? _subscribePactl,
         _pid = processId ?? pid,
         _enabled = run != null || supported;
 
@@ -161,7 +165,7 @@ class PulseAudio {
   }
 
   /// Moves this process's capture streams (or playback streams) onto the
-  /// node [deviceId] names. Answers whether there was anything to move.
+  /// node [deviceId] names, leaving any already there. Answers whether it moved one.
   Future<bool> moveOwnStreams({
     required bool capture,
     required String deviceId,
@@ -171,11 +175,27 @@ class PulseAudio {
     final kind = capture ? 'source-outputs' : 'sink-inputs';
     final listed = await _run(['-f', 'json', 'list', kind]);
     if (listed.exitCode != 0) return false;
-    final ids = ownStreamIds(listed.stdout as String, _pid);
-    for (final id in ids) {
-      await _run(
-          [capture ? 'move-source-output' : 'move-sink-input', '$id', node]);
+    final streams = ownStreams(listed.stdout as String, _pid);
+    if (streams.isEmpty) return false;
+    final target = await _nodeIndex(node, capture: capture);
+    var moved = false;
+    for (final stream in streams) {
+      if (target != null && stream.node == target) continue;
+      await _run([
+        capture ? 'move-source-output' : 'move-sink-input',
+        '${stream.id}',
+        node,
+      ]);
+      moved = true;
     }
-    return ids.isNotEmpty;
+    return moved;
+  }
+
+  /// Null when the node cannot be found, so every stream is moved as before.
+  Future<int?> _nodeIndex(String node, {required bool capture}) async {
+    final listed =
+        await _run(['-f', 'json', 'list', capture ? 'sources' : 'sinks']);
+    if (listed.exitCode != 0) return null;
+    return nodeIndexNamed(listed.stdout as String, node);
   }
 }

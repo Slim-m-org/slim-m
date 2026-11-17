@@ -50,13 +50,52 @@ SoundOutputRouter _router(
 );
 
 void main() {
-  test('moves only this app\'s playing streams to the chosen sink', () async {
+  test('moves this app\'s playing stream to the chosen sink once', () async {
     final server = _Server();
     await _router(server, 'pulse:sink_b').followChosenOutput();
 
     expect(server.moves, [
       ['move-sink-input', '7', 'sink_b'],
-      ['move-sink-input', '7', 'sink_b'],
+    ]);
+  });
+
+  test('a stream already on the chosen sink waits for the new one', () async {
+    final moves = <List<String>>[];
+    var listings = 0;
+    Future<ProcessResult> run(List<String> args) async {
+      if (args.first.startsWith('move-')) moves.add(args);
+      final out = switch (args) {
+        [..., 'sinks'] => [
+          {'index': 1, 'name': 'sink_b'},
+        ],
+        [..., 'sink-inputs'] => [
+          {
+            'index': 7,
+            'sink': 1,
+            'properties': {'application.process.id': '$_pid'},
+          },
+          if (++listings > 1)
+            {
+              'index': 9,
+              'sink': 0,
+              'properties': {'application.process.id': '$_pid'},
+            },
+        ],
+        _ => const <Object>[],
+      };
+      return ProcessResult(0, 0, jsonEncode(out), '');
+    }
+
+    final router = SoundOutputRouter(
+      () => 'pulse:sink_b',
+      pulse: PulseAudio(run: run, processId: _pid),
+      supported: true,
+      delays: const [Duration.zero, Duration(milliseconds: 1)],
+    );
+    await router.followChosenOutput();
+
+    expect(moves, [
+      ['move-sink-input', '9', 'sink_b'],
     ]);
   });
 

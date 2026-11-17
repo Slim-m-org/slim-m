@@ -40,14 +40,16 @@ class SoundOutputRouter {
   /// Whether a Test speaker button would play where the person chose.
   bool get testable => supported || _chosenOutput() == null;
 
-  /// Moves the app's playing streams to the chosen speaker.
+  /// Moves the app's playing streams to the chosen speaker, until the new one has moved.
   Future<void> followChosenOutput() async {
     final output = _chosenOutput();
     if (!supported || !isPulseDeviceId(output)) return;
     for (final delay in _delays) {
       if (delay > Duration.zero) await Future<void>.delayed(delay);
       try {
-        await _pulse.moveOwnStreams(capture: false, deviceId: output!);
+        if (await _pulse.moveOwnStreams(capture: false, deviceId: output!)) {
+          return;
+        }
       } on Object catch (error, stack) {
         AppLog.swallowed(
           LogTag.voice,

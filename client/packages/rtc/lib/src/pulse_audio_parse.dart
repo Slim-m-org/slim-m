@@ -54,13 +54,35 @@ List<AudioDevice> parseSinks(String json) => [
 
 /// The stream indexes this process owns among `pactl -f json list
 /// source-outputs` (or sink-inputs) output.
-List<int> ownStreamIds(String json, int processId) => [
+List<int> ownStreamIds(String json, int processId) =>
+    [for (final stream in ownStreams(json, processId)) stream.id];
+
+/// This process's own streams in `pactl -f json list source-outputs` (or
+/// sink-inputs) output, each with the index of the node it plays on now.
+List<({int id, int? node})> ownStreams(String json, int processId) => [
       for (final stream in _decode(json).whereType<Map<dynamic, dynamic>>())
         if (stream['index'] is int &&
             (stream['properties'] as Map?)?['application.process.id'] ==
                 '$processId')
-          stream['index'] as int,
+          (
+            id: stream['index'] as int,
+            node: switch (stream['source'] ?? stream['sink']) {
+              final int index => index,
+              _ => null,
+            },
+          ),
     ];
+
+/// The index of the node called [name] in `pactl -f json list sources` (or
+/// sinks) output, or null when it is not there.
+int? nodeIndexNamed(String json, String name) {
+  for (final node in _decode(json).whereType<Map<dynamic, dynamic>>()) {
+    if (node['name'] == name && node['index'] is int) {
+      return node['index'] as int;
+    }
+  }
+  return null;
+}
 
 /// Whether a `pactl subscribe` line is a device appearing or going, or the
 /// default moving; volume and state changes on a device are noise here.
