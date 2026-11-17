@@ -23,9 +23,10 @@ List<Channel> railDirectMessages(List<Channel> channels) => [
 ];
 
 /// [channels] (already restricted to live, non-DM, non-thread ones) bucketed
-/// by category id, each bucket sorted by `position` - `null` for the
-/// implicit uncategorised section, which always sorts first regardless of
-/// where it falls among [categories].
+/// by category id, each bucket sorted by `position` with every temporary room
+/// moved right under its own lobby - `null` for the implicit uncategorised
+/// section, which always sorts first regardless of where it falls among
+/// [categories].
 Map<String?, List<Channel>> channelsByCategory(List<Channel> channels) {
   final sorted = [...channels]
     ..sort((a, b) => a.position.compareTo(b.position));
@@ -33,7 +34,38 @@ Map<String?, List<Channel>> channelsByCategory(List<Channel> channels) {
   for (final channel in sorted) {
     (byCategory[channel.categoryId] ??= []).add(channel);
   }
-  return byCategory;
+  return byCategory.map(
+    (id, bucket) => MapEntry(id, _roomsUnderLobbies(bucket)),
+  );
+}
+
+/// Whether [channel] is a temporary room whose lobby sits in [bucket], so the
+/// rail draws it one step in under that lobby (decision 0065).
+bool isRoomUnderLobby(Channel channel, List<Channel> bucket) {
+  final lobbyId = channel.roomLobbyId;
+  return lobbyId != null &&
+      bucket.any((c) => c.id == lobbyId && c.createsRooms == true);
+}
+
+/// Server positions put a room below its lobby, but a drag or a second lobby
+/// can interleave them; the rail follows the room's own link instead.
+List<Channel> _roomsUnderLobbies(List<Channel> bucket) {
+  final lobbies = {
+    for (final c in bucket)
+      if (c.createsRooms == true) c.id,
+  };
+  final roomsOf = <String, List<Channel>>{};
+  for (final c in bucket) {
+    final lobbyId = c.roomLobbyId;
+    if (lobbyId != null && lobbies.contains(lobbyId)) {
+      (roomsOf[lobbyId] ??= []).add(c);
+    }
+  }
+  if (roomsOf.isEmpty) return bucket;
+  return [
+    for (final c in bucket)
+      if (!lobbies.contains(c.roomLobbyId)) ...[c, ...?roomsOf[c.id]],
+  ];
 }
 
 /// [channels] grouped and ordered the way the rail renders them: direct

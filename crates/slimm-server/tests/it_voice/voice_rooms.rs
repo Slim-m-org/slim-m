@@ -191,6 +191,7 @@ async fn a_lobby_makes_one_room_per_person_and_a_retry_returns_it() {
     assert_eq!(room["name"], "alice's room");
     assert_eq!(room["kind"], "voice");
     assert_eq!(room["room_owner_id"], json!(w.alice.1));
+    assert_eq!(room["room_lobby_id"], json!(w.lobby));
     assert_eq!(room["room_locked"], false);
     assert_eq!(
         w.open_room(&w.alice.0).await["id"],
@@ -202,18 +203,22 @@ async fn a_lobby_makes_one_room_per_person_and_a_retry_returns_it() {
     assert_ne!(other["id"], room["id"]);
     assert!(w.listed(&w.bob.0, room["id"].as_str().unwrap()).await);
 
-    let (_, lobby) = w.call("GET", "/channels", &w.alice.0, Value::Null).await;
-    let lobby_row = lobby
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|c| c["id"] == json!(w.lobby))
-        .unwrap()
-        .clone();
+    let (_, list) = w.call("GET", "/channels", &w.alice.0, Value::Null).await;
+    let row = |id: &Value| {
+        list.as_array()
+            .unwrap()
+            .iter()
+            .find(|c| &c["id"] == id)
+            .unwrap()
+            .clone()
+    };
+    let lobby_row = row(&json!(w.lobby));
     assert!(
         lobby_row.get("room_owner_id").is_none(),
         "a lobby is not a room"
     );
+    assert!(lobby_row.get("room_lobby_id").is_none());
+    assert_eq!(row(&room["id"])["room_lobby_id"], json!(w.lobby));
 }
 
 #[tokio::test]

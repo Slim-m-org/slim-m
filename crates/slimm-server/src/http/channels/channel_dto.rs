@@ -71,6 +71,9 @@ pub(crate) struct ChannelDto {
     /// Set only on a temporary room: who owns it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) room_owner_id: Option<String>,
+    /// Set only on a temporary room: the lobby that made it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) room_lobby_id: Option<String>,
     /// Set only on a temporary room: whether nobody new may join.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) room_locked: Option<bool>,
@@ -102,6 +105,7 @@ impl From<Channel> for ChannelDto {
             creates_rooms: channel.room.creates_rooms,
             user_limit: channel.room.user_limit,
             room_owner_id: channel.room.owner_id.map(|id| id.to_string()),
+            room_lobby_id: channel.room.lobby_id.map(|id| id.to_string()),
             room_locked: channel.room.is_room().then_some(channel.room.locked),
             restricted: None,
         }
