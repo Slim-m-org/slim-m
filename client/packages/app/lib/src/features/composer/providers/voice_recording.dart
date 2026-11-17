@@ -16,6 +16,7 @@ import 'package:slimm_rtc/rtc.dart' show AudioDevice, resolveAudioDevice;
 
 import '../../../api_failure.dart';
 import '../../../audio/call_start_yields.dart';
+import '../../../audio/call_holds_audio_session.dart';
 import '../../../providers/session_provider.dart';
 import '../../accounts/providers/account_slot.dart';
 import '../../voice/providers/voice_controller.dart';
@@ -184,7 +185,7 @@ class VoiceRecorder
     }
     // On a phone the call holds the one audio session, which the recorder would reconfigure.
     if (ref.read(voiceRecordingYieldsToCallProvider) &&
-        ref.read(voiceControllerProvider).channelId != null) {
+        ref.read(callHoldsAudioSessionProvider)()) {
       state = const VoiceRecordingState(
         phase: VoicePhase.failed,
         error: 'Leave the call to record a voice message.',
