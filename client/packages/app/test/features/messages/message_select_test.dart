@@ -149,6 +149,17 @@ void main() {
     await tester.pump(buttonPressTimeout + const Duration(seconds: 1));
   });
 
+  for (final width in [1280.0, 390.0]) {
+    testWidgets('the sheet has one close button at $width wide', (
+      tester,
+    ) async {
+      await _pump(tester, _menu(options: 12), width: width);
+      await tester.tap(find.text('Pick a day'));
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.byTooltip('Close'), findsOneWidget);
+    });
+  }
+
   testWidgets('a multiple choice waits for its minimum, then sends them all', (
     tester,
   ) async {

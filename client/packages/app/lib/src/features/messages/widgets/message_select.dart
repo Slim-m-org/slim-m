@@ -213,21 +213,15 @@ class _SelectSheetState extends State<_SelectSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: AppSheetHeader(
-                  _select.placeholder ?? 'Choose an option',
-                  padding: EdgeInsets.zero,
-                ),
-              ),
-              AppIconButton(
-                icon: AppIcons.dismiss,
-                semanticLabel: 'Close',
-                tooltip: 'Close',
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
+          AppSheetHeader(
+            _select.placeholder ?? 'Choose an option',
+            padding: EdgeInsets.zero,
+            trailing: AppIconButton(
+              icon: AppIcons.dismiss,
+              semanticLabel: 'Close',
+              tooltip: 'Close',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
           ),
           if (multi)
             Padding(
