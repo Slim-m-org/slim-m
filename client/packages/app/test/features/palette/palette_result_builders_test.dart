@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The palette result builders, tested for the logic that is theirs rather
 /// than the match predicates': the result list is capped at
-/// [paletteResultLimit], a member list drops the caller themselves (a DM with
+/// [paletteResultLimit], a member list lists everyone and drops the caller themselves (a DM with
 /// yourself is Notes, listed under Channels), and Notes is found by its own
 /// name or the caller's.
 library;
@@ -11,20 +11,25 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/palette/widgets/command_palette_items.dart';
 import 'package:slimm_data/data.dart' show Channel;
 
-Channel _channel(String name, {bool personal = false, String kind = 'text'}) =>
-    Channel(
-      id: 'c-$name',
-      name: name,
-      kind: kind,
-      createdAt: 0,
-      position: 0,
-      cursor: 0,
-      lastReadSeq: 0,
-      mentionedSeq: 0,
-      slowModeSeconds: 0,
-      joinMuted: false,
-      isPersonalSpace: personal,
-    );
+Channel _channel(
+  String name, {
+  bool personal = false,
+  String kind = 'text',
+  String? dmMemberIds,
+}) => Channel(
+  id: 'c-$name',
+  name: name,
+  kind: kind,
+  createdAt: 0,
+  position: 0,
+  cursor: 0,
+  lastReadSeq: 0,
+  mentionedSeq: 0,
+  slowModeSeconds: 0,
+  joinMuted: false,
+  isPersonalSpace: personal,
+  dmMemberIds: dmMemberIds,
+);
 
 api.UserProfile _member(String id) =>
     api.UserProfile(id: id, username: id, displayName: id, createdAt: 0);
@@ -71,9 +76,42 @@ void main() {
       expect(items.map((i) => i.label), ['ana', 'bo']);
     });
 
-    test('caps the result list at paletteResultLimit', () {
+    test('lists everyone, not only the first few', () {
       final members = [for (var i = 0; i < 12; i++) _member('m$i')];
-      expect(buildMemberItems(members, '', 'self').length, paletteResultLimit);
+      expect(buildMemberItems(members, '', 'self').length, 12);
+    });
+
+    test('puts the people who are around ahead of those who are not', () {
+      final members = [_member('asleep'), _member('here'), _member('off')];
+      final items = buildMemberItems(
+        members,
+        '',
+        'me',
+        reported: {
+          'here': api.PresenceState.online,
+          'off': api.PresenceState.offline,
+        },
+      );
+      expect(items.map((i) => i.label), ['here', 'asleep', 'off']);
+    });
+  });
+
+  group('buildGroupDmItems', () {
+    final group = _channel('Ana, Bo', kind: 'dm', dmMemberIds: 'me,ana,bo');
+
+    test('finds a group chat by its name', () {
+      final channels = [_channel('general'), group];
+
+      expect(buildGroupDmItems(channels, 'bo').map((i) => i.label), [
+        'Ana, Bo',
+      ]);
+      expect(buildGroupDmItems(channels, 'zzz'), isEmpty);
+    });
+
+    test('a one-to-one DM is still found under People only', () {
+      final channels = [_channel('Bob', kind: 'dm', dmMemberIds: null)];
+
+      expect(buildGroupDmItems(channels, ''), isEmpty);
     });
   });
 }

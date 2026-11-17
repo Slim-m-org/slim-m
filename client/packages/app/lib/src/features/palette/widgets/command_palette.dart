@@ -24,6 +24,7 @@ import '../../../providers/admin_providers.dart';
 import '../../../routing/modal_page.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
+import '../../members/providers/presence_controller.dart';
 import '../../messages/providers/message_search.dart';
 import '../../voice/providers/transcript_search.dart';
 import '../../../providers/providers.dart';
@@ -384,8 +385,25 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
             currentChannelId: widget.currentChannelId,
           ),
         ),
+      if (everything || scope == PaletteScope.channels)
+        (
+          'Group chats',
+          buildGroupDmItems(
+            inputs.channels,
+            query,
+            currentChannelId: widget.currentChannelId,
+          ),
+        ),
       if (everything || scope == PaletteScope.people)
-        ('People', buildMemberItems(inputs.members, query, inputs.me?.id)),
+        (
+          'People',
+          buildMemberItems(
+            inputs.members,
+            query,
+            inputs.me?.id,
+            reported: ref.watch(presenceControllerProvider),
+          ),
+        ),
       if (everything && !_messagesForbidden)
         (
           'Messages',
