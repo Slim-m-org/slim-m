@@ -158,13 +158,15 @@ void main() {
 
       s.container.read(canvasOpenProvider.notifier).state = 'c1';
       await tester.pump();
+      expect(_canvasOpacity(tester).opacity, 1);
 
+      // The dock reports its measured height after the first frame, which costs the pane one relayout, not an animation.
+      await tester.pump();
       expect(
         tester.hasRunningAnimations,
         isFalse,
         reason: 'nothing may keep ticking once the viewer has asked it not to',
       );
-      expect(_canvasOpacity(tester).opacity, 1);
 
       await teardown(tester, s.container, s.db);
     },
