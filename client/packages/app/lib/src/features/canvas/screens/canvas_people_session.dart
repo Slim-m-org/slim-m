@@ -99,7 +99,23 @@ class CanvasPeopleSession extends ChangeNotifier {
 
 /// Hands one [CanvasPeopleSession] to the panel, the chip and the outline below it.
 class CanvasPeopleScope extends InheritedNotifier<CanvasPeopleSession> {
-  const CanvasPeopleScope({super.key, super.notifier, required super.child});
+  const CanvasPeopleScope({
+    super.key,
+    super.notifier,
+    this.channelId,
+    required super.child,
+  });
+
+  /// The canvas channel being viewed, which decides whose call roster belongs on it.
+  final String? channelId;
+
+  static String? channelIdOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<CanvasPeopleScope>()
+      ?.channelId;
+
+  @override
+  bool updateShouldNotify(CanvasPeopleScope oldWidget) =>
+      super.updateShouldNotify(oldWidget) || channelId != oldWidget.channelId;
 
   /// Null when follow is not wired (no relay or cursors), which leaves a plain call roster.
   static CanvasPeopleSession? maybeOf(BuildContext context) =>
@@ -116,6 +132,7 @@ class CanvasPeopleHost extends StatefulWidget {
     required this.viewMode,
     required this.onBringEveryone,
     required this.child,
+    this.channelId,
   });
 
   final CanvasViewRelay? relay;
@@ -124,6 +141,7 @@ class CanvasPeopleHost extends StatefulWidget {
   final CanvasViewMode? viewMode;
   final VoidCallback onBringEveryone;
   final Widget child;
+  final String? channelId;
 
   @override
   State<CanvasPeopleHost> createState() => _CanvasPeopleHostState();
@@ -169,6 +187,9 @@ class _CanvasPeopleHostState extends State<CanvasPeopleHost> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      CanvasPeopleScope(notifier: _session, child: widget.child);
+  Widget build(BuildContext context) => CanvasPeopleScope(
+    notifier: _session,
+    channelId: widget.channelId,
+    child: widget.child,
+  );
 }

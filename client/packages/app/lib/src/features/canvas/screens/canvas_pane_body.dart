@@ -403,6 +403,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
               ),
             Expanded(
               child: CanvasPeopleHost(
+                channelId: widget.channelId,
                 relay: widget.viewRelay,
                 cursors: widget.cursors,
                 selfId: widget.selfId,
