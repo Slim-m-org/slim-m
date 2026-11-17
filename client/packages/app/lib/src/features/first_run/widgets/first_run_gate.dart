@@ -19,11 +19,14 @@ class FirstRunGate extends ConsumerWidget {
     final state = ref.watch(firstRunControllerProvider);
     return Stack(
       children: [
-        // The shell stays mounted so sync carries on; nothing under the setup takes focus or taps.
+        // The shell stays mounted so sync carries on; nothing under the setup takes focus, taps or a screen reader.
         Positioned.fill(
-          child: ExcludeFocus(
+          child: ExcludeSemantics(
             excluding: state.active,
-            child: IgnorePointer(ignoring: state.active, child: child),
+            child: ExcludeFocus(
+              excluding: state.active,
+              child: IgnorePointer(ignoring: state.active, child: child),
+            ),
           ),
         ),
         if (state.active)

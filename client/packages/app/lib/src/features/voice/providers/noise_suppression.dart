@@ -89,6 +89,8 @@ Future<NoiseSuppressionChoice> loadNoiseSuppressionChoice(Ref ref) async {
 /// Whether the Space defaults to strong suppression, or null when the server
 /// cannot say, so a caller keeps what it last knew rather than guessing.
 Future<bool?> fetchSpaceStrongNoiseSuppression(Ref ref) async {
+  // Signed out there is no Space yet, only the placeholder address.
+  if (!ref.read(sessionProvider).isSignedIn) return null;
   try {
     return (await ref.read(apiProvider).version()).strongNoiseSuppression;
   } on Object catch (error, stack) {

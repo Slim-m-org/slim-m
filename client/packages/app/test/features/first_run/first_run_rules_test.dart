@@ -19,20 +19,25 @@ bool _due({
   now: _now,
 );
 
-Channel _channel(String id, String kind, int cursor, {int position = 0}) =>
-    Channel(
-      id: id,
-      name: id,
-      kind: kind,
-      createdAt: 0,
-      position: position,
-      cursor: cursor,
-      lastReadSeq: 0,
-      mentionedSeq: 0,
-      slowModeSeconds: 0,
-      joinMuted: false,
-      isPersonalSpace: false,
-    );
+Channel _channel(
+  String id,
+  String kind,
+  int cursor, {
+  int position = 0,
+  int createdAt = 0,
+}) => Channel(
+  id: id,
+  name: id,
+  kind: kind,
+  createdAt: createdAt,
+  position: position,
+  cursor: cursor,
+  lastReadSeq: 0,
+  mentionedSeq: 0,
+  slowModeSeconds: 0,
+  joinMuted: false,
+  isPersonalSpace: false,
+);
 
 void main() {
   group('firstRunDue', () {
@@ -64,20 +69,20 @@ void main() {
   });
 
   group('pickLandingChannel', () {
-    test('takes the busiest text channel', () {
+    test('takes the Space\'s first text channel, not the busiest', () {
       final picked = pickLandingChannel([
-        _channel('quiet', 'text', 3),
-        _channel('busy', 'text', 90),
-        _channel('mid', 'text', 20),
+        _channel('history', 'text', 900, createdAt: 30),
+        _channel('general', 'text', 4, createdAt: 10),
+        _channel('random', 'text', 20, createdAt: 20),
       ]);
-      expect(picked?.id, 'busy');
+      expect(picked?.id, 'general');
     });
 
-    test('never picks a voice channel or a DM, however busy', () {
+    test('never picks a voice channel or a DM, however old', () {
       final picked = pickLandingChannel([
-        _channel('lobby', 'voice', 500),
-        _channel('friend', 'dm', 400),
-        _channel('general', 'text', 1),
+        _channel('lobby', 'voice', 500, createdAt: 1),
+        _channel('friend', 'dm', 400, createdAt: 2),
+        _channel('general', 'text', 1, createdAt: 3),
       ]);
       expect(picked?.id, 'general');
     });
@@ -85,7 +90,7 @@ void main() {
     test('keeps rail order on a tie', () {
       final picked = pickLandingChannel([
         _channel('first', 'text', 5),
-        _channel('second', 'text', 5),
+        _channel('second', 'text', 9),
       ]);
       expect(picked?.id, 'first');
     });

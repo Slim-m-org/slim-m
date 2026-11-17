@@ -6,6 +6,8 @@
 /// confirmation and the final choice stay with the screen that opened them.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -15,12 +17,14 @@ import '../../../api_failure.dart';
 import '../../../invite_link.dart';
 import '../../settings/providers/display_preferences.dart';
 import '../../../providers/providers.dart';
+import '../../../server_address_input.dart';
 import '../../../server_address_reduction.dart';
 import '../../../server_scheme_policy.dart';
 import '../../members/widgets/invite_landing_card.dart';
 import '../../members/widgets/invite_landing_view.dart';
 import '../../../widgets/image_decode.dart';
 import '../../../widgets/space_icon.dart';
+import '../widgets/server_identity_confirmation.dart';
 
 const double _bannerDecodeWidth = 520;
 
@@ -96,7 +100,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
   }
 
   String _joiningHost() {
-    final host = Uri.tryParse(_server.text.trim())?.host ?? '';
+    final host = parseServerAddress(_server.text)?.host ?? '';
     return host.isEmpty ? _server.text.trim() : host;
   }
 
@@ -109,9 +113,9 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
       );
       return;
     }
-    final address = Uri.tryParse(_server.text.trim());
-    if (address == null || !address.hasScheme || address.host.isEmpty) {
-      setState(() => _error = 'That does not look like a server address.');
+    final address = parseServerAddress(_server.text);
+    if (address == null) {
+      setState(() => _error = serverAddressError(_server.text));
       return;
     }
     if (requireSecureScheme(address) case final schemeError?) {
@@ -254,7 +258,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
           ] else ...[
             AppInput(
               controller: _server,
-              placeholder: 'https://chat.example',
+              placeholder: 'chat.example',
               mono: true,
               keyboardType: TextInputType.url,
               semanticLabel: 'Server',
@@ -309,9 +313,10 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
               const SizedBox(width: AppSpacing.s8),
               Expanded(
                 child: AppButton(
-                  label: _busy ? 'Checking...' : 'Continue',
+                  label: 'Continue',
                   variant: AppButtonVariant.primary,
-                  disabled: _busy || !_accepted,
+                  busy: _busy,
+                  disabled: !_accepted,
                   onPressed: _verify,
                 ),
               ),
@@ -323,17 +328,24 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
   }
 }
 
+/// What [ManualServerDialog] hands back: the reduced address and its probe.
+typedef ManualServerChoice = ({Uri server, ServerIdentityProbe probe});
+
 /// Connecting to a server by address, with an explicit confirmation step.
-class ManualServerDialog extends StatefulWidget {
+///
+/// Continue stays busy while `/version` answers, then hands back the address
+/// and what it said, so the identity check needs no second request.
+class ManualServerDialog extends ConsumerStatefulWidget {
   const ManualServerDialog({super.key});
 
   @override
-  State<ManualServerDialog> createState() => ManualServerDialogState();
+  ConsumerState<ManualServerDialog> createState() => ManualServerDialogState();
 }
 
-class ManualServerDialogState extends State<ManualServerDialog> {
+class ManualServerDialogState extends ConsumerState<ManualServerDialog> {
   final _server = TextEditingController();
   String? _error;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -341,10 +353,11 @@ class ManualServerDialogState extends State<ManualServerDialog> {
     super.dispose();
   }
 
-  void _submit() {
-    final address = Uri.tryParse(_server.text.trim());
-    if (address == null || !address.hasScheme || address.host.isEmpty) {
-      setState(() => _error = 'That does not look like a server address.');
+  Future<void> _submit() async {
+    if (_busy) return;
+    final address = parseServerAddress(_server.text);
+    if (address == null) {
+      setState(() => _error = serverAddressError(_server.text));
       return;
     }
 
@@ -354,12 +367,19 @@ class ManualServerDialogState extends State<ManualServerDialog> {
       return;
     }
     // Userinfo must never survive into storage; see reduceServerAddress.
-    Navigator.of(context).pop(reduceServerAddress(address));
+    final server = reduceServerAddress(address);
+    setState(() => _busy = true);
+    final probe = await probeServerIdentity(ref, server);
+    if (!mounted) return;
+    Navigator.of(
+      context,
+    ).pop<ManualServerChoice>((server: server, probe: probe));
   }
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final error = _error;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -381,26 +401,37 @@ class ManualServerDialogState extends State<ManualServerDialog> {
           const SizedBox(height: AppSpacing.s12),
           AppInput(
             controller: _server,
-            placeholder: 'https://chat.example',
+            placeholder: 'chat.example',
             mono: true,
             autofocus: true,
+            invalid: error != null,
             keyboardType: TextInputType.url,
+            autocorrect: false,
             semanticLabel: 'Server address',
             onChanged: (_) {
               if (_error != null) setState(() => _error = null);
             },
-            onSubmitted: (_) => _submit(),
+            onSubmitted: (_) => unawaited(_submit()),
           ),
           const SizedBox(height: AppSpacing.s12),
-          Text(
-            'Whoever runs this Space can read the messages sent through it. '
-            'Only connect to one you trust.',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          // The error takes the note's place, so the dialog does not jump when it appears.
+          IndexedStack(
+            index: error == null ? 0 : 1,
+            children: [
+              Text(
+                'Whoever runs this Space can read the messages sent through '
+                'it. Only connect to one you trust.',
+                style: AppText.caption.copyWith(color: tokens.textSecondary),
+              ),
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  error ?? '',
+                  style: AppText.caption.copyWith(color: tokens.dangerText),
+                ),
+              ),
+            ],
           ),
-          if (_error != null) ...[
-            const SizedBox(height: AppSpacing.s12),
-            AppErrorState(message: _error!),
-          ],
           const SizedBox(height: AppSpacing.s12),
           Row(
             children: [
@@ -416,7 +447,8 @@ class ManualServerDialogState extends State<ManualServerDialog> {
                 child: AppButton(
                   label: 'Continue',
                   variant: AppButtonVariant.primary,
-                  onPressed: _submit,
+                  busy: _busy,
+                  onPressed: () => unawaited(_submit()),
                 ),
               ),
             ],

@@ -35,7 +35,6 @@ bool isLocalAddress(Uri address) {
 /// between the sign-in field, the invite dialog and the manual dialog again.
 String? requireSecureScheme(Uri address) {
   if (address.scheme == 'https' || isLocalAddress(address)) return null;
-  return 'Use https for a server on the internet, so '
-      'traffic cannot be read in transit. Plain http is only accepted for '
-      'an address on your own network.';
+  return 'Use https for a Space on the internet. Plain http only works on '
+      'your own network.';
 }

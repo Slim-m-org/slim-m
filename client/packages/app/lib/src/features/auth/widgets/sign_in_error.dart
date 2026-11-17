@@ -53,16 +53,37 @@ const unexpectedSignInError = (
     SignInErrorField.server,
     'No slim-m server at that address.',
   ),
-  TransportException() => (
-    SignInErrorField.server,
-    "This Space didn't answer. It may be restarting, or the address may be "
-        'wrong. Nothing was sent.',
-  ),
+  TransportException() => _unreachable,
   _ => (
     SignInErrorField.form,
     'The server refused that. ${sentenceCase(e.message)}',
   ),
 };
+
+const _unreachable = (
+  SignInErrorField.server,
+  'Could not reach this Space. Check the address, or try again if it is '
+      'restarting. Nothing was sent.',
+);
+
+const _blockedByBrowser = (
+  SignInErrorField.server,
+  'This Space is up, but the browser blocked the connection. Whoever runs '
+      "it has to allow this web app's address (CORS). Nothing was sent.",
+);
+
+/// [signInErrorFor], except a failed connection that [reach] still answers is
+/// called a browser block when [knownSpace]: an opaque answer could be any site.
+Future<(SignInErrorField, String)> explainSignInFailure(
+  ApiException e, {
+  required Uri? server,
+  required Future<bool?> Function(Uri server) reach,
+  required Future<bool> Function(Uri server) knownSpace,
+}) async {
+  if (e is! TransportException || server == null) return signInErrorFor(e);
+  if (await reach(server) != true) return _unreachable;
+  return await knownSpace(server) ? _blockedByBrowser : _unreachable;
+}
 
 /// Which field a 400 belongs to.
 ///

@@ -209,7 +209,7 @@ class _BrandPanel extends StatelessWidget {
             children: [
               const _Wordmark(),
               const Spacer(),
-              if (version case final v?)
+              if (version case final v? when v.isNotEmpty)
                 Text(
                   'v$v',
                   style: AppText.code.copyWith(color: tokens.textSecondary),

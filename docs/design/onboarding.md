@@ -38,7 +38,7 @@ A step is never required to be filled in.
 3. Notifications: choose what to be notified for, then allow system notifications where the platform asks.
 4. Voice check: pick a microphone and speaker, and watch the level once a call is open. It never blocks.
 
-After the last step, the flow closes on the most active readable text channel, with a one-time hint about the voice channels.
+After the last step, the flow closes on the Space's first readable text channel, with a one-time hint about the voice channels.
 
 ## Surface per width
 
@@ -66,7 +66,9 @@ Finish writes the done flag and moves the member to the landing channel.
 
 ## Landing channel
 
-The text channel with the most messages the member can read, ties broken by rail order.
+The oldest text channel the member can read, ties broken by rail order.
+That is the channel a Space starts with, usually #general, which is where a newcomer is expected.
+The busiest channel was tried first and dropped a new member into the middle of a long test thread.
 A voice channel or a DM is never chosen, and the local store only holds channels this member can read.
 With no text channel the member stays on the empty pane.
 

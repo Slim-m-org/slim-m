@@ -5,6 +5,7 @@ library;
 import 'package:slimm_api/api.dart';
 import 'package:slimm_platform/platform.dart' show KeyStore;
 
+import '../../../server_address_input.dart';
 import '../../../server_address_reduction.dart';
 import '../widgets/server_identity_chip.dart';
 import '../widgets/server_identity_confirmation.dart';
@@ -14,11 +15,8 @@ import '../widgets/server_identity_confirmation.dart';
 /// on a request that fires as someone types: pasted userinfo would even
 /// become a Basic auth header sent to whatever host is in the field.
 Uri? probeTarget(String text) {
-  final parsed = Uri.tryParse(text.trim());
-  if (parsed == null || !parsed.hasScheme || parsed.host.isEmpty) {
-    return null;
-  }
-  return reduceServerAddress(parsed);
+  final parsed = parseServerAddress(text);
+  return parsed == null ? null : reduceServerAddress(parsed);
 }
 
 /// How [identity] compares against whatever is pinned for [target], for
@@ -42,6 +40,6 @@ Future<ServerIdentityStatus> identityStatusFor(
 /// to the raw text so a half-typed address still shows what it is rather
 /// than going blank mid-keystroke.
 String serverHostLabel(String text) {
-  final host = Uri.tryParse(text.trim())?.host ?? '';
+  final host = parseServerAddress(text)?.host ?? '';
   return host.isEmpty ? text.trim() : host;
 }

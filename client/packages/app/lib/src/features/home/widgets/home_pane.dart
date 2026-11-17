@@ -45,8 +45,9 @@ class _HomePaneState extends ConsumerState<HomePane> {
 
   @override
   Widget build(BuildContext context) {
+    // While setup is open over this pane it is the welcome; saying it here too doubled it.
     final offered = ref.watch(
-      firstRunControllerProvider.select((s) => s.offered),
+      firstRunControllerProvider.select((s) => s.offered && !s.active),
     );
     final info = ref.watch(serverInfoProvider).valueOrNull;
     final name = info?.displayName ?? _fallbackName;
