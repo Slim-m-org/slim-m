@@ -44,8 +44,13 @@ class AudioPlayersSoundClipPlayer implements SoundClipPlayer {
   }) async {
     if (callOwnsSoundSession(inCall: inCall())) return;
     final player = AudioPlayer();
+    // onPlayerComplete is a Stream<AudioEvent> at runtime, so its first must be retyped before timeout takes a void fallback.
+    final completed = player.onPlayerComplete.first.then<void>(
+      (_) {},
+      onError: (Object _) {},
+    );
     unawaited(
-      player.onPlayerComplete.first
+      completed
           .timeout(_release, onTimeout: () {})
           .whenComplete(player.dispose),
     );
