@@ -33,6 +33,10 @@ const double _artWidestAspect = 16 / 9;
 const _markOnDark = Color(0xFFFFFFFF);
 const _markOnLight = Color(0xFF000000);
 
+/// How wide a Spotify card gets, collapsed or playing, so a long episode
+/// title wraps instead of stretching the card across the message column.
+const double kSpotifyCardMax = 520;
+
 // Spotify's design guidelines: cover art corners are 4 px on small screens, 8 px above.
 const double _artRadiusCompact = 4;
 const double _artRadius = 8;
@@ -159,6 +163,7 @@ class SpotifyPreviewBody extends ConsumerWidget {
                     key: playKey,
                     label: 'Play on Spotify',
                     icon: AppIcons.play,
+                    variant: AppButtonVariant.soft,
                     size: AppButtonSize.sm,
                     semanticLabel:
                         'Play ${spotifyItemName(preview, item)} on Spotify',

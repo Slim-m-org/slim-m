@@ -24,6 +24,7 @@ import '../../support/async_wait.dart';
 const _url = 'https://open.spotify.com/track/3ccGTp44b5m3TwTCrolFjw?si=x';
 const _id = '3ccGTp44b5m3TwTCrolFjw';
 const _removeLabel = 'Remove link preview';
+const _cardKey = Key('spotify-card');
 
 const _track = LinkPreview(
   url: _url,
@@ -77,7 +78,7 @@ Future<List<SpotifyEntity>> _pump(
         home: Scaffold(
           body: Align(
             alignment: Alignment.topLeft,
-            child: LinkPreviewCard(url: _url, onRemove: () {}),
+            child: LinkPreviewCard(key: _cardKey, url: _url, onRemove: () {}),
           ),
         ),
       ),
@@ -124,6 +125,26 @@ void main() {
       expect(find.byIcon(AppIcons.play), findsOneWidget, reason: 'no glyph');
     });
   }
+
+  testWidgets('a long episode title wraps inside the card cap', (tester) async {
+    await _pump(
+      tester,
+      preview: LinkPreview(
+        url: _url,
+        title: 'Jimmy Carr on jokes, writing and touring ' * 4,
+        description: 'The Joe Rogan Experience · Episode',
+        videoProvider: LinkPreviewVideoProvider.spotify,
+        videoId: _id,
+        mediaKind: SpotifyKind.episode,
+        durationMs: 10235000,
+      ),
+    );
+
+    final card = tester.getRect(find.byKey(_cardKey));
+    expect(card.width, lessThanOrEqualTo(kSpotifyCardMax));
+    final title = find.textContaining('Jimmy Carr');
+    expect(tester.getSize(title).height, greaterThan(AppText.body.fontSize!));
+  });
 
   testWidgets('Play and the card open the item off the web engine', (
     tester,

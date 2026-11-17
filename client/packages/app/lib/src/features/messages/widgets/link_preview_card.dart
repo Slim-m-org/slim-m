@@ -134,6 +134,10 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
 
   bool get _hasMouse => RendererBinding.instance.mouseTracker.mouseIsConnected;
 
+  /// A playing embed is an iframe the pointer's hover never reaches, so its
+  /// X stays shown rather than vanishing the moment the reader moves onto it.
+  bool get _xShown => _hovered || _removeFocused || !_hasMouse || _playing;
+
   Future<void> _open() async => openExternalHttpUrl(widget.url);
 
   /// The click-to-play action for a recognized video: on web, swap the
@@ -202,7 +206,11 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
             onTap: onCardTap,
             child: SelectionContainer.disabled(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: kMessageColumnMax),
+                constraints: BoxConstraints(
+                  maxWidth: spotify != null
+                      ? kSpotifyCardMax
+                      : kMessageColumnMax,
+                ),
                 child: Stack(
                   children: [
                     Container(
@@ -246,9 +254,7 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
                           onFocusChange: (focused) =>
                               setState(() => _removeFocused = focused),
                           child: AnimatedOpacity(
-                            opacity: _hovered || _removeFocused || !_hasMouse
-                                ? 1
-                                : 0,
+                            opacity: _xShown ? 1 : 0,
                             duration: AppMotion.fast,
                             alwaysIncludeSemantics: true,
                             child: AppIconButton(
