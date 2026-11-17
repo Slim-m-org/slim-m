@@ -16,7 +16,7 @@ His answer on 2026-11-17: a "Private category" switch at the top of the category
 - The switch reads private when `@everyone` is denied View channels, whatever other rows exist; a mixed state shows the switch on and lists what is there.
 - On writes only `@everyone`'s View deny, keeping its other bits.
   A caller without Administrator, whom no role of theirs with an Allow View row keeps in, also gets an Allow View row for themselves, so they do not hide the channels from their own view; an administrator sees them anyway and gets no row.
-  Writing that member row goes beyond the owner's "@everyone denied View" ask; it is the implementer's choice, pending owner review.
+  Writing that member row goes beyond the owner's "@everyone denied View" ask; the owner confirmed it on 2026-11-17, so the person making a category private is never locked out.
 - Off lifts that deny and, for the same caller, the View allow on their own row (a row left all-zero is removed, here and in every synced child); every other row stays.
 - "Who can see this" reads "Everyone" when public.
   When private it lists "Administrators - Always" and every role or member with an Allow View row, each with a remove that clears only its View allow (a row left all-zero is removed).
