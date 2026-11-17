@@ -54,3 +54,11 @@ Until that webhook is configured and reachable, nothing breaks: the roster keeps
 ## Track source matching
 
 LiveKit's proto names the screen-share track sources `SCREEN_SHARE` and `SCREEN_SHARE_AUDIO`. Documentation for the exact JSON string LiveKit's Go server emits for these disagreed across sources consulted while building this (some rendered them without the `SHARE` segment), so the matching in `voice/webhook.rs` and `voice/roster.rs` checks for the substring `SCREEN` in the reported source rather than an exact literal. Confirmed against the real pinned server (`livekit/livekit-server:v1.10.1`) with `scripts/e2e.sh`, webhook wired up: the literal is `SCREEN_SHARE`, matching the earlier code already relies on for the same string in `scripts/lib/e2e_voice.py`'s own `ListParticipants` assertions.
+
+## A call learns of a silent participant from the webhook (2026-11-17)
+
+LiveKit sends a participant who has never published a track to the rest of the call on a 3 s batch (`subscriberUpdateInterval` in `pkg/rtc/room.go`), while a publisher's updates go out at once.
+So someone who joined muted appeared on the call stage 1 to 3 s after the server already knew, and their leave lagged the same way; measured with the `voice: someone joining shows` e2e scenario.
+On a `participant_joined` that has published nothing, the server clears an attribute nobody sets (`announce`), which LiveKit always sends at once and which flushes the batched join with it.
+A leave cannot be pushed that way, since the participant is gone, so a client in the call hides someone the moment `VoiceParticipantLeft` names them, for at most 5 s or until the room drops them itself.
+The e2e stack now wires LiveKit's webhook to the server through a relay on the docker bridge, so e2e runs the way prod does.
