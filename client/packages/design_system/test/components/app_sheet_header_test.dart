@@ -28,6 +28,16 @@ void main() {
     );
   });
 
+  testWidgets('the title is a semibold heading, as a confirm sheet\'s is', (
+    tester,
+  ) async {
+    await _pump(tester, const AppSheetHeader('Forward message'));
+
+    final style = tester.widget<Text>(find.text('Forward message')).style!;
+    expect(style.fontSize, AppText.heading.fontSize);
+    expect(style.fontWeight, AppWeights.semi);
+  });
+
   testWidgets('caption sits under the title', (tester) async {
     await _pump(
       tester,

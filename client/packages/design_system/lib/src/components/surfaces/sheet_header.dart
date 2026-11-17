@@ -44,7 +44,10 @@ class AppSheetHeader extends StatelessWidget {
           header: true,
           child: Text(
             title,
-            style: AppText.heading.copyWith(color: tokens.textPrimary),
+            style: AppText.heading.copyWith(
+              color: tokens.textPrimary,
+              fontWeight: AppWeights.semi,
+            ),
           ),
         ),
         if (caption case final caption?) ...[
