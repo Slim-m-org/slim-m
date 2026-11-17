@@ -234,5 +234,18 @@ void main() {
     await tester.pump();
     expect(placed.single.$1, const Offset(200, 200));
     expect(placed.single.$2, isNull);
+
+    placed.clear();
+    final jitter = await tester.startGesture(const Offset(300, 300));
+    await jitter.moveTo(const Offset(310, 306));
+    await jitter.up();
+    await tester.pump();
+    expect(placed.single.$1, const Offset(300, 300));
+    expect(
+      placed.single.$2,
+      isNull,
+      reason:
+          'a jittery tap places the default note, not one too small to read',
+    );
   });
 }

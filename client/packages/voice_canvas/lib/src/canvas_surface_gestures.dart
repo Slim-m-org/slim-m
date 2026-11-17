@@ -5,6 +5,10 @@ part of 'canvas_surface.dart';
 /// as a tap rather than a drag - see [_CanvasSurfaceGestures._resolveShapeDrag].
 const double _shapeDragThreshold = 4.0;
 
+/// The narrowest note drag, in screen pixels, that sizes the note: well past a finger's
+/// jitter, and wide enough that the text a note's width sets still paints.
+const double _noteDragMinWidth = 48.0;
+
 /// How far, in screen pixels, a select gesture may travel and still be a tap.
 const double _selectTapSlop = 6.0;
 
@@ -458,7 +462,10 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     _pendingPlacementWorld = null;
     switch (tool) {
       case CanvasTool.note:
-        final (center, size) = _resolveShapeDrag(world);
+        final (center, size) = _resolveShapeDrag(
+          world,
+          minWidth: _noteDragMinWidth,
+        );
         widget.onNotePlace?.call(center, size);
       case CanvasTool.text:
         widget.onTextPlace?.call(world);
@@ -488,9 +495,11 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
   }
 
   /// [world] unchanged and a null size for a plain tap; otherwise the dragged box's centre and size, clipped to the board and clamped to [minObjectSize]..`maxObjectExtent` like a resize handle, so a placement drag can never commit a box a resize could not.
-  (Offset, Size?) _resolveShapeDrag(Offset world) {
+  /// A drag narrower than [minWidth] also counts as a tap.
+  (Offset, Size?) _resolveShapeDrag(Offset world, {double minWidth = 0}) {
     final screen = _shapeDraft.take();
     if (screen == null ||
+        screen.width < minWidth ||
         (screen.width < _shapeDragThreshold &&
             screen.height < _shapeDragThreshold)) {
       return (world, null);

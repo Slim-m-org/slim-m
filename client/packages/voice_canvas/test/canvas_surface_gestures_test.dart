@@ -256,12 +256,12 @@ void main() {
       await tester.pump();
 
       final gesture = await tester.startGesture(const Offset(20, 20));
-      await gesture.moveTo(const Offset(60, 40));
+      await gesture.moveTo(const Offset(100, 40));
       expect(notes, isEmpty, reason: 'not yet - the pointer is still down');
       await gesture.up();
       await tester.pump();
 
-      expect(notes, [const Offset(40, 30)]);
+      expect(notes, [const Offset(60, 30)]);
       expect(shapes, isEmpty, reason: 'the shape tool was never selected');
     },
   );
