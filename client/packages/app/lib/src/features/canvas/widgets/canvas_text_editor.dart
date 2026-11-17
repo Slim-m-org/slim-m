@@ -169,8 +169,20 @@ class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
     );
   }
 
+  /// A press anywhere else in the app saves, unless a dialog opened from the editor is what was pressed.
+  void _onTapOutside(BuildContext context) {
+    if (ModalRoute.of(context)?.isCurrent ?? true) _save();
+  }
+
   Widget _panel(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    return TapRegion(
+      onTapOutside: (_) => _onTapOutside(context),
+      child: _panelBody(context, tokens),
+    );
+  }
+
+  Widget _panelBody(BuildContext context, AppTokens tokens) {
     return Material(
       type: MaterialType.transparency,
       child: Container(
