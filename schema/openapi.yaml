@@ -21584,7 +21584,9 @@ components:
       description: >
         A voice message's transcript started, finished or failed, for everyone
         who can view the channel. Never persisted; reading the message is the
-        catch-up.
+        catch-up. `none` takes back a `pending` the listener never took up,
+        so the message is no longer shown transcribing; it has no transcript
+        until it is tried again.
       properties:
         type:
           type: string
@@ -21599,7 +21601,7 @@ components:
           type: string
         status:
           type: string
-          enum: [pending, ready, failed]
+          enum: [pending, ready, failed, none]
         text:
           type: string
 

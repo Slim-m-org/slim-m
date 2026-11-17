@@ -92,7 +92,7 @@ pub enum MessageEvent {
         message_id: MessageId,
         embeds: Arc<Vec<Embed>>,
     },
-    /// A voice message's transcript started, finished or failed. Never
+    /// A voice message's transcript started, finished, failed, or went back to none. Never
     /// persisted and unnumbered; the message read is the catch-up.
     VoiceTranscript {
         channel_id: ChannelId,
