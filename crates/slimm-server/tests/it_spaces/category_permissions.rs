@@ -129,6 +129,37 @@ async fn locking_a_category_locks_its_synced_channels() {
 }
 
 #[tokio::test]
+async fn a_cleared_category_row_leaves_its_synced_channels_too() {
+    let w = world("slimm-catperm-clear").await;
+    let channel = w.channel("plans", false).await;
+    assert_eq!(w.lock_category().await, StatusCode::OK);
+    assert!(w.sees(&w.staff, &channel).await);
+
+    let clear = json!({"overwrites": [
+        {"kind": "role", "id": w.staff_role, "allow": 0, "deny": 0},
+    ]});
+    let uri = format!("/categories/{}/overwrites", w.category);
+    let (status, body) = call(&w.app, "PUT", &uri, &w.admin, Some(clear)).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+
+    let uri = format!("/channels/{channel}/overwrites");
+    let (_, rows) = call(&w.app, "GET", &uri, &w.admin, None).await;
+    assert_eq!(rows["synced"], json!(true));
+    let ids: Vec<&Value> = rows["overwrites"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|o| &o["id"])
+        .collect();
+    assert_eq!(
+        ids,
+        vec![&json!(w.everyone)],
+        "only @everyone's deny is left"
+    );
+    assert!(!w.sees(&w.staff, &channel).await);
+}
+
+#[tokio::test]
 async fn editing_a_channel_unsyncs_it_and_sync_brings_it_back() {
     let w = world("slimm-catperm-unsync").await;
     let channel = w.channel("plans", false).await;
