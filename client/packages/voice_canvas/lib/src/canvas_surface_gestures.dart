@@ -128,10 +128,15 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       event.kind,
       event.localPosition,
     );
-    final tool = kind == PointerDeviceKind.invertedStylus
-        ? CanvasTool.eraser
-        : widget.tool;
     final world = _toWorld(screen);
+    final tool = switch (kind) {
+      PointerDeviceKind.invertedStylus => CanvasTool.eraser,
+      _
+          when widget.tool == CanvasTool.shape &&
+              (widget.grabsHandleAt?.call(world, kind) ?? false) =>
+        CanvasTool.pan,
+      _ => widget.tool,
+    };
     if (tool.placesInk && !widget.document.acceptsPlacementAt(world)) return;
     _gesture = _Gesture(
       pointer,

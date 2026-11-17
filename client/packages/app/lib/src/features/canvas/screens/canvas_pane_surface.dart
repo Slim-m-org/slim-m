@@ -152,6 +152,7 @@ class CanvasPaneSurface extends StatelessWidget {
           onSelectEnd: actions.onSelectEnd,
           onSelectCancel: actions.onSelectCancel,
           onSelectTap: actions.onSelectTap,
+          grabsHandleAt: actions.grabsHandleAt,
           onNotePlace: actions.onNotePlace,
           onTextPlace: actions.onTextPlace,
           onSelectLongPress: actions.onSelectLongPress,

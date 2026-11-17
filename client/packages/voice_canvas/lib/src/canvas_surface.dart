@@ -65,6 +65,7 @@ class CanvasSurface extends StatefulWidget {
     this.onEraseCancel,
     this.onSelectStart,
     this.onSelectTap,
+    this.grabsHandleAt,
     this.onSelectDrag,
     this.onSelectEnd,
     this.onSelectCancel,
@@ -213,6 +214,9 @@ class CanvasSurface extends StatefulWidget {
   /// past a tap's slop, with the kind of pointer that made it, so the caller
   /// can tell a double click from a touch tap.
   final void Function(Offset world, PointerDeviceKind kind)? onSelectTap;
+
+  /// Whether a press at [world] lands on a resize handle of the selection; on the shape tool it resizes instead of drawing.
+  final bool Function(Offset world, PointerDeviceKind kind)? grabsHandleAt;
 
   /// Fires once while [tool] is [CanvasTool.note]: a tap reports where the pointer went down, a drag the box it sized.
   /// Resolved on pointer-up so a second pointer (a pinch starting) can still cancel it - see [_resolvePendingPlacement].

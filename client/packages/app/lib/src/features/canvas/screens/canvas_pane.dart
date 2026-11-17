@@ -409,6 +409,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   onSelectDrag: _onSelectDrag,
                   onSelectEnd: () => unawaited(_onSelectEnd()),
                   onSelectTap: _onSelectTap,
+                  grabsHandleAt: _grabsHandleAt,
                   onEditNote: _onEditNote,
                   noteSpans: (text, base) =>
                       buildNoteSpans(text, base, noteSpanStyle),

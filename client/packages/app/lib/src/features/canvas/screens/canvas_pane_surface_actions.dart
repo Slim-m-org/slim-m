@@ -27,6 +27,7 @@ class CanvasPaneSurfaceActions {
     this.onTextPlace,
     this.onSelectLongPress,
     this.onSelectTap,
+    this.grabsHandleAt,
     this.onEraseCancel,
     this.onSelectCancel,
     required this.onSelectEnd,
@@ -64,6 +65,7 @@ class CanvasPaneSurfaceActions {
   final ValueChanged<Offset>? onTextPlace;
   final ValueChanged<Offset>? onSelectLongPress;
   final void Function(Offset world, PointerDeviceKind kind)? onSelectTap;
+  final bool Function(Offset world, PointerDeviceKind kind)? grabsHandleAt;
   final VoidCallback onSelectEnd;
   final ValueChanged<Offset> onSelectDrag;
   final ValueChanged<Offset> onSelectStart;

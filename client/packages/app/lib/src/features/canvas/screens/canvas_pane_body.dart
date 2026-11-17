@@ -124,6 +124,7 @@ class CanvasPaneBody extends StatefulWidget {
     this.onRetryCall,
     this.participantMenuItemsBuilder,
     this.onSelectTap,
+    this.grabsHandleAt,
     this.onEditNote,
     this.noteSpans,
     this.noteSpansRevision = 0,
@@ -189,6 +190,9 @@ class CanvasPaneBody extends StatefulWidget {
   /// A select gesture that was a tap rather than a drag; see
   /// [CanvasSurface.onSelectTap].
   final void Function(Offset world, PointerDeviceKind kind)? onSelectTap;
+
+  /// [CanvasSurface.grabsHandleAt].
+  final bool Function(Offset world, PointerDeviceKind kind)? grabsHandleAt;
   final ValueChanged<String>? onEditNote;
 
   /// Styles a note's text, and the revision that says when it changed.
