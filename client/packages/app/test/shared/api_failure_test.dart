@@ -221,4 +221,14 @@ void main() {
       'Could not pin the message: pins are not available in direct messages.',
     );
   });
+
+  test('editing a message someone else wrote says only its author can', () {
+    expect(
+      describeApiFailure(
+        'edit the message',
+        const api.ForbiddenException('x', code: 'not_author'),
+      ),
+      'Could not edit the message: only its author can edit it.',
+    );
+  });
 }

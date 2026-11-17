@@ -15,12 +15,6 @@ use crate::ids::{ChannelId, MessageId, UserId};
 /// live frame reaches can already answer `is_mentioned` for it; see
 /// `store::message_mentions` and `http::ws::message_frames`.
 ///
-/// `messages::edit` passes the message's own stored author here, never
-/// `ctx.user_id`: a moderator's `MANAGE_MESSAGES` edit of someone else's
-/// message must not gain that other author's `MENTION_EVERYONE` reach, and
-/// only falls back to the editor once the author is already anonymized and
-/// has no permission left to check at all.
-///
 /// `reply_ping` is the replied-to author a reply chose to ping (see
 /// [`reply_ping_target`]); they join the mention set like a written `@name`.
 pub(crate) async fn resolve_and_store(

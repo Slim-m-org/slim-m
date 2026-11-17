@@ -33,6 +33,7 @@ mod message_bulk_delete;
 mod message_bulk_delete_window;
 mod message_delete;
 mod message_delete_audit;
+mod message_edit_author_only;
 mod message_edit_history;
 mod message_embeds;
 mod message_embeds_send;

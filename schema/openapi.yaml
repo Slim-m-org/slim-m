@@ -4458,7 +4458,12 @@ paths:
       operationId: editMessage
       tags: [messages]
       summary: Edit a message.
-      description: Allowed for the author, or a member with MANAGE_MESSAGES.
+      description: >
+        Allowed for the author only, who also needs SEND_MESSAGES. Nobody
+        else edits a message, a member with MANAGE_MESSAGES or ADMINISTRATOR
+        included: they can delete it instead. A caller who can see the
+        channel but did not write the message gets a 403 with
+        `code: not_author`.
       requestBody:
         required: true
         content:
@@ -13308,7 +13313,8 @@ components:
             `blocked` in a direct message where either side blocked the other,
             and `left_group` for a group the caller posted in and is no longer
             on. `dm_pins_unavailable` on a 403 from pinning or unpinning in a
-            direct message. A channel the caller cannot see, or one that does
+            direct message. `not_author` on a 403 from editing a message the
+            caller did not write. A channel the caller cannot see, or one that does
             not exist, still answers the bare 403 with no code. Absent on every
             other error; read an unknown value as a refusal for another reason.
         timed_out_until:

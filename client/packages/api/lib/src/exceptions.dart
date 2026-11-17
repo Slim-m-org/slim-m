@@ -73,6 +73,9 @@ class ForbiddenException extends ApiException {
   static const leftGroupCode = 'left_group';
   static const dmPinsCode = 'dm_pins_unavailable';
 
+  /// An edit of a message the caller did not write; mirrors `http/messages.rs`.
+  static const notAuthorCode = 'not_author';
+
   /// The server refused a moderation act on somebody of the caller's own rank.
   bool get isEqualRankRefusal => message == equalRankRefusal;
 

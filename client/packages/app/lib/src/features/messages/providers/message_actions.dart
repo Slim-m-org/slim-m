@@ -169,9 +169,8 @@ bool canOpenThreadFor(
   required bool channelIsThread,
 }) => !channelIsThread && canReplyToMessage(message, myPermissions);
 
-/// Own message only, matching the server's author check: a member holding
-/// MANAGE_MESSAGES can edit someone else's message server-side too, but
-/// that is deliberately not offered here (see `channel_screen.dart`).
+/// Own message only, matching the server: nobody edits another's message,
+/// moderators and administrators included.
 bool canEditMessage(Message message, String? myUserId) =>
     !message.pending && !message.failed && _isAuthor(message, myUserId);
 

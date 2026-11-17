@@ -52,6 +52,8 @@ String describeApiFailure(String whatFailed, api.ApiException e) => switch (e) {
     'Could not $whatFailed: you are no longer in this group.',
   api.ForbiddenException(code: api.ForbiddenException.dmPinsCode) =>
     'Could not $whatFailed: pins are not available in direct messages.',
+  api.ForbiddenException(code: api.ForbiddenException.notAuthorCode) =>
+    'Could not $whatFailed: only its author can edit it.',
   api.ForbiddenException() =>
     'Could not $whatFailed: you are not allowed to do that.',
   api.UnauthorizedException() =>
