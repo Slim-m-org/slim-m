@@ -154,7 +154,7 @@ class HeaderCell extends StatelessWidget {
               iconSize: AppSizes.icon16,
               size: AppIconButtonSize.sm,
               semanticLabel: 'Remove ${column.label} from this grid',
-              onPressed: onRemove,
+              onPressed: column.locked ? null : onRemove,
             ),
           ],
         ),
