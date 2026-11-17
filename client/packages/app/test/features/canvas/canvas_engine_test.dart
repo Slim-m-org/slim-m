@@ -18,6 +18,8 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'canvas_pane_harness.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('a live frame for this channel reaches the document', () async {
     final fixture = CanvasPaneFixture();
     final container = fixture.container();

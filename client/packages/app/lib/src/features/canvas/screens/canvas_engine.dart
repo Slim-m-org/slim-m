@@ -222,7 +222,12 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   late final CanvasImageHydrator hydrator = CanvasImageHydrator(
     client: _client,
     document: document,
-    emoji: CanvasEmojiHydrator(document: document, bake: _bakeEmoji),
+    emoji: CanvasEmojiHydrator(
+      document: document,
+      bake: _bakeEmoji,
+      fontsChanged: PaintingBinding.instance.systemFonts,
+      dropGlyphBitmaps: () => _ref.read(stampImageCacheProvider).dropGlyphs(),
+    ),
   );
 
   Future<ui.Image?> _bakeEmoji(String key) async {
