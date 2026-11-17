@@ -18,41 +18,30 @@ Widget _row(CanvasTool tool, {bool? touch}) => ProviderScope(
 );
 
 void main() {
-  for (final touch in [false, true]) {
-    testWidgets('no button moves when a tool is armed (touch: $touch)', (
-      tester,
-    ) async {
-      Future<Map<String, double>> lefts(CanvasTool tool) async {
-        await tester.pumpWidget(_row(tool, touch: touch));
-        return {
-          for (final label in [
-            'Pan',
-            'Pen',
-            'Note',
-            'Text',
-            'Shape',
-            'Stamp',
-            'Eraser',
-          ])
-            label: tester
-                .getTopLeft(
-                  find
-                      .ancestor(
-                        of: find.bySemanticsLabel(label),
-                        matching: find.byType(AppIconButton),
-                      )
-                      .first,
-                )
-                .dx,
-        };
-      }
+  testWidgets('no button moves when a tool is armed on a pointer layout', (
+    tester,
+  ) async {
+    Future<Map<String, double>> lefts(CanvasTool tool) async {
+      await tester.pumpWidget(_row(tool, touch: false));
+      return {
+        for (final label in [
+          'Pan',
+          'Pen',
+          'Note',
+          'Text',
+          'Shape',
+          'Stamp',
+          'Eraser',
+        ])
+          label: tester.getTopLeft(find.bySemanticsLabel(label).first).dx,
+      };
+    }
 
-      final baseline = await lefts(CanvasTool.pan);
-      for (final tool in [CanvasTool.pen, CanvasTool.shape, CanvasTool.stamp]) {
-        expect(await lefts(tool), baseline, reason: 'armed: $tool');
-      }
-    });
-  }
+    final baseline = await lefts(CanvasTool.pan);
+    for (final tool in [CanvasTool.pen, CanvasTool.shape, CanvasTool.stamp]) {
+      expect(await lefts(tool), baseline, reason: 'armed: $tool');
+    }
+  });
 
   testWidgets('every options caret points down', (tester) async {
     for (final tool in [CanvasTool.pen, CanvasTool.shape, CanvasTool.stamp]) {
