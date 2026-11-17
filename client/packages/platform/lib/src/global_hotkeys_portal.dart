@@ -119,6 +119,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
   String? _owner;
   String? _session;
   Set<GlobalHotkeyId> _boundIds = const {};
+  final _held = <GlobalHotkeyId>{};
   int _tokenCounter = 0;
 
   @override
@@ -195,6 +196,13 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
     _listening.clear();
     _session = null;
     _boundIds = const {};
+    // The closed session never delivers these key-ups, so a held push to talk would stay open.
+    for (final id in _held) {
+      if (!_events.isClosed) {
+        _events.add(GlobalHotkeyEvent(id, GlobalHotkeyPhase.released));
+      }
+    }
+    _held.clear();
     try {
       await _bus.callMethod(
         destination: portalBusName,
@@ -263,7 +271,10 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
           name: name,
         ).listen((signal) {
           final event = portalEventFromSignal(signal, handle);
-          if (event != null) _events.add(event);
+          if (event == null) return;
+          if (event.phase == GlobalHotkeyPhase.pressed) _held.add(event.id!);
+          if (event.phase == GlobalHotkeyPhase.released) _held.remove(event.id);
+          _events.add(event);
         }),
       );
     }
@@ -284,6 +295,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
     }
     _listening.clear();
     _boundIds = const {};
+    _held.clear();
     if (_session == null) return;
     _session = null;
     if (!_events.isClosed) _events.add(const GlobalHotkeyEvent.lost());

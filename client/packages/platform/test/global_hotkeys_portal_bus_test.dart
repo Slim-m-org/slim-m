@@ -20,6 +20,7 @@ class _Portal extends DBusObject {
   final registered = <String>{};
   final bound = <List<String>>[];
   var sessions = 0;
+  String? lastSession;
 
   @override
   Future<DBusMethodResponse> getProperty(String interface, String name) async =>
@@ -50,6 +51,7 @@ class _Portal extends DBusObject {
         methods,
       );
       await client!.registerObject(session);
+      lastSession = session.path.value;
       results['session_handle'] = DBusString(session.path.value);
     }
     if (call.name == 'BindShortcuts') {
@@ -95,7 +97,21 @@ Future<void> _hostPortal(SendPort reply) async {
   await bus.registerObject(portal);
   final commands = ReceivePort();
   reply.send((address.value, commands.sendPort));
-  await for (final _ in commands) {
+  await for (final command in commands) {
+    if (command case ('press', final String id)) {
+      await bus.emitSignal(
+        path: DBusObjectPath('/org/freedesktop/portal/desktop'),
+        interface: 'org.freedesktop.portal.GlobalShortcuts',
+        name: 'Activated',
+        values: [
+          DBusObjectPath(portal.lastSession!),
+          DBusString(id),
+          const DBusUint64(0),
+          DBusDict.stringVariant({}),
+        ],
+      );
+      continue;
+    }
     reply.send((portal.methods, portal.bound));
     await bus.close();
     await server.close();
@@ -138,8 +154,14 @@ class _BusyClient extends DBusClient {
 
 typedef _Seen = (List<String> methods, List<List<String>> bound);
 
-/// A source wired to a stand-in portal, and a stop that returns what the portal saw.
-Future<(PortalGlobalHotkeySource, Future<_Seen> Function())> _withPortal({
+/// A source wired to a stand-in portal, a stop that returns what the portal
+/// saw, and a press of one shortcut in the portal's latest session.
+Future<
+    (
+      PortalGlobalHotkeySource,
+      Future<_Seen> Function(),
+      void Function(GlobalHotkeyId),
+    )> _withPortal({
   DBusClient Function(DBusAddress address) client = DBusClient.new,
 }) async {
   final replies = ReceivePort();
@@ -160,7 +182,9 @@ Future<(PortalGlobalHotkeySource, Future<_Seen> Function())> _withPortal({
     return inbox.current as _Seen;
   }
 
-  return (source, stop);
+  void press(GlobalHotkeyId id) => commands.send(('press', id.name));
+
+  return (source, stop, press);
 }
 
 GlobalHotkeyBinding _binding(GlobalHotkeyId id, LogicalKeyboardKey key) =>
@@ -177,7 +201,7 @@ final _talk = _binding(GlobalHotkeyId.pushToTalk, LogicalKeyboardKey.keyV);
 void main() {
   test('an answer read in the same batch as the name lookup is not lost',
       () async {
-    final (source, stop) = await _withPortal(client: _BusyClient.new);
+    final (source, stop, _) = await _withPortal(client: _BusyClient.new);
     final result = await source.bind([_mute]);
     final (methods, _) = await stop();
     expect(methods, ['Register', 'CreateSession', 'BindShortcuts', 'Close']);
@@ -185,7 +209,7 @@ void main() {
   });
 
   test('a changed set of shortcuts is bound in a fresh session', () async {
-    final (source, stop) = await _withPortal();
+    final (source, stop, _) = await _withPortal();
     await source.bind([_talk]);
     await source.bind([_talk, _mute, _deafen]);
     await source.bind([_talk, _mute, _deafen]);
@@ -205,5 +229,29 @@ void main() {
       'Close',
     ]);
     expect(bound.last, ['pushToTalk']);
+  });
+
+  test('a rebind while a shortcut is held releases it', () async {
+    final (source, stop, press) = await _withPortal();
+    final events = <GlobalHotkeyEvent>[];
+    final subscription = source.events.listen(events.add);
+    await source.bind([_talk]);
+    press(GlobalHotkeyId.pushToTalk);
+    for (var i = 0; i < 100 && events.isEmpty; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(events.map((e) => e.phase), [GlobalHotkeyPhase.pressed]);
+
+    await source.bind([_talk, _mute]);
+    await Future<void>.delayed(Duration.zero);
+    await subscription.cancel();
+    await stop();
+    expect(
+      events.map((e) => (e.id, e.phase)),
+      [
+        (GlobalHotkeyId.pushToTalk, GlobalHotkeyPhase.pressed),
+        (GlobalHotkeyId.pushToTalk, GlobalHotkeyPhase.released),
+      ],
+    );
   });
 }
