@@ -90,6 +90,8 @@ void main() {
     await tester.ensureVisible(toggle);
     await tester.tap(toggle);
     await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(AppButton, 'Save changes'));
+    await tester.pumpAndSettle();
 
     expect(patches, [
       {'hoist': true},
@@ -111,7 +113,10 @@ void main() {
       ),
     );
 
-    expect(find.bySemanticsLabel('Role name'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.byType(TextField)).label,
+      contains('Role name'),
+    );
     semantics.dispose();
   });
 

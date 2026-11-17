@@ -85,6 +85,9 @@ void main() {
     await tester.ensureVisible(teal);
     await tester.tap(teal);
     await tester.pumpAndSettle();
+    expect(patches, isEmpty);
+    await tester.tap(find.widgetWithText(AppButton, 'Save changes'));
+    await tester.pumpAndSettle();
     expect(patches, [
       {'color': 9},
     ]);
@@ -118,6 +121,8 @@ void main() {
     await tester.ensureVisible(none);
     await tester.tap(none);
     await tester.pump();
+    await tester.tap(find.widgetWithText(AppButton, 'Save changes'));
+    await tester.pumpAndSettle();
     expect(patches, [
       {'color': null},
     ]);
