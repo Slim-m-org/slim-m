@@ -51,7 +51,9 @@ class ThemeGalleryPage extends ConsumerStatefulWidget {
 }
 
 class _ThemeGalleryPageState extends ConsumerState<ThemeGalleryPage> {
-  late final _actions = ThemeGalleryActions(ref);
+  late final _actions = ThemeGalleryActions(
+    ProviderScope.containerOf(context, listen: false),
+  );
   final _scroll = ScrollController();
 
   @override

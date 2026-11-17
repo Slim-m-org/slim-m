@@ -83,15 +83,15 @@ ThemeGalleryError themeImportError(String fileName, List<String> problems) =>
       ].join('\n'),
     );
 
-/// The gallery's actions, run through the page's own [ref] so one outlives
-/// the card that started it.
+/// The gallery's actions, run through the app's [container] so one outlives
+/// the card, and the page, that started it.
 class ThemeGalleryActions {
-  ThemeGalleryActions(this.ref);
+  ThemeGalleryActions(this.container);
 
-  final WidgetRef ref;
+  final ProviderContainer container;
 
   ThemeGalleryStatusController get _status =>
-      ref.read(themeGalleryStatusProvider.notifier);
+      container.read(themeGalleryStatusProvider.notifier);
 
   Future<void> _run(
     String whatFailed,
@@ -117,12 +117,12 @@ class ThemeGalleryActions {
     await _run('apply the theme', () async {
       switch (entry.source) {
         case BuiltInThemeSource(:final choice):
-          await applyThemeChoice(ref, choice);
+          await applyThemeChoice(container, choice);
         case MineThemeSource() when document != null:
-          await applyThemeDocument(ref, document, source: entry.source);
+          await applyThemeDocument(container, document, source: entry.source);
         case SpaceThemeSource(:final id) when document != null:
           await applySpaceTheme(
-            ref,
+            container,
             id,
             document,
             hasPicture: entry.pictureId != null,
@@ -135,20 +135,20 @@ class ThemeGalleryActions {
   }
 
   Future<void> importFile() => _run('import the theme', () async {
-    final pick = await ref.read(themeFilePickerProvider)();
+    final pick = await container.read(themeFilePickerProvider)();
     if (pick == null) return null;
     final parsed = readThemeFile(pick.bytes);
     final document = parsed.document;
     if (document == null) {
       return themeImportError(pick.fileName, parsed.problems);
     }
-    final id = await ref.read(myThemesProvider.notifier).save(document);
+    final id = await container.read(myThemesProvider.notifier).save(document);
     return id == null ? _full : null;
   });
 
   Future<void> export(ThemeDocument document) => _run('export', () async {
     try {
-      await ref.read(themeFileSaverProvider)(
+      await container.read(themeFileSaverProvider)(
         themeFileName(document.name),
         utf8.encode(document.toJsonText()),
       );
@@ -166,24 +166,26 @@ class ThemeGalleryActions {
 
   Future<void> publish(ThemeDocument document) =>
       _run('publish the theme', () async {
-        await publishTheme(ref, document);
+        await publishTheme(container, document);
         return null;
       });
 
   /// Keeps [document] in Mine; when it is the theme in use, that now comes from Mine.
-  Future<void> saveToMine(ThemeDocument document) =>
-      _run('save the theme', () async {
-        final id = await ref.read(myThemesProvider.notifier).save(document);
-        if (id == null) return _full;
-        final applied = ref.read(customThemeProvider);
-        if (applied != null &&
-            themeMatchText(applied) == themeMatchText(document)) {
-          await ref
-              .read(customThemeSourceProvider.notifier)
-              .set(MineThemeSource(id));
-        }
-        return null;
-      });
+  Future<void> saveToMine(ThemeDocument document) => _run(
+    'save the theme',
+    () async {
+      final id = await container.read(myThemesProvider.notifier).save(document);
+      if (id == null) return _full;
+      final applied = container.read(customThemeProvider);
+      if (applied != null &&
+          themeMatchText(applied) == themeMatchText(document)) {
+        await container
+            .read(customThemeSourceProvider.notifier)
+            .set(MineThemeSource(id));
+      }
+      return null;
+    },
+  );
 
   /// On follows the Space default and its changes; off keeps [current] as a
   /// Space theme, so nothing repaints.
@@ -192,10 +194,10 @@ class ThemeGalleryActions {
     () async {
       final document = current.document;
       if (on) {
-        await applyThemeChoice(ref, AppThemeChoice.spaceDefault);
+        await applyThemeChoice(container, AppThemeChoice.spaceDefault);
       } else if (document != null) {
         await applyThemeDocument(
-          ref,
+          container,
           document,
           source: current.source,
           background: false,
@@ -206,12 +208,12 @@ class ThemeGalleryActions {
   );
 
   Future<void> delete(String mineId) => _run('delete the theme', () async {
-    await ref.read(myThemesProvider.notifier).remove(mineId);
+    await container.read(myThemesProvider.notifier).remove(mineId);
     return null;
   });
 
   Future<void> remove(String spaceId) => _run('remove the theme', () async {
-    await removeStoreTheme(ref, spaceId);
+    await removeStoreTheme(container, spaceId);
     return null;
   });
 
@@ -219,7 +221,7 @@ class ThemeGalleryActions {
   Future<void> setDefault(String? spaceId) => _run(
     spaceId == null ? 'clear the default theme' : 'set the default theme',
     () async {
-      await setSpaceDefaultTheme(ref, spaceId);
+      await setSpaceDefaultTheme(container, spaceId);
       return null;
     },
   );

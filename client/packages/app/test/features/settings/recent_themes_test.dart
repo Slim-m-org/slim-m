@@ -64,18 +64,6 @@ void main() {
     tester,
   ) async {
     final container = _container();
-    late WidgetRef ref;
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: Consumer(
-          builder: (context, r, _) {
-            ref = r;
-            return const SizedBox.shrink();
-          },
-        ),
-      ),
-    );
 
     await tester.runAsync(() async {
       for (final choice in [
@@ -83,19 +71,19 @@ void main() {
         AppThemeChoice.light,
         AppThemeChoice.forest,
       ]) {
-        await applyThemeChoice(ref, choice);
+        await applyThemeChoice(container, choice);
       }
       await applyThemeDocument(
-        ref,
+        container,
         _doc('Moss'),
         source: const MineThemeSource('m1'),
       );
       await applyThemeDocument(
-        ref,
+        container,
         _doc('Pine'),
         source: const SpaceThemeSource('t1'),
       );
-      await applyThemeChoice(ref, AppThemeChoice.dark);
+      await applyThemeChoice(container, AppThemeChoice.dark);
     });
     expect(_keys(container.read(recentThemesProvider)), [
       'builtin:dark',
@@ -106,10 +94,10 @@ void main() {
     ]);
 
     await tester.runAsync(() async {
-      await applyThemeChoice(ref, AppThemeChoice.softDark);
-      await applyThemeChoice(ref, AppThemeChoice.spaceDefault);
+      await applyThemeChoice(container, AppThemeChoice.softDark);
+      await applyThemeChoice(container, AppThemeChoice.spaceDefault);
       await applyThemeDocument(
-        ref,
+        container,
         _doc('Loose'),
         source: const FileThemeSource(),
       );
@@ -128,24 +116,12 @@ void main() {
     tester,
   ) async {
     final container = _container();
-    late WidgetRef ref;
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: Consumer(
-          builder: (context, r, _) {
-            ref = r;
-            return const SizedBox.shrink();
-          },
-        ),
-      ),
-    );
 
     await tester.runAsync(() async {
       await container
           .read(themeControllerProvider.notifier)
           .select(AppThemeChoice.forest);
-      await applyThemeChoice(ref, AppThemeChoice.light);
+      await applyThemeChoice(container, AppThemeChoice.light);
     });
 
     expect(_keys(container.read(recentThemesProvider)), [

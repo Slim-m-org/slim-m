@@ -17,21 +17,24 @@ import 'theme_source.dart';
 import 'theme_store.dart';
 
 /// Makes a built-in [choice], or following the Space default, the theme in use.
-Future<void> applyThemeChoice(WidgetRef ref, AppThemeChoice choice) async {
-  final leaving = ref.read(appliedThemeProvider);
-  await ref.read(themeControllerProvider.notifier).select(choice);
-  await _recordSwitch(ref, leaving, BuiltInThemeSource(choice));
+Future<void> applyThemeChoice(
+  ProviderContainer container,
+  AppThemeChoice choice,
+) async {
+  final leaving = container.read(appliedThemeProvider);
+  await container.read(themeControllerProvider.notifier).select(choice);
+  await _recordSwitch(container, leaving, BuiltInThemeSource(choice));
 }
 
 /// The theme left behind was in use until now, so it is the most recent
 /// after the new one, and going back to it is one tap.
 Future<void> _recordSwitch(
-  WidgetRef ref,
+  ProviderContainer container,
   AppliedTheme leaving,
   ThemeSource source, {
   ThemeDocument? theme,
 }) async {
-  final recent = ref.read(recentThemesProvider.notifier);
+  final recent = container.read(recentThemesProvider.notifier);
   await recent.record(leaving.source, theme: leaving.document);
   await recent.record(source, theme: theme);
 }
@@ -40,43 +43,43 @@ Future<void> _recordSwitch(
 /// its picture, when [pictureBytes] are given, becomes the personal background
 /// with the file's settings, unless [background] is false.
 Future<void> applyThemeDocument(
-  WidgetRef ref,
+  ProviderContainer container,
   ThemeDocument document, {
   required ThemeSource source,
   Uint8List? pictureBytes,
   bool background = true,
 }) async {
-  final leaving = ref.read(appliedThemeProvider);
-  await ref.read(customThemeProvider.notifier).set(document);
-  await ref.read(customThemeSourceProvider.notifier).set(source);
-  await ref
+  final leaving = container.read(appliedThemeProvider);
+  await container.read(customThemeProvider.notifier).set(document);
+  await container.read(customThemeSourceProvider.notifier).set(source);
+  await container
       .read(themeControllerProvider.notifier)
       .select(AppThemeChoice.custom);
-  await _recordSwitch(ref, leaving, source, theme: document);
+  await _recordSwitch(container, leaving, source, theme: document);
   final picture = document.picture;
   if (picture == null || pictureBytes == null || !background) return;
-  final layer = ref.read(appBackgroundControllerProvider.notifier);
+  final layer = container.read(appBackgroundControllerProvider.notifier);
   // The file's picture settings describe a picture that is not there, so a failed import applies none of them.
   if (!await layer.importPicture(pictureBytes)) return;
   await layer.setDim(picture.dim);
   await layer.setVignette(picture.vignette);
   await layer.setBlur(picture.blur);
-  await ref.read(backgroundFromThemeProvider.notifier).set(document.name);
+  await container.read(backgroundFromThemeProvider.notifier).set(document.name);
 }
 
 /// Applies the Space theme [id], already read as [document], fetching its
 /// picture first when it has one.
 Future<void> applySpaceTheme(
-  WidgetRef ref,
+  ProviderContainer container,
   String id,
   ThemeDocument document, {
   required bool hasPicture,
 }) async {
   final bytes = hasPicture
-      ? await ref.read(spaceThemePictureProvider(id).future)
+      ? await container.read(spaceThemePictureProvider(id).future)
       : null;
   await applyThemeDocument(
-    ref,
+    container,
     document,
     source: SpaceThemeSource(id),
     pictureBytes: bytes,
@@ -84,22 +87,28 @@ Future<void> applySpaceTheme(
 }
 
 /// Publishes [document] to the Space under the signed-in member's name.
-Future<void> publishTheme(WidgetRef ref, ThemeDocument document) async {
-  final me = ref.read(meProvider).valueOrNull;
+Future<void> publishTheme(
+  ProviderContainer container,
+  ThemeDocument document,
+) async {
+  final me = container.read(meProvider).valueOrNull;
   final shown = (me?.displayName ?? me?.username ?? '').trim();
   final author = String.fromCharCodes(shown.runes.take(themeNameMaxChars));
   final file = document.copyWith(author: author, dropPicture: true);
-  await ref.read(apiProvider).publishSpaceTheme(file.toJson());
-  ref.invalidate(spaceThemesProvider);
+  await container.read(apiProvider).publishSpaceTheme(file.toJson());
+  container.invalidate(spaceThemesProvider);
 }
 
-Future<void> removeStoreTheme(WidgetRef ref, String id) async {
-  await ref.read(apiProvider).deleteSpaceTheme(id);
-  ref.invalidate(spaceThemesProvider);
+Future<void> removeStoreTheme(ProviderContainer container, String id) async {
+  await container.read(apiProvider).deleteSpaceTheme(id);
+  container.invalidate(spaceThemesProvider);
 }
 
 /// A null [id] clears the Space default.
-Future<void> setSpaceDefaultTheme(WidgetRef ref, String? id) async {
-  await ref.read(apiProvider).setSpaceDefaultTheme(id);
-  ref.invalidate(spaceThemesProvider);
+Future<void> setSpaceDefaultTheme(
+  ProviderContainer container,
+  String? id,
+) async {
+  await container.read(apiProvider).setSpaceDefaultTheme(id);
+  container.invalidate(spaceThemesProvider);
 }

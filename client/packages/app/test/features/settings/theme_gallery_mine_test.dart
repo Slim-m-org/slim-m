@@ -3,6 +3,7 @@
 /// card, and the ways into the editor from a built-in or a Space theme.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/settings/providers/my_themes.dart';
 import 'package:slimm_app/src/features/settings/providers/stored_theme.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_file_io.dart';
+import 'package:slimm_app/src/features/settings/providers/theme_gallery_actions.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_labels.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_source.dart';
 import 'package:slimm_app/src/features/settings/widgets/theme_gallery_menu.dart';
@@ -214,6 +216,30 @@ void main() {
     await _tap(tester, find.text('Publish to Space'));
     expect(rig.calls, contains('POST /space/themes'));
     expect(find.textContaining('theme limit'), findsOneWidget);
+  });
+
+  testWidgets('a publish that lands after leaving Themes still succeeds', (
+    tester,
+  ) async {
+    final rig = EditorRig()..publishGate = Completer<void>();
+    await _page(tester, rig: rig);
+    final status = rig.container.listen(themeGalleryStatusProvider, (_, _) {});
+    addTearDown(status.close);
+    final id = await rig.container
+        .read(myThemesProvider.notifier)
+        .save(_doc('Pine'));
+    await tester.pump();
+
+    await _tap(tester, _key('theme-mine-$id-menu'));
+    await _tap(tester, find.text('Publish to Space'));
+    await _tap(tester, find.byTooltip('Back to Appearance'));
+    expect(_key('theme-mine-$id-menu'), findsNothing);
+    rig.publishGate!.complete();
+    await settle(tester);
+
+    expect(rig.published, isNotNull);
+    expect(status.read().busy, isFalse);
+    expect(status.read().error, isNull);
   });
 
   testWidgets('delete from a card removes it once confirmed', (tester) async {
