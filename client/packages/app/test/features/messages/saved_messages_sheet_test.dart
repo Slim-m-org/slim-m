@@ -19,7 +19,6 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/messages/widgets/saved_messages_sheet.dart';
 import 'package:slimm_data/data.dart';
-import 'package:slimm_app/src/features/settings/widgets/settings_empty.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
@@ -133,7 +132,7 @@ void main() {
     expect(find.text('kept for later'), findsNothing);
     expect(find.textContaining('Nothing saved yet'), findsOneWidget);
     expect(
-      find.byType(SettingsEmptyState),
+      find.byIcon(AppIcons.bookmark),
       findsOneWidget,
       reason: 'the same empty card the settings panes use',
     );

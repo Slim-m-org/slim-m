@@ -10,6 +10,8 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.da
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
+
 Widget _rail({required bool canManage}) => ProviderScope(
   child: MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),
@@ -37,7 +39,7 @@ void main() {
     await tester.pump();
 
     await tester.tap(_kebab);
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     expect(find.text('Rename category...'), findsOneWidget);
     expect(find.text('Delete category...'), findsOneWidget);

@@ -25,6 +25,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
@@ -213,7 +214,7 @@ void main() {
     });
     await rig.open(tester);
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     expect(find.text('hi there'), findsOneWidget);
     expect(

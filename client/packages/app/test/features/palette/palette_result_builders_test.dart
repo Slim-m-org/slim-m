@@ -83,15 +83,7 @@ void main() {
 
     test('puts the people who are around ahead of those who are not', () {
       final members = [_member('asleep'), _member('here'), _member('off')];
-      final items = buildMemberItems(
-        members,
-        '',
-        'me',
-        reported: {
-          'here': api.PresenceState.online,
-          'off': api.PresenceState.offline,
-        },
-      );
+      final items = buildMemberItems(members, '', 'me', around: {'here'});
       expect(items.map((i) => i.label), ['here', 'asleep', 'off']);
     });
   });

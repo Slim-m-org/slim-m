@@ -18,6 +18,8 @@ import 'package:slimm_app/src/features/settings/screens/admin/invite_role_grant_
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
+import '../../support/async_wait.dart';
+
 const _tokens = api.TokenPair(
   userId: 'me',
   accessToken: 'access',
@@ -173,7 +175,7 @@ void main() {
     await _pump(tester, Perm.manageRoles | Perm.manageMessages);
 
     await tester.tap(find.text('Role granted'));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     expect(find.text('moderator'), findsOneWidget);
     expect(find.text('Bots'), findsNothing);

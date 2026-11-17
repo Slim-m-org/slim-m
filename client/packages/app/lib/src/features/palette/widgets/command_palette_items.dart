@@ -180,22 +180,19 @@ List<PaletteResultItem> buildGroupDmItems(
     ),
 ];
 
-/// [members] with everyone who is around ahead of everyone who is not, each
+/// [members] with everyone in [around] ahead of everyone who is not, each
 /// side keeping its own order.
 List<api.UserProfile> onlineFirst(
   List<api.UserProfile> members,
-  Map<String, api.PresenceState> reported,
-) {
-  bool around(api.UserProfile m) => switch (reported[m.id]) {
-    null || api.PresenceState.offline => false,
-    _ => true,
-  };
-  return [...members.where(around), ...members.where((m) => !around(m))];
-}
+  Set<String> around,
+) => [
+  ...members.where((m) => around.contains(m.id)),
+  ...members.where((m) => !around.contains(m.id)),
+];
 
 /// Members matching [query], excluding [selfId], with no cap: the list
 /// scrolls, and a person past the eighth was otherwise unreachable by
-/// browsing. [reported] puts the people who are around first. A DM with
+/// browsing. [around] puts the people who are around first. A DM with
 /// yourself is a personal space now and opens fine, but it is Notes, listed
 /// under Channels and reached from the rail's Notes button - finding it under
 /// People by your own name would be the opposite of obvious.
@@ -203,11 +200,11 @@ List<PaletteResultItem> buildMemberItems(
   List<api.UserProfile> members,
   String query,
   String? selfId, {
-  Map<String, api.PresenceState> reported = const {},
+  Set<String> around = const {},
 }) => [
   for (final member in onlineFirst(
     members,
-    reported,
+    around,
   ).where((m) => m.id != selfId).where((m) => memberMatchesQuery(m, query)))
     PaletteResultItem(
       label: member.displayName,

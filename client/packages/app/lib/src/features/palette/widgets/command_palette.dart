@@ -24,7 +24,7 @@ import '../../../providers/admin_providers.dart';
 import '../../../routing/modal_page.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
-import '../../members/providers/presence_controller.dart';
+import '../../members/providers/presence_view.dart' show aroundUserIdsProvider;
 import '../../messages/providers/message_search.dart';
 import '../../voice/providers/transcript_search.dart';
 import '../../../providers/providers.dart';
@@ -401,7 +401,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
             inputs.members,
             query,
             inputs.me?.id,
-            reported: ref.watch(presenceControllerProvider),
+            around: ref.watch(aroundUserIdsProvider),
           ),
         ),
       if (everything && !_messagesForbidden)

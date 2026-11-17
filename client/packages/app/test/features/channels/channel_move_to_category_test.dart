@@ -14,6 +14,7 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.da
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
 import '../../support/menu_gestures.dart';
 
 Channel _channel(String id, {String? categoryId, String? lobby}) => Channel(
@@ -117,9 +118,9 @@ void main() {
 
     await rightClickMenu(tester, find.text('general'));
     await tester.tap(find.text('Move to category...'));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
     await tester.tap(find.text('fun').last);
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     expect(_byCategory(sent!)['fun'], ['general']);
   });
