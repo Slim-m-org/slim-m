@@ -205,6 +205,9 @@ abstract final class AppIcons {
 
   /// Music while alone in a call.
   static const IconData music = LucideIcons.music300;
+
+  /// The call's sound clips: a drum, so it never reads as [music] beside it in the dock.
+  static const IconData soundboard = LucideIcons.drum300;
   static const IconData camera = LucideIcons.video300;
   static const IconData cameraOff = LucideIcons.videoOff300;
 

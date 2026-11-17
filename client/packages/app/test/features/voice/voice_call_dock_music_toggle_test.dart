@@ -9,8 +9,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/audio/hold_music_player.dart';
 import 'package:slimm_app/src/audio/lounge_tracks.dart';
+import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
+import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/canvas_call_dock_fixtures.dart';
@@ -55,6 +57,8 @@ Future<ProviderContainer> _pump(
   double width = 560,
   bool touch = false,
   String? canvasChannelId,
+  VoiceFlags voice = _connected,
+  List<Override> overrides = const [],
 }) async {
   SharedPreferences.setMockInitialValues({});
   _player.calls.clear();
@@ -64,13 +68,14 @@ Future<ProviderContainer> _pump(
   addTearDown(tester.view.reset);
   return pumpVoiceCallDock(
     tester,
-    _connected,
+    voice,
     width: width,
     touch: touch,
     canvasChannelId: canvasChannelId,
     extraOverrides: [
       holdMusicPlayerProvider.overrideWithValue(_player),
       voiceParticipantsProvider.overrideWith((ref) => ref.watch(_roster)),
+      ...overrides,
     ],
   );
 }
@@ -208,5 +213,34 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('slimm.voice.hold_music_track'), 'jazz');
     expect(find.bySemanticsLabel('Pause music (Jazz)'), findsOneWidget);
+  });
+
+  testWidgets('the soundboard beside the music button draws its own icon', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      width: 590,
+      voice: const VoiceFlags(
+        state: VoiceSessionState.connected,
+        channelId: 'c1',
+      ),
+      overrides: [
+        myChannelPermissionsProvider(
+          'c1',
+        ).overrideWithValue(Perm.connect | Perm.speak | Perm.useSoundboard),
+      ],
+    );
+
+    IconData? iconOf(String tooltip) => tester
+        .widget<Icon>(
+          find.descendant(
+            of: find.byTooltip(tooltip),
+            matching: find.bySubtype<Icon>(),
+          ),
+        )
+        .icon;
+    expect(find.bySemanticsLabel(_off), findsOneWidget);
+    expect(iconOf('Soundboard'), isNot(iconOf(_off)));
   });
 }
