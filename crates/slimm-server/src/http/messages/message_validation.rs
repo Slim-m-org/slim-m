@@ -3,7 +3,11 @@
 //! either. Split out of [`super`] when that file reached the
 //! 500-line ceiling.
 
+use std::borrow::Cow;
+
 use uuid::Uuid;
+
+use crate::hidden_chars::{draws_nothing, strip_reading_rewrites};
 
 use super::super::error::ApiError;
 
@@ -15,11 +19,18 @@ const MESSAGE_MAX_CHARS: usize = 4000;
 /// optional; every other caller passes false, so the relaxation cannot spread
 /// by being the default.
 ///
+/// Controls and direction overrides are stripped first, and text that draws
+/// nothing is empty, the same characters names refuse.
+///
 /// The over-limit reply names how far over and what the limit is, rather
 /// than a bare "too long": a client composing a long paste (logs, say) needs
 /// the number to trim by, not just the fact that it failed.
-pub(in crate::http) fn validate_content(content: &str, empty_ok: bool) -> Result<&str, ApiError> {
-    if !empty_ok && content.trim().is_empty() {
+pub(in crate::http) fn validate_content(
+    content: &str,
+    empty_ok: bool,
+) -> Result<Cow<'_, str>, ApiError> {
+    let content = strip_reading_rewrites(content);
+    if !empty_ok && draws_nothing(&content) {
         return Err(ApiError::BadRequest("message content must not be empty"));
     }
     let len = content.chars().count();

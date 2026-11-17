@@ -148,7 +148,7 @@ async fn send(
     // A forward with no note of its own is a complete message; so is one
     // that is only attachments.
     let carries_more = !attachment_ids.is_empty() || req.forwarded_from_id.is_some();
-    let content = validate_content(&req.content, carries_more)?;
+    let content = &*validate_content(&req.content, carries_more)?;
     let id = MessageId(parse_uuid(&req.id)?);
     let embeds = embeds::honored_for_send(&state, ctx.user_id, req.embeds).await?;
     let components =
@@ -470,7 +470,7 @@ async fn edit(
         .map(|(_, summary)| summary);
 
     // An edit carries no attachment list, so nothing stands in for cleared text - unless the message forwards something.
-    let content = validate_content(&req.content, forwarded.is_some())?;
+    let content = &*validate_content(&req.content, forwarded.is_some())?;
     let intercepted = intercept(
         &state,
         &Draft {

@@ -258,7 +258,7 @@ async fn create(
         return Err(ApiError::Forbidden);
     }
 
-    let content = validate_content(&req.content, true)?;
+    let content = &*validate_content(&req.content, true)?;
     refuse_hidden_poll_text(&req.question, &req.options)?;
     validate_close_at(req.close_at, now_ms())?;
     let id = MessageId(parse_uuid(&req.id)?);

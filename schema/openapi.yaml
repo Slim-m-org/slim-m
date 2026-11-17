@@ -19642,7 +19642,12 @@ components:
             Must not be blank unless the message carries something else:
             `attachment_ids` is non-empty, or `forwarded_from_id` is set. A
             message carrying a file or a forward needs no text of its own,
-            and a blank one carrying neither is a 400.
+            and a blank one carrying neither is a 400. Blank includes text of
+            only characters that draw nothing (zero-width spaces, joiners,
+            braille and hangul blanks, variation selectors). Control
+            characters other than line breaks and tabs, and bidi embeddings,
+            overrides and isolates, are removed before the message is stored,
+            here and on an edit; `\r\n` is stored as `\n`.
         attachment_ids:
           type: array
           description: >
@@ -19804,6 +19809,9 @@ components:
           type: string
           minLength: 1
           maxLength: 4000
+          description: >
+            Held to `SendMessageRequest.content`'s rules: blank text is a 400,
+            and control and bidi override characters are removed.
         embeds:
           type: array
           description: >-

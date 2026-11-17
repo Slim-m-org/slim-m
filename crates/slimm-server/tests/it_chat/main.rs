@@ -39,6 +39,7 @@ mod message_embeds_send;
 mod message_endpoints;
 mod message_forwards;
 mod message_get;
+mod message_hidden_chars;
 mod message_length_limit;
 mod message_mentions;
 mod message_ops;

@@ -2,6 +2,8 @@
 //! The one classifier for characters that change what a reader sees without
 //! changing what the text does (trojan source, CVE-2021-42574).
 
+use std::borrow::Cow;
+
 /// True for a character that changes or hides what a reader sees: a control,
 /// a text-direction mark, or one that draws nothing at all. `pub(crate)` so
 /// names, status lines, presence, labels, code runs and module manifests all
@@ -39,6 +41,28 @@ pub(crate) fn is_variation_selector(c: char) -> bool {
         '\u{180B}'..='\u{180D}'
         | '\u{FE00}'..='\u{FE0F}'
         | '\u{E0100}'..='\u{E01EF}')
+}
+
+/// True when `text` draws nothing at all: only whitespace, hidden characters and variation selectors.
+pub(crate) fn draws_nothing(text: &str) -> bool {
+    text.chars()
+        .all(|c| c.is_whitespace() || is_hidden_char(c) || is_variation_selector(c))
+}
+
+/// A control other than a line break or tab, or a bidi embedding, override or isolate.
+/// These rewrite how the text around them reads (a spoofed `.exe`, a terminal escape),
+/// and nothing a person types needs them in a message.
+fn rewrites_reading(c: char) -> bool {
+    (c.is_control() && c != '\n' && c != '\t')
+        || matches!(c, '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
+}
+
+/// `text` without [`rewrites_reading`] characters; `\r\n` becomes `\n` on the way.
+pub(crate) fn strip_reading_rewrites(text: &str) -> Cow<'_, str> {
+    match text.chars().any(rewrites_reading) {
+        true => Cow::Owned(text.chars().filter(|c| !rewrites_reading(*c)).collect()),
+        false => Cow::Borrowed(text),
+    }
 }
 
 const ZWJ: char = '\u{200D}';
@@ -98,7 +122,44 @@ pub(crate) fn hides_text_outside_emoji(text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{hides_text_outside_emoji, is_hidden_char, is_variation_selector};
+    use super::{
+        draws_nothing, hides_text_outside_emoji, is_hidden_char, is_variation_selector,
+        strip_reading_rewrites,
+    };
+
+    #[test]
+    fn only_invisible_text_draws_nothing() {
+        for blank in [
+            "",
+            " \n",
+            "\u{200B}",
+            "\u{2800}\u{FE0F}",
+            "\u{3164}\u{00A0}",
+        ] {
+            assert!(draws_nothing(blank), "{blank:?}");
+        }
+        for drawn in [
+            "a",
+            "\u{200B}a",
+            "\u{2764}\u{FE0F}",
+            "\u{1F468}\u{200D}\u{1F469}",
+        ] {
+            assert!(!draws_nothing(drawn), "{drawn:?}");
+        }
+    }
+
+    #[test]
+    fn controls_and_overrides_are_stripped_and_line_breaks_kept() {
+        assert_eq!(strip_reading_rewrites("a\r\nb\tc\nd"), "a\nb\tc\nd");
+        assert_eq!(
+            strip_reading_rewrites("x\u{0}\u{1B}\u{85}\u{202E}\u{2067}y"),
+            "xy"
+        );
+        assert_eq!(
+            strip_reading_rewrites("\u{200E}keep\u{200F}"),
+            "\u{200E}keep\u{200F}"
+        );
+    }
 
     #[test]
     fn variation_selectors_are_modifiers_not_hidden_characters() {

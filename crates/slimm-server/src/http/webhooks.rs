@@ -153,7 +153,7 @@ async fn deliver(
     )?;
     // Sonarr, Radarr and the like send an embed per event and no content at all.
     let carries_more = embeds::any_visible(&embeds);
-    let content = validate_content(body.content.as_deref().unwrap_or(""), carries_more)?;
+    let content = &*validate_content(body.content.as_deref().unwrap_or(""), carries_more)?;
     let username = match body.username.as_deref().map(str::trim) {
         Some(name) if !name.is_empty() => {
             if name.chars().count() > USERNAME_MAX_CHARS {

@@ -148,7 +148,7 @@ async fn create(
         return Err(ApiError::Forbidden);
     }
 
-    let content = validate_content(&req.content, true)?;
+    let content = &*validate_content(&req.content, true)?;
     let id = MessageId(parse_uuid(&req.id)?);
     // Never on a retry: a launch that already landed must not be refused for arriving too soon.
     let stored_already = state.store.message_including_deleted(id).await?.is_some();
