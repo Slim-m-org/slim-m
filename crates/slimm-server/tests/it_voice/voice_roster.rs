@@ -422,12 +422,18 @@ async fn only_the_asking_devices_own_connection_is_marked_this_device() {
     let phone = store.open_session(account.id, "phone").await.unwrap();
     let (_, bob_id) = member(&store, "bob").await;
     let device = slimm_server::voice::DEVICE_ATTRIBUTE;
+    let laptop_tag = voice_at(&unreachable_url())
+        .device_tag(channel.id, laptop.device_id)
+        .unwrap();
     let voice = voice_at(
         &spawn_room_service(json!([
-            { "identity": account.id.to_string(), "name": "alice",
-              "attributes": { (device): laptop.device_id.to_string() } },
+            { "identity": account.id.to_string(), "name": "alice on the laptop",
+              "attributes": { (device): laptop_tag } },
+            // A call joined before device tags still shows the raw id.
+            { "identity": account.id.to_string(), "name": "alice on the phone",
+              "attributes": { (device): phone.device_id.to_string() } },
             { "identity": bob_id, "name": "bob",
-              "attributes": { (device): laptop.device_id.to_string() } },
+              "attributes": { (device): laptop_tag } },
         ]))
         .await,
     );
@@ -455,14 +461,21 @@ async fn only_the_asking_devices_own_connection_is_marked_this_device() {
                 .collect::<Vec<_>>()
         }
     };
+    let shown = |laptop: bool, phone: bool| {
+        vec![
+            ("alice on the laptop".to_owned(), laptop),
+            ("alice on the phone".to_owned(), phone),
+            ("bob".to_owned(), false),
+        ]
+    };
     assert_eq!(
         marks(laptop.access_token.clone()).await,
-        vec![("alice".to_owned(), true), ("bob".to_owned(), false)],
+        shown(true, false),
         "the laptop's own connection is marked, and nobody else's ever is"
     );
     assert_eq!(
         marks(phone.access_token.clone()).await,
-        vec![("alice".to_owned(), false), ("bob".to_owned(), false)],
+        shown(false, true),
         "seen from the phone, the laptop's connection is another device"
     );
 }

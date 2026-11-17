@@ -148,7 +148,7 @@ async fn token(
         ctx.user_id,
         permissions,
         display_name,
-        &ctx.device_id.to_string(),
+        ctx.device_id,
     ) {
         Ok(token) => Ok(Json(token.into())),
         // No SFU is a supported configuration, not a fault; say so plainly.
@@ -323,7 +323,9 @@ async fn roster(
     let now = crate::store::now_ms();
     let mut earliest_join: Option<i64> = None;
     let mut participants = Vec::with_capacity(connected.len());
-    let my_device = ctx.device_id.to_string();
+    let my_device = state.voice.device_tag(channel_id, ctx.device_id);
+    // A token minted before device tags carried the raw id, and its call can outlive a deploy.
+    let my_raw_device = ctx.device_id.to_string();
     for participant in connected {
         if participant.user_id != ctx.user_id
             && visibilities.get(&participant.user_id) == Some(&Visibility::Hidden)
@@ -335,7 +337,10 @@ async fn roster(
             (a, b) => a.or(b),
         };
         let this_device = participant.user_id == ctx.user_id
-            && participant.device_id.as_deref() == Some(my_device.as_str());
+            && participant
+                .device_id
+                .as_deref()
+                .is_some_and(|shown| Some(shown) == my_device.as_deref() || shown == my_raw_device);
         participants.push(RosterParticipantDto {
             this_device,
             user_id: participant.user_id.to_string(),
