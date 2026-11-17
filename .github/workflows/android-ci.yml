@@ -26,7 +26,6 @@ on:
       - ".github/workflows/main-builds.yml"
       - ".github/actions/native-hooks-cache/**"
       - ".github/actions/native-hooks-diagnose/**"
-      - ".github/actions/release-android-client/**"
   pull_request:
     paths:
       - "client/pubspec.lock"
@@ -38,7 +37,6 @@ on:
       - ".github/workflows/main-builds.yml"
       - ".github/actions/native-hooks-cache/**"
       - ".github/actions/native-hooks-diagnose/**"
-      - ".github/actions/release-android-client/**"
   workflow_dispatch:
 
 permissions:
