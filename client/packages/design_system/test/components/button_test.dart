@@ -20,6 +20,21 @@ void main() {
       expect(find.bySemanticsLabel('Save'), findsOneWidget);
     });
 
+    testWidgets('a trailing icon sits after the label', (tester) async {
+      await _pump(
+        tester,
+        AppButton(
+          label: 'Browse',
+          trailingIcon: AppIcons.chevronRight,
+          onPressed: () {},
+        ),
+      );
+      final label = tester.getRect(find.text('Browse'));
+      final icon = tester.getRect(find.byIcon(AppIcons.chevronRight));
+      expect(icon.left, greaterThan(label.right));
+      expect(find.bySemanticsLabel('Browse'), findsOneWidget);
+    });
+
     testWidgets('the five variants render with distinguishable fills and ink',
         (tester) async {
       const tokens = AppTokens.light;
@@ -95,6 +110,22 @@ void main() {
       await tester.tap(find.byType(AppButton));
       await tester.pump();
       expect(pressed, isTrue);
+    });
+
+    testWidgets('a button pressed with Enter keeps focus while busy',
+        (tester) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      Widget button({required bool busy}) => AppButton(
+          label: 'Save', busy: busy, focusNode: node, onPressed: () {});
+      await _pump(tester, button(busy: false));
+      node.requestFocus();
+      await tester.pump();
+
+      await _pump(tester, button(busy: true));
+      expect(node.hasPrimaryFocus, isTrue);
+      await _pump(tester, button(busy: false));
+      expect(node.hasPrimaryFocus, isTrue);
     });
 
     testWidgets('busy shows a spinner, swallows taps and does not dim',

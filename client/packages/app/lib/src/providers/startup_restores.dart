@@ -11,8 +11,11 @@
 library;
 
 import '../features/canvas/providers/canvas_recent_colours.dart';
+import '../features/settings/providers/background_from_theme.dart';
 import '../features/settings/providers/my_themes.dart';
+import '../features/settings/providers/recent_themes.dart';
 import '../features/settings/providers/stored_theme.dart';
+import '../features/settings/providers/theme_source.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -60,6 +63,8 @@ final Map<String, RestorablePreference Function(ProviderContainer)>
 restorablePreferences = {
   'theme': (c) => c.read(themeControllerProvider.notifier),
   'custom theme': (c) => c.read(customThemeProvider.notifier),
+  'custom theme source': (c) => c.read(customThemeSourceProvider.notifier),
+  'recent themes': (c) => c.read(recentThemesProvider.notifier),
   'my themes': (c) => c.read(myThemesProvider.notifier),
   'canvas recent colours': (c) => c.read(canvasRecentColoursProvider.notifier),
   'space default theme': (c) => c.read(spaceDefaultThemeProvider.notifier),
@@ -67,6 +72,7 @@ restorablePreferences = {
   'motion': (c) => c.read(motionPreferenceControllerProvider.notifier),
   'high contrast': (c) => c.read(highContrastControllerProvider.notifier),
   'background': (c) => c.read(appBackgroundControllerProvider.notifier),
+  'background from': (c) => c.read(backgroundFromThemeProvider.notifier),
   'image cache limit': (c) =>
       c.read(imageCacheLimitControllerProvider.notifier),
   'attachment preview quality': (c) =>

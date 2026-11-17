@@ -16,11 +16,44 @@ final spaceThemesProvider = FutureProvider.autoDispose<api.SpaceThemeList>(
   (ref) => ref.watch(apiProvider).listSpaceThemes(),
 );
 
+/// Keeps the pictures fetched while a page that watches it is open.
+class SpaceThemePictureHold {
+  final _links = <KeepAliveLink>[];
+  var _released = false;
+
+  void _keep(KeepAliveLink link) => _released ? link.close() : _links.add(link);
+
+  void _release() {
+    _released = true;
+    for (final link in _links) {
+      link.close();
+    }
+    _links.clear();
+  }
+}
+
+/// Watched by a page of lazily built cards, so a card that scrolls away and
+/// back neither fetches nor decodes its picture again.
+final spaceThemePictureHoldProvider =
+    Provider.autoDispose<SpaceThemePictureHold>((ref) {
+      final hold = SpaceThemePictureHold();
+      ref.onDispose(hold._release);
+      return hold;
+    });
+
 /// A store theme's picture bytes, fetched once per id.
 final spaceThemePictureProvider = FutureProvider.autoDispose
     .family<Uint8List, String>((ref, id) async {
-      final fetched = await ref.watch(apiProvider).fetchSpaceThemePicture(id);
-      return fetched.bytes;
+      final link = ref.keepAlive();
+      // Read, not watched: only a page's own watch decides how long it stays.
+      ref.read(spaceThemePictureHoldProvider)._keep(link);
+      try {
+        final fetched = await ref.watch(apiProvider).fetchSpaceThemePicture(id);
+        return fetched.bytes;
+      } catch (_) {
+        link.close();
+        rethrow;
+      }
     });
 
 /// Mirrors the Space default into [spaceDefaultThemeProvider] whenever the

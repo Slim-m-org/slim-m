@@ -185,4 +185,143 @@ void main() {
     await tester.enterText(find.byKey(AppColourPicker.hexFieldKey), '#FFB0');
     expect(seen, [const Color(0xFFFFB000)]);
   });
+
+  testWidgets('confirmLabel names the button that keeps the colour', (
+    tester,
+  ) async {
+    Color? kept;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: AppColourPicker(
+            initial: const Color(0xFF3366CC),
+            confirmLabel: 'Done',
+            onSave: (c) => kept = c,
+            onCancel: () {},
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Save'), findsNothing);
+    await tester.tap(find.text('Done'));
+    expect(kept, const Color(0xFF3366CC));
+  });
+
+  testWidgets('extraBuilder sees each colour as the square is dragged', (
+    tester,
+  ) async {
+    final built = <Color>[];
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: AppColourPicker(
+            initial: const Color(0xFF3366CC),
+            onSave: (_) {},
+            onCancel: () {},
+            extraBuilder: (context, colour) {
+              built.add(colour);
+              return Text('extra ${hexOfColour(colour)}');
+            },
+          ),
+        ),
+      ),
+    );
+    expect(find.text('extra #3366CC'), findsOneWidget);
+    final square = tester.getRect(
+      find.bySemanticsLabel('Saturation and brightness'),
+    );
+    final gesture = await tester.startGesture(square.center);
+    await tester.pump();
+    final first = built.last;
+    await gesture.moveBy(const Offset(40, 20));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+    expect(built.last, isNot(first));
+    expect(find.text('extra ${hexOfColour(built.last)}'), findsOneWidget);
+    expect(find.text('extra $_hexText'), findsOneWidget);
+  });
+
+  testWidgets('the sheet shows its caption under the title', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: TextButton(
+                onPressed: () => showAppColourPicker(
+                  context,
+                  initial: const Color(0xFFFF0000),
+                  title: 'Accent',
+                  caption: 'Also sets Accent fill.',
+                  confirmLabel: 'Done',
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Done'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Also sets Accent fill.')).dy,
+      greaterThan(tester.getBottomLeft(find.text('Accent')).dy),
+    );
+  });
+
+  testWidgets('the preview chip lines up with the hex field border', (
+    tester,
+  ) async {
+    await _pump(tester);
+    final chip = tester.getRect(find.bySemanticsLabel(RegExp('^Preview #')));
+    final hex = tester.getRect(find.byKey(AppColourPicker.hexFieldKey));
+
+    expect(chip.center.dy, hex.center.dy);
+  });
+
+  testWidgets('beside puts the square left of the hex field and buttons', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(620, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: AppColourPicker(
+            initial: const Color(0xFF3366CC),
+            beside: true,
+            onSave: (_) {},
+            onCancel: () {},
+            extraBuilder: (context, colour) => const Text('extra'),
+          ),
+        ),
+      ),
+    );
+    final square = tester.getRect(
+      find.bySemanticsLabel('Saturation and brightness'),
+    );
+    final hex = tester.getRect(find.byKey(AppColourPicker.hexFieldKey));
+    final extra = tester.getRect(find.text('extra'));
+    final confirm = tester.getRect(find.byKey(AppColourPicker.confirmKey));
+    expect(hex.left, greaterThan(square.right));
+    expect(hex.top, lessThan(square.center.dy));
+    expect(extra.top, greaterThan(hex.bottom));
+    expect(confirm.top, greaterThan(extra.bottom));
+    expect(confirm.bottom, lessThan(square.bottom + 60));
+  });
 }

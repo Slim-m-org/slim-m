@@ -166,6 +166,13 @@ abstract final class AppIcons {
   /// or a video before it finishes buffering. See `downloads/downloads_controller.dart`.
   static const IconData download = LucideIcons.download300;
 
+  /// Bringing a file in, [download]'s counterpart: importing a theme file.
+  static const IconData upload = LucideIcons.upload300;
+
+  /// A light or a dark theme, on its card in the theme gallery.
+  static const IconData themeLight = LucideIcons.sun300;
+  static const IconData themeDark = LucideIcons.moon300;
+
   /// Handing an opened image to the system share sheet; see `image_export.dart`.
   static const IconData share = LucideIcons.share2300;
 
@@ -379,6 +386,12 @@ abstract final class AppIcons {
   /// Copying a shareable link rather than the raw value beside it -
   /// an invite link carries its server too, where [copy] takes the code alone.
   static const IconData link = LucideIcons.link300;
+
+  /// A theme colour that follows its main colour until it is changed itself.
+  static const IconData linkedColour = LucideIcons.link2300;
+
+  /// Every check passed, where a bare [check] would read as a selection.
+  static const IconData allPassed = LucideIcons.circleCheck300;
 
   /// A fourth, distinct shape for "not known", never to be confused with
   /// [danger]'s "known not to work".

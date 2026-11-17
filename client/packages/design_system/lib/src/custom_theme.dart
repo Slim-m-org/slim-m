@@ -259,7 +259,9 @@ ThemeParse parseThemeFile(String text) {
   return parseThemeJson(raw);
 }
 
-ThemeParse parseThemeJson(Object? raw) {
+/// [checkContrast] false reads a theme that fails only the contrast floors,
+/// for opening a copy in the editor where the failing checks can be fixed.
+ThemeParse parseThemeJson(Object? raw, {bool checkContrast = true}) {
   if (raw is! Map<String, dynamic>) {
     return const ThemeParse.failed(['The file is not a theme.']);
   }
@@ -293,7 +295,9 @@ ThemeParse parseThemeJson(Object? raw) {
   };
   if (brightness == null) problems.add('brightness must be light or dark.');
   final colours = _colours(raw['tokens'], problems);
-  if (colours != null && problems.isEmpty) _contrast(colours, problems);
+  if (checkContrast && colours != null && problems.isEmpty) {
+    _contrast(colours, problems);
+  }
   final backdrop = _backdrop(raw['backdrop'], problems);
   if (problems.isNotEmpty) return ThemeParse.failed(problems);
   return ThemeParse.ok(

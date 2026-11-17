@@ -1,24 +1,27 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The editor's overflow menu, the "Start from" choices and its confirm sheet.
+/// The editor's header with its overflow menu.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/my_themes.dart';
+import '../../../routing/breakpoints.dart';
+import '../providers/theme_draft.dart';
+import 'settings_pane_body.dart' show kSettingsWidePaneInset;
+import 'settings_sub_pages.dart';
+import 'theme_draft_select.dart';
+import 'theme_menu_region.dart';
+import 'theme_miniature.dart';
+import 'theme_sheet_title.dart';
 
-enum ThemeEditorAction { apply, publish, export, delete }
+enum ThemeEditorAction { publish, export, delete }
 
 List<Widget> themeEditorMenuItems(
   void Function(ThemeEditorAction) pick, {
   required bool canDelete,
 }) => [
-  AppMenuItem(
-    label: 'Save and apply',
-    leading: AppIcons.check,
-    onTap: () => pick(ThemeEditorAction.apply),
-  ),
   AppMenuItem(
     label: 'Publish to Space',
     leading: AppIcons.share,
@@ -29,102 +32,74 @@ List<Widget> themeEditorMenuItems(
     leading: AppIcons.download,
     onTap: () => pick(ThemeEditorAction.export),
   ),
-  if (canDelete)
+  if (canDelete) ...[
+    const AppMenuDivider(),
     AppMenuItem(
       label: 'Delete',
       leading: AppIcons.delete,
       tone: AppMenuItemTone.danger,
       onTap: () => pick(ThemeEditorAction.delete),
     ),
+  ],
 ];
 
-class ThemeEditorSource {
-  const ThemeEditorSource(this.key, this.label, this.document);
+/// Back to Themes, the title, the kebab and, beside the nav, close: the row
+/// every pane heading sits on, or the app bar on a phone.
+class ThemeEditorHeader extends StatelessWidget {
+  const ThemeEditorHeader({
+    super.key,
+    required this.draft,
+    required this.busy,
+    required this.onAction,
+  });
 
-  final String key;
-  final String label;
-  final ThemeDocument document;
-}
+  final ThemeDraft draft;
+  final bool busy;
+  final ValueChanged<ThemeEditorAction> onAction;
 
-/// Every theme the editor can start from: built-in, then Mine, then the Space.
-List<ThemeEditorSource> themeEditorSources({
-  required List<MyTheme> mine,
-  required List<api.SpaceTheme> space,
-}) => [
-  for (final entry in themeBases.entries)
-    ThemeEditorSource(
-      'base:${entry.key}',
-      themeBaseLabels[entry.key]!,
-      ThemeDocument.of(
-        entry.value,
-        name: themeBaseLabels[entry.key]!,
-        author: '',
-        base: entry.key,
-        brightness: entry.key == 'light' ? Brightness.light : Brightness.dark,
+  @override
+  Widget build(BuildContext context) {
+    final wide = MediaQuery.sizeOf(context).width >= kSettingsTwoPaneWidth;
+    final header = ThemeDraftSelect(
+      draft: draft,
+      select: (d) => (saved: d.mineId != null, name: d.document.name.trim()),
+      builder: (context, shown) => SettingsSubPageHeader(
+        title: shown.saved ? 'Edit theme' : 'New theme',
+        backLabel: 'Back to Themes',
+        onBack: () => unawaited(SettingsSubPages.of(context).pop()),
+        actions: [
+          _menu(saved: shown.saved, name: shown.name),
+          if (!wide) const SizedBox(width: AppSpacing.s4),
+        ],
+        onClose: SettingsSubPages.closeOf(context),
+      ),
+    );
+    if (!wide) return header;
+    const inset = kSettingsWidePaneInset;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(inset.left, inset.top, inset.right, 0),
+      child: header,
+    );
+  }
+
+  Widget _menu({required bool saved, required String name}) => ThemeMenuRegion(
+    enabled: !busy,
+    sheetHeader: (_) => ThemeSheetTitle(
+      name: name.isEmpty ? 'This theme' : name,
+      caption: saved ? 'Mine' : 'Not saved',
+      miniature: ListenableBuilder(
+        listenable: draft,
+        builder: (_, _) => ThemeMiniature.forDocument(draft.document),
       ),
     ),
-  for (final t in mine)
-    ThemeEditorSource('mine:${t.id}', '${t.document.name} (mine)', t.document),
-  for (final t in space)
-    if (parseThemeJson(t.theme).document case final document?)
-      ThemeEditorSource('space:${t.id}', '${t.name} (Space)', document),
-];
-
-/// How a built-in preset is named where a person picks one.
-const themeBaseLabels = {
-  'dark': 'Dark',
-  'light': 'Light',
-  'trueBlack': 'True black',
-  'catppuccin': 'Catppuccin',
-  'softDark': 'Soft dark',
-  'forest': 'Forest',
-  'halloween': 'Halloween',
-};
-
-/// Asks before throwing something away; true when the person agrees.
-Future<bool?> confirmThemeEditorSheet(
-  BuildContext context, {
-  required String title,
-  required String action,
-}) => showAppSheet<bool>(
-  context,
-  builder: (sheetContext) => Padding(
-    padding: const EdgeInsets.fromLTRB(
-      AppSpacing.s16,
-      0,
-      AppSpacing.s16,
-      AppSpacing.s16,
+    items: (_, close) => themeEditorMenuItems((action) {
+      close();
+      onAction(action);
+    }, canDelete: saved),
+    child: const ThemeMenuKebab(
+      key: Key('theme-editor-menu'),
+      label: 'More for this theme',
+      card: false,
     ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: AppSpacing.s12,
-      children: [
-        Text(
-          title,
-          style: AppText.body.copyWith(
-            color: Theme.of(sheetContext).extension<AppTokens>()!.textPrimary,
-            fontWeight: AppWeights.semi,
-          ),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          spacing: AppSpacing.s8,
-          children: [
-            AppButton(
-              label: 'Keep editing',
-              variant: AppButtonVariant.ghost,
-              onPressed: () => Navigator.of(sheetContext).pop(false),
-            ),
-            AppButton(
-              key: const Key('theme-editor-confirm'),
-              label: action,
-              variant: AppButtonVariant.danger,
-              onPressed: () => Navigator.of(sheetContext).pop(true),
-            ),
-          ],
-        ),
-      ],
-    ),
-  ),
-);
+  );
+}

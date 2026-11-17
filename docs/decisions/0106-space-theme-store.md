@@ -79,14 +79,19 @@ The caps bound it, and the store is the only place a member can add one.
 
 The theme editor finishes what the file format promised: you can now make a theme, not just move one around.
 
-- Route `/settings/themes/edit`, a `modalPage` (rule 5).
-  It is side by side from 640 wide inside the panel (tokens left, preview and contrast right) and stacked below it, with a fixed preview strip on top and the colour picker as a sheet.
+- A page above Themes inside the Appearance pane (`/settings?pane=appearance&page=new-theme`; the old `/settings/themes/edit` redirects there), so the settings nav stays beside it (rule 5).
+  The draft's preview is pinned under the header (the short strip below 480 of content), one column of cards scrolls under it (Details, Main colours, Contrast, All colours), and one pinned footer holds Save and the primary Save and apply at every width.
+  A window too short for the pin lets the preview scroll away instead.
+  While checks fail, the footer says how many, links to Contrast and offers Fix all.
 - It starts from any built-in ("Customise"), any Space theme ("Edit a copy"), a Mine entry ("Edit") or the "Start from" row inside the editor.
-- The 19 tokens are grouped as Surfaces, Text, Accent, Borders, Status and Other.
-  The picker is the design system's `AppColourPicker`, inline on a wide window and in `showAppColourPicker` on a phone, both previewing live through a new `onChanged`.
-  The three tokens that may carry alpha also get an opacity slider.
+- Main colours are Background, Accent and Text.
+  The colours linked to each (sunken and raised; fill, ring and focus; secondary and disabled), and the warning tint to Warning text, follow by the same HSL change until they are edited themselves.
+  Links live only in the editor session, every session starts with all of them on and Start from turns them back on; the file never stores them, since the format refuses unknown keys.
+- The 19 tokens are grouped as Surfaces, Text, Accent, Borders, Status and Other: a two-column grid of tiles from 480 of content, and six collapsible groups with each opacity slider under its colour below it.
+  The picker is the design system's `AppColourPicker`, inline from 480 of content and in `showAppColourPicker` below it, both previewing live through `onChanged`, committing with Done and reverting with Cancel.
+  It says what a colour also sets and checks contrast live as it moves; the three tokens that may carry alpha get their opacity slider inside it.
 - The contrast floors are data (`themeContrastChecks`) and the parser reports the same sentences.
-  Each failing floor shows what to change and a Fix button, "Fix all" covers several, and Save, Publish and Export refuse while any fails.
+  Failing floors are grouped by the colour to change, each with what to do and a Fix that clears all of that colour's checks; "Fix all" covers every one, and Save, Publish and Export refuse while any fails.
 - "Mine" is a list kept on the device (`slimm.appearance.my_themes`, at most 50), apart from the theme in use.
   Pictures are not kept in Mine: the editor does not edit them, and a picture only travels with a theme applied from the store.
   Importing a file with a picture saves the colours and drops the picture.
@@ -94,3 +99,23 @@ The theme editor finishes what the file format promised: you can now make a them
 - Import and Export use the existing wire format through the file picker; an import that fails the checks is refused with the first three problems.
 - Not built: "accent from my background picture" (0104), which needs palette extraction and is not cheap.
 - No migration and no server change.
+
+## The gallery (built 2026-11-16)
+
+The owner's choice of this design, and what it changed across Themes, Appearance and the editor, is [0122](0122-theme-gallery.md).
+
+- Themes is a grid of small copies of the app, each painted in its own theme's tokens: three across beside the nav, two on a phone, and one tap applies.
+- The card in use carries the accent ring and "In use" whatever its source, read from the source stored with the custom slot (`slimm.appearance.custom_theme_source`).
+- Built-ins get a pencil for Customise and System gets nothing; Mine and Space cards get one menu that right-click, a long-press and the kebab all open, and Delete and Remove confirm.
+- A theme in use that nothing keeps (applied from a file, or from a Mine or Space entry that is gone) is a Not saved card first in Mine, with Save to Mine.
+- A Space theme that fails a contrast check or cannot be read says so on its card, and Edit a copy opens one that fails only contrast.
+- Following the Space default is not a gallery row: the default's card is the one in use while it is followed.
+
+## The Appearance page (built 2026-11-16)
+
+- Appearance opens on a Theme card: a live preview of the theme in use (System split across a diagonal), its name and where it came from or Not saved, one main action (Customise, Edit or Save to Mine) and Browse themes into the gallery.
+- Recent (`slimm.appearance.recent_themes`, per Space) shows the theme in use and the last ones applied, one tap each.
+  Applying a theme records the one it replaced as well, so a theme chosen before Recent existed is not lost on the first switch.
+  With a pointer, resting on a tile previews it in the card's preview only; touch applies at once.
+- Following the Space default is a switch on that card, shown only while the Space has a default; turning it off keeps the same theme as a Space theme, so nothing repaints.
+- When a theme's picture settings are applied, `slimm.appearance.background_from` (device-wide, like the background) names the theme, and the Background card says so until one of its controls is changed.

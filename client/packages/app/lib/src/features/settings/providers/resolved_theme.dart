@@ -52,6 +52,16 @@ ThemeMode _modeFor(AppThemeChoice choice) => switch (choice) {
   AppThemeChoice.halloween => ThemeMode.dark,
 };
 
+/// The palette a built-in choice paints with; null for System, the Space
+/// default and a custom theme, which are not one palette.
+AppTokens? builtInThemeTokens(AppThemeChoice choice) => switch (choice) {
+  AppThemeChoice.light => AppTokens.light,
+  AppThemeChoice.system ||
+  AppThemeChoice.spaceDefault ||
+  AppThemeChoice.custom => null,
+  _ => _darkTokensFor(choice),
+};
+
 /// The dark-family choices are palettes, not modes: each is the dark theme
 /// built from a different token set, so MaterialApp needs no extra dark slot.
 AppTokens _darkTokensFor(AppThemeChoice choice) => switch (choice) {
