@@ -392,7 +392,7 @@ void main() {
 
   testWidgets('no history is just a join bar, never an error', (tester) async {
     await _pump(tester, onJoin: () {});
-    expect(find.text("Can't tell who else is here right now."), findsOneWidget);
+    expect(find.text("Can't see who is here."), findsOneWidget);
     expect(find.text('Last call'), findsNothing);
     expect(find.byType(AppErrorState), findsNothing);
   });
