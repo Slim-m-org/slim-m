@@ -14,8 +14,16 @@ void CacheAvatars(Panel* panel);
 // Empties the picture cache, once the window it served is gone.
 void ForgetAvatars();
 
-// Paints the call panel into its corner of a w by h surface.
-void DrawPanel(cairo_t* cr, const Panel& panel, double w, double h);
+// The part of a surface the panel may sit in: the monitor's work area, clear of panels and docks.
+struct Area {
+  double x = 0;
+  double y = 0;
+  double w = 0;
+  double h = 0;
+};
+
+// Paints the call panel into its corner of [area].
+void DrawPanel(cairo_t* cr, const Panel& panel, const Area& area);
 
 }  // namespace slimm_overlay
 

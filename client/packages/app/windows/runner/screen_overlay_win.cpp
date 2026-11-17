@@ -316,6 +316,21 @@ void CloseLayer(Layer& layer) {
   ReleaseSurface(layer);
 }
 
+// The panel's layer covers only the work area, so its corner gap never lands on the taskbar.
+Monitor WorkAreaOf(const Monitor& m) {
+  POINT centre = {m.x + m.width / 2, m.y + m.height / 2};
+  MONITORINFO info = {};
+  info.cbSize = sizeof(info);
+  HMONITOR handle = MonitorFromPoint(centre, MONITOR_DEFAULTTONEAREST);
+  if (handle == nullptr || !GetMonitorInfoW(handle, &info)) return m;
+  Monitor work = m;
+  work.x = info.rcWork.left;
+  work.y = info.rcWork.top;
+  work.width = info.rcWork.right - info.rcWork.left;
+  work.height = info.rcWork.bottom - info.rcWork.top;
+  return work;
+}
+
 size_t MonitorIndex(const std::vector<Monitor>& monitors, int requested) {
   return requested >= 0 && static_cast<size_t>(requested) < monitors.size()
              ? static_cast<size_t>(requested)
@@ -432,7 +447,7 @@ void SetPanel(Panel panel) {
     std::vector<Monitor> monitors = Monitors();
     if (monitors.empty()) return;
     size_t index = MonitorIndex(monitors, panel.monitor);
-    if (!OpenLayer(g_panel_layer, monitors[index], index)) return;
+    if (!OpenLayer(g_panel_layer, WorkAreaOf(monitors[index]), index)) return;
     g_panel_layer.monitor = panel.monitor;
     g_panel = std::move(panel);
     CacheAvatars(&g_panel);

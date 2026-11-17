@@ -66,6 +66,7 @@ struct Panel {
   uint32_t text_muted = 0xFFA7AEB6;
   uint32_t accent = 0xFF58B4D8;
   uint32_t danger = 0xFFD4756B;
+  double inset = 4;
 };
 
 // False when this Windows cannot exclude a window from capture (before

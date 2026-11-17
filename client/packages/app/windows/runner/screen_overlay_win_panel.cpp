@@ -6,12 +6,14 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 
 namespace slimm_overlay {
 namespace {
 
+using Gdiplus::REAL;
+
 // Sizes follow the 4dp grid and the panel radius of docs/design/design-language.md.
-constexpr double kMargin = 16;
 constexpr double kPadX = 8;
 constexpr double kPadY = 6;
 constexpr double kRowHeight = 28;
@@ -25,8 +27,11 @@ constexpr double kMarkGap = 8;
 constexpr double kGlyph = 14;
 constexpr double kMaxName = 180;
 constexpr double kFontPx = 11;
-
-using Gdiplus::REAL;
+constexpr uint32_t kHalo = 0xFF000000;
+constexpr double kHaloAlpha = 0.45;
+constexpr std::pair<REAL, REAL> kHaloOffsets[] = {
+    {-1.0f, -1.0f}, {0.0f, -1.0f}, {1.0f, -1.0f}, {-1.0f, 0.0f},
+    {1.0f, 0.0f},   {-1.0f, 1.0f}, {0.0f, 1.0f},  {1.0f, 1.0f}};
 
 // Pictures by user id, decoded from the PNG the app sends once per picture.
 std::map<std::string, std::unique_ptr<Gdiplus::Bitmap>> g_avatars;
@@ -76,6 +81,12 @@ void DrawText(Gdiplus::Graphics& g, const Gdiplus::Font& font,
                     static_cast<REAL>(kMaxName), static_cast<REAL>(kRowHeight));
   Gdiplus::StringFormat format;
   ConfigureName(format);
+  // A dark halo all round keeps the name readable over a bright screen, since the container is nearly clear.
+  Gdiplus::SolidBrush halo(ColorOf(kHalo, kHaloAlpha));
+  for (const auto& [dx, dy] : kHaloOffsets) {
+    Gdiplus::RectF halo_at(at.X + dx, at.Y + dy, at.Width, at.Height);
+    g.DrawString(text.c_str(), -1, &font, halo_at, &format, &halo);
+  }
   Gdiplus::SolidBrush ink(ColorOf(argb));
   g.DrawString(text.c_str(), -1, &font, at, &format, &ink);
 }
@@ -93,6 +104,8 @@ void DrawAvatar(Gdiplus::Graphics& g, const Panel& panel, const PanelRow& row,
                 double cx, double cy) {
   auto found = g_avatars.find(row.id);
   if (found == g_avatars.end()) {
+    Gdiplus::SolidBrush backing(ColorOf(kHalo, kHaloAlpha));
+    DrawEllipseAt(g, nullptr, &backing, cx, cy, kAvatar / 2);
     Gdiplus::SolidBrush dim(ColorOf(panel.text_muted, 0.4));
     DrawEllipseAt(g, nullptr, &dim, cx, cy, kAvatar / 2);
   } else {
@@ -182,8 +195,8 @@ void DrawPanel(Gdiplus::Graphics& g, const Panel& panel, double width,
               panel.corner == Panel::Corner::kBottomLeft;
   bool top = panel.corner == Panel::Corner::kTopLeft ||
              panel.corner == Panel::Corner::kTopRight;
-  double x = left ? kMargin : w - kMargin - pw;
-  double y = top ? kMargin : h - kMargin - ph;
+  double x = left ? panel.inset : w - panel.inset - pw;
+  double y = top ? panel.inset : h - panel.inset - ph;
 
   Gdiplus::GraphicsPath shape;
   AddRoundedRect(shape, x + 0.5, y + 0.5, pw - 1, ph - 1, kRadius);

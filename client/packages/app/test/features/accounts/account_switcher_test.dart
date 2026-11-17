@@ -84,6 +84,40 @@ void main() {
     expect(find.byKey(AccountUnreadBadge.dotKey), findsNWidgets(2));
   });
 
+  testWidgets(
+    'the trigger dot clears the name and the icon, centred on the line',
+    (tester) async {
+      final h = await twoServers(tester);
+      await tester.pumpWidget(
+        HostRoot(
+          host: h.host,
+          child: const Padding(
+            padding: EdgeInsets.all(16),
+            child: SizedBox(
+              width: 140,
+              child: AccountSwitcherTrigger(
+                child: Text(
+                  'A very long server name indeed',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await seedUnread(tester, h, _second);
+
+      final dot = tester.getRect(find.byKey(AccountUnreadBadge.dotKey));
+      final name = tester.getRect(find.byType(Text).first);
+      final icon = tester.getRect(find.byIcon(AppIcons.serverSwitcher));
+      expect(dot.left - name.right, greaterThanOrEqualTo(AppSpacing.s8));
+      expect(icon.left - dot.right, greaterThanOrEqualTo(AppSpacing.s8));
+      expect(dot.center.dy, closeTo(name.center.dy, 1));
+      expect(icon.right, lessThanOrEqualTo(156));
+    },
+  );
+
   testWidgets('choosing a server switches to it and closes the menu', (
     tester,
   ) async {

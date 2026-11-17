@@ -45,11 +45,17 @@ List<VoiceParticipant> callOverlayShown(List<VoiceParticipant> participants) {
   );
 }
 
-/// How much of the dark surface shows through; faint enough to read the screen behind it.
-const callOverlaySurfaceAlpha = 0.6;
+/// How much of the dark surface shows through; the container is barely there so the screen behind it stays the subject.
+const callOverlaySurfaceAlpha = 0.3;
+
+/// The container's edge, fainter than the fill's own tint so it never reads as a frame.
+const callOverlayBorderAlpha = 0.25;
 
 /// Name text sits a little under full strength so the panel stays in the background.
-const callOverlayTextAlpha = 0.9;
+const callOverlayTextAlpha = 0.85;
+
+/// Gap to the screen corner, in logical pixels.
+const callOverlayInset = 4.0;
 
 /// The panel for [participants], always in the dark tokens so it reads over any background.
 OverlayPanel callOverlayPanel(
@@ -66,7 +72,8 @@ OverlayPanel callOverlayPanel(
     rows: rows,
     more: more,
     surface: tokens.surfaceRaised.withValues(alpha: callOverlaySurfaceAlpha),
-    border: tokens.borderSubtle,
+    border: tokens.borderSubtle.withValues(alpha: callOverlayBorderAlpha),
+    inset: callOverlayInset,
     text: tokens.textPrimary.withValues(alpha: callOverlayTextAlpha),
     textMuted: tokens.textSecondary.withValues(alpha: callOverlayTextAlpha),
     accent: tokens.accent,

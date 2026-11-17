@@ -10,13 +10,13 @@
 #include <cmath>
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace slimm_overlay {
 namespace {
 
 // Sizes follow the 4dp grid and the panel radius of docs/design/design-language.md.
-constexpr double kMargin = 16;
 constexpr double kPadX = 8;
 constexpr double kPadY = 6;
 constexpr double kRowHeight = 28;
@@ -30,6 +30,10 @@ constexpr double kMarkGap = 8;
 constexpr double kGlyph = 14;
 constexpr double kMaxName = 180;
 constexpr double kFontPx = 11;
+constexpr uint32_t kHalo = 0xFF000000;
+constexpr double kHaloAlpha = 0.45;
+constexpr std::pair<double, double> kHaloOffsets[] = {
+    {-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {0, 1}, {1, 1}};
 
 // Pictures by user id, decoded from the PNG the app sends once per picture.
 std::map<std::string, cairo_surface_t*> g_avatars;
@@ -76,6 +80,12 @@ void DrawText(cairo_t* cr, const std::string& text, double x, double cy,
   PangoLayout* layout = TextLayout(cr, text, max_width);
   int tw = 0, th = 0;
   pango_layout_get_pixel_size(layout, &tw, &th);
+  // A dark halo all round keeps the name readable over a bright screen, since the container is nearly clear.
+  SetColor(cr, kHalo, kHaloAlpha);
+  for (const auto& [dx, dy] : kHaloOffsets) {
+    cairo_move_to(cr, x + dx, cy - th / 2.0 + dy);
+    pango_cairo_show_layout(cr, layout);
+  }
   SetColor(cr, argb);
   cairo_move_to(cr, x, cy - th / 2.0);
   pango_cairo_show_layout(cr, layout);
@@ -88,8 +98,10 @@ void DrawAvatar(cairo_t* cr, const Panel& panel, const PanelRow& row, double cx,
   cairo_new_path(cr);
   auto found = g_avatars.find(row.id);
   if (found == g_avatars.end()) {
-    SetColor(cr, panel.text_muted, 0.4);
     cairo_arc(cr, cx, cy, kAvatar / 2, 0, 2 * G_PI);
+    SetColor(cr, kHalo, kHaloAlpha);
+    cairo_fill_preserve(cr);
+    SetColor(cr, panel.text_muted, 0.4);
     cairo_fill(cr);
   } else {
     cairo_surface_t* picture = found->second;
@@ -158,7 +170,7 @@ void ForgetAvatars() {
   g_avatars.clear();
 }
 
-void DrawPanel(cairo_t* cr, const Panel& panel, double w, double h) {
+void DrawPanel(cairo_t* cr, const Panel& panel, const Area& area) {
   if (!panel.present || panel.rows.empty()) return;
   bool any_mark = false;
   double name_width = 0;
@@ -176,8 +188,8 @@ void DrawPanel(cairo_t* cr, const Panel& panel, double w, double h) {
               panel.corner == Panel::Corner::kBottomLeft;
   bool top = panel.corner == Panel::Corner::kTopLeft ||
              panel.corner == Panel::Corner::kTopRight;
-  double x = left ? kMargin : w - kMargin - pw;
-  double y = top ? kMargin : h - kMargin - ph;
+  double x = left ? area.x + panel.inset : area.x + area.w - panel.inset - pw;
+  double y = top ? area.y + panel.inset : area.y + area.h - panel.inset - ph;
 
   RoundedRect(cr, x + 0.5, y + 0.5, pw - 1, ph - 1, kRadius);
   SetColor(cr, panel.surface);
