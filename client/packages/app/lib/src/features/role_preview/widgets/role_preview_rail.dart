@@ -49,10 +49,9 @@ class RolePreviewRail extends StatelessWidget {
           parentId: c.parentId,
         ),
     ]);
+    // The server lists them in the real rail's order, ties included.
     final byCategory = <String?, List<api.RolePreviewChannel>>{};
-    for (final channel in [
-      ...preview.channels,
-    ]..sort((a, b) => a.position.compareTo(b.position))) {
+    for (final channel in preview.channels) {
       (byCategory[channel.categoryId] ??= []).add(channel);
     }
     final uncategorised = byCategory[null] ?? const <api.RolePreviewChannel>[];
