@@ -217,12 +217,8 @@ class MessageRow extends ConsumerWidget {
     if (message.content.isNotEmpty) return message.content;
     final voice = extras.attachments.where((a) => a.voice != null).firstOrNull;
     if (voice == null) return '';
-    final live = ref.watch(
-      voiceTranscriptsProvider.select((all) => all[voice.id]),
-    );
     return voiceTranscriptWords(
           voice,
-          live,
           spaceShows: ref.watch(voiceTranscriptsShownProvider),
         ) ??
         '';

@@ -190,4 +190,29 @@ void main() {
     await queue.flush();
     expect(seen, ['c1']);
   });
+
+  test('applied waits for every frame added so far, and is immediate when '
+      'idle', () async {
+    final gate = Completer<void>();
+    final seen = <String>[];
+    final queue = SerialFrameQueue((e) async {
+      if (_id(e) == 'c1') await gate.future;
+      seen.add(_id(e));
+    }, onError: (_, _) {});
+    await queue.flush();
+    await queue.applied();
+
+    queue
+      ..add(_event(1))
+      ..add(_event(2));
+    var done = false;
+    unawaited(queue.applied().then((_) => done = true));
+    await Future<void>.delayed(Duration.zero);
+    expect(done, isFalse);
+
+    gate.complete();
+    await queue.applied();
+    expect(seen, ['c1', 'c2']);
+    expect(done, isTrue);
+  });
 }

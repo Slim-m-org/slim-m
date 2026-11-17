@@ -12,8 +12,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show Attachment, AppLog, LogTag;
 import 'package:slimm_platform/platform.dart' show isIOSHost;
 
+import '../../../audio/call_holds_audio_session.dart';
 import '../../../audio/call_start_yields.dart';
 import '../../../audio/sound_output_router.dart';
+import '../../accounts/providers/account_slot.dart';
 import '../../voice/providers/voice_flags.dart';
 import 'attachment_bytes.dart';
 
@@ -138,9 +140,14 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
           dismissError();
         }
       });
-    } else {
-      ref.onDispose(ref.read(callStartYieldsProvider).add(_pauseForCall));
     }
+    // The yields are shared by every community, so a call joined in another one stops or pauses this message too.
+    ref.onDispose(
+      ref.read(callStartYieldsProvider).add(_ios ? stopForCall : _pauseForCall),
+    );
+    ref.listen(accountActiveProvider, (_, onScreen) {
+      if (!onScreen) unawaited(_pauseForCall());
+    });
     ref.onDispose(() {
       unawaited(_positions?.cancel());
       unawaited(_done?.cancel());
@@ -156,9 +163,10 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
     _positions = backend.positions.listen((position) {
       if (state.playing) state = state.copyWith(position: position);
     });
-    _done = backend.completed.listen(
-      (_) => state = VoicePlaybackState(speed: state.speed),
-    );
+    _done = backend.completed.listen((_) {
+      // A clip already stopped for another one can still report its end.
+      if (state.playing) state = VoicePlaybackState(speed: state.speed);
+    });
     return _backend = backend;
   }
 
@@ -200,7 +208,7 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
 
   // On iOS a call holds the shared audio session, which playback would take.
   bool _refusedInCall(Attachment voice) {
-    if (!_ios || ref.read(voiceFlagsProvider).channelId == null) return false;
+    if (!_ios || !ref.read(callHoldsAudioSessionProvider)()) return false;
     state = VoicePlaybackState(
       speed: state.speed,
       error: VoicePlaybackError.inCall,
@@ -211,11 +219,14 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
 
   Future<void> _start(Attachment voice) async {
     if (_refusedInCall(voice)) return;
+    final previous = state.attachmentId;
     state = VoicePlaybackState(
       attachmentId: voice.id,
       loading: true,
       speed: state.speed,
     );
+    // The clip that was chosen before stops now, not once this one has downloaded.
+    if (previous != null) await _backend?.stop();
     try {
       final bytes = await ref.read(attachmentBytesProvider(voice.id).future);
       if (state.attachmentId != voice.id) return;

@@ -13,6 +13,9 @@ import 'package:slimm_rtc/rtc.dart';
 import 'support/session_fakes.dart';
 
 class _FakeMic implements MicPort {
+  @override
+  Future<void> stopUnpublished() async {}
+
   bool published = false;
   bool muted = true;
   bool captureOpen = false;

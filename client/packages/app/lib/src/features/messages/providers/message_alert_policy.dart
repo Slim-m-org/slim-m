@@ -19,6 +19,7 @@ import '../../settings/providers/notification_schedule_controller.dart';
 import '../../settings/providers/notification_schedule_rules.dart';
 import '../../settings/providers/notification_sound_rules.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/sync_controller.dart';
 
 /// What an alert needs to know about a message it was allowed to raise.
 class MessageAlert {
@@ -44,6 +45,12 @@ var alertNewChannelWait = const Duration(seconds: 2);
 @visibleForTesting
 var alertRefreshWait = const Duration(seconds: 2);
 
+/// [SyncController.framesApplied], as a seam an alert can wait on.
+final syncFramesAppliedProvider = Provider<Future<void> Function()>(
+  (ref) =>
+      () => ref.read(syncControllerProvider.notifier).framesApplied(),
+);
+
 final messageAlertPolicyProvider = Provider<MessageAlertPolicy>(
   MessageAlertPolicy.new,
 );
@@ -62,21 +69,19 @@ class MessageAlertPolicy {
   /// When each provider was last known good, for [alertStateMaxAge].
   final Map<Object, DateTime> _loadedAt = {};
 
-  /// The first message of a new DM arrives before sync stores its channel, and without the row it would be judged as a channel.
+  /// The first message of a new DM arrives before sync stores its channel,
+  /// and without the row it would be judged as a channel. Sync applying that
+  /// frame is what stores it, or finds it never will be, as for a thread.
   Future<Channel?> _channelRow(String channelId) async {
     final store = await _ref.read(storeProvider.future);
     final row = await store.channelRow(channelId);
     if (row != null) return row;
     try {
-      return await store
-          .watchChannelRow(channelId)
-          .firstWhere((c) => c != null)
-          .timeout(alertNewChannelWait);
+      await _ref.read(syncFramesAppliedProvider)().timeout(alertNewChannelWait);
     } on TimeoutException {
       return null;
-    } on StateError {
-      return null;
     }
+    return store.channelRow(channelId);
   }
 
   /// The alert [message] earns, or null when it should stay quiet.

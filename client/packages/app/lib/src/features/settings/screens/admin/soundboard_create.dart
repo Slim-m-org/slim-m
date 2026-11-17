@@ -8,6 +8,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../action_labels.dart';
@@ -21,17 +22,31 @@ const maxSoundClips = 48;
 /// True while a clip is being made, so a drop behind the sheet opens no second one.
 final soundClipCreatingProvider = StateProvider<bool>((ref) => false);
 
-/// Opens the clip sheet on [pick], or on the file the picker returns when it is null.
+/// Why the last file could not be chosen or read, shown on the pane until dismissed.
+final soundClipIntakeErrorProvider = StateProvider<String?>((ref) => null);
+
+/// Opens the clip sheet on the file [dropped] reads, or on the picker's when it is null.
 Future<void> createSoundClip(
   BuildContext context,
   WidgetRef ref, {
-  SoundClipPick? pick,
+  Future<SoundClipPick?> Function()? dropped,
 }) async {
   final creating = ref.read(soundClipCreatingProvider.notifier);
   if (creating.state) return;
+  final intakeError = ref.read(soundClipIntakeErrorProvider.notifier);
   creating.state = true;
+  intakeError.state = null;
   try {
-    final chosen = pick ?? await ref.read(soundClipPickerProvider)();
+    final SoundClipPick? chosen;
+    try {
+      final SoundClipPicker read = dropped ?? ref.read(soundClipPickerProvider);
+      chosen = await read();
+    } on Object catch (error, stack) {
+      final what = dropped == null ? 'open the file picker' : 'read that file';
+      api.reportFailure(api.LogTag.media, 'choose a clip file', error, stack);
+      intakeError.state = 'Could not $what.';
+      return;
+    }
     if (chosen == null || !context.mounted) return;
     await showSoundClipSheet(context, pick: chosen);
   } finally {

@@ -143,7 +143,6 @@ class VoiceMessagePlayer extends ConsumerWidget {
   List<Widget> _menuItems(WidgetRef ref, VoidCallback close) {
     final words = voiceTranscriptWords(
       attachment,
-      ref.read(voiceTranscriptsProvider)[attachment.id],
       spaceShows: ref.read(voiceTranscriptsShownProvider),
     );
     return [

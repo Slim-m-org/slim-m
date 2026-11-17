@@ -41,6 +41,25 @@ class ScriptedClient(e2e_client.Client):
         self.taps.append((x, y))
 
 
+class NeverShowsTest(unittest.TestCase):
+    def client(self, samples):
+        c = ScriptedClient({})
+        seq = iter(samples)
+        c.nodes = lambda: next(seq, [])
+        c.shot = lambda tag: None
+        return c
+
+    def test_a_label_that_shows_late_fails(self):
+        c = self.client([[], [], [{"t": "Rejoin the call?"}]])
+        with mock.patch.object(e2e_client.time, "sleep"):
+            with self.assertRaisesRegex(AssertionError, "showed"):
+                c.never_shows("Rejoin the call?", seconds=5)
+
+    def test_a_label_that_never_shows_passes(self):
+        c = self.client([])
+        c.never_shows("Rejoin the call?", seconds=0.3)
+
+
 class EvTest(unittest.TestCase):
     THREW = {"id": 1, "result": {"exceptionDetails": {
         "text": "Uncaught",

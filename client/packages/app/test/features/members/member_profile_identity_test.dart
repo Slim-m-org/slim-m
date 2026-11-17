@@ -102,13 +102,14 @@ void main() {
     expect(find.text('T'), findsOneWidget);
   });
 
-  testWidgets('a name differing only in case is still not a display name', (
+  testWidgets('a name differing only in case is drawn as typed, on one line', (
     tester,
   ) async {
     await _pump(tester, _user('TestUser123'));
 
     expect(find.text('@testuser123'), findsNothing);
-    expect(find.text('testuser123'), findsOneWidget);
+    expect(find.text('testuser123'), findsNothing);
+    expect(find.text('TestUser123'), findsOneWidget);
   });
 
   testWidgets('a display name keeps the handle line under it', (tester) async {

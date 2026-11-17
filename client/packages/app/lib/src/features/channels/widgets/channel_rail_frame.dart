@@ -209,9 +209,13 @@ class RailConnectionBar extends ConsumerWidget {
   }
 }
 
-/// Below this footer width the name line gives way to the controls: avatar,
-/// four buttons and their insets leave too little for a readable name.
+/// Below this footer width the controls alone may not fit, so they scale down
+/// and the name line gives way to them.
 const double _footerNameMinWidth = 200;
+
+/// The narrowest the name line is drawn at; in less (a call's mic and deafen
+/// beside Notes and the gear) only the presence dot says who and how.
+const double _footerNameMinRoom = 64;
 
 /// Flutter's own gap between a tooltip and the centre of what it names.
 const double _tooltipGap = 24;
@@ -360,28 +364,32 @@ class _UserBar extends ConsumerWidget {
               )
             else
               Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      me.valueOrNull?.displayName ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.ui.copyWith(
-                        color: tokens.textPrimary,
-                        fontWeight: AppWeights.medium,
-                        height: 1.25,
-                      ),
-                    ),
-                    Text(
-                      secondLine,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.micro.copyWith(
-                        color: tokens.textSecondary,
-                      ),
-                    ),
-                  ],
+                child: LayoutBuilder(
+                  builder: (context, room) => room.maxWidth < _footerNameMinRoom
+                      ? const SizedBox.shrink()
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              me.valueOrNull?.displayName ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.ui.copyWith(
+                                color: tokens.textPrimary,
+                                fontWeight: AppWeights.medium,
+                                height: 1.25,
+                              ),
+                            ),
+                            Text(
+                              secondLine,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.micro.copyWith(
+                                color: tokens.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
               ),
             if (named) ...controls,

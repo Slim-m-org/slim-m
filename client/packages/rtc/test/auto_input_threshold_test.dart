@@ -23,6 +23,9 @@ class _FakeGate {
 /// An unmuted microphone, which is what gives the gate's readings a consumer.
 class _OpenMic implements MicPort {
   @override
+  Future<void> stopUnpublished() async {}
+
+  @override
   bool get open => true;
 
   @override

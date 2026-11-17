@@ -112,6 +112,7 @@ class AppAvatar extends StatelessWidget {
     this.ringColor,
     this.placeholder,
     this.semanticLabel,
+    this.speakingLabel = 'speaking',
     this.surfaceColor,
   });
 
@@ -158,6 +159,10 @@ class AppAvatar extends StatelessWidget {
   /// other than speech.
   final bool speaking;
 
+  /// How the accessible name reads the [speaking] ring, for a surface where
+  /// it means something other than speech; the presence word still follows.
+  final String speakingLabel;
+
   /// A caller-supplied ring (a fingerprint-confirmation colour strip, for
   /// instance), drawn when [speaking] is false.
   final Color? ringColor;
@@ -175,7 +180,8 @@ class AppAvatar extends StatelessWidget {
 
   /// The name, then whatever the ring and the dot show, so a screen reader
   /// hears what a sighted viewer sees.
-  String _label(String? presenceWord) => '$name${speaking ? ', speaking' : ''}'
+  String _label(String? presenceWord) =>
+      '$name${speaking ? ', $speakingLabel' : ''}'
       '${presenceWord == null ? '' : ', $presenceWord'}';
 
   Color get _tint => switch (tintColor) {

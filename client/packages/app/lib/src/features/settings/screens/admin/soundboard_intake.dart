@@ -17,9 +17,16 @@ const soundClipMaxNameChars = 32;
 
 /// One chosen file, before it is uploaded.
 class SoundClipPick {
-  const SoundClipPick({required this.fileName, required this.bytes});
+  const SoundClipPick({
+    required this.fileName,
+    required this.bytes,
+    this.tooLarge = false,
+  });
   final String fileName;
   final List<int> bytes;
+
+  /// Over [soundClipMaxBytes], so its [bytes] were never read.
+  final bool tooLarge;
 
   /// The file's name without its extension, cut to what a clip may be called.
   String get suggestedName {
@@ -39,7 +46,7 @@ String? soundClipFileProblem(SoundClipPick pick) {
   if (!name.endsWith('.mp3') && !name.endsWith('.wav')) {
     return 'Only mp3 and wav files can be clips.';
   }
-  if (pick.bytes.length > soundClipMaxBytes) {
+  if (pick.tooLarge || pick.bytes.length > soundClipMaxBytes) {
     return 'That file is over 512 KB. A clip is at most 512 KB.';
   }
   return null;
@@ -66,13 +73,29 @@ String _foldAscii(String s) => String.fromCharCodes([
   for (final c in s.codeUnits) c >= 0x41 && c <= 0x5A ? c + 0x20 : c,
 ]);
 
-/// The first of [items] that is a file, read whole; null for a folder alone.
+/// The first of [items] that is a file; null for a folder alone.
 Future<SoundClipPick?> readDroppedSoundClip(List<DropItem> items) async {
   for (final item in items) {
     if (item is DropItemDirectory) continue;
-    return SoundClipPick(fileName: item.name, bytes: await item.readAsBytes());
+    return _readPick(item.name, item.length, item.readAsBytes);
   }
   return null;
+}
+
+/// Reads the file only once its name and size could make a clip, so a
+/// stray multi-gigabyte drop is refused without being loaded.
+Future<SoundClipPick> _readPick(
+  String fileName,
+  Future<int?> Function() length,
+  Future<List<int>> Function() read,
+) async {
+  final unread = SoundClipPick(fileName: fileName, bytes: const []);
+  if (soundClipFileProblem(unread) != null) return unread;
+  final size = await length();
+  if (size != null && size > soundClipMaxBytes) {
+    return SoundClipPick(fileName: fileName, bytes: const [], tooLarge: true);
+  }
+  return SoundClipPick(fileName: fileName, bytes: await read());
 }
 
 /// Picks one mp3 or wav file; null when nothing was chosen.
@@ -88,5 +111,5 @@ Future<SoundClipPick?> _pick() async {
   );
   if (files.isEmpty) return null;
   final file = files.first;
-  return SoundClipPick(fileName: file.name, bytes: await file.readAsBytes());
+  return _readPick(file.name, file.length, file.readAsBytes);
 }

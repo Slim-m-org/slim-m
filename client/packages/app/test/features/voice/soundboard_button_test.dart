@@ -283,6 +283,47 @@ void main() {
     },
   );
 
+  testWidgets(
+    'on a phone a long name wraps whole with no tooltip, and the sheet is named',
+    (tester) async {
+      const long = 'a very long clip name here ok';
+      await _pump(
+        tester,
+        _Wire(
+          clips: [
+            {'id': 'long', 'name': long, 'duration_ms': 1100, 'created_at': 0},
+          ],
+        ),
+        width: 390,
+      );
+      final semantics = tester.ensureSemantics();
+      await _open(tester);
+
+      expect(
+        find.ancestor(
+          of: _tile('long'),
+          matching: find.byWidgetPredicate((w) => w is Tooltip),
+        ),
+        findsNothing,
+        reason: 'no tooltip on touch',
+      );
+      expect(find.byTooltip('$long, 1.1 s'), findsNothing);
+      final name = tester.renderObject<RenderParagraph>(find.text(long));
+      expect(name.didExceedMaxLines, isFalse, reason: 'the name is whole');
+      expect(
+        find.bySemanticsLabel('Soundboard').evaluate().where((e) {
+          final node = tester.getSemantics(
+            find.byElementPredicate((x) => x == e),
+          );
+          return node.getSemanticsData().flagsCollection.namesRoute;
+        }),
+        isNotEmpty,
+        reason: 'a screen reader hears the sheet named',
+      );
+      semantics.dispose();
+    },
+  );
+
   testWidgets('Tab reaches a tile and Enter plays it', (tester) async {
     final wire = _Wire();
     await _pump(tester, wire);
@@ -308,6 +349,13 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await waitUntil(tester, () => wire.plays.isNotEmpty);
     expect(wire.plays, ['/channels/c1/voice/soundboard/clip-1/play']);
+
+    await pumpFrames(tester);
+    expect(focusedOnFirst(), isTrue, reason: 'the rest keeps the focus');
+    await tester.pump(soundboardPlayCooldown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await waitUntil(tester, () => wire.plays.length == 2);
+    expect(wire.plays.last, '/channels/c1/voice/soundboard/clip-1/play');
   });
 
   testWidgets('tapping a clip asks the server to play it into this call', (

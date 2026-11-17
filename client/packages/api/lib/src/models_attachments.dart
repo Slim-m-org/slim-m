@@ -50,6 +50,18 @@ class Attachment {
   /// What was heard, while the Space transcribes voice messages.
   final VoiceTranscript? transcript;
 
+  /// This attachment with [transcript] in place of the one it carried.
+  Attachment withTranscript(VoiceTranscript? transcript) => Attachment(
+        id: id,
+        filename: filename,
+        contentType: contentType,
+        size: size,
+        spoiler: spoiler,
+        original: original,
+        voice: voice,
+        transcript: transcript,
+      );
+
   /// This attachment as the file that was uploaded, for saving it.
   Attachment? get asOriginal {
     final kept = original;

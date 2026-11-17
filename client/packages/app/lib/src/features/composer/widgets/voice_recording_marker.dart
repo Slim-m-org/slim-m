@@ -16,6 +16,7 @@ import '../../../widgets/voice_waveform.dart' show formatVoiceDuration;
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../../channels/providers/threads.dart';
 import '../../channels/widgets/channel_label.dart';
+import '../../channels/widgets/rail_footer_press_target.dart';
 import '../../voice/widgets/call_strip_press_area.dart';
 import '../providers/voice_recording.dart';
 
@@ -39,69 +40,40 @@ String? recordingElsewhere(
 }
 
 /// The rail footer's row, in the call row's columns: the dot over the avatar.
-class VoiceRecordingRow extends ConsumerStatefulWidget {
+class VoiceRecordingRow extends ConsumerWidget {
   const VoiceRecordingRow({super.key, required this.channelId});
 
   final String channelId;
 
   @override
-  ConsumerState<VoiceRecordingRow> createState() => _VoiceRecordingRowState();
-}
-
-class _VoiceRecordingRowState extends ConsumerState<VoiceRecordingRow> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final channel = ref
-        .watch(channelByIdProvider(widget.channelId))
-        .valueOrNull;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final channel = ref.watch(channelByIdProvider(channelId)).valueOrNull;
     final where = _where(channel);
-    return Tooltip(
-      message: where == null ? 'Go to the voice message' : 'Go to $where',
-      excludeFromSemantics: true,
-      child: Semantics(
-        key: voiceRecordingMarkerKey,
-        button: true,
-        label: _backLabel(where),
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapDown: (_) => setState(() => _pressed = true),
-            onTapUp: (_) => setState(() => _pressed = false),
-            onTapCancel: () => setState(() => _pressed = false),
-            onTap: () {
-              AppHaptics.selection();
-              _goBack(context, widget.channelId, channel);
-            },
-            child: AnimatedOpacity(
-              opacity: _pressed ? 0.6 : 1,
-              duration: AppMotion.reduced(context, AppMotion.fast),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: AppTouchTargets.of(context)
-                      ? AppSizes.rowTouch
-                      : AppSizes.rowPointer,
-                ),
-                child: Row(
-                  children: [
-                    const SizedBox(
-                      width: AppSizes.rowTouch,
-                      child: Center(child: _Dot()),
-                    ),
-                    // The user bar's own gap, so the text starts under its name.
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: _Line(channelId: widget.channelId, where: where),
-                    ),
-                    // The rail's content edge, where the search box and unread dots end.
-                    const SizedBox(width: AppSpacing.s8),
-                  ],
-                ),
-              ),
+    return RailFooterPressTarget(
+      key: voiceRecordingMarkerKey,
+      tooltip: where == null ? 'Go to the voice message' : 'Go to $where',
+      semanticLabel: _backLabel(where),
+      onPressed: () => _goBack(context, channelId, channel),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: AppTouchTargets.of(context)
+              ? AppSizes.rowTouch
+              : AppSizes.rowPointer,
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: AppSizes.rowTouch,
+              child: Center(child: _Dot()),
             ),
-          ),
+            // The user bar's own gap, so the text starts under its name.
+            const SizedBox(width: 9),
+            Expanded(
+              child: _Line(channelId: channelId, where: where),
+            ),
+            // The rail's content edge, where the search box and unread dots end.
+            const SizedBox(width: AppSpacing.s8),
+          ],
         ),
       ),
     );

@@ -400,6 +400,10 @@ class SyncController extends StateNotifier<SyncStatus> {
     return frames;
   }
 
+  /// Completes once every frame this socket has delivered so far is in the
+  /// store, so a reader can tell a channel still arriving from one that never will.
+  Future<void> framesApplied() => _frames?.applied() ?? Future.value();
+
   /// Applies one live event the way [_attach]'s listener would, without
   /// needing a real socket. For tests only.
   ///

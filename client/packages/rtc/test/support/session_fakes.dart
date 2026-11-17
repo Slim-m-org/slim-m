@@ -131,6 +131,9 @@ class InstantRoom extends ConnectlessRoom {
 
 /// A microphone that counts how often the capture is opened muted.
 class CountingMic implements MicPort {
+  @override
+  Future<void> stopUnpublished() async {}
+
   int reopens = 0;
   bool hasTrackNow = false;
 

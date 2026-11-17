@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 #
-# Builds the Android release APK and app bundle with Gradle dependency
+# Builds the Android release APKs (split per ABI) and app bundle with Gradle dependency
 # verification on, before a change reaches main. main-builds is the only other
 # Android build and it runs after the merge, so without this a stale
 # verification-metadata.xml would first show up as a red build on main.
@@ -26,6 +26,7 @@ on:
       - ".github/workflows/main-builds.yml"
       - ".github/actions/native-hooks-cache/**"
       - ".github/actions/native-hooks-diagnose/**"
+      - ".github/actions/release-android-client/**"
   pull_request:
     paths:
       - "client/pubspec.lock"
@@ -37,6 +38,7 @@ on:
       - ".github/workflows/main-builds.yml"
       - ".github/actions/native-hooks-cache/**"
       - ".github/actions/native-hooks-diagnose/**"
+      - ".github/actions/release-android-client/**"
   workflow_dispatch:
 
 permissions:
@@ -71,11 +73,15 @@ jobs:
       - name: placeholder google-services.json
         run: cp client/packages/app/android/app/google-services.placeholder.json client/packages/app/android/app/google-services.json
 
-      - name: build release apk and app bundle
+      # Split per ABI as main-builds and the release action are, so the file names they sign and attach are checked here first.
+      - name: build release apks and app bundle
         working-directory: client/packages/app
         run: |
           flutter pub get --enforce-lockfile
-          flutter build apk --release
+          flutter build apk --release --split-per-abi
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            test -s "build/app/outputs/flutter-apk/app-${abi}-release.apk" || { echo "no apk for ${abi}"; exit 1; }
+          done
           flutter build appbundle --release
 
       - name: app module unit tests

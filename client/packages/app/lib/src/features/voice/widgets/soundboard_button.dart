@@ -52,7 +52,8 @@ class _SoundboardButtonState extends State<SoundboardButton> {
       menuWidth: soundboardMenuWidth,
       tapRegionGroupId: _group,
       onOpenChanged: (open) => reveal?.pin(open),
-      // No heading: the button's own tooltip already names it.
+      // No visible heading: the button names it, and the sheet's label names it for a screen reader.
+      sheetSemanticLabel: 'Soundboard',
       itemsBuilder: (context, close) => [
         SoundboardPicker(channelId: widget.channelId),
       ],

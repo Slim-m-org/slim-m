@@ -105,6 +105,8 @@ class VoiceMicRecovery {
       timing: timing,
       wanted: () => micWanted && _connected(),
       enable: () async {
+        // Missing at the probe but republished by livekit since: that track is the good outcome.
+        if (_lostUnpublished && mic.hasTrack && mic.open) return true;
         // A track that failed mid-restart is still published but dead.
         if (mic.hasTrack) await mic.discard();
         _captureProgress.reset();
@@ -139,9 +141,10 @@ class VoiceMicRecovery {
         'is running; leaving it alone',
       ),
     );
-    _micLost = mic.lost.listen(
-      (_) => _recovery.onLost('track ended or unpublished'),
-    );
+    _micLost = mic.lost.listen((_) {
+      _lostUnpublished = false;
+      _recovery.onLost('track ended or unpublished');
+    });
     _micLevels = gate.readings.listen(_observeGateReading);
   }
 
@@ -180,6 +183,10 @@ class VoiceMicRecovery {
   /// Counts [setEnabled] calls, so one can tell a later ask overtook it.
   int _asks = 0;
   int _unpublishedProbes = 0;
+
+  /// The last loss was only a missing publication, so a track that has since
+  /// appeared is livekit's own republish rather than a dead one to replace.
+  bool _lostUnpublished = false;
 
   /// Runs from the first probe that saw the full restart under way.
   Stopwatch? _restartSeen;
@@ -336,6 +343,7 @@ class VoiceMicRecovery {
     // Two probes in a row, so the gap inside a healthy republish is not a loss.
     if (++_unpublishedProbes < 2) return;
     _unpublishedProbes = 0;
+    _lostUnpublished = true;
     _recovery.onLost('wanted but not published');
   }
 
@@ -403,6 +411,7 @@ class VoiceMicRecovery {
     _captureProbe = null;
     _captureProgress.reset();
     _unpublishedProbes = 0;
+    _lostUnpublished = false;
     _restartSeen = null;
     fallback.reset();
     _follow.stop();
@@ -415,6 +424,7 @@ class VoiceMicRecovery {
   /// is retried like a lost one, so the person sees it and is not left unheard.
   void retryAfterJoin() {
     _wanted = true;
+    _lostUnpublished = false;
     _recovery.onLost('could not open at join');
   }
 
@@ -423,6 +433,7 @@ class VoiceMicRecovery {
   Future<bool> restartCapture(String reason) async {
     if (_host.room() == null || !micWanted) return false;
     unawaited(fallback.logDevices('restart: $reason'));
+    _lostUnpublished = false;
     if (!mic.hasTrack) return _recovery.recoverNow(reason);
     try {
       await mic.restart(switching.captureOptions());

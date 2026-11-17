@@ -65,6 +65,14 @@ Future<VerifiedUpdate?> fetchVerifiedUpdate({
   client: client,
 );
 
+/// [fallback]'s artifact, unless the manifest splits it into `fallback-*`
+/// keys: then it only aliases one of those, built for some other host.
+T? _fallback<T>(Map<String, T> artifacts, String? fallback) {
+  if (fallback == null) return null;
+  if (artifacts.keys.any((k) => k.startsWith('$fallback-'))) return null;
+  return artifacts[fallback];
+}
+
 /// [fetchVerifiedUpdate] with the trusted keys and free-space probe exposed,
 /// so a test can sign with its own key; production never passes either.
 @visibleForTesting
@@ -109,9 +117,7 @@ Future<VerifiedUpdate?> fetchVerifiedUpdateWith({
   if (!isNewer(manifest.version, currentVersion)) return null;
   final artifact =
       manifest.artifacts[platformKey] ??
-      (fallbackPlatformKey == null
-          ? null
-          : manifest.artifacts[fallbackPlatformKey]);
+      _fallback(manifest.artifacts, fallbackPlatformKey);
   if (artifact == null) {
     throw SelfUpdateFailure(
       SelfUpdateFailureKind.noArtifactForPlatform,

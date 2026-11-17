@@ -20,6 +20,9 @@ const _sonar = AudioDevice(id: 'son', label: 'SteelSeries Sonar - Microphone');
 const _desk = AudioDevice(id: 'desk', label: 'Desk mic');
 
 class _Mic implements MicPort {
+  @override
+  Future<void> stopUnpublished() async {}
+
   bool published = false;
   bool muted = true;
   final restartDevices = <String?>[];

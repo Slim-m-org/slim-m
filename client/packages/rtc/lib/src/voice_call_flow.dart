@@ -366,6 +366,8 @@ class VoiceCallFlow {
       await _step(() => leaving.disconnect().timeout(kLeaveGoodbyeWait));
       await _step(leaving.dispose);
     }
+    // The disconnect stops only published tracks.
+    await _step(_core.mic.stopUnpublished);
   }
 
   void _setState(VoiceSessionState next) {

@@ -66,6 +66,7 @@ class ContextMenuRegion extends StatefulWidget {
     this.menuWidth = 200,
     this.tapRegionGroupId,
     this.sheetHeaderBuilder,
+    this.sheetSemanticLabel,
   });
 
   /// Builds the menu's items given a callback that closes it. Called fresh
@@ -133,6 +134,9 @@ class ContextMenuRegion extends StatefulWidget {
   /// Names what the compact sheet acts on, drawn above its items; the anchored
   /// menu stays untitled because it opens beside the thing itself.
   final WidgetBuilder? sheetHeaderBuilder;
+
+  /// Names the compact sheet for a screen reader when it has no visible header.
+  final String? sheetSemanticLabel;
 
   @override
   State<ContextMenuRegion> createState() => ContextMenuRegionState();
@@ -254,6 +258,7 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
     showAppSheet<void>(
       context,
       bare: true,
+      semanticLabel: widget.sheetSemanticLabel,
       builder: (sheetContext) {
         if (_active) {
           _sheetItems = widget.itemsBuilder(

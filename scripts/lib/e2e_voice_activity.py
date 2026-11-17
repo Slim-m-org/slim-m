@@ -76,6 +76,21 @@ def soft_but_unlit(rounds, audible_db=AUDIBLE_DB, min_lit=MIN_LIT):
             if r["heard_db"] >= audible_db and (r["lit"] or 0.0) < min_lit]
 
 
+# The loudest rounds must be heard, or the run measured a dead capture path rather than the ring.
+MIN_AUDIBLE_ROUNDS = 3
+
+
+def unmeasured(rounds, audible_db=AUDIBLE_DB, min_lit=MIN_LIT, min_audible=MIN_AUDIBLE_ROUNDS):
+    """Why `rounds` prove nothing about the ring, or None: the loudest voice went unheard or unlit, or too few were heard."""
+    loudest = max(rounds, key=lambda r: r["level_db"])
+    if loudest["heard_db"] < audible_db or (loudest["lit"] or 0.0) < min_lit:
+        return f"the loudest voice was heard at {loudest['heard_db']:.1f} dB, ring lit {loudest['lit']}"
+    heard = sum(1 for r in rounds if r["heard_db"] >= audible_db)
+    if heard < min_audible:
+        return f"only {heard} of {len(rounds)} rounds were heard"
+    return None
+
+
 def _new_stream(probe, before, room_id, sender_id, timeout=45):
     """The sender's stream, found as the one stream that is new since they joined.
 
@@ -159,6 +174,8 @@ def ring_follows_a_soft_voice(listener, server, secret, admin_api, sign_in, room
         finally:
             if listener.find(L.LEAVE_CALL):
                 _tap_label(listener, L.LEAVE_CALL, settle=3)
+    why = unmeasured(rounds)
+    assert why is None, f"the speaking ring was never really measured: {why}"
     dark = soft_but_unlit(rounds)
     assert not dark, f"heard without a speaking ring: {dark}"
     if hiss["heard_db"] < QUIET_HISS_DB:

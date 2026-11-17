@@ -72,6 +72,7 @@ class MemberProfileHeader extends ConsumerWidget {
       extras: extras,
       style: secondary,
       nameStyle: handleOnly ? nameStyle : null,
+      name: profile.displayName.trim(),
     );
 
     final statusText = ref.watch(
@@ -141,9 +142,7 @@ class MemberProfileHeader extends ConsumerWidget {
             ringColor: inCallTogether
                 ? null
                 : profileRingColour(profile, tokens.surfaceRaised),
-            semanticLabel: inCallTogether
-                ? '${profile.displayName}, in a call with you'
-                : null,
+            speakingLabel: 'in a call with you',
           ),
         ),
       ),

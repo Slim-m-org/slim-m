@@ -57,6 +57,10 @@ abstract interface class MicPort {
   /// Unpublishes the track without announcing it as a loss, so a fresh one
   /// can take its place.
   Future<void> discard();
+
+  /// Stops a microphone track livekit left capturing with no publication, as a
+  /// failed republish after a full restart does; run when the call ends.
+  Future<void> stopUnpublished();
 }
 
 /// Publishes [track] so no sound leaves before the mute lands: livekit's `disable()` does nothing until `start()` ran, and publishing starts the track, so the platform track is silenced directly.
@@ -92,8 +96,31 @@ class LiveKitMicPort implements MicPort {
     }
     if (event is lk.LocalTrackPublishedEvent &&
         event.publication.source == lk.TrackSource.microphone) {
+      final track = event.publication.track;
+      if (track is lk.LocalAudioTrack) unawaited(_adopt(track));
       unawaited(_dropDuplicates());
     }
+  }
+
+  /// The microphone track last seen published, kept so one a failed republish
+  /// leaves with no publication can still be stopped.
+  lk.LocalAudioTrack? _lastTrack;
+
+  /// Follows the newly published [track], stopping one it replaced that
+  /// livekit left capturing.
+  Future<void> _adopt(lk.LocalAudioTrack track) async {
+    if (_lastTrack != track) await stopUnpublished();
+    _lastTrack = _publication?.track ?? track;
+  }
+
+  @override
+  Future<void> stopUnpublished() async {
+    final track = _lastTrack;
+    if (track == null || _publications.any((p) => p.track == track)) return;
+    _lastTrack = null;
+    AppLog.at(LogLevel.warning, LogTag.voice,
+        'Stopping a microphone left capturing with no publication');
+    await track.stop();
   }
 
   /// Keeps the publication livekit's own lookups return, so every later mute reaches the one left.
@@ -116,7 +143,9 @@ class LiveKitMicPort implements MicPort {
 
   @override
   Future<void> discard() async {
+    await stopUnpublished();
     for (final publication in _publications) {
+      if (publication.track == _lastTrack) _lastTrack = null;
       await _room()
           ?.localParticipant
           ?.removePublishedTrack(publication.sid, notify: false);
@@ -144,6 +173,7 @@ class LiveKitMicPort implements MicPort {
     for (final publication in _publications) {
       await publication.track?.stop();
     }
+    await stopUnpublished();
     if (!_recordsUntilToldToStop) return;
     try {
       await _nativeChannel
@@ -182,6 +212,8 @@ class LiveKitMicPort implements MicPort {
       // The reopen uses the track's own options, so they must be current.
       adoptOptions(options);
     }
+    // A fresh publish opens a new capture, so an orphaned one must not keep running beside it.
+    if (enabled && !hasTrack) await stopUnpublished();
     await _room()?.localParticipant?.setMicrophoneEnabled(
           enabled,
           audioCaptureOptions: options,

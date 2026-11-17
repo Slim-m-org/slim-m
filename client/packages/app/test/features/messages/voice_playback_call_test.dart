@@ -184,15 +184,15 @@ void main() {
   });
 
   test(
-    'a call starting on iOS leaves the stop to the session release',
+    'a call starting on iOS stops the message, whichever community joins',
     () async {
       final c = container(ios: true);
       await c.read(voicePlaybackProvider.notifier).toggle(voiceMessage('a'));
 
       await c.read(callStartYieldsProvider).callStarting();
 
-      expect(player.log, hasLength(1), reason: 'nothing but the play');
-      expect(c.read(voicePlaybackProvider).playing, isTrue);
+      expect(player.log.last, 'stop');
+      expect(c.read(voicePlaybackProvider).playing, isFalse);
     },
   );
 }

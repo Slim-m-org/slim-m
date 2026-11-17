@@ -46,6 +46,7 @@ import 'ui_sound_settings.dart';
 import '../../channels/providers/mounted_channels.dart';
 import '../../../providers/app_lifecycle.dart';
 import '../../../providers/providers.dart';
+import '../../../audio/call_holds_audio_session.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_settings_controller.dart'
     show voiceSettingsControllerProvider;
@@ -69,7 +70,7 @@ class NotificationSoundController {
            player ??
            AudioPlayersSoundPlayer(
              afterPlay: _ref.read(soundOutputRouterProvider).followChosenOutput,
-             inCall: () => _ref.read(voiceControllerProvider).channelId != null,
+             inCall: _ref.read(callHoldsAudioSessionProvider),
            ),
        _messageHaptic = messageHaptic ?? AppHaptics.selection,
        _callRingHaptic = callRingHaptic ?? AppHaptics.impact,

@@ -3,6 +3,9 @@
 /// the rules a file and a name are held to, listening and removing.
 library;
 
+import 'dart:typed_data';
+
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -180,6 +183,37 @@ void main() {
     expect(find.textContaining('over 512 KB'), findsOneWidget);
   });
 
+  testWidgets(
+    'a picker that fails says so on the pane, and Create clip works again',
+    (tester) async {
+      var calls = 0;
+      await pumpSoundboard(
+        tester,
+        SoundboardWire(),
+        picker: () async {
+          calls++;
+          throw StateError('no portal');
+        },
+      );
+      await openCreateClip(tester);
+
+      expect(find.text('Could not open the file picker.'), findsOneWidget);
+      await openCreateClip(tester);
+      expect(calls, 2, reason: 'the button is not stuck creating');
+    },
+  );
+
+  test('an oversized drop is refused without reading it whole', () async {
+    final pick = await readDroppedSoundClip([_UnreadableDrop('huge.wav')]);
+    expect(pick, isNotNull);
+    expect(soundClipFileProblem(pick!), contains('over 512 KB'));
+  });
+
+  test('a drop that is no clip is refused without reading it', () async {
+    final pick = await readDroppedSoundClip([_UnreadableDrop('film.mkv')]);
+    expect(soundClipFileProblem(pick!), 'Only mp3 and wav files can be clips.');
+  });
+
   testWidgets('listening plays the clip here and sends nothing to a call', (
     tester,
   ) async {
@@ -209,4 +243,15 @@ void main() {
     expect(wire.writes, ['DELETE']);
     expect(find.text('No clips yet.'), findsOneWidget);
   });
+}
+
+/// A dropped file far over the limit whose bytes must never be read.
+class _UnreadableDrop extends DropItemFile {
+  _UnreadableDrop(super.path) : super(name: path);
+
+  @override
+  Future<int> length() async => 4 * 1024 * 1024 * 1024;
+
+  @override
+  Future<Uint8List> readAsBytes() => throw StateError('read whole');
 }

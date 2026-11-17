@@ -38,5 +38,17 @@ class QuietMinute(unittest.TestCase):
                 vh._quiet_minute(Client(), MINUTE.format(c="2.7"))
 
 
+class MinuteLineHasRealNumbers(unittest.TestCase):
+    def test_the_minute_is_waited_out_once_for_both_clients(self):
+        a, b = Client(), Client()
+        b.name = "bob"
+        with mock.patch.object(vh.time, "sleep") as sleep, \
+                mock.patch.object(vh, "_copied_diagnostics", return_value=MINUTE.format(c="0.0")):
+            vh.minute_line_has_real_numbers(a, b)
+        waits = [c.args[0] for c in sleep.call_args_list]
+        self.assertEqual(waits.count(vh.MINUTE_WAIT), 1, waits)
+        self.assertEqual(sum(waits), vh.MINUTE_WAIT)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -18,12 +18,8 @@ class VoiceTranscriptLine extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final live = ref.watch(
-      voiceTranscriptsProvider.select((all) => all[attachment.id]),
-    );
     final transcript = shownVoiceTranscript(
       attachment,
-      live,
       spaceShows: ref.watch(voiceTranscriptsShownProvider),
     );
     if (transcript == null) return const SizedBox.shrink();

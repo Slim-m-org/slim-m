@@ -27,6 +27,26 @@ class SoftButUnlit(unittest.TestCase):
         self.assertEqual(va.soft_but_unlit([{"heard_db": -70.0, "lit": None}]), [])
 
 
+class Unmeasured(unittest.TestCase):
+    def rounds(self, heard, lit):
+        return [{"level_db": level, "heard_db": h, "lit": l}
+                for level, h, l in zip(va.LEVELS_DB, heard, lit)]
+
+    def test_nothing_heard_at_all_fails(self):
+        rounds = self.rounds([-70.0] * 6, [None] * 6)
+        self.assertIsNotNone(va.unmeasured(rounds))
+
+    def test_a_loudest_voice_heard_but_never_lit_fails(self):
+        rounds = self.rounds([-10.0, -25.0, -35.0, -45.0, -60.0, -70.0],
+                             [0.0, 1.0, 1.0, 1.0, None, None])
+        self.assertIsNotNone(va.unmeasured(rounds))
+
+    def test_a_normal_descending_set_passes(self):
+        rounds = self.rounds([-10.0, -25.0, -35.0, -45.0, -60.0, -70.0],
+                             [1.0, 1.0, 0.95, 0.9, None, None])
+        self.assertIsNone(va.unmeasured(rounds))
+
+
 class LitShare(unittest.TestCase):
     def test_counts_every_sample(self):
         self.assertEqual(va.lit_share([(0.1, True), (0.2, False)]), 0.5)

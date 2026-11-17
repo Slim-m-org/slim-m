@@ -144,7 +144,8 @@ class _SoundboardPickerState extends ConsumerState<SoundboardPicker>
               child: SingleChildScrollView(
                 child: _ClipGrid(
                   clips: list,
-                  onPlay: _resting ? null : (clip) => unawaited(_play(clip)),
+                  resting: _resting,
+                  onPlay: (clip) => unawaited(_play(clip)),
                 ),
               ),
             ),
@@ -158,12 +159,17 @@ class _SoundboardPickerState extends ConsumerState<SoundboardPicker>
 /// Tiles in equal columns: three in the popover, and on a touch sheet as many
 /// as fit a name like "wrong buzzer" whole.
 class _ClipGrid extends StatelessWidget {
-  const _ClipGrid({required this.clips, required this.onPlay});
+  const _ClipGrid({
+    required this.clips,
+    required this.resting,
+    required this.onPlay,
+  });
 
   final List<api.SoundClip> clips;
 
-  /// Null while the tiles rest.
-  final void Function(api.SoundClip clip)? onPlay;
+  final bool resting;
+
+  final void Function(api.SoundClip clip) onPlay;
 
   int _columns(BuildContext context, double width) {
     if (!AppTouchTargets.of(context)) return _popoverColumns;
@@ -188,7 +194,8 @@ class _ClipGrid extends StatelessWidget {
                   key: ValueKey(clip.id),
                   clip: clip,
                   label: '${clip.name}, ${formatClipLength(clip.durationMs)}',
-                  onTap: onPlay == null ? null : () => onPlay!(clip),
+                  resting: resting,
+                  onTap: () => onPlay(clip),
                 ),
               ),
           ],
@@ -205,6 +212,7 @@ class _ClipTile extends StatefulWidget {
     super.key,
     required this.clip,
     required this.label,
+    required this.resting,
     required this.onTap,
   });
 
@@ -213,8 +221,11 @@ class _ClipTile extends StatefulWidget {
   /// The clip's name and length, for the tooltip and a screen reader.
   final String label;
 
-  /// Null while the tiles rest.
-  final VoidCallback? onTap;
+  /// Resting tiles look and read as disabled but keep their focus, so a
+  /// keyboard user is not dropped after every play.
+  final bool resting;
+
+  final VoidCallback onTap;
 
   @override
   State<_ClipTile> createState() => _ClipTileState();
@@ -230,7 +241,7 @@ class _ClipTileState extends State<_ClipTile> {
   }
 
   Color _fill(AppTokens tokens) {
-    if (widget.onTap == null) return Colors.transparent;
+    if (widget.resting) return Colors.transparent;
     if (_pressed) return tokens.accentSoft;
     return _hovered ? tokens.surfaceSunken : Colors.transparent;
   }
@@ -238,7 +249,12 @@ class _ClipTileState extends State<_ClipTile> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final enabled = widget.onTap != null;
+    final touch = AppTouchTargets.of(context);
+    final enabled = !widget.resting;
+    void activate() {
+      if (enabled) widget.onTap();
+    }
+
     final radius = BorderRadius.circular(AppRadii.control);
     final body = Container(
       padding: const EdgeInsets.all(_inset),
@@ -258,8 +274,9 @@ class _ClipTileState extends State<_ClipTile> {
             StoredEmoji(widget.clip.emoji, placeholder: AppIcons.music),
             Text(
               widget.clip.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              // A tooltip never shows on touch, so there the whole name wraps instead.
+              maxLines: touch ? null : 1,
+              overflow: touch ? null : TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: AppText.caption.copyWith(color: tokens.textPrimary),
             ),
@@ -267,34 +284,35 @@ class _ClipTileState extends State<_ClipTile> {
         ),
       ),
     );
+    final tile = Semantics(
+      label: widget.label,
+      button: true,
+      enabled: enabled,
+      child: FocusableActionDetector(
+        mouseCursor: enabled
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
+        onShowHoverHighlight: (v) => setState(() => _hovered = v),
+        onShowFocusHighlight: (v) => setState(() => _focused = v),
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) => activate(),
+          ),
+        },
+        child: GestureDetector(
+          onTap: activate,
+          onTapDown: enabled ? (_) => _press(true) : null,
+          onTapUp: (_) => _press(false),
+          onTapCancel: () => _press(false),
+          child: ExcludeSemantics(child: body),
+        ),
+      ),
+    );
+    if (touch) return tile;
     return Tooltip(
       message: widget.label,
       excludeFromSemantics: true,
-      child: Semantics(
-        label: widget.label,
-        button: true,
-        enabled: enabled,
-        child: FocusableActionDetector(
-          enabled: enabled,
-          mouseCursor: enabled
-              ? SystemMouseCursors.click
-              : SystemMouseCursors.basic,
-          onShowHoverHighlight: (v) => setState(() => _hovered = v),
-          onShowFocusHighlight: (v) => setState(() => _focused = v),
-          actions: <Type, Action<Intent>>{
-            ActivateIntent: CallbackAction<ActivateIntent>(
-              onInvoke: (_) => widget.onTap?.call(),
-            ),
-          },
-          child: GestureDetector(
-            onTap: widget.onTap,
-            onTapDown: enabled ? (_) => _press(true) : null,
-            onTapUp: (_) => _press(false),
-            onTapCancel: () => _press(false),
-            child: ExcludeSemantics(child: body),
-          ),
-        ),
-      ),
+      child: tile,
     );
   }
 }

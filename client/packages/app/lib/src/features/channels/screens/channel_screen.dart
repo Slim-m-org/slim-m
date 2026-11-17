@@ -326,7 +326,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       ref.read(appFocusedProvider) && ref.read(accountActiveProvider);
 
   void _markReadUpToLatest(int seq, int lastReadSeq, bool manuallyUnread) {
-    if (!_watched) return;
+    // A search's context window is not the live channel, so its bottom is not the newest message.
+    if (!_watched ||
+        ref.read(messageContextWindowProvider(widget.channelId)) != null) {
+      return;
+    }
     _readMarker.advance(
       widget.channelId,
       seq: seq,

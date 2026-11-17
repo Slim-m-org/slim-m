@@ -14,6 +14,9 @@ import 'support/no_audio_devices.dart';
 import 'support/session_fakes.dart';
 
 class _FakeMic implements MicPort {
+  @override
+  Future<void> stopUnpublished() async {}
+
   bool published = false;
   bool muted = true;
   final enables = <(bool, lk.AudioCaptureOptions?)>[];

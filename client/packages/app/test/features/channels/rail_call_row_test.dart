@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/accounts/widgets/account_call_pill.dart';
@@ -25,6 +26,43 @@ const _footer = SizedBox(
 
 void main() {
   setUpAll(loadRealFonts);
+
+  testWidgets('Tab reaches the call summary and Enter opens the call', (
+    tester,
+  ) async {
+    var opened = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        home: Scaffold(
+          body: RailCallSummary(
+            channelName: 'lounge',
+            connectedAt: null,
+            screenSharing: false,
+            onOpen: () async => opened++,
+          ),
+        ),
+      ),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    final focused = FocusManager.instance.primaryFocus?.context;
+    expect(
+      focused != null &&
+          find
+              .descendant(
+                of: find.byWidgetPredicate((w) => w is RailCallSummary),
+                matching: find.byElementPredicate((e) => e == focused),
+              )
+              .evaluate()
+              .isNotEmpty,
+      isTrue,
+      reason: 'Tab reaches the summary',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(opened, 1);
+  });
 
   testWidgets('a call in another community names it, and its Leave ends that '
       "community's call", (tester) async {

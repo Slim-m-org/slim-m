@@ -21,6 +21,7 @@ import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/widgets/call_dock_button.dart';
 import '../../voice/widgets/call_participant_tiles.dart';
+import 'rail_footer_press_target.dart';
 
 /// The summary's root, for tests to find it without matching its type.
 const railCallSummaryKey = Key('rail_call_summary');
@@ -142,7 +143,7 @@ class _OverGear extends StatelessWidget {
 }
 
 /// The call's channel and duration, a tap target back to the call.
-class RailCallSummary extends StatefulWidget {
+class RailCallSummary extends StatelessWidget {
   const RailCallSummary({
     super.key,
     required this.channelName,
@@ -160,67 +161,40 @@ class RailCallSummary extends StatefulWidget {
   final Future<void> Function() onOpen;
 
   @override
-  State<RailCallSummary> createState() => _RailCallSummaryState();
-}
-
-class _RailCallSummaryState extends State<RailCallSummary> {
-  bool _pressed = false;
-
-  @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final channelName = widget.channelName;
-    final community = widget.community;
+    final channelName = this.channelName;
+    final community = this.community;
 
-    return Tooltip(
-      message: channelName == null ? 'Go to the call' : 'Go to $channelName',
-      excludeFromSemantics: true,
-      child: Semantics(
-        button: true,
-        label: [
-          channelName == null
-              ? 'Back to the call'
-              : 'Back to the call in $channelName',
-          ?community,
-        ].join(', '),
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapDown: (_) => setState(() => _pressed = true),
-            onTapUp: (_) => setState(() => _pressed = false),
-            onTapCancel: () => setState(() => _pressed = false),
-            onTap: () {
-              AppHaptics.selection();
-              unawaited(widget.onOpen());
-            },
-            child: AnimatedOpacity(
-              opacity: _pressed ? 0.6 : 1,
-              duration: AppMotion.reduced(context, AppMotion.fast),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    channelName ?? 'In a call',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.ui.copyWith(
-                      color: tokens.textPrimary,
-                      fontWeight: AppWeights.medium,
-                      height: 1.25,
-                    ),
-                  ),
-                  _SecondLine(
-                    community: community,
-                    connectedAt: widget.connectedAt,
-                    screenSharing: widget.screenSharing,
-                  ),
-                ],
-              ),
+    return RailFooterPressTarget(
+      tooltip: channelName == null ? 'Go to the call' : 'Go to $channelName',
+      semanticLabel: [
+        channelName == null
+            ? 'Back to the call'
+            : 'Back to the call in $channelName',
+        ?community,
+      ].join(', '),
+      onPressed: () => unawaited(onOpen()),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            channelName ?? 'In a call',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.ui.copyWith(
+              color: tokens.textPrimary,
+              fontWeight: AppWeights.medium,
+              height: 1.25,
             ),
           ),
-        ),
+          _SecondLine(
+            community: community,
+            connectedAt: connectedAt,
+            screenSharing: screenSharing,
+          ),
+        ],
       ),
     );
   }

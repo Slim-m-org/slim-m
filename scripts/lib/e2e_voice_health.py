@@ -47,9 +47,9 @@ def _copied_diagnostics(client):
     return got.get("result", {}).get("result", {}).get("value") or ""
 
 
-def _wait_for_minute_line(client, timeout, after=None):
-    """The latest minute line, once there is one that is not `after`."""
-    time.sleep(MINUTE_WAIT)
+def _wait_for_minute_line(client, timeout, after=None, wait=MINUTE_WAIT):
+    """The latest minute line, once there is one that is not `after`, first giving the call `wait` seconds."""
+    time.sleep(wait)
     deadline = time.time() + timeout
     while time.time() < deadline:
         line = _minute_line_in(_copied_diagnostics(client))
@@ -93,8 +93,9 @@ def _netem(command):
 
 
 def minute_line_has_real_numbers(a, b, timeout=120):
-    for c in (a, b):
-        line = _wait_for_minute_line(c, timeout)
+    # Both clients' minutes run at once, so only the first has to wait one out.
+    for i, c in enumerate((a, b)):
+        line = _wait_for_minute_line(c, timeout, wait=MINUTE_WAIT if i == 0 else 0)
         print(f"  {c.name}: {line}")
         assert "?" not in line, f"{c.name}: a field was null: {line}"
         sent = re.search(r"sent=(\d+)kbps", line)

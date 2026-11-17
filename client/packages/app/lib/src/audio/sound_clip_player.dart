@@ -12,7 +12,7 @@ import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../features/voice/providers/voice_controller.dart';
+import 'call_holds_audio_session.dart';
 import 'notification_sound.dart' show AudioPlayersSoundPlayer;
 import 'sound_audio_context.dart';
 import 'sound_output_router.dart';
@@ -63,6 +63,6 @@ class AudioPlayersSoundClipPlayer implements SoundClipPlayer {
 final soundClipPlayerProvider = Provider<SoundClipPlayer>(
   (ref) => AudioPlayersSoundClipPlayer(
     afterPlay: ref.read(soundOutputRouterProvider).followChosenOutput,
-    inCall: () => ref.read(voiceControllerProvider).channelId != null,
+    inCall: ref.read(callHoldsAudioSessionProvider),
   ),
 );

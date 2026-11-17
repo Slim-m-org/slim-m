@@ -7,7 +7,6 @@ library;
 
 import 'dart:async';
 
-import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -27,6 +26,7 @@ import '../../../voice/providers/soundboard_clips.dart';
 import '../../widgets/settings_catalog_card.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_entity_row.dart';
+import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import 'soundboard_clip_sheet.dart';
 import 'soundboard_create.dart';
@@ -51,21 +51,12 @@ class SoundboardScreen extends StatelessWidget {
 class SoundboardPane extends ConsumerWidget {
   const SoundboardPane({super.key});
 
-  Future<void> _dropped(
-    BuildContext context,
-    WidgetRef ref,
-    List<DropItem> files,
-  ) async {
-    final pick = await readDroppedSoundClip(files);
-    if (pick == null || !context.mounted) return;
-    await createSoundClip(context, ref, pick: pick);
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final clips = ref.watch(soundClipsProvider);
     final count = clips.valueOrNull?.length;
     final profiles = ref.watch(batchProfilesControllerProvider);
+    final intakeError = ref.watch(soundClipIntakeErrorProvider);
     resolveAuthorProfiles(ref, [
       for (final clip in clips.valueOrNull ?? const <api.SoundClip>[])
         clip.uploaderId,
@@ -77,7 +68,13 @@ class SoundboardPane extends ConsumerWidget {
           !ref.watch(soundClipCreatingProvider),
       label: 'Drop to create a clip',
       icon: AppIcons.music,
-      onDrop: (files, _) => unawaited(_dropped(context, ref, files)),
+      onDrop: (files, _) => unawaited(
+        createSoundClip(
+          context,
+          ref,
+          dropped: () => readDroppedSoundClip(files),
+        ),
+      ),
       child: AppAsyncView<List<api.SoundClip>>(
         value: AppAsyncState(data: clips.valueOrNull, error: clips.error),
         center: false,
@@ -86,6 +83,19 @@ class SoundboardPane extends ConsumerWidget {
         data: (context, list) => SettingsCatalogCard(
           title: 'Clips',
           count: '${list.length} of $maxSoundClips',
+          above: [
+            if (intakeError != null)
+              SettingsCardBlock(
+                children: [
+                  AppErrorState(
+                    message: intakeError,
+                    onDismiss: () =>
+                        ref.read(soundClipIntakeErrorProvider.notifier).state =
+                            null,
+                  ),
+                ],
+              ),
+          ],
           // At most 48 clips, so the page scrolls them rather than a box inside it.
           bounded: false,
           itemCount: list.length,

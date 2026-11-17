@@ -19,10 +19,14 @@ class _Room extends ConnectlessRoom {
 }
 
 class _Mic implements MicPort {
+  @override
+  Future<void> stopUnpublished() async {}
+
   bool published = false;
   bool muted = true;
   int enables = 0;
   int enableFailures = 0;
+  int discards = 0;
   final _lost = StreamController<void>.broadcast();
 
   /// How long a publish takes, for a test that looks at the call meanwhile.
@@ -76,7 +80,10 @@ class _Mic implements MicPort {
   @override
   void onRoomEvent(lk.RoomEvent event) {}
   @override
-  Future<void> discard() async => published = false;
+  Future<void> discard() async {
+    discards++;
+    published = false;
+  }
 }
 
 const _timing = MicRecoveryTiming(
@@ -216,5 +223,36 @@ void main() {
 
     expect(mic.enables, 1);
     expect(statuses, isEmpty);
+  });
+
+  test('a microphone livekit republishes before the retry fires is kept',
+      () async {
+    final slow = VoiceSession(
+      roomFactory: () => room,
+      micPort: mic,
+      audioDevices: const NoAudioDevices(),
+      micRecoveryTiming: const MicRecoveryTiming(
+        retryBase: Duration(milliseconds: 200),
+        maxRetryDelay: Duration(milliseconds: 400),
+        maxRetries: 3,
+        captureProbe: Duration(milliseconds: 5),
+        restartRepublish: Duration(milliseconds: 400),
+      ),
+      inputGate: InputGateMonitor.disabled(),
+    );
+    addTearDown(slow.dispose);
+    await slow.join(
+        url: 'wss://a.invalid', token: 't', microphoneEnabled: true);
+    expect(mic.enables, 1);
+
+    mic.published = false;
+    await pollUntil(() => slow.micStatus == MicStatus.reconnecting);
+    mic
+      ..published = true
+      ..muted = false;
+    await pollUntil(() => slow.micStatus == MicStatus.ok);
+
+    expect(mic.discards, 0, reason: 'the republished track was healthy');
+    expect(mic.enables, 1);
   });
 }

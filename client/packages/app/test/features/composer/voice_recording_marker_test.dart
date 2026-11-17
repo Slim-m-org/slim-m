@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -133,6 +134,39 @@ void main() {
       shell.container.read(voiceRecorderProvider('c-design')).clip,
       isNotNull,
     );
+    await shell.close();
+  });
+
+  testWidgets('Tab reaches the rail marker and Enter goes back', (
+    tester,
+  ) async {
+    final shell = _Shell(tester);
+    await shell.open(const Size(1280, 900));
+    await shell.record('c-design');
+    await shell.go('c-general');
+    expect(_marker, findsOneWidget);
+
+    bool focusedInMarker() {
+      final focused = FocusManager.instance.primaryFocus?.context;
+      return focused != null &&
+          find
+              .descendant(
+                of: _marker,
+                matching: find.byElementPredicate((e) => e == focused),
+              )
+              .evaluate()
+              .isNotEmpty;
+    }
+
+    for (var i = 0; i < 200 && !focusedInMarker(); i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+    }
+    expect(focusedInMarker(), isTrue, reason: 'Tab reaches the marker');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(shell.path, '/channels/c-design');
     await shell.close();
   });
 

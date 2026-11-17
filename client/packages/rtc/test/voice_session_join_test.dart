@@ -28,6 +28,9 @@ class _GatedRoom extends ConnectlessRoom {
 }
 
 class _Mic implements MicPort {
+  @override
+  Future<void> stopUnpublished() async {}
+
   final published = <lk.AudioCaptureOptions?>[];
   bool hasTrackNow = false;
 

@@ -40,6 +40,7 @@ class UserAvatar extends ConsumerWidget {
     this.speaking = false,
     this.ringColor,
     this.semanticLabel,
+    this.speakingLabel = 'speaking',
     this.placeholder,
     this.image,
     this.profileColour,
@@ -57,6 +58,7 @@ class UserAvatar extends ConsumerWidget {
     this.speaking = false,
     this.ringColor,
     this.semanticLabel,
+    this.speakingLabel = 'speaking',
     this.placeholder,
     this.image,
     this.profileColour,
@@ -73,6 +75,9 @@ class UserAvatar extends ConsumerWidget {
   final bool speaking;
   final Color? ringColor;
   final String? semanticLabel;
+
+  /// How the accessible name reads the [speaking] ring.
+  final String speakingLabel;
 
   /// Drawn instead of initials on a square avatar with no picture (a bot).
   final Widget? placeholder;
@@ -142,6 +147,7 @@ class UserAvatar extends ConsumerWidget {
       speaking: speaking,
       ringColor: ringColor,
       semanticLabel: semanticLabel,
+      speakingLabel: speakingLabel,
       placeholder: placeholder,
       surfaceColor: surfaceColor,
     );
