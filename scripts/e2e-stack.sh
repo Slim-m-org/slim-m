@@ -78,6 +78,7 @@ stop_pid_file() {
 
 down() {
   stop_pid_file web e2e_web_server.py
+  stop_pid_file relay e2e_webhook_relay.py
   stop_pid_file api slimm-server
   docker rm -f "$LK_CONTAINER" >/dev/null 2>&1 || true
   rm -rf "$WORK/slimm.db"* "$WORK/stack.json" "$WORK/stack.env"
@@ -95,15 +96,31 @@ wait_for_url() {
 start_sfu() {
   echo "== SFU =="
   docker rm -f "$LK_CONTAINER" >/dev/null 2>&1 || true
+  local webhook=""
+  [[ -z "${WEBHOOK_GATEWAY:-}" ]] || webhook="
+webhook: {api_key: $LIVEKIT_API_KEY, urls: ['http://host.docker.internal:$API_PORT/voice/webhook']}"
   # Loopback only, since --dev's key pair is public; no --rm, so a container that dies keeps the logs the failure prints.
-  docker run -d --name "$LK_CONTAINER" \
+  docker run -d --name "$LK_CONTAINER" --add-host=host.docker.internal:host-gateway \
     -p "127.0.0.1:$LK_PORT:7880" -p "127.0.0.1:$RTC_TCP_PORT:$RTC_TCP_PORT" \
     -p "127.0.0.1:$RTC_UDP_START-$RTC_UDP_END:$RTC_UDP_START-$RTC_UDP_END/udp" \
     -e LIVEKIT_CONFIG="rtc: {port_range_start: $RTC_UDP_START, port_range_end: $RTC_UDP_END, tcp_port: $RTC_TCP_PORT}
-audio: {$LK_AUDIO}" \
+audio: {$LK_AUDIO}$webhook" \
     "livekit/livekit-server:$LIVEKIT_VERSION" --dev --bind 0.0.0.0 >/dev/null
   wait_for_url "http://localhost:$LK_PORT" "$SFU_WAIT" || {
     echo "livekit never came up:"; docker logs "$LK_CONTAINER" 2>&1 | tail -20; exit 1; }
+}
+
+# Prod's SFU posts joins and leaves to the server (decision 0032); E2E_LK_WEBHOOK=0 runs without.
+bridge_gateway() {
+  [[ "${E2E_LK_WEBHOOK:-1}" != "0" ]] || return 0
+  docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null || true
+}
+
+start_webhook_relay() {
+  [[ -n "${WEBHOOK_GATEWAY:-}" ]] || return 0
+  setsid python3 "$ROOT/scripts/lib/e2e_webhook_relay.py" "$WEBHOOK_GATEWAY" "$API_PORT" "$API_PORT" \
+    > "$WORK/webhook-relay.log" 2>&1 < /dev/null &
+  echo $! > "$PIDS/relay.pid"
 }
 
 start_server() {
@@ -217,8 +234,10 @@ up() {
   mkdir -p "$PIDS"
   python3 "$ROOT/scripts/lib/e2e_fixtures.py" "$WORK/fixtures"
 
+  WEBHOOK_GATEWAY="$(bridge_gateway)"
   start_sfu
   start_server
+  start_webhook_relay
 
   echo "== accounts and a voice channel =="
   eval "$(python3 "$ROOT/scripts/lib/e2e_seed.py" "http://localhost:$API_PORT")"
