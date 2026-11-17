@@ -125,11 +125,8 @@ class SettingsPaneBody extends StatelessWidget {
       key: contentKey,
       child: Builder(builder: pane.builder),
     );
-    if (pane.scrollable) {
-      return ListView(
-        padding: padding,
-        children: [if (showHeading) _heading(context), content],
-      );
+    if (pane.scrollable && !showHeading) {
+      return ListView(padding: padding, children: [content]);
     }
     if (!showHeading) return Padding(padding: padding, child: content);
     return Column(
@@ -145,15 +142,25 @@ class SettingsPaneBody extends StatelessWidget {
           child: _heading(context),
         ),
         Expanded(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              padding.left,
-              0,
-              padding.right,
-              padding.bottom,
-            ),
-            child: content,
-          ),
+          child: pane.scrollable
+              ? ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    padding.left,
+                    0,
+                    padding.right,
+                    padding.bottom,
+                  ),
+                  children: [content],
+                )
+              : Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    padding.left,
+                    0,
+                    padding.right,
+                    padding.bottom,
+                  ),
+                  child: content,
+                ),
         ),
       ],
     );

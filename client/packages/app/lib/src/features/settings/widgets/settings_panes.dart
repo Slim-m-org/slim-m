@@ -339,7 +339,6 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
                         backTooltip: widget.backTooltip,
                         backFallback: widget.backFallback,
                         onBack: _close,
-                        showBack: stack?.isEmpty ?? true,
                       ),
                       Expanded(child: nav),
                     ],

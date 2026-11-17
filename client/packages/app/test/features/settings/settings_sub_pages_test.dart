@@ -134,20 +134,18 @@ Future<void> _tap(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
-  testWidgets('beside the nav a page has one back arrow: the nav\'s steps '
-      'aside', (tester) async {
+  testWidgets('beside the nav the rail keeps its back arrow and title put '
+      'while a page is open', (tester) async {
     final rig = _Rig();
     await rig.pump(tester, _wide);
     final navBack = find.byTooltip('Back to channels');
     final title = tester.getTopLeft(find.text('Settings'));
-    final arrowLeft = tester.getTopLeft(navBack).dx;
     expect(navBack.hitTestable(), findsOneWidget);
 
     await _tap(tester, find.text('open page'));
-    expect(navBack.hitTestable(), findsNothing);
+    expect(navBack.hitTestable(), findsOneWidget);
     expect(find.byTooltip('Back to Appearance').hitTestable(), findsOneWidget);
-    // The title takes the arrow's place rather than keeping an empty indent.
-    expect(tester.getTopLeft(find.text('Settings')).dx, arrowLeft);
+    expect(tester.getTopLeft(find.text('Settings')), title);
 
     await _tap(tester, find.byTooltip('Back to Appearance'));
     expect(navBack.hitTestable(), findsOneWidget);

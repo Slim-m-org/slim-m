@@ -147,6 +147,7 @@ void main() {
       matching: find.byType(ListView),
     );
     final listView = tester.widget<ListView>(paneList);
-    expect(listView.padding, const EdgeInsets.fromLTRB(32, 24, 32, 40));
+    // The 24 top inset sits above the pinned heading, not inside the list.
+    expect(listView.padding, const EdgeInsets.fromLTRB(32, 0, 32, 40));
   });
 }
