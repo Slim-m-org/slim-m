@@ -81,3 +81,128 @@ fn an_id3_tag_is_skipped_and_trailing_junk_is_ignored() {
 fn bytes_with_no_frame_have_no_length() {
     assert_eq!(of(&[0u8; 2000], "audio/mpeg"), None);
 }
+
+/// A RIFF/WAVE file made of `chunks`, each padded to an even length.
+fn riff(chunks: &[(&[u8; 4], Vec<u8>)]) -> Vec<u8> {
+    let mut body = b"WAVE".to_vec();
+    for (id, payload) in chunks {
+        body.extend_from_slice(*id);
+        body.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        body.extend_from_slice(payload);
+        if payload.len() % 2 == 1 {
+            body.push(0);
+        }
+    }
+    let mut out = b"RIFF".to_vec();
+    out.extend_from_slice(&(body.len() as u32).to_le_bytes());
+    out.extend(body);
+    out
+}
+
+/// A 16-byte `fmt ` body whose byte rate agrees with its format.
+fn fmt_body(format: u16, channels: u16, rate: u32, bits: u16) -> Vec<u8> {
+    let mut out = format.to_le_bytes().to_vec();
+    out.extend_from_slice(&channels.to_le_bytes());
+    out.extend_from_slice(&rate.to_le_bytes());
+    out.extend_from_slice(&(rate * u32::from(channels) * u32::from(bits) / 8).to_le_bytes());
+    out.extend_from_slice(&(channels * bits / 8).to_le_bytes());
+    out.extend_from_slice(&bits.to_le_bytes());
+    out
+}
+
+/// A WAVE_FORMAT_EXTENSIBLE `fmt ` body for 8 kHz mono 16-bit whose SubFormat GUID starts with `codec`.
+fn extensible_body(codec: u16) -> Vec<u8> {
+    let mut out = fmt_body(0xFFFE, 1, 8000, 16);
+    out.extend_from_slice(&22u16.to_le_bytes());
+    out.extend_from_slice(&16u16.to_le_bytes());
+    out.extend_from_slice(&4u32.to_le_bytes());
+    out.extend_from_slice(&u32::from(codec).to_le_bytes());
+    out.extend_from_slice(&[
+        0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71,
+    ]);
+    out
+}
+
+#[test]
+fn a_wav_with_two_fmt_chunks_has_no_length() {
+    let bytes = riff(&[
+        (b"fmt ", fmt_body(1, 1, 8000, 8)),
+        (b"fmt ", fmt_body(1, 8, 192_000, 32)),
+        (b"data", vec![0x80; 400_000]),
+    ]);
+    assert_eq!(of(&bytes, "audio/wav"), None);
+}
+
+#[test]
+fn a_wav_whose_audio_comes_in_two_data_chunks_is_measured_by_both() {
+    let bytes = riff(&[
+        (b"fmt ", fmt_body(1, 1, 8000, 16)),
+        (b"data", vec![0; 16_000]),
+        (b"data", vec![0; 32_000]),
+    ]);
+    assert_eq!(of(&bytes, "audio/wav"), Some(3000));
+}
+
+#[test]
+fn a_fmt_chunk_too_short_for_its_fields_has_no_length() {
+    let mut short = fmt_body(1, 1, 8000, 8);
+    short.truncate(14);
+    let bytes = riff(&[
+        (b"fmt ", short),
+        (&[8, 0, b'x', b'x'], Vec::new()),
+        (b"data", vec![0x80; 16_000]),
+    ]);
+    assert_eq!(of(&bytes, "audio/wav"), None);
+}
+
+#[test]
+fn an_extensible_wav_is_measured_only_when_its_subformat_is_uncompressed() {
+    let pcm = riff(&[(b"fmt ", extensible_body(1)), (b"data", vec![0; 16_000])]);
+    assert_eq!(of(&pcm, "audio/wav"), Some(1000));
+    let adpcm = riff(&[(b"fmt ", extensible_body(0x11)), (b"data", vec![0; 16_000])]);
+    assert_eq!(of(&adpcm, "audio/wav"), None);
+    let mut bare = fmt_body(0xFFFE, 1, 8000, 16);
+    bare.extend_from_slice(&0u16.to_le_bytes());
+    assert_eq!(
+        of(
+            &riff(&[(b"fmt ", bare), (b"data", vec![0; 16_000])]),
+            "audio/wav"
+        ),
+        None,
+        "an extensible header with no SubFormat"
+    );
+}
+
+#[test]
+fn a_free_format_mp3_has_no_length() {
+    let mut bytes = mp3_bytes(100);
+    for frame in bytes.chunks_mut(417).skip(1) {
+        frame[2] &= 0x0F;
+    }
+    assert_eq!(of(&bytes, "audio/mpeg"), None);
+}
+
+#[test]
+fn junk_between_mp3_frames_has_no_length() {
+    let mut bytes = mp3_bytes(10);
+    bytes.extend(std::iter::repeat_n(0u8, 4096));
+    bytes.extend(mp3_bytes(10));
+    assert_eq!(of(&bytes, "audio/mpeg"), None);
+}
+
+#[test]
+fn an_id3_tag_whose_size_is_not_synchsafe_has_no_length() {
+    // Read with the top bits masked off, this size would hide all but the last few frames.
+    let mut bytes = b"ID3\x04\x00\x00\x00\x18\xff\xff".to_vec();
+    bytes.extend(mp3_bytes(1000));
+    assert_eq!(of(&bytes, "audio/mpeg"), None);
+}
+
+#[test]
+fn an_id3v1_tag_after_the_frames_is_ignored() {
+    let mut bytes = mp3_bytes(10);
+    bytes.extend_from_slice(b"TAG");
+    bytes.extend(std::iter::repeat_n(b' ', 125));
+    let ms = of(&bytes, "audio/mpeg").unwrap();
+    assert!((260..=262).contains(&ms), "{ms}");
+}

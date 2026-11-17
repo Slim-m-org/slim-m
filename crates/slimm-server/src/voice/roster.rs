@@ -39,7 +39,7 @@ pub struct RoomParticipant {
     /// When this participant joined the room, in unix milliseconds, as the
     /// SFU reports it. `None` when the SFU predates the field.
     pub joined_at_ms: Option<i64>,
-    /// The device the token was minted for; `None` for a token from before the attribute.
+    /// The device tag the token was minted for, the raw device id on older tokens, `None` on older still.
     pub device_id: Option<String>,
 }
 

@@ -103,9 +103,8 @@ impl CallAudio {
             .url
             .replacen("wss://", "https://", 1)
             .replacen("ws://", "http://", 1);
-        let authority = http.splitn(4, '/').take(3).collect::<Vec<_>>().join("/");
         Some((
-            format!("{authority}/v1/transcribe"),
+            link::listener_url(&http, "/v1/transcribe"),
             settings.secret.clone(),
         ))
     }

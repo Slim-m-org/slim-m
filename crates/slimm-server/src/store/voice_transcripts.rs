@@ -162,7 +162,19 @@ impl Store {
         Ok(started == 1)
     }
 
-    /// Settles a transcript and indexes its words for search. A no-op if the blob was swept meanwhile.
+    /// Takes back a `pending` mark the listener never acted on, so the message is not shown transcribing.
+    pub async fn abandon_voice_transcript(&self, sha256: &[u8]) -> anyhow::Result<()> {
+        sqlx::query!(
+            "DELETE FROM attachment_transcripts WHERE sha256 = ? AND status = 'pending'",
+            sha256
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Settles a transcript and indexes its words for search, in one write.
+    /// A no-op if the blob was swept meanwhile.
     pub async fn finish_voice_transcript(
         &self,
         sha256: &[u8],
@@ -178,6 +190,7 @@ impl Store {
             }
         };
         let (now, status_text) = (now_ms(), status.as_str());
+        let mut tx = self.begin_write().await?;
         let written = sqlx::query!(
             "INSERT INTO attachment_transcripts (sha256, status, text, language, updated_at, retry_at)
              SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)
@@ -192,14 +205,15 @@ impl Store {
             retry_at,
             sha256
         )
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?
         .rows_affected();
         if written == 0 {
             return Ok(None);
         }
         let indexed = (status == TranscriptStatus::Ready && !text.is_empty()).then_some(text);
-        self.record_attachment_text(sha256, indexed).await?;
+        Self::record_attachment_text_in(&mut tx, sha256, indexed).await?;
+        tx.commit().await?;
         Ok(Some(VoiceTranscript {
             status,
             text: text.to_owned(),

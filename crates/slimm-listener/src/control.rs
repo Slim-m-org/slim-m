@@ -16,6 +16,7 @@ use axum::Router;
 use axum::extract::ws::{CloseFrame, Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{DefaultBodyLimit, State};
 use axum::http::{HeaderMap, StatusCode, header};
+use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
@@ -148,7 +149,11 @@ impl Control {
             .route(
                 "/v1/transcribe",
                 post(crate::transcribe::handler)
-                    .layer(DefaultBodyLimit::max(crate::transcribe::MAX_BODY_BYTES)),
+                    .layer(DefaultBodyLimit::max(crate::transcribe::MAX_BODY_BYTES))
+                    .route_layer(middleware::from_fn_with_state(
+                        self.clone(),
+                        crate::transcribe::require_secret,
+                    )),
             )
             .with_state(self)
     }
@@ -159,12 +164,7 @@ async fn upgrade(
     headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> Response {
-    let presented = headers
-        .get(header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-        .unwrap_or_default();
-    if !same_secret(presented, &control.config.secret) {
+    if !has_secret(&headers, &control.config.secret) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
     let Some(slot) = ControlSlot::take(&control.connected) else {
@@ -174,6 +174,16 @@ async fn upgrade(
         let _slot = slot;
         serve(&control, socket).await;
     })
+}
+
+/// Whether `headers` carry `secret` as their bearer token.
+pub(crate) fn has_secret(headers: &HeaderMap, secret: &str) -> bool {
+    let presented = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .unwrap_or_default();
+    same_secret(presented, secret)
 }
 
 /// Compares without stopping at the first difference.

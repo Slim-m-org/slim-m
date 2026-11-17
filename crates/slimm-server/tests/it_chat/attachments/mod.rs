@@ -38,4 +38,5 @@ mod upload_sessions;
 mod uploading;
 mod voice;
 mod voice_links;
+mod voice_transcript_faults;
 mod voice_transcripts;

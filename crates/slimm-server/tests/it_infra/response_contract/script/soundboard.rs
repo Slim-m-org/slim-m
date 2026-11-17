@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Soundboard calls: add a clip with an emoji, list it, rename it and clear its
-//! emoji, fetch its audio, remove it.
+//! Soundboard calls: add a clip with an emoji, refuse one over the byte limit,
+//! list it, rename it and clear its emoji, fetch its audio, remove it.
 
 use serde_json::json;
+use slimm_server::soundboard::MAX_CLIP_BYTES;
 
 use super::text;
 use crate::response_contract::world::{Contract, Payload};
@@ -36,6 +37,14 @@ pub(super) async fn soundboard_calls(c: &mut Contract, root: &str) {
         .await;
     let id = text(&created, "id");
     assert_eq!(text(&created, "emoji"), "\u{1F4EF}");
+    c.refuses(
+        "uploadSoundboardClip",
+        "POST",
+        "/soundboard?name=too-big",
+        Some(root),
+        Payload::Bytes(vec![0; MAX_CLIP_BYTES as usize + 1]),
+    )
+    .await;
     c.get("listSoundboardClips", "/soundboard", root).await;
     let renamed = c
         .json(

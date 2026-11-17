@@ -4,7 +4,11 @@
 //! Split out of `mod.rs` to stay under the file-size budget; `sign` itself
 //! lives in `room_admin.rs`, next to the room-service calls.
 
+use hmac::{Hmac, Mac};
 use serde::Serialize;
+use sha2::Sha256;
+
+use crate::ids::{ChannelId, DeviceId};
 
 /// The LiveKit JWT claim set. Field names are LiveKit's, not ours.
 #[derive(Serialize)]
@@ -41,6 +45,17 @@ pub(super) struct VideoGrant {
     /// Keeps the participant out of every other participant's list; only the listener sets it.
     #[serde(skip_serializing_if = "is_false")]
     pub(super) hidden: bool,
+}
+
+/// A keyed hash of the channel and device: the same for one device in one channel, unrelated
+/// across channels, and no use to anyone without the SFU secret.
+pub(super) fn device_tag(secret: &str, channel_id: ChannelId, device_id: DeviceId) -> String {
+    let mut mac =
+        <Hmac<Sha256>>::new_from_slice(secret.as_bytes()).expect("HMAC takes a key of any length");
+    mac.update(b"slimm-voice-device-v1");
+    mac.update(channel_id.0.as_bytes());
+    mac.update(device_id.0.as_bytes());
+    crate::media::to_hex(&mac.finalize().into_bytes()[..16])
 }
 
 fn is_false(value: &bool) -> bool {

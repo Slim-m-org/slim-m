@@ -5,12 +5,14 @@
 
 use axum::Json;
 use axum::body::Bytes;
-use axum::extract::{Query, State};
-use axum::http::{HeaderMap, StatusCode, header};
+use axum::extract::{Query, Request, State};
+use axum::http::StatusCode;
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
 use crate::clip;
-use crate::control::{Control, same_secret};
+use crate::control::{Control, has_secret};
 use crate::endpoint::SAMPLE_RATE;
 use crate::stt::{Meta, Work, is_noise_marker};
 
@@ -29,20 +31,23 @@ pub struct Reply {
     pub duration_ms: i64,
 }
 
+/// Turns away a caller without the secret before [`handler`]'s extractors read the body.
+pub async fn require_secret(
+    State(control): State<Control>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if !has_secret(request.headers(), &control.config().secret) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    next.run(request).await
+}
+
 pub async fn handler(
     State(control): State<Control>,
-    headers: HeaderMap,
     Query(params): Query<Params>,
     body: Bytes,
 ) -> Result<Json<Reply>, StatusCode> {
-    let presented = headers
-        .get(header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-        .unwrap_or_default();
-    if !same_secret(presented, &control.config().secret) {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
     let pcm = tokio::task::spawn_blocking(move || clip::decode(&body))
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
@@ -195,6 +200,34 @@ mod tests {
             post(SECRET, b"not audio").await.0,
             StatusCode::UNPROCESSABLE_ENTITY
         );
+    }
+
+    #[tokio::test]
+    async fn a_caller_without_the_secret_is_refused_before_the_body_is_read() {
+        for authorization in [Some("Bearer wrong"), None] {
+            let mut request = Request::post("/v1/transcribe");
+            if let Some(value) = authorization {
+                request = request.header("authorization", value);
+            }
+            let endless = futures_util::stream::pending::<Result<Bytes, std::io::Error>>();
+            let request = request.body(Body::from_stream(endless)).unwrap();
+            let response =
+                tokio::time::timeout(std::time::Duration::from_secs(5), router().oneshot(request))
+                    .await
+                    .expect("answered without waiting for the body")
+                    .unwrap();
+            assert_eq!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "{authorization:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn a_body_over_the_limit_is_refused() {
+        let (status, _) = post(SECRET, &vec![0; MAX_BODY_BYTES + 1]).await;
+        assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
     }
 
     #[tokio::test]

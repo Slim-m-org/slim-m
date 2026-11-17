@@ -222,15 +222,16 @@ impl VoiceTranscriber {
         };
         // Right after the listener was out, a clip is only marked once the listener answers.
         let probing = !self.listener.is_empty();
-        if !probing {
-            match store.begin_voice_transcript(&candidate.sha256).await {
-                Ok(true) => announce(store, hub, candidate, "pending", "").await,
-                Ok(false) => {}
+        let marked = !probing
+            && match store.begin_voice_transcript(&candidate.sha256).await {
+                Ok(started) => started,
                 Err(err) => {
                     tracing::warn!(error = %err, attachment = %candidate.hex, "could not mark a voice message pending");
                     return Step::Later;
                 }
-            }
+            };
+        if marked {
+            announce(store, hub, candidate, "pending", "").await;
         }
         let answer = engine.transcribe(bytes).await;
         if matches!(answer, Err(Failure::Unavailable)) {
@@ -238,6 +239,9 @@ impl VoiceTranscriber {
                 tracing::warn!(
                     "the speech listener is not taking voice messages; their transcripts wait for it"
                 );
+            }
+            if marked && let Err(err) = store.abandon_voice_transcript(&candidate.sha256).await {
+                tracing::warn!(error = %err, attachment = %candidate.hex, "could not unmark a voice message the listener did not take");
             }
             self.listener.failed(LISTENER);
             return Step::NoListener;
@@ -262,20 +266,23 @@ impl VoiceTranscriber {
                 }
             }
         };
-        self.retries.settled(&candidate.sha256);
         match store
             .finish_voice_transcript(&candidate.sha256, outcome)
             .await
         {
-            Ok(Some(done)) => {
-                announce(store, hub, candidate, done.status.as_str(), &done.text).await;
+            Ok(done) => {
+                self.retries.settled(&candidate.sha256);
+                if let Some(done) = done {
+                    announce(store, hub, candidate, done.status.as_str(), &done.text).await;
+                }
+                Step::Settled
             }
-            Ok(None) => {}
             Err(err) => {
                 tracing::warn!(error = %err, attachment = %candidate.hex, "could not store a voice transcript");
+                self.retries.failed(&candidate.sha256);
+                Step::Later
             }
         }
-        Step::Settled
     }
 }
 
@@ -416,22 +423,39 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_transcribe_address_follows_the_control_address() {
+    async fn the_transcribe_address_sits_beside_the_control_address() {
         let settings = |url: &str| crate::config::ListenerSettings {
             url: url.into(),
             secret: "x".repeat(32),
             livekit_url: None,
         };
-        let secure = CallAudio::new(Some(settings("wss://listener.internal:9400/v1/control")));
-        assert_eq!(
-            secure.transcribe_endpoint().unwrap().0,
-            "https://listener.internal:9400/v1/transcribe"
-        );
-        let plain = CallAudio::new(Some(settings("ws://127.0.0.1:9400")));
-        assert_eq!(
-            plain.transcribe_endpoint().unwrap().0,
-            "http://127.0.0.1:9400/v1/transcribe"
-        );
+        let after_scheme = |url: &str, route: &str| {
+            let (_, rest) = url.split_once("://").unwrap();
+            rest.strip_suffix(route).unwrap().to_owned()
+        };
+        for (base, transcribe) in [
+            (
+                "wss://host.example/listener",
+                "https://host.example/listener/v1/transcribe",
+            ),
+            (
+                "ws://127.0.0.1:9400/",
+                "http://127.0.0.1:9400/v1/transcribe",
+            ),
+            ("ws://listener:9400", "http://listener:9400/v1/transcribe"),
+        ] {
+            let endpoint = CallAudio::new(Some(settings(base)))
+                .transcribe_endpoint()
+                .unwrap()
+                .0;
+            assert_eq!(endpoint, transcribe, "{base}");
+            let control = crate::call_audio::link::control_url(base);
+            assert_eq!(
+                after_scheme(&endpoint, "/v1/transcribe"),
+                after_scheme(&control, "/v1/control"),
+                "{base}"
+            );
+        }
         assert!(CallAudio::disabled().transcribe_endpoint().is_none());
     }
 }

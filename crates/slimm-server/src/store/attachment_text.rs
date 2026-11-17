@@ -106,6 +106,17 @@ impl Store {
         text: Option<&str>,
     ) -> anyhow::Result<()> {
         let mut tx = self.begin_write().await?;
+        Self::record_attachment_text_in(&mut tx, sha256, text).await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// [`Store::record_attachment_text`] inside a write the caller commits.
+    pub(super) async fn record_attachment_text_in(
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        sha256: &[u8],
+        text: Option<&str>,
+    ) -> anyhow::Result<()> {
         let now = now_ms();
         sqlx::query!(
             "INSERT INTO attachment_text (sha256, extracted_at)
@@ -115,7 +126,7 @@ impl Store {
             now,
             sha256,
         )
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
         // Also covers a marker written earlier, before the text was known.
         if let Some(text) = text {
@@ -127,10 +138,9 @@ impl Store {
             )
             .bind(text)
             .bind(sha256)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
         }
-        tx.commit().await?;
         Ok(())
     }
 

@@ -30,7 +30,7 @@ fn a_disabled_deployment_reports_unavailable_rather_than_failing() {
         UserId::generate(),
         Permissions::ALL,
         "alice",
-        "device-1",
+        DeviceId::generate(),
     );
     assert!(matches!(result, Err(VoiceError::Unavailable)));
     assert!(!VoiceService::disabled().is_enabled());
@@ -116,7 +116,7 @@ fn speak_is_what_decides_whether_a_token_can_publish() {
             UserId::generate(),
             Permissions::VIEW_CHANNEL.union(Permissions::CONNECT),
             "listener",
-            "device-1",
+            DeviceId::generate(),
         )
         .expect("minted");
     assert!(!listener.can_publish);
@@ -133,7 +133,7 @@ fn speak_is_what_decides_whether_a_token_can_publish() {
                 .union(Permissions::CONNECT)
                 .union(Permissions::SPEAK),
             "speaker",
-            "device-1",
+            DeviceId::generate(),
         )
         .expect("minted");
     assert!(speaker.can_publish);
@@ -148,7 +148,7 @@ fn canvas_rights_decide_data_publishing_separately_from_speaking() {
             UserId::generate(),
             Permissions::CONNECT.union(Permissions::USE_CANVAS),
             "drawer",
-            "device-1",
+            DeviceId::generate(),
         )
         .expect("minted");
     let claims = decode_payload(&token.token);
@@ -167,7 +167,7 @@ fn a_join_token_is_never_a_room_admin_token() {
             UserId::generate(),
             Permissions::ALL,
             "admin",
-            "device-1",
+            DeviceId::generate(),
         )
         .expect("minted");
     let claims = decode_payload(&token.token);
@@ -186,7 +186,7 @@ fn a_join_token_never_carries_room_create() {
             UserId::generate(),
             Permissions::ALL,
             "admin",
-            "device-1",
+            DeviceId::generate(),
         )
         .expect("minted");
     let claims = decode_payload(&token.token);
@@ -230,7 +230,7 @@ fn the_token_identifies_the_user_and_expires_soon() {
             user,
             Permissions::CONNECT,
             "alice",
-            "device-1",
+            DeviceId::generate(),
         )
         .expect("minted");
     let claims = decode_payload(&token.token);
@@ -251,7 +251,7 @@ fn the_signature_actually_covers_the_payload() {
             UserId::generate(),
             Permissions::CONNECT,
             "alice",
-            "device-1",
+            DeviceId::generate(),
         )
         .expect("minted");
     let parts: Vec<&str> = token.token.split('.').collect();
@@ -381,7 +381,7 @@ fn an_ordinary_token_is_not_hidden() {
             UserId::generate(),
             Permissions::ALL,
             "a",
-            "device-1",
+            DeviceId::generate(),
         )
         .unwrap();
     assert!(
@@ -392,16 +392,59 @@ fn an_ordinary_token_is_not_hidden() {
 }
 
 #[test]
-fn a_join_token_names_the_device_it_was_minted_for() {
+fn a_join_token_tags_the_device_it_was_minted_for_per_channel() {
+    let (device, channel, other) = (
+        DeviceId::generate(),
+        ChannelId::generate(),
+        ChannelId::generate(),
+    );
+    let shown = |channel| {
+        let token = service()
+            .mint(
+                channel,
+                UserId::generate(),
+                Permissions::ALL,
+                "alice",
+                device,
+            )
+            .expect("minted");
+        decode_payload(&token.token)["attributes"][super::DEVICE_ATTRIBUTE].clone()
+    };
+    let tag = service().device_tag(channel, device).expect("voice is on");
+    assert_eq!(shown(channel), tag.as_str());
+    assert_eq!(
+        shown(channel),
+        shown(channel),
+        "stable for one device in one channel"
+    );
+    assert_ne!(shown(channel), shown(other), "unrelated across channels");
+    assert_ne!(
+        tag,
+        service().device_tag(channel, DeviceId::generate()).unwrap()
+    );
+    assert!(
+        VoiceService::disabled()
+            .device_tag(channel, device)
+            .is_none()
+    );
+}
+
+#[test]
+fn a_join_token_never_shows_the_room_the_raw_device_id() {
+    let device = DeviceId::generate();
     let token = service()
         .mint(
             ChannelId::generate(),
             UserId::generate(),
             Permissions::ALL,
             "alice",
-            "device-7",
+            device,
         )
         .expect("minted");
     let claims = decode_payload(&token.token);
-    assert_eq!(claims["attributes"][super::DEVICE_ATTRIBUTE], "device-7");
+    let shown = claims["attributes"][super::DEVICE_ATTRIBUTE]
+        .as_str()
+        .expect("a device attribute");
+    assert!(!shown.contains(&device.to_string()), "{shown}");
+    assert!(!shown.contains(&device.0.simple().to_string()), "{shown}");
 }
