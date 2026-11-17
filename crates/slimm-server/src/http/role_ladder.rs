@@ -60,6 +60,20 @@ impl Ladder {
         }
     }
 
+    /// [`Self::reach_role`] for an existing role; `@everyone` sits below every real role, so always.
+    pub(in crate::http) fn reach(&self, role: &Role) -> Result<(), ApiError> {
+        if role.is_everyone {
+            Ok(())
+        } else {
+            self.reach_role(role.position)
+        }
+    }
+
+    /// The refusal [`Self::reach_role`] gives, for a check made elsewhere.
+    pub(in crate::http) fn role_out_of_reach(&self) -> ApiError {
+        refusal(ROLE_NOT_BELOW_YOU)
+    }
+
     /// Refuses unless `target` is not the owner and ranks strictly below the caller.
     pub(in crate::http) async fn reach_member(
         &self,

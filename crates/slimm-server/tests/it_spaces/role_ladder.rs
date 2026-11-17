@@ -182,33 +182,6 @@ async fn an_invite_may_grant_a_role_below_the_inviter() {
 }
 
 #[tokio::test]
-async fn a_new_role_needs_a_role_of_your_own_above_the_bottom() {
-    let l = ladder().await;
-    let create = json!({ "name": "fresh", "permissions": 0 });
-    let (status, _) = l.as_bob("POST", "/roles", Some(create.clone())).await;
-    assert_eq!(status, StatusCode::OK);
-
-    // Made after the reorder, this role sits at the bottom, level with everything new.
-    let late = create_late_manager(&l).await;
-    let (status, body) = call_as(&l.app, "POST", "/roles", &late, Some(create)).await;
-    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
-    assert_eq!(body["error"], NOT_BELOW);
-}
-
-async fn create_late_manager(l: &Ladder) -> String {
-    let role = create(&l.app, &l.alice, "late", Permissions::MANAGE_ROLES).await;
-    ok(
-        &l.app,
-        &l.alice,
-        "PUT",
-        &member_role(&l.dave.1, &role),
-        None,
-    )
-    .await;
-    l.dave.0.clone()
-}
-
-#[tokio::test]
 async fn the_owner_reaches_the_top_role_itself_and_may_drop_it() {
     let l = ladder().await;
     ok(

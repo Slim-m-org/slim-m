@@ -120,7 +120,7 @@ async fn authorize_change(
     role: &crate::store::Role,
     module_perm: (&str, &str),
 ) -> Result<(), ApiError> {
-    Ladder::of(state, caller).await?.reach_role(role.position)?;
+    Ladder::of(state, caller).await?.reach(role)?;
     if caller_granted(state, caller)
         .await?
         .contains(Permissions::ADMINISTRATOR)

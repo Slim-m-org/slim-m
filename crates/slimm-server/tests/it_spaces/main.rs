@@ -71,6 +71,7 @@ mod role_hoist;
 mod role_ladder;
 mod role_mentionable_flag;
 mod role_patch_last_admin;
+mod role_positions;
 mod role_reorder;
 mod roles;
 mod roles_read_history;

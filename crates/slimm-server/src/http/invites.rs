@@ -149,7 +149,7 @@ async fn resolve_grant(
         .await?
         .ok_or(ApiError::NotFound("role not found"))?;
     hand_assignable(&role)?;
-    Ladder::of(state, caller).await?.reach_role(role.position)?;
+    Ladder::of(state, caller).await?.reach(&role)?;
     if !permissions.contains(role.permissions) {
         return Err(ApiError::Forbidden);
     }

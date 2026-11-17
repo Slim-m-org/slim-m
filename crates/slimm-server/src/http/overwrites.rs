@@ -155,8 +155,8 @@ pub(super) async fn reach_target(
     match target {
         Target::Member(user_id) => ladder.reach_other(state, user_id).await,
         Target::Role(role_id) => match state.store.role(role_id).await? {
-            Some(role) if !role.is_everyone => ladder.reach_role(role.position),
-            _ => Ok(()),
+            Some(role) => ladder.reach(&role),
+            None => Ok(()),
         },
     }
 }

@@ -48,10 +48,8 @@ pub struct Role {
     pub is_bots_role: bool,
     /// Hierarchy order: higher sorts first in [`Store::list_roles`] and is
     /// what `http::role_ladder` compares a caller's own highest role against.
-    /// `@everyone` stays at its bootstrap default
-    /// (0) forever - it is never a member of `member_roles`, so nothing ever
-    /// reorders it - and every other role's position only ever comes from an
-    /// explicit reorder or the column's own `DEFAULT 0` at creation.
+    /// `@everyone` stays at 0 forever; every other role is at 1 or above and
+    /// no two share a position: a new one enters at the bottom (1) and lifts the rest.
     pub position: i64,
     /// Whether the member pane gives this role's members their own section.
     pub hoist: bool,
@@ -180,14 +178,21 @@ impl Store {
 
         let now = now_ms();
         let bits = permissions.bits();
+        let position = if is_everyone {
+            0
+        } else {
+            role_reorder::open_bottom_slot(&mut tx).await?;
+            role_reorder::BOTTOM_POSITION
+        };
         let is_everyone = i64::from(is_everyone);
         let result = sqlx::query!(
-            "INSERT INTO roles (id, name, permissions, is_everyone, created_at)
-             VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO roles (id, name, permissions, is_everyone, position, created_at)
+             VALUES (?, ?, ?, ?, ?, ?)",
             id,
             name,
             bits,
             is_everyone,
+            position,
             now
         )
         .execute(&mut *tx)

@@ -10,6 +10,7 @@ use crate::permissions::Permissions;
 
 use super::super::Store;
 use super::Role;
+use super::role_reorder::{BOTTOM_POSITION, open_bottom_slot};
 
 impl Store {
     /// The role minted for this bot, if it still has one.
@@ -45,10 +46,12 @@ pub(in crate::store) async fn ensure_bots_role(
         return Ok(id);
     }
     let id = RoleId::generate();
+    open_bottom_slot(&mut *conn).await?;
     sqlx::query!(
-        "INSERT INTO roles (id, name, permissions, is_everyone, created_at, is_bots_role)
-         VALUES (?, 'Bots', 0, 0, ?, 1)",
+        "INSERT INTO roles (id, name, permissions, is_everyone, position, created_at, is_bots_role)
+         VALUES (?, 'Bots', 0, 0, ?, ?, 1)",
         id,
+        BOTTOM_POSITION,
         now
     )
     .execute(&mut *conn)
@@ -66,12 +69,14 @@ pub(in crate::store) async fn insert_managed_role(
 ) -> sqlx::Result<RoleId> {
     let role_id = RoleId::generate();
     let bits = permissions.bits();
+    open_bottom_slot(&mut *conn).await?;
     sqlx::query!(
-        "INSERT INTO roles (id, name, permissions, is_everyone, created_at, managed_bot_id)
-         VALUES (?, ?, ?, 0, ?, ?)",
+        "INSERT INTO roles (id, name, permissions, is_everyone, position, created_at, managed_bot_id)
+         VALUES (?, ?, ?, 0, ?, ?, ?)",
         role_id,
         name,
         bits,
+        BOTTOM_POSITION,
         now,
         bot_user_id
     )

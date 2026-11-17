@@ -258,9 +258,7 @@ async fn update(
     // Read before the write, against granted permissions; see `escalation`.
     let before = state.store.role(role_id).await?;
     if let Some(current) = &before {
-        Ladder::of(&state, ctx.user_id)
-            .await?
-            .reach_role(current.position)?;
+        Ladder::of(&state, ctx.user_id).await?.reach(current)?;
         escalation_guard(
             caller_granted(&state, ctx.user_id).await?,
             current.permissions,
@@ -303,9 +301,7 @@ async fn delete(
     // Read before the mutating write; see `update`'s identical note.
     let before = state.store.role(role_id).await?;
     if let Some(current) = &before {
-        Ladder::of(&state, ctx.user_id)
-            .await?
-            .reach_role(current.position)?;
+        Ladder::of(&state, ctx.user_id).await?.reach(current)?;
         escalation_guard(
             caller_granted(&state, ctx.user_id).await?,
             current.permissions,
@@ -349,7 +345,7 @@ async fn assign(
     hand_assignable(&role)?;
     let ladder = Ladder::of(&state, ctx.user_id).await?;
     ladder.spare_owner(user_id)?;
-    ladder.reach_role(role.position)?;
+    ladder.reach(&role)?;
     escalation_guard(caller_granted(&state, ctx.user_id).await?, role.permissions)?;
 
     let target = state
@@ -396,7 +392,7 @@ async fn unassign(
         let ladder = Ladder::of(&state, ctx.user_id).await?;
         ladder.spare_owner(user_id)?;
         // Also what keeps a caller from dropping their own highest role.
-        ladder.reach_role(role.position)?;
+        ladder.reach(role)?;
         escalation_guard(caller_granted(&state, ctx.user_id).await?, role.permissions)?;
     }
 
