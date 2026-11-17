@@ -163,11 +163,10 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
       state = const GlobalHotkeyAvailability.unavailable(captureLostMessage);
       return;
     }
+    // A desktop may keep delivering a shortcut that was dropped from a live session.
+    if (!_wanted().any((binding) => binding.id == event.id)) return;
     switch (event.id) {
       case GlobalHotkeyId.pushToTalk:
-        if (!_ref.read(voiceSettingsControllerProvider).pushToTalkEnabled) {
-          return;
-        }
         if (event.phase == GlobalHotkeyPhase.pressed) {
           gate.press(HoldSource.global);
         } else {
@@ -179,7 +178,10 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
         if (event.phase == GlobalHotkeyPhase.pressed) _toggleDeafen(gate);
       case GlobalHotkeyId.toggleCallOverlay:
         if (event.phase == GlobalHotkeyPhase.pressed) {
-          _ref.read(toggleCallOverlayProvider)();
+          gate.toggleCallOverlay(
+            HoldSource.global,
+            _ref.read(toggleCallOverlayProvider),
+          );
         }
       case null:
         return;

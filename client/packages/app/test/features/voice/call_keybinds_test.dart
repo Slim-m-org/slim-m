@@ -217,5 +217,19 @@ void main() {
       expect(c.source.binds.last, isEmpty);
       await c.voice.leave();
     });
+
+    testWidgets('a press the desktop still delivers after turning keybinds '
+        'off does nothing', (tester) async {
+      SharedPreferences.setMockInitialValues({_enabledKey: true});
+      final c = await inCall(tester);
+      await harness.container
+          .read(shortcutOverridesProvider.notifier)
+          .setEnabled(false);
+      await pumpFrames(tester);
+      c.source.send(GlobalHotkeyId.toggleMute, GlobalHotkeyPhase.pressed);
+      await pumpFrames(tester);
+      expect(c.voice.state.microphoneEnabled, isTrue);
+      await c.voice.leave();
+    });
   });
 }

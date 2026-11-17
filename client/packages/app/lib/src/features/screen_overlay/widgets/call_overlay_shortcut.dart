@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
+import '../../voice/providers/push_to_talk_gate.dart';
 import '../providers/call_overlay_toggle.dart';
 import '../providers/screen_overlay_controller.dart';
 
@@ -17,5 +18,12 @@ Map<ShortcutActivator, VoidCallback> callOverlayShortcutBindings(
   if (key == null || !ref.watch(screenOverlaySupportedProvider)) {
     return const {};
   }
-  return {key: ref.read(toggleCallOverlayProvider)};
+  return {
+    key: () => ref
+        .read(pushToTalkGateProvider)
+        .toggleCallOverlay(
+          HoldSource.inWindow,
+          ref.read(toggleCallOverlayProvider),
+        ),
+  };
 }
