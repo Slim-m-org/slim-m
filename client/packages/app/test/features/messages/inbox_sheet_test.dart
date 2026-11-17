@@ -16,6 +16,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
+import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_app/src/features/messages/providers/inbox.dart';
 import 'package:slimm_app/src/features/messages/widgets/inbox_sheet.dart';
 import 'package:slimm_app/src/features/messages/widgets/mark_read_action.dart';
@@ -193,6 +194,33 @@ void main() {
     final unread = tester.getTopLeft(find.text('lunch at noon?'));
     expect(mention.dy, lessThan(unread.dy));
     expect(find.text('Inbox'), findsOneWidget);
+  });
+
+  testWidgets('a DM row shows the person, not a channel hash', (tester) async {
+    final rig = _Rig();
+    await tester.runAsync(() async {
+      await rig.seed();
+      await rig.store.upsertChannels(const [
+        api.Channel(
+          id: 'dm-bea',
+          name: 'Bea',
+          kind: 'dm',
+          createdAt: 4,
+          dmParticipantId: 'bea',
+        ),
+      ]);
+      await rig.store.applyMessage(_message('m9', 'dm-bea', 1, 'hi there'));
+    });
+    await rig.open(tester);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+
+    expect(find.text('hi there'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate((w) => w is UserAvatar && w.userId == 'bea'),
+      findsOneWidget,
+    );
+    expect(find.byIcon(AppIcons.hash), findsOneWidget, reason: '#general only');
   });
 
   testWidgets('a muted channel without a mention is left out', (tester) async {
