@@ -27,9 +27,12 @@ class ConversationGlyph extends ConsumerWidget {
   final Widget fallback;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => SizedBox.square(
-    dimension: size,
-    child: Center(child: _glyph(ref)),
+  // Always drawn beside a row that already names the conversation, so it stays silent.
+  Widget build(BuildContext context, WidgetRef ref) => ExcludeSemantics(
+    child: SizedBox.square(
+      dimension: size,
+      child: Center(child: _glyph(ref)),
+    ),
   );
 
   Widget _glyph(WidgetRef ref) {

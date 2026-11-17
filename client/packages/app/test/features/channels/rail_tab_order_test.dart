@@ -76,8 +76,9 @@ void main() {
       expect(stops.toSet().length, stops.length, reason: names.join('\n'));
       final listed = names.indexOf('Create a channel in Text');
       expect(listed, greaterThan(-1), reason: names.join('\n'));
-      expect(names.sublist(listed, listed + 3), [
+      expect(names.sublist(listed, listed + 4), [
         'Create a channel in Text',
+        'Manage Text',
         'general',
         'Manage general',
       ], reason: names.join('\n'));
