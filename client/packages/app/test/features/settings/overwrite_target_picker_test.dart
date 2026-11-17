@@ -20,18 +20,21 @@ api.Role _role(String n, {bool everyone = false}) => api.Role(
   createdAt: 0,
 );
 
-api.UserProfile _member(String id, String name) => api.UserProfile(
-  id: id,
-  username: name.toLowerCase(),
-  displayName: name,
-  createdAt: 0,
-);
+api.UserProfile _member(String id, String name, {bool bot = false}) =>
+    api.UserProfile(
+      id: id,
+      username: name.toLowerCase(),
+      displayName: name,
+      createdAt: 0,
+      isBot: bot,
+    );
 
 Future<void> _open(
   WidgetTester tester, {
   Set<String> taken = const {},
   Size size = const Size(900, 800),
   void Function(Object?)? onResult,
+  int roleCount = 30,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -42,11 +45,15 @@ Future<void> _open(
         rolesProvider.overrideWith(
           (ref) async => [
             _role('everyone', everyone: true),
-            for (var i = 0; i < 30; i++) _role('role$i'),
+            for (var i = 0; i < roleCount; i++) _role('role$i'),
           ],
         ),
         membersProvider.overrideWith(
-          (ref) async => [_member('m1', 'Nadia'), _member('m2', 'Omar')],
+          (ref) async => [
+            _member('m1', 'Nadia'),
+            _member('b1', 'Casino', bot: true),
+            _member('m2', 'Omar'),
+          ],
         ),
       ],
       child: MaterialApp(
@@ -138,4 +145,38 @@ void main() {
     expect(find.byKey(const Key('target-picker-close')), findsNothing);
     expect(find.byKey(const Key('target-picker-role-r-role1')), findsOneWidget);
   });
+
+  testWidgets('bots are listed apart from people, each marked Bot', (
+    tester,
+  ) async {
+    await _open(tester, roleCount: 2);
+    Finder inRow(String id, String text) => find.descendant(
+      of: find.byKey(Key('target-picker-member-$id')),
+      matching: find.text(text),
+    );
+    expect(inRow('b1', 'BOT'), findsOneWidget);
+    expect(inRow('m1', 'BOT'), findsNothing);
+    final botsLabel = tester.getRect(find.text('BOTS')).top;
+    expect(
+      tester.getRect(find.byKey(const Key('target-picker-member-m2'))).top,
+      lessThan(botsLabel),
+      reason: 'people come first, bots under their own label',
+    );
+    expect(
+      tester.getRect(find.byKey(const Key('target-picker-member-b1'))).top,
+      greaterThan(botsLabel),
+    );
+  });
+
+  for (final size in const [Size(900, 800), Size(390, 844)]) {
+    testWidgets('role and member names start on one line at $size', (
+      tester,
+    ) async {
+      await _open(tester, roleCount: 2, size: size);
+      expect(
+        tester.getTopLeft(find.text('role1')).dx,
+        tester.getTopLeft(find.text('Nadia')).dx,
+      );
+    });
+  }
 }
