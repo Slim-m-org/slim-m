@@ -437,7 +437,11 @@ class _ThreadDockRedirect extends ConsumerWidget {
               context.go(Routes.channel(parentChannelId));
               // Docked a frame after landing: mounted mid-navigation, the web composer focused an input the outgoing page owned and dropped every keystroke.
               WidgetsBinding.instance.addPostFrameCallback(
-                (_) => dockThread(container, threadId),
+                (_) => dockThread(
+                  container,
+                  threadId,
+                  besideChannelId: parentChannelId,
+                ),
               );
             });
             return const _RedirectSpinner();

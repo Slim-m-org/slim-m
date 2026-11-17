@@ -134,11 +134,10 @@ void main() {
         Routes.channel('c1'),
         reason: 'docked: the cold thread redirected onto its parent channel',
       );
-      expect(
-        container.read(openThreadProvider),
-        'c-thread',
-        reason: 'with the thread itself open in the docked pane',
-      );
+      expect(container.read(openThreadProvider), (
+        threadId: 'c-thread',
+        besideChannelId: 'c1',
+      ), reason: 'with the thread itself open in the docked pane');
 
       await _teardown(tester, container, db);
     },

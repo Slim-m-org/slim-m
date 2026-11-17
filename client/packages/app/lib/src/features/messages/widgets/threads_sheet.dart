@@ -17,6 +17,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/threads.dart';
+import '../../channels/widgets/channel_rail.dart' show routedChannelId;
 import '../../../routing/breakpoints.dart';
 import '../../settings/providers/display_density.dart';
 import '../../members/providers/user_profiles.dart';
@@ -143,7 +144,11 @@ class ThreadRow extends ConsumerWidget {
         final width = MediaQuery.sizeOf(context).width;
         Navigator.of(context).pop();
         if (LayoutClass.fromWidth(width).fitsThreadPane(width)) {
-          dockThread(container, thread.id);
+          dockThread(
+            container,
+            thread.id,
+            besideChannelId: routedChannelId(router),
+          );
         } else {
           router.push(Routes.thread(thread.id));
         }

@@ -281,7 +281,12 @@ Future<void> openThreadForMessage(BuildContext context, Message message) async {
     );
   });
   if (threadId == null || !context.mounted) return;
-  openThreadPresenting(context, container, threadId!);
+  openThreadPresenting(
+    context,
+    container,
+    threadId!,
+    besideChannelId: message.channelId,
+  );
 }
 
 /// Docks the thread beside the transcript where there is room for the pane
@@ -290,11 +295,12 @@ Future<void> openThreadForMessage(BuildContext context, Message message) async {
 void openThreadPresenting(
   BuildContext context,
   ProviderContainer container,
-  String threadId,
-) {
+  String threadId, {
+  required String besideChannelId,
+}) {
   final width = MediaQuery.sizeOf(context).width;
   if (LayoutClass.fromWidth(width).fitsThreadPane(width)) {
-    dockThread(container, threadId);
+    dockThread(container, threadId, besideChannelId: besideChannelId);
   } else {
     GoRouter.of(context).push(Routes.thread(threadId));
   }

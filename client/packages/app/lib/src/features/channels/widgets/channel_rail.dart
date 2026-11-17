@@ -43,6 +43,10 @@ String? channelIdInPath(String path) {
   return id.isEmpty ? null : id;
 }
 
+/// The channel [router] shows now; unlike [selectedChannelId], readable from a sheet or overlay.
+String? routedChannelId(GoRouter router) =>
+    channelIdInPath(router.routerDelegate.currentConfiguration.uri.path);
+
 /// Whether the channel rail is at its full width, or at
 /// [ChannelRail.compactWidth]. `RailDragHandle` flips it at the rail's edge.
 ///
