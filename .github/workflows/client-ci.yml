@@ -133,7 +133,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # The two longest legs come first: include order is how GitHub tends to hand out runners.
         include:
+          - label: ui-snapshots
+            shard: ""
+          - label: other-packages
+            shard: ""
           - label: app-1
             shard: "0"
           - label: app-2
@@ -158,8 +163,6 @@ jobs:
             shard: "10"
           - label: app-12
             shard: "11"
-          - label: other-packages
-            shard: ""
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -191,7 +194,7 @@ jobs:
         run: flutter pub get --enforce-lockfile
 
       - name: packages/app (sharded)
-        if: matrix.label != 'other-packages'
+        if: matrix.shard != ''
         working-directory: client/packages/app
         env:
           SHARDS: "12"
@@ -206,7 +209,7 @@ jobs:
 
       # Capture mode builds the real mic preview and runs timers on real time; it rotted unseen for 12 tests once.
       - name: packages/app UI snapshots in capture mode
-        if: matrix.label == 'other-packages'
+        if: matrix.label == 'ui-snapshots'
         timeout-minutes: 10
         working-directory: client/packages/app
         env:

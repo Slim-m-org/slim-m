@@ -5,7 +5,7 @@
 # See scripts/check-comment-cap.sh and the rule in CLAUDE.md.
 
 .github/workflows/client-ci.yml 19
-.github/workflows/client-ios-ci.yml 14
+.github/workflows/client-ios-ci.yml 12
 .github/workflows/client-macos-ci.yml 3
 .github/workflows/compose-smoke.yml 16
 .github/workflows/flatpak-ci.yml 5

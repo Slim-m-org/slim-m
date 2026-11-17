@@ -157,8 +157,7 @@ jobs:
         working-directory: client
         run: flutter pub get --enforce-lockfile
 
-      # Rebuilding these from scratch is most of the five minutes the project
-      # generation step costs; the lockfile is what decides their contents.
+      # Measured 2026-11-17: pod install took 2.2 s on a miss, so this saves little; the lockfiles decide its contents.
       - name: cache cocoapods
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -170,31 +169,10 @@ jobs:
           # matching the dependencies it claims to have.
           key: pods-${{ runner.os }}-${{ hashFiles('client/packages/app/ios/Podfile.lock', 'client/pubspec.lock') }}
 
-      # xcodebuild will not open the project until a Flutter build has generated
-      # its config and plugin registrant. --no-codesign keeps it to compiling.
+      # Config only: xcodebuild test is the one simulator build, in the default DerivedData where this step resolves the Swift packages.
       - name: generate the ios project
         working-directory: client/packages/app
-        run: flutter build ios --simulator --no-codesign
-
-      # An app extension carrying a Frameworks directory is refused by the
-      # store with error 90206, which only surfaces at upload - after a
-      # release has been tagged and an archive built. Caught here instead.
-      - name: the broadcast extension embeds no frameworks
-        working-directory: client/packages/app
-        run: |
-          set -euo pipefail
-          appex="$(find build/ios -name 'BroadcastExtension.appex' -maxdepth 6 | head -n1)"
-          if [ -z "$appex" ]; then
-            echo "::error::BroadcastExtension.appex was not built"
-            exit 1
-          fi
-          echo "found $appex"
-          if [ -d "$appex/Frameworks" ]; then
-            echo "::error::$appex embeds frameworks; the store refuses this (90206)"
-            ls -la "$appex/Frameworks"
-            exit 1
-          fi
-          echo "the extension embeds no frameworks"
+        run: flutter build ios --simulator --no-codesign --config-only
 
       # Chosen from what the runner actually has, not by name: a hardcoded
       # 'iPhone 16' broke on day one and would break on every image roll.
@@ -233,6 +211,28 @@ jobs:
             -resultBundlePath "$RUNNER_TEMP/RunnerTests.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
             | xcpretty || exit "${PIPESTATUS[0]}"
+
+      # An app extension carrying a Frameworks directory is refused by the
+      # store with error 90206, which only surfaces at upload - after a
+      # release has been tagged and an archive built. Caught here instead.
+      - name: the broadcast extension embeds no frameworks
+        run: |
+          set -euo pipefail
+          found=0
+          while IFS= read -r appex; do
+            found=1
+            echo "found $appex"
+            if [ -d "$appex/Frameworks" ]; then
+              echo "::error::$appex embeds frameworks; the store refuses this (90206)"
+              ls -la "$appex/Frameworks"
+              exit 1
+            fi
+          done < <(find "$HOME/Library/Developer/Xcode/DerivedData" -maxdepth 8 -path '*/Build/Products/*' -name 'BroadcastExtension.appex')
+          if [ "$found" -eq 0 ]; then
+            echo "::error::BroadcastExtension.appex was not built"
+            exit 1
+          fi
+          echo "the extension embeds no frameworks"
 
       # xcpretty drops Xcode 26's test lines, so a failing test showed its name and never its message.
       - name: print the failing tests' messages
