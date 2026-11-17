@@ -82,6 +82,13 @@ Future<List<api.UserProfile>> _pagedMembers(
   return members;
 }
 
+/// Refetches every roster at once after a moderation write succeeds, so the
+/// actor's own pane does not wait on the live event to show the change.
+void refreshRostersAfterModeration(ProviderContainer container) {
+  container.invalidate(membersProvider);
+  container.invalidate(channelMembersProvider);
+}
+
 /// Seeds live presence for the members the pane is actually showing that this
 /// connection has not asked about yet, so a roster rebuilt for one new member
 /// costs one lookup rather than a lookup per member.
