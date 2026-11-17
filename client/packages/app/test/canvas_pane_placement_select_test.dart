@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Report 3: placing a new object leaves it selected, with resize handles
-/// already live, and the surface already in Move mode - no separate tool
-/// switch first. Covers the shape and note tools driven through the full
-/// pane; `canvas_image_paste.dart`'s own `onPlaced` signature change is
+/// already live. A shape keeps the Shape tool armed (owner decision
+/// 2026-11-17); a note and a paste switch to Pan. Covers the shape and note
+/// tools driven through the full pane; `canvas_image_paste.dart`'s own `onPlaced` signature change is
 /// exercised by the identical `_selectPlaced` call the paste path now shares
 /// with these two, so a regression in the shared helper fails here too.
 library;
@@ -15,7 +15,7 @@ import 'features/canvas/canvas_pane_harness.dart';
 
 void main() {
   testWidgets(
-    'placing a shape selects it and switches to Move, ready to resize',
+    'placing a shape selects it and keeps the Shape tool armed, ready to resize',
     (tester) async {
       final fixture = CanvasPaneFixture();
       final container = fixture.container();
@@ -39,8 +39,8 @@ void main() {
       expect(surfaceDocument(tester).selectedObjectId.value, placedId);
       expect(
         tester.widget<CanvasSurface>(find.byType(CanvasSurface)).tool,
-        CanvasTool.pan,
-        reason: 'resizing must not need a manual switch to Move first',
+        CanvasTool.shape,
+        reason: 'the shape tool stays armed after placing',
       );
     },
   );
@@ -63,9 +63,6 @@ void main() {
     await tester.pumpAndSettle();
     final firstId = fixture.posted.single['id'] as String;
 
-    // Switching back to Shape, since a placement now leaves the surface on Move.
-    await tester.tap(find.bySemanticsLabel('Shape'));
-    await tester.pump();
     gesture = await tester.startGesture(
       screenFor(tester, const Offset(200, 200)),
     );

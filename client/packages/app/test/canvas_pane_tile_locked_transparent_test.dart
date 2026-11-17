@@ -57,7 +57,12 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
     final shapeId = fixture.posted.single['id'] as String;
-    // Placing leaves it selected, already on the Move tool.
+    // Placing leaves it selected, with the Shape tool still armed.
+    expect(surfaceDocument(tester).selectedObjectId.value, shapeId);
+
+    // Leave the armed Shape tool for Pan, keeping the selection.
+    await tester.tap(find.bySemanticsLabel('Pan'));
+    await tester.pump();
     expect(surfaceDocument(tester).selectedObjectId.value, shapeId);
 
     // Drag the shape from its own centre onto the tile's own centre.
