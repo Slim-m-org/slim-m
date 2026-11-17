@@ -177,21 +177,48 @@ List<api.ChannelOverwriteEdit> privateEdits(
   ];
 }
 
-/// The edit that lifts only `@everyone`'s View deny, or none when there is no row.
+/// The edits that lift only `@everyone`'s View deny and, given [selfId], the
+/// View allow [privateEdits] gave them.
 List<api.ChannelOverwriteEdit> publicEdits(
   List<api.ChannelOverwrite> existing, {
   required String everyoneRoleId,
+  String? selfId,
 }) {
   final everyone = _find(existing, api.OverwriteTarget.role, everyoneRoleId);
-  if (everyone == null) return const [];
+  final self = selfId == null
+      ? null
+      : _find(existing, api.OverwriteTarget.member, selfId);
   return [
-    api.ChannelOverwriteEdit(
-      kind: api.OverwriteTarget.role,
-      id: everyoneRoleId,
-      allow: everyone.allow,
-      deny: everyone.deny & ~Perm.viewChannel,
-    ),
+    if (self != null && self.allow & Perm.viewChannel != 0)
+      viewGrantEdit(
+        existing,
+        kind: api.OverwriteTarget.member,
+        id: self.id,
+        allowed: false,
+      ),
+    if (everyone != null)
+      api.ChannelOverwriteEdit(
+        kind: api.OverwriteTarget.role,
+        id: everyoneRoleId,
+        allow: everyone.allow,
+        deny: everyone.deny & ~Perm.viewChannel,
+      ),
   ];
+}
+
+/// Whether one of [roleIds] other than `@everyone` has an Allow View row here.
+bool viewAllowedToARole(
+  List<api.ChannelOverwrite> existing, {
+  required String everyoneRoleId,
+  required Iterable<String> roleIds,
+}) {
+  final held = roleIds.toSet()..remove(everyoneRoleId);
+  return existing.any(
+    (o) =>
+        o.kind == api.OverwriteTarget.role &&
+        held.contains(o.id) &&
+        o.allow & Perm.viewChannel != 0,
+  );
 }
 
 /// Writes a [ViewTarget]'s rows for a widget, which never reads the api itself.

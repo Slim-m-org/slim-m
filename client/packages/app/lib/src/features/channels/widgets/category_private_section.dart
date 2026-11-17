@@ -7,12 +7,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 
 import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart';
 import '../../../providers/providers.dart' show sessionProvider;
 import '../../../widgets/confirm_dialog.dart';
+import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_save_feedback.dart';
 import '../../settings/widgets/settings_section_header.dart';
@@ -71,10 +73,7 @@ class _CategoryPrivateSectionState extends ConsumerState<CategoryPrivateSection>
         final existing = await ref.read(target.overwrites.future);
         final roles = await ref.read(rolesProvider.future);
         final everyone = roles.firstWhere((r) => r.isEveryone);
-        // An administrator sees it anyway; anyone else keeps the view they are taking away.
-        final admin = ref
-            .read(myPermissionsProvider)
-            .hasPermission(Perm.administrator);
+        final selfId = await _selfRowId(existing, everyoneRoleId: everyone.id);
         await ref
             .read(viewAccessWriterProvider)
             .write(
@@ -83,11 +82,13 @@ class _CategoryPrivateSectionState extends ConsumerState<CategoryPrivateSection>
                   ? privateEdits(
                       existing,
                       everyoneRoleId: everyone.id,
-                      selfId: admin
-                          ? null
-                          : ref.read(sessionProvider).tokens?.userId,
+                      selfId: selfId,
                     )
-                  : publicEdits(existing, everyoneRoleId: everyone.id),
+                  : publicEdits(
+                      existing,
+                      everyoneRoleId: everyone.id,
+                      selfId: selfId,
+                    ),
             );
         target.affected.forEach(ref.invalidate);
       },
@@ -97,6 +98,28 @@ class _CategoryPrivateSectionState extends ConsumerState<CategoryPrivateSection>
       _saving = false;
       if (!ok) _optimistic = null;
     });
+  }
+
+  /// The caller whose own Allow View row the switch writes and lifts, or null
+  /// when an administrator or a role of theirs keeps them in without one.
+  /// Who the switch gives an Allow View row, or null when Administrator or
+  /// one of their roles keeps them in.
+  Future<String?> _selfRowId(
+    List<api.ChannelOverwrite> existing, {
+    required String everyoneRoleId,
+  }) async {
+    if (ref.read(myPermissionsProvider).hasPermission(Perm.administrator)) {
+      return null;
+    }
+    final selfId = ref.read(sessionProvider).tokens?.userId;
+    final members = await ref.read(membersProvider.future);
+    final self = members.where((m) => m.id == selfId).firstOrNull;
+    final throughRole = viewAllowedToARole(
+      existing,
+      everyoneRoleId: everyoneRoleId,
+      roleIds: self?.roleIds ?? const [],
+    );
+    return throughRole ? null : selfId;
   }
 
   bool? _stored() {
