@@ -185,7 +185,11 @@ class _UserMentionChip extends ConsumerWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => unawaited(showMemberProfile(context, profile: profile)),
-          child: SelectionContainer.disabled(child: chip),
+          // Still selectable so a copy keeps the mention, but pointing reads as a press.
+          child: DefaultSelectionStyle.merge(
+            mouseCursor: SystemMouseCursors.click,
+            child: chip,
+          ),
         ),
       ),
     );

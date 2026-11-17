@@ -17,6 +17,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
 import 'package:slimm_app/src/features/messages/widgets/transcript_selection.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -70,8 +72,13 @@ void main() {
         .setMockMethodCallHandler(SystemChannels.platform, null);
   });
 
-  Future<void> pump(WidgetTester tester, String content) => tester.pumpWidget(
+  Future<void> pump(
+    WidgetTester tester,
+    String content, {
+    List<api.UserProfile> members = const [],
+  }) => tester.pumpWidget(
     ProviderScope(
+      overrides: [membersProvider.overrideWith((ref) async => members)],
       child: MaterialApp(
         theme: buildTheme(
           Brightness.dark,
@@ -97,6 +104,28 @@ void main() {
     final copied = await _selectAllAndCopy(tester);
     expect(copied, contains('@alice'));
     expect(copied, contains('thanks'));
+    expect(copied, contains('for the fix'));
+  });
+
+  testWidgets('a mention of a known member still round-trips through copy', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      'thanks @alice for the fix',
+      members: const [
+        api.UserProfile(
+          id: 'u-alice',
+          username: 'alice',
+          displayName: 'Alice',
+          createdAt: 0,
+        ),
+      ],
+    );
+    await tester.pump();
+
+    final copied = await _selectAllAndCopy(tester);
+    expect(copied, contains('@Alice'));
     expect(copied, contains('for the fix'));
   });
 
