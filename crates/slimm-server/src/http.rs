@@ -178,6 +178,7 @@ mod watch_session;
 mod webhooks;
 mod webhooks_admin;
 mod welcome;
+mod write_refusal;
 mod ws;
 
 /// The wire-protocol envelope version a client negotiates on connect. Bumped

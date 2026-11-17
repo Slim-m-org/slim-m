@@ -250,13 +250,7 @@ async fn create(
     // Creating a poll is creating a message, so it is gated exactly like an
     // ordinary send: view plus send, evaluated in this channel specifically.
     let needed = Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES);
-    if !state
-        .store
-        .has_permission(ctx.user_id, channel_id, needed)
-        .await?
-    {
-        return Err(ApiError::Forbidden);
-    }
+    super::write_refusal::require(&state, ctx.user_id, channel_id, needed).await?;
 
     let content = &*validate_content(&req.content, true)?;
     refuse_hidden_poll_text(&req.question, &req.options)?;

@@ -45,7 +45,13 @@ class UnauthorizedException extends ApiException {
 /// The caller is authenticated but not allowed. Also returned for a channel
 /// that does not exist, so absence is not distinguishable from denial.
 class ForbiddenException extends ApiException {
-  const ForbiddenException(super.message, {this.missingPermissions, this.code});
+  const ForbiddenException(
+    super.message, {
+    this.missingPermissions,
+    this.code,
+    this.timedOutUntil,
+    this.timeoutReason,
+  });
 
   /// The permission bits the server says the caller lacked, when it names any
   /// (a channel overwrite write that would grant more than the caller holds).
@@ -53,6 +59,19 @@ class ForbiddenException extends ApiException {
 
   /// The server's stable reason, such as `role_hierarchy`, when it names one.
   final String? code;
+
+  /// With [timedOutCode]: when the caller's timeout lifts, unix milliseconds.
+  final int? timedOutUntil;
+
+  /// With [timedOutCode], when the moderator gave one: the timeout's reason.
+  final String? timeoutReason;
+
+  /// The server's `code` values for a write refused in a channel the caller can
+  /// see; mirror `http/write_refusal.rs`, `http/error.rs` and `http/pins.rs`.
+  static const timedOutCode = 'timed_out';
+  static const blockedCode = 'blocked';
+  static const leftGroupCode = 'left_group';
+  static const dmPinsCode = 'dm_pins_unavailable';
 
   /// The server refused a moderation act on somebody of the caller's own rank.
   bool get isEqualRankRefusal => message == equalRankRefusal;

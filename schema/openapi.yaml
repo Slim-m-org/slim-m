@@ -13284,8 +13284,26 @@ components:
             role, or the member's highest role, is not strictly below the
             caller's own highest role, or the member is the Space owner.
             `role_follows_bot` on a 409 from granting or revoking by hand a role
-            a bot holds by being a bot. Absent on every other error; read an
-            unknown value as a refusal for another reason.
+            a bot holds by being a bot. On a 403 from sending, editing,
+            reacting or making a poll in a channel the caller can see:
+            `timed_out` (with `timed_out_until` and `timeout_reason`),
+            `blocked` in a direct message where either side blocked the other,
+            and `left_group` for a group the caller posted in and is no longer
+            on. `dm_pins_unavailable` on a 403 from pinning or unpinning in a
+            direct message. A channel the caller cannot see, or one that does
+            not exist, still answers the bare 403 with no code. Absent on every
+            other error; read an unknown value as a refusal for another reason.
+        timed_out_until:
+          type: integer
+          format: int64
+          description: >
+            With `code: timed_out` only: when the caller's timeout lifts, unix
+            milliseconds.
+        timeout_reason:
+          type: string
+          description: >
+            With `code: timed_out` only, and only when the moderator gave one:
+            the timeout's reason.
 
     Version:
       type: object

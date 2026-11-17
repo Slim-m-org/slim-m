@@ -56,7 +56,10 @@ async fn authorize(
 ) -> Result<crate::ids::ChannelId, ApiError> {
     let (message, permissions) = viewable_message(state, user_id, message_id).await?;
     if !permissions.contains(Permissions::ADD_REACTIONS) {
-        return Err(ApiError::Forbidden);
+        let missing = Permissions::ADD_REACTIONS;
+        return Err(
+            super::write_refusal::refusal(state, user_id, message.channel_id, missing).await?,
+        );
     }
     Ok(message.channel_id)
 }

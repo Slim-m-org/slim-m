@@ -131,13 +131,7 @@ async fn send(
     if !attachment_ids.is_empty() {
         needed = needed.union(Permissions::ATTACH_FILES);
     }
-    if !state
-        .store
-        .has_permission(ctx.user_id, channel_id, needed)
-        .await?
-    {
-        return Err(ApiError::Forbidden);
-    }
+    super::write_refusal::require(&state, ctx.user_id, channel_id, needed).await?;
     super::module_hooks::check_permission(
         &state,
         ctx.user_id,
@@ -451,13 +445,7 @@ async fn edit(
     } else {
         Permissions::MANAGE_MESSAGES
     };
-    if !state
-        .store
-        .has_permission(ctx.user_id, channel_id, needed)
-        .await?
-    {
-        return Err(ApiError::Forbidden);
-    }
+    super::write_refusal::require(&state, ctx.user_id, channel_id, needed).await?;
 
     // Read once and used three times: whether the note may be emptied, the
     // live frame, and this response.
