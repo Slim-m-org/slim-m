@@ -29,11 +29,10 @@ api.CanvasScreenAnnotation _stroke(
   String target, {
   String id = 'm1',
   String channel = 'call',
-  String from = 'viewer',
   bool ended = true,
 }) => api.CanvasScreenAnnotation(
   channelId: channel,
-  userId: from,
+  userId: 'viewer',
   targetUserId: target,
   kind: 'stroke',
   annotationId: id,
@@ -53,6 +52,7 @@ void main() {
     feed = ScreenAnnotationFeed(
       selfId: () => 'me',
       callChannelId: () => 'call',
+      callMembers: () => const ['me', 'sharer', 'viewer'],
       clock: () => now,
     );
     notified = 0;
@@ -89,10 +89,11 @@ void main() {
     expect(feed.boardCount, 0);
   });
 
-  test('a mark from someone my roster has not caught up with is kept', () {
-    feed.handle(_consent('sharer'));
-    feed.handle(_stroke('sharer', from: 'just-joined'));
-    expect(feed.marksFor('sharer'), hasLength(1));
+  test('a mark over a sharer who is not in my call is dropped', () {
+    feed.handle(_consent('outsider'));
+    feed.handle(_stroke('outsider'));
+    expect(feed.marksFor('outsider'), isEmpty);
+    expect(feed.boardCount, 0);
   });
 
   test('a mark over my own screen is kept for my preview of it', () {
@@ -148,11 +149,6 @@ void main() {
     expect(feed.marksFor('sharer'), hasLength(1));
   });
 
-  test(
-    'in the app, a mark from a sender my roster lacks still shows',
-    _justJoinedStampShows,
-  );
-
   group('in the app, a mark sent from another call', () {
     test('never reaches my own preview of my share', () {
       fakeAsync((async) {
@@ -161,6 +157,7 @@ void main() {
         async.flushMicrotasks();
 
         rig.annotate(from: 'bob', channel: 'other-call');
+        rig.annotate(from: 'bob');
         async.flushMicrotasks();
         expect(feed.marksFor('me'), isEmpty);
         expect(feed.boardCount, 0);
@@ -179,6 +176,7 @@ void main() {
         rig.sync.events.add(_consent('sharer'));
 
         rig.annotate(target: 'sharer', from: 'bob', channel: 'other-call');
+        rig.annotate(target: 'sharer', from: 'bob');
         async.flushMicrotasks();
         expect(feed.marksFor('sharer'), isEmpty);
         expect(feed.boardCount, 0);
@@ -190,17 +188,6 @@ void main() {
     });
   });
 }
-
-/// A stamp sent the moment its sender joined, before my LiveKit roster shows them.
-void _justJoinedStampShows() => fakeAsync((async) {
-  final rig = OverlayRig(initial: _watching);
-  final feed = rig.container.read(screenAnnotationFeedProvider);
-  async.flushMicrotasks();
-  rig.sync.events.add(_consent('sharer'));
-  rig.annotate(target: 'sharer', from: 'carol');
-  async.flushMicrotasks();
-  expect(feed.marksFor('sharer'), hasLength(1));
-});
 
 /// I am in the call watching 'sharer', with 'viewer' beside me; 'bob' is in another call.
 final _watching = VoiceState(

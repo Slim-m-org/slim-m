@@ -253,12 +253,11 @@ class OverlayRig {
   void stamp({
     String id = 's1',
     String user = 'viewer',
-    String channel = 'call',
     String emoji = '\u{1F389}',
     String? attachment,
   }) => sync.events.add(
     api.CanvasScreenAnnotation(
-      channelId: channel,
+      channelId: 'call',
       userId: user,
       targetUserId: 'me',
       kind: 'stamp',

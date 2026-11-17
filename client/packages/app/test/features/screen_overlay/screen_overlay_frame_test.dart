@@ -81,11 +81,13 @@ void main() {
       bool active = true,
       String? self = 'me',
       String? channel = 'call',
+      List<String> members = const ['me', 'viewer'],
     }) => overlayAccepts(
       f,
       overlayActive: active,
       selfId: self,
       callChannelId: channel,
+      callMembers: members,
     );
 
     test('a mark over my shared screen is shown while the overlay is on', () {
@@ -104,16 +106,15 @@ void main() {
       expect(accepts(_frame(channel: 'elsewhere')), isFalse);
     });
 
-    test('a mark from someone my roster has not caught up with is shown', () {
-      expect(accepts(_frame(from: 'just-joined')), isTrue);
+    test('a mark from someone who is not in my call is not shown', () {
+      expect(accepts(_frame(from: 'stranger')), isFalse);
+      expect(accepts(_frame(), members: const ['me']), isFalse);
     });
 
     test('a stamp is held to the same call as any other mark', () {
       expect(accepts(_frame(kind: 'stamp', points: [0.5, 0.5])), isTrue);
       expect(
-        accepts(
-          _frame(kind: 'stamp', channel: 'elsewhere', points: [0.5, 0.5]),
-        ),
+        accepts(_frame(kind: 'stamp', from: 'stranger', points: [0.5, 0.5])),
         isFalse,
       );
     });

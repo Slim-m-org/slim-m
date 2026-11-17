@@ -244,11 +244,11 @@ void main() {
     });
   });
 
-  test('a mark from another call paints nothing', () {
+  test('a mark from a member who is not in my call paints nothing', () {
     fakeAsync((async) {
       final rig = OverlayRig();
       async.flushMicrotasks();
-      rig.annotate(channel: 'other-call');
+      rig.annotate(from: 'not-in-the-call');
       async.elapse(const Duration(seconds: 1));
       expect(rig.overlay.draws, isEmpty);
 
