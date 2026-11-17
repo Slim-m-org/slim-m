@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/channel_by_id_provider.dart';
 import 'package:slimm_app/src/features/composer/widgets/poll_option_row.dart';
+import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/features/messages/providers/link_preview.dart';
 import 'package:slimm_app/src/features/messages/widgets/author_profile_tap_target.dart';
@@ -250,6 +251,26 @@ void main() {
       ],
     );
     await _expectClickOver(tester, find.text('#general'));
+  });
+
+  testWidgets('member mention chip', (tester) async {
+    await _pump(
+      tester,
+      const MessageBody(content: 'hi @taka', knownUsernames: {'taka'}),
+      overrides: [
+        membersProvider.overrideWith(
+          (ref) async => const [
+            api.UserProfile(
+              id: 'u7',
+              username: 'taka',
+              displayName: 'Taka',
+              createdAt: 0,
+            ),
+          ],
+        ),
+      ],
+    );
+    await _expectClickOver(tester, find.text('@Taka'));
   });
 
   testWidgets('author name opening the profile', (tester) async {

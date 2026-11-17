@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 library;
 
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +14,7 @@ import '../../emoji/widgets/custom_emoji_image.dart';
 import '../../emoji/widgets/emoji_name_tip.dart';
 import '../../emoji/widgets/emoji_names.dart';
 import '../../members/providers/mention_names.dart';
+import '../../members/widgets/member_profile.dart';
 import 'message_inline.dart';
 import 'message_spoiler.dart';
 
@@ -154,6 +157,7 @@ List<InlineSpan> buildSpans(List<InlineNode> nodes, InlineContext ctx) => [
 
 /// The chip for `@username`, reading the member's name in this space when one
 /// is known and naming the username on hover so equal names stay tellable.
+/// A press opens the member's profile, as a press on an author's name does.
 class _UserMentionChip extends ConsumerWidget {
   const _UserMentionChip(this.raw);
 
@@ -163,13 +167,31 @@ class _UserMentionChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final key = raw.substring(1).toLowerCase();
     final shown = ref.watch(mentionNamesProvider.select((names) => names[key]));
-    if (shown == null) return _MentionChip(raw);
-    return Tooltip(
-      message: raw,
-      waitDuration: emojiNameHoverRest,
-      // Read as the name on screen; a separate "@username" node would be read before the message.
-      excludeFromSemantics: true,
-      child: _MentionChip('@$shown'),
+    final profile = ref.watch(mentionProfileProvider(key));
+    final chip = shown == null
+        ? _MentionChip(raw)
+        : Tooltip(
+            message: raw,
+            waitDuration: emojiNameHoverRest,
+            // Read as the name on screen; a separate "@username" node would be read before the message.
+            excludeFromSemantics: true,
+            child: _MentionChip('@$shown'),
+          );
+    if (profile == null) return chip;
+    return Semantics(
+      button: true,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => unawaited(showMemberProfile(context, profile: profile)),
+          // Still selectable so a copy keeps the mention, but pointing reads as a press.
+          child: DefaultSelectionStyle.merge(
+            mouseCursor: SystemMouseCursors.click,
+            child: chip,
+          ),
+        ),
+      ),
     );
   }
 }
