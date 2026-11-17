@@ -85,7 +85,10 @@ void main() {
 
     field.requestFocus();
     await tester.pump();
-    await tester.enterText(find.byType(TextField), 'hello');
+    await tester.enterText(
+      find.byWidgetPredicate((w) => w is TextField),
+      'hello',
+    );
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
