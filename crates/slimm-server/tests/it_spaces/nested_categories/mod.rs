@@ -5,6 +5,7 @@
 mod arrangement;
 mod deletes;
 mod permissions;
+mod role_preview;
 mod rooms;
 mod structure;
 mod visibility;

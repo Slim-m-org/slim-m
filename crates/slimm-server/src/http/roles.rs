@@ -50,6 +50,7 @@ use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{ROLE_COLOR_COUNT, Role, RoleChanges, RoleGuardError, RoleWithCount};
 
+pub(super) mod role_preview;
 pub(super) mod role_reorder;
 
 use super::role_ladder::{Ladder, hand_assignable};
