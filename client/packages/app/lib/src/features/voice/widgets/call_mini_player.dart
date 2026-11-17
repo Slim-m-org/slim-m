@@ -32,6 +32,7 @@ import '../../../routing/routes.dart';
 import '../screens/dm_call_pane.dart';
 import 'focusable_video_press.dart';
 import '../../channels/widgets/channel_rail.dart';
+import '../../../providers/dock_reservation.dart';
 import '../../../widgets/floating_clearance.dart';
 
 /// Room kept clear at the bottom of the pane for a one-line composer and its
@@ -73,6 +74,39 @@ class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
   /// Set only while a finger holds the card; null means resting in a corner.
   Offset? _dragOrigin;
 
+  late final StateController<double> _reach = ref.read(
+    miniPlayerReachProvider.notifier,
+  );
+
+  @override
+  void dispose() {
+    final reach = _reach;
+    Future.microtask(() {
+      if (reach.mounted && reach.state != 0) reach.state = 0;
+    });
+    super.dispose();
+  }
+
+  /// Tells the window-level toasts how far up a card resting bottom-right reaches, once laid out.
+  void _publishReach(Size region, _Fit? fit) {
+    final corner = ref.read(miniPlayerCornerProvider);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      var reach = 0.0;
+      final box = context.findRenderObject();
+      if (fit != null &&
+          !fit.compact &&
+          corner == MiniPlayerCorner.bottomRight &&
+          box is RenderBox &&
+          box.attached) {
+        final top = cornerOrigin(corner, region, fit.player, fit.insets).dy;
+        final global = box.localToGlobal(Offset(0, top)).dy;
+        reach = math.max(0, MediaQuery.sizeOf(context).height - global);
+      }
+      if (_reach.state != reach) _reach.state = reach;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final selected = selectedChannelId(context);
@@ -102,6 +136,7 @@ class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
       builder: (context, box) {
         final region = box.biggest;
         final fit = visible ? _fit(context, region) : null;
+        _publishReach(region, fit);
         return Stack(
           fit: StackFit.expand,
           children: [
