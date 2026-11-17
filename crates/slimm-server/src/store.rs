@@ -205,7 +205,7 @@ pub use group_dms::{
     GROUP_DM_MAX_PARTICIPANTS, GROUP_DM_MIN_PARTICIPANTS, GroupDmError, LeftGroup,
 };
 pub use interactions::{Interaction, InteractionInput, InteractionKind, SubmissionClaim};
-pub use invites::{Invite, InviteCheck, InviteMetadata, RedeemError};
+pub use invites::{GrantReach, Invite, InviteCheck, InviteMetadata, InviteScope, RedeemError};
 pub use linked_accounts::{AccountLinkError, LinkedAccount, PendingLink, normalize_handoff};
 pub use login_throttle::{
     ACCOUNT_FREE_FAILURES, ACCOUNT_MAX_DELAY_MS, FORGET_AFTER_MS, FREE_FAILURES, MAX_DELAY_MS,

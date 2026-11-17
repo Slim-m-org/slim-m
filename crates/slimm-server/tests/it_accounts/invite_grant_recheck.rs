@@ -22,6 +22,7 @@ struct World {
     mods: RoleId,
     helper: RoleId,
     mia: UserId,
+    mia_token: String,
     code: String,
     _guard: support::TestDbGuard,
 }
@@ -54,11 +55,27 @@ async fn world(name: &str) -> World {
         mods,
         helper,
         mia: mia.id,
+        mia_token: mia.token.clone(),
         _guard: guard,
     }
 }
 
 impl World {
+    /// An invite the owner makes, granting `role`.
+    async fn mint(&self, role: RoleId) -> String {
+        let invite = json!({ "role_grant": role.to_string() });
+        let (status, body) = call_as(
+            &self.app,
+            "POST",
+            "/invites",
+            &self.alice.token,
+            Some(invite),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        body["code"].as_str().unwrap().to_owned()
+    }
+
     /// Registers `username` with the code and answers whether they came in holding `helper`.
     async fn joins_with_helper(&self, username: &str) -> bool {
         self.joins_holding(username, &self.code, self.helper).await
@@ -144,4 +161,43 @@ async fn the_owner_with_no_roles_still_gives_the_role() {
     assert_eq!(status, StatusCode::OK, "{body}");
     let code = body["code"].as_str().unwrap();
     assert!(w.joins_holding("guest", code, w.mods).await);
+}
+
+/// A manager below a role neither sees, revokes nor spends another person's invite for it.
+#[tokio::test]
+async fn a_lower_manager_neither_sees_nor_spends_a_senior_role_invite() {
+    let w = world("slimm-invite-recheck-senior").await;
+    let senior = w
+        .store
+        .create_role("senior", Permissions::NONE, false)
+        .await
+        .unwrap();
+    w.store
+        .reorder_roles(&[w.admin, senior, w.mods, w.helper])
+        .await
+        .unwrap();
+    let senior_code = w.mint(senior).await;
+    let helper_code = w.mint(w.helper).await;
+    let mia_token = &w.mia_token;
+
+    let (status, listed) = call_as(&w.app, "GET", "/invites", mia_token, None).await;
+    assert_eq!(status, StatusCode::OK, "{listed}");
+    let codes: Vec<&str> = listed
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["code"].as_str().unwrap())
+        .collect();
+    assert!(!codes.contains(&senior_code.as_str()), "{listed}");
+    assert!(codes.contains(&helper_code.as_str()), "{listed}");
+    assert!(codes.contains(&w.code.as_str()), "{listed}");
+
+    let revoke = format!("/invites/{senior_code}");
+    let (status, _) = call_as(&w.app, "DELETE", &revoke, mia_token, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    let redeem = format!("/invites/{senior_code}/redeem");
+    let (status, body) = call_as(&w.app, "POST", &redeem, mia_token, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
+    assert!(!w.store.holds_role(w.mia, senior).await.unwrap());
 }

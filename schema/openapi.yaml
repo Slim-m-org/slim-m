@@ -2007,6 +2007,9 @@ paths:
         clamped to 1-100. `before` is the code of the last invite of the
         previous page; a page shorter than `limit` is the last one. Invites
         revoked, expired or spent for more than 30 days are deleted.
+        A caller with CREATE_INVITE and MANAGE_ROLES sees everyone's invites,
+        except, below the Space owner, another person's invite granting a
+        role they could not grant by hand; anyone else sees only their own.
       parameters:
         - name: limit
           in: query
@@ -2426,6 +2429,10 @@ paths:
       operationId: redeemInvite
       tags: [invites]
       summary: Redeem an invite for the calling account.
+      description: >
+        A caller who manages roles receives the invite's role only if they
+        could have granted it to themselves by hand; otherwise the invite is
+        still spent and they get no role.
       responses:
         "204":
           description: The invite was redeemed.

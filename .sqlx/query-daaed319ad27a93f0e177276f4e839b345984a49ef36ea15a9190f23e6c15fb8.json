@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE invites SET revoked_at = ?1\n             WHERE code = ?2 AND revoked_at IS NULL AND (?3 IS NULL OR created_by = ?3)\n               AND (?4 IS NULL OR role_grant IS NULL OR created_by = ?4\n                    OR EXISTS (SELECT 1 FROM roles r WHERE r.id = invites.role_grant\n                               AND r.is_everyone = 0 AND r.is_bots_role = 0\n                               AND r.managed_bot_id IS NULL AND r.position < ?5\n                               AND (r.permissions & ?6) = r.permissions))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "daaed319ad27a93f0e177276f4e839b345984a49ef36ea15a9190f23e6c15fb8"
+}

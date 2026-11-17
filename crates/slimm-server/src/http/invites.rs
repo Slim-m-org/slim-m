@@ -28,7 +28,7 @@ use super::role_ladder::{Ladder, hand_assignable};
 use crate::hub::Event;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{Invite, InviteCheck, RedeemError, now_ms};
+use crate::store::{GrantReach, Invite, InviteCheck, InviteScope, RedeemError, now_ms};
 
 const BODY_LIMIT: usize = 4 * 1024;
 
@@ -149,7 +149,7 @@ async fn resolve_grant(
         .await?
         .ok_or(ApiError::NotFound("role not found"))?;
     hand_assignable(&role)?;
-    Ladder::of(state, caller).await?.reach(&role)?;
+    Ladder::of(state, caller).await?.reach_role(role.position)?;
     if !permissions.contains(role.permissions) {
         return Err(ApiError::Forbidden);
     }
@@ -186,14 +186,27 @@ async fn invite_access(
 
 /// Whose invites a caller sees and revokes: everyone's only with both CREATE_INVITE and MANAGE_ROLES, since another person's code is a credential.
 /// Your own stay manageable whatever the switch says, so turning it off never strands codes you made.
-async fn invite_scope(
-    state: &AppState,
-    user: crate::ids::UserId,
-) -> Result<Option<crate::ids::UserId>, ApiError> {
+/// Below the owner, another person's code that grants a role shows only to a manager who could grant that role by hand, as [`resolve_grant`] checks.
+async fn invite_scope(state: &AppState, user: crate::ids::UserId) -> Result<InviteScope, ApiError> {
     let permissions = state.store.base_permissions(user).await?;
     let sees_all = permissions.contains(Permissions::CREATE_INVITE)
         && permissions.contains(Permissions::MANAGE_ROLES);
-    Ok((!sees_all).then_some(user))
+    if !sees_all {
+        return Ok(InviteScope {
+            creator: Some(user),
+            grants: None,
+        });
+    }
+    let ladder = Ladder::of(state, user).await?;
+    let grants = (!ladder.exempt()).then(|| GrantReach {
+        manager: user,
+        below: ladder.top().unwrap_or(i64::MIN),
+        holds: permissions,
+    });
+    Ok(InviteScope {
+        creator: None,
+        grants,
+    })
 }
 
 /// What a member without CREATE_INVITE gets when the request leaves it open,

@@ -345,7 +345,7 @@ async fn assign(
     hand_assignable(&role)?;
     let ladder = Ladder::of(&state, ctx.user_id).await?;
     ladder.spare_owner(user_id)?;
-    ladder.reach(&role)?;
+    ladder.reach_role(role.position)?;
     escalation_guard(caller_granted(&state, ctx.user_id).await?, role.permissions)?;
 
     let target = state
@@ -392,7 +392,7 @@ async fn unassign(
         let ladder = Ladder::of(&state, ctx.user_id).await?;
         ladder.spare_owner(user_id)?;
         // Also what keeps a caller from dropping their own highest role.
-        ladder.reach(role)?;
+        ladder.reach_role(role.position)?;
         escalation_guard(caller_granted(&state, ctx.user_id).await?, role.permissions)?;
     }
 

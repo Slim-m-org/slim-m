@@ -67,7 +67,10 @@ async fn unusable_codes_are_indistinguishable() {
         .await
         .unwrap()
         .code;
-    store.revoke_invite(&revoked, None).await.unwrap();
+    store
+        .revoke_invite(&revoked, slimm_server::store::InviteScope::all())
+        .await
+        .unwrap();
 
     let (status_a, html_a, _) = fetch(&router, &format!("/invite/{revoked}")).await;
     let (status_b, html_b, _) = fetch(&router, "/invite/neverissued").await;
