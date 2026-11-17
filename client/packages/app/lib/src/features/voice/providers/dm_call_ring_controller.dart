@@ -56,9 +56,7 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       if (previous != null && next == null && _answeredRingId != null) {
         _endCallKit();
       }
-      if (next != null && state.incoming?.channelId == next) {
-        state = state.copyWith(clearIncoming: true);
-      }
+      if (next != null) _joinedCall(next);
     });
   }
 
@@ -186,6 +184,26 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     }
   }
 
+  /// This device is in [channelId]'s call now: a ring for it is answered here,
+  /// on the system call screen too, and an earlier unanswered ring is old news.
+  void _joinedCall(String channelId) {
+    if (state.incoming?.channelId == channelId) {
+      final callKitRinging = state.callKit == CallKitPhase.ringing;
+      state = state.copyWith(
+        clearIncoming: true,
+        callKit: callKitRinging ? CallKitPhase.none : null,
+      );
+      if (callKitRinging) _endCallKit();
+    }
+    _forgetLastOutgoingEnd(channelId);
+  }
+
+  void _forgetLastOutgoingEnd(String channelId) {
+    if (state.lastOutgoingEnd?.channelId == channelId) {
+      state = state.copyWith(clearLastOutgoingEnd: true);
+    }
+  }
+
   /// `call.ringing` reaches only the callees, but a server older than that
   /// also sent it to the caller, so [_onEvent] still skips its own ring.
   void _onEvent(api.ServerEvent event) {
@@ -211,8 +229,8 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
         } else {
           unawaited(ensureChannelLoaded(channelId));
         }
-      case api.CallRingEnded(:final ringId, :final outcome):
-        _onRingEnded(ringId, outcome);
+      case api.CallRingEnded(:final channelId, :final ringId, :final outcome):
+        _onRingEnded(channelId, ringId, outcome);
       default:
         break;
     }
@@ -226,8 +244,14 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
   /// running alone: exactly the resource-waste problem this feature exists
   /// to close. [api.CallOutcome.answered] and
   /// [api.CallOutcome.canceled] need nothing further here.
-  void _onRingEnded(String ringId, api.CallOutcome outcome) {
+  void _onRingEnded(String channelId, String ringId, api.CallOutcome outcome) {
     _rememberEnded(ringId, outcome);
+    final lastEnd = state.lastOutgoingEnd;
+    if (outcome == api.CallOutcome.answered &&
+        lastEnd?.channelId == channelId &&
+        lastEnd?.ringId != ringId) {
+      state = state.copyWith(clearLastOutgoingEnd: true);
+    }
     if (state.incoming?.ringId == ringId) {
       state = state.copyWith(clearIncoming: true, callKit: CallKitPhase.none);
       _endCallKit();
@@ -238,12 +262,13 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     final outgoing = state.outgoing;
     if (outgoing != null && outgoing.ringId == ringId) {
       state = state.copyWith(clearOutgoing: true);
-      _hangUpIfNobodyJoined(outgoing.channelId, outcome);
+      _hangUpIfNobodyJoined(outgoing.channelId, ringId, outcome);
     }
   }
 
   void _hangUpIfNobodyJoined(
     String channelId,
+    String ringId,
     api.CallOutcome outcome, {
     bool doNotDisturb = false,
   }) {
@@ -254,11 +279,23 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       api.CallOutcome.timedOut => OutgoingRingEndReason.noAnswer,
       _ => null,
     };
-    if (reason == null) return;
+    if (reason == null || _someoneElseIsIn(channelId)) return;
     state = state.copyWith(
-      lastOutgoingEnd: OutgoingRingEnd(channelId: channelId, reason: reason),
+      lastOutgoingEnd: OutgoingRingEnd(
+        channelId: channelId,
+        ringId: ringId,
+        reason: reason,
+      ),
     );
     _hangUpIfStillOn(channelId);
+  }
+
+  /// A ring can end unanswered on a call that is live anyway, say one joined
+  /// through a server older than the one that ends such a ring as answered.
+  bool _someoneElseIsIn(String channelId) {
+    final voice = _ref.read(voiceControllerProvider);
+    return voice.channelId == channelId &&
+        voice.participants.any((participant) => !participant.isLocal);
   }
 
   void _rememberEnded(String ringId, api.CallOutcome outcome) {
@@ -294,6 +331,7 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       if (everyoneOnDnd) {
         _hangUpIfNobodyJoined(
           channelId,
+          started.ringId,
           api.CallOutcome.timedOut,
           doNotDisturb: true,
         );
@@ -301,7 +339,7 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       }
       final endedAs = _endedRings[started.ringId];
       if (endedAs != null) {
-        _hangUpIfNobodyJoined(channelId, endedAs);
+        _hangUpIfNobodyJoined(channelId, started.ringId, endedAs);
         return;
       }
       state = state.copyWith(

@@ -28,11 +28,17 @@ class OutgoingDmCallRing {
 enum OutgoingRingEndReason { noAnswer, declined, doNotDisturb }
 
 /// The last outgoing ring that ended unanswered, so the call screen can say
-/// why the call is over rather than that the caller left it.
+/// why the call is over rather than that the caller left it. Forgotten once
+/// that call is joined or a later ring in it is answered.
 class OutgoingRingEnd {
-  const OutgoingRingEnd({required this.channelId, required this.reason});
+  const OutgoingRingEnd({
+    required this.channelId,
+    required this.ringId,
+    required this.reason,
+  });
 
   final String channelId;
+  final String ringId;
   final OutgoingRingEndReason reason;
 }
 
