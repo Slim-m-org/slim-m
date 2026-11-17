@@ -35,6 +35,11 @@ const List<(String, int)> userLimitOptions = [
 
 String userLimitLabel(int limit) => limit == 0 ? 'No limit' : '$limit';
 
+const lobbyLabel = 'Lobby';
+const lobbyDescription =
+    'Each person who joins gets their own room, removed when it empties.';
+const lobbySemanticLabel = 'Make this a lobby';
+
 class ChannelRoomsSection extends ConsumerStatefulWidget {
   const ChannelRoomsSection({super.key, required this.channel});
 
@@ -84,11 +89,11 @@ class _ChannelRoomsSectionState extends ConsumerState<ChannelRoomsSection>
       children: [
         if (!isRoom) ...[
           SettingsToggleRow(
-            label: 'Room per person',
-            description: 'Joining makes a voice room of your own.',
+            label: lobbyLabel,
+            description: lobbyDescription,
             value: current.rooms,
             onChanged: saving ? null : (v) => _save(current, createsRooms: v),
-            semanticLabel: 'Joining makes each person a room of their own',
+            semanticLabel: lobbySemanticLabel,
           ),
           const SettingsHairline(),
         ],

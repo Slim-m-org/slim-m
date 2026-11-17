@@ -12,7 +12,7 @@ class RailLobbyIcon extends StatelessWidget {
 
   final Color color;
 
-  static const label = 'Opens a room of your own';
+  static const label = 'Join to get your own room';
 
   @override
   Widget build(BuildContext context) => Tooltip(

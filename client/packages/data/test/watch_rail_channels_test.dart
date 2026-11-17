@@ -199,5 +199,17 @@ void main() {
         (c) => c.createsRooms == true,
       );
     });
+
+    test('room lobby', () {
+      return reemits(
+        const api.Channel(
+            id: 'voice',
+            name: 'lounge',
+            kind: 'voice',
+            createdAt: 3,
+            roomLobbyId: 'lobby'),
+        (c) => c.roomLobbyId == 'lobby',
+      );
+    });
   });
 }

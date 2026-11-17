@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The sheet for making a channel: a name, a text/voice choice, and - for a
-/// caller who holds MANAGE_ROLES - a Private toggle, sent through
+/// The sheet for making a channel: a name, a text/voice choice, a Lobby
+/// toggle for voice (decision 0065), and - for a caller who holds
+/// MANAGE_ROLES - a Private toggle, sent through
 /// `POST /channels` (`SlimmApi.createChannel`).
 ///
 /// Opened from the Space menu's "Add channel", and from the `+` on a
@@ -35,6 +36,8 @@ import '../../../providers/admin_providers.dart';
 import '../../../routing/routes.dart';
 import '../../../ids.dart';
 import '../../../widgets/name_entry_sheet.dart';
+import 'channel_settings_rooms_section.dart'
+    show lobbyDescription, lobbyLabel, lobbySemanticLabel;
 import 'private_audience_picker.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
 import '../providers/channel_actions.dart';
@@ -87,6 +90,7 @@ class _CreateChannelSheet extends ConsumerStatefulWidget {
 class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
   late String _kind = widget.initialKind;
   bool _restricted = false;
+  bool _lobby = false;
   final Set<String> _audience = {};
   final _createId = newChannelId();
 
@@ -98,6 +102,7 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
           kind: _kind,
           categoryId: widget.categoryId,
           restricted: _restricted,
+          createsRooms: _kind == 'voice' && _lobby,
           id: _createId,
         );
     if (_restricted) await _grantAudience(created.id);
@@ -164,6 +169,15 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
           style: AppText.caption.copyWith(color: tokens.textSecondary),
         ),
         const SizedBox(height: AppSpacing.s8),
+        if (_kind == 'voice')
+          SettingsToggleRow(
+            label: lobbyLabel,
+            description: lobbyDescription,
+            value: _lobby,
+            onChanged: (v) => setState(() => _lobby = v),
+            semanticLabel: lobbySemanticLabel,
+            inset: 0,
+          ),
         if (canRestrict)
           SettingsToggleRow(
             label: 'Private',

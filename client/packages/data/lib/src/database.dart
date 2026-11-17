@@ -122,6 +122,7 @@ class Channels extends Table {
   BoolColumn get createsRooms => boolean().nullable()();
   IntColumn get userLimit => integer().nullable()();
   TextColumn get roomOwnerId => text().nullable()();
+  TextColumn get roomLobbyId => text().nullable()();
   BoolColumn get roomLocked => boolean().nullable()();
 
   /// Whether `@everyone` lacks VIEW_CHANNEL here, mirroring the server's
@@ -338,7 +339,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 31;
+  int get schemaVersion => 32;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -463,6 +464,8 @@ class SlimmDatabase extends _$SlimmDatabase {
             31,
             () => _addColumnOnce(
                 m, channelCategories, channelCategories.parentId)),
+        _UpgradeStep(
+            32, () => _addColumnOnce(m, channels, channels.roomLobbyId)),
       ];
 
   /// How each schema version is reached. Most add a column in place that the
