@@ -26,6 +26,9 @@ import 'role_permissions_rows.dart';
 const _administratorDescription =
     'Every permission below, in every channel, ignoring overrides.';
 
+/// What a permission row says while Administrator already grants it.
+const grantedByAdministrator = 'Granted by Administrator.';
+
 /// The pane's horizontal inset, so cards line up with the role header above.
 const _inset = AppSpacing.s24;
 
@@ -273,18 +276,26 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
   Widget _groupCard(PermGroup group, List<PermSpec> specs) {
     final myPermissions = ref.watch(myPermissionsProvider);
     final roleBits = widget.role.permissions;
+    // Display only: the role's own bits stay as saved, so turning Administrator off shows them again.
+    final byAdministrator =
+        _bitOverrides[Perm.administrator] ??
+        roleBits.hasPermission(Perm.administrator);
     return SettingsSectionCard(
       title: group.title,
       children: [
         for (final spec in specs)
           PermissionToggleRow(
             title: spec.label,
-            description: spec.description,
+            description: byAdministrator
+                ? grantedByAdministrator
+                : spec.description,
             semanticLabel: spec.label,
             elevated: spec.elevated,
             held: myPermissions.hasPermission(spec.bit),
-            value: _bitOverrides[spec.bit] ?? roleBits.hasPermission(spec.bit),
-            onChanged: widget.locked
+            value:
+                byAdministrator ||
+                (_bitOverrides[spec.bit] ?? roleBits.hasPermission(spec.bit)),
+            onChanged: widget.locked || byAdministrator
                 ? null
                 : (v) => _setBit(spec.bit, v, roleBits.hasPermission(spec.bit)),
           ),
