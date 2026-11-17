@@ -59,7 +59,11 @@ class AlertRig {
     this.overrides = const {},
     this.parentFails = false,
     this.makeStore = MessageStore.new,
+    this.framesApplied,
   });
+
+  /// Stands in for sync applying the frames already received; idle by default.
+  final Future<void> Function()? framesApplied;
 
   /// Builds the store the policy reads, for a test that wants to observe how it is read.
   final MessageStore Function(SlimmDatabase db) makeStore;
@@ -137,6 +141,9 @@ class AlertRig {
           api.SessionStore(tokens: alertTokens),
         ),
         storeProvider.overrideWith((ref) async => store),
+        syncFramesAppliedProvider.overrideWithValue(
+          framesApplied ?? () async {},
+        ),
         mockApiOverride(_answer),
       ],
     );

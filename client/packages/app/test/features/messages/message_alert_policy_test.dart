@@ -5,8 +5,6 @@
 /// account's, the order the server resolves it in for push.
 library;
 
-import 'dart:async';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart' show MessageStore;
@@ -180,23 +178,38 @@ void main() {
   });
 
   test(
-    'a new DM whose channel is stored a moment late is still a DM',
+    'a new DM whose channel sync stores a moment late is still a DM',
     () async {
-      await wire(AlertRig(account: 'mentions'));
-      alertNewChannelWait = const Duration(seconds: 1);
-      unawaited(
-        Future<void>.delayed(const Duration(milliseconds: 100), () {
-          return MessageStore(rig.db).upsertChannels(const [
+      late AlertRig next;
+      next = AlertRig(
+        account: 'mentions',
+        framesApplied: () => Future<void>.delayed(
+          const Duration(milliseconds: 100),
+          () => MessageStore(next.db).upsertChannels(const [
             api.Channel(id: 'dm-new', name: 'Bob', kind: 'dm', createdAt: 0),
-          ]);
-        }),
+          ]),
+        ),
       );
+      await wire(next);
+      alertNewChannelWait = const Duration(seconds: 1);
 
       final alert = await rig.policy.evaluate(alertMessage('dm-new', 'hi'));
 
       expect(alert?.isDm, isTrue, reason: 'a DM alerts under "mentions"');
     },
   );
+
+  test('a reply in a thread sync never stores alerts without waiting out '
+      'the new-channel wait', () async {
+    await wire(AlertRig());
+    alertNewChannelWait = const Duration(seconds: 2);
+    final clock = Stopwatch()..start();
+
+    final alert = await rig.policy.evaluate(alertMessage('thread-new', 'hi'));
+
+    expect(alert, isNotNull);
+    expect(clock.elapsed, lessThan(const Duration(milliseconds: 500)));
+  });
 
   group('what was set on another device', () {
     late Duration originalMaxAge;

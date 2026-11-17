@@ -84,6 +84,22 @@ class SerialFrameQueue {
   final _pending = Queue<api.ServerEvent>();
   bool _held = true;
   bool _pumping = false;
+  final _drained = <Completer<void>>[];
+
+  /// Completes once every frame added so far has been applied, or dropped.
+  Future<void> applied() {
+    if (!_pumping && _pending.isEmpty) return Future.value();
+    final waiter = Completer<void>();
+    _drained.add(waiter);
+    return waiter.future;
+  }
+
+  void _completeDrained() {
+    for (final waiter in _drained) {
+      waiter.complete();
+    }
+    _drained.clear();
+  }
 
   /// How many frames are waiting to be applied.
   int get heldCount => _pending.length;
@@ -115,10 +131,14 @@ class SerialFrameQueue {
       await _handle(_pending.removeFirst());
     }
     _held = false;
+    _completeDrained();
   }
 
   /// Drops what is still waiting, for a socket that is being torn down.
-  void clear() => _pending.clear();
+  void clear() {
+    _pending.clear();
+    _completeDrained();
+  }
 
   Future<void> _pump() async {
     if (_pumping) return;
@@ -133,6 +153,7 @@ class SerialFrameQueue {
       }
     } finally {
       _pumping = false;
+      _completeDrained();
     }
   }
 }
