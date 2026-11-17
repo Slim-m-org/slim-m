@@ -12315,8 +12315,8 @@ paths:
         Requires MANAGE_SERVER, like custom emoji. The body is the raw audio
         bytes. The type is sniffed from the bytes and must be mp3 or wav; the
         length is read from the bytes and must be at most 5 seconds, and the
-        upload at most 512 KB. A name is 1 to 32 characters and unique ignoring
-        case. At most 48 clips per Space.
+        upload at most 512 KB, or it is refused with 413. A name is 1 to 32
+        characters and unique ignoring case. At most 48 clips per Space.
       parameters:
         - name: name
           in: query
@@ -12358,6 +12358,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "507":
@@ -12474,8 +12476,8 @@ paths:
       tags: [soundboard]
       summary: Play a clip into the call the caller is in.
       description: >
-        Needs VIEW_CHANNEL, CONNECT and USE_SOUNDBOARD in the channel, and a
-        seat in its call. Every participant, the caller included, receives a
+        Needs VIEW_CHANNEL, CONNECT, SPEAK and USE_SOUNDBOARD in the channel,
+        and a seat in its call. Every participant, the caller included, receives a
         `soundboard.played` frame and plays its own cached copy; nobody outside
         the call receives it. One play per caller every 3 seconds; a faster
         caller gets 429 with `retry_after_seconds`.
