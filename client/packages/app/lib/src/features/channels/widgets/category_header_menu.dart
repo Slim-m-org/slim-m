@@ -173,6 +173,8 @@ class CategoryHeaderMenu extends ConsumerWidget {
                 categoryName: tree.pathOf(category),
                 isSubCategory: parent != null,
                 holdsSubCategories: nests && parent == null,
+                subCategories: subs,
+                channels: channels,
               ),
             ),
           ),

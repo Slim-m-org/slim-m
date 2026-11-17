@@ -37,6 +37,7 @@ GridColumn gridColumnWithCounts(
     allowCount: _countKnown(allow),
     denyCount: _countKnown(deny),
     locked: locked,
+    isEveryone: column.isEveryone,
   );
 }
 
