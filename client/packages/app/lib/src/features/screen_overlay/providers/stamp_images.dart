@@ -140,6 +140,17 @@ class StampImageCache {
         });
   }
 
+  /// Forgets the baked standard emoji, which a font that loaded late would draw differently.
+  void dropGlyphs() {
+    for (final key in [
+      for (final key in _images.keys)
+        if (key.startsWith('e:')) key,
+    ]) {
+      _images.remove(key)?.dispose();
+      _loads.remove(key);
+    }
+  }
+
   /// Drops everything, as when the call ends; a load still in flight is thrown away when it lands.
   void clear() {
     _generation++;

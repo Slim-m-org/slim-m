@@ -63,6 +63,20 @@ class CanvasToolButtons extends ConsumerWidget {
               : _pick(CanvasTool.stamp),
   );
 
+  /// The picker's caret keeps its slot while the tool is down, like the pen's and the shape's.
+  Widget _stampWithCaret(WidgetRef ref) => Builder(
+    builder: (anchor) => AppControlWithOptions(
+      active: true,
+      reserveSlot: true,
+      visualHeight: AppSizes.icon28,
+      optionsLabel: 'Choose a stamp',
+      onOpenOptions: tool == CanvasTool.stamp
+          ? () => showStampPicker(anchor, onPicked: (_) {})
+          : null,
+      child: _stampButton(ref),
+    ),
+  );
+
   /// Options belong to the selected tool only, and only while it can be used.
   List<ControlOptionEntry> _optionsFor(
     BuildContext context,
@@ -110,6 +124,7 @@ class CanvasToolButtons extends ConsumerWidget {
     active: true,
     menuWidth: _toolMenuWidth,
     caretHeight: AppSizes.icon28,
+    reserveCaretSlot: true,
     opensAbove: true,
     optionsLabel: label,
     options: _optionsFor(context, ref, forTool),
@@ -189,16 +204,7 @@ class CanvasToolButtons extends ConsumerWidget {
         ),
         if (ref.watch(canvasStampsSupportedProvider)) ...[
           gap,
-          _stampButton(ref),
-          if (tool == CanvasTool.stamp)
-            Builder(
-              builder: (anchor) => AppIconButton(
-                icon: AppIcons.chevronUp,
-                semanticLabel: 'Choose a stamp',
-                tooltip: 'Choose a stamp',
-                onPressed: () => showStampPicker(anchor, onPicked: (_) {}),
-              ),
-            ),
+          _stampWithCaret(ref),
         ],
         gap,
         AppIconButton(

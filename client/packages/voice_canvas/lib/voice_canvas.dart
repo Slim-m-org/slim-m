@@ -25,6 +25,11 @@ export 'src/canvas_painters.dart'
         NoteSpanBuilder,
         RemoteDraftPainter,
         StrokePainter,
+        noteFontSizeFor,
+        noteFontSizeForWidth,
+        noteReferenceFontSize,
+        noteReferenceHeight,
+        noteReferenceWidth,
         noteWorldFontSize;
 export 'src/canvas_personal_layout.dart';
 export 'src/canvas_presence_layout.dart';

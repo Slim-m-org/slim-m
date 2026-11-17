@@ -136,7 +136,7 @@ void main() {
                   onSelectStart: (_) {},
                   onSelectDrag: (_) {},
                   onSelectEnd: () {},
-                  onNotePlace: (_) {},
+                  onNotePlace: (_, [__]) {},
                   onShapePlace: (_, __, {flipX = false, flipY = false}) {},
                   shapeKind: CanvasShapeKind.rectangle,
                   onShapeKindChanged: (_) {},

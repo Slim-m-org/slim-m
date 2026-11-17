@@ -89,7 +89,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// real text - nothing is sent, and nothing shows on the shared canvas,
   /// for a sheet the person cancelled or left blank. [_selectPlaced] is what
   /// closes it out.
-  Future<void> _onNotePlace(Offset world) async {
+  Future<void> _onNotePlace(Offset world, [Size? draggedSize]) async {
     final startedWith = _tool;
     var text = await showCanvasNoteSheet(context);
     if (!_mounted) return;
@@ -98,6 +98,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       final placed = await _quickPlacement.placeNote(
         world,
         text,
+        draggedSize: draggedSize,
         onError: _engine.reportError,
       );
       if (placed != null) {
@@ -117,14 +118,9 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// Places a shape of the bar's own currently-picked kind at once - no
   /// sheet, since a shape carries no text to type.
   ///
-  /// Used to stay on the shape tool afterward rather than switching to
-  /// select, on the theory that placing several shapes of the same kind in
-  /// a row is a normal thing to want and switching tools after every tap
-  /// would make that tedious. That theory is what report 3 in the backlog
-  /// channel found wrong in practice: staying on the shape tool left a
-  /// freshly placed shape with no way to resize it short of a manual switch
-  /// to Move first, which is worse than the rapid-placement convenience it
-  /// was bought with. [_selectPlaced] now matches the note and paste paths.
+  /// The shape tool stays armed so several shapes can be drawn in a row; the
+  /// shape just placed is selected, and a press on one of its resize handles
+  /// resizes it rather than drawing (see `CanvasSurface.grabsHandleAt`).
   Future<void> _onShapePlace(
     Offset world,
     Size? draggedSize, {
@@ -140,25 +136,19 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       flipY: flipY,
       onError: _engine.reportError,
     );
-    if (placed != null) _selectPlaced(placed.id, startedWith: startedWith);
+    if (placed != null) {
+      _selectPlaced(placed.id, startedWith: startedWith, keepTool: true);
+    }
   }
 
-  /// After placing a new object - a placed note, a placed shape, or a
-  /// pasted image - the thing just made is the thing selected, with its
-  /// resize handles already live and the surface already in Move mode: no
-  /// separate switch is needed before it can be resized.
-  ///
-  /// Chosen over having the placement gesture itself carry a size (drag to
-  /// place, sized as dragged) because it is the smaller change: it needs no
-  /// new coexistence with the pinch-deferral already guarding a placement
-  /// tool's own first pointer-down (see `_resolvePendingPlacement`'s doc in
-  /// `canvas_surface_gestures.dart`), and no new "what does a zero-length
-  /// drag produce" case to define. The cost is real and named rather than
-  /// hidden: a person placing several same-sized shapes in a row now
-  /// switches tools once per shape rather than never, where drag-to-place
-  /// would have kept the rapid-placement flow at the cost of a heavier
-  /// gesture change.
-  void _selectPlaced(String objectId, {CanvasTool? startedWith}) {
+  /// After placing a new object the thing just made is the thing selected,
+  /// with its resize handles live. A note or pasted image also switches to
+  /// the Pan tool; a shape ([keepTool]) leaves its tool armed for the next one.
+  void _selectPlaced(
+    String objectId, {
+    CanvasTool? startedWith,
+    bool keepTool = false,
+  }) {
     if (!_mounted) return;
     // Undoable like a stroke: placing is an edit, and Ctrl+Z must take it back.
     _ops.recordDraw([objectId]);
@@ -167,7 +157,9 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       return;
     }
     _document.selectedObjectId.value = objectId;
-    _refresh(() => _tool = CanvasTool.pan);
+    _refresh(() {
+      if (!keepTool) _tool = CanvasTool.pan;
+    });
   }
 
   /// Undo, redo, paste and delete over the canvas's own selection.
@@ -300,6 +292,18 @@ extension _CanvasPaneGestures on _CanvasPaneState {
         ? relay.stopFollowing()
         : relay.follow(hit.id);
     return true;
+  }
+
+  bool _grabsHandleAt(Offset world, PointerDeviceKind kind) {
+    final me = ref.read(meProvider).valueOrNull;
+    return _ops.hitsResizeHandle(
+      world,
+      manageCanvas: ref
+          .read(myChannelPermissionsProvider(widget.channelId))
+          .hasPermission(Perm.manageCanvas),
+      selfId: me?.id,
+      touch: AppTouchTargets.of(context) || _fingerReach,
+    );
   }
 
   void _onSelectStart(Offset world) {

@@ -246,7 +246,7 @@ void main() {
             tool: tool,
             onStroke: (_) {},
             onTextPlace: texts?.add,
-            onNotePlace: notes?.add,
+            onNotePlace: (c, [_]) => notes?.add(c),
             onSelectLongPress: longPresses?.add,
             onSelectTap: taps == null ? null : (world, _) => taps.add(world),
           ),

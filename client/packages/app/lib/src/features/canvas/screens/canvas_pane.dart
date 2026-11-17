@@ -409,6 +409,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   onSelectDrag: _onSelectDrag,
                   onSelectEnd: () => unawaited(_onSelectEnd()),
                   onSelectTap: _onSelectTap,
+                  grabsHandleAt: _grabsHandleAt,
                   onEditNote: _onEditNote,
                   noteSpans: (text, base) =>
                       buildNoteSpans(text, base, noteSpanStyle),
@@ -419,7 +420,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                     onEditClosed: () => _refresh(() => _editingNoteId = null),
                     onNoteSave: _onNoteEditSave,
                   ),
-                  onNotePlace: (world) => unawaited(_onNotePlace(world)),
+                  onNotePlace: (world, [size]) =>
+                      unawaited(_onNotePlace(world, size)),
                   onTextPlace: _text.place,
                   onSelectLongPress: _text.longPress,
                   onShapePlace: (world, size, {flipX = false, flipY = false}) =>

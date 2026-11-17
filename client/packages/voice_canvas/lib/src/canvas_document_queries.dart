@@ -118,6 +118,14 @@ extension CanvasDocumentQueries on CanvasDocument {
               (id: stroke.id, attachmentId: stroke.attachmentId!),
       ];
 
+  /// Every on-screen emoji stamp, whether or not it has a bitmap yet, and the emoji each one names.
+  List<({String id, String emoji})> get visibleEmojiStamps => [
+        for (final slot in scene.visible)
+          if (strokeIfAlive(slot) case final stroke?)
+            if (stroke.kind == CanvasObjectKind.emoji && stroke.text != null)
+              (id: stroke.id, emoji: stroke.text!),
+      ];
+
   /// The on-screen emoji stamps with no bitmap yet, and the emoji each one names.
   List<({String id, String emoji})> get visibleEmojiAwaitingBitmap => [
         for (final slot in scene.visible)

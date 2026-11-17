@@ -6,6 +6,8 @@ library;
 
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show Listenable, VoidCallback;
+
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -13,7 +15,20 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 const canvasEmojiBitmapsKept = 64;
 
 class CanvasEmojiHydrator {
-  CanvasEmojiHydrator({required this.document, required this.bake});
+  CanvasEmojiHydrator({
+    required this.document,
+    required this.bake,
+    this.fontsChanged,
+    this.dropGlyphBitmaps,
+  }) {
+    fontsChanged?.addListener(_rebakeVisible);
+  }
+
+  /// Notifies when a font finishes loading, after which a glyph baked earlier may have been drawn as a box.
+  final Listenable? fontsChanged;
+
+  /// Forgets the glyph bitmaps whoever else caches them holds, so the next bake draws them afresh.
+  final VoidCallback? dropGlyphBitmaps;
 
   final CanvasDocument document;
 
@@ -35,6 +50,19 @@ class CanvasEmojiHydrator {
   void hydrateVisible() {
     if (_disposed) return;
     for (final stamp in document.visibleEmojiAwaitingBitmap) {
+      _request(stamp.id, stamp.emoji);
+    }
+  }
+
+  /// Bakes every visible stamp again: the emoji font loads after a reload's first paint, which left boxes baked in.
+  void _rebakeVisible() {
+    if (_disposed) return;
+    dropGlyphBitmaps?.call();
+    for (final image in _baked.values) {
+      image.dispose();
+    }
+    _baked.clear();
+    for (final stamp in document.visibleEmojiStamps) {
       _request(stamp.id, stamp.emoji);
     }
   }
@@ -81,6 +109,7 @@ class CanvasEmojiHydrator {
 
   void dispose() {
     _disposed = true;
+    fontsChanged?.removeListener(_rebakeVisible);
     for (final image in _baked.values) {
       image.dispose();
     }

@@ -69,7 +69,11 @@ class CanvasZoomIndicator extends StatelessWidget {
           builder: (context, ref, _) {
             final session = CanvasPeopleScope.maybeOf(context);
             final people = canvasPeople(
-              call: ref.watch(canvasCallPeopleProvider),
+              call: ref.watch(
+                canvasCallPeopleProvider(
+                  CanvasPeopleScope.channelIdOf(context),
+                ),
+              ),
               onCanvas: session?.onCanvas ?? const [],
             ).any((p) => !p.isSelf);
             if (!people && viewMode == null) return const SizedBox.shrink();

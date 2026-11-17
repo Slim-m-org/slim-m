@@ -10,6 +10,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'canvas_pane_harness.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   test(
     'a second read corrects a known note whose text and box changed',
     () async {

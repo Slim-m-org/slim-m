@@ -100,6 +100,20 @@ void main() {
     expect(document.selectedObjectId.value, placed['id']);
   });
 
+  testWidgets('a press outside the editor, on the toolbar, saves the text', (
+    tester,
+  ) async {
+    final fixture = await _openPane(tester);
+
+    await _placeWithTool(tester, const Offset(150, 150));
+    await tester.enterText(_field, 'typed then clicked away');
+    await tester.tap(find.bySemanticsLabel('Pen'));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Save'), findsNothing);
+    expect(fixture.posted.single['props']['text'], 'typed then clicked away');
+  });
+
   testWidgets('Cancel and an empty box place nothing', (tester) async {
     final fixture = await _openPane(tester);
 

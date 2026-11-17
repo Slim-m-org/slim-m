@@ -6,6 +6,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_people_session.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_people_sheet.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_roster_avatar.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_people_cluster.dart';
@@ -40,6 +41,8 @@ Future<void> _pump(
   List<VoiceParticipant> participants, {
   double width = 800,
   Set<String> poor = const {},
+  String? viewedChannel,
+  String? callChannel,
 }) async {
   tester.view.physicalSize = Size(width, 800);
   tester.view.devicePixelRatio = 1;
@@ -52,6 +55,7 @@ Future<void> _pump(
         (ref) => VoiceController(ref, session: FakeSession()),
       ),
       voiceParticipantsProvider.overrideWithValue(participants),
+      voiceFlagsProvider.overrideWithValue(VoiceFlags(channelId: callChannel)),
       if (poor.isNotEmpty)
         poorConnectionsProvider.overrideWith(
           (ref) => ListenableState(ValueNotifier(poor)),
@@ -64,12 +68,15 @@ Future<void> _pump(
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
-        home: const Scaffold(
-          body: Align(
-            alignment: Alignment.topLeft,
-            child: Padding(
-              padding: EdgeInsets.all(12),
-              child: CanvasPeopleCluster(),
+        home: Scaffold(
+          body: CanvasPeopleScope(
+            channelId: viewedChannel,
+            child: const Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: CanvasPeopleCluster(),
+              ),
             ),
           ),
         ),
@@ -88,6 +95,30 @@ Future<void> _openList(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('a canvas does not list the call of another channel', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      [_person('me', local: true), _person('bob')],
+      viewedChannel: 'a',
+      callChannel: 'b',
+    );
+
+    expect(find.byTooltip('People here'), findsNothing);
+  });
+
+  testWidgets('a canvas lists the call of its own channel', (tester) async {
+    await _pump(
+      tester,
+      [_person('me', local: true), _person('bob')],
+      viewedChannel: 'a',
+      callChannel: 'a',
+    );
+
+    expect(find.byTooltip('People here'), findsOneWidget);
+  });
+
   testWidgets('alone in the call there is nothing to list', (tester) async {
     await _pump(tester, [_person('me', local: true)]);
 

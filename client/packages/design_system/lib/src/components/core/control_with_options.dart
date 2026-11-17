@@ -38,6 +38,7 @@ class AppControlWithOptions extends StatelessWidget {
     this.destructive = false,
     this.touch,
     this.visualHeight = AppSizes.controlMd,
+    this.reserveSlot = false,
   });
 
   final Widget child;
@@ -61,6 +62,9 @@ class AppControlWithOptions extends StatelessWidget {
   /// The caret's drawn height, to match a primary that is not a full chip.
   final double visualHeight;
 
+  /// Keeps the caret's width as empty space on a pointer layout while there is no caret, so a row of controls does not shift when one gains it.
+  final bool reserveSlot;
+
   /// True inside an [AppControlWithOptions] that is showing its caret.
   ///
   /// The primary reads this to draw as the leading half of one surface: outer
@@ -73,7 +77,14 @@ class AppControlWithOptions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final open = onOpenOptions;
-    if (open == null) return child;
+    if (open == null) {
+      // A touch row scrolls and would push its last tools out of reach, so only a pointer row keeps the room.
+      if (!reserveSlot || (touch ?? AppTouchTargets.of(context))) return child;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [child, const SizedBox(width: AppSizes.rowPointer)],
+      );
+    }
     return _JoinedScope(
       child: GestureDetector(
         // The caret is the named route to the options for assistive tech; this hold would be an unnamed node over both halves.

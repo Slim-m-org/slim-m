@@ -99,7 +99,12 @@ void main() {
     fakeAsync((async) {
       final h = _Harness();
       final longText = List.generate(8, (i) => 'paragraph $i\n').join();
-      final needed = noteBoxFor(longText).height;
+      final needed = noteBoxFor(
+        longText,
+        width: 120,
+        minHeight: 80,
+        fontSize: noteFontSizeForWidth(120),
+      ).height;
       expect(needed, greaterThan(80), reason: 'the fixture note is 80 tall');
 
       unawaited(h.ops.editNote('n', longText));

@@ -75,6 +75,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
         onTextPlace: widget.onTextPlace,
         onSelectLongPress: widget.onSelectLongPress,
         onSelectTap: widget.onSelectTap,
+        grabsHandleAt: widget.grabsHandleAt,
         onSelectEnd: widget.onSelectEnd,
         onSelectDrag: widget.onSelectDrag,
         onSelectStart: widget.onSelectStart,
