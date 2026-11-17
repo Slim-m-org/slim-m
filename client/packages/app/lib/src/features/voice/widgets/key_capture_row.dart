@@ -51,6 +51,8 @@ class KeyCaptureRow extends StatefulWidget {
     required this.onCapture,
     this.sub = false,
     this.modifiersAreKeys = false,
+    this.clearable = false,
+    this.onClear,
   });
 
   final String title;
@@ -65,6 +67,12 @@ class KeyCaptureRow extends StatefulWidget {
 
   /// A modifier on its own can be the key (push to talk), instead of waiting for the key it modifies.
   final bool modifiersAreKeys;
+
+  /// Keeps a Clear slot, so rows with and without a key line up.
+  final bool clearable;
+
+  /// Leaves the row with no key; null leaves the slot empty.
+  final VoidCallback? onClear;
 
   @override
   State<KeyCaptureRow> createState() => _KeyCaptureRowState();
@@ -148,6 +156,18 @@ class _KeyCaptureRowState extends State<KeyCaptureRow> {
         variant: AppButtonVariant.secondary,
         onPressed: _listening ? _stop : _start,
       ),
+      if (!_listening && widget.clearable)
+        if (widget.onClear case final clear?)
+          AppIconButton(
+            icon: AppIcons.dismiss,
+            size: AppIconButtonSize.sm,
+            iconSize: AppSizes.icon16,
+            tooltip: 'Clear',
+            semanticLabel: 'Clear ${widget.semanticName}',
+            onPressed: clear,
+          )
+        else
+          const SizedBox.square(dimension: AppSizes.controlSm),
     ],
   );
 
@@ -162,6 +182,7 @@ class _KeyCaptureRowState extends State<KeyCaptureRow> {
             title: widget.title,
             detail: _listening ? _prompt : null,
             trailing: _trailing,
+            stackTrailingWhenNarrow: true,
           );
     return Focus(
       focusNode: _capture,

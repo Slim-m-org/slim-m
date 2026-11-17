@@ -247,6 +247,24 @@ void main() {
     await source.dispose();
   });
 
+  test('the app id is registered on this connection before a session',
+      () async {
+    final bus = _PortalBus();
+    final source = PortalGlobalHotkeySource(
+      clientFactory: () => bus,
+      responses: (bus, request) => const Stream.empty(),
+      approvalTimeout: const Duration(milliseconds: 20),
+    );
+    await source.bind(const [_ptt]);
+    await source.bind(const [_ptt]);
+    expect(bus.calls.take(2), [
+      '/org/freedesktop/portal/desktop org.freedesktop.host.portal.Registry.Register',
+      '/org/freedesktop/portal/desktop org.freedesktop.portal.GlobalShortcuts.CreateSession',
+    ]);
+    expect(bus.calls.where((c) => c.endsWith('Register')), hasLength(1));
+    await source.dispose();
+  });
+
   test('dispose closes a live session', () async {
     final bus = _RecordingBus();
     final source = PortalGlobalHotkeySource(clientFactory: () => bus)

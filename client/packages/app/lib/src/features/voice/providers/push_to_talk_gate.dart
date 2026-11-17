@@ -32,6 +32,7 @@ class PushToTalkGate {
   final _holds = <HoldSource>{};
   (HoldSource, DateTime)? _lastMute;
   (HoldSource, DateTime)? _lastDeafen;
+  (HoldSource, DateTime)? _lastOverlay;
 
   static bool _bindingWindowFocused() {
     final state = WidgetsBinding.instance.lifecycleState;
@@ -85,6 +86,13 @@ class PushToTalkGate {
   void toggleDeafen(HoldSource source, VoidCallback toggle) {
     if (_isDuplicate(source, _lastDeafen)) return;
     _lastDeafen = (source, _now());
+    toggle();
+  }
+
+  /// [toggleMute] for the call overlay shortcut, with its own press to dedupe.
+  void toggleCallOverlay(HoldSource source, VoidCallback toggle) {
+    if (_isDuplicate(source, _lastOverlay)) return;
+    _lastOverlay = (source, _now());
     toggle();
   }
 

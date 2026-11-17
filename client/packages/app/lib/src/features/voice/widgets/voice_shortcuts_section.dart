@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Voice settings "Shortcuts": the push-to-talk key and the call chords
-/// (mute, deafen, camera, share, leave, call overlay), each remappable, with a
-/// reset to the defaults. Desktop only.
+/// Desktop settings "Keybinds": the push-to-talk key, and the call keybinds
+/// (mute, deafen, camera, share, leave, call overlay), off until switched on,
+/// then each remappable or clearable, with a reset to the defaults.
 library;
 
 import 'package:flutter/material.dart';
@@ -27,16 +27,17 @@ class VoiceShortcutsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (!isDesktopHost) return const SizedBox.shrink();
     final settings = ref.watch(voiceSettingsControllerProvider);
-    final overrides = ref.watch(shortcutOverridesProvider);
+    final keybinds = ref.watch(shortcutOverridesProvider);
     final voice = ref.read(voiceSettingsControllerProvider.notifier);
     final remap = ref.read(shortcutOverridesProvider.notifier);
     // Absent, never disabled, where this desktop cannot host the overlay window.
     final overlayHosted = ref.watch(screenOverlaySupportedProvider);
     final changed =
-        overrides.isNotEmpty || settings.pushToTalkKey != kDefaultPushToTalkKey;
+        keybinds.overrides.isNotEmpty ||
+        settings.pushToTalkKey != kDefaultPushToTalkKey;
 
     return SettingsSectionCard(
-      title: 'Shortcuts',
+      title: 'Keybinds',
       children: [
         SettingsRowGroup(
           children: [
@@ -53,21 +54,31 @@ class VoiceShortcutsSection extends ConsumerWidget {
                 conflictFor: pushToTalkConflict,
                 onChanged: voice.setPushToTalkKey,
               ),
-            for (final action in remappableActions)
-              if (action != AppAction.toggleCallOverlay || overlayHosted)
-                _ChordRow(
-                  action: action,
-                  pushToTalkKey: settings.pushToTalkKey,
-                  onChanged: (chord) => remap.set(action, chord),
-                ),
-            const GlobalHotkeyStatusLine(),
-            if (changed)
+            SettingsToggleRow(
+              label: 'Call keybinds',
+              description: 'Mute, deafen and more from the keyboard.',
+              value: keybinds.enabled,
+              semanticLabel: 'Call keybinds',
+              onChanged: remap.setEnabled,
+            ),
+            if (keybinds.enabled)
+              for (final action in remappableActions)
+                if (action != AppAction.toggleCallOverlay || overlayHosted)
+                  _ChordRow(
+                    action: action,
+                    pushToTalkKey: settings.pushToTalkKey,
+                    onChanged: (chord) => remap.set(action, chord),
+                    onClear: () => remap.clear(action),
+                  ),
+            if (keybinds.enabled || settings.pushToTalkEnabled)
+              const GlobalHotkeyStatusLine(),
+            if (changed && (keybinds.enabled || settings.pushToTalkEnabled))
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.s16),
                 child: Align(
                   alignment: AlignmentDirectional.centerStart,
                   child: AppButton(
-                    label: 'Reset shortcuts',
+                    label: 'Reset keybinds',
                     size: AppButtonSize.sm,
                     variant: AppButtonVariant.secondary,
                     onPressed: () {
@@ -99,11 +110,13 @@ class _ChordRow extends StatelessWidget {
     required this.action,
     required this.pushToTalkKey,
     required this.onChanged,
+    required this.onClear,
   });
 
   final AppAction action;
   final LogicalKeyboardKey pushToTalkKey;
   final ValueChanged<SingleActivator> onChanged;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +126,8 @@ class _ChordRow extends StatelessWidget {
       title: '$name shortcut',
       keyCap: current is SingleActivator ? chordLabel(current) : 'None',
       semanticName: '$name shortcut',
+      clearable: true,
+      onClear: current == null ? null : onClear,
       onCapture: (captured) {
         final chord = captured.activator;
         final broken = shortcutRuleViolation(chord);
