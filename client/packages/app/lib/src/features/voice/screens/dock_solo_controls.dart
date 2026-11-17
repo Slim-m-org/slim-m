@@ -19,6 +19,7 @@ import '../providers/hold_music_actions.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import 'hold_music_dock_toggle.dart';
+import '../widgets/soundboard_button.dart' show canUseSoundboard;
 import '../widgets/voice_call_controls.dart';
 
 /// Whether the music button belongs in the dock: alone in the call and too narrow for the floating badge.
@@ -112,10 +113,12 @@ List<Widget> callRowsWithExtras(
   );
   final switchCameraShown =
       voice.cameraEnabled && canSwitchCamera(ref, controller);
+  final soundboardShown = canUseSoundboard(ref, voice.channelId);
   bool fitsWith(int extraCount, {bool music = false}) => callRowFits(
     context,
     width,
     switchCameraShown: switchCameraShown,
+    soundboardShown: soundboardShown,
     extraCount: extraCount,
     musicCaret: music,
   );
@@ -168,6 +171,7 @@ bool callRowFits(
   BuildContext context,
   double width, {
   required bool switchCameraShown,
+  bool soundboardShown = false,
   required int extraCount,
   bool musicCaret = false,
 }) {
@@ -175,8 +179,9 @@ bool callRowFits(
   final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
   final chip = AppSizes.controlMd > hitTarget ? AppSizes.controlMd : hitTarget;
   final button = chip + 2 * (focusRingGap + focusRingWidth);
-  // mic, deafen, camera, [switch camera], share, leave, and the extras.
-  final controlCount = (switchCameraShown ? 6 : 5) + extraCount;
+  // mic, deafen, camera, [switch camera], share, [soundboard], leave, and the extras.
+  final controlCount =
+      5 + (switchCameraShown ? 1 : 0) + (soundboardShown ? 1 : 0) + extraCount;
   const cardPadding = AppSpacing.s12 * 2 + 2;
   // The divider before leave takes the place of one gap: s4, 1dp, s4.
   const leaveDivider = 1.0;
