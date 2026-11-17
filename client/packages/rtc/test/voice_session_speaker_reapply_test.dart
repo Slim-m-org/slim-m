@@ -14,6 +14,9 @@ import 'package:slimm_test_support/slimm_test_support.dart' show pollUntil;
 import 'support/session_fakes.dart';
 
 class _Mic implements MicPort {
+  @override
+  Future<void> stopUnpublished() async {}
+
   bool published = false;
   bool muted = true;
   int enables = 0;

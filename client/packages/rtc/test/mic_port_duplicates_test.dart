@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A second microphone publication, which a restart's republish racing a
-/// recovery can leave, never stays live behind a mute.
+/// recovery can leave, never stays live behind a mute; nor does a track a
+/// failed republish left running with no publication at all.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -124,5 +125,49 @@ void main() {
     first.muted = true;
 
     expect(port.open, isTrue);
+  });
+
+  group('a track a failed republish left with no publication', () {
+    setUp(() {
+      me.publications.remove(second);
+      port.onRoomEvent(
+        lk.LocalTrackPublishedEvent(participant: me, publication: first),
+      );
+      me.publications.clear();
+    });
+
+    test('is stopped before a fresh microphone is published', () async {
+      await port.setEnabled(true, const lk.AudioCaptureOptions());
+
+      expect(first.track.stops, 1);
+    });
+
+    test('is stopped by a release, a discard and the hang-up', () async {
+      await port.release();
+      expect(first.track.stops, 1);
+
+      await port.discard();
+      await port.stopUnpublished();
+      expect(first.track.stops, 1, reason: 'stopped once, then forgotten');
+    });
+
+    test('is stopped at the hang-up', () async {
+      await port.stopUnpublished();
+
+      expect(first.track.stops, 1);
+    });
+  });
+
+  test('a published microphone is not stopped as an orphan', () async {
+    port.onRoomEvent(
+      lk.LocalTrackPublishedEvent(participant: me, publication: first),
+    );
+    await pumpEventQueue();
+    await port.setEnabled(
+      true,
+      const lk.AudioCaptureOptions(stopAudioCaptureOnMute: false),
+    );
+
+    expect(first.track.stops, 0);
   });
 }

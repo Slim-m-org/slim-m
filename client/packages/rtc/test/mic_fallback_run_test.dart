@@ -33,6 +33,9 @@ class _Switching extends AudioDeviceSwitching {
 }
 
 class _Mic extends Fake implements MicPort {
+  @override
+  Future<void> stopUnpublished() async {}
+
   /// Whether the capture counter can be read at all.
   bool readable = true;
 

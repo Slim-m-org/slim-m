@@ -15,6 +15,9 @@ import 'support/session_fakes.dart';
 
 /// Records the device every open, restart and held-muted reopen asked for.
 class _Mic implements MicPort {
+  @override
+  Future<void> stopUnpublished() async {}
+
   bool published = false;
   bool muted = true;
   bool released = false;

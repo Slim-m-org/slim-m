@@ -13,6 +13,9 @@ import 'support/no_audio_devices.dart';
 import 'support/session_fakes.dart';
 
 class _Mic implements MicPort {
+  @override
+  Future<void> stopUnpublished() async {}
+
   Object? failure;
   bool published = false;
   bool muted = true;

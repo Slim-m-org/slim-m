@@ -19,6 +19,9 @@ class _Room extends ConnectlessRoom {
 }
 
 class _Mic implements MicPort {
+  @override
+  Future<void> stopUnpublished() async {}
+
   bool published = false;
   bool muted = true;
   int enables = 0;
