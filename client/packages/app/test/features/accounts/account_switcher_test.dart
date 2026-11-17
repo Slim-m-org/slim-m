@@ -109,7 +109,7 @@ void main() {
       await seedUnread(tester, h, _second);
 
       final dot = tester.getRect(find.byKey(AccountUnreadBadge.dotKey));
-      final name = tester.getRect(find.byType(Text).first);
+      final name = tester.getRect(find.text('A very long server name indeed'));
       final icon = tester.getRect(find.byIcon(AppIcons.serverSwitcher));
       expect(dot.left - name.right, greaterThanOrEqualTo(AppSpacing.s8));
       expect(icon.left - dot.right, greaterThanOrEqualTo(AppSpacing.s8));
