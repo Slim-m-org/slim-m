@@ -26,7 +26,7 @@ ThemeDocument get _document => ThemeDocument.of(
   picture: const ThemePicture(dim: 0.9, vignette: false, blur: 0.8),
 );
 
-Future<(ProviderContainer, WidgetRef)> _pump(WidgetTester tester) async {
+ProviderContainer _container() {
   SharedPreferences.setMockInitialValues({});
   final container = ProviderContainer(
     overrides: [
@@ -36,30 +36,18 @@ Future<(ProviderContainer, WidgetRef)> _pump(WidgetTester tester) async {
     ],
   );
   addTearDown(container.dispose);
-  late WidgetRef captured;
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: Consumer(
-        builder: (context, ref, _) {
-          captured = ref;
-          return const SizedBox.shrink();
-        },
-      ),
-    ),
-  );
-  return (container, captured);
+  return container;
 }
 
 void main() {
   testWidgets(
     'a picture that cannot be imported applies none of its settings',
     (tester) async {
-      final (container, ref) = await _pump(tester);
+      final container = _container();
 
       await tester.runAsync(
         () => applyThemeDocument(
-          ref,
+          container,
           _document,
           source: const FileThemeSource(),
           pictureBytes: Uint8List.fromList([1, 2, 3, 4]),
@@ -78,12 +66,12 @@ void main() {
   testWidgets('a picture that becomes the background names its theme', (
     tester,
   ) async {
-    final (container, ref) = await _pump(tester);
+    final container = _container();
     final bytes = File('test/fixtures/background_forest.png').readAsBytesSync();
 
     await tester.runAsync(
       () => applyThemeDocument(
-        ref,
+        container,
         _document,
         source: const SpaceThemeSource('pine'),
         pictureBytes: bytes,
@@ -98,15 +86,33 @@ void main() {
   testWidgets('without the background it leaves the background alone', (
     tester,
   ) async {
-    final (container, ref) = await _pump(tester);
+    final container = _container();
     final before = container.read(appBackgroundControllerProvider);
 
     await tester.runAsync(
       () => applyThemeDocument(
-        ref,
+        container,
         _document,
         source: const SpaceThemeSource('pine'),
         background: false,
+      ),
+    );
+
+    expect(container.read(appBackgroundControllerProvider), before);
+    expect(container.read(backgroundFromThemeProvider), isNull);
+  });
+
+  testWidgets('without the picture bytes none of its settings apply', (
+    tester,
+  ) async {
+    final container = _container();
+    final before = container.read(appBackgroundControllerProvider);
+
+    await tester.runAsync(
+      () => applyThemeDocument(
+        container,
+        _document,
+        source: const SpaceThemeSource('pine'),
       ),
     );
 

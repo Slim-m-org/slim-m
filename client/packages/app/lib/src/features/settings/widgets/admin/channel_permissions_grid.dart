@@ -21,6 +21,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../permissions.dart';
 import '../../../../providers/admin_providers.dart';
+import '../../../../providers/providers.dart' show meProvider;
 import '../../../channels/providers/channel_permissions.dart';
 import '../../../members/providers/member_presence.dart'
     show channelMembersProvider, membersProvider;
@@ -188,27 +189,11 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
 
   Future<void> _pickTarget() async {
     if (_saving) return;
-    final column = await pickGridColumn(context, taken: _pending.keys.toSet());
+    final column = await pickGridColumn(
+      context,
+      taken: {..._pending.keys, ..._reach().outrankedKeys},
+    );
     if (column != null && mounted) _addColumn(column);
-  }
-
-  int _escalation(int myPermissions) {
-    var bits = 0;
-    for (final key in _removed) {
-      final (_, deny) = _original[key] ?? (0, 0);
-      bits |= deny & ~myPermissions;
-    }
-    for (final entry in _pending.entries) {
-      final (oldAllow, oldDeny) = _original[entry.key] ?? (0, 0);
-      bits |= escalatedBits(
-        oldAllow: oldAllow,
-        oldDeny: oldDeny,
-        newAllow: entry.value.$1,
-        newDeny: entry.value.$2,
-        myPermissions: myPermissions,
-      );
-    }
-    return bits;
   }
 
   /// Clears removals one at a time and forgets each once done, so a later
@@ -239,9 +224,29 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
     }
   }
 
+  OverwriteReach _reach() => OverwriteReach(
+    ladder: ref.read(roleLadderProvider),
+    selfId: ref.read(meProvider).valueOrNull?.id,
+    roles: ref.read(rolesProvider).valueOrNull ?? const [],
+    members: ref.read(membersProvider).valueOrNull ?? const [],
+  );
+
   Future<void> _save() async {
-    final blocked = _escalation(
-      _categoryId == null
+    // Checked before any removal is sent: the server refuses the whole batch for one of these.
+    final outranked = _reach().outrankedLabels({
+      ..._removed,
+      for (final e in _pending.entries)
+        if (_original[e.key] != e.value) e.key,
+    });
+    if (outranked.isNotEmpty) {
+      setActionError(outrankedMessage(outranked));
+      return;
+    }
+    final blocked = pendingEscalation(
+      original: _original,
+      pending: _pending,
+      removed: _removed,
+      myPermissions: _categoryId == null
           ? ref.read(myChannelPermissionsProvider(widget.channel!.id))
           : ref.read(myPermissionsProvider),
     );
@@ -337,6 +342,9 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
     final rolesAsync = ref.watch(rolesProvider);
     final membersAsync = ref.watch(membersProvider);
     final myPermissions = _ceiling(ref);
+    ref
+      ..watch(roleLadderProvider)
+      ..watch(meProvider);
 
     if (!overwritesAsync.hasValue ||
         !rolesAsync.hasValue ||
@@ -394,18 +402,28 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
     List<api.UserProfile> members,
   ) {
     final everyone = roles.where((r) => r.isEveryone).firstOrNull;
+    final reach = _reach();
     return [
-      if (everyone != null)
-        GridColumn(
-          kind: api.OverwriteTarget.role,
-          id: everyone.id,
-          label: everyone.name,
-          isBot: false,
-        ),
-      for (final key in _pending.keys)
-        if (everyone == null || key != 'role:${everyone.id}')
-          if (resolveGridColumn(key, roles, members) case final column?) column,
-    ].map((c) => gridColumnWithCounts(c, _pending[c.key] ?? (0, 0))).toList();
+          if (everyone != null)
+            GridColumn(
+              kind: api.OverwriteTarget.role,
+              id: everyone.id,
+              label: everyone.name,
+              isBot: false,
+            ),
+          for (final key in _pending.keys)
+            if (everyone == null || key != 'role:${everyone.id}')
+              if (resolveGridColumn(key, roles, members) case final column?)
+                column,
+        ]
+        .map(
+          (c) => gridColumnWithCounts(
+            c,
+            _pending[c.key] ?? (0, 0),
+            locked: !reach.reaches(c.key),
+          ),
+        )
+        .toList();
   }
 
   Widget _buildGrid(
@@ -471,7 +489,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       key: ValueKey('cell:${column.key}:${spec.bit}'),
       state: state,
       changed: state != CellState.resolve(origAllow, origDeny, spec.bit),
-      disabled: !grantable || _saving,
+      disabled: !grantable || _saving || column.locked,
       label: '${spec.label}, ${column.label}',
       onTap: () => _cycle(column, spec.bit, grantable),
     );

@@ -153,8 +153,10 @@ class _TokenTile extends StatelessWidget {
     final label = themeTokenLabels[token]!;
     return Semantics(
       key: Key('theme-token-$token'),
+      container: true,
       button: true,
       selected: open,
+      onTap: onTap,
       label: [
         label,
         themeColourHex(token, colour),

@@ -153,9 +153,11 @@ class ThemeDraft extends ChangeNotifier {
 
   ThemeDraftMark mark() => (document: _document, links: _links);
 
+  /// Puts back the colours and links only: a name or mode typed while an
+  /// inline picker was open is not part of the pick being cancelled.
   void restore(ThemeDraftMark mark) {
     _links = mark.links;
-    _replace(mark.document);
+    _setColours(mark.document.colours);
   }
 
   void markSaved(String id) {

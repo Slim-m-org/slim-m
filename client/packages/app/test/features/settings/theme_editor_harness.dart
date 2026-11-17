@@ -4,6 +4,7 @@
 /// puts it in the real settings modal with a second pane and search.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -44,6 +45,9 @@ class EditorRig {
   final saved = <(String, List<int>)>[];
   ThemeFilePick? pick;
 
+  /// Holds every publish until a test completes it.
+  Completer<void>? publishGate;
+
   late final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -51,6 +55,7 @@ class EditorRig {
         (ref) => testApi((request) async {
           calls.add('${request.method} ${request.url.path}');
           if (request.method == 'POST') {
+            await publishGate?.future;
             published = jsonDecode(request.body);
             if (publishStatus != 201) {
               return jsonHttpResponse({'error': publishMessage}, publishStatus);

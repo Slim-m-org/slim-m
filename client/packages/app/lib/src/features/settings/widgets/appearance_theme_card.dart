@@ -46,7 +46,9 @@ class AppearanceThemeCard extends ConsumerStatefulWidget {
 }
 
 class _AppearanceThemeCardState extends ConsumerState<AppearanceThemeCard> {
-  late final _actions = ThemeGalleryActions(ref);
+  late final _actions = ThemeGalleryActions(
+    ProviderScope.containerOf(context, listen: false),
+  );
   final _preview = RecentThemePreview();
 
   /// A failure left over from the gallery belongs to that page, not this card.

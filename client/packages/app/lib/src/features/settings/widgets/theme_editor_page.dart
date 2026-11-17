@@ -158,7 +158,8 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
       return false;
     }
     final applied = ref.read(customThemeProvider);
-    if (applied != null && applied.toJsonText() == before) {
+    if (applied != null &&
+        (applied.toJsonText() == before || themeMatchText(applied) == before)) {
       await ref.read(customThemeProvider.notifier).set(_draft.document);
       await ref
           .read(customThemeSourceProvider.notifier)
@@ -180,7 +181,7 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
     await _run('save the theme', () async {
       if (!await _persist() || !mounted) return;
       await applyThemeDocument(
-        ref,
+        ProviderScope.containerOf(context, listen: false),
         _draft.document,
         source: MineThemeSource(_draft.mineId!),
       );
@@ -191,7 +192,10 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
   Future<void> _publish() async {
     if (!_requireValid()) return;
     await _run('publish the theme', () async {
-      await publishTheme(ref, _draft.document);
+      await publishTheme(
+        ProviderScope.containerOf(context, listen: false),
+        _draft.document,
+      );
       _confirm('Published to the Space.');
     });
   }

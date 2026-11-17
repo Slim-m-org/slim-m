@@ -13,7 +13,9 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../members/providers/member_presence.dart' show membersProvider;
+import '../../../../providers/admin_providers.dart' show roleLadderProvider;
 import '../../../../providers/providers.dart';
+import '../../../../role_ladder.dart';
 import '../../../members/widgets/bot_avatar_placeholder.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_empty.dart';
@@ -49,11 +51,17 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
     super.dispose();
   }
 
-  List<api.UserProfile> _candidates(List<api.UserProfile> members) {
+  List<api.UserProfile> _candidates(
+    List<api.UserProfile> members,
+    RoleLadder ladder,
+  ) {
     final needle = _search.text.trim().toLowerCase();
     if (needle.isEmpty) return const [];
     return members
         .where((m) => !m.roleIds.contains(widget.role.id))
+        .where(
+          (m) => ladder.lockOf(widget.role, member: m, held: false) == null,
+        )
         .where(
           (m) =>
               m.displayName.toLowerCase().contains(needle) ||
@@ -103,10 +111,15 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
             .toList();
         final bots = holders.where((m) => m.isBot).toList();
         final people = holders.where((m) => !m.isBot).toList();
-        final locked = widget.locked;
+        final role = widget.role;
+        final ladder = ref.watch(roleLadderProvider);
+        final locked = widget.locked || role.isManagedByBot || role.isBotsRole;
         final candidates = locked
             ? const <api.UserProfile>[]
-            : _candidates(list);
+            : _candidates(list, ladder);
+        final remove = locked ? null : _remove;
+        bool removable(api.UserProfile m) =>
+            ladder.lockOf(role, member: m, held: true) == null;
 
         return Column(
           children: [
@@ -167,14 +180,16 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
                       holders: bots,
                       expanded: _expandBots,
                       onExpand: () => setState(() => _expandBots = true),
-                      onRemove: locked ? null : _remove,
+                      onRemove: remove,
+                      removable: removable,
                     ),
                   _HolderGroup(
                     title: 'People',
                     holders: people,
                     expanded: _expandPeople,
                     onExpand: () => setState(() => _expandPeople = true),
-                    onRemove: locked ? null : _remove,
+                    onRemove: remove,
+                    removable: removable,
                     emptyTitle: 'No people hold this role',
                     emptyDetail: locked ? null : 'Search above to add someone.',
                   ),
@@ -244,6 +259,7 @@ class _HolderGroup extends StatelessWidget {
     required this.expanded,
     required this.onExpand,
     required this.onRemove,
+    required this.removable,
     this.emptyTitle,
     this.emptyDetail,
   });
@@ -255,6 +271,9 @@ class _HolderGroup extends StatelessWidget {
 
   /// Null lists the holders without a Remove button.
   final ValueChanged<api.UserProfile>? onRemove;
+
+  /// Whether the viewer may take the role from this holder, which the owner's own roles never are.
+  final bool Function(api.UserProfile) removable;
   final String? emptyTitle;
   final String? emptyDetail;
 
@@ -284,14 +303,14 @@ class _HolderGroup extends StatelessWidget {
               label: holder.displayName,
               meta: '@${holder.username}',
               trailing: switch (onRemove) {
-                final remove? => AppButton(
+                final remove? when removable(holder) => AppButton(
                   label: 'Remove',
                   semanticLabel: 'Remove ${holder.displayName}',
                   variant: AppButtonVariant.ghost,
                   size: AppButtonSize.sm,
                   onPressed: () => remove(holder),
                 ),
-                null => null,
+                _ => null,
               },
             ),
         if (hidden.isNotEmpty)
