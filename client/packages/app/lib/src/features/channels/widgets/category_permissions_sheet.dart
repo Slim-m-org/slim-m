@@ -62,36 +62,17 @@ class _CategoryPermissionsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final caption = AppText.caption.copyWith(color: tokens.textSecondary);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s16,
-            AppSpacing.s16,
-            AppSpacing.s16,
-            AppSpacing.s4,
-          ),
-          child: Text('$name · Permissions', style: AppText.heading),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s16,
-            0,
-            AppSpacing.s16,
-            AppSpacing.s12,
-          ),
-          child: Text(
-            holdsSubCategories
-                ? 'Channels and sub-categories that follow this category get '
-                      'these permissions. Anyone who can see a channel in one '
-                      'of its sub-categories also sees its name.'
-                : 'Channels that follow this category get these permissions.',
-            style: caption,
-          ),
+        AppSheetHeader(
+          '$name · Permissions',
+          caption: holdsSubCategories
+              ? 'Channels and sub-categories that follow this category get '
+                    'these permissions. Anyone who can see a channel in one '
+                    'of its sub-categories also sees its name.'
+              : 'Channels that follow this category get these permissions.',
         ),
         if (isSubCategory)
           Padding(
