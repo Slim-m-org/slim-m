@@ -245,24 +245,25 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
           ),
       ],
     );
-    if (_pendingCount == 0) return list;
+    // One tree shape either way, so the save bar appearing never remounts the list and its focus.
     return Column(
       children: [
         Expanded(child: list),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s24,
-            0,
-            AppSpacing.s24,
-            AppSpacing.s16,
+        if (_pendingCount > 0)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s24,
+              0,
+              AppSpacing.s24,
+              AppSpacing.s16,
+            ),
+            child: SettingsSaveBar(
+              changeCount: _pendingCount,
+              saving: _saving,
+              onDiscard: _discard,
+              onSave: () => unawaited(_save()),
+            ),
           ),
-          child: SettingsSaveBar(
-            changeCount: _pendingCount,
-            saving: _saving,
-            onDiscard: _discard,
-            onSave: () => unawaited(_save()),
-          ),
-        ),
       ],
     );
   }

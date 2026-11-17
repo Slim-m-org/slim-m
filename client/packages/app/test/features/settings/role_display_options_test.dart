@@ -69,6 +69,22 @@ void main() {
     expect(h.writes.single.body, {'name': 'Moderators'});
   });
 
+  testWidgets('the first keystroke keeps the name field focused', (
+    tester,
+  ) async {
+    final h = _server();
+    await h.pump(tester, const RoleDisplayTab(role: _mod));
+    final field = find.byWidgetPredicate((w) => w is EditableText);
+
+    await tester.tap(field);
+    await tester.pump();
+    tester.testTextInput.enterText('ModX');
+    await tester.pump();
+
+    expect(find.text('1 unsaved change'), findsOneWidget);
+    expect(tester.widget<EditableText>(field).focusNode.hasFocus, isTrue);
+  });
+
   testWidgets('submitting the field renames, and a blank name does not', (
     tester,
   ) async {
