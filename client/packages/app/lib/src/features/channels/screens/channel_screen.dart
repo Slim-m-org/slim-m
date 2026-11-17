@@ -397,9 +397,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     final blockedDm = dmPartnerId != null && blocked.contains(dmPartnerId);
     // Ored with the store's own answer; see isThread's doc comment.
     final isThread = widget.isThread || channel?.parentMessageId != null;
-    // Only a real named channel gets "#name"; shared so the transcript and composer cannot drift.
-    final hashChannelName = channel?.kind == 'text' ? channelName : null;
     final isVoice = channel?.kind == 'voice';
+    // Only a real named channel (text or voice) gets its name; shared so the transcript and composer cannot drift.
+    final hashChannelName = channel?.kind == 'text' || isVoice
+        ? channelName
+        : null;
     // Below kCompactWidth an open search is a page of its own, not a bar over the transcript.
     final searchPage = !layout.showsBothPanes && search.open;
 
@@ -433,7 +435,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
               CompactChannelSearchBar(
                 controller: _searchController,
                 scope: channelSearchScope(
-                  name: isVoice ? channelName : hashChannelName,
+                  name: hashChannelName,
                   isVoice: isVoice,
                   isThread: isThread,
                 ),
@@ -455,7 +457,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
               streams: _streams,
               scrollTracker: _scrollTracker,
               composer: _composer,
-              hashChannelName: isVoice ? channelName : hashChannelName,
+              hashChannelName: hashChannelName,
               isVoice: isVoice,
               dmAudience: channel?.isPersonalSpace ?? false
                   ? DmAudience.self
