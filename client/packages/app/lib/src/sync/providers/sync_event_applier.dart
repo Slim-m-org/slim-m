@@ -11,8 +11,8 @@ import 'package:slimm_data/data.dart';
 import '../../features/channels/providers/channel_notification_overrides_controller.dart';
 import '../../features/channels/providers/channel_refresher.dart';
 import '../../features/channels/providers/last_text_channel.dart';
+import '../../features/channels/providers/open_channel_rehydrate.dart';
 import '../../providers/op_adjacency.dart';
-import '../../providers/server_info.dart';
 
 class SyncEventApplier {
   SyncEventApplier(
@@ -112,7 +112,7 @@ class SyncEventApplier {
           isCurrent: isCurrent,
         );
       case SpaceSettingsChanged():
-        _ref.invalidate(serverInfoProvider);
+        unawaited(rehydrateIfTranscriptsTurnedOn(_ref));
       case ErrorEvent(:final needsResync) when needsResync:
         // The server closed a connection that fell behind; a restart re-runs catch-up.
         unawaited(_resyncAfterLag());

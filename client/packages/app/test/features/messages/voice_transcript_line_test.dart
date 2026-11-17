@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The line under a voice message: transcribing, then the words in full,
-/// updated live by a frame without rereading the message, and gone at once
-/// when the Space turns transcripts off.
+/// updated live by a frame on the held message without rereading it, and
+/// gone at once when the Space turns transcripts off.
 library;
 
 import 'dart:async';
@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/messages/providers/message_extras.dart';
 import 'package:slimm_app/src/features/messages/widgets/voice_transcript_line.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/server_info.dart';
@@ -27,35 +28,77 @@ Attachment voiceWith(VoiceTranscript? transcript) => Attachment(
   transcript: transcript,
 );
 
+Message _message(Attachment attachment) => Message(
+  id: 'm',
+  channelId: 'c',
+  authorId: 'alice',
+  authorDisplayName: 'Alice',
+  seq: 1,
+  content: '',
+  createdAt: 0,
+  editedAt: null,
+  attachments: [attachment],
+);
+
 /// The Space's transcript switch, as `/version` reports it.
 final _transcriptsOn = StateProvider<bool>((ref) => true);
 
 void main() {
   late StreamController<ServerEvent> events;
+  ProviderContainer? container;
 
-  setUp(() => events = StreamController<ServerEvent>.broadcast());
+  setUp(() {
+    events = StreamController<ServerEvent>.broadcast();
+    container = null;
+  });
   tearDown(() => events.close());
 
-  Future<void> pump(WidgetTester tester, Attachment attachment) =>
-      tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            liveEventsProvider.overrideWithValue(events.stream),
-            serverInfoProvider.overrideWith(
-              (ref) => Version(
-                name: 'slim-m',
-                version: '1',
-                protocol: 1,
-                transcribeVoiceMessages: ref.watch(_transcriptsOn),
-              ),
+  /// Holds a message carrying [attachment] as a fetch would, then draws its line.
+  Future<void> pump(WidgetTester tester, Attachment attachment) async {
+    final held = container;
+    if (held != null) {
+      held.read(messageExtrasProvider.notifier).applyMessages([
+        _message(attachment),
+      ]);
+      await tester.pump();
+      return;
+    }
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          liveEventsProvider.overrideWithValue(events.stream),
+          serverInfoProvider.overrideWith(
+            (ref) => Version(
+              name: 'slim-m',
+              version: '1',
+              protocol: 1,
+              transcribeVoiceMessages: ref.watch(_transcriptsOn),
             ),
-          ],
-          child: MaterialApp(
-            theme: buildTheme(Brightness.light, AppTokens.light),
-            home: Scaffold(body: VoiceTranscriptLine(attachment: attachment)),
+          ),
+        ],
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: Scaffold(
+            body: Consumer(
+              builder: (context, ref, _) {
+                final shown = ref
+                    .watch(messageExtrasProvider)['m']
+                    ?.attachments
+                    .firstOrNull;
+                return shown == null
+                    ? const SizedBox.shrink()
+                    : VoiceTranscriptLine(attachment: shown);
+              },
+            ),
           ),
         ),
-      );
+      ),
+    );
+    container = ProviderScope.containerOf(
+      tester.element(find.byWidgetPredicate((w) => w is Consumer)),
+    );
+    await pump(tester, attachment);
+  }
 
   testWidgets('nothing shows while the Space does not transcribe', (
     tester,
@@ -195,17 +238,14 @@ void main() {
     await tester.pump();
     expect(find.text('second pass'), findsOneWidget);
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byKey(const Key('voice-transcript-text'))),
-    );
-    container.read(_transcriptsOn.notifier).state = false;
+    container!.read(_transcriptsOn.notifier).state = false;
     await tester.pump();
     await tester.pump();
 
     expect(find.text('second pass'), findsNothing);
     expect(find.text('first pass'), findsNothing);
 
-    container.read(_transcriptsOn.notifier).state = true;
+    container!.read(_transcriptsOn.notifier).state = true;
     await tester.pump();
     await tester.pump();
 

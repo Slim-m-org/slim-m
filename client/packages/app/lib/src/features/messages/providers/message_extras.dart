@@ -22,6 +22,7 @@ import '../../../providers/live_events.dart';
 import 'hydrated_ranges.dart';
 import 'message_extras_model.dart';
 import 'poll_local_vote.dart';
+import 'voice_transcripts.dart' show voiceTranscriptProgress;
 
 export 'message_extras_model.dart';
 
@@ -52,6 +53,12 @@ class MessageExtrasController
         _applyCodeRunsCleared(messageId);
       case api.PollVoted(:final messageId, :final options, :final runoff):
         _applyPollTally(messageId, options, runoff);
+      case api.MessageVoiceTranscript(
+        :final messageId,
+        :final attachmentId,
+        :final transcript,
+      ):
+        _applyVoiceTranscript(messageId, attachmentId, transcript);
       case api.MessageComponentsChanged(:final messageId, :final components):
         _set(messageId, extrasFor(messageId).copyWith(components: components));
       case api.MessageEmbedsChanged(:final messageId, :final embeds):
@@ -164,7 +171,10 @@ class MessageExtrasController
       existing?.reactions,
       replace: authoritative,
     ),
-    attachments: _list(message.attachments, existing?.attachments),
+    attachments: _keepFurtherTranscripts(
+      _list(message.attachments, existing?.attachments),
+      existing?.attachments,
+    ),
     // Same rule as reactions: a REST fetch replaces; a bare live frame (no code_runs) cannot clobber a result already held.
     codeRuns: _list(
       message.codeRuns,
@@ -195,6 +205,44 @@ class MessageExtrasController
     linkPreviewsRemoved:
         message.linkPreviewsRemoved || (existing?.linkPreviewsRemoved ?? false),
   );
+
+  /// A held message's voice attachment takes [transcript] unless it has
+  /// already moved further along.
+  void _applyVoiceTranscript(
+    String messageId,
+    String attachmentId,
+    api.VoiceTranscript transcript,
+  ) {
+    final held = state[messageId];
+    if (held == null) return;
+    final rank = voiceTranscriptProgress(transcript);
+    final next = [
+      for (final a in held.attachments)
+        a.id == attachmentId && rank >= voiceTranscriptProgress(a.transcript)
+            ? a.withTranscript(transcript)
+            : a,
+    ];
+    _set(messageId, held.copyWith(attachments: next));
+  }
+
+  /// [fresh], except that a transcript [known] already has further along
+  /// stays: a page fetched before a live frame landed must not undo it.
+  static List<api.Attachment> _keepFurtherTranscripts(
+    List<api.Attachment> fresh,
+    List<api.Attachment>? known,
+  ) {
+    if (known == null || identical(fresh, known)) return fresh;
+    return [
+      for (final a in fresh)
+        switch (known.where((k) => k.id == a.id).firstOrNull?.transcript) {
+          final kept?
+              when voiceTranscriptProgress(kept) >
+                  voiceTranscriptProgress(a.transcript) =>
+            a.withTranscript(kept),
+          _ => a,
+        },
+    ];
+  }
 
   static List<T> _list<T>(
     List<T> fresh,

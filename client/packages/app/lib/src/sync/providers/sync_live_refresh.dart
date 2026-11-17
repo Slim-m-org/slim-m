@@ -9,6 +9,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
 
 import '../../features/auth/providers/account_state_refresh.dart';
+import '../../features/channels/providers/open_channel_rehydrate.dart';
 import '../../features/messages/providers/failed_send_retry.dart';
 import '../../providers/admin_providers.dart';
 import '../../providers/server_info.dart';
@@ -28,6 +29,7 @@ void afterSyncLive(
   if (reconnect) {
     refreshRosterAfterReconnect(ref);
     refreshPermissionsAfterReconnect(ref);
+    rehydrateOpenChannels(ref.read);
   }
   refreshServerInfo(ref, reconnect: reconnect);
   ref.read(hasFailedSinceLiveProvider.notifier).state = false;
