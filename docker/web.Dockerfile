@@ -31,7 +31,9 @@ RUN bash tool/fetch_web_assets.sh \
         --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
     && sed -i "s|flutter_bootstrap.js|flutter_bootstrap.js?v=${SHA}|" build/web/index.html \
     && sed -i "s|\"main.dart.js\"|\"main.dart.js?v=${SHA}\"|" build/web/flutter_bootstrap.js \
-    && printf '{"build":"%s"}\n' "${SHA}" > build/web/version.json \
+    && sed -i "s|}[[:space:]]*\$|,\"build\":\"${SHA}\"}|" build/web/version.json \
+    && grep -q "\"build\":\"${SHA}\"" build/web/version.json \
+    && grep -q '"version":"[^"]' build/web/version.json \
     && grep -q "main.dart.js?v=${SHA}" build/web/flutter_bootstrap.js \
     && grep -q "flutter_bootstrap.js?v=${SHA}" build/web/index.html
 
