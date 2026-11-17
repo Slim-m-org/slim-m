@@ -31,6 +31,7 @@ void afterSyncLive(
     refreshPermissionsAfterReconnect(ref);
     rehydrateOpenChannels(ref.read);
   }
+  refreshPresenceOnLive(ref);
   refreshServerInfo(ref, reconnect: reconnect);
   ref.read(hasFailedSinceLiveProvider.notifier).state = false;
   ref.read(syncFailureProvider.notifier).state = null;

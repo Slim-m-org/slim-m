@@ -79,4 +79,42 @@ void main() {
       reason: 'the live event cleared the activity; the snapshot restored it',
     );
   });
+
+  test('an older GET /presence that answers last cannot overwrite a newer '
+      'one, as a resync on connect overlapping the first seed would', () async {
+    final answers = [Completer<http.Response>(), Completer<http.Response>()];
+    var asked = 0;
+    final container = ProviderContainer(
+      overrides: [
+        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+        liveEventsProvider.overrideWithValue(const Stream.empty()),
+        mockApiOverride((request) => answers[asked++].future),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.listen(presenceControllerProvider, (_, __) {});
+    final controller = container.read(presenceControllerProvider.notifier);
+    http.Response says(String status) => http.Response(
+      jsonEncode([
+        {'user_id': 'u1', 'status': status},
+      ]),
+      200,
+      headers: {'content-type': 'application/json'},
+    );
+
+    final older = controller.seed(['u1']);
+    await pumpEventQueue();
+    final newer = controller.resync();
+    await pumpEventQueue();
+    answers[1].complete(says('online'));
+    await newer;
+    answers[0].complete(says('offline'));
+    await older;
+
+    expect(
+      container.read(presenceControllerProvider)['u1'],
+      PresenceState.online,
+    );
+  });
 }

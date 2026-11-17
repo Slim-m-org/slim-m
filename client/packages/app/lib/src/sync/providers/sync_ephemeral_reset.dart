@@ -2,6 +2,8 @@
 /// What a fresh sync connection forgets because no catch-up can recover it.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/members/providers/member_presence.dart';
@@ -29,14 +31,19 @@ void resetEphemeralSessionState(Ref ref) {
 }
 
 /// Re-asks for the roster a dropped socket may have left stale, once it is
-/// live again: a profile edit or presence change made meanwhile is not replayed.
+/// live again: a profile edit made meanwhile is not replayed.
 void refreshRosterAfterReconnect(Ref ref) {
   if (ref.exists(memberProfileOverridesProvider)) {
     ref.read(memberProfileOverridesProvider.notifier).clear();
   }
   ref.invalidate(membersProvider);
   ref.invalidate(channelMembersProvider);
-  if (ref.exists(presenceControllerProvider)) {
-    ref.read(presenceControllerProvider.notifier).forgetSeeded();
-  }
+}
+
+/// Re-asks for every presence already shown, once a socket is live: a member
+/// who came or went before it subscribed is never announced to it, and the
+/// first connect of a launch is no exception, since the roster seeds first.
+void refreshPresenceOnLive(Ref ref) {
+  if (!ref.exists(presenceControllerProvider)) return;
+  unawaited(ref.read(presenceControllerProvider.notifier).resync());
 }
