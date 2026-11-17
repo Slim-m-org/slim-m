@@ -6,6 +6,8 @@ use axum::http::StatusCode;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
+use slimm_server::voice::RING_TIMEOUT;
+
 use crate::push_endpoints::harness::{json_body, request};
 use crate::push_endpoints::missed_call::{join, open_dm};
 use crate::push_endpoints::ring_refusals::{Member, World, world};
@@ -42,29 +44,9 @@ async fn ring(w: &World, channel: &str, who: &Member) -> Value {
     json_body(response).await
 }
 
-async fn calls_in(w: &World, channel: &str, who: &Member) -> Vec<Value> {
-    let response = w
-        .app
-        .clone()
-        .oneshot(request(
-            "GET",
-            &format!("/channels/{channel}/messages"),
-            Some(&who.token),
-            None,
-        ))
-        .await
-        .unwrap();
-    json_body(response)
-        .await
-        .as_array()
-        .unwrap()
-        .iter()
-        .filter(|m| !m["call"].is_null())
-        .map(|m| m["call"].clone())
-        .collect()
-}
-
-/// Bob has no socket open, so presence shows him offline and the caller is not told why.
+/// Bob has no socket open, so presence shows him offline: the caller waits out the
+/// normal ring rather than learning he is on Do not disturb, and nothing reaches him.
+/// The missed call after the timeout is pinned in it_voice::ring_do_not_disturb.
 #[tokio::test]
 async fn a_callee_on_do_not_disturb_is_not_rung_on_any_device() {
     let mut w = world().await;
@@ -78,13 +60,14 @@ async fn a_callee_on_do_not_disturb_is_not_rung_on_any_device() {
     let started = ring(&w, &channel, &alice).await;
 
     assert_eq!(started["do_not_disturb"], json!([]));
-    assert_eq!(started["timeout_ms"], 0);
+    assert_eq!(
+        started["timeout_ms"],
+        RING_TIMEOUT.as_millis() as i64,
+        "an offline callee on Do not disturb must look like an ordinary unanswered ring"
+    );
     w.settle().await;
     assert!(!w.rang_on_the_wire(), "call.ringing was published");
     assert_eq!(w.mock.attempt_count(), before, "a push went out");
-    let calls = calls_in(&w, &channel, &bob).await;
-    assert_eq!(calls.len(), 1, "the callee keeps a missed call");
-    assert_eq!(calls[0]["outcome"], "timed_out");
 }
 
 #[tokio::test]

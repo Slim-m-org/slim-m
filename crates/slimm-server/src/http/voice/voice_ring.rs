@@ -291,6 +291,10 @@ pub(crate) fn announce_if_pending(state: &AppState, channel_id: ChannelId, calle
     let Some((ring_id, callees)) = state.voice.rings().announce(channel_id, caller_id) else {
         return;
     };
+    // A ring whose only callees are offline on Do not disturb tells nobody, not even an empty frame.
+    if callees.is_empty() {
+        return;
+    }
     state.hub.publish(Event::CallRinging {
         channel_id,
         ring_id,
