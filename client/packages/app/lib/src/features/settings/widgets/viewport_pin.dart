@@ -34,6 +34,20 @@ class _ViewportPinState extends State<ViewportPin> {
   ({Rect viewport, Rect section, Rect self, double pixels})? _laidOut;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(_afterFrame);
+  }
+
+  /// A layout change anywhere in the section (a group collapsing) moves it
+  /// without rebuilding this pin, so every rendered frame re-measures.
+  void _afterFrame(Duration _) {
+    if (!mounted) return;
+    _remeasure();
+    WidgetsBinding.instance.addPostFrameCallback(_afterFrame);
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final position = Scrollable.maybeOf(context, axis: Axis.vertical)?.position;
@@ -101,10 +115,6 @@ class _ViewportPinState extends State<ViewportPin> {
 
   @override
   Widget build(BuildContext context) {
-    // A layout change moves the section without a scroll, so re-measure once it has settled.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _remeasure();
-    });
     return Transform.translate(offset: Offset(0, _shift), child: widget.child);
   }
 }
