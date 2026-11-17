@@ -13,6 +13,7 @@ import '../../palette/widgets/command_palette_items.dart'
     show PaletteReason, memberMatchReason, memberMatchesQuery;
 import '../../palette/widgets/command_palette_rows.dart' show PaletteRowShell;
 import '../../palette/widgets/palette_person_body.dart';
+import '../../../widgets/picker_key_hints.dart';
 import '../providers/member_presence.dart' show membersProvider;
 
 const _listMaxHeightFraction = 0.6;
@@ -124,7 +125,7 @@ class _MemberPickerState extends ConsumerState<MemberPicker> {
               isEmpty: (list) => list.isEmpty,
               data: (context, list) => _results(context, list, touch),
             ),
-            if (!touch) const _KeyHints(),
+            if (!touch) const PickerKeyHints(enterLabel: 'Choose'),
           ],
         ),
       ),
@@ -175,34 +176,6 @@ class _MemberPickerState extends ConsumerState<MemberPicker> {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _KeyHints extends StatelessWidget {
-  const _KeyHints();
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final style = AppText.caption.copyWith(color: tokens.textSecondary);
-    Widget hint(List<String> keys, String label) => Row(
-      mainAxisSize: MainAxisSize.min,
-      spacing: AppSpacing.s4,
-      children: [
-        for (final key in keys) AppKbd(key),
-        Text(label, style: style),
-      ],
-    );
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.s16),
-      child: Wrap(
-        spacing: AppSpacing.s16,
-        children: [
-          hint(const ['↑', '↓'], 'Move'),
-          hint(const ['Enter'], 'Choose'),
-        ],
       ),
     );
   }
