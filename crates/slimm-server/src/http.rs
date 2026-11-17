@@ -135,7 +135,7 @@ mod recovery;
 mod reports;
 mod role_ladder;
 mod roles;
-use roles::role_reorder;
+use roles::{role_preview, role_reorder};
 mod data_exports;
 mod favorites;
 mod hold_music;
@@ -356,6 +356,7 @@ pub fn router(state: AppState) -> Router {
         .merge(reports::routes())
         .merge(roles::routes())
         .merge(role_reorder::routes())
+        .merge(role_preview::routes())
         .merge(safety::routes())
         .merge(data_exports::routes())
         .merge(dms::routes())

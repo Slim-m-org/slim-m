@@ -263,6 +263,21 @@ impl Store {
         let timeout_deny = self.timeout_deny(user_id).await?;
         let gate = self.member_gate(user_id).await?;
 
+        self.evaluate_channels(channels, &roles, Some(user_id), |channel_id| {
+            timeout_deny.union(gate.deny_in(Some(channel_id)))
+        })
+        .await
+    }
+
+    /// Evaluates `roles` in every one of `channels` with one batched overwrite fetch, removing
+    /// `deny_in(channel)` from each answer; the body [`Self::channel_permissions_all`] and the role preview share.
+    pub(super) async fn evaluate_channels(
+        &self,
+        channels: Vec<super::super::Channel>,
+        roles: &RoleContext,
+        member_id: Option<UserId>,
+        deny_in: impl Fn(ChannelId) -> Permissions,
+    ) -> anyhow::Result<Vec<(super::super::Channel, Permissions, bool)>> {
         let by_channel = self
             .overwrites_by_channel(channels.iter().map(|channel| channel.id))
             .await?;
@@ -272,11 +287,8 @@ impl Store {
             .into_iter()
             .map(|channel| {
                 let overwrites = by_channel.get(&channel.id.0).unwrap_or(&empty);
-                let evaluated = roles.evaluate_for(user_id, overwrites);
-                let perms = evaluated
-                    .permissions
-                    .remove(timeout_deny)
-                    .remove(gate.deny_in(Some(channel.id)));
+                let evaluated = roles.evaluate_as(member_id, overwrites);
+                let perms = evaluated.permissions.remove(deny_in(channel.id));
                 let restricted = !evaluate(
                     roles.everyone_perms,
                     &[],

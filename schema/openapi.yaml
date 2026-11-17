@@ -3517,6 +3517,44 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /roles/{roleId}/preview:
+    parameters:
+      - name: roleId
+        in: path
+        required: true
+        description: The role's UUID; `@everyone`'s previews a member with no other role.
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: previewRole
+      tags: [roles]
+      summary: What a member holding only this role sees. Requires MANAGE_ROLES.
+      description: >
+        Evaluates `@everyone` plus this role through the same evaluator and
+        category closure as `listChannels` and `listCategories`: never the
+        owner, no member overwrite, no timeout. Structure only, never message
+        content. Trimmed to what the caller can see, so no name leaks upward.
+        The role must sit below the caller's highest role (the Space owner
+        previews any); a refusal is a 403 with `code` `role_hierarchy`.
+        Audited as `role.preview`, once per role per ten minutes (decision 0124).
+      responses:
+        "200":
+          description: The role's view of the server.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RolePreview"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /roles/{roleId}/module-permissions:
     parameters:
       - name: roleId
@@ -17601,6 +17639,53 @@ components:
             too old to send it or from any other response, which a client
             must treat as unknown rather than assuming public.
 
+    RolePreview:
+      type: object
+      required: [role_id, permissions, categories, channels]
+      properties:
+        role_id:
+          type: string
+          format: uuid
+        permissions:
+          type: integer
+          format: int64
+          description: The deployment-level grant of `@everyone` plus this role.
+        categories:
+          type: array
+          description: The categories this role is listed, in tree order.
+          items:
+            $ref: "#/components/schemas/ChannelCategory"
+        channels:
+          type: array
+          description: The channels this role can view, in rail order.
+          items:
+            $ref: "#/components/schemas/RolePreviewChannel"
+    RolePreviewChannel:
+      type: object
+      required: [id, name, kind, position, category_id, permissions, restricted]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [text, voice]
+        position:
+          type: integer
+          format: int64
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        permissions:
+          type: integer
+          format: int64
+          description: The role's effective bits here; VIEW_CHANNEL is always among them.
+        restricted:
+          type: boolean
+          description: Whether `@everyone` itself lacks VIEW_CHANNEL here.
     ChannelCategory:
       type: object
       required: [id, name, position, created_at]
