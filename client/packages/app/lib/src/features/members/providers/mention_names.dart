@@ -28,6 +28,19 @@ final mentionNamesProvider = Provider.autoDispose<Map<String, String>>(
   ),
 );
 
+/// The member a lower-cased `@username` names, for a mention that opens
+/// their profile; null while the roster is loading or they are not in it.
+final mentionProfileProvider = Provider.autoDispose
+    .family<api.UserProfile?, String>((ref, username) {
+      final member = ref
+          .watch(membersProvider)
+          .valueOrNull
+          ?.where((m) => m.username.toLowerCase() == username)
+          .firstOrNull;
+      if (member == null) return null;
+      return ref.watch(memberProfileOverridesProvider)[member.id] ?? member;
+    });
+
 final _memo = _NamesMemo();
 
 class _NamesMemo {
