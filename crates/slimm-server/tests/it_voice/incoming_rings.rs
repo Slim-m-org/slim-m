@@ -8,6 +8,7 @@ use serde_json::Value;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::hub::Hub;
+use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::push::PushSender;
 use slimm_server::store::Store;
 use slimm_server::sweep_stale_call_rings_at;
@@ -201,7 +202,7 @@ async fn listing_rings_needs_a_session() {
 #[tokio::test]
 async fn a_ring_replaced_by_the_other_side_is_reported_ended() {
     let h = harness().await;
-    let (alice_token, _alice_id) = register(&h.store, "alice").await;
+    let (alice_token, alice_id) = register(&h.store, "alice").await;
     let (bob_token, bob_id) = register(&h.store, "bob").await;
     let channel_id = open_dm(&h.app, &alice_token, &bob_id).await;
     assert_eq!(
@@ -214,6 +215,10 @@ async fn a_ring_replaced_by_the_other_side_is_reported_ended() {
         .to_owned();
     let mut durable = h.hub.subscribe();
     let mut ephemeral = h.hub.subscribe_ephemeral();
+    // Alice's connection dropped without a clean leave, so she is not in the call to be rung.
+    let alice = UserId(uuid::Uuid::parse_str(&alice_id).unwrap());
+    let channel = ChannelId(uuid::Uuid::parse_str(&channel_id).unwrap());
+    assert!(h.voice.forget_heartbeat_reporting_removed(alice, channel));
 
     // Before joining, which would answer alice's ring instead.
     assert_eq!(

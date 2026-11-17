@@ -119,3 +119,20 @@ async fn nobody_is_rung_until_the_caller_is_in_the_call() {
     let frame = read_frame_of_type(&mut bob.ws, "call.ringing").await;
     assert_eq!(frame["ring_id"], started["ring_id"]);
 }
+
+#[tokio::test]
+async fn someone_already_in_the_call_is_not_rung() {
+    let rig = rig("slimm-ring-audience-present").await;
+    let mut alice = rig.person("alice").await;
+    let mut bob = rig.person("bob").await;
+    let channel = rig.open_dm(&alice, &bob).await;
+    rig.heartbeat(&channel, &bob).await;
+    rig.heartbeat(&channel, &alice).await;
+
+    let started = rig.ring(&channel, &alice).await;
+
+    assert_no_frame_of_type(&mut bob.ws, "call.ringing").await;
+    let ended = read_frame_of_type(&mut alice.ws, "call.ring_ended").await;
+    assert_eq!(ended["ring_id"], started["ring_id"]);
+    assert_eq!(ended["outcome"], "answered");
+}

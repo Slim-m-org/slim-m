@@ -109,6 +109,9 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       if (previous != null && next == null && _answeredRingId != null) {
         _endCallKit();
       }
+      if (next != null && state.incoming?.channelId == next) {
+        state = state.copyWith(clearIncoming: true);
+      }
     });
   }
 
@@ -243,6 +246,9 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       case api.CallRinging(:final channelId, :final ringId, :final callerId):
         final selfId = _ref.read(apiProvider).session.tokens?.userId;
         if (callerId == selfId || ringId == _answeredRingId) return;
+        final inThatCall =
+            _ref.read(voiceControllerProvider).channelId == channelId;
+        if (inThatCall && !_answerIsFresh) return;
         final ring = IncomingDmCallRing(
           channelId: channelId,
           ringId: ringId,

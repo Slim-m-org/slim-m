@@ -8800,6 +8800,8 @@ paths:
         ringing is meaningless for any other channel shape, and a caller's own
         personal space has nobody on the other end to ring. A group DM rings
         every other participant, and the first to join answers for all.
+        Someone already in the call is not rung; with nobody left to ring,
+        the ring ends as `answered` at once and `timeout_ms` is 0.
 
 
         Publishes a live `call.ringing` event to the other participants and, in

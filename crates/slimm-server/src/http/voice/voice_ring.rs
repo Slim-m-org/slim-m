@@ -31,7 +31,7 @@ use super::super::error::ApiError;
 use super::super::extract::{Authed, enforce};
 use super::super::messages::parse_uuid;
 use crate::hub::Event;
-use crate::ids::{ChannelId, UserId};
+use crate::ids::{CallRingId, ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::voice::{CallRingOutcome, VoiceError};
@@ -102,6 +102,8 @@ async fn incoming(
 /// is meaningless for a channel with any other shape, and a caller's own
 /// personal space (a DM with themself) has nobody on the other end to ring.
 /// A group rings everyone else on its roster; the first to join answers for all.
+/// Someone already in the call is not rung, and with nobody left the ring ends
+/// as answered at once.
 ///
 /// A second ring for the same channel replaces whatever was already
 /// outstanding - see [`crate::voice::CallRings`] - since a caller trying
@@ -147,6 +149,18 @@ async fn ring(
         return Err(ApiError::Forbidden);
     }
 
+    let callees: Vec<UserId> = callees
+        .into_iter()
+        .filter(|callee| !state.voice.has_heartbeat(*callee, channel_id))
+        .collect();
+    if callees.is_empty() {
+        return Ok(Json(ended_at_once(
+            &state,
+            channel_id,
+            CallRingOutcome::Answered,
+        )));
+    }
+
     let (ring_id, replaced) = state.voice.rings().start(channel_id, ctx.user_id, &callees);
     // Announced so the first caller stops ringing out, but not recorded: the call goes on under the new ring, which gets the one record.
     if let Some((replaced_id, replaced_caller)) = replaced {
@@ -170,6 +184,24 @@ async fn ring(
         ring_id: ring_id.to_string(),
         timeout_ms: crate::voice::RING_TIMEOUT.as_millis() as i64,
     }))
+}
+
+/// A ring with nobody left to ring ends as `outcome` before anyone hears it.
+fn ended_at_once(
+    state: &AppState,
+    channel_id: ChannelId,
+    outcome: CallRingOutcome,
+) -> RingResponse {
+    let ring_id = CallRingId::generate();
+    state.hub.publish(Event::CallRingEnded {
+        channel_id,
+        ring_id,
+        outcome,
+    });
+    RingResponse {
+        ring_id: ring_id.to_string(),
+        timeout_ms: 0,
+    }
 }
 
 /// Rings the callees of `caller_id`'s pending ring in `channel_id`, once the
@@ -248,7 +280,7 @@ async fn decline(
 pub(crate) async fn record_call(
     state: &AppState,
     channel_id: ChannelId,
-    ring_id: crate::ids::CallRingId,
+    ring_id: CallRingId,
     caller_id: crate::ids::UserId,
     outcome: CallRingOutcome,
 ) {
