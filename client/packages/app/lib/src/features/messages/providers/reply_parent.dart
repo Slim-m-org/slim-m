@@ -20,10 +20,11 @@ typedef ReplyParentKey = ({String channelId, String messageId});
 ///
 /// Held in memory for the session, so scrolling back past a reply does not
 /// fetch again, and never written to the local store, which keeps the store's
-/// history contiguous. A delete that arrives live reads it again.
+/// history contiguous. A delete that arrives live reads it again, and a failed
+/// read is let go, so the next quote to ask tries again.
 final replyParentProvider = FutureProvider.autoDispose
     .family<Message?, ReplyParentKey>((ref, key) async {
-      ref.keepAlive();
+      final held = ref.keepAlive();
       final deletes = ref
           .watch(liveEventsProvider)
           .where((e) => e is api.MessageDeleted && e.messageId == key.messageId)
@@ -37,5 +38,8 @@ final replyParentProvider = FutureProvider.autoDispose
         return localMessageOf(parent);
       } on api.NotFoundException {
         return null;
+      } catch (_) {
+        held.close();
+        rethrow;
       }
     });
