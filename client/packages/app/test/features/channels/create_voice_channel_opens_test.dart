@@ -132,6 +132,10 @@ void main() {
       ),
       findsOneWidget,
     );
+    // The open sheet watches the store's categories, a drift stream that only lets go once unmounted.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 1));
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
   });
 
   test('a category starts the sheet on Voice only when it is for calls', () {
