@@ -64,6 +64,7 @@ _pump(
   WidgetTester tester, {
   bool overlayHosted = false,
   bool keybinds = true,
+  bool keybindsOptIn = true,
 }) async {
   final session = InertSession();
   final s = setup(
@@ -74,6 +75,7 @@ _pump(
         (ref) => VoiceController(ref, session: session),
       ),
       screenOverlaySupportedProvider.overrideWithValue(overlayHosted),
+      callKeybindsOptInProvider.overrideWithValue(keybindsOptIn),
     ],
   );
   tester.view.physicalSize = const Size(1400, 900);
@@ -115,6 +117,18 @@ void main() {
     await tester.pump();
     await _ctrlShift(tester, LogicalKeyboardKey.keyM);
     expect(controller.state.microphoneEnabled, isTrue);
+    await teardown(tester, p.container, p.db);
+  });
+
+  testWidgets('where keybinds are not opt-in, Ctrl+Shift+M still mutes', (
+    tester,
+  ) async {
+    final p = await _pump(tester, keybinds: false, keybindsOptIn: false);
+    final controller = p.container.read(voiceControllerProvider.notifier);
+    await tester.tap(find.byKey(const Key('composer')));
+    await tester.pump();
+    await _ctrlShift(tester, LogicalKeyboardKey.keyM);
+    expect(controller.state.microphoneEnabled, isFalse);
     await teardown(tester, p.container, p.db);
   });
 

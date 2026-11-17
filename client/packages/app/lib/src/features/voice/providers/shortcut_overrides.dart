@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The call shortcuts a person remapped, kept on this device.
 ///
-/// Off until the person turns them on. An absent entry means the default; the
-/// effective map is mirrored into [userShortcutOverrides] for every hint and binding.
+/// Off on a desktop until the person turns them on. An absent entry means the
+/// default; the effective map is mirrored into [userShortcutOverrides].
 library;
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show SingleActivator, ShortcutActivator;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_platform/platform.dart';
 
@@ -176,67 +178,77 @@ Map<AppAction, SingleActivator?> decodeOverrides(String? stored) {
 
 /// Whether the call keybinds are on, and how the person changed them.
 class CallKeybinds {
-  const CallKeybinds({this.enabled = false, this.overrides = const {}});
+  const CallKeybinds({
+    this.enabled = false,
+    this.overrides = const {},
+    this.optIn = true,
+  });
 
   /// Off means no call shortcut is bound, in the window or system-wide.
   final bool enabled;
   final Map<AppAction, SingleActivator?> overrides;
 
+  /// False where no shortcut is grabbed system-wide, so the switch does not apply.
+  final bool optIn;
+
   /// What every hint and binding reads: all call actions unbound while off.
-  Map<AppAction, SingleActivator?> get effective => enabled
+  Map<AppAction, SingleActivator?> get effective => enabled || !optIn
       ? overrides
       : {for (final action in remappableActions) action: null};
+
+  CallKeybinds copyWith({
+    bool? enabled,
+    Map<AppAction, SingleActivator?>? overrides,
+  }) => CallKeybinds(
+    enabled: enabled ?? this.enabled,
+    overrides: overrides ?? this.overrides,
+    optIn: optIn,
+  );
 }
 
-class ShortcutOverridesController extends StateNotifier<CallKeybinds> {
-  ShortcutOverridesController(this._ref) : super(const CallKeybinds()) {
-    _apply(state);
-    _ready = _load();
+/// Only a desktop build grabs keys system-wide, so only there are call keybinds opt-in.
+final callKeybindsOptInProvider = Provider<bool>((ref) => isDesktopHost);
+
+/// This device's call keybinds, one instance for every signed-in server.
+class CallKeybindsStore extends ChangeNotifier {
+  CallKeybindsStore({bool optIn = true}) : _value = CallKeybinds(optIn: optIn) {
+    _mirror();
   }
 
-  final Ref _ref;
-  late final Future<void> _ready;
+  CallKeybinds _value;
+  bool _disposed = false;
+  Future<void>? _loaded;
 
-  Future<void> _load() async {
-    final prefs = await _ref.read(preferencesProvider.future);
-    if (!mounted) return;
+  CallKeybinds get value => _value;
+
+  /// Reads what is stored once, however many servers ask.
+  Future<void> load(Future<SharedPreferences> prefs) =>
+      _loaded ??= _load(prefs);
+
+  Future<void> _load(Future<SharedPreferences> pending) async {
+    final prefs = await pending;
+    if (_disposed) return;
     final stored = prefs.getString(_storeKey);
     final enabled = prefs.getBool(_enabledKey);
     // Someone who already remapped a shortcut asked for keybinds, so they stay on.
     final migrated = enabled ?? stored != null;
     if (enabled == null) await prefs.setBool(_enabledKey, migrated);
-    if (!mounted) return;
-    _apply(CallKeybinds(enabled: migrated, overrides: decodeOverrides(stored)));
+    _publish(
+      _value.copyWith(enabled: migrated, overrides: decodeOverrides(stored)),
+    );
   }
 
-  void _apply(CallKeybinds next) {
-    userShortcutOverrides = Map.unmodifiable(next.effective);
-    state = next;
+  Future<void> setEnabled(bool on, Future<SharedPreferences> prefs) async {
+    _publish(_value.copyWith(enabled: on));
+    await (await prefs).setBool(_enabledKey, on);
   }
 
-  Future<void> setEnabled(bool on) async {
-    await _ready;
-    if (!mounted) return;
-    _apply(CallKeybinds(enabled: on, overrides: state.overrides));
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setBool(_enabledKey, on);
-  }
-
-  Future<void> set(AppAction action, SingleActivator chord) =>
-      _ready.then((_) => _save({...state.overrides, action: chord}));
-
-  /// Leaves [action] with no shortcut at all.
-  Future<void> clear(AppAction action) =>
-      _ready.then((_) => _save({...state.overrides, action: null}));
-
-  /// Back to the default chord for every action.
-  Future<void> reset() => _save(const {});
-
-  Future<void> _save(Map<AppAction, SingleActivator?> next) async {
-    await _ready;
-    if (!mounted) return;
-    _apply(CallKeybinds(enabled: state.enabled, overrides: next));
-    final prefs = await _ref.read(preferencesProvider.future);
+  Future<void> setOverrides(
+    Map<AppAction, SingleActivator?> next,
+    Future<SharedPreferences> pending,
+  ) async {
+    _publish(_value.copyWith(overrides: next));
+    final prefs = await pending;
     if (next.isEmpty) {
       await prefs.remove(_storeKey);
     } else {
@@ -244,9 +256,75 @@ class ShortcutOverridesController extends StateNotifier<CallKeybinds> {
     }
   }
 
+  void _publish(CallKeybinds next) {
+    if (_disposed) return;
+    _value = next;
+    _mirror();
+    notifyListeners();
+  }
+
+  void _mirror() => userShortcutOverrides = Map.unmodifiable(_value.effective);
+
   @override
   void dispose() {
+    _disposed = true;
     userShortcutOverrides = const {};
+    super.dispose();
+  }
+}
+
+/// Overridden with one shared store in every account's container.
+final callKeybindsStoreProvider = Provider<CallKeybindsStore>((ref) {
+  final store = CallKeybindsStore(optIn: ref.watch(callKeybindsOptInProvider));
+  ref.onDispose(store.dispose);
+  return store;
+});
+
+/// One server's view of [CallKeybindsStore]; every change lands in the shared store.
+class ShortcutOverridesController extends StateNotifier<CallKeybinds> {
+  ShortcutOverridesController(this._ref)
+    : _store = _ref.read(callKeybindsStoreProvider),
+      super(_ref.read(callKeybindsStoreProvider).value) {
+    _store.addListener(_follow);
+    _ready = _store.load(_prefs());
+  }
+
+  final Ref _ref;
+  final CallKeybindsStore _store;
+  late final Future<void> _ready;
+
+  void _follow() => state = _store.value;
+
+  Future<SharedPreferences> _prefs() => _ref.read(preferencesProvider.future);
+
+  Future<void> setEnabled(bool on) async {
+    await _ready;
+    if (!mounted) return;
+    await _store.setEnabled(on, _prefs());
+  }
+
+  Future<void> set(AppAction action, SingleActivator chord) =>
+      _edit((overrides) => {...overrides, action: chord});
+
+  /// Leaves [action] with no shortcut at all.
+  Future<void> clear(AppAction action) =>
+      _edit((overrides) => {...overrides, action: null});
+
+  /// Back to the default chord for every action.
+  Future<void> reset() => _edit((_) => const {});
+
+  Future<void> _edit(
+    Map<AppAction, SingleActivator?> Function(Map<AppAction, SingleActivator?>)
+    change,
+  ) async {
+    await _ready;
+    if (!mounted) return;
+    await _store.setOverrides(change(_store.value.overrides), _prefs());
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_follow);
     super.dispose();
   }
 }
