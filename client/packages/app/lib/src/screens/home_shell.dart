@@ -81,6 +81,8 @@ import '../features/voice/screens/dm_call_pane.dart';
 import '../features/voice/screens/hang_up_recap_toast.dart';
 import '../features/messages/widgets/inbox_sheet.dart';
 import '../features/background/widgets/app_background_host.dart';
+import '../features/role_preview/providers/role_preview_controller.dart';
+import '../features/role_preview/screens/role_preview_shell.dart';
 import 'home_shell_pane_slots.dart';
 
 /// The shell. One widget handles every width: at compact widths it shows one
@@ -109,7 +111,10 @@ class HomeShell extends ConsumerWidget {
       MediaQuery.sizeOf(context),
       selected,
     );
-    final scaffold = _scaffold(context, ref, layout, facts);
+    final preview = ref.watch(rolePreviewProvider);
+    final scaffold = preview == null
+        ? _scaffold(context, ref, layout, facts)
+        : RolePreviewShell(session: preview);
 
     final shell = WhatsNewGate(
       child: CallRestoreGate(
