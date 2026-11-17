@@ -206,3 +206,81 @@ fn an_id3v1_tag_after_the_frames_is_ignored() {
     let ms = of(&bytes, "audio/mpeg").unwrap();
     assert!((260..=262).contains(&ms), "{ms}");
 }
+
+/// `frames` MPEG-1 layer II frames at 384 kbps and 32 kHz, the largest any header states.
+fn layer2_bytes(frames: usize) -> Vec<u8> {
+    let mut out = Vec::new();
+    for _ in 0..frames {
+        out.extend_from_slice(&[0xFF, 0xFD, 0xE8, 0x00]);
+        out.extend(std::iter::repeat_n(0u8, 1724));
+    }
+    out
+}
+
+/// An APEv2 tag with a header and footer around `items`.
+fn ape_tag(items: &[u8]) -> Vec<u8> {
+    let mark = |flags: u32| {
+        let mut out = b"APETAGEX".to_vec();
+        out.extend_from_slice(&2000u32.to_le_bytes());
+        out.extend_from_slice(&(items.len() as u32 + 32).to_le_bytes());
+        out.extend_from_slice(&1u32.to_le_bytes());
+        out.extend_from_slice(&flags.to_le_bytes());
+        out.extend_from_slice(&[0; 8]);
+        out
+    };
+    let mut out = mark(0xA000_0000);
+    out.extend_from_slice(items);
+    out.extend(mark(0x8000_0000));
+    out
+}
+
+fn id3v1() -> Vec<u8> {
+    let mut out = b"TAG".to_vec();
+    out.extend(std::iter::repeat_n(b' ', 125));
+    out
+}
+
+#[test]
+fn a_cut_off_layer_ii_frame_of_the_largest_size_is_allowed() {
+    let mut bytes = layer2_bytes(20);
+    bytes.extend_from_slice(&layer2_bytes(1)[..1700]);
+    let ms = of(&bytes, "audio/mpeg").unwrap();
+    assert!((719..=721).contains(&ms), "{ms}");
+}
+
+#[test]
+fn trailing_ape_and_lyrics3_tags_are_skipped_by_their_stated_size() {
+    let mut items = Vec::new();
+    items.extend_from_slice(&4000u32.to_le_bytes());
+    items.extend_from_slice(&0u32.to_le_bytes());
+    items.extend_from_slice(b"REPLAYGAIN_TRACK_GAIN\0");
+    items.extend_from_slice(&[0xFF, 0xFB, 0x00, 0x00]);
+    items.extend(std::iter::repeat_n(b'x', 3996));
+    let mut bytes = mp3_bytes(10);
+    bytes.extend(ape_tag(&items));
+    bytes.extend_from_slice(b"LYRICSBEGININD0000211");
+    bytes.extend_from_slice(b"000021LYRICS200");
+    bytes.extend(id3v1());
+    let ms = of(&bytes, "audio/mpeg").unwrap();
+    assert!((260..=262).contains(&ms), "{ms}");
+}
+
+#[test]
+fn a_lyrics3_v1_tag_is_skipped() {
+    let mut bytes = mp3_bytes(10);
+    bytes.extend_from_slice(b"LYRICSBEGIN");
+    bytes.extend(std::iter::repeat_n(b'l', 3000));
+    bytes.extend_from_slice(b"LYRICSEND");
+    bytes.extend(id3v1());
+    let ms = of(&bytes, "audio/mpeg").unwrap();
+    assert!((260..=262).contains(&ms), "{ms}");
+}
+
+/// A decoder that ignores tags would play these frames, so they count.
+#[test]
+fn frames_inside_a_trailing_tag_still_count() {
+    let mut bytes = mp3_bytes(10);
+    bytes.extend(ape_tag(&mp3_bytes(300)));
+    let ms = of(&bytes, "audio/mpeg").unwrap();
+    assert!((8095..=8100).contains(&ms), "{ms}");
+}
