@@ -225,7 +225,10 @@ void main() {
     final semantics = tester.ensureSemantics();
     final s = await _pump(tester, 1280);
     expect(find.bySemanticsLabel(RegExp('movie-room, mentioned')), findsOne);
-    expect(find.bySemanticsLabel(RegExp('make-a-room, ')), findsNothing);
+    expect(
+      find.bySemanticsLabel(RegExp('make-a-room, (unread|mentioned)')),
+      findsNothing,
+    );
 
     await _openMenu(tester, 1280, 'make-a-room');
 

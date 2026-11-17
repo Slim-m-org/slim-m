@@ -198,7 +198,9 @@ class _ChannelCategorySectionsState
           );
     // The lifted copy is just the face of the row: no menu, kebab or hover.
     if (carried) return body(null);
-    final depth = view.tree.depthOf(view.tree.byId[channel.categoryId]);
+    final depth =
+        view.tree.depthOf(view.tree.byId[channel.categoryId]) +
+        (view.nestedRoom(channel) ? 1 : 0);
     return KeepsLatestMessageLoaded(
       channelId: channel.id,
       child: Padding(

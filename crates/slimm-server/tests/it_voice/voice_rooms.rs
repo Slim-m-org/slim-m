@@ -191,6 +191,7 @@ async fn a_lobby_makes_one_room_per_person_and_a_retry_returns_it() {
     assert_eq!(room["name"], "alice's room");
     assert_eq!(room["kind"], "voice");
     assert_eq!(room["room_owner_id"], json!(w.alice.1));
+    assert_eq!(room["room_lobby_id"], json!(w.lobby));
     assert_eq!(room["room_locked"], false);
     assert_eq!(
         w.open_room(&w.alice.0).await["id"],
@@ -202,18 +203,22 @@ async fn a_lobby_makes_one_room_per_person_and_a_retry_returns_it() {
     assert_ne!(other["id"], room["id"]);
     assert!(w.listed(&w.bob.0, room["id"].as_str().unwrap()).await);
 
-    let (_, lobby) = w.call("GET", "/channels", &w.alice.0, Value::Null).await;
-    let lobby_row = lobby
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|c| c["id"] == json!(w.lobby))
-        .unwrap()
-        .clone();
+    let (_, list) = w.call("GET", "/channels", &w.alice.0, Value::Null).await;
+    let row = |id: &Value| {
+        list.as_array()
+            .unwrap()
+            .iter()
+            .find(|c| &c["id"] == id)
+            .unwrap()
+            .clone()
+    };
+    let lobby_row = row(&json!(w.lobby));
     assert!(
         lobby_row.get("room_owner_id").is_none(),
         "a lobby is not a room"
     );
+    assert!(lobby_row.get("room_lobby_id").is_none());
+    assert_eq!(row(&room["id"])["room_lobby_id"], json!(w.lobby));
 }
 
 #[tokio::test]
@@ -238,6 +243,23 @@ async fn only_a_voice_channel_that_is_not_a_room_can_make_rooms() {
     let uri = format!("/channels/{}/voice/room", text["id"].as_str().unwrap());
     let (status, _) = w.call("POST", &uri, &w.alice.0, Value::Null).await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "not a lobby");
+}
+
+#[tokio::test]
+async fn a_lobby_can_be_created_in_one_call_and_never_as_text() {
+    let w = world("slimm-rooms-create").await;
+    let body = json!({"name": "lobby", "kind": "voice", "creates_rooms": true});
+    let (status, lobby) = w.call("POST", "/channels", &w.admin, body).await;
+    assert_eq!(status, StatusCode::OK, "{lobby}");
+    assert_eq!(lobby["creates_rooms"], true);
+    let uri = format!("/channels/{}/voice/room", lobby["id"].as_str().unwrap());
+    let (status, room) = w.call("POST", &uri, &w.alice.0, Value::Null).await;
+    assert_eq!(status, StatusCode::OK, "{room}");
+    assert_eq!(room["room_lobby_id"], lobby["id"]);
+
+    let body = json!({"name": "chat", "creates_rooms": true});
+    let (status, _) = w.call("POST", "/channels", &w.admin, body).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]

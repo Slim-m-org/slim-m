@@ -22,6 +22,8 @@ Channel _channel(
   bool isPersonalSpace = false,
   String? categoryId,
   int position = 0,
+  bool? createsRooms,
+  String? roomLobbyId,
 }) => Channel(
   id: id,
   name: id,
@@ -35,6 +37,9 @@ Channel _channel(
   joinMuted: false,
   isPersonalSpace: isPersonalSpace,
   categoryId: categoryId,
+  createsRooms: createsRooms,
+  roomOwnerId: roomLobbyId == null ? null : 'owner',
+  roomLobbyId: roomLobbyId,
 );
 
 ChannelCategoryRow _category(String id, {int position = 0}) =>
@@ -93,6 +98,51 @@ void main() {
         [textCat],
       );
       expect(ordered.single.categoryId, 'text-cat');
+    });
+  });
+
+  group('temporary rooms', () {
+    test('each room sits right under its own lobby when positions '
+        'interleave', () {
+      final byCategory = channelsByCategory([
+        _channel('lobby-a', kind: 'voice', position: 0, createsRooms: true),
+        _channel('lobby-b', kind: 'voice', position: 1, createsRooms: true),
+        _channel('room-b', kind: 'voice', position: 2, roomLobbyId: 'lobby-b'),
+        _channel('room-a', kind: 'voice', position: 3, roomLobbyId: 'lobby-a'),
+        _channel('general', position: 4),
+      ]);
+
+      expect(byCategory[null]!.map((c) => c.id), [
+        'lobby-a',
+        'room-a',
+        'lobby-b',
+        'room-b',
+        'general',
+      ]);
+    });
+
+    test('a room listed before its lobby still follows it', () {
+      final rows = channelsByCategory([
+        _channel('room', kind: 'voice', position: 0, roomLobbyId: 'lobby'),
+        _channel('lobby', kind: 'voice', position: 1, createsRooms: true),
+      ])[null]!;
+
+      expect(rows.map((c) => c.id), ['lobby', 'room']);
+      expect(isRoomUnderLobby(rows[1], rows), isTrue);
+      expect(isRoomUnderLobby(rows[0], rows), isFalse);
+    });
+
+    test('a room whose lobby is in another category keeps its own place', () {
+      final byCategory = channelsByCategory([
+        _channel('lobby', kind: 'voice', createsRooms: true, categoryId: 'a'),
+        _channel('room', kind: 'voice', roomLobbyId: 'lobby', categoryId: 'b'),
+      ]);
+
+      expect(byCategory['b']!.single.id, 'room');
+      expect(
+        isRoomUnderLobby(byCategory['b']!.single, byCategory['b']!),
+        isFalse,
+      );
     });
   });
 }

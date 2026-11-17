@@ -236,9 +236,10 @@ class VoiceChannelRow extends ConsumerWidget {
           channelId: channel.id,
           child: AppListRow(
             label: channel.name,
-            // The leading glyph is excluded from semantics, so its privacy is said here.
-            semanticLabel:
-                channel.restricted == true && channel.createsRooms != true
+            // The leading glyph is excluded from semantics, so what it means is said here.
+            semanticLabel: channel.createsRooms == true
+                ? '${channel.name}, ${RailLobbyIcon.label}'
+                : channel.restricted == true
                 ? '${channel.name}, ${ChannelKindIcon.voiceLabel}'
                 : null,
             selected: selected,

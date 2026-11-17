@@ -157,9 +157,14 @@ void main() {
     );
     await tester.pumpAndSettle();
     final toggle = find.byWidgetPredicate(
-      (w) =>
-          w is AppToggle &&
-          w.semanticLabel == 'Joining makes each person a room of their own',
+      (w) => w is AppToggle && w.semanticLabel == 'Make this a lobby',
+    );
+    expect(find.text('Lobby'), findsOneWidget);
+    expect(
+      find.text(
+        'Each person who joins gets their own room, removed when it empties.',
+      ),
+      findsOneWidget,
     );
     await tester.ensureVisible(toggle);
     await tester.tap(toggle);
@@ -174,9 +179,7 @@ void main() {
     expect(bodies.last, {'user_limit': 5});
   });
 
-  testWidgets('a room hides "Room per person": a room never makes rooms', (
-    tester,
-  ) async {
+  testWidgets('a room hides "Lobby": a room never makes rooms', (tester) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -191,7 +194,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Room per person'), findsNothing);
+    expect(find.text('Lobby'), findsNothing);
     expect(find.text('User limit'), findsOneWidget);
   });
 
@@ -240,7 +243,7 @@ void main() {
     await _pumpRow(tester, _voiceRow(createsRooms: true));
     expect(find.byType(RailLobbyIcon), findsOneWidget);
     expect(find.byIcon(AppIcons.voice), findsNothing);
-    expect(find.byTooltip(RailLobbyIcon.label), findsOneWidget);
+    expect(find.byTooltip('Join to get your own room'), findsOneWidget);
   });
 
   testWidgets('a locked, capped room says so on its row', (tester) async {
