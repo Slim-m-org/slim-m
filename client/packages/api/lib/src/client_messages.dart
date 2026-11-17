@@ -214,7 +214,7 @@ extension SlimmApiMessages on SlimmApi {
   /// pagination - only the default scope differs: with no [inChannel], this
   /// searches every channel `VIEW_CHANNEL` grants rather than one path
   /// channel, DMs excluded the same way `GET /channels` excludes them. Both
-  /// search a channel's live threads with it; see [Message.threadParentChannelId].
+  /// ask for the live threads too; see [Message.threadParentChannelId].
   Future<List<Message>> searchAllMessages({
     String? q,
     int? before,
@@ -504,4 +504,5 @@ Map<String, String> _searchQuery({
       if (has != null) 'has': has,
       if (afterDate != null) 'after_date': afterDate,
       if (beforeDate != null) 'before_date': beforeDate,
+      'include_threads': 'true',
     };

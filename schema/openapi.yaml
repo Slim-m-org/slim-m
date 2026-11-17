@@ -6160,10 +6160,10 @@ paths:
         `seq` the same way. A `q` that is not valid FTS5 syntax, such as
         `.iso`, searches its words as prefixes instead, and one with no
         words left, such as a lone `*`, answers 400. Attachment file names
-        are searched along with message text and extracted file text. Replies
-        in the channel's live threads are searched with it, and each such hit
-        carries `thread_parent_channel_id`; page those with `before_id`, since
-        a thread's `seq` is its own. `in` is the one filter with an oracle-safety rule of its
+        are searched along with message text and extracted file text. With
+        `include_threads=true`, replies in the channel's live threads are
+        searched with it, and each such hit carries `thread_parent_channel_id`;
+        page those with `before_id`, since a thread's `seq` is its own. `in` is the one filter with an oracle-safety rule of its
         own: a channel name that does not exist, or that exists but the
         caller cannot view, answers with an empty array rather than a 403 or
         404, so it cannot be used to learn a hidden channel exists.
@@ -6244,6 +6244,15 @@ paths:
           schema:
             type: string
             format: date
+        - name: include_threads
+          in: query
+          description: >
+            `true` also searches the live threads of the channels in scope,
+            and each hit inside one carries `thread_parent_channel_id`. Off
+            when absent, so a client that predates thread hits never gets one
+            it would open as if the thread were a channel.
+          schema:
+            type: boolean
       responses:
         "200":
           description: Matching messages, newest first.
@@ -6273,7 +6282,7 @@ paths:
         operators, same result shape, but with no path channel to scope it.
         By default the scope is every channel the caller holds VIEW_CHANNEL
         in (DMs excluded, the same set `GET /channels` lists), plus the
-        live threads hanging off those channels; `in` narrows that to one named channel exactly as it does on the
+        live threads hanging off those channels when `include_threads=true`; `in` narrows that to one named channel exactly as it does on the
         per-channel route, with the same oracle-safety answer for an
         unviewable or nonexistent name. `q` is optional under the same rule
         as the per-channel route: at least one of `q` and the other filters
@@ -6357,6 +6366,15 @@ paths:
           schema:
             type: string
             format: date
+        - name: include_threads
+          in: query
+          description: >
+            `true` also searches the live threads of the channels in scope,
+            and each hit inside one carries `thread_parent_channel_id`. Off
+            when absent, so a client that predates thread hits never gets one
+            it would open as if the thread were a channel.
+          schema:
+            type: boolean
       responses:
         "200":
           description: Matching messages across every viewable channel, newest first.
