@@ -28,7 +28,7 @@ import 'rail_category_slots.dart';
 import '../../messages/widgets/mark_read_action.dart';
 import 'row_menu_notifications.dart';
 
-class CategoryHeaderMenu extends ConsumerWidget {
+class CategoryHeaderMenu extends ConsumerStatefulWidget {
   const CategoryHeaderMenu({
     super.key,
     required this.category,
@@ -56,7 +56,28 @@ class CategoryHeaderMenu extends ConsumerWidget {
   final bool canManage;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CategoryHeaderMenu> createState() => _CategoryHeaderMenuState();
+}
+
+class _CategoryHeaderMenuState extends ConsumerState<CategoryHeaderMenu> {
+  // The fold button is the header's tab stop; this node only carries the menu key and the semantics boundary.
+  final _menuFocus = FocusNode(skipTraversal: true);
+
+  ChannelCategoryRow get category => widget.category;
+  List<ChannelCategoryRow> get categories => widget.categories;
+  Set<String> get collapsed => widget.collapsed;
+  Widget get label => widget.label;
+  List<Channel> get channels => widget.channels;
+  bool get canManage => widget.canManage;
+
+  @override
+  void dispose() {
+    _menuFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final overrides = ref.watch(channelNotificationOverridesProvider);
     final hasUnread = channels.any(
       (c) => channelShowsUnread(c, overrides.effectiveFor(c), isDm: false),
@@ -65,8 +86,7 @@ class CategoryHeaderMenu extends ConsumerWidget {
     final menu = ContextMenuRegion(
       // A held press lifts the header on a pointer; touch opens this menu from it instead.
       enableLongPress: AppTouchTargets.of(context),
-      // The header's fold button is already its tab stop; a second stop around it was unlabelled.
-      ownsFocusNode: false,
+      focusNode: _menuFocus,
       itemsBuilder: (context, close) => [
         ?markAllReadMenuItem(
           context,
