@@ -236,14 +236,11 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     }
   }
 
-  /// A DM's two participants are the whole audience for its own
-  /// `call.ringing`/`call.ring_ended` frames, so the caller's own client
-  /// receives both events too; [_onEvent] tells its own ring apart from an
-  /// incoming one by comparing `callerId` against this session's own id.
+  /// `call.ringing` reaches only the callees, but a server older than that
+  /// also sent it to the caller, so [_onEvent] still skips its own ring.
   void _onEvent(api.ServerEvent event) {
     switch (event) {
       case api.CallRinging(:final channelId, :final ringId, :final callerId):
-        // Own ring already known from starting it; see this method's own doc.
         final selfId = _ref.read(apiProvider).session.tokens?.userId;
         if (callerId == selfId || ringId == _answeredRingId) return;
         final ring = IncomingDmCallRing(

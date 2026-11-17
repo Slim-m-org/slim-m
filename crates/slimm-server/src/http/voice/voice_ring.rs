@@ -162,6 +162,7 @@ async fn ring(
         channel_id,
         ring_id,
         caller_id: ctx.user_id,
+        callees: callees.iter().copied().collect(),
     });
     for callee in callees {
         state.push.notify_call_ring(

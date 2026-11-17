@@ -184,6 +184,7 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             channel_id: channel,
             ring_id: CallRingId(id(11)),
             caller_id: bob,
+            callees: Arc::from([alice]),
         },
         Event::CallRingEnded {
             channel_id: channel,

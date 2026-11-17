@@ -17,6 +17,7 @@ mod delete_channel_ends_call;
 mod hold_music_account;
 mod incoming_rings;
 mod member_moderation_evicts_dm_calls;
+mod ring_audience;
 mod screen_share_cap;
 mod screen_stamps;
 mod soundboard;
