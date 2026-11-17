@@ -132,3 +132,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0121](0121-stamps.md) | Stamps: emoji and pictures on a shared screen, which fade, and on the board, which stay | accepted |
 | [0122](0122-theme-gallery.md) | Theme gallery: themes as live miniatures inside Settings | accepted |
 | [0123](0123-spotify-link-cards.md) | Spotify links preview as the item, with a Play button that plays inline on web and opens Spotify elsewhere | accepted |
+| [0124](0124-private-categories.md) | A category is made private with a switch, and says who can see it | accepted |
