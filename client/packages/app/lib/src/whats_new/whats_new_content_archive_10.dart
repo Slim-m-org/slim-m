@@ -107,6 +107,29 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
         'now too.',
       ),
       WhatsNewPoint(
+        'Profiles have a new card: a colour band, your status as a dot on '
+        'your picture, and a Roles section. Names in the member list take '
+        'the colour of their top role.',
+      ),
+      WhatsNewPoint(
+        'Roles work as a ladder. You can only manage, kick or time out '
+        'people whose top role is below yours. Each Space has an owner, who '
+        'can do everything.',
+      ),
+      WhatsNewPoint(
+        'Appearance has a theme gallery. Pick a theme, or open one in the '
+        'editor to make your own.',
+      ),
+      WhatsNewPoint(
+        'Notes moved out of your direct messages to a button next to '
+        'Settings.',
+      ),
+      WhatsNewPoint(
+        'Right-click a voice channel and pick Open chat to read its chat '
+        'without joining. Voice channel chats notify you only for mentions '
+        'by default.',
+      ),
+      WhatsNewPoint(
         'A mention reads as the name people use in this Space. Hover it to '
         'see the username.',
       ),
