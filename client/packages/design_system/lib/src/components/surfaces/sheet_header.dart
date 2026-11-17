@@ -81,7 +81,10 @@ class AppSheetHeader extends StatelessWidget {
             const SizedBox(width: AppSpacing.s12),
           ],
           Expanded(child: text),
-          if (trailing case final trailing?) trailing,
+          if (trailing case final trailing?)
+            trailing
+          else
+            const AppSheetCloseButton(),
         ],
       ),
     );

@@ -95,4 +95,34 @@ void main() {
     expect(find.text('Mark all read'), findsOneWidget);
     expect(find.byTooltip('Close'), findsOneWidget);
   });
+
+  testWidgets('a header with only a leading mark still gets the close button',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => showAppSheet<void>(
+                context,
+                builder: (_) => const AppSheetHeader(
+                  'Forest',
+                  leading: SizedBox.square(dimension: 24),
+                ),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Close'), findsOneWidget);
+  });
 }
