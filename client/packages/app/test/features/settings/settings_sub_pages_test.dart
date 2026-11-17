@@ -140,15 +140,18 @@ void main() {
     await rig.pump(tester, _wide);
     final navBack = find.byTooltip('Back to channels');
     final title = tester.getTopLeft(find.text('Settings'));
+    final arrowLeft = tester.getTopLeft(navBack).dx;
     expect(navBack.hitTestable(), findsOneWidget);
 
     await _tap(tester, find.text('open page'));
     expect(navBack.hitTestable(), findsNothing);
     expect(find.byTooltip('Back to Appearance').hitTestable(), findsOneWidget);
-    expect(tester.getTopLeft(find.text('Settings')), title);
+    // The title takes the arrow's place rather than keeping an empty indent.
+    expect(tester.getTopLeft(find.text('Settings')).dx, arrowLeft);
 
     await _tap(tester, find.byTooltip('Back to Appearance'));
     expect(navBack.hitTestable(), findsOneWidget);
+    expect(tester.getTopLeft(find.text('Settings')), title);
   });
 
   testWidgets('beside the nav a page takes the heading row and keeps close', (
