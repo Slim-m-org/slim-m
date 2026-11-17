@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A labelled slider for a settings card: the label with its value in mono at
-/// the right, the track, and the range ends in mono flush under it.
+/// the right, the track, and the range ends in mono flush under it, less the
+/// end the value sits on.
 ///
 /// The track spans the row's insets; in a [SettingsControlColumn] at least
 /// the column's width wide, it takes the column at the card's right inset.
@@ -144,9 +145,18 @@ class _Parts {
   Widget get ends => Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
-      Text(row.minLabel, style: _mono),
-      Text(row.maxLabel, style: _mono),
+      _end(row.minLabel, at: row.value <= row.min),
+      _end(row.maxLabel, at: row.value >= row.max),
     ],
+  );
+
+  /// An end the value sits on keeps its place unseen: the value says it.
+  Widget _end(String label, {required bool at}) => Visibility(
+    visible: !at,
+    maintainSize: true,
+    maintainAnimation: true,
+    maintainState: true,
+    child: Text(label, style: _mono),
   );
 }
 
