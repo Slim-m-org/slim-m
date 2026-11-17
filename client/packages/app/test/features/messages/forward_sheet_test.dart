@@ -122,10 +122,10 @@ class _Harness {
   }
 }
 
-Future<_Harness> _open(WidgetTester tester) async {
+Future<_Harness> _open(WidgetTester tester, {double width = 1000}) async {
   final harness = _Harness();
   addTearDown(harness.dispose);
-  tester.view.physicalSize = const Size(1000, 800);
+  tester.view.physicalSize = Size(width, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
@@ -226,5 +226,18 @@ void main() {
     await _waitForSend(tester, harness);
 
     expect(harness.posted.single.channelId, 'c2');
+  });
+
+  testWidgets('on a phone the keyboard key never forwards to an unseen row', (
+    tester,
+  ) async {
+    final harness = await _open(tester, width: 390);
+
+    await tester.enterText(find.byKey(forwardSearchKey), 'rand');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await pumpFrames(tester);
+
+    expect(harness.posted, isEmpty);
+    expect(find.byKey(forwardSearchKey), findsOneWidget);
   });
 }
