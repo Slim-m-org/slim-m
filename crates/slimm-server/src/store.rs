@@ -275,7 +275,7 @@ pub use space_owner::{Handoff, Ownership};
 pub use space_setup::SpaceSetup;
 pub use space_themes::{PublishError, SpaceTheme, ThemePicture};
 pub use space_welcome::{MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome};
-pub use stamp_reports::SCREEN_STAMP_KIND;
+pub use stamp_reports::{MAX_REASON_CHARS, SCREEN_STAMP_KIND};
 pub use storage::{ChannelStorage, DatabaseBytes, MAX_STORAGE_CHANNEL_ROWS, SweepStatus};
 pub use thread_listing::ThreadListItem;
 pub use threads::{

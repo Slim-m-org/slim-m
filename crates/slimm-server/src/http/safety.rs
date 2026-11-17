@@ -23,12 +23,12 @@ use crate::hub::Event;
 use crate::ids::{DeviceId, MessageId, UserId};
 use crate::ratelimit::Class;
 use crate::store::{
-    Device, EPHEMERAL_KIND, FiledReport, ReportError, ReportSubject, SCREEN_STAMP_KIND,
+    Device, EPHEMERAL_KIND, FiledReport, MAX_REASON_CHARS, ReportError, ReportSubject,
+    SCREEN_STAMP_KIND,
 };
 use crate::voice::VoiceError;
 
 const BODY_LIMIT: usize = 32 * 1024;
-const MAX_REASON_CHARS: usize = 2000;
 
 /// Trims a caller-supplied reason and bounds its length.
 ///

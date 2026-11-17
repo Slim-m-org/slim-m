@@ -446,9 +446,11 @@ async fn resolve(
     let Some(channel_id) = state.store.open_report_channel(report_id).await? else {
         return Err(missing_or_closed(&state, report_id).await?);
     };
-    if let Some(channel_id) = channel_id
-        && !report_visible_in(&state, ctx.user_id, channel_id).await
-    {
+    let channels = match channel_id {
+        Some(channel_id) => vec![channel_id],
+        None => state.store.stamp_report_channels(report_id).await?,
+    };
+    if !channels.is_empty() && !visible_in_any(&state, ctx.user_id, &channels).await {
         return Err(ApiError::NotFound("report not found"));
     }
 
@@ -462,6 +464,16 @@ async fn resolve(
     // No content rides along; see `Event::ReportsChanged`'s own doc.
     state.hub.publish(Event::ReportsChanged);
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// A stamp report spanning channels is a moderator's to close when they moderate any of them.
+async fn visible_in_any(state: &AppState, user_id: UserId, channels: &[ChannelId]) -> bool {
+    for channel_id in channels {
+        if report_visible_in(state, user_id, *channel_id).await {
+            return true;
+        }
+    }
+    false
 }
 
 /// The bar for [`history`]: either bit clears it.

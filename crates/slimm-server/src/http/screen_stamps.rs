@@ -69,7 +69,7 @@ pub fn routes() -> Router<AppState> {
 /// Places a stamp on `target_user_id`'s shared screen, in the order decision 0121 lists.
 ///
 /// A block relays nothing and still answers 204, as a reused id does, and the sender never
-/// hears its own stamp, so a block cannot be told from a delivery.
+/// hears its own stamp, so neither the answer nor the relay tells a block from a delivery.
 async fn place(
     Authed(ctx): Authed,
     parts: Parts,
@@ -94,13 +94,6 @@ async fn place(
     if stamp.target == ctx.user_id {
         return Err(ApiError::BadRequest("you cannot stamp your own screen"));
     }
-    let content = match &stamp.content {
-        Content::Emoji(key) => StampContent::Emoji(key.clone()),
-        Content::Picture(sha256) => StampContent::Picture {
-            attachment: media::to_hex(sha256),
-            animated: usable_picture(&state, ctx.user_id, sha256).await?,
-        },
-    };
     let audience = sharing_call_audience(&state, channel_id, ctx.user_id, stamp.target).await?;
     let now = Instant::now();
     if !state
@@ -110,6 +103,14 @@ async fn place(
     {
         return Err(ApiError::Conflict(NOT_TAKING));
     }
+    // After the call checks, so a sender in no call cannot make the server read a large GIF.
+    let content = match &stamp.content {
+        Content::Emoji(key) => StampContent::Emoji(key.clone()),
+        Content::Picture(sha256) => StampContent::Picture {
+            attachment: media::to_hex(sha256),
+            animated: usable_picture(&state, ctx.user_id, sha256).await?,
+        },
+    };
     if state.store.has_blocked(stamp.target, ctx.user_id).await? {
         return Ok(StatusCode::NO_CONTENT);
     }

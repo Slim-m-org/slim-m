@@ -122,17 +122,20 @@ In order:
 3. The sender needs VIEW_CHANNEL and USE_CANVAS in the channel and no timeout in force, the same bar as ink.
    A picture also needs ATTACH_FILES.
 4. The target must be someone other than the sender.
-5. For a picture, the sender must be allowed to use the attachment, by the same rule a message uses (they uploaded it, or can see a channel that has it).
+5. The SFU roster must show both people in the channel's call and the target sharing a screen.
+6. The target's consent must be live.
+   The server keeps each sharer's last relayed consent frame in memory and believes it for 15 seconds, as a viewer does.
+   That frame must say both `allowed` and `stamps`.
+7. For a picture, the sender must be allowed to use the attachment, by the same rule a message uses (they uploaded it, or can see a channel that has it).
    It must be a PNG, JPEG, GIF or WebP of at most 8 MiB.
    Its header, read the way the server reads it to derive a still, must show at most 40 megapixels.
    Every frame of a GIF must lie inside its logical screen, read to the file's last block, since some decoders grow the canvas to fit a frame that does not and so pass any cap on the canvas.
    Uploads that read a picture's header, such as custom emoji, refuse such a GIF too.
-6. The SFU roster must show both people in the channel's call and the target sharing a screen.
-7. The target's consent must be live.
-   The server keeps each sharer's last relayed consent frame in memory and believes it for 15 seconds, as a viewer does.
-   That frame must say both `allowed` and `stamps`.
+   This comes after the call checks, so a sender in no call cannot make the server read a large GIF.
 8. If the target has blocked the sender, the answer is still 204, and nothing is stored or relayed.
-   The sender cannot tell a block from a delivery.
+   The answer and the relay never tell a block from a delivery.
+   On a sharer whose overlay lands in the stream (Linux), the video still does: a stamp the sharer received shows up in it a moment later, and a blocked one never does.
+   The same holds for pen strokes (0096); no server change can close it while that overlay is captured.
 9. For a picture, the server inserts the row.
    A replay with the same id does nothing and answers 204, whatever it carries, and so does an emoji under a picture stamp's id.
    Refusing a reused id would tell the sender they are not blocked, since a blocked sender's first stamp stored nothing.
@@ -180,7 +183,7 @@ The sender's client removes its local copy of a refused stamp and says why in a 
   It then files the report about the sender, with the stamp's channel, and links that row and every other picture the sender stamped on the reporter's screen in the last 24 hours to the report.
 - One reporter has one open report about one person, so a report can hold pictures from several calls.
   While its pictures all came from one channel, the report keeps that channel and only that channel's moderators see it.
-  Once they came from more than one, the report has no channel, so the moderators of each see it.
+  Once they came from more than one, the report has no channel, so the moderators of each see it, and only they: a moderator of none of those channels neither sees nor closes it.
   Each moderator sees only the pictures from channels they may read reports from, by the same rule as the fetch grant, so a moderator kept out of a channel never learns what was stamped there.
 - A picture from the same person after the report offers Report again, and reporting it joins the same report while that report is open.
   So one report carries all of one person's pictures.
@@ -223,6 +226,7 @@ The sender's client removes its local copy of a refused stamp and says why in a 
 - On Windows, stamps stay out of the capture with the rest of the overlay, both on a shared screen and on a followed window (0117).
 - On Linux, stamps land in the stream, so viewers see each one twice.
   A viewer who blocked the stamper still sees it in the video, and the sharer's remedy is to block that person or turn the setting off.
+  A sharer who blocked the stamper draws nothing, so the stamper sees their stamp missing from the video and can tell they are blocked (step 8).
 - Sharers on GNOME, macOS, the web or a phone see stamps only in their in-app preview, as with every other mark.
 
 ## On the board

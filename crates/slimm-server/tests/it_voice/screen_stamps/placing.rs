@@ -113,6 +113,19 @@ async fn a_picture_stamp_names_its_attachment_and_whether_a_tile_may_animate_it(
     assert_eq!(rig.count("SELECT COUNT(*) FROM canvas_ops").await, 0);
 }
 
+/// A sender in no call is turned away before the server reads the picture at all.
+#[tokio::test]
+async fn a_picture_from_outside_the_call_is_refused_before_it_is_read() {
+    let rig = rig().await;
+    rig.consent(true, true);
+    let unknown = "ab".repeat(32);
+
+    let (status, body) = rig.stamp(&rig.dave.token, rig.picture(&unknown)).await;
+
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    assert_eq!(body["error"], "Join the call to stamp");
+}
+
 #[tokio::test]
 async fn only_someone_in_the_call_can_stamp_a_screen_being_shared_there() {
     let rig = rig().await;

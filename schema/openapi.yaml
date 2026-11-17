@@ -12543,8 +12543,11 @@ paths:
         report it. Idempotent by `id`: a reused id answers 204 and relays
         nothing, whatever it carries. If the target has blocked the caller,
         the answer is still 204 and nothing is stored or relayed, and the
-        caller never hears its own stamp relayed back, so a block cannot be
-        told from a delivery. Three stamps at once per caller,
+        caller never hears its own stamp relayed back, so neither this
+        answer nor the relay tells a block from a delivery. A sharer whose
+        overlay lands in the stream (Linux) still shows it in the video,
+        where a delivered stamp appears and a blocked one never does.
+        Three stamps at once per caller,
         then one every 2 seconds; a faster caller gets 429 with
         `retry_after_seconds`.
       requestBody:
