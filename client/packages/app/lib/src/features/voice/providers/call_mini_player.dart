@@ -1,24 +1,45 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Where the call mini-player rests, and which feed it carries.
 ///
-/// The corner is session state, not persisted: the player is a transient view
-/// and a stale corner from last week would only ever surprise.
+/// The corner is remembered on this device: whoever moved it out of the way
+/// of their messages wants it there next call too.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
+
+import '../../../providers/providers.dart';
 
 import 'share_watch.dart';
 import 'voice_flags.dart';
 
 enum MiniPlayerCorner { topLeft, topRight, bottomLeft, bottomRight }
 
-/// Bottom-right, where Discord parks its own, and away from the left edge a
-/// drawer swipe starts from.
-final miniPlayerCornerProvider = StateProvider<MiniPlayerCorner>(
-  (ref) => MiniPlayerCorner.bottomRight,
-);
+const miniPlayerCornerKey = 'slimm.voice.mini_player_corner';
+
+/// Bottom-right by default, where Discord parks its own, and away from the
+/// left edge a drawer swipe starts from.
+final miniPlayerCornerProvider = StateProvider<MiniPlayerCorner>((ref) {
+  final saved = ref
+      .watch(preferencesProvider)
+      .valueOrNull
+      ?.getString(miniPlayerCornerKey);
+  return MiniPlayerCorner.values.asNameMap()[saved] ??
+      MiniPlayerCorner.bottomRight;
+});
+
+/// Rests the player in [corner] now and on this device's next call.
+void moveMiniPlayer(WidgetRef ref, MiniPlayerCorner corner) {
+  ref.read(miniPlayerCornerProvider.notifier).state = corner;
+  unawaited(
+    ref
+        .read(preferencesProvider.future)
+        .then((prefs) => prefs.setString(miniPlayerCornerKey, corner.name)),
+  );
+}
 
 /// Set when the viewer dismisses the card; it stays dismissed until the call ends.
 final miniPlayerDismissedProvider = StateProvider<bool>((ref) {
