@@ -19,6 +19,7 @@ import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_sync.dart';
+import '../../support/mid_flight_capture.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -101,7 +102,7 @@ Future<void> _pump(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  await expectSettled(tester, 'roles-bot-rows', knownTransient: true);
 }
 
 void main() {
@@ -127,23 +128,27 @@ void main() {
     expect(find.text('Ticket Bot'), findsOneWidget);
     expect(find.text('Warn Bot'), findsOneWidget);
     expect(find.text('All bots'), findsOneWidget);
-    final listLabels = tester
-        .widgetList<AppListRow>(find.byType(AppListRow))
-        .map((r) => r.label)
-        .toList();
-    expect(listLabels, [
-      'Ticket Bot',
-      'mod',
-      'All bots',
-      'Warn Bot',
-      'everyone',
-    ]);
+    const order = ['Ticket Bot', 'mod', 'All bots', 'Warn Bot', 'everyone'];
+    final tops = [for (final l in order) tester.getTopLeft(find.text(l)).dy];
+    expect(tops, [...tops]..sort(), reason: 'rows keep their real rank order');
+    for (final bot in ['Ticket Bot', 'All bots', 'Warn Bot']) {
+      final row = find.ancestor(
+        of: find.text(bot),
+        matching: find.byWidgetPredicate((w) => w is AppListRow),
+      );
+      expect(
+        (tester.widget(row.first) as AppListRow).trailing,
+        isA<AppBadge>(),
+        reason: bot,
+      );
+    }
+    final modRow = find.ancestor(
+      of: find.text('mod'),
+      matching: find.byWidgetPredicate((w) => w is AppListRow),
+    );
     expect(
-      tester
-          .widgetList<AppListRow>(find.byType(AppListRow))
-          .where((r) => r.trailing is AppBadge)
-          .map((r) => r.label),
-      ['Ticket Bot', 'All bots', 'Warn Bot'],
+      (tester.widget(modRow.first) as AppListRow).trailing,
+      isNot(isA<AppBadge>()),
     );
   });
 
@@ -159,7 +164,11 @@ void main() {
     );
     expect(find.text(botOnlyRoleHint), findsOneWidget);
     await tester.tap(find.text('Open bots'));
-    await tester.pumpAndSettle();
+    await expectSettled(
+      tester,
+      'roles-bot-only-open-bots',
+      knownTransient: true,
+    );
     expect(find.text('bots page'), findsOneWidget);
   });
 
