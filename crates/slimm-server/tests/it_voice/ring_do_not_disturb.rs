@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! An offline callee on Do not disturb looks to the caller like anyone offline: rung for the
-//! full timeout, then missed.
+//! Do not disturb blocks a ring without ending anyone else's, and an offline callee on it looks
+//! to the caller like anyone offline: rung for the full timeout, then missed.
 
 use std::time::{Duration, Instant};
 
@@ -60,4 +60,29 @@ async fn an_offline_callee_on_do_not_disturb_rings_out_like_anyone_offline() {
     assert_eq!(ended["ring_id"], started["ring_id"]);
     assert_eq!(ended["outcome"], "timed_out");
     assert_eq!(calls_in(&rig, &channel, &alice).await.len(), 1);
+}
+
+#[tokio::test]
+async fn a_call_to_someone_on_do_not_disturb_leaves_their_own_ring_alone() {
+    let rig = rig("slimm-ring-dnd-other-ring").await;
+    let alice = rig.person("alice").await;
+    let mut bob = rig.person("bob").await;
+    let channel = rig.open_dm(&alice, &bob).await;
+    let bob_id = UserId(bob.id.parse().unwrap());
+    let presence = rig.state.hub.presence();
+    wait_until("bob's socket counts as connected", || {
+        presence.is_connected(bob_id)
+    })
+    .await;
+    // Bob's own ring is still pending: his first heartbeat has not landed.
+    let bobs = rig.ring(&channel, &bob).await;
+    set_do_not_disturb(&rig, &bob).await;
+
+    let alices = rig.ring(&channel, &alice).await;
+
+    assert_eq!(alices["timeout_ms"], 0);
+    let ended = read_frame_of_type(&mut bob.ws, "call.ring_ended").await;
+    assert_eq!(ended["ring_id"], alices["ring_id"]);
+    assert_ne!(ended["ring_id"], bobs["ring_id"]);
+    assert_no_frame_of_type(&mut bob.ws, "call.ring_ended").await;
 }

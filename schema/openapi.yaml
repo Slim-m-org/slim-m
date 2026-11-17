@@ -8811,9 +8811,9 @@ paths:
         is left out of it, since presence shows them offline, and the ring runs
         its full timeout as it would for anyone offline. When only connected
         ones are left the ring ends at once as `timed_out` (`timeout_ms` 0) and
-        leaves a missed call in the DM, without a push. A ring still
-        outstanding for the channel is ended first, without a record of its
-        own.
+        leaves a missed call in the DM, without a push. The caller's own ring
+        still outstanding for the channel is ended first, without a record of
+        its own; another participant's is left alone.
 
 
         Publishes a live `call.ringing` event to the other participants and, in

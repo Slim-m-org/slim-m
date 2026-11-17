@@ -171,8 +171,9 @@ async fn ring(
         shown: do_not_disturb,
     } = split_off_do_not_disturb(&state, callees).await?;
     if callees.is_empty() {
-        if let Some(replaced) = state.voice.rings().take(channel_id) {
-            announce_replaced(&state, channel_id, ctx.user_id, replaced);
+        // Another participant's own pending ring is theirs to end.
+        if let Some(own) = state.voice.rings().cancel(channel_id, ctx.user_id) {
+            announce_replaced(&state, channel_id, ctx.user_id, (own.ring_id, ctx.user_id));
         }
         let ring_id = ended_at_once(&state, channel_id, CallRingOutcome::TimedOut);
         // Nothing rang, and a missed-call push would disturb them all the same.
