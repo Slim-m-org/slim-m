@@ -173,6 +173,7 @@ class Message {
     this.mentionsMe = false,
     this.linkPreviewsRemoved = false,
     this.matchedAttachmentId,
+    this.threadParentChannelId,
     this.embeds = const [],
     this.webhookUsername,
     this.viaModule,
@@ -281,6 +282,10 @@ class Message {
   /// attachment's id. Null on every other message.
   final String? matchedAttachmentId;
 
+  /// On a search result posted inside a thread, the channel the thread hangs
+  /// off; [channelId] is then the thread's own. Null on every other message.
+  final String? threadParentChannelId;
+
   /// Structured content a webhook or a bot attached; fixed once the message
   /// exists, like [attachments]. Always present, empty when there is none.
   final List<Embed> embeds;
@@ -343,6 +348,7 @@ class Message {
         mentionsMe: json['mentions_me'] as bool? ?? false,
         linkPreviewsRemoved: json['link_previews_removed'] as bool? ?? false,
         matchedAttachmentId: json['matched_attachment_id'] as String?,
+        threadParentChannelId: json['thread_parent_channel_id'] as String?,
         embeds: (json['embeds'] as List<dynamic>?)
                 ?.map((e) => Embed.fromJson(e as Map<String, dynamic>))
                 .toList(growable: false) ??

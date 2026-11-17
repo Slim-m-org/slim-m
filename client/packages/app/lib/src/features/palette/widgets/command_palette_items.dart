@@ -204,7 +204,7 @@ List<PaletteResultItem> buildMessageItems(
   for (final message in messages)
     messageResultItem(
       message,
-      channelLabel: paletteChannelLabel(channelsById[message.channelId]),
+      channelLabel: paletteHitChannelLabel(message, channelsById),
       mentionNames: mentionNames,
       onSelect: (context, ref) async => jumpToMessage(
         GoRouter.of(context),
@@ -212,6 +212,7 @@ List<PaletteResultItem> buildMessageItems(
         currentChannelId: currentChannelId,
         channelId: message.channelId,
         messageId: message.id,
+        inThread: message.threadParentChannelId != null,
       ),
     ),
 ];
@@ -273,6 +274,15 @@ String paletteChannelLabel(Channel? channel) => switch (channel) {
   Channel(kind: dmChannelKind) => 'a direct message',
   Channel(:final name) when name.isEmpty => 'a thread',
   Channel(:final name) => '#$name',
+};
+
+/// Where a message hit was said; a thread reply names the channel its thread hangs off.
+String paletteHitChannelLabel(
+  api.Message message,
+  Map<String, Channel> channelsById,
+) => switch (message.threadParentChannelId) {
+  null => paletteChannelLabel(channelsById[message.channelId]),
+  final parent => 'a thread in ${paletteChannelLabel(channelsById[parent])}',
 };
 
 /// A message hit's trailing author label: selects only its own author's

@@ -153,6 +153,9 @@ pub(crate) struct MessageDto {
     /// that attachment's id. Set by the search routes alone.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) matched_attachment_id: Option<String>,
+    /// On a search result inside a thread, the channel the thread hangs off. Set by the search routes alone.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) thread_parent_channel_id: Option<String>,
     /// Structured content attached by a webhook or a bot; see decision 0030.
     /// Fixed once a message exists, like `attachments`.
     #[serde(default)]
@@ -333,6 +336,7 @@ impl From<Message> for MessageDto {
             mentions_me: false,
             link_previews_removed: false,
             matched_attachment_id: None,
+            thread_parent_channel_id: None,
             embeds: Vec::new(),
             webhook_username: None,
             via_module: None,

@@ -261,8 +261,8 @@ async fn resolve_scope(
 }
 
 /// The shared tail both routes run once their channel scope and filters are
-/// resolved: run the FTS5 query over `channel_ids`, then enrich with
-/// reactions exactly like plain message history does.
+/// resolved: run the FTS5 query over `channel_ids` and their live threads,
+/// then enrich with reactions exactly like plain message history does.
 async fn run_search(
     state: &AppState,
     user_id: UserId,
@@ -282,9 +282,12 @@ async fn run_search(
         None => None,
     };
     let query = fts.as_ref();
+    let threads = state.store.live_threads_of(channel_ids).await?;
+    let mut scope = channel_ids.to_vec();
+    scope.extend(threads.keys().copied());
     let messages = match state
         .store
-        .search_messages_prepared(channel_ids, query, filters, before, limit)
+        .search_messages_prepared(&scope, query, filters, before, limit)
         .await
     {
         Ok(rows) => rows,
@@ -298,6 +301,10 @@ async fn run_search(
     };
 
     let ids: Vec<MessageId> = messages.iter().map(|m| m.id).collect();
+    let thread_parents: Vec<Option<String>> = messages
+        .iter()
+        .map(|m| threads.get(&m.channel_id).map(ToString::to_string))
+        .collect();
     let mut dtos = with_reactions(state, user_id, messages).await?;
     if let Some(q) = query {
         let mut matched = state
@@ -307,6 +314,9 @@ async fn run_search(
         for (id, dto) in ids.iter().zip(dtos.iter_mut()) {
             dto.matched_attachment_id = matched.remove(id);
         }
+    }
+    for (dto, parent) in dtos.iter_mut().zip(thread_parents) {
+        dto.thread_parent_channel_id = parent;
     }
     Ok(Json(dtos))
 }

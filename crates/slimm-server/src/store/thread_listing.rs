@@ -5,6 +5,8 @@
 //! since `Store::open_thread` was `threads.rs`'s only writer and nothing
 //! ever enumerated the channels it created.
 
+use std::collections::HashMap;
+
 use super::Store;
 use super::threads::REPLY_STATS_SQL;
 use crate::ids::{ChannelId, MessageId, UserId};
@@ -119,6 +121,36 @@ impl Store {
                 .unwrap_or(0);
         }
         Ok(items)
+    }
+}
+
+impl Store {
+    /// Each live thread whose live parent message is in `channel_ids`, mapped to that parent's channel.
+    /// A thread has its parent channel's permissions, so a scope already checked covers these too.
+    pub async fn live_threads_of(
+        &self,
+        channel_ids: &[ChannelId],
+    ) -> anyhow::Result<HashMap<ChannelId, ChannelId>> {
+        use sqlx::Row;
+        let mut threads = HashMap::new();
+        for chunk in channel_ids.chunks(super::MAX_IDS_PER_QUERY) {
+            // CROSS JOIN keeps the few thread rows outermost instead of walking each channel's messages.
+            let mut builder = sqlx::QueryBuilder::new(
+                "SELECT c.id AS thread_id, pm.channel_id AS parent_channel_id \
+                 FROM channels c CROSS JOIN messages pm ON pm.id = c.parent_message_id \
+                 WHERE c.parent_message_id IS NOT NULL AND c.deleted_at IS NULL \
+                   AND pm.deleted_at IS NULL AND pm.channel_id IN (",
+            );
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(")");
+            for row in builder.build().fetch_all(&self.pool).await? {
+                threads.insert(row.try_get("thread_id")?, row.try_get("parent_channel_id")?);
+            }
+        }
+        Ok(threads)
     }
 }
 
