@@ -48,11 +48,12 @@ class SoundboardPlayer {
     } on Object catch (error, stack) {
       // A failed fetch must not stay cached, or this clip is silent until the app restarts.
       _ref.invalidate(soundClipAudioProvider(clipId));
-      api.AppLog.swallowed(
+      // Someone pressed a clip and heard nothing, so the sent debug log must show why.
+      api.AppLog.warning(
         api.LogTag.voice,
         'A soundboard clip could not play',
-        error,
-        stack,
+        error: error,
+        stack: stack,
       );
     }
   }
