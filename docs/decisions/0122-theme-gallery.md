@@ -13,10 +13,11 @@ The owner chose the Gallery proposal, with grafts from Compact and Live preview.
 
 Themes is now a sub-page of the Appearance pane, so the settings nav, the title position and the close X stay put, and on a phone it takes the pane's app bar.
 SettingsPanes gained sub-pages for this, and /settings/themes redirects to /settings?pane=appearance&page=themes.
+While a sub-page is open beside the nav, the nav's own back arrow fades out in place, so one back arrow shows; a page under the one on top stays built, so going back finds it scrolled and filtered as it was left.
 Each theme is a card with a live miniature of the app in its own colours: three across beside the nav, two on a phone, built lazily with a repaint boundary per card.
 One tap applies a theme from any source, and the card in use is marked wherever it came from.
 The custom theme slot now keeps a source id (builtin, mine, space or file) beside it, so a Space theme shows as in use and an unsaved one says Not saved.
-The Space default appears once: as a tag on its card, with Follow Space default as a switch on Appearance.
+The Space default appears once: on its card's text line, with Follow Space default as a switch on Appearance.
 Built-in themes get a pencil for Customise instead of a menu with one item, and System has neither.
 Right-click, long-press and the kebab open the same menu, and every phone sheet names the theme it acts on.
 Delete and Remove now ask first.
