@@ -37,8 +37,6 @@ class ShareDestinationStep extends ConsumerStatefulWidget {
 }
 
 class _ShareDestinationStepState extends ConsumerState<ShareDestinationStep> {
-  String _search = '';
-
   Future<void> _pick(ForwardTarget target) async {
     final share = widget.share;
     final text = share.text;
@@ -64,7 +62,6 @@ class _ShareDestinationStepState extends ConsumerState<ShareDestinationStep> {
 
   @override
   Widget build(BuildContext context) {
-    final ForwardTargetsQuery query = (hasAttachments: widget.share.hasFiles);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -72,22 +69,18 @@ class _ShareDestinationStepState extends ConsumerState<ShareDestinationStep> {
           padding: const EdgeInsets.all(AppSpacing.s16),
           child: ShareSummary(share: widget.share),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
-          child: DestinationSearchField(
-            key: ShareDestinationStep.searchKey,
-            onChanged: (value) => setState(() => _search = value),
-            semanticLabel: 'Search where to share this',
-          ),
-        ),
-        const SizedBox(height: AppSpacing.s8),
         Expanded(
-          child: DestinationList(
-            query: query,
-            search: _search,
-            onPick: (target) => unawaited(_pick(target)),
-            errorMessage: 'Could not load where you can share this.',
-            emptyMessage: 'Nowhere to share this to yet.',
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: DestinationPicker(
+              query: (hasAttachments: widget.share.hasFiles),
+              searchKey: ShareDestinationStep.searchKey,
+              onPick: (target) => unawaited(_pick(target)),
+              enterLabel: 'Open',
+              searchSemanticLabel: 'Search where to share this',
+              errorMessage: 'Could not load where you can share this.',
+              emptyMessage: 'Nowhere to share this to yet.',
+            ),
           ),
         ),
       ],
