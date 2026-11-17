@@ -41,6 +41,9 @@ class CanvasEmojiHydrator {
   final _pending = <String>{};
   bool _disposed = false;
 
+  /// Bumped by each font load, so a bake begun before it is baked again instead of kept.
+  int _generation = 0;
+
   void hydrate(api.CanvasObject object) {
     final emoji = object.props['emoji'];
     if (_disposed || object.kind != 'emoji' || emoji is! String) return;
@@ -58,6 +61,8 @@ class CanvasEmojiHydrator {
   void _rebakeVisible() {
     if (_disposed) return;
     dropGlyphBitmaps?.call();
+    _generation++;
+    _loads.clear();
     for (final image in _baked.values) {
       image.dispose();
     }
@@ -73,26 +78,35 @@ class CanvasEmojiHydrator {
   }
 
   Future<void> _load(String id, String key) async {
+    final generation = _generation;
+    var again = false;
     try {
       final image = await _bitmap(key);
       if (_disposed) return;
-      if (image == null) {
+      if (generation != _generation) {
+        again = true;
+      } else if (image == null) {
         document.markImageLoadFailed(id);
       } else {
         document.setImageBitmap(id, image.clone());
       }
     } finally {
       _pending.remove(id);
+      if (again) _request(id, key);
     }
   }
 
   Future<ui.Image?> _bitmap(String key) {
     final held = _baked.remove(key);
     if (held != null) return Future.value(_baked[key] = held);
-    return _loads[key] ??= bake(key)
+    final inFlight = _loads[key];
+    if (inFlight != null) return inFlight;
+    final generation = _generation;
+    late final Future<ui.Image?> loading;
+    loading = bake(key)
         .then((image) {
           if (image == null) return null;
-          if (_disposed) {
+          if (_disposed || generation != _generation) {
             image.dispose();
             return null;
           }
@@ -103,8 +117,9 @@ class CanvasEmojiHydrator {
           return image;
         })
         .whenComplete(() {
-          _loads.remove(key);
+          if (identical(_loads[key], loading)) _loads.remove(key);
         });
+    return _loads[key] = loading;
   }
 
   void dispose() {

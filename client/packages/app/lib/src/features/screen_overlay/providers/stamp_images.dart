@@ -68,6 +68,9 @@ class StampImageCache {
   final _originalLoads = <String, Future<Uint8List?>>{};
   var _generation = 0;
 
+  /// Bumped by [dropGlyphs], so a standard emoji still baking then is not kept.
+  var _glyphEpoch = 0;
+
   /// Where [content]'s picture is held, here and on the overlay runner.
   String keyOf(StampContent content) => content.imageKey(_customIndex());
 
@@ -81,13 +84,29 @@ class StampImageCache {
       _images[key] = held;
       return Future.value();
     }
-    return _loads[key] ??= _bake(content, _generation).then(
-      (image) => _keep(key, image),
+    final inFlight = _loads[key];
+    if (inFlight != null) return inFlight;
+    final epoch = _glyphEpoch;
+    late final Future<void> loading;
+    void settle() {
+      if (identical(_loads[key], loading)) _loads.remove(key);
+    }
+
+    loading = _bake(content, _generation).then(
+      (image) {
+        settle();
+        if (key.startsWith('e:') && epoch != _glyphEpoch) {
+          image.dispose();
+          return;
+        }
+        _keep(key, image);
+      },
       onError: (Object error, StackTrace stack) {
-        _loads.remove(key);
+        settle();
         Error.throwWithStackTrace(error, stack);
       },
     );
+    return _loads[key] = loading;
   }
 
   /// Bakes a picture from bytes already in hand, as for the viewer's own pick, so it is not fetched back.
@@ -100,6 +119,7 @@ class StampImageCache {
       image.dispose();
       return;
     }
+    _loads.removeWhere((held, _) => held == key);
     _keep(key, image, generation: generation);
   }
 
@@ -142,8 +162,9 @@ class StampImageCache {
 
   /// Forgets the baked standard emoji, which a font that loaded late would draw differently.
   void dropGlyphs() {
+    _glyphEpoch++;
     for (final key in [
-      for (final key in _images.keys)
+      for (final key in {..._images.keys, ..._loads.keys})
         if (key.startsWith('e:')) key,
     ]) {
       _images.remove(key)?.dispose();
@@ -194,7 +215,6 @@ class StampImageCache {
   }
 
   void _keep(String key, ui.Image image, {int? generation}) {
-    _loads.remove(key);
     if (generation != null && generation != _generation) {
       image.dispose();
       return;
