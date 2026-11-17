@@ -268,6 +268,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final pendingInvite = ref.read(pendingInviteProvider.notifier);
     final justRegistered = ref.read(justRegisteredProvider.notifier);
     final push = ref.read(pushControllerProvider.notifier);
+    final firstContact = ref.read(firstContactServersProvider.notifier);
     try {
       final reduced = reduceServerAddress(address);
       if (!await confirmServerIdentity(
@@ -291,6 +292,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           ? await _register(api, identity, invite, justRegistered)
           : await _signIn(api, identity, invite);
       if (!completed) return;
+      endFirstContact(firstContact, reduced);
       TextInput.finishAutofillContext();
       if (invite != null) pendingInvite.state = null;
       unawaited(push.register());
@@ -302,6 +304,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         e,
         server: probeTarget(_server.text),
         reach: ref.read(browserReachProbeProvider),
+        knownSpace: pinnedIdentityCheck(ref.read(keyStoreProvider)),
       );
       if (!mounted) return;
       setState(() => _error = error);

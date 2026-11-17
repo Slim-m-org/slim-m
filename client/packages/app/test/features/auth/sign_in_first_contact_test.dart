@@ -23,11 +23,28 @@ import '../../support/async_wait.dart';
 import '../../support/mock_app_version.dart';
 
 const _server = 'https://chat.example';
+
+Finder _field(String label) =>
+    find.byWidgetPredicate((w) => w is AppInput && w.semanticLabel == label);
 const _key = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
 
 ProviderContainer _container(KeyStore keyStore) {
-  final client = MockClient(
-    (request) async => http.Response(
+  final client = MockClient((request) async {
+    if (request.method == 'POST' && request.url.path == '/auth/login') {
+      return http.Response(
+        jsonEncode(
+          const TokenPair(
+            userId: 'user-1',
+            accessToken: 'access-1',
+            refreshToken: 'refresh-1',
+            accessExpiresAt: 0,
+          ).toJson(),
+        ),
+        200,
+        headers: const {'content-type': 'application/json'},
+      );
+    }
+    return http.Response(
       jsonEncode({
         'name': 'slim-m',
         'display_name': 'Beta',
@@ -42,14 +59,23 @@ ProviderContainer _container(KeyStore keyStore) {
       }),
       200,
       headers: const {'content-type': 'application/json'},
-    ),
-  );
+    );
+  });
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(keyStore),
       probeApiProvider.overrideWithValue(
         (baseUrl) => SlimmApi(baseUrl: baseUrl, httpClient: client),
       ),
+      apiProvider.overrideWith((ref) {
+        final api = SlimmApi(
+          baseUrl: ref.watch(serverUrlProvider),
+          session: ref.watch(sessionProvider),
+          httpClient: client,
+        );
+        ref.onDispose(api.close);
+        return api;
+      }),
     ],
   );
   addTearDown(container.dispose);
@@ -80,9 +106,7 @@ Future<void> _show(
 void main() {
   setUpAll(mockAppVersion);
 
-  testWidgets('connecting for the first time says sign in, not welcome back', (
-    tester,
-  ) async {
+  Future<ProviderContainer> connectFirstTime(WidgetTester tester) async {
     final container = _container(InMemoryKeyStore());
     Uri? chosen;
     await _show(
@@ -101,6 +125,13 @@ void main() {
     await tester.tap(find.text('Continue'));
     await waitUntil(tester, () => chosen != null);
     container.read(chosenServerProvider.notifier).restore(chosen!);
+    return container;
+  }
+
+  testWidgets('connecting for the first time says sign in, not welcome back', (
+    tester,
+  ) async {
+    final container = await connectFirstTime(tester);
 
     await _show(tester, container, const SignInScreen());
 
@@ -116,6 +147,27 @@ void main() {
     await keyStore.put('server_identity:$_server', _key);
     final container = _container(keyStore);
     container.read(chosenServerProvider.notifier).restore(Uri.parse(_server));
+
+    await _show(tester, container, const SignInScreen());
+
+    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.text('Confirmed'), findsOneWidget);
+  });
+
+  testWidgets('after signing in, the next visit is welcomed back', (
+    tester,
+  ) async {
+    final container = await connectFirstTime(tester);
+    await _show(tester, container, const SignInScreen());
+    await tester.enterText(_field('Username'), 'ava');
+    await tester.enterText(_field('Password'), 'long enough pw');
+    await tester.tap(find.widgetWithText(AppButton, 'Sign in'));
+    await waitUntil(
+      tester,
+      () => container.read(sessionProvider).tokens != null,
+    );
+    await pumpFrames(tester, frames: 30);
+    await tester.pumpWidget(const SizedBox());
 
     await _show(tester, container, const SignInScreen());
 

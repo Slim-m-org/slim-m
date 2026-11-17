@@ -72,16 +72,17 @@ const _blockedByBrowser = (
       "it has to allow this web app's address (CORS). Nothing was sent.",
 );
 
-/// [signInErrorFor], except a failed connection asks [reach] whether the
-/// Space at [server] answers at all, since a browser block and a dead address
-/// fail the same way and need different fixes.
+/// [signInErrorFor], except a failed connection that [reach] still answers is
+/// called a browser block when [knownSpace]: an opaque answer could be any site.
 Future<(SignInErrorField, String)> explainSignInFailure(
   ApiException e, {
   required Uri? server,
   required Future<bool?> Function(Uri server) reach,
+  required Future<bool> Function(Uri server) knownSpace,
 }) async {
   if (e is! TransportException || server == null) return signInErrorFor(e);
-  return await reach(server) == true ? _blockedByBrowser : _unreachable;
+  if (await reach(server) != true) return _unreachable;
+  return await knownSpace(server) ? _blockedByBrowser : _unreachable;
 }
 
 /// Which field a 400 belongs to.

@@ -15,6 +15,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_platform/platform.dart' show KeyStore;
 
 import '../../../providers/providers.dart';
 import '../../../routing/page_transitions.dart';
@@ -25,11 +26,22 @@ import 'server_identity_changed_step.dart';
 /// itself and must survive across every account ever signed into it.
 String identityHandleFor(Uri address) => 'server_identity:${address.origin}';
 
+/// Whether a slim-m server at an address has had its identity pinned in [keyStore].
+Future<bool> Function(Uri server) pinnedIdentityCheck(KeyStore keyStore) =>
+    (server) async => await keyStore.read(identityHandleFor(server)) != null;
+
 /// Identity handles of the addresses first met during this run, so the
 /// sign-in that follows does not treat a key saved a moment ago as known.
 final firstContactServersProvider = StateProvider<Set<String>>(
   (ref) => const {},
 );
+
+/// Ends [server]'s first contact once a sign-in to it succeeds, so the next
+/// visit in this run is a return to a Space whose key is now known.
+void endFirstContact(StateController<Set<String>> firstContact, Uri server) {
+  final handle = identityHandleFor(server);
+  firstContact.update((handles) => {...handles}..remove(handle));
+}
 
 /// What `/version` said about a server's identity, read before deciding
 /// anything: [known] is false when it could not answer as a slim-m server.
