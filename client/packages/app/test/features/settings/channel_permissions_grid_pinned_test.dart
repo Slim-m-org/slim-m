@@ -224,4 +224,30 @@ void main() {
     await _settle(tester);
     expect(_saveBar, findsNothing);
   });
+
+  testWidgets('collapsing a group leaves Save at the bottom of the view', (
+    tester,
+  ) async {
+    final scroll = await _open(tester);
+    scroll.jumpTo(tester.getRect(_viewCell).top - 200);
+    await _settle(tester);
+    await tester.tap(_viewCell);
+    await _settle(tester);
+
+    for (final group in Perm.groups.take(2)) {
+      final header = find.text(group.title.toUpperCase());
+      scroll.jumpTo(scroll.offset + tester.getRect(header).top - 250);
+      await _settle(tester);
+      await tester.tap(header);
+      await _settle(tester);
+      final expected = tester.getRect(_grid).bottom < _viewport.height
+          ? tester.getRect(_grid).bottom
+          : _viewport.height;
+      expect(
+        tester.getRect(_saveBar).bottom,
+        moreOrLessEquals(expected, epsilon: 0.5),
+        reason: 'after collapsing ${group.title}, not floating over the rows',
+      );
+    }
+  });
 }

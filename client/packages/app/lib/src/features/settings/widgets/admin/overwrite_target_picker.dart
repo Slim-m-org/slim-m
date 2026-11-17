@@ -68,6 +68,14 @@ class _State extends ConsumerState<OverwriteTargetPicker> {
         MediaQuery.sizeOf(context).height * _listMaxHeightFraction;
     final shownRoles = _roles(roles.valueOrNull ?? const []);
     final shownMembers = _members(members.valueOrNull ?? const []);
+    final people = [
+      for (final m in shownMembers)
+        if (!m.isBot) m,
+    ];
+    final bots = [
+      for (final m in shownMembers)
+        if (m.isBot) m,
+    ];
     return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -95,7 +103,7 @@ class _State extends ConsumerState<OverwriteTargetPicker> {
               semanticLabel: 'Search roles and members',
               onChanged: (_) => setState(() {}),
               onSubmitted: (_) =>
-                  _chooseFirst([...shownRoles, ...shownMembers]),
+                  _chooseFirst([...shownRoles, ...people, ...bots]),
             ),
           ),
           const SizedBox(height: AppSpacing.s8),
@@ -132,35 +140,11 @@ class _State extends ConsumerState<OverwriteTargetPicker> {
                       ),
                       children: [
                         if (shownRoles.isNotEmpty) const AppMenuLabel('Roles'),
-                        for (final role in shownRoles)
-                          AppListRow(
-                            key: Key('target-picker-role-${role.id}'),
-                            leading: const Icon(
-                              AppIcons.shield,
-                              size: AppSizes.icon16,
-                            ),
-                            label: role.name,
-                            onTap: () => Navigator.of(context).pop(role),
-                          ),
-                        if (shownMembers.isNotEmpty)
-                          const AppMenuLabel('Members'),
-                        for (final m in shownMembers)
-                          AppListRow(
-                            key: Key('target-picker-member-${m.id}'),
-                            leading: UserAvatar(
-                              name: m.displayName,
-                              userId: m.id,
-                              size: AppAvatarSize.s20,
-                              shape: m.isBot
-                                  ? AppAvatarShape.square
-                                  : AppAvatarShape.circle,
-                              placeholder: m.isBot
-                                  ? botAvatarPlaceholder(context, m.displayName)
-                                  : null,
-                            ),
-                            label: m.displayName,
-                            onTap: () => Navigator.of(context).pop(m),
-                          ),
+                        for (final role in shownRoles) _roleRow(role),
+                        if (people.isNotEmpty) const AppMenuLabel('Members'),
+                        for (final m in people) _memberRow(m),
+                        if (bots.isNotEmpty) const AppMenuLabel('Bots'),
+                        for (final m in bots) _memberRow(m),
                       ],
                     ),
                   ),
@@ -169,4 +153,33 @@ class _State extends ConsumerState<OverwriteTargetPicker> {
       ),
     );
   }
+
+  Widget _roleRow(api.Role role) => AppListRow(
+    key: Key('target-picker-role-${role.id}'),
+    // Boxed to the avatar's width, so role and member names start on one line.
+    leading: const SizedBox.square(
+      dimension: AppAvatarSize.s20,
+      child: Icon(AppIcons.shield, size: AppSizes.icon16),
+    ),
+    label: role.name,
+    onTap: () => Navigator.of(context).pop(role),
+  );
+
+  Widget _memberRow(api.UserProfile m) => AppListRow(
+    key: Key('target-picker-member-${m.id}'),
+    leading: UserAvatar(
+      name: m.displayName,
+      userId: m.id,
+      size: AppAvatarSize.s20,
+      shape: m.isBot ? AppAvatarShape.square : AppAvatarShape.circle,
+      placeholder: m.isBot
+          ? botAvatarPlaceholder(context, m.displayName)
+          : null,
+    ),
+    label: m.displayName,
+    trailing: m.isBot
+        ? const AppBadge(variant: AppBadgeVariant.tag, label: 'Bot')
+        : null,
+    onTap: () => Navigator.of(context).pop(m),
+  );
 }
