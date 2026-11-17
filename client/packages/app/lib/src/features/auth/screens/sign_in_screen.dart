@@ -378,9 +378,17 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     return true;
   }
 
+  /// Whether this run met the server for the first time just before this
+  /// screen; read once, so a sign-in that pins the key does not retitle it.
+  late final bool _firstContact = ref
+      .read(firstContactServersProvider)
+      .contains(identityHandleFor(ref.read(serverUrlProvider)));
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final firstContact = _firstContact;
+    final identityStatus = _identityStatus ?? ServerIdentityStatus.unknown;
 
     return OnboardingShell(
       // Creating an account is the last of the join steps; signing back in to
@@ -392,7 +400,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            _creatingAccount ? 'Create an account' : 'Welcome back',
+            _creatingAccount
+                ? 'Create an account'
+                : firstContact
+                ? 'Sign in'
+                : 'Welcome back',
             style: AppText.title.copyWith(
               color: tokens.textPrimary,
               fontWeight: AppWeights.semi,
@@ -404,7 +416,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             ServerIdentityChip(
               spaceName: version.displayName,
               host: serverHostLabel(_server.text),
-              status: _identityStatus ?? ServerIdentityStatus.unknown,
+              // A key saved moments ago by this connect matches nothing from before.
+              status:
+                  firstContact &&
+                      identityStatus == ServerIdentityStatus.confirmed
+                  ? ServerIdentityStatus.unknown
+                  : identityStatus,
             )
           else
             Padding(

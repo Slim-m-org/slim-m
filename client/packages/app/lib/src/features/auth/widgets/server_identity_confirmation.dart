@@ -25,6 +25,12 @@ import 'server_identity_changed_step.dart';
 /// itself and must survive across every account ever signed into it.
 String identityHandleFor(Uri address) => 'server_identity:${address.origin}';
 
+/// Identity handles of the addresses first met during this run, so the
+/// sign-in that follows does not treat a key saved a moment ago as known.
+final firstContactServersProvider = StateProvider<Set<String>>(
+  (ref) => const {},
+);
+
 /// What `/version` said about a server's identity, read before deciding
 /// anything: [known] is false when it could not answer as a slim-m server.
 typedef ServerIdentityProbe = ({bool known, api.ServerIdentity? identity});
@@ -90,11 +96,16 @@ Future<bool> settleServerIdentity(
   Uri server,
   ServerIdentityProbe probe,
 ) async {
-  if (!probe.known) return true;
-  final identity = probe.identity;
   final keyStore = ref.read(keyStoreProvider);
   final handle = identityHandleFor(server);
   final pinned = await keyStore.read(handle);
+  if (pinned == null) {
+    ref
+        .read(firstContactServersProvider.notifier)
+        .update((handles) => {...handles, handle});
+  }
+  if (!probe.known) return true;
+  final identity = probe.identity;
 
   if (identity == null && pinned == null) return true;
   if (pinned != null && pinned == identity?.publicKey) return true;
