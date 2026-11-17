@@ -28,18 +28,25 @@ final mentionNamesProvider = Provider.autoDispose<Map<String, String>>(
   ),
 );
 
+/// Lower-cased username to the member, with live profile edits applied:
+/// built once per roster so each mention chip is a key lookup.
+final mentionProfilesProvider =
+    Provider.autoDispose<Map<String, api.UserProfile>>((ref) {
+      final live = ref.watch(memberProfileOverridesProvider);
+      final members = ref.watch(membersProvider).valueOrNull ?? const [];
+      return {
+        for (final api.UserProfile m in members)
+          m.username.toLowerCase(): live[m.id] ?? m,
+      };
+    });
+
 /// The member a lower-cased `@username` names, for a mention that opens
 /// their profile; null while the roster is loading or they are not in it.
 final mentionProfileProvider = Provider.autoDispose
-    .family<api.UserProfile?, String>((ref, username) {
-      final member = ref
-          .watch(membersProvider)
-          .valueOrNull
-          ?.where((m) => m.username.toLowerCase() == username)
-          .firstOrNull;
-      if (member == null) return null;
-      return ref.watch(memberProfileOverridesProvider)[member.id] ?? member;
-    });
+    .family<api.UserProfile?, String>(
+      (ref, username) =>
+          ref.watch(mentionProfilesProvider.select((m) => m[username])),
+    );
 
 final _memo = _NamesMemo();
 
