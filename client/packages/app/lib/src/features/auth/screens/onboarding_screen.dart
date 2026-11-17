@@ -209,25 +209,27 @@ class _Entry extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.s16),
+                // The card's own label already says both lines.
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: AppText.body.copyWith(
-                          color: tokens.textPrimary,
-                          fontWeight: AppWeights.semi,
+                  child: ExcludeSemantics(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: AppText.body.copyWith(
+                            color: tokens.textPrimary,
+                            fontWeight: AppWeights.semi,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: AppSpacing.s4),
-                      Text(
-                        description,
-                        style: (mono ? AppText.code : AppText.caption).copyWith(
-                          color: tokens.textSecondary,
+                        const SizedBox(height: AppSpacing.s4),
+                        Text(
+                          description,
+                          style: (mono ? AppText.code : AppText.caption)
+                              .copyWith(color: tokens.textSecondary),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.s8),

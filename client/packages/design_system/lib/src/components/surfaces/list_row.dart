@@ -357,11 +357,14 @@ class _AppListRowState extends State<AppListRow> with PressTracking {
         // value mid-row instead of against the trailing edge.
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: box.maxWidth * 0.5),
-          child: Text(
-            widget.meta!,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          child: ExcludeSemantics(
+            excluding: widget.semanticLabel?.contains(widget.meta!) ?? false,
+            child: Text(
+              widget.meta!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
           ),
         ),
       if (trailingContent != null)

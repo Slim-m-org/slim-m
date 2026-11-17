@@ -171,14 +171,18 @@ class _Title extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.s8),
             Flexible(
-              child: Text(
-                name,
-                // A group's default name is a list of people, so it may take two lines.
-                maxLines: groupMemberIds.isEmpty ? 1 : 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.body.copyWith(
-                  color: tokens.textPrimary,
-                  fontWeight: AppWeights.medium,
+              // A one-to-one DM's avatar already announces the name.
+              child: ExcludeSemantics(
+                excluding: isDm && groupMemberIds.isEmpty,
+                child: Text(
+                  name,
+                  // A group's default name is a list of people, so it may take two lines.
+                  maxLines: groupMemberIds.isEmpty ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.body.copyWith(
+                    color: tokens.textPrimary,
+                    fontWeight: AppWeights.medium,
+                  ),
                 ),
               ),
             ),

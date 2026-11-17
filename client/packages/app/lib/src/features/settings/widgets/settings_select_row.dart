@@ -205,11 +205,14 @@ class SettingsSelectRow<T> extends StatelessWidget {
           spacing: AppSpacing.s8,
           children: [
             if (_currentChoice?.leading != null) _currentChoice!.leading!,
+            // The row's label already says it, after "currently".
             Flexible(
-              child: Text(
-                _currentLabel,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.ui.copyWith(color: tokens.textPrimary),
+              child: ExcludeSemantics(
+                child: Text(
+                  _currentLabel,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.ui.copyWith(color: tokens.textPrimary),
+                ),
               ),
             ),
             chevron,
@@ -233,11 +236,14 @@ class SettingsSelectRow<T> extends StatelessWidget {
         spacing: 6,
         children: [
           if (_currentChoice?.leading != null) _currentChoice!.leading!,
+          // The row's label already says it, after "currently".
           Flexible(
-            child: Text(
-              _currentLabel,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.ui.copyWith(color: tokens.textPrimary),
+            child: ExcludeSemantics(
+              child: Text(
+                _currentLabel,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.ui.copyWith(color: tokens.textPrimary),
+              ),
             ),
           ),
           // Down on desktop for a dropdown, right on a phone for a sheet.

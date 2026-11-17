@@ -63,6 +63,25 @@ void main() {
     expect(colorOf('320 ms'), tokens.dangerText);
   });
 
+  testWidgets('a screen reader hears the tier, steady across samples', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final ping = ValueNotifier<int?>(42);
+    addTearDown(ping.dispose);
+    await tester.pumpWidget(
+      _app(const VoicePingReadout(style: TextStyle()), ping: ping),
+    );
+    expect(find.bySemanticsLabel('Voice ping good'), findsOneWidget);
+    ping.value = 61;
+    await tester.pump();
+    expect(find.bySemanticsLabel('Voice ping good'), findsOneWidget);
+    ping.value = 250;
+    await tester.pump();
+    expect(find.bySemanticsLabel('Voice ping poor'), findsOneWidget);
+    handle.dispose();
+  });
+
   testWidgets('hovering the connection dot adds the voice ping in a call', (
     tester,
   ) async {

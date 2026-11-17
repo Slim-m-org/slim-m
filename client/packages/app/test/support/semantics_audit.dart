@@ -117,6 +117,13 @@ List<String> semanticsProblems(
     }
   }
 
+  for (final node in nodes) {
+    final doubled = doubledName(node.label, node.tooltip);
+    if (doubled != null) {
+      problems.add(_problem('node', node.label, 'announces "$doubled" twice'));
+    }
+  }
+
   for (final element in find.byType(AppButton).evaluate()) {
     final button = element.widget as AppButton;
     if (button.disabled || button.onPressed == null) continue;
@@ -136,4 +143,44 @@ List<String> semanticsProblems(
     checkButton('IconButton', button.tooltip!);
   }
   return problems;
+}
+
+/// The route node a modal surface names itself with: `scopesRoute` and
+/// `namesRoute` set and [label] as its name, or null when the surface is not
+/// exposed as a dialog at all.
+SemanticsNode? namedRoute(WidgetTester tester, String label) {
+  for (final node in _allNodes(tester)) {
+    final flags = node.getSemanticsData().flagsCollection;
+    if (flags.scopesRoute && flags.namesRoute && node.label == label) {
+      return node;
+    }
+  }
+  return null;
+}
+
+/// Whether any node a screen reader can walk to announces [text].
+bool announces(WidgetTester tester, String text) =>
+    _naming(_allNodes(tester), text).isNotEmpty;
+
+/// The phrase a node's name says twice, or null: a tooltip the label already
+/// says ("Mute Mute"), or a merged child text or field hint repeating the part
+/// just before it ("Search settings Search settings", "Closes, currently
+/// Never Never", "Join the official Space. host Join the official Space").
+String? doubledName(String label, String tooltip) {
+  bool wordy(String s) => s.length > 1 && s.contains(RegExp('[A-Za-z]'));
+  final parts = [
+    for (final p in label.split('\n'))
+      if (p.trim().isNotEmpty) p.trim(),
+  ];
+  final tip = tooltip.trim();
+  if (wordy(tip) && parts.any((p) => p.startsWith(tip) || tip.startsWith(p))) {
+    return tip;
+  }
+  for (var i = 1; i < parts.length; i++) {
+    final before = parts[i - 1];
+    final part = parts[i];
+    if (!wordy(part) || !wordy(before)) continue;
+    if (before.startsWith(part) || before.endsWith(part)) return part;
+  }
+  return null;
 }

@@ -83,6 +83,8 @@ class SpaceConnectionDot extends StatelessWidget {
     final ping = voicePingMs;
     final dot = Tooltip(
       message: ping == null ? label : '$label\nVoice ping $ping ms',
+      // The label below names it; a ping that changes each second would only churn what a screen reader hears.
+      excludeFromSemantics: true,
       child: Semantics(
         label: label,
         // Cross-fades on [AppStatusDot]'s own clock; the key scopes the swap to the state.

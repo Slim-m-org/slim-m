@@ -9,6 +9,9 @@ import 'package:slimm_design_system/design_system.dart' show AppFadeIn;
 import '../providers/first_run_controller.dart';
 import 'first_run_flow.dart';
 
+/// What a screen reader calls the setup while it covers the shell.
+const firstRunDialogLabel = 'Account setup';
+
 class FirstRunGate extends ConsumerWidget {
   const FirstRunGate({required this.child, super.key});
 
@@ -30,8 +33,14 @@ class FirstRunGate extends ConsumerWidget {
           ),
         ),
         if (state.active)
-          const Positioned.fill(
-            child: AppFadeIn(offset: 0, child: FirstRunFlow()),
+          Positioned.fill(
+            child: Semantics(
+              scopesRoute: true,
+              namesRoute: true,
+              explicitChildNodes: true,
+              label: firstRunDialogLabel,
+              child: const AppFadeIn(offset: 0, child: FirstRunFlow()),
+            ),
           ),
       ],
     );

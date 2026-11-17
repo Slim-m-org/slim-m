@@ -330,6 +330,17 @@ String formatCallClock(Duration d) {
   return parts.hours > 0 ? '${parts.hours}:$m:$s' : '$m:$s';
 }
 
+/// What a screen reader hears for a call clock: whole minutes, so the node
+/// does not change under it, and get announced again, every second.
+String spokenCallClock(Duration d) {
+  final parts = decomposeDuration(d);
+  String unit(int n, String word) => '$n $word${n == 1 ? '' : 's'}';
+  if (parts.hours == 0 && parts.minutes == 0) return 'under a minute';
+  if (parts.hours == 0) return unit(parts.minutes, 'minute');
+  if (parts.minutes == 0) return unit(parts.hours, 'hour');
+  return '${unit(parts.hours, 'hour')} ${unit(parts.minutes, 'minute')}';
+}
+
 /// `12:34`-style elapsed time since [since], ticking once a second.
 ///
 /// A text update, not motion, so it does not route through reduce-motion; it
@@ -351,9 +362,11 @@ class _CallDurationState extends State<CallDuration> with SecondTickMixin {
   Widget build(BuildContext context) {
     tickWhile(true);
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final elapsed = DateTime.now().difference(widget.since);
+    final raw = DateTime.now().difference(widget.since);
+    final elapsed = raw.isNegative ? Duration.zero : raw;
     return Text(
-      formatCallClock(elapsed.isNegative ? Duration.zero : elapsed),
+      formatCallClock(elapsed),
+      semanticsLabel: spokenCallClock(elapsed),
       style:
           widget.style ??
           AppText.caption.copyWith(

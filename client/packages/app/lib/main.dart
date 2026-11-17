@@ -33,6 +33,7 @@ import 'src/features/accounts/providers/account_restore.dart';
 import 'src/features/accounts/providers/account_services.dart';
 import 'src/providers/app_badge_sync.dart';
 import 'src/providers/notification_read_sync.dart';
+import 'src/widgets/enter_activates_buttons.dart';
 import 'src/widgets/system_bars.dart';
 import 'src/desktop/self_update/self_update_controller.dart';
 import 'src/desktop/startup_updates.dart';
@@ -519,7 +520,7 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
     );
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: systemBarsFor(Theme.of(context).brightness),
-      child: mirrored,
+      child: EnterActivatesButtons(child: mirrored),
     );
   },
 );

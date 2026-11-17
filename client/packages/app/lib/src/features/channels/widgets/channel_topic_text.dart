@@ -38,7 +38,14 @@ class ChannelTopicText extends StatelessWidget {
                       color: tokens.textSecondary,
                     ),
                   );
-                  return touch ? text : Tooltip(message: topic, child: text);
+                  return touch
+                      ? text
+                      : Tooltip(
+                          message: topic,
+                          // The tap target is already named by the topic.
+                          excludeFromSemantics: true,
+                          child: text,
+                        );
                 },
               ),
       ),

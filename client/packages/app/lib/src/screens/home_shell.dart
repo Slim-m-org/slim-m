@@ -69,6 +69,7 @@ import '../features/voice/widgets/push_to_talk_listener.dart';
 import '../features/channels/widgets/rail_notes_button.dart';
 import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/download_failures.dart';
+import '../widgets/shell_focus_anchor.dart';
 import '../widgets/update_banner_host.dart';
 import '../features/voice/providers/push_to_talk_gate.dart';
 import '../features/voice/providers/shortcut_overrides.dart';
@@ -127,10 +128,7 @@ class HomeShell extends ConsumerWidget {
                 ref,
                 previewing: preview != null,
               ),
-              // CallbackShortcuts only fires for a focused descendant, so this
-              // default makes the shortcut work the instant the app opens.
-              child: Focus(
-                autofocus: true,
+              child: ShellFocusAnchor(
                 child: _LayoutBridge(
                   layout: layout,
                   child: NewDeviceBannerHost(

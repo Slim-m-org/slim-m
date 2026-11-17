@@ -110,11 +110,14 @@ class MemberProfileHeader extends ConsumerWidget {
 
     final name = handleOnly
         ? handleLine
-        : Text(
-            profile.displayName,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: nameStyle,
+        // The avatar above already announces the name, with presence.
+        : ExcludeSemantics(
+            child: Text(
+              profile.displayName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: nameStyle,
+            ),
           );
 
     final avatar = Opacity(

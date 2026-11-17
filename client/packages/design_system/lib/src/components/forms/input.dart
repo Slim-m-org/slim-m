@@ -195,37 +195,34 @@ class _AppInputState extends State<AppInput> {
     final hasMessage = (widget.errorText ?? '').isNotEmpty;
     final hasError = hasMessage || widget.invalid;
 
-    return Semantics(
-      label: widget.obscureText ? null : widget.semanticLabel,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _ring(tokens, _field(tokens, hasError)),
-          if (widget.counterMax case final max?) ...[
-            const SizedBox(height: AppSpacing.s4),
-            // Its own node, so the count never merges into the field's label.
-            Semantics(
-              container: true,
-              child: Padding(
-                padding: _beneathTheBorder,
-                child: _counter(tokens, max),
-              ),
-            ),
-          ],
-          if (hasMessage) ...[
-            const SizedBox(height: AppSpacing.s4),
-            Padding(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _ring(tokens, _field(tokens, hasError)),
+        if (widget.counterMax case final max?) ...[
+          const SizedBox(height: AppSpacing.s4),
+          // Its own node, so the count never merges into the field's label.
+          Semantics(
+            container: true,
+            child: Padding(
               padding: _beneathTheBorder,
-              child: Text(
-                widget.errorText!,
-                style: AppText.caption.copyWith(
-                    color: tokens.dangerText, fontFamily: AppFonts.sans),
-              ),
+              child: _counter(tokens, max),
             ),
-          ],
+          ),
         ],
-      ),
+        if (hasMessage) ...[
+          const SizedBox(height: AppSpacing.s4),
+          Padding(
+            padding: _beneathTheBorder,
+            child: Text(
+              widget.errorText!,
+              style: AppText.caption.copyWith(
+                  color: tokens.dangerText, fontFamily: AppFonts.sans),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -261,14 +258,12 @@ class _AppInputState extends State<AppInput> {
             widget.icon!,
             const SizedBox(width: AppSpacing.s8)
           ],
-          // The reveal toggle is its own node, so the label must sit on the field itself.
+          // On the field itself: a trailing button or the reveal toggle is a node of its own, and a label above both named neither.
           Expanded(
-            child: widget.obscureText
-                ? Semantics(
-                    label: widget.semanticLabel,
-                    child: _textField(tokens, textStyle),
-                  )
-                : _textField(tokens, textStyle),
+            child: Semantics(
+              label: widget.semanticLabel,
+              child: _textField(tokens, textStyle),
+            ),
           ),
           if (widget.obscureText) ...[
             const SizedBox(width: AppSpacing.s8),
@@ -293,6 +288,13 @@ class _AppInputState extends State<AppInput> {
             ? () => setState(() => _revealed = !_revealed)
             : null,
       );
+
+  /// A placeholder the label already says would be announced after it again.
+  bool get _hintRepeatsLabel {
+    final placeholder = widget.placeholder;
+    if (placeholder == null || placeholder.isEmpty) return false;
+    return widget.semanticLabel?.contains(placeholder) ?? false;
+  }
 
   Widget _textField(AppTokens tokens, TextStyle textStyle) {
     return TextField(
@@ -325,7 +327,17 @@ class _AppInputState extends State<AppInput> {
         enabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,
         filled: false,
-        hintText: widget.placeholder,
+        hintText: _hintRepeatsLabel ? null : widget.placeholder,
+        hint: _hintRepeatsLabel
+            ? ExcludeSemantics(
+                child: Text(
+                  widget.placeholder!,
+                  style: textStyle.copyWith(color: tokens.textSecondary),
+                  maxLines: _multiline ? null : 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              )
+            : null,
         hintStyle: textStyle.copyWith(color: tokens.textSecondary),
         contentPadding: EdgeInsets.zero,
       ),

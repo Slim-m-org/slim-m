@@ -64,8 +64,13 @@ Future<void> openCommandPalette(BuildContext context) async {
     barrierColor: kScrimColor,
     // The same 180ms AppMotion.base `modalPage` and `showAppSheet` use.
     transitionDuration: AppMotion.reduced(context, AppMotion.base),
-    pageBuilder: (context, animation, secondaryAnimation) =>
-        _CommandPaletteContent(currentChannelId: channelId),
+    pageBuilder: (context, animation, secondaryAnimation) => Semantics(
+      namesRoute: true,
+      scopesRoute: true,
+      explicitChildNodes: true,
+      label: 'Command palette',
+      child: _CommandPaletteContent(currentChannelId: channelId),
+    ),
     // member_profile.dart's authored entrance: a curved fade with an 8px rise.
     transitionBuilder: (context, animation, secondaryAnimation, child) {
       final curved = CurvedAnimation(
