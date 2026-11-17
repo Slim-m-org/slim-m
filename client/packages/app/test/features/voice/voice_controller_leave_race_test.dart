@@ -160,4 +160,35 @@ void main() {
     expect(controller.state.justLeftChannelId, 'chan-1');
     expect(controller.state.state, VoiceSessionState.idle);
   });
+
+  test(
+    'a call left with the camera on joins the next call with it off',
+    () async {
+      final session = FakeSession();
+      final controller = harness.controllerWith(session, voiceApi());
+
+      await controller.join('chan-1');
+      session.emitState(VoiceSessionState.connected);
+      session.emitParticipants(const [
+        VoiceParticipant(
+          identity: 'me',
+          name: 'Me',
+          isSpeaking: false,
+          isMuted: false,
+          isLocal: true,
+          isScreenSharing: false,
+          isCameraOn: true,
+        ),
+      ]);
+      await pumpEventQueue();
+      expect(controller.state.cameraEnabled, isTrue);
+
+      await controller.leave();
+      await pumpEventQueue();
+      expect(controller.state.cameraEnabled, isFalse);
+
+      await controller.join('chan-2');
+      expect(session.askedForCameraOnJoin, isFalse);
+    },
+  );
 }
