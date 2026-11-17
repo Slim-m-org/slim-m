@@ -325,7 +325,7 @@ void main() {
     await Future.wait(asks);
 
     expect(lists, ['sink-inputs', 'sink-inputs']);
-  });
+  }, testOn: 'vm');
 
   test(
       'effective capture options are logged once, with libwebrtc suppression on',
