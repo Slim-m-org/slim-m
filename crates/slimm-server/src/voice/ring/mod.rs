@@ -35,9 +35,21 @@ struct RingState {
     ring_id: CallRingId,
     caller_id: UserId,
     callees: Vec<UserId>,
+    /// Callees counted as rung but never told: offline on Do not disturb, so the caller cannot tell them from anyone offline.
+    quiet: Vec<UserId>,
     /// When it was started, or announced once it was.
     started_at: Instant,
     announced: bool,
+}
+
+impl RingState {
+    fn heard(&self) -> bool {
+        self.announced
+            && self
+                .callees
+                .iter()
+                .any(|callee| !self.quiet.contains(callee))
+    }
 }
 
 /// A ring [`CallRings::sweep_stale_at`] gave up on.
@@ -48,6 +60,18 @@ pub struct StaleRing {
     pub caller_id: UserId,
     /// False when the caller never joined, so nobody was ever rung.
     pub announced: bool,
+    /// False when nobody was told, so no missed-call push goes out.
+    pub heard: bool,
+}
+
+/// A ring its own caller ended before anyone answered.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Canceled {
+    pub ring_id: CallRingId,
+    /// False when the caller never joined, so nobody was ever rung.
+    pub announced: bool,
+    /// False when nobody was told, so no missed-call push goes out.
+    pub heard: bool,
 }
 
 /// What a decline did to its ring.
@@ -83,6 +107,17 @@ impl CallRings {
         caller_id: UserId,
         callees: &[UserId],
     ) -> (CallRingId, Option<(CallRingId, UserId)>) {
+        self.start_with_quiet(channel_id, caller_id, callees, &[])
+    }
+
+    /// [`Self::start`], where `quiet` (some of `callees`) is never told about the ring.
+    pub fn start_with_quiet(
+        &self,
+        channel_id: ChannelId,
+        caller_id: UserId,
+        callees: &[UserId],
+        quiet: &[UserId],
+    ) -> (CallRingId, Option<(CallRingId, UserId)>) {
         let ring_id = CallRingId::generate();
         let replaced = lock(&self.state).insert(
             channel_id,
@@ -90,6 +125,7 @@ impl CallRings {
                 ring_id,
                 caller_id,
                 callees: callees.to_vec(),
+                quiet: quiet.to_vec(),
                 started_at: Instant::now(),
                 announced: false,
             },
@@ -98,7 +134,7 @@ impl CallRings {
     }
 
     /// The caller is in the call now, so the ring may go out: reports its id
-    /// and callees the first time only, and restarts its timeout from here.
+    /// and the callees to tell the first time only, and restarts its timeout from here.
     pub fn announce(
         &self,
         channel_id: ChannelId,
@@ -110,7 +146,13 @@ impl CallRings {
             .filter(|ring| ring.caller_id == caller_id && !ring.announced)?;
         ring.announced = true;
         ring.started_at = Instant::now();
-        Some((ring.ring_id, ring.callees.clone()))
+        let told = ring
+            .callees
+            .iter()
+            .filter(|callee| !ring.quiet.contains(callee))
+            .copied()
+            .collect();
+        Some((ring.ring_id, told))
     }
 
     /// The callee answered (their first heartbeat for this channel landed
@@ -151,10 +193,14 @@ impl CallRings {
 
     /// The caller hung up (or left the call) before it was answered - the
     /// mirror of [`Self::answer`], matched on the caller instead of the
-    /// callee. Also reports whether anybody was ever rung.
-    pub fn cancel(&self, channel_id: ChannelId, caller_id: UserId) -> Option<(CallRingId, bool)> {
+    /// callee. Also reports whether anybody was ever rung, and told.
+    pub fn cancel(&self, channel_id: ChannelId, caller_id: UserId) -> Option<Canceled> {
         self.take_if(channel_id, |ring| ring.caller_id == caller_id)
-            .map(|ring| (ring.ring_id, ring.announced))
+            .map(|ring| Canceled {
+                ring_id: ring.ring_id,
+                announced: ring.announced,
+                heard: ring.heard(),
+            })
     }
 
     /// Removes whatever ring is outstanding for this channel, reporting its id
@@ -190,6 +236,7 @@ impl CallRings {
         let mut found: Vec<_> = state
             .iter()
             .filter(|(_, ring)| ring.announced && ring.callees.contains(&callee_id))
+            .filter(|(_, ring)| !ring.quiet.contains(&callee_id))
             .filter_map(|(&channel_id, ring)| {
                 let left = RING_TIMEOUT.checked_sub(now.duration_since(ring.started_at))?;
                 Some((
@@ -226,6 +273,7 @@ impl CallRings {
                     ring_id: ring.ring_id,
                     caller_id: ring.caller_id,
                     announced: ring.announced,
+                    heard: ring.heard(),
                 })
             })
             .collect()

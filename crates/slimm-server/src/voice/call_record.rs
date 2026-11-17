@@ -9,6 +9,15 @@ use crate::ids::{CallRingId, ChannelId, UserId};
 use crate::push::{PushSender, SentMessage};
 use crate::store::Store;
 
+/// The sender for a finished ring's pushes: none when nobody was told about it, so they are not disturbed after all.
+pub(crate) fn push_if_heard(push: &PushSender, heard: bool) -> PushSender {
+    if heard {
+        push.clone()
+    } else {
+        PushSender::disabled()
+    }
+}
+
 /// Writes the record a finished call leaves in its DM, wakes the callee's devices and fans it out live.
 ///
 /// Best-effort on purpose: a call that happened is more important than its

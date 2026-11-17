@@ -106,8 +106,9 @@ async fn incoming(
 /// personal space (a DM with themself) has nobody on the other end to ring.
 /// A group rings everyone else on its roster; the first to join answers for all.
 /// With anyone already in the call the ring ends at once as answered and nobody
-/// is rung: the caller is joining a live call. Nobody on Do not disturb is rung
-/// either; with only them left it ends at once as a missed call.
+/// is rung: the caller is joining a live call. Nobody on Do not disturb is told;
+/// with only connected ones left it ends at once as a missed call. One offline on
+/// Do not disturb rings silently until the timeout, as anyone offline would.
 ///
 /// A second ring for the same channel replaces whatever was already
 /// outstanding - see [`crate::voice::CallRings`] - since a caller trying
@@ -158,13 +159,17 @@ async fn ring(
         .in_call_at(channel_id, std::time::Instant::now());
     if callees.iter().any(|callee| in_call.contains(callee)) {
         // Pressing Call on a live call joins it: nobody else is rung and nothing is missed.
-        if let Some((own_ring, _)) = state.voice.rings().cancel(channel_id, ctx.user_id) {
-            announce_replaced(&state, channel_id, ctx.user_id, (own_ring, ctx.user_id));
+        if let Some(own) = state.voice.rings().cancel(channel_id, ctx.user_id) {
+            announce_replaced(&state, channel_id, ctx.user_id, (own.ring_id, ctx.user_id));
         }
         let ring_id = ended_at_once(&state, channel_id, CallRingOutcome::Answered);
         return Ok(Json(RingResponse::ended(ring_id, Vec::new())));
     }
-    let (callees, do_not_disturb) = split_off_do_not_disturb(&state, callees).await?;
+    let DoNotDisturb {
+        rung: callees,
+        quiet,
+        shown: do_not_disturb,
+    } = split_off_do_not_disturb(&state, callees).await?;
     if callees.is_empty() {
         if let Some(replaced) = state.voice.rings().take(channel_id) {
             announce_replaced(&state, channel_id, ctx.user_id, replaced);
@@ -184,7 +189,11 @@ async fn ring(
         return Ok(Json(RingResponse::ended(ring_id, do_not_disturb)));
     }
 
-    let (ring_id, replaced) = state.voice.rings().start(channel_id, ctx.user_id, &callees);
+    let (ring_id, replaced) =
+        state
+            .voice
+            .rings()
+            .start_with_quiet(channel_id, ctx.user_id, &callees, &quiet);
     if let Some(replaced) = replaced {
         announce_replaced(&state, channel_id, ctx.user_id, replaced);
     }
@@ -210,24 +219,38 @@ impl RingResponse {
     }
 }
 
-/// `(still to ring, shown as on Do not disturb)`: Do not disturb blocks a ring on
-/// every device, but only a connected callee is reported, as presence shows the
-/// rest offline whatever they chose.
+/// The callees split by Do not disturb, which blocks a ring on every device.
+struct DoNotDisturb {
+    /// Everyone the ring counts as ringing, `quiet` included.
+    rung: Vec<UserId>,
+    /// Offline on Do not disturb: rung but never told, since presence shows them offline whatever they chose.
+    quiet: Vec<UserId>,
+    /// Connected on Do not disturb: not rung, and reported to the caller.
+    shown: Vec<String>,
+}
+
 async fn split_off_do_not_disturb(
     state: &AppState,
     callees: Vec<UserId>,
-) -> Result<(Vec<UserId>, Vec<String>), ApiError> {
+) -> Result<DoNotDisturb, ApiError> {
     let visibility = state.store.presence_visibility_many(&callees).await?;
-    let (rung, blocked): (Vec<UserId>, Vec<UserId>) = callees
-        .into_iter()
-        .partition(|callee| visibility.get(callee) != Some(&Visibility::Dnd));
     let presence = state.hub.presence();
-    let shown = blocked
-        .into_iter()
-        .filter(|callee| presence.is_connected(*callee))
-        .map(|callee| callee.to_string())
-        .collect();
-    Ok((rung, shown))
+    let mut split = DoNotDisturb {
+        rung: Vec::new(),
+        quiet: Vec::new(),
+        shown: Vec::new(),
+    };
+    for callee in callees {
+        if visibility.get(&callee) != Some(&Visibility::Dnd) {
+            split.rung.push(callee);
+        } else if presence.is_connected(callee) {
+            split.shown.push(callee.to_string());
+        } else {
+            split.quiet.push(callee);
+            split.rung.push(callee);
+        }
+    }
+    Ok(split)
 }
 
 /// Ends a ring a newer attempt took over. Announced so its caller stops ringing

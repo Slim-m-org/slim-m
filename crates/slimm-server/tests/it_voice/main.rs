@@ -18,6 +18,7 @@ mod hold_music_account;
 mod incoming_rings;
 mod member_moderation_evicts_dm_calls;
 mod ring_audience;
+mod ring_do_not_disturb;
 mod ring_live_call;
 mod screen_share_cap;
 mod screen_stamps;

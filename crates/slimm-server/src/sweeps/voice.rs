@@ -217,7 +217,7 @@ pub async fn sweep_stale_call_rings_at(
         voice::record_finished_call(
             store,
             hub,
-            push,
+            &voice::push_if_heard(push, stale.heard),
             channel_id,
             ring_id,
             caller_id,

@@ -37,7 +37,7 @@ async fn group(rig: &Rig, owner: &Person, others: &[&Person]) -> String {
         .to_owned()
 }
 
-async fn set_do_not_disturb(rig: &Rig, who: &Person) {
+pub(crate) async fn set_do_not_disturb(rig: &Rig, who: &Person) {
     let response = rig
         .app
         .clone()
@@ -52,7 +52,7 @@ async fn set_do_not_disturb(rig: &Rig, who: &Person) {
     assert!(response.status().is_success(), "{}", response.status());
 }
 
-async fn calls_in(rig: &Rig, channel: &str, who: &Person) -> Vec<Value> {
+pub(crate) async fn calls_in(rig: &Rig, channel: &str, who: &Person) -> Vec<Value> {
     let response = rig
         .app
         .clone()

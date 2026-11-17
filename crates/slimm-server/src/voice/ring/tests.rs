@@ -161,7 +161,14 @@ fn the_caller_canceling_is_matched_on_the_caller_not_the_callee() {
     let ring_id = ring(&rings, channel, caller, &[callee]);
 
     assert_eq!(rings.cancel(channel, callee), None, "not the caller");
-    assert_eq!(rings.cancel(channel, caller), Some((ring_id, true)));
+    assert_eq!(
+        rings.cancel(channel, caller),
+        Some(Canceled {
+            ring_id,
+            announced: true,
+            heard: true
+        })
+    );
 }
 
 #[test]
@@ -204,7 +211,8 @@ fn a_ring_past_the_timeout_is_swept_and_reports_the_caller() {
             channel_id: channel,
             ring_id,
             caller_id: caller,
-            announced: true
+            announced: true,
+            heard: true
         }]
     );
     // Swept once, so a later pass over the same instant finds nothing left.
@@ -263,5 +271,27 @@ fn canceling_a_ring_nobody_heard_says_so() {
     let (channel, caller, callee) = (cid(), uid(), uid());
     let ring_id = rings.start(channel, caller, &[callee]).0;
 
-    assert_eq!(rings.cancel(channel, caller), Some((ring_id, false)));
+    assert_eq!(
+        rings.cancel(channel, caller),
+        Some(Canceled {
+            ring_id,
+            announced: false,
+            heard: false
+        })
+    );
+}
+
+#[test]
+fn a_quiet_callee_is_rung_but_never_told() {
+    let rings = CallRings::new();
+    let (channel, caller, quiet) = (cid(), uid(), uid());
+    let ring_id = rings
+        .start_with_quiet(channel, caller, &[quiet], &[quiet])
+        .0;
+
+    assert_eq!(rings.announce(channel, caller), Some((ring_id, vec![])));
+    assert!(rings.outstanding_for_at(quiet, Instant::now()).is_empty());
+    let past = Instant::now() + RING_TIMEOUT + Duration::from_secs(1);
+    let swept = rings.sweep_stale_at(past);
+    assert_eq!((swept[0].announced, swept[0].heard), (true, false));
 }

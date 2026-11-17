@@ -8807,11 +8807,13 @@ paths:
 
 
         Nobody on Do not disturb is rung, on any device, push included; those
-        currently connected are listed in `do_not_disturb` (presence shows the
-        rest offline). When nobody else is left the ring ends at once as
-        `timed_out` (`timeout_ms` 0) and leaves a missed call in the DM,
-        without a push. A ring still outstanding for the channel is ended
-        first, without a record of its own.
+        currently connected are listed in `do_not_disturb`. One who is offline
+        is left out of it, since presence shows them offline, and the ring runs
+        its full timeout as it would for anyone offline. When only connected
+        ones are left the ring ends at once as `timed_out` (`timeout_ms` 0) and
+        leaves a missed call in the DM, without a push. A ring still
+        outstanding for the channel is ended first, without a record of its
+        own.
 
 
         Publishes a live `call.ringing` event to the other participants and, in
