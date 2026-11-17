@@ -106,7 +106,7 @@ void main() {
     expect(find.text('Welcome'), findsOneWidget);
   });
 
-  testWidgets('finishing lands on the busiest text channel with no hint', (
+  testWidgets('finishing lands on the first text channel with no hint', (
     tester,
   ) async {
     await pumpFirstRun(tester);
@@ -116,7 +116,7 @@ void main() {
     expect(find.text('Check your voice'), findsOneWidget);
     await _tap(tester, 'Finish');
 
-    expect(find.text('channel:busy'), findsOneWidget);
+    expect(find.text('channel:general'), findsOneWidget);
     expect(
       find.textContaining('Voice channels are in the channel list'),
       findsNothing,
