@@ -48,6 +48,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../voice/widgets/bot_call_controls.dart';
+import '../../voice/widgets/soundboard_button.dart' show canUseSoundboard;
 import '../../voice/widgets/call_leave_button.dart';
 import '../../voice/screens/dock_solo_controls.dart';
 import '../../voice/widgets/voice_call_controls.dart';
@@ -184,10 +185,12 @@ CallDockData? callDockDataFor(
 /// button too. Anything narrower takes two rows.
 const _oneRowMinWidth = 744.0;
 
-/// Measured the same way: tools and undo, redo and more on one row, the call
-/// group (with the canvas toggle and leave) on the other, 381dp at the worst.
-/// Anything narrower gives the five tools a row of their own.
+/// Measured the same way: tools and undo, redo and more on one row; the call
+/// group beside it must also pass [callRowFitsFor]. Anything narrower gives
+/// the five tools a row of their own.
 const _twoRowMinWidth = 390.0;
+
+enum _DockLayout { oneRow, twoRows, stacked }
 
 class CanvasCallDock extends ConsumerWidget {
   const CanvasCallDock({
@@ -247,14 +250,33 @@ class CanvasCallDock extends ConsumerWidget {
       );
     }
     final alone = soloMusicInDock(context, ref);
-    final extra = alone ? dockExtraExtent(context) : 0.0;
+    final soundboard = canUseSoundboard(ref, call.voice.channelId);
+    final extra =
+        (alone ? dockExtraExtent(context) : 0.0) +
+        (soundboard ? dockButtonExtent(context) : 0.0);
     return LayoutBuilder(
       key: const ValueKey('call-and-canvas'),
       builder: (context, constraints) {
         final width = constraints.maxWidth;
+        final callFits = callRowFitsFor(
+          context,
+          ref,
+          CallRowOptions(
+            width: width,
+            controller: call.controller,
+            voice: call.voice,
+          ),
+          extraCount: alone ? 2 : 1,
+          musicCaret: alone,
+        );
+        final layout = width >= _oneRowMinWidth + extra
+            ? _DockLayout.oneRow
+            : width >= _twoRowMinWidth && callFits
+            ? _DockLayout.twoRows
+            : _DockLayout.stacked;
         return FloatingDockCard(
           trailing: leave,
-          rows: [?bots, ..._dockRows(canvas, call, width, extra, alone)],
+          rows: [?bots, ..._dockRows(canvas, call, layout, alone)],
         );
       },
     );
@@ -274,11 +296,10 @@ class CanvasCallDock extends ConsumerWidget {
   List<Widget> _dockRows(
     CanvasDockData canvas,
     CallDockData call,
-    double width,
-    double extra,
+    _DockLayout layout,
     bool alone,
   ) {
-    if (width >= _oneRowMinWidth + extra) {
+    if (layout == _DockLayout.oneRow) {
       return [
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -292,7 +313,7 @@ class CanvasCallDock extends ConsumerWidget {
         ),
       ];
     }
-    if (width >= _twoRowMinWidth + extra) {
+    if (layout == _DockLayout.twoRows) {
       return [
         CanvasDockToolsRow(canvas: canvas),
         _callRow(call, toggle: _toggle(canvas), alone: alone),

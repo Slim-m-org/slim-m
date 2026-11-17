@@ -13,21 +13,27 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_call_controls_harness.dart';
 
-const _inCall = VoiceFlags(state: VoiceSessionState.connected, channelId: 'c1');
-
 const _window = 1400.0;
 
 Future<void> _expectNoOverlap(
   WidgetTester tester, {
   required double width,
   required bool touch,
+  required _Case call,
 }) async {
   await pumpVoiceCallDock(
     tester,
-    _inCall,
+    VoiceFlags(
+      state: VoiceSessionState.connected,
+      channelId: 'c1',
+      screenSharing: call.sharing,
+      cameraEnabled: call.cameraOn,
+    ),
     canvasChannelId: 'c1',
     width: width,
     touch: touch,
+    session: InertSession(needsSource: call.sharing)
+      ..canFlipCamera = call.cameraOn,
     extraOverrides: [
       myChannelPermissionsProvider(
         'c1',
@@ -35,7 +41,8 @@ Future<void> _expectNoOverlap(
     ],
   );
   await tester.pump();
-  expect(tester.takeException(), isNull, reason: 'width $width');
+  final reason = 'width $width, touch $touch, $call';
+  expect(tester.takeException(), isNull, reason: reason);
   expect(find.bySemanticsLabel('Soundboard'), findsOneWidget);
   final rects = [
     for (final e in find.bySubtype<CallDockButton>().evaluate())
@@ -50,25 +57,40 @@ Future<void> _expectNoOverlap(
       expect(
         overlap.width > 0.01 && overlap.height > 0.01,
         isFalse,
-        reason: 'buttons $i and $j overlap at width $width (touch $touch)',
+        reason: 'buttons $i and $j overlap at $reason',
       );
     }
   }
 }
 
+typedef _Case = ({bool sharing, bool cameraOn});
+
+const _cases = <_Case>[
+  (sharing: false, cameraOn: false),
+  (sharing: true, cameraOn: false),
+  (sharing: false, cameraOn: true),
+  (sharing: true, cameraOn: true),
+];
+
 void main() {
   for (final touch in [false, true]) {
-    testWidgets('no two dock buttons overlap at any width (touch $touch)', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(_window, 800);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      for (var width = 340.0; width <= 720; width += 4) {
-        await _expectNoOverlap(tester, width: width, touch: touch);
-      }
-      await tester.pumpWidget(const SizedBox());
-      await tester.pump(const Duration(seconds: 10));
-    });
+    for (final call in _cases) {
+      testWidgets('no two dock buttons overlap at any width (touch $touch, '
+          '$call)', (tester) async {
+        tester.view.physicalSize = const Size(_window, 800);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        for (var width = 340.0; width <= 720; width += 4) {
+          await _expectNoOverlap(
+            tester,
+            width: width,
+            touch: touch,
+            call: call,
+          );
+        }
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(seconds: 10));
+      });
+    }
   }
 }

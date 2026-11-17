@@ -168,7 +168,8 @@ class _CallControlsState extends ConsumerState<CallControls> {
     final shareOptions = _shareOptions(context);
     final listenOnly = listenOnlyReason(ref, voice);
     // Touch density is the width-derived compact test; that row has no room for a caret only quality asked for.
-    final showCaret = !touch || (voice.screenSharing && _canSwitchSource);
+    final showCaret =
+        !touch || (voice.screenSharing && _canSwitchSource && !widget.tight);
     final pairedAtTouch = showCaret && touch;
     // A tight row has no width for the mic's caret either; a long press opens its menu instead.
     final micCaret = !touch && !widget.tight;

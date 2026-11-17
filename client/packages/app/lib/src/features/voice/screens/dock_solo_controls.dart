@@ -30,13 +30,18 @@ bool soloMusicInDock(BuildContext context, WidgetRef ref) {
   return available && alone && (badgeAside || !holdMusicBadgeFits(context));
 }
 
-/// The music button's width: its focus-ring reserve and the gap before it, and its options caret at pointer density.
-double dockExtraExtent(BuildContext context) {
+/// One dock button's width with its focus-ring reserve and the gap before it.
+double dockButtonExtent(BuildContext context) {
   final touch = AppTouchTargets.of(context);
   final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
   final chip = AppSizes.controlMd > hitTarget ? AppSizes.controlMd : hitTarget;
-  final caret = touch ? 0.0 : AppSpacing.s24;
-  return chip + 2 * (focusRingGap + focusRingWidth) + AppSpacing.s8 + caret;
+  return chip + 2 * (focusRingGap + focusRingWidth) + AppSpacing.s8;
+}
+
+/// The music button's width: a [dockButtonExtent] and its options caret at pointer density.
+double dockExtraExtent(BuildContext context) {
+  final caret = AppTouchTargets.of(context) ? 0.0 : AppSpacing.s24;
+  return dockButtonExtent(context) + caret;
 }
 
 /// The extras in one widget, or null when there are none.
@@ -111,14 +116,10 @@ List<Widget> callRowsWithExtras(
     menuExtras: menuExtras,
     hints: hints,
   );
-  final switchCameraShown =
-      voice.cameraEnabled && canSwitchCamera(ref, controller);
-  final soundboardShown = canUseSoundboard(ref, voice.channelId);
-  bool fitsWith(int extraCount, {bool music = false}) => callRowFits(
+  bool fitsWith(int extraCount, {bool music = false}) => callRowFitsFor(
     context,
-    width,
-    switchCameraShown: switchCameraShown,
-    soundboardShown: soundboardShown,
+    ref,
+    options,
     extraCount: extraCount,
     musicCaret: music,
   );
@@ -151,8 +152,29 @@ List<Widget> callRowsWithExtras(
   ];
 }
 
+/// [callRowFits] for the call in [options], reading which optional controls it draws.
+bool callRowFitsFor(
+  BuildContext context,
+  WidgetRef ref,
+  CallRowOptions options, {
+  required int extraCount,
+  bool musicCaret = false,
+}) {
+  final CallRowOptions(:width, :controller, :voice) = options;
+  return callRowFits(
+    context,
+    width,
+    switchCameraShown: voice.cameraEnabled && canSwitchCamera(ref, controller),
+    soundboardShown: canUseSoundboard(ref, voice.channelId),
+    shareCaret: voice.screenSharing && controller.video.screenShareNeedsSource,
+    extraCount: extraCount,
+    musicCaret: musicCaret,
+  );
+}
+
 /// Whether the call row plus [extraCount] extra buttons fit one line at [width]
-/// ([musicCaret]: the music button among them carries an options caret),
+/// ([musicCaret]: the music button among them carries an options caret;
+/// [shareCaret]: share draws its caret even at touch density, to switch source),
 /// mirroring [CallDockButton]'s own fixed-size formula rather than measuring
 /// real render objects - cheap, and exact, since every control here draws at
 /// one of exactly two sizes and nothing here ever wraps text.
@@ -172,6 +194,7 @@ bool callRowFits(
   double width, {
   required bool switchCameraShown,
   bool soundboardShown = false,
+  bool shareCaret = false,
   required int extraCount,
   bool musicCaret = false,
 }) {
@@ -186,7 +209,9 @@ bool callRowFits(
   // The divider before leave takes the place of one gap: s4, 1dp, s4.
   const leaveDivider = 1.0;
   // Measured, not derived: each caret's width less what its primary half gives back, at pointer density only; the mic, camera and share each carry one.
-  final carets = touch ? 0.0 : (musicCaret ? 4 : 3) * AppSpacing.s24;
+  final carets = touch
+      ? (shareCaret ? _touchShareCaret : 0.0)
+      : (musicCaret ? 4 : 3) * AppSpacing.s24;
   final needed =
       carets +
       controlCount * button +
@@ -195,3 +220,6 @@ bool callRowFits(
       cardPadding;
   return needed <= width;
 }
+
+/// Measured: the share caret's touch hit box plus the wider gap before share, less what the primary gives back.
+const _touchShareCaret = AppSizes.rowTouch;
