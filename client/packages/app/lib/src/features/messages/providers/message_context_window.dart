@@ -8,9 +8,10 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_data/data.dart' show Message, ForwardedMessage;
+import 'package:slimm_data/data.dart' show Message;
 
 import '../../../providers/providers.dart';
+import 'local_message_of.dart';
 import 'message_extras.dart';
 
 /// Rows asked for around the target: the server clamps to its own maximum.
@@ -49,8 +50,8 @@ class MessageContextController
     );
     if (ticket != _ticket) return;
     ref.read(messageExtrasProvider.notifier).applyMessages(page);
-    final rows = [for (final m in page.reversed) _rowFor(m)];
-    if (!rows.any((m) => m.id == messageId)) rows.add(_rowFor(target));
+    final rows = [for (final m in page.reversed) localMessageOf(m)];
+    if (!rows.any((m) => m.id == messageId)) rows.add(localMessageOf(target));
     rows.sort((a, b) => a.seq.compareTo(b.seq));
     state = MessageContextWindow(targetId: messageId, messages: rows);
   }
@@ -67,30 +68,3 @@ final messageContextWindowProvider =
       MessageContextWindow?,
       String
     >(MessageContextController.new);
-
-Message _rowFor(api.Message m) => Message(
-  id: m.id,
-  channelId: m.channelId,
-  authorId: m.authorId,
-  authorDisplayName: m.authorDisplayName,
-  seq: m.seq,
-  content: m.content,
-  createdAt: m.createdAt,
-  editedAt: m.editedAt,
-  replyToId: m.replyToId,
-  forwarded: m.forwarded == null
-      ? null
-      : ForwardedMessage(
-          messageId: m.forwarded!.messageId,
-          channelId: m.forwarded!.channelId,
-          authorId: m.forwarded!.authorId,
-          authorDisplayName: m.forwarded!.authorDisplayName,
-          authorAvatarUpdatedAt: m.forwarded!.authorAvatarUpdatedAt,
-          createdAt: m.forwarded!.createdAt,
-          content: m.forwarded!.content,
-          removed: m.forwarded!.removed,
-        ),
-  linkPreviewsRemoved: m.linkPreviewsRemoved,
-  pending: false,
-  failed: false,
-);
