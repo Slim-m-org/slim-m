@@ -134,3 +134,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0123](0123-spotify-link-cards.md) | Spotify links preview as the item, with a Play button that plays inline on web and opens Spotify elsewhere | accepted |
 | [0124](0124-view-server-as-role.md) | View server as a role: a server-computed, read-only, audited preview of what one role sees | accepted |
 | [0125](0125-private-categories.md) | A category is made private with a switch, and says who can see it | accepted |
+| [0126](0126-only-the-author-edits.md) | Only a message's author can edit it; moderators delete instead | accepted |
