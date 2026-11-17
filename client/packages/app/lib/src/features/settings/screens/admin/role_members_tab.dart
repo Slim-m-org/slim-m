@@ -16,12 +16,10 @@ import '../../../members/providers/member_presence.dart' show membersProvider;
 import '../../../../providers/admin_providers.dart' show roleLadderProvider;
 import '../../../../providers/providers.dart';
 import '../../../../role_ladder.dart';
-import '../../../members/widgets/bot_avatar_placeholder.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
-import '../../../members/widgets/user_avatar.dart';
-import '../../../members/widgets/profile_colour.dart';
+import 'role_holder_avatar.dart';
 
 /// A group past this size collapses to this many rows plus a "+N more"
 /// summary, matching the design's own worked example.
@@ -158,7 +156,7 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
                       children: [
                         for (final (index, candidate) in candidates.indexed)
                           AppListRow(
-                            leading: _avatar(context, candidate),
+                            leading: roleHolderAvatar(context, candidate),
                             label: candidate.displayName,
                             meta: '@${candidate.username}',
                             trailing: _AddAction(
@@ -239,19 +237,6 @@ class _AddAction extends StatelessWidget {
   }
 }
 
-Widget _avatar(BuildContext context, api.UserProfile member) =>
-    UserAvatar.known(
-      name: member.displayName,
-      userId: member.id,
-      avatarUpdatedAt: member.avatarUpdatedAt,
-      profileColour: profileColourOfUser(member),
-      size: AppAvatarSize.s28,
-      shape: member.isBot ? AppAvatarShape.square : AppAvatarShape.circle,
-      placeholder: member.isBot
-          ? botAvatarPlaceholder(context, member.displayName)
-          : null,
-    );
-
 class _HolderGroup extends StatelessWidget {
   const _HolderGroup({
     required this.title,
@@ -299,7 +284,7 @@ class _HolderGroup extends StatelessWidget {
           for (final holder in shown)
             AppListRow(
               key: ValueKey(holder.id),
-              leading: _avatar(context, holder),
+              leading: roleHolderAvatar(context, holder),
               label: holder.displayName,
               meta: '@${holder.username}',
               trailing: switch (onRemove) {
