@@ -57,9 +57,20 @@ GoRouter _router(String initialLocation) => GoRouter(
   initialLocation: initialLocation,
   routes: [
     GoRoute(
+      path: '/channels',
+      builder: (context, state) => const _Page(activeChannelId: null),
+    ),
+    GoRoute(
       path: '/channels/:channelId',
       builder: (context, state) =>
           _Page(activeChannelId: state.pathParameters['channelId']),
+      routes: [
+        GoRoute(
+          path: 'm/:messageId',
+          builder: (context, state) =>
+              _Page(activeChannelId: state.pathParameters['channelId']),
+        ),
+      ],
     ),
     GoRoute(
       path: '/settings',
@@ -92,7 +103,11 @@ Future<void> _press(WidgetTester tester, GoRouter router, String to) async {
   );
 }
 
-Future<void> _toggleFrom(WidgetTester tester, String start) async {
+Future<void> _withRouter(
+  WidgetTester tester,
+  String start,
+  Future<void> Function(GoRouter router) body,
+) async {
   final container = _container();
   final router = _router(start);
   await tester.pumpWidget(
@@ -106,13 +121,23 @@ Future<void> _toggleFrom(WidgetTester tester, String start) async {
   );
   await pumpFrames(tester);
 
-  await _press(tester, router, '/channels/dm-self');
-  await _press(tester, router, start);
+  await body(router);
 
   await tester.pumpWidget(const SizedBox());
   container.dispose();
   await tester.pump(const Duration(milliseconds: 1));
 }
+
+Future<void> _goTo(WidgetTester tester, GoRouter router, String to) async {
+  router.go(to);
+  await waitUntil(tester, () => _location(router) == to, reason: 'go $to');
+}
+
+Future<void> _toggleFrom(WidgetTester tester, String start) =>
+    _withRouter(tester, start, (router) async {
+      await _press(tester, router, '/channels/dm-self');
+      await _press(tester, router, start);
+    });
 
 void main() {
   testWidgets('a second press from a channel goes back to that channel', (
@@ -125,5 +150,32 @@ void main() {
     tester,
   ) async {
     await _toggleFrom(tester, '/settings?pane=profile');
+  });
+
+  testWidgets('a press on a Notes message link leaves Notes for where it was '
+      'opened from', (tester) async {
+    await _withRouter(tester, '/channels/general', (router) async {
+      await _press(tester, router, '/channels/dm-self');
+      await _goTo(tester, router, '/channels/dm-self/m/msg-1');
+      await _press(tester, router, '/channels/general');
+    });
+  });
+
+  testWidgets('a press on a Notes message link reached directly goes to '
+      'the channels home', (tester) async {
+    await _withRouter(tester, '/channels/dm-self/m/msg-1', (router) async {
+      await _press(tester, router, '/channels');
+    });
+  });
+
+  testWidgets('leaving Notes another way forgets where it was opened from', (
+    tester,
+  ) async {
+    await _withRouter(tester, '/channels/general', (router) async {
+      await _press(tester, router, '/channels/dm-self');
+      await _goTo(tester, router, '/channels/random');
+      await _goTo(tester, router, '/channels/dm-self');
+      await _press(tester, router, '/channels');
+    });
   });
 }

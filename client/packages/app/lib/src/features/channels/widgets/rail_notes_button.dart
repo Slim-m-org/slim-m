@@ -13,6 +13,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../providers/channel_by_id_provider.dart';
 import '../providers/dms.dart';
+import 'channel_rail.dart' show channelIdInPath;
 import '../../../routing/routes.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../../widgets/shortcut_label.dart';
@@ -20,7 +21,8 @@ import '../../../widgets/shortcut_label.dart';
 /// Why the last attempt to open Notes failed, shown over the rail until dismissed.
 final notesOpenFailureProvider = StateProvider<String?>((ref) => null);
 
-/// Where Notes was opened from, so a second press goes back there.
+/// Where this visit to Notes was opened from, so a second press goes back
+/// there; cleared once the visit ends any other way.
 final notesReturnLocationProvider = StateProvider<String?>((ref) => null);
 
 /// Toggles Notes in [router]: opens it, creating it on the server the first
@@ -36,15 +38,40 @@ Future<void> openNotes(ProviderContainer container, GoRouter router) async {
   container.read(notesOpenFailureProvider.notifier).state = failure;
   final id = channelId;
   if (failure != null || id == null) return;
-  final notes = Routes.channel(id);
   final back = container.read(notesReturnLocationProvider.notifier);
-  if (Uri.parse(here).path == notes) {
+  if (channelIdInPath(Uri.parse(here).path) == id) {
     router.go(back.state ?? Routes.channels);
     back.state = null;
     return;
   }
   back.state = here;
-  router.go(notes);
+  _forgetOnLeaving(container, router, notesId: id, from: here);
+  router.go(Routes.channel(id));
+}
+
+/// Clears the return location [from] once the router has shown Notes and
+/// then moved off it, so a later visit never returns to an old place.
+void _forgetOnLeaving(
+  ProviderContainer container,
+  GoRouter router, {
+  required String notesId,
+  required String from,
+}) {
+  final delegate = router.routerDelegate;
+  var arrived = false;
+  late final VoidCallback listener;
+  listener = () {
+    final inNotes =
+        channelIdInPath(delegate.currentConfiguration.uri.path) == notesId;
+    if (inNotes || !arrived) {
+      arrived = arrived || inNotes;
+      return;
+    }
+    delegate.removeListener(listener);
+    final back = container.read(notesReturnLocationProvider.notifier);
+    if (back.state == from) back.state = null;
+  };
+  delegate.addListener(listener);
 }
 
 /// Shows as active while Notes is the channel on screen.
