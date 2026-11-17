@@ -419,7 +419,7 @@ void main() {
         authResponder: (r) => throw Exception('connection refused'),
       );
       await submitSignIn(tester);
-      expect(find.textContaining("didn't answer"), findsOneWidget);
+      expect(find.textContaining('Could not reach this Space'), findsOneWidget);
       await _finish(tester, 'submit-unreachable-desktop');
     });
 

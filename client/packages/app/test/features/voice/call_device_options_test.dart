@@ -13,9 +13,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_api/api.dart' show SlimmApi;
+import 'package:slimm_api/api.dart' show SessionStore, SlimmApi;
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
-import 'package:slimm_app/src/providers/providers.dart' show apiProvider;
+import 'package:slimm_app/src/providers/providers.dart'
+    show apiProvider, sessionProvider;
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_device_options.dart';
@@ -23,6 +24,7 @@ import 'package:slimm_app/src/widgets/control_menu_entries.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_call_controls_harness.dart';
+import 'voice_settings_screen_harness.dart' show tokens;
 
 const _cameraOn = VoiceFlags(
   state: VoiceSessionState.connected,
@@ -234,7 +236,11 @@ void main() {
     final container = await _pump(
       tester,
       InertSession(supportsInputGate: true),
-      overrides: [apiProvider.overrideWith((ref) => _strongSpaceApi())],
+      overrides: [
+        // The Space default is only asked of a Space someone is signed in to.
+        sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
+        apiProvider.overrideWith((ref) => _strongSpaceApi()),
+      ],
     );
     await container
         .read(voiceControllerProvider.notifier)
