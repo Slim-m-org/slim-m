@@ -337,6 +337,7 @@ async fn without_a_live_claimer_the_space_owner_is_the_first_administrator_and_n
 
 #[tokio::test]
 async fn roles_tied_at_the_default_take_distinct_positions_in_the_order_they_were_shown() {
+    // The Bots role is older than the tied human roles and still ranks below them.
     let (pool, full, _guard) = pool_before(198).await;
     seed(
         &pool,
@@ -347,7 +348,7 @@ async fn roles_tied_at_the_default_take_distinct_positions_in_the_order_they_wer
                     ({admin}, 'admin', 1, 100, 0, 1, 0),
                     ({early}, 'early', 0, 0, 0, 2, 0),
                     ({late}, 'late', 0, 0, 0, 3, 0),
-                    ({bots}, 'Bots', 0, 0, 0, 4, 1),
+                    ({bots}, 'Bots', 0, 0, 0, 1, 1),
                     ({placed}, 'placed', 0, 5, 0, 5, 0)",
             everyone = id(1),
             admin = id(2),
