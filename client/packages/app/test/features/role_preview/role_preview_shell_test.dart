@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
 import 'package:slimm_app/src/features/role_preview/providers/role_preview_controller.dart';
@@ -59,6 +60,23 @@ void main() {
       await teardownPreviewShell(tester, container, db);
     },
   );
+
+  testWidgets('the palette shortcut opens nothing while previewing', (
+    tester,
+  ) async {
+    final (:container, :db) = await pumpPreviewShell(tester);
+    await enterPreview(tester, container);
+    expect(container.read(rolePreviewProvider)?.preview.hasValue, isTrue);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await pumpFrames(tester);
+
+    expect(find.byWidgetPredicate((w) => w is EditableText), findsNothing);
+    expect(find.text('conversation'), findsNothing);
+    await teardownPreviewShell(tester, container, db);
+  });
 
   testWidgets(
     'exit restores the real rail and writes nothing to the local store',

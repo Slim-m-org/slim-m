@@ -122,7 +122,11 @@ class HomeShell extends ConsumerWidget {
         child: BotFormGate(
           child: PushToTalkListener(
             child: CallbackShortcuts(
-              bindings: _shortcutBindings(context, ref),
+              bindings: _shortcutBindings(
+                context,
+                ref,
+                previewing: preview != null,
+              ),
               // CallbackShortcuts only fires for a focused descendant, so this
               // default makes the shortcut work the instant the app opens.
               child: Focus(
@@ -417,10 +421,12 @@ class HomeShell extends ConsumerWidget {
   }
 
   // Binds the shared shortcut table's own keys, so a future remap reaches every one of these.
+  /// While [previewing] a role, nothing that navigates or shows the caller's own content is bound.
   Map<ShortcutActivator, VoidCallback> _shortcutBindings(
     BuildContext context,
-    WidgetRef ref,
-  ) {
+    WidgetRef ref, {
+    required bool previewing,
+  }) {
     final quickSwitch = activatorFor(AppAction.quickSwitch);
     final focusComposer = activatorFor(AppAction.focusComposer);
     final openSettings = activatorFor(AppAction.openSettings);
@@ -436,24 +442,26 @@ class HomeShell extends ConsumerWidget {
     // Reads the row's handlers when a key arrives, so these are live only while a call row is on screen.
     CallShortcutHandlers? call() => ref.read(callShortcutHandlersProvider);
     return {
-      if (quickSwitch != null) quickSwitch: () => openCommandPalette(context),
-      if (focusComposer != null)
-        focusComposer: () =>
-            ref.read(composerFocusNodeProvider)?.requestFocus(),
+      if (!previewing) ...{
+        if (quickSwitch != null) quickSwitch: () => openCommandPalette(context),
+        if (focusComposer != null)
+          focusComposer: () =>
+              ref.read(composerFocusNodeProvider)?.requestFocus(),
+        if (openInbox != null) openInbox: () => showInboxSheet(context),
+        if (notes != null)
+          notes: () => unawaited(
+            openNotes(
+              ProviderScope.containerOf(context, listen: false),
+              GoRouter.of(context),
+            ),
+          ),
+        if (nextChannel != null)
+          nextChannel: () => unawaited(_cycleChannel(context, ref, 1)),
+        if (previousChannel != null)
+          previousChannel: () => unawaited(_cycleChannel(context, ref, -1)),
+      },
       if (openSettings != null)
         openSettings: () => context.push(Routes.personalSettings),
-      if (openInbox != null) openInbox: () => showInboxSheet(context),
-      if (notes != null)
-        notes: () => unawaited(
-          openNotes(
-            ProviderScope.containerOf(context, listen: false),
-            GoRouter.of(context),
-          ),
-        ),
-      if (nextChannel != null)
-        nextChannel: () => unawaited(_cycleChannel(context, ref, 1)),
-      if (previousChannel != null)
-        previousChannel: () => unawaited(_cycleChannel(context, ref, -1)),
       if (muteCall != null)
         muteCall: () => ref
             .read(pushToTalkGateProvider)
