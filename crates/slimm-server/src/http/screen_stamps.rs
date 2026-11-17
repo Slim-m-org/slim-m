@@ -68,8 +68,8 @@ pub fn routes() -> Router<AppState> {
 
 /// Places a stamp on `target_user_id`'s shared screen, in the order decision 0121 lists.
 ///
-/// Idempotent by id for a picture. A target who blocked the sender gets nothing, and the
-/// sender still gets 204, so a block cannot be told from a delivery.
+/// A block relays nothing and still answers 204, as a reused id does, and the sender never
+/// hears its own stamp, so a block cannot be told from a delivery.
 async fn place(
     Authed(ctx): Authed,
     parts: Parts,
@@ -177,7 +177,9 @@ async fn stillable_header(state: &AppState, sha256: &[u8]) -> Result<ImageHeader
     Ok(header)
 }
 
-/// Everyone in this channel's call, who the stamp goes to, once both people are in it and the target is sharing a screen there.
+/// Everyone else in this channel's call, who the stamp goes to, once both people are in it and the target is sharing a screen there.
+///
+/// Never the sender, whose client already shows the stamp, so a block that relays nothing looks the same to them.
 async fn sharing_call_audience(
     state: &AppState,
     channel_id: ChannelId,
@@ -205,27 +207,27 @@ async fn sharing_call_audience(
     {
         return Err(ApiError::Conflict(NOT_TAKING));
     }
-    let mut audience: Vec<UserId> = present.into_iter().map(|p| p.user_id).collect();
+    let mut audience: Vec<UserId> = present
+        .into_iter()
+        .map(|p| p.user_id)
+        .filter(|user| *user != sender)
+        .collect();
     audience.sort_unstable();
     audience.dedup();
     Ok(audience)
 }
 
-/// Stores a picture stamp; false when this id already stored the same one, so nothing relays.
+/// Stores a picture stamp; false when this id already names a stored stamp, so nothing relays.
 ///
-/// An emoji stamp stores nothing, but may not reuse a picture stamp's id.
+/// Not a refusal, since a blocked sender's reused id never reaches this; an emoji stores nothing.
 async fn record(
     state: &AppState,
     channel_id: ChannelId,
     sender: UserId,
     stamp: &Checked,
 ) -> Result<bool, ApiError> {
-    let reused = ApiError::Conflict("that stamp id is already used");
     let Content::Picture(sha256) = &stamp.content else {
-        return match state.store.screen_stamp(stamp.id).await? {
-            Some(_) => Err(reused),
-            None => Ok(true),
-        };
+        return Ok(state.store.screen_stamp(stamp.id).await?.is_none());
     };
     let new = NewScreenStamp {
         id: stamp.id,
@@ -236,8 +238,7 @@ async fn record(
     };
     match state.store.insert_screen_stamp(&new).await? {
         StampInsert::Fresh => Ok(true),
-        StampInsert::Replay => Ok(false),
-        StampInsert::Conflict => Err(reused),
+        StampInsert::Replay | StampInsert::Conflict => Ok(false),
         StampInsert::Gone => Err(ApiError::NotFound("attachment not found")),
     }
 }

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Stamps on a shared screen (decision 0121): [`placing`] covers the route's checks and
-//! the relay, [`delivery`] who hears a stamp, [`pictures`] the 24-hour fetch grant, the
-//! sweep and the sharer's report, [`received`] the sharer's list of who stamped pictures
-//! on their screen, and [`report_scope`] who sees a report whose pictures came from
-//! several channels.
+//! the relay, [`delivery`] who hears a stamp, [`blocked`] a block the sender cannot see,
+//! [`pictures`] the 24-hour fetch grant, the sweep and the sharer's report, [`received`]
+//! the sharer's list of who stamped pictures on their screen, and [`report_scope`] who
+//! sees a report whose pictures came from several channels.
 
+mod blocked;
 mod delivery;
 mod pictures;
 mod placing;

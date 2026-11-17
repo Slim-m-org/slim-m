@@ -12524,10 +12524,11 @@ paths:
         a PNG, JPEG, GIF or WebP of at most 8 MiB that the caller could
         attach to a message, or the answer is 404; it is then kept for 24
         hours so the sharer and the call can fetch it and the sharer can
-        report it. Idempotent by `id` for a picture: a replay answers 204 and
-        relays nothing, and the same id with a different picture or target is
-        409. If the target has blocked the caller, the answer is still 204
-        and nothing is stored or relayed. Three stamps at once per caller,
+        report it. Idempotent by `id`: a reused id answers 204 and relays
+        nothing, whatever it carries. If the target has blocked the caller,
+        the answer is still 204 and nothing is stored or relayed, and the
+        caller never hears its own stamp relayed back, so a block cannot be
+        told from a delivery. Three stamps at once per caller,
         then one every 2 seconds; a faster caller gets 429 with
         `retry_after_seconds`.
       requestBody:

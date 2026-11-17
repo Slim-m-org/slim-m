@@ -134,8 +134,10 @@ In order:
 8. If the target has blocked the sender, the answer is still 204, and nothing is stored or relayed.
    The sender cannot tell a block from a delivery.
 9. For a picture, the server inserts the row.
-   A replay with the same id and content does nothing, and the same id with different content is refused with 409.
+   A replay with the same id does nothing and answers 204, whatever it carries, and so does an emoji under a picture stamp's id.
+   Refusing a reused id would tell the sender they are not blocked, since a blocked sender's first stamp stored nothing.
 10. The server publishes the relay event to the people that same roster read shows in the call who also have canvas access, as for any other screen mark (0096).
+    The sender is left out, since their client already shows the stamp, so an echo cannot tell them a block from a delivery either.
 
 Refusals are 400 for the fields, 403 for a permission, 403 "Join the call to stamp", 404 for an attachment the sender may not use, 409 "Their screen is not taking stamps right now", 429 for the rate, 501 when the server has no voice, and 503 when the SFU cannot be reached.
 The sender's client removes its local copy of a refused stamp and says why in a warning banner on the tile (rule 6).

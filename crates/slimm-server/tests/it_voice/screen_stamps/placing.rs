@@ -270,33 +270,7 @@ async fn a_malformed_stamp_is_refused_before_anything_else() {
 }
 
 #[tokio::test]
-async fn a_blocked_sender_is_answered_as_if_it_worked_and_nothing_reaches_the_sharer() {
-    let rig = rig().await;
-    rig.consent(true, true);
-    rig.store
-        .block_user(rig.sharer.id, rig.viewer.id)
-        .await
-        .unwrap();
-    let mut sharer_ws = rig.socket(&rig.sharer).await;
-    let png = rig.viewer_png(b"blocked").await;
-
-    let (picture, _) = rig.stamp(&rig.viewer.token, rig.picture(&png)).await;
-    let (emoji, _) = rig.stamp(&rig.viewer.token, rig.emoji(PARTY)).await;
-
-    assert_eq!(
-        (picture, emoji),
-        (StatusCode::NO_CONTENT, StatusCode::NO_CONTENT)
-    );
-    assert_no_frame_of_type(&mut sharer_ws, KIND).await;
-    assert_eq!(rig.count("SELECT COUNT(*) FROM screen_stamps").await, 0);
-    assert_eq!(
-        rig.fetch_status(&rig.sharer.token, &png).await,
-        StatusCode::NOT_FOUND
-    );
-}
-
-#[tokio::test]
-async fn a_replay_relays_once_and_a_reused_id_is_refused() {
+async fn a_replay_or_a_reused_id_relays_nothing_more() {
     let rig = rig().await;
     rig.consent(true, true);
     let mut sharer_ws = rig.socket(&rig.sharer).await;
@@ -313,8 +287,6 @@ async fn a_replay_relays_once_and_a_reused_id_is_refused() {
         StatusCode::NO_CONTENT
     );
     read_stamp(&mut sharer_ws).await;
-    settle(&mut sharer_ws).await;
-    assert_no_frame_of_type(&mut sharer_ws, KIND).await;
 
     let mut other_picture = body.clone();
     other_picture["attachment_id"] = json!(second);
@@ -336,11 +308,14 @@ async fn a_replay_relays_once_and_a_reused_id_is_refused() {
     assert_eq!(
         (reused, emoji_reuse, carol_reuse),
         (
-            StatusCode::CONFLICT,
-            StatusCode::CONFLICT,
-            StatusCode::CONFLICT
-        )
+            StatusCode::NO_CONTENT,
+            StatusCode::NO_CONTENT,
+            StatusCode::NO_CONTENT
+        ),
+        "a reused id answers as a block does, so it cannot tell one from a delivery"
     );
+    settle(&mut sharer_ws).await;
+    assert_no_frame_of_type(&mut sharer_ws, KIND).await;
     assert_eq!(rig.count("SELECT COUNT(*) FROM screen_stamps").await, 1);
 }
 
