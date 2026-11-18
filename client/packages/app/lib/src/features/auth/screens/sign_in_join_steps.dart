@@ -23,11 +23,12 @@ bool invitesOnly(Version? probed) =>
 JoinStage joinStageFor({
   required bool creatingAccount,
   required Version? probed,
+  required bool inviteNeeded,
   required bool inviteAccepted,
 }) {
   if (!creatingAccount) return JoinStage.account;
   if (probed == null) return JoinStage.server;
-  if (invitesOnly(probed) && !inviteAccepted) return JoinStage.invite;
+  if (inviteNeeded && !inviteAccepted) return JoinStage.invite;
   return JoinStage.account;
 }
 
@@ -40,6 +41,7 @@ class HeldInvite {
 
   final TextEditingController controller;
   ({Uri? server, String code})? _accepted;
+  Uri? _linkedTo;
 
   /// The checked code for [server], which signing up or in sends along.
   String? codeFor(Uri? server) => switch (_accepted) {
@@ -54,6 +56,29 @@ class HeldInvite {
   void accept(Uri server, String code) =>
       _accepted = (server: server, code: code);
 
+  /// A pasted link named [server], so its code is asked for there whatever
+  /// that Space's join policy: an invite can grant a role even on an open one.
+  void linkTo(Uri server) => _linkedTo = server;
+
+  /// Whether the code field shows on [server] once it has answered [probed].
+  bool shownOn(Uri? server, Version? probed) =>
+      invitesOnly(probed) ||
+      (probed != null && server != null && server == _linkedTo);
+
+  /// Whether a code has to check out on [server] before the account fields.
+  bool neededOn(Uri? server, Version? probed) =>
+      invitesOnly(probed) ||
+      (shownOn(server, probed) && controller.text.trim().isNotEmpty);
+
+  /// Which part of the form is open on [server] for what it said.
+  JoinStage stageOn(Uri? server, Version? probed, {required bool creating}) =>
+      joinStageFor(
+        creatingAccount: creating,
+        probed: probed,
+        inviteNeeded: neededOn(server, probed),
+        inviteAccepted: acceptedFor(server),
+      );
+
   /// Checks the code in the field on [client]'s [server] and holds it there if
   /// it can be used; otherwise says why. Closes [client].
   Future<String?> check(SlimmApi client, Uri server) async {
@@ -66,22 +91,27 @@ class HeldInvite {
   void dispose() => controller.dispose();
 }
 
-/// The code an invite-only Space asks for before the account fields.
+/// The code an invite-only Space asks for before the account fields, or one
+/// a pasted link brought; it opens only while [creatingAccount].
 class InviteCodeField extends StatelessWidget {
   const InviteCodeField({
     super.key,
-    required this.controller,
-    required this.accepted,
+    required this.invite,
+    required this.server,
+    required this.probed,
+    required this.creatingAccount,
     required this.busy,
     required this.onChanged,
     required this.onSubmit,
     this.error,
   });
 
-  final TextEditingController controller;
+  final HeldInvite invite;
 
-  /// The code in [controller] checked out on the server in the field.
-  final bool accepted;
+  /// The address in the server field, and what it said about itself.
+  final Uri? server;
+  final Version? probed;
+  final bool creatingAccount;
   final bool busy;
   final String? error;
 
@@ -91,16 +121,31 @@ class InviteCodeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final shown = creatingAccount && invite.shownOn(server, probed);
+    return AppRevealBand(
+      child: shown
+          ? Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.s16),
+              child: _field(context),
+            )
+          : null,
+    );
+  }
+
+  Widget _field(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final accepted = invite.acceptedFor(server);
     return LabeledField(
       label: 'Invite code',
       helper: error != null
           ? null
           : accepted
           ? 'Invite accepted.'
-          : 'Joining needs an invite. Paste the code or link a member sent you.',
+          : invitesOnly(probed)
+          ? 'Joining needs an invite. Paste the code or link a member sent you.'
+          : null,
       child: AppInput(
-        controller: controller,
+        controller: invite.controller,
         placeholder: 'Code, or an invite link',
         errorText: error,
         autocorrect: false,

@@ -116,10 +116,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     server: probeTarget(_server.text),
   );
 
-  JoinStage get _stage => joinStageFor(
-    creatingAccount: _creatingAccount,
-    probed: _probed,
-    inviteAccepted: _invite.acceptedFor(probeTarget(_server.text)),
+  JoinStage get _stage => _invite.stageOn(
+    probeTarget(_server.text),
+    _probed,
+    creating: _creatingAccount,
   );
 
   /// How [_probed]'s identity compares against whatever this app already
@@ -225,15 +225,23 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   void _onInviteEdited(String text) {
     if (parseInviteLink(text) case (:final server, :final code)) {
       _invite.controller.text = code;
-      if (probeTarget(server.toString()) != probeTarget(_server.text)) {
+      final linked = probeTarget(server.toString());
+      if (linked != null && linked != probeTarget(_server.text)) {
         _server.text = server.toString();
+        _invite.linkTo(linked);
         _onServerEdited(_server.text);
-        unawaited(_checkServer());
+        unawaited(_checkLinkedInvite());
       }
     }
     setState(() {
       if (_error?.$1 == SignInErrorField.invite) _error = null;
     });
+  }
+
+  /// The link's own Space answers first, then its code is checked there.
+  Future<void> _checkLinkedInvite() async {
+    await _checkServer();
+    if (mounted && _probed != null) await _checkInvite();
   }
 
   void _onServerEdited(String _) {
@@ -471,20 +479,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   'new messages while the app is open.',
             ),
           // Each band brings its own gap, so a step not yet open leaves none behind.
-          AppRevealBand(
-            child: _creatingAccount && invitesOnly(_probed)
-                ? Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.s16),
-                    child: InviteCodeField(
-                      controller: _invite.controller,
-                      accepted: stage == JoinStage.account,
-                      busy: _busy,
-                      error: _errorFor(SignInErrorField.invite),
-                      onChanged: _onInviteEdited,
-                      onSubmit: _checkInvite,
-                    ),
-                  )
-                : null,
+          InviteCodeField(
+            invite: _invite,
+            server: probeTarget(_server.text),
+            probed: _probed,
+            creatingAccount: _creatingAccount,
+            busy: _busy,
+            error: _errorFor(SignInErrorField.invite),
+            onChanged: _onInviteEdited,
+            onSubmit: _checkInvite,
           ),
           AppRevealBand(
             child: stage == JoinStage.account

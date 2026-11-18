@@ -75,6 +75,7 @@ Future<_Server> _pump(
   Future<void>? versionAnswer,
   InMemoryKeyStore? keyStore,
   bool browserReaches = false,
+  Set<String> openHosts = const {},
 }) async {
   final server = _Server();
   final client = MockClient((request) async {
@@ -83,7 +84,8 @@ Future<_Server> _pump(
       server.probed.add(request.url.host);
       await versionAnswer;
       if (!reachable) throw http.ClientException('connection refused');
-      return _json(_version(invitesOnly: invitesOnly));
+      final open = openHosts.contains(request.url.host);
+      return _json(_version(invitesOnly: invitesOnly && !open));
     }
     if (path == '/invites/GOOD/check') return _json(_usable);
     if (path == '/invites/SHAPED/check') return _json(const ['shaped']);
@@ -208,6 +210,45 @@ void main() {
     final code = tester.widget<AppInput>(_input('Invite code'));
     expect(code.controller!.text, 'GOOD');
     expect(server.probed, contains('other.example'));
+  });
+
+  testWidgets('a pasted link for an open Space keeps its code and sends it '
+      'there', (tester) async {
+    final server = await _pump(tester, openHosts: {'other.example'});
+    await tester.enterText(
+      _input('Invite code'),
+      'https://other.example/invite/GOOD',
+    );
+    await tester.pump(const Duration(seconds: 1));
+    await pumpFrames(tester);
+
+    expect(find.text('Invite accepted.'), findsOneWidget);
+    await tester.enterText(_input('Username'), 'dana');
+    await tester.enterText(_input('Password'), 'long enough pw');
+    await tester.tap(_button('Create account'));
+    await waitUntil(tester, () => server.registered.isNotEmpty);
+    expect(server.registered.single['invite_code'], 'GOOD');
+  });
+
+  testWidgets('a linked code an open Space refuses holds the account fields '
+      'until it is fixed or cleared', (tester) async {
+    await _pump(tester, openHosts: {'other.example'});
+    await tester.enterText(
+      _input('Invite code'),
+      'https://other.example/invite/SPENT',
+    );
+    await tester.pump(const Duration(seconds: 1));
+    await pumpFrames(tester);
+
+    expect(
+      tester.widget<AppInput>(_input('Invite code')).errorText,
+      inviteUnusable,
+    );
+    expect(_input('Username'), findsNothing);
+
+    await tester.enterText(_input('Invite code'), '');
+    await pumpFrames(tester);
+    expect(_input('Username'), findsOneWidget);
   });
 
   testWidgets('while the server has not answered, no account field shows', (
