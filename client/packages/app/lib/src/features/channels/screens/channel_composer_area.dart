@@ -20,15 +20,18 @@ import 'dart:async';
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../accounts/providers/account_providers.dart';
 import '../../composer/providers/composer_extent.dart';
+import '../../messages/providers/message_editing.dart';
 import '../../messages/providers/message_selection.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/widgets/call_keyboard_pill.dart';
 import '../../../widgets/dock_height_reporter.dart';
+import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 import '../../composer/widgets/composer.dart';
 import '../../composer/widgets/composer_attachments.dart' show StagedSend;
@@ -40,6 +43,12 @@ import '../../messages/widgets/message_selection_bar.dart';
 import '../../messages/widgets/reply_banner.dart';
 import '../../members/widgets/timeout_banner.dart';
 import 'channel_message_actions.dart';
+
+/// Shown when the message being replied to is deleted while the reply is typed.
+const replyGoneNotice = 'The message you were replying to was deleted.';
+
+/// Shown when a message is deleted elsewhere while it is being edited here.
+const editGoneNotice = 'Your edit was not saved: the message was deleted.';
 
 class ChannelComposerArea extends ConsumerStatefulWidget {
   const ChannelComposerArea({
@@ -79,11 +88,46 @@ class ChannelComposerArea extends ConsumerStatefulWidget {
 class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
   Timer? _expiry;
   int? _expiryFor;
+  StreamSubscription<api.ServerEvent>? _deletes;
+
+  /// Why a reply or an edit in progress just went away, until dismissed.
+  String? _goneNotice;
+
+  @override
+  void initState() {
+    super.initState();
+    _deletes = ref.read(liveEventsProvider).listen((event) {
+      if (event is api.MessageDeleted) _onDeleted(event.messageId);
+    });
+  }
+
+  @override
+  void didUpdateWidget(ChannelComposerArea oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.replyingTo != null && oldWidget.replyingTo == null) {
+      _goneNotice = null;
+    }
+  }
 
   @override
   void dispose() {
     _expiry?.cancel();
+    unawaited(_deletes?.cancel());
     super.dispose();
+  }
+
+  /// A reply or an edit whose message was deleted elsewhere would otherwise
+  /// send as a reply to nothing, or vanish with the row it was typed into.
+  void _onDeleted(String messageId) {
+    if (!mounted) return;
+    final editing = editingMessageIdProvider(widget.channelId);
+    if (ref.read(editing) == messageId) {
+      ref.read(editing.notifier).state = null;
+      setState(() => _goneNotice = editGoneNotice);
+    } else if (widget.replyingTo?.id == messageId) {
+      widget.onCancelReply();
+      setState(() => _goneNotice = replyGoneNotice);
+    }
   }
 
   /// Rebuilds once at [until] so the banner leaves with the timeout, not at the next unrelated rebuild.
@@ -178,6 +222,17 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
           child: stillTimedOut
               ? TimeoutBanner(until: timedOutUntil, reason: me?.timeoutReason)
               : null,
+        ),
+        AppRevealBand(
+          child: _goneNotice == null
+              ? null
+              : Padding(
+                  padding: const EdgeInsets.all(AppSpacing.s8),
+                  child: AppErrorState(
+                    message: _goneNotice!,
+                    onDismiss: () => setState(() => _goneNotice = null),
+                  ),
+                ),
         ),
         AppRevealBand(
           child: widget.replyingTo == null
