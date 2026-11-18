@@ -57,6 +57,7 @@ import '../features/auth/screens/onboarding_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/messages/screens/thread_screen.dart';
 import 'breakpoints.dart';
+import 'cold_modal_launch.dart';
 import 'launch_route.dart';
 import 'modal_page.dart';
 import 'page_transitions.dart';
@@ -315,6 +316,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
     ],
+  );
+  putShellUnderColdModal(
+    router,
+    launch: WidgetsBinding.instance.platformDispatcher.defaultRouteName,
   );
   final launch = ref.read(launchRouteProvider);
   router.routerDelegate.addListener(
