@@ -36,9 +36,8 @@ void main() {
       find.bySemanticsLabel('Create a channel in Channels'),
     );
     expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
-    tester.binding.pipelineOwner.semanticsOwner!.performAction(
-      node.id,
-      SemanticsAction.tap,
+    tester.semantics.tap(
+      find.semantics.byLabel('Create a channel in Channels'),
     );
     await pumpFrames(tester);
 
