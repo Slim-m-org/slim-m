@@ -25,6 +25,7 @@ class _SlowFirstServer {
   final _seqs = <String, int>{};
 
   Future<http.Response> handle(http.Request request) async {
+    if (request.method != 'POST') return http.Response('{}', 404);
     final body = jsonDecode(request.body) as Map<String, dynamic>;
     final channelId = request.url.pathSegments[1];
     if (slow.contains(body['id'])) {
@@ -125,7 +126,7 @@ void main() {
               ),
             ),
             httpClient: MockClient((request) async {
-              calls++;
+              if (request.method == 'POST') calls++;
               return http.Response('{"error":"no"}', 403);
             }),
           ),

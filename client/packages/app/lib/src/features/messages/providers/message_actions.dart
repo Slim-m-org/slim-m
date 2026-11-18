@@ -393,12 +393,14 @@ Future<void> sendOptimistically(
   VoidCallback? onQueued,
 }) async {
   final store = await read(storeProvider.future);
+  final me = read(effectiveMeProvider);
   await _keepLocally(
     'queue the message',
     () => store.addPending(
       id: id,
       channelId: channelId,
       authorId: authorId,
+      authorDisplayName: me?.id == authorId ? me?.displayName : null,
       content: content,
       replyToId: replyToId,
       mentionReply: mentionReply,
@@ -433,12 +435,15 @@ Future<void> sendOptimistically(
     ).recordSent(channelId, DateTime.now());
   } on api.ApiException catch (e, stack) {
     api.reportFailure(api.LogTag.ui, 'send the message', e, stack);
-    await store.markFailed(
-      id,
-      reason: describeApiFailure('send the message', e),
-    );
+    await store.markFailed(id, reason: _sendFailureReason(e));
   }
 }
+
+/// `retryFailedSends` sends it again on the next reconnect, so an unreachable
+/// server must not read as final the way "Nothing was changed" does.
+String _sendFailureReason(api.ApiException e) => e is api.TransportException
+    ? 'Could not reach the server. Sending again when you reconnect.'
+    : describeApiFailure('send the message', e);
 
 /// Retries a local write that lost a lock race, then logs and goes on: the
 /// server copy is what counts, and sync fills the row in when the write

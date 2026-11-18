@@ -341,12 +341,14 @@ class MessageStore {
 
   /// Records a message the user just sent, before the server has seen it, so it
   /// appears immediately. Replaced in place by [applyMessage] on acknowledgement
-  /// because both are keyed by the same client-generated id.
+  /// because both are keyed by the same client-generated id. [authorDisplayName]
+  /// names the sender while no profile of theirs has loaded.
   Future<void> addPending({
     required String id,
     required String channelId,
     required String authorId,
     required String content,
+    String? authorDisplayName,
     String? replyToId,
     bool mentionReply = true,
     List<String> attachmentIds = const [],
@@ -364,6 +366,7 @@ class MessageStore {
             id: id,
             channelId: channelId,
             authorId: Value(authorId),
+            authorDisplayName: Value.absentIfNull(authorDisplayName),
             content: content,
             createdAt: DateTime.now().millisecondsSinceEpoch,
             pending: const Value(true),
