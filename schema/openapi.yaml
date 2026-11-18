@@ -3830,8 +3830,9 @@ paths:
       summary: When each member last posted. Requires MANAGE_ROLES.
       description: >
         For the role editor, which offers the most recently active members
-        first. Counts only live messages in channels the caller can view, so a
-        private channel never shows that somebody is active in it. A member
+        first. Counts only live messages in channels the caller can view and
+        in the threads under them, so a private channel never shows that
+        somebody is active in it. A member
         with no such message is absent. Rate limited like other aggregate reads.
       responses:
         "200":

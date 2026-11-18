@@ -4,8 +4,8 @@
 //!
 //! Gated on MANAGE_ROLES, the permission of the only screen that asks, and
 //! charged [`Class::Write`] like `/space/analytics`, since it aggregates over
-//! messages. Only channels the caller can view count, so a private channel
-//! never reveals that somebody is active in it.
+//! messages. Only channels the caller can view count, with the threads under
+//! them, so a private channel never reveals that somebody is active in it.
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, State};
