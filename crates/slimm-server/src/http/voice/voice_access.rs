@@ -71,16 +71,39 @@ pub async fn evict_who_lost_access(state: &AppState) {
 }
 
 /// Drops one call whose access is gone; a call already ended some other way is left alone.
-pub(in crate::http) async fn evict(state: &AppState, user_id: UserId, channel_id: ChannelId) {
-    if !state
-        .voice
-        .forget_heartbeat_reporting_removed(user_id, channel_id)
-    {
-        return;
+async fn evict(state: &AppState, user_id: UserId, channel_id: ChannelId) {
+    if forget_call(state, user_id, channel_id) {
+        remove_from_room(state, user_id, channel_id).await;
     }
-    state
-        .hub
-        .publish(Event::VoiceActivityChanged { channel_id });
+}
+
+/// Drops the call of someone whose own heartbeat was just refused for lost access.
+///
+/// The heartbeat is the proof they are in the room, so they are removed even
+/// when no earlier heartbeat was on record for a pass to have found.
+pub(in crate::http) async fn evict_refused_heartbeat(
+    state: &AppState,
+    user_id: UserId,
+    channel_id: ChannelId,
+) {
+    forget_call(state, user_id, channel_id);
+    remove_from_room(state, user_id, channel_id).await;
+}
+
+/// Forgets the call's heartbeat, telling the channel when there was one.
+fn forget_call(state: &AppState, user_id: UserId, channel_id: ChannelId) -> bool {
+    let forgotten = state
+        .voice
+        .forget_heartbeat_reporting_removed(user_id, channel_id);
+    if forgotten {
+        state
+            .hub
+            .publish(Event::VoiceActivityChanged { channel_id });
+    }
+    forgotten
+}
+
+async fn remove_from_room(state: &AppState, user_id: UserId, channel_id: ChannelId) {
     match state.voice.remove_participant(channel_id, user_id).await {
         Ok(()) => {
             tracing::info!(%user_id, %channel_id, "removed a voice participant who lost access")

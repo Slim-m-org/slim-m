@@ -197,3 +197,27 @@ async fn a_refused_heartbeat_ends_the_call_even_without_the_watch() {
     assert!(call.removed(call.member.id));
     assert!(!call.in_call(call.member.id));
 }
+
+/// In the room on a token, but access went before a first heartbeat landed, so no pass lists them.
+#[tokio::test]
+async fn a_refused_first_heartbeat_ends_the_call_too() {
+    let call = Call::start(false).await;
+    let channel = ChannelId(call.channel.parse().unwrap());
+    call.state
+        .voice
+        .forget_heartbeat_reporting_removed(call.member.id, channel);
+    call.overwrite(
+        "member",
+        call.member.id,
+        Permissions::NONE,
+        Permissions::CONNECT,
+    )
+    .await;
+
+    assert_eq!(
+        call.heartbeat(&call.member.token).await,
+        StatusCode::FORBIDDEN
+    );
+
+    assert!(call.removed(call.member.id));
+}

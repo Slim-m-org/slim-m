@@ -186,7 +186,7 @@ async fn heartbeat(
     let needed = Permissions::VIEW_CHANNEL.union(Permissions::CONNECT);
     if !permissions.contains(needed) {
         // Still beating means still in the room, whatever change took the access away.
-        voice_access::evict(&state, ctx.user_id, channel_id).await;
+        voice_access::evict_refused_heartbeat(&state, ctx.user_id, channel_id).await;
         return Err(ApiError::Forbidden);
     }
     callable_channel(&state, channel_id).await?;
