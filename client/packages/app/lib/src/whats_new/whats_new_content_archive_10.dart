@@ -190,4 +190,46 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.131.0',
+    headline: 'View the server as a role, private categories, and keybinds',
+    points: [
+      WhatsNewPoint(
+        'Check what a role can see: open a role in Space settings and pick '
+        'View server as this role. It is read-only and shows only roles '
+        'below yours.',
+      ),
+      WhatsNewPoint(
+        'A category has a Private switch and a list of who can see it, and '
+        'it warns when channels inside it keep their own permissions.',
+      ),
+      WhatsNewPoint(
+        'Call keybinds are off until you turn them on in Settings, and on '
+        'Linux they now work while slim-m is in the background.',
+      ),
+      WhatsNewPoint('Soundboard clips play again on desktop.'),
+      WhatsNewPoint(
+        'People who join a call or come online show up straight away, and '
+        'members you remove leave the list at once.',
+      ),
+      WhatsNewPoint(
+        'Do not disturb now means no rings at all. A caller sees No answer.',
+      ),
+      WhatsNewPoint(
+        'Only the author can edit a message. Moderators can still delete it.',
+      ),
+      WhatsNewPoint(
+        'Click an @mention to open that person\'s profile, and press Notes '
+        'again to go back to where you were.',
+      ),
+      WhatsNewPoint(
+        'Lobbies show their rooms underneath, you can pick a category when '
+        'creating a channel, and Forward can post into the same channel.',
+      ),
+      WhatsNewPoint(
+        'The canvas toolbar stays put, notes size to your drag, and the '
+        'shape tool stays on so you can draw several in a row.',
+      ),
+    ],
+  ),
 ];
