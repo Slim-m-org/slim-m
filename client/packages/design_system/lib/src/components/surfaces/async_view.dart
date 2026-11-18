@@ -38,7 +38,7 @@ import 'error_state.dart';
 /// embeds this in: a bounded box (an `Expanded` ancestor, so [data] can be a
 /// `ListView` that needs one) and an unbounded one (the default scrollable
 /// settings frame, where [data] is already written to size itself instead).
-class AppAsyncView<T> extends StatelessWidget {
+class AppAsyncView<T> extends StatefulWidget {
   const AppAsyncView({
     super.key,
     required this.value,
@@ -75,9 +75,24 @@ class AppAsyncView<T> extends StatelessWidget {
   /// for a surface that sits inline in a column rather than owning a pane.
   final bool center;
 
-  Widget _wrap(Widget child) => center
+  @override
+  State<AppAsyncView<T>> createState() => _AppAsyncViewState<T>();
+}
+
+class _AppAsyncViewState<T> extends State<AppAsyncView<T>> {
+  /// Moves the data under the error banner without a remount, so a draft in it survives a failed refresh.
+  final _dataKey = GlobalKey();
+
+  AppAsyncState<T> get value => widget.value;
+  String get errorMessage => widget.errorMessage;
+  VoidCallback? get onRetry => widget.onRetry;
+
+  Widget _wrap(Widget child) => widget.center
       ? Center(child: child)
       : Align(alignment: Alignment.centerLeft, child: child);
+
+  Widget _data(BuildContext context, T resolved) =>
+      KeyedSubtree(key: _dataKey, child: widget.data(context, resolved));
 
   @override
   Widget build(BuildContext context) {
@@ -88,12 +103,13 @@ class AppAsyncView<T> extends StatelessWidget {
     final resolved = value.data;
     if (resolved == null) return _loading(tokens);
 
-    if (emptyMessage != null && (isEmpty?.call(resolved) ?? false)) {
+    if (widget.emptyMessage != null &&
+        (widget.isEmpty?.call(resolved) ?? false)) {
       return _empty(tokens);
     }
 
     // A resolve settles in once on mount; later data rebuilds swap in place.
-    return AppFadeIn(child: data(context, resolved));
+    return AppFadeIn(child: _data(context, resolved));
   }
 
   Widget _errored() {
@@ -120,8 +136,8 @@ class AppAsyncView<T> extends StatelessWidget {
         children: [
           banner,
           constraints.hasBoundedHeight
-              ? Expanded(child: data(context, stale))
-              : data(context, stale),
+              ? Expanded(child: _data(context, stale))
+              : _data(context, stale),
         ],
       ),
     );
@@ -133,10 +149,10 @@ class AppAsyncView<T> extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const AppSpinner(size: AppSpinnerSize.md),
-          if (loadingMessage != null) ...[
+          if (widget.loadingMessage case final message?) ...[
             const SizedBox(height: AppSpacing.s12),
             Text(
-              loadingMessage!,
+              message,
               style: AppText.body.copyWith(color: tokens.textSecondary),
             ),
           ],
@@ -151,8 +167,8 @@ class AppAsyncView<T> extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.all(AppSpacing.s16),
           child: Text(
-            emptyMessage!,
-            textAlign: center ? TextAlign.center : TextAlign.start,
+            widget.emptyMessage!,
+            textAlign: widget.center ? TextAlign.center : TextAlign.start,
             style: AppText.body.copyWith(color: tokens.textSecondary),
           ),
         ),
