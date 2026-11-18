@@ -89,3 +89,33 @@ Future<ServerProbe> probeServerVersion(
     client.close();
   }
 }
+
+/// What the form shows about an address: what it said or why it could not,
+/// and how its key compares with a pinned one.
+typedef ServerAnswer = ({
+  Version? version,
+  String? failure,
+  ServerIdentityStatus? status,
+});
+
+/// Asks the server in [text] what it is. An address the form would refuse to
+/// submit to is not asked at all, and the refusal is the failure.
+Future<ServerAnswer> answerForAddress(
+  String text, {
+  required SlimmApi Function(Uri) probeApi,
+  required KeyStore keyStore,
+  required BrowserReachProbe reach,
+}) async {
+  final (address, problem) = submittableAddress(text);
+  if (address == null) return (version: null, failure: problem, status: null);
+  final target = reduceServerAddress(address);
+  final probe = await probeServerVersion(
+    probeApi(target),
+    target,
+    reach: reach,
+    knownSpace: pinnedIdentityCheck(keyStore),
+  );
+  final version = probe.version;
+  final status = await identityStatusFor(keyStore, target, version?.identity);
+  return (version: version, failure: probe.failure, status: status);
+}

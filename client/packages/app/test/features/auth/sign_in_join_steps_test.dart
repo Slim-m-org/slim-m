@@ -256,6 +256,39 @@ void main() {
     expect(_input('Username'), findsOneWidget);
   });
 
+  testWidgets('a failed answer to a half-typed address stays quiet until '
+      'Continue', (tester) async {
+    await _pump(tester, reachable: false);
+    await tester.enterText(_input('Server'), 'chat.exa');
+    await tester.pump(const Duration(seconds: 1));
+    await pumpFrames(tester);
+
+    expect(tester.widget<AppInput>(_input('Server')).errorText, isNull);
+    expect(find.text('Connecting to chat.exa'), findsOneWidget);
+
+    await tester.tap(_button('Continue'));
+    await pumpFrames(tester);
+    expect(
+      tester.widget<AppInput>(_input('Server')).errorText,
+      contains('Could not reach this Space'),
+    );
+  });
+
+  testWidgets('leaving the address field says why it failed', (tester) async {
+    await _pump(tester, reachable: false);
+    await tester.enterText(_input('Server'), 'chat.exa');
+    await tester.pump(const Duration(seconds: 1));
+    await pumpFrames(tester);
+    expect(tester.widget<AppInput>(_input('Server')).errorText, isNull);
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    await pumpFrames(tester, frames: 2);
+    expect(
+      tester.widget<AppInput>(_input('Server')).errorText,
+      contains('Could not reach this Space'),
+    );
+  });
+
   testWidgets('signing in to an existing account does not wait on the server', (
     tester,
   ) async {

@@ -107,6 +107,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   /// mode that waits on the server answering (see `sign_in_join_steps.dart`).
   String? _probeFailure;
 
+  /// Whether the person asked for this address's answer: on open, Continue, or
+  /// leaving the field. The debounced probe while typing keeps a failure quiet.
+  bool _failureAsked = true;
+  late final _serverFocus = FocusNode()..addListener(_onServerFocus);
+
   late final _invite = HeldInvite(
     pending: ref.read(pendingInviteProvider),
     server: probeTarget(_server.text),
@@ -143,6 +148,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   @override
   void dispose() {
     _probeDebounce?.cancel();
+    _serverFocus.dispose();
     _server.dispose();
     _invite.dispose();
     _username.dispose();
@@ -159,36 +165,24 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   /// probed, on every path including failures, so a slow answer about a
   /// previously typed address cannot relabel the current one either way.
   Future<void> _probeServer() async {
-    // An address the form would refuse to submit must not open the steps after it.
-    final (address, problem) = submittableAddress(_server.text);
-    if (address == null) {
-      setState(() {
-        _probed = null;
-        _probeFailure = problem;
-        _identityStatus = null;
-      });
-      return;
-    }
-    final target = reduceServerAddress(address);
-    final keyStore = ref.read(keyStoreProvider);
-    final probe = await probeServerVersion(
-      ref.read(probeApiProvider)(target),
-      target,
+    final text = _server.text;
+    final answer = await answerForAddress(
+      text,
+      probeApi: ref.read(probeApiProvider),
+      keyStore: ref.read(keyStoreProvider),
       // Only the create form says why a probe failed, so only it asks the browser.
       reach: _creatingAccount
           ? ref.read(browserReachProbeProvider)
           : (_) async => null,
-      knownSpace: pinnedIdentityCheck(keyStore),
     );
-    if (!mounted) return;
-    final answer = probe.version;
-    final status = await identityStatusFor(keyStore, target, answer?.identity);
-    if (!mounted || probeTarget(_server.text) != target) return;
+    if (!mounted || probeTarget(_server.text) != probeTarget(text)) return;
     setState(() {
-      _probed = answer;
-      _probeFailure = probe.failure;
-      _identityStatus = status;
-      if (answer?.claimed == false && !_modeChosen) _creatingAccount = true;
+      _probed = answer.version;
+      _probeFailure = answer.failure;
+      _identityStatus = answer.status;
+      if (answer.version?.claimed == false && !_modeChosen) {
+        _creatingAccount = true;
+      }
     });
   }
 
@@ -199,6 +193,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     setState(() {
       _busy = true;
       _error = null;
+      _failureAsked = true;
     });
     await _probeServer();
     if (mounted) setState(() => _busy = false);
@@ -250,9 +245,16 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _probeFailure = null;
       _identityStatus = null;
       if (_error?.$1 == SignInErrorField.server) _error = null;
+      _failureAsked = false;
     });
     _probeDebounce?.cancel();
     _probeDebounce = Timer(const Duration(milliseconds: 600), _probeServer);
+  }
+
+  void _onServerFocus() {
+    if (!_serverFocus.hasFocus && !_failureAsked) {
+      setState(() => _failureAsked = true);
+    }
   }
 
   /// The reset-code flow, which confirms identity the way [_submit] does and
@@ -415,7 +417,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final stage = _stage;
     final serverError =
         _errorFor(SignInErrorField.server) ??
-        (_creatingAccount ? _probeFailure : null);
+        (_creatingAccount && _failureAsked ? _probeFailure : null);
 
     return OnboardingShell(
       // Creating an account is the last of the join steps; signing back in to
@@ -447,6 +449,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               label: 'Server',
               child: AppInput(
                 controller: _server,
+                focusNode: _serverFocus,
                 placeholder: 'your-server-address.com',
                 mono: true,
                 errorText: serverError,
