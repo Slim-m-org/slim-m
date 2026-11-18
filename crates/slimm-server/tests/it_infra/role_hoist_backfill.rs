@@ -4,13 +4,11 @@
 //! `@everyone` and roles created afterwards stay off.
 
 use std::path::Path;
-use std::time::Duration;
 
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
 use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 
 use crate::support;
 const VERSION: i64 = 90;
@@ -22,18 +20,7 @@ async fn migrator() -> Migrator {
 }
 
 async fn pool_at_0089() -> (SqlitePool, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::empty("slimm-role-hoist-backfill");
-    let options = SqliteConnectOptions::new()
-        .filename(&path)
-        .create_if_missing(true)
-        .journal_mode(SqliteJournalMode::Wal)
-        .busy_timeout(Duration::from_secs(5))
-        .foreign_keys(true);
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect_with(options)
-        .await
-        .expect("open pool");
+    let (pool, guard) = support::migration_db::empty_pool("slimm-role-hoist-backfill").await;
 
     let mut before = migrator().await;
     assert!(

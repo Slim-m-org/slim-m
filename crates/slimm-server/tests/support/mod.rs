@@ -35,6 +35,10 @@ pub mod steam;
 #[allow(dead_code)]
 pub mod wait;
 
+/// An empty database and a one-connection pool, for tests that migrate it to a chosen version.
+#[allow(dead_code)]
+pub mod migration_db;
+
 /// A LiveKit room service that records the calls it receives and lists a seated roster.
 #[allow(dead_code)]
 pub mod fake_sfu;

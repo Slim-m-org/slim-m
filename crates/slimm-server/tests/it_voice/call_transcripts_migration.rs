@@ -5,13 +5,11 @@
 //! a line kept before it reads back with no end time and no language.
 
 use std::path::Path;
-use std::time::Duration;
 
 use slimm_server::ids::CallTranscriptId;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::{Store, TranscriptionMode};
 use sqlx::migrate::Migrator;
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 
 use crate::support;
 const VERSION: i64 = 183;
@@ -25,18 +23,7 @@ async fn migrator() -> Migrator {
 
 #[tokio::test]
 async fn an_existing_everyone_role_gains_view_transcripts_and_nothing_else_changes() {
-    let (path, _guard) = support::TestDbGuard::empty("slimm-transcripts-migration");
-    let options = SqliteConnectOptions::new()
-        .filename(&path)
-        .create_if_missing(true)
-        .journal_mode(SqliteJournalMode::Wal)
-        .busy_timeout(Duration::from_secs(5))
-        .foreign_keys(true);
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect_with(options)
-        .await
-        .expect("open pool");
+    let (pool, _guard) = support::migration_db::empty_pool("slimm-transcripts-migration").await;
     let mut before = migrator().await;
     before.migrations = before
         .iter()
@@ -97,17 +84,9 @@ async fn an_existing_everyone_role_gains_view_transcripts_and_nothing_else_chang
 #[tokio::test]
 async fn a_line_kept_before_0195_has_no_end_time_or_language() {
     let (path, _guard) = support::TestDbGuard::empty("slimm-transcript-lines-migration");
-    let options = SqliteConnectOptions::new()
-        .filename(&path)
-        .create_if_missing(true)
-        .journal_mode(SqliteJournalMode::Wal)
-        .busy_timeout(Duration::from_secs(5))
-        .foreign_keys(false);
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect_with(options)
-        .await
-        .expect("open pool");
+    let pool =
+        support::migration_db::pool(support::migration_db::options(&path).foreign_keys(false))
+            .await;
     let mut before = migrator().await;
     before.migrations = before
         .iter()
