@@ -149,6 +149,15 @@ void main() {
     await _openSheetAndPaste(tester, _code);
 
     expect(_inSheet(find.textContaining('did not work')), findsOneWidget);
+    // A refused code is the field's error: under it, not boxed below it.
+    final field = tester.widget<AppInput>(
+      find.byKey(const ValueKey('discord-link-code-field')),
+    );
+    expect(field.errorText, contains('did not work'));
+    expect(
+      _inSheet(find.byWidgetPredicate((w) => w is AppErrorState)),
+      findsNothing,
+    );
     await _unmount(tester);
   });
 
