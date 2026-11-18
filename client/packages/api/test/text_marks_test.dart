@@ -66,4 +66,16 @@ void main() {
     expect(_longestStack(profile.statusText!), kMaxMarksPerBase);
     expect(_longestStack(channel.name), kMaxMarksPerBase);
   });
+
+  test('a group DM name arrives capped, and no name stays null', () {
+    final named = GroupDmInfo.fromJson({
+      'name': 'crew$_zalgoE',
+      'members': <Object>[],
+    });
+    expect(_longestStack(named.name!), kMaxMarksPerBase);
+    expect(
+      GroupDmInfo.fromJson({'name': null, 'members': <Object>[]}).name,
+      isNull,
+    );
+  });
 }

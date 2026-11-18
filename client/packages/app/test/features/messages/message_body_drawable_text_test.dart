@@ -9,7 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' show kMaxMarksPerBase;
+import 'package:slimm_app/src/features/composer/widgets/poll_text.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
+import 'package:slimm_app/src/features/palette/widgets/palette_message_text.dart';
 import 'package:slimm_app/src/message_preview.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -26,14 +28,15 @@ int _longestStack(String text) {
   return longest;
 }
 
-Future<String> _rendered(WidgetTester tester, String content) async {
+Future<String> _rendered(WidgetTester tester, String content) =>
+    _drawn(tester, MessageBody(content: content, knownUsernames: const {}));
+
+Future<String> _drawn(WidgetTester tester, Widget body) async {
   await tester.pumpWidget(
     ProviderScope(
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: Scaffold(
-          body: MessageBody(content: content, knownUsernames: const {}),
-        ),
+        home: Scaffold(body: body),
       ),
     ),
   );
@@ -62,6 +65,32 @@ void main() {
   testWidgets('a wall of one mention draws once with a count', (tester) async {
     final text = await _rendered(tester, List.filled(50, '@ava').join(' '));
     expect(text, contains('@ava \u{00D7}50'));
+  });
+
+  testWidgets('a palette or search hit draws capped and without overrides', (
+    tester,
+  ) async {
+    final text = await _drawn(
+      tester,
+      const PaletteMessageText(
+        text: '$_zalgo evil\u{202E}txt.exe',
+        terms: 'evil',
+        maxLines: 2,
+      ),
+    );
+    expect(_longestStack(text), kMaxMarksPerBase);
+    expect(text, contains('eviltxt.exe'));
+  });
+
+  testWidgets('a poll question draws capped and without overrides', (
+    tester,
+  ) async {
+    final text = await _drawn(
+      tester,
+      const PollText('$_zalgo evil\u{202E}txt.exe', style: TextStyle()),
+    );
+    expect(_longestStack(text), kMaxMarksPerBase);
+    expect(text, contains('eviltxt.exe'));
   });
 
   test('a preview line is capped and loses overrides too', () {

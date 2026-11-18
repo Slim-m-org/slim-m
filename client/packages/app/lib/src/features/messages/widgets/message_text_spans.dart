@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
+import '../../../hidden_characters.dart';
 import '../../../routing/routes.dart';
 import '../../emoji/widgets/custom_emoji_image.dart';
 import '../../emoji/widgets/emoji_name_tip.dart';
@@ -326,7 +327,8 @@ class ChannelMentionChip extends ConsumerWidget {
 
 /// Inline-only spans for a single line of text that is not a message body
 /// (a poll's question or option, a search hit): no block markdown, links stay
-/// inert. [recognizers] collects what was created so the caller can dispose it.
+/// inert, drawn as [drawableText]. [recognizers] collects what was created so
+/// the caller can dispose it.
 List<InlineSpan> inlineTextSpans(
   String text, {
   required Map<String, String> customEmoji,
@@ -343,7 +345,7 @@ List<InlineSpan> inlineTextSpans(
   }
 
   return buildSpans(
-    parseInline(text),
+    parseInline(drawableText(text)),
     InlineContext(
       knownUsernames: knownUsernames,
       knownRoleNames: knownRoleNames,
