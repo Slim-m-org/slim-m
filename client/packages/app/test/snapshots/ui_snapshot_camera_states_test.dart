@@ -12,7 +12,6 @@ import 'package:slimm_app/src/features/voice/providers/voice_camera_failure.dart
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/video_quality_sections.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -59,53 +58,49 @@ void main() {
     }
   }
 
-  for (final theme in const ['dark', 'light']) {
-    for (final size in const {
-      'phone': Size(390, 844),
-      'desktop': Size(1280, 800),
-    }.entries) {
-      testWidgets('video card at ${size.key} ($theme)', (tester) async {
-        tester.view.physicalSize = size.value;
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.reset);
-        final container = ProviderContainer(
-          overrides: [
-            keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-            voiceControllerProvider.overrideWith(
-              (ref) => VoiceController(ref, session: FakeSettingsSession()),
-            ),
-          ],
-        )..read(preferencesProvider);
-        addTearDown(container.dispose);
-        final dark = theme == 'dark';
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: RepaintBoundary(
-              key: snapshotBoundary,
-              child: MaterialApp(
-                debugShowCheckedModeBanner: false,
-                theme: dark
-                    ? buildTheme(Brightness.dark, AppTokens.dark)
-                    : buildTheme(Brightness.light, AppTokens.light),
-                home: const Scaffold(
-                  body: SingleChildScrollView(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: VideoQualitySection(),
-                    ),
-                  ),
+  for (final size in const {
+    'phone': Size(390, 844),
+    'desktop': Size(1280, 800),
+  }.entries) {
+    testWidgets('video card at ${size.key} (dark+light)', (tester) async {
+      tester.view.physicalSize = size.value;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final container = ProviderContainer(
+        overrides: [
+          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+          voiceControllerProvider.overrideWith(
+            (ref) => VoiceController(ref, session: FakeSettingsSession()),
+          ),
+        ],
+      )..read(preferencesProvider);
+      addTearDown(container.dispose);
+      Widget build(String theme) => UncontrolledProviderScope(
+        container: container,
+        child: RepaintBoundary(
+          key: snapshotBoundary,
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: snapshotThemeData(theme),
+            home: const Scaffold(
+              body: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: VideoQualitySection(),
                 ),
               ),
             ),
           ),
-        );
-        for (var i = 0; i < 4; i++) {
-          await tester.pump(const Duration(milliseconds: 100));
-        }
+        ),
+      );
+      await tester.pumpWidget(build('dark'));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await checkDarkThenLight(tester, build, (theme) async {
         await writeSnapshot(tester, 'camera-video-card-${size.key}-$theme');
         expect(tester.takeException(), isNull);
       });
-    }
+    });
   }
 }

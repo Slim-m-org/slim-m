@@ -8,18 +8,16 @@
 /// measure before restructuring, and to close it with the number if the copy is
 /// under a millisecond at realistic sizes.
 ///
-/// This is that measurement. What it measures is the map spread itself, written
-/// out here rather than driven through `MessageExtrasController._set`, which is
-/// private: so it is a number for the operation `_set` performs, not a guard on
-/// `_set` continuing to perform it. If the controller ever stops being a flat
-/// map copy, this file keeps reporting the spread's cost and will not notice.
-/// Read it as "this is what the copy costs", not as a regression bound.
+/// This file held that measurement as two Stopwatch tests timing the bare map
+/// spread, never `_set` itself, so they measured the Dart runtime rather than
+/// guarding app code and cost about ten seconds a run. The numbers they
+/// produced are kept below; re-measure with a throwaway Stopwatch loop over
+/// `{...cache, id: entry}` if `channelWindowCeiling` ever changes.
 ///
 /// **It is a dev-box number, which is a lower bound, not the phone measurement
 /// the card asked for.** What it can settle is the shape: whether the cost is
 /// microseconds, so a 10x device penalty still leaves it invisible, or already
-/// milliseconds, so it is real wherever it runs. The assertions are sized with
-/// that 10x margin in mind rather than against this machine's own timings.
+/// milliseconds, so it is real wherever it runs.
 ///
 /// ## What it measured, on this box, 2026-09-20
 ///
@@ -45,9 +43,7 @@
 /// So the per-channel partition the audit sketched is not worth its cost: it
 /// changes the key shape every consumer reads through, to save tens of
 /// microseconds at sizes the retention ceiling already prevents. The number is
-/// the answer, and the thing actually holding this up is the ceiling - which is
-/// why the 20000 case stays below rather than being deleted. If anybody raises
-/// `channelWindowCeiling`, this is where the cost of that shows up.
+/// the answer, and the thing actually holding this up is the ceiling.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -67,72 +63,7 @@ Map<String, MessageExtras> _cache(int size) => {
   for (var i = 0; i < size; i++) 'm$i': _entry(i),
 };
 
-/// The best of several runs: a loaded machine only ever adds time, so the
-/// fastest run is the closest to the cost of the copy itself.
-({double perCopyUs, int copies}) _measure(int size, {int runs = 7}) {
-  var best = _measureOnce(size);
-  for (var i = 1; i < runs; i++) {
-    final next = _measureOnce(size);
-    if (next.perCopyUs < best.perCopyUs) best = next;
-  }
-  return best;
-}
-
-/// The copy `_set` performs, timed over enough iterations to be measurable.
-({double perCopyUs, int copies}) _measureOnce(int size, {int copies = 200}) {
-  final cache = _cache(size);
-  final entry = _entry(0);
-  // Untimed warm-up: first-run allocation is not the thing being reported.
-  final warm = {...cache, 'm0': entry};
-  expect(warm, hasLength(size));
-
-  final watch = Stopwatch()..start();
-  for (var i = 0; i < copies; i++) {
-    final next = {...cache, 'm0': entry};
-    // Read it, so nothing can be optimised away as unused.
-    expect(next.length, size);
-  }
-  watch.stop();
-  return (perCopyUs: watch.elapsedMicroseconds / copies, copies: copies);
-}
-
 void main() {
-  test('the whole-map copy cost, at the sizes the cache actually reaches', () {
-    final results = <int, double>{};
-    for (final size in [100, 1000, 5000, 20000]) {
-      results[size] = _measure(size).perCopyUs;
-    }
-
-    // Printed, not just asserted: a passing test with no output is not a number.
-    for (final entry in results.entries) {
-      final perEvent = entry.value.toStringAsFixed(1);
-      // ignore: avoid_print
-      print('cache ${entry.key} entries: ${perEvent}us per live event');
-    }
-
-    expect(
-      results[1000]!,
-      lessThan(1000),
-      reason:
-          'a thousand entries is a busy session; a millisecond here would '
-          'be a sixteenth of a frame on the dev box alone',
-    );
-  });
-
-  test('the cost is linear in cache size, not worse', () {
-    // Shape, not magnitude: superlinear would be a different problem entirely.
-    final small = _measure(20000).perCopyUs;
-    final large = _measure(200000).perCopyUs;
-
-    expect(
-      large / small,
-      lessThan(40),
-      reason:
-          '10x the entries for roughly 10x the cost, with generous slack '
-          'for allocator noise; far above that is superlinear',
-    );
-  });
-
   test('a copy keeps every other entry, which is why it is a copy at all', () {
     final cache = _cache(50);
     const replaced = MessageExtras(

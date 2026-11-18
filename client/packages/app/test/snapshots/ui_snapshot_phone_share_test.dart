@@ -125,126 +125,125 @@ void main() {
   setUpAll(loadRealFonts);
 
   for (final MapEntry(key: sizeName, value: size) in _sizes.entries) {
-    for (final theme in ['dark', 'light']) {
+    const theme = darkAndLight;
+    testWidgets(
+      'call watching a share $sizeName $theme',
+      (tester) => _onIPhone(
+        () => renderSurface(
+          tester,
+          '/channels/c-main',
+          'phone-portrait',
+          theme,
+          'phone-share-call-watch-$sizeName-$theme',
+          overrides: _call(const [_me, _ada, _bob]),
+          allowNoText: true,
+          afterSettle: (t) => _resize(t, size),
+        ),
+      ),
+    );
+    testWidgets(
+      'call sharing $sizeName $theme',
+      (tester) => _onIPhone(
+        () => renderSurface(
+          tester,
+          '/channels/c-main',
+          'phone-portrait',
+          theme,
+          'phone-share-call-local-$sizeName-$theme',
+          overrides: _call(const [_meSharing, _bob], sharing: true),
+          allowNoText: true,
+          afterSettle: (t) => _resize(t, size),
+        ),
+      ),
+    );
+    testWidgets(
+      'call awaiting broadcast $sizeName $theme',
+      (tester) => _onIPhone(
+        () => renderSurface(
+          tester,
+          '/channels/c-main',
+          'phone-portrait',
+          theme,
+          'phone-share-call-await-$sizeName-$theme',
+          overrides: _call(const [_me, _bob], awaiting: true),
+          allowNoText: true,
+          afterSettle: (t) => _resize(t, size),
+        ),
+      ),
+    );
+    for (final kind in FullscreenVideoKind.values) {
       testWidgets(
-        'call watching a share $sizeName $theme',
+        'fullscreen ${kind.name} $sizeName $theme',
         (tester) => _onIPhone(
           () => renderSurface(
             tester,
             '/channels/c-main',
             'phone-portrait',
             theme,
-            'phone-share-call-watch-$sizeName-$theme',
+            'phone-share-full-${kind.name}-$sizeName-$theme',
             overrides: _call(const [_me, _ada, _bob]),
             allowNoText: true,
-            afterSettle: (t) => _resize(t, size),
+            afterSettle: (t) async {
+              await _resize(t, size);
+              final ctx = t.element(find.text('main').first);
+              final share = kind == FullscreenVideoKind.screenShare;
+              unawaited(
+                showFullscreenVideo(
+                  ctx,
+                  identity: share ? 'user-ada' : 'user-bob',
+                  label: share ? "Ada's screen" : 'Bob',
+                  kind: kind,
+                ),
+              );
+              await t.pump();
+              await t.pump(const Duration(milliseconds: 400));
+            },
           ),
         ),
       );
+    }
+    for (final mode in ['dock', 'zoom']) {
       testWidgets(
-        'call sharing $sizeName $theme',
+        'fullscreen share $mode $sizeName',
         (tester) => _onIPhone(
           () => renderSurface(
             tester,
             '/channels/c-main',
             'phone-portrait',
-            theme,
-            'phone-share-call-local-$sizeName-$theme',
-            overrides: _call(const [_meSharing, _bob], sharing: true),
+            'dark',
+            'phone-share-full-$mode-$sizeName-dark',
+            overrides: [
+              ..._call(const [_me, _ada, _bob]),
+              portraitLockedPhoneProvider.overrideWith((ref) => true),
+            ],
             allowNoText: true,
-            afterSettle: (t) => _resize(t, size),
+            afterSettle: (t) async {
+              await _resize(t, size);
+              final ctx = t.element(find.text('main').first);
+              unawaited(
+                showFullscreenVideo(
+                  ctx,
+                  identity: 'user-ada',
+                  label: "Ada's screen",
+                  kind: FullscreenVideoKind.screenShare,
+                ),
+              );
+              await t.pump();
+              await t.pump(const Duration(milliseconds: 400));
+              if (mode == 'dock') {
+                await t.tap(find.byTooltip('Show controls'));
+              } else {
+                await t.sendKeyEvent(LogicalKeyboardKey.equal);
+                await t.sendKeyEvent(LogicalKeyboardKey.equal);
+              }
+              await t.pump();
+              await t.pump(const Duration(milliseconds: 400));
+            },
           ),
         ),
       );
-      testWidgets(
-        'call awaiting broadcast $sizeName $theme',
-        (tester) => _onIPhone(
-          () => renderSurface(
-            tester,
-            '/channels/c-main',
-            'phone-portrait',
-            theme,
-            'phone-share-call-await-$sizeName-$theme',
-            overrides: _call(const [_me, _bob], awaiting: true),
-            allowNoText: true,
-            afterSettle: (t) => _resize(t, size),
-          ),
-        ),
-      );
-      for (final kind in FullscreenVideoKind.values) {
-        testWidgets(
-          'fullscreen ${kind.name} $sizeName $theme',
-          (tester) => _onIPhone(
-            () => renderSurface(
-              tester,
-              '/channels/c-main',
-              'phone-portrait',
-              theme,
-              'phone-share-full-${kind.name}-$sizeName-$theme',
-              overrides: _call(const [_me, _ada, _bob]),
-              allowNoText: true,
-              afterSettle: (t) async {
-                await _resize(t, size);
-                final ctx = t.element(find.text('main').first);
-                final share = kind == FullscreenVideoKind.screenShare;
-                unawaited(
-                  showFullscreenVideo(
-                    ctx,
-                    identity: share ? 'user-ada' : 'user-bob',
-                    label: share ? "Ada's screen" : 'Bob',
-                    kind: kind,
-                  ),
-                );
-                await t.pump();
-                await t.pump(const Duration(milliseconds: 400));
-              },
-            ),
-          ),
-        );
-      }
-      if (theme == 'dark') {
-        for (final mode in ['dock', 'zoom']) {
-          testWidgets(
-            'fullscreen share $mode $sizeName',
-            (tester) => _onIPhone(
-              () => renderSurface(
-                tester,
-                '/channels/c-main',
-                'phone-portrait',
-                theme,
-                'phone-share-full-$mode-$sizeName-$theme',
-                overrides: [
-                  ..._call(const [_me, _ada, _bob]),
-                  portraitLockedPhoneProvider.overrideWith((ref) => true),
-                ],
-                allowNoText: true,
-                afterSettle: (t) async {
-                  await _resize(t, size);
-                  final ctx = t.element(find.text('main').first);
-                  unawaited(
-                    showFullscreenVideo(
-                      ctx,
-                      identity: 'user-ada',
-                      label: "Ada's screen",
-                      kind: FullscreenVideoKind.screenShare,
-                    ),
-                  );
-                  await t.pump();
-                  await t.pump(const Duration(milliseconds: 400));
-                  if (mode == 'dock') {
-                    await t.tap(find.byTooltip('Show controls'));
-                  } else {
-                    await t.sendKeyEvent(LogicalKeyboardKey.equal);
-                    await t.sendKeyEvent(LogicalKeyboardKey.equal);
-                  }
-                  await t.pump();
-                  await t.pump(const Duration(milliseconds: 400));
-                },
-              ),
-            ),
-          );
-        }
-      }
+    }
+    for (final theme in ['dark', 'light']) {
       testWidgets(
         'mini player $sizeName $theme',
         (tester) => _onIPhone(() async {

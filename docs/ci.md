@@ -78,11 +78,15 @@ Before that, every non-2xx returned before the schema was consulted, so an error
 The work runs as parallel jobs rather than one serial job: `lint`, three `test (k/3)` legs and `release build and size budget`.
 `check` is a job that needs all of them and does nothing else, because `release.yml`'s `verify-server-ci` waits on that exact name; a failed need leaves it skipped, and the release gate refuses anything but success.
 
+The canvas fuzz runs one seed per shard on pull requests and its full seed range on pushes to `main` (`SLIMM_FULL_FUZZ=1`), the commits a release is cut from; each finding is pinned in its own repro test, so a pull request still runs every known case.
+
 Details, in [ci-details.md](ci-details.md#server-ci): The Rust compiler is pinned; Broken doc links; The sqlx cache; Unused dependencies; The jobs are split, measured 2026-11-17.
 
 ## client-ci
 
 Path-gated so a server-only or schema-only change never triggers the Flutter client build.
+
+The app shards fuzz the canvas with a quick seed sample on pull requests and the full seed range on pushes to `main` (`SLIMM_FULL_FUZZ=1`); the engine and gesture findings are pinned in their own tests, so a pull request still runs every known case.
 
 Details, in [ci-details.md](ci-details.md#client-ci): The web bundle budget; The app shards are dealt by measured time; The app shards run bundles, not one isolate per file; Native build hooks are cached, and explain their own failures; Logic tests also run as JavaScript; Where a pull request's time goes, measured 2026-10-02; The UI snapshot capture is its own leg; Runner labels are pinned; Goldens are not a separate job; The iOS unit-test job, and why it is its own workflow; The registration and release-configuration checks, and why PR #292 needed both.
 
