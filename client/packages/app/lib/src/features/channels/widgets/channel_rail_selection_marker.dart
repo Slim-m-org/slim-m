@@ -144,6 +144,7 @@ class _SelectionMarkerTargetState extends State<SelectionMarkerTarget> {
     } else {
       _afterFrame((layer) => layer.retract(this));
     }
-    return widget.child;
+    // A row's hover or unread dot repaints the row alone, not the whole rail beside it.
+    return RepaintBoundary(child: widget.child);
   }
 }
