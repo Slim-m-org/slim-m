@@ -37,6 +37,7 @@ api/test/scope_events_test.dart
 api/test/session_end_reason_test.dart
 api/test/thread_events_test.dart
 api/test/transport_deadline_test.dart
+api/test/upload_progress_browser_test.dart
 api/test/user_profile_equality_test.dart
 api/test/version_capabilities_test.dart
 api/test/voice_activity_event_test.dart
