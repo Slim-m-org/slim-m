@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A phone sheet clips what it holds to its rounded top corners, and a sheet
+/// A sheet clips what it holds to its rounded corners, and a phone sheet
 /// that opens on a picture can take its handle over it.
 ///
 /// Material clips nothing by default, so a full-width banner kept square
@@ -18,8 +18,17 @@ const _red = Color(0xFFD62828);
 const _bodyKey = Key('edge-body');
 final _boundary = GlobalKey();
 
-Future<void> _open(WidgetTester tester, {required bool handleOver}) async {
-  tester.view.physicalSize = const Size(390, 844);
+Future<void> _open(
+  WidgetTester tester, {
+  required bool handleOver,
+  Size window = const Size(390, 844),
+  Widget body = const SizedBox(
+    key: _bodyKey,
+    height: 120,
+    child: ColoredBox(color: _red),
+  ),
+}) async {
+  tester.view.physicalSize = window;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
@@ -33,11 +42,7 @@ Future<void> _open(WidgetTester tester, {required bool handleOver}) async {
               onPressed: () => showAppSheet<void>(
                 context,
                 handleOverContent: handleOver,
-                builder: (_) => const SizedBox(
-                  key: _bodyKey,
-                  height: 120,
-                  child: ColoredBox(color: _red),
-                ),
+                builder: (_) => body,
               ),
               child: const Text('open'),
             ),
@@ -141,5 +146,33 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.byKey(_bodyKey), findsOneWidget);
+  });
+
+  testWidgets('a desktop dialog clips a footer to its rounded bottom corners', (
+    tester,
+  ) async {
+    await _open(
+      tester,
+      handleOver: false,
+      window: const Size(1280, 800),
+      body: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(height: 120),
+          SizedBox(
+            key: _bodyKey,
+            width: double.infinity,
+            height: 48,
+            child: ColoredBox(color: _red),
+          ),
+        ],
+      ),
+    );
+    final footer = tester.getRect(find.byKey(_bodyKey));
+    final pixel = await _pixels(tester);
+
+    expect(pixel(footer.center.dx, footer.bottom - 3), _red);
+    expect(pixel(footer.left + 1, footer.bottom - 1), isNot(_red));
+    expect(pixel(footer.right - 1, footer.bottom - 1), isNot(_red));
   });
 }
