@@ -360,6 +360,21 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('below the two-pane width, system back from a pane with no '
+      'draft lands on the nav like the back arrow', (tester) async {
+    final rig = _Rig();
+    await rig.pump(tester, _narrowDesktop, pane: 'other');
+    expect(find.text('other pane'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+
+    expect(rig.guard.asked, 0);
+    expect(find.text('other pane'), findsNothing);
+    expect(find.text('Drafted'), findsOneWidget, reason: 'back on the nav');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('on a phone system back leaves the page, not settings', (
     tester,
   ) async {

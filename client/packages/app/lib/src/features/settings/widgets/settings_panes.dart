@@ -242,7 +242,7 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
     final stack = selected == null ? null : _stackFor(selected.id);
     final blocking = stack?.blocking ?? false;
     return PopScope(
-      canPop: (wide || (stack?.isEmpty ?? true)) && !blocking,
+      canPop: (wide || stack == null) && !blocking,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop || stack == null) return;
         if (!wide && !stack.isEmpty) {
