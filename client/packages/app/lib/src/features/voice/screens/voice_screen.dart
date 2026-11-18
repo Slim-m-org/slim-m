@@ -222,10 +222,17 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     controller.join(widget.channelId);
   }
 
-  /// The idle pane's join: always muted, marked as attempted like a rejoin.
-  void _joinMuted(VoiceController controller) {
+  /// The idle pane's join: muted unless [withMic], marked as attempted like a rejoin.
+  void _joinMuted(VoiceController controller, {bool withMic = false}) {
     _autoJoinedFor = widget.channelId;
-    unawaited(_joinConfirmed(() => controller.joinMuted(widget.channelId)));
+    final channelId = widget.channelId;
+    unawaited(
+      _joinConfirmed(
+        () => withMic
+            ? controller.join(channelId)
+            : controller.joinMuted(channelId),
+      ),
+    );
   }
 
   /// A DM's first ring is spent once it was declined or timed out, so a rejoin
@@ -314,6 +321,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
           canRetry: canRetry,
           recap: recapForChannel(voice, channelId),
           onJoin: () => _joinMuted(controller),
+          onJoinWithMic: () => _joinMuted(controller, withMic: true),
           onOpenCanvas: () =>
               ref.read(canvasOpenProvider.notifier).state = channelId,
         ),

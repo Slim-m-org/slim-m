@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A voice channel while you are not in its call (design 13, decision
 /// 0066): a join bar, then the latest call's record - who was in when, what
-/// happened, so far if it is still going - and the calls before it. Each part stands alone, so a channel
-/// with no history still gets its join bar.
+/// happened, so far if it is still going - and the calls before it. A channel
+/// with nothing to look back on gets a centred empty state instead.
 library;
 
 import 'package:flutter/material.dart';
@@ -24,6 +24,7 @@ import 'call_moments_view.dart';
 import 'call_timeline_model.dart';
 import 'call_timeline_view.dart';
 import 'call_transcript_section.dart';
+import 'voice_channel_empty.dart';
 import 'voice_join_bar.dart';
 
 class VoiceChannelIdle extends ConsumerWidget {
@@ -32,6 +33,7 @@ class VoiceChannelIdle extends ConsumerWidget {
     required this.channelId,
     required this.onJoin,
     required this.onOpenCanvas,
+    this.onJoinWithMic,
     this.errorMessage,
     this.canRetry = true,
     this.recap,
@@ -39,7 +41,12 @@ class VoiceChannelIdle extends ConsumerWidget {
   });
 
   final String channelId;
+
+  /// Joins muted; the join bar's one button.
   final VoidCallback onJoin;
+
+  /// Joins with the mic as the person left it, offered beside [onJoin] on an empty channel.
+  final VoidCallback? onJoinWithMic;
   final VoidCallback onOpenCanvas;
   final String? errorMessage;
   final bool canRetry;
@@ -96,9 +103,21 @@ class VoiceChannelIdle extends ConsumerWidget {
     final shown = focused ?? _selectedCall(calls, selectedAt);
     if (focused != null) _adoptFocus(ref, focused);
     final ended = recap;
+    final recapShown = ended != null && ended.isWorthShowing;
+    // Blank while the history loads, so a channel with calls never flashes the empty state first.
+    if (!history.hasValue && !history.hasError) return const SizedBox.shrink();
+    if (calls.isEmpty && !recapShown) {
+      return VoiceChannelEmpty(
+        channelId: channelId,
+        rejoin: ended != null,
+        onJoinMuted: onJoin,
+        onJoin: onJoinWithMic,
+        errorMessage: errorMessage,
+        canRetry: canRetry,
+      );
+    }
     final sections = <Widget>[
-      if (ended != null && ended.isWorthShowing)
-        CallRecapCard(recap: ended, title: 'Call ended'),
+      if (recapShown) CallRecapCard(recap: ended, title: 'Call ended'),
       VoiceJoinBar(
         rejoin: ended != null,
         channelId: channelId,
