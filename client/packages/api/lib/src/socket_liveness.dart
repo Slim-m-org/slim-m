@@ -17,9 +17,16 @@ class SocketLiveness {
     required this.onSilent,
     this.interval = const Duration(seconds: 20),
     this.maxSilentBeats = 2,
-  });
+    this.onRoundTrip,
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   final void Function() ping;
+
+  /// Each ping's round trip, measured to the pong that answered it.
+  final void Function(Duration roundTrip)? onRoundTrip;
+  final DateTime Function() _clock;
+  DateTime? _pingedAt;
   final void Function() onSilent;
   final Duration interval;
 
@@ -43,10 +50,24 @@ class SocketLiveness {
     if (waiting != null && !waiting.isCompleted) waiting.complete();
   }
 
+  /// The server answered a ping; times it against the oldest one unanswered.
+  void ponged() {
+    heard();
+    final sent = _pingedAt;
+    if (sent == null) return;
+    _pingedAt = null;
+    onRoundTrip?.call(_clock().difference(sent));
+  }
+
+  void _ping() {
+    _pingedAt ??= _clock();
+    ping();
+  }
+
   /// Pings now and says whether anything came back within [timeout].
   Future<bool> probe({Duration timeout = const Duration(seconds: 5)}) async {
     final waiting = _awaiting ??= Completer<void>();
-    ping();
+    _ping();
     try {
       await waiting.future.timeout(timeout);
       return true;
@@ -71,6 +92,6 @@ class SocketLiveness {
       return;
     }
     _heard = false;
-    ping();
+    _ping();
   }
 }
