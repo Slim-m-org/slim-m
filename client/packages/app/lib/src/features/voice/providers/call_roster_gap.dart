@@ -205,9 +205,10 @@ class CallRosterGapNotifier extends AutoDisposeNotifier<CallRosterGap> {
       timer?.cancel();
       stale?.cancel();
     });
-    // Nothing was read while unwatched, so a stage shown again confirms afresh.
+    // Nothing was read while unwatched, so a stage shown again confirms afresh; a timer, as a resume can land mid-build.
     ref.onResume(() {
-      dropStale();
+      tracker.reset();
+      stale = Timer(Duration.zero, dropStale);
       unawaited(poll());
     });
     ref.onDispose(() {
