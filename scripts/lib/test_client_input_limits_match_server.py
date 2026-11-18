@@ -41,6 +41,7 @@ MIRRORS = {
     "pollOption": ("store/polls.rs", "MAX_OPTION_CHARS"),
     "emojiName": ("emoji.rs", "MAX_NAME_LEN"),
     "roleColors": ("store/roles.rs", "ROLE_COLOR_COUNT"),
+    "attachmentsPerMessage": ("store/attachments.rs", "MAX_ATTACHMENTS_PER_MESSAGE"),
 }
 
 DART_LIMIT = re.compile(r"static const int (\w+) = (\d+);")

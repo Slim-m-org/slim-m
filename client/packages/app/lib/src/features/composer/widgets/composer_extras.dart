@@ -9,8 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'composer_attachment_tray.dart';
 import 'composer_attachments.dart';
-import 'staged_attachment_tile.dart';
 
 export 'composer_field.dart';
 
@@ -95,11 +95,7 @@ class ComposerBanners extends StatelessWidget {
     required this.onDismissAttachmentError,
     required this.overLimitBy,
     required this.slowModeRemainingSeconds,
-    required this.stagedAttachments,
-    required this.onRemoveAttachment,
-    required this.onRetryAttachment,
-    this.isSpoiler,
-    this.onToggleSpoiler,
+    required this.attachments,
     this.commandError,
     this.onDismissCommandError,
   });
@@ -124,13 +120,9 @@ class ComposerBanners extends StatelessWidget {
   /// send button and shows this band, the same "never silent" rule
   /// [overLimitBy] follows.
   final int slowModeRemainingSeconds;
-  final List<StagedAttachment> stagedAttachments;
-  final ValueChanged<String> onRemoveAttachment;
-  final ValueChanged<String> onRetryAttachment;
 
-  /// Whether a staged item is marked as a spoiler; null offers no spoilers.
-  final bool Function(String localId)? isSpoiler;
-  final ValueChanged<String>? onToggleSpoiler;
+  /// The staged files, drawn as the tray of tiles.
+  final AttachmentStagingController attachments;
 
   @override
   Widget build(BuildContext context) {
@@ -178,32 +170,19 @@ class ComposerBanners extends StatelessWidget {
                 ),
         ),
         AppRevealBand(
-          child: stagedAttachments.isEmpty
+          child: switch (attachments.refusal) {
+            null => null,
+            // Never on a timer: the refused file is nowhere else on screen.
+            final refusal => ComposerInlineError(
+              message: refusal,
+              onDismiss: attachments.dismissRefusal,
+            ),
+          },
+        ),
+        AppRevealBand(
+          child: attachments.isEmpty
               ? null
-              : Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-                  child: Wrap(
-                    spacing: AppSpacing.s8,
-                    runSpacing: AppSpacing.s8,
-                    children: [
-                      for (final attachment in stagedAttachments)
-                        StagedAttachmentTile(
-                          key: ValueKey(attachment.localId),
-                          attachment: attachment,
-                          onRemove: () =>
-                              onRemoveAttachment(attachment.localId),
-                          onRetry: () => onRetryAttachment(attachment.localId),
-                          spoiler: isSpoiler?.call(attachment.localId) ?? false,
-                          onToggleSpoiler:
-                              onToggleSpoiler != null &&
-                                  (looksLikeImage(attachment.filename) ||
-                                      looksLikeVideo(attachment.filename))
-                              ? () => onToggleSpoiler!(attachment.localId)
-                              : null,
-                        ),
-                    ],
-                  ),
-                ),
+              : ComposerAttachmentTray(attachments: attachments),
         ),
       ],
     );
