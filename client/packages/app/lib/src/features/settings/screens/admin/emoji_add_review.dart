@@ -25,14 +25,24 @@ const nameTakenProblem = 'Already taken.';
 const _standardEmojiProblem = 'That is a standard emoji.';
 const _unusableNameProblem = 'Use letters, numbers and underscores.';
 
-/// The row problem for a reason the server gave for refusing one image, or
-/// null for a reason that is not about its name.
-String? problemForRefusal(String code) => switch (code) {
-  'name_taken' => nameTakenProblem,
-  'builtin_name' => _standardEmojiProblem,
-  'unusable_name' => _unusableNameProblem,
-  _ => null,
+const _nameRefusals = {
+  'name_taken': nameTakenProblem,
+  'builtin_name': _standardEmojiProblem,
+  'unusable_name': _unusableNameProblem,
 };
+
+/// Unlike a name refusal, these hold whatever the row is renamed to.
+const _imageRefusals = {
+  'empty': 'The file is empty.',
+  'too_large': 'Larger than 1 MB.',
+  'unsupported_type': 'Not a PNG, JPEG, GIF or WEBP image.',
+  'too_many_pixels': 'Larger than 1024 pixels on a side.',
+};
+
+/// The row problem for a reason the server gave for refusing one image, or
+/// null for a reason about the whole batch, such as the emoji limit.
+String? problemForRefusal(String code) =>
+    _nameRefusals[code] ?? _imageRefusals[code];
 
 /// One planned image whose name the admin may still change.
 class EmojiReviewItem {
@@ -46,13 +56,22 @@ class EmojiReviewItem {
   final rowKey = GlobalKey();
 
   ({String name, String problem})? _refused;
+  String? _imageProblem;
 
   /// The name the server would store for what is typed now.
   String get normalized => normalizeEmojiName(name.text);
 
-  /// Remembers the server refusing [refusedName] with [problem]; it holds until the name is changed.
-  void refuse(String refusedName, String problem) =>
+  /// Whether the server refused the image itself, which only removing the row fixes.
+  bool get imageRefused => _imageProblem != null;
+
+  /// Remembers the server refusing [refusedName] for [code]: a name refusal
+  /// holds until the name is changed, an image refusal for good.
+  void refuse(String refusedName, String code) {
+    if (_imageRefusals[code] case final problem?) _imageProblem = problem;
+    if (_nameRefusals[code] case final problem?) {
       _refused = (name: refusedName, problem: problem);
+    }
+  }
 
   String? get _refusal {
     final refused = _refused;
@@ -70,8 +89,8 @@ class EmojiReviewItem {
   void dispose() => name.dispose();
 }
 
-/// What is wrong with each item's name, null where it is fine. The first of
-/// two items sharing a name keeps it.
+/// What is wrong with each item's image or name, null where it is fine. The
+/// first of two items sharing a name keeps it.
 List<String?> reviewProblems(
   List<EmojiReviewItem> items,
   Set<String> existingNames,
@@ -80,7 +99,17 @@ List<String?> reviewProblems(
   return [for (final item in items) _problemWith(item, existingNames, seen)];
 }
 
+/// A refused image outranks its name, though the name still claims its place in [seen].
 String? _problemWith(
+  EmojiReviewItem item,
+  Set<String> existing,
+  Set<String> seen,
+) {
+  final nameProblem = _nameProblemWith(item, existing, seen);
+  return item._imageProblem ?? nameProblem;
+}
+
+String? _nameProblemWith(
   EmojiReviewItem item,
   Set<String> existing,
   Set<String> seen,

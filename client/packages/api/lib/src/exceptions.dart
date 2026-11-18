@@ -133,13 +133,16 @@ class BadRequestException extends ApiException {
 /// Which entry of a batch request the server refused and why, as the error
 /// body's `item_index` and `item_code` say it, so no caller reads the sentence.
 class ItemRefusal {
-  const ItemRefusal(this.index, this.code);
+  const ItemRefusal(this.index, this.code, {this.error});
 
   /// Zero-based position in the request's list.
   final int index;
 
   /// A stable reason such as `name_taken`; an unknown one is still a refusal.
   final String code;
+
+  /// The server's own sentence for this entry, when it sent one.
+  final String? error;
 
   /// The error body's `items`, skipping any entry that is not well formed.
   static List<ItemRefusal> listFrom(Object? raw) => [
@@ -149,7 +152,12 @@ class ItemRefusal {
                 entry['index'] is int &&
                 (entry['index'] as int) >= 0 &&
                 entry['code'] is String)
-              ItemRefusal(entry['index'] as int, entry['code'] as String),
+              ItemRefusal(
+                entry['index'] as int,
+                entry['code'] as String,
+                error:
+                    entry['error'] is String ? entry['error'] as String : null,
+              ),
       ];
 }
 

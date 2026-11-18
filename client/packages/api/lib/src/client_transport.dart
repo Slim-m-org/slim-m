@@ -322,6 +322,7 @@ extension SlimmApiTransport on SlimmApi {
         item = ItemRefusal(
           decoded['item_index'] as int,
           decoded['item_code'] as String,
+          error: explained ? reason : null,
         );
         final listed = ItemRefusal.listFrom(decoded['items']);
         items = listed.isEmpty ? [item] : listed;

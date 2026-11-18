@@ -41,9 +41,12 @@ void main() {
       '{"index":4,"code":"name_taken","error":"image 5 (b): taken"},'
       '{"index":"x","code":"empty"}]}',
       isA<BadRequestException>().having(
-        (e) => [for (final i in e.items) (i.index, i.code)],
+        (e) => [for (final i in e.items) (i.index, i.code, i.error)],
         'items',
-        [(1, 'empty'), (4, 'name_taken')],
+        [
+          (1, 'empty', 'image 2 (a): bad'),
+          (4, 'name_taken', 'image 5 (b): taken'),
+        ],
       ),
     );
     await expectMapped(
@@ -55,9 +58,9 @@ void main() {
       409,
       '{"error":"taken","item_index":2,"item_code":"name_taken"}',
       isA<ConflictException>().having(
-        (e) => [for (final i in e.items) (i.index, i.code)],
+        (e) => [for (final i in e.items) (i.index, i.code, i.error)],
         'items',
-        [(2, 'name_taken')],
+        [(2, 'name_taken', 'taken')],
       ),
     );
   });
