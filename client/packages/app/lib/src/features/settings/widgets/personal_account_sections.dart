@@ -18,6 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../accounts/providers/account_services.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../../push/providers/push_controller.dart';
+import '../../../providers/providers.dart';
 import '../../../providers/sync_controller.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../voice/providers/voice_controller.dart';
@@ -316,7 +317,35 @@ class SignOutRow extends ConsumerWidget {
         size: AppSizes.icon16,
         color: tokens.dangerText,
       ),
-      onTap: () => signOut(ref),
+      onTap: () => unawaited(_confirmAndSignOut(context, ref)),
     );
+  }
+
+  /// Signing out wipes the local store, and with it any send that never left.
+  Future<void> _confirmAndSignOut(BuildContext context, WidgetRef ref) async {
+    final unsent = await _unsentCount(ref);
+    if (unsent > 0) {
+      if (!context.mounted) return;
+      final confirmed = await confirmDangerousAction(
+        context,
+        title: 'Sign out?',
+        message: unsent == 1
+            ? '1 message has not been sent yet. Signing out deletes it.'
+            : '$unsent messages have not been sent yet. Signing out deletes '
+                  'them.',
+        confirmLabel: 'Sign out',
+      );
+      if (!confirmed) return;
+    }
+    await signOut(ref);
+  }
+
+  static Future<int> _unsentCount(WidgetRef ref) async {
+    try {
+      return await (await ref.read(storeProvider.future)).unsentCount();
+    } on Object catch (error, stack) {
+      api.reportFailure(api.LogTag.data, 'count unsent messages', error, stack);
+      return 0;
+    }
   }
 }

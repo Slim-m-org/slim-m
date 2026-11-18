@@ -16,6 +16,7 @@ import 'message_store_drafts.dart' as drafts_impl;
 import 'message_store_pending_attachments.dart' as pending_impl;
 import 'message_store_recent_ops.dart';
 import 'message_store_retention.dart' as retention_impl;
+import 'message_store_recovery.dart' as recovery_impl;
 import 'message_store_rows.dart' as rows_impl;
 import 'message_store_cursors.dart' show CursorAdvance, ReadMarker;
 
@@ -233,6 +234,9 @@ class MessageStore {
     final rows = await query.get();
     return rows.map((r) => r.toDto()).toList(growable: false);
   }
+
+  /// How many sends have not reached the server yet, pending or failed.
+  Future<int> unsentCount() => recovery_impl.countUnsentSends(this);
 
   /// Every channel's cursors, for a bundled catch-up request.
   Future<List<api.ScopeCursor>> allCursors() => cursors_impl.allCursors(this);
