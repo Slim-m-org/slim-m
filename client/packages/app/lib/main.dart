@@ -63,6 +63,7 @@ import 'src/widgets/mobile_boot_gate.dart';
 import 'src/providers/startup_restores.dart';
 import 'src/push/android_push_messages.dart';
 import 'src/routing/router.dart';
+import 'src/semantics_tap_once_per_frame.dart';
 import 'src/web_update/web_update_pill.dart';
 import 'src/widgets/app_lock_gate.dart';
 import 'src/widgets/ui_scale_frame.dart';
@@ -107,7 +108,8 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 /// window mapped at the native 1280x720 default instead of the small splash
 /// size. Waiting for the real first frame avoids that race entirely.
 Future<void> main([List<String> args = const []]) async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final binding = WidgetsFlutterBinding.ensureInitialized();
+  SemanticsTapOncePerFrame.install(binding.platformDispatcher, binding);
   if (isAndroidHost) unawaited(drawUnderSystemBars());
   // Before the first SharedPreferences read, which countLaunch makes.
   registerPreferencesStore();
