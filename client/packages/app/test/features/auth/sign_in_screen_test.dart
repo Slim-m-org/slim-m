@@ -227,7 +227,7 @@ void main() {
         overrides: [
           keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
           serverUrlProvider.overrideWith(
-            (ref) => Uri.parse('http://old.example'),
+            (ref) => Uri.parse('https://old.example'),
           ),
           probeApiProvider.overrideWithValue(
             (baseUrl) => SlimmApi(baseUrl: baseUrl, httpClient: httpClient),
@@ -252,7 +252,7 @@ void main() {
 
       await tester.enterText(
         find.byType(TextField).first,
-        'http://new.example',
+        'https://new.example',
       );
       // Past the debounce, then let the probe's response apply.
       await tester.pump(const Duration(milliseconds: 700));

@@ -220,6 +220,42 @@ void main() {
     expect(_input('Username'), findsNothing);
   });
 
+  testWidgets('a public http address that answers opens no account field and '
+      'says why under Server', (tester) async {
+    await _pump(tester, invitesOnly: false);
+    expect(_input('Username'), findsOneWidget);
+
+    await tester.enterText(_input('Server'), 'http://chat.example.com');
+    await tester.pump(const Duration(seconds: 1));
+    await pumpFrames(tester);
+    expect(_input('Username'), findsNothing);
+
+    await tester.tap(_button('Continue'));
+    await tester.pump(const Duration(seconds: 1));
+    await pumpFrames(tester);
+    expect(_input('Username'), findsNothing);
+    expect(
+      tester.widget<AppInput>(_input('Server')).errorText,
+      startsWith('Use https for a Space on the internet.'),
+    );
+  });
+
+  testWidgets('editing the address clears the error under it before the '
+      'next answer opens the account fields', (tester) async {
+    await _pump(tester, invitesOnly: false);
+    await tester.enterText(_input('Server'), 'http://chat.example.com');
+    await tester.pump();
+    await tester.tap(_button('Continue'));
+    await pumpFrames(tester);
+    expect(tester.widget<AppInput>(_input('Server')).errorText, isNotNull);
+
+    await tester.enterText(_input('Server'), 'https://chat.example.com');
+    await tester.pump(const Duration(seconds: 1));
+    await pumpFrames(tester);
+    expect(tester.widget<AppInput>(_input('Server')).errorText, isNull);
+    expect(_input('Username'), findsOneWidget);
+  });
+
   testWidgets('signing in to an existing account does not wait on the server', (
     tester,
   ) async {

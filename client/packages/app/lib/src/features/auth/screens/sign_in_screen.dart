@@ -159,15 +159,17 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   /// probed, on every path including failures, so a slow answer about a
   /// previously typed address cannot relabel the current one either way.
   Future<void> _probeServer() async {
-    final target = probeTarget(_server.text);
-    if (target == null) {
+    // An address the form would refuse to submit must not open the steps after it.
+    final (address, problem) = submittableAddress(_server.text);
+    if (address == null) {
       setState(() {
         _probed = null;
-        _probeFailure = null;
+        _probeFailure = problem;
         _identityStatus = null;
       });
       return;
     }
+    final target = reduceServerAddress(address);
     final keyStore = ref.read(keyStoreProvider);
     final probe = await probeServerVersion(
       ref.read(probeApiProvider)(target),
@@ -192,8 +194,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   /// Continue before the address has answered checks it now, without the debounce.
   Future<void> _checkServer() async {
-    if (_submittableAddress() == null) return;
     _probeDebounce?.cancel();
+    if (_submittableAddress() == null) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -247,6 +249,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _probed = null;
       _probeFailure = null;
       _identityStatus = null;
+      if (_error?.$1 == SignInErrorField.server) _error = null;
     });
     _probeDebounce?.cancel();
     _probeDebounce = Timer(const Duration(milliseconds: 600), _probeServer);
