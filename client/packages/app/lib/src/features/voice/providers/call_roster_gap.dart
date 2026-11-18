@@ -34,6 +34,12 @@ const kRosterGapPoll = Duration(seconds: 10);
 /// a read still out is waited for, as it may yet answer.
 const kRosterGapStale = Duration(seconds: 15);
 
+/// How long one roster read may take before it counts as failed.
+///
+/// Well under the 45 s request deadline, so a stalled API cannot hold a gap
+/// past [kRosterGapStale] plus this.
+const kRosterGapRead = Duration(seconds: 8);
+
 /// Someone the server lists in the call whom this device's call has not delivered.
 typedef PendingPeer = ({String id, String name});
 
@@ -177,9 +183,11 @@ class CallRosterGapNotifier extends AutoDisposeNotifier<CallRosterGap> {
       timer?.cancel();
       inFlight = true;
       try {
-        final server = (await client.voiceRosterSnapshot(
-          channelId,
-        )).participants;
+        final server =
+            (await client
+                    .voiceRosterSnapshot(channelId)
+                    .timeout(kRosterGapRead))
+                .participants;
         if (!gone) observe(server);
       } on Object catch (error, stack) {
         api.AppLog.swallowed(

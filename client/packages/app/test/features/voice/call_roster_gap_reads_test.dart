@@ -43,6 +43,8 @@ const _bobRow = {
 };
 const _aliceRow = {'user_id': 'user-2', 'display_name': 'Alice'};
 
+const _second = Duration(seconds: 1);
+
 /// The server's roster, read from [rows] each time after [delay], or a 503 while [failing].
 class _Roster {
   List<Map<String, Object>> rows = const [_bobRow, _aliceRow];
@@ -197,6 +199,29 @@ void main() {
         await call.advance(const Duration(seconds: 1));
       }
       expect(find.textContaining('The call server lost you'), findsNothing);
+    } finally {
+      call.dispose();
+    }
+  });
+
+  testWidgets('a read that hangs gives up in time to drop the gap it holds', (
+    tester,
+  ) async {
+    final roster = _Roster()..rows = const [_aliceRow];
+    final call = _Call(tester, roster);
+    try {
+      await call.start(const [_me, _alice]);
+      await call.advance(kRosterGapPoll);
+      expect(find.textContaining('The call server lost you'), findsOneWidget);
+      roster.delay = const Duration(minutes: 1);
+      final limit = kRosterGapStale + kRosterGapRead;
+      for (var waited = Duration.zero; waited < limit; waited += _second) {
+        await call.advance(_second);
+      }
+      expect(find.textContaining('The call server lost you'), findsNothing);
+      // Lets the abandoned response finish, so no fake-server timer outlives the test.
+      roster.delay = Duration.zero;
+      await call.advance(const Duration(minutes: 1));
     } finally {
       call.dispose();
     }
