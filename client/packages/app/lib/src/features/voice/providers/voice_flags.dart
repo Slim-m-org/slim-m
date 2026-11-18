@@ -167,14 +167,24 @@ class VoiceFlags {
 /// rebuilds when one of these fields actually changes, so a join, leave,
 /// mute or speaking flicker on [voiceParticipantsProvider] never reaches it.
 final voiceFlagsProvider = Provider<VoiceFlags>(
-  (ref) => ref.watch(voiceControllerProvider.select(VoiceFlags.from)),
+  (ref) => ref.watch(voiceFlagsAtOnce),
 );
+
+/// [voiceFlagsProvider] for a listener that must hear a change with no frame
+/// drawn, as under a window hidden to the tray: a derived provider waits for one.
+final voiceFlagsAtOnce = voiceControllerProvider.select(VoiceFlags.from);
 
 /// The high-churn slice of [voiceControllerProvider]: the live roster alone.
 /// A watcher rebuilds on every join, leave, mute or speaking change - exactly
 /// the noise [voiceFlagsProvider] exists to shield everything else from.
 final voiceParticipantsProvider = Provider<List<VoiceParticipant>>(
-  (ref) => ref.watch(voiceControllerProvider.select((s) => s.participants)),
+  (ref) => ref.watch(voiceParticipantsAtOnce),
+);
+
+/// [voiceParticipantsProvider] for a listener that must hear a change with no
+/// frame drawn; see [voiceFlagsAtOnce].
+final voiceParticipantsAtOnce = voiceControllerProvider.select(
+  (s) => s.participants,
 );
 
 /// The roster with every speaking flag cleared, so a surface that lays people
