@@ -73,10 +73,10 @@ AppMenuItem? markReadStateMenuItem(
   );
 }
 
-/// "Mark all as read" over [channels], or null when none of them shows a badge.
+/// "Mark all as read" over [channels], dimmed when none of them shows a badge.
 ///
 /// One request for the lot, and one failure sentence rather than one per channel.
-AppMenuItem? markAllReadMenuItem(
+AppMenuItem markAllReadMenuItem(
   BuildContext context,
   ProviderContainer container,
   Iterable<Channel> channels,
@@ -92,17 +92,55 @@ AppMenuItem? markAllReadMenuItem(
       ))
         channel.id,
   ];
-  if (unreadIds.isEmpty) return null;
   return AppMenuItem(
     label: 'Mark all as read',
     leading: AppIcons.check,
+    onTap: unreadIds.isEmpty
+        ? null
+        : () {
+            close();
+            unawaited(
+              _say(
+                context,
+                'mark these channels read',
+                () => markChannelsRead(container, unreadIds),
+              ),
+            );
+          },
+  );
+}
+
+/// Mutes or unmutes [category] for this account; under a muted [parent] it only says so.
+AppMenuItem categoryMuteMenuItem(
+  BuildContext context,
+  ProviderContainer container,
+  ChannelCategoryRow category,
+  ChannelCategoryRow? parent,
+  VoidCallback close,
+) {
+  final overrides = container.read(channelNotificationOverridesProvider);
+  final muted = overrides.mutedCategories.contains(category.id);
+  if (!muted && parent != null && overrides.isCategoryMuted(parent.id)) {
+    return AppMenuItem(
+      label: 'Muted with ${parent.name}',
+      leading: AppIcons.notificationsOff,
+    );
+  }
+  return AppMenuItem(
+    label: muted ? 'Unmute category' : 'Mute category',
+    leading: muted ? AppIcons.notificationsOn : AppIcons.notificationsOff,
     onTap: () {
       close();
+      final notifier = container.read(
+        channelNotificationOverridesProvider.notifier,
+      );
       unawaited(
         _say(
           context,
-          'mark these channels read',
-          () => markChannelsRead(container, unreadIds),
+          muted ? 'unmute this category' : 'mute this category',
+          () => muted
+              ? notifier.unmuteCategory(category.id)
+              : notifier.muteCategory(category.id),
         ),
       );
     },

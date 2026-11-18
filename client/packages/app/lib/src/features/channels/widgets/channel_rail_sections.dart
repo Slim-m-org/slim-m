@@ -258,16 +258,25 @@ class _ChannelCategorySectionsState
       return const SizedBox.shrink();
     }
     final place = category == null ? 'Channels' : view.tree.pathOf(category);
-    final menuKey = category == null || carried || !widget.canManage
+    final menuKey = category == null || carried
         ? null
         : _categoryMenuKeys.putIfAbsent(
             category.id,
             GlobalKey<ContextMenuRegionState>.new,
           );
+    // A phone header's menu opens from the held press, as a row's does.
+    final kebab = menuKey != null && !AppTouchTargets.of(context);
     // Any section, the implicit uncategorised one included: it is a real place a channel can live.
     final label = SectionLabel(
       category?.name ?? 'Channels',
       collapsed: view.folded(category),
+      muted:
+          category != null &&
+          ref.watch(
+            channelNotificationOverridesProvider.select(
+              (s) => s.isCategoryMuted(category.id),
+            ),
+          ),
       indicator: category == null ? null : view.rollupOf(category),
       onToggle: category == null
           ? null
@@ -276,20 +285,23 @@ class _ChannelCategorySectionsState
                   .read(collapsedCategoriesProvider.notifier)
                   .toggleShown(category.id, parentId: category.parentId),
             ),
-      trailingBuilder: !widget.canManage
+      trailingBuilder: !widget.canManage && !kebab
           ? null
           : (revealed, onFocusChange) => Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                AddChannelGlyph(
-                  categoryId: category?.id,
-                  categoryName: place,
-                  initialKind: kindToAddIn(category, view.channelsOf(category)),
-                  revealed: revealed && !carried,
-                  onFocusChange: onFocusChange,
-                ),
-                // A phone header's menu opens from the held press, as a row's does.
-                if (menuKey != null && !AppTouchTargets.of(context))
+                if (widget.canManage)
+                  AddChannelGlyph(
+                    categoryId: category?.id,
+                    categoryName: place,
+                    initialKind: kindToAddIn(
+                      category,
+                      view.channelsOf(category),
+                    ),
+                    revealed: revealed && !carried,
+                    onFocusChange: onFocusChange,
+                  ),
+                if (kebab)
                   CategoryMenuGlyph(
                     categoryName: place,
                     revealed: revealed,

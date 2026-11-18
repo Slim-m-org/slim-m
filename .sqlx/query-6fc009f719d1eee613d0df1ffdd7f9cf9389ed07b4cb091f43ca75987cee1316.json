@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO category_mutes (user_id, category_id, created_at)\n             VALUES (?, ?, ?)\n             ON CONFLICT (user_id, category_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "6fc009f719d1eee613d0df1ffdd7f9cf9389ed07b4cb091f43ca75987cee1316"
+}

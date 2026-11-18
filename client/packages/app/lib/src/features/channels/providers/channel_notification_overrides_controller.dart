@@ -20,7 +20,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_data/data.dart' show Channel;
+import 'package:slimm_data/data.dart' show CategoryStore, Channel;
 
 import '../../../providers/providers.dart';
 
@@ -39,6 +39,8 @@ class ChannelNotificationOverridesState {
     this.byChannel = const {},
     this.settled = false,
     this.error,
+    this.mutedCategories = const {},
+    this.categoryParents = const {},
   });
 
   /// Every channel this account has overridden, and what to. A channel
@@ -54,16 +56,47 @@ class ChannelNotificationOverridesState {
   /// these.
   final String? error;
 
+  /// The categories this account muted itself; a sub-category of one is muted with it.
+  final Set<String> mutedCategories;
+
+  /// Each sub-category's parent, read only while a category is muted.
+  final Map<String, String> categoryParents;
+
+  ChannelNotificationOverridesState copyWith({
+    Map<String, api.NotificationPreference>? byChannel,
+    bool? settled,
+    Set<String>? mutedCategories,
+    Map<String, String>? categoryParents,
+  }) => ChannelNotificationOverridesState(
+    byChannel: byChannel ?? this.byChannel,
+    settled: settled ?? this.settled,
+    error: error,
+    mutedCategories: mutedCategories ?? this.mutedCategories,
+    categoryParents: categoryParents ?? this.categoryParents,
+  );
+
+  /// Whether [categoryId] is quiet: muted itself, or filed under a muted category.
+  bool isCategoryMuted(String? categoryId) =>
+      categoryId != null &&
+      (mutedCategories.contains(categoryId) ||
+          mutedCategories.contains(categoryParents[categoryId]));
+
+  /// What [channel] follows when this account set nothing for it: muted by its category, else its own default.
+  api.NotificationPreference? defaultFor(Channel channel) =>
+      isCategoryMuted(channel.categoryId)
+      ? api.NotificationPreference.nothing
+      : channelDefaultOf(channel);
+
   /// [channelId]'s own override, or `null` when it is following the account
   /// default.
   api.NotificationPreference? overrideFor(String channelId) =>
       byChannel[channelId];
 
   /// What [channel] shows and sounds as: this account's own choice for it, else
-  /// the channel's default. The account-wide preference stays out, for the
+  /// [defaultFor]. The account-wide preference stays out, for the
   /// reason `unreadIndicatorFor` gives.
   api.NotificationPreference? effectiveFor(Channel channel) =>
-      byChannel[channel.id] ?? channelDefaultOf(channel);
+      byChannel[channel.id] ?? defaultFor(channel);
 
   /// Whether [channelId] is muted entirely, the one state the rail's glyph
   /// renders for.
@@ -93,10 +126,13 @@ class ChannelNotificationOverridesController
       byChannel[channelId] = preference;
     }
     _edits[channelId] = preference;
-    state = ChannelNotificationOverridesState(
-      byChannel: byChannel,
-      settled: state.settled,
-    );
+    state = state.copyWith(byChannel: byChannel);
+  }
+
+  /// Another device of this account muted or unmuted [categoryId].
+  void applyRemoteCategory(String categoryId, {required bool muted}) {
+    _categoryEdits[categoryId] = muted;
+    _showCategory(categoryId, muted: muted);
   }
 
   /// Whose overrides are held, so a session change that is only a token
@@ -114,20 +150,22 @@ class ChannelNotificationOverridesController
   /// the edit is not undone by a response that was sent before it.
   final Map<String, api.NotificationPreference?> _edits = {};
 
+  /// [_edits] for category mutes.
+  final Map<String, bool> _categoryEdits = {};
+
+  /// Follows the category tree once something is muted, so a sub-category resolves to its parent.
+  ProviderSubscription<AsyncValue<Map<String, String>>>? _parents;
+
   void _onSessionChanged(api.TokenPair? tokens) {
-    if (tokens == null) {
-      _generation++;
-      _edits.clear();
-      _account = null;
-      state = const ChannelNotificationOverridesState();
-      return;
-    }
-    if (tokens.userId == _account) return;
-    _account = tokens.userId;
+    if (tokens != null && tokens.userId == _account) return;
+    _account = tokens?.userId;
     _generation++;
     _edits.clear();
+    _categoryEdits.clear();
+    _parents?.close();
+    _parents = null;
     state = const ChannelNotificationOverridesState();
-    unawaited(refresh());
+    if (tokens != null) unawaited(refresh());
   }
 
   /// Reads the list back from the server, replacing what is held. Catches
@@ -137,6 +175,14 @@ class ChannelNotificationOverridesController
   Future<void> refresh() async {
     final generation = ++_generation;
     _edits.clear();
+    _categoryEdits.clear();
+    await Future.wait([
+      _refreshChannels(generation),
+      _refreshCategories(generation),
+    ]);
+  }
+
+  Future<void> _refreshChannels(int generation) async {
     try {
       final overrides = await _ref
           .read(apiProvider)
@@ -150,10 +196,7 @@ class ChannelNotificationOverridesController
           byChannel[key] = value;
         }
       }
-      state = ChannelNotificationOverridesState(
-        byChannel: byChannel,
-        settled: true,
-      );
+      state = state.copyWith(byChannel: byChannel, settled: true);
     } catch (error, stack) {
       api.reportFailure(
         api.LogTag.ui,
@@ -167,8 +210,81 @@ class ChannelNotificationOverridesController
         byChannel: state.byChannel,
         settled: true,
         error: message,
+        mutedCategories: state.mutedCategories,
+        categoryParents: state.categoryParents,
       );
     }
+  }
+
+  /// Reads the muted categories apart from the overrides: a server without the route leaves only these unknown.
+  Future<void> _refreshCategories(int generation) async {
+    try {
+      final muted = (await _ref.read(apiProvider).listCategoryMutes()).toSet();
+      if (!mounted || generation != _generation) return;
+      for (final MapEntry(:key, :value) in _categoryEdits.entries) {
+        value ? muted.add(key) : muted.remove(key);
+      }
+      state = state.copyWith(mutedCategories: muted);
+      _followParents();
+    } catch (error, stack) {
+      api.reportFailure(
+        api.LogTag.ui,
+        'refresh muted categories',
+        error,
+        stack,
+      );
+    }
+  }
+
+  /// Mutes every channel under [categoryId] that has no choice of its own.
+  Future<void> muteCategory(String categoryId) => _changeCategory(
+    categoryId,
+    muted: true,
+    request: () => _ref.read(apiProvider).muteCategory(categoryId),
+  );
+
+  /// Unmutes [categoryId].
+  Future<void> unmuteCategory(String categoryId) => _changeCategory(
+    categoryId,
+    muted: false,
+    request: () => _ref.read(apiProvider).unmuteCategory(categoryId),
+  );
+
+  Future<void> _changeCategory(
+    String categoryId, {
+    required bool muted,
+    required Future<void> Function() request,
+  }) async {
+    _categoryEdits[categoryId] = muted;
+    _showCategory(categoryId, muted: muted);
+    try {
+      await request();
+    } catch (_) {
+      if (mounted &&
+          state.mutedCategories.contains(categoryId) == muted &&
+          _categoryEdits[categoryId] == muted) {
+        _categoryEdits.remove(categoryId);
+        _showCategory(categoryId, muted: !muted);
+      }
+      rethrow;
+    }
+  }
+
+  void _showCategory(String categoryId, {required bool muted}) {
+    final next = {...state.mutedCategories};
+    muted ? next.add(categoryId) : next.remove(categoryId);
+    state = state.copyWith(mutedCategories: next);
+    _followParents();
+  }
+
+  void _followParents() {
+    if (_parents != null || state.mutedCategories.isEmpty) return;
+    _parents = _ref.listen(categoryParentsProvider, (_, next) {
+      final parents = next.valueOrNull;
+      if (parents != null && mounted) {
+        state = state.copyWith(categoryParents: parents);
+      }
+    }, fireImmediately: true);
   }
 
   /// Mutes [channelId] entirely.
@@ -243,18 +359,29 @@ class ChannelNotificationOverridesController
     } else {
       byChannel[channelId] = preference;
     }
-    state = ChannelNotificationOverridesState(
-      byChannel: byChannel,
-      settled: state.settled,
-    );
+    state = state.copyWith(byChannel: byChannel);
   }
 
   @override
   void dispose() {
+    _parents?.close();
     unawaited(_sub.cancel());
     super.dispose();
   }
 }
+
+/// Each sub-category's parent, from the local category table.
+final categoryParentsProvider = StreamProvider<Map<String, String>>((
+  ref,
+) async* {
+  final store = await ref.watch(storeProvider.future);
+  yield* store.watchCategories().map(
+    (rows) => {
+      for (final row in rows)
+        if (row.parentId case final parent?) row.id: parent,
+    },
+  );
+});
 
 /// Deliberately not `autoDispose`: every surface that shows a channel as
 /// muted reads it, so its lifetime is the session's, the same choice

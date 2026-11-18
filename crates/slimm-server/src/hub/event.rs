@@ -350,6 +350,14 @@ pub enum Event {
         channel_id: ChannelId,
         preference: Option<crate::notifications::NotificationPreference>,
     },
+    /// One account muted or unmuted a whole category.
+    ///
+    /// Private to `user_id`, delivered like [`Event::NotificationOverrideChanged`].
+    CategoryMuteChanged {
+        user_id: UserId,
+        category_id: crate::ids::ChannelCategoryId,
+        muted: bool,
+    },
     /// A bot answered a member privately.
     ///
     /// Private to `recipient_id`: `http::ws::authorization` delivers it only to

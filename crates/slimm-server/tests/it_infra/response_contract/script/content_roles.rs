@@ -133,6 +133,20 @@ pub(super) async fn category_overwrite_calls(c: &mut Contract, root: &str, categ
     )
     .await;
     sub_category_calls(c, root, category_id).await;
+    category_mute_calls(c, root, category_id).await;
+}
+
+/// Mute, list while muted, then unmute, so the list answers a real entry.
+async fn category_mute_calls(c: &mut Contract, root: &str, category_id: &str) {
+    let uri = format!("/notification-preferences/categories/{category_id}");
+    c.bare("muteCategory", "PUT", &uri, root).await;
+    c.get(
+        "listCategoryMutes",
+        "/notification-preferences/categories",
+        root,
+    )
+    .await;
+    c.bare("unmuteCategory", "DELETE", &uri, root).await;
 }
 
 /// Nested categories (decision 0120): a sub-category under `parent`, a move

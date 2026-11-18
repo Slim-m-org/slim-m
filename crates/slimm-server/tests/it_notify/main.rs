@@ -6,6 +6,7 @@ mod push_envelope_harness;
 mod support;
 
 mod bot_push_mentions;
+mod category_mutes;
 mod channel_default_notification;
 mod channel_notification_prefs;
 mod channel_notification_prefs_http;

@@ -458,17 +458,14 @@ class ReportsChanged extends ServerEvent {
   const ReportsChanged();
 }
 
-/// An operator alert opened or recovered. Carries nothing; only an unmuted
-/// holder of MANAGE_SERVER ever receives it, and re-fetches `fetchAdminAlerts`.
+/// An operator alert opened or recovered; only an unmuted MANAGE_SERVER holder receives it, and re-fetches `fetchAdminAlerts`.
 class AdminAlertsChanged extends ServerEvent {
   const AdminAlertsChanged();
 }
 
-/// This account's read marker in a channel moved on some device: a read on
-/// another one, or a message this account sent from another one. Delivered
-/// only to the account's own sockets, so it clears a badge and is never a
-/// read receipt. [lastReadSeq] is the stored marker, which only moves
-/// forward, so a receiver applies it as a max.
+/// This account's read marker in a channel moved on some device (a read, or a message it sent there).
+/// Delivered only to the account's own sockets, so it clears a badge and is never a read receipt.
+/// [lastReadSeq] only moves forward, so a receiver applies it as a max.
 class ReadStateChanged extends ServerEvent {
   const ReadStateChanged({
     required this.channelId,
@@ -479,14 +476,12 @@ class ReadStateChanged extends ServerEvent {
   final String channelId;
   final int lastReadSeq;
 
-  /// Whether the channel is now marked unread by hand. False for a read, and
-  /// for a frame from a server that predates the field.
+  /// Whether the channel is now marked unread by hand; false for a read and from an older server.
   final bool manuallyUnread;
 }
 
-/// This account's override for a channel was set or cleared on some device.
-/// Delivered only to the account's own sockets. A null [preference] means the
-/// channel follows the account default again.
+/// This account's override for a channel was set or cleared on some device, delivered only to its own sockets.
+/// A null [preference] means the channel follows the account default again.
 class NotificationOverrideChanged extends ServerEvent {
   const NotificationOverrideChanged({
     required this.channelId,
@@ -495,6 +490,14 @@ class NotificationOverrideChanged extends ServerEvent {
 
   final String channelId;
   final NotificationPreference? preference;
+}
+
+/// This account muted or unmuted a category on some device. Delivered only to the account's own sockets.
+class CategoryMuteChanged extends ServerEvent {
+  const CategoryMuteChanged({required this.categoryId, required this.muted});
+
+  final String categoryId;
+  final bool muted;
 }
 
 /// Someone started a call, joined one or went live in a voice channel this account asked to

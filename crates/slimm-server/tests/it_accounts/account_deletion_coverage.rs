@@ -72,6 +72,7 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ("canvas_objects", "author_id", OnDelete::Anonymize),
     ("canvas_ops", "actor_id", OnDelete::Anonymize),
     ("code_runs", "ran_by", OnDelete::Anonymize),
+    ("category_mutes", "user_id", OnDelete::Purge),
     ("channel_notification_prefs", "user_id", OnDelete::Purge),
     (
         "channels",

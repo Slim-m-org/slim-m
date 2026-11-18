@@ -72,4 +72,17 @@ void main() {
     );
     expect((cleared as NotificationOverrideChanged).preference, isNull);
   });
+
+  test('parses category_mute.changed', () {
+    final event = ServerEvent.parse(
+      jsonEncode({
+        'type': 'category_mute.changed',
+        'category_id': 'k1',
+        'muted': true,
+      }),
+    );
+    expect(event, isA<CategoryMuteChanged>());
+    expect((event as CategoryMuteChanged).categoryId, 'k1');
+    expect(event.muted, isTrue);
+  });
 }

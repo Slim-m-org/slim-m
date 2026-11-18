@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT m.category_id AS \"category_id!: ChannelCategoryId\"\n               FROM category_mutes m\n               JOIN channel_categories c ON c.id = m.category_id AND c.deleted_at IS NULL\n               WHERE m.user_id = ?\n               ORDER BY m.created_at, m.category_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "category_id!: ChannelCategoryId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b1b0b2d8261130e6ee369da21d44bd925595b48760a0566687c0b7de33ef561d"
+}

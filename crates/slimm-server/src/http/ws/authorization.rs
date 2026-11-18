@@ -542,6 +542,7 @@ async fn channel_frame(
         | Event::AdminAlertsChanged
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
+        | Event::CategoryMuteChanged { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }

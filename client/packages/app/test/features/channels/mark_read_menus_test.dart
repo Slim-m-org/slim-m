@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// "Mark as read" on a channel or DM row, and "Mark all as read" on a category
-/// header and in the space menu: offered only while there is a badge to clear,
-/// reached by right-click on a wide window and by long-press on a compact one.
+/// header and in the space menu: a row offers it only while there is a badge to
+/// clear, a category header always shows it, dimmed with none; reached by
+/// right-click on a wide window and by long-press on a compact one.
 library;
 
 import 'dart:convert';
@@ -354,9 +355,8 @@ void main() {
       expect(find.text('Rename category...'), findsOneWidget);
     });
 
-    testWidgets('with nothing unread a member has no menu on the header', (
-      tester,
-    ) async {
+    testWidgets('with nothing unread a member still sees it, and it sends '
+        'nothing', (tester) async {
       final h = _Harness();
       await h.pump(
         tester,
@@ -367,7 +367,8 @@ void main() {
 
       expect(find.byType(CategoryHeaderMenu), findsOneWidget);
       await _rightClick(tester, find.text('Projects'));
-      expect(find.text('Mark all as read'), findsNothing);
+      await _tapAndSettleRequests(tester, find.text('Mark all as read'));
+      expect(h.markedIds, isEmpty);
     });
   });
 

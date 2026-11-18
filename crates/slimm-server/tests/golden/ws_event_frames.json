@@ -7,6 +7,7 @@
   "{\"bot_user_id\":\"BOB\",\"channel_id\":\"CHANNEL\",\"ended\":false,\"epoch\":2,\"item_id\":\"item\",\"playing\":true,\"position_ms\":1500,\"sampled_at_ms\":1700000000004,\"type\":\"watch.tick\"}",
   "{\"bot_user_id\":\"BOB\",\"type\":\"bot_ui.changed\"}",
   "{\"caller_id\":\"BOB\",\"channel_id\":\"CHANNEL\",\"ring_id\":\"01900000-0000-7000-8000-00000000000b\",\"type\":\"call.ringing\"}",
+  "{\"category_id\":\"01900000-0000-7000-8000-000000000014\",\"muted\":true,\"type\":\"category_mute.changed\"}",
   "{\"channel_id\":\"CHANNEL\",\"color\":\"#ff0000\",\"ended\":false,\"object_id\":\"01900000-0000-7000-8000-000000000002\",\"points\":[1.0,2.0,3.0,4.0],\"type\":\"canvas.stroke_preview.updated\",\"user_id\":\"BOB\",\"width\":2.0}",
   "{\"channel_id\":\"CHANNEL\",\"components\":[],\"message_id\":\"01900000-0000-7000-8000-000000000001\",\"type\":\"message.components\"}",
   "{\"channel_id\":\"CHANNEL\",\"embeds\":[],\"message_id\":\"01900000-0000-7000-8000-000000000001\",\"type\":\"message.embeds\"}",

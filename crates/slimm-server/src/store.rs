@@ -37,6 +37,7 @@ use canvas::{
 };
 mod categories;
 mod category_delete;
+mod category_mutes;
 mod category_order;
 mod category_overwrites;
 mod channels;
