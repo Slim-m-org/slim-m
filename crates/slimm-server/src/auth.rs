@@ -169,7 +169,12 @@ pub(crate) fn hash_secret(secret: &str) -> String {
 mod tests {
     use std::time::{Duration, Instant};
 
-    use super::{Auth, HashError, hash_secret};
+    use argon2::{Algorithm, Argon2, Params, Version};
+
+    use super::{ARGON_LANES, ARGON_MEMORY_KIB, Auth, HashError, hash_secret};
+
+    /// Enough passes that a hash stays observable for about 200 ms however argon2 was optimised.
+    const SLOW_HASH_ITERATIONS: u32 = 48;
 
     fn one_permit() -> Auth {
         Auth::new(1)
@@ -177,7 +182,14 @@ mod tests {
             .with_acquire_timeout(Duration::from_millis(30))
     }
 
-    async fn hold_the_permit(auth: &Auth) -> tokio::task::JoinHandle<()> {
+    fn with_a_slow_hash(mut auth: Auth) -> Auth {
+        let params =
+            Params::new(ARGON_MEMORY_KIB, SLOW_HASH_ITERATIONS, ARGON_LANES, None).unwrap();
+        auth.argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+        auth
+    }
+
+    async fn hash_holding_the_permit(auth: &Auth) -> tokio::task::JoinHandle<()> {
         let holder = auth.clone();
         let task = tokio::spawn(async move {
             let _ = holder.hash_password("x".repeat(64)).await;
@@ -196,7 +208,7 @@ mod tests {
     #[tokio::test]
     async fn a_saturated_hasher_sheds_real_and_decoy_logins_alike() {
         let auth = one_permit();
-        let _held = hold_the_permit(&auth).await;
+        let _held = auth.permits.clone().acquire_owned().await.unwrap();
 
         let real = auth
             .verify_password("pw".to_owned(), "not-a-phc".to_owned())
@@ -208,8 +220,8 @@ mod tests {
 
     #[tokio::test]
     async fn a_cancelled_request_keeps_its_permit_until_the_hash_ends() {
-        let auth = one_permit();
-        let held = hold_the_permit(&auth).await;
+        let auth = with_a_slow_hash(one_permit());
+        let held = hash_holding_the_permit(&auth).await;
         held.abort();
         let _ = held.await;
 
