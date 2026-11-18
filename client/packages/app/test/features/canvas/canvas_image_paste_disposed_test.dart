@@ -78,6 +78,7 @@ void main() {
           onPlaced: (id) => log.add('placed $id'),
           onError: (m) => log.add('error $m'),
           timedOutUntil: () => null,
+          mayPlace: () => true,
         );
       }
 

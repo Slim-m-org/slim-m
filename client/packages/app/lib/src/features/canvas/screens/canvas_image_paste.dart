@@ -44,6 +44,7 @@ class CanvasImagePaste {
     required this.onPlaced,
     required this.onError,
     required this.timedOutUntil,
+    required this.mayPlace,
     this.onBitmapAttached,
   });
 
@@ -65,6 +66,11 @@ class CanvasImagePaste {
 
   /// A sentence to show, or null to clear a previously shown one.
   final void Function(String? message) onError;
+
+  /// Whether this viewer may place right now, asked before any decode or
+  /// upload: the platform's own paste route reaches here with no key or tool
+  /// in between, and an upload the place then refuses is left orphaned.
+  final bool Function() mayPlace;
 
   /// Told when a decoded paste becomes an object's bitmap, so the image budget counts it.
   final void Function(String id, ui.Image image)? onBitmapAttached;
@@ -101,7 +107,7 @@ class CanvasImagePaste {
 
   Future<void> _stage(Uint8List bytes, String filename, {ui.Offset? at}) async {
     // A repeated Ctrl+V while one image is still uploading would place it twice.
-    if (_staging) return;
+    if (_staging || !mayPlace()) return;
     _staging = true;
     try {
       final placed = await _place(bytes, filename, at: at);

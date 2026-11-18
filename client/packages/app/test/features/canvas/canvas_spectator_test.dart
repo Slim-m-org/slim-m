@@ -28,12 +28,15 @@ Future<CanvasPaneFixture> _pane(
   required int permissions,
   Size size = const Size(1280, 800),
   ValueSetter<ProviderContainer>? onContainer,
+  int placeStatus = 201,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final fixture = CanvasPaneFixture(channelPermissions: permissions)
-    ..objects = [canvasNoteJson('a', x: 400, authorId: 'me')];
+  final fixture = CanvasPaneFixture(
+    channelPermissions: permissions,
+    placeStatus: placeStatus,
+  )..objects = [canvasNoteJson('a', x: 400, authorId: 'me')];
   final container = fixture.container();
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);
@@ -172,6 +175,40 @@ void main() {
 
       expect(surfaceDocument(tester).objectCount.value, 1);
       expect(fixture.posted, isEmpty, reason: 'nothing was drawn');
+    },
+  );
+
+  testWidgets(
+    "an image the platform pastes is not uploaded for a spectator, and no "
+    'refusal shows',
+    (tester) async {
+      // 403, as the server answers a spectator's place.
+      final fixture = await _pane(
+        tester,
+        permissions: Perm.viewChannel,
+        placeStatus: 403,
+      );
+
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+            'top.npcserver.slimm/clipboard_image',
+            const StandardMethodCodec().encodeMethodCall(
+              MethodCall('pastedImage', canvasPngFixture),
+            ),
+            (_) {},
+          );
+      // A real decode would need real time to reach the upload.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pump(_settle);
+
+      expect(fixture.attachmentUploads, 0, reason: 'no orphan upload');
+      expect(fixture.posted, isEmpty);
+      expect(
+        find.text("You don't have permission to draw here right now."),
+        findsNothing,
+      );
     },
   );
 
