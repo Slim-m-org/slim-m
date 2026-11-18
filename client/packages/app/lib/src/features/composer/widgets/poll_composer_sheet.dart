@@ -44,6 +44,8 @@ Future<void> showPollComposerSheet(BuildContext context, String channelId) {
   return showAppSheet<void>(
     context,
     semanticLabel: 'New poll',
+    // Bounded, so the fields scroll under a Send button that never leaves the bottom edge.
+    scrolls: true,
     builder: (context) => _PollComposerSheet(channelId: channelId),
   );
 }
@@ -184,8 +186,6 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final canAddOption = _options.length < _maxOptions;
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -193,148 +193,159 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
         AppSpacing.s16,
         AppSpacing.s16,
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'New poll',
-              style: AppText.body.copyWith(
-                color: tokens.textPrimary,
-                fontWeight: AppWeights.semi,
-              ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'New poll',
+            style: AppText.body.copyWith(
+              color: tokens.textPrimary,
+              fontWeight: AppWeights.semi,
             ),
-            const SizedBox(height: AppSpacing.s4),
-            Text(
-              '$_minOptions to $_maxOptions options. Votes are anonymous.',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.s12),
-            _withEmoji(
-              _question,
-              'the question',
-              (button) => AppInput(
-                controller: _question,
-                placeholder: 'Ask a question',
-                autofocus: true,
-                maxLength: _maxQuestionChars,
-                trailing: button,
-                onChanged: (_) => setState(() {}),
-                semanticLabel: 'Poll question',
-              ),
-            ),
+          ),
+          const SizedBox(height: AppSpacing.s4),
+          Text(
+            '$_minOptions to $_maxOptions options. Votes are anonymous.',
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.s12),
+          Flexible(child: SingleChildScrollView(child: _fields(context))),
+          const SizedBox(height: AppSpacing.s12),
+          if (_error != null) ...[
+            AppErrorState(message: _error!),
             const SizedBox(height: AppSpacing.s8),
-            AnimatedSize(
-              duration: AppMotion.reducedSize(context, AppMotion.fast),
-              alignment: Alignment.topCenter,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (var i = 0; i < _options.length; i++)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-                      child: _withEmoji(
-                        _options[i],
-                        'option ${i + 1}',
-                        (button) => Row(
-                          children: [
-                            Expanded(
-                              child: AppInput(
-                                controller: _options[i],
-                                placeholder: 'Option ${i + 1}',
-                                maxLength: _maxOptionChars,
-                                trailing: button,
-                                onChanged: (_) => setState(() {}),
-                                semanticLabel: 'Option ${i + 1}',
-                              ),
-                            ),
-                            // Only for a row past the minimum: the first two options are required, so nothing removes them.
-                            if (i >= _minOptions) ...[
-                              const SizedBox(width: AppSpacing.s8),
-                              AppIconButton(
-                                icon: AppIcons.dismiss,
-                                semanticLabel: 'Remove option ${i + 1}',
-                                onPressed: () => _removeOption(i),
-                              ),
-                            ],
-                          ],
+          ],
+          AppButton(
+            label: _buttonLabel,
+            variant: AppButtonVariant.primary,
+            full: true,
+            disabled: !_canSubmit,
+            onPressed: _submit,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The question, the options, the settings and the preview: everything that scrolls above Send.
+  Widget _fields(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final canAddOption = _options.length < _maxOptions;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _withEmoji(
+          _question,
+          'the question',
+          (button) => AppInput(
+            controller: _question,
+            placeholder: 'Ask a question',
+            autofocus: true,
+            maxLength: _maxQuestionChars,
+            trailing: button,
+            onChanged: (_) => setState(() {}),
+            semanticLabel: 'Poll question',
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s8),
+        AnimatedSize(
+          duration: AppMotion.reducedSize(context, AppMotion.fast),
+          alignment: Alignment.topCenter,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < _options.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.s8),
+                  child: _withEmoji(
+                    _options[i],
+                    'option ${i + 1}',
+                    (button) => Row(
+                      children: [
+                        Expanded(
+                          child: AppInput(
+                            controller: _options[i],
+                            placeholder: 'Option ${i + 1}',
+                            maxLength: _maxOptionChars,
+                            trailing: button,
+                            onChanged: (_) => setState(() {}),
+                            semanticLabel: 'Option ${i + 1}',
+                          ),
                         ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            if (canAddOption)
-              AppButton(
-                label: 'Add option',
-                icon: AppIcons.add,
-                variant: AppButtonVariant.ghost,
-                full: true,
-                onPressed: _addOption,
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-                child: Text(
-                  'Maximum of $_maxOptions options.',
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
-              ),
-            SettingsSelectRow<_PollLength>(
-              label: 'Closes',
-              value: _length,
-              sheetTitle: 'Closes',
-              choices: [
-                for (final length in _PollLength.values)
-                  SettingsChoice(value: length, label: length.label),
-              ],
-              onChanged: (length) => setState(() => _length = length),
-            ),
-            SettingsToggleRow(
-              label: 'Ranked choice',
-              description:
-                  'Voters rank options, dropping the last until one has a majority.',
-              value: _ranked,
-              onChanged: (value) => setState(() => _ranked = value),
-              semanticLabel: 'Ranked choice',
-            ),
-            const SizedBox(height: AppSpacing.s12),
-            Text(
-              'Preview',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            // Inert: nothing here can be voted on, and a closed badge would not be true of a poll that does not exist yet.
-            IgnorePointer(
-              child: ExcludeFocus(
-                child: Opacity(
-                  opacity: 0.7,
-                  child: ExcludeSemantics(
-                    child: PollView(
-                      poll: _previewPoll,
-                      onVote: (_) {},
-                      onRank: (_) {},
+                        // Only for a row past the minimum: the first two options are required, so nothing removes them.
+                        if (i >= _minOptions) ...[
+                          const SizedBox(width: AppSpacing.s8),
+                          AppIconButton(
+                            icon: AppIcons.dismiss,
+                            semanticLabel: 'Remove option ${i + 1}',
+                            onPressed: () => _removeOption(i),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
+            ],
+          ),
+        ),
+        if (canAddOption)
+          AppButton(
+            label: 'Add option',
+            icon: AppIcons.add,
+            variant: AppButtonVariant.ghost,
+            full: true,
+            onPressed: _addOption,
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.s8),
+            child: Text(
+              'Maximum of $_maxOptions options.',
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ),
+        SettingsSelectRow<_PollLength>(
+          label: 'Closes',
+          value: _length,
+          sheetTitle: 'Closes',
+          choices: [
+            for (final length in _PollLength.values)
+              SettingsChoice(value: length, label: length.label),
+          ],
+          onChanged: (length) => setState(() => _length = length),
+        ),
+        SettingsToggleRow(
+          label: 'Ranked choice',
+          description:
+              'Voters rank options, dropping the last until one has a majority.',
+          value: _ranked,
+          onChanged: (value) => setState(() => _ranked = value),
+          semanticLabel: 'Ranked choice',
+        ),
+        const SizedBox(height: AppSpacing.s12),
+        Text(
+          'Preview',
+          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.s4),
+        // Inert: nothing here can be voted on, and a closed badge would not be true of a poll that does not exist yet.
+        IgnorePointer(
+          child: ExcludeFocus(
+            child: Opacity(
+              opacity: 0.7,
+              child: ExcludeSemantics(
+                child: PollView(
+                  poll: _previewPoll,
+                  onVote: (_) {},
+                  onRank: (_) {},
+                ),
               ),
             ),
-            const SizedBox(height: AppSpacing.s12),
-            if (_error != null) ...[
-              AppErrorState(message: _error!),
-              const SizedBox(height: AppSpacing.s8),
-            ],
-            AppButton(
-              label: _buttonLabel,
-              variant: AppButtonVariant.primary,
-              full: true,
-              disabled: !_canSubmit,
-              onPressed: _submit,
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

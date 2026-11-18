@@ -169,6 +169,7 @@ class _PlayBadge extends StatelessWidget {
 
 /// A gif's first frame, decoded once and shown still, so autoplay-off shows
 /// what the gif is without animating (and re-decoding every frame) until asked.
+/// Decoded and fitted as the moving copy is, so swapping one for the other never resizes it.
 class AttachmentFirstFrame extends StatefulWidget {
   const AttachmentFirstFrame({
     super.key,
@@ -178,6 +179,8 @@ class AttachmentFirstFrame extends StatefulWidget {
   });
 
   final Uint8List bytes;
+
+  /// The widest it decodes to; a smaller gif keeps its own size.
   final int cacheWidth;
 
   /// Cover in a gallery tile, as the revealed tile's image is.

@@ -362,31 +362,33 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
             AppSpacing.s8,
             0,
           ),
-          // One box over both sections: the selection marker layer has to span them to slide between them.
+          // One box over both sections, on its own layer: the marker slides between sections, and a scroll moves the rows instead of repainting them.
           sliver: SliverToBoxAdapter(
-            child: SelectionMarkerLayer(
-              key: widget.markerLayerKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  DirectMessagesSection(
-                    channels: channels
-                        .where((c) => c.kind == dmChannelKind)
-                        .toList(),
-                    selectedId: selected,
-                    listed: dmsListed,
-                  ),
-                  ChannelCategorySections(
-                    channels: channels
-                        .where((c) => c.kind != dmChannelKind)
-                        .toList(growable: false),
-                    categories: categories,
-                    selectedId: selected,
-                    canManage: canManageChannels,
-                    onReorder: (groups) =>
-                        unawaited(orderController.reorder(groups)),
-                  ),
-                ],
+            child: RepaintBoundary(
+              child: SelectionMarkerLayer(
+                key: widget.markerLayerKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    DirectMessagesSection(
+                      channels: channels
+                          .where((c) => c.kind == dmChannelKind)
+                          .toList(),
+                      selectedId: selected,
+                      listed: dmsListed,
+                    ),
+                    ChannelCategorySections(
+                      channels: channels
+                          .where((c) => c.kind != dmChannelKind)
+                          .toList(growable: false),
+                      categories: categories,
+                      selectedId: selected,
+                      canManage: canManageChannels,
+                      onReorder: (groups) =>
+                          unawaited(orderController.reorder(groups)),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

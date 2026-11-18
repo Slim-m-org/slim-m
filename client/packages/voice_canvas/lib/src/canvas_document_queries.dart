@@ -238,19 +238,36 @@ extension CanvasDocumentQueries on CanvasDocument {
     return reflected != null && seq > 0 && seq <= reflected;
   }
 
-  void _overwriteFrom(CanvasStroke existing, CanvasStrokeInput input) {
+  CanvasStroke? _strokeById(String id) {
+    final slot = _slotById[id];
+    return slot == null ? null : _strokes[slot];
+  }
+
+  /// Takes the snapshot's box and text; true when that changed how [existing] paints.
+  bool _overwriteFrom(CanvasStroke existing, CanvasStrokeInput input) {
+    final version = existing.paintVersion;
     if (elevatedObjectId.value != existing.id) {
       moveObject(existing.id, input.x, input.y, input.w, input.h);
     }
-    if (existing.kind == CanvasObjectKind.note && input.text != null) {
+    var restyled = false;
+    if (existing.kind == CanvasObjectKind.note &&
+        input.text != null &&
+        existing.text != input.text) {
       existing.text = input.text;
+      restyled = true;
     }
-    if (existing.kind == CanvasObjectKind.text && input.text != null) {
+    if (existing.kind == CanvasObjectKind.text &&
+        input.text != null &&
+        (existing.text != input.text ||
+            existing.textSize != input.textSize ||
+            existing.colorKey != input.colorKey)) {
       existing
         ..text = input.text
         ..textSize = input.textSize
         ..colorKey = input.colorKey;
+      restyled = true;
     }
+    return restyled || existing.paintVersion != version;
   }
 
   /// Frees objects without tombstoning them: a snapshot that lacks an object

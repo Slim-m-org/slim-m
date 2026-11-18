@@ -47,6 +47,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../providers/armed_stamp.dart' show canvasStampsSupportedProvider;
 import '../../voice/widgets/bot_call_controls.dart';
 import '../../voice/widgets/soundboard_button.dart' show canUseSoundboard;
 import '../../voice/widgets/call_leave_button.dart';
@@ -198,6 +199,9 @@ CallDockData? callDockDataFor(
 /// not they are armed. Anything narrower takes two rows.
 const _oneRowMinWidth = 774.0;
 
+/// Measured the same way: the stamp tool, its reserved caret slot and the gap before it, drawn only where the server takes stamps.
+const _stampToolExtent = 62.0;
+
 /// Measured the same way: tools and undo, redo and more on one row; the call
 /// group beside it must also pass [callRowFitsFor]. Anything narrower gives
 /// the five tools a row of their own.
@@ -264,9 +268,13 @@ class CanvasCallDock extends ConsumerWidget {
     }
     final alone = soloMusicInDock(context, ref);
     final soundboard = canUseSoundboard(ref, call.voice.channelId);
+    final stamp = ref.watch(canvasStampsSupportedProvider)
+        ? _stampToolExtent
+        : 0.0;
     final extra =
         (alone ? dockExtraExtent(context) : 0.0) +
-        (soundboard ? dockButtonExtent(context) : 0.0);
+        (soundboard ? dockButtonExtent(context) : 0.0) +
+        stamp;
     return LayoutBuilder(
       key: const ValueKey('call-and-canvas'),
       builder: (context, constraints) {
@@ -284,12 +292,12 @@ class CanvasCallDock extends ConsumerWidget {
         );
         final layout = width >= _oneRowMinWidth + extra
             ? _DockLayout.oneRow
-            : width >= _twoRowMinWidth && callFits
+            : width >= _twoRowMinWidth + stamp && callFits
             ? _DockLayout.twoRows
             : _DockLayout.stacked;
         return FloatingDockCard(
           trailing: leave,
-          rows: [?bots, ..._dockRows(canvas, call, layout, alone)],
+          rows: [?bots, ..._dockRows(ref, canvas, call, layout, alone)],
         );
       },
     );
@@ -307,6 +315,7 @@ class CanvasCallDock extends ConsumerWidget {
   /// the overflow and the canvas toggle share the row beneath.
   /// Tools and call controls in one row, two rows, or stacked, by available width.
   List<Widget> _dockRows(
+    WidgetRef ref,
     CanvasDockData canvas,
     CallDockData call,
     _DockLayout layout,
@@ -334,7 +343,13 @@ class CanvasCallDock extends ConsumerWidget {
     }
     return [
       ..._stackedCanvasRows(canvas),
-      _callRow(call, tight: true, alone: alone),
+      ...tightCallRows(
+        ref,
+        controller: call.controller,
+        voice: call.voice,
+        extra: dockExtras(alone: alone),
+        hints: false,
+      ),
     ];
   }
 
@@ -356,11 +371,9 @@ class CanvasCallDock extends ConsumerWidget {
     CallDockData call, {
     Widget? toggle,
     bool alone = false,
-    bool tight = false,
   }) => CallControls(
     controller: call.controller,
     voice: call.voice,
-    tight: tight,
     hints: false,
     extraControl: dockExtras(alone: alone, toggle: toggle),
   );

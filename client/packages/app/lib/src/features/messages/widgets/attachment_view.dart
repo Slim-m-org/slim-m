@@ -370,7 +370,10 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
 
   BoxConstraints _imageConstraints(double? tile) {
     if (tile == null) {
+      // A 1 px image is still something to see and tap, so the box never shrinks below a fingertip.
       return const BoxConstraints(
+        minWidth: AppSizes.rowTouch,
+        minHeight: AppSizes.rowTouch,
         maxWidth: kInlineImageMax,
         maxHeight: kInlineImageMax,
       );
@@ -380,9 +383,10 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
 
   Widget _bitmap(Uint8List bytes, {required int decodeWidth}) {
     final tile = widget.tileEdge;
+    final fit = tile == null ? BoxFit.scaleDown : BoxFit.cover;
     return Image.memory(
       bytes,
-      fit: tile == null ? BoxFit.contain : BoxFit.cover,
+      fit: fit,
       semanticLabel: attachment.filename,
       cacheWidth: decodeWidth,
       // The still stays drawn while the original decodes, so the box never collapses in between.

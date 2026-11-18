@@ -106,13 +106,11 @@ List<Widget> callRowsWithExtras(
   final extras = dockExtras(alone: alone, toggle: toggle);
   Widget callRow(
     Widget? extra, {
-    bool tight = false,
     List<ControlOptionEntry> menuExtras = const [],
   }) => CallControls(
     controller: controller,
     voice: voice,
     extraControl: extra,
-    tight: tight,
     menuExtras: menuExtras,
     hints: hints,
   );
@@ -124,7 +122,15 @@ List<Widget> callRowsWithExtras(
     musicCaret: music,
   );
   // Nothing narrower than the bare row can fold away, so it spills over two lines instead.
-  if (!fitsWith(0)) return [callRow(extras, tight: true)];
+  if (!fitsWith(0)) {
+    return tightCallRows(
+      ref,
+      controller: controller,
+      voice: voice,
+      extra: extras,
+      hints: hints,
+    );
+  }
   if (extras == null) return [callRow(null)];
   final fits = fitsWith(
     (alone ? 1 : 0) + (toggle != null ? toggleSlots : 0),
@@ -149,6 +155,37 @@ List<Widget> callRowsWithExtras(
   return [
     ?toggle == null ? null : Center(child: toggle),
     callRow(null, menuExtras: music),
+  ];
+}
+
+/// A call row too narrow for every control: what it leaves out gets a card row of its own above it, so leave stays beside the row it ends.
+List<Widget> tightCallRows(
+  WidgetRef ref, {
+  required VoiceController controller,
+  required VoiceFlags voice,
+  Widget? extra,
+  bool hints = true,
+}) {
+  final spills =
+      extra != null ||
+      canUseSoundboard(ref, voice.channelId) ||
+      (voice.cameraEnabled && canSwitchCamera(ref, controller));
+  return [
+    if (spills)
+      CallControls(
+        controller: controller,
+        voice: voice,
+        extraControl: extra,
+        spilledOnly: true,
+        hints: false,
+        ownsShortcuts: false,
+      ),
+    CallControls(
+      controller: controller,
+      voice: voice,
+      tight: true,
+      hints: hints,
+    ),
   ];
 }
 

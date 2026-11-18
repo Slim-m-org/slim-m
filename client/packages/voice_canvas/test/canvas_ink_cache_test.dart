@@ -12,8 +12,12 @@ import 'package:slimm_voice_canvas/src/canvas_document.dart';
 import 'package:slimm_voice_canvas/src/canvas_painters.dart';
 
 import 'support/canvas_painter_fixtures.dart';
+import 'support/ink_texture_pixels.dart';
 
-const _size = Size(1000, 1000);
+const _size = inkTestSize;
+
+/// One pixel in five thousand: round caps shade apart by a third of that at a fractional pixel ratio, a texture half a pixel off by three times it.
+const _capStray = 0.0002;
 
 CanvasStrokeInput _stroke(String id, double x, double y, {int seq = 1}) =>
     CanvasStrokeInput(
@@ -44,18 +48,6 @@ int _strokesDrawn(StrokePainter painter) {
   return canvas.deviceStrokeWidths.length;
 }
 
-/// Antialiased edges differ by a few levels between two raster paths.
-const _edgeTolerance = 24;
-
-int _worstChannelGap(Uint8List a, Uint8List b) {
-  var worst = 0;
-  for (var i = 0; i < a.length; i++) {
-    final gap = (a[i] - b[i]).abs();
-    if (gap > worst) worst = gap;
-  }
-  return worst;
-}
-
 void main() {
   late CanvasDocument document;
   late StrokePainter painter;
@@ -79,19 +71,21 @@ void main() {
     expect(_strokesDrawn(painter), 0);
   });
 
-  test('a moved object is drawn live again, then cached again', () {
-    _strokesDrawn(painter);
-    _strokesDrawn(painter);
-
+  testWidgets('a moved object is patched into the texture, not replayed', (
+    tester,
+  ) async {
+    await warmInkTexture(tester, painter);
+    final before = painter.debugObjectsPainted;
     document
-      ..moveObject('s3', 500, 500, 16, 16)
+      ..moveObject('s86', 500, 500, 16, 16)
       ..refresh();
-    final canvas = RecordingCanvas();
-    painter.paint(canvas, _size);
-    expect(canvas.deviceStrokeWidths.length, greaterThan(100));
+    await expectInkMatchesLive(tester, painter, document);
+    expect(painter.debugHasInkTexture, isTrue);
     expect(
-        canvas.deviceBounds, contains(const Rect.fromLTRB(400, 400, 416, 416)));
-    expect(_strokesDrawn(painter), 0);
+      painter.debugObjectsPainted - before,
+      lessThan(10),
+      reason: 'only the boxes s86 left and reached are redrawn',
+    );
   });
 
   test('a stroke added after the texture is drawn over it, alone', () {
@@ -118,32 +112,46 @@ void main() {
     expect(canvas.deviceBounds.single, const Rect.fromLTRB(200, 200, 216, 216));
   });
 
-  test('a drag that begins and ends between two frames still repaints it', () {
-    _strokesDrawn(painter);
-    _strokesDrawn(painter);
-
+  testWidgets(
+      'a drag that begins and ends between two frames still repaints '
+      'it', (tester) async {
+    await warmInkTexture(tester, painter);
     document
-      ..elevatedObjectId.value = 's5'
-      ..moveObject('s5', 300, 300, 16, 16)
+      ..elevatedObjectId.value = 's87'
+      ..moveObject('s87', 300, 300, 16, 16)
       ..elevatedObjectId.value = null
       ..refresh();
-    final canvas = RecordingCanvas();
-    painter.paint(canvas, _size);
-    expect(
-      canvas.deviceBounds,
-      contains(const Rect.fromLTRB(200, 200, 216, 216)),
-    );
+    await expectInkMatchesLive(tester, painter, document);
   });
 
-  test('a removed object leaves the texture on the next frame', () {
-    _strokesDrawn(painter);
-    _strokesDrawn(painter);
+  for (final dpr in [1.25, 1.5, 1.75, 2.625]) {
+    testWidgets(
+        'the texture and its patches at a ${dpr}x pixel ratio sit on '
+        'the live ink', (tester) async {
+      await warmInkTexture(tester, painter, dpr: dpr);
+      await expectInkMatchesLive(tester, painter, document, stray: _capStray);
+      document
+        ..moveObject('s86', 503.3, 497.7, 16, 16)
+        ..refresh();
+      await expectInkMatchesLive(tester, painter, document, stray: _capStray);
+      document
+        ..removeObject('s87')
+        ..refresh();
+      await expectInkMatchesLive(tester, painter, document, stray: _capStray);
+      expect(painter.debugHasInkTexture, isTrue);
+    });
+  }
 
+  testWidgets('a removed object leaves the texture on the next frame', (
+    tester,
+  ) async {
+    await warmInkTexture(tester, painter);
+    final before = painter.debugObjectsPainted;
     document
-      ..removeObject('s0')
+      ..removeObject('s85')
       ..refresh();
-    final live = _strokesDrawn(painter);
-    expect(live, greaterThan(100), reason: 'the texture still held s0');
+    await expectInkMatchesLive(tester, painter, document);
+    expect(painter.debugObjectsPainted - before, lessThan(10));
   });
 
   test('a zoom past the texture range rebuilds it at the new zoom', () {
@@ -175,7 +183,7 @@ void main() {
       final cached = await frame();
       expect(painter.debugHasInkTexture, isTrue);
 
-      expect(_worstChannelGap(live, cached), lessThan(_edgeTolerance));
+      expect(worstChannelGap(live, cached), lessThan(inkEdgeTolerance));
 
       document.setCamera(const Camera(x: 130, y: 100));
       final panned = await frame();
@@ -187,7 +195,7 @@ void main() {
       final expected = (await image.toByteData())!.buffer.asUint8List();
       image.dispose();
       reference.dispose();
-      expect(_worstChannelGap(panned, expected), lessThan(_edgeTolerance));
+      expect(worstChannelGap(panned, expected), lessThan(inkEdgeTolerance));
     });
   });
 
