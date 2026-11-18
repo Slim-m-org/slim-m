@@ -90,7 +90,7 @@ class _SectionLabelState extends State<SectionLabel> {
               const SizedBox(width: AppSpacing.s4),
               Icon(
                 AppIcons.notificationsOff,
-                size: AppSizes.icon16,
+                size: AppSizes.icon12,
                 color: tokens.textSecondary,
               ),
             ],

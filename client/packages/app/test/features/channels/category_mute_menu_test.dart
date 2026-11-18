@@ -59,6 +59,7 @@ class _Harness {
 
   final Set<String> _muted;
   final writes = <String>[];
+  final markedRead = <String>[];
   late final MessageStore store;
   late final ProviderContainer container;
 
@@ -133,6 +134,10 @@ class _Harness {
   Future<http.Response> _answer(http.Request request) async {
     final path = request.url.path;
     if (request.method != 'GET') writes.add('${request.method} $path');
+    if (path == '/read-states/read') {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      markedRead.addAll((body['channel_ids'] as List).cast<String>());
+    }
     if (path == '/notification-preferences/categories') {
       return _json([
         for (final id in _muted) {'category_id': id},
@@ -226,5 +231,56 @@ void main() {
     final rename = tester.getTopLeft(find.text('Rename category...')).dy;
     expect(tester.getTopLeft(find.text('Mark all as read')).dy, lessThan(mute));
     expect(mute, lessThan(rename));
+  });
+
+  testWidgets('a muted category can still be marked read', (tester) async {
+    final h = _Harness(muted: {'cat'});
+    await h.pump(tester, [
+      _channel('a', 'cat', cursor: 3),
+      _channel('b', 'sub', cursor: 2),
+      _channel('c', 'cat'),
+    ]);
+
+    await h.openMenu(tester, 'Projects');
+    await tester.tap(find.text('Mark all as read'));
+    for (var i = 0; i < 5 && h.markedRead.isEmpty; i++) {
+      await pumpFrames(tester);
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+    }
+
+    expect(h.markedRead, ['a', 'b']);
+  });
+
+  testWidgets('a channel quiet by its category says Muted in its row menu', (
+    tester,
+  ) async {
+    final h = _Harness(muted: {'cat'});
+    await h.pump(tester, [_channel('a', 'cat')]);
+
+    await h.openMenu(tester, 'a');
+    final entry = tester.widget<AppSubmenuItem>(
+      find.byWidgetPredicate(
+        (w) => w is AppSubmenuItem && w.label == 'Notifications',
+      ),
+    );
+    expect(entry.leading, AppIcons.notificationsOff);
+    expect(find.text('Muted'), findsOneWidget);
+    expect(find.text('Default'), findsNothing);
+  });
+
+  testWidgets('the header glyph is sized to the header label', (tester) async {
+    final h = _Harness(muted: {'cat'});
+    await h.pump(tester, [_channel('a', 'cat')]);
+
+    final glyph = find.descendant(
+      of: find.ancestor(
+        of: find.text('Projects'),
+        matching: find.byWidgetPredicate((w) => w is Row),
+      ),
+      matching: find.byIcon(AppIcons.notificationsOff),
+    );
+    expect(tester.getSize(glyph.first), const Size.square(AppSizes.icon12));
   });
 }

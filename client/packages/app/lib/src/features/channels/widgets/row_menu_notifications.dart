@@ -73,8 +73,7 @@ AppMenuItem? markReadStateMenuItem(
   );
 }
 
-/// "Mark all as read" over [channels], dimmed when none of them shows a badge.
-///
+/// "Mark all as read" over [channels], dimmed when none has unread; a category mute hides badges, not unread, so it is ignored.
 /// One request for the lot, and one failure sentence rather than one per channel.
 AppMenuItem markAllReadMenuItem(
   BuildContext context,
@@ -87,7 +86,7 @@ AppMenuItem markAllReadMenuItem(
     for (final channel in channels)
       if (channelShowsUnread(
         channel,
-        overrides.effectiveFor(channel),
+        overrides.overrideFor(channel.id) ?? channelDefaultOf(channel),
         isDm: false,
       ))
         channel.id,
