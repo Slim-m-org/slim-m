@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_call_dock.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_forbidden_message.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_zoom_indicator.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -42,22 +43,34 @@ double _opacityOf(WidgetTester tester, Finder text) {
 }
 
 void main() {
-  testWidgets('two notices never stack: the more urgent one shows', (
-    tester,
-  ) async {
+  testWidgets('two notices never stack: ink still saving outranks a '
+      'failure that can be dismissed', (tester) async {
     final engine = await _pane(tester);
     engine.reportError(_failure);
     surfaceDocument(tester).setUnsaved('stroke-1', unsaved: true);
     await pumpFrames(tester, frames: 20);
 
-    expect(find.text(_failure), findsOneWidget);
-    expect(find.textContaining('not saved'), findsNothing);
+    expect(find.textContaining('not saved'), findsOneWidget);
+    expect(find.text(_failure), findsNothing);
 
-    engine.reportError(null);
+    surfaceDocument(tester).setUnsaved('stroke-1', unsaved: false);
     await pumpFrames(tester, frames: 20);
 
-    expect(find.text(_failure), findsNothing);
-    expect(find.textContaining('not saved'), findsOneWidget);
+    expect(find.textContaining('not saved'), findsNothing);
+    expect(find.text(_failure), findsOneWidget);
+  });
+
+  testWidgets('a refusal that stops the pen outranks ink still saving', (
+    tester,
+  ) async {
+    final engine = await _pane(tester);
+    final refused = canvasDrawForbiddenMessage(null);
+    engine.reportError(refused);
+    surfaceDocument(tester).setUnsaved('stroke-1', unsaved: true);
+    await pumpFrames(tester, frames: 20);
+
+    expect(find.text(refused), findsOneWidget);
+    expect(find.textContaining('not saved'), findsNothing);
   });
 
   testWidgets('a notice floats just above the dock, not across the top', (

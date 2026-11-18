@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The one notice the board shows at a time: a failed call, a canvas error,
-/// or ink still being retried, floated just above the dock whose tools and
+/// The one notice the board shows at a time: a canvas error, ink still being
+/// retried, or a failed call, floated just above the dock whose tools and
 /// call controls it is about.
 ///
 /// Over the board and never in flow, so it moves nothing; one at a time, so
 /// notices never stack and shove each other; and it fades in and out with its
-/// condition instead of snapping (docs/design/desktop-vs-mobile.md, rule 6).
+/// condition instead of snapping (docs/design/errors-and-status.md, rule 3).
 /// Hidden ink is said beside the zoom readout instead, by `CanvasZoomIndicator`.
 library;
 
@@ -16,8 +16,9 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/dock_reservation.dart';
 import '../../../widgets/status_pill.dart';
+import 'canvas_forbidden_message.dart';
 
-class CanvasNotice extends ConsumerWidget {
+class CanvasNotice extends ConsumerStatefulWidget {
   const CanvasNotice({
     super.key,
     required this.callError,
@@ -29,6 +30,8 @@ class CanvasNotice extends ConsumerWidget {
   });
 
   final String? callError;
+
+  /// Null when the call cannot be retried, which gives its notice a close button instead.
   final VoidCallback? onRetryCall;
   final String? error;
   final VoidCallback onDismissError;
@@ -40,7 +43,21 @@ class CanvasNotice extends ConsumerWidget {
   final ValueListenable<int> unsavedInk;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CanvasNotice> createState() => _CanvasNoticeState();
+}
+
+class _CanvasNoticeState extends ConsumerState<CanvasNotice> {
+  /// The call failure closed here; a failure that clears and comes back shows again.
+  String? _closedCallError;
+
+  @override
+  void didUpdateWidget(CanvasNotice oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.callError == null) _closedCallError = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // The dock's own bottom margin is outside what it reports.
     final lift =
         ref.watch(bottomDockReservationProvider) +
@@ -52,7 +69,7 @@ class CanvasNotice extends ConsumerWidget {
       bottom: lift,
       child: Center(
         child: ValueListenableBuilder<int>(
-          valueListenable: unsavedInk,
+          valueListenable: widget.unsavedInk,
           builder: (context, unsaved, _) => AnimatedSwitcher(
             duration: AppMotion.reduced(context, AppMotion.base),
             switchInCurve: AppMotion.entrance,
@@ -68,26 +85,15 @@ class CanvasNotice extends ConsumerWidget {
     );
   }
 
-  /// The most urgent notice that applies: the call, then the canvas, then unsaved ink.
+  /// The most urgent notice that applies. The board's own state comes before
+  /// the call: a stopped pen or a failed load, then ink still saving, then a
+  /// failure the user can dismiss, and only then the call, which can be closed.
   Widget? _notice(int unsaved) {
-    if (callError case final message?) {
-      return StatusPill(
-        key: const ValueKey('call'),
-        severity: BannerSeverity.error,
-        message: message,
-        action: _action('Rejoin', onRetryCall),
-      );
-    }
-    if (error case final message?) {
-      final retrying = onRetryError != null;
-      return StatusPill(
-        key: ValueKey('error:$message'),
-        severity: retrying ? BannerSeverity.warning : BannerSeverity.error,
-        message: message,
-        action: _action('Retry', onRetryError),
-        onDismiss: retrying ? null : onDismissError,
-      );
-    }
+    final error = widget.error;
+    final holdsBoard =
+        error != null &&
+        (widget.onRetryError != null || canvasErrorBlocksDrawing(error));
+    if (holdsBoard) return _errorPill(error);
     if (unsaved > 0) {
       return const StatusPill(
         key: ValueKey('ink'),
@@ -95,7 +101,31 @@ class CanvasNotice extends ConsumerWidget {
         message: 'Ink not saved yet. Retrying.',
       );
     }
+    if (error != null) return _errorPill(error);
+    if (widget.callError case final message? when message != _closedCallError) {
+      final retry = widget.onRetryCall;
+      return StatusPill(
+        key: const ValueKey('call'),
+        severity: BannerSeverity.error,
+        message: message,
+        action: _action('Rejoin', retry),
+        onDismiss: retry != null
+            ? null
+            : () => setState(() => _closedCallError = message),
+      );
+    }
     return null;
+  }
+
+  Widget _errorPill(String message) {
+    final retrying = widget.onRetryError != null;
+    return StatusPill(
+      key: ValueKey('error:$message'),
+      severity: retrying ? BannerSeverity.warning : BannerSeverity.error,
+      message: message,
+      action: _action('Retry', widget.onRetryError),
+      onDismiss: retrying ? null : widget.onDismissError,
+    );
   }
 
   Widget? _action(String label, VoidCallback? onPressed) => onPressed == null
