@@ -6,7 +6,8 @@
 /// desktop (`docs/design/desktop-vs-mobile.md`, rule 4: a short task with a
 /// submit). The caller owns the request, as `totp_code_sheet.dart` does: this
 /// collects the proof, hands it over, and shows what came back if it failed.
-/// The failure stays on screen as an `AppErrorState` until dismissed or retried.
+/// A refused password or code shows under its field; any other failure stays
+/// on screen as an `AppErrorState` until dismissed or retried.
 library;
 
 import 'package:flutter/material.dart';
@@ -23,6 +24,20 @@ typedef ReauthSubmit = Future<String?> Function(String password, String? code);
 bool _isWrongPassword(String message) =>
     message.toLowerCase().contains('password is not correct');
 
+const _wrongPassword = 'That password is not correct.';
+const _codeNotAccepted =
+    'That code was not accepted. Check the code and try again.';
+
+/// Which field a proof sheet's failure is about; [form] for one no field owns.
+enum ReauthField { password, code, form }
+
+/// Where a [reauthFailure] sentence goes: under the password, under the code, or on the form.
+ReauthField reauthFieldOf(String failure) => switch (failure) {
+  _wrongPassword => ReauthField.password,
+  _codeNotAccepted => ReauthField.code,
+  _ => ReauthField.form,
+};
+
 /// The sentence for a failed proof. A wrong password is the ordinary case and
 /// gets its own words; any other 403 says what the server said, since a policy
 /// refusal is not a typo. A 403 is never a signed-out session here.
@@ -36,11 +51,10 @@ String reauthFailure(
   bool askedForCode = false,
 }) => switch (e) {
   api.ForbiddenException(:final message) when _isWrongPassword(message) =>
-    'That password is not correct.',
+    _wrongPassword,
   api.RateLimitedException() =>
     'Too many attempts. Wait a few minutes and try again.',
-  api.BadRequestException() when askedForCode =>
-    'That code was not accepted. Check the code and try again.',
+  api.BadRequestException() when askedForCode => _codeNotAccepted,
   api.BadRequestException() => sentenceCase(e.message),
   api.ForbiddenException() => e.message,
   _ => describeApiFailure(whatFailed, e),
@@ -96,6 +110,14 @@ class _ReauthSheetState extends State<_ReauthSheet> {
   final _code = TextEditingController();
   bool _busy = false;
   String? _error;
+
+  String? _errorOn(ReauthField field) =>
+      _error != null && reauthFieldOf(_error!) == field ? _error : null;
+
+  /// Typing into a field answers that field's own error.
+  void _edited(ReauthField field) => setState(() {
+    if (_errorOn(field) != null) _error = null;
+  });
 
   @override
   void dispose() {
@@ -179,7 +201,8 @@ class _ReauthSheetState extends State<_ReauthSheet> {
               autocorrect: false,
               autofillHints: const [AutofillHints.password],
               semanticLabel: 'Your password',
-              onChanged: (_) => setState(() {}),
+              errorText: _errorOn(ReauthField.password),
+              onChanged: (_) => _edited(ReauthField.password),
               onSubmitted: (_) => widget.askForCode ? null : _submit(),
             ),
             if (widget.askForCode) ...[
@@ -196,14 +219,15 @@ class _ReauthSheetState extends State<_ReauthSheet> {
                   FilteringTextInputFormatter.deny(RegExp(r'\n')),
                 ],
                 semanticLabel: 'Authentication code',
-                onChanged: (_) => setState(() {}),
+                errorText: _errorOn(ReauthField.code),
+                onChanged: (_) => _edited(ReauthField.code),
                 onSubmitted: (_) => _submit(),
               ),
             ],
-            if (_error != null) ...[
+            if (_errorOn(ReauthField.form) case final error?) ...[
               const SizedBox(height: AppSpacing.s8),
               AppErrorState(
-                message: _error!,
+                message: error,
                 onDismiss: () => setState(() => _error = null),
               ),
             ],

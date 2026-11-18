@@ -126,8 +126,14 @@ void main() {
       deleteStatus: 403,
       typed: ['wrong'],
     );
-    expect(find.text('That password is not correct.'), findsOneWidget);
-    expect(find.byType(AppErrorState), findsOneWidget);
+    // The password field's own error, under the field rather than boxed.
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is AppInput && w.errorText == 'That password is not correct.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(AppErrorState), findsNothing);
     expect(find.byType(SnackBar), findsNothing);
     expect(
       find.widgetWithText(AppButton, 'Delete permanently'),
