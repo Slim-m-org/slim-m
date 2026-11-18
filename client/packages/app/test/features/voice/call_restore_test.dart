@@ -5,6 +5,8 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,11 +14,14 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
 import 'package:slimm_app/src/features/voice/providers/call_restore.dart';
 import 'package:slimm_app/src/features/voice/providers/transcription_notice.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_elsewhere.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
+
+import '../../support/fake_voice.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -25,7 +30,17 @@ const _tokens = TokenPair(
   accessExpiresAt: 0,
 );
 
-final _flags = StateProvider<VoiceFlags>((ref) => const VoiceFlags());
+/// Puts the call in [flags], the way the controller would as a call moves.
+void _setFlags(ProviderContainer container, VoiceFlags flags) =>
+    (container.read(voiceControllerProvider.notifier) as FakeVoiceController)
+        .set(
+          VoiceState(
+            channelId: flags.channelId,
+            state: flags.state,
+            microphoneEnabled: flags.microphoneEnabled,
+            deafened: flags.deafened,
+          ),
+        );
 
 const _connected = VoiceFlags(
   channelId: 'voice-1',
@@ -81,7 +96,7 @@ ProviderContainer _container(
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
       preferencesProvider.overrideWith((ref) async => prefs),
-      voiceFlagsProvider.overrideWith((ref) => ref.watch(_flags)),
+      voiceControllerProvider.overrideWith(FakeVoiceController.new),
       restorableChannelProvider.overrideWithValue((_) async => channelName),
       voiceElsewhereCheckProvider.overrideWithValue((_) async => elsewhere),
       accountActiveProvider.overrideWith((ref) => onScreen),
@@ -206,21 +221,62 @@ void main() {
   });
 
   group('the watcher', () {
+    testWidgets('a mute with the window in the tray reaches the record with '
+        'no frame drawn', (tester) async {
+      addTearDown(
+        () => tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        ),
+      );
+      final prefs = await _prefs();
+      final container = _container(prefs);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const SizedBox(),
+        ),
+      );
+      container.read(callRestoreWatchProvider);
+      _setFlags(container, _connected);
+      await tester.pump();
+      expect(_stored(prefs, 'muted'), isFalse);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      expect(SchedulerBinding.instance.framesEnabled, isFalse);
+      _setFlags(
+        container,
+        const VoiceFlags(
+          channelId: 'voice-1',
+          state: VoiceSessionState.connected,
+          microphoneEnabled: false,
+        ),
+      );
+      await tester.idle();
+
+      expect(_stored(prefs, 'muted'), isTrue);
+      _setFlags(container, const VoiceFlags());
+      await tester.idle();
+    });
+
     test('a connected call is written, and leaving it forgets it', () async {
       final prefs = await _prefs();
       final container = _container(prefs);
       container.read(callRestoreWatchProvider);
-      container.read(_flags.notifier).state = const VoiceFlags(
-        channelId: 'voice-1',
-        state: VoiceSessionState.connected,
-        microphoneEnabled: false,
+      _setFlags(
+        container,
+        const VoiceFlags(
+          channelId: 'voice-1',
+          state: VoiceSessionState.connected,
+          microphoneEnabled: false,
+        ),
       );
       await pumpEventQueue();
       final written = CallToRestore.decode(prefs.getString(callRestoreKey));
       expect(written?.channelId, 'voice-1');
       expect(written?.muted, isTrue);
 
-      container.read(_flags.notifier).state = const VoiceFlags();
+      _setFlags(container, const VoiceFlags());
       await pumpEventQueue();
       expect(prefs.getString(callRestoreKey), isNull);
     });
@@ -229,14 +285,17 @@ void main() {
       final prefs = await _prefs();
       final container = _container(prefs);
       container.read(callRestoreWatchProvider);
-      container.read(_flags.notifier).state = _connected;
+      _setFlags(container, _connected);
       await pumpEventQueue();
       expect(_stored(prefs, 'deafened'), isFalse);
 
-      container.read(_flags.notifier).state = const VoiceFlags(
-        channelId: 'voice-1',
-        state: VoiceSessionState.connected,
-        deafened: true,
+      _setFlags(
+        container,
+        const VoiceFlags(
+          channelId: 'voice-1',
+          state: VoiceSessionState.connected,
+          deafened: true,
+        ),
       );
       await pumpEventQueue();
 
@@ -247,9 +306,7 @@ void main() {
       final prefs = await _prefs({callRestoreKey: _record(at: now)});
       final container = _container(prefs);
       container.read(callRestoreWatchProvider);
-      container.read(_flags.notifier).state = const VoiceFlags(
-        state: VoiceSessionState.failed,
-      );
+      _setFlags(container, const VoiceFlags(state: VoiceSessionState.failed));
       await pumpEventQueue();
 
       expect(prefs.getString(callRestoreKey), isNotNull);
@@ -282,7 +339,7 @@ void main() {
     test('a live call keeps its own record', () async {
       final prefs = await _prefs({callRestoreKey: _record(at: DateTime.now())});
       final container = _container(prefs);
-      container.read(_flags.notifier).state = _connected;
+      _setFlags(container, _connected);
 
       expect(await container.read(callToRestoreProvider)(), isNull);
       expect(
