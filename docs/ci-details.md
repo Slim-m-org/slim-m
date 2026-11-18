@@ -83,11 +83,12 @@ It costs runner time: about 31 runner-minutes per run against 23, on a plan capp
 
 ### The web bundle budget
 
-`scripts/check-web-bundle-budget.sh` runs right after the web release build and fails when `main.dart.js`, gzipped at level 9, is over 2,800,000 bytes.
+`scripts/check-web-bundle-budget.sh` runs right after the web release build and fails when `main.dart.js`, gzipped at level 9, is over 3,000,000 bytes.
 It was 1,906,651 when the budget landed at 2,400,000 (2026-10-07), so the budget was about a quarter of headroom: normal growth fits for a while, and something like an accidentally pulled-in heavy dependency trips it.
 v121 (2026-11-02) reached 2,400,798 with no new dependency, about 97 KB of its own call, lounge and diagnostics code, and moved the budget to 2,600,000, which is the kind of raise the next paragraph describes.
 0.128.0 (2026-11-11) reached 2,620,603, up from 0.127.0's 2,585,611, again with no new dependency: its fit-to-box call stage, the shared call menus, transcripts and Steam linking.
 Its release run stopped at the web build, and the budget moved to 2,800,000 in the 0.128.1 fix.
+main reached 2,785,656 by 0.131.0, and #2423 (the batch after it) reached 2,831,818 with no new dependency: about 46 KB of its own code across the connection details, the roster check, the sign-up steps and the break-it fixes. The budget moved to 3,000,000 in that pull request.
 Raising it is a decision, made in the same pull request as the growth with the reason in its body, like the server's binary budget (30 MiB since 2026-11-16, see docs/dependencies.md).
 Run it locally after `flutter build web --release` in `client/packages/app`.
 
