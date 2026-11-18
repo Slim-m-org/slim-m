@@ -201,8 +201,15 @@ class CallRosterGapNotifier extends AutoDisposeNotifier<CallRosterGap> {
           })
         : null;
     // Stops at once when the stage goes, not a frame later when autoDispose gets to it.
-    ref.onCancel(() => timer?.cancel());
-    ref.onResume(() => unawaited(poll()));
+    ref.onCancel(() {
+      timer?.cancel();
+      stale?.cancel();
+    });
+    // Nothing was read while unwatched, so a stage shown again confirms afresh.
+    ref.onResume(() {
+      dropStale();
+      unawaited(poll());
+    });
     ref.onDispose(() {
       gone = true;
       timer?.cancel();
