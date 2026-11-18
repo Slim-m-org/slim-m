@@ -15,6 +15,7 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -22,8 +23,19 @@ import '../../../widgets/animation_gate.dart';
 import '../providers/attachment_preview_bytes.dart';
 import '../../../widgets/image_decode.dart';
 
-/// The longest side a still decodes to. A 12000 px square decoded whole draws black on the web, past the texture size a browser's GPU takes.
-const int kFullscreenStillMaxEdge = 4096;
+/// The longest side a still decodes to on the web. A 12000 px square decoded whole draws black there, past the texture size a browser's GPU takes.
+const int kWebStillMaxEdge = 4096;
+
+/// The longest side the viewer decodes to, or null for the whole image.
+/// A large animation decodes every frame, so it is held to the screen; a still keeps pixels to zoom into, capped only on the web.
+int? fullscreenDecodeEdge({
+  required int screen,
+  required bool animated,
+  required bool web,
+}) {
+  if (animated) return screen;
+  return web ? math.max(screen, kWebStillMaxEdge) : null;
+}
 
 class FullscreenImagePage extends StatefulWidget {
   const FullscreenImagePage({
@@ -97,14 +109,16 @@ class _FullscreenImagePageState extends State<FullscreenImagePage> {
   int _screenEdge(BuildContext context) =>
       decodeEdge(context, MediaQuery.sizeOf(context).longestSide);
 
-  /// A large animation decodes every frame, so it is held to the screen; a still keeps pixels to zoom into, up to what a GPU texture can hold.
   ImageProvider _decoded(BuildContext context) {
-    final screen = _screenEdge(context);
-    final edge = looksAnimated(widget.bytes)
-        ? screen
-        : math.max(screen, kFullscreenStillMaxEdge);
+    final source = MemoryImage(widget.bytes);
+    final edge = fullscreenDecodeEdge(
+      screen: _screenEdge(context),
+      animated: looksAnimated(widget.bytes),
+      web: kIsWeb,
+    );
+    if (edge == null) return source;
     return ResizeImage(
-      MemoryImage(widget.bytes),
+      source,
       width: edge,
       height: edge,
       policy: ResizeImagePolicy.fit,

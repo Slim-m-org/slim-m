@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The fullscreen viewer decodes a large animation at the screen's size, not
-/// the source's, and a still keeps its pixels for zooming up to a texture a browser can hold.
+/// the source's, and a still keeps its pixels for zooming, on the web up to a texture a browser can hold.
 library;
 
 import 'dart:convert';
@@ -85,13 +85,31 @@ void main() {
     expect(await _decodedSize(tester), const Size(1, 1));
   });
 
-  testWidgets('a still past the texture cap decodes within it, its shape '
-      'kept', (tester) async {
+  testWidgets('a large still keeps every pixel to zoom into outside the '
+      'web', (tester) async {
     final wide = await tester.runAsync(() => _pngOf(9000, 900));
     await _provider(tester, wide!);
 
-    final size = await _decodedSize(tester);
-    expect(size.width, kFullscreenStillMaxEdge);
-    expect(size.height, closeTo(kFullscreenStillMaxEdge / 10, 1));
+    expect(await _decodedSize(tester), const Size(9000, 900));
+  });
+
+  test('on the web a still decodes within the texture cap, or the screen if '
+      'that is larger', () {
+    expect(
+      fullscreenDecodeEdge(screen: 1600, animated: false, web: true),
+      kWebStillMaxEdge,
+    );
+    expect(
+      fullscreenDecodeEdge(screen: 5120, animated: false, web: true),
+      5120,
+    );
+    expect(
+      fullscreenDecodeEdge(screen: 1600, animated: false, web: false),
+      isNull,
+    );
+    expect(
+      fullscreenDecodeEdge(screen: 1600, animated: true, web: false),
+      1600,
+    );
   });
 }
