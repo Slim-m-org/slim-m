@@ -14,7 +14,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
 import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/features/messages/providers/media_preferences.dart';
-import 'package:slimm_app/src/features/messages/widgets/attachment_reveal.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_view.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -118,7 +117,11 @@ void main() {
     await _pump(tester, container);
 
     expect(requests.originals, 0);
-    expect(find.byType(AttachmentFirstFrame), findsOneWidget);
+    expect(
+      TickerMode.valuesOf(tester.element(find.byType(Image))).enabled,
+      isFalse,
+      reason: 'the still, held where it stands',
+    );
 
     binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();

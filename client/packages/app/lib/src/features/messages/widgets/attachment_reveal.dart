@@ -179,9 +179,9 @@ class _AttachmentFirstFrameState extends State<AttachmentFirstFrame> {
 
   Future<void> _decode() async {
     try {
-      final codec = await ui.instantiateImageCodec(
-        widget.bytes,
-        targetWidth: widget.cacheWidth,
+      final codec = await ui.instantiateImageCodecWithSize(
+        await ui.ImmutableBuffer.fromUint8List(widget.bytes),
+        getTargetSize: _noUpscale,
       );
       final frame = await codec.getNextFrame();
       codec.dispose();
@@ -199,6 +199,13 @@ class _AttachmentFirstFrameState extends State<AttachmentFirstFrame> {
       );
     }
   }
+
+  /// Shrinks to [AttachmentFirstFrame.cacheWidth] but never stretches, as
+  /// `Image.memory`'s `cacheWidth` does, so the frame is the size it plays at.
+  ui.TargetImageSize _noUpscale(int width, int height) =>
+      width > widget.cacheWidth
+      ? ui.TargetImageSize(width: widget.cacheWidth)
+      : ui.TargetImageSize(width: width, height: height);
 
   @override
   void dispose() {
