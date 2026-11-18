@@ -54,11 +54,6 @@ class OnboardingScreen extends ConsumerWidget {
               fontWeight: AppWeights.semi,
             ),
           ),
-          const SizedBox(height: AppSpacing.s8),
-          Text(
-            'Chat and voice you host yourself.',
-            style: AppText.body.copyWith(color: tokens.textSecondary),
-          ),
           const SizedBox(height: AppSpacing.s24),
           // Staggered a beat apart so the three ways in arrive as a sequence.
           AppFadeIn(
