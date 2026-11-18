@@ -46,6 +46,39 @@ There is no equivalent gate on the Dart side for that reason: it would be three 
 
 The binary size budget step exists because the brief treats binary size as a first-class budget rather than something to notice after the fact.
 
+### The jobs are split, measured 2026-11-17
+
+Until 2026-11-17 server-ci was one serial job.
+Over 30 successful first-attempt pull request runs it took a median 23.3 minutes (p90 32.5), and 37.9 on 15 pushes to `main`.
+Its step medians on pull requests were: tests 14.0 minutes, release build 5.9, installing sqlx-cli 1.5, clippy 1.2, the sqlx check 0.8, and every other step under 0.3.
+On `main` they were tests 22.6, clippy 4.2, the sqlx check 2.7 and the release build 5.8; the runners there were slower and the cache was colder.
+
+The run was CPU-bound on the 4-vCPU runner.
+In run 44109443625 the per-test times summed to 2,383 seconds over a 596-second run, exactly 4 threads busy throughout.
+More threads on one runner cannot help that, so the tests now run on three runners.
+
+The work is now four jobs that start together, plus the aggregate:
+
+- `lint`: fmt, clippy, rustdoc links, cargo machete and the sqlx cache check.
+- `test (1/3)`, `test (2/3)` and `test (3/3)`: each compiles the test binaries and runs `cargo nextest run --partition hash:k/3`, a third of the tests chosen by a hash of their names.
+  The doctests run in leg 1 only.
+- `release build and size budget`: the release binary and its 30 MiB budget.
+- `check`: needs the other three and does nothing else, so `verify-server-ci` keeps the name it waits on.
+
+Hash partitioning keeps a test in the same leg when other tests are added, and it splits this suite evenly.
+Listing the three partitions locally and summing the measured per-test times from that run gives 806, 792 and 781 CPU seconds, and the longest single test is 33.5 seconds.
+Each leg compiles the tests itself instead of downloading a `nextest archive`: the compile is about 2.3 minutes on a warm cache, and an archive would add a build job and an upload and download in series.
+The three legs build the same thing, so they share one rust-cache entry (`cache-shared-key: server-ci-test`) and only leg 1 saves it.
+`lint` and the release build keep their own entries, because they build different profiles.
+
+sqlx-cli is cached by version with `actions/cache`.
+install-action has no prebuilt sqlx-cli and cargo-binstall finds none either, so every run built it from source in about 1.5 minutes.
+
+Estimated from those medians, not yet measured: a test leg takes about 0.5 minutes of setup, 2.3 of compile and 3.4 of tests, so about 6-7 minutes.
+The release build job is about 7, and `lint` is 3-4.5.
+A pull request's server-ci therefore goes from a median 23.3 minutes to about 7-8, and `main` from 37.9 to about 11-12.
+It costs runner time: about 31 runner-minutes per run against 23, on a plan capped at 20 concurrent jobs.
+
 ## client-ci
 
 ### The web bundle budget
@@ -97,6 +130,34 @@ It is not in `verify-client-ci`'s `required_checks`.
 
 The twelve `app-N` legs deal `packages/app`'s test files by measured time, not by count: `scripts/lib/client_shards.py deal` puts each file, longest first, on the emptiest shard using the seconds in `scripts/lib/client_durations.json`, and a file missing from it costs a default so a new test is never dropped.
 To refresh the durations after the suite changes a lot, run `flutter test --reporter json --concurrency=2 > run.json` in `client/packages/app`, then `python3 scripts/lib/client_shards.py record run.json`.
+Record from that plain per-file run, never from a bundled one: the durations are per test file.
+
+### The app shards run bundles, not one isolate per file
+
+About half of a per-file run is loading, not testing: every file is compiled on its own and boots a fresh `flutter_tester`.
+So `scripts/lib/client_bundles.py deal` writes gitignored entrypoints under `client/packages/app/test/.bundles/`, one per folder (`test/features/<x>`, `test/<dir>`, or the `test/` root), cut into chunks of about 30 seconds of test time.
+Each bundle imports its folder's test files with a prefix and runs each `main` inside a `group` named after the file, so a failure reads `test/features/x/y_test.dart <test name>` and still names its file.
+Files that load real fonts share bundles only with each other (`<folder>_fonts_<n>`): a loaded font stays loaded and changes text metrics for every later file, which broke a geometry test in `continuation_marker_test` when it followed `attachment_spoiler_test`.
+Files that set `PackageInfo`'s mock values are kept apart the same way (`<folder>_appinfo_<n>`), since nothing resets them: `title_bar_consolidation_test`'s version overflowed `update_chip_test`'s title bar.
+The dealer then deals bundles and the files that run alone across the twelve shards by predicted time.
+
+Some files cannot share an isolate, and those still run alone:
+
+- the snapshot matrix (`test/snapshots/`, `ui_snapshot_*`), which capture mode runs per file;
+- a `main` that is not a plain synchronous `void main()`, since a group body cannot be async;
+- a top-level `tearDownAll`, process-wide `HttpOverrides`/`IOOverrides` or `Directory.current`, `Platform.script`, a custom test binding, or `matchesGoldenFile`;
+- a file that binds a real loopback server: once any earlier file in the isolate starts the test binding, its mock HTTP answers every request with 400;
+- the files in `scripts/lib/client_bundle_lone.txt`, each proven to fail only when bundled, with what leaks into it.
+
+`python3 scripts/lib/client_bundles.py verify [features_sync ...]` runs the named bundles (all by default) and then their files one by one, and lists every file whose test names or results differ; `compare per-file.json bundled.json` does the same for two runs already made.
+A bundled failure that passes when its file runs alone is a leak between files: add the file to `client_bundle_lone.txt` with the reason, or fix whatever earlier file leaves state behind.
+`python3 scripts/lib/client_bundles.py run --concurrency 2` runs the whole app package bundled, for a local gate.
+The repository variable `SLIMM_TEST_PER_FILE=1` (or the same environment variable locally) turns bundling off and deals plain files again.
+
+Measured 2026-11-17 on the 32-core dev box, whole app package, `--concurrency=2 --reporter json`, same tree, load about 2: one file per isolate took 1158 s wall and 2531 CPU-s; bundled it took 505 s and 1128 CPU-s, with the same 12620 tests and the same results for every one.
+Two of the twelve CI shards run locally the same way went from 111 s to 36 s and from 96 s to 44 s.
+A failed shard reruns its failed bundled files alone (`client_bundles.py retry`): a file that passes alone is reported as a warning naming it, and the shard stays green, so a leak a new file brings never turns an unrelated pull request red.
+Hand-picked runs (`flutter test <files>`) and the pre-push hook still run files one by one, so a test that passes only because of state an earlier file left behind still fails there.
 
 ### Where a pull request's time goes, measured 2026-10-02
 
@@ -127,6 +188,17 @@ Cancellation is already per pull request: every workflow with a `pull_request` t
 `scripts/lib/test_pr_workflows_cancel_superseded_runs_but_main_never.py` pins both.
 24 of 39 client-ci pull request runs in the window were cancelled by a newer push, which is that rule working.
 Per-job `startedAt` minus run `createdAt` includes time spent waiting for `needs`, and a job cancelled while queued reports a `startedAt`, so a "wasted minutes" figure computed from it is inflated and is not quoted here.
+
+### The UI snapshot capture is its own leg
+
+`client tests (ui-snapshots)` runs the UI snapshot tests in capture mode (`SLIMM_UI_SNAPSHOTS=1`), and `client tests (other-packages)` runs every package except app.
+Until 2026-11-17 one leg ran both, one after the other.
+Over 30 successful pull request runs that leg took a median 10.9 minutes (p90 13.6): 4.8 for the capture and 5.5 for the other packages.
+It was the last real job to finish in 21 of those 30 runs, while an app shard took about 5.
+Split, each leg should take about 6 minutes, so the longest job becomes the first dart2js leg, at about 11.6.
+Both legs are listed first in the matrix, since GitHub tends to start jobs in that order.
+The wall clock is still bounded by how many runners the run gets, because the org shares 20 concurrent jobs across all its workflows.
+An audit replaying the measured timelines estimated about 14-15 minutes instead of 19.3; that is an estimate, not yet measured.
 
 ### Runner labels are pinned
 
@@ -178,10 +250,14 @@ Both checks are in `verify-client-ci`'s `required_checks`, since each can fail w
 It lives in `client-ios-ci.yml` rather than beside the Dart job because it is the expensive one by an order of magnitude: 14 minutes against 5, measured across recent runs, which made `client-ci` a median of 11 minutes when the Dart half finishes in a third of that.
 A GitHub workflow cannot path-filter one job, so the split is what lets it be gated on the paths that can actually change its answer: the iOS project, the plugins carrying CallKit and WebRTC, `data/` (its encrypted database compiles native sqlite code, and a change there once shipped an iOS launch failure with no iOS job run), and the dependency set, which is how a Dart-side change reaches an Xcode build.
 A push to `main` uses the same filter, since it gates nothing except a release, and the release commit always matches it: release-please bumps `client/packages/app/pubspec.yaml`, which is in the filter.
-CocoaPods is cached on the lockfiles, since rebuilding those pods is most of what the project-generation step spends its five minutes on.
+CocoaPods is cached on the lockfiles, so a restore never mixes pods resolved from a different lockfile.
 
-`flutter build ios --simulator --no-codesign` runs first because xcodebuild needs the generated Flutter config and the plugin registrant to exist before the project will open, and only a Flutter build makes them.
-`--no-codesign` keeps it to compiling, with no identity involved.
+`flutter build ios --simulator --no-codesign --config-only` runs first because xcodebuild needs the generated Flutter config and the plugin registrant to exist before the project will open.
+`--config-only` writes them and runs pod install without compiling anything, so `xcodebuild test` is the only simulator build.
+Until 2026-11-17 this step was a full `flutter build ios --simulator`, which built the app into `build/ios`, and `xcodebuild test` then built it again in its own DerivedData, about 3.8 minutes more.
+The step took a median 7.6 minutes over 30 pull request runs, about 4.3 of it the Xcode build that is now gone.
+The broadcast extension check therefore runs after the tests and reads `BroadcastExtension.appex` from that DerivedData; it checks every copy it finds, the embedded one included.
+Estimated, not yet measured: the job goes from a median 26.1 minutes to about 21-22.
 
 The simulator is chosen from what the runner actually has rather than by name.
 A hardcoded `iPhone 16` broke the first time this ran, and it would break again silently every time GitHub rolls the image forward.

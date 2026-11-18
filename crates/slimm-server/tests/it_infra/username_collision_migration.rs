@@ -8,10 +8,8 @@
 //! must come through untouched.
 
 use std::path::Path;
-use std::time::Duration;
 
 use sqlx::migrate::Migrator;
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Row, SqlitePool};
 
 use crate::support;
@@ -20,18 +18,7 @@ const VERSION: i64 = 95;
 type UserRow = (Vec<u8>, String, String, Option<String>, i64, Option<i64>);
 
 async fn pool_at_0094() -> (SqlitePool, Migrator, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::empty("slimm-username-collision");
-    let options = SqliteConnectOptions::new()
-        .filename(&path)
-        .create_if_missing(true)
-        .journal_mode(SqliteJournalMode::Wal)
-        .busy_timeout(Duration::from_secs(5))
-        .foreign_keys(true);
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect_with(options)
-        .await
-        .unwrap();
+    let (pool, guard) = support::migration_db::empty_pool("slimm-username-collision").await;
     let full = Migrator::new(Path::new("./migrations")).await.unwrap();
     assert!(full.iter().any(|m| m.version == VERSION), "0095 is missing");
     let mut before = Migrator::new(Path::new("./migrations")).await.unwrap();

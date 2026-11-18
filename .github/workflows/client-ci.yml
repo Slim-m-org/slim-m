@@ -133,7 +133,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # The two longest legs come first: include order is how GitHub tends to hand out runners.
         include:
+          - label: ui-snapshots
+            shard: ""
+          - label: other-packages
+            shard: ""
           - label: app-1
             shard: "0"
           - label: app-2
@@ -158,8 +163,6 @@ jobs:
             shard: "10"
           - label: app-12
             shard: "11"
-          - label: other-packages
-            shard: ""
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -190,23 +193,31 @@ jobs:
         working-directory: client
         run: flutter pub get --enforce-lockfile
 
+      # Most files share an isolate per folder chunk; the repository variable SLIMM_TEST_PER_FILE=1 undoes that (docs/ci-details.md).
       - name: packages/app (sharded)
-        if: matrix.label != 'other-packages'
+        if: matrix.shard != ''
         working-directory: client/packages/app
         env:
           SHARDS: "12"
           SHARD_INDEX: ${{ matrix.shard }}
+          SLIMM_TEST_PER_FILE: ${{ vars.SLIMM_TEST_PER_FILE }}
+          # PRs fuzz a quick seed sample; main, where releases are cut, explores the full range.
+          SLIMM_FULL_FUZZ: ${{ github.event_name == 'push' && '1' || '0' }}
         run: |
           set -euo pipefail
-          mapfile -t files < <(python3 ../../../scripts/lib/client_shards.py deal --shards "$SHARDS" --index "$SHARD_INDEX")
-          printf 'shard %s/%s: %d files\n' "$SHARD_INDEX" "$SHARDS" "${#files[@]}"
+          mapfile -t files < <(python3 ../../../scripts/lib/client_bundles.py deal --shards "$SHARDS" --index "$SHARD_INDEX")
+          printf 'shard %s/%s: %d entrypoints\n' "$SHARD_INDEX" "$SHARDS" "${#files[@]}"
           # A failed dealer inside < <(...) escapes set -e, and an empty list makes flutter test run every file.
           if [ "${#files[@]}" -eq 0 ]; then echo "::error::the dealer gave shard $SHARD_INDEX no files"; exit 1; fi
-          flutter test "${files[@]}"
+          # A file that fails bundled but passes alone is a leak between files: a warning that names it, not a red shard.
+          mkdir -p build
+          if ! flutter test --file-reporter json:build/app-tests.json "${files[@]}"; then
+            python3 ../../../scripts/lib/client_bundles.py retry build/app-tests.json
+          fi
 
       # Capture mode builds the real mic preview and runs timers on real time; it rotted unseen for 12 tests once.
       - name: packages/app UI snapshots in capture mode
-        if: matrix.label == 'other-packages'
+        if: matrix.label == 'ui-snapshots'
         timeout-minutes: 10
         working-directory: client/packages/app
         env:

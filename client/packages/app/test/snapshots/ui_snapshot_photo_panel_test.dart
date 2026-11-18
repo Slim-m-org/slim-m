@@ -47,64 +47,59 @@ Future<Uint8List> _swatch(Color color) async {
 
 void main() {
   setUpAll(loadRealFonts);
-  for (final theme in const ['dark', 'light']) {
-    testWidgets('photo panel phone ($theme)', (tester) async {
-      tester.view.physicalSize = const Size(390, 520);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
-      final swatches = await tester.runAsync(
-        () => Future.wait([
-          for (final c in const [
-            Color(0xFF6B8E9E),
-            Color(0xFFB07D62),
-            Color(0xFF7A9A6B),
-            Color(0xFF9C7AA8),
-          ])
-            _swatch(c),
-        ]),
-      );
-      final dark = theme == 'dark';
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            photoLibraryProvider.overrideWithValue(_SwatchLibrary(swatches!)),
-          ],
-          child: RepaintBoundary(
-            key: snapshotBoundary,
-            child: MaterialApp(
-              debugShowCheckedModeBanner: false,
-              theme: buildTheme(
-                dark ? Brightness.dark : Brightness.light,
-                dark ? AppTokens.dark : AppTokens.light,
-              ),
-              home: Scaffold(
-                body: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.s16),
-                    child: ComposerPhotoStrip(
-                      onAttach: (_) async {},
-                      onBrowse: () {},
-                      onClose: () {},
-                    ),
-                  ),
+  testWidgets('photo panel phone (dark+light)', (tester) async {
+    tester.view.physicalSize = const Size(390, 520);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final swatches = await tester.runAsync(
+      () => Future.wait([
+        for (final c in const [
+          Color(0xFF6B8E9E),
+          Color(0xFFB07D62),
+          Color(0xFF7A9A6B),
+          Color(0xFF9C7AA8),
+        ])
+          _swatch(c),
+      ]),
+    );
+    Widget build(String theme) => ProviderScope(
+      overrides: [
+        photoLibraryProvider.overrideWithValue(_SwatchLibrary(swatches!)),
+      ],
+      child: RepaintBoundary(
+        key: snapshotBoundary,
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: snapshotThemeData(theme),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.s16),
+                child: ComposerPhotoStrip(
+                  onAttach: (_) async {},
+                  onBrowse: () {},
+                  onClose: () {},
                 ),
               ),
             ),
           ),
         ),
-      );
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 200)),
-      );
-      await tester.pumpAndSettle();
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 200)),
-      );
-      await tester.pump();
+      ),
+    );
+    await tester.pumpWidget(build('dark'));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 200)),
+    );
+    await tester.pumpAndSettle();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 200)),
+    );
+    await tester.pump();
+    await checkDarkThenLight(tester, build, (theme) async {
       expect(tester.takeException(), isNull);
       expect(find.text('All photos'), findsOneWidget);
       await writeSnapshot(tester, 'photo-panel-phone-$theme');
     });
-  }
+  });
 }

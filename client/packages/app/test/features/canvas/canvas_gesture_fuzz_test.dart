@@ -5,10 +5,12 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fuzz_budget.dart';
 import 'canvas_gesture_fuzz_driver.dart';
 import 'canvas_gesture_fuzz_rig.dart';
 
-const _seeds = int.fromEnvironment('FUZZ_SEEDS', defaultValue: 12);
+const _seedsDefine = int.fromEnvironment('FUZZ_SEEDS');
+final _seeds = _seedsDefine > 0 ? _seedsDefine : fuzzSeeds(full: 12, quick: 3);
 const _steps = int.fromEnvironment('FUZZ_STEPS', defaultValue: 90);
 const _firstSeed = int.fromEnvironment('FUZZ_FIRST_SEED', defaultValue: 1);
 

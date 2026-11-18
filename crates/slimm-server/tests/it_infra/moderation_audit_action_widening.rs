@@ -16,10 +16,8 @@
 //! order intact.
 
 use std::path::Path;
-use std::time::Duration;
 
 use sqlx::migrate::Migrator;
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Row, SqlitePool};
 
 use crate::support;
@@ -36,18 +34,7 @@ async fn migrator() -> Migrator {
 }
 
 async fn pool_at_0048() -> (SqlitePool, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::empty("slimm-audit-widening");
-    let options = SqliteConnectOptions::new()
-        .filename(&path)
-        .create_if_missing(true)
-        .journal_mode(SqliteJournalMode::Wal)
-        .busy_timeout(Duration::from_secs(5))
-        .foreign_keys(true);
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect_with(options)
-        .await
-        .expect("open pool");
+    let (pool, guard) = support::migration_db::empty_pool("slimm-audit-widening").await;
 
     let mut before = migrator().await;
     assert!(

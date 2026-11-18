@@ -147,6 +147,12 @@ Measured and left at `z`, with the binary's growth when the crate is built at `o
 Every crate tried, built at `opt-level = 3` at once, reached 23,064,240 bytes: 4,432 under the budget.
 Re-measure before adding a crate to the list, since each release moves the headroom.
 
+Dev and test builds stay at `opt-level = 0`, except `[profile.dev.package.argon2]` at `opt-level = 3`.
+Every test that builds an `Auth` hashes its decoy password, and each account a test registers hashes again.
+At `opt-level = 0` one hash of the production parameters took about 200 ms; at 3 it takes about 9 ms.
+Measured 2026-11-17 with `cargo nextest run --workspace --test-threads 4` on a shared 32-core box: 355 s to 189 s of wall time, 1,420 to 755 test-seconds, and `it_accounts` alone 320 to 57 test-seconds.
+Building `blake2` at 3 as well measured no further gain.
+
 ## Dev dependencies
 
 `tower`'s `ServiceExt::oneshot` drives the HTTP round-trip tests in-process without binding a socket.

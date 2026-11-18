@@ -140,54 +140,51 @@ void main() {
     'share': 'Sharing',
     'share-submenu': 'Sharing',
   };
-  for (final theme in const ['dark', 'light']) {
-    for (final size in sizes.entries) {
-      for (final scene in scenes.entries) {
-        final phone = size.key == 'phone';
-        final menu = scene.key.split('-').first;
-        final submenu = scene.key.endsWith('submenu');
-        testWidgets('${scene.key} menu at ${size.key} ($theme)', (
+  const theme = darkAndLight;
+  for (final size in sizes.entries) {
+    for (final scene in scenes.entries) {
+      final phone = size.key == 'phone';
+      final menu = scene.key.split('-').first;
+      final submenu = scene.key.endsWith('submenu');
+      testWidgets('${scene.key} menu at ${size.key} ($theme)', (tester) async {
+        await renderSurface(
           tester,
-        ) async {
-          await renderSurface(
-            tester,
-            '/channels/c-main',
-            phone ? 'phone-portrait' : 'laptop-1280',
-            theme,
-            'call-${scene.key}-${size.key}-$theme',
-            allowNoText: true,
-            overrides: [
-              syncControllerProvider.overrideWith(
-                (ref) => StubSyncController(ref, SyncStatus.live),
-              ),
-              initialSyncCompleteProvider.overrideWith((ref) => true),
-              screenOverlaySupportedProvider.overrideWithValue(true),
-              shareDisplayHeightsProvider.overrideWithValue([1080, 1440]),
-              voiceControllerProvider.overrideWith(
-                (ref) => FakeVoiceController(
-                  ref,
-                  initial: _call(
-                    camera: menu == 'camera',
-                    sharing: menu == 'share',
-                  ),
-                  session: _MenuSession(),
+          '/channels/c-main',
+          phone ? 'phone-portrait' : 'laptop-1280',
+          theme,
+          'call-${scene.key}-${size.key}-$theme',
+          allowNoText: true,
+          overrides: [
+            syncControllerProvider.overrideWith(
+              (ref) => StubSyncController(ref, SyncStatus.live),
+            ),
+            initialSyncCompleteProvider.overrideWith((ref) => true),
+            screenOverlaySupportedProvider.overrideWithValue(true),
+            shareDisplayHeightsProvider.overrideWithValue([1080, 1440]),
+            voiceControllerProvider.overrideWith(
+              (ref) => FakeVoiceController(
+                ref,
+                initial: _call(
+                  camera: menu == 'camera',
+                  sharing: menu == 'share',
                 ),
+                session: _MenuSession(),
               ),
-            ],
-            afterSettle: (tester) async {
-              if (!phone) {
-                tester.view.physicalSize = size.value;
-                await _settle(tester);
-              }
-              await _open(tester, menu, phone: phone);
-              if (submenu) {
-                await tester.tap(find.text(scene.value).last);
-                await _settle(tester);
-              }
-            },
-          );
-        });
-      }
+            ),
+          ],
+          afterSettle: (tester) async {
+            if (!phone) {
+              tester.view.physicalSize = size.value;
+              await _settle(tester);
+            }
+            await _open(tester, menu, phone: phone);
+            if (submenu) {
+              await tester.tap(find.text(scene.value).last);
+              await _settle(tester);
+            }
+          },
+        );
+      });
     }
   }
 }

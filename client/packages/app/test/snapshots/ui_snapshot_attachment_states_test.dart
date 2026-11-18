@@ -24,66 +24,61 @@ Widget _tiles(double edge, Widget Function(double? edge) box) => Wrap(
 void main() {
   setUpAll(loadRealFonts);
   const sizes = {'phone': Size(390, 640), 'desktop': Size(900, 640)};
-  for (final theme in const ['dark', 'light']) {
-    for (final entry in sizes.entries) {
-      testWidgets('attachment states ${entry.key} ($theme)', (tester) async {
-        tester.view.physicalSize = entry.value;
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.reset);
-        final dark = theme == 'dark';
-        final edge = entry.key == 'phone' ? 171.0 : 188.0;
-        Widget loading(double? e) => AttachmentLoadingBox(
-          filename: 'photo-b.jpeg',
-          width: 380,
-          tileEdge: e,
-        );
-        Widget failed(double? e) => AttachmentFailureBox(
-          filename: 'photo-b.jpeg',
-          width: 380,
-          tileEdge: e,
-          onRetry: () {},
-        );
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              syncControllerProvider.overrideWith(NoopSyncController.new),
-            ],
-            child: RepaintBoundary(
-              key: snapshotBoundary,
-              child: MaterialApp(
-                debugShowCheckedModeBanner: false,
-                theme: buildTheme(
-                  dark ? Brightness.dark : Brightness.light,
-                  dark ? AppTokens.dark : AppTokens.light,
-                ),
-                home: Scaffold(
-                  body: SingleChildScrollView(
-                    padding: const EdgeInsets.all(AppSpacing.s16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('whatcha think A or B', style: AppText.body),
-                        const SizedBox(height: AppSpacing.s8),
-                        loading(null),
-                        const SizedBox(height: AppSpacing.s8),
-                        failed(null),
-                        const SizedBox(height: AppSpacing.s8),
-                        _tiles(edge, loading),
-                        const SizedBox(height: AppSpacing.s8),
-                        _tiles(edge, failed),
-                      ],
-                    ),
-                  ),
+  for (final entry in sizes.entries) {
+    testWidgets('attachment states ${entry.key} (dark+light)', (tester) async {
+      tester.view.physicalSize = entry.value;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final edge = entry.key == 'phone' ? 171.0 : 188.0;
+      Widget loading(double? e) => AttachmentLoadingBox(
+        filename: 'photo-b.jpeg',
+        width: 380,
+        tileEdge: e,
+      );
+      Widget failed(double? e) => AttachmentFailureBox(
+        filename: 'photo-b.jpeg',
+        width: 380,
+        tileEdge: e,
+        onRetry: () {},
+      );
+      Widget build(String theme) => ProviderScope(
+        overrides: [
+          syncControllerProvider.overrideWith(NoopSyncController.new),
+        ],
+        child: RepaintBoundary(
+          key: snapshotBoundary,
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: snapshotThemeData(theme),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                padding: const EdgeInsets.all(AppSpacing.s16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('whatcha think A or B', style: AppText.body),
+                    const SizedBox(height: AppSpacing.s8),
+                    loading(null),
+                    const SizedBox(height: AppSpacing.s8),
+                    failed(null),
+                    const SizedBox(height: AppSpacing.s8),
+                    _tiles(edge, loading),
+                    const SizedBox(height: AppSpacing.s8),
+                    _tiles(edge, failed),
+                  ],
                 ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpWidget(build('dark'));
+      await tester.pumpAndSettle();
+      await checkDarkThenLight(tester, build, (theme) async {
         expect(tester.takeException(), isNull);
         expect(find.text('Retry'), findsNWidgets(3));
         await writeSnapshot(tester, 'attachment-states-${entry.key}-$theme');
       });
-    }
+    });
   }
 }

@@ -47,40 +47,37 @@ api.Me _me({required bool image}) => api.Me(
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final theme in const ['dark', 'light']) {
-    for (final viewport in phoneAndDesktop) {
-      for (final image in const [false, true]) {
-        final kind = image ? 'image' : 'colour';
-        testWidgets('profile banner $kind at $viewport ($theme)', (
+  const theme = darkAndLight;
+  for (final viewport in phoneAndDesktop) {
+    for (final image in const [false, true]) {
+      final kind = image ? 'image' : 'colour';
+      testWidgets('profile banner $kind at $viewport ($theme)', (tester) async {
+        final png = await tester.runAsync(_bannerPng);
+        await renderSurface(
           tester,
-        ) async {
-          final png = await tester.runAsync(_bannerPng);
-          await renderSurface(
-            tester,
-            '/settings',
-            viewport,
-            theme,
-            'profile-banner-settings-$kind-$viewport-$theme',
-            overrides: [
-              voiceControllerProvider.overrideWith(
-                (ref) => SnapshotVoiceController(ref, const VoiceState()),
-              ),
-              meProvider.overrideWith((ref) async => _me(image: image)),
-              bannerBytesProvider.overrideWith((ref, key) async => png),
-            ],
-            afterSettle: (tester) async {
-              await tester.tap(find.text('Profile').first);
-              await tester.pump();
-              for (var i = 0; i < 3; i++) {
-                await tester.runAsync(
-                  () => Future<void>.delayed(const Duration(milliseconds: 100)),
-                );
-                await tester.pump(const Duration(milliseconds: 100));
-              }
-            },
-          );
-        });
-      }
+          '/settings',
+          viewport,
+          theme,
+          'profile-banner-settings-$kind-$viewport-$theme',
+          overrides: [
+            voiceControllerProvider.overrideWith(
+              (ref) => SnapshotVoiceController(ref, const VoiceState()),
+            ),
+            meProvider.overrideWith((ref) async => _me(image: image)),
+            bannerBytesProvider.overrideWith((ref, key) async => png),
+          ],
+          afterSettle: (tester) async {
+            await tester.tap(find.text('Profile').first);
+            await tester.pump();
+            for (var i = 0; i < 3; i++) {
+              await tester.runAsync(
+                () => Future<void>.delayed(const Duration(milliseconds: 100)),
+              );
+              await tester.pump(const Duration(milliseconds: 100));
+            }
+          },
+        );
+      });
     }
   }
 }

@@ -13,11 +13,33 @@ import uuid
 from pathlib import Path
 
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "crates" / "slimm-server" / "migrations"
+_images = {}
 
 
 def apply_migrations(conn, migrations_dir=MIGRATIONS_DIR):
     for migration in sorted(Path(migrations_dir).glob("*.sql")):
         conn.executescript(migration.read_text())
+
+
+def _migrations_digest(migrations_dir):
+    digest = hashlib.sha256()
+    for migration in sorted(Path(migrations_dir).glob("*.sql")):
+        digest.update(migration.name.encode() + b"\0" + migration.read_bytes() + b"\0")
+    return digest.hexdigest()
+
+
+def _migrated_image(migrations_dir):
+    """The database file image of every migration in migrations_dir applied
+    in order, built once per distinct set of migration files."""
+    key = _migrations_digest(migrations_dir)
+    if key not in _images:
+        template = sqlite3.connect(":memory:")
+        try:
+            apply_migrations(template, migrations_dir)
+            _images[key] = template.serialize()
+        finally:
+            template.close()
+    return _images[key]
 
 
 def build_database(path, attachments=(), avatar_users=(), deleted_avatar_users=(),
@@ -28,9 +50,10 @@ def build_database(path, attachments=(), avatar_users=(), deleted_avatar_users=(
     deleted_avatar_users: the same, for tombstoned accounts, whose
     avatar_updated_at survives deletion while the file does not."""
     Path(path).parent.mkdir(parents=True, exist_ok=True)
+    # Replaying every migration on disk cost about 16 s of fsync per test, so a migrated image is written instead.
+    Path(path).write_bytes(_migrated_image(migrations_dir))
     conn = sqlite3.connect(str(path))
     try:
-        apply_migrations(conn, migrations_dir)
         conn.executemany(
             "INSERT INTO attachments (sha256, size, content_type, created_at) "
             "VALUES (?, ?, ?, 0)",

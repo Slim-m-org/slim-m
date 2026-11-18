@@ -9,10 +9,8 @@
 //! `moderation_audit_backfill.rs` uses for migration 0048.
 
 use std::path::Path;
-use std::time::Duration;
 
 use sqlx::migrate::Migrator;
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Row, SqlitePool};
 
 use crate::support;
@@ -38,18 +36,7 @@ async fn apply_0081(pool: &SqlitePool) {
 }
 
 async fn pool_at_0080() -> (SqlitePool, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::empty("slimm-notif-schedule-backfill");
-    let options = SqliteConnectOptions::new()
-        .filename(&path)
-        .create_if_missing(true)
-        .journal_mode(SqliteJournalMode::Wal)
-        .busy_timeout(Duration::from_secs(5))
-        .foreign_keys(true);
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect_with(options)
-        .await
-        .expect("open pool");
+    let (pool, guard) = support::migration_db::empty_pool("slimm-notif-schedule-backfill").await;
 
     let mut before = migrator().await;
     assert!(

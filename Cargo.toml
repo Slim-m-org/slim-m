@@ -76,10 +76,10 @@ zune-heic = "0.5"
 oxipng = { version = "10", default-features = false }
 
 [profile.dev]
-# Line tables, not full DWARF. This crate builds 154 integration test files
-# into 154 separate binaries, each statically linking the whole crate and its
-# dependency tree, and measured on this tree full debug info was 78% of every
-# one of them: a single test binary was 233 MB, and 52 MB once stripped. That
+# Line tables, not full DWARF. Each integration test binary statically links
+# the whole crate and its dependency tree, and measured when there were 154 of
+# them, full debug info was 78% of every one: a single test binary was 233 MB,
+# and 52 MB once stripped. That
 # put target/ at 84 GB, which is paid again in link time on every
 # `cargo test --all` and again per agent worktree.
 #
@@ -89,6 +89,10 @@ oxipng = { version = "10", default-features = false }
 # wants that can build with `RUSTFLAGS=-Cdebuginfo=2` for the run they need
 # it, rather than every build paying for it forever.
 debug = "line-tables-only"
+
+# Every test that builds an `Auth` pays a hash, about 200 ms at opt-level 0 and 9 ms here; see docs/dependencies.md.
+[profile.dev.package.argon2]
+opt-level = 3
 
 [profile.release]
 # Small, fast self-host binary: the brief treats binary size as a budget.

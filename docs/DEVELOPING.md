@@ -70,6 +70,9 @@ for d in . packages/*/; do [ -d "${d%/}/test" ] && (cd "${d%/}" && flutter test)
 # one file, or one case by name
 (cd packages/app && flutter test test/shared/api_failure_test.dart)
 (cd packages/app && flutter test test/shared/api_failure_test.dart --plain-name '<part of the test name>')
+
+# the app package bundled many files to an isolate, as CI's app shards run it (docs/ci-details.md)
+python3 ../scripts/lib/client_bundles.py run --concurrency 2
 ```
 
 After touching a conditional import, also build for the web, since dart2js resolves branches the analyzer does not:

@@ -12,7 +12,6 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -29,67 +28,63 @@ void main() {
   );
 
   const sizes = {'phone': Size(390, 900), 'desktop': Size(1280, 800)};
-  for (final theme in const ['dark', 'light']) {
-    for (final entry in sizes.entries) {
-      testWidgets('noise suppression Strongest at ${entry.key} ($theme)', (
-        tester,
-      ) async {
-        tester.view.physicalSize = entry.value;
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.reset);
-        final session = FakeSettingsSession(supportsInputGate: true);
-        final container = ProviderContainer(
-          overrides: [
-            keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-            quietMicPreview,
-            sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
-            apiProvider.overrideWith((ref) {
-              final api = SlimmApi(
-                baseUrl: Uri.parse('http://localhost:8080'),
-                session: ref.watch(sessionProvider),
-                httpClient: voiceTokenClient(),
-              );
-              ref.onDispose(api.close);
-              return api;
-            }),
-            voiceControllerProvider.overrideWith(
-              (ref) => VoiceController(ref, session: session),
-            ),
-          ],
-        )..read(preferencesProvider);
-        addTearDown(container.dispose);
-        final dark = theme == 'dark';
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: RepaintBoundary(
-              key: snapshotBoundary,
-              child: MaterialApp(
-                debugShowCheckedModeBanner: false,
-                theme: dark
-                    ? buildTheme(Brightness.dark, AppTokens.dark)
-                    : buildTheme(Brightness.light, AppTokens.light),
-                home: const Scaffold(
-                  body: SingleChildScrollView(child: VoiceSettingsBody()),
-                ),
-              ),
+  for (final entry in sizes.entries) {
+    testWidgets('noise suppression Strongest at ${entry.key} (dark+light)', (
+      tester,
+    ) async {
+      tester.view.physicalSize = entry.value;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final session = FakeSettingsSession(supportsInputGate: true);
+      final container = ProviderContainer(
+        overrides: [
+          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+          quietMicPreview,
+          sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
+          apiProvider.overrideWith((ref) {
+            final api = SlimmApi(
+              baseUrl: Uri.parse('http://localhost:8080'),
+              session: ref.watch(sessionProvider),
+              httpClient: voiceTokenClient(),
+            );
+            ref.onDispose(api.close);
+            return api;
+          }),
+          voiceControllerProvider.overrideWith(
+            (ref) => VoiceController(ref, session: session),
+          ),
+        ],
+      )..read(preferencesProvider);
+      addTearDown(container.dispose);
+      Widget build(String theme) => UncontrolledProviderScope(
+        container: container,
+        child: RepaintBoundary(
+          key: snapshotBoundary,
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: snapshotThemeData(theme),
+            home: const Scaffold(
+              body: SingleChildScrollView(child: VoiceSettingsBody()),
             ),
           ),
+        ),
+      );
+      await tester.pumpWidget(build('dark'));
+      await tester.pumpAndSettle();
+      final controller = container.read(voiceControllerProvider.notifier);
+      await controller.join('channel-1');
+      await tester.pumpAndSettle();
+      for (var i = 0; i < kStrongInactivePolls; i++) {
+        session.inputGateController.add(
+          const InputGateReading(
+            levelDb: -40,
+            voice: false,
+            strongActive: true,
+          ),
         );
-        await tester.pumpAndSettle();
-        final controller = container.read(voiceControllerProvider.notifier);
-        await controller.join('channel-1');
-        await tester.pumpAndSettle();
-        for (var i = 0; i < kStrongInactivePolls; i++) {
-          session.inputGateController.add(
-            const InputGateReading(
-              levelDb: -40,
-              voice: false,
-              strongActive: true,
-            ),
-          );
-        }
-        await tester.pumpAndSettle();
+      }
+      await tester.pumpAndSettle();
+      await checkDarkThenLight(tester, build, (theme) async {
         expect(find.text('Strongest'), findsOneWidget);
         expect(
           find.text("Strongest isn't running on this mic."),
@@ -97,8 +92,8 @@ void main() {
         );
         await writeSnapshot(tester, 'noise-strongest-${entry.key}-$theme');
         expect(tester.takeException(), isNull);
-        await controller.leave();
       });
-    }
+      await controller.leave();
+    });
   }
 }

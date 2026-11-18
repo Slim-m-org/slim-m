@@ -99,6 +99,32 @@ final snapshotThemes = <String, ({Brightness brightness, AppTokens tokens})>{
   'halloween': (brightness: Brightness.dark, tokens: AppTokens.halloween),
 };
 
+/// The theme a capture named for [theme] renders in.
+ThemeData snapshotThemeData(String theme) => buildTheme(
+  snapshotThemes[theme]!.brightness,
+  snapshotThemes[theme]!.tokens,
+);
+
+/// [renderSurfaceThemes] for a test that pumps its own tree: with [build]
+/// already mounted and settled in dark, runs [check] in dark, then swaps the
+/// theme in place and runs it again in light, so the setup is paid once.
+Future<void> checkDarkThenLight(
+  WidgetTester tester,
+  Widget Function(String theme) build,
+  Future<void> Function(String theme) check,
+) async {
+  for (final theme in const ['dark', 'light']) {
+    if (theme != 'dark') {
+      await tester.pumpWidget(build(theme));
+      await tester.pump();
+      // MaterialApp animates the theme, then Material animates its text style towards it, so it takes two frames.
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pump(const Duration(milliseconds: 350));
+    }
+    await check(theme);
+  }
+}
+
 /// Where PNGs land. Gitignored: these are for looking at, not for diffing.
 const snapshotDir = 'build/ui-snapshots';
 
