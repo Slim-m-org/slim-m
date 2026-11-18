@@ -14,7 +14,6 @@ import '../layout/stage_content.dart';
 import '../layout/stage_fit.dart';
 import '../providers/voice_controller.dart';
 import 'participant_tile_builder.dart';
-import 'local_share_tile.dart';
 import 'share_stage_grid.dart';
 import 'stage_person_chip.dart';
 
@@ -70,7 +69,7 @@ class _CallStageFitViewState extends State<CallStageFitView> {
     // A batch of new shares at once ties on age; the roster's first of them wins.
     _seen.addAll(ids.where((id) => !_seen.contains(id)).toList().reversed);
     if (ids.contains(widget.focused)) return widget.focused;
-    // The viewer's own share is a calm tile, so it only takes the pin when nothing else is shared.
+    // The viewer already sees their own screen, so their share only takes the pin when nothing else is shared.
     final remote = _seen.where(
       (id) => !widget.shares.any((s) => s.identity == id && s.isLocal),
     );
@@ -160,19 +159,19 @@ class _CallStageFitViewState extends State<CallStageFitView> {
     if (!isShare) {
       return _animatedTile(person);
     }
-    if (person.isLocal) {
-      return LocalShareTile(
-        onStop: () => unawaited(widget.controller.share.setScreenShare(false)),
-      );
-    }
     final pinned = identity == content.pinnedIdentity;
     final tile = shareStageTile(
       context,
       person,
       widget.controller,
-      onStopWatching: () => widget.onStopWatching(identity),
+      onStopWatching: person.isLocal
+          ? null
+          : () => widget.onStopWatching(identity),
       onFocus: pinned ? null : () => widget.onFocus(identity),
-      personItems: _personItems(context, person),
+      personItems: person.isLocal ? null : _personItems(context, person),
+      onStopSharing: person.isLocal
+          ? () => unawaited(widget.controller.share.setScreenShare(false))
+          : null,
     );
     final entering = AppFadeIn(offset: 0, child: tile);
     if (pinned) return entering;

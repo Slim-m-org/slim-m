@@ -59,7 +59,8 @@ With nothing else on stage they are a uniform grid over the whole box, with no w
 ### One tile per person
 
 A sharer appears once, as their share; a sharer with a camera also has their camera tile, which is a separate feed.
-The viewer's own share is a calm "You are sharing your screen" tile with a visible Stop sharing button, not a live copy of their own screen.
+The viewer's own share shows its live preview, captioned "You are sharing your screen", with a visible Stop sharing button on it.
+Amended 2026-11-18: 0.128 to 0.131 replaced that preview with a calm placeholder tile, and the owner asked for the preview back ("can no longer watch my own stream"). The preview still pauses with the window, see `video_pause.dart`.
 Tapping a smaller share pins it.
 
 ## Consequences

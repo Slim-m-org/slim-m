@@ -45,6 +45,7 @@ Widget shareStageTile(
   bool focused = false,
   bool showCaption = true,
   List<Widget> Function(VoidCallback close)? personItems,
+  VoidCallback? onStopSharing,
 }) {
   return _stageTile(
     context,
@@ -55,6 +56,7 @@ Widget shareStageTile(
     focused: focused,
     showCaption: showCaption,
     personItems: personItems,
+    onStopSharing: onStopSharing,
   );
 }
 
@@ -67,6 +69,7 @@ Widget _stageTile(
   bool focused = false,
   bool showCaption = true,
   List<Widget> Function(VoidCallback close)? personItems,
+  VoidCallback? onStopSharing,
 }) => ScreenShareStage(
   // Keyed by sharer so a refocus builds a new stage, which starts at fit.
   key: ValueKey('share-stage-${sharer.identity}'),
@@ -80,6 +83,7 @@ Widget _stageTile(
   focused: focused,
   showCaption: showCaption,
   personItems: personItems,
+  onStopSharing: onStopSharing,
   streamVolume:
       !sharer.isLocal && controller.volumes.hasScreenAudio(sharer.identity)
       ? streamVolumeSlider(sharer.identity, controller)
