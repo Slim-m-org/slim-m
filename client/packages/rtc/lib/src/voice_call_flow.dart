@@ -163,6 +163,7 @@ class VoiceCallFlow {
     _core.setupLog.start();
     try {
       _core.joinTimings.mark(JoinStage.connectStarted);
+      _core.healthWatch.health.signalUrl = Uri.tryParse(url);
       await joining.connect(url, token);
       // A leave or newer join took this room mid-connect and tore it down.
       if (!identical(room, joining)) return;

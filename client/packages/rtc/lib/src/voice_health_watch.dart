@@ -9,6 +9,7 @@ import 'package:slimm_api/api.dart' show LogLevel;
 import 'audio_glitch_watch.dart';
 import 'audio_stats.dart';
 import 'call_diagnostics.dart';
+import 'call_link.dart';
 import 'call_stats.dart';
 import 'join_audio_probe.dart';
 import 'voice_health.dart';
@@ -46,6 +47,7 @@ class VoiceHealthWatch {
   );
 
   final _mediaSource = MediaSourceNote();
+  final _pulse = SignalPulse();
 
   void _log(String line, {LogLevel level = LogLevel.info}) {
     diagnostics.noteHealthLine(line);
@@ -115,20 +117,40 @@ class VoiceHealthWatch {
       };
 
   Future<AudioSendSample?> _localVoiceStats() async {
-    final pub = _host
-        .room()
-        ?.localParticipant
-        ?.audioTrackPublications
+    final room = _host.room();
+    final pub = room?.localParticipant?.audioTrackPublications
         .where((p) => p.source == lk.TrackSource.microphone)
         .firstOrNull;
     final track = pub?.track;
-    if (track is! lk.LocalAudioTrack) return null;
-    final reports = await track.sender?.getStats();
-    if (reports == null) return null;
+    final reports =
+        track is lk.LocalAudioTrack ? await track.sender?.getStats() : null;
+    if (reports == null) {
+      _noteLink(room, null);
+      return null;
+    }
     final entries = _entries(reports);
-    diagnostics.noteTransport(parseTransportStats(entries));
+    final transport = parseTransportStats(entries);
+    diagnostics.noteTransport(transport);
+    _noteLink(room, transport);
     _mediaSource.note(entries, _host.diag);
     return parseAudioSend(entries);
+  }
+
+  /// Keeps the last media reading when [transport] is null, so a muted moment does not blank it.
+  void _noteLink(lk.Room? room, TransportStats? transport) {
+    if (room == null) return;
+    final counters = signalCounters(room);
+    final signal = _pulse.observe(
+      pings: counters.pings,
+      rttMs: counters.rttMs,
+    );
+    final before = health.link.value;
+    health.link.value = CallLink(
+      mediaRttMs: transport?.rttMs?.round() ?? before?.mediaRttMs,
+      media: mediaRouteOf(transport) ?? before?.media,
+      signalRttMs: signal.rttMs,
+      signalSilence: signal.silence,
+    );
   }
 
   List<StatsEntry> _entries(List<rtc.StatsReport> reports) =>
@@ -146,6 +168,7 @@ class VoiceHealthWatch {
       case VoiceSessionState.connecting:
         glitchWatch.stop();
       case VoiceSessionState.idle || VoiceSessionState.failed:
+        _pulse.reset();
         glitchWatch.finish();
     }
   }
