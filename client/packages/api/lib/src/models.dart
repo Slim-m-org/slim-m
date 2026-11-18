@@ -87,6 +87,7 @@ import 'models_forwards.dart';
 import 'models_polls.dart';
 import 'models_reactions.dart';
 import 'models_via_module.dart';
+import 'text_marks.dart';
 
 /// A session's credentials. The tokens are secrets: never log this.
 class TokenPair {
@@ -306,7 +307,10 @@ class Message {
         id: json['id'] as String,
         channelId: json['channel_id'] as String,
         authorId: json['author_id'] as String?,
-        authorDisplayName: json['author_display_name'] as String?,
+        authorDisplayName: switch (json['author_display_name']) {
+          final String name => capCombiningMarks(name),
+          _ => null,
+        },
         seq: json['seq'] as int,
         content: json['content'] as String,
         createdAt: json['created_at'] as int,

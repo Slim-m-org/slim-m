@@ -262,7 +262,8 @@ class _AppInputState extends State<AppInput> {
           Expanded(
             child: Semantics(
               label: widget.semanticLabel,
-              child: _textField(tokens, textStyle),
+              // Glyph ink such as a tall stack of accents paints past the line box; keep it in the field.
+              child: ClipRect(child: _textField(tokens, textStyle)),
             ),
           ),
           if (widget.obscureText) ...[

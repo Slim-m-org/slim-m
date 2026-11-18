@@ -187,3 +187,5 @@ export 'src/limits.dart'
         kUserNoteMaxChars,
         usernameCharacters;
 export 'src/models.dart';
+export 'src/text_marks.dart'
+    show capCombiningMarks, foldMarks, kMaxMarksPerBase;

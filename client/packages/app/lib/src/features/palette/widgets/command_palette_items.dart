@@ -84,7 +84,8 @@ class PaletteResultItem {
 
 /// Whether [channel] is worth showing for [query]. An empty query matches
 /// everything, so a blank field browses the whole list rather than showing
-/// nothing until the user types.
+/// nothing until the user types. Both sides drop combining marks, so a
+/// decorated name is found by its plain letters.
 ///
 /// A personal space's own name is the fixed sentinel [personalSpaceName],
 /// not the caller's own display name, so it also matches on
@@ -96,11 +97,11 @@ bool channelMatchesQuery(
   String? selfDisplayName,
 }) {
   if (query.isEmpty) return true;
-  final q = query.toLowerCase();
-  if (channel.name.toLowerCase().contains(q)) return true;
+  final q = api.foldMarks(query);
+  if (api.foldMarks(channel.name).contains(q)) return true;
   return channel.isPersonalSpace &&
       selfDisplayName != null &&
-      selfDisplayName.toLowerCase().contains(q);
+      api.foldMarks(selfDisplayName).contains(q);
 }
 
 /// Same rule as [channelMatchesQuery], over a member's display name, their
@@ -108,7 +109,7 @@ bool channelMatchesQuery(
 /// to find them.
 bool memberMatchesQuery(api.UserProfile member, String query) =>
     query.isEmpty ||
-    member.displayName.toLowerCase().contains(query.toLowerCase()) ||
+    api.foldMarks(member.displayName).contains(api.foldMarks(query)) ||
     memberMatchReason(member, query) != null;
 
 /// The reason a member matched [query] off their display name, or null when
@@ -116,13 +117,13 @@ bool memberMatchesQuery(api.UserProfile member, String query) =>
 /// person appears under a name that does not contain what was typed.
 PaletteReason? memberMatchReason(api.UserProfile member, String query) {
   if (query.isEmpty) return null;
-  final q = query.toLowerCase();
-  if (member.displayName.toLowerCase().contains(q)) return null;
+  final q = api.foldMarks(query);
+  if (api.foldMarks(member.displayName).contains(q)) return null;
   if (member.username.toLowerCase().contains(q)) {
     return (label: 'Username', value: member.username);
   }
   for (final role in member.roles) {
-    if (role.toLowerCase().contains(q)) return (label: 'Role', value: role);
+    if (api.foldMarks(role).contains(q)) return (label: 'Role', value: role);
   }
   return null;
 }

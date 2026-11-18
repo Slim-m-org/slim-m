@@ -5,6 +5,8 @@
 /// that file for how the pieces are recombined into one import.
 library;
 
+import 'text_marks.dart';
+
 /// A user's public profile, visible to anyone signed in to the same
 /// deployment: the shape returned for another member, never the caller's own
 /// richer view.
@@ -153,8 +155,8 @@ class UserProfile {
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
         id: json['id'] as String,
         username: json['username'] as String,
-        displayName: json['display_name'] as String,
-        nickname: json['nickname'] as String?,
+        displayName: capCombiningMarks(json['display_name'] as String),
+        nickname: _capped(json['nickname']),
         accountDisplayName: json['account_display_name'] as String?,
         createdAt: json['created_at'] as int,
         avatarUpdatedAt: json['avatar_updated_at'] as int?,
@@ -173,9 +175,9 @@ class UserProfile {
         topRolePosition: json['top_role_position'] as int?,
         isOwner: json['is_owner'] as bool? ?? false,
         timedOutUntil: json['timed_out_until'] as int?,
-        statusText: json['status_text'] as String?,
+        statusText: _capped(json['status_text']),
         pronouns: json['pronouns'] as String?,
-        about: json['about'] as String?,
+        about: _capped(json['about']),
         profileColor: json['profile_color'] as int?,
         profileColorRgb: json['profile_color_rgb'] as int?,
         isBot: json['is_bot'] as bool? ?? false,
@@ -340,16 +342,16 @@ class Me {
   factory Me.fromJson(Map<String, dynamic> json) => Me(
         id: json['id'] as String,
         username: json['username'] as String,
-        displayName: json['display_name'] as String,
+        displayName: capCombiningMarks(json['display_name'] as String),
         createdAt: json['created_at'] as int,
         permissions: json['permissions'] as int,
         avatarUpdatedAt: json['avatar_updated_at'] as int?,
         bannerUpdatedAt: json['banner_updated_at'] as int?,
         timedOutUntil: json['timed_out_until'] as int?,
         timeoutReason: json['timeout_reason'] as String?,
-        statusText: json['status_text'] as String?,
+        statusText: _capped(json['status_text']),
         pronouns: json['pronouns'] as String?,
-        about: json['about'] as String?,
+        about: _capped(json['about']),
         profileColor: json['profile_color'] as int?,
         profileColorRgb: json['profile_color_rgb'] as int?,
         presenceVisibility: json['presence_visibility'] as String?,
@@ -358,3 +360,6 @@ class Me {
         reportsRoleLadder: json.containsKey('is_owner'),
       );
 }
+
+String? _capped(Object? text) =>
+    text == null ? null : capCombiningMarks(text as String);

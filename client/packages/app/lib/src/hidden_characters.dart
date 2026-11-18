@@ -47,6 +47,15 @@ String visibleText(String text) {
   return out.toString().replaceAll(RegExp(r' {2,}'), ' ').trim();
 }
 
+/// [text] without the bidi overrides U+202D and U+202E, which redraw the
+/// letters around them in reverse (`evil\u202Etxt.exe` reads `evilexe.txt`).
+/// The server strips them from what is sent now; this covers older messages.
+/// Embeddings and isolates stay, since mixed-direction text relies on them.
+String withoutBidiOverrides(String text) =>
+    text.contains(_bidiOverride) ? text.replaceAll(_bidiOverride, '') : text;
+
+final _bidiOverride = RegExp('[\u202D\u202E]');
+
 /// [text] with each unpaired UTF-16 surrogate replaced by U+FFFD, which is
 /// what the web renderer draws anyway; the native one throws on it instead.
 String wellFormedUtf16(String text) {

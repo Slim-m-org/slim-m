@@ -2,6 +2,8 @@
 /// Parse results kept per message text, so a rebuild reads the tree it already has.
 library;
 
+import 'package:slimm_api/api.dart' show capCombiningMarks;
+
 import '../../../hidden_characters.dart';
 import 'message_inline.dart';
 import 'message_fences.dart';
@@ -35,15 +37,18 @@ class ParseCache<T> {
 }
 
 final _blocks = ParseCache<List<MessageBlock>>(
-  (text) => splitMessageBlocks(wellFormedUtf16(text)),
+  (text) => splitMessageBlocks(capCombiningMarks(wellFormedUtf16(text))),
 );
-final _markdown = ParseCache<List<MarkdownBlock>>(splitMarkdownBlocks);
+// Prose only: a code block shows an override as a visible marker instead.
+final _markdown = ParseCache<List<MarkdownBlock>>(
+  (text) => splitMarkdownBlocks(withoutBidiOverrides(text)),
+);
 final _inline = ParseCache<List<InlineNode>>(parseInline);
 
-/// Cached [splitMessageBlocks] of [content] made well-formed; the returned list is shared, never mutate it.
+/// Cached [splitMessageBlocks] of [content] made well-formed with its mark stacks capped; the returned list is shared, never mutate it.
 List<MessageBlock> cachedMessageBlocks(String content) => _blocks.of(content);
 
-/// Cached [splitMarkdownBlocks]; the returned list is shared, never mutate it.
+/// Cached [splitMarkdownBlocks] without bidi overrides; the returned list is shared, never mutate it.
 List<MarkdownBlock> cachedMarkdownBlocks(String text) => _markdown.of(text);
 
 /// Cached [parseInline]; the returned list is shared, never mutate it.

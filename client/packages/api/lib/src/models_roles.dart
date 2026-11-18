@@ -5,6 +5,8 @@
 /// that file for how the pieces are recombined into one import.
 library;
 
+import 'text_marks.dart';
+
 /// A role: a name plus a permission bitmask, assignable to members and
 /// checked the same way whether it came from `@everyone` or a created role.
 class Role {
@@ -69,7 +71,7 @@ class Role {
 
   factory Role.fromJson(Map<String, dynamic> json) => Role(
         id: json['id'] as String,
-        name: json['name'] as String,
+        name: capCombiningMarks(json['name'] as String),
         permissions: json['permissions'] as int,
         isEveryone: json['is_everyone'] as bool,
         mentionable: json['mentionable'] as bool? ?? false,

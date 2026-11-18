@@ -2,6 +2,8 @@
 /// One-line previews of a message's text, for quotes and banners.
 library;
 
+import 'package:slimm_api/api.dart' show capCombiningMarks;
+
 import 'features/messages/widgets/message_inline.dart';
 import 'hidden_characters.dart';
 
@@ -18,7 +20,10 @@ const spoilerPlaceholder = '[spoiler]';
 /// Walks the same parse the transcript renders, so a preview can never show
 /// what the transcript hides. Empty when nothing is left.
 String plainPreview(String content) {
-  final withoutFences = wellFormedUtf16(content).replaceAll(_fence, ' [code] ');
+  final drawable = withoutBidiOverrides(
+    capCombiningMarks(wellFormedUtf16(content)),
+  );
+  final withoutFences = drawable.replaceAll(_fence, ' [code] ');
   final text = parseInline(withoutFences).map(_flatten).join();
   return text.replaceAll(_whitespace, ' ').trim();
 }
