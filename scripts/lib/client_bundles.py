@@ -211,9 +211,29 @@ def units(app_dir=APP_DIR, durations=None, shards=1, index=0):
     return sorted(dealt[index], key=lambda p: (-costs[p], p))
 
 
+def _checked_paths(paths, app_dir):
+    """Test paths only: a Dart file inside [app_dir], never something flutter could read as an option."""
+    root = os.path.realpath(app_dir)
+    checked = []
+    for path in paths:
+        full = os.path.realpath(os.path.join(app_dir, path))
+        if path.startswith("-") or not path.endswith(".dart") or not full.startswith(root + os.sep):
+            raise ValueError(f"not a test file under {app_dir}: {path!r}")
+        checked.append(path)
+    return checked
+
+
+def _checked_args(args):
+    """Flags only: each one an option, so no stray value turns into a path or a command."""
+    for arg in args:
+        if not arg.startswith("-"):
+            raise ValueError(f"flutter test arguments must be options: {arg!r}")
+    return list(args)
+
+
 def flutter_test(paths, args, out_path=None, app_dir=APP_DIR):
     """Runs `flutter test [args] [paths]`, into [out_path] when given."""
-    cmd = ["flutter", "test", *args, *paths]
+    cmd = ["flutter", "test", *_checked_args(args), *_checked_paths(paths, app_dir)]
     if out_path is None:
         return subprocess.run(cmd, cwd=app_dir, check=False).returncode
     with open(out_path, "w", encoding="utf-8") as fh:
@@ -225,7 +245,7 @@ def verify(only, concurrency, out_dir):
     bundles, _ = write()
     chosen = {n: fs for n, fs in bundles.items() if not only or any(o in n for o in only)}
     os.makedirs(out_dir, exist_ok=True)
-    args = [f"--concurrency={concurrency}", "--reporter", "json"]
+    args = [f"--concurrency={concurrency}", "--reporter=json"]
     bundled_json = os.path.join(out_dir, "bundled.json")
     per_file_json = os.path.join(out_dir, "per-file.json")
     flutter_test(sorted(chosen), args, bundled_json)
@@ -249,8 +269,7 @@ def retry(report_path, concurrency, out_dir):
         return 1
     os.makedirs(out_dir, exist_ok=True)
     rerun_json = os.path.join(out_dir, "retry.json")
-    flutter_test(bundled, [f"--concurrency={concurrency}", "--file-reporter",
-                           f"json:{rerun_json}"])
+    flutter_test(bundled, [f"--concurrency={concurrency}", f"--file-reporter=json:{rerun_json}"])
     rerun = reports.results(_read(rerun_json), {})
     broken = [f for f in bundled if f in reports.failed_files(rerun) or f not in rerun]
     for f in bundled:
@@ -266,7 +285,7 @@ def run(concurrency, extra, out_dir):
     """The whole app package bundled, then retry() on a failure, as client-ci's shards do."""
     os.makedirs(out_dir, exist_ok=True)
     report = os.path.join(out_dir, "run.json")
-    args = [f"--concurrency={concurrency}", "--file-reporter", f"json:{report}", *extra]
+    args = [f"--concurrency={concurrency}", f"--file-reporter=json:{report}", *extra]
     if flutter_test(units(), args) == 0:
         return 0
     return retry(report, concurrency, out_dir)

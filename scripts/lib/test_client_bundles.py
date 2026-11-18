@@ -203,7 +203,7 @@ class RetryTest(unittest.TestCase):
             Path(report_path).write_text("\n".join(report))
 
             def fake_flutter(paths, args, out_path=None):
-                Path(args[-1].removeprefix("json:")).write_text("\n".join(rerun))
+                Path(args[-1].removeprefix("--file-reporter=json:")).write_text("\n".join(rerun))
                 return 0
 
             with mock.patch.object(client_bundles, "plan", return_value=(self.BUNDLES, {})), \
