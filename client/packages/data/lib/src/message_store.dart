@@ -251,8 +251,13 @@ class MessageStore {
   /// perform itself. [upsertChannels] must never gain this: a single-channel
   /// call (a rename, a freshly created channel) would wipe every other row.
   /// The body lives in `message_store_channels.dart`.
-  Future<void> replaceChannels(List<api.Channel> channels) =>
-      channels_impl.replaceChannels(this, channels);
+  ///
+  /// [alsoKeep] survives the prune: channels that arrived after [channels] was asked for.
+  Future<void> replaceChannels(
+    List<api.Channel> channels, {
+    Set<String> alsoKeep = const {},
+  }) =>
+      channels_impl.replaceChannels(this, channels, alsoKeep: alsoKeep);
 
   /// Applies one message from the server, whichever route it arrived by.
   ///

@@ -113,8 +113,11 @@ class _SignOutDuringWrite extends MessageStore {
   final void Function() onChannelsWritten;
 
   @override
-  Future<void> replaceChannels(List<Channel> channels) async {
-    await super.replaceChannels(channels);
+  Future<void> replaceChannels(
+    List<Channel> channels, {
+    Set<String> alsoKeep = const {},
+  }) async {
+    await super.replaceChannels(channels, alsoKeep: alsoKeep);
     onChannelsWritten();
   }
 }
