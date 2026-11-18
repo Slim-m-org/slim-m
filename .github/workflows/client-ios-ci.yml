@@ -92,6 +92,8 @@ jobs:
               - 'client/pubspec.yaml'
               - 'client/pubspec.lock'
               - 'client/packages/app/pubspec.yaml'
+              # An edit to the job itself has to run it, or the first run of a changed build is the one after the merge.
+              - '.github/workflows/client-ios-ci.yml'
 
   # A source file that compiles cleanly on its own but is never added to a
   # target's Sources build phase is skipped by xcodebuild with no error and
