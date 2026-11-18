@@ -78,11 +78,9 @@
 ///
 /// ## Active state
 ///
-/// An active icon button (an armed canvas tool, an open pane's toggle) was a
-/// tint and an accent glyph, and both sit within about 1.25:1 of the inactive
-/// look, so the state was hue alone. The marker bar along its top edge is
-/// the cue that is not, held to WCAG 1.4.11's 3:1 against the surfaces the
-/// button sits on and the tint it sits in.
+/// An active icon button's tint and accent glyph sit within about 1.25:1 of
+/// the inactive look, so its top-edge marker bar is the cue that is not hue
+/// alone, held to WCAG 1.4.11's 3:1 against the page and its own tint.
 ///
 /// ## Canvas cursor hues
 ///
@@ -248,9 +246,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: buildTheme(
-            name == 'light' ? Brightness.light : Brightness.dark,
-            t,
-          ),
+              name == 'light' ? Brightness.light : Brightness.dark, t),
           home: Center(
             child: AppIconButton(
               icon: AppIcons.settings,
@@ -265,18 +261,11 @@ void main() {
 
       final marker = find.byKey(AppIconButton.activeMarkerKey);
       expect(marker, findsOneWidget, reason: '$name active is a tint alone');
-      final box =
-          tester.widget<DecoratedBox>(marker).decoration as BoxDecoration;
-      for (final entry in {
-        'base': t.surfaceBase,
-        'raised': t.surfaceRaised,
-        'accentSoft': t.accentSoft,
-      }.entries) {
-        expect(
-          _contrast(box.color!, entry.value),
-          greaterThanOrEqualTo(3.0),
-          reason: '$name active marker on ${entry.key}',
-        );
+      final box = tester.widget<DecoratedBox>(marker).decoration;
+      final cue = (box as BoxDecoration).color!;
+      for (final bg in [t.surfaceBase, t.surfaceRaised, t.accentSoft]) {
+        expect(_contrast(cue, bg), greaterThanOrEqualTo(3.0),
+            reason: '$name on $bg');
       }
     });
   });

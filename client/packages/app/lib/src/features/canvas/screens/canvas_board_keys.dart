@@ -254,10 +254,8 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
   }
 
   bool _showActivityLog() {
-    final show = widget.onShowActivityLog;
-    if (show == null) return false;
-    show();
-    return true;
+    widget.onShowActivityLog?.call();
+    return widget.onShowActivityLog != null;
   }
 
   bool _deselect() {
