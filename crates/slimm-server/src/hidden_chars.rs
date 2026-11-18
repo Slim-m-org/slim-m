@@ -91,7 +91,8 @@ fn is_pictographic(c: char) -> bool {
 /// True when `text` holds a hidden character that is not part of an emoji
 /// sequence or a mark run. A zero width joiner is allowed only between two emoji,
 /// tag characters only as the subdivision flag `U+1F3F4 tags... U+E007F`, and
-/// [`CGJ`] only after a drawn character, so stacked marks pass while a bare one fails.
+/// [`CGJ`] only after a character that is neither whitespace nor hidden (a mark
+/// counts) or after another [`CGJ`] there, so stacked marks pass and a bare one fails.
 pub(crate) fn hides_text_outside_emoji(text: &str) -> bool {
     let chars: Vec<char> = text.chars().collect();
     let mut i = 0;
