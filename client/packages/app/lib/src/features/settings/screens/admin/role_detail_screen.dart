@@ -62,14 +62,3 @@ Future<void> _back(BuildContext context) async {
   if (await Navigator.of(context).maybePop() || !context.mounted) return;
   context.go(Routes.adminRoles);
 }
-
-/// Leaves a role's screen for the list it was opened from, falling back to
-/// the roles route when there is nothing to pop (a cold deep link).
-void closeToRoles(BuildContext context) {
-  final navigator = Navigator.of(context);
-  if (navigator.canPop()) {
-    navigator.pop();
-  } else {
-    GoRouter.of(context).go(Routes.adminRoles);
-  }
-}

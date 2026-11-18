@@ -37,6 +37,17 @@ const viewAsRoleKey = Key('role-detail-view-as');
 const botOnlyRoleHint =
     'Only bots hold this role. Give the bots these permissions directly instead.';
 
+/// Leaves a role's screen for the list it was opened from, falling back to
+/// the roles route when there is nothing to pop (a cold deep link).
+void closeToRoles(BuildContext context) {
+  final navigator = Navigator.of(context);
+  if (navigator.canPop()) {
+    navigator.pop();
+  } else {
+    GoRouter.of(context).go(Routes.adminRoles);
+  }
+}
+
 class RoleDetail extends ConsumerStatefulWidget {
   const RoleDetail({super.key, required this.role});
 
@@ -77,7 +88,7 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
   Future<void> _popUnlessKept(bool didPop) async {
     if (didPop || !await _draft.allowLeave() || !mounted) return;
     _draft.dirty = false;
-    Navigator.of(context).pop();
+    closeToRoles(context);
   }
 
   @override
@@ -90,7 +101,10 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
     }
   }
 
-  void _viewAs(api.Role role) {
+  /// Leaves settings for the preview, so an unsaved draft asks first like every other way out.
+  Future<void> _viewAs(api.Role role) async {
+    if (!await (_pane?.canLeave() ?? _draft.allowLeave()) || !mounted) return;
+    _draft.dirty = false;
     unawaited(ref.read(rolePreviewProvider.notifier).enter(role));
     context.go(Routes.channels);
   }
@@ -121,7 +135,7 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
       label: 'View server as this role',
       icon: AppIcons.preview,
       size: AppButtonSize.sm,
-      onPressed: () => _viewAs(role),
+      onPressed: () => unawaited(_viewAs(role)),
     );
 
     final body = Column(

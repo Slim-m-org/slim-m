@@ -7,12 +7,15 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/role_preview/providers/role_preview_controller.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/role_detail.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_sub_pages.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/role_ladder.dart';
+import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../support/async_wait.dart';
@@ -46,6 +49,25 @@ Future<void> _toggleHoist(WidgetTester tester) async {
   await tester.tap(_hoistSwitch);
   await pumpFrames(tester);
 }
+
+/// [home] under a real router at [start], beside the channels and roles routes it can leave for.
+Widget _routed(String start, Widget home) => MaterialApp.router(
+  theme: buildTheme(Brightness.light, AppTokens.light),
+  routerConfig: GoRouter(
+    initialLocation: start,
+    routes: [
+      GoRoute(
+        path: start,
+        builder: (_, _) => Scaffold(body: home),
+      ),
+      GoRoute(path: Routes.channels, builder: (_, _) => const Text('channels')),
+      GoRoute(
+        path: Routes.adminRoles,
+        builder: (_, _) => const Text('roles list'),
+      ),
+    ],
+  ),
+);
 
 void main() {
   testWidgets('in the settings pane, an unsaved toggle makes leaving ask', (
@@ -81,6 +103,40 @@ void main() {
     await tester.tap(find.text('Save changes'));
     await pumpFrames(tester);
     expect(pane.blocking, isFalse, reason: 'saved, nothing left to lose');
+  });
+
+  testWidgets('View server as this role asks before the draft is dropped', (
+    tester,
+  ) async {
+    final pane = SettingsSubPageStack();
+    addTearDown(pane.dispose);
+    final container = await ConfigHarness().pump(
+      tester,
+      _routed(
+        '/settings',
+        SettingsSubPages(
+          stack: pane,
+          child: const RoleDetail(role: _role),
+        ),
+      ),
+      overrides: [_ladder],
+    );
+    await _toggleHoist(tester);
+
+    await tester.tap(find.byKey(viewAsRoleKey));
+    await pumpFrames(tester);
+    expect(find.text('Discard your changes?'), findsOneWidget);
+    await tester.tap(find.text('Keep editing'));
+    await pumpFrames(tester);
+    expect(container.read(rolePreviewProvider), isNull);
+    expect(find.text('1 unsaved change'), findsOneWidget);
+
+    await tester.tap(find.byKey(viewAsRoleKey));
+    await pumpFrames(tester);
+    await tester.tap(find.text('Discard').last);
+    await pumpFrames(tester);
+    expect(container.read(rolePreviewProvider)?.roleId, _role.id);
+    expect(find.text('channels'), findsOneWidget);
   });
 
   testWidgets('another tab asks before the draft is dropped', (tester) async {
@@ -129,5 +185,25 @@ void main() {
 
     expect(find.text('crew'), findsNothing, reason: 'discarding leaves');
     expect(h.writes, isEmpty);
+  });
+
+  testWidgets('a cold deep link discards back to the roles list', (
+    tester,
+  ) async {
+    await ConfigHarness().pump(
+      tester,
+      _routed('/settings/roles/${_role.id}', const RoleDetail(role: _role)),
+      overrides: [_ladder],
+    );
+    await _toggleHoist(tester);
+
+    await tester.binding.handlePopRoute();
+    await pumpFrames(tester);
+    expect(find.text('Discard your changes?'), findsOneWidget);
+    await tester.tap(find.text('Discard').last);
+    await pumpFrames(tester);
+
+    expect(find.text('roles list'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
