@@ -21,11 +21,12 @@
 /// done, update phases included ("Checking for updates", "Installing ...");
 /// see `main.dart`'s `startupStatusProvider`.
 ///
-/// Always dark on desktop, regardless of the stored theme choice: that choice
-/// is itself part of the async sequence this screen exists to mask, so there
-/// is nothing else to render it in yet. Discord's own splash does the same.
-/// A phone or browser shows it over a page that already follows the system,
-/// so there it follows the system, then the stored choice once it loads.
+/// Dark on desktop and phones, regardless of the stored theme choice: that
+/// choice is itself part of the async sequence this screen exists to mask,
+/// and a phone's native launch screen before it is always dark. Discord's own
+/// splash does the same. Only a browser shows it over a page that already
+/// follows the system (`web/index.html`), so there it follows the system,
+/// then the stored theme once it loads.
 library;
 
 import 'package:flutter/material.dart';
@@ -97,7 +98,7 @@ class StartupApp extends StatelessWidget {
   final String status;
   final StartupPrompt? prompt;
 
-  /// Dark on desktop (see the library doc); elsewhere the page beneath already follows the system.
+  /// Dark except in a browser (see the library doc).
   final ThemeMode themeMode;
 
   /// Round the window's corners; only where the runner gives it a transparent surface.

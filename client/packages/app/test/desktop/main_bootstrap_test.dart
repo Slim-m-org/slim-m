@@ -11,11 +11,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/main.dart';
 import 'package:slimm_app/src/features/auth/screens/onboarding_screen.dart';
 import 'package:slimm_app/src/desktop/startup_screen.dart';
+import 'package:slimm_app/src/features/settings/providers/stored_theme.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/widgets/mobile_boot_gate.dart';
-import 'package:slimm_design_system/design_system.dart' show AppMotion;
+import 'package:slimm_design_system/design_system.dart'
+    show AppMotion, AppTokens, ThemeDocument;
 import 'package:slimm_platform/testing.dart';
 
 ProviderContainer _container() {
@@ -288,31 +290,71 @@ void main() {
     container.dispose();
   });
 
-  for (final (desktop, expected) in [
-    (false, Brightness.light),
-    (true, Brightness.dark),
+  for (final (host, desktop, web, expected) in [
+    ('browser', false, true, Brightness.light),
+    ('phone', false, false, Brightness.dark),
+    ('desktop', true, false, Brightness.dark),
   ]) {
-    testWidgets('the splash on a ${desktop ? 'desktop' : 'phone or browser'} '
-        'paints $expected under a light system theme', (tester) async {
+    testWidgets('the splash on a $host paints $expected under a light '
+        'system theme', (tester) async {
       tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
       addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
-      final container = _container();
-      container.read(appReadyProvider.notifier).state = false;
-      container.read(startupStatusProvider.notifier).state = 'Connecting';
+      final container = _splashing();
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: SlimMApp(isDesktopOverride: desktop),
+          child: SlimMApp(isDesktopOverride: desktop, isWebOverride: web),
         ),
       );
       await tester.pump();
 
-      final status = tester.element(find.text('Connecting'));
-      expect(Theme.of(status).brightness, expected);
+      expect(_splashBrightness(tester), expected);
+    });
+  }
+
+  for (final (choice, provider) in [
+    (AppThemeChoice.spaceDefault, spaceDefaultThemeProvider),
+    (AppThemeChoice.custom, customThemeProvider),
+  ]) {
+    testWidgets('a browser splash under a dark system paints the stored light '
+        '${choice.name} theme the app opens in', (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final container = _splashing();
+      await container.read(themeControllerProvider.notifier).select(choice);
+      await container.read(provider.notifier).set(_lightDocument);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const SlimMApp(isDesktopOverride: false, isWebOverride: true),
+        ),
+      );
+      await tester.pump();
+
+      expect(_splashBrightness(tester), Brightness.light);
     });
   }
 }
+
+final _lightDocument = ThemeDocument.of(
+  AppTokens.light,
+  name: 'Paper',
+  author: '',
+  base: 'light',
+  brightness: Brightness.light,
+);
+
+ProviderContainer _splashing() {
+  final container = _container();
+  container.read(appReadyProvider.notifier).state = false;
+  container.read(startupStatusProvider.notifier).state = 'Connecting';
+  return container;
+}
+
+Brightness _splashBrightness(WidgetTester tester) =>
+    Theme.of(tester.element(find.text('Connecting'))).brightness;
 
 Future<void> _pastFade(WidgetTester tester) async {
   await tester.pump();

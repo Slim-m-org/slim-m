@@ -332,10 +332,13 @@ bool get _splashIsFrameless =>
 /// was, without any screen checking for itself. How it looks follows the
 /// stored appearance choice, which is restored before the first frame.
 class SlimMApp extends ConsumerStatefulWidget {
-  const SlimMApp({super.key, this.isDesktopOverride});
+  const SlimMApp({super.key, this.isDesktopOverride, this.isWebOverride});
 
   /// Lets a widget test take the phone branch; `flutter test` on Linux is a desktop host.
   final bool? isDesktopOverride;
+
+  /// Lets a widget test take the browser branch; only a browser's splash follows the theme.
+  final bool? isWebOverride;
 
   @override
   ConsumerState<SlimMApp> createState() => _SlimMAppState();
@@ -346,6 +349,8 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
   bool _coldLaunchCover = true;
 
   bool get _onDesktop => widget.isDesktopOverride ?? isDesktopHost;
+
+  bool get _onWeb => widget.isWebOverride ?? kIsWeb;
 
   void _spendCover() {
     _stall.cancel();
@@ -412,9 +417,7 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
       prompt: ref.watch(startupPromptProvider),
       leaving: ref.watch(startupLeavingProvider),
       rounded: currentDesktopPlatform() == DesktopPlatform.linux,
-      themeMode: _onDesktop
-          ? ThemeMode.dark
-          : resolveTheme(ref.watch(themeControllerProvider)).mode,
+      themeMode: _onWeb ? _theme().mode : ThemeMode.dark,
       windowPort: _splashIsFrameless
           ? ref.read(desktopWindowShellProvider).port
           : null,
@@ -429,14 +432,15 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
     );
   }
 
+  ResolvedTheme _theme() => resolveTheme(
+    ref.watch(themeControllerProvider),
+    custom: ref.watch(customThemeProvider),
+    spaceDefault: ref.watch(spaceDefaultThemeProvider),
+  );
+
   Widget _app() {
-    final choice = ref.watch(themeControllerProvider);
     final highContrast = ref.watch(highContrastControllerProvider);
-    final theme = resolveTheme(
-      choice,
-      custom: ref.watch(customThemeProvider),
-      spaceDefault: ref.watch(spaceDefaultThemeProvider),
-    );
+    final theme = _theme();
     ref.watch(spaceThemeSyncProvider);
     final lightTokens = highContrast
         ? applyHighContrast(theme.light)
