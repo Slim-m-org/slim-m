@@ -27,6 +27,7 @@ import '../../../../routing/routes.dart';
 import '../../../../widgets/hover_reveal.dart';
 import '../../../members/providers/member_presence.dart' show membersProvider;
 import '../../../members/widgets/role_color.dart';
+import '../../../../widgets/confirm_dialog.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../settings_screen_scaffold.dart';
 import 'role_create_sheet.dart';
@@ -184,6 +185,24 @@ class _RoleNavState extends ConsumerState<_RoleNav>
     if (mounted) setState(() => _pendingOrder = null);
   }
 
+  /// Reorders after a drop; a bot's role moved up asks first, since the bot then manages more.
+  Future<void> _drop(List<api.Role> roles, int oldIndex, int newIndex) async {
+    final moved = roles[oldIndex];
+    final forBot = moved.isBotsRole || moved.isManagedByBot;
+    if (forBot && newIndex < oldIndex && !await _confirmBotMove(moved)) return;
+    final ids = [for (final r in roles) r.id];
+    ids.insert(newIndex, ids.removeAt(oldIndex));
+    await _reorder(ids);
+  }
+
+  Future<bool> _confirmBotMove(api.Role role) => confirmChoice(
+    context,
+    title: 'Move ${role.name} up?',
+    message:
+        'Bots with this role can then manage roles and members below its new place.',
+    confirmLabel: 'Move up',
+  );
+
   /// The dropped order stays on screen until the roles it describes arrive.
   Future<void> _refetchRoles() async {
     try {
@@ -257,11 +276,8 @@ class _RoleNavState extends ConsumerState<_RoleNav>
                     horizontal: AppSpacing.s8,
                   ),
                   buildDefaultDragHandles: false,
-                  onReorderItem: (oldIndex, newIndex) {
-                    final ids = [for (final r in reorderable) r.id];
-                    ids.insert(newIndex, ids.removeAt(oldIndex));
-                    unawaited(_reorder(ids));
-                  },
+                  onReorderItem: (oldIndex, newIndex) =>
+                      unawaited(_drop(reorderable, oldIndex, newIndex)),
                   footer: Column(
                     children: [
                       for (final role in ordered)
