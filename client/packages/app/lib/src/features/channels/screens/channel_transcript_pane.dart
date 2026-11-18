@@ -273,8 +273,9 @@ class ChannelTranscriptPane extends ConsumerWidget {
           lastReadSeq: lastReadSeq,
           manuallyUnread: manuallyUnread,
         );
+        final atLatest = scrollTracker.atLatest;
         // Gated on the viewport and on the search being closed: scrolled into history, this rebuild is a message arriving somewhere unread.
-        if (scrollTracker.atLatest && !searchShowing && contextWindow == null) {
+        if (atLatest && !searchShowing && contextWindow == null) {
           onMarkRead(readUpTo, lastReadSeq, manuallyUnread);
         }
         return MessageTranscript(
@@ -297,6 +298,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
               ? ThreadParentSlot(channelId: channelId)
               : null,
           scrollController: scrollTracker.controller,
+          atLatest: atLatest,
           lastReadSeq: lastReadSeq,
           knownUsernames: knownUsernames,
           knownRoleNames: knownRoleNames,

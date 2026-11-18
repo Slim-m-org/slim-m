@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/channels/screens/channel_transcript_scroll.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_entrance.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_transcript_widgets.dart';
 import 'package:slimm_data/data.dart';
@@ -36,34 +37,51 @@ final _midEntrance = find.descendant(
 );
 
 class _Channel {
-  _Channel(this.controller, this.rows);
+  _Channel(this.tracker, this.rows, this.pinnedAway);
 
-  final ScrollController controller;
+  final TranscriptScrollTracker tracker;
   final ValueNotifier<List<Message>> rows;
+
+  /// Overrides the tracker's answer, as a reader the pane counts as away would.
+  final ValueNotifier<bool> pinnedAway;
   var _next = 0;
 
+  ScrollController get controller => tracker.controller;
+
   void arrive() => rows.value = [...rows.value, _spam(_next++)];
+
+  /// Whether the row that just landed is the one rising in.
+  bool get newestRises => find
+      .descendant(of: find.byKey(ValueKey(newestId)), matching: _midEntrance)
+      .evaluate()
+      .isNotEmpty;
 
   String get newestId => 'f${_next - 1}';
 }
 
 Future<_Channel> _mount(WidgetTester tester) async {
   h.sizeViewport(tester);
-  final controller = ScrollController();
-  addTearDown(controller.dispose);
+  final tracker = TranscriptScrollTracker(markRead: (_, _, _) {});
+  addTearDown(tracker.dispose);
   final rows = ValueNotifier<List<Message>>(h.messages(30));
   addTearDown(rows.dispose);
+  final pinnedAway = ValueNotifier(false);
+  addTearDown(pinnedAway.dispose);
   await tester.pumpWidget(
     h.app(
-      ValueListenableBuilder<List<Message>>(
-        valueListenable: rows,
-        builder: (_, list, _) =>
-            h.transcript(controller: controller, count: 0, rows: list),
+      ListenableBuilder(
+        listenable: Listenable.merge([rows, pinnedAway]),
+        builder: (_, _) => h.transcript(
+          controller: tracker.controller,
+          count: 0,
+          rows: rows.value,
+          atLatest: !pinnedAway.value && tracker.atLatest,
+        ),
       ),
     ),
   );
   await tester.pump();
-  return _Channel(controller, rows);
+  return _Channel(tracker, rows, pinnedAway);
 }
 
 /// The newest row's painted bottom edge, entrance offset included.
@@ -120,7 +138,7 @@ void main() {
       channel.arrive();
       await tester.pump(_frame);
       expect(_midEntrance, findsOneWidget);
-      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(EntranceGate.quietGap);
       expect(_midEntrance, findsNothing);
     }
   });
@@ -135,6 +153,53 @@ void main() {
     channel.controller.jumpTo(0);
     await tester.pump(_frame);
     expect(find.byKey(ValueKey(channel.newestId)), findsOneWidget);
+    expect(_midEntrance, findsNothing);
+  });
+
+  testWidgets('a steady 4-5 a second, gaps jittering around the entrance, '
+      'lands still after its first message until the channel goes quiet', (
+    tester,
+  ) async {
+    final channel = await _mount(tester);
+    const gaps = [220, 250, 150, 200, 240, 170, 230, 190, 210, 160, 250, 200];
+    var risen = 0;
+    for (final gap in gaps) {
+      channel.arrive();
+      await tester.pump(_frame);
+      if (channel.newestRises) risen++;
+      await tester.pump(Duration(milliseconds: gap) - _frame);
+    }
+    expect(risen, 1, reason: 'only the first of a steady stream rises in');
+
+    await tester.pump(const Duration(seconds: 1));
+    channel.arrive();
+    await tester.pump(_frame);
+    expect(channel.newestRises, isTrue, reason: 'a lone message after quiet');
+  });
+
+  testWidgets('purging a flood leaves the message before it in place', (
+    tester,
+  ) async {
+    final channel = await _mount(tester);
+    final beforeFlood = channel.rows.value;
+    for (var i = 0; i < 80; i++) {
+      channel.arrive();
+      await tester.pump(_floodGap);
+    }
+    await tester.pump(const Duration(seconds: 2));
+    channel.rows.value = beforeFlood;
+    await tester.pump(_frame);
+    expect(find.byKey(ValueKey(beforeFlood.last.id)), findsOneWidget);
+    expect(_midEntrance, findsNothing);
+  });
+
+  testWidgets('the entrance follows the at-latest answer it is handed, not '
+      'its own reading of the scroll', (tester) async {
+    final channel = await _mount(tester);
+    channel.pinnedAway.value = true;
+    channel.arrive();
+    await tester.pump(_frame);
+    expect(channel.controller.position.pixels, 0);
     expect(_midEntrance, findsNothing);
   });
 

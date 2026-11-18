@@ -59,6 +59,7 @@ class MessageTranscript extends StatefulWidget {
     this.channelTopic,
     this.threadParent,
     required this.scrollController,
+    this.atLatest = true,
     required this.lastReadSeq,
     required this.selfId,
     required this.knownUsernames,
@@ -126,6 +127,9 @@ class MessageTranscript extends StatefulWidget {
   final String? channelTopic;
 
   final ScrollController scrollController;
+
+  /// Whether the reader is at the newest end, as the scroll tracker that marks read answers it; only then does an arrival rise in.
+  final bool atLatest;
   final int lastReadSeq;
 
   /// This account's own user id, so a message it wrote never counts as
@@ -314,16 +318,6 @@ class _MessageTranscriptState extends State<MessageTranscript> {
       ? Align(alignment: Alignment.topCenter, child: _transcript(context))
       : _transcript(context);
 
-  /// How close to the newest end still counts as reading it, the same slop the scroll tracker marks read within.
-  static const double _atLatestSlop = 4;
-
-  bool get _atLatest {
-    final controller = widget.scrollController;
-    if (!controller.hasClients) return true;
-    final position = controller.position;
-    return position.pixels <= position.minScrollExtent + _atLatestSlop;
-  }
-
   Widget _transcript(BuildContext context) {
     final messages = widget.messages;
     final items = mergePrivateAnswers(messages, widget.privateAnswers);
@@ -353,9 +347,7 @@ class _MessageTranscriptState extends State<MessageTranscript> {
 
     _checkAfterLayout();
     _estimateJumpScroll();
-    final animateNewest = _entrance.admit([
-      for (final item in items) item.id,
-    ], atLatest: _atLatest);
+    final animateNewest = _entrance.admit(items, atLatest: widget.atLatest);
 
     final frame = _Frame(
       items: items,
