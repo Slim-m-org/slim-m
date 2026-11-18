@@ -99,7 +99,7 @@ jobs:
     uses: ./.github/workflows/verify-release-checks.yml
     with:
       ref: ${{ needs.release-please.outputs.client_tag }}
-      required_checks: "analyze, format check|test and web build|linux desktop compiles|linux desktop shell smoke (Xvfb)|ios unit tests (callkit invariant)|ios release build links (device, no codesign)|ios sources are registered in project.pbxproj|hygiene|pub dependency licenses|breaking-change gate (additive-only, push to main)"
+      required_checks: "analyze, format check|test and web build|linux desktop compiles|linux desktop shell smoke (Xvfb)|ios unit tests (callkit invariant)|ios sources are registered in project.pbxproj|hygiene|pub dependency licenses|breaking-change gate (additive-only, push to main)"
 
   # One single-arch image per architecture, built on a NATIVE runner and pushed
   # to GHCR by digest. No QEMU, and no stored key material. See docs/ci.md.

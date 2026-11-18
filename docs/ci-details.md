@@ -256,10 +256,11 @@ Separately, a new Swift file left out of `project.pbxproj`'s Sources build phase
 
 Two checks close this, at very different costs.
 `pbxproj-registration` is a grep over `project.pbxproj` with no Xcode involved, so it runs on `ubuntu-24.04` unconditionally, ahead of the macOS jobs.
-`ios release build links (device, no codesign)` runs `flutter build ios --release --no-codesign`: a real, unsigned, device-target Release build, which is what takes the same linking path `build ipa` does.
-It was a step after the XCTest run until 2026-11-18, adding a median 5.1 minutes to every native pull request, and is now its own job on a second macOS runner beside it.
-It is narrowed to the `changes` job's `native` path filter rather than "main is never trusted on a filter alone": unlike the XCTest job, a linking failure can only come from a native source file, `project.pbxproj`, or a dependency version, since Dart code takes no part in native linking.
-All three are in `verify-client-ci`'s `required_checks`, since each can fail with the others green; a client release commit always matches the filter through its pubspec bump, so the build job runs there.
+The `ios-unit-tests` job gained a second build step, `flutter build ios --release --no-codesign`: a real, unsigned, device-target Release build, which is what takes the same linking path `build ipa` does.
+That step is narrowed to the `changes` job's `native` path filter rather than "main is never trusted on a filter alone": unlike the XCTest job, a linking failure can only come from a native source file, `project.pbxproj`, a dependency version, or the workflow's own steps, since Dart code takes no part in native linking.
+Both checks are in `verify-client-ci`'s `required_checks`, since each can fail with the other green.
+It stays a step rather than a parallel job, which would save its median 5.1 minutes of wall clock: GitHub's macOS arm64 runners are short of capacity, and a queued job they cannot place is cancelled with "The job was not acquired by Runner of type hosted even after multiple attempts" (the client 0.131.1 release pull request's XCTest job on 2026-11-18, and the parallel build job tried on #2422).
+A second macOS job per run is a second way for that to fail a release.
 
 It lives in `client-ios-ci.yml` rather than beside the Dart job because it is the expensive one by an order of magnitude: 14 minutes against 5, measured across recent runs, which made `client-ci` a median of 11 minutes when the Dart half finishes in a third of that.
 A GitHub workflow cannot path-filter one job, so the split is what lets it be gated on the paths that can actually change its answer: the iOS project, the plugins carrying CallKit and WebRTC, `data/` (its encrypted database compiles native sqlite code, and a change there once shipped an iOS launch failure with no iOS job run), and the dependency set, which is how a Dart-side change reaches an Xcode build.
