@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Randomized property test for the server's canvas op model: seeded sequences from two to four writers against a real store next to a reference model, checked between steps.
-//! A violation is shrunk and printed with its seed; `CANVAS_FUZZ_SEEDS`, `_STEPS`, `_BASE`, `_STATS` and `_SKIP` tune a run.
+//! A violation is shrunk and printed with its seed; `SLIMM_FULL_FUZZ=1` runs the full seed range, and `CANVAS_FUZZ_SEEDS`, `_STEPS`, `_BASE`, `_STATS` and `_SKIP` tune a run.
 //! `repros` holds one test per finding, `racing` the concurrent cases, `events` live frames against the feed, `http_garbage` hostile bodies.
 
 mod checks;
@@ -29,6 +29,11 @@ fn env_u64(name: &str, default: u64) -> u64 {
         .unwrap_or(default)
 }
 
+/// The full seed range under `SLIMM_FULL_FUZZ=1`, which CI sets on main; otherwise one seed per shard. Findings are pinned in `repros`.
+fn full_fuzz() -> bool {
+    std::env::var("SLIMM_FULL_FUZZ").is_ok_and(|v| v == "1")
+}
+
 struct Finding {
     seed: u64,
     violation: Violation,
@@ -52,7 +57,7 @@ fn render(findings: &BTreeMap<String, Finding>) -> String {
 }
 
 async fn shard(index: u64, of: u64) {
-    let seeds = env_u64("CANVAS_FUZZ_SEEDS", 32);
+    let seeds = env_u64("CANVAS_FUZZ_SEEDS", if full_fuzz() { 32 } else { 8 });
     let steps = env_u64("CANVAS_FUZZ_STEPS", 200) as usize;
     let base = env_u64("CANVAS_FUZZ_BASE", 1);
     let skip = Skip::parse(&std::env::var("CANVAS_FUZZ_SKIP").unwrap_or_default());

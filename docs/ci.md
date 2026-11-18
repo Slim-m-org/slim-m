@@ -75,11 +75,15 @@ Path-gated so a client-only change never triggers a server build.
 `crates/slimm-server/tests/it_infra/response_contract/` goes further and validates real response bodies against the document, including refusals: one representative case per documented error status, since `Error` is the same object on every route.
 Before that, every non-2xx returned before the schema was consulted, so an error body that had drifted from `Error` passed every gate here.
 
+The canvas fuzz runs one seed per shard on pull requests and its full seed range on pushes to `main` (`SLIMM_FULL_FUZZ=1`), the commits a release is cut from; each finding is pinned in its own repro test, so a pull request still runs every known case.
+
 Details, in [ci-details.md](ci-details.md#server-ci): The Rust compiler is pinned; Broken doc links; The sqlx cache; Unused dependencies.
 
 ## client-ci
 
 Path-gated so a server-only or schema-only change never triggers the Flutter client build.
+
+The app shards fuzz the canvas with a quick seed sample on pull requests and the full seed range on pushes to `main` (`SLIMM_FULL_FUZZ=1`); the engine and gesture findings are pinned in their own tests, so a pull request still runs every known case.
 
 Details, in [ci-details.md](ci-details.md#client-ci): The web bundle budget; The app shards are dealt by measured time; Native build hooks are cached, and explain their own failures; Logic tests also run as JavaScript; Where a pull request's time goes, measured 2026-10-02; Runner labels are pinned; Goldens are not a separate job; The iOS unit-test job, and why it is its own workflow; The registration and release-configuration checks, and why PR #292 needed both.
 

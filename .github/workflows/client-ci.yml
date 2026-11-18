@@ -196,6 +196,8 @@ jobs:
         env:
           SHARDS: "12"
           SHARD_INDEX: ${{ matrix.shard }}
+          # PRs fuzz a quick seed sample; main, where releases are cut, explores the full range.
+          SLIMM_FULL_FUZZ: ${{ github.event_name == 'push' && '1' || '0' }}
         run: |
           set -euo pipefail
           mapfile -t files < <(python3 ../../../scripts/lib/client_shards.py deal --shards "$SHARDS" --index "$SHARD_INDEX")
