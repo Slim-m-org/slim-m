@@ -124,6 +124,26 @@ void main() {
     rig.mode.showShared();
     expect(painted(), _own);
   });
+  for (final touch in [false, true]) {
+    testWidgets('the corner pills sit 4 apart, the zoom pill 4 below the row '
+        '(touch: $touch)', (tester) async {
+      final rig = Rig();
+      addTearDown(rig.dispose);
+      await tester.pumpWidget(
+        AppTouchTargets(enabled: touch, child: _wrap(rig)),
+      );
+
+      final viewPill = tester.getRect(
+        find.bySemanticsLabel(RegExp(r'^Shared view, ')),
+      );
+      final zoomPill = tester.getRect(
+        find.bySemanticsLabel(RegExp(r'^Fit view, ')),
+      );
+      expect(zoomPill.left, viewPill.left);
+      expect(zoomPill.top - viewPill.bottom, AppSpacing.s4);
+    });
+  }
+
   testWidgets('the pill names the view and a tap switches it', (tester) async {
     final rig = Rig();
     addTearDown(rig.dispose);

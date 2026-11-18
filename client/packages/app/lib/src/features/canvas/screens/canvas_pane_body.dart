@@ -115,6 +115,8 @@ class CanvasPaneBody extends StatefulWidget {
     required this.onVideoInterest,
     required this.selfBubbleHidden,
     required this.onToggleSelfBubbleHidden,
+    this.toolsHidden = false,
+    this.onToggleToolsHidden,
     required this.fullscreen,
     required this.onToggleFullscreen,
     this.focusedTileKey,
@@ -283,10 +285,12 @@ class CanvasPaneBody extends StatefulWidget {
   /// `canvas_self_presence.dart`'s own doc for why the two are split.
   final bool selfBubbleHidden;
 
-  /// Threaded to the floating dock's overflow menu, the one place this pane
-  /// offers to flip [selfBubbleHidden] - see that menu's own doc for why it
-  /// lives there rather than as a dedicated bar icon.
+  /// Flips [selfBubbleHidden] from the dock's overflow menu.
   final VoidCallback onToggleSelfBubbleHidden;
+
+  /// Whether the drawing tools are folded away on this device, and the overflow's way to flip it.
+  final bool toolsHidden;
+  final VoidCallback? onToggleToolsHidden;
 
   /// Whether this canvas has dropped its chrome to show nothing but the
   /// surface, and the one control that flips it - see

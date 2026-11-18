@@ -70,6 +70,8 @@ class CanvasOverflowMenu extends StatefulWidget {
     this.opensBelow = false,
     this.scopedClear,
     this.chatChannelId,
+    this.toolsHidden = false,
+    this.onToggleToolsHidden,
   });
 
   /// The voice channel whose text chat a row here opens, for a header with no room for its own toggle; null for none.
@@ -135,6 +137,10 @@ class CanvasOverflowMenu extends StatefulWidget {
   /// why a hide must stay reversible.
   final List<CanvasHiddenTile> hiddenTiles;
   final ValueChanged<String> onShowTile;
+
+  /// Whether the drawing tools are folded away, and the item that flips it; null offers none.
+  final bool toolsHidden;
+  final VoidCallback? onToggleToolsHidden;
 
   @override
   State<CanvasOverflowMenu> createState() => _CanvasOverflowMenuState();
@@ -384,6 +390,17 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
         leading: AppIcons.expand,
         onTap: _enterFullscreen,
       ),
+      if (widget.onToggleToolsHidden case final toggle?)
+        AppMenuItem(
+          label: widget.toolsHidden
+              ? 'Show drawing tools'
+              : 'Hide drawing tools',
+          leading: AppIcons.pen,
+          onTap: () {
+            _hide();
+            toggle();
+          },
+        ),
       if (widget.chatChannelId case final id?)
         Consumer(
           builder: (context, ref, _) => !ref.watch(canvasHasChatProvider(id))

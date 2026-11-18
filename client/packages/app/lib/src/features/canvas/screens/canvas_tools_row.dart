@@ -79,6 +79,8 @@ class CanvasToolsRow extends StatefulWidget {
     this.part = CanvasToolsRowPart.all,
     this.overflowOpensBelow = false,
     this.chatChannelId,
+    this.toolsHidden = false,
+    this.onToggleToolsHidden,
   });
 
   /// See [CanvasOverflowMenu.opensBelow].
@@ -158,6 +160,10 @@ class CanvasToolsRow extends StatefulWidget {
   /// only undo, the overflow (which still offers "Hide activity log") and
   /// close remain.
   final bool showTools;
+
+  /// Whether this viewer folded the drawing tools away, and the overflow item that flips it.
+  final bool toolsHidden;
+  final VoidCallback? onToggleToolsHidden;
 
   final CanvasToolsRowPart part;
 
@@ -261,6 +267,8 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
           fullscreen: widget.fullscreen,
           opensBelow: widget.overflowOpensBelow,
           chatChannelId: widget.chatChannelId,
+          toolsHidden: widget.toolsHidden,
+          onToggleToolsHidden: widget.onToggleToolsHidden,
         ),
       ],
     );

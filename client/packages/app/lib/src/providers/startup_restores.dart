@@ -11,6 +11,7 @@
 library;
 
 import '../features/canvas/providers/canvas_recent_colours.dart';
+import '../features/canvas/providers/canvas_tools_hidden.dart';
 import '../features/settings/providers/background_from_theme.dart';
 import '../features/settings/providers/my_themes.dart';
 import '../features/settings/providers/recent_themes.dart';
@@ -67,6 +68,7 @@ restorablePreferences = {
   'recent themes': (c) => c.read(recentThemesProvider.notifier),
   'my themes': (c) => c.read(myThemesProvider.notifier),
   'canvas recent colours': (c) => c.read(canvasRecentColoursProvider.notifier),
+  'canvas tools hidden': (c) => c.read(canvasToolsHiddenProvider.notifier),
   'space default theme': (c) => c.read(spaceDefaultThemeProvider.notifier),
   'time format': (c) => c.read(timeFormatControllerProvider.notifier),
   'motion': (c) => c.read(motionPreferenceControllerProvider.notifier),

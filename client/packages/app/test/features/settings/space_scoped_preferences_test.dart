@@ -156,6 +156,7 @@ const _deviceKeys = <String>{
   'slimm.canvas.recent_colours',
   'slimm.canvas.self_bubble.hidden',
   'slimm.canvas.snap_to_grid',
+  'slimm.canvas.tools_hidden',
   'slimm.database.key',
   'slimm.desktop.window_geometry',
   'slimm.first_run.done.',

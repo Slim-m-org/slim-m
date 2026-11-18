@@ -37,6 +37,8 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
     onShowTile: (key) => widget.tileOverrides.setHidden(key, false),
     fullscreen: widget.fullscreen,
     onToggleFullscreen: widget.onToggleFullscreen,
+    toolsHidden: widget.toolsHidden,
+    onToggleToolsHidden: widget.onToggleToolsHidden,
   );
 
   /// Rebuilds on `document.objectCount`, the same trigger `_surface` uses, so the summary does not freeze at the count it read when opened.

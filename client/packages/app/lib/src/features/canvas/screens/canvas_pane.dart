@@ -55,6 +55,7 @@ import '../../../routing/breakpoints.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../providers/canvas_focus_video_hold.dart';
 import '../providers/canvas_self_presence.dart';
+import '../providers/canvas_tools_hidden.dart';
 import '../../composer/widgets/composer_clipboard_image.dart'
     show pasteKeystrokeReadsClipboardImage;
 import '../widgets/armed_pen.dart';
@@ -481,6 +482,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   activityLog: _activityLog,
                   selfBubbleHidden: selfPresence.hidden,
                   onToggleSelfBubbleHidden: _onToggleSelfBubbleHidden,
+                  toolsHidden: ref.watch(canvasToolsHiddenProvider),
+                  onToggleToolsHidden: _onToggleToolsHidden,
                   callError: _callFailure(voiceFlags),
                   onRetryCall: voiceFlags.retryable
                       ? () => unawaited(

@@ -22,9 +22,20 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       );
     }
     if (tool != CanvasTool.pan) _document.selectedObjectId.value = null;
+    // Arming a tool by key or wheel brings the folded tools back, so what is armed shows.
+    if (tool != CanvasTool.pan && ref.read(canvasToolsHiddenProvider)) {
+      unawaited(ref.read(canvasToolsHiddenProvider.notifier).select(false));
+    }
     // A deliberate pick stays through leaving fullscreen.
     _toolBeforeFullscreen = null;
     _refresh(() => _tool = tool);
+  }
+
+  /// Folding the tools away puts the tool down too, so a drag pans rather than drawing unseen.
+  void _onToggleToolsHidden() {
+    final hide = !ref.read(canvasToolsHiddenProvider);
+    if (hide) _onToolChanged(CanvasTool.pan);
+    unawaited(ref.read(canvasToolsHiddenProvider.notifier).select(hide));
   }
 
   /// Escape with a drawing tool armed: drop a half-drawn stroke or shape, else close a docked thread, else put the tool down to Pan.

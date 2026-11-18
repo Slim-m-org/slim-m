@@ -59,6 +59,8 @@ class CanvasZoomIndicator extends StatelessWidget {
   Widget build(BuildContext context) =>
       Align(alignment: Alignment.topLeft, child: _readout());
 
+  /// Pills a small gap apart, so the corner covers as little board as it can.
+  /// The zoom pill keeps its own row: a call tile's controls sit where a longer first row would reach.
   Widget _readout() => SafeArea(
     minimum: const EdgeInsets.all(AppSpacing.s12),
     child: Column(
@@ -78,10 +80,10 @@ class CanvasZoomIndicator extends StatelessWidget {
             ).any((p) => !p.isSelf);
             if (!people && viewMode == null) return const SizedBox.shrink();
             return Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.s8),
+              padding: const EdgeInsets.only(bottom: AppSpacing.s4),
               child: Wrap(
-                spacing: AppSpacing.s8,
-                runSpacing: AppSpacing.s8,
+                spacing: AppSpacing.s4,
+                runSpacing: AppSpacing.s4,
                 children: [
                   if (people) const CanvasPeopleCluster(),
                   if (viewMode case final mode?)
