@@ -6,7 +6,7 @@ import os
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 LIB = Path(__file__).resolve().parent
 SCRIPTS = LIB.parent
@@ -52,7 +52,7 @@ class LoadToolsRefuseProductionTest(unittest.TestCase):
 
     def run_main(self, module, *argv):
         with patch.object(module.asyncio, "run") as run, \
-             patch.object(module, "run", return_value=None), \
+             patch.object(module, "run", new_callable=MagicMock, return_value=None), \
              patch.object(loadtest, "find_server_pid", return_value=1):
             try:
                 return module.main(["--base-url", *argv]), run

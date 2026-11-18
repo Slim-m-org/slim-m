@@ -101,6 +101,10 @@ class LoneReasonTest(unittest.TestCase):
             source = "void main() {\n  " + code + "\n}\n"
             self.assertIsNotNone(self.reason(source), code)
 
+    def test_a_library_level_test_annotation_runs_alone(self):
+        for annotation in ("@TestOn('browser')", "@Timeout(Duration(minutes: 2))", "@Tags(['slow'])"):
+            self.assertIsNotNone(self.reason(annotation + "\nlibrary;\n\n" + PLAIN), annotation)
+
     def test_a_pattern_in_a_comment_or_string_is_not_code(self):
         source = "// tearDownAll(\nvoid main() {\n  test('HttpOverrides.global = x', () {});\n}\n"
         self.assertIsNone(self.reason(source))

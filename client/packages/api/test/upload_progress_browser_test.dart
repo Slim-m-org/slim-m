@@ -5,17 +5,22 @@
 @TestOn('browser')
 library;
 
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:http/browser_client.dart';
 import 'package:slimm_api/api.dart';
 import 'package:test/test.dart';
 
-/// A server that takes the body slowly, as a throttled link does.
+/// A server that holds the body unread until told to go, as a stalled link does.
 const _slowServer = r'''
 import 'dart:io';
 
+import 'package:async/async.dart';
 import 'package:stream_channel/stream_channel.dart';
 
 Future<void> hybridMain(StreamChannel<Object?> channel) async {
+  final queue = StreamQueue(channel.stream);
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   channel.sink.add(server.port);
   await for (final request in server) {
@@ -27,9 +32,9 @@ Future<void> hybridMain(StreamChannel<Object?> channel) async {
       await response.close();
       continue;
     }
-    await for (final _ in request) {
-      await Future<void>.delayed(const Duration(milliseconds: 40));
-    }
+    // Takes none of the body until the test has seen a first report, so the send stalls part way.
+    await queue.next;
+    await request.drain<void>();
     response
       ..statusCode = 201
       ..headers.contentType = ContentType.json
@@ -55,18 +60,27 @@ void main() {
       ),
       httpClient: BrowserClient(),
     );
-    const length = 16 * 1024 * 1024;
+    // Past what loopback socket buffers hold, so a stalled send cannot have taken it all.
+    const length = 48 * 1024 * 1024;
     final reports = <int>[];
+    final first = Completer<int>();
 
-    final attachment = await api.uploadAttachmentStream(
-      () => Stream.value(List<int>.filled(length, 7)),
+    final upload = api.uploadAttachmentStream(
+      () => Stream.value(Uint8List(length)),
       length: length,
       filename: 'big.bin',
-      onProgress: reports.add,
+      onProgress: (sent) {
+        reports.add(sent);
+        if (!first.isCompleted) first.complete(sent);
+      },
     );
 
+    expect(await first.future, lessThan(length),
+        reason: 'not done from the start');
+    hybrid.sink.add('go');
+    final attachment = await upload;
+
     expect(attachment.id, 'a1');
-    expect(reports.first, lessThan(length), reason: 'not done from the start');
     expect(reports.last, length);
     await hybrid.sink.close();
   }, timeout: const Timeout(Duration(minutes: 2)));

@@ -115,15 +115,29 @@ The `linux-tarball` composite carries the cache itself, but a composite cannot r
 
 ### Logic tests also run as JavaScript
 
-The `test-chrome` job (`logic tests under dart2js (chrome)`) runs `scripts/chrome-tests.sh`, which feeds every file named in `client/chrome-tests.txt` to `flutter test --platform chrome`, one invocation per package.
-dart2js evaluates integer shifts and 64-bit maths differently from the VM, so a bug can exist only in the web build: web ids once minted a wrong timestamp and the canvas grid key collided (#1540), both found only by running the suite under Chrome by hand.
-The list holds 220 files (api, app, design_system, platform, rtc, voice_canvas), chosen by running every candidate that imports no `dart:io`, `dart:ffi`, drift or platform channel and keeping the ones that pass.
+The `test-chrome` job (`logic tests compiled to javascript (chrome)`) runs `scripts/chrome-tests.sh`, which runs every file named in `client/chrome-tests.txt` under `flutter test --platform chrome` through `scripts/lib/chrome_bundles.py`.
+`flutter test --platform chrome` compiles with DDC rather than dart2js, but both make an `int` a JavaScript number, which is what this is for.
+JavaScript evaluates integer shifts and 64-bit maths differently from the VM, so a bug can exist only in the web build: web ids once minted a wrong timestamp and the canvas grid key collided (#1540), both found only by running the suite under Chrome by hand.
+The list holds 224 files (api, app, design_system, platform, rtc, voice_canvas), chosen by running every candidate that imports no `dart:io`, `dart:ffi`, drift or platform channel and keeping the ones that pass.
 A file is opt-in: run `flutter test --platform chrome <file>` first and add it only if it passes.
-A logic test kept off the list on purpose goes in `client/chrome-tests-vm-only.txt` with its reason, tab separated: the twelve there need drift's native database, `dart:io`, or desktop-only code (`isDesktopHost` is false on the web), and `scripts/lib/test_chrome_test_lists.py` checks both lists name real files and never the same one.
+A logic test kept off the list on purpose goes in `client/chrome-tests-vm-only.txt` with its reason, tab separated: the eleven there need drift's native database, `dart:io`, or desktop-only code (`isDesktopHost` is false on the web), and `scripts/lib/test_chrome_test_lists.py` checks both lists name real files and never the same one.
 `canvas_convergence_property_test` runs 10 random seeds as JavaScript instead of the VM's 40, since it was only ever too slow for the 30 second default there, never wrong.
-Locally the whole list takes about nine minutes, but a CI runner took 20.6 minutes at the median (p90 21.1, max 21.8 over 38 runs), so the job runs as two legs (`logic tests under dart2js (chrome 1)` and `(chrome 2)`).
-Until 2026-11-10 each leg passed `flutter test --total-shards=2`, which splits the tests but still compiles every file in every leg: both legs ran tests from all 222 listed files, took 15 to 24 minutes each against the 25 minute limit, and twice hit it.
-Now `CHROME_LEG=<n>/2` deals the list's files alternately between the legs, so each compiles only its own half, and `scripts/lib/test_chrome_tests_legs.py` checks the legs together run every file exactly once.
+
+The tool compiles every file it is given in one go, then loads each file in a page of its own, one page at a time, since web tests ignore `--concurrency`.
+On a runner a page load cost about six seconds: in one leg's app group on 2026-11-18, 86 s went to the compile and 428 s to loading 73 pages.
+So `chrome_bundles.py` writes one bundle per package into its gitignored `test/.chrome_bundles/`, the way the app shards bundle files on the VM, and a package is one page.
+Files are split only by state no teardown undoes (real fonts, `PackageInfo` mocks), as on the VM.
+A file that cannot share a page loads alone: the VM bundles' reasons, a library-level test annotation (`@TestOn`, `@Timeout` and the like, which only an entrypoint's own library carries), and the files in `scripts/lib/chrome_bundle_lone.txt`.
+Three packages run at once, each with `--no-pub`, since the workspace's `pub get` ran a step earlier and concurrent ones would race on its package config.
+A failed package reruns its failed bundled files alone: a file that passes alone is a warning naming it, the same rule as the app shards, and `SLIMM_TEST_PER_FILE=1` turns the bundling off here too.
+A package's output prints only once it finishes, so when the job fails or is cancelled, its 25 minute limit included, it uploads `client/build/chrome-tests/` (every package's log and json results) as the `chrome-tests-logs` artifact.
+`scripts/lib/test_chrome_bundles.py` checks every listed file is bundled once or loads alone, and the retry rules.
+
+Measured locally on the whole list, 2026-11-18: about nine minutes one file at a time, 207 s bundled one package at a time, 94 s three at a time, with the same 1800 tests, and every app file's results matched a per-file run.
+Until 2026-11-18 the job ran as two legs, `logic tests under dart2js (chrome 1)` and `(chrome 2)`, each with every other file: a median 11.1 and 10.9 minutes over 12 runs (9.7 to 14.3).
+On the first CI run bundled (PR #2422, run 44361882823) the one job took 4.4 minutes, 3.9 of it the test step, with the same 1800 tests passing.
+Each package's own time there, compile included: app 232 s, rtc 119, api 75, platform 64, design_system 62, voice_canvas 41; app is the whole critical path, and the other five finish on the other two workers inside it.
+Sharding with `flutter test --total-shards` would not help: it splits the tests but still compiles every file in every shard, which is how the two legs took 15 to 24 minutes each until 2026-11-10 and twice hit the 25 minute limit.
 The job has no `needs`, so it runs beside the test shards.
 It is not in `verify-client-ci`'s `required_checks`.
 
@@ -245,20 +259,46 @@ Separately, a new Swift file left out of `project.pbxproj`'s Sources build phase
 Two checks close this, at very different costs.
 `pbxproj-registration` is a grep over `project.pbxproj` with no Xcode involved, so it runs on `ubuntu-24.04` unconditionally, ahead of the macOS jobs.
 The `ios-unit-tests` job gained a second build step, `flutter build ios --release --no-codesign`: a real, unsigned, device-target Release build, which is what takes the same linking path `build ipa` does.
-That step is narrowed to the `changes` job's `native` path filter rather than "main is never trusted on a filter alone": unlike the XCTest job, a linking failure can only come from a native source file, `project.pbxproj`, or a dependency version, since Dart code takes no part in native linking.
+That step is narrowed to the `changes` job's `native` path filter rather than "main is never trusted on a filter alone": unlike the XCTest job, a linking failure can only come from a native source file, `project.pbxproj`, a dependency version, or the workflow's own steps, since Dart code takes no part in native linking.
 Both checks are in `verify-client-ci`'s `required_checks`, since each can fail with the other green.
+It stays a step rather than a parallel job, which would save its median 5.1 minutes of wall clock: GitHub's macOS arm64 runners are short of capacity, and a queued job they cannot place is cancelled with "The job was not acquired by Runner of type hosted even after multiple attempts" (the client 0.131.1 release pull request's XCTest job on 2026-11-18, and the parallel build job tried on #2422).
+A second macOS job per run is a second way for that to fail a release.
 
 It lives in `client-ios-ci.yml` rather than beside the Dart job because it is the expensive one by an order of magnitude: 14 minutes against 5, measured across recent runs, which made `client-ci` a median of 11 minutes when the Dart half finishes in a third of that.
 A GitHub workflow cannot path-filter one job, so the split is what lets it be gated on the paths that can actually change its answer: the iOS project, the plugins carrying CallKit and WebRTC, `data/` (its encrypted database compiles native sqlite code, and a change there once shipped an iOS launch failure with no iOS job run), and the dependency set, which is how a Dart-side change reaches an Xcode build.
-A push to `main` uses the same filter, since it gates nothing except a release, and the release commit always matches it: release-please bumps `client/packages/app/pubspec.yaml`, which is in the filter.
+A push to `main` uses that filter, since it gates nothing except a release, and the release commit always matches it: release-please bumps `client/packages/app/pubspec.yaml`, which is in the filter.
+Since 2026-11-18 a pull request uses a narrower one, only what reaches Xcode natively: any package's `ios/`, `darwin/` or `hook/`, every pubspec, the lockfile, the workflow and its actions.
+A Dart-only change in `rtc/`, `platform/` or `data/` compiles on every other platform's job first, and still runs this on `main` and on its release commit before anything publishes; what moved is only when it runs, never whether.
 CocoaPods is cached on the lockfiles, so a restore never mixes pods resolved from a different lockfile.
 
 `flutter build ios --simulator --no-codesign --config-only` runs first because xcodebuild needs the generated Flutter config and the plugin registrant to exist before the project will open.
-`--config-only` writes them and runs pod install without compiling anything, so `xcodebuild test` is the only simulator build.
+`--config-only` writes them and runs pod install without compiling anything, so `xcodebuild build-for-testing` is the only simulator build.
 Until 2026-11-17 this step was a full `flutter build ios --simulator`, which built the app into `build/ios`, and `xcodebuild test` then built it again in its own DerivedData, about 3.8 minutes more.
-The step took a median 7.6 minutes over 30 pull request runs, about 4.3 of it the Xcode build that is now gone.
-The broadcast extension check therefore runs after the tests and reads `BroadcastExtension.appex` from that DerivedData; it checks every copy it finds, the embedded one included.
-Estimated, not yet measured: the job goes from a median 26.1 minutes to about 21-22.
+The broadcast extension check reads `BroadcastExtension.appex` from that DerivedData once the build is done; it checks every copy it finds, the embedded one included.
+
+The build and the run are separate steps, `build-for-testing` and then `test-without-building` with `-parallel-testing-enabled NO`: the scheme marks `RunnerTests` parallelizable, and xcodebuild would clone and boot more simulators for a suite that runs in seconds.
+The run reads the `.xctestrun` file the build wrote rather than the workspace, since opening the workspace again (about 55 pod targets and the Swift package graph) took 0.8 to 2.5 minutes before the first test.
+The simulator boots in a step of its own just before the run, which also means xcodebuild, finding it already booted, leaves it running instead of waiting for it to shut down.
+Measured 2026-11-18 on a slow runner (the same image swings about 2.5x between runs, and every phase scales with it): before, 255 s passed between the build finishing and the tests finishing, and another 91 s after "Test Succeeded" while xcodebuild shut its simulators down; after, the tests took 1.3 to 1.6 minutes.
+Booting in the background does not pay on these 3-core runners, since the boot slows whatever runs beside it by about as much as it would save: from the job's second step, the Flutter cache restore beside it downloaded at 11 to 12 MB/s against the 64 to 68 MB/s the pub cache got once the boot was done, and during `--config-only` the step took 8.75 minutes instead of about 3.5.
+A booted simulator also keeps its own daemons busy (`diagnosticd`, `ApplePushService`, `SpringBoard`: about seven CPU-minutes over one 15 minute job), so it is shut down (13 s) before the release device build: that build's Xcode phase took 421 s with it left running and 321 s with it shut down, one run each, so that is a hint more than a measurement.
+The shutdown is best-effort, since simctl exits 149 for a device that is no longer booted and a cleanup step must not turn a required check red.
+Both xcodebuild steps pipe only stdout through xcpretty, which drops every line it does not recognize, `Testing failed:` among them.
+Stderr, where `xcodebuild: error:` goes, reaches the log directly, and a failed step prints the last 200 lines of the raw output it saved; `scripts/lib/test_xcode_ci_steps.py` runs both steps against fake tools to hold that.
+`build-for-testing` prints Xcode's build timing summary, where the Flutter build script (the Dart compile, 70 to 95 s of silence on a slow runner) and the Swift compile lead.
+It passes `-clonedSourcePackagesDirPath ../build/ios/SourcePackages`, where `--config-only` resolved the Swift packages: without it xcodebuild cloned every package again into its own DerivedData, about 80 s.
+It also turns off the index store (`COMPILER_INDEX_STORE_ENABLE=NO`), which nothing on CI reads.
+
+Measured on #2422's runs, 2026-11-18, in minutes, against the 30 runs before it:
+
+| | before | after |
+| --- | --- | --- |
+| build plus boot plus tests (the old `run xctest` step) | median 10.8, 4.2 to 24.6 | 4.3, 7.0 and 9.0 with the final steps; 7.9 to 8.3 on slow runners with earlier ones |
+| release device build | median 5.1 | 2.7, 3.4 and 7.0 |
+| whole job, native change | no run since #2419; 17.1 and 19.8 without the release build, so an estimated 22 to 25 | 9.5, 14.0 and 21.1 |
+
+On the fastest runner the test part is unchanged (4.2 against 4.3): what this saves is the slow runner's simulator work, and what it cannot touch is the runner's speed, the Flutter cache restore and the Swift package fetch, which together moved the whole job by more than every change here.
+The tests themselves take 20 s; launching the Flutter app they are hosted in takes most of the rest of that step.
 
 The simulator is chosen from what the runner actually has rather than by name.
 A hardcoded `iPhone 16` broke the first time this ran, and it would break again silently every time GitHub rolls the image forward.

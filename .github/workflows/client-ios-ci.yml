@@ -6,12 +6,15 @@ name: client-ios-ci
 # 5 for everything else, and it ran on every client change including the
 # Dart-only ones that cannot affect it.
 #
-# The paths are what can actually change the answer: the iOS project itself,
-# the plugins that pull in CallKit and WebRTC, the data package (its encrypted database
-# compiles native sqlite code, and a change there once shipped an iOS launch failure with no iOS job run), and the dependency set, which is
-# how a Dart-side change reaches an Xcode build. Push to main uses the same
-# filter: it gates nothing outside a release, and the release commit always
-# matches it through its pubspec bump.
+# On main the paths are everything that can change the answer: the iOS project
+# itself, the plugins that pull in CallKit and WebRTC, the data package (its
+# encrypted database compiles native sqlite code, and a change there once
+# shipped an iOS launch failure with no iOS job run), and the dependency set,
+# which is how a Dart-side change reaches an Xcode build. A pull request runs
+# it only for what reaches Xcode natively (ios/, darwin/, build hooks, the
+# pubspecs and the lockfile), since a Dart-only change compiles on every other
+# platform's job first; main still runs it for those, and the release commit
+# always matches through its pubspec bump.
 #
 # PR #292 shipped a category on a private engine class, an undefined-symbol
 # link error that "ios unit tests" (a simulator, Debug build) could not see
@@ -44,13 +47,12 @@ on:
       # there. See docs/ci.md and client-ci.yml's matching note.
   pull_request:
     paths:
-      - "client/packages/app/ios/**"
-      - "client/packages/rtc/**"
-      - "client/packages/platform/**"
-      - "client/packages/data/**"
+      - "client/packages/*/ios/**"
+      - "client/packages/*/darwin/**"
+      - "client/packages/*/hook/**"
+      - "client/packages/*/pubspec.yaml"
       - "client/pubspec.yaml"
       - "client/pubspec.lock"
-      - "client/packages/app/pubspec.yaml"
       - ".github/workflows/client-ios-ci.yml"
       - ".github/actions/native-hooks-cache/**"
       - ".github/actions/native-hooks-diagnose/**"
@@ -90,6 +92,8 @@ jobs:
               - 'client/pubspec.yaml'
               - 'client/pubspec.lock'
               - 'client/packages/app/pubspec.yaml'
+              # An edit to the job itself has to run it, or the first run of a changed build is the one after the merge.
+              - '.github/workflows/client-ios-ci.yml'
 
   # A source file that compiles cleanly on its own but is never added to a
   # target's Sources build phase is skipped by xcodebuild with no error and
@@ -157,23 +161,6 @@ jobs:
         working-directory: client
         run: flutter pub get --enforce-lockfile
 
-      # Measured 2026-11-17: pod install took 2.2 s on a miss, so this saves little; the lockfiles decide its contents.
-      - name: cache cocoapods
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: |
-            client/packages/app/ios/Pods
-            ~/Library/Caches/CocoaPods
-          # Keyed on the lockfiles alone, with no prefix fallback: restoring
-          # pods resolved from a different lockfile is how a build stops
-          # matching the dependencies it claims to have.
-          key: pods-${{ runner.os }}-${{ hashFiles('client/packages/app/ios/Podfile.lock', 'client/pubspec.lock') }}
-
-      # Config only: xcodebuild test is the one simulator build, in the default DerivedData where this step resolves the Swift packages.
-      - name: generate the ios project
-        working-directory: client/packages/app
-        run: flutter build ios --simulator --no-codesign --config-only
-
       # Chosen from what the runner actually has, not by name: a hardcoded
       # 'iPhone 16' broke on day one and would break on every image roll.
       - name: pick an available simulator
@@ -199,18 +186,42 @@ jobs:
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
           xcrun simctl list devices available | grep "$udid" || true
 
-      - name: run xctest
+      # Measured 2026-11-17: pod install took 2.2 s on a miss, so this saves little; the lockfiles decide its contents.
+      - name: cache cocoapods
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            client/packages/app/ios/Pods
+            ~/Library/Caches/CocoaPods
+          # Keyed on the lockfiles alone, with no prefix fallback: restoring
+          # pods resolved from a different lockfile is how a build stops
+          # matching the dependencies it claims to have.
+          key: pods-${{ runner.os }}-${{ hashFiles('client/packages/app/ios/Podfile.lock', 'client/pubspec.lock') }}
+
+      # Config only: build-for-testing below is the one simulator build, so this writes the Flutter config, resolves the Swift packages and runs pod install.
+      - name: generate the ios project
+        working-directory: client/packages/app
+        run: flutter build ios --simulator --no-codesign --config-only
+
+      # Flutter resolved the Swift packages into build/ios/SourcePackages one step ago; without the same path xcodebuild clones them all again.
+      - name: build the app and its tests for the simulator
         working-directory: client/packages/app/ios
         run: |
           set -euo pipefail
-          xcodebuild test \
+          log="$RUNNER_TEMP/build-for-testing.log"
+          # Only stdout goes through xcpretty, which drops lines it does not know; a failure prints the raw tail for the same reason.
+          xcodebuild build-for-testing \
             -workspace Runner.xcworkspace \
             -scheme Runner \
             -destination "id=${{ steps.sim.outputs.udid }}" \
-            -only-testing:RunnerTests \
-            -resultBundlePath "$RUNNER_TEMP/RunnerTests.xcresult" \
+            -clonedSourcePackagesDirPath ../build/ios/SourcePackages \
+            -skipPackageUpdates \
+            -showBuildTimingSummary \
             CODE_SIGNING_ALLOWED=NO \
-            | xcpretty || exit "${PIPESTATUS[0]}"
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            | tee "$log" | xcpretty \
+            || { code=${PIPESTATUS[0]}; echo "raw xcodebuild output, last 200 lines:"; tail -n 200 "$log"; exit "$code"; }
+          sed -n '/Build Timing Summary/,$p' "$log"
 
       # An app extension carrying a Frameworks directory is refused by the
       # store with error 90206, which only surfaces at upload - after a
@@ -234,6 +245,34 @@ jobs:
           fi
           echo "the extension embeds no frameworks"
 
+      # Booted here, not in the background: on a 3-core runner the boot slowed whatever ran beside it by about as much as it saved.
+      - name: boot the simulator
+        timeout-minutes: 15
+        run: |
+          SECONDS=0
+          xcrun simctl bootstatus "${{ steps.sim.outputs.udid }}" -b > "$RUNNER_TEMP/simulator-boot.log" \
+            || { cat "$RUNNER_TEMP/simulator-boot.log"; exit 1; }
+          echo "booted in ${SECONDS}s"
+
+      # From the build's .xctestrun (reopening the workspace cost up to 2.5 minutes), on the one booted simulator, with no parallel clones.
+      - name: run xctest
+        timeout-minutes: 30
+        run: |
+          set -euo pipefail
+          xctestrun=$(find "$HOME/Library/Developer/Xcode/DerivedData" -maxdepth 4 -path '*/Build/Products/*.xctestrun' -print -quit)
+          if [ -z "$xctestrun" ]; then
+            echo "::error::build-for-testing wrote no .xctestrun"
+            exit 1
+          fi
+          xcodebuild test-without-building \
+            -xctestrun "$xctestrun" \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:RunnerTests \
+            -parallel-testing-enabled NO \
+            -resultBundlePath "$RUNNER_TEMP/RunnerTests.xcresult" \
+            | tee "$RUNNER_TEMP/xctest.log" | xcpretty \
+            || { code=${PIPESTATUS[0]}; echo "raw xcodebuild output, last 200 lines:"; tail -n 200 "$RUNNER_TEMP/xctest.log"; exit "$code"; }
+
       # xcpretty drops Xcode 26's test lines, so a failing test showed its name and never its message.
       - name: print the failing tests' messages
         if: failure()
@@ -241,9 +280,18 @@ jobs:
           xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/RunnerTests.xcresult" \
             | jq -r '.testFailures[]? | "::error::\(.targetName // "") \(.testName): \(.failureText)"' || true
 
+      # A booted simulator keeps its own daemons busy, and the release build is the slowest compile in the job.
+      - name: shut the simulator down
+        if: needs.changes.outputs.native == 'true'
+        run: |
+          SECONDS=0
+          xcrun simctl shutdown "${{ steps.sim.outputs.udid }}" || echo "not shut down (simctl exit $?); the release build runs anyway"
+          echo "took ${SECONDS}s"
+
       # PR #292's actual failure: a link error only `build ipa` (Release,
       # device) hit, never the Debug simulator build above. This is that
       # same linking path, unsigned, so it needs no store secrets to run.
+      # A step, not a parallel job: GitHub cancels a macOS arm64 job it cannot place, so a second one is a second way to fail a release.
       - name: build for a real device in release configuration (no codesign)
         if: needs.changes.outputs.native == 'true'
         working-directory: client/packages/app

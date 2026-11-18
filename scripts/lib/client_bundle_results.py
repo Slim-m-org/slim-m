@@ -3,8 +3,9 @@
 import collections
 import json
 import os
+import re
 
-import client_shards
+_PACKAGE_ROOT = re.compile(r"^.*client/packages/[^/]+/")
 
 
 def results(lines, bundles):
@@ -66,13 +67,13 @@ def clean(counter):
 
 
 def suite_paths(lines):
-    """The test files and bundles a json report ran, relative to packages/app."""
+    """The test files and bundles a json report ran, relative to their package."""
     events = (json.loads(line) for line in lines if line.startswith("{"))
     return {relative(e["suite"]["path"]) for e in events if "suite" in e}
 
 
 def relative(path):
-    return path.replace(os.sep, "/").split(client_shards._MARKER, 1)[-1]
+    return _PACKAGE_ROOT.sub("", path.replace(os.sep, "/"))
 
 
 def failed_files(counts):
