@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show SessionStore;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart';
@@ -18,16 +19,16 @@ class SessionEndedNotice extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!ref.watch(sessionProvider).endedByServer) {
-      return const SizedBox.shrink();
-    }
-    return const Padding(
-      padding: EdgeInsets.only(bottom: AppSpacing.s8),
+    final session = ref.watch(sessionProvider);
+    if (!session.endedByServer) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.s8),
       child: ServerNotice(
         icon: AppIcons.signOut,
-        message:
-            'You were signed out. This device was signed out from another '
-            'device, or its session expired. Sign in again to carry on.',
+        message: session.lastEndReason == SessionStore.signedOutInAnotherTab
+            ? 'You were signed out in another tab. Sign in again to carry on.'
+            : 'You were signed out. This device was signed out from another '
+                  'device, or its session expired. Sign in again to carry on.',
       ),
     );
   }

@@ -63,8 +63,8 @@ class SessionStore {
   /// The [lastEndReason] of a sign-out the person asked for themselves.
   static const signedOutByUser = 'signed out';
 
-  /// Whether the session last ended without the person asking: a refresh the
-  /// server rejected, for instance after another device signed this one out.
+  /// Whether the session last ended without the person asking in this tab: a
+  /// refresh the server rejected, or a sign-out taken up from another tab.
   bool get endedByServer =>
       _lastEndReason != null && _lastEndReason != signedOutByUser;
 
@@ -135,13 +135,19 @@ class SessionStore {
 
   Future<void> dispose() => Future.wait([_changes.close(), _endings.close()]);
 
+  /// The [lastEndReason] of a sign-out taken up from another tab.
+  static const signedOutInAnotherTab = 'signed out in another tab';
+
   /// Takes up the pair another tab stored, or its sign-out.
   ///
   /// Memory only: the other tab already wrote it, and writing it back would
   /// race that tab's next rotation.
-  void adopt(TokenPair? tokens, {String reason = 'signed out in another tab'}) {
+  void adopt(TokenPair? tokens, {String reason = signedOutInAnotherTab}) {
     _tokens = tokens;
-    if (tokens == null) _endings.add(reason);
+    if (tokens == null) {
+      _lastEndReason = reason;
+      _endings.add(reason);
+    }
     _changes.add(tokens);
   }
 
