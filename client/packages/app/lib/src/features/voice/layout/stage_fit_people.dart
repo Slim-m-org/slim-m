@@ -20,6 +20,16 @@ const double stageChipHeight = 32;
 const double _chipWidth = 120;
 const double _narrowStage = 480;
 
+/// A smaller person tile has to fill this much more of the box to win.
+const double _tileBar = 1.005;
+
+/// On a wide stage people stay readable unless shrinking them gains 8%.
+const double _wideTileBar = 1.08;
+const double _wideStage = 640;
+
+/// Bigger person tiles never cost the content more than a fifth of its area.
+const double _contentKept = 0.8;
+
 /// The people's tiles and the box left for the content.
 class PeoplePlan {
   const PeoplePlan(
@@ -101,23 +111,34 @@ PeoplePlan planPeople(
   double gap, {
   required bool column,
 }) {
-  (double, PeoplePlan)? best;
+  final scored = <(_Score, PeoplePlan)>[];
   for (var w = _personMaxWidth; w >= stagePersonMinWidth; w -= 16) {
     for (final stretch in column ? const [false] : const [false, true]) {
       final plan = column
           ? _columnPlan(people, w, box, gap)
           : _stripPlan(people, w, box, gap, stretch: stretch);
       if (plan == null) continue;
-      final scored = _score(plan, people, content, gap);
-      if (scored != null && (best == null || scored > best.$1 * 1.005)) {
-        best = (scored, plan);
-      }
+      final score = _score(plan, people, content, gap);
+      if (score != null) scored.add((score, plan));
     }
   }
-  return best;
+  if (scored.isEmpty) return null;
+  final fullest = scored.reduce((a, b) => b.$1.fill > a.$1.fill ? b : a).$1;
+  final bar = _isWide(box) ? _wideTileBar : _tileBar;
+  // Widest first, so the biggest tiles within the bar of the fullest plan win.
+  final (score, plan) = scored.firstWhere(
+    (s) =>
+        s.$1.fill * bar >= fullest.fill &&
+        s.$1.content >= fullest.content * _contentKept,
+  );
+  return (score.fill, plan);
 }
 
-double? _score(
+typedef _Score = ({double fill, double content});
+
+bool _isWide(Rect box) => box.width >= _wideStage && box.width > box.height;
+
+_Score? _score(
   PeoplePlan plan,
   int people,
   List<StageItem> content,
@@ -136,7 +157,10 @@ double? _score(
       tile.width * tile.height > cameras.reduce(math.min)) {
     return null;
   }
-  return block.area + people * tile.width * tile.height;
+  return (
+    fill: block.area + people * tile.width * tile.height,
+    content: block.area,
+  );
 }
 
 PeoplePlan? _stripPlan(

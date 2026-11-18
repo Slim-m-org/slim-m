@@ -55,6 +55,9 @@ Aspects come from the track when known and fall back to 16:9.
 On a landscape stage at least 640px wide, up to four of them join the bento as one column at the content's right: 20% of the stage wide (160 to 320px), flush with the content's top, and stretched to its full height when there are several (never taller than 1.25 times their width).
 Amended 2026-11-18: before this they always took the strip below, and scoring by fill shrank them to 96px under a share, which the owner read as the bento not having shipped.
 Otherwise, with content on stage they take a strip below or a column at the right as uniform tiles 96 to 160px wide, chosen with the content so the whole is the fullest; the strip wins unless the column is 15% better.
+On a landscape stage at least 640px wide the widest tiles within 8% of the fullest plan win, as long as the content keeps four fifths of its area.
+Amended 2026-11-18: a share with five or more people (a lounge) still shrank everyone to 96px for a few percent of fill; at the 1920 stage they are now 160px, at the 1280 stage 112 to 160px up to eight people.
+Two columns of people beside the share were tried for five to eight people and rejected: two 160px columns take a third of a 1280 stage's width, which leaves the share less than half its area, while the wider strip costs it about 14%.
 If that leaves no room for tiles at least 96px wide, they collapse to one row of chips ending in "+N".
 With nothing else on stage they are a uniform grid over the whole box, with no width cap.
 

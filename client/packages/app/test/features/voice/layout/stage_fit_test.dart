@@ -250,10 +250,34 @@ void main() {
     expect(fit.people.every((r) => r.top > share.bottom), isTrue);
   });
 
-  test('five or more people keep the strip, too many for one column', () {
-    final fit = _fit(_w1920, _shares(1), 6);
+  for (final (name, box) in [('1280', _w1280), ('1920', _w1920)]) {
+    for (final n in [5, 6, 8]) {
+      test('at $name a share and $n people keep a row of readable tiles', () {
+        final fit = _fit(box, _shares(1), n);
+        final share = fit.items['s0']!;
+        expect(fit.people, hasLength(n));
+        expect(fit.people.every((r) => r.top > share.bottom), isTrue);
+        expect({for (final r in fit.people) r.top}, hasLength(1));
+        expect(
+          fit.people.first.width,
+          greaterThanOrEqualTo(box == _w1920 ? 160 : 112),
+          reason: 'not shrunk to 96px for a few % of fill',
+        );
+        expect(
+          share.width * share.height,
+          greaterThan(0.65 * box.width * box.height),
+        );
+      });
+    }
+  }
+
+  test('bigger tiles for ten people never cost the share a fifth of it', () {
+    final fit = _fit(_w1280, _shares(1), 10);
     final share = fit.items['s0']!;
-    expect(fit.people.every((r) => r.top > share.bottom), isTrue);
+    expect(
+      share.width * share.height,
+      greaterThan(0.48 * _w1280.width * _w1280.height),
+    );
   });
 
   test('an empty call lays out nothing', () {
