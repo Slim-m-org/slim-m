@@ -52,6 +52,11 @@
   min-height: calc(var(--sm-input-min-lines, 1) * 1lh);
   max-height: calc(var(--sm-input-max-lines) * 1lh);
 }
-.sm-input__counter { align-self: flex-end; font-size: var(--text-micro); line-height: var(--leading-micro); color: var(--text-secondary); }
+.sm-input__counter { align-self: flex-end; padding: 0 var(--space-4); font-size: var(--text-micro); line-height: var(--leading-micro); color: var(--text-secondary); }
 .sm-input__counter--over { color: var(--danger-text); }
+/* Helper and error share one cell, like the Flutter IndexedStack, so an error never changes the field's height. */
+.sm-input__beneath { display: grid; padding: 0 var(--space-4); }
+.sm-input__beneath > * { grid-area: 1 / 1; }
+.sm-input__helper { font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--text-secondary); }
+.sm-input--error .sm-input__helper { visibility: hidden; }
 .sm-input__error { font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--danger-text); }
