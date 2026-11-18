@@ -284,7 +284,7 @@ class CanvasCallDock extends ConsumerWidget {
             : _DockLayout.stacked;
         return FloatingDockCard(
           trailing: leave,
-          rows: [?bots, ..._dockRows(canvas, call, layout, alone)],
+          rows: [?bots, ..._dockRows(ref, canvas, call, layout, alone)],
         );
       },
     );
@@ -302,6 +302,7 @@ class CanvasCallDock extends ConsumerWidget {
   /// the overflow and the canvas toggle share the row beneath.
   /// Tools and call controls in one row, two rows, or stacked, by available width.
   List<Widget> _dockRows(
+    WidgetRef ref,
     CanvasDockData canvas,
     CallDockData call,
     _DockLayout layout,
@@ -329,7 +330,13 @@ class CanvasCallDock extends ConsumerWidget {
     }
     return [
       ..._stackedCanvasRows(canvas),
-      _callRow(call, tight: true, alone: alone),
+      ...tightCallRows(
+        ref,
+        controller: call.controller,
+        voice: call.voice,
+        extra: dockExtras(alone: alone),
+        hints: false,
+      ),
     ];
   }
 
@@ -351,11 +358,9 @@ class CanvasCallDock extends ConsumerWidget {
     CallDockData call, {
     Widget? toggle,
     bool alone = false,
-    bool tight = false,
   }) => CallControls(
     controller: call.controller,
     voice: call.voice,
-    tight: tight,
     hints: false,
     extraControl: dockExtras(alone: alone, toggle: toggle),
   );
