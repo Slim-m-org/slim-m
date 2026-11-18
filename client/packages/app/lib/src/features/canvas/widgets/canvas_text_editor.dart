@@ -12,7 +12,6 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/control_swatch_row.dart';
-import '../providers/canvas_pen_style.dart';
 import 'canvas_custom_colours.dart';
 import 'canvas_editor_layout.dart';
 import '../providers/canvas_text_props.dart';
@@ -318,27 +317,23 @@ class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
       ),
   ];
 
-  List<ControlSwatch> _colourSwatches(AppTokens tokens) => [
-    ControlSwatch(
-      label: 'Default colour',
-      selected: _colorKey == canvasDefaultTextColor,
-      onSelected: () => setState(() => _colorKey = canvasDefaultTextColor),
-      color: tokens.textPrimary,
-    ),
-    for (final choice in canvasPenColors)
-      ControlSwatch(
-        label: choice.label,
-        selected: _colorKey == choice.key,
-        onSelected: () => setState(() => _colorKey = choice.key),
-        color: choice.color,
-      ),
-    ...canvasCustomColourSwatches(
+  List<ControlSwatch> _colourSwatches(AppTokens tokens) {
+    void choose(String key) => setState(() => _colorKey = key);
+    return canvasColourRow(
       context: context,
       ref: ref,
+      defaults: [
+        ControlSwatch(
+          label: 'Default colour',
+          selected: _colorKey == canvasDefaultTextColor,
+          onSelected: () => choose(canvasDefaultTextColor),
+          color: tokens.textPrimary,
+        ),
+        ...canvasPenColourSwatches(selectedKey: _colorKey, onChoose: choose),
+      ],
       selectedKey: _colorKey,
       plainColour: tokens.textPrimary,
-      recentLimit: 2,
-      onChoose: (hex) => setState(() => _colorKey = hex),
-    ),
-  ];
+      onChoose: choose,
+    );
+  }
 }
