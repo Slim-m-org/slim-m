@@ -169,7 +169,7 @@ jobs:
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
           xcrun simctl list devices available | grep "$udid" || true
           started=$(date +%s)
-          nohup bash -c 'xcrun simctl bootstatus "$1" -b && echo "booted in $(( $(date +%s) - $2 ))s"' _ "$udid" "$started" \
+          (xcrun simctl bootstatus "$udid" -b && echo "booted in $(($(date +%s) - started))s") \
             > "$RUNNER_TEMP/simulator-boot.log" 2>&1 &
 
       - name: set up flutter (stable channel)
@@ -218,10 +218,18 @@ jobs:
             -showBuildTimingSummary \
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            2>&1 | perl -MPOSIX -pe '$|=1; $_ = strftime("%H:%M:%S ", localtime) . $_' \
+            2>&1 | python3 -u -c "import sys, time; [print(int(time.time()), line, end='') for line in sys.stdin]" \
             | tee "$RUNNER_TEMP/build-for-testing.log" | cut -d' ' -f2- | xcpretty || exit "${PIPESTATUS[0]}"
           sed -n '/Build Timing Summary/,$p' "$RUNNER_TEMP/build-for-testing.log"
-          awk '{ split($1, t, ":"); now = t[1] * 3600 + t[2] * 60 + t[3]; if (NR > 1 && now - last >= 10) print "gap of " now - last "s before: " substr($0, 1, 160); last = now }' "$RUNNER_TEMP/build-for-testing.log"
+          python3 -c "
+          import sys
+          last = None
+          for line in open(sys.argv[1], errors='replace'):
+              stamp, _, text = line.partition(' ')
+              if last is not None and int(stamp) - last >= 10:
+                  print(f'waited {int(stamp) - last}s before: {text[:160]}', end='')
+              last = int(stamp)
+          " "$RUNNER_TEMP/build-for-testing.log"
 
       # An app extension carrying a Frameworks directory is refused by the
       # store with error 90206, which only surfaces at upload - after a
