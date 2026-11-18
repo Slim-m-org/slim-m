@@ -46,6 +46,9 @@ class ServerIdentityChip extends StatelessWidget {
   final String host;
   final ServerIdentityStatus status;
 
+  /// The row's height, which a placeholder line keeps so the form below never moves.
+  static const rowHeight = 32.0;
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -57,8 +60,8 @@ class ServerIdentityChip extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: rowHeight,
+            height: rowHeight,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: tokens.surfaceSunken,

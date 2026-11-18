@@ -66,6 +66,26 @@ const _unreachable = (
       'restarting. Nothing was sent.',
 );
 
+const _offline = (
+  SignInErrorField.form,
+  'This device is offline. Check your connection, then try again. Nothing '
+      'was sent.',
+);
+
+/// The empty field a submit would send, named before anything goes out.
+(SignInErrorField, String)? missingCredential({
+  required String username,
+  required String password,
+}) {
+  if (username.trim().isEmpty) {
+    return (SignInErrorField.username, 'Enter your username.');
+  }
+  if (password.isEmpty) {
+    return (SignInErrorField.password, 'Enter your password.');
+  }
+  return null;
+}
+
 const _blockedByBrowser = (
   SignInErrorField.server,
   'This Space is up, but the browser blocked the connection. Whoever runs '
@@ -74,12 +94,15 @@ const _blockedByBrowser = (
 
 /// [signInErrorFor], except a failed connection that [reach] still answers is
 /// called a browser block when [knownSpace]: an opaque answer could be any site.
+/// An [offline] device is told about its own connection instead.
 Future<(SignInErrorField, String)> explainSignInFailure(
   ApiException e, {
   required Uri? server,
   required Future<bool?> Function(Uri server) reach,
   required Future<bool> Function(Uri server) knownSpace,
+  bool offline = false,
 }) async {
+  if (e is TransportException && offline) return _offline;
   if (e is! TransportException || server == null) return signInErrorFor(e);
   if (await reach(server) != true) return _unreachable;
   return await knownSpace(server) ? _blockedByBrowser : _unreachable;

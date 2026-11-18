@@ -197,14 +197,23 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   void _onServerEdited(String _) {
-    // The old answer is about the old address the moment the field changes,
-    // and the line naming the destination is read off the field itself.
+    _clearErrorOn({SignInErrorField.server});
+    _reprobe();
+  }
+
+  /// The old answer is about the old address the moment the field changes,
+  /// and the line naming the destination is read off the field itself.
+  void _reprobe() {
     setState(() {
       _probed = null;
       _identityStatus = null;
     });
     _probeDebounce?.cancel();
     _probeDebounce = Timer(const Duration(milliseconds: 600), _probeServer);
+  }
+
+  void _clearErrorOn(Set<SignInErrorField> fields) {
+    if (fields.contains(_error?.$1)) setState(() => _error = null);
   }
 
   /// The reset-code flow, which confirms identity the way [_submit] does and
@@ -255,6 +264,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   Future<void> _submit() async {
     final address = _submittableAddress();
     if (address == null) return;
+    final missing = missingCredential(
+      username: _username.text,
+      password: _password.text,
+    );
+    if (missing != null) return setState(() => _error = missing);
     if (_creatingAccount && !await _acknowledgedWarnings()) return;
     if (!mounted) return;
 
@@ -305,9 +319,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         server: probeTarget(_server.text),
         reach: ref.read(browserReachProbeProvider),
         knownSpace: pinnedIdentityCheck(ref.read(keyStoreProvider)),
+        offline: !ref.read(browserOnlineProvider)(),
       );
       if (!mounted) return;
       setState(() => _error = error);
+      // What the probe said before is no longer known to hold.
+      if (e is TransportException) _reprobe();
     } catch (error, stack) {
       reportFailure(LogTag.auth, 'sign in', error, stack);
       ref.read(justRegisteredProvider.notifier).state = false;
@@ -431,8 +448,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   : identityStatus,
             )
           else
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.s16),
+            Container(
+              height: ServerIdentityChip.rowHeight,
+              margin: const EdgeInsets.only(bottom: AppSpacing.s16),
+              alignment: Alignment.centerLeft,
               child: Text(
                 'Connecting to ${serverHostLabel(_server.text)}',
                 style: AppText.code.copyWith(color: tokens.textSecondary),
@@ -474,6 +493,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             busy: _busy,
             errorFor: _errorFor,
             onSubmit: _submit,
+            onEdited: () => _clearErrorOn(const {
+              SignInErrorField.username,
+              SignInErrorField.password,
+              SignInErrorField.credentials,
+              SignInErrorField.form,
+            }),
             onRecoverAccount: () => unawaited(_recoverAccount()),
           ),
           if (_errorFor(SignInErrorField.form) case final formError?) ...[
