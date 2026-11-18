@@ -28,6 +28,7 @@ import '../../../../widgets/hover_reveal.dart';
 import '../../../members/providers/member_presence.dart' show membersProvider;
 import '../../../members/widgets/role_color.dart';
 import '../../../../widgets/run_guarded.dart';
+import '../../widgets/settings_sub_pages.dart';
 import '../settings_screen_scaffold.dart';
 import 'role_create_sheet.dart';
 import 'role_detail.dart';
@@ -60,6 +61,13 @@ class RolesPane extends ConsumerStatefulWidget {
 class _RolesPaneState extends ConsumerState<RolesPane> {
   String? _selectedId;
 
+  /// Opens another role once the open one's unsaved edits are saved or let go.
+  Future<void> _selectRole(BuildContext context, String id) async {
+    final pane = SettingsSubPages.maybeOf(context);
+    if (pane != null && !await pane.canLeave()) return;
+    if (mounted) setState(() => _selectedId = id);
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.watch(roleChangeWatcherProvider);
@@ -89,7 +97,7 @@ class _RolesPaneState extends ConsumerState<RolesPane> {
             roles: list,
             selectedId: selected?.id,
             showSelection: true,
-            onSelect: (id) => setState(() => _selectedId = id),
+            onSelect: (id) => unawaited(_selectRole(context, id)),
           );
 
           final tokens = Theme.of(context).extension<AppTokens>()!;

@@ -18,6 +18,8 @@ import '../../../../routing/routes.dart';
 import '../../../role_preview/providers/role_preview_controller.dart';
 import '../../../members/providers/member_presence.dart' show membersProvider;
 import '../../../members/widgets/role_color.dart';
+import '../../widgets/settings_draft_guard.dart';
+import '../../widgets/settings_sub_pages.dart';
 import '../../widgets/settings_tab_strip.dart';
 import 'role_display_tab.dart';
 import 'role_members_tab.dart';
@@ -47,11 +49,43 @@ class RoleDetail extends ConsumerStatefulWidget {
 class _RoleDetailState extends ConsumerState<RoleDetail> {
   var _tab = _RoleDetailTab.permissions;
 
+  /// Held by the open tab's Save bar draft, so leaving it never drops an edit unasked.
+  late final _draft = DraftLeaveGuard(() => confirmDiscardChanges(context));
+
+  /// The settings pane this sits in; null on its own phone route, where a [PopScope] asks instead.
+  late final SettingsSubPageStack? _pane = SettingsSubPages.maybeOf(context);
+
+  @override
+  void initState() {
+    super.initState();
+    _pane?.setPaneGuard(_draft);
+  }
+
+  @override
+  void dispose() {
+    _pane?.releasePaneGuard(_draft);
+    _draft.dispose();
+    super.dispose();
+  }
+
+  Future<void> _selectTab(_RoleDetailTab tab) async {
+    if (tab == _tab || !await _draft.allowLeave() || !mounted) return;
+    _draft.dirty = false;
+    setState(() => _tab = tab);
+  }
+
+  Future<void> _popUnlessKept(bool didPop) async {
+    if (didPop || !await _draft.allowLeave() || !mounted) return;
+    _draft.dirty = false;
+    Navigator.of(context).pop();
+  }
+
   @override
   void didUpdateWidget(RoleDetail oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Selecting a different role starts back on Permissions, like switching settings panes.
     if (oldWidget.role.id != widget.role.id) {
+      _draft.dirty = false;
       setState(() => _tab = _RoleDetailTab.permissions);
     }
   }
@@ -90,7 +124,7 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
       onPressed: () => _viewAs(role),
     );
 
-    return Column(
+    final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
@@ -167,7 +201,7 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
           ),
         SettingsTabStrip<_RoleDetailTab>(
           selected: _tab,
-          onSelected: (tab) => setState(() => _tab = tab),
+          onSelected: (tab) => unawaited(_selectTab(tab)),
           tabs: [
             (_RoleDetailTab.permissions, 'Permissions'),
             (_RoleDetailTab.members, 'Members · ${role.memberCount}'),
@@ -183,6 +217,7 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
               _RoleDetailTab.permissions => RolePermissionsTab(
                 role: role,
                 locked: locked,
+                draft: _draft,
               ),
               _RoleDetailTab.members => RoleMembersTab(
                 role: role,
@@ -191,11 +226,23 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
               _RoleDetailTab.display => RoleDisplayTab(
                 role: role,
                 locked: locked,
+                draft: _draft,
               ),
             },
           ),
         ),
       ],
+    );
+    if (_pane != null) return body;
+    return ListenableBuilder(
+      listenable: _draft,
+      builder: (context, child) => PopScope(
+        canPop: !_draft.blocking,
+        onPopInvokedWithResult: (didPop, _) =>
+            unawaited(_popUnlessKept(didPop)),
+        child: child!,
+      ),
+      child: body,
     );
   }
 }

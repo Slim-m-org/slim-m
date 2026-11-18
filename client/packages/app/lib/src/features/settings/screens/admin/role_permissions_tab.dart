@@ -19,6 +19,7 @@ import '../../../../providers/providers.dart';
 import '../../../composer/providers/slash_command.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_empty.dart';
+import '../../widgets/settings_draft_guard.dart';
 import '../../widgets/settings_save_bar.dart';
 import '../../widgets/settings_section_header.dart';
 import 'role_permissions_rows.dart';
@@ -37,12 +38,16 @@ class RolePermissionsTab extends ConsumerStatefulWidget {
     super.key,
     required this.role,
     this.locked = false,
+    this.draft,
   });
 
   final api.Role role;
 
   /// The role is not below the viewer's highest, so every toggle only shows.
   final bool locked;
+
+  /// Told whether edits are unsaved, so leaving asks first.
+  final DraftLeaveGuard? draft;
 
   @override
   ConsumerState<RolePermissionsTab> createState() => _RolePermissionsTabState();
@@ -150,6 +155,7 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
 
   @override
   Widget build(BuildContext context) {
+    widget.draft?.reportAfterFrame(() => _pendingCount > 0);
     final granted = ref
         .watch(roleModulePermissionsProvider(widget.role.id))
         .valueOrNull;

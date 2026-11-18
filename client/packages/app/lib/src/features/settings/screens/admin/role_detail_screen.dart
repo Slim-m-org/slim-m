@@ -5,6 +5,8 @@
 /// own drill-down.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -32,6 +34,8 @@ class RoleDetailScreen extends ConsumerWidget {
       title: _find(roles.valueOrNull)?.name ?? 'Role',
       backTooltip: 'Back to roles',
       backFallback: Routes.adminRoles,
+      // Asks the role's PopScope first, so unsaved edits are never dropped unasked.
+      onBack: () => unawaited(_back(context)),
       scrollable: false,
       child: AppAsyncView<List<api.Role>>(
         value: AppAsyncState(data: roles.valueOrNull, error: roles.error),
@@ -52,6 +56,11 @@ class RoleDetailScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+Future<void> _back(BuildContext context) async {
+  if (await Navigator.of(context).maybePop() || !context.mounted) return;
+  context.go(Routes.adminRoles);
 }
 
 /// Leaves a role's screen for the list it was opened from, falling back to

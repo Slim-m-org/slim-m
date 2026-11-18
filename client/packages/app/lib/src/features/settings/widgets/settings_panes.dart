@@ -169,13 +169,11 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
     }
   }
 
-  SettingsSubPageStack? get _openStack =>
-      _stacks.values.where((s) => !s.isEmpty).firstOrNull;
-
-  /// Runs [then] once the open page lets go; every stack is cleared first.
+  /// Runs [then] once the open page and any pane draft let go; every stack is cleared first.
   Future<void> _leave(VoidCallback then) async {
-    final stack = _openStack;
-    if (stack != null && !await stack.canLeave()) return;
+    for (final stack in _stacks.values.toList()) {
+      if (!await stack.canLeave()) return;
+    }
     if (!mounted) return;
     _quietly(() {
       for (final s in _stacks.values) {
