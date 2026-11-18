@@ -158,4 +158,23 @@ void main() {
       lessThan(appBarBottom + AppSpacing.s48),
     );
   });
+
+  testWidgets('a full-screen invite widened past a phone keeps its form at '
+      'sheet width, centred', (tester) async {
+    await _pumpAtPhoneWidth(tester);
+    await tester.tap(find.text('I have an invite'));
+    await pumpFrames(tester, frames: 20);
+
+    tester.view.physicalSize = const Size(1400, 900);
+    await pumpFrames(tester);
+
+    for (final control in [
+      _input('Invite code'),
+      find.widgetWithText(AppButton, 'Continue'),
+    ]) {
+      final rect = tester.getRect(control);
+      expect(rect.width, lessThanOrEqualTo(kSheetMaxWidth));
+      expect(rect.center.dx, closeTo(700, 1));
+    }
+  });
 }

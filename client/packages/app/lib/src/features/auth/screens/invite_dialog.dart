@@ -418,7 +418,16 @@ class _FullScreenFrame extends StatelessWidget {
             ),
             title: const Text('Redeem an invite'),
           ),
-          body: SafeArea(top: false, child: child),
+          // A window widened past a phone keeps the form at the dialog's width.
+          body: SafeArea(
+            top: false,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: kSheetMaxWidth),
+                child: child,
+              ),
+            ),
+          ),
         ),
       ),
     );
