@@ -17,8 +17,11 @@ This is the rule that answers both.
 3. **Transient status floats and fades.**
    Status the user did not ask for and that resolves by itself (retrying, saving, a region drawn at a cap) floats over the surface instead of taking layout, so nothing moves when it comes or goes.
    It fades in and out over `AppMotion.base`, and snaps under reduce motion.
-   A surface shows one at a time, the most urgent, never a stack.
-   It sits next to what it is about: the canvas floats `CanvasNotice` just above the dock whose tools and call controls it concerns, and says hidden ink beside the zoom readout with a tap to zoom in.
+   A surface's floating notice slot shows one at a time, the most urgent, never a stack.
+   It sits next to what it is about: the canvas floats `CanvasNotice` just above the dock whose tools and call controls it concerns.
+   There the board's own state comes before the call: an error that stops the pen or a failed load, then ink still saving, then a failure the user can dismiss, and only then a failed call.
+   Each notice ahead of the call clears by itself or has a close, so the call is never hidden for good; a failed call that cannot be retried has a close too.
+   A chip anchored beside the readout it is about is not in that slot and can show alongside it: the canvas's "outside the board" and "Some ink hidden" chips are `CanvasPillSurface` chips beside the zoom readout, each with a tap that fixes it.
    An API failure on such a surface keeps rule 2's persistence; only its rendering is an overlay pill rather than an in-flow box.
 4. **A banner is only for a page-level state the user must act on.**
    An update to install, a new sign-in to confirm, rules to accept, a role being viewed as: these stay in flow as `AppCallout` or `AppErrorState`, with the button that resolves them.
@@ -28,5 +31,5 @@ This is the rule that answers both.
 
 - `AppInput.errorText` and `helperText`: `client/packages/design_system/lib/src/components/forms/input.dart`.
 - The notice pill and its severities: `client/packages/app/lib/src/widgets/status_pill.dart`; `StatusBanner` is the same pill in flow, with a timer per severity.
-- The canvas: `canvas_notice.dart` and the hidden-ink chip in `canvas_zoom_indicator.dart`.
+- The canvas: `canvas_notice.dart` for the floating slot; the anchored chips are `canvas_outside_board_notice.dart` and the hidden-ink chip in `canvas_zoom_indicator.dart`.
 - The call stage still stacks its notices in flow as `StatusBanner`s above the tiles; moving them to rule 3's overlay is open work.
