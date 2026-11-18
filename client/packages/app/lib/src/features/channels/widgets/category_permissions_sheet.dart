@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/admin_providers.dart';
 import '../../settings/widgets/admin/channel_permissions_grid.dart';
+import '../../settings/widgets/save_footer_scope.dart';
 import '../../settings/widgets/settings_disclosure.dart';
 import 'category_private_section.dart';
 import 'sub_category_follow_row.dart';
@@ -30,6 +31,7 @@ Future<void> showCategoryPermissionsSheet(
 }) => showAppSheet<void>(
   context,
   maxWidth: 960,
+  scrolls: true,
   builder: (context) => _CategoryPermissionsSheet(
     categoryId: categoryId,
     name: categoryName,
@@ -84,56 +86,58 @@ class _CategoryPermissionsSheetState
   Widget build(BuildContext context) {
     final parentName = widget.parentName;
     final follows = _followsParent();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        AppSpacing.s16,
+    return SaveFooterScope(
+      header: AppSheetHeader(
+        '${widget.name} · Permissions',
+        caption: widget.holdsSubCategories
+            ? 'Channels and sub-categories that follow this category get '
+                  'these permissions. Anyone who can see a channel in one '
+                  'of its sub-categories also sees its name.'
+            : 'Channels that follow this category get these permissions.',
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AppSheetHeader(
-            '${widget.name} · Permissions',
-            padding: const EdgeInsets.only(bottom: AppSpacing.s16),
-            caption: widget.holdsSubCategories
-                ? 'Channels and sub-categories that follow this category get '
-                      'these permissions. Anyone who can see a channel in one '
-                      'of its sub-categories also sees its name.'
-                : 'Channels that follow this category get these permissions.',
-          ),
-          CategoryPrivateSection(
-            categoryId: widget.categoryId,
-            name: widget.name,
-            subCategories: widget.subCategories,
-            channels: widget.channels,
-            followsParent: follows,
-            leading: [
-              if (parentName != null)
-                SubCategoryFollowRow(
-                  categoryId: widget.categoryId,
-                  parentName: parentName,
-                ),
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.s16,
+          AppSpacing.s4,
+          AppSpacing.s16,
+          AppSpacing.s16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CategoryPrivateSection(
+              categoryId: widget.categoryId,
+              name: widget.name,
+              subCategories: widget.subCategories,
+              channels: widget.channels,
+              followsParent: follows,
+              leading: [
+                if (parentName != null)
+                  SubCategoryFollowRow(
+                    categoryId: widget.categoryId,
+                    parentName: parentName,
+                  ),
+              ],
+              trailing: [
+                if (!follows)
+                  SettingsDisclosure(
+                    title: 'Advanced',
+                    summary: 'Every permission',
+                    toggleKey: categoryAdvancedToggleKey,
+                    initiallyExpanded: _advanced,
+                    onExpandedChanged: (open) =>
+                        setState(() => _advanced = open),
+                    children: const [],
+                  ),
+              ],
+            ),
+            if (_advanced && !follows) ...[
+              const SizedBox(height: AppSpacing.s16),
+              ChannelPermissionsGrid.forCategory(categoryId: widget.categoryId),
             ],
-            trailing: [
-              if (!follows)
-                SettingsDisclosure(
-                  title: 'Advanced',
-                  summary: 'Every permission',
-                  toggleKey: categoryAdvancedToggleKey,
-                  initiallyExpanded: _advanced,
-                  onExpandedChanged: (open) => setState(() => _advanced = open),
-                  children: const [],
-                ),
-            ],
-          ),
-          if (_advanced && !follows) ...[
-            const SizedBox(height: AppSpacing.s16),
-            ChannelPermissionsGrid.forCategory(categoryId: widget.categoryId),
           ],
-        ],
+        ),
       ),
     );
   }

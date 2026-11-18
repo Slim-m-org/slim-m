@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/channels/widgets/category_permissions_sheet.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
@@ -168,4 +169,71 @@ Future<void> turnPrivateOn(WidgetTester tester, OverwriteServer server) async {
   await tester.tap(privateSwitch);
   await pumpFrames(tester);
   await tapAndWait(tester, find.text('Make private'), server);
+}
+
+/// Every permission bit, so no cell is locked for want of one.
+final everyPermission = Perm.groups
+    .expand((group) => group.permissions)
+    .fold<int>(Perm.administrator | Perm.manageRoles, (all, p) => all | p.bit);
+
+/// Opens category `sub`'s permissions sheet from a button, as its menu does.
+Future<void> openCategorySheet(
+  WidgetTester tester,
+  OverwriteServer server, {
+  String? parentName = 'Gamers',
+  Size size = const Size(1000, 900),
+  int permissions = Perm.administrator | Perm.manageRoles,
+  List<api.Role> roles = privateRoles,
+  bool dark = false,
+  Key? boundary,
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  final container = ProviderContainer(
+    overrides: [
+      keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+      sessionProvider.overrideWithValue(
+        api.SessionStore(tokens: privateTokens),
+      ),
+      rolesProvider.overrideWith((ref) async => roles),
+      membersProvider.overrideWith((ref) async => privateMembers),
+      myPermissionsProvider.overrideWith((ref) => permissions),
+      roleLadderProvider.overrideWith(
+        (ref) => RoleLadder(permissions: permissions, ranked: false),
+      ),
+      mockApiOverride(server.handle),
+    ],
+  );
+  addTearDown(container.dispose);
+  await tester.pumpWidget(
+    RepaintBoundary(
+      key: boundary,
+      child: UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: dark
+              ? buildTheme(Brightness.dark, AppTokens.dark)
+              : buildTheme(Brightness.light, AppTokens.light),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showCategoryPermissionsSheet(
+                  context,
+                  categoryId: 'sub',
+                  categoryName: parentName == null
+                      ? 'Gamers'
+                      : '$parentName / Minecraft',
+                  parentName: parentName,
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('open'));
+  await pumpFrames(tester, frames: 20);
 }

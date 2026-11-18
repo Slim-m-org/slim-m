@@ -16,6 +16,7 @@ import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/providers/settings_actions.dart';
 import '../../settings/widgets/admin/channel_permissions_grid.dart';
+import '../../settings/widgets/save_footer_scope.dart';
 import '../../settings/widgets/settings_entity_row.dart';
 import '../../settings/widgets/settings_info_line.dart';
 import 'category_permissions_sheet.dart';
@@ -134,16 +135,18 @@ class _CategoryUnsyncedNoticeState extends ConsumerState<CategoryUnsyncedNotice>
     showAppSheet<void>(
       context,
       maxWidth: 960,
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AppSheetHeader(
-            '#${channel.name} · Permissions',
-            padding: const EdgeInsets.all(AppSpacing.s16),
+      scrolls: true,
+      builder: (context) => SaveFooterScope(
+        header: AppSheetHeader('#${channel.name} · Permissions'),
+        body: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s16,
+            AppSpacing.s4,
+            AppSpacing.s16,
+            AppSpacing.s16,
           ),
-          ChannelPermissionsGrid(channel: channel),
-        ],
+          child: ChannelPermissionsGrid(channel: channel),
+        ),
       ),
     ),
   );
