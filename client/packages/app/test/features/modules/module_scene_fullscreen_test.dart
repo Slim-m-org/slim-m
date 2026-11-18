@@ -289,6 +289,46 @@ void main() {
       expect(expand.focusNode?.hasPrimaryFocus, isTrue);
     });
 
+    testWidgets('Escape still leaves once a cell on the board was clicked', (
+      tester,
+    ) async {
+      await openFromInline(tester);
+      // The board takes focus on a click, under the screen's Scaffold.
+      await tester.tap(find.bySemanticsLabel(RegExp('^Scene grid')).last);
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.bySemanticsLabel('Leave full screen'), findsNothing);
+    });
+
+    testWidgets('an Escape something on the board answers does not leave', (
+      tester,
+    ) async {
+      await openFromInline(tester);
+      final grid = tester.element(
+        find.bySemanticsLabel(RegExp('^Scene grid')).last,
+      );
+      final taker = FocusNode(
+        onKeyEvent: (_, event) => event.logicalKey == LogicalKeyboardKey.escape
+            ? KeyEventResult.handled
+            : KeyEventResult.ignored,
+      );
+      addTearDown(taker.dispose);
+      final attachment = taker.attach(grid);
+      addTearDown(attachment.detach);
+      Focus.of(grid).requestFocus(taker);
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.bySemanticsLabel('Leave full screen'), findsOneWidget);
+    });
+
     testWidgets('the system back gesture leaves too', (tester) async {
       await openFromInline(tester);
 
