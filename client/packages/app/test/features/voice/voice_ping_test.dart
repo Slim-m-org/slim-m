@@ -140,8 +140,8 @@ void main() {
     await tester.tap(find.text('4 ms'));
     await tester.pump();
     await tester.pump(AppMotion.base);
-    expect(find.text('Cloudflare São Paulo, 182 ms'), findsOneWidget);
-    expect(find.text('Direct, 4 ms'), findsOneWidget);
+    expect(find.text('Cloudflare São Paulo, 182\u00a0ms'), findsOneWidget);
+    expect(find.text('Direct, 4\u00a0ms'), findsOneWidget);
     expect(
       find.textContaining('routing you through São Paulo'),
       findsOneWidget,

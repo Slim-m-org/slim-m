@@ -7,6 +7,7 @@ import 'client.dart';
 import 'client_transport.dart';
 import 'edge_route.dart';
 import 'exceptions.dart';
+import 'logging/app_log.dart';
 
 /// How this device reaches the server: the data centre in between, and how long a round trip takes.
 extension SlimmApiEdge on SlimmApi {
@@ -35,7 +36,13 @@ extension SlimmApiEdge on SlimmApi {
           .then(http.Response.fromStream);
       if (response.statusCode != 200) return null;
       return parseCloudflareTrace(response.body);
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.net,
+        'Could not read the Cloudflare trace',
+        error,
+        stack,
+      );
       return null;
     }
   }

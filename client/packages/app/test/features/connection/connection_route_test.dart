@@ -40,9 +40,9 @@ void main() {
       expect(
         [for (final l in legs) '${l.label}: ${l.value}'],
         [
-          'Server: Cloudflare São Paulo, 80 ms',
-          'Call signalling: Cloudflare São Paulo, 90 ms',
-          'Call audio: Direct, 4 ms',
+          'Server: Cloudflare São Paulo, 80\u00a0ms',
+          'Call signalling: Cloudflare São Paulo, 90\u00a0ms',
+          'Call audio: Direct, 4\u00a0ms',
         ],
       );
     });
@@ -53,8 +53,8 @@ void main() {
         final legs = connectionLegs(
           _report(direct: true, apiColo: null, apiMs: 1),
         );
-        expect(legs[0].value, 'Your local network, 1 ms');
-        expect(legs[1].value, 'Cloudflare Ashburn, 90 ms');
+        expect(legs[0].value, 'Your local network, 1\u00a0ms');
+        expect(legs[1].value, 'Cloudflare Ashburn, 90\u00a0ms');
       },
     );
 
@@ -68,8 +68,11 @@ void main() {
       String audio(MediaRoute route) => connectionLegs(
         _report(call: CallLink(mediaRttMs: 40, media: route)),
       )[2].value;
-      expect(audio(MediaRoute.relayed), 'Relayed through the server, 40 ms');
-      expect(audio(MediaRoute.directTcp), 'Direct (TCP fallback), 40 ms');
+      expect(
+        audio(MediaRoute.relayed),
+        'Relayed through the server, 40\u00a0ms',
+      );
+      expect(audio(MediaRoute.directTcp), 'Direct (TCP fallback), 40\u00a0ms');
     });
 
     test('a signalling socket that stopped answering says so in amber', () {

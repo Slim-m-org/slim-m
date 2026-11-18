@@ -169,7 +169,9 @@ class RouteConcernGate {
 /// One line of the details: what the leg is, how it travels, and whether that is worth a look.
 typedef ConnectionLeg = ({String label, String value, bool warn});
 
-String _withRtt(String route, int? ms) => ms == null ? route : '$route, $ms ms';
+// A no-break space, so a figure never wraps away from its unit.
+String _withRtt(String route, int? ms) =>
+    ms == null ? route : '$route, $ms\u00a0ms';
 
 /// The three legs in the words both surfaces use.
 List<ConnectionLeg> connectionLegs(ConnectionReport r) {

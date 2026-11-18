@@ -13,7 +13,7 @@ import '../../../widgets/anchored_popover_or_sheet.dart';
 import '../connection_route.dart';
 import '../providers/connection_report.dart';
 
-const double _popoverWidth = 300;
+const double _popoverWidth = 320;
 
 Future<void> showConnectionDetails(BuildContext anchor) =>
     showAnchoredPopoverOrSheet<void>(
@@ -120,7 +120,7 @@ class _LegLine extends StatelessWidget {
           spacing: AppSpacing.s12,
           children: [
             SizedBox(
-              width: 104,
+              width: 96,
               child: Text(
                 leg.label,
                 style: AppText.caption.copyWith(color: tokens.textSecondary),
