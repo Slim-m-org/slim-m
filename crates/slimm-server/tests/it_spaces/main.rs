@@ -31,6 +31,7 @@ mod channel_topic;
 mod channels;
 mod hide_bots_in_member_list;
 mod member_account_deletion;
+mod member_activity;
 mod member_bulk_moderation;
 mod member_ladder;
 mod member_ladder_takeover;

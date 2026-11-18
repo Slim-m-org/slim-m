@@ -348,6 +348,7 @@ pub(super) async fn message_calls(c: &mut Contract, root: &str, channel: &str) -
         .await;
     let message = text(&sent, "id");
     let seq = sent["seq"].as_i64().unwrap_or(0);
+    c.get("listMemberActivity", "/members/activity", root).await;
     // Only fetchable once a live message references it, so not before now.
     c.get("getAttachment", &format!("/attachments/{attachment}"), root)
         .await;

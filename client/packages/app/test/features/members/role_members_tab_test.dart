@@ -105,11 +105,16 @@ void main() {
   });
 
   testWidgets('the empty group shows its message', (tester) async {
-    await tester.pumpWidget(_wrap([_member('b1', 'sample_bot', isBot: true)]));
+    await tester.pumpWidget(
+      _wrap([
+        _member('b1', 'sample_bot', isBot: true),
+        _member('p1', 'Nadia', holds: false),
+      ]),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('No people hold this role'), findsOneWidget);
-    expect(find.text('Search above to add someone.'), findsOneWidget);
+    expect(find.text('Add someone from the list above.'), findsOneWidget);
   });
 
   testWidgets('a group past five collapses to a "+more" summary', (

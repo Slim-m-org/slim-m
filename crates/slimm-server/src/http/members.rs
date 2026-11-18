@@ -39,6 +39,7 @@ use crate::store::{
 };
 use crate::voice::VoiceError;
 
+pub(super) mod member_activity;
 pub(super) mod member_nicknames;
 pub(super) mod members_bulk;
 pub(super) mod members_list;
