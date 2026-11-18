@@ -14,10 +14,11 @@ api.Device _device({
   String? clientKind,
   String? clientVersion,
   int? lastSeenAt,
+  int? createdAt,
 }) => api.Device(
   id: 'd1',
   name: name,
-  createdAt: 0,
+  createdAt: createdAt ?? DateTime.now().millisecondsSinceEpoch,
   lastSeenAt: lastSeenAt,
   isCurrent: false,
   clientKind: clientKind,
@@ -54,7 +55,10 @@ void main() {
           lastSeenAt: DateTime.now().millisecondsSinceEpoch,
         ),
       );
-      expect(line, 'desktop 0.83.0 · active now');
+      expect(
+        line?.replaceAll('\u00A0', ' '),
+        'desktop 0.83.0 · active now · signed in just now',
+      );
     });
 
     test('still renders with only one of client kind or version present', () {
@@ -64,7 +68,29 @@ void main() {
           lastSeenAt: DateTime.now().millisecondsSinceEpoch,
         ),
       );
-      expect(line, 'ios · active now');
+      expect(
+        line?.replaceAll('\u00A0', ' '),
+        'ios · active now · signed in just now',
+      );
+    });
+
+    test('says when each session signed in, so two alike can be told '
+        'apart', () {
+      final now = DateTime.now();
+      final line = deviceDetailLine(
+        _device(
+          clientKind: 'web',
+          clientVersion: '0.131.0',
+          lastSeenAt: now.millisecondsSinceEpoch,
+          createdAt: now
+              .subtract(const Duration(days: 3))
+              .millisecondsSinceEpoch,
+        ),
+      );
+      expect(
+        line?.replaceAll('\u00A0', ' '),
+        'web 0.131.0 · active now · signed in 3d ago',
+      );
     });
   });
 }

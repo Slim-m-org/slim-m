@@ -242,4 +242,28 @@ void main() {
 
     expect(find.text('This laptop'), findsOneWidget);
   });
+
+  testWidgets('this device is listed first wherever the server puts it', (
+    tester,
+  ) async {
+    await _pump(tester, (request) {
+      if (request.method == 'GET' && request.url.path == '/devices') {
+        final live = [
+          _deviceJson('phone', 'A phone'),
+          _deviceJson('this', 'This laptop', isCurrent: true),
+        ];
+        return http.Response(
+          '[${live.join(',')}]',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('{}', 404);
+    });
+
+    expect(
+      tester.getTopLeft(find.text('This laptop')).dy,
+      lessThan(tester.getTopLeft(find.text('A phone')).dy),
+    );
+  });
 }

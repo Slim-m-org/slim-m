@@ -83,7 +83,11 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
   List<Widget> _deviceRows(List<api.Device> list) {
     final others = list.where((d) => !d.isCurrent).toList();
     final stale = staleDevices(list, DateTime.now());
-    final recent = list.where((d) => !stale.contains(d)).toList();
+    // This device first, so its row never moves.
+    final recent = [
+      ...list.where((d) => d.isCurrent),
+      ...list.where((d) => !d.isCurrent && !stale.contains(d)),
+    ];
     return [
       for (final device in recent)
         _DeviceRow(key: ValueKey(device.id), device: device),
@@ -225,7 +229,8 @@ String devicePlatformLabel(String name) {
   return '${match.group(1)} - $host';
 }
 
-/// The mono detail line: client, version and last active, in that order.
+/// The mono detail line: client, version, last active and when it signed in,
+/// which tells apart two sessions of the same client.
 /// Absent (returns null) when the server carries no client kind or version -
 /// a session opened before migration 0076, which falls back to [label]'s own
 /// plain name and this row's plain, single-line shape.
@@ -239,7 +244,13 @@ String? deviceDetailLine(api.Device device) {
   ].join(' ');
   final raw = lastUsed(device.lastSeenAt).replaceFirst('Last used ', '');
   final active = raw.replaceRange(0, 1, raw[0].toLowerCase());
-  return '$client · $active';
+  final signedIn = 'signed in ${formatRelativeAgeMs(device.createdAt)}';
+  // Wraps only between the parts, never inside one, on a narrow screen.
+  return [
+    client,
+    active,
+    signedIn,
+  ].map((part) => part.replaceAll(' ', '\u00A0')).join(' · ');
 }
 
 /// One signed-in device, with its own "sign out" failure: a revoke that
