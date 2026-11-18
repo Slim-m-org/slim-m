@@ -5,14 +5,17 @@ library;
 /// The most lines of a message a search hit shows.
 const kSearchHitLines = 6;
 
+final _cutUnsafe = RegExp(r'```|\|\|');
+
 /// [content] cut to [kSearchHitLines] lines, starting a line above the first
 /// one holding a word of [query], with an ellipsis line where it was cut.
 ///
-/// A message with a code fence is left whole: a cut could open or close the
-/// fence on the wrong side. The hit's height clamp still bounds it.
+/// A message with a code fence or a spoiler is left whole: a cut could open
+/// or close it on the wrong side, and a spoiler cut open shows what it hid.
+/// The hit's height clamp still bounds it.
 String searchHitExcerpt(String content, String query) {
   final lines = content.split('\n');
-  if (lines.length <= kSearchHitLines || content.contains('```')) {
+  if (lines.length <= kSearchHitLines || _cutUnsafe.hasMatch(content)) {
     return content;
   }
   final words = [

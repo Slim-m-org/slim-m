@@ -40,6 +40,20 @@ void main() {
     expect(searchHitExcerpt(fenced, 'x'), fenced);
   });
 
+  test('a spoiler the cut would split leaves the message whole', () {
+    final lines = [for (var i = 1; i <= 20; i++) 'secret $i'];
+    lines[8] = 'secret 9 keyword';
+    final opensAbove = '||${lines.join('\n')}||';
+    expect(searchHitExcerpt(opensAbove, 'keyword'), opensAbove);
+    final closesBelow = [
+      ...List.filled(10, 'plain'),
+      'keyword ||secret',
+      ...List.filled(10, 'more secret'),
+      'end||',
+    ].join('\n');
+    expect(searchHitExcerpt(closesBelow, 'keyword'), closesBelow);
+  });
+
   testWidgets('a sixty-line hit stays a few lines tall', (tester) async {
     await tester.pumpWidget(
       harness(
