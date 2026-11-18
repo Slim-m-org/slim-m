@@ -497,7 +497,10 @@ A scene becomes interactive by offering `controls` and carrying `state`, and by 
   It shows `value` with a chevron, and picking another option sends that option as the action, exactly as a button of that name would; picking the one in force sends nothing.
   `label` names the choice for a screen reader and heads the phone sheet; a `value` that is not one of the `options` shows the label instead.
   A dropdown holds at most 16 options, repeats are dropped, and one with no usable option is skipped.
-  A client older than 0.132 skips the object, so keep anything a player cannot do without reachable another way, or require that client.
+  A client older than 0.132 skips the object, so keep anything a player cannot do without reachable another way.
+  `replaces` is how: list the buttons the dropdown stands for, and put those buttons in `controls` too.
+  An older client shows the buttons, and a client that draws the dropdown leaves them out.
+  A shared board is one stored frame that every viewer draws with their own client, so the frame has to carry both.
 - `state` is an opaque string slim stores and hands back on the next call - it is how a stateless module remembers the board between frames.
   Put whatever you need in it (packed cells, a generation counter, a seed); slim never looks inside.
 - An op's `tap` makes it interactive.

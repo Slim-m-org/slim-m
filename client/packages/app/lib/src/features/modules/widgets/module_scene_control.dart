@@ -59,12 +59,24 @@ class SceneSelect extends SceneControl {
 
 /// Reads a scene's `controls`: a string is a button, an object with `options`
 /// a dropdown, and anything else is skipped.
+///
+/// A dropdown's `replaces` names the buttons an older client, which skips the
+/// dropdown, shows in its place; this client leaves those buttons out.
 List<SceneControl> parseSceneControls(Object? raw, {required int limit}) {
   if (raw is! List) return const [];
+  final replaced = {
+    for (final entry in raw.whereType<Map<Object?, Object?>>())
+      if ((entry['replaces'], _select(entry)) case (
+        final List<Object?> names,
+        _?,
+      ))
+        ...names.whereType<String>(),
+  };
   final controls = <SceneControl>[];
   for (final entry in raw) {
     if (controls.length >= limit) break;
     final control = switch (entry) {
+      String name when replaced.contains(name) => null,
       String name => SceneButton(name),
       Map<Object?, Object?> select => _select(select),
       _ => null,

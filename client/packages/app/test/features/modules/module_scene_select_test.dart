@@ -104,6 +104,73 @@ void main() {
       expect(scene.controls, const [SceneButton('kept')]);
     });
 
+    test('the buttons a dropdown replaces are left out of the row', () {
+      final scene = _scene([
+        'new game',
+        {
+          'label': 'board size',
+          'value': 'expert',
+          'options': _sizes,
+          'replaces': _sizes,
+        },
+        for (final size in _sizes) size,
+        'leaderboard',
+      ]);
+      expect(scene.controls, [
+        const SceneButton('new game'),
+        const SceneSelect(
+          label: 'board size',
+          value: 'expert',
+          options: _sizes,
+        ),
+        const SceneButton('leaderboard'),
+      ]);
+    });
+
+    test('replacing counts against the cap only once, after the drop', () {
+      final scene = _scene([
+        {
+          'options': ['a', 'b'],
+          'replaces': [for (var i = 0; i < 20; i++) 'x$i'],
+        },
+        for (var i = 0; i < 20; i++) 'x$i',
+        'kept',
+      ]);
+      expect(scene.controls.map((c) => c.runtimeType), [
+        SceneSelect,
+        SceneButton,
+      ]);
+      expect(scene.controls.last, const SceneButton('kept'));
+    });
+
+    test('a dropdown that cannot be shown replaces nothing', () {
+      final scene = _scene([
+        {
+          'label': 'board size',
+          'options': <String>[],
+          'replaces': ['beginner'],
+        },
+        'beginner',
+      ]);
+      expect(scene.controls, const [SceneButton('beginner')]);
+    });
+
+    test('a dropdown replaces only what it names, never another dropdown', () {
+      final scene = _scene([
+        {
+          'label': 'one',
+          'options': ['a'],
+          'replaces': ['one', 'two', 7],
+        },
+        {
+          'label': 'two',
+          'options': ['b'],
+        },
+        'a',
+      ]);
+      expect(scene.controls, hasLength(3));
+    });
+
     test('options are capped and repeats dropped', () {
       final scene = _scene([
         {
