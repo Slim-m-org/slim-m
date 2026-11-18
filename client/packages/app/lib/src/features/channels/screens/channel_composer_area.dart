@@ -33,6 +33,9 @@ import '../../../providers/providers.dart';
 import '../../composer/widgets/composer.dart';
 import '../../composer/widgets/composer_attachments.dart' show StagedSend;
 import '../../composer/widgets/composer_autofocus.dart';
+import '../../composer/widgets/composer_read_only_bar.dart';
+import '../../../permissions.dart';
+import '../providers/channel_permissions.dart';
 import '../../messages/widgets/message_selection_bar.dart';
 import '../../messages/widgets/reply_banner.dart';
 import '../../members/widgets/timeout_banner.dart';
@@ -157,6 +160,8 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
     final stillTimedOut =
         timedOutUntil != null &&
         timedOutUntil > clock.now().millisecondsSinceEpoch;
+    // A timeout already says why, in its own banner above the composer.
+    final readOnly = !stillTimedOut && _cannotSend(channelId);
     final composer = Composer(
       controller: widget.controller,
       channelId: channelId,
@@ -182,13 +187,29 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
                   onCancel: widget.onCancelReply,
                 ),
         ),
-        ComposerAutofocus(
-          channelId: channelId,
-          focusOnMount: widget.autofocus,
-          focusRequests: widget.focusRequests,
-          child: composer,
+        // Hidden rather than removed, so a staged file and the draft are still there if Send comes back.
+        ExcludeFocus(
+          excluding: readOnly,
+          child: Offstage(
+            offstage: readOnly,
+            child: ComposerAutofocus(
+              channelId: channelId,
+              focusOnMount: widget.autofocus,
+              focusRequests: widget.focusRequests,
+              child: composer,
+            ),
+          ),
         ),
+        if (readOnly) const ComposerReadOnlyBar(),
       ],
     );
+  }
+
+  /// Read live: a revoked Send swaps the composer out at once, rather than
+  /// only showing as a failure after the next message.
+  bool _cannotSend(String channelId) {
+    final bits = ref.watch(channelPermissionsProvider(channelId)).valueOrNull;
+    if (bits == null) return false;
+    return bits & (Perm.sendMessages | Perm.administrator) == 0;
   }
 }
