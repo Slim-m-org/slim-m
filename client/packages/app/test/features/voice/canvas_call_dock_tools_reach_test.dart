@@ -6,7 +6,6 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/providers/armed_stamp.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_tool_buttons.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
 import 'package:slimm_app/src/features/voice/providers/call_solo.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
@@ -17,12 +16,12 @@ import '../../support/canvas_call_dock_fixtures.dart';
 
 const _window = 1400.0;
 
+/// The tool strip is the dock's one sideways scroller.
 double _toolOverflow(WidgetTester tester) {
-  final strip = find.ancestor(
-    of: find.byType(CanvasToolButtons),
-    matching: find.byWidgetPredicate((w) => w is Scrollable),
+  final strip = find.byWidgetPredicate(
+    (w) => w is Scrollable && w.axisDirection == AxisDirection.right,
   );
-  return tester.state<ScrollableState>(strip.first).position.maxScrollExtent;
+  return tester.state<ScrollableState>(strip).position.maxScrollExtent;
 }
 
 void main() {
