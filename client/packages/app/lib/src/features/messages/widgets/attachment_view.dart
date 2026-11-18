@@ -229,12 +229,15 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     required String caption,
     required int decodeWidth,
   }) {
+    final tile = widget.tileEdge;
+    final fit = tile == null ? BoxFit.contain : BoxFit.cover;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: AttachmentRevealTile(
         caption: caption,
-        maxEdge: widget.tileEdge ?? kInlineImageMax,
+        maxEdge: kInlineImageMax,
+        tileEdge: tile,
         onReveal: _reveal,
         // The first frame stays mounted under the pointer's playing copy: remounting it re-decodes and resizes the tile.
         showBadge: !_hovered,
@@ -242,12 +245,16 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
           child: Stack(
             fit: StackFit.passthrough,
             children: [
-              AttachmentFirstFrame(bytes: bytes, cacheWidth: decodeWidth),
+              AttachmentFirstFrame(
+                bytes: bytes,
+                cacheWidth: decodeWidth,
+                fit: fit,
+              ),
               if (_hovered)
                 Positioned.fill(
                   child: Image.memory(
                     playBytes,
-                    fit: BoxFit.contain,
+                    fit: fit,
                     cacheWidth: decodeWidth,
                   ),
                 ),
@@ -368,8 +375,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
         maxHeight: kInlineImageMax,
       );
     }
-    // The tile's 1px border sits outside the image, so the image gives it back.
-    return BoxConstraints.tight(Size.square(tile - 2));
+    return attachmentTileBox(tile);
   }
 
   Widget _bitmap(Uint8List bytes, {required int decodeWidth}) {

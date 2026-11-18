@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// An inline gif is the same size focused and unfocused, and a held gif is
-/// the size it plays at: the owner saw one grow each time the window lost
-/// focus, and the transcript around it jumped.
+/// the size it plays at, inline or in a gallery tile: the owner saw one grow
+/// each time the window lost focus, and the transcript around it jumped.
 library;
 
 import 'dart:convert';
@@ -34,27 +34,31 @@ const _viewKey = Key('focus-size-attachment');
 const _width = 220;
 const _height = 165;
 
-/// A real gif whose logical screen is [_width] x [_height].
-Uint8List _gifOfSize() {
+/// A real gif whose logical screen is [width] x [height].
+Uint8List _gifOfSize({int width = _width, int height = _height}) {
   final bytes = base64Decode(
     'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
   );
   ByteData.sublistView(bytes)
-    ..setUint16(6, _width, Endian.little)
-    ..setUint16(8, _height, Endian.little);
+    ..setUint16(6, width, Endian.little)
+    ..setUint16(8, height, Endian.little);
   return bytes;
 }
 
 /// The first-frame still the server answers for a gif it can shrink.
-Future<Uint8List> _stillOfSize(WidgetTester tester) async {
+Future<Uint8List> _stillOfSize(
+  WidgetTester tester, {
+  int width = _width,
+  int height = _height,
+}) async {
   late Uint8List png;
   await tester.runAsync(() async {
     final recorder = ui.PictureRecorder();
     ui.Canvas(recorder).drawRect(
-      ui.Rect.fromLTWH(0, 0, _width.toDouble(), _height.toDouble()),
+      ui.Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
       ui.Paint()..color = const ui.Color(0xFFE06C9F),
     );
-    final image = await recorder.endRecording().toImage(_width, _height);
+    final image = await recorder.endRecording().toImage(width, height);
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
     image.dispose();
     png = data!.buffer.asUint8List();
@@ -102,16 +106,24 @@ Future<Size> _settledSize(WidgetTester tester) async {
   fail('no frame of the gif was ever painted');
 }
 
-Future<void> _mount(WidgetTester tester, ProviderContainer container) async {
+Future<void> _mount(
+  WidgetTester tester,
+  ProviderContainer container, {
+  double? tileEdge,
+}) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
-        home: const Scaffold(
+        home: Scaffold(
           body: Align(
             alignment: Alignment.topLeft,
-            child: AttachmentView(key: _viewKey, attachment: _gif),
+            child: AttachmentView(
+              key: _viewKey,
+              attachment: _gif,
+              tileEdge: tileEdge,
+            ),
           ),
         ),
       ),
@@ -192,6 +204,30 @@ void main() {
     final revealed = await _settledSize(tester);
 
     expect(revealed, held);
+  });
+
+  testWidgets('a gif held in a gallery tile fills the tile it plays in', (
+    tester,
+  ) async {
+    // A reaction gif narrower than a full gallery tile.
+    const tile = (kInlineImageMax - AppSpacing.s4) / 2;
+    final container = _container(
+      preview: await _stillOfSize(tester, width: 150, height: 112),
+      original: _gifOfSize(width: 150, height: 112),
+    );
+    await container
+        .read(gifAutoplayControllerProvider.notifier)
+        .select(GifAutoplay.tapToPlay);
+    await _mount(tester, container, tileEdge: tile);
+    final held = await _settledSize(tester);
+    final heldFrame = tester.getSize(_painted.first);
+
+    await tester.tap(find.byIcon(AppIcons.play));
+    final revealed = await _settledSize(tester);
+
+    expect(revealed, const Size.square(tile));
+    expect(held, revealed);
+    expect(heldFrame, tester.getSize(_painted.first));
   });
 
   testWidgets('a small gif is drawn at its own size, not stretched', (
