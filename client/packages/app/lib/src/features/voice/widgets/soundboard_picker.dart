@@ -218,7 +218,7 @@ class _ClipTile extends StatefulWidget {
 
   final api.SoundClip clip;
 
-  /// The clip's name and length, for the tooltip and a screen reader.
+  /// The clip's name and length, for a screen reader.
   final String label;
 
   /// Resting tiles look and read as disabled but keep their focus, so a
@@ -249,7 +249,6 @@ class _ClipTileState extends State<_ClipTile> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final touch = AppTouchTargets.of(context);
     final enabled = !widget.resting;
     void activate() {
       if (enabled) widget.onTap();
@@ -274,9 +273,6 @@ class _ClipTileState extends State<_ClipTile> {
             StoredEmoji(widget.clip.emoji, placeholder: AppIcons.music),
             Text(
               widget.clip.name,
-              // A tooltip never shows on touch, so there the whole name wraps instead.
-              maxLines: touch ? null : 1,
-              overflow: touch ? null : TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: AppText.caption.copyWith(color: tokens.textPrimary),
             ),
@@ -284,7 +280,7 @@ class _ClipTileState extends State<_ClipTile> {
         ),
       ),
     );
-    final tile = Semantics(
+    return Semantics(
       label: widget.label,
       button: true,
       enabled: enabled,
@@ -307,12 +303,6 @@ class _ClipTileState extends State<_ClipTile> {
           child: ExcludeSemantics(child: body),
         ),
       ),
-    );
-    if (touch) return tile;
-    return Tooltip(
-      message: widget.label,
-      excludeFromSemantics: true,
-      child: tile,
     );
   }
 }
