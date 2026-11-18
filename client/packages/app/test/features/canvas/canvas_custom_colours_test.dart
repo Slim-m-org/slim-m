@@ -196,6 +196,53 @@ void main() {
     },
   );
 
+  testWidgets(
+    'the named colour in use keeps its tile, and the next one gives way',
+    (tester) async {
+      await _pump(
+        tester,
+        [],
+        stored: {
+          canvasRecentColoursKey: ['#112233', '#445566'],
+        },
+        selected: 'pink',
+      );
+
+      expect(_labels(tester), [
+        'Coral',
+        'Amber',
+        'Green',
+        'Pink',
+        'Custom #112233',
+        'Custom #445566',
+        'Custom colour',
+      ]);
+      final inUse = tester.getSemantics(find.bySemanticsLabel('Pink'));
+      // ignore: deprecated_member_use
+      expect(inUse.hasFlag(SemanticsFlag.isSelected), isTrue);
+    },
+  );
+
+  testWidgets(
+    'a full set of recents keeps the named colour in use and the row length',
+    (tester) async {
+      await _pump(
+        tester,
+        [],
+        stored: {
+          canvasRecentColoursKey: [
+            for (var i = 1; i <= canvasRecentColoursMax; i++) '#00000$i',
+          ],
+        },
+        selected: 'purple',
+      );
+
+      final labels = _labels(tester);
+      expect(labels.take(2), ['Coral', 'Purple']);
+      expect(labels, hasLength(canvasPenColors.length + 1));
+    },
+  );
+
   testWidgets('a full set of recents still leaves the first named colour', (
     tester,
   ) async {

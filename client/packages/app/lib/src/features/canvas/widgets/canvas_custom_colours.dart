@@ -31,8 +31,9 @@ List<ControlSwatch> canvasPenColourSwatches({
 /// [defaults] with the newest custom colours in place of its last entries,
 /// then the picker, so the row keeps one length however many are remembered.
 ///
-/// The first default always stays. A custom colour hands its `#rrggbb` key
-/// to [onChoose], and [selectedKey] marks the one in use.
+/// The first default always stays, and so does the selected one: the entry
+/// before it gives way instead. A custom colour hands its `#rrggbb` key to
+/// [onChoose], and [selectedKey] marks the one in use.
 List<ControlSwatch> canvasColourRow({
   required BuildContext context,
   required WidgetRef ref,
@@ -42,9 +43,10 @@ List<ControlSwatch> canvasColourRow({
   Color? plainColour,
 }) {
   final recent = ref.watch(canvasRecentColoursProvider);
-  final replaced = math.min(recent.length, defaults.length - 1);
+  final keptSelected = defaults.indexWhere((s) => s.selected) > 0 ? 1 : 0;
+  final replaced = math.min(recent.length, defaults.length - 1 - keptSelected);
   return [
-    ...defaults.take(defaults.length - replaced),
+    ..._withoutTrailing(defaults, replaced),
     for (final hex in recent.take(replaced))
       ControlSwatch(
         label: 'Custom $hex',
@@ -54,6 +56,18 @@ List<ControlSwatch> canvasColourRow({
       ),
     _picker(context, ref, selectedKey, onChoose, plainColour),
   ];
+}
+
+/// [defaults] less its last [count] entries other than the first and the selected one.
+List<ControlSwatch> _withoutTrailing(List<ControlSwatch> defaults, int count) {
+  final kept = [...defaults];
+  var left = count;
+  for (var i = kept.length - 1; i > 0 && left > 0; i--) {
+    if (kept[i].selected) continue;
+    kept.removeAt(i);
+    left--;
+  }
+  return kept;
 }
 
 ControlSwatch _picker(
