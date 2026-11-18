@@ -42,7 +42,7 @@ void refreshAccountNotificationState(Ref ref, {required bool reconnect}) {
     if (reconnect ||
         !overrides.settled ||
         overrides.error != null ||
-        overrides.categoriesFailed) {
+        !overrides.categoriesLoaded) {
       unawaited(
         ref.read(channelNotificationOverridesProvider.notifier).refresh(),
       );

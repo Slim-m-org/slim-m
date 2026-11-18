@@ -39,7 +39,7 @@ class ChannelNotificationOverridesState {
     this.byChannel = const {},
     this.settled = false,
     this.error,
-    this.categoriesFailed = false,
+    this.categoriesLoaded = false,
     this.mutedCategories = const {},
     this.categoryParents = const {},
   });
@@ -57,8 +57,8 @@ class ChannelNotificationOverridesState {
   /// these.
   final String? error;
 
-  /// Whether the last read of the muted categories failed, so the next connect asks again.
-  final bool categoriesFailed;
+  /// Whether the last read of the muted categories came back with the list; false while the first is out or after one failed, so the next connect asks again.
+  final bool categoriesLoaded;
 
   /// The categories this account muted itself; a sub-category of one is muted with it.
   final Set<String> mutedCategories;
@@ -71,14 +71,14 @@ class ChannelNotificationOverridesState {
     bool? settled,
     String? error,
     bool clearError = false,
-    bool? categoriesFailed,
+    bool? categoriesLoaded,
     Set<String>? mutedCategories,
     Map<String, String>? categoryParents,
   }) => ChannelNotificationOverridesState(
     byChannel: byChannel ?? this.byChannel,
     settled: settled ?? this.settled,
     error: clearError ? null : error ?? this.error,
-    categoriesFailed: categoriesFailed ?? this.categoriesFailed,
+    categoriesLoaded: categoriesLoaded ?? this.categoriesLoaded,
     mutedCategories: mutedCategories ?? this.mutedCategories,
     categoryParents: categoryParents ?? this.categoryParents,
   );
@@ -230,7 +230,7 @@ class ChannelNotificationOverridesController
       for (final MapEntry(:key, :value) in _categoryEdits.entries) {
         value ? muted.add(key) : muted.remove(key);
       }
-      state = state.copyWith(mutedCategories: muted, categoriesFailed: false);
+      state = state.copyWith(mutedCategories: muted, categoriesLoaded: true);
       _followParents();
     } catch (error, stack) {
       api.reportFailure(
@@ -240,7 +240,7 @@ class ChannelNotificationOverridesController
         stack,
       );
       if (!mounted || generation != _generation) return;
-      state = state.copyWith(categoriesFailed: true);
+      state = state.copyWith(categoriesLoaded: false);
     }
   }
 
