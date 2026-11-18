@@ -73,7 +73,25 @@ AppMenuItem? markReadStateMenuItem(
   );
 }
 
-/// "Mark all as read" over [channels], dimmed when none has unread; a category mute hides badges, not unread, so it is ignored.
+/// The channels among [channels] that Mark all as read clears; a category mute hides badges, not unread, so it is ignored.
+List<String> _unreadToMark(
+  ProviderContainer container,
+  Iterable<Channel> channels,
+) {
+  final overrides = container.read(channelNotificationOverridesProvider);
+  return [
+    for (final channel in channels)
+      if (channel.kind != dmChannelKind &&
+          channelShowsUnread(
+            channel,
+            overrides.overrideFor(channel.id) ?? channelDefaultOf(channel),
+            isDm: false,
+          ))
+        channel.id,
+  ];
+}
+
+/// "Mark all as read" over [channels], dimmed when none has unread.
 /// One request for the lot, and one failure sentence rather than one per channel.
 AppMenuItem markAllReadMenuItem(
   BuildContext context,
@@ -81,16 +99,7 @@ AppMenuItem markAllReadMenuItem(
   Iterable<Channel> channels,
   VoidCallback close,
 ) {
-  final overrides = container.read(channelNotificationOverridesProvider);
-  final unreadIds = [
-    for (final channel in channels)
-      if (channelShowsUnread(
-        channel,
-        overrides.overrideFor(channel.id) ?? channelDefaultOf(channel),
-        isDm: false,
-      ))
-        channel.id,
-  ];
+  final unreadIds = _unreadToMark(container, channels);
   return AppMenuItem(
     label: 'Mark all as read',
     leading: AppIcons.check,
@@ -163,19 +172,7 @@ AppMenuItem markSpaceReadMenuItem(
         _say(context, 'mark these channels read', () async {
           final store = await container.read(storeProvider.future);
           final channels = await store.watchRailChannels().first;
-          final overrides = container.read(
-            channelNotificationOverridesProvider,
-          );
-          final unreadIds = [
-            for (final channel in channels)
-              if (channel.kind != dmChannelKind &&
-                  channelShowsUnread(
-                    channel,
-                    overrides.effectiveFor(channel),
-                    isDm: false,
-                  ))
-                channel.id,
-          ];
+          final unreadIds = _unreadToMark(container, channels);
           if (unreadIds.isNotEmpty) {
             await markChannelsRead(container, unreadIds);
           }

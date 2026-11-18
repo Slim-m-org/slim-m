@@ -66,10 +66,12 @@ class _FixedOverrides extends ChannelNotificationOverridesController {
   _FixedOverrides(
     super.ref,
     Map<String, api.NotificationPreference> byChannel,
+    Set<String> mutedCategories,
   ) {
     state = ChannelNotificationOverridesState(
       byChannel: byChannel,
       settled: true,
+      mutedCategories: mutedCategories,
     );
   }
 }
@@ -83,6 +85,7 @@ class _Harness {
   _Harness({
     int permissions = 0,
     Map<String, api.NotificationPreference> muted = const {},
+    Set<String> mutedCategories = const {},
     int? latestAt = -1,
   }) {
     final newest = latestAt == -1 ? _recent : latestAt;
@@ -102,7 +105,7 @@ class _Harness {
           (ref) => SharedPreferences.getInstance(),
         ),
         channelNotificationOverridesProvider.overrideWith(
-          (ref) => _FixedOverrides(ref, muted),
+          (ref) => _FixedOverrides(ref, muted, mutedCategories),
         ),
         meProvider.overrideWith(
           (ref) async => api.Me(
@@ -407,6 +410,18 @@ void main() {
       expect(h.markedIds, ['a', 'c']);
     });
 
+    testWidgets('a channel quiet by its muted category is marked too, as the '
+        'category header marks it', (tester) async {
+      final h = _Harness(mutedCategories: {'cat'});
+      await openSpaceMenu(tester, h, [
+        _channel('a', cursor: 3),
+        _channel('games', categoryId: 'cat', cursor: 4),
+      ]);
+      await _tapAndSettleRequests(tester, find.text('Mark all as read'));
+
+      expect(h.markedIds, ['a', 'games']);
+    });
+
     testWidgets('Direct messages are left out', (tester) async {
       final h = _Harness();
       await openSpaceMenu(tester, h, [
@@ -449,7 +464,13 @@ void main() {
 Future<void> _seed(MessageStore store, List<Channel> channels) async {
   await store.upsertChannels([
     for (final c in channels)
-      api.Channel(id: c.id, name: c.name, kind: c.kind, createdAt: 0),
+      api.Channel(
+        id: c.id,
+        name: c.name,
+        kind: c.kind,
+        createdAt: 0,
+        categoryId: c.categoryId,
+      ),
   ]);
   for (final c in channels) {
     await store.db.customStatement(
