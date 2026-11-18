@@ -16,6 +16,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../accounts/providers/account_services.dart';
+import '../../accounts/widgets/sign_out_confirm.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../../push/providers/push_controller.dart';
 import '../../../providers/sync_controller.dart';
@@ -316,7 +317,12 @@ class SignOutRow extends ConsumerWidget {
         size: AppSizes.icon16,
         color: tokens.dangerText,
       ),
-      onTap: () => signOut(ref),
+      onTap: () => unawaited(_confirmAndSignOut(context, ref)),
     );
+  }
+
+  Future<void> _confirmAndSignOut(BuildContext context, WidgetRef ref) async {
+    if (!await confirmSignOutLosingUnsent(context, ref.read)) return;
+    await signOut(ref);
   }
 }

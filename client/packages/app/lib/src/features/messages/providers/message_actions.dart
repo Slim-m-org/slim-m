@@ -18,6 +18,7 @@ import 'package:slimm_data/data.dart';
 
 import '../../../api_failure.dart';
 import '../../../permissions.dart';
+import 'channel_send_queue.dart';
 import 'message_extras.dart';
 import 'poll_vote_failure.dart';
 import 'message_search.dart' show ProviderReader;
@@ -377,7 +378,8 @@ Future<void> bulkDeleteMessagesAction(
 /// `Ref`, and the two share no common supertype in this Riverpod version.
 ///
 /// [onQueued] fires once the local row exists and before the request goes
-/// out, which is when a sender wants the transcript scrolled.
+/// out, which is when a sender wants the transcript scrolled. The request
+/// waits for every send in [channelId] called before this one, see [ChannelSendQueue].
 Future<void> sendOptimistically(
   ProviderReader read, {
   required String id,
@@ -390,49 +392,63 @@ Future<void> sendOptimistically(
   bool mentionReply = true,
   VoidCallback? onQueued,
 }) async {
-  final store = await read(storeProvider.future);
-  await _keepLocally(
-    'queue the message',
-    () => store.addPending(
-      id: id,
-      channelId: channelId,
-      authorId: authorId,
-      content: content,
-      replyToId: replyToId,
-      mentionReply: mentionReply,
-      attachmentIds: attachmentIds,
-      spoilerIds: spoilerIds,
-    ),
-  );
-  onQueued?.call();
+  // Before the first await, so a local write that has to retry cannot let a later send overtake this one.
+  final slot = read(channelSendQueueProvider).reserve(channelId);
   try {
-    final sent = await read(apiProvider).sendMessage(
-      channelId: channelId,
-      id: id,
-      content: content,
-      attachmentIds: attachmentIds,
-      spoilerAttachmentIds: spoilerIds,
-      replyToId: replyToId,
-      mentionReply: mentionReply,
-    );
-    // Lands on the same row, because it carries the same id.
+    final store = await read(storeProvider.future);
+    final me = read(effectiveMeProvider);
     await _keepLocally(
-      'store the sent message',
-      () => store.applyMessage(sent),
+      'queue the message',
+      () => store.addPending(
+        id: id,
+        channelId: channelId,
+        authorId: authorId,
+        authorDisplayName: me?.id == authorId ? me?.displayName : null,
+        content: content,
+        replyToId: replyToId,
+        mentionReply: mentionReply,
+        attachmentIds: attachmentIds,
+        spoilerIds: spoilerIds,
+      ),
     );
-    read(messageExtrasProvider.notifier).applyMessage(sent);
-    // The device clock, since the countdown ticks on it; the server's `created_at` can sit minutes off a skewed device and pin the countdown.
-    read(
-      slowModeLastSentProvider.notifier,
-    ).recordSent(channelId, DateTime.now());
-  } on api.ApiException catch (e, stack) {
-    api.reportFailure(api.LogTag.ui, 'send the message', e, stack);
-    await store.markFailed(
-      id,
-      reason: describeApiFailure('send the message', e),
-    );
+    onQueued?.call();
+    try {
+      final client = read(apiProvider);
+      final sent = await slot.run(
+        () => client.sendMessage(
+          channelId: channelId,
+          id: id,
+          content: content,
+          attachmentIds: attachmentIds,
+          spoilerAttachmentIds: spoilerIds,
+          replyToId: replyToId,
+          mentionReply: mentionReply,
+        ),
+      );
+      // Lands on the same row, because it carries the same id.
+      await _keepLocally(
+        'store the sent message',
+        () => store.applyMessage(sent),
+      );
+      read(messageExtrasProvider.notifier).applyMessage(sent);
+      // The device clock, since the countdown ticks on it; the server's `created_at` can sit minutes off a skewed device and pin the countdown.
+      read(
+        slowModeLastSentProvider.notifier,
+      ).recordSent(channelId, DateTime.now());
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'send the message', e, stack);
+      await store.markFailed(id, reason: _sendFailureReason(e));
+    }
+  } finally {
+    slot.release();
   }
 }
+
+/// `retryFailedSends` resends on the next reconnect, so this must not read as final; a proxy page or one
+/// dropped request leaves the socket up with no reconnect coming, so it points to Retry too.
+String _sendFailureReason(api.ApiException e) => e is api.TransportException
+    ? 'Could not reach the server. Retry, or it is sent again when you reconnect.'
+    : describeApiFailure('send the message', e);
 
 /// Retries a local write that lost a lock race, then logs and goes on: the
 /// server copy is what counts, and sync fills the row in when the write

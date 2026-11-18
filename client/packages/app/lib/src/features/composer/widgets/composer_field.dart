@@ -203,34 +203,37 @@ class _ComposerFieldState extends State<ComposerField> {
               label: widget.isThread ? 'Thread composer' : 'Message composer',
               child: ScrollbarFreeScope(
                 active: widget.scrollController != null,
-                child: TextField(
-                  controller: widget.controller,
-                  focusNode: widget.focusNode,
-                  onChanged: widget.onTyping,
-                  minLines: 1,
-                  maxLines: 6,
-                  scrollController: widget.scrollController,
-                  keyboardType: TextInputType.multiline,
-                  textInputAction: soft ? TextInputAction.send : null,
-                  onSubmitted: soft ? (_) => _submit() : null,
-                  style: AppText.body.copyWith(color: tokens.textPrimary),
-                  cursorColor: tokens.accent,
-                  contextMenuBuilder: (context, state) =>
-                      composerContextMenuBuilder(
-                        context,
-                        state,
-                        clipboardHasImage: _clipboardImageStatus.value,
-                        offerFormatting: AppTouchTargets.of(context),
-                      ),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    border: InputBorder.none,
-                    // Opts out of the global boxed-input theme; the surrounding
-                    // widget draws its own chrome.
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    filled: false,
-                    contentPadding: EdgeInsets.zero,
+                // Glyph ink such as a tall stack of accents paints past the line box, over the transcript.
+                child: ClipRect(
+                  child: TextField(
+                    controller: widget.controller,
+                    focusNode: widget.focusNode,
+                    onChanged: widget.onTyping,
+                    minLines: 1,
+                    maxLines: 6,
+                    scrollController: widget.scrollController,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: soft ? TextInputAction.send : null,
+                    onSubmitted: soft ? (_) => _submit() : null,
+                    style: AppText.body.copyWith(color: tokens.textPrimary),
+                    cursorColor: tokens.accent,
+                    contextMenuBuilder: (context, state) =>
+                        composerContextMenuBuilder(
+                          context,
+                          state,
+                          clipboardHasImage: _clipboardImageStatus.value,
+                          offerFormatting: AppTouchTargets.of(context),
+                        ),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      // Opts out of the global boxed-input theme; the surrounding
+                      // widget draws its own chrome.
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
+                      contentPadding: EdgeInsets.zero,
+                    ),
                   ),
                 ),
               ),

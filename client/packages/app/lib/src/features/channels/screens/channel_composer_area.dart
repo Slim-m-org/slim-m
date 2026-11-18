@@ -20,23 +20,42 @@ import 'dart:async';
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../accounts/providers/account_providers.dart';
 import '../../composer/providers/composer_extent.dart';
+import '../../messages/providers/message_editing.dart';
 import '../../messages/providers/message_selection.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/widgets/call_keyboard_pill.dart';
+import '../../../routing/breakpoints.dart';
 import '../../../widgets/dock_height_reporter.dart';
+import '../../../providers/admin_providers.dart';
+import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 import '../../composer/widgets/composer.dart';
 import '../../composer/widgets/composer_attachments.dart' show StagedSend;
 import '../../composer/widgets/composer_autofocus.dart';
+import '../../composer/widgets/composer_read_only_bar.dart';
+import '../../../permissions.dart';
+import '../providers/channel_permissions.dart';
 import '../../messages/widgets/message_selection_bar.dart';
 import '../../messages/widgets/reply_banner.dart';
 import '../../members/widgets/timeout_banner.dart';
+import '../../share/providers/incoming_share.dart';
 import 'channel_message_actions.dart';
+
+/// Shown when the message being replied to is deleted while the reply is typed.
+const replyGoneNotice = 'The message you were replying to was deleted.';
+
+/// Shown when a message is deleted elsewhere while it is being edited here.
+const editGoneNotice = 'Your edit was not saved: the message was deleted.';
+
+/// Shown when files are shared to a channel where Send is not allowed.
+const shareRefusedNotice =
+    'The shared files were not attached: you cannot send messages here.';
 
 class ChannelComposerArea extends ConsumerStatefulWidget {
   const ChannelComposerArea({
@@ -74,26 +93,48 @@ class ChannelComposerArea extends ConsumerStatefulWidget {
 }
 
 class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
-  Timer? _expiry;
-  int? _expiryFor;
+  StreamSubscription<api.ServerEvent>? _deletes;
+
+  /// The last settled answer to whether Send is missing here; see [_readOnlyNow].
+  bool _readOnly = false;
+
+  /// Why a reply, an edit or a share in progress just went away, until dismissed.
+  String? _goneNotice;
+
+  @override
+  void initState() {
+    super.initState();
+    _deletes = ref.read(liveEventsProvider).listen((event) {
+      if (event is api.MessageDeleted) _onDeleted(event.messageId);
+    });
+  }
+
+  @override
+  void didUpdateWidget(ChannelComposerArea oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.replyingTo != null && oldWidget.replyingTo == null) {
+      _goneNotice = null;
+    }
+  }
 
   @override
   void dispose() {
-    _expiry?.cancel();
+    unawaited(_deletes?.cancel());
     super.dispose();
   }
 
-  /// Rebuilds once at [until] so the banner leaves with the timeout, not at the next unrelated rebuild.
-  void _scheduleExpiry(int? until) {
-    if (until == _expiryFor) return;
-    _expiry?.cancel();
-    _expiryFor = until;
-    if (until == null) return;
-    final remaining = until - clock.now().millisecondsSinceEpoch;
-    if (remaining <= 0) return;
-    _expiry = Timer(Duration(milliseconds: remaining), () {
-      if (mounted) setState(() {});
-    });
+  /// A reply or an edit whose message was deleted elsewhere would otherwise
+  /// send as a reply to nothing, or vanish with the row it was typed into.
+  void _onDeleted(String messageId) {
+    if (!mounted) return;
+    final editing = editingMessageIdProvider(widget.channelId);
+    if (ref.read(editing) == messageId) {
+      ref.read(editing.notifier).state = null;
+      setState(() => _goneNotice = editGoneNotice);
+    } else if (widget.replyingTo?.id == messageId) {
+      widget.onCancelReply();
+      setState(() => _goneNotice = replyGoneNotice);
+    }
   }
 
   // The main pane only: a docked thread shares the call's channel page and its keyboard.
@@ -151,12 +192,15 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
         ],
       );
     }
+    // Refetches me when a timeout ends, which is also what rebuilds this so its banner leaves on time.
+    ref.watch(timeoutExpiryWatcherProvider);
     final me = ref.watch(meProvider).valueOrNull;
     final timedOutUntil = me?.timedOutUntil;
-    _scheduleExpiry(timedOutUntil);
     final stillTimedOut =
         timedOutUntil != null &&
         timedOutUntil > clock.now().millisecondsSinceEpoch;
+    final readOnly = _readOnlyNow(channelId);
+    if (readOnly) _refuseShare(channelId);
     final composer = Composer(
       controller: widget.controller,
       channelId: channelId,
@@ -175,6 +219,21 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
               : null,
         ),
         AppRevealBand(
+          child: _goneNotice == null
+              ? null
+              : Padding(
+                  // The composer's gutter, so the notice lines up with the field or bar below it.
+                  padding: EdgeInsets.symmetric(
+                    horizontal: paneGutterOf(context),
+                    vertical: AppSpacing.s8,
+                  ),
+                  child: AppErrorState(
+                    message: _goneNotice!,
+                    onDismiss: () => setState(() => _goneNotice = null),
+                  ),
+                ),
+        ),
+        AppRevealBand(
           child: widget.replyingTo == null
               ? null
               : ReplyBanner(
@@ -182,13 +241,39 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
                   onCancel: widget.onCancelReply,
                 ),
         ),
+        // Kept mounted across the swap, so Send coming back does not refocus the field as if just opened.
         ComposerAutofocus(
           channelId: channelId,
           focusOnMount: widget.autofocus,
           focusRequests: widget.focusRequests,
-          child: composer,
+          // No composer at all while read-only, so no drop or share can stage into it; the staging and the draft outlive it.
+          child: readOnly ? const ComposerReadOnlyBar() : composer,
         ),
       ],
     );
+  }
+
+  /// A share handed here has no composer to land in, so it is dropped with a word rather than left waiting.
+  void _refuseShare(String channelId) {
+    bool forHere() => ref.read(shareHandoffProvider)?.channelId == channelId;
+    if (ref.watch(shareHandoffProvider)?.channelId != channelId) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !forHere()) return;
+      ref.read(shareHandoffProvider.notifier).state = null;
+      setState(() => _goneNotice = shareRefusedNotice);
+    });
+  }
+
+  /// Whether Send is missing here, read live; a timeout shows its own banner instead.
+  /// While either answer is refetched the last one stands, so a timeout ending never flashes the bar.
+  bool _readOnlyNow(String channelId) {
+    final me = ref.watch(meProvider);
+    final bits = ref.watch(channelPermissionsProvider(channelId));
+    if (me.isLoading || bits.isLoading || bits.hasError) return _readOnly;
+    const send = Perm.sendMessages | Perm.administrator;
+    return _readOnly =
+        me.valueOrNull?.timedOutUntil == null &&
+        bits.hasValue &&
+        bits.requireValue & send == 0;
   }
 }

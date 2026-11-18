@@ -4,6 +4,8 @@
 /// ones that draw nothing.
 library;
 
+import 'package:slimm_api/api.dart' show capCombiningMarks;
+
 /// Mirrors `is_hidden_char` in the server's `hidden_chars.rs`; both are held to
 /// `crates/slimm-server/tests/fixtures/hidden_chars.json`. The server refuses
 /// text holding any of these (activity text, names, labels) rather than
@@ -46,6 +48,19 @@ String visibleText(String text) {
   }
   return out.toString().replaceAll(RegExp(r' {2,}'), ' ').trim();
 }
+
+/// [text] without the bidi overrides U+202D and U+202E, which redraw the
+/// letters around them in reverse (`evil\u202Etxt.exe` reads `evilexe.txt`).
+/// The server strips them from what is sent now; this covers older messages.
+/// Embeddings and isolates stay, since mixed-direction text relies on them.
+String withoutBidiOverrides(String text) =>
+    text.contains(_bidiOverride) ? text.replaceAll(_bidiOverride, '') : text;
+
+final _bidiOverride = RegExp('[\u202D\u202E]');
+
+/// [text] ready to draw as prose: well-formed, mark stacks capped, no bidi override.
+String drawableText(String text) =>
+    withoutBidiOverrides(capCombiningMarks(wellFormedUtf16(text)));
 
 /// [text] with each unpaired UTF-16 surrogate replaced by U+FFFD, which is
 /// what the web renderer draws anyway; the native one throws on it instead.
