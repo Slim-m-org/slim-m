@@ -18,6 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../channels/providers/channel_history.dart';
 import '../../../providers/sync_controller.dart';
 import 'message_context_menu.dart';
+import 'message_entrance.dart';
 import 'message_jump.dart';
 import 'message_transcript_dividers.dart';
 import 'message_transcript_rows.dart';
@@ -186,14 +187,8 @@ class MessageTranscript extends StatefulWidget {
 }
 
 class _MessageTranscriptState extends State<MessageTranscript> {
-  /// The newest row animates in only when its id is not in here, so a
-  /// genuinely new arrival slides in while the initial load, a recycle on
-  /// scroll-back, and an unrelated parent rebuild render it statically. Holds
-  /// the first window's tail and each newest id since, capped at
-  /// [_seenCap]; reset with the widget, which is per channel.
-  final Set<String> _seen = {};
-  static const _seenCap = 64;
-  bool _hydrated = false;
+  /// Kept per channel, with the widget, so a recycle or rebuild never replays an entrance.
+  final EntranceGate _entrance = EntranceGate();
 
   /// Kept across rebuilds on purpose; see its own doc comment for why living
   /// on the per-build delegate would defeat it.
@@ -319,13 +314,14 @@ class _MessageTranscriptState extends State<MessageTranscript> {
       ? Align(alignment: Alignment.topCenter, child: _transcript(context))
       : _transcript(context);
 
-  /// Remembers the newest row, and on the first build the tail it could fall back to when the newest is deleted.
-  void _markSeen(List<TranscriptItem> items) {
-    final fresh = _hydrated ? items.skip(items.length - 1) : items;
-    _seen.addAll(fresh.map((item) => item.id));
-    while (_seen.length > _seenCap) {
-      _seen.remove(_seen.first);
-    }
+  /// How close to the newest end still counts as reading it, the same slop the scroll tracker marks read within.
+  static const double _atLatestSlop = 4;
+
+  bool get _atLatest {
+    final controller = widget.scrollController;
+    if (!controller.hasClients) return true;
+    final position = controller.position;
+    return position.pixels <= position.minScrollExtent + _atLatestSlop;
   }
 
   Widget _transcript(BuildContext context) {
@@ -357,10 +353,9 @@ class _MessageTranscriptState extends State<MessageTranscript> {
 
     _checkAfterLayout();
     _estimateJumpScroll();
-    final newestId = items.last.id;
-    final animateNewest = _hydrated && !_seen.contains(newestId);
-    _markSeen(items);
-    _hydrated = true;
+    final animateNewest = _entrance.admit([
+      for (final item in items) item.id,
+    ], atLatest: _atLatest);
 
     final frame = _Frame(
       items: items,
@@ -409,6 +404,7 @@ class _MessageTranscriptState extends State<MessageTranscript> {
     return MessageEntrance(
       key: ValueKey(item.id),
       animateOnMount: frame.animateNewest && i == 0,
+      newest: i == 0,
       child: content,
     );
   }
