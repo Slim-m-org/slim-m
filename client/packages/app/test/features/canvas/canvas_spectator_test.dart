@@ -8,7 +8,11 @@ import 'package:flutter/gestures.dart' show kSecondaryButton;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_app/src/features/canvas/providers/canvas_spectating.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_fullscreen.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile.dart';
+import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -23,6 +27,7 @@ Future<CanvasPaneFixture> _pane(
   WidgetTester tester, {
   required int permissions,
   Size size = const Size(1280, 800),
+  ValueSetter<ProviderContainer>? onContainer,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -32,10 +37,15 @@ Future<CanvasPaneFixture> _pane(
   final container = fixture.container();
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);
+  onContainer?.call(container);
   await pumpCanvasPane(tester, container);
   await tester.pump(_settle);
   return fixture;
 }
+
+CanvasTool _armed(WidgetTester tester) => tester
+    .widget<CanvasSurface>(find.byWidgetPredicate((w) => w is CanvasSurface))
+    .tool;
 
 void main() {
   for (final size in const [Size(390, 844), Size(1280, 800)]) {
@@ -120,6 +130,48 @@ void main() {
       await tester.pump(_settle);
       expect(fixture.postedOps, isEmpty, reason: 'Delete edits nothing');
       expect(document.objectCount.value, 1);
+    },
+  );
+
+  testWidgets(
+    'a member who stops drawing while fullscreen comes back out on Move, and '
+    'a drag draws nothing',
+    (tester) async {
+      late ProviderContainer container;
+      final fixture = await _pane(
+        tester,
+        permissions: Perm.viewChannel | Perm.useCanvas,
+        onContainer: (c) => container = c,
+      );
+      expect(_armed(tester), CanvasTool.pen);
+
+      await tester.tap(find.bySemanticsLabel('More canvas actions'));
+      await tester.pump();
+      await tester.pump(_settle);
+      await tester.tap(find.text('Enter fullscreen'));
+      await tester.pump(_settle);
+      expect(container.read(canvasFullscreenProvider), 'c1');
+
+      // What an overwrite change revoking USE_CANVAS does to this member.
+      fixture.channelPermissions = Perm.viewChannel;
+      container.invalidate(channelPermissionsProvider('c1'));
+      await tester.pump(_settle);
+      expect(container.read(canvasSpectatingProvider('c1')), isTrue);
+      await tester.pump(_settle);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump(_settle);
+
+      expect(container.read(canvasFullscreenProvider), isNull);
+      expect(_armed(tester), CanvasTool.pan);
+      final drag = await tester.startGesture(
+        screenFor(tester, const Offset(100, 300)),
+      );
+      await drag.moveTo(screenFor(tester, const Offset(220, 380)));
+      await drag.up();
+      await tester.pump(_settle);
+
+      expect(surfaceDocument(tester).objectCount.value, 1);
+      expect(fixture.posted, isEmpty, reason: 'nothing was drawn');
     },
   );
 

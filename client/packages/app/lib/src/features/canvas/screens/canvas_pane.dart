@@ -240,11 +240,11 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       meProvider.select((m) => m.valueOrNull?.timedOutUntil),
       (_, _) => _timeoutBanner.watch(),
     );
-    // A spectator's tool is always Move: every other tool edits the canvas.
+    // A spectator's tool is always Move, leaving fullscreen too: every other tool edits the canvas.
     ref.listenManual(canvasSpectatingProvider(widget.channelId), (_, watching) {
-      if (watching && _tool != CanvasTool.pan) {
-        _refresh(() => _tool = CanvasTool.pan);
-      }
+      if (!watching) return;
+      _toolBeforeFullscreen = null;
+      if (_tool != CanvasTool.pan) _refresh(() => _tool = CanvasTool.pan);
     });
     // This pane is the only content mounted while it exists, so one listener for the whole mount is safe: nothing else here could hold it at the same time.
     _imagePaste.start();
