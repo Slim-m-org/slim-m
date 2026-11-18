@@ -29,6 +29,9 @@ class _BrowserRoute implements DirectRoute {
   bool get hasAddresses => false;
 
   @override
+  int get poolRenewals => 0;
+
+  @override
   http.Client? pinnedClient({required bool direct}) =>
       direct ? null : http.Client();
 

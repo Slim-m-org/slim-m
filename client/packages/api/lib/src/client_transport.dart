@@ -53,6 +53,8 @@ extension SlimmApiTransport on SlimmApi {
     void Function(int status)? onStatus,
     http.Client? over,
     void Function(Map<String, String> headers)? onHeaders,
+    // One attempt only, never replayed or refreshed: a request timed as a sample of the path.
+    bool once = false,
   }) async {
     // Inline, not awaitTrust: a trusted server must not cost every request a turn.
     if (authenticated) {
@@ -73,7 +75,8 @@ extension SlimmApiTransport on SlimmApi {
           over: over,
         );
 
-    final response = await replayingDroppedSocket(method, attempt);
+    final response =
+        once ? await attempt() : await replayingDroppedSocket(method, attempt);
     onHeaders?.call(response.headers);
 
     // One automatic rotation, then replay. Only for authenticated calls, and
@@ -81,6 +84,7 @@ extension SlimmApiTransport on SlimmApi {
     if (response.statusCode == 401 &&
         authenticated &&
         !isRetry &&
+        !once &&
         session.tokens != null) {
       await refreshUnlessRotated(sentWith);
       return send(

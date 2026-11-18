@@ -9,6 +9,8 @@ import 'edge_route.dart';
 import 'exceptions.dart';
 import 'logging/app_log.dart';
 
+const _ping = '/diagnostics/ping';
+
 /// How this device reaches the server: the data centre in between, and how long a round trip takes.
 extension SlimmApiEdge on SlimmApi {
   /// The API's route as its own traffic shows it; see [EdgeWatch].
@@ -47,23 +49,32 @@ extension SlimmApiEdge on SlimmApi {
     }
   }
 
-  /// Times one request to the server now, and records it in [edge] with the route it took.
+  /// Times one warm request to the server now, and records it in [edge] with the route it took.
+  ///
+  /// An untimed ping first pays for connection setup and any token refresh; a
+  /// timed one that still needed a replay, a refresh or a fresh pool is dropped.
   Future<EdgeReading?> measureRoundTrip({DateTime Function()? clock}) async {
-    final watch = Stopwatch()..start();
     String? cfRay;
+    final Duration roundTrip;
     try {
+      await send('GET', _ping);
+      final renewals = link.route?.poolRenewals;
+      final watch = Stopwatch()..start();
       await send(
         'GET',
-        '/diagnostics/ping',
+        _ping,
+        once: true,
         onHeaders: (headers) => cfRay = headers['cf-ray'],
       );
+      roundTrip = watch.elapsed;
+      if (link.route?.poolRenewals != renewals) return null;
     } on ApiException {
       return null;
     }
     final reading = EdgeReading(
       colo: cloudflareColoOf(cfRay),
       direct: usesDirectRoute,
-      roundTrip: watch.elapsed,
+      roundTrip: roundTrip,
       at: (clock ?? DateTime.now)(),
     );
     edge.note(reading);

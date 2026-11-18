@@ -2,9 +2,12 @@
 /// Which Cloudflare data centre the API passes through, read from its own traffic.
 library;
 
+import 'dart:async';
+
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_api/src/direct_route.dart';
 import 'package:test/test.dart';
 
 const _trace = '''fl=123f45
@@ -21,16 +24,20 @@ tls=TLSv1.3
 warp=off
 ''';
 
+const _tokens = TokenPair(
+  userId: 'u1',
+  accessToken: 'a',
+  refreshToken: 'r',
+  accessExpiresAt: 0,
+);
+
+const _ray = {'cf-ray': '8f1c2d3e4f5a6b7c-EWR'};
+
+http.Response _pong() => http.Response('{}', 200, headers: _ray);
+
 SlimmApi _api(Map<String, String> headers, {String body = '{}'}) => SlimmApi(
       baseUrl: Uri.parse('https://slim.example.org'),
-      session: SessionStore(
-        tokens: const TokenPair(
-          userId: 'u1',
-          accessToken: 'a',
-          refreshToken: 'r',
-          accessExpiresAt: 0,
-        ),
-      ),
+      session: SessionStore(tokens: _tokens),
       httpClient: MockClient((request) async {
         if (request.url.path == '/cdn-cgi/trace') {
           return http.Response(body, 200);
@@ -41,6 +48,37 @@ SlimmApi _api(Map<String, String> headers, {String body = '{}'}) => SlimmApi(
         return http.Response('{}', 200, headers: pingHeaders);
       }),
     );
+
+/// An API whose pings, counted from zero, are answered by [ping].
+SlimmApi _pinging(
+  FutureOr<http.Response> Function(int n) ping, {
+  DirectRoute? route,
+}) {
+  var n = 0;
+  return SlimmApi(
+    baseUrl: Uri.parse('https://slim.example.org'),
+    session: SessionStore(tokens: _tokens),
+    directRoute: route,
+    httpClient: MockClient((request) async {
+      if (request.url.path != '/diagnostics/ping') {
+        return http.Response('{}', 200);
+      }
+      return ping(n++);
+    }),
+  );
+}
+
+/// A route whose pool a test renews by hand.
+class _Route implements DirectRoute {
+  @override
+  int poolRenewals = 0;
+
+  @override
+  bool get active => false;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   group('cloudflareColoOf', () {
@@ -85,6 +123,44 @@ void main() {
       final api = _api(const {});
       final reading = await api.measureRoundTrip();
       expect(reading?.colo, isNull);
+    });
+
+    test(
+        'the round trip is timed on a warm connection, not the one that '
+        'opened it', () async {
+      final api = _pinging((n) async {
+        if (n == 0) await Future<void>.delayed(const Duration(seconds: 1));
+        return _pong();
+      });
+      final reading = await api.measureRoundTrip();
+      expect(reading!.roundTrip, lessThan(const Duration(milliseconds: 500)));
+    });
+
+    test('a timed ping that met a dropped socket is not kept', () async {
+      final api = _pinging(
+        (n) => n == 1 ? throw http.ClientException('reset by peer') : _pong(),
+      );
+      expect(await api.measureRoundTrip(), isNull);
+      expect(api.edge.last, isNull);
+    });
+
+    test('a timed ping that needed a token refresh is not kept', () async {
+      final api = _pinging((n) => n == 1 ? http.Response('', 401) : _pong());
+      expect(await api.measureRoundTrip(), isNull);
+      expect(api.edge.last, isNull);
+    });
+
+    test('a timed ping that went out on a fresh pool is not kept', () async {
+      final route = _Route();
+      final api = _pinging(
+        (n) {
+          if (n == 1) route.poolRenewals++;
+          return _pong();
+        },
+        route: route,
+      );
+      expect(await api.measureRoundTrip(), isNull);
+      expect(api.edge.last, isNull);
     });
 
     test('reads a trace from another host too', () async {
