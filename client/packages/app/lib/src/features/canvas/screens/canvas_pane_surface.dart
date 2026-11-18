@@ -97,6 +97,7 @@ class CanvasPaneSurface extends StatelessWidget {
     onPlaceNote: actions.onNotePlace,
     onPlaceText: actions.onTextPlace,
     onPlaceShape: (world) => actions.onShapePlace(world, null),
+    onShowActivityLog: actions.onShowActivityLog,
     focusNode: boardFocusNode,
     child: Stack(
       children: [

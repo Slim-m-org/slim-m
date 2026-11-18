@@ -97,6 +97,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
         onRecenter: widget.onRecenter,
         onToolChanged: widget.onToolChanged,
         onBringIntoBoard: widget.onBringIntoBoard,
+        onShowActivityLog: _toggleActivityLog,
         onFocusTile: widget.onFocusTile,
         participantMenuItemsBuilder: widget.participantMenuItemsBuilder,
         cameraViewFor: widget.cameraViewFor,
