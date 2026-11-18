@@ -8,8 +8,6 @@ import 'client_transport.dart';
 import 'edge_route.dart';
 import 'exceptions.dart';
 
-const _ping = '/diagnostics/ping';
-
 // No deadline of its own: an answer that never comes only leaves the trace unread.
 Future<http.Response> _traceOnce(http.Client client, Uri uri) async {
   try {
@@ -61,12 +59,12 @@ extension SlimmApiEdge on SlimmApi {
     String? cfRay;
     final Duration roundTrip;
     try {
-      await send('GET', _ping);
+      await send('GET', '/diagnostics/ping');
       final renewals = link.route?.poolRenewals;
       final watch = Stopwatch()..start();
       await send(
         'GET',
-        _ping,
+        '/diagnostics/ping',
         once: true,
         onHeaders: (headers) => cfRay = headers['cf-ray'],
       );
