@@ -66,6 +66,8 @@ pub(crate) fn strip_reading_rewrites(text: &str) -> Cow<'_, str> {
 }
 
 const ZWJ: char = '\u{200D}';
+/// The combining grapheme joiner: draws nothing, but stacked diacritics carry it between marks.
+const CGJ: char = '\u{034F}';
 const TAG_FLAG_BASE: char = '\u{1F3F4}';
 const TAG_END: char = '\u{E007F}';
 
@@ -87,14 +89,17 @@ fn is_pictographic(c: char) -> bool {
 }
 
 /// True when `text` holds a hidden character that is not part of an emoji
-/// sequence. A zero width joiner is allowed only between two emoji, and tag
-/// characters only as the subdivision flag `U+1F3F4 tags... U+E007F`, so a
-/// poll can carry a family or a Scottish flag while a bare joiner still fails.
+/// sequence or a mark run. A zero width joiner is allowed only between two emoji,
+/// tag characters only as the subdivision flag `U+1F3F4 tags... U+E007F`, and
+/// [`CGJ`] only after a drawn character, so stacked marks pass while a bare one fails.
 pub(crate) fn hides_text_outside_emoji(text: &str) -> bool {
     let chars: Vec<char> = text.chars().collect();
     let mut i = 0;
+    let mut after_drawn = false;
     while i < chars.len() {
         let c = chars[i];
+        let continues_a_cluster = c == CGJ && after_drawn;
+        after_drawn = continues_a_cluster || !(c.is_whitespace() || is_hidden_char(c));
         if c == ZWJ {
             let after_emoji =
                 i > 0 && (is_pictographic(chars[i - 1]) || chars[i - 1] == '\u{FE0F}');
@@ -112,7 +117,7 @@ pub(crate) fn hides_text_outside_emoji(text: &str) -> bool {
                 i += tags + 2;
                 continue;
             }
-        } else if is_hidden_char(c) {
+        } else if is_hidden_char(c) && !continues_a_cluster {
             return true;
         }
         i += 1;
@@ -255,6 +260,22 @@ mod tests {
             "\u{1F468}\u{200B}",
             "\u{202E}",
         ] {
+            assert!(hides_text_outside_emoji(bad), "{bad:?}");
+        }
+    }
+
+    /// A heavy zalgo status stacks marks with U+034F between them; it draws on its base letter.
+    #[test]
+    fn a_grapheme_joiner_passes_only_after_a_drawn_character() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/fixtures/hidden_chars.json")).unwrap();
+        let cases = &fixture["grapheme_joiner"];
+        for ok in cases["allowed"].as_array().unwrap() {
+            let ok = ok.as_str().unwrap();
+            assert!(!hides_text_outside_emoji(ok), "{ok:?}");
+        }
+        for bad in cases["refused"].as_array().unwrap() {
+            let bad = bad.as_str().unwrap();
             assert!(hides_text_outside_emoji(bad), "{bad:?}");
         }
     }

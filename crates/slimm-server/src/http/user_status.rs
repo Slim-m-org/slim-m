@@ -179,6 +179,15 @@ mod tests {
         assert!(validate_status_text("a\u{200D}b").is_err());
     }
 
+    /// Heavy zalgo stacks marks with U+034F between them; it still draws on its base letter.
+    #[test]
+    fn stacked_marks_with_a_grapheme_joiner_are_kept() {
+        let zalgo = "Z\u{0301}\u{034F}\u{0300}\u{0316}algo";
+        assert!(matches!(validate_status_text(zalgo), Ok(Some(ref s)) if s == zalgo));
+        assert!(validate_about(zalgo).is_ok());
+        assert!(validate_status_text("\u{034F}").is_err());
+    }
+
     #[test]
     fn about_takes_up_to_five_lines_and_nothing_else_takes_a_break() {
         assert!(matches!(validate_about("one\ntwo"), Ok(Some(s)) if s == "one\ntwo"));

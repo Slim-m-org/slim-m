@@ -20,5 +20,10 @@
     {"from": "E0000", "to": "E007F", "why": "tag characters"}
   ],
   "plain": ["0061", "0020", "00E9", "4E2D", "FE0F", "2764", "1F600"],
-  "code_layout_exempt": ["0009", "000A", "000D"]
+  "code_layout_exempt": ["0009", "000A", "000D"],
+  "grapheme_joiner": {
+    "why": "free text (status, about, pronouns, polls) takes U+034F after a drawn character or a mark on one; names and labels still refuse it",
+    "allowed": ["a\u034f", "Z\u0301\u034f\u0300", "Z\u0301\u034f\u034f\u0300 ok", "\u05d0\u05b8\u034f\u05b7"],
+    "refused": ["\u034f", "\u034fa", " \u034f", "a \u034f", "\u200b\u034f"]
+  }
 }
