@@ -3,7 +3,6 @@
 /// more; a person's role and a move down go straight through.
 library;
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/screens/admin/roles_screen.dart';

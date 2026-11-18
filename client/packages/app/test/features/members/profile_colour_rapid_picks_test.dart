@@ -6,7 +6,7 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui' show SemanticsFlag;
+import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -89,10 +89,13 @@ Future<_Server> _pump(WidgetTester tester) async {
 
 Finder _swatch(String name) => find.bySemanticsLabel('Profile colour: $name');
 
-bool _selected(WidgetTester tester, String name) => tester
-    .getSemantics(_swatch(name))
-    .getSemanticsData()
-    .hasFlag(SemanticsFlag.isSelected);
+bool _selected(WidgetTester tester, String name) =>
+    tester
+        .getSemantics(_swatch(name))
+        .getSemanticsData()
+        .flagsCollection
+        .isSelected ==
+    Tristate.isTrue;
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));

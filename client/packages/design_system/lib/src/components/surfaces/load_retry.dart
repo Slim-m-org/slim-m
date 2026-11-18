@@ -55,7 +55,7 @@ class _AppLoadRetryState extends State<AppLoadRetry> {
   void _schedule() {
     _timer?.cancel();
     if (widget.onRetry == null) return;
-    final delays = appLoadRetryDelays;
+    const delays = appLoadRetryDelays;
     _timer = Timer(delays[_attempt.clamp(0, delays.length - 1)], _retry);
   }
 
