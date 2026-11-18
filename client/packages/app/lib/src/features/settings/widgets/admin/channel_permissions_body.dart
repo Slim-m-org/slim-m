@@ -101,6 +101,11 @@ class _PermissionGridViewState extends State<PermissionGridView> {
         box.maxWidth,
         columnCount: widget.columns.length,
       );
+      final headerHeight = headerBandHeight(
+        context,
+        widget.columns,
+        metrics.cellWidth,
+      );
       final rows = Stack(
         children: [
           _rows(metrics, box.maxWidth),
@@ -122,6 +127,7 @@ class _PermissionGridViewState extends State<PermissionGridView> {
       final header = HeaderRow(
         columns: widget.columns,
         metrics: metrics,
+        height: headerHeight,
         controller: _header,
         onAdd: widget.onAdd,
         onRemove: widget.onRemove,
@@ -143,7 +149,7 @@ class _PermissionGridViewState extends State<PermissionGridView> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(height: metrics.headerHeight),
+              SizedBox(height: headerHeight),
               rows,
             ],
           ),
@@ -154,7 +160,8 @@ class _PermissionGridViewState extends State<PermissionGridView> {
             child: ViewportPin(
               edge: ViewportEdge.top,
               section: _section,
-              child: _PinnedHeaderSurface(child: header),
+              builder: (context, pinned) =>
+                  _PinnedHeaderSurface(pinned: pinned, child: header),
             ),
           ),
         ],
@@ -340,20 +347,30 @@ class _NoMatches extends StatelessWidget {
   }
 }
 
-/// The card's own fill and side borders behind the column names, so a pinned header neither shows rows through it nor cuts the card's frame.
-class _PinnedHeaderSurface extends StatelessWidget {
-  const _PinnedHeaderSurface({required this.child});
+/// Keys the band behind the column names, for tests reading its frame.
+const pinnedHeaderSurfaceKey = Key('grid-pinned-header');
 
+/// The card's own fill and side borders behind the column names, so a pinned
+/// header neither shows rows through it nor cuts the card's frame; held off
+/// its place, it closes the frame along its top edge too.
+class _PinnedHeaderSurface extends StatelessWidget {
+  const _PinnedHeaderSurface({required this.pinned, required this.child});
+
+  final bool pinned;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final side = BorderSide(color: tokens.borderSubtle);
     return DecoratedBox(
+      key: pinnedHeaderSurfaceKey,
       decoration: BoxDecoration(
         color: tokens.surfaceRaised,
-        border: Border.symmetric(
-          vertical: BorderSide(color: tokens.borderSubtle),
+        border: Border(
+          left: side,
+          right: side,
+          top: pinned ? side : BorderSide.none,
         ),
       ),
       child: child,

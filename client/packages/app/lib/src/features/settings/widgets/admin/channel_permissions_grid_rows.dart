@@ -55,7 +55,6 @@ class GridMetrics {
     required this.cellWidth,
     required this.addWidth,
     required this.rowHeight,
-    required this.headerHeight,
     required this.contentWidth,
     required this.viewportWidth,
     required this.compact,
@@ -75,7 +74,6 @@ class GridMetrics {
       cellWidth: cellWidth,
       addWidth: addWidth,
       rowHeight: compact ? AppSizes.rowTouch : wideRowHeight,
-      headerHeight: compact ? compactHeaderHeight : wideHeaderHeight,
       contentWidth: cellWidth * columnCount + addWidth,
       viewportWidth: viewport,
       compact: compact,
@@ -89,10 +87,6 @@ class GridMetrics {
   static const double wideCellWidth = 72;
   static const double wideRowHeight = 40;
   static const double groupHeaderHeight = 40;
-  static const double wideHeaderHeight = 124;
-
-  /// Room for the remove button at its 44dp touch size.
-  static const double compactHeaderHeight = 120;
 
   final double labelWidth;
   final double cellWidth;
@@ -100,7 +94,6 @@ class GridMetrics {
   /// The add column only holds a 44dp button, so it never takes a full cell.
   final double addWidth;
   final double rowHeight;
-  final double headerHeight;
 
   /// Width of every principal column plus the add column.
   final double contentWidth;
