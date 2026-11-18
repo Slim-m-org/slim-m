@@ -32,74 +32,68 @@ void main() {
   setUpAll(loadRealFonts);
 
   const sizes = {'phone': Size(390, 230), 'narrow': Size(560, 160)};
-  for (final theme in const ['dark', 'light']) {
-    for (final entry in sizes.entries) {
-      for (final on in const [false, true]) {
-        final phone = entry.key == 'phone';
-        testWidgets('dock music ${on ? 'on' : 'off'} ${entry.key} ($theme)', (
-          tester,
-        ) async {
-          SharedPreferences.setMockInitialValues({
-            'slimm.voice.hold_music_enabled': on,
-          });
-          tester.view.physicalSize = entry.value;
-          tester.view.devicePixelRatio = 1.0;
-          addTearDown(tester.view.reset);
-          final container = ProviderContainer(
-            overrides: [
-              keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-              voiceControllerProvider.overrideWith(
-                (ref) => VoiceController(ref, session: InertSession()),
-              ),
-              voiceParticipantsProvider.overrideWithValue([_me()]),
-            ],
-          )..read(preferencesProvider);
-          addTearDown(container.dispose);
-          final dark = theme == 'dark';
-          final tokens = dark ? AppTokens.dark : AppTokens.light;
-          await tester.pumpWidget(
-            UncontrolledProviderScope(
-              container: container,
-              child: RepaintBoundary(
-                key: snapshotBoundary,
-                child: MaterialApp(
-                  debugShowCheckedModeBanner: false,
-                  theme: buildTheme(
-                    dark ? Brightness.dark : Brightness.light,
-                    tokens,
-                  ),
-                  home: Scaffold(
-                    body: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.s16),
-                        child: AppTouchTargets(
-                          enabled: phone,
-                          child: VoiceCallDock(
-                            controller: container.read(
-                              voiceControllerProvider.notifier,
-                            ),
-                            voice: const VoiceFlags(
-                              state: VoiceSessionState.connected,
-                            ),
-                            canvasChannelId: 'c1',
-                          ),
+  for (final entry in sizes.entries) {
+    for (final on in const [false, true]) {
+      final phone = entry.key == 'phone';
+      testWidgets('dock music ${on ? 'on' : 'off'} ${entry.key} (dark+light)', (
+        tester,
+      ) async {
+        SharedPreferences.setMockInitialValues({
+          'slimm.voice.hold_music_enabled': on,
+        });
+        tester.view.physicalSize = entry.value;
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+        final container = ProviderContainer(
+          overrides: [
+            keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+            voiceControllerProvider.overrideWith(
+              (ref) => VoiceController(ref, session: InertSession()),
+            ),
+            voiceParticipantsProvider.overrideWithValue([_me()]),
+          ],
+        )..read(preferencesProvider);
+        addTearDown(container.dispose);
+        Widget build(String theme) => UncontrolledProviderScope(
+          container: container,
+          child: RepaintBoundary(
+            key: snapshotBoundary,
+            child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: snapshotThemeData(theme),
+              home: Scaffold(
+                body: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.s16),
+                    child: AppTouchTargets(
+                      enabled: phone,
+                      child: VoiceCallDock(
+                        controller: container.read(
+                          voiceControllerProvider.notifier,
                         ),
+                        voice: const VoiceFlags(
+                          state: VoiceSessionState.connected,
+                        ),
+                        canvasChannelId: 'c1',
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-          );
-          await tester.pumpAndSettle();
+          ),
+        );
+        await tester.pumpWidget(build('dark'));
+        await tester.pumpAndSettle();
+        await checkDarkThenLight(tester, build, (theme) async {
           expect(tester.takeException(), isNull);
           await writeSnapshot(
             tester,
             'dock-music-${on ? 'on' : 'off'}-${entry.key}-$theme',
           );
         });
-      }
+      });
     }
   }
 }

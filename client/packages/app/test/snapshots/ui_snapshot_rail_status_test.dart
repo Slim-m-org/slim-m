@@ -23,7 +23,6 @@ import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
 import 'package:slimm_data/data.dart';
-import 'package:slimm_design_system/design_system.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_platform/testing.dart';
 
@@ -53,7 +52,6 @@ ProviderContainer _container(List<Override> overrides) => ProviderContainer(
 Future<void> _capture(
   WidgetTester tester,
   String viewport,
-  String theme,
   String name,
   Widget body, {
   List<Override> overrides = const [],
@@ -65,33 +63,34 @@ Future<void> _capture(
   addTearDown(tester.view.reset);
 
   final container = _container(overrides);
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: RepaintBoundary(
-        key: snapshotBoundary,
-        child: MaterialApp.router(
-          debugShowCheckedModeBanner: false,
-          theme: theme == 'dark'
-              ? buildTheme(Brightness.dark, AppTokens.dark)
-              : buildTheme(Brightness.light, AppTokens.light),
-          routerConfig: GoRouter(
-            initialLocation: Routes.channel('c-general'),
-            routes: [
-              GoRoute(
-                path: Routes.channelPattern,
-                builder: (context, state) => Scaffold(body: body),
-              ),
-            ],
-          ),
-        ),
+  final router = GoRouter(
+    initialLocation: Routes.channel('c-general'),
+    routes: [
+      GoRoute(
+        path: Routes.channelPattern,
+        builder: (context, state) => Scaffold(body: body),
+      ),
+    ],
+  );
+  addTearDown(router.dispose);
+  Widget build(String theme) => UncontrolledProviderScope(
+    container: container,
+    child: RepaintBoundary(
+      key: snapshotBoundary,
+      child: MaterialApp.router(
+        debugShowCheckedModeBanner: false,
+        theme: snapshotThemeData(theme),
+        routerConfig: router,
       ),
     ),
   );
+  await tester.pumpWidget(build('dark'));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 350));
-  await writeSnapshot(tester, name);
-  expect(tester.takeException(), isNull);
+  await checkDarkThenLight(tester, build, (theme) async {
+    await writeSnapshot(tester, '$name-$theme');
+    expect(tester.takeException(), isNull);
+  });
 
   container.dispose();
   await tester.pumpWidget(const SizedBox());
@@ -120,83 +119,75 @@ Widget _railInLayout(String viewport) =>
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final theme in const ['dark', 'light']) {
-    for (final viewport in phoneAndDesktop) {
-      testWidgets('rail failure, local store locked, at $viewport ($theme)', (
+  for (final viewport in phoneAndDesktop) {
+    testWidgets('rail failure, local store locked, at $viewport (dark+light)', (
+      tester,
+    ) async {
+      await _capture(
+        tester,
+        viewport,
+        'rail-failure-store-$viewport',
+        _railInLayout(viewport),
+        overrides: [_storeFails()],
+      );
+    });
+
+    testWidgets('rail failure, session refused, at $viewport (dark+light)', (
+      tester,
+    ) async {
+      await _capture(
+        tester,
+        viewport,
+        'rail-failure-refused-$viewport',
+        _railInLayout(viewport),
+        overrides: [
+          _storeEmpty(),
+          syncFailureProvider.overrideWith((ref) => SyncFailure.refused),
+        ],
+      );
+    });
+
+    testWidgets('rail failure, server unreachable, at $viewport (dark+light)', (
+      tester,
+    ) async {
+      await _capture(
+        tester,
+        viewport,
+        'rail-failure-unreachable-$viewport',
+        _railInLayout(viewport),
+        overrides: [
+          _storeEmpty(),
+          syncFailureProvider.overrideWith((ref) => SyncFailure.unreachable),
+        ],
+      );
+    });
+
+    for (final (label, visibility) in const [
+      ('unknown', null),
+      ('online', api.PresenceVisibility.online),
+      ('away', api.PresenceVisibility.away),
+      ('dnd', api.PresenceVisibility.dnd),
+      ('hidden', api.PresenceVisibility.hidden),
+    ]) {
+      testWidgets('rail footer, $label, at $viewport (dark+light)', (
         tester,
       ) async {
         await _capture(
           tester,
           viewport,
-          theme,
-          'rail-failure-store-$viewport-$theme',
-          _railInLayout(viewport),
-          overrides: [_storeFails()],
-        );
-      });
-
-      testWidgets('rail failure, session refused, at $viewport ($theme)', (
-        tester,
-      ) async {
-        await _capture(
-          tester,
-          viewport,
-          theme,
-          'rail-failure-refused-$viewport-$theme',
-          _railInLayout(viewport),
-          overrides: [
-            _storeEmpty(),
-            syncFailureProvider.overrideWith((ref) => SyncFailure.refused),
-          ],
-        );
-      });
-
-      testWidgets('rail failure, server unreachable, at $viewport ($theme)', (
-        tester,
-      ) async {
-        await _capture(
-          tester,
-          viewport,
-          theme,
-          'rail-failure-unreachable-$viewport-$theme',
-          _railInLayout(viewport),
-          overrides: [
-            _storeEmpty(),
-            syncFailureProvider.overrideWith((ref) => SyncFailure.unreachable),
-          ],
-        );
-      });
-
-      for (final (label, visibility) in const [
-        ('unknown', null),
-        ('online', api.PresenceVisibility.online),
-        ('away', api.PresenceVisibility.away),
-        ('dnd', api.PresenceVisibility.dnd),
-        ('hidden', api.PresenceVisibility.hidden),
-      ]) {
-        testWidgets('rail footer, $label, at $viewport ($theme)', (
-          tester,
-        ) async {
-          await _capture(
-            tester,
-            viewport,
-            theme,
-            'rail-footer-$label-$viewport-$theme',
-            SizedBox(
-              width: _railWidth(viewport),
-              child: const Column(
-                children: [RailHeader(), Spacer(), RailUserFooter()],
-              ),
+          'rail-footer-$label-$viewport',
+          SizedBox(
+            width: _railWidth(viewport),
+            child: const Column(
+              children: [RailHeader(), Spacer(), RailUserFooter()],
             ),
-            overrides: [
-              _storeEmpty(),
-              presenceVisibilityDisplayProvider.overrideWith(
-                (ref) => visibility,
-              ),
-            ],
-          );
-        });
-      }
+          ),
+          overrides: [
+            _storeEmpty(),
+            presenceVisibilityDisplayProvider.overrideWith((ref) => visibility),
+          ],
+        );
+      });
     }
   }
 }
