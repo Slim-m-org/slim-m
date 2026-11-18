@@ -56,12 +56,33 @@ bool isPictographic(int c) =>
     c == 0x3299 ||
     (c >= 0x1F000 && c <= 0x1FAFF);
 
+/// The combining grapheme joiner: draws nothing, but stacked diacritics carry it between marks.
+const _cgj = 0x034F;
+
+/// Unicode White_Space, which Rust's `char::is_whitespace` tests on the server.
+bool _isWhitespace(int c) =>
+    (c >= 0x09 && c <= 0x0D) ||
+    c == 0x20 ||
+    c == 0x85 ||
+    c == 0xA0 ||
+    c == 0x1680 ||
+    (c >= 0x2000 && c <= 0x200A) ||
+    c == 0x2028 ||
+    c == 0x2029 ||
+    c == 0x202F ||
+    c == 0x205F ||
+    c == 0x3000;
+
 /// Mirrors `hides_text_outside_emoji` in the server's `hidden_chars.rs`, held to
 /// the fixture's case lists: a hidden character outside an emoji joiner
-/// sequence or a subdivision flag.
+/// sequence, a subdivision flag, or a mark run ([_cgj] after something drawn).
 bool hidesTextOutsideEmoji(String text) {
   final c = text.runes.toList();
+  var afterDrawn = false;
   for (var i = 0; i < c.length; i++) {
+    final continuesACluster = c[i] == _cgj && afterDrawn;
+    afterDrawn =
+        continuesACluster || !(_isWhitespace(c[i]) || isHiddenCharacter(c[i]));
     if (c[i] == _zwj) {
       final afterEmoji =
           i > 0 && (isPictographic(c[i - 1]) || c[i - 1] == 0xFE0F);
@@ -74,7 +95,7 @@ bool hidesTextOutsideEmoji(String text) {
       }
       final closed = i + 1 + tags < c.length && c[i + 1 + tags] == _tagEnd;
       if (tags > 0 && closed) i += tags + 1;
-    } else if (isHiddenCharacter(c[i])) {
+    } else if (isHiddenCharacter(c[i]) && !continuesACluster) {
       return true;
     }
   }

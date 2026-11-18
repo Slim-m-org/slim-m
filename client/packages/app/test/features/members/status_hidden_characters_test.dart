@@ -36,6 +36,9 @@ int _hex(Object? value) => int.parse(value! as String, radix: 16);
 /// A light zalgo with U+034F among its marks, as a zalgo generator draws them.
 const _zalgo = 'Z\u0301\u034F\u0316a\u0300\u0353l\u0352g\u0350o\u0345';
 
+/// A word with a zero width space inside it, which nothing draws or needs.
+const _hidden = 'new\u200Bhere';
+
 Future<List<String>> _pump(WidgetTester tester, Widget child) async {
   tester.view.physicalSize = const Size(900, 2000);
   tester.view.devicePixelRatio = 1;
@@ -95,9 +98,10 @@ void main() {
             )
             as Map<String, dynamic>;
 
-    test('a combining grapheme joiner in a zalgo is refused', () {
-      expect(hidesTextOutsideEmoji(_zalgo), isTrue);
+    test('a combining grapheme joiner passes among marks, not on its own', () {
+      expect(hidesTextOutsideEmoji(_zalgo), isFalse);
       expect(hidesTextOutsideEmoji('Z\u0301a\u0300l\u0352g\u0350o'), isFalse);
+      expect(hidesTextOutsideEmoji('ok \u034F'), isTrue);
     });
 
     // Each section of the shared fixture with allowed and refused text is a case list for the server's own check.
@@ -149,7 +153,7 @@ void main() {
       ),
     );
 
-    await tester.enterText(_field('Status text'), _zalgo);
+    await tester.enterText(_field('Status text'), _hidden);
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await pumpFrames(tester);
 
@@ -180,7 +184,7 @@ void main() {
     final patches = await _pump(tester, const ProfileFieldsSection());
 
     await tester.tap(_field('About'));
-    await tester.enterText(_field('About'), _zalgo);
+    await tester.enterText(_field('About'), _hidden);
     await tester.tap(_field('Pronouns'));
     await pumpFrames(tester);
 
