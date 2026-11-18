@@ -500,6 +500,7 @@ A scene becomes interactive by offering `controls` and carrying `state`, and by 
   A client older than 0.132 skips the object, so keep anything a player cannot do without reachable another way.
   `replaces` is how: list the buttons the dropdown stands for, and put those buttons in `controls` too.
   An older client shows the buttons, and a client that draws the dropdown leaves them out.
+  Left-out buttons do not count toward the 16 controls, and a dropdown past the 16 is not drawn, so its buttons stay.
   A shared board is one stored frame that every viewer draws with their own client, so the frame has to carry both.
 - `state` is an opaque string slim stores and hands back on the next call - it is how a stateless module remembers the board between frames.
   Put whatever you need in it (packed cells, a generation counter, a seed); slim never looks inside.

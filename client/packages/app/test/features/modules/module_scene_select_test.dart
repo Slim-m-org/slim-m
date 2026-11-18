@@ -143,6 +143,47 @@ void main() {
       expect(scene.controls.last, const SceneButton('kept'));
     });
 
+    test('a dropdown past the cap leaves its buttons in the row', () {
+      final scene = _scene([
+        for (var i = 0; i < 15; i++) 'a$i',
+        'beginner',
+        'expert',
+        'leaderboard',
+        {
+          'label': 'board size',
+          'options': ['beginner', 'expert'],
+          'replaces': ['beginner', 'expert'],
+        },
+      ]);
+      expect(scene.controls, hasLength(ModuleScene.maxControls));
+      expect(scene.controls.last, const SceneButton('beginner'));
+    });
+
+    test('buttons a cut dropdown gives back can push another one out', () {
+      final scene = _scene([
+        for (var i = 0; i < 14; i++) 'a$i',
+        'slow',
+        'beginner',
+        'expert',
+        {
+          'label': 'speed',
+          'options': ['slow', 'fast'],
+          'replaces': ['slow'],
+        },
+        'leaderboard',
+        {
+          'label': 'board size',
+          'options': ['beginner', 'expert'],
+          'replaces': ['beginner', 'expert'],
+        },
+      ]);
+      expect(scene.controls, [
+        for (var i = 0; i < 14; i++) SceneButton('a$i'),
+        const SceneButton('slow'),
+        const SceneButton('beginner'),
+      ]);
+    });
+
     test('a dropdown that cannot be shown replaces nothing', () {
       final scene = _scene([
         {

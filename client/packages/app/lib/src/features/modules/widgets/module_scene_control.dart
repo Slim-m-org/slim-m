@@ -61,29 +61,47 @@ class SceneSelect extends SceneControl {
 /// a dropdown, and anything else is skipped.
 ///
 /// A dropdown's `replaces` names the buttons an older client, which skips the
-/// dropdown, shows in its place; this client leaves those buttons out.
+/// dropdown, shows in its place; this client leaves those buttons out while
+/// the dropdown itself fits under [limit].
 List<SceneControl> parseSceneControls(Object? raw, {required int limit}) {
   if (raw is! List) return const [];
-  final replaced = {
-    for (final entry in raw.whereType<Map<Object?, Object?>>())
-      if ((entry['replaces'], _select(entry)) case (
-        final List<Object?> names,
-        _?,
-      ))
-        ...names.whereType<String>(),
-  };
-  final controls = <SceneControl>[];
-  for (final entry in raw) {
-    if (controls.length >= limit) break;
-    final control = switch (entry) {
-      String name when replaced.contains(name) => null,
-      String name => SceneButton(name),
-      Map<Object?, Object?> select => _select(select),
-      _ => null,
-    };
-    if (control != null) controls.add(control);
-  }
-  return List.unmodifiable(controls);
+  final entries = [for (final entry in raw) ?_entry(entry)];
+  final hidden = {for (final entry in entries) ...entry.replaces};
+  return List.unmodifiable([
+    for (final entry in _fit(entries, hidden, limit)) entry.control,
+  ]);
+}
+
+typedef _Entry = ({SceneControl control, Set<String> replaces});
+
+_Entry? _entry(Object? raw) {
+  if (raw is String) return (control: SceneButton(raw), replaces: const {});
+  if (raw is! Map<Object?, Object?>) return null;
+  final select = _select(raw);
+  if (select == null) return null;
+  final names = raw['replaces'];
+  return (
+    control: select,
+    replaces: names is List ? names.whereType<String>().toSet() : const {},
+  );
+}
+
+/// The first [limit] entries, without the buttons a shown dropdown replaces.
+List<_Entry> _fit(List<_Entry> entries, Set<String> hidden, int limit) {
+  final shown = entries
+      .where(
+        (entry) => switch (entry.control) {
+          SceneButton(:final name) => !hidden.contains(name),
+          SceneSelect() => true,
+        },
+      )
+      .take(limit)
+      .toList();
+  final stillHidden = {for (final entry in shown) ...entry.replaces};
+  // A cut dropdown's buttons come back and can push a later dropdown out too.
+  return setEquals(stillHidden, hidden)
+      ? shown
+      : _fit(entries, stillHidden, limit);
 }
 
 SceneSelect? _select(Map<Object?, Object?> raw) {
