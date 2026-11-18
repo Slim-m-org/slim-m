@@ -34,6 +34,9 @@ ImageProvider _boundedNetworkImage(Uri url, int edge) => ResizeImage(
   policy: ResizeImagePolicy.fit,
 );
 
+/// Which part of the invite form a failure is about; [form] is for one neither field owns.
+enum _InviteField { server, code, form }
+
 /// Redeeming an invite: check the code against the server before asking anyone
 /// to fill in a signup form, and accept the terms at the point of joining.
 class InviteDialog extends ConsumerStatefulWidget {
@@ -57,7 +60,9 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
   late final _code = TextEditingController(text: widget.initial?.code ?? '');
   bool _accepted = false;
   bool _busy = false;
-  String? _error;
+
+  /// Shown under the field it is about, the way sign-in shows its own.
+  ({_InviteField field, String message})? _error;
 
   /// Set once the code checks out; the sheet then shows the landing card
   /// instead of the form, and Join hands the verified pair back.
@@ -73,6 +78,21 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
   /// True once a link has named the server, so the address is not asked for
   /// again; "Use a different server" brings the field back.
   late bool _serverFromLink = widget.initial != null;
+
+  String? _errorFor(_InviteField field) =>
+      _error?.field == field ? _error?.message : null;
+
+  void _fail(_InviteField field, String message) =>
+      setState(() => _error = (field: field, message: message));
+
+  /// An edit answers the error on that field and any the form had.
+  void _edited(_InviteField field, String text) {
+    final shown = _error?.field;
+    if (shown == field || shown == _InviteField.form) {
+      setState(() => _error = null);
+    }
+    _absorbPastedLink(text);
+  }
 
   @override
   void dispose() {
@@ -107,17 +127,14 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
 
   Future<void> _verify() async {
     if (looksLikeWebAddress(_code.text)) {
-      setState(() => _error = inviteLooksLikeWebAddress);
-      return;
+      return _fail(_InviteField.code, inviteLooksLikeWebAddress);
     }
     final address = parseServerAddress(_server.text);
     if (address == null) {
-      setState(() => _error = serverAddressError(_server.text));
-      return;
+      return _fail(_InviteField.server, serverAddressError(_server.text));
     }
     if (requireSecureScheme(address) case final schemeError?) {
-      setState(() => _error = schemeError);
-      return;
+      return _fail(_InviteField.server, schemeError);
     }
     setState(() {
       _busy = true;
@@ -132,8 +149,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
       final check = await client.checkInvite(_code.text.trim());
       if (!mounted) return;
       if (check is api.InviteUnusable) {
-        setState(() => _error = inviteUnusable);
-        return;
+        return _fail(_InviteField.code, inviteUnusable);
       }
       if (check is api.InviteUsable && mounted) {
         final code = _code.text.trim();
@@ -150,7 +166,10 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.auth, 'verify the server', e, stack);
       if (!mounted) return;
-      setState(() => _error = inviteCheckFailure(e));
+      final field = e is api.TransportException
+          ? _InviteField.server
+          : _InviteField.form;
+      _fail(field, inviteCheckFailure(e));
     } finally {
       client.close();
       if (mounted) setState(() => _busy = false);
@@ -240,6 +259,10 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
           'Joining ${_joiningHost()}',
           style: AppText.code.copyWith(color: tokens.textSecondary),
         ),
+        if (_errorFor(_InviteField.server) case final error?) ...[
+          const SizedBox(height: AppSpacing.s4),
+          _InlineError(error),
+        ],
         const SizedBox(height: AppSpacing.s12),
       ] else ...[
         AppInput(
@@ -248,7 +271,8 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
           mono: true,
           keyboardType: TextInputType.url,
           semanticLabel: 'Server',
-          onChanged: _absorbPastedLink,
+          errorText: _errorFor(_InviteField.server),
+          onChanged: (text) => _edited(_InviteField.server, text),
         ),
         const SizedBox(height: AppSpacing.s12),
       ],
@@ -257,7 +281,8 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
         // Either field takes a whole link, because somebody pasting one has no reason to know which half it is.
         placeholder: 'Invite code, or paste an invite link',
         semanticLabel: 'Invite code',
-        onChanged: _absorbPastedLink,
+        errorText: _errorFor(_InviteField.code),
+        onChanged: (text) => _edited(_InviteField.code, text),
       ),
       const SizedBox(height: AppSpacing.s12),
       // Terms are accepted at the point of joining - where the decision actually is, not buried in settings.
@@ -271,9 +296,9 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
           style: AppText.caption.copyWith(color: tokens.textSecondary),
         ),
       ),
-      if (_error != null) ...[
+      if (_errorFor(_InviteField.form) case final error?) ...[
         const SizedBox(height: AppSpacing.s4),
-        AppErrorState(message: _error!),
+        _InlineError(error),
       ],
       const SizedBox(height: AppSpacing.s12),
       if (_serverFromLink) ...[
@@ -343,6 +368,25 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A failure no input field carries, in the same red line a field's own error uses.
+class _InlineError extends StatelessWidget {
+  const _InlineError(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Semantics(
+      liveRegion: true,
+      child: Text(
+        message,
+        style: AppText.caption.copyWith(color: tokens.dangerText),
       ),
     );
   }

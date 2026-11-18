@@ -67,7 +67,6 @@ class ManualServerDialogState extends ConsumerState<ManualServerDialog> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final error = _error;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -92,33 +91,18 @@ class ManualServerDialogState extends ConsumerState<ManualServerDialog> {
             placeholder: 'chat.example',
             mono: true,
             autofocus: true,
-            invalid: error != null,
             keyboardType: TextInputType.url,
             autocorrect: false,
             semanticLabel: 'Server address',
+            // The error takes the note's place, so the dialog does not jump when it appears.
+            helperText:
+                'Whoever runs this Space can read the messages sent through '
+                'it. Only connect to one you trust.',
+            errorText: _error,
             onChanged: (_) {
               if (_error != null) setState(() => _error = null);
             },
             onSubmitted: (_) => unawaited(_submit()),
-          ),
-          const SizedBox(height: AppSpacing.s12),
-          // The error takes the note's place, so the dialog does not jump when it appears.
-          IndexedStack(
-            index: error == null ? 0 : 1,
-            children: [
-              Text(
-                'Whoever runs this Space can read the messages sent through '
-                'it. Only connect to one you trust.',
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-              Semantics(
-                liveRegion: true,
-                child: Text(
-                  error ?? '',
-                  style: AppText.caption.copyWith(color: tokens.dangerText),
-                ),
-              ),
-            ],
           ),
           const SizedBox(height: AppSpacing.s12),
           Row(
