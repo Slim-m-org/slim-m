@@ -8,6 +8,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/admin_providers.dart';
 import '../../../widgets/confirm_dialog.dart';
@@ -82,9 +83,9 @@ class _SubCategoryFollowRowState extends ConsumerState<SubCategoryFollowRow>
 
   @override
   Widget build(BuildContext context) {
-    final stored = ref
-        .watch(categoryOverwritesSyncedProvider(widget.categoryId))
-        .valueOrNull;
+    final syncedProvider = categoryOverwritesSyncedProvider(widget.categoryId);
+    final load = ref.watch(syncedProvider);
+    final stored = load.valueOrNull;
     if (_optimistic != null && !_saving && stored == _optimistic) {
       _optimistic = null;
     }
@@ -95,7 +96,9 @@ class _SubCategoryFollowRowState extends ConsumerState<SubCategoryFollowRow>
       children: [
         SettingsToggleRow(
           label: 'Follow ${widget.parentName}',
-          description: follows
+          description: stored == null && _optimistic == null
+              ? (load.hasError ? null : 'Checking...')
+              : follows
               ? 'Uses the same permissions as ${widget.parentName}.'
               : 'Has its own permissions.',
           value: follows,
@@ -104,6 +107,14 @@ class _SubCategoryFollowRowState extends ConsumerState<SubCategoryFollowRow>
               ? null
               : (value) => unawaited(_set(value)),
         ),
+        if (load.hasError && stored == null)
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.s16),
+            child: AppErrorState(
+              message: "Couldn't check whether this follows its parent.",
+              onRetry: () => ref.invalidate(syncedProvider),
+            ),
+          ),
         if (error != null)
           SettingsSaveFeedback(
             inCard: true,

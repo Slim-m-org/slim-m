@@ -22,6 +22,7 @@ const _sub = '/categories/sub';
 Finder _toggle(String label) =>
     find.byWidgetPredicate((w) => w is AppToggle && w.semanticLabel == label);
 
+const _failedLoad = "Couldn't check whether this follows its parent.";
 final _follow = _toggle('Follow Gamers');
 final _private = _toggle('Private category');
 
@@ -36,6 +37,17 @@ class HeldSyncServer extends OverwriteServer {
     await release.future;
     return super.handle(request);
   }
+}
+
+/// Fails every request until [healed], as a dropped connection does.
+class FlakySyncServer extends OverwriteServer {
+  FlakySyncServer(super.rows, {super.synced});
+
+  bool healed = false;
+
+  @override
+  Future<http.Response> handle(http.Request request) async =>
+      healed ? super.handle(request) : http.Response('', 500);
 }
 
 void main() {
@@ -119,6 +131,34 @@ void main() {
     await pumpFrames(tester);
     expect(find.text('Uses the same permissions as Gamers.'), findsOneWidget);
     expect(_private, findsNothing);
+  });
+
+  testWidgets('while it is not known whether it follows, the row does not '
+      'claim its own permissions', (tester) async {
+    final server = HeldSyncServer({_sub: []}, synced: {_sub: true});
+    await openCategorySheet(tester, server);
+
+    expect(find.text('Has its own permissions.'), findsNothing);
+    expect(find.text('Checking...'), findsOneWidget);
+    server.release.complete();
+    await pumpFrames(tester);
+  });
+
+  testWidgets('a failed load says so and Retry loads it again', (tester) async {
+    final server = FlakySyncServer({_sub: []}, synced: {_sub: true});
+    await openCategorySheet(tester, server);
+    await pumpFrames(tester);
+
+    expect(find.text('Has its own permissions.'), findsNothing);
+    expect(find.text('Checking...'), findsNothing);
+    expect(find.text(_failedLoad), findsOneWidget);
+
+    server.healed = true;
+    await tester.tap(find.text('Retry'));
+    await pumpFrames(tester);
+
+    expect(find.text(_failedLoad), findsNothing);
+    expect(find.text('Uses the same permissions as Gamers.'), findsOneWidget);
   });
 
   testWidgets('a top-level category has no follow switch', (tester) async {
