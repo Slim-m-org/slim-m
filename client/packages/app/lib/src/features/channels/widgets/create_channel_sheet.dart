@@ -97,10 +97,10 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
           id: _createId,
         );
     if (_restricted) await _grantAudience(created.id);
-    if (!mounted) return null;
+    // A new voice channel stays a row in the rail: opening it showed an empty call nobody asked to see.
+    if (!mounted || _kind == 'voice') return null;
     final router = GoRouter.of(context);
-    // Selected, never joined: the voice screen offers Join like any visit to read.
-    final route = Routes.channel(created.id, openChat: _kind == 'voice');
+    final route = Routes.channel(created.id);
     return () => router.go(route);
   }
 
