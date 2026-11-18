@@ -280,6 +280,14 @@ jobs:
           xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/RunnerTests.xcresult" \
             | jq -r '.testFailures[]? | "::error::\(.targetName // "") \(.testName): \(.failureText)"' || true
 
+      # A booted simulator keeps its own daemons busy, and the release build is the slowest compile in the job.
+      - name: shut the simulator down
+        if: needs.changes.outputs.native == 'true'
+        run: |
+          SECONDS=0
+          xcrun simctl shutdown "${{ steps.sim.outputs.udid }}"
+          echo "shut down in ${SECONDS}s"
+
       # PR #292's actual failure: a link error only `build ipa` (Release,
       # device) hit, never the Debug simulator build above. This is that
       # same linking path, unsigned, so it needs no store secrets to run.

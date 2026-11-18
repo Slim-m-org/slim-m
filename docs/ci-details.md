@@ -274,10 +274,13 @@ CocoaPods is cached on the lockfiles, so a restore never mixes pods resolved fro
 Until 2026-11-17 this step was a full `flutter build ios --simulator`, which built the app into `build/ios`, and `xcodebuild test` then built it again in its own DerivedData, about 3.8 minutes more.
 The broadcast extension check reads `BroadcastExtension.appex` from that DerivedData once the build is done; it checks every copy it finds, the embedded one included.
 
-The simulator boots in the background from the job's second step, so its boot overlaps the Flutter setup, pod install and the build, and `run xctest` only waits for it to finish.
+The simulator boots in the background from the job's second step, so its boot (138 s on one runner) overlaps the Flutter setup and pod install, and `run xctest` only waits for it to finish.
+A booted simulator is not free: on one run its own processes (`diagnosticd`, `ApplePushService`, `SpringBoard`, the disk image daemons) used about seven CPU-minutes over a 15 minute job on a 3-core runner, some of it during the build; booting it after the build instead would put the whole boot back on the critical path, which is what this replaced.
 The build and the run are separate steps, `build-for-testing` and then `test-without-building` with `-parallel-testing-enabled NO`: the scheme marks `RunnerTests` parallelizable, and xcodebuild would clone and boot more simulators for a suite that runs in seconds.
 Measured 2026-11-18 on a slow runner (the same image swings about 2.5x between runs, and every phase scales with it): before, 255 s passed between the build finishing and the tests finishing, and another 91 s after "Test Succeeded" while xcodebuild shut its simulator down; after, the boot was done before the build, the step waited 4 s for it, and the whole run took 1.3 minutes.
-`build-for-testing` prints Xcode's build timing summary, where the Flutter build script and the Swift compile lead.
+`build-for-testing` prints Xcode's build timing summary, where the Flutter build script (the Dart compile, 70 to 95 s of silence on a slow runner) and the Swift compile lead.
+It passes `-clonedSourcePackagesDirPath ../build/ios/SourcePackages`, where `--config-only` resolved the Swift packages: without it xcodebuild cloned every package again into its own DerivedData, about 80 s.
+It also turns off the index store (`COMPILER_INDEX_STORE_ENABLE=NO`), which nothing on CI reads.
 IOS_AFTER_PLACEHOLDER
 
 The simulator is chosen from what the runner actually has rather than by name.
