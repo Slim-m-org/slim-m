@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.131.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.130.0...client-v0.131.0) (2026-11-18)
+
+
+### Features
+
+* after 0.130.0 - view as role, private categories, author-only edits, opt-in keybinds, live presence and call roster, soundboard fix and the beta test fixes ([#2415](https://github.com/Slim-m-org/slim-m/issues/2415)) ([912a401](https://github.com/Slim-m-org/slim-m/commit/912a4017d37b61658b13530efe6c3c2881043c9b))
+
 ## [0.130.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.129.0...client-v0.130.0) (2026-11-17)
 
 
