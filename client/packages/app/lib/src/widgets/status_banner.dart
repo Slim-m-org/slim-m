@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The one in-flow status banner, and the severity that decides how long it stays.
+/// The one in-flow status banner: a [StatusPill] with a lifetime its severity decides.
 ///
 /// A banner pushes content and never overlays it (docs/design/desktop-vs-mobile.md,
 /// rule 6). It is a compact pill, not a full-width box, so a notice does not
@@ -12,21 +12,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-/// How a banner looks and how long it stays. Error has no timer by design.
-enum BannerSeverity {
-  info(Duration(seconds: 6)),
-  success(Duration(seconds: 6)),
-  warning(Duration(seconds: 15)),
-  error(null);
+import 'status_pill.dart';
 
-  const BannerSeverity(this.autoDismiss);
-
-  /// Null means the banner stays until dismissed or removed by its caller.
-  final Duration? autoDismiss;
-}
-
-/// The widest a banner grows, so a long message wraps instead of spanning the stage.
-const double kStatusBannerMaxWidth = 560;
+export 'status_pill.dart' show BannerSeverity, kStatusBannerMaxWidth;
 
 class StatusBanner extends StatefulWidget {
   const StatusBanner({
@@ -57,7 +45,7 @@ class StatusBanner extends StatefulWidget {
   final EdgeInsetsGeometry margin;
 
   /// The close button, for a caller's test to find inside its own banner.
-  static const dismissKey = Key('status-banner-dismiss');
+  static const dismissKey = StatusPill.dismissKey;
 
   @override
   State<StatusBanner> createState() => _StatusBannerState();
@@ -104,58 +92,9 @@ class _StatusBannerState extends State<StatusBanner> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final (icon, tone) = switch (widget.severity) {
-      BannerSeverity.info => (AppIcons.info, tokens.textSecondary),
-      BannerSeverity.success => (AppIcons.check, tokens.accent),
-      BannerSeverity.warning => (AppIcons.warning, tokens.warnText),
-      BannerSeverity.error => (AppIcons.failed, tokens.dangerText),
-    };
-    final border = switch (widget.severity) {
-      BannerSeverity.info => tokens.borderSubtle,
-      BannerSeverity.success => tokens.accentFill,
-      BannerSeverity.warning => tokens.warnText,
-      BannerSeverity.error => tokens.dangerBorder,
-    };
     final dismissible =
         !widget.sticky &&
         (widget.severity != BannerSeverity.error || widget.onDismiss != null);
-
-    final pill = Container(
-      constraints: const BoxConstraints(maxWidth: kStatusBannerMaxWidth),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.s12,
-        vertical: AppSpacing.s8,
-      ),
-      decoration: BoxDecoration(
-        color: tokens.surfaceRaised,
-        border: Border.all(color: border),
-        borderRadius: BorderRadius.circular(AppRadii.control),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        spacing: AppSpacing.s8,
-        children: [
-          Icon(widget.icon ?? icon, size: AppSizes.icon16, color: tone),
-          Flexible(
-            child: Text(
-              widget.message,
-              style: AppText.caption.copyWith(color: tokens.textPrimary),
-            ),
-          ),
-          if (widget.action != null) widget.action!,
-          if (dismissible)
-            AppIconButton(
-              key: StatusBanner.dismissKey,
-              icon: AppIcons.dismiss,
-              semanticLabel: 'Dismiss',
-              size: AppIconButtonSize.sm,
-              onPressed: _close,
-            ),
-        ],
-      ),
-    );
-
     return AnimatedSize(
       duration: AppMotion.reducedSize(context, AppMotion.base),
       alignment: Alignment.topCenter,
@@ -165,10 +104,12 @@ class _StatusBannerState extends State<StatusBanner> {
               padding: widget.margin,
               child: Align(
                 alignment: Alignment.center,
-                child: Semantics(
-                  liveRegion: true,
-                  container: true,
-                  child: pill,
+                child: StatusPill(
+                  message: widget.message,
+                  severity: widget.severity,
+                  icon: widget.icon,
+                  action: widget.action,
+                  onDismiss: dismissible ? _close : null,
                 ),
               ),
             ),

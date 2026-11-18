@@ -15,7 +15,21 @@ import 'canvas_text_focus.dart';
 const double _panStep = 0.15;
 
 /// The zoom change of one plus or minus press.
-const double _zoomStep = 1.25;
+const double canvasZoomStep = 1.25;
+
+/// Zooms [document] by [factor] about the middle of the view, as the plus and minus keys do.
+void zoomCanvasAboutCentre(CanvasDocument document, double factor) {
+  final camera = document.camera;
+  final view = document.viewport;
+  document.setCamera(
+    cameraAfterZoom(
+      camera,
+      focal: Offset(view.width / 2, view.height / 2),
+      zoomTarget: camera.zoom * factor,
+      zoomFloor: document.zoomFloor,
+    ),
+  );
+}
 
 class CanvasBoardKeys extends StatefulWidget {
   const CanvasBoardKeys({
@@ -148,9 +162,9 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
       LogicalKeyboardKey.pageDown => _pan(0, view.height * 0.8),
       LogicalKeyboardKey.equal ||
       LogicalKeyboardKey.add ||
-      LogicalKeyboardKey.numpadAdd => _zoom(_zoomStep),
+      LogicalKeyboardKey.numpadAdd => _zoom(canvasZoomStep),
       LogicalKeyboardKey.minus ||
-      LogicalKeyboardKey.numpadSubtract => _zoom(1 / _zoomStep),
+      LogicalKeyboardKey.numpadSubtract => _zoom(1 / canvasZoomStep),
       LogicalKeyboardKey.digit0 || LogicalKeyboardKey.numpad0 => once && _fit(),
       LogicalKeyboardKey.bracketRight => once && _step(1),
       LogicalKeyboardKey.bracketLeft => once && _step(-1),
@@ -180,16 +194,7 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
   }
 
   bool _zoom(double factor) {
-    final camera = _document.camera;
-    final view = _document.viewport;
-    _document.setCamera(
-      cameraAfterZoom(
-        camera,
-        focal: Offset(view.width / 2, view.height / 2),
-        zoomTarget: camera.zoom * factor,
-        zoomFloor: _document.zoomFloor,
-      ),
-    );
+    zoomCanvasAboutCentre(_document, factor);
     return true;
   }
 

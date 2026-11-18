@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The canvas pane's widget tree: the identity strip, the error and
-/// truncation banners, the drawing surface, the floating call-and-canvas
-/// dock, and the text activity log a screen reader can browse in place of
-/// the surface.
+/// The canvas pane's widget tree: the identity strip, the notice floated
+/// above the dock, the drawing surface, the floating call-and-canvas dock,
+/// and the text activity log a screen reader can browse in place of the
+/// surface.
 ///
 /// Split out of `canvas_pane.dart`, which was already past the review
 /// budget. `_CanvasPaneState` owns every callback and every piece of state
@@ -44,7 +44,7 @@ import 'canvas_summary.dart';
 import 'canvas_summon_request.dart' show leaveFullscreenThenSettle;
 import 'canvas_board_pager.dart' show CanvasPaging;
 import 'canvas_paging_indicator.dart';
-import 'canvas_banners.dart';
+import 'canvas_notice.dart';
 import 'canvas_stamp_placement.dart';
 
 part 'canvas_pane_body_builders.dart';
@@ -443,15 +443,14 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                         if (widget.paging case final paging?)
                           CanvasPagingIndicator(paging: paging),
                         FocusTraversalOrder(
-                          key: const ValueKey('canvas-banners'),
+                          key: const ValueKey('canvas-notice'),
                           order: const NumericFocusOrder(0),
-                          child: CanvasBanners(
+                          child: CanvasNotice(
                             callError: widget.callError,
                             onRetryCall: widget.onRetryCall,
                             error: widget.error,
                             onDismissError: widget.onDismissError,
                             onRetryError: widget.onRetryError,
-                            truncated: widget.truncated,
                             unsavedInk: widget.document.unsavedInk.count,
                           ),
                         ),
