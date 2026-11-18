@@ -47,6 +47,38 @@ int _strokesDrawn(StrokePainter painter) {
 /// Antialiased edges differ by a few levels between two raster paths.
 const _edgeTolerance = 24;
 
+Future<Uint8List> _pixels(WidgetTester tester, StrokePainter painter) async =>
+    (await tester.runAsync(() async {
+      final recorder = ui.PictureRecorder();
+      painter.paint(Canvas(recorder), _size);
+      final image = await recorder.endRecording().toImage(1000, 1000);
+      final bytes = await image.toByteData();
+      image.dispose();
+      return bytes!.buffer.asUint8List();
+    }))!;
+
+/// Paints twice, so the second frame draws from a texture.
+Future<void> _warm(WidgetTester tester, StrokePainter painter) async {
+  painter.devicePixelRatio = 1;
+  await _pixels(tester, painter);
+  await _pixels(tester, painter);
+  expect(painter.debugHasInkTexture, isTrue);
+}
+
+/// The next frame of [painter] against a fresh painter's live strokes.
+Future<void> _expectMatchesLive(
+  WidgetTester tester,
+  StrokePainter painter,
+  CanvasDocument document,
+) async {
+  final cached = await _pixels(tester, painter);
+  final reference = StrokePainter(document: document, ink: ink)
+    ..devicePixelRatio = 1;
+  addTearDown(reference.dispose);
+  final live = await _pixels(tester, reference);
+  expect(_worstChannelGap(cached, live), lessThan(_edgeTolerance));
+}
+
 int _worstChannelGap(Uint8List a, Uint8List b) {
   var worst = 0;
   for (var i = 0; i < a.length; i++) {
@@ -79,19 +111,21 @@ void main() {
     expect(_strokesDrawn(painter), 0);
   });
 
-  test('a moved object is drawn live again, then cached again', () {
-    _strokesDrawn(painter);
-    _strokesDrawn(painter);
-
+  testWidgets('a moved object is patched into the texture, not replayed', (
+    tester,
+  ) async {
+    await _warm(tester, painter);
+    final before = painter.debugObjectsPainted;
     document
-      ..moveObject('s3', 500, 500, 16, 16)
+      ..moveObject('s86', 500, 500, 16, 16)
       ..refresh();
-    final canvas = RecordingCanvas();
-    painter.paint(canvas, _size);
-    expect(canvas.deviceStrokeWidths.length, greaterThan(100));
+    await _expectMatchesLive(tester, painter, document);
+    expect(painter.debugHasInkTexture, isTrue);
     expect(
-        canvas.deviceBounds, contains(const Rect.fromLTRB(400, 400, 416, 416)));
-    expect(_strokesDrawn(painter), 0);
+      painter.debugObjectsPainted - before,
+      lessThan(10),
+      reason: 'only the boxes s86 left and reached are redrawn',
+    );
   });
 
   test('a stroke added after the texture is drawn over it, alone', () {
@@ -118,32 +152,28 @@ void main() {
     expect(canvas.deviceBounds.single, const Rect.fromLTRB(200, 200, 216, 216));
   });
 
-  test('a drag that begins and ends between two frames still repaints it', () {
-    _strokesDrawn(painter);
-    _strokesDrawn(painter);
-
+  testWidgets(
+      'a drag that begins and ends between two frames still repaints '
+      'it', (tester) async {
+    await _warm(tester, painter);
     document
-      ..elevatedObjectId.value = 's5'
-      ..moveObject('s5', 300, 300, 16, 16)
+      ..elevatedObjectId.value = 's87'
+      ..moveObject('s87', 300, 300, 16, 16)
       ..elevatedObjectId.value = null
       ..refresh();
-    final canvas = RecordingCanvas();
-    painter.paint(canvas, _size);
-    expect(
-      canvas.deviceBounds,
-      contains(const Rect.fromLTRB(200, 200, 216, 216)),
-    );
+    await _expectMatchesLive(tester, painter, document);
   });
 
-  test('a removed object leaves the texture on the next frame', () {
-    _strokesDrawn(painter);
-    _strokesDrawn(painter);
-
+  testWidgets('a removed object leaves the texture on the next frame', (
+    tester,
+  ) async {
+    await _warm(tester, painter);
+    final before = painter.debugObjectsPainted;
     document
-      ..removeObject('s0')
+      ..removeObject('s85')
       ..refresh();
-    final live = _strokesDrawn(painter);
-    expect(live, greaterThan(100), reason: 'the texture still held s0');
+    await _expectMatchesLive(tester, painter, document);
+    expect(painter.debugObjectsPainted - before, lessThan(10));
   });
 
   test('a zoom past the texture range rebuilds it at the new zoom', () {

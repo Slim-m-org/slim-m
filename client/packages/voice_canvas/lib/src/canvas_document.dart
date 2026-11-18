@@ -86,7 +86,7 @@ class CanvasDocument extends ChangeNotifier {
   /// Marks a stroke as waiting on a retry, or as settled; repaints only on a change.
   void setUnsaved(String id, {required bool unsaved}) {
     if (!unsavedInk.set(id, unsaved: unsaved)) return;
-    _changed();
+    _changed(_strokeById(id));
     notifyListeners();
   }
 
@@ -139,7 +139,11 @@ class CanvasDocument extends ChangeNotifier {
   /// Half the widest pen placed so far, uncapped: how far past its box any ink can reach.
   double get maxInkReach => _maxStrokeWidth / 2;
 
-  void _changed() => _contentRevision++;
+  /// Records a change to the content, and to [stroke]'s own pixels when it names one.
+  void _changed([CanvasStroke? stroke]) {
+    _contentRevision++;
+    stroke?.paintVersion++;
+  }
 
   /// Whether [dispose] ran, so a timer that outlives the document can skip it.
   bool get isDisposed => _isDisposed;
@@ -218,24 +222,28 @@ class CanvasDocument extends ChangeNotifier {
     final existing = _strokes[known];
     // A duplicate naming a slot this document has since freed is refused.
     if (existing == null) return null;
+    var reordered = false;
     // A stroke given up as failed whose commit did land comes back.
     if (!existing.alive) {
       existing.alive = true;
       objectCount.value = objectCount.value + 1;
       _trackOutside(existing);
       _paintOrder.reordered(known);
+      reordered = true;
     }
     // A repeated placement reply must not undo a reorder that landed after the original.
     if (overwrite || input.seq == 0 || input.seq > existing.seq) {
       if (existing.zIndex != input.zIndex || existing.seq != input.seq) {
         _paintOrder.reordered(known);
+        reordered = true;
       }
       existing
         ..zIndex = input.zIndex
         ..seq = input.seq;
     }
-    if (overwrite) _overwriteFrom(existing, input);
-    _changed();
+    final restyled = overwrite && _overwriteFrom(existing, input);
+    // A placement reply, a live echo or a snapshot repeating what is held repaints nothing, so it must not cost the ink cache a rebuild.
+    if (reordered || restyled) _changed(restyled ? existing : null);
     return known;
   }
 
@@ -301,7 +309,7 @@ class CanvasDocument extends ChangeNotifier {
     if (!identical(stroke.image, image)) stroke.image?.dispose();
     stroke.image = image;
     stroke.imageLoadFailed = false;
-    _changed();
+    _changed(stroke);
     notifyListeners();
   }
 
@@ -315,7 +323,7 @@ class CanvasDocument extends ChangeNotifier {
     final stroke = slot == null ? null : _strokes[slot];
     if (stroke == null || !stroke.alive || stroke.image != null) return;
     stroke.imageLoadFailed = true;
-    _changed();
+    _changed(stroke);
     notifyListeners();
   }
 
@@ -334,7 +342,7 @@ class CanvasDocument extends ChangeNotifier {
     if (image == null) return;
     stroke!.image = null;
     image.dispose();
-    _changed();
+    _changed(stroke);
     notifyListeners();
   }
 
@@ -354,7 +362,7 @@ class CanvasDocument extends ChangeNotifier {
     _trackOutside(stroke);
     objectCount.value = objectCount.value - 1;
     _paintOrder.removed(slot);
-    _changed();
+    _changed(stroke);
   }
 
   /// A dying object must not stay offered a resize, reorder or delete.

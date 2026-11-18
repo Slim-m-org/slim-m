@@ -91,7 +91,7 @@ extension CanvasDocumentSelection on CanvasDocument {
       return false;
     }
     stroke.text = text;
-    _changed();
+    _changed(stroke);
     return true;
   }
 
@@ -130,7 +130,7 @@ extension CanvasDocumentSelection on CanvasDocument {
       ..text = text
       ..textSize = size
       ..colorKey = colorKey;
-    _changed();
+    _changed(stroke);
     return true;
   }
 

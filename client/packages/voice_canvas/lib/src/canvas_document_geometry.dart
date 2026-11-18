@@ -48,18 +48,19 @@ extension CanvasDocumentGeometry on CanvasDocument {
       ..h = h;
     if (_board != null) _trackOutside(stroke);
     // A dragged or previewed object paints live above the cached ink, so its own moves leave the cache valid.
+    stroke.paintVersion++;
     if (elevatedObjectId.value != id && !_heldLive.contains(id)) _changed();
     return true;
   }
 
   /// Takes [id] out of the cached ink and paints it live, so a remote preview moving it every frame does not invalidate the texture.
   void holdLive(String id) {
-    if (_heldLive.add(id)) _changed();
+    if (_heldLive.add(id)) _changed(_strokeById(id));
   }
 
   /// Returns [id] to the cached ink once nothing is moving it any more.
   void releaseLive(String id) {
-    if (_heldLive.remove(id)) _changed();
+    if (_heldLive.remove(id)) _changed(_strokeById(id));
   }
 
   /// Whether [id] is painted live over the cached ink because [holdLive] named it.
