@@ -270,6 +270,14 @@ class ChannelTranscriptPane extends ConsumerWidget {
           ...transcript.messages.map((m) => m.authorId),
           ...privateAnswers.map((m) => m.authorId),
         ]);
+        // A channel with nothing delivered has no history to page, so its oldest loaded row is vacuously its first.
+        final shownHistory = contextWindow != null
+            ? const ChannelHistory(atStart: true)
+            : history.copyWith(
+                atStart:
+                    history.atStart ||
+                    (oldest == null && syncStatus == SyncStatus.live),
+              );
         // A deleted newest message leaves nothing to show, but must not leave the channel unread.
         final readUpTo = math.max(transcript.newestSeq, syncedSeq);
         scrollTracker.updateKnownSeqs(
@@ -305,14 +313,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
           knownUsernames: knownUsernames,
           knownRoleNames: knownRoleNames,
           customEmoji: customEmoji,
-          // A channel with nothing delivered has no history to page, so its oldest loaded row is vacuously its first.
-          history: contextWindow != null
-              ? const ChannelHistory(atStart: true)
-              : history.copyWith(
-                  atStart:
-                      history.atStart ||
-                      (oldest == null && syncStatus == SyncStatus.live),
-                ),
+          history: shownHistory,
           onLoadOlder: () => unawaited(paging.loadOlder()),
           onRetryOlder: () => unawaited(paging.retry()),
           // The policy itself lives in `channel_message_actions.dart`; this only supplies the pane's own state.
@@ -356,7 +357,8 @@ class ChannelTranscriptPane extends ConsumerWidget {
             channelId: channelId,
             messageId: replyToId,
           ),
-          fitContent: fitContent,
+          // Fills the space until its rows and the start of its history are in, so a fitted sheet never grows into them.
+          fitContent: fitContent && snapshot.hasData && shownHistory.atStart,
           jumpTargetId: jumpArrival?.messageId,
           jumpToken: jumpArrival?.token,
           onJumpArrived: jumpArrival == null

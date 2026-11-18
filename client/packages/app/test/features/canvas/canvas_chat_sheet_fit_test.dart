@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The canvas chat sheet is as tall as its chat, up to its cap: a short call
 /// chat opened as a sheet of empty space above the first message (owner,
-/// 2026-11-18). A long one still fills the cap, newest on the composer.
+/// 2026-11-18). A long one still fills the cap, newest on the composer, and
+/// neither opens at the empty chat's height and then grows to its messages.
 library;
 
 import 'dart:async';
@@ -48,6 +49,19 @@ Future<void> _withSheet(
 }
 
 Future<void> _open(WidgetTester tester, ProviderContainer container) async {
+  _push(await _shell(tester, container));
+  for (var i = 0; i < 4; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 30)),
+    );
+    await tester.pump(const Duration(milliseconds: 350));
+  }
+}
+
+Future<BuildContext> _shell(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
@@ -60,18 +74,49 @@ Future<void> _open(WidgetTester tester, ProviderContainer container) async {
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 350));
-  final page = tester.element(find.textContaining('general').first);
-  unawaited(showCanvasChatSheet(page, 'c-main'));
-  for (var i = 0; i < 4; i++) {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 30)),
-    );
-    await tester.pump(const Duration(milliseconds: 350));
-  }
+  return tester.element(find.textContaining('general').first);
 }
 
-Rect _sheet(WidgetTester tester) =>
-    tester.getRect(find.bySemanticsLabel('Text chat'));
+void _push(BuildContext page) => unawaited(showCanvasChatSheet(page, 'c-main'));
+
+final _chatBox = find.bySemanticsLabel('Text chat');
+
+Rect _sheet(WidgetTester tester) => tester.getRect(_chatBox);
+
+/// The chat's laid-out height on each frame of its entrance, while its
+/// messages load from the store in real time.
+Future<List<double>> _openingHeights(
+  WidgetTester tester,
+  Size screen,
+  int messages,
+) async {
+  tester.view.physicalSize = screen;
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  final fixture = await fixtureContainer(messages: _chat(messages));
+  final heights = <double>[];
+  await withFixtureTeardown(tester, fixture, () async {
+    _push(await _shell(tester, fixture.container));
+    for (var frame = 0; frame < 20; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      if (_chatBox.evaluate().isNotEmpty) {
+        heights.add(tester.getSize(_chatBox).height);
+      }
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 4)),
+      );
+    }
+  });
+  return heights;
+}
+
+/// Whether [heights] ever grows from one frame to the next.
+Matcher get _neverGrows => predicate<List<double>>((heights) {
+  for (var i = 1; i < heights.length; i++) {
+    if (heights[i] > heights[i - 1] + 0.5) return false;
+  }
+  return heights.isNotEmpty;
+}, 'a height that never grows frame to frame');
 
 void main() {
   setUpAll(loadRealFonts);
@@ -108,4 +153,16 @@ void main() {
       expect(composer.top - newest.bottom, lessThan(AppSpacing.s48));
     });
   });
+
+  for (final (name, screen) in [
+    ('sheet', _screen),
+    ('dialog', const Size(700, 900)),
+  ]) {
+    testWidgets('the $name never opens short and then grows to its chat', (
+      tester,
+    ) async {
+      final heights = await _openingHeights(tester, screen, 4);
+      expect(heights, _neverGrows, reason: '$heights');
+    });
+  }
 }
