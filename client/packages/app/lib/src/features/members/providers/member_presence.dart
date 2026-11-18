@@ -53,9 +53,23 @@ final membersProvider = FutureProvider.autoDispose<List<api.UserProfile>>(
 /// removed-members screen - all want the deployment-wide list, and narrowing
 /// it under them would hide exactly the people they exist to reach.
 final channelMembersProvider = FutureProvider.autoDispose
-    .family<List<api.UserProfile>, String>(
-      (ref, channelId) => _pagedMembers(ref, ref.watch(apiProvider), channelId),
-    );
+    .family<List<api.UserProfile>, String>((ref, channelId) async {
+      final client = ref.watch(apiProvider);
+      await _settled(ref);
+      return _pagedMembers(ref, client, channelId);
+    });
+
+/// How long a channel must stay open before its roster is fetched.
+const channelMembersSettle = Duration(milliseconds: 200);
+
+/// Waits [channelMembersSettle]; never completes once the reader leaves, so
+/// rapid channel switching fetches only the channel it stops on.
+Future<void> _settled(Ref ref) {
+  final settled = Completer<void>();
+  final timer = Timer(channelMembersSettle, settled.complete);
+  ref.onDispose(timer.cancel);
+  return settled.future;
+}
 
 /// Rebuilt on every sign-in: a reader that keeps the roster alive (the desktop
 /// notifier) would otherwise hold a stale session's failure past the next one.

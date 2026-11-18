@@ -21,6 +21,7 @@ import '../../app_tokens.dart';
 import '../../app_typography.dart';
 import '../core/spinner.dart';
 import 'error_state.dart';
+import 'load_retry.dart';
 
 /// Renders [loading], [error] or [data] for an async value, with one look.
 ///
@@ -119,13 +120,19 @@ class _AppAsyncViewState<T> extends State<AppAsyncView<T>> {
       return _wrap(
         Padding(
           padding: const EdgeInsets.all(AppSpacing.s16),
-          child: AppErrorState(message: errorMessage, onRetry: onRetry),
+          child: AppLoadRetry(
+            onRetry: onRetry,
+            child: AppErrorState(message: errorMessage, onRetry: onRetry),
+          ),
         ),
       );
     }
     final banner = Padding(
       padding: const EdgeInsets.all(AppSpacing.s12),
-      child: AppErrorState(message: errorMessage, onRetry: onRetry),
+      child: AppLoadRetry(
+        onRetry: onRetry,
+        child: AppErrorState(message: errorMessage, onRetry: onRetry),
+      ),
     );
     // Which layout is safe follows the constraint actually given here.
     return LayoutBuilder(
