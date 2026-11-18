@@ -44,9 +44,12 @@ class CellChip extends StatelessWidget {
   final double width;
   final double height;
 
+  /// A disabled cell answers no tap, so it never looks as if it would.
+  bool get _active => (hovered || pressed) && !disabled;
+
   /// Fill, border and glyph for [state], one step stronger while hovered or pressed.
   (Color, Color, Color, IconData) _paint(AppTokens tokens) {
-    final active = hovered || pressed;
+    final active = _active;
     return switch (state) {
       CellState.allow => (
         tokens.accentFill,
@@ -79,7 +82,7 @@ class CellChip extends StatelessWidget {
     final (fill, border, glyph, icon) = _paint(tokens);
     final duration = AppMotion.reduced(context, AppMotion.fast);
     return AnimatedScale(
-      scale: pressed ? 0.94 : 1,
+      scale: pressed && _active ? 0.94 : 1,
       duration: duration,
       curve: AppMotion.entrance,
       child: SizedBox(
