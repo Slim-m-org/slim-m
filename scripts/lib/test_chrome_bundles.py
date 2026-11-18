@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-"""How client/chrome-tests.txt is split into legs and bundled into one page per package."""
+"""How client/chrome-tests.txt is bundled into one page per package and run."""
 import io
 import json
 import os
@@ -41,24 +41,10 @@ def _package(root, pubspec, files):
     return pkg
 
 
-class LegTest(unittest.TestCase):
-    def test_two_legs_run_every_listed_file_once_and_split_it_evenly(self):
-        listed = chrome_bundles.entries()
-        first = chrome_bundles.leg_entries(listed, 0, 2)
-        second = chrome_bundles.leg_entries(listed, 1, 2)
-        self.assertFalse(set(first) & set(second))
-        self.assertEqual(sorted(first + second), sorted(listed))
-        self.assertLessEqual(abs(len(first) - len(second)), 1)
-
-    def test_a_malformed_or_out_of_range_leg_is_refused(self):
-        for leg in ("0/2", "3/2", "2", "a/b", "1/0", ""):
-            with self.subTest(leg=leg), self.assertRaises(ValueError):
-                chrome_bundles.parse_leg(leg)
-
-    def test_the_script_refuses_a_bad_leg_before_running_anything(self):
-        env = dict(os.environ, CHROME_LEG="3/2")
-        result = subprocess.run(["bash", str(ROOT / "scripts" / "chrome-tests.sh")],
-                                env=env, capture_output=True, text=True, check=False)
+class ScriptTest(unittest.TestCase):
+    def test_the_script_refuses_an_unknown_option_before_running_anything(self):
+        result = subprocess.run(["bash", str(ROOT / "scripts" / "chrome-tests.sh"), "--shards", "2"],
+                                capture_output=True, text=True, check=False)
         self.assertEqual(result.returncode, 2, result.stderr)
 
 
@@ -164,7 +150,7 @@ class RunTest(unittest.TestCase):
 
 
 class PoolTest(unittest.TestCase):
-    def test_every_package_runs_and_one_failure_fails_the_leg(self):
+    def test_every_package_runs_and_one_failure_fails_the_job(self):
         listed = ["a/test/x_test.dart", "b/test/x_test.dart", "b/test/y_test.dart"]
         seen = []
 
@@ -176,7 +162,7 @@ class PoolTest(unittest.TestCase):
                 mock.patch.object(chrome_bundles, "entries", return_value=listed), \
                 mock.patch.object(chrome_bundles, "run_package", fake_package), \
                 mock.patch("sys.stdout", new_callable=io.StringIO) as out:
-            code = chrome_bundles.run("1/1", tmp, jobs=1)
+            code = chrome_bundles.run(tmp, jobs=1)
         self.assertEqual(code, 1)
         self.assertEqual(seen, [("b", ["test/x_test.dart", "test/y_test.dart"]), ("a", ["test/x_test.dart"])])
         self.assertIn("output of a", out.getvalue())

@@ -168,7 +168,9 @@ jobs:
           fi
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
           xcrun simctl list devices available | grep "$udid" || true
-          nohup xcrun simctl bootstatus "$udid" -b > "$RUNNER_TEMP/simulator-boot.log" 2>&1 &
+          started=$(date +%s)
+          nohup bash -c 'xcrun simctl bootstatus "$1" -b && echo "booted in $(( $(date +%s) - $2 ))s"' _ "$udid" "$started" \
+            > "$RUNNER_TEMP/simulator-boot.log" 2>&1 &
 
       - name: set up flutter (stable channel)
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
@@ -215,8 +217,11 @@ jobs:
             -skipPackageUpdates \
             -showBuildTimingSummary \
             CODE_SIGNING_ALLOWED=NO \
-            2>&1 | tee "$RUNNER_TEMP/build-for-testing.log" | xcpretty || exit "${PIPESTATUS[0]}"
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            2>&1 | perl -MPOSIX -pe '$|=1; $_ = strftime("%H:%M:%S ", localtime) . $_' \
+            | tee "$RUNNER_TEMP/build-for-testing.log" | cut -d' ' -f2- | xcpretty || exit "${PIPESTATUS[0]}"
           sed -n '/Build Timing Summary/,$p' "$RUNNER_TEMP/build-for-testing.log"
+          awk '{ split($1, t, ":"); now = t[1] * 3600 + t[2] * 60 + t[3]; if (NR > 1 && now - last >= 10) print "gap of " now - last "s before: " substr($0, 1, 160); last = now }' "$RUNNER_TEMP/build-for-testing.log"
 
       # An app extension carrying a Frameworks directory is refused by the
       # store with error 90206, which only surfaces at upload - after a
@@ -254,6 +259,7 @@ jobs:
             exit 1
           fi
           echo "waited ${SECONDS}s for the simulator to finish booting"
+          tail -n 1 "$RUNNER_TEMP/simulator-boot.log"
           xcodebuild test-without-building \
             -workspace Runner.xcworkspace \
             -scheme Runner \
@@ -271,11 +277,43 @@ jobs:
           xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/RunnerTests.xcresult" \
             | jq -r '.testFailures[]? | "::error::\(.targetName // "") \(.testName): \(.failureText)"' || true
 
-      # PR #292's actual failure: a link error only `build ipa` (Release,
-      # device) hit, never the Debug simulator build above. This is that
-      # same linking path, unsigned, so it needs no store secrets to run.
+      - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
+
+  # PR #292's actual failure: a link error only `build ipa` (Release,
+  # device) hit, never the Debug simulator build above. This is that
+  # same linking path, unsigned, so it needs no store secrets to run.
+  # Its own job since 2026-11-18, so its five minutes run beside the XCTest job rather than after it.
+  ios-release-build:
+    name: ios release build links (device, no codesign)
+    needs: [changes]
+    if: needs.changes.outputs.native == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: set up flutter (stable channel)
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: 3.47.0
+          cache: true
+
+      - uses: ./.github/actions/native-hooks-cache
+
+      - name: resolve workspace dependencies
+        working-directory: client
+        run: flutter pub get --enforce-lockfile
+
+      - name: cache cocoapods
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            client/packages/app/ios/Pods
+            ~/Library/Caches/CocoaPods
+          key: pods-${{ runner.os }}-${{ hashFiles('client/packages/app/ios/Podfile.lock', 'client/pubspec.lock') }}
+
       - name: build for a real device in release configuration (no codesign)
-        if: needs.changes.outputs.native == 'true'
         working-directory: client/packages/app
         run: flutter build ios --release --no-codesign
 

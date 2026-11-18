@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Runs the files in client/chrome-tests.txt under Chrome, many files to a page.
 
-  chrome_bundles.py run [--leg 1/2] [--jobs 3]   bundle, run, then rerun a failed bundled file alone
-  chrome_bundles.py plan [--leg 1/2]             print what each package runs
+  chrome_bundles.py run [--jobs 3]   bundle, run, then rerun a failed bundled file alone
+  chrome_bundles.py plan             print what each package runs
 
 `flutter test --platform chrome` compiles every file it is given once, then
 loads each file in a page of its own, one page at a time: about six seconds a
@@ -28,7 +28,6 @@ PACKAGES = os.path.join(CLIENT, "packages")
 LIST = os.path.join(CLIENT, "chrome-tests.txt")
 LONE_FILE = os.path.join(HERE, "chrome_bundle_lone.txt")
 BUNDLE_DIR = os.path.join("test", ".chrome_bundles")
-_LEG = re.compile(r"([1-9][0-9]*)/([1-9][0-9]*)")
 _FLUTTER_TEST_DEP = re.compile(r"^\s+flutter_test:", re.M)
 
 
@@ -36,19 +35,6 @@ def entries(path=LIST):
     """Every listed file, as <package>/test/<path>, in list order."""
     with open(path, encoding="utf-8") as fh:
         return [line.strip() for line in fh if line.strip()]
-
-
-def parse_leg(text):
-    """(index, legs) from "n/legs", 1-based n; ValueError when malformed or out of range."""
-    match = _LEG.fullmatch(text or "")
-    if not match or int(match.group(1)) > int(match.group(2)):
-        raise ValueError(f"a leg is <n>/<legs> with n <= legs, got {text!r}")
-    return int(match.group(1)) - 1, int(match.group(2))
-
-
-def leg_entries(listed, index, legs):
-    """Every [legs]th entry from [index], so the legs together run each entry once."""
-    return [e for i, e in enumerate(listed) if i % legs == index]
 
 
 def by_package(listed):
@@ -140,13 +126,9 @@ def run_package(package, files, out_dir, packages=PACKAGES):
     return code, "\n".join([header, *_read(log), *retried, "::endgroup::", *notes])
 
 
-def run(leg, out_dir, jobs):
-    """Runs a leg's packages [jobs] at a time, the largest first; each prints once it is done."""
-    index, legs = parse_leg(leg)
-    grouped = by_package(leg_entries(entries(), index, legs))
-    if not grouped:
-        print(f"leg {leg} has no files", file=sys.stderr)
-        return 2
+def run(out_dir, jobs):
+    """Runs every listed package [jobs] at a time, the largest first; each prints once it is done."""
+    grouped = by_package(entries())
     os.makedirs(out_dir, exist_ok=True)
     status = 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
@@ -159,9 +141,8 @@ def run(leg, out_dir, jobs):
     return status
 
 
-def show(leg):
-    index, legs = parse_leg(leg)
-    for package, files in by_package(leg_entries(entries(), index, legs)).items():
+def show():
+    for package, files in by_package(entries()).items():
         bundles, alone = plan(os.path.join(PACKAGES, package), files)
         print(f"{package}: {len(files)} files, {len(bundles)} bundles, {len(alone)} alone")
         for name, members in bundles.items():
@@ -182,18 +163,12 @@ def _read(path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("cmd", choices=["run", "plan"])
-    parser.add_argument("--leg", default=os.environ.get("CHROME_LEG") or "1/1")
     parser.add_argument("--out", default=os.path.join(CLIENT, "build", "chrome-tests"))
     parser.add_argument("--jobs", type=int, default=3, help="packages run at once")
     args = parser.parse_args(argv)
-    try:
-        parse_leg(args.leg)
-    except ValueError as err:
-        print(err, file=sys.stderr)
-        return 2
     if args.cmd == "plan":
-        return show(args.leg)
-    return run(args.leg, args.out, max(1, args.jobs))
+        return show()
+    return run(args.out, max(1, args.jobs))
 
 
 if __name__ == "__main__":

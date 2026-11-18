@@ -114,15 +114,28 @@ The `linux-tarball` composite carries the cache itself, but a composite cannot r
 
 ### Logic tests also run as JavaScript
 
-The `test-chrome` job (`logic tests under dart2js (chrome)`) runs `scripts/chrome-tests.sh`, which feeds every file named in `client/chrome-tests.txt` to `flutter test --platform chrome`, one invocation per package.
-dart2js evaluates integer shifts and 64-bit maths differently from the VM, so a bug can exist only in the web build: web ids once minted a wrong timestamp and the canvas grid key collided (#1540), both found only by running the suite under Chrome by hand.
-The list holds 220 files (api, app, design_system, platform, rtc, voice_canvas), chosen by running every candidate that imports no `dart:io`, `dart:ffi`, drift or platform channel and keeping the ones that pass.
+The `test-chrome` job (`logic tests compiled to javascript (chrome)`) runs `scripts/chrome-tests.sh`, which runs every file named in `client/chrome-tests.txt` under `flutter test --platform chrome` through `scripts/lib/chrome_bundles.py`.
+`flutter test --platform chrome` compiles with DDC rather than dart2js, but both make an `int` a JavaScript number, which is what this is for.
+JavaScript evaluates integer shifts and 64-bit maths differently from the VM, so a bug can exist only in the web build: web ids once minted a wrong timestamp and the canvas grid key collided (#1540), both found only by running the suite under Chrome by hand.
+The list holds 224 files (api, app, design_system, platform, rtc, voice_canvas), chosen by running every candidate that imports no `dart:io`, `dart:ffi`, drift or platform channel and keeping the ones that pass.
 A file is opt-in: run `flutter test --platform chrome <file>` first and add it only if it passes.
-A logic test kept off the list on purpose goes in `client/chrome-tests-vm-only.txt` with its reason, tab separated: the twelve there need drift's native database, `dart:io`, or desktop-only code (`isDesktopHost` is false on the web), and `scripts/lib/test_chrome_test_lists.py` checks both lists name real files and never the same one.
+A logic test kept off the list on purpose goes in `client/chrome-tests-vm-only.txt` with its reason, tab separated: the eleven there need drift's native database, `dart:io`, or desktop-only code (`isDesktopHost` is false on the web), and `scripts/lib/test_chrome_test_lists.py` checks both lists name real files and never the same one.
 `canvas_convergence_property_test` runs 10 random seeds as JavaScript instead of the VM's 40, since it was only ever too slow for the 30 second default there, never wrong.
-Locally the whole list takes about nine minutes, but a CI runner took 20.6 minutes at the median (p90 21.1, max 21.8 over 38 runs), so the job runs as two legs (`logic tests under dart2js (chrome 1)` and `(chrome 2)`).
-Until 2026-11-10 each leg passed `flutter test --total-shards=2`, which splits the tests but still compiles every file in every leg: both legs ran tests from all 222 listed files, took 15 to 24 minutes each against the 25 minute limit, and twice hit it.
-Now `CHROME_LEG=<n>/2` deals the list's files alternately between the legs, so each compiles only its own half, and `scripts/lib/test_chrome_tests_legs.py` checks the legs together run every file exactly once.
+
+The tool compiles every file it is given in one go, then loads each file in a page of its own, one page at a time, since web tests ignore `--concurrency`.
+On a runner a page load cost about six seconds: in one leg's app group on 2026-11-18, 86 s went to the compile and 428 s to loading 73 pages.
+So `chrome_bundles.py` writes one bundle per package into its gitignored `test/.chrome_bundles/`, the way the app shards bundle files on the VM, and a package is one page.
+Files are split only by state no teardown undoes (real fonts, `PackageInfo` mocks), as on the VM.
+A file that cannot share a page loads alone: the VM bundles' reasons, a library-level test annotation (`@TestOn`, `@Timeout` and the like, which only an entrypoint's own library carries), and the files in `scripts/lib/chrome_bundle_lone.txt`.
+Three packages run at once, each with `--no-pub`, since the workspace's `pub get` ran a step earlier and concurrent ones would race on its package config.
+A failed package reruns its failed bundled files alone: a file that passes alone is a warning naming it, the same rule as the app shards, and `SLIMM_TEST_PER_FILE=1` turns the bundling off here too.
+`scripts/lib/test_chrome_bundles.py` checks every listed file is bundled once or loads alone, and the retry rules.
+
+Measured locally on the whole list, 2026-11-18: about nine minutes one file at a time, 207 s bundled one package at a time, 94 s three at a time, with the same 1800 tests, and every app file's results matched a per-file run.
+Until 2026-11-18 the job ran as two legs, `logic tests under dart2js (chrome 1)` and `(chrome 2)`, each with every other file: a median 11.1 and 10.9 minutes over 12 runs (9.7 to 14.3).
+On the first CI run bundled (PR #2422, run 44361882823) the one job took 4.4 minutes, 3.9 of it the test step, with the same 1800 tests passing.
+Each package's own time there, compile included: app 232 s, rtc 119, api 75, platform 64, design_system 62, voice_canvas 41; app is the whole critical path, and the other five finish on the other two workers inside it.
+Sharding with `flutter test --total-shards` would not help: it splits the tests but still compiles every file in every shard, which is how the two legs took 15 to 24 minutes each until 2026-11-10 and twice hit the 25 minute limit.
 The job has no `needs`, so it runs beside the test shards.
 It is not in `verify-client-ci`'s `required_checks`.
 

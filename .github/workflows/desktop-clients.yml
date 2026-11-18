@@ -47,7 +47,7 @@ jobs:
     uses: ./.github/workflows/verify-release-checks.yml
     with:
       ref: ${{ inputs.tag || github.ref_name }}
-      required_checks: "analyze, format check|test and web build|linux desktop compiles|linux desktop shell smoke (Xvfb)|ios unit tests (callkit invariant)|ios sources are registered in project.pbxproj|hygiene|pub dependency licenses|breaking-change gate (additive-only, push to main)"
+      required_checks: "analyze, format check|test and web build|linux desktop compiles|linux desktop shell smoke (Xvfb)|ios unit tests (callkit invariant)|ios release build links (device, no codesign)|ios sources are registered in project.pbxproj|hygiene|pub dependency licenses|breaking-change gate (additive-only, push to main)"
 
   windows-client:
     name: windows tester build
