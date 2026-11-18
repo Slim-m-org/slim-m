@@ -439,10 +439,10 @@ Future<void> sendOptimistically(
   }
 }
 
-/// `retryFailedSends` sends it again on the next reconnect, so an unreachable
-/// server must not read as final the way "Nothing was changed" does.
+/// `retryFailedSends` resends on the next reconnect, so this must not read as final; a proxy page or one
+/// dropped request leaves the socket up with no reconnect coming, so it points to Retry too.
 String _sendFailureReason(api.ApiException e) => e is api.TransportException
-    ? 'Could not reach the server. Sending again when you reconnect.'
+    ? 'Could not reach the server. Retry, or it is sent again when you reconnect.'
     : describeApiFailure('send the message', e);
 
 /// Retries a local write that lost a lock race, then logs and goes on: the

@@ -25,7 +25,9 @@ class _Me extends EffectiveMe {
   );
 }
 
-Future<Message> _failedSend() async {
+Future<Message> _failedSend([
+  Future<http.Response> Function(http.Request)? answer,
+]) async {
   final db = SlimmDatabase(NativeDatabase.memory());
   addTearDown(db.close);
   final container = ProviderContainer(
@@ -44,7 +46,7 @@ Future<Message> _failedSend() async {
             ),
           ),
           httpClient: MockClient(
-            (request) async => throw http.ClientException('offline'),
+            answer ?? (request) async => throw http.ClientException('offline'),
           ),
         ),
       ),
@@ -79,5 +81,21 @@ void main() {
     final failed = await _failedSend();
     expect(failed.failureReason, contains('when you reconnect'));
     expect(failed.failureReason, isNot(contains('Nothing was changed')));
+  });
+
+  test('a proxy page, with the live connection still up, points to Retry '
+      'rather than promising a resend', () async {
+    final failed = await _failedSend(
+      (request) async => http.Response(
+        '<html>502 Bad Gateway</html>',
+        200,
+        headers: {'content-type': 'text/html'},
+      ),
+    );
+    expect(
+      failed.failureReason,
+      'Could not reach the server. Retry, or it is sent again when you '
+      'reconnect.',
+    );
   });
 }
