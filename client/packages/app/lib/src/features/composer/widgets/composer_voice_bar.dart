@@ -17,6 +17,11 @@ import 'composer_attachments.dart';
 /// which now holds it, uploaded.
 typedef VoiceSent = void Function(AttachmentStagingController staging);
 
+/// Why Send keeps a clip back once files dropped during the recording fill the tray.
+const kVoiceTrayFullRefusal =
+    'A message holds up to $kMaxStagedAttachments files. '
+    'Remove one to send this.';
+
 /// The mic that stands in for Send. It wakes a moment after it appears, so the
 /// second click of a double-click on Send cannot land on it and start recording,
 /// and every click while it sleeps starts that moment again, so clicking Send
@@ -124,9 +129,11 @@ class ComposerVoiceBar extends ConsumerWidget {
   Future<void> _send(WidgetRef ref, VoiceRecorder recorder) async {
     // Read before the upload, which a channel switch can outlast.
     final staging = ref.read(attachmentStagingProvider(channelId));
-    final sent = await recorder.send();
+    final sent = await recorder.send(
+      refusal: () => staging.isFull ? kVoiceTrayFullRefusal : null,
+    );
     if (sent == null) return;
-    staging.addResolved(sent.$1, sent.$2);
+    if (staging.addResolved(sent.$1, sent.$2) != null) return;
     onSent(staging);
   }
 }
