@@ -28,6 +28,12 @@ const kRosterGapConfirm = Duration(seconds: 8);
 /// How often the server's list is read while in a call, beside the nudges its events give.
 const kRosterGapPoll = Duration(seconds: 10);
 
+/// How long a shown gap may stand on the last good reading while reads fail.
+///
+/// A failed read is no evidence either way, so past this the gap is dropped
+/// rather than left naming someone who may have left.
+const kRosterGapStale = Duration(seconds: 15);
+
 /// Someone the server lists in the call whom this device's call has not delivered.
 typedef PendingPeer = ({String id, String name});
 
@@ -89,6 +95,12 @@ class RosterGapTracker {
     );
   }
 
+  /// Forgets every reading, so the next one starts its confirmation afresh.
+  void reset() {
+    _since.clear();
+    _selfMissingSince = null;
+  }
+
   /// Drops a reading that no longer applies, so the stage stops waiting on the next poll.
   CallRosterGap forget(CallRosterGap gap, Set<String> shown) => CallRosterGap(
     connecting: [
@@ -111,8 +123,6 @@ final callRosterGapProvider =
     );
 
 class CallRosterGapNotifier extends AutoDisposeNotifier<CallRosterGap> {
-  final _tracker = RosterGapTracker();
-
   // Every roster change re-derives the gap; only a different one may rebuild the stage.
   @override
   bool updateShouldNotify(CallRosterGap previous, CallRosterGap next) =>
@@ -128,21 +138,29 @@ class CallRosterGapNotifier extends AutoDisposeNotifier<CallRosterGap> {
     if (channelId == null) return CallRosterGap.none;
     final client = ref.watch(apiProvider);
     final clock = ref.watch(rosterGapClockProvider);
+    // Per connected stretch: a rejoin must confirm afresh, not inherit the old clock.
+    final tracker = RosterGapTracker();
     Timer? timer;
+    Timer? stale;
     var gone = false;
     var inFlight = false;
-    List<api.VoiceRosterParticipant>? server;
 
     Set<String> shown() => {
       for (final p in ref.read(voiceParticipantsProvider))
         if (!p.isLocal) p.identity,
     };
 
-    void apply() {
-      final last = server;
-      if (gone || last == null) return;
-      state = _tracker.observe(
-        server: last,
+    void dropStale() {
+      if (gone) return;
+      tracker.reset();
+      state = CallRosterGap.none;
+    }
+
+    void observe(List<api.VoiceRosterParticipant> server) {
+      stale?.cancel();
+      stale = Timer(kRosterGapStale, dropStale);
+      state = tracker.observe(
+        server: server,
         shown: shown(),
         selfId: client.session.tokens?.userId,
         now: clock(),
@@ -154,9 +172,12 @@ class CallRosterGapNotifier extends AutoDisposeNotifier<CallRosterGap> {
       timer?.cancel();
       inFlight = true;
       try {
-        server = (await client.voiceRosterSnapshot(channelId)).participants;
+        final server = (await client.voiceRosterSnapshot(
+          channelId,
+        )).participants;
+        if (!gone) observe(server);
       } on Object catch (error, stack) {
-        // The last answer stands: a failing read is no evidence anyone left.
+        // No reading at all: the last one ages until [kRosterGapStale] drops it.
         api.AppLog.swallowed(
           api.LogTag.voice,
           'Could not compare the call with the server',
@@ -166,12 +187,11 @@ class CallRosterGapNotifier extends AutoDisposeNotifier<CallRosterGap> {
       } finally {
         inFlight = false;
       }
-      apply();
       if (!gone) timer = Timer(kRosterGapPoll, () => unawaited(poll()));
     }
 
     ref.listen(voiceParticipantsProvider, (_, _) {
-      if (!gone) state = _tracker.forget(state, shown());
+      if (!gone) state = tracker.forget(state, shown());
     });
 
     // Only an events feed already running; starting the sync machinery is not this check's job.
@@ -186,6 +206,7 @@ class CallRosterGapNotifier extends AutoDisposeNotifier<CallRosterGap> {
     ref.onDispose(() {
       gone = true;
       timer?.cancel();
+      stale?.cancel();
       unawaited(events?.cancel());
     });
     unawaited(poll());
