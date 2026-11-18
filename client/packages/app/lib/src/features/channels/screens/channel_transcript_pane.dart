@@ -90,6 +90,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
     required this.manuallyUnread,
     required this.onMarkRead,
     required this.onReply,
+    this.fitContent = false,
   });
 
   final String channelId;
@@ -134,6 +135,9 @@ class ChannelTranscriptPane extends ConsumerWidget {
   /// `_ChannelScreenState._startReply`: shows the reply banner above the
   /// composer, which lives outside this pane entirely.
   final ValueChanged<Message> onReply;
+
+  /// `ChannelScreen.fitContent`: as tall as the messages, not the space given.
+  final bool fitContent;
 
   void _startEdit(WidgetRef ref, Message message) =>
       ref.read(editingMessageIdProvider(channelId).notifier).state = message.id;
@@ -352,6 +356,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
             channelId: channelId,
             messageId: replyToId,
           ),
+          fitContent: fitContent,
           jumpTargetId: jumpArrival?.messageId,
           jumpToken: jumpArrival?.token,
           onJumpArrived: jumpArrival == null
@@ -363,22 +368,28 @@ class ChannelTranscriptPane extends ConsumerWidget {
       },
     );
 
-    return Expanded(
+    final fit = fitContent ? FlexFit.loose : FlexFit.tight;
+    return Flexible(
+      fit: fit,
       child: DismissKeyboardOnDrag(
         // Tapping the transcript dismisses the keyboard, which on a phone otherwise covers what the tap was aiming at.
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onTap: () => FocusScope.of(context).unfocus(),
           child: Stack(
-            fit: StackFit.expand,
+            fit: fitContent ? StackFit.loose : StackFit.expand,
             children: [
               // Kept mounted under the results, so closing the search returns the reader to where they were.
               Visibility(
                 visible: !searchShowing,
                 maintainState: true,
                 child: Column(
+                  mainAxisSize: fitContent
+                      ? MainAxisSize.min
+                      : MainAxisSize.max,
                   children: [
-                    Expanded(
+                    Flexible(
+                      fit: fit,
                       child: Stack(
                         children: [
                           transcript,
