@@ -206,11 +206,12 @@ final callRestoreWatchProvider = Provider<void>((ref) {
     );
     refresh ??= Timer.periodic(
       callRestoreRefresh,
-      (_) => unawaited(sync(null, ref.read(voiceFlagsProvider))),
+      (_) => unawaited(sync(null, ref.read(voiceFlagsAtOnce))),
     );
   }
 
-  ref.listen<VoiceFlags>(voiceFlagsProvider, (before, now) {
+  // A mute made with the window in the tray, which draws no frames, must reach the record before an update restart.
+  ref.listen<VoiceFlags>(voiceFlagsAtOnce, (before, now) {
     if (before?.channelId == now.channelId &&
         before?.state == now.state &&
         before?.microphoneEnabled == now.microphoneEnabled &&

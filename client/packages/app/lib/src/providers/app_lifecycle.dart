@@ -107,12 +107,12 @@ final appVisibleProvider = Provider<bool>(
   (ref) => isWindowVisible(ref.watch(appLifecycleProvider)),
 );
 
-/// Whether a timer-driven refresh of [context] would be seen: the app is in
-/// the foreground and no route or tab above it has turned tickers off.
+/// Whether a timer-driven refresh of [context] would be seen: the window is on
+/// screen, focused or not, and no route or tab above it has turned tickers off.
 bool isSeenNow(BuildContext context) {
-  final state = WidgetsBinding.instance.lifecycleState;
-  final focused = state == null || state == AppLifecycleState.resumed;
-  return focused && TickerMode.valuesOf(context).enabled;
+  final container = ProviderScope.containerOf(context, listen: false);
+  return isWindowVisible(container.read(appLifecycleProvider)) &&
+      TickerMode.valuesOf(context).enabled;
 }
 
 /// Whether a phone has left the screen; a desktop window never counts, and
