@@ -370,9 +370,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
               minLines: 2,
               maxLines: 4,
               keyboardType: TextInputType.multiline,
-              inputFormatters: [
-                LengthLimitingTextInputFormatter(kInviteDescriptionMaxChars),
-              ],
+              maxLength: kInviteDescriptionMaxChars,
               onChanged: (_) => setState(() {}),
             ),
           ),

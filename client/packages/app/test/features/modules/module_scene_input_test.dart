@@ -200,5 +200,24 @@ void main() {
 
       expect(submitted, ['second:b']);
     });
+
+    testWidgets('max counts code points, the unit a module counts in', (
+      tester,
+    ) async {
+      const family =
+          '\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}\u{200D}\u{1F466}';
+      await _pumpOverlay(
+        tester,
+        _scene('{"op":"input","x":0,"y":0,"w":100,"submit":"g","max":5}'),
+      );
+      final field = find.byWidgetPredicate((w) => w is EditableText);
+
+      await tester.enterText(field, family * 3);
+      await tester.pump();
+
+      final typed = tester.widget<EditableText>(field).controller.text;
+      expect(typed.runes.length, 5);
+      expect(find.text('5/5'), findsNothing, reason: 'the scene owns the room');
+    });
   });
 }

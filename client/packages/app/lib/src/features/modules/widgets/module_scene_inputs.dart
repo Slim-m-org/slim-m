@@ -18,7 +18,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'module_scene.dart';
@@ -162,9 +161,9 @@ class _SceneInputOverlayState extends State<SceneInputOverlay> {
                 focusNode: _focus[op.submit],
                 placeholder: op.placeholder,
                 size: AppInputSize.sm,
-                inputFormatters: [
-                  LengthLimitingTextInputFormatter(op.maxLength),
-                ],
+                maxLength: op.maxLength,
+                // A counter under the field would cover whatever the module drew there.
+                counterNearLimit: false,
                 semanticLabel: op.placeholder ?? 'Scene input',
                 textInputAction: TextInputAction.done,
                 onSubmitted: (text) => _submit(op, text),
