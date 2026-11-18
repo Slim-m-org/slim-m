@@ -36,11 +36,11 @@ double _diameterFor(AppIconButtonSize size) => switch (size) {
 /// A square icon-only button with rounded corners, not a circle.
 ///
 /// [active] is a persistent accent-tinted state (a toggled-on control, an
-/// applied filter): a fill plus an accent border. It is a different thing
-/// from keyboard focus, which is a ring drawn from [AppTokens.focusRing] on
-/// top of whatever [active]/[variant] state is already showing. Conflating
-/// the two would make a toggled-on button indistinguishable from one a
-/// keyboard user merely tabbed onto.
+/// applied filter): a tinted fill and an accent glyph, with no outline. It is
+/// a different thing from keyboard focus, which is a ring drawn from
+/// [AppTokens.focusRing] on top of whatever [active]/[variant] state is
+/// already showing; the ring is the only accent outline, so a toggled-on
+/// button never looks like one a keyboard user merely tabbed onto.
 ///
 /// The visible sizes (26/28/34/38) are all smaller than this system's touch
 /// minimum. [touch] (matching [AppListRow]'s parameter of the same name)
@@ -255,8 +255,8 @@ class _AppIconButtonState extends State<AppIconButton> with PressTracking {
     if (widget._active) {
       fill = tokens.accentSoft;
       ink = tokens.accent;
-      // The caret beside a joined control draws the seam in the subtle border.
-      border = joined ? tokens.borderSubtle : tokens.accentFill;
+      // No accent outline: focusRing and accentFill are one colour, so it read as keyboard focus. A joined caret keeps its seam.
+      border = joined ? tokens.borderSubtle : null;
     }
 
     // Hover and active arrive on AppListRow's own fast clock, never snapping.

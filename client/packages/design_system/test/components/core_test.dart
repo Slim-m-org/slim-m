@@ -242,6 +242,35 @@ void main() {
     });
 
     testWidgets(
+      'active is a tinted fill with no outline, so it never reads as keyboard '
+      'focus',
+      (tester) async {
+        const tokens = AppTokens.dark;
+        await _pump(
+          tester,
+          AppIconButton(
+            icon: AppIcons.settings,
+            semanticLabel: 'x',
+            onPressed: () {},
+            active: true,
+          ),
+          tokens: tokens,
+        );
+        await tester.pump(const Duration(milliseconds: 200));
+
+        final container = tester.widget<Container>(
+          find.descendant(
+              of: find.byType(AppIconButton), matching: find.byType(Container)),
+        );
+        final decoration = container.decoration as BoxDecoration;
+        expect(decoration.color, tokens.accentSoft);
+        expect(decoration.border, isNull);
+        expect(tester.widget<Icon>(find.byIcon(AppIcons.settings)).color,
+            tokens.accent);
+      },
+    );
+
+    testWidgets(
       'focus draws its own ring, kept apart from the active state by shape rather '
       'than colour',
       (tester) async {
@@ -273,7 +302,7 @@ void main() {
           find.descendant(
               of: find.byType(AppIconButton), matching: find.byType(Container)),
         );
-        // Active alone: a filled backdrop plus an accent border, no ring yet.
+        // Active alone: a filled backdrop, no ring yet.
         expect(
             (container.decoration as BoxDecoration).color, tokens.accentSoft);
         expect(container.foregroundDecoration, isNull);

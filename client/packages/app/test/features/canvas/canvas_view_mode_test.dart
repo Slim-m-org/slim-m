@@ -144,6 +144,29 @@ void main() {
     });
   }
 
+  testWidgets('the personal pill is tinted, never outlined like focus', (
+    tester,
+  ) async {
+    final rig = Rig();
+    addTearDown(rig.dispose);
+    rig.mode.showPersonal();
+    await tester.pumpWidget(_wrap(rig));
+
+    final pill = tester.widget<Material>(
+      find.ancestor(
+        of: find.text('Personal view'),
+        matching: find.byWidgetPredicate(
+          (w) => w is Material && w.shape is StadiumBorder,
+        ),
+      ),
+    );
+    expect(pill.color, AppTokens.light.accentSoft);
+    expect(
+      (pill.shape! as StadiumBorder).side.color,
+      AppTokens.light.borderSubtle,
+    );
+  });
+
   testWidgets('the pill names the view and a tap switches it', (tester) async {
     final rig = Rig();
     addTearDown(rig.dispose);

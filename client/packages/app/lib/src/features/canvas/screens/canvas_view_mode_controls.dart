@@ -90,7 +90,6 @@ class _Pill extends StatelessWidget {
       child: CanvasPillSurface(
         tokens: tokens,
         color: selected ? tokens.accentSoft : null,
-        borderColor: selected ? tokens.accent : null,
         onTap: onTap,
         child: ConstrainedBox(
           constraints: const BoxConstraints(
