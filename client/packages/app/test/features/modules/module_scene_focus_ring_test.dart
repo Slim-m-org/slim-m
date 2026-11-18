@@ -3,8 +3,13 @@
 ///
 /// A click gives the grid focus so the arrows work next, and the cursor's
 /// ring was drawn on that focus alone: Minesweeper's top-left cell looked
-/// tabbed to after a game played entirely with the mouse.
+/// tabbed to after a game played entirely with the mouse. Focus Flutter
+/// hands back on its own (a closed menu, a window regaining focus) follows the
+/// last input too, not how focus arrived.
 library;
+
+import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +34,7 @@ final _ring = find.byWidgetPredicate(
 
 final _grid = find.bySemanticsLabel(RegExp('^Scene grid'));
 
-Future<void> _pump(WidgetTester tester) async {
+Future<void> _pump(WidgetTester tester, {String? scene}) async {
   await tester.pumpWidget(
     MaterialApp(
       theme: buildTheme(Brightness.dark, _tokens),
@@ -38,9 +43,11 @@ Future<void> _pump(WidgetTester tester) async {
           child: SizedBox(
             width: 400,
             child: ModuleSceneView(
-              initial: parseModuleScene(sceneJson(0))!,
-              runCommand: (input) async =>
-                  api.RunModuleCommandResult(ok: true, output: sceneJson(1)),
+              initial: parseModuleScene(scene ?? sceneJson(0))!,
+              runCommand: (input) async => api.RunModuleCommandResult(
+                ok: true,
+                output: scene ?? sceneJson(1),
+              ),
             ),
           ),
         ),
@@ -48,6 +55,12 @@ Future<void> _pump(WidgetTester tester) async {
     ),
   );
   await tester.pump();
+}
+
+/// Past the dialog route's open or close transition.
+Future<void> _pastTransition(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(seconds: 1));
 }
 
 void main() {
@@ -85,6 +98,90 @@ void main() {
     await tester.tap(_grid.last, kind: PointerDeviceKind.mouse);
     await tester.pump();
 
+    expect(_ring, findsNothing);
+  }, variant: desktop);
+
+  testWidgets('focus a closed dialog hands back after a click stays quiet', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(_grid.last, kind: PointerDeviceKind.mouse);
+    await tester.pump();
+
+    final closed = showDialog<void>(
+      context: tester.element(_grid.last),
+      builder: (_) => const Text('menu'),
+    );
+    await _pastTransition(tester);
+    Navigator.of(tester.element(find.text('menu'))).pop();
+    await closed;
+    await _pastTransition(tester);
+
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'Module scene grid');
+    expect(_ring, findsNothing);
+  }, variant: desktop);
+
+  testWidgets('picking from the scene dropdown with the mouse stays quiet', (
+    tester,
+  ) async {
+    final withSelect = jsonDecode(sceneJson(0)) as Map<String, Object?>
+      ..['controls'] = [
+        {
+          'label': 'difficulty',
+          'value': 'expert',
+          'options': ['beginner', 'expert'],
+        },
+      ];
+    await _pump(tester, scene: jsonEncode(withSelect));
+    await tester.tap(_grid.last, kind: PointerDeviceKind.mouse);
+    await tester.pump();
+
+    await tester.tap(find.text('expert'), kind: PointerDeviceKind.mouse);
+    await _pastTransition(tester);
+    await tester.tap(find.text('beginner').last, kind: PointerDeviceKind.mouse);
+    await _pastTransition(tester);
+
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'Module scene grid');
+    expect(_ring, findsNothing);
+  }, variant: desktop);
+
+  testWidgets('a dialog closed by key hands back focus with the ring', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(_grid.last, kind: PointerDeviceKind.mouse);
+    await tester.pump();
+
+    unawaited(
+      showDialog<void>(
+        context: tester.element(_grid.last),
+        builder: (_) => const Text('menu'),
+      ),
+    );
+    await _pastTransition(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _pastTransition(tester);
+
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'Module scene grid');
+    expect(_ring, findsOneWidget);
+  }, variant: desktop);
+
+  testWidgets('alt-tab away and back after a click stays quiet', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(_grid.last, kind: PointerDeviceKind.mouse);
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'Module scene grid');
     expect(_ring, findsNothing);
   }, variant: desktop);
 
