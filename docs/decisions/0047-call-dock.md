@@ -191,7 +191,8 @@ Change:
   It is the cue beside the live level bar that joining with the saved mic otherwise lacks, without adding a lobby, which the owner removed twice.
 
 The call row grows by one caret at pointer width (24dp), so `callRowFits` counts three, `_oneRowMinWidth` in `canvas_call_dock.dart` moved from 720 to 744, and a music button carries its caret into `dockExtraExtent`.
-The stacked canvas layout now keeps the music button too, in the tight call row's spill line, where it used to be unreachable between about 390 and 460dp.
+The stacked canvas layout now keeps the music button too, in the tight call row's spill row, where it used to be unreachable between about 390 and 460dp.
+What a tight call row leaves out (the camera switch, the soundboard, the canvas toggle or music) is a card row of its own above the call row, divided by the same hairline as a bot's controls, so leave stays level with the row it ends (2026-11-18, after a 390dp phone showed the soundboard alone under the camera with leave between the lines).
 
 ## The controls-with-options rule
 
