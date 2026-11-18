@@ -221,19 +221,8 @@ jobs:
             -showBuildTimingSummary \
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            2>&1 | python3 -u -c "import sys, time; [print(int(time.time()), line, end='') for line in sys.stdin]" \
-            | tee "$RUNNER_TEMP/build-for-testing.log" | cut -d' ' -f2- | xcpretty || exit "${PIPESTATUS[0]}"
+            2>&1 | tee "$RUNNER_TEMP/build-for-testing.log" | xcpretty || exit "${PIPESTATUS[0]}"
           sed -n '/Build Timing Summary/,$p' "$RUNNER_TEMP/build-for-testing.log"
-          python3 -c "
-          import sys
-          last = None
-          for line in open(sys.argv[1], errors='replace'):
-              stamp, _, text = line.partition(' ')
-              if last is not None and int(stamp) - last >= 10:
-                  print(f'waited {int(stamp) - last}s before: {text[:160]}', end='')
-              last = int(stamp)
-          " "$RUNNER_TEMP/build-for-testing.log"
-          ps -A -o cputime=,comm= | sort -r | head -n 15
 
       # An app extension carrying a Frameworks directory is refused by the
       # store with error 90206, which only surfaces at upload - after a
