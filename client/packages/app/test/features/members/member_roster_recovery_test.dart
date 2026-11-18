@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A members pane that failed to load comes back on its own, and switching
-/// channels quickly fetches only the first roster and the one it stops on.
+/// A members pane that failed to load comes back on its own, and clicking
+/// quickly through channels fetches only the first roster and the one it
+/// stops on.
 library;
 
 import 'dart:convert';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,36 +73,57 @@ void main() {
     expect(find.text('Priya'), findsOneWidget);
   });
 
-  test(
-    'switching channels quickly fetches the first and where it stops',
-    () async {
+  // fakeAsync also fakes the clock the pace reads, so a slow runner cannot stretch the gaps.
+  test('clicking through channels three times a second fetches only the first '
+      'and where it stops', () {
+    fakeAsync((async) {
       final fetched = <String?>[];
-      final container = ProviderContainer(
-        overrides: [
-          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-          sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-          mockApiOverride((request) async {
-            fetched.add(request.url.queryParameters['channel']);
-            return http.Response(jsonEncode([_priya]), 200);
-          }),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      for (final channel in ['a', 'b', 'c']) {
+      final container = _container(fetched);
+      // About Ben's pace in the break-it round: 60 switches in 18.5 s.
+      const click = Duration(milliseconds: 308);
+      for (final channel in ['a', 'b', 'c', 'd']) {
         final open = container.listen(
           channelMembersProvider(channel),
           (_, _) {},
         );
-        await Future<void>.delayed(const Duration(milliseconds: 20));
+        async.elapse(click);
         open.close();
       }
-      final last = container.listen(channelMembersProvider('d'), (_, _) {});
-      addTearDown(last.close);
-      final roster = await container.read(channelMembersProvider('d').future);
+      final last = container.listen(channelMembersProvider('e'), (_, _) {});
+      async.elapse(const Duration(seconds: 2));
 
-      expect(roster.single.displayName, 'Priya');
-      expect(fetched, ['a', 'd']);
-    },
-  );
+      expect(last.read().valueOrNull?.single.displayName, 'Priya');
+      expect(fetched, ['a', 'e']);
+      last.close();
+      container.dispose();
+    });
+  });
+
+  test('a switch after a quiet spell fetches at once', () {
+    fakeAsync((async) {
+      final fetched = <String?>[];
+      final container = _container(fetched);
+      final first = container.listen(channelMembersProvider('a'), (_, _) {});
+      async.elapse(const Duration(seconds: 2));
+      first.close();
+
+      final next = container.listen(channelMembersProvider('b'), (_, _) {});
+      async.flushMicrotasks();
+
+      expect(fetched, ['a', 'b']);
+      next.close();
+      container.dispose();
+    });
+  });
 }
+
+ProviderContainer _container(List<String?> fetched) => ProviderContainer(
+  overrides: [
+    keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+    sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+    mockApiOverride((request) async {
+      fetched.add(request.url.queryParameters['channel']);
+      return http.Response(jsonEncode([_priya]), 200);
+    }),
+  ],
+);

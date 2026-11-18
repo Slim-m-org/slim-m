@@ -62,8 +62,9 @@ final channelMembersProvider = FutureProvider.autoDispose
       return _pagedMembers(ref, client, channelId);
     });
 
-/// How soon after another channel's roster fetch the next one waits instead of starting.
-const channelMembersSettle = Duration(milliseconds: 200);
+/// How soon after another channel's roster fetch the next one waits instead of
+/// starting; past the 300 ms a switch of someone clicking down the rail.
+const channelMembersSettle = Duration(milliseconds: 500);
 
 /// Which channel's roster was last asked for and when, so a burst of channel
 /// switches fetches the first channel and the one it stops on, not each between.
