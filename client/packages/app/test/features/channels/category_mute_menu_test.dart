@@ -101,6 +101,8 @@ class _Harness {
     );
     addTearDown(container.dispose);
     addTearDown(store.db.close);
+    // Built on the test clock, so a tap that awaits the store needs no real turn as well.
+    container.read(storeProvider);
     await tester.runAsync(
       () => container
           .read(channelNotificationOverridesProvider.notifier)
@@ -125,10 +127,11 @@ class _Harness {
         ),
       ),
     );
-    await waitUntil(
-      tester,
-      () => container.read(channelNotificationOverridesProvider).settled,
-    );
+    await waitUntil(tester, () {
+      final overrides = container.read(channelNotificationOverridesProvider);
+      return overrides.settled &&
+          (_muted.isEmpty || overrides.categoryParents.isNotEmpty);
+    });
   }
 
   Future<http.Response> _answer(http.Request request) async {
@@ -243,12 +246,11 @@ void main() {
 
     await h.openMenu(tester, 'Projects');
     await tester.tap(find.text('Mark all as read'));
-    for (var i = 0; i < 5 && h.markedRead.isEmpty; i++) {
-      await pumpFrames(tester);
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 20)),
-      );
-    }
+    await waitUntil(
+      tester,
+      () => h.markedRead.isNotEmpty,
+      reason: 'Mark all as read sent nothing',
+    );
 
     expect(h.markedRead, ['a', 'b']);
   });
