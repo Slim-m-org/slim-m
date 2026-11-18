@@ -135,10 +135,12 @@ class ChannelHistoryController extends StateNotifier<ChannelHistory> {
       if (older == null) return;
       // Newest first is the server's own contract, so the last entry is oldest.
       if (older.isNotEmpty) _oldest = older.last.seq;
+      final reach = await _windowReaching(older, state.window + older.length);
+      if (!mounted) return;
       state = state.copyWith(
         loading: false,
-        atStart: older.length < pageSize,
-        window: cappedChannelWindow(state.window + older.length),
+        atStart: older.length < pageSize && reach <= channelWindowCeiling,
+        window: cappedChannelWindow(reach),
       );
     } catch (error, stack) {
       api.reportFailure(api.LogTag.data, 'load older messages', error, stack);
@@ -146,6 +148,18 @@ class ChannelHistoryController extends StateNotifier<ChannelHistory> {
       if (!mounted) return;
       state = state.copyWith(loading: false, failed: true);
     }
+  }
+
+  /// Rows the window needs to show [page]'s oldest message, at least [grown].
+  ///
+  /// Live messages slide the newest-N window up past rows paged earlier, so
+  /// growing it by the page alone can leave the page, and the start it may
+  /// prove, below the window's top.
+  Future<int> _windowReaching(List<api.Message> page, int grown) async {
+    if (page.isEmpty) return grown;
+    final store = await _ref.read(storeProvider.future);
+    final depth = await store.transcriptDepthOf(_channelId, page.last.id);
+    return depth == null || depth < grown ? grown : depth;
   }
 
   MessageExtrasController get _extras =>
