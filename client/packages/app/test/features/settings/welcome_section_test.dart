@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The welcome message section: off by default, needs a channel and a message
-/// to turn on, and saves the whole form in one PATCH.
+/// The welcome message section: off by default, needs a channel to turn on,
+/// an empty message means the default, and it saves the whole form in one PATCH.
 library;
 
 import 'dart:convert';
@@ -15,6 +15,8 @@ import 'package:slimm_app/src/features/settings/widgets/welcome_section.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+
+import '../../support/async_wait.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -61,6 +63,8 @@ class _Server {
   });
 }
 
+final _toggle = find.byWidgetPredicate((w) => w is AppToggle);
+
 Future<void> _pump(WidgetTester tester, _Server server) async {
   final container = ProviderContainer(
     overrides: [
@@ -93,20 +97,45 @@ Future<void> _pump(WidgetTester tester, _Server server) async {
 }
 
 void main() {
-  testWidgets('turning it on needs a channel and a message', (tester) async {
+  testWidgets('turning it on needs a channel', (tester) async {
     final server = _Server();
     await _pump(tester, server);
 
-    await tester.tap(find.byType(AppToggle));
-    await tester.pumpAndSettle();
+    await tester.tap(_toggle);
+    await pumpFrames(tester);
     await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
-    expect(
-      find.text('Pick a channel and write a message to turn this on.'),
-      findsOneWidget,
-    );
+    expect(find.text('Pick a channel to turn this on.'), findsOneWidget);
     expect(server.patches, isEmpty);
+  });
+
+  testWidgets('an empty message turns it on with the default welcome', (
+    tester,
+  ) async {
+    final server = _Server();
+    await _pump(tester, server);
+    final hint = tester.widget<AppInput>(
+      find.byWidgetPredicate((w) => w is AppInput),
+    );
+    expect(hint.placeholder, kDefaultWelcomeMessage);
+
+    await tester.tap(_toggle);
+    await pumpFrames(tester);
+    await tester.tap(find.text('Welcome channel'));
+    await pumpFrames(tester);
+    await tester.tap(find.text('#hello'));
+    await pumpFrames(tester);
+    await tester.tap(find.text('Save'));
+    await pumpFrames(tester);
+
+    expect(find.textContaining('Pick a channel'), findsNothing);
+    expect(server.patches.single, {
+      'welcome_enabled': true,
+      'welcome_channel_id': 'c-hello',
+      'welcome_message': '',
+    });
+    expect(find.text('0/${api.InputLimits.welcomeMessage}'), findsOneWidget);
   });
 
   testWidgets('saving sends the toggle, the text channel and the message', (

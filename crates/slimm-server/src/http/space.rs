@@ -201,7 +201,7 @@ fn validate_name(raw: &str) -> Result<&str, ApiError> {
 }
 
 /// The welcome settings after this PATCH, or `None` when it names none of them.
-/// Turning it on needs a text channel and a message, so a half-set welcome is refused.
+/// Turning it on needs a text channel; an empty message posts the default.
 async fn merged_welcome(
     state: &AppState,
     body: &UpdateSpaceSettingsDto,
@@ -234,9 +234,9 @@ async fn merged_welcome(
     if let Some(raw) = body.welcome_message.as_deref() {
         welcome.message = validate_welcome_message(raw)?.to_owned();
     }
-    if welcome.enabled && (welcome.channel_id.is_none() || welcome.message.is_empty()) {
+    if welcome.enabled && welcome.channel_id.is_none() {
         return Err(ApiError::BadRequest(
-            "a welcome needs a channel and a message before it can be turned on",
+            "a welcome needs a channel before it can be turned on",
         ));
     }
     Ok(Some(welcome))

@@ -96,7 +96,36 @@ async fn a_join_posts_one_welcome_naming_the_member_and_the_space() {
 }
 
 #[tokio::test]
-async fn a_welcome_needs_a_text_channel_and_a_message_to_turn_on() {
+async fn an_empty_message_turns_on_and_posts_the_default_welcome() {
+    let (store, _guard) = new_store("slimm-welcome-default").await;
+    let (root, _) = register(&store, "root").await;
+    let general = general_channel_id(&store).await;
+    let router = app(store.clone());
+
+    let (status, settings) = call(
+        &router,
+        "PATCH",
+        "/space/settings",
+        &root,
+        Some(json!({
+            "welcome_enabled": true,
+            "welcome_channel_id": general,
+            "welcome_message": "  ",
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{settings}");
+    assert_eq!(settings["welcome_message"], "");
+
+    join(&router, &store, &root, "sam").await;
+    let posted = messages(&router, &root, &general).await;
+    let content = posted[0]["content"].as_str().unwrap();
+    assert!(content.starts_with("Welcome to "), "{content}");
+    assert!(content.ends_with(", @sam!"), "{content}");
+}
+
+#[tokio::test]
+async fn a_welcome_needs_a_text_channel_to_turn_on() {
     let (store, _guard) = new_store("slimm-welcome-validate").await;
     let (root, _) = register(&store, "root").await;
     let general = general_channel_id(&store).await;

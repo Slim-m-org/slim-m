@@ -9,11 +9,25 @@ use crate::ids::{ChannelId, UserId};
 /// Longest template, in characters. Enforced in Rust so it can move without a migration.
 pub const MAX_WELCOME_MESSAGE_CHARS: usize = 500;
 
+/// Posted when the stored template is empty; the client shows the same text as its hint.
+pub const DEFAULT_WELCOME_MESSAGE: &str = "Welcome to {space}, {user}!";
+
 #[derive(Debug, Clone, Default)]
 pub struct SpaceWelcome {
     pub enabled: bool,
     pub channel_id: Option<ChannelId>,
     pub message: String,
+}
+
+impl SpaceWelcome {
+    /// The stored template, or the default when it was left empty.
+    pub fn template(&self) -> &str {
+        if self.message.is_empty() {
+            DEFAULT_WELCOME_MESSAGE
+        } else {
+            &self.message
+        }
+    }
 }
 
 impl Store {

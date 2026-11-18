@@ -19,6 +19,9 @@ import '../../../widgets/load_error_block.dart';
 
 const _sectionLabel = 'Welcome message';
 
+/// Posted when the message is left empty; the server holds the same text.
+const kDefaultWelcomeMessage = 'Welcome to {space}, {user}!';
+
 /// The channel choice for "none".
 const _noChannel = '';
 
@@ -71,11 +74,8 @@ class _WelcomeFormState extends ConsumerState<_WelcomeForm>
 
   Future<void> _save() async {
     final message = _message.text.trim();
-    if (_enabled && (message.isEmpty || _channel == _noChannel)) {
-      setState(
-        () => _messageError =
-            'Pick a channel and write a message to turn this on.',
-      );
+    if (_enabled && _channel == _noChannel) {
+      setState(() => _messageError = 'Pick a channel to turn this on.');
       return;
     }
     setState(() {
@@ -135,7 +135,7 @@ class _WelcomeFormState extends ConsumerState<_WelcomeForm>
               helper: '{user} mentions the new member, {space} is the name.',
               child: AppInput(
                 controller: _message,
-                placeholder: 'Welcome to {space}, {user}!',
+                placeholder: kDefaultWelcomeMessage,
                 minLines: 2,
                 maxLines: 6,
                 counterMax: api.InputLimits.welcomeMessage,

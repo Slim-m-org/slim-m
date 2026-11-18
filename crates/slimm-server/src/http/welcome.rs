@@ -37,7 +37,7 @@ async fn try_post(state: &AppState, user_id: UserId) -> anyhow::Result<()> {
         return Ok(());
     }
     let space = state.store.deployment_name().await?;
-    let content = render_welcome(&welcome.message, &user.username, &space);
+    let content = render_welcome(welcome.template(), &user.username, &space);
     let author = state.store.welcome_author().await?;
     // Derived from the joiner, so a retried join cannot welcome them twice.
     let id = MessageId(Uuid::new_v5(&user_id.0, b"slimm-welcome"));
