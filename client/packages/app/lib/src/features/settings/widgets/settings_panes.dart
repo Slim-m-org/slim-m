@@ -116,6 +116,13 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
   @override
   void didUpdateWidget(SettingsPanesScaffold oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final linkMoved =
+        widget.initialPaneId != oldWidget.initialPaneId &&
+        widget.initialPaneId != _selectedId;
+    if (linkMoved && _stacks.values.any((s) => s.blocking)) {
+      unawaited(_followLink());
+      return;
+    }
     if (widget.initialPaneId != oldWidget.initialPaneId) {
       _selectedId = widget.initialPaneId;
     }
@@ -169,12 +176,36 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
     }
   }
 
+  /// Whether every open page and pane draft lets go, asking each that holds something.
+  Future<bool> _stacksLetGo() async {
+    for (final stack in _stacks.values.toList()) {
+      if (!await stack.canLeave()) return false;
+    }
+    return mounted;
+  }
+
+  /// Follows a pane the location moved to (browser Back or Forward) once
+  /// nothing unsaved is in the way, or puts the location back if it is kept.
+  Future<void> _followLink() async {
+    final kept = _selectedId;
+    final keptPage = _toldPage;
+    if (!await _stacksLetGo()) {
+      if (!mounted) return;
+      final restorePage = widget.onPageChanged;
+      if (keptPage != null && kept != null && restorePage != null) {
+        restorePage(kept, keptPage);
+      } else {
+        widget.onPaneChanged?.call(kept);
+      }
+      return;
+    }
+    setState(() => _selectedId = widget.initialPaneId);
+    _openPages(widget.initialPaneId, widget.initialPageId);
+  }
+
   /// Runs [then] once the open page and any pane draft let go; every stack is cleared first.
   Future<void> _leave(VoidCallback then) async {
-    for (final stack in _stacks.values.toList()) {
-      if (!await stack.canLeave()) return;
-    }
-    if (!mounted) return;
+    if (!await _stacksLetGo()) return;
     _quietly(() {
       for (final s in _stacks.values) {
         s.clear();
@@ -218,6 +249,11 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
           unawaited(stack.pop());
           return;
         }
+        // Compact back from a pane goes to the nav, as its back arrow does.
+        if (!wide) {
+          unawaited(_leave(() => _select(null)));
+          return;
+        }
         _close();
       },
       child: SettingsHighlight(
@@ -248,7 +284,7 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
           tooltip: page?.backLabel ?? 'Back to ${widget.title.toLowerCase()}',
           onPressed: page != null
               ? () => unawaited(stack.pop())
-              : () => _select(null),
+              : () => unawaited(_leave(() => _select(null))),
         ),
         actions: page == null ? pane.actions : null,
       ),

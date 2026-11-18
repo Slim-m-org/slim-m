@@ -18,6 +18,9 @@ import 'settings_harness.dart';
 const _wide = Size(1280, 900);
 const _phone = Size(390, 844);
 
+/// Below the settings two-pane width, where the roles pane still shows two columns.
+const _narrowDesktop = Size(700, 844);
+
 class _Guard implements SettingsLeaveGuard {
   bool answer = false;
   int asked = 0;
@@ -97,6 +100,7 @@ SettingsSubPage _page(
 
 class _Rig {
   final told = <String>[];
+  final panesTold = <String?>[];
   SettingsSubPage pushed = _page('one', urlId: 'one');
   final guard = _Guard();
 
@@ -108,6 +112,7 @@ class _Rig {
         initialPaneId: pane,
         initialPageId: page,
         onPageChanged: (pane, page) => told.add('$pane:$page'),
+        onPaneChanged: panesTold.add,
         groups: [
           SettingsPaneGroup(
             label: 'You',
@@ -153,6 +158,15 @@ class _Rig {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
+    await relink(tester, pane: pane, page: page);
+  }
+
+  /// Rebuilds with a new location, as browser Back or Forward does.
+  Future<void> relink(
+    WidgetTester tester, {
+    required String pane,
+    String? page,
+  }) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
@@ -307,6 +321,43 @@ void main() {
     rig.guard.answer = true;
     await _tap(tester, find.text('Other'));
     expect(find.text('other pane'), findsOneWidget);
+  });
+
+  testWidgets('a pane draft asks before the location moves to another pane', (
+    tester,
+  ) async {
+    final rig = _Rig();
+    await rig.pump(tester, _wide, pane: 'drafted');
+
+    await rig.relink(tester, pane: 'other');
+    expect(rig.guard.asked, 1);
+    expect(find.text('drafted pane'), findsOneWidget);
+    expect(rig.panesTold, ['drafted'], reason: 'the location goes back');
+
+    await rig.relink(tester, pane: 'drafted');
+    rig.guard.answer = true;
+    await rig.relink(tester, pane: 'other');
+    expect(rig.guard.asked, 2);
+    expect(find.text('other pane'), findsOneWidget);
+  });
+
+  testWidgets('below the two-pane width, back from a pane draft asks first', (
+    tester,
+  ) async {
+    final rig = _Rig();
+    await rig.pump(tester, _narrowDesktop, pane: 'drafted');
+
+    await _tap(tester, find.byTooltip('Back to settings'));
+    expect(rig.guard.asked, 1);
+    expect(find.text('drafted pane'), findsOneWidget);
+
+    rig.guard.answer = true;
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+    expect(rig.guard.asked, 2);
+    expect(find.text('drafted pane'), findsNothing);
+    expect(find.text('Drafted'), findsOneWidget, reason: 'back on the nav');
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('on a phone system back leaves the page, not settings', (
