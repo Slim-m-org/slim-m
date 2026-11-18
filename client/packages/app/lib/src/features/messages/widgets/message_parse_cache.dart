@@ -8,6 +8,7 @@ import '../../../hidden_characters.dart';
 import 'message_inline.dart';
 import 'message_fences.dart';
 import 'message_markdown_blocks.dart';
+import 'message_mention_runs.dart';
 
 /// Room for a 200-message window at about four text runs a message, with headroom.
 ///
@@ -43,7 +44,9 @@ final _blocks = ParseCache<List<MessageBlock>>(
 final _markdown = ParseCache<List<MarkdownBlock>>(
   (text) => splitMarkdownBlocks(withoutBidiOverrides(text)),
 );
-final _inline = ParseCache<List<InlineNode>>(parseInline);
+final _inline = ParseCache<List<InlineNode>>(
+  (text) => collapseMentionRuns(parseInline(text)),
+);
 
 /// Cached [splitMessageBlocks] of [content] made well-formed with its mark stacks capped; the returned list is shared, never mutate it.
 List<MessageBlock> cachedMessageBlocks(String content) => _blocks.of(content);
@@ -51,5 +54,5 @@ List<MessageBlock> cachedMessageBlocks(String content) => _blocks.of(content);
 /// Cached [splitMarkdownBlocks] without bidi overrides; the returned list is shared, never mutate it.
 List<MarkdownBlock> cachedMarkdownBlocks(String text) => _markdown.of(text);
 
-/// Cached [parseInline]; the returned list is shared, never mutate it.
+/// Cached [parseInline] with repeated mentions collapsed; the returned list is shared, never mutate it.
 List<InlineNode> cachedInline(String text) => _inline.of(text);

@@ -59,6 +59,11 @@ void main() {
     expect(text, isNot(contains('\u{202E}')));
   });
 
+  testWidgets('a wall of one mention draws once with a count', (tester) async {
+    final text = await _rendered(tester, List.filled(50, '@ava').join(' '));
+    expect(text, contains('@ava \u{00D7}50'));
+  });
+
   test('a preview line is capped and loses overrides too', () {
     final preview = plainPreview('$_zalgo evil\u{202D}x');
     expect(_longestStack(preview), kMaxMarksPerBase);
