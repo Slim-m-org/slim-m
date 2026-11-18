@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Connect to a Space: the address is taken as people write it, Continue
-/// shows it is waiting, and an error appears on the first press without
-/// resizing the dialog.
+/// shows it is waiting, and an error appears under the field on the first
+/// press without resizing the dialog.
 library;
 
 import 'dart:async';
@@ -125,8 +125,8 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('That does not look like a server address.'),
-      findsOneWidget,
+      tester.widget<AppInput>(_addressField()).errorText,
+      'That does not look like a server address.',
     );
     expect(tester.getRect(find.text('Cancel')), before);
   });
