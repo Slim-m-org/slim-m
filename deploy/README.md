@@ -387,6 +387,9 @@ webhook:
     - https://your-server-host/voice/webhook
 ```
 
+Several servers can share one LiveKit: list each server's `/voice/webhook` under `urls`.
+LiveKit sends every event to every URL, and each server skips the rooms of channels it never had.
+
 Until this is configured and reachable, nothing breaks. The roster (`GET .../voice/roster`, including its `is_sharing_screen`/`has_video` fields) keeps working exactly as before, `voice.activity` keeps firing, and the three named events (`voice.participant_joined`, `voice.participant_left`, `voice.screen_share_changed`) simply never do.
 
 ## Monitoring
