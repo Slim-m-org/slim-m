@@ -219,7 +219,7 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
     final results = <EmojiAddResult>[];
     for (final chunk in chunkPlannedEmojiUploads(uploads)) {
       String? reason;
-      api.ItemRefusal? refused;
+      var refused = const <api.ItemRefusal>[];
       try {
         await client.bulkUploadCustomEmoji([
           for (final u in chunk)
@@ -234,19 +234,23 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
         );
         reason = describeApiFailure('add ${chunk.length} emoji', e);
         refused = switch (e) {
-          api.ConflictException(:final item) => item,
-          api.BadRequestException(:final item) => item,
-          _ => null,
+          api.ConflictException(:final items) ||
+          api.BadRequestException(:final items) => items,
+          _ => const [],
         };
       }
-      final problem = refused == null ? null : problemForRefusal(refused.code);
+      final problems = {
+        for (final r in refused)
+          if (problemForRefusal(r.code) case final problem?) r.index: problem,
+      };
+      final allNamed = refused.isNotEmpty && problems.length == refused.length;
       results.addAll([
         for (var i = 0; i < chunk.length; i++)
           EmojiAddResult(
             upload: chunk[i],
             reason: reason,
-            problem: refused?.index == i ? problem : null,
-            named: problem != null,
+            problem: problems[i],
+            named: allNamed,
           ),
       ]);
       if (mounted) setState(() => _current += chunk.length);

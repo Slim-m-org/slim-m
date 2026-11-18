@@ -12743,7 +12743,9 @@ paths:
 
 
         A refusal about one image names it in `error` and also in the
-        `item_index` and `item_code` fields of the error body.
+        `item_index` and `item_code` fields of the error body. `items` lists
+        every refused image of the request, that one first, so all of them
+        can be fixed before trying again.
       requestBody:
         required: true
         content:
@@ -13319,6 +13321,24 @@ components:
             `unsupported_type`, `too_many_pixels`, `name_taken`,
             `builtin_name` or `full`. Present only with `item_index`; read
             an unknown value as a refusal of that image for another reason.
+        items:
+          type: array
+          description: >
+            Present with `item_index`: every refused entry of the request in
+            order, the one `item_index` names first.
+          items:
+            type: object
+            required: [index, code, error]
+            properties:
+              index:
+                type: integer
+                description: Zero-based position in the request's list.
+              code:
+                type: string
+                description: Why, one of the `item_code` values.
+              error:
+                type: string
+                description: The sentence naming that entry and its reason.
         code:
           type: string
           description: >

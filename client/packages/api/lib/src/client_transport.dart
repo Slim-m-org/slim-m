@@ -295,6 +295,7 @@ extension SlimmApiTransport on SlimmApi {
     int? timedOutUntil;
     String? timeoutReason;
     ItemRefusal? item;
+    var items = const <ItemRefusal>[];
     Duration? bodyRetryAfter;
     try {
       final decoded = jsonDecode(response.body);
@@ -322,6 +323,8 @@ extension SlimmApiTransport on SlimmApi {
           decoded['item_index'] as int,
           decoded['item_code'] as String,
         );
+        final listed = ItemRefusal.listFrom(decoded['items']);
+        items = listed.isEmpty ? [item] : listed;
       }
       if (decoded is Map<String, dynamic> &&
           decoded['retry_after_seconds'] is int &&
@@ -338,7 +341,7 @@ extension SlimmApiTransport on SlimmApi {
           stack);
     }
     return switch (response.statusCode) {
-      400 => BadRequestException(reason, item: item),
+      400 => BadRequestException(reason, item: item, items: items),
       401 => UnauthorizedException(reason),
       403 => ForbiddenException(
           reason,
@@ -348,7 +351,7 @@ extension SlimmApiTransport on SlimmApi {
           timeoutReason: timeoutReason,
         ),
       404 => NotFoundException(reason, unexplained: !explained),
-      409 => ConflictException(reason, item: item),
+      409 => ConflictException(reason, item: item, items: items),
       429 => RateLimitedException(
           reason,
           retryAfter: _retryAfter(response) ?? bodyRetryAfter,
