@@ -57,11 +57,17 @@ class SignInDestination extends StatelessWidget {
             status: status,
           )
         else
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.s16),
+          Container(
+            constraints: const BoxConstraints(
+              minHeight: ServerIdentityChip.rowHeight,
+            ),
+            margin: const EdgeInsets.only(bottom: AppSpacing.s16),
+            alignment: Alignment.centerLeft,
             child: Text(
               'Connecting to $host',
-              style: AppText.code.copyWith(color: tokens.textSecondary),
+              style: ServerIdentityChip.hostStyle(tokens),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         if (error != null)

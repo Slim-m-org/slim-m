@@ -16258,7 +16258,7 @@ components:
 
     Device:
       type: object
-      required: [id, name, created_at, is_current]
+      required: [id, name, created_at, signed_in_at, is_current]
       properties:
         id:
           type: string
@@ -16268,6 +16268,14 @@ components:
         created_at:
           type: integer
           format: int64
+          description: When this install first signed in to the account.
+        signed_in_at:
+          type: integer
+          format: int64
+          description: >
+            When the device's current session began. Signing in again from
+            the same install starts a new session on the same device, so
+            this can be later than `created_at`.
         last_seen_at:
           type: [integer, "null"]
           format: int64

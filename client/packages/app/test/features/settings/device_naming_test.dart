@@ -14,15 +14,22 @@ api.Device _device({
   String? clientKind,
   String? clientVersion,
   int? lastSeenAt,
-}) => api.Device(
-  id: 'd1',
-  name: name,
-  createdAt: 0,
-  lastSeenAt: lastSeenAt,
-  isCurrent: false,
-  clientKind: clientKind,
-  clientVersion: clientVersion,
-);
+  int? createdAt,
+  int? signedInAt,
+  bool fromOlderServer = false,
+}) {
+  final now = DateTime.now().millisecondsSinceEpoch;
+  return api.Device(
+    id: 'd1',
+    name: name,
+    createdAt: createdAt ?? now,
+    signedInAt: fromOlderServer ? null : signedInAt ?? now,
+    lastSeenAt: lastSeenAt,
+    isCurrent: false,
+    clientKind: clientKind,
+    clientVersion: clientVersion,
+  );
+}
 
 void main() {
   group('devicePlatformLabel', () {
@@ -54,7 +61,10 @@ void main() {
           lastSeenAt: DateTime.now().millisecondsSinceEpoch,
         ),
       );
-      expect(line, 'desktop 0.83.0 · active now');
+      expect(
+        line?.replaceAll('\u00A0', ' '),
+        'desktop 0.83.0 · active now · signed in just now',
+      );
     });
 
     test('still renders with only one of client kind or version present', () {
@@ -64,7 +74,50 @@ void main() {
           lastSeenAt: DateTime.now().millisecondsSinceEpoch,
         ),
       );
-      expect(line, 'ios · active now');
+      expect(
+        line?.replaceAll('\u00A0', ' '),
+        'ios · active now · signed in just now',
+      );
+    });
+
+    test('says when the session signed in, not when the install first '
+        'did', () {
+      final now = DateTime.now();
+      final line = deviceDetailLine(
+        _device(
+          clientKind: 'web',
+          clientVersion: '0.131.0',
+          lastSeenAt: now.millisecondsSinceEpoch,
+          createdAt: now
+              .subtract(const Duration(days: 30))
+              .millisecondsSinceEpoch,
+          signedInAt: now.millisecondsSinceEpoch,
+        ),
+      );
+      expect(
+        line?.replaceAll('\u00A0', ' '),
+        'web 0.131.0 · active now · signed in just now',
+      );
+    });
+
+    test('from a server without the session time it says when the install '
+        'first signed in', () {
+      final now = DateTime.now();
+      final line = deviceDetailLine(
+        _device(
+          clientKind: 'web',
+          clientVersion: '0.131.0',
+          lastSeenAt: now.millisecondsSinceEpoch,
+          createdAt: now
+              .subtract(const Duration(days: 3))
+              .millisecondsSinceEpoch,
+          fromOlderServer: true,
+        ),
+      );
+      expect(
+        line?.replaceAll('\u00A0', ' '),
+        'web 0.131.0 · active now · first signed in 3d ago',
+      );
     });
   });
 }

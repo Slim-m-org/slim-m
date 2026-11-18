@@ -375,11 +375,17 @@ class Device {
     required this.isCurrent,
     this.clientKind,
     this.clientVersion,
+    this.signedInAt,
   });
 
   final String id;
   final String name;
+
+  /// When this install first signed in; signing in again keeps it.
   final int createdAt;
+
+  /// When the current session began, or null from a server older than this field.
+  final int? signedInAt;
   final int? lastSeenAt;
 
   /// A coarse client kind ("ios"/"android"/"desktop"/"web"), or null for a
@@ -398,6 +404,7 @@ class Device {
         id: json['id'] as String,
         name: json['name'] as String,
         createdAt: json['created_at'] as int,
+        signedInAt: json['signed_in_at'] as int?,
         lastSeenAt: json['last_seen_at'] as int?,
         clientKind: json['client_kind'] as String?,
         clientVersion: json['client_version'] as String?,

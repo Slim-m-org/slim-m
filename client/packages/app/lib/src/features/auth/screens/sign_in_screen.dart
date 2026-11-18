@@ -5,19 +5,14 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show TextInput;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../first_run/providers/first_run_controller.dart'
-    show firstRunInviterProvider;
 import '../../../default_server.dart';
 import '../../../providers/providers.dart';
-import '../../../push/providers/push_controller.dart';
 import '../providers/browser_reach.dart';
-import '../providers/sign_in_identity.dart';
 import '../../../routing/routes.dart';
 import '../../../server_address_reduction.dart';
 import '../../../widgets/labeled_field.dart';
@@ -28,6 +23,7 @@ import '../../../providers/toasts.dart';
 import '../../../whats_new/providers/whats_new_controller.dart';
 import 'reset_password_sheet.dart';
 import 'sign_in_alternatives.dart';
+import 'sign_in_connect.dart';
 import '../widgets/sign_in_credential_fields.dart';
 import '../widgets/server_warnings_modal.dart';
 import '../widgets/sign_in_error.dart';
@@ -35,7 +31,6 @@ import '../../../invite_link.dart';
 import 'sign_in_destination.dart';
 import 'sign_in_invite_notice.dart';
 import 'sign_in_join_steps.dart';
-import 'sign_in_register.dart';
 import 'sign_in_server_probe.dart';
 import 'sign_in_reason_notices.dart';
 
@@ -245,13 +240,19 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   void _onServerEdited(String _) {
-    // The old answer is about the old address the moment the field changes,
-    // and the line naming the destination is read off the field itself.
+    _clearErrorOn({SignInErrorField.server});
+    _reprobe();
+  }
+
+  /// The old answer is about the old address the moment the field changes,
+  /// and the line naming the destination is read off the field itself.
+  /// [keepError] holds a failure just shown, as after a sign-in nothing answered.
+  void _reprobe({bool keepError = false}) {
     setState(() {
       _probed = null;
       _probeFailure = null;
       _identityStatus = null;
-      if (_error?.$1 == SignInErrorField.server) _error = null;
+      if (!keepError && _error?.$1 == SignInErrorField.server) _error = null;
       _failureAsked = false;
     });
     _probeDebounce?.cancel();
@@ -262,6 +263,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     if (!_serverFocus.hasFocus && !_failureAsked) {
       setState(() => _failureAsked = true);
     }
+  }
+
+  void _clearErrorOn(Set<SignInErrorField> fields) {
+    if (fields.contains(_error?.$1)) setState(() => _error = null);
   }
 
   /// The reset-code flow, which confirms identity the way [_submit] does and
@@ -285,33 +290,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         );
   }
 
-  /// Signs in or registers, then starts push.
-  ///
-  /// On registration the invite code goes in with the signup rather than being
-  /// redeemed after it: a claimed deployment refuses an uninvited registration
-  /// outright, so there is no account to redeem against until that call
-  /// succeeds.
-  ///
-  /// Sync is deliberately not started here. `SyncController` is session-driven
-  /// (see its class doc) and its own listener already reacts to the
-  /// `session.set()` that register or login just performed. Starting it again
-  /// explicitly raced that listener and opened a second socket, which went on
-  /// to kick the first, healthy one offline.
-  ///
-  /// Push registration is fire-and-forget: a denied permission or unreachable
-  /// server must never hold up a sign-in that is already complete.
-  ///
-  /// The address is reduced and its identity confirmed before anything is
-  /// persisted or sent: this is "connecting", in the sense
-  /// [confirmServerIdentity] means it, and binding the check here (rather
-  /// than to the field being typed) is what makes a returning sign-in - not
-  /// only the manual onboarding dialog - a place TOFU's comparison runs.
-  ///
-  /// A first connect pins silently; a key that later changes is the case the
-  /// check exists for.
+  /// Checks what can be checked here, then [connectAndSignIn], explaining any failure.
   Future<void> _submit() async {
     final address = _submittableAddress();
     if (address == null) return;
+    final missing = missingCredential(
+      username: _username.text,
+      password: _password.text,
+    );
+    if (missing != null) return setState(() => _error = missing);
     if (_creatingAccount && !await _acknowledgedWarnings()) return;
     if (!mounted) return;
 
@@ -319,60 +306,20 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _busy = true;
       _error = null;
     });
-
-    final invite = _invite.codeFor(probeTarget(_server.text));
     // Read before the awaits: the session redirect can dispose this screen mid-flight.
-    final pendingInvite = ref.read(pendingInviteProvider.notifier);
     final justRegistered = ref.read(justRegisteredProvider.notifier);
-    final push = ref.read(pushControllerProvider.notifier);
-    final firstContact = ref.read(firstContactServersProvider.notifier);
     try {
-      final reduced = reduceServerAddress(address);
-      if (!await confirmServerIdentity(
+      await connectAndSignIn(
         context,
         ref,
-        reduced,
-        requireSlimServer: true,
-      )) {
-        return;
-      }
-      if (!mounted) return;
-
-      ref.read(chosenServerProvider.notifier).choose(reduced);
-      final api = ref.read(apiProvider);
-      final identity = await signInIdentity(
-        keyStore: ref.read(keyStoreProvider),
-        appInfo: ref.read(appInfoProvider.future),
+        address: address,
+        credentials: (
+          username: _username.text.trim(),
+          password: _password.text,
+        ),
+        creatingAccount: _creatingAccount,
+        invite: _invite.codeFor(probeTarget(_server.text)),
       );
-
-      final credentials = (
-        username: _username.text.trim(),
-        password: _password.text,
-      );
-      if (_creatingAccount) {
-        await registerAccount(
-          api,
-          identity,
-          justRegistered: justRegistered,
-          inviter: ref.read(firstRunInviterProvider.notifier),
-          credentials: credentials,
-          invite: invite,
-        );
-      } else if (!mounted ||
-          !await signInToAccount(
-            context,
-            ref,
-            api,
-            identity,
-            credentials: credentials,
-            invite: invite,
-          )) {
-        return;
-      }
-      endFirstContact(firstContact, reduced);
-      TextInput.finishAutofillContext();
-      pendingInvite.state = null;
-      unawaited(push.register());
     } on ApiException catch (e, stack) {
       reportFailure(LogTag.auth, 'sign in', e, stack);
       justRegistered.state = false;
@@ -382,9 +329,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         server: probeTarget(_server.text),
         reach: ref.read(browserReachProbeProvider),
         knownSpace: pinnedIdentityCheck(ref.read(keyStoreProvider)),
+        offline: !ref.read(browserOnlineProvider)(),
       );
       if (!mounted) return;
       setState(() => _error = error);
+      // What the probe said before is no longer known to hold.
+      if (e is TransportException) _reprobe(keepError: true);
     } catch (error, stack) {
       reportFailure(LogTag.auth, 'sign in', error, stack);
       ref.read(justRegisteredProvider.notifier).state = false;
@@ -502,6 +452,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       busy: _busy,
                       errorFor: _errorFor,
                       onSubmit: _submit,
+                      onEdited: () => _clearErrorOn(const {
+                        SignInErrorField.username,
+                        SignInErrorField.password,
+                        SignInErrorField.credentials,
+                        SignInErrorField.form,
+                      }),
                       onRecoverAccount: () => unawaited(_recoverAccount()),
                     ),
                   )

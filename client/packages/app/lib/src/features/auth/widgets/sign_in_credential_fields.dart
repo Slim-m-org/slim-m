@@ -35,6 +35,7 @@ class SignInCredentialFields extends StatelessWidget {
     required this.busy,
     required this.errorFor,
     required this.onSubmit,
+    this.onEdited,
     required this.onRecoverAccount,
   });
 
@@ -52,6 +53,9 @@ class SignInCredentialFields extends StatelessWidget {
   final String? Function(SignInErrorField) errorFor;
   final VoidCallback onSubmit;
 
+  /// Either field changed, so an error about the last attempt no longer holds.
+  final VoidCallback? onEdited;
+
   /// Opens the reset-code flow; offered under the password while signing in
   /// only, since a new account has nothing to recover.
   final VoidCallback onRecoverAccount;
@@ -68,6 +72,7 @@ class SignInCredentialFields extends StatelessWidget {
             explainRejections: creatingAccount,
             serverError: errorFor(SignInErrorField.username),
             invalid: usernameInvalid,
+            onChanged: onEdited,
           ),
           const SizedBox(height: AppSpacing.s16),
           LabeledField(
@@ -89,6 +94,7 @@ class SignInCredentialFields extends StatelessWidget {
               ],
               textInputAction: TextInputAction.done,
               semanticLabel: 'Password',
+              onChanged: (_) => onEdited?.call(),
               onSubmitted: (_) => busy ? null : onSubmit(),
             ),
           ),
@@ -116,9 +122,11 @@ class UsernameField extends StatefulWidget {
     required this.explainRejections,
     this.serverError,
     this.invalid = false,
+    this.onChanged,
   });
 
   final TextEditingController controller;
+  final VoidCallback? onChanged;
 
   /// Only while creating an account; signing in never needs the rule.
   final bool explainRejections;
@@ -154,6 +162,7 @@ class _UsernameFieldState extends State<UsernameField> {
         autofillHints: const [AutofillHints.username],
         textInputAction: TextInputAction.next,
         semanticLabel: 'Username',
+        onChanged: (_) => widget.onChanged?.call(),
       ),
     );
   }

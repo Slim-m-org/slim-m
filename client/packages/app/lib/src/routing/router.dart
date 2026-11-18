@@ -57,6 +57,7 @@ import '../features/auth/screens/onboarding_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/messages/screens/thread_screen.dart';
 import 'breakpoints.dart';
+import 'cold_modal_launch.dart';
 import 'launch_route.dart';
 import 'modal_page.dart';
 import 'page_transitions.dart';
@@ -316,6 +317,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  putShellUnderColdModal(
+    router,
+    launch: WidgetsBinding.instance.platformDispatcher.defaultRouteName,
+  );
   final launch = ref.read(launchRouteProvider);
   router.routerDelegate.addListener(
     () => launch.showed(router.routerDelegate.currentConfiguration.uri.path),
@@ -434,7 +439,11 @@ class _ThreadDockRedirect extends ConsumerWidget {
                 context,
                 listen: false,
               );
-              context.go(Routes.channel(parentChannelId));
+              // Replaces the thread's entry, or browser back lands on it and this redirect pushes forward again.
+              Router.neglect(
+                context,
+                () => context.go(Routes.channel(parentChannelId)),
+              );
               // Docked a frame after landing: mounted mid-navigation, the web composer focused an input the outgoing page owned and dropped every keystroke.
               WidgetsBinding.instance.addPostFrameCallback(
                 (_) => dockThread(

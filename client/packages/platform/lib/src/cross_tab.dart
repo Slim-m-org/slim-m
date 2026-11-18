@@ -16,4 +16,7 @@ abstract interface class CrossTab {
 
   /// Fires when another tab wrote to browser storage.
   Stream<void> get storageChanges;
+
+  /// Whether another tab of this profile is open; false when it cannot tell.
+  Future<bool> anotherTabIsOpen();
 }

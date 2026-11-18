@@ -42,4 +42,17 @@ void main() {
     await _pump(tester, api.SessionStore());
     expect(find.byType(Text), findsNothing);
   });
+
+  testWidgets('a sign-out taken up from another tab says so', (tester) async {
+    final session = api.SessionStore(
+      tokens: const api.TokenPair(
+        userId: 'u',
+        accessToken: 'a',
+        refreshToken: 'r',
+        accessExpiresAt: 0,
+      ),
+    )..adopt(null);
+    await _pump(tester, session);
+    expect(find.textContaining('signed out in another tab'), findsOne);
+  });
 }
