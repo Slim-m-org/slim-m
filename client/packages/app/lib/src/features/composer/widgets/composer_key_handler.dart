@@ -32,14 +32,23 @@ class ComposerKeyHandler {
   /// The paste check sits above the autocomplete guard and never returns `handled`, so Flutter's own text paste is untouched.
   KeyEventResult handle(FocusNode node, KeyEvent event) {
     if (isClipboardPasteChord(event)) onPasteChord();
-    // Up in an empty composer edits the caller's last message; with text typed it must move the caret as normal instead.
+    // Bare Up in an empty composer edits the last message; typed text moves the caret, and a held modifier is a shell shortcut (Alt+Up on web).
     if (event is KeyDownEvent &&
         text.text.isEmpty &&
-        event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        event.logicalKey == LogicalKeyboardKey.arrowUp &&
+        !_modified()) {
       unawaited(onEditLast());
       return KeyEventResult.handled;
     }
     if (!autocomplete.isOpen) return _listKeys.handle(event, text);
     return autocomplete.handleKey(event, onAccept: onAccept);
+  }
+
+  static bool _modified() {
+    final keyboard = HardwareKeyboard.instance;
+    return keyboard.isAltPressed ||
+        keyboard.isControlPressed ||
+        keyboard.isMetaPressed ||
+        keyboard.isShiftPressed;
   }
 }
