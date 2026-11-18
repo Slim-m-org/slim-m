@@ -33,6 +33,7 @@ class AppInput extends StatefulWidget {
     this.size = AppInputSize.md,
     this.icon,
     this.trailing,
+    this.helperText,
     this.errorText,
     this.invalid = false,
     this.enabled = true,
@@ -67,6 +68,10 @@ class AppInput extends StatefulWidget {
   /// clear button. Also caller-built, for the same reason as [icon], and
   /// because a `Kbd` component belongs to `components/core`, not here.
   final Widget? trailing;
+
+  /// A note under the field that [errorText] takes the place of while there
+  /// is one, so the form keeps its height when an error appears.
+  final String? helperText;
 
   /// Not in the source design, which has no error state at all. Kept because
   /// a form field without one is not viable; it borrows [AppTokens.dangerText]
@@ -211,17 +216,37 @@ class _AppInputState extends State<AppInput> {
             ),
           ),
         ],
-        if (hasMessage) ...[
+        if (hasMessage || widget.helperText != null) ...[
           const SizedBox(height: AppSpacing.s4),
           Padding(
             padding: _beneathTheBorder,
-            child: Text(
-              widget.errorText!,
-              style: AppText.caption.copyWith(
-                  color: tokens.dangerText, fontFamily: AppFonts.sans),
-            ),
+            child: _beneath(tokens, hasMessage),
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _beneath(AppTokens tokens, bool hasMessage) {
+    final error = Semantics(
+      liveRegion: true,
+      child: Text(
+        widget.errorText ?? '',
+        style: AppText.caption
+            .copyWith(color: tokens.dangerText, fontFamily: AppFonts.sans),
+      ),
+    );
+    final helper = widget.helperText;
+    if (helper == null) return error;
+    return IndexedStack(
+      index: hasMessage ? 1 : 0,
+      children: [
+        Text(
+          helper,
+          style: AppText.caption
+              .copyWith(color: tokens.textSecondary, fontFamily: AppFonts.sans),
+        ),
+        error,
       ],
     );
   }
