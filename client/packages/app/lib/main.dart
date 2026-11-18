@@ -70,6 +70,7 @@ import 'src/features/auth/widgets/client_too_old_gate.dart';
 import 'src/features/auth/widgets/server_identity_change_gate.dart';
 import 'src/features/voice/providers/voice_settings_controller.dart';
 import 'src/features/voice/widgets/call_audio_prompt.dart';
+import 'src/features/voice/widgets/second_clock.dart';
 import 'src/features/voice/widgets/incoming_call_overlay.dart';
 import 'src/features/voice/widgets/picture_in_picture_gate.dart';
 import 'src/features/voice/widgets/popout_host.dart';
@@ -131,6 +132,9 @@ Future<void> main([List<String> args = const []]) async {
   final container = host.createFirst();
   // Before anything that can throw, so startup failures land in the log too.
   installDiagnostics(container);
+  // The window's state is one for the process, so the clock follows whichever account is on screen.
+  SecondClock.instance.follow(container);
+  host.addListener(() => SecondClock.instance.follow(host.active?.container));
 
   container.read(appReadyProvider.notifier).state = false;
   unawaited(
