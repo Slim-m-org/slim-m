@@ -36,8 +36,13 @@ double _diameterFor(AppIconButtonSize size) => switch (size) {
 /// A square icon-only button with rounded corners, not a circle.
 ///
 /// [active] is a persistent accent-tinted state (a toggled-on control, an
-/// applied filter): a tinted fill and an accent glyph, with no outline. It is
-/// a different thing from keyboard focus, which is a ring drawn from
+/// applied filter): a tinted fill, an accent glyph and a 2px accent bar along
+/// the top edge, the active channel's marker turned on its side (decision
+/// 0004). The bar is what tells it apart by more than hue. It keeps to the top
+/// because the bottom edge belongs to what a tool carries: the pen's colour
+/// bar, the armed stamp.
+///
+/// Active is a different thing from keyboard focus, which is a ring drawn from
 /// [AppTokens.focusRing] on top of whatever [active]/[variant] state is
 /// already showing; the ring is the only accent outline, so a toggled-on
 /// button never looks like one a keyboard user merely tabbed onto.
@@ -109,6 +114,9 @@ class AppIconButton extends StatefulWidget {
   /// its focus, so a keyboard user is not dropped when work starts.
   final bool busy;
 
+  /// The bar along the top edge that marks [active] beyond its tint.
+  static const Key activeMarkerKey = Key('app_icon_button_active_marker');
+
   @override
   State<AppIconButton> createState() => _AppIconButtonState();
 }
@@ -137,8 +145,7 @@ class _AppIconButtonState extends State<AppIconButton> with PressTracking {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final enabled = widget.onPressed != null;
     final visualSize = _diameterFor(widget.size);
-    final baseRadius =
-        visualSize >= AppSizes.controlMd ? AppRadii.card : AppRadii.control;
+    final baseRadius = _cornerRadius(visualSize);
     final joined = AppControlWithOptions.joinedOf(context);
     final radius = joined
         ? BorderRadius.horizontal(left: Radius.circular(baseRadius))
@@ -277,11 +284,49 @@ class _AppIconButtonState extends State<AppIconButton> with PressTracking {
               border: Border.all(color: tokens.focusRing, width: 2),
             )
           : null,
-      child: widget.busy
-          ? const AppSpinner(size: AppSpinnerSize.sm)
-          : Icon(widget.icon, size: widget.iconSize, color: ink),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(
+            child: widget.busy
+                ? const AppSpinner(size: AppSpinnerSize.sm)
+                : Icon(widget.icon, size: widget.iconSize, color: ink),
+          ),
+          if (widget._active) _activeMarker(tokens, _cornerRadius(visualSize)),
+        ],
+      ),
     );
   }
+
+  static double _cornerRadius(double visualSize) =>
+      visualSize >= AppSizes.controlMd ? AppRadii.card : AppRadii.control;
+
+  /// Inset by the corner radius, so the bar keeps to the straight part of the edge.
+  Widget _activeMarker(AppTokens tokens, double inset) {
+    return Positioned(
+      left: inset,
+      right: inset,
+      top: 0,
+      height: _markerThickness,
+      // Grows from centre as the state arrives, like AppListRow's selection marker.
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: AppMotion.reduced(context, AppMotion.base),
+        curve: AppMotion.entrance,
+        builder: (context, t, child) =>
+            Transform.scale(scaleX: t, child: child),
+        child: DecoratedBox(
+          key: AppIconButton.activeMarkerKey,
+          decoration: BoxDecoration(
+            color: tokens.accentFill,
+            borderRadius: BorderRadius.circular(_markerThickness),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static const double _markerThickness = 2;
 
   (Color, Color, Color?) _colors(AppTokens tokens, bool enabled) {
     return switch (widget.variant) {

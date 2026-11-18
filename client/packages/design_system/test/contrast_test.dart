@@ -76,6 +76,14 @@
 /// exempt. Until that is settled these print, so a regression shows up in CI
 /// output and the numbers cannot silently drift.
 ///
+/// ## Active state
+///
+/// An active icon button (an armed canvas tool, an open pane's toggle) was a
+/// tint and an accent glyph, and both sit within about 1.25:1 of the inactive
+/// look, so the state was hue alone. The marker bar along its top edge is
+/// the cue that is not, held to WCAG 1.4.11's 3:1 against the surfaces the
+/// button sits on and the tint it sits in.
+///
 /// ## Canvas cursor hues
 ///
 /// Categorical identity for remote participants. They only work as identity if
@@ -229,6 +237,47 @@ void main() {
       expect(boosted.status, t.status);
       expect(boosted.dangerText, t.dangerText);
       expect(boosted.warnText, t.warnText);
+    });
+  });
+
+  themes.forEach((name, t) {
+    testWidgets('$name active icon button is marked beyond hue, at 3:1', (
+      tester,
+    ) async {
+      // WCAG 1.4.11: the active cue reads against the page and its own tint. See "Active state" above.
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(
+            name == 'light' ? Brightness.light : Brightness.dark,
+            t,
+          ),
+          home: Center(
+            child: AppIconButton(
+              icon: AppIcons.settings,
+              semanticLabel: 'Settings',
+              onPressed: () {},
+              active: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final marker = find.byKey(AppIconButton.activeMarkerKey);
+      expect(marker, findsOneWidget, reason: '$name active is a tint alone');
+      final box =
+          tester.widget<DecoratedBox>(marker).decoration as BoxDecoration;
+      for (final entry in {
+        'base': t.surfaceBase,
+        'raised': t.surfaceRaised,
+        'accentSoft': t.accentSoft,
+      }.entries) {
+        expect(
+          _contrast(box.color!, entry.value),
+          greaterThanOrEqualTo(3.0),
+          reason: '$name active marker on ${entry.key}',
+        );
+      }
     });
   });
 
