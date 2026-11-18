@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO dropped_refresh_tokens (token_hash, cause, expires_at)\n         SELECT r.token_hash, ?, r.expires_at\n           FROM refresh_tokens r JOIN sessions s ON s.id = r.session_id\n          WHERE s.user_id = ? AND (? IS NULL OR s.device_id = ?) AND r.retired_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "2603948e89d587dc7838bc4d16cb38dcd82cd110ec8c89bbba5f089cfd1b0778"
+}

@@ -121,6 +121,7 @@ pub async fn run_token_sweep_pass(store: &store::Store) {
                 tracing::info!(
                     access_tokens = swept.access_tokens,
                     refresh_tokens = swept.refresh_tokens,
+                    dropped_refresh_tokens = swept.dropped_refresh_tokens,
                     ws_tickets = swept.ws_tickets,
                     "swept expired token rows"
                 );

@@ -12,7 +12,7 @@ use axum::http::{Request, StatusCode};
 use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::store::{PushRegistration, RefreshOutcome, RegisterError, Store};
+use slimm_server::store::{PushRegistration, RefreshDenial, RefreshOutcome, RegisterError, Store};
 use tower::ServiceExt;
 
 use crate::support;
@@ -124,7 +124,7 @@ async fn revoke_session_is_instant() {
     );
     assert!(matches!(
         store.rotate_refresh(&tokens.refresh_token).await.unwrap(),
-        RefreshOutcome::Denied
+        RefreshOutcome::Denied(RefreshDenial::Revoked)
     ));
 }
 
