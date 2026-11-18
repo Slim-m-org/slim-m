@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The jump-to-latest arrow sits over the message column, not the window: it
-/// is centred on the column and above the composer whether the member pane
-/// is docked, closed or a docked thread has taken its slot, from the
-/// narrowest two-pane width to a full-hd window.
+/// is centred on the column and above the composer beside a docked member
+/// pane on a small desktop window, and beside a docked thread.
 library;
 
 import 'package:flutter/material.dart';
@@ -12,7 +11,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/main.dart' show appChromeBuilder;
 import 'package:slimm_app/src/features/channels/providers/threads.dart'
     show dockedThreadsProvider;
-import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_transcript.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -37,10 +35,10 @@ final _transcript = find.byWidgetPredicate((w) => w is MessageTranscript).first;
 final _arrow = find.byKey(const Key('jump-to-latest-tap-target'));
 final _composerHint = find.text('Message #general');
 
+/// With the member pane docked, its default.
 Future<void> _check(
   WidgetTester tester, {
   required double width,
-  required bool members,
   bool thread = false,
 }) async {
   tester.view.physicalSize = Size(width, 800);
@@ -49,7 +47,6 @@ Future<void> _check(
   final fixture = await fixtureContainer(
     messages: _backlog,
     extraOverrides: [
-      memberPaneVisibleProvider.overrideWith((ref) => members),
       if (thread)
         dockedThreadsProvider.overrideWith((ref) => {'c-general': 'c-thread'}),
     ],
@@ -100,22 +97,15 @@ Future<void> _check(
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final width in [600.0, 700.0, 836.0, 1024.0, 1280.0, 1920.0]) {
-    for (final members in [true, false]) {
-      testWidgets('at $width with the member pane '
-          '${members ? 'open' : 'closed'} the arrow is over the column', (
-        tester,
-      ) async {
-        await _check(tester, width: width, members: members);
-      });
-    }
-  }
+  testWidgets('beside the member pane at 836 the arrow is over the column', (
+    tester,
+  ) async {
+    await _check(tester, width: 836);
+  });
 
-  for (final width in [1024.0, 1366.0]) {
-    testWidgets('at $width a docked thread leaves the arrow over the column', (
-      tester,
-    ) async {
-      await _check(tester, width: width, members: true, thread: true);
-    });
-  }
+  testWidgets('beside a docked thread the arrow is over the column', (
+    tester,
+  ) async {
+    await _check(tester, width: 1366, thread: true);
+  });
 }

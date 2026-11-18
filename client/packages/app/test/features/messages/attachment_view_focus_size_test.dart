@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// An inline gif is the same size focused and unfocused, and a held gif is
 /// the size it plays at, inline or in a gallery tile: the owner saw one grow
-/// each time the window lost focus, and the transcript around it jumped.
+/// each time the window lost focus, and the transcript around it jumped. A
+/// link preview's gif and an animated emoji pause in place the same way.
 library;
 
 import 'dart:convert';
@@ -13,10 +14,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.dart';
+import 'package:slimm_app/src/features/emoji/widgets/custom_emoji_image.dart';
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
 import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
+import 'package:slimm_app/src/features/messages/providers/link_preview.dart';
 import 'package:slimm_app/src/features/messages/providers/media_preferences.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_view.dart';
+import 'package:slimm_app/src/features/messages/widgets/link_preview_thumbnail.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -67,8 +72,9 @@ Future<Uint8List> _stillOfSize(
 }
 
 ProviderContainer _container({
-  required Uint8List preview,
+  Uint8List? preview,
   Uint8List? original,
+  List<Override> extra = const [],
 }) {
   SharedPreferences.setMockInitialValues({});
   final container = ProviderContainer(
@@ -76,10 +82,15 @@ ProviderContainer _container({
       preferencesProvider.overrideWith(
         (ref) => SharedPreferences.getInstance(),
       ),
-      attachmentPreviewBytesProvider.overrideWith((ref, key) async => preview),
-      attachmentBytesProvider(
-        _gif.id,
-      ).overrideWith((ref) async => original ?? preview),
+      if (preview != null) ...[
+        attachmentPreviewBytesProvider.overrideWith(
+          (ref, key) async => preview,
+        ),
+        attachmentBytesProvider(
+          _gif.id,
+        ).overrideWith((ref) async => original ?? preview),
+      ],
+      ...extra,
     ],
   );
   addTearDown(container.dispose);
@@ -110,7 +121,17 @@ Future<void> _mount(
   WidgetTester tester,
   ProviderContainer container, {
   double? tileEdge,
-}) async {
+}) => _mountMedia(
+  tester,
+  container,
+  AttachmentView(attachment: _gif, tileEdge: tileEdge),
+);
+
+Future<void> _mountMedia(
+  WidgetTester tester,
+  ProviderContainer container,
+  Widget media,
+) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
@@ -119,16 +140,28 @@ Future<void> _mount(
         home: Scaffold(
           body: Align(
             alignment: Alignment.topLeft,
-            child: AttachmentView(
-              key: _viewKey,
-              attachment: _gif,
-              tileEdge: tileEdge,
-            ),
+            child: KeyedSubtree(key: _viewKey, child: media),
           ),
         ),
       ),
     ),
   );
+}
+
+/// Pauses in place under the gate rather than swapping in a still.
+Future<void> _expectSteadyAcrossFocus(
+  WidgetTester tester,
+  Override bytes,
+  Widget media,
+) async {
+  await _mountMedia(tester, _container(extra: [bytes]), media);
+  final focused = await _settledSize(tester);
+  _setFocused(false);
+  await tester.pump();
+  expect(tester.getSize(find.byKey(_viewKey)), focused);
+  expect(await _settledSize(tester), focused);
+  _setFocused(true);
+  expect(await _settledSize(tester), focused);
 }
 
 void _setFocused(bool focused) =>
@@ -241,6 +274,26 @@ void main() {
     expect(
       tester.getSize(_painted.first),
       Size(_width.toDouble(), _height.toDouble()),
+    );
+  });
+
+  testWidgets('a link preview gif keeps its size across focus', (tester) async {
+    await _expectSteadyAcrossFocus(
+      tester,
+      linkPreviewImageBytesProvider(
+        't1',
+      ).overrideWith((ref) async => _gifOfSize()),
+      const LinkPreviewThumbnail(token: 't1', url: 'https://example.com/a'),
+    );
+  });
+
+  testWidgets('an animated emoji or sticker keeps its size across focus', (
+    tester,
+  ) async {
+    await _expectSteadyAcrossFocus(
+      tester,
+      customEmojiImageProvider('e1').overrideWith((ref) async => _gifOfSize()),
+      const CustomEmojiImage(emojiId: 'e1', size: 96),
     );
   });
 }
