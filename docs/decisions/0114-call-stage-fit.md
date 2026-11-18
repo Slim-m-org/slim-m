@@ -52,7 +52,9 @@ Aspects come from the track when known and fall back to 16:9.
 
 ### Audio-only people
 
-With content on stage they take a strip below or a column at the right as uniform tiles 96 to 160px wide, chosen with the content so the whole is the fullest; the strip wins unless the column is 15% better.
+On a landscape stage at least 640px wide, up to four of them join the bento as one column at the content's right: 20% of the stage wide (160 to 320px), flush with the content's top, and stretched to its full height when there are several (never taller than 1.25 times their width).
+Amended 2026-11-18: before this they always took the strip below, and scoring by fill shrank them to 96px under a share, which the owner read as the bento not having shipped.
+Otherwise, with content on stage they take a strip below or a column at the right as uniform tiles 96 to 160px wide, chosen with the content so the whole is the fullest; the strip wins unless the column is 15% better.
 If that leaves no room for tiles at least 96px wide, they collapse to one row of chips ending in "+N".
 With nothing else on stage they are a uniform grid over the whole box, with no width cap.
 
