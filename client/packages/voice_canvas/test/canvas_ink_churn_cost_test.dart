@@ -16,6 +16,7 @@ import 'support/canvas_painter_fixtures.dart';
 const _size = Size(1000, 700);
 const _board = 1000;
 const _drawn = 60;
+const _waiting = 200;
 
 CanvasStrokeInput _circle(String id, math.Random rng, int seq, int z) {
   final r = 20 + rng.nextDouble() * 80;
@@ -106,6 +107,41 @@ void main() {
       reason: 'each new stroke replayed $perStroke objects of a $_board '
           'stroke board',
     );
+  });
+
+  test(
+      'strokes whose saves wait on a slow server are not all repainted '
+      'every frame', () {
+    final waiting = [
+      for (var k = 0; k < _waiting; k++)
+        _circle('w$k', rng, 0, provisionalLocalZIndex + k),
+    ];
+    for (final local in waiting) {
+      document
+        ..applyPlaced(local)
+        ..refresh();
+      frame();
+    }
+    final before = painter.debugObjectsPainted;
+    frame();
+    final quiet = painter.debugObjectsPainted - before;
+    expect(
+      quiet,
+      lessThan(_waiting / 2),
+      reason: 'a frame with nothing new replayed $quiet of $_waiting '
+          'unsaved strokes',
+    );
+
+    final saving = painter.debugObjectsPainted;
+    for (var k = 0; k < _waiting; k++) {
+      document
+        ..applyPlaced(_confirmed(waiting[k], _board + 1 + k))
+        ..refresh();
+      frame();
+    }
+    final perSave = (painter.debugObjectsPainted - saving) / _waiting;
+    printOnFailure('objects drawn per late save: $perSave');
+    expect(perSave, lessThan(_board / 5));
   });
 
   test('an undo redraws only what sat under the removed stroke', () {

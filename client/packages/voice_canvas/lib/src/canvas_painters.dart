@@ -254,7 +254,7 @@ class StrokePainter extends CustomPainter {
       }
       extras = _ink.extrasOf(document, order, elevated);
       if (extras == null &&
-          _ink.promote(document, order, elevated, paintSlots)) {
+          _ink.promote(document, order, elevated, paintSlots, unsaved: true)) {
         extras = _ink.extrasOf(document, order, elevated);
       }
       return extras != null;
@@ -264,7 +264,7 @@ class StrokePainter extends CustomPainter {
     if (ok &&
         still.content &&
         _ink.wantsFolding &&
-        _ink.promote(document, order, elevated, paintSlots)) {
+        _ink.promote(document, order, elevated, paintSlots, unsaved: false)) {
       extras = _ink.extrasOf(document, order, elevated);
     }
     Set<String>? builtNotes;

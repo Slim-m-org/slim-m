@@ -49,8 +49,11 @@ Future<void> expectInkMatchesLive(
   CanvasDocument document,
 ) async {
   final cached = await inkFramePixels(tester, painter);
-  final reference = StrokePainter(document: document, ink: ink)
-    ..devicePixelRatio = 1;
+  final reference = StrokePainter(
+    document: document,
+    ink: ink,
+    inkColors: painter.inkColors,
+  )..devicePixelRatio = 1;
   addTearDown(reference.dispose);
   final live = await inkFramePixels(tester, reference);
   expect(worstChannelGap(cached, live), lessThan(inkEdgeTolerance));

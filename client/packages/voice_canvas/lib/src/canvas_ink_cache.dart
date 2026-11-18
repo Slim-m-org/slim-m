@@ -30,7 +30,8 @@ const int _maxCachePixels = 24 * 1000 * 1000;
 const double _minScale = 0.5;
 const double _maxScale = 2;
 
-/// Objects drawn live over the texture at most, and how many wait for a quiet frame to be folded into it.
+/// Objects the texture could hold drawn live over it at most, and how many saved ones wait for a quiet frame to be folded into it.
+/// Unsaved strokes count toward the first, so a slow or absent server cannot grow a frame's live work without bound.
 const int _maxLiveExtras = 48;
 const int _foldExtrasAt = 16;
 
@@ -133,46 +134,51 @@ class InkLayerCache {
     return true;
   }
 
-  /// Whether enough of the last extras belong in the texture that a quiet frame should fold them in.
-  bool get wantsFolding => _cacheableExtras >= _foldExtrasAt;
-  int _cacheableExtras = 0;
+  /// Whether enough of the last extras are saved that a quiet frame should fold them in.
+  bool get wantsFolding => _savedExtras >= _foldExtrasAt;
+  int _savedExtras = 0;
 
   /// The visible slots of [order] the texture lacks, to paint live over it.
-  /// Null when too many belong in it, or one belongs under something it holds.
+  /// Null when too many could be held in it, or one belongs under something it holds.
   List<int>? extrasOf(
     CanvasDocument document,
     List<int> order,
     String? elevated,
   ) {
     final extras = <int>[];
-    var cacheable = 0;
+    var holdable = 0;
+    var saved = 0;
     for (final slot in order) {
       if (_members.containsKey(slot)) {
-        if (cacheable > 0) return null;
+        if (holdable > 0) return null;
         continue;
       }
       extras.add(slot);
-      if (inkCacheable(document, document.strokeAt(slot), elevated) &&
-          ++cacheable > _maxLiveExtras) {
-        return null;
-      }
+      final stroke = document.strokeAt(slot);
+      if (!inkHoldable(document, stroke, elevated)) continue;
+      if (++holdable > _maxLiveExtras) return null;
+      if (stroke.seq != 0) saved++;
     }
-    _cacheableExtras = cacheable;
+    _savedExtras = saved;
     return extras;
   }
 
-  /// Draws the visible objects that belong in the texture into it; false when too many to patch.
+  /// Draws the visible saved objects the texture lacks into it, and with [unsaved] the unsaved ones too; false when too many to patch.
+  /// A texture [extrasOf] refused needs [unsaved]; a quiet frame's fold leaves them live until their save lands.
   bool promote(
     CanvasDocument document,
     List<int> order,
     String? elevated,
-    InkSlotsPainter paintSlots,
-  ) {
+    InkSlotsPainter paintSlots, {
+    required bool unsaved,
+  }) {
     final adds = [
       for (final slot in order)
-        if (!_members.containsKey(slot) &&
-            inkCacheable(document, document.strokeAt(slot), elevated))
-          slot,
+        if (!_members.containsKey(slot))
+          if (document.strokeAt(slot) case final stroke
+              when inkHoldable(document, stroke, elevated) &&
+                  (unsaved || stroke.seq != 0))
+            slot,
     ];
     return adds.isNotEmpty &&
         _patch(document, const [], adds, elevated, paintSlots);
@@ -208,7 +214,7 @@ class InkLayerCache {
     );
     final slots = [
       for (final slot in document.orderedSlotsIn(world))
-        if (inkCacheable(document, document.strokeAt(slot), elevated)) slot,
+        if (inkHoldable(document, document.strokeAt(slot), elevated)) slot,
     ];
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder)..scale(dpr);
@@ -252,7 +258,7 @@ class InkLayerCache {
     final next = <int, InkMember?>{
       for (final slot in stale)
         slot: switch (inkSlotStroke(document, slot)) {
-          final now? when inkCacheable(document, now, elevated) =>
+          final now? when inkHoldable(document, now, elevated) =>
             _memberFor(now),
           _ => null,
         },

@@ -29,16 +29,13 @@ class InkMember {
   int seq;
 }
 
-/// Whether [stroke] belongs in the texture: a dragged, previewed or unconfirmed object paints live over it.
-bool inkCacheable(
+/// Whether [stroke] can be drawn into the texture: a dragged or previewed object paints live over it.
+bool inkHoldable(
   CanvasDocument document,
   CanvasStroke stroke,
   String? elevated,
 ) =>
-    stroke.alive &&
-    stroke.seq != 0 &&
-    stroke.id != elevated &&
-    !document.isHeldLive(stroke.id);
+    stroke.alive && stroke.id != elevated && !document.isHeldLive(stroke.id);
 
 /// The world box [stroke]'s pixels can reach at [zoom].
 ui.Rect inkReach(CanvasStroke stroke, double zoom) =>
@@ -85,7 +82,7 @@ CanvasStroke? inkSlotStroke(CanvasDocument document, int slot) =>
     if (now == null ||
         !identical(now, member.stroke) ||
         now.paintVersion != member.version ||
-        !inkCacheable(document, now, elevated)) {
+        !inkHoldable(document, now, elevated)) {
       stale.add(slot);
     } else if (now.zIndex != member.zIndex || now.seq != member.seq) {
       renumbered.add(slot);
@@ -97,25 +94,26 @@ CanvasStroke? inkSlotStroke(CanvasDocument document, int slot) =>
 /// Whether [members] bar [skip] stack now as they did when drawn; a placement reply renumbers a stroke without moving it.
 bool inkStackKept(Map<int, InkMember> members, List<int> skip) {
   final skipped = skip.toSet();
-  final slots = [
-    for (final slot in members.keys)
-      if (!skipped.contains(slot)) slot,
-  ];
-  int compare(int a, int b, {required bool drawn}) {
-    final ma = members[a]!;
-    final mb = members[b]!;
-    final za = drawn ? ma.zIndex : ma.stroke.zIndex;
-    final zb = drawn ? mb.zIndex : mb.stroke.zIndex;
-    if (za != zb) return za.compareTo(zb);
-    final sa = drawn ? ma.seq : ma.stroke.seq;
-    final sb = drawn ? mb.seq : mb.stroke.seq;
-    return sa != sb ? sa.compareTo(sb) : a.compareTo(b);
-  }
-
-  final before = [...slots]..sort((a, b) => compare(a, b, drawn: true));
-  final after = [...slots]..sort((a, b) => compare(a, b, drawn: false));
-  for (var i = 0; i < before.length; i++) {
-    if (before[i] != after[i]) return false;
+  final drawn = [
+    for (final MapEntry(key: slot, value: member) in members.entries)
+      if (!skipped.contains(slot)) (slot: slot, member: member),
+  ]..sort((a, b) {
+      final byZ = a.member.zIndex.compareTo(b.member.zIndex);
+      if (byZ != 0) return byZ;
+      final bySeq = a.member.seq.compareTo(b.member.seq);
+      return bySeq != 0 ? bySeq : a.slot.compareTo(b.slot);
+    });
+  for (var i = 1; i < drawn.length; i++) {
+    final below = drawn[i - 1].member.stroke;
+    final above = drawn[i].member.stroke;
+    final byZ = below.zIndex.compareTo(above.zIndex);
+    final bySeq = below.seq.compareTo(above.seq);
+    final order = byZ != 0
+        ? byZ
+        : bySeq != 0
+            ? bySeq
+            : drawn[i - 1].slot.compareTo(drawn[i].slot);
+    if (order > 0) return false;
   }
   return true;
 }
