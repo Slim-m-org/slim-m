@@ -171,7 +171,33 @@ void main() {
       expect(trace?.colo, 'GRU');
     });
 
-    test('a trace that is not there is null, never a throw', () async {
+    test(
+        'a trace whose request failed throws, unlike one no Cloudflare '
+        'answered', () async {
+      final api = SlimmApi(
+        baseUrl: Uri.parse('https://slim.example.org'),
+        httpClient: MockClient((_) => throw http.ClientException('reset')),
+      );
+      await expectLater(
+        api.cloudflareTrace(),
+        throwsA(isA<TransportException>()),
+      );
+    });
+
+    test('a trace that met a dropped socket is read again on a fresh one',
+        () async {
+      var attempts = 0;
+      final api = SlimmApi(
+        baseUrl: Uri.parse('https://slim.example.org'),
+        httpClient: MockClient((_) async {
+          if (attempts++ == 0) throw http.ClientException('reset');
+          return http.Response(_trace, 200);
+        }),
+      );
+      expect((await api.cloudflareTrace())?.colo, 'GRU');
+    });
+
+    test('a trace no Cloudflare answered is null', () async {
       final api = SlimmApi(
         baseUrl: Uri.parse('https://slim.example.org'),
         httpClient: MockClient((_) async => http.Response('nope', 404)),

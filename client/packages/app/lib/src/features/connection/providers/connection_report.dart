@@ -83,7 +83,19 @@ class ConnectionStatusNotifier extends AutoDisposeNotifier<ConnectionStatus> {
   Future<void> _traceSignal() async {
     final url = _health.signalUrl;
     if (url == null) return;
-    final trace = await _api.cloudflareTrace(host: url);
+    final EdgeTrace? trace;
+    try {
+      trace = await _api.cloudflareTrace(host: url);
+    } on ApiException catch (error, stack) {
+      // No answer says nothing about the route, so the last trace stands.
+      AppLog.swallowed(
+        LogTag.net,
+        'Could not trace the call host',
+        error,
+        stack,
+      );
+      return;
+    }
     if (_health.link.value == null) return;
     _signalTrace = trace;
     _recompute();

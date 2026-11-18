@@ -7,9 +7,21 @@ import 'client.dart';
 import 'client_transport.dart';
 import 'edge_route.dart';
 import 'exceptions.dart';
-import 'logging/app_log.dart';
 
 const _ping = '/diagnostics/ping';
+
+// No deadline of its own: an answer that never comes only leaves the trace unread.
+Future<http.Response> _traceOnce(http.Client client, Uri uri) async {
+  try {
+    return await client
+        .send(http.Request('GET', uri))
+        .then(http.Response.fromStream);
+  } on http.ClientException catch (e) {
+    throw ConnectionDroppedException('the trace of ${uri.host} failed: $e');
+  } catch (e) {
+    throw TransportException('the trace of ${uri.host} failed: $e');
+  }
+}
 
 /// How this device reaches the server: the data centre in between, and how long a round trip takes.
 extension SlimmApiEdge on SlimmApi {
@@ -18,6 +30,8 @@ extension SlimmApiEdge on SlimmApi {
 
   /// Cloudflare's trace for [host] (default: this server), or null when no
   /// Cloudflare answers there, as on a self-host or the server's own network.
+  ///
+  /// Throws a [TransportException] when nothing answered, which says nothing about the route.
   Future<EdgeTrace?> cloudflareTrace({Uri? host}) async {
     final base = host ?? baseUrl;
     final scheme = switch (base.scheme) {
@@ -31,22 +45,12 @@ extension SlimmApiEdge on SlimmApi {
       port: base.hasPort ? base.port : null,
       path: '/cdn-cgi/trace',
     );
-    try {
-      // No deadline of its own: an answer that never comes only leaves the city unknown.
-      final response = await link.client
-          .send(http.Request('GET', uri))
-          .then(http.Response.fromStream);
-      if (response.statusCode != 200) return null;
-      return parseCloudflareTrace(response.body);
-    } on Object catch (error, stack) {
-      AppLog.swallowed(
-        LogTag.net,
-        'Could not read the Cloudflare trace',
-        error,
-        stack,
-      );
-      return null;
-    }
+    final response = await replayingDroppedSocket(
+      'GET',
+      () => _traceOnce(link.client, uri),
+    );
+    if (response.statusCode != 200) return null;
+    return parseCloudflareTrace(response.body);
   }
 
   /// Times one warm request to the server now, and records it in [edge] with the route it took.

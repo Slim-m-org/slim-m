@@ -11,16 +11,21 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../voice/voice_controller_harness.dart';
 
-/// Answers the timed ping through [apiColo] and the call host's trace from [signalColo].
+/// Answers the timed ping through [apiColo] and the call host's trace from
+/// [signalColo], with no Cloudflare when that is null; a trace fails while [traceFails].
 class _Edge {
   String apiColo = 'EWR';
-  String signalColo = 'EWR';
+  String? signalColo = 'EWR';
+  bool traceFails = false;
   int traces = 0;
 
   http.Client client() => MockClient((request) async {
     if (request.url.path == '/cdn-cgi/trace') {
       traces++;
-      return http.Response('colo=$signalColo\nloc=US\nip=203.0.113.9\n', 200);
+      if (traceFails) throw http.ClientException('Connection reset by peer');
+      final colo = signalColo;
+      if (colo == null) return http.Response('Not found', 404);
+      return http.Response('colo=$colo\nloc=US\nip=203.0.113.9\n', 200);
     }
     if (request.url.path == '/diagnostics/ping') {
       return http.Response(
@@ -80,4 +85,32 @@ void main() {
     await pumpEventQueue();
     expect(report().signalColo, 'GRU');
   });
+
+  Future<void> repair() async {
+    session.health.reconnect.started(ReconnectKind.resume);
+    await pumpEventQueue();
+    session.health.reconnect.ended('resumed');
+    await pumpEventQueue();
+  }
+
+  test(
+    'a trace that fails after a repair keeps the data centre it had',
+    () async {
+      await inCall();
+      edge.traceFails = true;
+      await repair();
+      expect(edge.traces, greaterThan(1));
+      expect(report().signalColo, 'EWR');
+    },
+  );
+
+  test(
+    'a host no Cloudflare answers for after a repair reads as none',
+    () async {
+      await inCall();
+      edge.signalColo = null;
+      await repair();
+      expect(report().signalColo, isNull);
+    },
+  );
 }
