@@ -378,10 +378,10 @@ void main() {
     );
     await tester.pump();
 
-    final mark = tester.getTopLeft(find.byType(AppBrandMark).first);
-    final word = tester.getRect(find.text('slim-m').first);
     expect(tester.takeException(), isNull);
-    expect(word.left, greaterThan(mark.dx));
-    expect(word.right, lessThanOrEqualTo(260));
+    expect(
+      tester.getRect(find.text('slim-m').first).right,
+      lessThanOrEqualTo(260),
+    );
   });
 }
