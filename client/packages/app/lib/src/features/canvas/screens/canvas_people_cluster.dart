@@ -125,7 +125,7 @@ class _CanvasPeopleClusterState extends ConsumerState<CanvasPeopleCluster> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: AppSizes.icon28),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

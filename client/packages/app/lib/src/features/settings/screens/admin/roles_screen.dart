@@ -27,7 +27,10 @@ import '../../../../routing/routes.dart';
 import '../../../../widgets/hover_reveal.dart';
 import '../../../members/providers/member_presence.dart' show membersProvider;
 import '../../../members/widgets/role_color.dart';
+import '../../../../permissions.dart' show joinLabels;
+import '../../../../widgets/confirm_dialog.dart';
 import '../../../../widgets/run_guarded.dart';
+import '../../widgets/settings_sub_pages.dart';
 import '../settings_screen_scaffold.dart';
 import 'role_create_sheet.dart';
 import 'role_detail.dart';
@@ -60,6 +63,13 @@ class RolesPane extends ConsumerStatefulWidget {
 class _RolesPaneState extends ConsumerState<RolesPane> {
   String? _selectedId;
 
+  /// Opens another role once the open one's unsaved edits are saved or let go.
+  Future<void> _selectRole(BuildContext context, String id) async {
+    final pane = SettingsSubPages.maybeOf(context);
+    if (pane != null && !await pane.canLeave()) return;
+    if (mounted) setState(() => _selectedId = id);
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.watch(roleChangeWatcherProvider);
@@ -89,7 +99,7 @@ class _RolesPaneState extends ConsumerState<RolesPane> {
             roles: list,
             selectedId: selected?.id,
             showSelection: true,
-            onSelect: (id) => setState(() => _selectedId = id),
+            onSelect: (id) => unawaited(_selectRole(context, id)),
           );
 
           final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -184,6 +194,37 @@ class _RoleNavState extends ConsumerState<_RoleNav>
     if (mounted) setState(() => _pendingOrder = null);
   }
 
+  /// Reorders after a drop; one that puts a bot's role above another role asks first, since the bot then manages it.
+  Future<void> _drop(List<api.Role> roles, int oldIndex, int newIndex) async {
+    final ids = [for (final r in roles) r.id];
+    ids.insert(newIndex, ids.removeAt(oldIndex));
+    final gaining = _botRolesGainingReach(roles, ids);
+    if (gaining.isNotEmpty &&
+        !await _confirmBotReach(roles[oldIndex], gaining)) {
+      return;
+    }
+    await _reorder(ids);
+  }
+
+  Future<bool> _confirmBotReach(api.Role moved, List<api.Role> bots) {
+    if (bots.contains(moved)) {
+      return confirmChoice(
+        context,
+        title: 'Move ${moved.name} up?',
+        message:
+            'Bots with this role can then manage roles and members below its new place.',
+        confirmLabel: 'Move up',
+      );
+    }
+    final names = joinLabels([for (final r in bots) r.name]);
+    return confirmChoice(
+      context,
+      title: 'Move ${moved.name} below $names?',
+      message: 'Bots with $names can then manage this role and its members.',
+      confirmLabel: 'Move down',
+    );
+  }
+
   /// The dropped order stays on screen until the roles it describes arrive.
   Future<void> _refetchRoles() async {
     try {
@@ -257,11 +298,8 @@ class _RoleNavState extends ConsumerState<_RoleNav>
                     horizontal: AppSpacing.s8,
                   ),
                   buildDefaultDragHandles: false,
-                  onReorderItem: (oldIndex, newIndex) {
-                    final ids = [for (final r in reorderable) r.id];
-                    ids.insert(newIndex, ids.removeAt(oldIndex));
-                    unawaited(_reorder(ids));
-                  },
+                  onReorderItem: (oldIndex, newIndex) =>
+                      unawaited(_drop(reorderable, oldIndex, newIndex)),
                   footer: Column(
                     children: [
                       for (final role in ordered)
@@ -357,4 +395,21 @@ class _RoleNavState extends ConsumerState<_RoleNav>
       ),
     );
   }
+}
+
+/// The bot roles [after] (ids, top first) puts above a role they sat below in [before].
+List<api.Role> _botRolesGainingReach(
+  List<api.Role> before,
+  List<String> after,
+) {
+  final was = {for (final (i, r) in before.indexed) r.id: i};
+  final now = {for (final (i, id) in after.indexed) id: i};
+  return [
+    for (final bot in before)
+      if ((bot.isBotsRole || bot.isManagedByBot) &&
+          before.any(
+            (r) => was[bot.id]! > was[r.id]! && now[bot.id]! < now[r.id]!,
+          ))
+        bot,
+  ];
 }

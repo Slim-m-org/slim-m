@@ -6,6 +6,7 @@
 library;
 
 import 'models_users.dart';
+import 'text_marks.dart';
 
 /// One of the caller's DM conversations: a channel like any other for
 /// messages, search, and sync, plus the other participant and the caller's
@@ -57,7 +58,10 @@ class GroupDmInfo {
   final List<UserProfile> members;
 
   factory GroupDmInfo.fromJson(Map<String, dynamic> json) => GroupDmInfo(
-        name: json['name'] as String?,
+        name: switch (json['name']) {
+          final String name => capCombiningMarks(name),
+          _ => null,
+        },
         members: (json['members'] as List<dynamic>)
             .map((m) => UserProfile.fromJson(m as Map<String, dynamic>))
             .toList(growable: false),

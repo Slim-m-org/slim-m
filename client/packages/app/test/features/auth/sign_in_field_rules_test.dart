@@ -31,7 +31,7 @@ import 'package:slimm_platform/testing.dart';
 
 import '../../support/onboarding_error_strings.dart';
 
-http.Client _quietProbe() => MockClient((request) async {
+http.Response _quietAnswer(http.Request request) {
   if (request.method == 'GET' && request.url.path == '/version') {
     return http.Response(
       jsonEncode({'name': 'slim-m', 'version': '0.10.0', 'protocol': 1}),
@@ -40,13 +40,13 @@ http.Client _quietProbe() => MockClient((request) async {
     );
   }
   return http.Response('{}', 200);
-});
+}
 
 Future<List<String>> _pumpSignIn(WidgetTester tester) async {
   final requested = <String>[];
   final client = MockClient((request) async {
     requested.add(request.url.path);
-    return _quietProbe().send(request).then(http.Response.fromStream);
+    return _quietAnswer(request);
   });
   final container = ProviderContainer(
     overrides: [

@@ -76,22 +76,18 @@ class ModuleSceneFullscreen extends StatelessWidget {
       namesRoute: true,
       label: '$name, full screen',
       explicitChildNodes: true,
-      child: Shortcuts(
-        shortcuts: const {
-          SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
+      // A key handler, not a DismissIntent: the Scaffold's disabled drawer handler is nearer to a focused board and wins.
+      child: Focus(
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          if (event is! KeyDownEvent ||
+              event.logicalKey != LogicalKeyboardKey.escape) {
+            return KeyEventResult.ignored;
+          }
+          Navigator.of(context).maybePop();
+          return KeyEventResult.handled;
         },
-        child: Actions(
-          actions: {
-            DismissIntent: CallbackAction<DismissIntent>(
-              onInvoke: (_) => Navigator.of(context).maybePop(),
-            ),
-          },
-          // Autofocus so Escape works before anything inside has been clicked.
-          child: Focus(
-            autofocus: true,
-            child: _scaffold(context, tokens, name),
-          ),
-        ),
+        child: _scaffold(context, tokens, name),
       ),
     );
   }

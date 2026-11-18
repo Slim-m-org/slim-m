@@ -196,8 +196,6 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
         final standIn = _isGif && !looksAnimated(bytes);
         final playGated =
             animated && gifAutoplay == GifAutoplay.tapToPlay && !_revealed;
-        // Whatever the setting, an animation nobody is looking at holds its first frame.
-        final still = animated && !focused;
         // An animation held from autoplay shows its first frame, animating on hover or tap.
         if (playGated) {
           return _gatedGif(
@@ -207,11 +205,14 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
             decodeWidth: decodeWidth,
           );
         }
+        // An unfocused window never fetches the original, but keeps one it has: the gate pauses it in place.
+        final playOriginal =
+            standIn &&
+            (focused || ref.exists(attachmentBytesProvider(attachment.id)));
         return _openableImage(
-          standIn && !still ? _original(bytes) : bytes,
+          playOriginal ? _original(bytes) : bytes,
           caption: caption,
           decodeWidth: decodeWidth,
-          still: still,
         );
       },
     );
@@ -228,12 +229,15 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     required String caption,
     required int decodeWidth,
   }) {
+    final tile = widget.tileEdge;
+    final fit = tile == null ? BoxFit.contain : BoxFit.cover;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: AttachmentRevealTile(
         caption: caption,
-        maxEdge: widget.tileEdge ?? kInlineImageMax,
+        maxEdge: kInlineImageMax,
+        tileEdge: tile,
         onReveal: _reveal,
         // The first frame stays mounted under the pointer's playing copy: remounting it re-decodes and resizes the tile.
         showBadge: !_hovered,
@@ -241,12 +245,16 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
           child: Stack(
             fit: StackFit.passthrough,
             children: [
-              AttachmentFirstFrame(bytes: bytes, cacheWidth: decodeWidth),
+              AttachmentFirstFrame(
+                bytes: bytes,
+                cacheWidth: decodeWidth,
+                fit: fit,
+              ),
               if (_hovered)
                 Positioned.fill(
                   child: Image.memory(
                     playBytes,
-                    fit: BoxFit.contain,
+                    fit: fit,
                     cacheWidth: decodeWidth,
                   ),
                 ),
@@ -261,17 +269,11 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     Uint8List bytes, {
     required String caption,
     required int decodeWidth,
-    required bool still,
   }) {
     final image = _tappable(
       label: 'Open ${attachment.filename} fullscreen',
       onTap: () => _openFullscreen(bytes),
-      child: _imageColumn(
-        bytes,
-        caption: caption,
-        decodeWidth: decodeWidth,
-        still: still,
-      ),
+      child: _imageColumn(bytes, caption: caption, decodeWidth: decodeWidth),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,7 +330,6 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     Uint8List bytes, {
     required String caption,
     required int decodeWidth,
-    required bool still,
   }) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final tile = widget.tileEdge;
@@ -349,7 +350,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
                 constraints: _imageConstraints(tile),
                 // Never decodes wider than the transcript can draw it.
                 child: AnimationGate(
-                  child: _bitmap(bytes, decodeWidth: decodeWidth, still: still),
+                  child: _bitmap(bytes, decodeWidth: decodeWidth),
                 ),
               ),
             ),
@@ -369,29 +370,27 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
 
   BoxConstraints _imageConstraints(double? tile) {
     if (tile == null) {
+      // A 1 px image is still something to see and tap, so the box never shrinks below a fingertip.
       return const BoxConstraints(
+        minWidth: AppSizes.rowTouch,
+        minHeight: AppSizes.rowTouch,
         maxWidth: kInlineImageMax,
         maxHeight: kInlineImageMax,
       );
     }
-    // The tile's 1px border sits outside the image, so the image gives it back.
-    return BoxConstraints.tight(Size.square(tile - 2));
+    return attachmentTileBox(tile);
   }
 
-  Widget _bitmap(
-    Uint8List bytes, {
-    required int decodeWidth,
-    required bool still,
-  }) {
-    if (still) {
-      return AttachmentFirstFrame(bytes: bytes, cacheWidth: decodeWidth);
-    }
+  Widget _bitmap(Uint8List bytes, {required int decodeWidth}) {
     final tile = widget.tileEdge;
+    final fit = tile == null ? BoxFit.scaleDown : BoxFit.cover;
     return Image.memory(
       bytes,
-      fit: tile == null ? BoxFit.contain : BoxFit.cover,
+      fit: fit,
       semanticLabel: attachment.filename,
       cacheWidth: decodeWidth,
+      // The still stays drawn while the original decodes, so the box never collapses in between.
+      gaplessPlayback: true,
       // Bytes can decode-fail after a successful fetch; without this it paints as Flutter's raw error box.
       errorBuilder: (context, error, stackTrace) => AttachmentFailureBox(
         filename: attachment.filename,

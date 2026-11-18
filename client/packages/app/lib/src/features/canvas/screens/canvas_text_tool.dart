@@ -25,6 +25,7 @@ class CanvasTextTool {
     required this.changed,
     required this.onPlaced,
     required this.focusBoard,
+    required this.spectating,
   });
 
   CanvasDocument get document => engine.document;
@@ -40,14 +41,15 @@ class CanvasTextTool {
   final void Function(String id, CanvasTool startedWith) onPlaced;
   final VoidCallback focusBoard;
 
+  /// True while this viewer only watches the canvas, so no box is opened.
+  final bool Function() spectating;
+
   /// Where the editor for a box not placed yet is open, in world coordinates.
   Offset? draft;
 
   /// Opens the editor for a new box at [world]; nothing is sent until it is saved with text.
   void place(Offset world) {
-    if (canvasErrorBlocksDrawing(engine.error)) {
-      return;
-    }
+    if (spectating() || canvasErrorBlocksDrawing(engine.error)) return;
     changed(() => draft = world);
   }
 

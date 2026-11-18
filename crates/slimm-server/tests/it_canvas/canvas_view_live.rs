@@ -70,7 +70,7 @@ async fn a_viewer_with_both_bits_receives_the_view_and_the_summon_flag() {
 }
 
 #[tokio::test]
-async fn a_member_denied_use_canvas_never_sees_a_view() {
+async fn a_spectator_without_use_canvas_still_sees_a_view() {
     let (store, _guard) = support::new_store("slimm-canvas-view-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
@@ -99,7 +99,7 @@ async fn a_member_denied_use_canvas_never_sees_a_view() {
     )
     .await;
 
-    assert_no_frame_of_type(&mut carol_ws, VIEW).await;
+    read_frame_of_type(&mut carol_ws, VIEW).await;
 }
 
 #[tokio::test]

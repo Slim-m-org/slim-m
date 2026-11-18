@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The floating bar a settings pane shows while it holds unsaved edits: the
 /// role Permissions tab and the channel permissions grid batch the same way.
+/// In a modal it docks to the bottom edge as a footer instead (`SaveFooterScope`).
 library;
 
 import 'package:flutter/material.dart';
@@ -13,7 +14,11 @@ class SettingsSaveBar extends StatelessWidget {
     required this.saving,
     required this.onDiscard,
     required this.onSave,
+    this.docked = false,
   });
+
+  /// A modal's footer: full width under a hairline, rather than a floating card.
+  final bool docked;
 
   final int changeCount;
   final bool saving;
@@ -24,19 +29,29 @@ class SettingsSaveBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.surfaceBase,
-        border: Border.all(color: tokens.borderSubtle),
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        boxShadow: AppShadows.float,
-      ),
+      decoration: docked
+          ? BoxDecoration(
+              color: tokens.surfaceRaised,
+              border: Border(top: BorderSide(color: tokens.borderSubtle)),
+            )
+          : BoxDecoration(
+              color: tokens.surfaceBase,
+              border: Border.all(color: tokens.borderSubtle),
+              borderRadius: BorderRadius.circular(AppRadii.card),
+              boxShadow: AppShadows.float,
+            ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.s16,
-          AppSpacing.s8,
-          AppSpacing.s8,
-          AppSpacing.s8,
-        ),
+        padding: docked
+            ? const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s16,
+                vertical: AppSpacing.s12,
+              )
+            : const EdgeInsets.fromLTRB(
+                AppSpacing.s16,
+                AppSpacing.s8,
+                AppSpacing.s8,
+                AppSpacing.s8,
+              ),
         child: Row(
           children: [
             Expanded(

@@ -51,7 +51,7 @@ async fn status_of(state: &http::AppState, request: Request<Body>) -> StatusCode
 }
 
 #[tokio::test]
-async fn a_lock_publishes_once_a_repeat_publishes_nothing_and_a_denied_member_sees_neither() {
+async fn a_lock_publishes_once_and_a_repeat_publishes_nothing_to_a_spectator_either() {
     let (store, _guard) = new_store().await;
     let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
@@ -98,10 +98,19 @@ async fn a_lock_publishes_once_a_repeat_publishes_nothing_and_a_denied_member_se
         json!({ "id": Uuid::now_v7().to_string(), "content": "after" }),
     );
     assert_eq!(status_of(&state, message).await, StatusCode::OK);
-    let first_for_carol = read_frame(&mut carol_ws).await;
+    let mut carol_saw = Vec::new();
+    for _ in 0..4 {
+        carol_saw.push(read_frame(&mut carol_ws).await["type"].clone());
+    }
     assert_eq!(
-        first_for_carol["type"], "message.created",
-        "{first_for_carol}"
+        carol_saw,
+        vec![
+            json!("canvas.object.placed"),
+            json!("canvas.object.lock_changed"),
+            json!("canvas.object.lock_changed"),
+            json!("message.created"),
+        ],
+        "carol spectates both lock changes, and the repeat sent her nothing"
     );
 }
 

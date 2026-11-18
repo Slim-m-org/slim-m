@@ -10,6 +10,7 @@ import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_slider_row.dart';
 import '../../../widgets/control_swatch_row.dart';
 import '../providers/canvas_pen_style.dart';
+import '../widgets/canvas_custom_colours.dart';
 import 'canvas_shape_icons.dart';
 
 /// Only the pen and shape have options; the others return an empty list.
@@ -19,10 +20,17 @@ List<ControlOptionEntry> canvasToolOptions(
   required ValueChanged<CanvasPenStyle> onPenChanged,
   required CanvasShapeKind shapeKind,
   required ValueChanged<CanvasShapeKind> onShapeKindChanged,
-  ControlSwatch? customPicker,
-  List<ControlSwatch> recentColours = const [],
+  List<ControlSwatch>? colours,
 }) => switch (tool) {
-  CanvasTool.pen => _penOptions(pen, onPenChanged, customPicker, recentColours),
+  CanvasTool.pen => _penOptions(
+    pen,
+    onPenChanged,
+    colours ??
+        canvasPenColourSwatches(
+          selectedKey: pen.colorKey,
+          onChoose: (key) => onPenChanged(pen.copyWith(colorKey: key)),
+        ),
+  ),
   CanvasTool.shape => _shapeOptions(shapeKind, onShapeKindChanged),
   _ => const [],
 };
@@ -35,28 +43,13 @@ const canvasShapeOptionKinds = [
   CanvasShapeKind.arrow,
 ];
 
-/// One colour row with the picker at its end, then any recent custom colours
-/// on a row of their own, so the menu stays two short sections.
+/// The one colour row, then the size.
 List<ControlOptionEntry> _penOptions(
   CanvasPenStyle pen,
   ValueChanged<CanvasPenStyle> onChanged,
-  ControlSwatch? customPicker,
-  List<ControlSwatch> recentColours,
+  List<ControlSwatch> colours,
 ) => [
-  ControlSwatchGroup(
-    heading: 'Colour',
-    swatches: [
-      for (final choice in canvasPenColors)
-        ControlSwatch(
-          label: choice.label,
-          color: choice.color,
-          selected: pen.colorKey == choice.key,
-          onSelected: () => onChanged(pen.copyWith(colorKey: choice.key)),
-        ),
-      ?customPicker,
-    ],
-  ),
-  if (recentColours.isNotEmpty) ControlSwatchGroup(swatches: recentColours),
+  ControlSwatchGroup(heading: 'Colour', swatches: colours),
   ControlSliderGroup(
     heading: 'Size',
     value: pen.width,

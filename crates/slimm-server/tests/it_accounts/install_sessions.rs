@@ -155,6 +155,21 @@ async fn the_same_install_signing_in_twice_leaves_one_session() {
 }
 
 #[tokio::test]
+async fn signing_in_again_on_the_same_install_moves_signed_in_at_but_not_created_at() {
+    let (state, _guard) = setup().await;
+    account(&state, "alice").await;
+    sign_in(&state, "Linux - fedora", Some("install-aaaaaaaa")).await;
+    let first = listed(&state).await.remove(0);
+    assert_eq!(first.signed_in_at, first.created_at);
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    sign_in(&state, "Linux - fedora", Some("install-aaaaaaaa")).await;
+
+    let again = listed(&state).await.remove(0);
+    assert_eq!(again.created_at, first.created_at);
+    assert!(again.signed_in_at > first.signed_in_at);
+}
+
+#[tokio::test]
 async fn a_different_install_adds_a_row() {
     let (state, _guard) = setup().await;
     account(&state, "alice").await;

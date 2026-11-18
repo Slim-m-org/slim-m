@@ -10,9 +10,11 @@
 ///
 /// Same split as every sibling in this family: the overflow assertion runs
 /// everywhere, the PNGs are written only under SLIMM_UI_SNAPSHOTS=1. One
-/// viewport (desktop) per state, plus one phone-width mismatch warning - the dialogs collapse to a bottom sheet
-/// below 600px with identical content, and the identity screens carry no
-/// responsive branch at all (see `server_fingerprint_test.dart`).
+/// viewport (desktop) per state, plus one phone-width mismatch warning - below
+/// 600px the manual dialog is a bottom sheet and the invite one a full-screen
+/// page (`onboarding_screen_phone_test.dart`), both with the same fields, and
+/// the identity screens carry no responsive branch at all
+/// (see `server_fingerprint_test.dart`).
 library;
 
 import 'dart:convert';

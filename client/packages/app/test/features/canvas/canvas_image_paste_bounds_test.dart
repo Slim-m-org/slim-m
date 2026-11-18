@@ -57,6 +57,7 @@ void main() {
       onPlaced: (_) {},
       onError: errors.add,
       timedOutUntil: () => null,
+      mayPlace: () => true,
     );
     addTearDown(document.dispose);
     addTearDown(paste.stop);
@@ -108,6 +109,7 @@ void main() {
       onPlaced: (_) {},
       onError: (_) {},
       timedOutUntil: () => null,
+      mayPlace: () => true,
       onBitmapAttached: (id, image) => attached.add((id, image)),
     );
     addTearDown(document.dispose);

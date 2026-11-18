@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'package:slimm_app/src/features/canvas/providers/armed_stamp.dart';
 import 'package:slimm_app/src/widgets/floating_dock_card.dart';
 
 import 'support/canvas_call_dock_fixtures.dart';
@@ -45,6 +46,7 @@ Future<int> _pumpAt(
   double pane,
   CanvasTool tool, {
   bool mustFit = true,
+  bool stamps = false,
 }) async {
   tester.view.physicalSize = const Size(1280, 900);
   tester.view.devicePixelRatio = 1;
@@ -54,6 +56,7 @@ Future<int> _pumpAt(
     withCall: true,
     canvas: buildCanvasDockData(canUndo: true, tool: tool),
     width: pane,
+    overrides: [canvasStampsSupportedProvider.overrideWithValue(stamps)],
   );
   await tester.pumpAndSettle();
   final card = tester.getRect(find.byType(FloatingDockCard));
@@ -97,6 +100,16 @@ void main() {
       }
     });
   }
+
+  // The stamp tool and its reserved caret once went uncounted: a 955dp pane drew the eraser as a 7dp sliver.
+  testWidgets('nothing clips or scrolls from 360 to 1100 wide with stamps', (
+    tester,
+  ) async {
+    for (var pane = 1100.0; pane >= 360; pane -= 7) {
+      final rows = await _pumpAt(tester, pane, CanvasTool.pen, stamps: true);
+      expect(rows, inInclusiveRange(1, 3), reason: 'at $pane');
+    }
+  });
 
   testWidgets('the 795dp pane a 1280 window gets is one row', (tester) async {
     expect(await _pumpAt(tester, 795, CanvasTool.pen), 1);

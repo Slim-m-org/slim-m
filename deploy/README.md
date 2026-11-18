@@ -387,6 +387,14 @@ webhook:
     - https://your-server-host/voice/webhook
 ```
 
+Several servers can share one LiveKit: list each server's `/voice/webhook` under `urls`.
+LiveKit sends every event to every URL, and each server skips the rooms of channels it never had.
+Every server sharing it must set `SLIMM_LIVEKIT_API_KEY` to the key the `webhook:` block names, and `SLIMM_LIVEKIT_API_SECRET` to that key's secret.
+LiveKit signs each delivery with that one key, and a server refuses any delivery not signed with its own key and secret, so a server given its own entry under LiveKit's `keys:` answers every delivery with 403 and never sees a join or a leave.
+That shared key also lets each server mint tokens for the others' rooms, so share one LiveKit only between deployments with one trusted operator.
+Each server needs its own database, never a copy of another's.
+Rooms are named after channel IDs, so a server restored from another's backup has the same rooms: its calls land in the other's, and it treats the other's joins, leaves and ended calls as its own.
+
 Until this is configured and reachable, nothing breaks. The roster (`GET .../voice/roster`, including its `is_sharing_screen`/`has_video` fields) keeps working exactly as before, `voice.activity` keeps firing, and the three named events (`voice.participant_joined`, `voice.participant_left`, `voice.screen_share_changed`) simply never do.
 
 ## Monitoring

@@ -4,6 +4,7 @@ library;
 
 import 'models_attachments.dart';
 import 'models_notification_preference.dart';
+import 'text_marks.dart';
 
 /// A text or voice channel.
 class Channel {
@@ -142,10 +143,13 @@ class Channel {
 
   factory Channel.fromJson(Map<String, dynamic> json) => Channel(
         id: json['id'] as String,
-        name: json['name'] as String,
+        name: capCombiningMarks(json['name'] as String),
         kind: json['kind'] as String,
         createdAt: json['created_at'] as int,
-        topic: json['topic'] as String?,
+        topic: switch (json['topic']) {
+          final String topic => capCombiningMarks(topic),
+          _ => null,
+        },
         position: json['position'] as int? ?? 0,
         parentMessageId: json['parent_message_id'] as String?,
         categoryId: json['category_id'] as String?,
@@ -194,7 +198,7 @@ class ChannelCategory {
   factory ChannelCategory.fromJson(Map<String, dynamic> json) =>
       ChannelCategory(
         id: json['id'] as String,
-        name: json['name'] as String,
+        name: capCombiningMarks(json['name'] as String),
         position: json['position'] as int,
         createdAt: json['created_at'] as int,
         parentId: json['parent_id'] as String?,

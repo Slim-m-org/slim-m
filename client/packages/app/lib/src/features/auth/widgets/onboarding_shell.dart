@@ -163,13 +163,19 @@ class _Wordmark extends StatelessWidget {
       children: [
         AppBrandMark(size: compact ? 24 : 30),
         const SizedBox(width: AppSpacing.s12),
-        Text(
-          'slim-m',
-          style: AppText.heading.copyWith(
-            color: tokens.textPrimary,
-            fontFamily: AppFonts.mono,
-            fontWeight: AppWeights.medium,
-            letterSpacing: 20 * 0.04,
+        // A large OS text size shrinks the name to the rail rather than overflowing it.
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              'slim-m',
+              style: AppText.heading.copyWith(
+                color: tokens.textPrimary,
+                fontFamily: AppFonts.mono,
+                fontWeight: AppWeights.medium,
+                letterSpacing: 20 * 0.04,
+              ),
+            ),
           ),
         ),
       ],

@@ -66,6 +66,8 @@ pub(crate) enum ApiError {
         message: String,
         index: usize,
         code: &'static str,
+        /// Every refused entry, this one first, so a caller can fix them all in one go.
+        items: Vec<RefusedItem>,
     },
     TooManyRequests,
     /// The rate limiter refused; says how long until the bucket has a token.
@@ -106,6 +108,14 @@ pub(crate) enum ApiError {
     Internal,
 }
 
+/// One refused entry of a batch, as an error body's `items` lists it.
+#[derive(Serialize)]
+pub(crate) struct RefusedItem {
+    pub(crate) index: usize,
+    pub(crate) code: &'static str,
+    pub(crate) error: String,
+}
+
 #[derive(Serialize)]
 struct ErrorBody {
     error: Cow<'static, str>,
@@ -121,6 +131,9 @@ struct ErrorBody {
     item_index: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     item_code: Option<&'static str>,
+    /// Only [`ApiError::AtItem`] sets this: every refused entry, `item_index` first.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    items: Option<Vec<RefusedItem>>,
     /// Only [`ApiError::Coded`] and [`ApiError::TimedOut`] set this: why, as a stable word.
     #[serde(skip_serializing_if = "Option::is_none")]
     code: Option<&'static str>,
@@ -135,7 +148,11 @@ struct ErrorBody {
 const TIMED_OUT_CODE: &str = "timed_out";
 
 impl IntoResponse for ApiError {
-    fn into_response(self) -> Response {
+    fn into_response(mut self) -> Response {
+        let items = match &mut self {
+            ApiError::AtItem { items, .. } => Some(std::mem::take(items)),
+            _ => None,
+        };
         let retry_after_seconds = match &self {
             ApiError::SlowMode {
                 retry_after_seconds,
@@ -222,6 +239,7 @@ impl IntoResponse for ApiError {
                 missing_permissions,
                 item_index,
                 item_code,
+                items,
                 code,
                 timed_out_until,
                 timeout_reason,

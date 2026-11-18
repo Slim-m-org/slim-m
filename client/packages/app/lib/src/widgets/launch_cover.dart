@@ -36,24 +36,27 @@ class _LaunchCoverState extends State<LaunchCover> {
     if (_mounted && !widget.covered && duration == Duration.zero) {
       _mounted = false;
     }
-    return Stack(
+    // Two apps side by side otherwise share no Directionality, and focus traversal null-checks one when the view gains focus.
+    return Directionality(
       textDirection: TextDirection.ltr,
-      fit: StackFit.expand,
-      children: [
-        // Hidden from assistive tech while covered, or a screen reader walks a home nobody can see yet.
-        ExcludeSemantics(excluding: widget.covered, child: widget.child),
-        if (_mounted)
-          IgnorePointer(
-            ignoring: !widget.covered,
-            child: AnimatedOpacity(
-              opacity: widget.covered ? 1 : 0,
-              duration: duration,
-              curve: AppMotion.exit,
-              onEnd: _gone,
-              child: widget.cover,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Hidden from assistive tech while covered, or a screen reader walks a home nobody can see yet.
+          ExcludeSemantics(excluding: widget.covered, child: widget.child),
+          if (_mounted)
+            IgnorePointer(
+              ignoring: !widget.covered,
+              child: AnimatedOpacity(
+                opacity: widget.covered ? 1 : 0,
+                duration: duration,
+                curve: AppMotion.exit,
+                onEnd: _gone,
+                child: widget.cover,
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

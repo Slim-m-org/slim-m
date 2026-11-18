@@ -33,6 +33,7 @@ class AppInput extends StatefulWidget {
     this.size = AppInputSize.md,
     this.icon,
     this.trailing,
+    this.helperText,
     this.errorText,
     this.invalid = false,
     this.enabled = true,
@@ -43,6 +44,7 @@ class AppInput extends StatefulWidget {
     this.textInputAction,
     this.inputFormatters,
     this.maxLength,
+    this.counterNearLimit = true,
     this.counterMax,
     this.autofillHints,
     this.autocorrect = true,
@@ -67,6 +69,10 @@ class AppInput extends StatefulWidget {
   /// clear button. Also caller-built, for the same reason as [icon], and
   /// because a `Kbd` component belongs to `components/core`, not here.
   final Widget? trailing;
+
+  /// A note under the field that [errorText] takes the place of while there
+  /// is one, so the form keeps its height when an error appears.
+  final String? helperText;
 
   /// Not in the source design, which has no error state at all. Kept because
   /// a form field without one is not viable; it borrows [AppTokens.dangerText]
@@ -93,6 +99,10 @@ class AppInput extends StatefulWidget {
   /// The most characters the field takes, matching the server's cap for it, so
   /// a value the server would refuse cannot be typed or pasted in.
   final int? maxLength;
+
+  /// Shows the [maxLength] count once the value nears it, so the cap is seen
+  /// before it cuts. Off for a fixed-length code, where the count is noise.
+  final bool counterNearLimit;
 
   /// A soft limit: typing may run past it, and a counter under the field turns
   /// red when it does so the caller's save check can refuse with a reason.
@@ -152,34 +162,56 @@ class _AppInputState extends State<AppInput> {
   // Only read when there is no controller to listen to instead.
   String _uncontrolledText = '';
 
+  /// The counter's limit, and whether it shows only once the value nears it.
+  (int, bool)? get _counter => switch ((widget.counterMax, widget.maxLength)) {
+        (final soft?, _) => (soft, false),
+        (null, final hard?) when widget.counterNearLimit => (hard, true),
+        _ => null,
+      };
+
   void _onChanged(String value) {
-    if (widget.counterMax != null && widget.controller == null) {
+    if (_counter != null && widget.controller == null) {
       setState(() => _uncontrolledText = value);
     }
     widget.onChanged?.call(value);
   }
 
-  Widget _counter(AppTokens tokens, int max) {
+  /// The share of a hard cap past which its counter appears.
+  static const _nearLimit = 0.8;
+
+  Widget _counterLine(AppTokens tokens, int max, {required bool nearOnly}) {
     Widget count(String text) {
       final length = inputCharCount(text);
-      return Text(
-        '$length/$max',
-        style: AppText.micro.copyWith(
-          color: length > max ? tokens.dangerText : tokens.textSecondary,
+      if (nearOnly && length < max * _nearLimit) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.s4),
+        // Its own node, so the count never merges into the field's label.
+        child: Semantics(
+          container: true,
+          child: Padding(
+            padding: _beneathTheBorder,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '$length/$max',
+                style: AppText.micro.copyWith(
+                  color:
+                      length > max ? tokens.dangerText : tokens.textSecondary,
+                ),
+              ),
+            ),
+          ),
         ),
       );
     }
 
     final controller = widget.controller;
-    return Align(
-      alignment: Alignment.centerRight,
-      child: controller == null
-          ? count(_uncontrolledText)
-          : ListenableBuilder(
-              listenable: controller,
-              builder: (context, _) => count(controller.text),
-            ),
-    );
+    return controller == null
+        ? count(_uncontrolledText)
+        : ListenableBuilder(
+            listenable: controller,
+            builder: (context, _) => count(controller.text),
+          );
   }
 
   bool get _multiline => widget.minLines != null || widget.maxLines != null;
@@ -200,28 +232,39 @@ class _AppInputState extends State<AppInput> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _ring(tokens, _field(tokens, hasError)),
-        if (widget.counterMax case final max?) ...[
-          const SizedBox(height: AppSpacing.s4),
-          // Its own node, so the count never merges into the field's label.
-          Semantics(
-            container: true,
-            child: Padding(
-              padding: _beneathTheBorder,
-              child: _counter(tokens, max),
-            ),
-          ),
-        ],
-        if (hasMessage) ...[
+        if (_counter case (final max, final nearOnly))
+          _counterLine(tokens, max, nearOnly: nearOnly),
+        if (hasMessage || widget.helperText != null) ...[
           const SizedBox(height: AppSpacing.s4),
           Padding(
             padding: _beneathTheBorder,
-            child: Text(
-              widget.errorText!,
-              style: AppText.caption.copyWith(
-                  color: tokens.dangerText, fontFamily: AppFonts.sans),
-            ),
+            child: _beneath(tokens, hasMessage),
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _beneath(AppTokens tokens, bool hasMessage) {
+    final error = Semantics(
+      liveRegion: true,
+      child: Text(
+        widget.errorText ?? '',
+        style: AppText.caption
+            .copyWith(color: tokens.dangerText, fontFamily: AppFonts.sans),
+      ),
+    );
+    final helper = widget.helperText;
+    if (helper == null) return error;
+    return IndexedStack(
+      index: hasMessage ? 1 : 0,
+      children: [
+        Text(
+          helper,
+          style: AppText.caption
+              .copyWith(color: tokens.textSecondary, fontFamily: AppFonts.sans),
+        ),
+        error,
       ],
     );
   }
@@ -262,7 +305,8 @@ class _AppInputState extends State<AppInput> {
           Expanded(
             child: Semantics(
               label: widget.semanticLabel,
-              child: _textField(tokens, textStyle),
+              // Glyph ink such as a tall stack of accents paints past the line box; keep it in the field.
+              child: ClipRect(child: _textField(tokens, textStyle)),
             ),
           ),
           if (widget.obscureText) ...[

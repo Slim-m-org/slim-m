@@ -166,11 +166,13 @@ void main() {
     expect(_unknownNotice, findsOneWidget);
   });
 
-  testWidgets('a server that cannot be reached is not accused either', (
-    tester,
-  ) async {
+  testWidgets('a server that cannot be reached is not accused either, and '
+      'no account is asked for until it answers', (tester) async {
     await pumpAgainst(tester, null);
-    await _createAccount(tester);
+    await tester.tap(find.text('Create an account instead'));
+    await pumpFrames(tester);
+    expect(_input('Username'), findsNothing);
+    expect(find.textContaining('Could not reach this Space'), findsOneWidget);
     expect(_modalTitle, findsNothing);
     expect(_missingNotice, findsNothing);
     expect(_unknownNotice, findsNothing);

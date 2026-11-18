@@ -7,29 +7,29 @@ use slimm_server::permissions::Permissions;
 
 use crate::canvas_ops::fixtures::{app, general, get_ops, id, post_object, register, stroke};
 
-/// Seeing a channel is not seeing its canvas ops, exactly as the viewport
-/// read already requires: `VIEW_CHANNEL` alone must not be enough.
+/// Seeing a channel is seeing its canvas ops, exactly as the viewport read:
+/// a spectator without `USE_CANVAS` follows the feed, a non-viewer is refused.
 #[tokio::test]
-async fn reading_the_ops_feed_needs_the_canvas_bit_as_well_as_the_view_bit() {
+async fn reading_the_ops_feed_needs_only_the_view_bit() {
     let (store, _guard) = crate::canvas_ops::fixtures::new_store().await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
         .unwrap();
-    let drawers = store
-        .create_role("drawers", Permissions::USE_CANVAS, false)
-        .await
-        .unwrap();
     let app = app(store.clone());
     let channel = store.create_channel("canvas", "voice").await.unwrap().id;
 
-    let (token, user) = register(&store, "ann").await;
-    let (status, body) = get_ops(&app, channel, &token, "after_seq=0").await;
-    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
-
-    store.assign_role(user, drawers).await.unwrap();
+    let (token, _) = register(&store, "ann").await;
     let (status, body) = get_ops(&app, channel, &token, "after_seq=0").await;
     assert_eq!(status, StatusCode::OK, "{body}");
+
+    let (outsider, user) = register(&store, "bob").await;
+    store
+        .set_member_overwrite(channel, user, Permissions::NONE, Permissions::VIEW_CHANNEL)
+        .await
+        .unwrap();
+    let (status, body) = get_ops(&app, channel, &outsider, "after_seq=0").await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
 }
 
 #[tokio::test]

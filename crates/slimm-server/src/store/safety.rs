@@ -11,6 +11,7 @@ use std::collections::HashSet;
 
 use sqlx::QueryBuilder;
 
+use super::dropped_refresh::{DropCause, keep_dropped_refresh_tokens};
 use super::sessions::revoke_session_rows;
 use super::{Store, now_ms};
 use crate::ids::{DeviceId, SessionId, UserId};
@@ -21,6 +22,9 @@ pub struct Device {
     pub id: DeviceId,
     pub name: String,
     pub created_at: i64,
+    /// When the device's live session began. A known install signing in again
+    /// replaces its session but keeps the row, so this moves and `created_at` does not.
+    pub signed_in_at: i64,
     pub last_seen_at: Option<i64>,
     /// A coarse client kind ("ios", "android", "desktop", "web"), or `None`
     /// for a session opened before migration 0076. Named by the client at
@@ -75,18 +79,21 @@ impl Store {
         let rows = sqlx::query!(
             r#"SELECT d.id AS "id!: DeviceId", d.name AS "name!",
                       d.created_at AS "created_at!", d.last_seen_at,
-                      d.client_kind, d.client_version
+                      d.client_kind, d.client_version,
+                      live.signed_in_at AS "signed_in_at!: i64"
                FROM devices d
-               WHERE d.user_id = ?
-                 AND EXISTS (
-                   SELECT 1 FROM sessions s
+               JOIN (
+                   SELECT s.device_id, MAX(s.created_at) AS signed_in_at
+                   FROM sessions s
                    JOIN refresh_tokens r ON r.session_id = s.id
-                   WHERE s.device_id = d.id
+                   WHERE s.user_id = ?1
                      AND s.revoked_at IS NULL
                      AND r.used_at IS NULL
                      AND r.revoked_at IS NULL
-                     AND r.expires_at > ?
-                 )
+                     AND r.expires_at > ?2
+                   GROUP BY s.device_id
+               ) live ON live.device_id = d.id
+               WHERE d.user_id = ?1
                ORDER BY d.created_at DESC"#,
             user_id,
             now
@@ -100,6 +107,7 @@ impl Store {
                 id: r.id,
                 name: r.name,
                 created_at: r.created_at,
+                signed_in_at: r.signed_in_at,
                 last_seen_at: r.last_seen_at,
                 client_kind: r.client_kind,
                 client_version: r.client_version,
@@ -152,6 +160,8 @@ impl Store {
         }
 
         // The device row itself; cascade removes its now-revoked session rows too.
+        keep_dropped_refresh_tokens(&mut tx, user_id, Some(device_id), DropCause::DeviceRemoved)
+            .await?;
         sqlx::query!("DELETE FROM devices WHERE id = ?", device_id)
             .execute(&mut *tx)
             .await?;

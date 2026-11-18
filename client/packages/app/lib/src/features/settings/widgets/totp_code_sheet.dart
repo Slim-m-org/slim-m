@@ -15,6 +15,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'totp_failures.dart' show totpFailureIsTheCode;
+
 /// How many digits an authenticator code has. A recovery code is longer, so
 /// this is a hint for the numeric keypad and the placeholder, never a limit on
 /// what can be typed.
@@ -70,6 +72,10 @@ class _TotpCodeSheetState extends State<_TotpCodeSheet> {
   final _focus = FocusNode();
   bool _busy = false;
   String? _error;
+
+  /// A refused code shows under the field; anything else stays a boxed error.
+  String? get _codeError =>
+      _error != null && totpFailureIsTheCode(_error!) ? _error : null;
 
   @override
   void dispose() {
@@ -148,13 +154,16 @@ class _TotpCodeSheetState extends State<_TotpCodeSheet> {
                 FilteringTextInputFormatter.deny(RegExp(r'\n')),
               ],
               semanticLabel: 'Authentication code',
-              onChanged: (_) => setState(() {}),
+              errorText: _codeError,
+              onChanged: (_) => setState(() {
+                if (_codeError != null) _error = null;
+              }),
               onSubmitted: (_) => _submit(),
             ),
-            if (_error != null) ...[
+            if (_error case final error? when _codeError == null) ...[
               const SizedBox(height: AppSpacing.s8),
               AppErrorState(
-                message: _error!,
+                message: error,
                 onDismiss: () => setState(() => _error = null),
               ),
             ],

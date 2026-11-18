@@ -66,6 +66,8 @@ pub(crate) fn strip_reading_rewrites(text: &str) -> Cow<'_, str> {
 }
 
 const ZWJ: char = '\u{200D}';
+/// The combining grapheme joiner: draws nothing, but stacked diacritics carry it between marks.
+const CGJ: char = '\u{034F}';
 const TAG_FLAG_BASE: char = '\u{1F3F4}';
 const TAG_END: char = '\u{E007F}';
 
@@ -87,14 +89,18 @@ fn is_pictographic(c: char) -> bool {
 }
 
 /// True when `text` holds a hidden character that is not part of an emoji
-/// sequence. A zero width joiner is allowed only between two emoji, and tag
-/// characters only as the subdivision flag `U+1F3F4 tags... U+E007F`, so a
-/// poll can carry a family or a Scottish flag while a bare joiner still fails.
+/// sequence or a mark run. A zero width joiner is allowed only between two emoji,
+/// tag characters only as the subdivision flag `U+1F3F4 tags... U+E007F`, and
+/// [`CGJ`] only after a character that is neither whitespace nor hidden (a mark
+/// counts) or after another [`CGJ`] there, so stacked marks pass and a bare one fails.
 pub(crate) fn hides_text_outside_emoji(text: &str) -> bool {
     let chars: Vec<char> = text.chars().collect();
     let mut i = 0;
+    let mut after_drawn = false;
     while i < chars.len() {
         let c = chars[i];
+        let continues_a_cluster = c == CGJ && after_drawn;
+        after_drawn = continues_a_cluster || !(c.is_whitespace() || is_hidden_char(c));
         if c == ZWJ {
             let after_emoji =
                 i > 0 && (is_pictographic(chars[i - 1]) || chars[i - 1] == '\u{FE0F}');
@@ -112,7 +118,7 @@ pub(crate) fn hides_text_outside_emoji(text: &str) -> bool {
                 i += tags + 2;
                 continue;
             }
-        } else if is_hidden_char(c) {
+        } else if is_hidden_char(c) && !continues_a_cluster {
             return true;
         }
         i += 1;
@@ -123,8 +129,8 @@ pub(crate) fn hides_text_outside_emoji(text: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        draws_nothing, hides_text_outside_emoji, is_hidden_char, is_variation_selector,
-        strip_reading_rewrites,
+        draws_nothing, hides_text_outside_emoji, is_hidden_char, is_pictographic,
+        is_variation_selector, strip_reading_rewrites,
     };
 
     #[test]
@@ -236,25 +242,31 @@ mod tests {
         }
     }
 
+    /// The cases `hidden_chars.json` lists under `emoji_sequences`, which the
+    /// Dart mirror (`status_hidden_characters_test.dart`) is held to as well.
     #[test]
     fn joiners_and_tags_pass_only_inside_emoji_sequences() {
-        for ok in [
-            "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}",
-            "\u{1F3F3}\u{FE0F}\u{200D}\u{1F308}",
-            "\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E007F} flag",
-            "plain text",
-        ] {
+        let fixture = shared_fixture();
+        for ok in strings(&fixture["emoji_sequences"]["allowed"]) {
             assert!(!hides_text_outside_emoji(ok), "{ok:?}");
         }
-        for bad in [
-            "a\u{200D}b",
-            "\u{200D}",
-            "\u{1F468}\u{200D}",
-            "\u{1F3F4}\u{E0067}",
-            "\u{E0067}\u{E007F}",
-            "\u{1F468}\u{200B}",
-            "\u{202E}",
-        ] {
+        for bad in strings(&fixture["emoji_sequences"]["refused"]) {
+            assert!(hides_text_outside_emoji(bad), "{bad:?}");
+        }
+    }
+
+    /// A heavy zalgo status stacks marks with U+034F between them; it draws on its base letter.
+    #[test]
+    fn a_grapheme_joiner_passes_only_after_a_drawn_character() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/fixtures/hidden_chars.json")).unwrap();
+        let cases = &fixture["grapheme_joiner"];
+        for ok in cases["allowed"].as_array().unwrap() {
+            let ok = ok.as_str().unwrap();
+            assert!(!hides_text_outside_emoji(ok), "{ok:?}");
+        }
+        for bad in cases["refused"].as_array().unwrap() {
+            let bad = bad.as_str().unwrap();
             assert!(hides_text_outside_emoji(bad), "{bad:?}");
         }
     }
@@ -285,5 +297,36 @@ mod tests {
         for plain in fixture["plain"].as_array().unwrap() {
             assert!(!is_hidden_char(char::from_u32(hex(plain)).unwrap()));
         }
+    }
+
+    /// Every code point, against the `pictographic` ranges `hidden_chars.json`
+    /// lists: the emoji a joiner may sit between. The Dart mirror sweeps them too.
+    #[test]
+    fn the_shared_fixture_lists_exactly_the_pictographic_characters() {
+        let fixture = shared_fixture();
+        let hex = |v: &serde_json::Value| u32::from_str_radix(v.as_str().unwrap(), 16).unwrap();
+        let ranges: Vec<(u32, u32)> = fixture["pictographic"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| (hex(&r["from"]), hex(&r["to"])))
+            .collect();
+        for code in 0..=0x10FFFFu32 {
+            let Some(c) = char::from_u32(code) else {
+                continue;
+            };
+            let listed = ranges
+                .iter()
+                .any(|(from, to)| (*from..=*to).contains(&code));
+            assert_eq!(is_pictographic(c), listed, "U+{code:04X}");
+        }
+    }
+
+    fn shared_fixture() -> serde_json::Value {
+        serde_json::from_str(include_str!("../tests/fixtures/hidden_chars.json")).unwrap()
+    }
+
+    fn strings(list: &serde_json::Value) -> impl Iterator<Item = &str> {
+        list.as_array().unwrap().iter().map(|v| v.as_str().unwrap())
     }
 }

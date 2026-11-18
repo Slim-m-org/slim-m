@@ -8,6 +8,8 @@
 /// a single feature rather than to messaging in general.
 library;
 
+import 'text_marks.dart';
+
 /// A short-lived credential for a channel's voice room.
 ///
 /// [canPublish] mirrors the SPEAK grant inside the token, so the UI can show a
@@ -68,7 +70,7 @@ class VoiceRosterParticipant {
   factory VoiceRosterParticipant.fromJson(Map<String, dynamic> json) =>
       VoiceRosterParticipant(
         userId: json['user_id'] as String,
-        displayName: json['display_name'] as String,
+        displayName: capCombiningMarks(json['display_name'] as String),
         isSharingScreen: json['is_sharing_screen'] as bool? ?? false,
         hasVideo: json['has_video'] as bool? ?? false,
         thisDevice: json['this_device'] as bool? ?? false,

@@ -307,6 +307,9 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
                 if (empty != null) return empty;
                 final list = _railList(
                   channels: channels,
+                  dmsListed:
+                      channelSnapshot.hasData &&
+                      ref.watch(initialSyncCompleteProvider),
                   categories: withPendingCategoryOrder(
                     categorySnapshot.data ?? const <ChannelCategoryRow>[],
                     ref.watch(categoryOrderControllerProvider).pendingOrder,
@@ -342,6 +345,7 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
   // Slivers, not one column: the filler sliver gives touch a long-press target under the last row, however short the list is.
   Widget _railList({
     required List<Channel> channels,
+    required bool dmsListed,
     required List<ChannelCategoryRow> categories,
     required String? selected,
     required bool canManageChannels,
@@ -358,30 +362,33 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
             AppSpacing.s8,
             0,
           ),
-          // One box over both sections: the selection marker layer has to span them to slide between them.
+          // One box over both sections, on its own layer: the marker slides between sections, and a scroll moves the rows instead of repainting them.
           sliver: SliverToBoxAdapter(
-            child: SelectionMarkerLayer(
-              key: widget.markerLayerKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  DirectMessagesSection(
-                    channels: channels
-                        .where((c) => c.kind == dmChannelKind)
-                        .toList(),
-                    selectedId: selected,
-                  ),
-                  ChannelCategorySections(
-                    channels: channels
-                        .where((c) => c.kind != dmChannelKind)
-                        .toList(growable: false),
-                    categories: categories,
-                    selectedId: selected,
-                    canManage: canManageChannels,
-                    onReorder: (groups) =>
-                        unawaited(orderController.reorder(groups)),
-                  ),
-                ],
+            child: RepaintBoundary(
+              child: SelectionMarkerLayer(
+                key: widget.markerLayerKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    DirectMessagesSection(
+                      channels: channels
+                          .where((c) => c.kind == dmChannelKind)
+                          .toList(),
+                      selectedId: selected,
+                      listed: dmsListed,
+                    ),
+                    ChannelCategorySections(
+                      channels: channels
+                          .where((c) => c.kind != dmChannelKind)
+                          .toList(growable: false),
+                      categories: categories,
+                      selectedId: selected,
+                      canManage: canManageChannels,
+                      onReorder: (groups) =>
+                          unawaited(orderController.reorder(groups)),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

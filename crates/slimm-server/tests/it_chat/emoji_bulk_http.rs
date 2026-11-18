@@ -272,6 +272,62 @@ async fn a_refused_image_is_identified_by_index_and_code() {
     assert_eq!(body["item_code"], "unsupported_type", "{body}");
 }
 
+/// Every refused image is reported at once, so fixing one never reveals the next.
+#[tokio::test]
+async fn every_refused_image_is_listed_in_one_answer() {
+    let (store, _guard) = support::new_store("slimm-emoji-bulk-http").await;
+    let app = app(store.clone());
+    let admin = register(&store, "admin").await;
+    let taken = single_upload(&app, &admin, "taken", png(b"existing")).await;
+    assert_eq!(taken.status(), StatusCode::CREATED);
+
+    let images: Vec<(&str, Vec<u8>)> = vec![
+        ("fine", png(b"fine")),
+        ("text_as", b"this is plainly not an image".to_vec()),
+        ("taken", png(b"new")),
+        ("also_fine", png(b"also")),
+        ("twice", png(b"one")),
+        ("Twice", png(b"two")),
+        ("empty", Vec::new()),
+    ];
+    let response = bulk_upload(&app, &admin, &images).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = json_body(response).await;
+    assert_eq!(body["item_index"], 1, "{body}");
+    assert_eq!(body["item_code"], "unsupported_type", "{body}");
+    let listed: Vec<(u64, &str)> = body["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| (i["index"].as_u64().unwrap(), i["code"].as_str().unwrap()))
+        .collect();
+    assert_eq!(
+        listed,
+        [
+            (1, "unsupported_type"),
+            (2, "name_taken"),
+            (5, "name_taken"),
+            (6, "empty")
+        ],
+        "{body}"
+    );
+    assert!(
+        body["items"][1]["error"]
+            .as_str()
+            .unwrap()
+            .starts_with("image 3 (taken)"),
+        "{body}"
+    );
+    let names: Vec<String> = store
+        .list_custom_emoji()
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|e| e.name)
+        .collect();
+    assert_eq!(names, ["taken"], "a refused batch still writes none of it");
+}
+
 /// A refusal that is not about one image carries neither field.
 #[tokio::test]
 async fn a_refusal_about_the_whole_request_names_no_image() {
@@ -284,6 +340,7 @@ async fn a_refusal_about_the_whole_request_names_no_image() {
     let body = json_body(response).await;
     assert!(body.get("item_index").is_none(), "{body}");
     assert!(body.get("item_code").is_none(), "{body}");
+    assert!(body.get("items").is_none(), "{body}");
 }
 
 /// Two images in the same batch sharing a normalised name is the same

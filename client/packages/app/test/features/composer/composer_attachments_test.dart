@@ -191,4 +191,47 @@ void main() {
       );
     },
   );
+
+  test(
+    'removing the failed files drops only those, and abandons each',
+    () async {
+      final abandoned = <String>[];
+      var call = 0;
+      final controller = AttachmentStagingController(
+        onAbandon: abandoned.add,
+        upload: (_, filename, _) async {
+          call += 1;
+          if (filename == 'kept.png') {
+            return _attachment(id: 'k$call', filename: filename);
+          }
+          throw const api.RateLimitedException('slow down');
+        },
+      );
+      await controller.stage(bytes, 'a.png');
+      await controller.stage(bytes, 'kept.png');
+      await controller.stage(bytes, 'b.png');
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.failedCount, 2);
+
+      controller.removeFailed();
+
+      expect(controller.items.map((a) => a.filename), ['kept.png']);
+      expect(controller.failedCount, 0);
+      expect(abandoned, hasLength(2));
+    },
+  );
+
+  test('a resolved gif past the per-message limit is refused', () {
+    final controller = AttachmentStagingController(
+      upload: (_, _, _) async => _attachment(),
+    );
+    for (var i = 0; i < kMaxStagedAttachments; i++) {
+      expect(controller.addResolved(_attachment(id: 'g$i'), bytes), isNull);
+    }
+    expect(
+      controller.addResolved(_attachment(id: 'over', filename: 'x.gif'), bytes),
+      contains('x.gif was not added'),
+    );
+    expect(controller.items, hasLength(kMaxStagedAttachments));
+  });
 }

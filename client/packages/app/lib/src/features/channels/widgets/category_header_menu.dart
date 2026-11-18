@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A category header's own context menu (mark all read for anyone; rename,
+/// A category header's own context menu (mark all read and mute for anyone; rename,
 /// nest, move, collapse, delete for a manager), split out of `channel_rail_sections.dart` for the review budget. The null,
 /// id-less implicit "Channels" section never reaches this: it has nothing
 /// here to manage.
@@ -14,7 +14,6 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart';
-import '../providers/channel_notification_overrides_controller.dart';
 import '../providers/category_nesting.dart';
 import '../providers/channel_order_controller.dart';
 import '../providers/collapsed_categories_preference.dart';
@@ -25,7 +24,6 @@ import '../../../widgets/context_menu_region.dart';
 import 'manage_category_sheet.dart';
 import 'move_category_sheet.dart';
 import 'rail_category_slots.dart';
-import '../../messages/widgets/mark_read_action.dart';
 import 'row_menu_notifications.dart';
 
 class CategoryHeaderMenu extends ConsumerStatefulWidget {
@@ -56,7 +54,7 @@ class CategoryHeaderMenu extends ConsumerStatefulWidget {
   final List<Channel> channels;
 
   /// Whether the caller may rename, move, collapse and delete; without it
-  /// the menu offers only "Mark all as read", and nothing when there is none.
+  /// the menu offers only "Mark all as read" and the mute.
   final bool canManage;
 
   @override
@@ -82,29 +80,30 @@ class _CategoryHeaderMenuState extends ConsumerState<CategoryHeaderMenu> {
 
   @override
   Widget build(BuildContext context) {
-    final overrides = ref.watch(channelNotificationOverridesProvider);
-    final hasUnread = channels.any(
-      (c) => channelShowsUnread(c, overrides.effectiveFor(c), isDm: false),
-    );
-    if (!canManage && !hasUnread) return label;
-    final menu = ContextMenuRegion(
+    return ContextMenuRegion(
       key: widget.menuKey,
       // A held press lifts the header on a pointer; touch opens this menu from it instead.
       enableLongPress: AppTouchTargets.of(context),
       focusNode: _menuFocus,
-      itemsBuilder: (context, close) => [
-        ?markAllReadMenuItem(
-          context,
-          ProviderScope.containerOf(context, listen: false),
-          channels,
-          close,
-        ),
-        if (canManage && hasUnread) const AppMenuDivider(),
-        if (canManage) ..._manageItems(context, ref, close),
-      ],
+      itemsBuilder: (context, close) {
+        final container = ProviderScope.containerOf(context, listen: false);
+        return [
+          markAllReadMenuItem(context, container, channels, close),
+          categoryMuteMenuItem(
+            context,
+            container,
+            category,
+            CategoryTree(categories).parentOf(category),
+            close,
+          ),
+          if (canManage) ...[
+            const AppMenuDivider(),
+            ..._manageItems(context, ref, close),
+          ],
+        ];
+      },
       child: label,
     );
-    return menu;
   }
 
   // Both verbs directly: deleting used to be a menu, a sheet, a danger zone and a confirmation.
@@ -198,7 +197,7 @@ class _CategoryHeaderMenuState extends ConsumerState<CategoryHeaderMenu> {
                 context,
                 categoryId: category.id,
                 categoryName: tree.pathOf(category),
-                isSubCategory: parent != null,
+                parentName: parent?.name,
                 holdsSubCategories: nests && parent == null,
                 subCategories: subs,
                 channels: channels,

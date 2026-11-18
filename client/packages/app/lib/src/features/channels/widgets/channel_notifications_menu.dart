@@ -34,13 +34,13 @@ Widget notificationsMenuItem(
   final current = container
       .read(channelNotificationOverridesProvider)
       .overrideFor(channelId);
+  final muted =
+      (current ?? channelDefault) == api.NotificationPreference.nothing;
   return AppSubmenuItem(
     label: 'Notifications',
-    leading: current == api.NotificationPreference.nothing
-        ? AppIcons.notificationsOff
-        : AppIcons.notificationsOn,
+    leading: muted ? AppIcons.notificationsOff : AppIcons.notificationsOn,
     trailing: Text(
-      notificationStateLabel(current),
+      muted ? 'Muted' : notificationStateLabel(current),
       style: AppText.caption.copyWith(color: tokens.textSecondary),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,

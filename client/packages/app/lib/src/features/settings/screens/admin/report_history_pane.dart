@@ -24,6 +24,7 @@ import '../../../members/providers/moderation_history_controller.dart';
 import '../../../members/providers/user_profiles.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
+import 'paged_first_load.dart';
 import 'report_history_row.dart';
 import 'reports_load_more_row.dart';
 
@@ -47,9 +48,10 @@ class ReportHistoryPane extends ConsumerWidget {
     resolveAuthorProfiles(ref, items.expand(_namedIds));
 
     return AppAsyncView<List<api.ModerationHistoryItem>>(
-      value: AppAsyncState(
-        data: history.loading && items.isEmpty ? null : items,
-        error: items.isEmpty ? history.error : null,
+      value: pagedFirstLoad(
+        items,
+        loading: history.loading,
+        failure: history.failure,
       ),
       errorMessage: 'Could not load the moderation history.',
       onRetry: controller.refresh,

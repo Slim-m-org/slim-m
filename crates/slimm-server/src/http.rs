@@ -42,6 +42,7 @@ pub mod uplink_test;
 use canvas::{canvas_media_slots, canvas_object_locks, canvas_purge};
 pub mod capability;
 mod categories;
+mod category_mutes;
 mod category_order;
 mod category_overwrites;
 mod channels;
@@ -83,7 +84,7 @@ mod members;
 pub mod steam_api;
 pub mod steam_link;
 pub mod steam_presence;
-use members::{member_nicknames, members_bulk, members_list};
+use members::{member_activity, member_nicknames, members_bulk, members_list};
 mod messages;
 use messages::{
     message_components, message_dto, message_enrich, message_mentions, message_validation,
@@ -115,6 +116,7 @@ pub use module_timers::run_due as run_module_timers;
 pub use reactions::rekey_stored_reactions;
 pub use scene_refresh::run_due as run_scene_refreshes;
 pub use storage::BackupStatusDir;
+pub use voice::voice_access::{evict_who_lost_access, spawn_voice_access_watch};
 mod link_preview_removal;
 mod module_permissions;
 mod notification_schedule;
@@ -316,6 +318,7 @@ pub fn router(state: AppState) -> Router {
         .merge(canvas_object_locks::routes())
         .merge(canvas_purge::routes())
         .merge(categories::routes())
+        .merge(category_mutes::routes())
         .merge(category_order::routes())
         .merge(category_overwrites::routes())
         .merge(channel_notification_prefs::routes())
@@ -335,6 +338,7 @@ pub fn router(state: AppState) -> Router {
         .merge(space_setup::routes())
         .merge(members::routes())
         .merge(member_permissions::routes())
+        .merge(member_activity::routes())
         .merge(member_nicknames::routes())
         .merge(members_bulk::routes())
         .merge(messages::routes())

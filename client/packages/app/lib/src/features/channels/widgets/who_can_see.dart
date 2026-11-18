@@ -24,9 +24,17 @@ import '../../settings/widgets/settings_entity_row.dart';
 import '../providers/view_access.dart';
 
 class WhoCanSee extends ConsumerStatefulWidget {
-  const WhoCanSee({super.key, required this.target, this.private});
+  const WhoCanSee({
+    super.key,
+    required this.target,
+    this.private,
+    this.readOnly = false,
+  });
 
   final ViewTarget target;
+
+  /// Lists who can see it without the add and remove controls, for a target whose access is set elsewhere.
+  final bool readOnly;
 
   /// The switch's value while its write is in flight, ahead of the rows.
   final bool? private;
@@ -148,10 +156,13 @@ class _WhoCanSeeState extends ConsumerState<WhoCanSee>
               _Row(
                 label: column.label,
                 column: column,
-                onRemove: reach.reaches(column.key) && !_busy
+                onRemove:
+                    !widget.readOnly && reach.reaches(column.key) && !_busy
                     ? () => unawaited(_remove(overwrites, column))
                     : null,
               ),
+        ],
+        if (private && !widget.readOnly)
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.s16,
@@ -170,8 +181,9 @@ class _WhoCanSeeState extends ConsumerState<WhoCanSee>
                 onPressed: () => unawaited(_add(overwrites, access, reach)),
               ),
             ),
-          ),
-        ],
+          )
+        else
+          const SizedBox(height: AppSpacing.s8),
         if (error != null)
           AppErrorState(message: error, onDismiss: clearActionError),
       ],
@@ -250,6 +262,7 @@ class _Row extends StatelessWidget {
     return SettingsEntityRow(
       dense: true,
       headline: label,
+      headlineStyle: AppText.ui,
       leading: _leading(context, tokens),
       details: [
         if (detail != null)

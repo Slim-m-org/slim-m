@@ -8,6 +8,8 @@
 /// different reasons.
 library;
 
+import 'dart:math' as math;
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -259,9 +261,11 @@ class MemberRow extends ConsumerWidget {
       children: [
         Flexible(
           child: ConstrainedBox(
-            // Beside a badge the chip yields, so the member's name keeps its room.
+            // Beside a badge the chip yields to the name; alone it also takes what a short name leaves.
             constraints: BoxConstraints(
-              maxWidth: rowWidth * (badge == null ? 0.35 : 0.25),
+              maxWidth: badge == null
+                  ? math.max(rowWidth * 0.35, badgeRoom)
+                  : rowWidth * 0.25,
             ),
             child: MemberVoiceChip(
               userId: profile.id,

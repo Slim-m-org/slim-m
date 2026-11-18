@@ -101,14 +101,17 @@ void main() {
       'welcome_enabled': true,
       'welcome_channel_id': 'c1',
       'welcome_message': 'hi {user}',
+      'welcome_default_message': 'Welcome to {space}, {user}!',
     });
     expect(set.welcomeEnabled, isTrue);
     expect(set.welcomeChannelId, 'c1');
     expect(set.welcomeMessage, 'hi {user}');
+    expect(set.welcomeDefaultMessage, 'Welcome to {space}, {user}!');
     final old = SpaceSettings.fromJson({'join_policy': 'invite'});
     expect(old.welcomeEnabled, isFalse);
     expect(old.welcomeChannelId, isNull);
     expect(old.welcomeMessage, '');
+    expect(old.welcomeDefaultMessage, isNull);
   });
 
   test('setSpaceSettings sends only the welcome fields it is given', () async {

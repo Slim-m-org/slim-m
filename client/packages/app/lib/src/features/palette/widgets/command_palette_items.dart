@@ -63,6 +63,7 @@ class PaletteResultItem {
     this.message,
     this.messageChannelLabel,
     this.transcript,
+    this.showsAllOf,
   });
 
   final String label;
@@ -79,12 +80,34 @@ class PaletteResultItem {
   final api.Message? message;
   final String? messageChannelLabel;
   final api.TranscriptHit? transcript;
+
+  /// Set on the row that lists a capped section whole: how many matched. It keeps the palette open.
+  final int? showsAllOf;
   final Future<void> Function(BuildContext context, WidgetRef ref) onSelect;
+}
+
+/// [items] cut to [paletteResultLimit], ending in a row that calls [showAll] when more matched.
+List<PaletteResultItem> capWithShowAll(
+  List<PaletteResultItem> items, {
+  required String noun,
+  required VoidCallback showAll,
+}) {
+  if (items.length <= paletteResultLimit) return items;
+  return [
+    ...items.take(paletteResultLimit),
+    PaletteResultItem(
+      label: 'Show all ${items.length} $noun',
+      leading: AppIcons.chevronDown,
+      showsAllOf: items.length,
+      onSelect: (_, _) async => showAll(),
+    ),
+  ];
 }
 
 /// Whether [channel] is worth showing for [query]. An empty query matches
 /// everything, so a blank field browses the whole list rather than showing
-/// nothing until the user types.
+/// nothing until the user types. Both sides drop combining marks, so a
+/// decorated name is found by its plain letters.
 ///
 /// A personal space's own name is the fixed sentinel [personalSpaceName],
 /// not the caller's own display name, so it also matches on
@@ -96,11 +119,11 @@ bool channelMatchesQuery(
   String? selfDisplayName,
 }) {
   if (query.isEmpty) return true;
-  final q = query.toLowerCase();
-  if (channel.name.toLowerCase().contains(q)) return true;
+  final q = api.foldMarks(query);
+  if (api.foldMarks(channel.name).contains(q)) return true;
   return channel.isPersonalSpace &&
       selfDisplayName != null &&
-      selfDisplayName.toLowerCase().contains(q);
+      api.foldMarks(selfDisplayName).contains(q);
 }
 
 /// Same rule as [channelMatchesQuery], over a member's display name, their
@@ -108,7 +131,7 @@ bool channelMatchesQuery(
 /// to find them.
 bool memberMatchesQuery(api.UserProfile member, String query) =>
     query.isEmpty ||
-    member.displayName.toLowerCase().contains(query.toLowerCase()) ||
+    api.foldMarks(member.displayName).contains(api.foldMarks(query)) ||
     memberMatchReason(member, query) != null;
 
 /// The reason a member matched [query] off their display name, or null when
@@ -116,13 +139,13 @@ bool memberMatchesQuery(api.UserProfile member, String query) =>
 /// person appears under a name that does not contain what was typed.
 PaletteReason? memberMatchReason(api.UserProfile member, String query) {
   if (query.isEmpty) return null;
-  final q = query.toLowerCase();
-  if (member.displayName.toLowerCase().contains(q)) return null;
+  final q = api.foldMarks(query);
+  if (api.foldMarks(member.displayName).contains(q)) return null;
   if (member.username.toLowerCase().contains(q)) {
     return (label: 'Username', value: member.username);
   }
   for (final role in member.roles) {
-    if (role.toLowerCase().contains(q)) return (label: 'Role', value: role);
+    if (api.foldMarks(role).contains(q)) return (label: 'Role', value: role);
   }
   return null;
 }
@@ -141,6 +164,7 @@ List<PaletteResultItem> buildChannelItems(
   String? selfDisplayName,
   Map<String, String> categoryNames = const {},
   String? currentChannelId,
+  int? limit = paletteResultLimit,
 }) => [
   for (final channel
       in channels
@@ -149,7 +173,7 @@ List<PaletteResultItem> buildChannelItems(
             (c) =>
                 channelMatchesQuery(c, query, selfDisplayName: selfDisplayName),
           )
-          .take(paletteResultLimit))
+          .take(limit ?? channels.length))
     PaletteResultItem(
       label: channel.name,
       kind: PaletteKind.channel,
@@ -160,17 +184,59 @@ List<PaletteResultItem> buildChannelItems(
     ),
 ];
 
+/// The Channels and Group chats sections; with [showAll] each is capped and ends in a row that lists it whole.
+List<(String, List<PaletteResultItem>)> channelSections(
+  List<Channel> channels,
+  String query, {
+  String? selfDisplayName,
+  Map<String, String> categoryNames = const {},
+  String? currentChannelId,
+  VoidCallback? showAll,
+}) {
+  List<PaletteResultItem> capped(List<PaletteResultItem> all, String noun) =>
+      showAll == null ? all : capWithShowAll(all, noun: noun, showAll: showAll);
+  return [
+    (
+      'Channels',
+      capped(
+        buildChannelItems(
+          channels,
+          query,
+          selfDisplayName: selfDisplayName,
+          categoryNames: categoryNames,
+          currentChannelId: currentChannelId,
+          limit: null,
+        ),
+        'channels',
+      ),
+    ),
+    (
+      'Group chats',
+      capped(
+        buildGroupDmItems(
+          channels,
+          query,
+          currentChannelId: currentChannelId,
+          limit: null,
+        ),
+        'group chats',
+      ),
+    ),
+  ];
+}
+
 /// Group DMs matching [query], by the name the rail lists them under.
 List<PaletteResultItem> buildGroupDmItems(
   List<Channel> channels,
   String query, {
   String? currentChannelId,
+  int? limit = paletteResultLimit,
 }) => [
   for (final channel
       in channels
           .where((c) => c.isGroupDm)
           .where((c) => channelMatchesQuery(c, query))
-          .take(paletteResultLimit))
+          .take(limit ?? channels.length))
     PaletteResultItem(
       label: channel.name,
       kind: PaletteKind.channel,

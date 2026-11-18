@@ -10,6 +10,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
+import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 
 /// The local channel row's `name` for a thread: empty, mirroring the
@@ -72,17 +73,29 @@ void dockThread(
 /// What a thread's own channel id hangs off, for a thread panel opened cold
 /// - a deep link, a reload, or a notification - that never went through
 /// [openThreadFromMessage] on this device and so never learned its parent
-/// any other way. `autoDispose` and fetched fresh on every watch, the same
-/// shape `channelPermissionsProvider.dart` already uses: the answer is
-/// immutable once a thread exists (a channel id and a message id, neither
-/// of which can change), so there is nothing to invalidate - the one
-/// exception is the parent channel's own name, which can be renamed after
-/// the fact, an accepted staleness window closed by the next screen open
-/// rather than a live event.
+/// any other way. `autoDispose` and fetched fresh on every watch.
+///
+/// The ids never change once a thread exists, but the parent's text can be
+/// edited or deleted while the thread is open, so either event for it reads
+/// the parent again. The parent channel's own name is left to the next open.
 final threadParentProvider = FutureProvider.autoDispose
-    .family<api.ThreadParent, String>(
-      (ref, channelId) => ref.watch(apiProvider).getThreadParent(channelId),
-    );
+    .family<api.ThreadParent, String>((ref, channelId) async {
+      String? parentId;
+      // Subscribed before the fetch: a provider disposed during it takes no new listener.
+      final changes = ref
+          .watch(liveEventsProvider)
+          .where(
+            (e) =>
+                parentId != null &&
+                ((e is api.MessageDeleted && e.messageId == parentId) ||
+                    (e is api.MessageEdited && e.message.id == parentId)),
+          )
+          .listen((_) => ref.invalidateSelf());
+      ref.onDispose(changes.cancel);
+      final parent = await ref.watch(apiProvider).getThreadParent(channelId);
+      parentId = parent.parentMessageId;
+      return parent;
+    });
 
 /// Every live thread hanging off a message in [channelId], newest activity
 /// first - the listing docs/IMPLIED-GAPS.md named as missing entirely:

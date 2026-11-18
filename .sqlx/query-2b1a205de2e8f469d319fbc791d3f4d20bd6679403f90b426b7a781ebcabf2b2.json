@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM category_mutes WHERE user_id = ? AND category_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "2b1a205de2e8f469d319fbc791d3f4d20bd6679403f90b426b7a781ebcabf2b2"
+}

@@ -53,6 +53,8 @@ extension SlimmApiTransport on SlimmApi {
     void Function(int status)? onStatus,
     http.Client? over,
     void Function(Map<String, String> headers)? onHeaders,
+    // One attempt only, never replayed or refreshed: a request timed as a sample of the path.
+    bool once = false,
   }) async {
     // Inline, not awaitTrust: a trusted server must not cost every request a turn.
     if (authenticated) {
@@ -73,7 +75,8 @@ extension SlimmApiTransport on SlimmApi {
           over: over,
         );
 
-    final response = await replayingDroppedSocket(method, attempt);
+    final response =
+        once ? await attempt() : await replayingDroppedSocket(method, attempt);
     onHeaders?.call(response.headers);
 
     // One automatic rotation, then replay. Only for authenticated calls, and
@@ -81,6 +84,7 @@ extension SlimmApiTransport on SlimmApi {
     if (response.statusCode == 401 &&
         authenticated &&
         !isRetry &&
+        !once &&
         session.tokens != null) {
       await refreshUnlessRotated(sentWith);
       return send(
@@ -295,6 +299,7 @@ extension SlimmApiTransport on SlimmApi {
     int? timedOutUntil;
     String? timeoutReason;
     ItemRefusal? item;
+    var items = const <ItemRefusal>[];
     Duration? bodyRetryAfter;
     try {
       final decoded = jsonDecode(response.body);
@@ -321,7 +326,10 @@ extension SlimmApiTransport on SlimmApi {
         item = ItemRefusal(
           decoded['item_index'] as int,
           decoded['item_code'] as String,
+          error: explained ? reason : null,
         );
+        final listed = ItemRefusal.listFrom(decoded['items']);
+        items = listed.isEmpty ? [item] : listed;
       }
       if (decoded is Map<String, dynamic> &&
           decoded['retry_after_seconds'] is int &&
@@ -338,7 +346,7 @@ extension SlimmApiTransport on SlimmApi {
           stack);
     }
     return switch (response.statusCode) {
-      400 => BadRequestException(reason, item: item),
+      400 => BadRequestException(reason, item: item, items: items),
       401 => UnauthorizedException(reason),
       403 => ForbiddenException(
           reason,
@@ -348,7 +356,7 @@ extension SlimmApiTransport on SlimmApi {
           timeoutReason: timeoutReason,
         ),
       404 => NotFoundException(reason, unexplained: !explained),
-      409 => ConflictException(reason, item: item),
+      409 => ConflictException(reason, item: item, items: items),
       429 => RateLimitedException(
           reason,
           retryAfter: _retryAfter(response) ?? bodyRetryAfter,

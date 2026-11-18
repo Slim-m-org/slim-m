@@ -121,11 +121,9 @@ class ComposerAttachmentActions {
   Future<void> stageAttachment(Uint8List bytes, String filename) =>
       attachments().stage(bytes, filename);
 
-  /// A file from a picker or a drop; refused up front when over the limit.
-  Future<void> stageFile(FileSource file) async {
-    final refusal = await attachments().stageFile(file);
-    if (refusal != null) setError(refusal);
-  }
+  /// A file from a picker or a drop; refused up front when over the limit,
+  /// which the staging itself then says.
+  Future<void> stageFile(FileSource file) => attachments().stageFile(file);
 
   /// A pasted image takes the same staging path as a picked file.
   void handlePastedImage(Uint8List bytes, String filename) =>

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// "Mark as read" on a channel or DM row, and "Mark all as read" on a category
-/// header and in the space menu: offered only while there is a badge to clear,
-/// reached by right-click on a wide window and by long-press on a compact one.
+/// header and in the space menu: a row offers it only while there is a badge to
+/// clear, a category header always shows it, dimmed with none; reached by
+/// right-click on a wide window and by long-press on a compact one.
 library;
 
 import 'dart:convert';
@@ -65,10 +66,12 @@ class _FixedOverrides extends ChannelNotificationOverridesController {
   _FixedOverrides(
     super.ref,
     Map<String, api.NotificationPreference> byChannel,
+    Set<String> mutedCategories,
   ) {
     state = ChannelNotificationOverridesState(
       byChannel: byChannel,
       settled: true,
+      mutedCategories: mutedCategories,
     );
   }
 }
@@ -82,6 +85,7 @@ class _Harness {
   _Harness({
     int permissions = 0,
     Map<String, api.NotificationPreference> muted = const {},
+    Set<String> mutedCategories = const {},
     int? latestAt = -1,
   }) {
     final newest = latestAt == -1 ? _recent : latestAt;
@@ -101,7 +105,7 @@ class _Harness {
           (ref) => SharedPreferences.getInstance(),
         ),
         channelNotificationOverridesProvider.overrideWith(
-          (ref) => _FixedOverrides(ref, muted),
+          (ref) => _FixedOverrides(ref, muted, mutedCategories),
         ),
         meProvider.overrideWith(
           (ref) async => api.Me(
@@ -354,9 +358,8 @@ void main() {
       expect(find.text('Rename category...'), findsOneWidget);
     });
 
-    testWidgets('with nothing unread a member has no menu on the header', (
-      tester,
-    ) async {
+    testWidgets('with nothing unread a member still sees it, and it sends '
+        'nothing', (tester) async {
       final h = _Harness();
       await h.pump(
         tester,
@@ -367,7 +370,8 @@ void main() {
 
       expect(find.byType(CategoryHeaderMenu), findsOneWidget);
       await _rightClick(tester, find.text('Projects'));
-      expect(find.text('Mark all as read'), findsNothing);
+      await _tapAndSettleRequests(tester, find.text('Mark all as read'));
+      expect(h.markedIds, isEmpty);
     });
   });
 
@@ -404,6 +408,18 @@ void main() {
         hasLength(1),
       );
       expect(h.markedIds, ['a', 'c']);
+    });
+
+    testWidgets('a channel quiet by its muted category is marked too, as the '
+        'category header marks it', (tester) async {
+      final h = _Harness(mutedCategories: {'cat'});
+      await openSpaceMenu(tester, h, [
+        _channel('a', cursor: 3),
+        _channel('games', categoryId: 'cat', cursor: 4),
+      ]);
+      await _tapAndSettleRequests(tester, find.text('Mark all as read'));
+
+      expect(h.markedIds, ['a', 'games']);
     });
 
     testWidgets('Direct messages are left out', (tester) async {
@@ -448,7 +464,13 @@ void main() {
 Future<void> _seed(MessageStore store, List<Channel> channels) async {
   await store.upsertChannels([
     for (final c in channels)
-      api.Channel(id: c.id, name: c.name, kind: c.kind, createdAt: 0),
+      api.Channel(
+        id: c.id,
+        name: c.name,
+        kind: c.kind,
+        createdAt: 0,
+        categoryId: c.categoryId,
+      ),
   ]);
   for (final c in channels) {
     await store.db.customStatement(

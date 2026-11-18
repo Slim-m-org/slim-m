@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Any canvas colour: the custom tile opens the picker, the last few choices
-/// are remembered per device, and the pen menu offers them.
+/// are remembered per device, and they stand in for the trailing named
+/// colours of the one colour row.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,13 +11,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/canvas/providers/canvas_pen_style.dart';
 import 'package:slimm_app/src/features/canvas/providers/canvas_recent_colours.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_tool_options.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_custom_colours.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/control_swatch_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
-import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 class _Harness extends ConsumerWidget {
   const _Harness(this.chosen, {this.selected = 'annotation'});
@@ -26,9 +25,13 @@ class _Harness extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => ControlSwatchRow(
-    swatches: canvasCustomColourSwatches(
+    swatches: canvasColourRow(
       context: context,
       ref: ref,
+      defaults: canvasPenColourSwatches(
+        selectedKey: selected,
+        onChoose: chosen.add,
+      ),
       selectedKey: selected,
       onChoose: chosen.add,
     ),
@@ -62,6 +65,14 @@ Future<ProviderContainer> _pump(
   );
   return container;
 }
+
+List<String> _labels(WidgetTester tester) => tester
+    .widget<ControlSwatchRow>(
+      find.byWidgetPredicate((w) => w is ControlSwatchRow),
+    )
+    .swatches
+    .map((s) => s.label)
+    .toList();
 
 void main() {
   testWidgets(
@@ -161,41 +172,106 @@ void main() {
     expect(container.read(canvasRecentColoursProvider), ['#abcdef']);
   });
 
-  test(
-    'the picker ends the colour row; recent picks get a row of their own',
-    () {
-      List<ControlSwatchGroup> rows({
-        ControlSwatch? picker,
-        List<ControlSwatch> recent = const [],
-      }) => canvasToolOptions(
-        CanvasTool.pen,
-        pen: const CanvasPenStyle(colorKey: '#3a7bd5'),
-        onPenChanged: (_) {},
-        shapeKind: CanvasShapeKind.rectangle,
-        onShapeKindChanged: (_) {},
-        customPicker: picker,
-        recentColours: recent,
-      ).whereType<ControlSwatchGroup>().toList();
-      ControlSwatch tile(String label) => ControlSwatch(
-        label: label,
-        selected: false,
-        color: const Color(0xFF3A7BD5),
-        onSelected: () {},
+  testWidgets(
+    'recent picks stand in for the last named colours, and the picker ends '
+    'the row',
+    (tester) async {
+      await _pump(
+        tester,
+        [],
+        stored: {
+          canvasRecentColoursKey: ['#112233', '#445566'],
+        },
       );
 
-      final plain = rows();
-      expect(plain.map((r) => r.heading), ['Colour']);
-      expect(plain.single.swatches, hasLength(canvasPenColors.length));
-
-      final withPicker = rows(
-        picker: tile('Custom colour'),
-        recent: [tile('Custom #3a7bd5')],
-      );
-      expect(withPicker.map((r) => r.heading), ['Colour', null]);
-      expect(withPicker.first.swatches.last.label, 'Custom colour');
-      expect(withPicker.last.swatches.single.label, 'Custom #3a7bd5');
+      expect(_labels(tester), [
+        'Coral',
+        'Amber',
+        'Green',
+        'Blue',
+        'Custom #112233',
+        'Custom #445566',
+        'Custom colour',
+      ]);
     },
   );
+
+  testWidgets(
+    'the named colour in use keeps its tile, and the next one gives way',
+    (tester) async {
+      await _pump(
+        tester,
+        [],
+        stored: {
+          canvasRecentColoursKey: ['#112233', '#445566'],
+        },
+        selected: 'pink',
+      );
+
+      expect(_labels(tester), [
+        'Coral',
+        'Amber',
+        'Green',
+        'Pink',
+        'Custom #112233',
+        'Custom #445566',
+        'Custom colour',
+      ]);
+      final inUse = tester.getSemantics(find.bySemanticsLabel('Pink'));
+      // ignore: deprecated_member_use
+      expect(inUse.hasFlag(SemanticsFlag.isSelected), isTrue);
+    },
+  );
+
+  testWidgets(
+    'a full set of recents keeps the named colour in use and the row length',
+    (tester) async {
+      await _pump(
+        tester,
+        [],
+        stored: {
+          canvasRecentColoursKey: [
+            for (var i = 1; i <= canvasRecentColoursMax; i++) '#00000$i',
+          ],
+        },
+        selected: 'purple',
+      );
+
+      final labels = _labels(tester);
+      expect(labels.take(2), ['Coral', 'Purple']);
+      expect(labels, hasLength(canvasPenColors.length + 1));
+    },
+  );
+
+  testWidgets('a full set of recents still leaves the first named colour', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      [],
+      stored: {
+        canvasRecentColoursKey: [
+          for (var i = 1; i <= canvasRecentColoursMax; i++) '#00000$i',
+        ],
+      },
+    );
+
+    final labels = _labels(tester);
+    expect(labels.first, 'Coral');
+    expect(labels, hasLength(canvasPenColors.length + 1));
+    expect(labels.last, 'Custom colour');
+  });
+
+  testWidgets('no recents leave the six named colours and the picker', (
+    tester,
+  ) async {
+    await _pump(tester, []);
+
+    expect(_labels(tester), [
+      for (final c in canvasPenColors) c.label,
+      'Custom colour',
+    ]);
+  });
 
   test('a pen on a hex colour paints that colour', () {
     const pen = CanvasPenStyle(colorKey: '#3a7bd5');

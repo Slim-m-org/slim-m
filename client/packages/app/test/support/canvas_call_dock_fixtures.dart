@@ -143,6 +143,8 @@ CanvasDockData buildCanvasDockData({
   ValueChanged<CanvasShapeKind>? onShapeKindChanged,
   bool fullscreen = false,
   VoidCallback? onToggleFullscreen,
+  bool toolsHidden = false,
+  VoidCallback? onToggleToolsHidden,
 }) {
   final row = buildCanvasToolsRow(
     activityLogOpen: activityLogOpen,
@@ -183,5 +185,7 @@ CanvasDockData buildCanvasDockData({
     onShowTile: row.onShowTile,
     fullscreen: fullscreen,
     onToggleFullscreen: onToggleFullscreen ?? () {},
+    toolsHidden: toolsHidden,
+    onToggleToolsHidden: onToggleToolsHidden,
   );
 }

@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
+import 'list_row_scopes.dart';
 
 /// A bordered content container with an optional uppercase micro title header.
 class AppCard extends StatelessWidget {
@@ -68,7 +69,10 @@ class AppCard extends StatelessWidget {
                 ],
               ),
             ),
-          Padding(padding: padding, child: child),
+          Padding(
+            padding: padding,
+            child: AppRaisedSurfaceScope(child: child),
+          ),
         ],
       ),
     );

@@ -12,7 +12,7 @@ use std::time::Duration;
 use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::store::{RefreshOutcome, Store};
+use slimm_server::store::{RefreshDenial, RefreshOutcome, Store};
 
 use crate::support;
 async fn store() -> (Store, support::TestDbGuard) {
@@ -34,7 +34,7 @@ const PASSWORD: &str = "correct horse battery staple";
 fn outcome_name(outcome: &RefreshOutcome) -> &'static str {
     match outcome {
         RefreshOutcome::Rotated(_) => "Rotated",
-        RefreshOutcome::Denied => "Denied",
+        RefreshOutcome::Denied(_) => "Denied",
         RefreshOutcome::Reused => "Reused",
     }
 }
@@ -178,7 +178,7 @@ async fn stale_refresh_reuse_revokes_the_family() {
     // The whole family is dead: the good rotated token is denied and no longer authenticates.
     assert!(matches!(
         store.rotate_refresh(&rotated.refresh_token).await.unwrap(),
-        RefreshOutcome::Denied
+        RefreshOutcome::Denied(RefreshDenial::Revoked)
     ));
     assert!(
         store
@@ -411,7 +411,7 @@ async fn using_the_superseded_child_kills_the_family() {
     );
     assert!(matches!(
         store.rotate_refresh(&real.refresh_token).await.unwrap(),
-        RefreshOutcome::Denied
+        RefreshOutcome::Denied(RefreshDenial::Revoked)
     ));
 }
 

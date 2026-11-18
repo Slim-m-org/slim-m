@@ -47,3 +47,13 @@ Future<int> failInterruptedSends(MessageStore store) =>
         failureReason: Value(interruptedSendReason),
       ),
     );
+
+/// See [MessageStore.unsentCount]; here because that class is at its file's ceiling.
+Future<int> countUnsentSends(MessageStore store) async {
+  final messages = store.db.messages;
+  final count = messages.id.count();
+  final query = store.db.selectOnly(messages)
+    ..addColumns([count])
+    ..where(messages.pending.equals(true) | messages.failed.equals(true));
+  return (await query.getSingle()).read(count) ?? 0;
+}

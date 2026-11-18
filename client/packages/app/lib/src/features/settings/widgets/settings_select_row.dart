@@ -44,6 +44,7 @@ class SettingsSelectRow<T> extends StatelessWidget {
     this.description,
     this.unknownLabel = 'Unknown',
     this.sub = false,
+    this.errorText,
   });
 
   final String label;
@@ -72,6 +73,9 @@ class SettingsSelectRow<T> extends StatelessWidget {
   /// Renders as an indented sub-row of the row above, not a row of its own.
   final bool sub;
 
+  /// A problem with the current choice, shown in red under the row.
+  final String? errorText;
+
   SettingsChoice<T>? get _currentChoice {
     final current = value;
     if (current == null) return null;
@@ -84,15 +88,22 @@ class SettingsSelectRow<T> extends StatelessWidget {
   /// without its [AppListRow] presentation: [JoinPolicyRow] renders as a
   /// [ListTile] to match its neighbours. On desktop the choices drop down
   /// anchored to [context]'s box, and a phone gets a sheet, where there is no
-  /// pointer to dismiss a dropdown by clicking away.
+  /// pointer to dismiss a dropdown by clicking away. [fromStart] hangs it under
+  /// a button instead, growing toward the window's middle.
   static Future<T?> pick<T>(
     BuildContext context, {
     required String title,
     required T? value,
     required List<SettingsChoice<T>> choices,
+    bool fromStart = false,
   }) {
     if (MediaQuery.sizeOf(context).width >= kCompactWidth) {
-      return _pickDropdown<T>(context, value: value, choices: choices);
+      return _pickDropdown<T>(
+        context,
+        value: value,
+        choices: choices,
+        fromStart: fromStart,
+      );
     }
     if (choicesNeedSearch(choices.length)) {
       return showSearchableChoiceSheet<T>(
@@ -127,18 +138,25 @@ class SettingsSelectRow<T> extends StatelessWidget {
     BuildContext context, {
     required T? value,
     required List<SettingsChoice<T>> choices,
+    required bool fromStart,
   }) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final anchor = context.findRenderObject()! as RenderBox;
     final overlay =
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
-    final bottomRight = anchor.localToGlobal(
+    final start = anchor.localToGlobal(
+      anchor.size.bottomLeft(Offset.zero),
+      ancestor: overlay,
+    );
+    final end = anchor.localToGlobal(
       anchor.size.bottomRight(Offset.zero),
       ancestor: overlay,
     );
-    // A zero-width rect makes the menu right-align to the value side, below the row.
-    final point = Rect.fromLTWH(bottomRight.dx, bottomRight.dy + 4, 0, 0);
-    final position = RelativeRect.fromRect(point, Offset.zero & overlay.size);
+    // A row's menu right-aligns to its value side; a button's hangs from whichever of its edges keeps it on screen.
+    final edge = fromStart
+        ? Rect.fromLTRB(start.dx, end.dy + 4, end.dx, end.dy + 4)
+        : Rect.fromLTWH(end.dx, end.dy + 4, 0, 0);
+    final position = RelativeRect.fromRect(edge, Offset.zero & overlay.size);
     if (choicesNeedSearch(choices.length)) {
       return showSearchableChoiceMenu<T>(
         context,
@@ -182,8 +200,38 @@ class SettingsSelectRow<T> extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      SettingsHighlightTarget(label: label, child: _content(context));
+  Widget build(BuildContext context) => SettingsHighlightTarget(
+    label: label,
+    child: _withError(context, _content(context)),
+  );
+
+  Widget _withError(BuildContext context, Widget row) {
+    final error = errorText;
+    if (error == null) return row;
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        row,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppCardRowScope.inset,
+            0,
+            AppCardRowScope.inset,
+            AppSpacing.s12,
+          ),
+          child: Semantics(
+            liveRegion: true,
+            child: Text(
+              error,
+              style: AppText.caption.copyWith(color: tokens.dangerText),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   /// The most of the row a long value may take, so the label keeps its place.
   static const _valueShare = 0.55;

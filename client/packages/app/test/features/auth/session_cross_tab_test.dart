@@ -26,6 +26,9 @@ class _FakeTabs implements CrossTab {
 
   @override
   Stream<void> get storageChanges => changes.stream;
+
+  @override
+  Future<bool> anotherTabIsOpen() async => false;
 }
 
 const _mine = TokenPair(

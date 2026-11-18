@@ -18,6 +18,9 @@ import 'settings_harness.dart';
 const _wide = Size(1280, 900);
 const _phone = Size(390, 844);
 
+/// Below the settings two-pane width, where the roles pane still shows two columns.
+const _narrowDesktop = Size(700, 844);
+
 class _Guard implements SettingsLeaveGuard {
   bool answer = false;
   int asked = 0;
@@ -52,6 +55,35 @@ class _GuardedPageState extends State<_GuardedPage> {
   Widget build(BuildContext context) => const Text('guarded body');
 }
 
+/// A pane with a draft of its own, no page pushed: the role editor's shape.
+class _DraftedPane extends StatefulWidget {
+  const _DraftedPane(this.guard);
+
+  final _Guard guard;
+
+  @override
+  State<_DraftedPane> createState() => _DraftedPaneState();
+}
+
+class _DraftedPaneState extends State<_DraftedPane> {
+  late final _stack = SettingsSubPages.of(context);
+
+  @override
+  void initState() {
+    super.initState();
+    _stack.setPaneGuard(widget.guard);
+  }
+
+  @override
+  void dispose() {
+    _stack.releasePaneGuard(widget.guard);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const Text('drafted pane');
+}
+
 SettingsSubPage _page(
   String id, {
   String? urlId,
@@ -68,55 +100,77 @@ SettingsSubPage _page(
 
 class _Rig {
   final told = <String>[];
+  final panesTold = <String?>[];
   SettingsSubPage pushed = _page('one', urlId: 'one');
   final guard = _Guard();
 
-  Widget scaffold({String? page}) => SettingsPanesScaffold(
-    title: 'Settings',
-    backTooltip: 'Back to channels',
-    backFallback: '/',
-    initialPaneId: 'appearance',
-    initialPageId: page,
-    onPageChanged: (pane, page) => told.add('$pane:$page'),
-    groups: [
-      SettingsPaneGroup(
-        label: 'You',
-        panes: [
-          SettingsPane(
-            id: 'appearance',
-            label: 'Appearance',
-            builder: (context) => TextButton(
-              onPressed: () => SettingsSubPages.of(context).push(pushed),
-              child: const Text('open page'),
-            ),
-            subPages: {
-              'two': () => [
-                _page('one', urlId: 'one'),
-                _page('two', urlId: 'two'),
-              ],
-              'guarded': () => [
-                _page('g', builder: (_) => _GuardedPage(guard)),
-              ],
-            },
-          ),
-          SettingsPane(
-            id: 'other',
-            label: 'Other',
-            builder: (_) => const Text('other pane'),
+  Widget scaffold({String? page, String pane = 'appearance'}) =>
+      SettingsPanesScaffold(
+        title: 'Settings',
+        backTooltip: 'Back to channels',
+        backFallback: '/',
+        initialPaneId: pane,
+        initialPageId: page,
+        onPageChanged: (pane, page) => told.add('$pane:$page'),
+        onPaneChanged: panesTold.add,
+        groups: [
+          SettingsPaneGroup(
+            label: 'You',
+            panes: [
+              SettingsPane(
+                id: 'appearance',
+                label: 'Appearance',
+                builder: (context) => TextButton(
+                  onPressed: () => SettingsSubPages.of(context).push(pushed),
+                  child: const Text('open page'),
+                ),
+                subPages: {
+                  'two': () => [
+                    _page('one', urlId: 'one'),
+                    _page('two', urlId: 'two'),
+                  ],
+                  'guarded': () => [
+                    _page('g', builder: (_) => _GuardedPage(guard)),
+                  ],
+                },
+              ),
+              SettingsPane(
+                id: 'other',
+                label: 'Other',
+                builder: (_) => const Text('other pane'),
+              ),
+              SettingsPane(
+                id: 'drafted',
+                label: 'Drafted',
+                builder: (_) => _DraftedPane(guard),
+              ),
+            ],
           ),
         ],
-      ),
-    ],
-  );
+      );
 
-  Future<void> pump(WidgetTester tester, Size size, {String? page}) async {
+  Future<void> pump(
+    WidgetTester tester,
+    Size size, {
+    String? page,
+    String pane = 'appearance',
+  }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
+    await relink(tester, pane: pane, page: page);
+  }
+
+  /// Rebuilds with a new location, as browser Back or Forward does.
+  Future<void> relink(
+    WidgetTester tester, {
+    required String pane,
+    String? page,
+  }) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
-        home: scaffold(page: page),
+        home: scaffold(page: page, pane: pane),
       ),
     );
     await _settle(tester);
@@ -251,6 +305,74 @@ void main() {
 
     expect(rig.guard.asked, 2);
     expect(find.text('guarded body'), findsOneWidget);
+  });
+
+  testWidgets('a pane draft asks before close and before another pane', (
+    tester,
+  ) async {
+    final rig = _Rig();
+    await rig.pump(tester, _wide, pane: 'drafted');
+
+    await _tap(tester, find.byTooltip('Close settings'));
+    await _tap(tester, find.text('Other'));
+    expect(rig.guard.asked, 2);
+    expect(find.text('drafted pane'), findsOneWidget);
+
+    rig.guard.answer = true;
+    await _tap(tester, find.text('Other'));
+    expect(find.text('other pane'), findsOneWidget);
+  });
+
+  testWidgets('a pane draft asks before the location moves to another pane', (
+    tester,
+  ) async {
+    final rig = _Rig();
+    await rig.pump(tester, _wide, pane: 'drafted');
+
+    await rig.relink(tester, pane: 'other');
+    expect(rig.guard.asked, 1);
+    expect(find.text('drafted pane'), findsOneWidget);
+    expect(rig.panesTold, ['drafted'], reason: 'the location goes back');
+
+    await rig.relink(tester, pane: 'drafted');
+    rig.guard.answer = true;
+    await rig.relink(tester, pane: 'other');
+    expect(rig.guard.asked, 2);
+    expect(find.text('other pane'), findsOneWidget);
+  });
+
+  testWidgets('below the two-pane width, back from a pane draft asks first', (
+    tester,
+  ) async {
+    final rig = _Rig();
+    await rig.pump(tester, _narrowDesktop, pane: 'drafted');
+
+    await _tap(tester, find.byTooltip('Back to settings'));
+    expect(rig.guard.asked, 1);
+    expect(find.text('drafted pane'), findsOneWidget);
+
+    rig.guard.answer = true;
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+    expect(rig.guard.asked, 2);
+    expect(find.text('drafted pane'), findsNothing);
+    expect(find.text('Drafted'), findsOneWidget, reason: 'back on the nav');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('below the two-pane width, system back from a pane with no '
+      'draft lands on the nav like the back arrow', (tester) async {
+    final rig = _Rig();
+    await rig.pump(tester, _narrowDesktop, pane: 'other');
+    expect(find.text('other pane'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+
+    expect(rig.guard.asked, 0);
+    expect(find.text('other pane'), findsNothing);
+    expect(find.text('Drafted'), findsOneWidget, reason: 'back on the nav');
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('on a phone system back leaves the page, not settings', (

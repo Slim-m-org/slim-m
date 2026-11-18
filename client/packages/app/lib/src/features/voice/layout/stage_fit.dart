@@ -3,7 +3,8 @@
 ///
 /// Pure geometry (decision 0114): the caller hands over the box and what is in
 /// the call, and gets one rect per tile back. Several layouts are scored and
-/// the one covering the most of the box wins, ties going to fewer rows.
+/// the one covering the most of the box wins, ties going to fewer rows. A few
+/// audio-only people on a wide stage join the bento as a column beside the content.
 library;
 
 import 'dart:math' as math;
@@ -11,6 +12,7 @@ import 'dart:ui' show Offset, Rect, Size;
 
 import 'stage_fit_candidates.dart';
 import 'stage_fit_people.dart';
+import 'stage_fit_side.dart';
 import 'stage_item.dart';
 
 export 'stage_item.dart';
@@ -69,6 +71,21 @@ StageFit fitStage({
       people: tiles,
       shape: StageShape.peopleGrid,
       fill: _area(tiles) / boxArea,
+    );
+  }
+  final side = sideBento(people, content, full, gap);
+  if (side != null) {
+    return StageFit(
+      items: {
+        for (var i = 0; i < content.length; i++)
+          content[i].id: side.block.rects[i],
+      },
+      people: side.tiles,
+      shape: side.block.shape,
+      fill: (side.block.area + _area(side.tiles)) / boxArea,
+      crop: {
+        for (final e in side.block.crop.entries) content[e.key].id: e.value,
+      },
     );
   }
   final plan = people == 0 ? null : planPeople(people, content, full, gap);

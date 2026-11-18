@@ -373,6 +373,11 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             channel_id: channel,
             preference: Some(NotificationPreference::Everything),
         },
+        Event::CategoryMuteChanged {
+            user_id: alice,
+            category_id: slimm_server::ids::ChannelCategoryId(id(20)),
+            muted: true,
+        },
         Event::NewDeviceSignIn {
             user_id: alice,
             device_id: slimm_server::ids::DeviceId(id(12)),

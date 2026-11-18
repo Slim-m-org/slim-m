@@ -21,6 +21,7 @@ import '../../app_tokens.dart';
 import '../../app_typography.dart';
 import '../core/spinner.dart';
 import 'error_state.dart';
+import 'load_retry.dart';
 
 /// Renders [loading], [error] or [data] for an async value, with one look.
 ///
@@ -38,7 +39,7 @@ import 'error_state.dart';
 /// embeds this in: a bounded box (an `Expanded` ancestor, so [data] can be a
 /// `ListView` that needs one) and an unbounded one (the default scrollable
 /// settings frame, where [data] is already written to size itself instead).
-class AppAsyncView<T> extends StatelessWidget {
+class AppAsyncView<T> extends StatefulWidget {
   const AppAsyncView({
     super.key,
     required this.value,
@@ -62,6 +63,7 @@ class AppAsyncView<T> extends StatelessWidget {
   /// Plain words, never an exception. What failed and what it means.
   final String errorMessage;
 
+  /// Offered, and run on a backoff, unless the nearest [AppLoadRetryPolicy] refuses the error.
   final VoidCallback? onRetry;
 
   /// Shown beneath the spinner. A bare spinner is fine for a fast fetch; a
@@ -75,41 +77,66 @@ class AppAsyncView<T> extends StatelessWidget {
   /// for a surface that sits inline in a column rather than owning a pane.
   final bool center;
 
-  Widget _wrap(Widget child) => center
+  @override
+  State<AppAsyncView<T>> createState() => _AppAsyncViewState<T>();
+}
+
+class _AppAsyncViewState<T> extends State<AppAsyncView<T>> {
+  /// Moves the data under the error banner without a remount, so a draft in it survives a failed refresh.
+  final _dataKey = GlobalKey();
+
+  /// Outlives the error view, which a retry's spinner unmounts; only a load that lands resets it.
+  final _backoff = AppLoadBackoff();
+
+  @override
+  void didUpdateWidget(AppAsyncView<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (value.error == null && value.data != null) _backoff.reset();
+  }
+
+  AppAsyncState<T> get value => widget.value;
+  String get errorMessage => widget.errorMessage;
+  VoidCallback? get onRetry => widget.onRetry;
+
+  Widget _wrap(Widget child) => widget.center
       ? Center(child: child)
       : Align(alignment: Alignment.centerLeft, child: child);
+
+  Widget _data(BuildContext context, T resolved) =>
+      KeyedSubtree(key: _dataKey, child: widget.data(context, resolved));
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
 
-    if (value.error != null) return _errored();
+    if (value.error case final error?) return _errored(error);
 
     final resolved = value.data;
     if (resolved == null) return _loading(tokens);
 
-    if (emptyMessage != null && (isEmpty?.call(resolved) ?? false)) {
+    if (widget.emptyMessage != null &&
+        (widget.isEmpty?.call(resolved) ?? false)) {
       return _empty(tokens);
     }
 
     // A resolve settles in once on mount; later data rebuilds swap in place.
-    return AppFadeIn(child: data(context, resolved));
+    return AppFadeIn(child: _data(context, resolved));
   }
 
-  Widget _errored() {
+  Widget _errored(Object error) {
     // Kept and shown below rather than discarded; see this class's own doc.
     final stale = value.data;
     if (stale == null) {
       return _wrap(
         Padding(
           padding: const EdgeInsets.all(AppSpacing.s16),
-          child: AppErrorState(message: errorMessage, onRetry: onRetry),
+          child: _retrying(error),
         ),
       );
     }
     final banner = Padding(
       padding: const EdgeInsets.all(AppSpacing.s12),
-      child: AppErrorState(message: errorMessage, onRetry: onRetry),
+      child: _retrying(error),
     );
     // Which layout is safe follows the constraint actually given here.
     return LayoutBuilder(
@@ -120,10 +147,19 @@ class AppAsyncView<T> extends StatelessWidget {
         children: [
           banner,
           constraints.hasBoundedHeight
-              ? Expanded(child: data(context, stale))
-              : data(context, stale),
+              ? Expanded(child: _data(context, stale))
+              : _data(context, stale),
         ],
       ),
+    );
+  }
+
+  Widget _retrying(Object error) {
+    final retry = AppLoadRetryPolicy.allows(context, error) ? onRetry : null;
+    return AppLoadRetry(
+      onRetry: retry,
+      backoff: _backoff,
+      child: AppErrorState(message: errorMessage, onRetry: retry),
     );
   }
 
@@ -133,10 +169,10 @@ class AppAsyncView<T> extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const AppSpinner(size: AppSpinnerSize.md),
-          if (loadingMessage != null) ...[
+          if (widget.loadingMessage case final message?) ...[
             const SizedBox(height: AppSpacing.s12),
             Text(
-              loadingMessage!,
+              message,
               style: AppText.body.copyWith(color: tokens.textSecondary),
             ),
           ],
@@ -151,8 +187,8 @@ class AppAsyncView<T> extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.all(AppSpacing.s16),
           child: Text(
-            emptyMessage!,
-            textAlign: center ? TextAlign.center : TextAlign.start,
+            widget.emptyMessage!,
+            textAlign: widget.center ? TextAlign.center : TextAlign.start,
             style: AppText.body.copyWith(color: tokens.textSecondary),
           ),
         ),

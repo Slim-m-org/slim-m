@@ -48,6 +48,7 @@ abstract interface class SettingsLeaveGuard {
 class SettingsSubPageStack extends ChangeNotifier {
   final _pages = <SettingsSubPage>[];
   final _guards = <int, SettingsLeaveGuard>{};
+  SettingsLeaveGuard? _paneGuard;
   bool _blocking = false;
   bool _disposed = false;
 
@@ -59,7 +60,8 @@ class SettingsSubPageStack extends ChangeNotifier {
   SettingsLeaveGuard? get guard =>
       _pages.isEmpty ? null : _guards[_pages.length - 1];
 
-  bool get blocking => _guards.values.any((g) => g.blocking);
+  bool get blocking =>
+      (_paneGuard?.blocking ?? false) || _guards.values.any((g) => g.blocking);
 
   /// What `?page=` carries: the nearest page from the top that has a link.
   String? get urlId => _pages.reversed.map((p) => p.urlId).nonNulls.firstOrNull;
@@ -90,7 +92,22 @@ class SettingsSubPageStack extends ChangeNotifier {
     _onGuard();
   }
 
-  /// Asks every blocking guard, top first; true when nothing stands in the way.
+  /// Sets [guard] for the pane itself, under every page; no page change releases it.
+  void setPaneGuard(SettingsLeaveGuard guard) {
+    _releasePane();
+    _paneGuard = guard;
+    if (guard is Listenable) (guard as Listenable).addListener(_onGuard);
+    _onGuard();
+  }
+
+  /// Clears the pane guard only while it is still [guard], so a successor's stays.
+  void releasePaneGuard(SettingsLeaveGuard guard) {
+    if (!identical(_paneGuard, guard)) return;
+    _releasePane();
+    _onGuard();
+  }
+
+  /// Asks every blocking guard, top page first and the pane last; true when nothing stands in the way.
   Future<bool> canLeave() async {
     for (final index in _guards.keys.toList()..sort((a, b) => b - a)) {
       final guard = _guards[index];
@@ -98,7 +115,8 @@ class SettingsSubPageStack extends ChangeNotifier {
         return false;
       }
     }
-    return true;
+    final pane = _paneGuard;
+    return pane == null || !pane.blocking || await pane.confirmLeave();
   }
 
   /// Replaces every page without asking, for a caller that already did.
@@ -116,6 +134,12 @@ class SettingsSubPageStack extends ChangeNotifier {
 
   void _release(int index) {
     final old = _guards.remove(index);
+    if (old is Listenable) (old as Listenable).removeListener(_onGuard);
+  }
+
+  void _releasePane() {
+    final old = _paneGuard;
+    _paneGuard = null;
     if (old is Listenable) (old as Listenable).removeListener(_onGuard);
   }
 
@@ -141,6 +165,7 @@ class SettingsSubPageStack extends ChangeNotifier {
     for (final index in _guards.keys.toList()) {
       _release(index);
     }
+    _releasePane();
     super.dispose();
   }
 }

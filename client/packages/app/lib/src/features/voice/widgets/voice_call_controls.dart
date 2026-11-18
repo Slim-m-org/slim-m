@@ -67,6 +67,7 @@ class CallControls extends ConsumerStatefulWidget {
     required this.voice,
     this.extraControl,
     this.tight = false,
+    this.spilledOnly = false,
     this.menuExtras = const [],
     this.hints = true,
     this.ownsShortcuts = true,
@@ -77,8 +78,11 @@ class CallControls extends ConsumerStatefulWidget {
   /// False for a second copy laid over the first, such as a full screen video's dock, which must not take the call shortcuts from it.
   final bool ownsShortcuts;
 
-  /// Camera switch and the extra control wrap to a second row, and the mic's caret gives way to a long press, for a card too narrow to hold them all.
+  /// For a card too narrow to hold them all: camera switch, soundboard and the extra control leave this row, and the mic's caret gives way to a long press.
   final bool tight;
+
+  /// Draws only the controls a [tight] row leaves out, as a card row of their own above it.
+  final bool spilledOnly;
 
   /// False in a dock with tools directly above, which a hint bubble would cover.
   final bool hints;
@@ -184,6 +188,18 @@ class _CallControlsState extends ConsumerState<CallControls> {
     final soundboard = canUseSoundboard(ref, voice.channelId)
         ? SoundboardButton(channelId: voice.channelId!)
         : null;
+    if (widget.spilledOnly) {
+      final spilled = [?switchCamera, ?soundboard, ?extra];
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < spilled.length; i++) ...[
+            if (i > 0) const SizedBox(width: AppSpacing.s8),
+            spilled[i],
+          ],
+        ],
+      );
+    }
     final primary = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -226,9 +242,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
         ],
       ],
     );
-    if (!widget.tight) return primary;
-    final spilled = [?switchCamera, ?soundboard, ?extra];
-    return _spillColumn(primary, spilled);
+    return primary;
   }
 
   /// The mic button with its menu, its one-time hint and the talking-while-muted cue.
@@ -261,27 +275,6 @@ class _CallControlsState extends ConsumerState<CallControls> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _spillColumn(Widget primary, List<Widget> spilled) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        primary,
-        if (spilled.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.s4),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < spilled.length; i++) ...[
-                if (i > 0) const SizedBox(width: AppSpacing.s8),
-                spilled[i],
-              ],
-            ],
-          ),
-        ],
-      ],
     );
   }
 

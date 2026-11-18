@@ -142,8 +142,16 @@ void main() {
       await pumpEventQueue();
 
       expect(_names(call.session), ['me', 'bob']);
-      expect(seen, isEmpty,
-          reason: 'nothing is emitted while the roster waits');
+      expect(
+          seen,
+          [
+            ['me', 'bob']
+          ],
+          reason: 'one emit marks bob unconfirmed; nobody leaves the stage');
+      expect(
+        call.session.participants.map((p) => p.presence),
+        [CallPresence.live, CallPresence.unconfirmed],
+      );
     });
 
     test('the roster is rebuilt from the live room, not the old snapshot',

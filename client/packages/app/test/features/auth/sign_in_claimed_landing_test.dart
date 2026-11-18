@@ -116,15 +116,16 @@ void main() {
     });
   }
 
-  testWidgets('a claimed Space asked to create an account gives the invite '
-      'wording without the brand-new hedge', (tester) async {
+  testWidgets('a claimed Space asked to create an account asks for the invite '
+      'code first, without the brand-new hedge', (tester) async {
     await _pump(tester, size: _phone, version: const {'claimed': true});
     await tester.ensureVisible(find.text('Create an account instead'));
     await tester.tap(find.text('Create an account instead'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('invite code'), findsOneWidget);
-    expect(find.textContaining('brand new'), findsNothing);
+    expect(find.text('Invite code'), findsOneWidget);
+    expect(find.text('Username'), findsNothing);
+    expect(find.textContaining('brand-new'), findsNothing);
     expect(find.textContaining('first account'), findsNothing);
   });
 

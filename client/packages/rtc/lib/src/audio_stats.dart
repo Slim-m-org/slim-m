@@ -4,7 +4,7 @@ library;
 
 import 'package:slimm_api/api.dart' show LogLevel;
 
-import 'call_stats.dart' show StatsEntry;
+import 'call_stats.dart' show StatsEntry, selectedCandidatePair;
 import 'voice_log.dart';
 
 /// The Opus clock when a report names no codec.
@@ -118,20 +118,7 @@ bool _isAudio(StatsEntry e) =>
 /// Milliseconds of the selected candidate pair's `currentRoundTripTime`, the
 /// round trip to the voice server; null when no pair has reported one.
 double? candidatePairRttMs(List<StatsEntry> entries) {
-  final pairs = entries.where((e) => e.type == 'candidate-pair').toList();
-  final selectedId = entries
-      .where((e) => e.type == 'transport')
-      .map((e) => e.text('selectedCandidatePairId'))
-      .whereType<String>()
-      .firstOrNull;
-  final selected = pairs.where((e) => e.id == selectedId).firstOrNull ??
-      pairs.where((e) => e.flag('selected') ?? false).firstOrNull;
-  final chosen = selected ??
-      pairs
-          .where((e) =>
-              (e.flag('nominated') ?? false) || e.text('state') == 'succeeded')
-          .firstOrNull;
-  final rtt = chosen?.number('currentRoundTripTime');
+  final rtt = selectedCandidatePair(entries)?.number('currentRoundTripTime');
   return rtt == null ? null : rtt * 1000;
 }
 

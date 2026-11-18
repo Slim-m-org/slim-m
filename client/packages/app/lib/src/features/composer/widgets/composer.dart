@@ -23,6 +23,7 @@ import '../../messages/widgets/attachment_picker.dart';
 import '../../../providers/server_info.dart';
 import 'composer_action_bar.dart';
 import 'composer_attachment_actions.dart';
+import 'composer_attachment_tray.dart' show attachmentSendBlockReason;
 import 'composer_attachments.dart';
 import 'composer_autocomplete_controller.dart';
 import 'composer_autocomplete_watch.dart';
@@ -255,11 +256,11 @@ class _ComposerState extends ConsumerState<Composer> {
 
   void _handleChange() {
     final stats = ComposerTextStats.of(widget.controller.text);
-    final query = composerQueryAt(
-      widget.controller.text,
-      widget.controller.selection.baseOffset,
-      _botCommands,
-    );
+    final TextSelection(:isCollapsed, :extentOffset) =
+        widget.controller.selection;
+    // A range is no caret: its far end may already sit outside the trigger.
+    final caret = isCollapsed ? extentOffset : -1;
+    final query = composerQueryAt(widget.controller.text, caret, _botCommands);
     final changed = stats.changedFrom(_stats) || query != _autocomplete.query;
     final newlyMentioned = _mentionHelp.unseen(
       mentionedBotUsernames(
@@ -307,7 +308,9 @@ class _ComposerState extends ConsumerState<Composer> {
     unawaited(_send());
   }
 
+  /// Clearing it up front, before a pick or a drop, also clears the last refusal.
   void _setAttachmentError(String? message) {
+    if (message == null) _attachments.dismissRefusal();
     if (mounted) setState(() => _attachmentError = message);
   }
 
@@ -434,11 +437,7 @@ class _ComposerState extends ConsumerState<Composer> {
               onDismissCommandError: () => setState(() => _commandError = null),
               overLimitBy: _stats.overBy,
               slowModeRemainingSeconds: _slowModeRemaining,
-              stagedAttachments: _attachments.items,
-              onRemoveAttachment: _attachments.remove,
-              onRetryAttachment: _attachments.retry,
-              isSpoiler: _attachments.isSpoiler,
-              onToggleSpoiler: _attachments.toggleSpoiler,
+              attachments: _attachments,
             ),
             ComposerCodePasteOffer(paste: _codePaste),
             // Above the field, never below: that is the send row and keyboard.
@@ -460,6 +459,7 @@ class _ComposerState extends ConsumerState<Composer> {
               channelName: widget.channelName,
               hasText: _stats.hasText,
               canSend: _gate.canSend,
+              sendBlockedReason: attachmentSendBlockReason(_attachments),
               canRecord: _gate.canRecord,
               onVoiceSent: _sendVoice,
               onSend: _send,

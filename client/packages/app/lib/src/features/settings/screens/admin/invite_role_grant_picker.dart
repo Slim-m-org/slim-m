@@ -36,6 +36,7 @@ class InviteRoleGrantPicker extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final permissions = ref.watch(myPermissionsProvider);
+    final ladder = ref.watch(roleLadderProvider);
     if (!permissions.hasPermission(Perm.manageRoles)) {
       return const SizedBox.shrink();
     }
@@ -59,6 +60,8 @@ class InviteRoleGrantPicker extends ConsumerWidget {
             .where((r) => !r.isEveryone)
             .where((r) => !r.isBotsRole && !r.isManagedByBot)
             .where((r) => permissions.hasPermission(r.permissions))
+            // The server refuses a role at or above the caller's own highest, as it does a hand assignment.
+            .where(ladder.reachesRole)
             .toList();
         if (grantable.isEmpty) return const SizedBox.shrink();
 

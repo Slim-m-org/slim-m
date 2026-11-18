@@ -73,36 +73,82 @@ AppMenuItem? markReadStateMenuItem(
   );
 }
 
-/// "Mark all as read" over [channels], or null when none of them shows a badge.
-///
+/// The channels among [channels] that Mark all as read clears; a category mute hides badges, not unread, so it is ignored.
+List<String> _unreadToMark(
+  ProviderContainer container,
+  Iterable<Channel> channels,
+) {
+  final overrides = container.read(channelNotificationOverridesProvider);
+  return [
+    for (final channel in channels)
+      if (channel.kind != dmChannelKind &&
+          channelShowsUnread(
+            channel,
+            overrides.overrideFor(channel.id) ?? channelDefaultOf(channel),
+            isDm: false,
+          ))
+        channel.id,
+  ];
+}
+
+/// "Mark all as read" over [channels], dimmed when none has unread.
 /// One request for the lot, and one failure sentence rather than one per channel.
-AppMenuItem? markAllReadMenuItem(
+AppMenuItem markAllReadMenuItem(
   BuildContext context,
   ProviderContainer container,
   Iterable<Channel> channels,
   VoidCallback close,
 ) {
-  final overrides = container.read(channelNotificationOverridesProvider);
-  final unreadIds = [
-    for (final channel in channels)
-      if (channelShowsUnread(
-        channel,
-        overrides.effectiveFor(channel),
-        isDm: false,
-      ))
-        channel.id,
-  ];
-  if (unreadIds.isEmpty) return null;
+  final unreadIds = _unreadToMark(container, channels);
   return AppMenuItem(
     label: 'Mark all as read',
     leading: AppIcons.check,
+    onTap: unreadIds.isEmpty
+        ? null
+        : () {
+            close();
+            unawaited(
+              _say(
+                context,
+                'mark these channels read',
+                () => markChannelsRead(container, unreadIds),
+              ),
+            );
+          },
+  );
+}
+
+/// Mutes or unmutes [category] for this account; under a muted [parent] it only says so.
+AppMenuItem categoryMuteMenuItem(
+  BuildContext context,
+  ProviderContainer container,
+  ChannelCategoryRow category,
+  ChannelCategoryRow? parent,
+  VoidCallback close,
+) {
+  final overrides = container.read(channelNotificationOverridesProvider);
+  final muted = overrides.mutedCategories.contains(category.id);
+  if (!muted && parent != null && overrides.isCategoryMuted(parent.id)) {
+    return AppMenuItem(
+      label: 'Muted with ${parent.name}',
+      leading: AppIcons.notificationsOff,
+    );
+  }
+  return AppMenuItem(
+    label: muted ? 'Unmute category' : 'Mute category',
+    leading: muted ? AppIcons.notificationsOn : AppIcons.notificationsOff,
     onTap: () {
       close();
+      final notifier = container.read(
+        channelNotificationOverridesProvider.notifier,
+      );
       unawaited(
         _say(
           context,
-          'mark these channels read',
-          () => markChannelsRead(container, unreadIds),
+          muted ? 'unmute this category' : 'mute this category',
+          () => muted
+              ? notifier.unmuteCategory(category.id)
+              : notifier.muteCategory(category.id),
         ),
       );
     },
@@ -126,19 +172,7 @@ AppMenuItem markSpaceReadMenuItem(
         _say(context, 'mark these channels read', () async {
           final store = await container.read(storeProvider.future);
           final channels = await store.watchRailChannels().first;
-          final overrides = container.read(
-            channelNotificationOverridesProvider,
-          );
-          final unreadIds = [
-            for (final channel in channels)
-              if (channel.kind != dmChannelKind &&
-                  channelShowsUnread(
-                    channel,
-                    overrides.effectiveFor(channel),
-                    isDm: false,
-                  ))
-                channel.id,
-          ];
+          final unreadIds = _unreadToMark(container, channels);
           if (unreadIds.isNotEmpty) {
             await markChannelsRead(container, unreadIds);
           }

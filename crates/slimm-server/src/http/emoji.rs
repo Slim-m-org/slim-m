@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::attachments::serve;
-use super::error::ApiError;
+use super::error::{ApiError, RefusedItem};
 use super::extract::Authed;
 use super::extract::enforce;
 use super::extract::require_manage_server;
@@ -213,31 +213,39 @@ async fn bulk_upload(
     ))
 }
 
-/// Anything about one image in the batch reuses [`refusal`]'s status and
-/// wording, prefixed with which image it was so the caller can fix that file,
-/// and carries the image's index and a stable reason as fields of their own.
+/// Every refused image reuses [`refusal`]'s wording, prefixed with which image it
+/// was; the first also sets the status and the `item_index` and `item_code` fields.
 fn bulk_refusal(err: BulkAddError, names: &[String]) -> ApiError {
-    match err {
-        BulkAddError::Item { index, error } => {
-            let name = names.get(index).map(String::as_str).unwrap_or_default();
-            let at = |message: &str| format!("image {} ({name}): {message}", index + 1);
-            let code = refusal_code(&error);
-            let (status, message) = match refusal(error) {
-                ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
-                ApiError::Conflict(message) => (StatusCode::CONFLICT, message),
-                other => return other,
-            };
-            ApiError::AtItem {
-                status,
-                message: at(message),
-                index,
-                code,
-            }
-        }
+    let refused = match err {
+        BulkAddError::Items(refused) => refused,
         BulkAddError::Storage(err) => {
             tracing::error!(error = %err, "failed to store a bulk-uploaded emoji");
-            ApiError::Internal
+            return ApiError::Internal;
         }
+    };
+    let mut items = Vec::with_capacity(refused.len());
+    let mut first_status = None;
+    for (index, error) in refused {
+        let name = names.get(index).map(String::as_str).unwrap_or_default();
+        let code = refusal_code(&error);
+        let (status, message) = match refusal(error) {
+            ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
+            ApiError::Conflict(message) => (StatusCode::CONFLICT, message),
+            other => return other,
+        };
+        first_status.get_or_insert(status);
+        let error = format!("image {} ({name}): {message}", index + 1);
+        items.push(RefusedItem { index, code, error });
+    }
+    let Some(first) = items.first() else {
+        return ApiError::Internal;
+    };
+    ApiError::AtItem {
+        status: first_status.unwrap_or(StatusCode::BAD_REQUEST),
+        message: first.error.clone(),
+        index: first.index,
+        code: first.code,
+        items,
     }
 }
 

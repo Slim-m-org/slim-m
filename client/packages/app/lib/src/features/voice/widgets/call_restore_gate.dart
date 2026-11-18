@@ -36,8 +36,10 @@ class _CallRestoreGateState extends ConsumerState<CallRestoreGate> {
     final found = await ref.read(callToRestoreProvider)();
     if (found == null || !mounted) return;
     final (:call, :channelName) = found;
-    if (!call.restart && !await _askToRejoin(channelName)) return;
+    final rejoin = call.restart || await _askToRejoin(channelName);
     if (!mounted) return;
+    await ref.read(answerCallToRestoreProvider)();
+    if (!rejoin || !mounted) return;
     if (!await confirmTranscriptionNotice(context, ref)) return;
     if (!mounted || ref.read(voiceFlagsProvider).channelId != null) return;
     await ref.read(rejoinRestoredCallProvider)(call);

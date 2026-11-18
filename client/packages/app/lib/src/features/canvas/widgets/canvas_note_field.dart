@@ -56,6 +56,10 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
   int _selected = 0;
   bool _full = false;
 
+  /// The text's length at the last change: a cut paste lands at the cap, so
+  /// only taking something out makes room again.
+  late int _length = widget.controller.text.length;
+
   @override
   void initState() {
     super.initState();
@@ -85,7 +89,9 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
   }
 
   void _onChange() {
-    if (_full && _fits(widget.controller.text)) setState(() => _full = false);
+    final shrank = widget.controller.text.length < _length;
+    _length = widget.controller.text.length;
+    if (_full && shrank) setState(() => _full = false);
     final query = _supportedQuery(
       autocompleteQueryAt(
         widget.controller.text,
@@ -289,7 +295,7 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
         ),
         if (_full)
           Text(
-            'This note is full.',
+            noteFullSentence,
             style: AppText.caption.copyWith(color: tokens.dangerText),
           ),
       ],

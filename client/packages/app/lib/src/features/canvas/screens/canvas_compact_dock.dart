@@ -34,20 +34,22 @@ class CanvasCompactDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final call = this.call;
-    final showTools = canvas.fullscreen || !canvas.activityLogOpen;
+    final showTools = canvas.showsTools;
+    final card = showTools || canvas.fullscreen;
     // Stretched to the wider card, so the two read as one stack and not two offset pills.
     return IntrinsicWidth(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (showTools)
+          if (card)
             FloatingDockCard(
               rows: [
-                CanvasDockToolsRow(
-                  canvas: canvas,
-                  part: CanvasToolsRowPart.toolsOnly,
-                ),
+                if (showTools)
+                  CanvasDockToolsRow(
+                    canvas: canvas,
+                    part: CanvasToolsRowPart.toolsOnly,
+                  ),
                 // The header that holds undo, the overflow and the way out is gone in fullscreen, so they move here.
                 if (canvas.fullscreen)
                   Row(
@@ -65,7 +67,7 @@ class CanvasCompactDock extends StatelessWidget {
                   ),
               ],
             ),
-          if (showTools && call != null) const SizedBox(height: AppSpacing.s8),
+          if (card && call != null) const SizedBox(height: AppSpacing.s8),
           if (call != null)
             Consumer(
               builder: (context, ref, _) => FloatingDockCard(

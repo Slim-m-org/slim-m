@@ -59,12 +59,14 @@ where
 pub struct SweptTokens {
     pub access_tokens: u64,
     pub refresh_tokens: u64,
+    /// Kept hashes of tokens a device removal or account deletion dropped.
+    pub dropped_refresh_tokens: u64,
     pub ws_tickets: u64,
 }
 
 impl SweptTokens {
     pub fn total(self) -> u64 {
-        self.access_tokens + self.refresh_tokens + self.ws_tickets
+        self.access_tokens + self.refresh_tokens + self.dropped_refresh_tokens + self.ws_tickets
     }
 }
 
@@ -81,8 +83,8 @@ impl Store {
     /// removed; see the constants for why, particularly
     /// [`REFRESH_SWEEP_GRACE_MS`], which reuse detection depends on.
     ///
-    /// The three deletes are separate statements rather than one transaction:
-    /// the tables are independent, and holding the write lock across all three
+    /// The four deletes are separate statements rather than one transaction:
+    /// the tables are independent, and holding the write lock across all four
     /// buys nothing while making the pause longer.
     pub async fn sweep_expired_tokens(&self) -> anyhow::Result<SweptTokens> {
         let now = now_ms();
@@ -117,6 +119,20 @@ impl Store {
         })
         .await?;
 
+        // A dropped token's hash goes when its row would have, had nothing cascaded it away.
+        let dropped_refresh_tokens = drain(|| async {
+            sqlx::query!(
+                "DELETE FROM dropped_refresh_tokens WHERE rowid IN
+                 (SELECT rowid FROM dropped_refresh_tokens WHERE expires_at < ? LIMIT ?)",
+                refresh_cutoff,
+                SWEEP_BATCH
+            )
+            .execute(&self.pool)
+            .await
+            .map(|done| done.rows_affected())
+        })
+        .await?;
+
         let ws_tickets = drain(|| async {
             sqlx::query!(
                 "DELETE FROM ws_tickets WHERE rowid IN
@@ -133,6 +149,7 @@ impl Store {
         Ok(SweptTokens {
             access_tokens,
             refresh_tokens,
+            dropped_refresh_tokens,
             ws_tickets,
         })
     }

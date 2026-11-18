@@ -32,3 +32,5 @@ Future<bool?> answersOutsideBrowserRules(Uri server) async {
     return false;
   }
 }
+
+bool browserSaysOnline() => web.window.navigator.onLine;

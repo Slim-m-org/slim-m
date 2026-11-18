@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The presentational pieces the transcript composes but that carry no list
 /// logic of their own: the start-of-channel header, what stands in its place
-/// while there is still history above, what an empty list means, the one-shot
-/// entrance a freshly arrived message rides in on, and the per-row extras
-/// scope.
+/// while there is still history above, what an empty list means, and the
+/// per-row extras scope.
 ///
 /// Split out of `message_transcript.dart` to keep that file to the reversed
 /// scroll and the grouping, unread and day rules that decide what each row
@@ -209,67 +208,6 @@ class HistoryTopAffordance extends StatelessWidget {
             ),
     );
   }
-}
-
-/// A one-shot fade-and-rise for a freshly arrived message. Keyed by its message
-/// id by its caller, so the row keeps its state as later arrivals push it along;
-/// [animateOnMount] is read once, when the row first mounts. Reads
-/// reduce-motion once, on first layout, and lands instantly if set.
-class MessageEntrance extends StatefulWidget {
-  const MessageEntrance({
-    super.key,
-    required this.child,
-    required this.animateOnMount,
-  });
-
-  final Widget child;
-  final bool animateOnMount;
-
-  @override
-  State<MessageEntrance> createState() => _MessageEntranceState();
-}
-
-class _MessageEntranceState extends State<MessageEntrance>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: AppMotion.base,
-  );
-  bool _started = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_started) return;
-    _started = true;
-    if (widget.animateOnMount && !AppMotion.isReduced(context)) {
-      _controller.forward();
-    } else {
-      _controller.value = 1;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _controller,
-    child: widget.child,
-    builder: (context, child) {
-      final t = AppMotion.entrance.transform(_controller.value);
-      return Opacity(
-        opacity: t,
-        child: Transform.translate(
-          offset: Offset(0, (1 - t) * 8),
-          child: child,
-        ),
-      );
-    },
-  );
 }
 
 /// What an empty message list means depends on whether catch-up has actually

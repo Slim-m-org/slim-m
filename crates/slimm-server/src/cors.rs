@@ -36,7 +36,7 @@ use std::time::Duration;
 
 use anyhow::Context;
 use axum::Router;
-use axum::http::{HeaderValue, Method, header};
+use axum::http::{HeaderName, HeaderValue, Method, header};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use url::Url;
 
@@ -122,8 +122,8 @@ fn layer_for(origins: Vec<HeaderValue>) -> CorsLayer {
         // The only two the client ever sets. Anything else a browser sends is
         // already on the CORS-safelist and needs no permission.
         .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE])
-        // A script cannot read a response header the server does not name, and a 429 says when to retry.
-        .expose_headers([header::RETRY_AFTER])
+        // A script reads only the headers named here: a 429's retry time, and the Cloudflare ray whose suffix names the data centre.
+        .expose_headers([header::RETRY_AFTER, HeaderName::from_static("cf-ray")])
         .max_age(PREFLIGHT_MAX_AGE)
 }
 

@@ -24,6 +24,9 @@ const SETTINGS: &str = "SELECT presence_visibility, notification_preference,
         (SELECT json_group_array(json_object('channel_id', lower(hex(channel_id)),
                 'joins', joins, 'streams', json(CASE streams WHEN 1 THEN 'true' ELSE 'false' END), 'updated_at', updated_at))
            FROM voice_notify_prefs WHERE user_id = ?1) AS voice_notifications_json,
+        (SELECT json_group_array(json_object('category_id', lower(hex(category_id)),
+                'created_at', created_at))
+           FROM category_mutes WHERE user_id = ?1) AS category_mutes_json,
         (SELECT json_object('timezone', s.timezone, 'off_hours_mode', s.off_hours_mode,
                 'snooze_until', s.snooze_until,
                 'days', (SELECT json_group_array(json_object('weekday', weekday,

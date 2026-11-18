@@ -86,8 +86,8 @@ fn check_len(value: &str, max: usize, label: &str) -> Result<usize, ApiError> {
     let len = value.chars().count();
     if len > max {
         return Err(ApiError::BadRequestDetail(format!(
-            "{label} is {} characters over the {max}-character limit",
-            len - max,
+            "{label} is {}",
+            crate::limits::chars_over_limit(len - max, max),
         )));
     }
     Ok(len)
@@ -220,8 +220,8 @@ pub(crate) fn build_embeds(
 
         if total > TOTAL_MAX {
             return Err(ApiError::BadRequestDetail(format!(
-                "the embeds on this message are {} characters over the {TOTAL_MAX}-character total limit",
-                total - TOTAL_MAX,
+                "the embeds on this message are {} in total",
+                crate::limits::chars_over_limit(total - TOTAL_MAX, TOTAL_MAX),
             )));
         }
 

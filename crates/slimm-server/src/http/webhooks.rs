@@ -158,8 +158,11 @@ async fn deliver(
         Some(name) if !name.is_empty() => {
             if name.chars().count() > USERNAME_MAX_CHARS {
                 return Err(ApiError::BadRequestDetail(format!(
-                    "username is {} characters over the {USERNAME_MAX_CHARS}-character limit",
-                    name.chars().count() - USERNAME_MAX_CHARS,
+                    "username is {}",
+                    crate::limits::chars_over_limit(
+                        name.chars().count() - USERNAME_MAX_CHARS,
+                        USERNAME_MAX_CHARS,
+                    ),
                 )));
             }
             if name.chars().any(super::hidden_chars::is_hidden_char) {

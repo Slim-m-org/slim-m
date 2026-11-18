@@ -34,11 +34,8 @@ pub const MAX_TIMEOUT_MS: i64 = 28 * 24 * 60 * 60 * 1000;
 /// removal, and it is why the client copy says "can read, can't post".
 ///
 /// `USE_CANVAS` is deliberately absent even though drawing is plainly a way
-/// of posting: that one bit means "view *and* draw the canvas" (see its
-/// definition in `permissions.rs`), so subtracting it would blank the canvas
-/// rather than make it read-only. The canvas write path checks the timeout
-/// directly instead; splitting the bit is a schema and role migration that
-/// belongs to the Phase 6 canvas work rather than to this.
+/// of posting: a timed-out member still erases their own ink with it. The
+/// canvas write path checks the timeout directly instead.
 pub(crate) const TIMEOUT_DENY: Permissions = Permissions::SEND_MESSAGES
     .union(Permissions::ADD_REACTIONS)
     .union(Permissions::ATTACH_FILES)

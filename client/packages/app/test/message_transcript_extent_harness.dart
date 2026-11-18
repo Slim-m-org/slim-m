@@ -95,9 +95,11 @@ MessageTranscript transcript({
   String channelId = 'c1',
   bool short = false,
   List<Message>? rows,
+  bool atLatest = true,
   Key? key,
 }) => MessageTranscript(
   key: key,
+  atLatest: atLatest,
   channelId: channelId,
   messages: rows ?? (short ? shortMessages(count) : messages(count)),
   syncStatus: SyncStatus.live,

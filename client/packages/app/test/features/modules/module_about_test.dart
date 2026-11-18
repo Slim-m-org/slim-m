@@ -36,6 +36,22 @@ void main() {
     );
   });
 
+  test('a row already named after its module does not repeat the name', () {
+    const mines = api.ModuleInfo(name: 'Minesweeper', verified: true);
+    expect(
+      moduleCommandDetail(
+        'Launch a shared board.',
+        mines,
+        shownAs: 'Minesweeper',
+      ),
+      'Launch a shared board.',
+    );
+    expect(
+      moduleCommandDetail('Roll', _weather, shownAs: 'Dice'),
+      'Roll · Weather · uses the internet',
+    );
+  });
+
   test(
     'the slash autocomplete rows carry the module beside the description',
     () {

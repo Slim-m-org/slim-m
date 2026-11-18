@@ -337,4 +337,7 @@ class CanvasStroke {
   /// grid still finds the slot, since [CanvasDocument.kill] means "this
   /// commit never landed" and is a different thing from a real removal.
   bool alive = true;
+
+  /// Bumped whenever this object's own pixels change, so a cache of the ink can tell which of its objects went stale.
+  int paintVersion = 0;
 }

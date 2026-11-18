@@ -85,6 +85,9 @@ class AlertRig {
   /// Channels this account can read but not post in.
   Set<String> readOnly = const {};
 
+  /// Categories this account muted; `group-1` is filed under `cat-1`.
+  Set<String> mutedCategories = const {};
+
   /// Author ids `GET /users` reports as `bot` or `webhook`.
   Map<String, String> automated = const {};
 
@@ -111,6 +114,7 @@ class AlertRig {
         name: 'general',
         kind: 'text',
         createdAt: 0,
+        categoryId: 'cat-1',
       ),
       const api.Channel(id: 'dm-1', name: 'Alice', kind: 'dm', createdAt: 0),
       const api.Channel(
@@ -186,6 +190,11 @@ class AlertRig {
                 'allowed_channel_ids': <String>[],
               },
       });
+    }
+    if (path == '/notification-preferences/categories') {
+      return alertJson([
+        for (final id in mutedCategories) {'category_id': id},
+      ]);
     }
     if (path == '/notification-preferences/channels') {
       return alertJson([

@@ -180,7 +180,7 @@ void main() {
     await pumpFrames(tester);
 
     expect(wire.writes, isEmpty);
-    expect(find.textContaining('over 512 KB'), findsOneWidget);
+    expect(find.textContaining('at most 512 KB'), findsOneWidget);
   });
 
   testWidgets(
@@ -206,7 +206,7 @@ void main() {
   test('an oversized drop is refused without reading it whole', () async {
     final pick = await readDroppedSoundClip([_UnreadableDrop('huge.wav')]);
     expect(pick, isNotNull);
-    expect(soundClipFileProblem(pick!), contains('over 512 KB'));
+    expect(soundClipFileProblem(pick!), contains('at most 512 KB'));
   });
 
   test('a drop that is no clip is refused without reading it', () async {

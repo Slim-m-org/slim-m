@@ -16,6 +16,7 @@ mod anonymize;
 
 use crate::ids::{SessionId, UserId};
 
+use super::dropped_refresh::{DropCause, keep_dropped_refresh_tokens};
 use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::space_owner::Handoff;
 use super::{Store, now_ms};
@@ -144,6 +145,7 @@ impl Store {
         anonymize::anonymize_authored_content(&mut tx, user_id).await?;
 
         // Purge personal data. Deleting devices cascades sessions and their tokens.
+        keep_dropped_refresh_tokens(&mut tx, user_id, None, DropCause::AccountDeleted).await?;
         sqlx::query!("DELETE FROM devices WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;
@@ -251,6 +253,9 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        sqlx::query!("DELETE FROM category_mutes WHERE user_id = ?", user_id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query!("DELETE FROM voice_notify_prefs WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;

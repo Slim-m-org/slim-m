@@ -5,6 +5,8 @@
 /// arrived. The sync controller now refetches them when it goes live.
 library;
 
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +24,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/testing.dart';
 
+import '../../support/async_wait.dart';
 import '../../support/quick_reconnect.dart';
 import '../../support/sync_harness.dart';
 
@@ -36,10 +39,20 @@ const _tokens = api.TokenPair(
 /// overrides route answering from [blocks] and [overrides], failing the first
 /// [failFirst] requests to each.
 class _Rig {
-  _Rig(this.tester, {this.failFirst = 0});
+  _Rig(this.tester, {this.failFirst = 0, this.failCategoriesFirst = 0});
 
   final WidgetTester tester;
   final int failFirst;
+
+  /// How many of the first muted-category reads fail, apart from [failFirst].
+  final int failCategoriesFirst;
+  List<String> mutedCategories = ['games'];
+  int categoryHits = 0;
+
+  /// Holds the first muted-category read until [failHeldCategoryRead], which fails it.
+  bool holdFirstCategoryRead = false;
+  Completer<void>? _heldCategoryRead;
+  void failHeldCategoryRead() => _heldCategoryRead!.complete();
   List<String> blocks = ['pest'];
   List<Map<String, String>> overrides = [
     {'channel_id': 'c1', 'preference': 'nothing'},
@@ -74,6 +87,18 @@ class _Rig {
       ..on('GET', '/notification-preferences/channels', (_) {
         if (++overrideHits <= failFirst) return http.Response('boom', 500);
         return jsonResponse(overrides);
+      })
+      ..on('GET', '/notification-preferences/categories', (_) async {
+        if (++categoryHits == 1 && holdFirstCategoryRead) {
+          await (_heldCategoryRead = Completer<void>()).future;
+          return http.Response('boom', 504);
+        }
+        if (categoryHits <= failCategoriesFirst) {
+          return http.Response('boom', 500);
+        }
+        return jsonResponse([
+          for (final id in mutedCategories) {'category_id': id},
+        ]);
       })
       ..on('GET', '/notifications/schedule', (_) {
         scheduleHits++;
@@ -214,7 +239,51 @@ void main() {
 
         expect(rig.blockHits, 1);
         expect(rig.overrideHits, 1);
+        expect(rig.categoryHits, 1);
         expect(rig.versionHits, 1);
+      } finally {
+        await rig.close();
+      }
+    },
+  );
+
+  testWidgets(
+    'a failed read of the muted categories is retried at the first connect',
+    (tester) async {
+      final rig = _Rig(tester, failCategoriesFirst: 1);
+      await rig.start();
+      try {
+        await rig.signInAndConnect();
+
+        expect(rig.categoryHits, 2);
+        final overrides = rig.container.read(
+          channelNotificationOverridesProvider,
+        );
+        expect(overrides.isCategoryMuted('games'), isTrue);
+        expect(overrides.categoriesLoaded, isTrue);
+      } finally {
+        await rig.close();
+      }
+    },
+  );
+
+  testWidgets(
+    'a read of the muted categories still out at the first connect is asked again',
+    (tester) async {
+      final rig = _Rig(tester)..holdFirstCategoryRead = true;
+      await rig.start();
+      try {
+        await rig.signInAndConnect();
+        rig.failHeldCategoryRead();
+
+        await waitUntil(tester, () {
+          final overrides = rig.container.read(
+            channelNotificationOverridesProvider,
+          );
+          return overrides.categoriesLoaded &&
+              overrides.isCategoryMuted('games');
+        }, reason: 'the muted categories were never read again');
+        expect(rig.categoryHits, 2);
       } finally {
         await rig.close();
       }

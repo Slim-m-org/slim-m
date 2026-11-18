@@ -26,6 +26,9 @@ class _RecordingRoute implements DirectRoute {
   bool get hasAddresses => false;
 
   @override
+  int get poolRenewals => 0;
+
+  @override
   void retryNow() {}
 
   @override

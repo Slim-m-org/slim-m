@@ -13,6 +13,7 @@ import 'package:slimm_app/src/features/accounts/providers/account_restore.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_store.dart';
 import 'package:slimm_app/src/providers/server_info.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -21,6 +22,7 @@ import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/fake_sync.dart';
+import '../../support/fake_voice.dart';
 
 /// 'first.example' is shown as 'First', as an admin-chosen name would be.
 String _nameOf(String host) =>
@@ -30,6 +32,39 @@ String _nameOf(String host) =>
 final testCallProvider = StateProvider<VoiceFlags>((ref) => const VoiceFlags());
 
 const connectedCall = VoiceFlags(state: VoiceSessionState.connected);
+
+/// The controller state whose flags are [f], so synchronous selects off the controller see the call too.
+VoiceState _callState(VoiceFlags f) => VoiceState(
+  channelId: f.channelId,
+  state: f.state,
+  joining: f.joining,
+  rejoining: f.rejoining,
+  reconnecting: f.reconnecting,
+  microphoneEnabled: f.microphoneEnabled,
+  cameraEnabled: f.cameraEnabled,
+  cameraPending: f.cameraPending,
+  screenSharing: f.screenSharing,
+  awaitingBroadcast: f.awaitingBroadcast,
+  shareAudio: f.shareAudio,
+  canPublish: f.canPublish,
+  joinedMuted: f.joinedMuted,
+  deafened: f.deafened,
+  error: f.error,
+  retryable: f.retryable,
+  connectedAt: f.connectedAt,
+  recap: f.recap,
+  justLeftChannelId: f.justLeftChannelId,
+  justLeftAt: f.justLeftAt,
+);
+
+FakeVoiceController _testCall(Ref ref) {
+  final voice = FakeVoiceController(
+    ref,
+    initial: _callState(ref.read(testCallProvider)),
+  );
+  ref.listen(testCallProvider, (_, f) => voice.set(_callState(f)));
+  return voice;
+}
 
 String sessionJson(String userId) =>
     '{"user_id":"$userId","access_token":"a-$userId","refresh_token":"r-$userId","access_expires_at":0}';
@@ -66,7 +101,7 @@ class AccountHarness {
       accountSlotProvider.overrideWithValue(slot),
       accountHostProvider.overrideWith((ref) => host),
       syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
-      voiceFlagsProvider.overrideWith((ref) => ref.watch(testCallProvider)),
+      voiceControllerProvider.overrideWith(_testCall),
       serverInfoProvider.overrideWith(
         (ref) async => api.Version(
           name: 'slim-m',

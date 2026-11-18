@@ -12,6 +12,9 @@ import 'package:slimm_api/api.dart' as api;
 import 'format.dart';
 import 'permissions.dart';
 
+/// Whether a failed load is worth retrying on its own: a 403 is a lost permission, which a retry only meets again.
+bool loadFailureRetries(Object error) => error is! api.ForbiddenException;
+
 /// Turns [e] into a plain sentence for [whatFailed] ("join the call"),
 /// never the raw transport string a [api.TransportException] carries.
 ///

@@ -121,7 +121,7 @@ const IDLE_POLL_INTERVAL: Duration = Duration::from_secs(30);
 /// decides, and the safe answer for anything permission-shaped is `true`.
 /// Over-reporting only costs a re-derivation; under-reporting is a stale
 /// answer served to a caller who should no longer have it.
-fn moves_permissions(event: &Event) -> bool {
+pub(crate) fn moves_permissions(event: &Event) -> bool {
     match event {
         Event::RoleChanged { .. }
         | Event::MemberRoleChanged { .. }
@@ -195,6 +195,7 @@ fn moves_permissions(event: &Event) -> bool {
         // Private notices and read markers move no permission and need no fan-out ordering.
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
+        | Event::CategoryMuteChanged { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
@@ -309,6 +310,7 @@ fn is_ephemeral(event: &Event) -> bool {
         // Private notices and read markers move no permission and need no fan-out ordering.
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
+        | Event::CategoryMuteChanged { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
         | Event::VoiceNotice { .. }

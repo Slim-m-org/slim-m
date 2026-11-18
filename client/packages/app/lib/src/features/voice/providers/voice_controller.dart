@@ -233,12 +233,11 @@ class VoiceController extends StateNotifier<VoiceState> {
 
   /// [join] with the mic off for this call, whatever the saved preference;
   /// the idle pane's "Join muted".
-  Future<void> joinMuted(String channelId) {
-    _muteNextJoin = true;
-    return join(channelId);
-  }
+  Future<void> joinMuted(String channelId) => join(channelId, muted: true);
 
-  bool _muteNextJoin = false;
+  /// Whether the latest [join] was a [joinMuted], so retrying it repeats that.
+  bool get lastJoinMuted => _lastJoinMuted;
+  bool _lastJoinMuted = false;
 
   /// [join] for a move somebody else made: it never opens a microphone that is closed in this call.
   Future<void> joinMoved(String channelId) {
@@ -253,9 +252,9 @@ class VoiceController extends StateNotifier<VoiceState> {
   /// reproduced without it, an abandoned join's belated failure landed as
   /// the *current* (different) channel's error, hiding a call that had
   /// actually connected - see `voice_controller_join_race_test.dart`.
-  Future<void> join(String channelId) async {
-    final mutedByCaller = _muteNextJoin;
-    _muteNextJoin = false;
+  /// [muted] makes it a [joinMuted].
+  Future<void> join(String channelId, {bool muted = false}) async {
+    _lastJoinMuted = muted;
     // The same call coming back (a retry, a rejoin) or a move keeps the microphone as it is.
     final keepMic = _keepMicNextJoin || state.channelId == channelId;
     _keepMicNextJoin = false;
@@ -293,12 +292,12 @@ class VoiceController extends StateNotifier<VoiceState> {
       );
     }
     // Before the token round trip, so a muted join that fails there is retried muted.
-    if (mutedByCaller) state = _joinMuted.showMuted(state);
+    if (muted) state = _joinMuted.showMuted(state);
     if (callStarts) await _ref.read(callStartYieldsProvider).callStarting();
     // Awaited before the connect: a ring stopping later would deactivate the call's audio session.
     await _ref.read(soundSessionReleaseProvider)();
     if (superseded()) return;
-    await _sfu.run(channelId, mutedByCaller, superseded);
+    await _sfu.run(channelId, muted, superseded);
   }
 
   /// Supersedes any in-flight [join], and is superseded the same way: a leave

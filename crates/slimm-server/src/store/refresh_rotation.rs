@@ -21,6 +21,7 @@
 
 use sqlx::{Sqlite, SqliteConnection, Transaction};
 
+use super::dropped_refresh::dropped_refresh_denial;
 use super::sessions::{ACCESS_TTL_MS, IssuedTokens, REFRESH_TTL_MS, revoke_session_rows};
 use super::{Store, now_ms};
 use crate::auth::{generate_secret, hash_secret};
@@ -30,10 +31,37 @@ use crate::ids::{DeviceId, FamilyId, SessionId, UserId};
 pub enum RefreshOutcome {
     /// Accepted: here are the new access and refresh tokens.
     Rotated(IssuedTokens),
-    /// Rejected for a benign reason (unknown, expired, or already revoked).
-    Denied,
+    /// Rejected for a benign reason, which the log records.
+    Denied(RefreshDenial),
     /// A spent token was replayed; the family and session were revoked.
     Reused,
+}
+
+/// Why a refresh token was refused without revoking anything.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RefreshDenial {
+    /// Never issued here, or swept a month after it expired.
+    Unknown,
+    /// Its device was signed out from the devices list, which deleted its rows.
+    DeviceRemoved,
+    /// Its account was deleted, which deleted its devices.
+    AccountDeleted,
+    /// Its session was signed out, or its family revoked.
+    Revoked,
+    Expired,
+}
+
+impl RefreshDenial {
+    /// The `reason` the rejection is logged with.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            RefreshDenial::Unknown => "unknown",
+            RefreshDenial::DeviceRemoved => "device removed",
+            RefreshDenial::AccountDeleted => "account deleted",
+            RefreshDenial::Revoked => "family already revoked",
+            RefreshDenial::Expired => "expired",
+        }
+    }
 }
 
 impl Store {
@@ -142,7 +170,7 @@ impl Store {
         .fetch_one(&mut *tx)
         .await?;
         if session.revoked_at.is_some() {
-            return Ok(RefreshOutcome::Denied);
+            return Ok(RefreshOutcome::Denied(RefreshDenial::Revoked));
         }
 
         retire_superseded_chain(&mut tx, claimed.successor_hash, now).await?;
@@ -279,26 +307,23 @@ async fn classify_failed_refresh(
     .await?;
 
     let Some(row) = row else {
-        // Swept or never issued; the one rejection with no session to name.
-        tracing::info!(reason = "unknown", "refresh rejected");
-        return Ok(RefreshOutcome::Denied);
+        // No session left to name: dropped with its device or account, swept, or never issued.
+        let denial = dropped_refresh_denial(&mut tx, presented)
+            .await?
+            .unwrap_or(RefreshDenial::Unknown);
+        tracing::info!(reason = denial.as_str(), "refresh rejected");
+        return Ok(RefreshOutcome::Denied(denial));
     };
     if row.revoked_at.is_some() {
-        tracing::info!(
-            session_id = %row.session_id,
-            reason = "family already revoked",
-            "refresh rejected"
-        );
-        return Ok(RefreshOutcome::Denied);
+        let denial = RefreshDenial::Revoked;
+        tracing::info!(session_id = %row.session_id, reason = denial.as_str(), "refresh rejected");
+        return Ok(RefreshOutcome::Denied(denial));
     }
     let Some(retired_at) = row.retired_at else {
         // Live and un-retired, so the claim guard failed on expiry instead.
-        tracing::info!(
-            session_id = %row.session_id,
-            reason = "expired",
-            "refresh rejected"
-        );
-        return Ok(RefreshOutcome::Denied);
+        let denial = RefreshDenial::Expired;
+        tracing::info!(session_id = %row.session_id, reason = denial.as_str(), "refresh rejected");
+        return Ok(RefreshOutcome::Denied(denial));
     };
     // A retired token was replayed, so this copy is a leak; revoke everything.
     revoke_family(&mut tx, row.family_id, now).await?;

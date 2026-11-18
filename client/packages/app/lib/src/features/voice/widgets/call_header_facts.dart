@@ -8,6 +8,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../channels/providers/channel_by_id_provider.dart';
+import '../../connection/providers/connection_report.dart';
 import '../providers/call_audio.dart';
 import '../providers/dm_call_ring_controller.dart';
 import '../providers/voice_flags.dart';
@@ -81,7 +82,14 @@ class CallHeaderLine extends ConsumerWidget {
         ],
         if (ref.watch(voicePingProvider) != null) ...[
           Text(' · ', style: facts),
-          VoicePingReadout(style: facts),
+          VoicePingReadout(
+            style: facts,
+            routeConcern:
+                live &&
+                ref.watch(
+                  connectionStatusProvider.select((s) => s.concern != null),
+                ),
+          ),
         ],
         if (ref.watch(_transcribed(channelId))) ...[
           Text(' · ', style: facts),

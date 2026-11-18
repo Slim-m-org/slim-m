@@ -66,8 +66,14 @@ final discordLinkStatusProvider =
       DiscordLinkStatusController.new,
     );
 
-const _refused =
+/// Shared with the Steam finisher: the server's refusal of a code reads the same for both.
+const linkCodeRefused =
     'That code did not work. It may have expired, or belong to another account.';
+
+/// Whether a finisher's failure is about the code typed, which the code sheet shows under its field.
+bool linkFailureIsTheCode(String failure) =>
+    failure == linkCodeRefused ||
+    failure.startsWith('Paste the code from the ');
 
 class DiscordLinkFinisher {
   DiscordLinkFinisher({
@@ -94,7 +100,7 @@ class DiscordLinkFinisher {
       if (!_closed) onLinked();
       return null;
     } on api.NotFoundException {
-      return _refused;
+      return linkCodeRefused;
     } on api.ApiException catch (error, stack) {
       return reportFailureSentence(
         api.LogTag.ui,

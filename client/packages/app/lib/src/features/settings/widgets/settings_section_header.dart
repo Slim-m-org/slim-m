@@ -140,9 +140,11 @@ class SettingsSectionCard extends StatelessWidget {
               // A ListTile or InkWell row paints its ink on the nearest Material.
               child: Material(
                 type: MaterialType.transparency,
-                child: AppStrongLabelScope(
-                  child: AppCardRowScope(
-                    child: SettingsRowGroup(children: children),
+                child: AppRaisedSurfaceScope(
+                  child: AppStrongLabelScope(
+                    child: AppCardRowScope(
+                      child: SettingsRowGroup(children: children),
+                    ),
                   ),
                 ),
               ),

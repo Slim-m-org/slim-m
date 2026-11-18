@@ -2,10 +2,10 @@
 /// A form control with its name above it and, optionally, a line of help
 /// below.
 ///
-/// [AppInput] draws only the box: it has no floating label and no helper
-/// row, because the source design keeps those outside the control. This is
-/// that outside, so every pre-session form names its fields the same way
-/// instead of each screen improvising a caption.
+/// [AppInput] draws the box and its own error line but no label, because the
+/// source design keeps that outside the control. This is that outside, so
+/// every pre-session form names its fields the same way instead of each
+/// screen improvising a caption.
 library;
 
 import 'package:flutter/material.dart';

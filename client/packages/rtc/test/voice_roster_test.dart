@@ -4,6 +4,7 @@ library;
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_rtc/src/voice_models.dart';
 import 'package:slimm_rtc/src/voice_roster.dart';
 
 import 'support/reconnect_fakes.dart';
@@ -162,6 +163,60 @@ void main() {
       roster.update(room);
 
       expect(shown(), ['me', 'bob']);
+    });
+  });
+
+  group('a full restart', () {
+    PeopleRoom withBob() => PeopleRoom()..people['bob'] = FakePeer('bob');
+    CallPresence? bob() => roster.participants
+        .where((p) => p.identity == 'bob')
+        .firstOrNull
+        ?.presence;
+
+    test('keeps who was shown, marked unconfirmed until the room lists them',
+        () {
+      final room = withBob();
+      roster.update(room);
+      expect(bob(), CallPresence.live);
+
+      reconnecting = true;
+      room.people.clear();
+      roster.update(room);
+      expect(bob(), CallPresence.unconfirmed);
+
+      room.people['bob'] = FakePeer('bob');
+      roster.update(room);
+      expect(bob(), CallPresence.live);
+    });
+
+    test('someone already back is live while another is still held', () {
+      final room = withBob()..people['cy'] = FakePeer('cy');
+      roster.update(room);
+      reconnecting = true;
+      room.people.clear();
+      roster.update(room);
+      expect(bob(), CallPresence.unconfirmed);
+
+      room.people['bob'] = FakePeer('bob');
+      roster.update(room);
+
+      expect(bob(), CallPresence.live);
+      expect(
+        roster.participants.firstWhere((p) => p.identity == 'cy').presence,
+        CallPresence.unconfirmed,
+      );
+    });
+
+    test('drops someone the server saw leave instead of holding them', () {
+      final room = withBob();
+      roster.update(room);
+      reconnecting = true;
+      room.people.clear();
+
+      roster.leftByServer('bob');
+      roster.update(room);
+
+      expect(bob(), isNull);
     });
   });
 

@@ -116,7 +116,7 @@ pub(super) async fn authorize_unstamped(
     if !visible && !held_it_before {
         return Authorization::Withhold;
     }
-    // The canvas frames are gated on a second bit, as their own read routes are; without this a denial is void here.
+    // Some frames need a second bit, as their own read routes do; without this a denial is void here.
     if let Some(extra) = super::authorization_bits::extra_bit(&event)
         && !permissions.contains(extra)
     {
@@ -542,6 +542,7 @@ async fn channel_frame(
         | Event::AdminAlertsChanged
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
+        | Event::CategoryMuteChanged { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }

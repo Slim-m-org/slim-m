@@ -70,13 +70,15 @@ List<InlineSpan> _marks(String text, RegExp pattern) {
 
 /// [text] on one line, started a little before its first match for [query]
 /// when that match sits too far in to survive the row's line limit. It starts
-/// at a word, so no emoji shortcode or markdown mark is cut in half.
+/// at a word, so no emoji shortcode or markdown mark is cut in half, and never
+/// past a `||`: a spoiler cut open that way shows what it hid.
 String paletteSnippet(String text, String query) {
   const lead = 24;
   final flat = text.replaceAll(RegExp(r'\s+'), ' ').trim();
   final match = _wordsPattern(query)?.firstMatch(flat);
   if (match == null || match.start <= lead * 3) return flat;
   final from = flat.lastIndexOf(' ', match.start - lead) + 1;
+  if (flat.substring(0, from).contains('||')) return flat;
   return '\u2026${flat.substring(from)}';
 }
 

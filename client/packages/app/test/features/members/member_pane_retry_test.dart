@@ -74,7 +74,7 @@ void main() {
           ),
         ),
       );
-      await tester.pump(const Duration(seconds: 1));
+      // Under the first automatic retry's wait, so the press is what refetches.
       await tester.pump(const Duration(seconds: 1));
       expect(find.text('Could not load members.'), findsOneWidget);
       await tester.tap(find.text('Retry'));

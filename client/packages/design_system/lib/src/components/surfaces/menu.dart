@@ -29,6 +29,7 @@ import '../../app_tokens.dart';
 import '../../app_typography.dart';
 import '../../press_tracking.dart';
 import '../../touch_targets.dart';
+import 'list_row_scopes.dart';
 import 'menu_cascade.dart';
 
 /// A floating container for [AppMenuItem], [AppMenuLabel] and
@@ -82,13 +83,15 @@ class AppMenu extends StatelessWidget {
             maxHeight == null ? null : BoxConstraints(maxHeight: maxHeight!),
         child: Material(
           type: MaterialType.transparency,
-          child: AppMenuCascade(
-            child: maxHeight == null
-                ? Column(mainAxisSize: MainAxisSize.min, children: children)
-                : SingleChildScrollView(
-                    child: Column(
-                        mainAxisSize: MainAxisSize.min, children: children),
-                  ),
+          child: AppRaisedSurfaceScope(
+            child: AppMenuCascade(
+              child: maxHeight == null
+                  ? Column(mainAxisSize: MainAxisSize.min, children: children)
+                  : SingleChildScrollView(
+                      child: Column(
+                          mainAxisSize: MainAxisSize.min, children: children),
+                    ),
+            ),
           ),
         ),
       ),
@@ -325,9 +328,9 @@ class _AppMenuItemState extends State<AppMenuItem> with PressTracking {
   /// theme; surfaceSunken read as a hole in a dark menu.
   Color _fill(AppTokens tokens) {
     if (widget.selected) return tokens.accentSoft;
-    if (pressed) return tokens.textPrimary.withValues(alpha: 0.12);
+    if (pressed) return AppRaisedSurfaceScope.wash(tokens, pressed: true);
     return _hovered || widget.highlighted
-        ? tokens.textPrimary.withValues(alpha: 0.07)
+        ? AppRaisedSurfaceScope.wash(tokens, pressed: false)
         : Colors.transparent;
   }
 

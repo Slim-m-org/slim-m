@@ -2,8 +2,8 @@
 /// The two media-performance gates on an inline attachment: with auto-download
 /// off nothing is fetched until the tap, and a gif - held by default - waits
 /// under a play badge for a hover or a tap. Whatever the setting, a gif holds
-/// its first frame while the window is unfocused, since an animation nobody
-/// is looking at is pure cost.
+/// still while the window is unfocused, since an animation nobody is looking
+/// at is pure cost.
 library;
 
 import 'dart:convert';
@@ -19,7 +19,6 @@ import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart'
 import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/features/messages/providers/media_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/features/messages/widgets/attachment_reveal.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_video_player.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_view.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -81,6 +80,11 @@ Future<void> _pump(
   );
   await tester.pumpAndSettle();
 }
+
+/// Whether the one inline image animates; paused, it keeps the frame it was
+/// on, so its box never changes.
+bool _playing(WidgetTester tester) =>
+    TickerMode.valuesOf(tester.element(find.byType(Image))).enabled;
 
 /// Whether the play badge is visible: it keeps its space while hidden, so
 /// presence in the tree says nothing and the Visibility flag is the answer.
@@ -250,14 +254,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.byType(Image),
-      findsNothing,
+      _playing(tester),
+      isFalse,
       reason: 'unfocused: nobody is watching it loop',
-    );
-    expect(
-      find.byType(AttachmentFirstFrame),
-      findsOneWidget,
-      reason: 'the first frame, not a blank',
     );
     expect(
       find.byIcon(AppIcons.play),
@@ -268,11 +267,7 @@ void main() {
     binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
 
-    expect(
-      find.byType(Image),
-      findsOneWidget,
-      reason: 'focus back, animation back',
-    );
+    expect(_playing(tester), isTrue, reason: 'focus back, animation back');
   });
 
   testWidgets('an animated webp obeys the hover-or-tap setting and the '
@@ -302,7 +297,6 @@ void main() {
 
     binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     await tester.pumpAndSettle();
-    expect(find.byType(Image), findsNothing);
-    expect(find.byType(AttachmentFirstFrame), findsOneWidget);
+    expect(_playing(tester), isFalse);
   });
 }

@@ -86,23 +86,25 @@ class CanvasToolButtons extends ConsumerWidget {
     if (tool != forTool || !forTool.isAvailable(canDraw: canDraw)) {
       return const [];
     }
-    // The picker leads the list canvasCustomColourSwatches returns; the rest are recent picks.
-    final custom = forTool == CanvasTool.pen
-        ? canvasCustomColourSwatches(
-            context: context,
-            ref: ref,
-            selectedKey: pen.colorKey,
-            onChoose: (hex) => onPenChanged(pen.copyWith(colorKey: hex)),
-          )
-        : const <ControlSwatch>[];
+    void choose(String key) => onPenChanged(pen.copyWith(colorKey: key));
     return canvasToolOptions(
       forTool,
       pen: pen,
       onPenChanged: onPenChanged,
       shapeKind: shapeKind,
       onShapeKindChanged: onShapeKindChanged,
-      customPicker: custom.firstOrNull,
-      recentColours: custom.skip(1).toList(),
+      colours: forTool == CanvasTool.pen
+          ? canvasColourRow(
+              context: context,
+              ref: ref,
+              defaults: canvasPenColourSwatches(
+                selectedKey: pen.colorKey,
+                onChoose: choose,
+              ),
+              selectedKey: pen.colorKey,
+              onChoose: choose,
+            )
+          : null,
     );
   }
 

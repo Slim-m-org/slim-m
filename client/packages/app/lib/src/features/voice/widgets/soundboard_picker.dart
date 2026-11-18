@@ -36,14 +36,8 @@ const double _gap = AppSpacing.s4;
 /// A tile's padding on every side, and the space between its emoji and name.
 const double _inset = AppSpacing.s4;
 
-/// A tile at the default text size: its emoji, its name's line and the insets around them.
-final double _tileHeight =
-    _inset * 3 +
-    AppSizes.icon20 +
-    AppText.caption.fontSize! * AppText.caption.height!;
-
-/// Five rows and half a sixth, so a longer list shows that it scrolls.
-final double _maxGridHeight = 5.5 * (_tileHeight + _gap);
+/// Rows shown whole before the half row that says the list scrolls.
+const _wholeRows = 5;
 
 /// The narrowest tile a sheet gives a name, measured on a long starter one.
 double _tileMinWidth(BuildContext context) {
@@ -139,15 +133,10 @@ class _SoundboardPickerState extends ConsumerState<SoundboardPicker>
                   onDismiss: clearActionError,
                 ),
               ),
-            ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: _maxGridHeight),
-              child: SingleChildScrollView(
-                child: _ClipGrid(
-                  clips: list,
-                  resting: _resting,
-                  onPlay: (clip) => unawaited(_play(clip)),
-                ),
-              ),
+            _ClipGrid(
+              clips: list,
+              resting: _resting,
+              onPlay: (clip) => unawaited(_play(clip)),
             ),
           ],
         );
@@ -157,7 +146,8 @@ class _SoundboardPickerState extends ConsumerState<SoundboardPicker>
 }
 
 /// Tiles in equal columns: three in the popover, and on a touch sheet as many
-/// as fit a name like "wrong buzzer" whole.
+/// as fit a name like "wrong buzzer" whole. Each row is as tall as its longest
+/// name, and past five rows half of the sixth shows that the list scrolls.
 class _ClipGrid extends StatelessWidget {
   const _ClipGrid({
     required this.clips,
@@ -177,28 +167,81 @@ class _ClipGrid extends StatelessWidget {
     return fit < 1 ? 1 : fit;
   }
 
+  /// The height that shows [_wholeRows] rows and the top half of the next.
+  double _peekHeight(
+    BuildContext context,
+    List<List<api.SoundClip>> rows,
+    double tileWidth,
+  ) {
+    if (rows.length <= _wholeRows) return double.infinity;
+    final style = DefaultTextStyle.of(context).style.merge(AppText.caption);
+    final scaler = MediaQuery.textScalerOf(context);
+    double rowHeight(List<api.SoundClip> row) {
+      var name = 0.0;
+      for (final clip in row) {
+        final painter = TextPainter(
+          text: TextSpan(text: clip.name, style: style),
+          textAlign: TextAlign.center,
+          textDirection: TextDirection.ltr,
+          textScaler: scaler,
+        )..layout(maxWidth: tileWidth - _inset * 2);
+        if (painter.height > name) name = painter.height;
+        painter.dispose();
+      }
+      return _inset * 3 + AppSizes.icon20 + name;
+    }
+
+    var height = 0.0;
+    for (final row in rows.take(_wholeRows)) {
+      height += rowHeight(row) + _gap;
+    }
+    return height + rowHeight(rows[_wholeRows]) / 2;
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = _columns(context, constraints.maxWidth);
         final width = (constraints.maxWidth - _gap * (columns - 1)) / columns;
-        return Wrap(
-          spacing: _gap,
-          runSpacing: _gap,
-          children: [
-            for (final clip in clips)
-              SizedBox(
-                width: width,
-                child: _ClipTile(
-                  key: ValueKey(clip.id),
-                  clip: clip,
-                  label: '${clip.name}, ${formatClipLength(clip.durationMs)}',
-                  resting: resting,
-                  onTap: () => onPlay(clip),
-                ),
-              ),
-          ],
+        final rows = [
+          for (var i = 0; i < clips.length; i += columns)
+            clips.sublist(i, (i + columns).clamp(0, clips.length)),
+        ];
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: _peekHeight(context, rows, width),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: _gap,
+              children: [
+                for (final row in rows)
+                  // Every tile fills the row, so hover, press and focus cover the same height.
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      spacing: _gap,
+                      children: [
+                        for (final clip in row)
+                          SizedBox(
+                            width: width,
+                            child: _ClipTile(
+                              key: ValueKey(clip.id),
+                              clip: clip,
+                              label:
+                                  '${clip.name}, ${formatClipLength(clip.durationMs)}',
+                              resting: resting,
+                              onTap: () => onPlay(clip),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -218,7 +261,7 @@ class _ClipTile extends StatefulWidget {
 
   final api.SoundClip clip;
 
-  /// The clip's name and length, for the tooltip and a screen reader.
+  /// The clip's name and length, for a screen reader.
   final String label;
 
   /// Resting tiles look and read as disabled but keep their focus, so a
@@ -249,7 +292,6 @@ class _ClipTileState extends State<_ClipTile> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final touch = AppTouchTargets.of(context);
     final enabled = !widget.resting;
     void activate() {
       if (enabled) widget.onTap();
@@ -274,9 +316,6 @@ class _ClipTileState extends State<_ClipTile> {
             StoredEmoji(widget.clip.emoji, placeholder: AppIcons.music),
             Text(
               widget.clip.name,
-              // A tooltip never shows on touch, so there the whole name wraps instead.
-              maxLines: touch ? null : 1,
-              overflow: touch ? null : TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: AppText.caption.copyWith(color: tokens.textPrimary),
             ),
@@ -284,7 +323,7 @@ class _ClipTileState extends State<_ClipTile> {
         ),
       ),
     );
-    final tile = Semantics(
+    return Semantics(
       label: widget.label,
       button: true,
       enabled: enabled,
@@ -307,12 +346,6 @@ class _ClipTileState extends State<_ClipTile> {
           child: ExcludeSemantics(child: body),
         ),
       ),
-    );
-    if (touch) return tile;
-    return Tooltip(
-      message: widget.label,
-      excludeFromSemantics: true,
-      child: tile,
     );
   }
 }

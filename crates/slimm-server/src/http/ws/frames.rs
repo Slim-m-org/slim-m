@@ -529,6 +529,10 @@ pub(super) enum ServerFrame {
         channel_id: String,
         preference: Option<String>,
     },
+    /// The account muted or unmuted a category on some device; see
+    /// [`crate::hub::Event::CategoryMuteChanged`].
+    #[serde(rename = "category_mute.changed")]
+    CategoryMuteChanged { category_id: String, muted: bool },
     /// A bot's private answer to this account; see
     /// [`crate::hub::Event::EphemeralMessage`]. Carries no `seq`.
     #[serde(rename = "message.ephemeral")]

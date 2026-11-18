@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -119,6 +120,31 @@ void main() {
       tester.getRect(find.byType(AppListRow)).right,
       greaterThan(chip.right),
     );
+  });
+
+  testWidgets('beside a short name the chip shows a whole channel name', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(236, 200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _pump(
+      tester,
+      inChannel: voiceChannel('v1', 'dev-run'),
+      body: const MemberRow(
+        profile: api.UserProfile(
+          id: 'ada',
+          username: 'dev',
+          displayName: 'Dev',
+          createdAt: 0,
+        ),
+        isSelf: false,
+      ),
+    );
+
+    final name = tester.renderObject<RenderParagraph>(find.text('dev-run'));
+    expect(name.didExceedMaxLines, isFalse);
+    expect(find.byTooltip('In dev-run'), findsOneWidget);
   });
 
   testWidgets('a wide row keeps both the Bot tag and the chip', (tester) async {

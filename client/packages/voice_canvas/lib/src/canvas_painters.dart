@@ -205,6 +205,10 @@ class StrokePainter extends CustomPainter {
   @visibleForTesting
   bool get debugHasInkTexture => _ink.hasImage;
 
+  /// Every object drawn so far, live or into the texture: the work a benchmark counts.
+  @visibleForTesting
+  int debugObjectsPainted = 0;
+
   @override
   void paint(Canvas canvas, Size size) {
     final camera = document.camera;
@@ -240,17 +244,30 @@ class StrokePainter extends CustomPainter {
     required ({bool content, bool camera}) still,
     required List<int> order,
   }) {
-    final revision = document.contentRevision;
+    void paintSlots(Canvas c, Camera cam, List<int> slots) =>
+        _paintSlots(c, cam, slots, elevated);
     List<int>? extras;
     bool usable() {
-      if (!_ink.covers(camera, size, revision, elevated, devicePixelRatio)) {
+      if (!_ink.covers(camera, size, devicePixelRatio) ||
+          !_ink.reconcile(document, elevated, paintSlots)) {
         return false;
       }
-      extras = _ink.extrasOf(order);
+      extras = _ink.extrasOf(document, order, elevated);
+      if (extras == null &&
+          _ink.promote(document, order, elevated, paintSlots, unsaved: true)) {
+        extras = _ink.extrasOf(document, order, elevated);
+      }
       return extras != null;
     }
 
     var ok = usable();
+    if (ok &&
+        still.content &&
+        _ink.wantsFolding &&
+        _ink.promote(document, order, elevated, paintSlots, unsaved: false)) {
+      extras = _ink.extrasOf(document, order, elevated);
+    }
+    Set<String>? builtNotes;
     if (!ok && still.content ||
         ok && still.camera && _ink.isStretched(camera)) {
       final noteIds = <String>{};
@@ -264,12 +281,16 @@ class StrokePainter extends CustomPainter {
             noteIds.addAll(_paintSlots(c, cam, slots, elevated)),
       );
       _builtThisFrame = true;
-      if (built) _objects.noteLabels.retain(noteIds);
+      if (built) builtNotes = noteIds;
       ok = built && usable();
     }
     if (!ok) return false;
     _ink.draw(canvas, camera, _inkTexturePaint);
-    _paintSlots(canvas, camera, extras!, elevated);
+    final liveNotes = _paintSlots(canvas, camera, extras!, elevated);
+    // A note left out of the texture still paints live from its cached text.
+    if (builtNotes != null) {
+      _objects.noteLabels.retain({...builtNotes, ...liveNotes});
+    }
     if (_ink.isStretched(camera)) _ink.settleSoon();
     return true;
   }
@@ -289,6 +310,10 @@ class StrokePainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round
       ..isAntiAlias = true;
 
+    assert(() {
+      debugObjectsPainted += slots.length;
+      return true;
+    }());
     for (final slot in slots) {
       final stroke = document.strokeAt(slot);
       final isElevated = stroke.id == elevated;

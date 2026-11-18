@@ -14,6 +14,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../settings/providers/display_density.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../messages/widgets/author_label.dart';
+import 'search_hit_excerpt.dart';
 import '../../messages/widgets/message_text.dart';
 import '../../palette/widgets/command_palette_items.dart'
     show searchHitSpokenLabel;
@@ -250,6 +251,7 @@ class ChannelSearchResults extends ConsumerWidget {
       separatorBuilder: (_, __) => SizedBox(height: density.listRowGap),
       itemBuilder: (context, i) => SearchResultRow(
         message: list[i],
+        query: query ?? '',
         knownUsernames: knownUsernames,
         knownRoleNames: knownRoleNames,
         customEmoji: customEmoji,
@@ -285,6 +287,10 @@ class _SeekingLine extends StatelessWidget {
   }
 }
 
+/// Room for [kSearchHitLines] body lines and the excerpt's two ellipsis lines.
+final double _bodyMax =
+    AppText.body.fontSize! * AppText.body.height! * (kSearchHitLines + 2);
+
 /// One search hit: selects only its own author's slice of
 /// [batchProfilesControllerProvider], so an unrelated author resolving does
 /// not rebuild every row in the list - see `message_row_identity.dart`.
@@ -292,6 +298,7 @@ class SearchResultRow extends ConsumerWidget {
   const SearchResultRow({
     super.key,
     required this.message,
+    this.query = '',
     required this.knownUsernames,
     this.knownRoleNames = const {},
     required this.customEmoji,
@@ -299,6 +306,9 @@ class SearchResultRow extends ConsumerWidget {
   });
 
   final api.Message message;
+
+  /// What was searched for, so a long hit shows the lines around it.
+  final String query;
   final Set<String> knownUsernames;
 
   /// See [MessageBody.knownRoleNames].
@@ -354,11 +364,18 @@ class SearchResultRow extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.s4),
                   if (message.content.isNotEmpty)
-                    MessageBody(
-                      content: message.content,
-                      knownUsernames: knownUsernames,
-                      knownRoleNames: knownRoleNames,
-                      customEmoji: customEmoji,
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxHeight: _bodyMax),
+                      // Clips a hit still too tall after its excerpt, such as one long wrapped line; opening it shows the rest.
+                      child: SingleChildScrollView(
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: MessageBody(
+                          content: searchHitExcerpt(message.content, query),
+                          knownUsernames: knownUsernames,
+                          knownRoleNames: knownRoleNames,
+                          customEmoji: customEmoji,
+                        ),
+                      ),
                     ),
                   if (matchedVoiceTranscript(message) case final said?) ...[
                     Text(

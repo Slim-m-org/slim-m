@@ -63,6 +63,9 @@ class FakeActions implements ComposerActions {
   final uploads = <({String channelId, VoiceInfo voice, String filename})>[];
   int failures = 0;
 
+  /// When set, the upload waits on it, the way a slow link does.
+  Future<void>? storing;
+
   @override
   Future<Attachment> uploadVoice(
     List<int> bytes, {
@@ -70,6 +73,7 @@ class FakeActions implements ComposerActions {
     required String channelId,
     required VoiceInfo voice,
   }) async {
+    await storing;
     if (failures > 0) {
       failures--;
       throw const TransportException('boom');
@@ -336,6 +340,29 @@ void main() {
     expect(rig.state.clip, isNull);
     expect(rig.actions.uploads, isEmpty);
   });
+
+  for (final after in ['stored', 'refused', 'failed']) {
+    test('a discard during the upload is never sent or brought back '
+        '(upload $after)', () async {
+      await started();
+      await rig.advance(const Duration(seconds: 3));
+      final stored = Completer<void>();
+      rig.actions.storing = stored.future;
+      var full = false;
+      final sending = rig.recorder.send(
+        refusal: () => full ? 'The tray is full.' : null,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(rig.state.phase, VoicePhase.uploading);
+      await rig.recorder.cancel();
+      full = after == 'refused';
+      if (after == 'failed') rig.actions.failures = 1;
+      stored.complete();
+      expect(await sending, isNull);
+      expect(rig.state.phase, VoicePhase.idle);
+      expect(rig.state.clip, isNull);
+    });
+  }
 
   test(
     'a discard while the cap finishes the clip keeps it discarded',

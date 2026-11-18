@@ -371,9 +371,29 @@ void main() {
   );
 
   testWidgets(
-    'the overflow offers to show or hide the activity log, and its label '
-    'says which',
+    'a sighted viewer is not offered the activity log, which only a screen '
+    'reader needs',
     (tester) async {
+      await tester.pumpWidget(wrapCanvasToolsRow(buildCanvasToolsRow()));
+
+      await tester.tap(find.bySemanticsLabel('More canvas actions'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.text('Enter fullscreen'), findsOneWidget);
+      expect(find.text('Show activity log'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'with a screen reader on, the overflow offers to show or hide the '
+    'activity log, and its label says which',
+    (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(accessibleNavigation: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
       var toggled = 0;
       await tester.pumpWidget(
         wrapCanvasToolsRow(

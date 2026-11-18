@@ -41,6 +41,10 @@ class _DiscordLinkCodeSheetState extends ConsumerState<_DiscordLinkCodeSheet> {
   bool _busy = false;
   String? _error;
 
+  /// A refused or unreadable code shows under the field; anything else stays a boxed error.
+  String? get _codeError =>
+      _error != null && linkFailureIsTheCode(_error!) ? _error : null;
+
   @override
   void dispose() {
     _code.dispose();
@@ -109,16 +113,21 @@ class _DiscordLinkCodeSheetState extends ConsumerState<_DiscordLinkCodeSheet> {
               key: ValueKey('${widget.service.toLowerCase()}-link-code-field'),
               controller: _code,
               maxLength: _maxPasteChars,
+              counterNearLimit: false,
               autofocus: true,
               autocorrect: false,
               mono: true,
               semanticLabel: '${widget.service} link code',
+              errorText: _codeError,
+              onChanged: (_) {
+                if (_codeError != null) setState(() => _error = null);
+              },
               onSubmitted: (_) => _busy ? null : _submit(),
             ),
           ),
-          if (_error != null) ...[
+          if (_error case final error? when _codeError == null) ...[
             const SizedBox(height: AppSpacing.s8),
-            AppErrorState(message: _error!),
+            AppErrorState(message: error),
           ],
           const SizedBox(height: AppSpacing.s12),
           AppButton(

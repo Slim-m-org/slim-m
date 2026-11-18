@@ -6,6 +6,13 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../../api_failure.dart';
 
+const _codeNotAccepted =
+    'That code was not accepted. Codes change every 30 seconds, so check your '
+    'phone is showing the current one.';
+
+/// Whether [failure] refuses the code itself, which the code sheet shows under its field.
+bool totpFailureIsTheCode(String failure) => failure == _codeNotAccepted;
+
 /// One sentence per failure, shared by every place that submits a code.
 ///
 /// A wrong code is the ordinary case and says what to check; a lockout is told
@@ -14,9 +21,7 @@ import '../../../api_failure.dart';
 /// Anything else is [whatFailed] told through `describeApiFailure`, never the
 /// transport string.
 String totpCodeFailure(api.ApiException e, String whatFailed) => switch (e) {
-  api.BadRequestException() =>
-    'That code was not accepted. Codes change every 30 seconds, so check your '
-        'phone is showing the current one.',
+  api.BadRequestException() => _codeNotAccepted,
   api.RateLimitedException() =>
     'Too many incorrect codes. Wait a few minutes and try again.',
   _ => describeApiFailure(whatFailed, e),

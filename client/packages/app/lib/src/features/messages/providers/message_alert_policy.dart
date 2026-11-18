@@ -110,6 +110,9 @@ class MessageAlertPolicy {
     final preference =
         overrides.overrideFor(message.channelId) ??
         (parentId == null ? null : overrides.overrideFor(parentId)) ??
+        (overrides.isCategoryMuted(await _categoryOf(channel, parentId))
+            ? api.NotificationPreference.nothing
+            : null) ??
         stricterPreference(
           await _channelDefault(channel, parentId),
           await _accountDefaultIn(message, isDm: isDm),
@@ -152,6 +155,13 @@ class MessageAlertPolicy {
     final store = await _ref.read(storeProvider.future);
     final parent = await store.channelRow(parentId);
     return parent == null ? null : channelDefaultOf(parent);
+  }
+
+  /// The category a channel is filed under, its parent's for a thread.
+  Future<String?> _categoryOf(Channel? channel, String? parentId) async {
+    if (parentId == null) return channel?.categoryId;
+    final store = await _ref.read(storeProvider.future);
+    return (await store.channelRow(parentId))?.categoryId;
   }
 
   /// A thread's parent channel, null for any other channel or when the parent

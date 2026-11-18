@@ -46,7 +46,7 @@ class VoiceJoinBar extends ConsumerWidget {
     final roster = ref.watch(voiceRosterProvider(channelId));
     final here = roster.valueOrNull ?? const [];
     final online = _online(ref, {for (final p in here) p.userId});
-    final title = _title(roster);
+    final title = voiceRosterTitle(roster, compact: compact);
     final subtitle = _subtitle(here, online);
     final label = _joinLabel(here);
     return Container(
@@ -103,18 +103,6 @@ class VoiceJoinBar extends ConsumerWidget {
     );
   }
 
-  // Not checked and checked-empty must read differently: an empty room is a claim.
-  String _title(AsyncValue<List<api.VoiceRosterParticipant>> roster) =>
-      switch (roster) {
-        AsyncData(value: final people) when people.isNotEmpty => _joinNames(
-          [for (final p in people) p.displayName],
-          'is here',
-          'are here',
-        ),
-        AsyncData() => compact ? "Nobody's here" : "Nobody's here right now",
-        _ => voiceRosterUnknownLine,
-      };
-
   String _subtitle(List<api.VoiceRosterParticipant> here, List<String> online) {
     return [
       // An empty room is already said by the title; who is online adds nothing there.
@@ -158,6 +146,20 @@ class VoiceJoinBar extends ConsumerWidget {
     ];
   }
 }
+
+/// Who is in the call now. Not checked and checked-empty read differently: an empty room is a claim.
+String voiceRosterTitle(
+  AsyncValue<List<api.VoiceRosterParticipant>> roster, {
+  bool compact = false,
+}) => switch (roster) {
+  AsyncData(value: final people) when people.isNotEmpty => _joinNames(
+    [for (final p in people) p.displayName],
+    'is here',
+    'are here',
+  ),
+  AsyncData() => compact ? "Nobody's here" : "Nobody's here right now",
+  _ => voiceRosterUnknownLine,
+};
 
 /// "Kiki is online", "Kiki and Ann are online", "Kiki and 3 others are online".
 String _joinNames(List<String> names, String one, String many) =>

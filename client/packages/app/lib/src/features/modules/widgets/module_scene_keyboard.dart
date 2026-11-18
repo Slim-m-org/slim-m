@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'last_input_kind.dart';
 import 'module_scene.dart';
 import 'module_scene_painter.dart';
 
@@ -76,7 +77,14 @@ class _SceneKeyboardGridState extends State<SceneKeyboardGrid> {
   int _clampedCol(CellsOp grid) => _col.clamp(0, grid.cols - 1);
 
   @override
+  void initState() {
+    super.initState();
+    LastInputKind.instance.add(_inputKindChanged);
+  }
+
+  @override
   void dispose() {
+    LastInputKind.instance.remove(_inputKindChanged);
     _ownedFocusNode?.dispose();
     super.dispose();
   }
@@ -100,7 +108,14 @@ class _SceneKeyboardGridState extends State<SceneKeyboardGrid> {
     final hit = HitTestResult();
     WidgetsBinding.instance.hitTestInView(hit, event.position, event.viewId);
     final onField = hit.path.any((entry) => entry.target is RenderEditable);
-    if (!onField) _focusNode.requestFocus();
+    if (onField) return;
+    _focusNode.requestFocus();
+  }
+
+  void _focusChanged(bool has) => setState(() => _hasFocus = has);
+
+  void _inputKindChanged() {
+    if (_hasFocus) setState(() {});
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
@@ -133,7 +148,7 @@ class _SceneKeyboardGridState extends State<SceneKeyboardGrid> {
     final grid = _grid;
     return Focus(
       focusNode: _focusNode,
-      onFocusChange: (has) => setState(() => _hasFocus = has),
+      onFocusChange: _focusChanged,
       onKeyEvent: _onKeyEvent,
       child: Listener(
         // Lets a click hand off to the keyboard: tap a cell, then use arrows.
@@ -145,7 +160,10 @@ class _SceneKeyboardGridState extends State<SceneKeyboardGrid> {
           child: Stack(
             children: [
               widget.child,
-              if (grid != null && _hasFocus) _highlight(grid, tokens),
+              if (grid != null &&
+                  _hasFocus &&
+                  LastInputKind.instance.keyboard.value)
+                _highlight(grid, tokens),
             ],
           ),
         ),

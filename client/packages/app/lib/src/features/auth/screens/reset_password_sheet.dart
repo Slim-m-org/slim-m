@@ -11,7 +11,7 @@
 /// It deliberately says nothing about *why* a code was refused. The server
 /// answers unknown, expired and already-spent identically so live codes
 /// cannot be mined, and naming the reason here would undo that from the
-/// client side - the same reasoning `onboarding_dialogs.dart` records for
+/// client side - the same reasoning `invite_dialog.dart` records for
 /// invite codes.
 library;
 
@@ -58,6 +58,17 @@ Future<bool> showResetPasswordSheet(BuildContext context, Uri server) async {
   return done ?? false;
 }
 
+/// Which part of the sheet a failure is about; [form] for one neither field owns.
+enum _ResetField { code, password, form }
+
+/// Where the server's 400 belongs, by the thing it names first, as sign-in reads its own.
+_ResetField _badRequestField(String message) {
+  final lower = message.trimLeft().toLowerCase();
+  if (lower.startsWith('that reset code')) return _ResetField.code;
+  if (lower.startsWith('password')) return _ResetField.password;
+  return _ResetField.form;
+}
+
 class _ResetPasswordSheet extends ConsumerStatefulWidget {
   const _ResetPasswordSheet({required this.server});
 
@@ -72,7 +83,18 @@ class _ResetPasswordSheetState extends ConsumerState<_ResetPasswordSheet> {
   final _code = TextEditingController();
   final _password = TextEditingController();
   bool _busy = false;
-  String? _error;
+  ({_ResetField field, String message})? _error;
+
+  String? _errorOn(_ResetField field) =>
+      _error?.field == field ? _error?.message : null;
+
+  void _fail(_ResetField field, String message) =>
+      setState(() => _error = (field: field, message: message));
+
+  /// Typing into a field answers that field's own error.
+  void _edited(_ResetField field) => setState(() {
+    if (_error?.field == field) _error = null;
+  });
 
   @override
   void dispose() {
@@ -88,15 +110,13 @@ class _ResetPasswordSheetState extends ConsumerState<_ResetPasswordSheet> {
 
   Future<void> _submit() async {
     if (_code.text.trim().isEmpty) {
-      setState(() => _error = 'Enter the code your admin gave you.');
-      return;
+      return _fail(_ResetField.code, 'Enter the code your admin gave you.');
     }
     if (!_passwordLongEnough) {
-      setState(
-        () => _error =
-            'Choose a password of at least ${api.kPasswordMinChars} characters.',
+      return _fail(
+        _ResetField.password,
+        'Choose a password of at least ${api.kPasswordMinChars} characters.',
       );
-      return;
     }
     setState(() {
       _busy = true;
@@ -113,11 +133,14 @@ class _ResetPasswordSheetState extends ConsumerState<_ResetPasswordSheet> {
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.auth, 'reset the password', e, stack);
       if (!mounted) return;
-      setState(
-        () => _error = e is api.TransportException
-            ? 'Could not reach that server.'
-            : sentenceCase(e.message),
-      );
+      switch (e) {
+        case api.TransportException():
+          _fail(_ResetField.form, 'Could not reach that server.');
+        case api.BadRequestException(:final message):
+          _fail(_badRequestField(message), sentenceCase(message));
+        default:
+          _fail(_ResetField.form, sentenceCase(e.message));
+      }
     } finally {
       client.close();
       if (mounted) setState(() => _busy = false);
@@ -161,7 +184,9 @@ class _ResetPasswordSheetState extends ConsumerState<_ResetPasswordSheet> {
                 mono: true,
                 autocorrect: false,
                 semanticLabel: 'Reset code',
+                errorText: _errorOn(_ResetField.code),
                 textInputAction: TextInputAction.next,
+                onChanged: (_) => _edited(_ResetField.code),
               ),
             ),
             const SizedBox(height: AppSpacing.s16),
@@ -174,12 +199,13 @@ class _ResetPasswordSheetState extends ConsumerState<_ResetPasswordSheet> {
                 obscureText: true,
                 autofillHints: const [AutofillHints.newPassword],
                 semanticLabel: 'New password',
+                errorText: _errorOn(_ResetField.password),
                 textInputAction: TextInputAction.done,
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) => _edited(_ResetField.password),
                 onSubmitted: (_) => _busy ? null : _submit(),
               ),
             ),
-            if (_error case final error?) ...[
+            if (_errorOn(_ResetField.form) case final error?) ...[
               const SizedBox(height: AppSpacing.s16),
               AppErrorState(message: error),
             ],

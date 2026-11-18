@@ -124,17 +124,12 @@ async fn a_blocked_dm_pair_cannot_use_the_canvas_in_either_direction() {
     );
 }
 
-/// Blocking hides the canvas outright, unlike message history, which a block
-/// deliberately leaves readable.
-///
-/// Not an accident and not symmetric: reading messages needs `VIEW_CHANNEL`
-/// alone, while every canvas route including the viewport read also needs
-/// `USE_CANVAS`, and that bit is defined as "view and draw" in one piece - so
-/// removing it removes viewing too. `store/dms.rs`'s `BLOCKED_DENY` doc
-/// carries the full reasoning and the open question about splitting the bit.
-/// This pins the behaviour so neither side can drift without a failing test.
+/// A block leaves the canvas readable, the way it leaves message history
+/// readable: reading needs `VIEW_CHANNEL` alone and drawing needs the
+/// `USE_CANVAS` a block removes, so the blocked party spectates what exists.
+/// `store/dms.rs`'s `BLOCKED_DENY` doc says the same.
 #[tokio::test]
-async fn a_block_hides_the_canvas_from_reads_not_just_writes() {
+async fn a_block_leaves_the_canvas_readable_like_the_history() {
     let (store, _guard) = support::new_store("slimm-dm-canvas-test").await;
     let app = app(store.clone());
 
@@ -169,7 +164,7 @@ async fn a_block_hides_the_canvas_from_reads_not_just_writes() {
         .status();
     assert_eq!(
         after,
-        StatusCode::FORBIDDEN,
-        "USE_CANVAS bundles viewing with drawing, so a block takes both"
+        StatusCode::OK,
+        "a block takes drawing, not the read-only view"
     );
 }

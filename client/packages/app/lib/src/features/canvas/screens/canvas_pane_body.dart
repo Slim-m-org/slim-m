@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The canvas pane's widget tree: the identity strip, the error and
-/// truncation banners, the drawing surface, the floating call-and-canvas
-/// dock, and the text activity log a screen reader can browse in place of
-/// the surface.
+/// The canvas pane's widget tree: the identity strip, the notice floated
+/// above the dock, the drawing surface, the floating call-and-canvas dock,
+/// and the text activity log a screen reader can browse in place of the
+/// surface.
 ///
 /// Split out of `canvas_pane.dart`, which was already past the review
 /// budget. `_CanvasPaneState` owns every callback and every piece of state
@@ -44,7 +44,7 @@ import 'canvas_summary.dart';
 import 'canvas_summon_request.dart' show leaveFullscreenThenSettle;
 import 'canvas_board_pager.dart' show CanvasPaging;
 import 'canvas_paging_indicator.dart';
-import 'canvas_banners.dart';
+import 'canvas_notice.dart';
 import 'canvas_stamp_placement.dart';
 
 part 'canvas_pane_body_builders.dart';
@@ -115,6 +115,9 @@ class CanvasPaneBody extends StatefulWidget {
     required this.onVideoInterest,
     required this.selfBubbleHidden,
     required this.onToggleSelfBubbleHidden,
+    this.toolsHidden = false,
+    this.onToggleToolsHidden,
+    this.readOnly = false,
     required this.fullscreen,
     required this.onToggleFullscreen,
     this.focusedTileKey,
@@ -283,10 +286,15 @@ class CanvasPaneBody extends StatefulWidget {
   /// `canvas_self_presence.dart`'s own doc for why the two are split.
   final bool selfBubbleHidden;
 
-  /// Threaded to the floating dock's overflow menu, the one place this pane
-  /// offers to flip [selfBubbleHidden] - see that menu's own doc for why it
-  /// lives there rather than as a dedicated bar icon.
+  /// Flips [selfBubbleHidden] from the dock's overflow menu.
   final VoidCallback onToggleSelfBubbleHidden;
+
+  /// Whether the drawing tools are folded away on this device, and the overflow's way to flip it.
+  final bool toolsHidden;
+  final VoidCallback? onToggleToolsHidden;
+
+  /// A spectator without `USE_CANVAS`: watches the shared board and keeps a personal view, and edits nothing.
+  final bool readOnly;
 
   /// Whether this canvas has dropped its chrome to show nothing but the
   /// surface, and the one control that flips it - see
@@ -443,15 +451,14 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                         if (widget.paging case final paging?)
                           CanvasPagingIndicator(paging: paging),
                         FocusTraversalOrder(
-                          key: const ValueKey('canvas-banners'),
+                          key: const ValueKey('canvas-notice'),
                           order: const NumericFocusOrder(0),
-                          child: CanvasBanners(
+                          child: CanvasNotice(
                             callError: widget.callError,
                             onRetryCall: widget.onRetryCall,
                             error: widget.error,
                             onDismissError: widget.onDismissError,
                             onRetryError: widget.onRetryError,
-                            truncated: widget.truncated,
                             unsavedInk: widget.document.unsavedInk.count,
                           ),
                         ),

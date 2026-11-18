@@ -8,7 +8,7 @@ use serde_json::json;
 use slimm_server::auth::Auth;
 use slimm_server::ids::MessageId;
 use slimm_server::permissions::Permissions;
-use slimm_server::store::{NewMessage, OpenError, RefreshOutcome, SendError};
+use slimm_server::store::{NewMessage, OpenError, RefreshDenial, RefreshOutcome, SendError};
 use tower::ServiceExt;
 
 use crate::support;
@@ -61,7 +61,7 @@ async fn delete_account_anonymizes_content_and_revokes_access() {
     );
     assert!(matches!(
         store.rotate_refresh(&tokens.refresh_token).await.unwrap(),
-        RefreshOutcome::Denied
+        RefreshOutcome::Denied(RefreshDenial::AccountDeleted)
     ));
 
     // The account cannot log in (tombstoned) and the username frees up.

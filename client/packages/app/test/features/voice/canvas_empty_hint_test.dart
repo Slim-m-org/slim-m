@@ -7,136 +7,50 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/gestures.dart' show PointerDeviceKind;
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane_hints.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
-import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../canvas/canvas_pane_harness.dart';
 import 'voice_controller_harness.dart';
 
 void main() {
-  testWidgets(
-    'a phone-width canvas gets touch-first pan/zoom wording, since nothing '
-    'else in the UI ever states the pinch/two-finger gestures',
-    (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      final fixture = CanvasPaneFixture();
-      final container = fixture.container();
-      addTearDown(container.dispose);
-      addTearDown(fixture.events.close);
+  for (final size in const [Size(390, 844), Size(1280, 800)]) {
+    testWidgets(
+      'the empty canvas says only that it is empty at ${size.width}',
+      (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final fixture = CanvasPaneFixture();
+        final container = fixture.container();
+        addTearDown(container.dispose);
+        addTearDown(fixture.events.close);
 
-      await pumpCanvasPane(tester, container);
+        await pumpCanvasPane(tester, container);
 
-      expect(
-        find.textContaining('Drag with two fingers to pan'),
-        findsOneWidget,
-      );
-    },
-  );
-
-  testWidgets('a desktop-width canvas gets pointer-first pan/zoom wording', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1280, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final fixture = CanvasPaneFixture();
-    final container = fixture.container();
-    addTearDown(container.dispose);
-    addTearDown(fixture.events.close);
-
-    await pumpCanvasPane(tester, container);
-
-    expect(find.textContaining('Scroll to pan'), findsOneWidget);
-  });
-
-  testWidgets('a mouse on a narrow window gets the mouse wording', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final fixture = CanvasPaneFixture();
-    final container = fixture.container();
-    addTearDown(container.dispose);
-    addTearDown(fixture.events.close);
-    await pumpCanvasPane(tester, container);
-
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: const Offset(195, 400));
-    await mouse.moveTo(const Offset(200, 410));
-    await tester.pump();
-
-    expect(find.textContaining('Scroll to pan'), findsOneWidget);
-  });
-
-  testWidgets('a finger on a wide window gets the touch wording', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1280, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final fixture = CanvasPaneFixture();
-    final container = fixture.container();
-    addTearDown(container.dispose);
-    addTearDown(fixture.events.close);
-    await pumpCanvasPane(tester, container);
-
-    final finger = await tester.startGesture(
-      const Offset(640, 400),
-      kind: PointerDeviceKind.touch,
-    );
-    addTearDown(finger.cancel);
-    await tester.pump();
-
-    expect(find.textContaining('Drag with two fingers to pan'), findsOneWidget);
-  });
-
-  testWidgets(
-    'an explicit AppTouchTargets override wins over the window width',
-    (tester) async {
-      tester.view.physicalSize = const Size(1280, 800);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      final fixture = CanvasPaneFixture();
-      final container = fixture.container();
-      addTearDown(container.dispose);
-      addTearDown(fixture.events.close);
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: buildTheme(Brightness.dark, AppTokens.dark),
-            home: const Scaffold(
-              body: AppTouchTargets(
-                enabled: true,
-                child: CanvasPane(channelId: 'c1'),
-              ),
-            ),
+        final title = find.text('Nothing on this canvas yet');
+        expect(title, findsOneWidget);
+        final hint = find
+            .ancestor(
+              of: title,
+              matching: find.byWidgetPredicate((w) => w is Column),
+            )
+            .first;
+        expect(
+          find.descendant(
+            of: hint,
+            matching: find.byWidgetPredicate((w) => w is Text),
           ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump();
-
-      expect(
-        find.textContaining('Drag with two fingers to pan'),
-        findsOneWidget,
-      );
-    },
-  );
+          findsOneWidget,
+          reason: 'the owner asked for the title alone, without the subtext',
+        );
+      },
+    );
+  }
 
   testWidgets('a fresh canvas invites a first mark', (tester) async {
     final fixture = CanvasPaneFixture();

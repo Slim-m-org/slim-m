@@ -44,6 +44,24 @@ void main() {
       expect(channelMatchesQuery(_channel('general'), 'xyz'), isFalse);
     });
 
+    test('a name decorated with combining marks is found by its letters', () {
+      final decorated = _channel('g\u{0337}e\u{0301}\u{0302}n\u{0337}eral');
+      expect(channelMatchesQuery(decorated, 'gen'), isTrue);
+      expect(channelMatchesQuery(decorated, 'GENERAL'), isTrue);
+      expect(
+        memberMatchesQuery(
+          const api.UserProfile(
+            id: 'u2',
+            username: 'z',
+            displayName: 'A\u{0301}\u{0302}va',
+            createdAt: 0,
+          ),
+          'ava',
+        ),
+        isTrue,
+      );
+    });
+
     test('a personal space is found by the caller\'s own display name', () {
       expect(
         channelMatchesQuery(

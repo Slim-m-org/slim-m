@@ -4,16 +4,14 @@ part of 'canvas_pane.dart';
 /// How close a tap must land to someone's cursor to follow them, in screen pixels.
 const double _cursorTapReachPx = 20;
 
-/// The select tool, undo, clear and the camera-bubble roster: split out of
-/// `_CanvasPaneState` once this fix pushed the file past the 500-line hard
-/// limit, the same reason `canvas_ops_controller_reorder.dart` splits its
-/// own class this way - an extension in a `part of` file, not a second
-/// class, since these all need `_CanvasPaneState`'s own fields.
+/// The select tool, undo, clear and the camera-bubble roster, split out of
+/// `_CanvasPaneState` for the line budget; they all need its fields.
 extension _CanvasPaneGestures on _CanvasPaneState {
   /// Leaving the select tool deselects, so the outline and its resize
   /// handles do not linger over a selection nothing can act on any more
   /// while the pen or eraser is active.
   void _onToolChanged(CanvasTool tool) {
+    if (tool != CanvasTool.pan && _spectating) return;
     if (tool == CanvasTool.stamp &&
         ref.read(armedStampProvider).content == null) {
       return showBoardStampPicker(
@@ -22,9 +20,20 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       );
     }
     if (tool != CanvasTool.pan) _document.selectedObjectId.value = null;
+    // Arming a tool by key or wheel brings the folded tools back, so what is armed shows.
+    if (tool != CanvasTool.pan && ref.read(canvasToolsHiddenProvider)) {
+      unawaited(ref.read(canvasToolsHiddenProvider.notifier).select(false));
+    }
     // A deliberate pick stays through leaving fullscreen.
     _toolBeforeFullscreen = null;
     _refresh(() => _tool = tool);
+  }
+
+  /// Folding the tools away puts the tool down too, so a drag pans rather than drawing unseen.
+  void _onToggleToolsHidden() {
+    final hide = !ref.read(canvasToolsHiddenProvider);
+    if (hide) _onToolChanged(CanvasTool.pan);
+    unawaited(ref.read(canvasToolsHiddenProvider.notifier).select(hide));
   }
 
   /// Escape with a drawing tool armed: drop a half-drawn stroke or shape, else close a docked thread, else put the tool down to Pan.
@@ -85,11 +94,10 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     return KeyEventResult.ignored;
   }
 
-  /// Opens the note sheet, and places the note only once it comes back with
-  /// real text - nothing is sent, and nothing shows on the shared canvas,
-  /// for a sheet the person cancelled or left blank. [_selectPlaced] is what
-  /// closes it out.
+  /// Opens the note sheet and places the note only once it comes back with
+  /// text; a cancelled or blank sheet sends and shows nothing.
   Future<void> _onNotePlace(Offset world, [Size? draggedSize]) async {
+    if (_spectating) return;
     final startedWith = _tool;
     var text = await showCanvasNoteSheet(context);
     if (!_mounted) return;
@@ -115,18 +123,15 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     return showCanvasNoteSheet(context, initialText: text);
   }
 
-  /// Places a shape of the bar's own currently-picked kind at once - no
-  /// sheet, since a shape carries no text to type.
-  ///
-  /// The shape tool stays armed so several shapes can be drawn in a row; the
-  /// shape just placed is selected, and a press on one of its resize handles
-  /// resizes it rather than drawing (see `CanvasSurface.grabsHandleAt`).
+  /// Places a shape of the picked kind at once and selects it; the tool stays
+  /// armed so several can be drawn in a row (see `CanvasSurface.grabsHandleAt`).
   Future<void> _onShapePlace(
     Offset world,
     Size? draggedSize, {
     bool flipX = false,
     bool flipY = false,
   }) async {
+    if (_spectating) return;
     final startedWith = _tool;
     final placed = await _quickPlacement.placeShape(
       world,
@@ -234,7 +239,9 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// person may edit.
   void _onEditNote(String id) {
     final error = ref.read(canvasEngineProvider(widget.channelId)).error;
-    if (_ops.isLocked(id) || canvasErrorBlocksDrawing(error)) return;
+    if (_spectating || _ops.isLocked(id) || canvasErrorBlocksDrawing(error)) {
+      return;
+    }
     _refresh(() => _editingNoteId = id);
   }
 
@@ -314,6 +321,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     if (_editingNoteId == null && !_boardFocusNode.hasPrimaryFocus) {
       _boardFocusNode.requestFocus();
     }
+    // A spectator moves nothing but the camera.
+    if (_spectating) return _dragPan.begin(world);
     _selectedBeforeDown = _document.selectedObjectId.value;
     final me = ref.read(meProvider).valueOrNull;
     // A safe read, not a cold one: build() already watches this same family instance every frame.
@@ -445,21 +454,22 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// Fits the camera to what is drawn, or the whole board when the canvas is empty.
   void _onRecenter() => _document.fitContent();
 
-  /// Delete/Backspace over the current Move-tool selection, the desktop
-  /// convention every other drawing surface honours - the overflow menu's
-  /// own "Delete" item is the only route without this, one that needs
-  /// finding rather than reaching for the key a person already expects.
+  /// Delete/Backspace over the current Move-tool selection, the desktop convention.
   void _onDeleteKey() {
     final selected = _document.selectedObjectId.value;
     if (selected != null) unawaited(_onDeleteSelected(selected));
   }
 
-  void _onPointerMoved(Offset world) => _relay.reportLocalPointer(world);
+  /// A spectator's pointer is not relayed: the server only relays one that may draw.
+  void _onPointerMoved(Offset world) {
+    if (!_spectating) _relay.reportLocalPointer(world);
+  }
 
   /// Draws a local stroke at once - optimistic on [_document], queued for
   /// the server through [_commits] - and records it as one undoable gesture
   /// regardless of how many segments [splitStroke] broke it into.
   void _onStroke(List<Offset> worldPoints) {
+    if (_spectating) return;
     final selfId = ref.read(meProvider).valueOrNull?.id;
     final ids = <String>[];
     final width = canvasPenWorldWidth(_pen.width, _document.camera.zoom);
@@ -508,6 +518,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   }
 
   void _onErase(Offset world) {
+    if (_spectating) return;
     final me = ref.read(meProvider).valueOrNull;
     // A safe read, not a cold one: build() already watches this same family instance every frame.
     final manageCanvas = ref
