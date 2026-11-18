@@ -9,6 +9,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -36,10 +37,12 @@ Future<List<String>> _open(
   required Future<http.Response> Function() login,
   bool online = true,
   Future<void>? probeAnswers,
+  String server = _server,
+  double width = 1280,
 }) async {
   final sent = <String>[];
   final keyStore = InMemoryKeyStore();
-  await keyStore.put(identityHandleFor(Uri.parse(_server)), _key);
+  await keyStore.put(identityHandleFor(Uri.parse(server)), _key);
   final probe = MockClient((request) async {
     sent.add(request.url.path);
     await probeAnswers;
@@ -66,7 +69,7 @@ Future<List<String>> _open(
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(keyStore),
-      serverUrlProvider.overrideWith((ref) => Uri.parse(_server)),
+      serverUrlProvider.overrideWith((ref) => Uri.parse(server)),
       probeApiProvider.overrideWithValue(
         (baseUrl) => SlimmApi(baseUrl: baseUrl, httpClient: probe),
       ),
@@ -84,7 +87,7 @@ Future<List<String>> _open(
     ],
   );
   addTearDown(container.dispose);
-  tester.view.physicalSize = const Size(1280, 900);
+  tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
@@ -160,22 +163,49 @@ void main() {
     expect(find.text('Confirmed'), findsNothing);
   });
 
-  testWidgets('the form does not move when the Space answers its probe', (
-    tester,
-  ) async {
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('at text scale $scale the form does not move when the Space '
+        'answers its probe', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final answer = Completer<void>();
+      await _open(
+        tester,
+        probeAnswers: answer.future,
+        login: () async => http.Response('{}', 401),
+      );
+      expect(_unclipped(tester, 'Connecting to chat.example'), isTrue);
+      final before = tester.getTopLeft(_input('Username')).dy;
+
+      answer.complete();
+      await pumpFrames(tester);
+
+      expect(find.text('Confirmed'), findsOne);
+      expect(tester.getTopLeft(_input('Username')).dy, before);
+    });
+  }
+
+  testWidgets('a long host on a phone stays one whole line while the Space '
+      'is probed', (tester) async {
+    const host = 'slimm.my-family-homeserver.duckdns.org';
     final answer = Completer<void>();
     await _open(
       tester,
+      server: 'https://$host',
+      width: 390,
       probeAnswers: answer.future,
       login: () async => http.Response('{}', 401),
     );
-    expect(find.text('Connecting to chat.example'), findsOne);
-    final before = tester.getTopLeft(_input('Username')).dy;
 
+    expect(_unclipped(tester, 'Connecting to $host'), isTrue);
     answer.complete();
     await pumpFrames(tester);
-
-    expect(find.text('Confirmed'), findsOne);
-    expect(tester.getTopLeft(_input('Username')).dy, before);
   });
+}
+
+/// Whether [text] is painted at its full laid-out height rather than cut off.
+bool _unclipped(WidgetTester tester, String text) {
+  final paragraph = tester.renderObject<RenderParagraph>(find.text(text));
+  final full = paragraph.getMinIntrinsicHeight(paragraph.size.width);
+  return paragraph.size.height >= full;
 }

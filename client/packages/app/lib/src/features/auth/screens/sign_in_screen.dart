@@ -449,12 +449,16 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             )
           else
             Container(
-              height: ServerIdentityChip.rowHeight,
+              constraints: const BoxConstraints(
+                minHeight: ServerIdentityChip.rowHeight,
+              ),
               margin: const EdgeInsets.only(bottom: AppSpacing.s16),
               alignment: Alignment.centerLeft,
               child: Text(
                 'Connecting to ${serverHostLabel(_server.text)}',
-                style: AppText.code.copyWith(color: tokens.textSecondary),
+                style: ServerIdentityChip.hostStyle(tokens),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           const SignInReasonNotices(),

@@ -46,8 +46,12 @@ class ServerIdentityChip extends StatelessWidget {
   final String host;
   final ServerIdentityStatus status;
 
-  /// The row's height, which a placeholder line keeps so the form below never moves.
+  /// The row's least height, which a placeholder line keeps so the form below never moves.
   static const rowHeight = 32.0;
+
+  /// The host's one-line style; a placeholder in it grows with text scale as this row does.
+  static TextStyle hostStyle(AppTokens tokens) =>
+      AppText.code.copyWith(fontSize: 12, color: tokens.textSecondary);
 
   @override
   Widget build(BuildContext context) {
@@ -85,13 +89,7 @@ class ServerIdentityChip extends StatelessWidget {
                     text: spaceName,
                     style: TextStyle(color: tokens.textPrimary),
                   ),
-                  TextSpan(
-                    text: '  $host',
-                    style: AppText.code.copyWith(
-                      fontSize: 12,
-                      color: tokens.textSecondary,
-                    ),
-                  ),
+                  TextSpan(text: '  $host', style: hostStyle(tokens)),
                 ],
               ),
               style: AppText.caption,
