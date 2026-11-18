@@ -94,6 +94,38 @@ void main() {
     expect(find.textContaining('Added 3 of 3'), findsOneWidget);
   });
 
+  testWidgets('every name the server refuses in one answer is flagged on its '
+      'own row at once', (tester) async {
+    final h = EmojiHarness(
+      picks: [
+        emojiPick('aaa.png'),
+        emojiPick('zorg.png'),
+        emojiPick('ccc.png'),
+        emojiPick('ddd.png'),
+      ],
+      onBulk: (r) => emojiJson({
+        'error': 'image 2 (zorg): an emoji with that name already exists',
+        'item_index': 1,
+        'item_code': 'name_taken',
+        'items': [
+          {'index': 1, 'code': 'name_taken', 'error': 'image 2 (zorg)'},
+          {'index': 3, 'code': 'unusable_name', 'error': 'image 4 (ddd)'},
+        ],
+      }, status: 409),
+    );
+    await h.pump(tester);
+    await h.choose(tester);
+
+    await tester.tap(find.text('Create 4 emoji'));
+    await _settle(tester);
+
+    expect(find.text('2 names need fixing.'), findsOneWidget);
+    final taken = tester.getRect(find.text('Already taken.'));
+    expect(taken.top, greaterThan(tester.getRect(_field('zorg.png')).top));
+    expect(taken.top, lessThan(tester.getRect(_field('ccc.png')).top));
+    expect(h.bulks, hasLength(1), reason: 'both arrived in one round trip');
+  });
+
   testWidgets(
     'a refused chunk leaves its unsent images counted, so the summary '
     'is not a full success',

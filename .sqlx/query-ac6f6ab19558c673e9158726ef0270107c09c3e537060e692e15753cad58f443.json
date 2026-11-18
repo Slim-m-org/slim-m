@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM dropped_refresh_tokens WHERE rowid IN\n                 (SELECT rowid FROM dropped_refresh_tokens WHERE expires_at < ? LIMIT ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "ac6f6ab19558c673e9158726ef0270107c09c3e537060e692e15753cad58f443"
+}

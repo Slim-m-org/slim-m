@@ -179,8 +179,9 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
     if (!mounted) return;
     setState(() {
       for (var i = items.length - 1; i >= 0; i--) {
-        final problem = results[i].problem;
-        if (problem != null) items[i].refuse(results[i].upload.name, problem);
+        if (results[i].refusal case final refusal?) {
+          items[i].refuse(results[i].upload.name, refusal.code);
+        }
         if (!results[i].failed) {
           _items.remove(items[i]);
           _discard(items[i]);
@@ -219,7 +220,7 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
     final results = <EmojiAddResult>[];
     for (final chunk in chunkPlannedEmojiUploads(uploads)) {
       String? reason;
-      api.ItemRefusal? refused;
+      var refused = const <api.ItemRefusal>[];
       try {
         await client.bulkUploadCustomEmoji([
           for (final u in chunk)
@@ -234,19 +235,22 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
         );
         reason = describeApiFailure('add ${chunk.length} emoji', e);
         refused = switch (e) {
-          api.ConflictException(:final item) => item,
-          api.BadRequestException(:final item) => item,
-          _ => null,
+          api.ConflictException(:final items) ||
+          api.BadRequestException(:final items) => items,
+          _ => const [],
         };
       }
-      final problem = refused == null ? null : problemForRefusal(refused.code);
+      final byIndex = {for (final r in refused) r.index: r};
+      final allNamed =
+          refused.isNotEmpty &&
+          refused.every((r) => problemForRefusal(r.code) != null);
       results.addAll([
         for (var i = 0; i < chunk.length; i++)
           EmojiAddResult(
             upload: chunk[i],
             reason: reason,
-            problem: refused?.index == i ? problem : null,
-            named: problem != null,
+            refusal: byIndex[i],
+            named: allNamed,
           ),
       ]);
       if (mounted) setState(() => _current += chunk.length);
@@ -405,6 +409,7 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
                 if (blocked && !_running)
                   _FixNamesLine(
                     count: unfixed,
+                    images: _items.any((i) => i.imageRefused),
                     onShow: () => revealReviewRow(
                       _scroll,
                       _items,
@@ -436,18 +441,26 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
   }
 }
 
-/// How many names still stop the upload, and a way to the first of them.
+/// How many names or images still stop the upload, and a way to the first.
 ///
 /// The button drops under the text when large type leaves no room beside it.
 class _FixNamesLine extends StatelessWidget {
-  const _FixNamesLine({required this.count, required this.onShow});
+  const _FixNamesLine({
+    required this.count,
+    required this.images,
+    required this.onShow,
+  });
 
   final int count;
+
+  /// Whether the server refused an image itself, so not every fix is a rename.
+  final bool images;
   final VoidCallback onShow;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final what = images ? 'image' : 'name';
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -455,13 +468,13 @@ class _FixNamesLine extends StatelessWidget {
       runSpacing: AppSpacing.s8,
       children: [
         Text(
-          count == 1 ? '1 name needs fixing.' : '$count names need fixing.',
+          count == 1 ? '1 $what needs fixing.' : '$count ${what}s need fixing.',
           style: AppText.caption.copyWith(color: tokens.dangerText),
         ),
         AppButton(
           label: 'Show first',
           size: AppButtonSize.sm,
-          semanticLabel: 'Show the first name that needs fixing',
+          semanticLabel: 'Show the first $what that needs fixing',
           onPressed: onShow,
         ),
       ],

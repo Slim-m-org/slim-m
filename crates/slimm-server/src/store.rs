@@ -94,6 +94,7 @@ mod read_markers;
 mod read_state;
 mod voice_transcripts;
 pub use read_state::{SeqHeads, UNREAD_COUNT_CAP};
+mod dropped_refresh;
 mod recovery;
 mod refresh_rotation;
 mod removals;
@@ -252,7 +253,7 @@ pub use push::{PushError, PushRegistration, PushTarget};
 pub use reactions::{MAX_EMOJI_BYTES, ReactError, ReactionSummary, ReactorCursor};
 pub use read_markers::ChannelReadState;
 pub use recovery::{ConsumeResetError, IssueResetError};
-pub use refresh_rotation::RefreshOutcome;
+pub use refresh_rotation::{RefreshDenial, RefreshOutcome};
 pub use removals::{RemoveMemberError, SpaceRemoval};
 pub use reports::{
     EPHEMERAL_KIND, EphemeralSubject, FiledReport, Report, ReportError, ReportSubject,

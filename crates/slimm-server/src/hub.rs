@@ -121,7 +121,7 @@ const IDLE_POLL_INTERVAL: Duration = Duration::from_secs(30);
 /// decides, and the safe answer for anything permission-shaped is `true`.
 /// Over-reporting only costs a re-derivation; under-reporting is a stale
 /// answer served to a caller who should no longer have it.
-fn moves_permissions(event: &Event) -> bool {
+pub(crate) fn moves_permissions(event: &Event) -> bool {
     match event {
         Event::RoleChanged { .. }
         | Event::MemberRoleChanged { .. }

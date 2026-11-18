@@ -41,7 +41,7 @@ fn validate_short_field(
             "about can be at most 5 lines"
         }));
     }
-    if hides_text_outside_emoji(&trimmed.replace('\n', "")) {
+    if trimmed.split('\n').any(hides_text_outside_emoji) {
         return Err(ApiError::BadRequest(
             "must not contain control or text-direction characters",
         ));
@@ -177,6 +177,31 @@ mod tests {
     fn a_bare_joiner_is_still_refused() {
         assert!(validate_about("a\u{200D}b").is_err());
         assert!(validate_status_text("a\u{200D}b").is_err());
+    }
+
+    /// Heavy zalgo stacks marks with U+034F between them; it still draws on its base letter.
+    #[test]
+    fn stacked_marks_with_a_grapheme_joiner_are_kept() {
+        let zalgo = "Z\u{0301}\u{034F}\u{0300}\u{0316}algo";
+        assert!(matches!(validate_status_text(zalgo), Ok(Some(ref s)) if s == zalgo));
+        assert!(validate_about(zalgo).is_ok());
+        assert!(validate_status_text("\u{034F}").is_err());
+    }
+
+    /// The shared fixture's About cases: a joiner may not open a line of its own.
+    #[test]
+    fn about_checks_each_line_on_its_own() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/hidden_chars.json")).unwrap();
+        let cases = &fixture["grapheme_joiner"];
+        for ok in cases["about_allowed"].as_array().unwrap() {
+            let ok = ok.as_str().unwrap();
+            assert!(validate_about(ok).is_ok(), "{ok:?}");
+        }
+        for bad in cases["about_refused"].as_array().unwrap() {
+            let bad = bad.as_str().unwrap();
+            assert!(validate_about(bad).is_err(), "{bad:?}");
+        }
     }
 
     #[test]

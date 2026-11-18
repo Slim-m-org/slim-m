@@ -116,6 +116,7 @@ pub use module_timers::run_due as run_module_timers;
 pub use reactions::rekey_stored_reactions;
 pub use scene_refresh::run_due as run_scene_refreshes;
 pub use storage::BackupStatusDir;
+pub use voice::voice_access::{evict_who_lost_access, spawn_voice_access_watch};
 mod link_preview_removal;
 mod module_permissions;
 mod notification_schedule;

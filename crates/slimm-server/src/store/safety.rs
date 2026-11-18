@@ -11,6 +11,7 @@ use std::collections::HashSet;
 
 use sqlx::QueryBuilder;
 
+use super::dropped_refresh::{DropCause, keep_dropped_refresh_tokens};
 use super::sessions::revoke_session_rows;
 use super::{Store, now_ms};
 use crate::ids::{DeviceId, SessionId, UserId};
@@ -152,6 +153,8 @@ impl Store {
         }
 
         // The device row itself; cascade removes its now-revoked session rows too.
+        keep_dropped_refresh_tokens(&mut tx, user_id, Some(device_id), DropCause::DeviceRemoved)
+            .await?;
         sqlx::query!("DELETE FROM devices WHERE id = ?", device_id)
             .execute(&mut *tx)
             .await?;
