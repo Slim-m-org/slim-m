@@ -4,6 +4,7 @@
 library;
 
 import 'package:drift/native.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -92,4 +93,45 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(milliseconds: 50));
   });
+
+  testWidgets('a hovered row lifts off its card', (tester) async {
+    final store = await _store(tester);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [storeProvider.overrideWith((ref) async => store)],
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ChannelPermissionsList(onPick: (_) {}),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    final row = find.byKey(const ValueKey('perm-channel-c2'));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(row));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final fills = [
+      for (final box in tester.widgetList<AnimatedContainer>(
+        find.descendant(
+          of: row,
+          matching: find.byWidgetPredicate((w) => w is AnimatedContainer),
+        ),
+      ))
+        if ((box.decoration as BoxDecoration?)?.color case final color?
+            when color.a > 0)
+          color,
+    ];
+    expect(fills, isNotEmpty);
+    expect(fills, everyElement(isNot(AppTokens.light.surfaceRaised)));
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(milliseconds: 50));
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 }

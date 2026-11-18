@@ -58,8 +58,8 @@ class AppSelectionMarkerScope extends InheritedWidget {
   bool updateShouldNotify(AppSelectionMarkerScope oldWidget) => false;
 }
 
-/// Marks a subtree painted on `surfaceRaised` (a sheet, a menu), where a row's
-/// usual `surfaceRaised` hover fill is the background itself and shows nothing.
+/// Marks a subtree painted on `surfaceRaised` (a sheet, a menu, a card), where
+/// a row's usual `surfaceRaised` hover fill is the background and shows nothing.
 class AppRaisedSurfaceScope extends InheritedWidget {
   const AppRaisedSurfaceScope({required super.child, super.key});
 

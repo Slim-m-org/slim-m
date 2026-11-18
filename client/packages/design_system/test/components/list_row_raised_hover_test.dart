@@ -94,6 +94,26 @@ void main() {
     await finger.up();
   });
 
+  testWidgets('a hovered row in a card lifts off the card', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, _tokens),
+        home: Scaffold(
+          body: AppCard(child: AppListRow(label: 'general', onTap: () {})),
+        ),
+      ),
+    );
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(find.text('general')));
+    await tester.pumpAndSettle();
+
+    final fills = _rowFills(tester);
+    expect(fills, isNotEmpty);
+    expect(fills, everyElement(isNot(_tokens.surfaceRaised)));
+    await mouse.removePointer();
+  }, variant: desktop);
+
   testWidgets('a row on the page keeps its raised hover', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
