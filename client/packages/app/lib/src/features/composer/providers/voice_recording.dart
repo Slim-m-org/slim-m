@@ -384,7 +384,8 @@ class VoiceRecorder
   /// Ends the recording if it is still running, uploads it as a voice message
   /// and returns the stored attachment with the bytes it was made from. A
   /// failure keeps the clip, so Send tries again, and so does a [refusal],
-  /// asked before the upload and again once it is stored.
+  /// asked before the upload and again once it is stored. A discard while it
+  /// uploads wins: the clip is neither returned nor kept.
   Future<(Attachment, Uint8List)?> send({String? Function()? refusal}) async {
     if (state.phase == VoicePhase.recording) await stop();
     final clip = state.clip;
@@ -393,6 +394,7 @@ class VoiceRecorder
       _failUpload(clip, reason);
       return null;
     }
+    final attempt = _attempt;
     state = VoiceRecordingState(
       phase: VoicePhase.uploading,
       elapsed: clip.duration,
@@ -407,6 +409,7 @@ class VoiceRecorder
             channelId: arg,
             voice: VoiceInfo(duration: clip.duration, waveform: clip.waveform),
           );
+      if (attempt != _attempt) return null;
       if (refusal?.call() case final reason?) {
         _failUpload(clip, reason);
         return null;
@@ -414,6 +417,7 @@ class VoiceRecorder
       state = const VoiceRecordingState();
       return (attachment, clip.capture.bytes);
     } on ApiException catch (error) {
+      if (attempt != _attempt) return null;
       _failUpload(clip, describeApiFailure('send the voice message', error));
     } on Object catch (error, stack) {
       AppLog.swallowed(
@@ -422,6 +426,7 @@ class VoiceRecorder
         error,
         stack,
       );
+      if (attempt != _attempt) return null;
       _failUpload(clip, 'The voice message could not be sent.');
     }
     return null;
