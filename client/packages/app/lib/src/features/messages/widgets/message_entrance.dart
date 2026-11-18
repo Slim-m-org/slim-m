@@ -22,6 +22,14 @@ class EntranceGate {
   bool _hydrated = false;
   DateTime? _lastArrival;
 
+  /// Forgets every arrival, so the next build only records what is on screen.
+  void reset() {
+    _highest.clear();
+    _newestId = null;
+    _hydrated = false;
+    _lastArrival = null;
+  }
+
   /// How long arrivals must pause before the next one rises in again.
   static const Duration quietGap = Duration(milliseconds: 800);
 

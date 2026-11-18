@@ -213,4 +213,62 @@ void main() {
     expect(find.byKey(ValueKey(channel.newestId)), findsOneWidget);
     expect(_midEntrance, findsNothing);
   });
+
+  testWidgets('switching channels re-seeds the gate: a low-seq channel '
+      'still animates its arrivals and its open row stays still', (
+    tester,
+  ) async {
+    h.sizeViewport(tester);
+    final tracker = TranscriptScrollTracker(markRead: (_, _, _) {});
+    addTearDown(tracker.dispose);
+    Message row(String channel, int seq) => Message(
+      id: '$channel-$seq',
+      channelId: channel,
+      authorId: 'author-$seq',
+      authorDisplayName: 'Author $seq',
+      seq: seq,
+      content: 'message $seq in $channel',
+      createdAt: 1700100000000 + seq * 50,
+      pending: false,
+      failed: false,
+    );
+    final view = ValueNotifier<(String, List<Message>)>((
+      'busy',
+      [for (var s = 4990; s <= 5000; s++) row('busy', s)],
+    ));
+    addTearDown(view.dispose);
+    await tester.pumpWidget(
+      h.app(
+        ValueListenableBuilder(
+          valueListenable: view,
+          builder: (_, v, _) => h.transcript(
+            controller: tracker.controller,
+            count: 0,
+            channelId: v.$1,
+            rows: v.$2,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    view.value = ('quiet', [for (var s = 110; s <= 120; s++) row('quiet', s)]);
+    await tester.pump(_frame);
+    expect(
+      _midEntrance,
+      findsNothing,
+      reason: 'opening a channel replays nothing',
+    );
+
+    await tester.pump(EntranceGate.quietGap);
+    view.value = ('quiet', [...view.value.$2, row('quiet', 121)]);
+    await tester.pump(_frame);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('quiet-121')),
+        matching: _midEntrance,
+      ),
+      findsOneWidget,
+    );
+  });
 }

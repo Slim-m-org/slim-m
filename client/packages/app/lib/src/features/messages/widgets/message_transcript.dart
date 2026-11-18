@@ -267,7 +267,10 @@ class _MessageTranscriptState extends State<MessageTranscript> {
   void didUpdateWidget(MessageTranscript oldWidget) {
     super.didUpdateWidget(oldWidget);
     // A different channel's rows may be sized quite differently, so what settled against these ones stops being evidence about anything.
-    if (oldWidget.channelId != widget.channelId) _extent.reset();
+    if (oldWidget.channelId != widget.channelId) {
+      _extent.reset();
+      _entrance.reset();
+    }
     if (oldWidget.scrollController == widget.scrollController) return;
     oldWidget.scrollController.removeListener(_onScroll);
     widget.scrollController.addListener(_onScroll);
