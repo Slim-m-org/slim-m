@@ -66,6 +66,18 @@ enum VoiceDisconnect {
       };
 }
 
+/// Whether the call itself vouches for someone the stage shows.
+enum CallPresence {
+  /// The call delivered them and still lists them.
+  live,
+
+  /// The server lists them in the call, but this device's call has not delivered them.
+  connecting,
+
+  /// Shown from before a repair that the call has not confirmed them through.
+  unconfirmed,
+}
+
 /// Somebody in the call, including you.
 ///
 /// Deliberately a plain value rather than a LiveKit participant: the UI needs
@@ -85,6 +97,7 @@ class VoiceParticipant {
     this.isCameraOn = false,
     this.audioLevel = 0,
     this.isDeafened = false,
+    this.presence = CallPresence.live,
   });
 
   /// The server's user id. The token's `sub`, so it is trustworthy.
@@ -114,6 +127,9 @@ class VoiceParticipant {
   /// participant attribute, see [kDeafenedAttribute].
   final bool isDeafened;
 
+  /// Whether the call vouches for them right now; see [CallPresence].
+  final CallPresence presence;
+
   VoiceParticipant copyWith({
     String? identity,
     String? name,
@@ -124,6 +140,7 @@ class VoiceParticipant {
     bool? isCameraOn,
     double? audioLevel,
     bool? isDeafened,
+    CallPresence? presence,
   }) =>
       VoiceParticipant(
         identity: identity ?? this.identity,
@@ -135,6 +152,7 @@ class VoiceParticipant {
         isCameraOn: isCameraOn ?? this.isCameraOn,
         audioLevel: audioLevel ?? this.audioLevel,
         isDeafened: isDeafened ?? this.isDeafened,
+        presence: presence ?? this.presence,
       );
 
   @override
@@ -147,7 +165,8 @@ class VoiceParticipant {
       other.isLocal == isLocal &&
       other.isScreenSharing == isScreenSharing &&
       other.isCameraOn == isCameraOn &&
-      other.isDeafened == isDeafened;
+      other.isDeafened == isDeafened &&
+      other.presence == presence;
 
   @override
   int get hashCode => Object.hash(
@@ -159,6 +178,7 @@ class VoiceParticipant {
         isScreenSharing,
         isCameraOn,
         isDeafened,
+        presence,
       );
 }
 

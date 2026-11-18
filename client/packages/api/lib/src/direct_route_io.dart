@@ -66,6 +66,7 @@ class IoDirectRoute implements DirectRoute {
   DateTime? _skipUntil;
   Duration _penalty = _firstPenalty;
   bool _active = false;
+  int _renewals = 0;
   final _activeChanges = StreamController<bool>.broadcast();
 
   @override
@@ -122,6 +123,7 @@ class IoDirectRoute implements DirectRoute {
   void _renewPool() {
     final old = _client;
     _client = _freshClient();
+    _renewals++;
     _probing = _addresses.isNotEmpty;
     old.close();
   }
@@ -195,6 +197,9 @@ class IoDirectRoute implements DirectRoute {
 
   @override
   bool get hasAddresses => _addresses.isNotEmpty;
+
+  @override
+  int get poolRenewals => _renewals;
 
   @override
   http.Client? pinnedClient({required bool direct}) {

@@ -9,6 +9,7 @@ import 'package:slimm_api/api.dart' show LogLevel;
 import 'audio_glitch_watch.dart';
 import 'audio_stats.dart';
 import 'call_diagnostics.dart';
+import 'call_link.dart';
 import 'call_stats.dart';
 import 'join_audio_probe.dart';
 import 'voice_health.dart';
@@ -24,9 +25,12 @@ class VoiceHealthWatchHost {
 
 /// Samples the call's audio stats into [health] and [diagnostics].
 class VoiceHealthWatch {
-  VoiceHealthWatch(this._host);
+  VoiceHealthWatch(this._host, {DateTime Function()? clock})
+      : _clock = clock ?? DateTime.now,
+        _pulse = SignalPulse(clock: clock);
 
   final VoiceHealthWatchHost _host;
+  final DateTime Function() _clock;
 
   /// Per-person quality and the last call's summary; see [VoiceHealth].
   final VoiceHealth health = VoiceHealth();
@@ -46,6 +50,7 @@ class VoiceHealthWatch {
   );
 
   final _mediaSource = MediaSourceNote();
+  final SignalPulse _pulse;
 
   void _log(String line, {LogLevel level = LogLevel.info}) {
     diagnostics.noteHealthLine(line);
@@ -115,20 +120,56 @@ class VoiceHealthWatch {
       };
 
   Future<AudioSendSample?> _localVoiceStats() async {
-    final pub = _host
-        .room()
-        ?.localParticipant
-        ?.audioTrackPublications
+    final room = _host.room();
+    final pub = room?.localParticipant?.audioTrackPublications
         .where((p) => p.source == lk.TrackSource.microphone)
         .firstOrNull;
     final track = pub?.track;
-    if (track is! lk.LocalAudioTrack) return null;
-    final reports = await track.sender?.getStats();
-    if (reports == null) return null;
+    final reports =
+        track is lk.LocalAudioTrack ? await track.sender?.getStats() : null;
+    if (reports == null) {
+      _noteLink(room, await _heardTransport(room));
+      return null;
+    }
     final entries = _entries(reports);
-    diagnostics.noteTransport(parseTransportStats(entries));
+    final transport = parseTransportStats(entries);
+    diagnostics.noteTransport(transport);
+    _noteLink(room, transport);
     _mediaSource.note(entries, _host.diag);
     return parseAudioSend(entries);
+  }
+
+  /// The path as a receiver sees it, for a listener with no microphone published.
+  Future<TransportStats?> _heardTransport(lk.Room? room) async {
+    final peers = room?.remoteParticipants.values.toList() ?? const [];
+    for (final peer in peers) {
+      for (final pub in peer.audioTrackPublications) {
+        final track = pub.track;
+        if (track is! lk.RemoteAudioTrack) continue;
+        final reports = await track.receiver?.getStats();
+        if (reports != null) return parseTransportStats(_entries(reports));
+      }
+    }
+    return null;
+  }
+
+  /// Keeps the last media reading when [transport] is null, so a muted moment does not blank it.
+  void _noteLink(lk.Room? room, TransportStats? transport) {
+    if (room == null) return;
+    final counters = signalCounters(room);
+    final signal = _pulse.observe(
+      pings: counters.pings,
+      rttMs: counters.rttMs,
+    );
+    final before = health.link.value;
+    health.noteLink(CallLink(
+      mediaRttMs: transport?.rttMs?.round() ?? before?.mediaRttMs,
+      media: mediaRouteOf(transport) ?? before?.media,
+      signalRttMs: signal.rttMs,
+      signalSilence: signal.silence,
+      signalAt: signal.heardAt,
+      at: _clock(),
+    ));
   }
 
   List<StatsEntry> _entries(List<rtc.StatsReport> reports) =>
@@ -146,6 +187,7 @@ class VoiceHealthWatch {
       case VoiceSessionState.connecting:
         glitchWatch.stop();
       case VoiceSessionState.idle || VoiceSessionState.failed:
+        _pulse.reset();
         glitchWatch.finish();
     }
   }

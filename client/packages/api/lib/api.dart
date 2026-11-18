@@ -18,6 +18,13 @@ export 'src/logging/log_redaction.dart'
 
 // The extensions are named here too because `show` filters by declaration
 // name: an extension's methods need its own name exported to be in scope.
+export 'src/edge_route.dart'
+    show
+        EdgeReading,
+        EdgeTrace,
+        EdgeWatch,
+        cloudflareColoOf,
+        parseCloudflareTrace;
 export 'src/client.dart'
     show
         SlimmApi,
@@ -51,6 +58,7 @@ export 'src/client.dart'
         SlimmApiDiagnostics,
         SlimmApiExports,
         SlimmApiDirectRoute,
+        SlimmApiEdge,
         SlimmApiLinkedAccounts,
         SlimmApiBotCommands,
         SlimmApiBotUi,

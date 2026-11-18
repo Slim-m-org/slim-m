@@ -33,6 +33,22 @@ final poorConnectionsProvider =
       ),
     );
 
+/// Whether the call's media path is being rebuilt, as opposed to only its signalling.
+final voiceRestartingProvider =
+    StateNotifierProvider<ListenableState<bool>, bool>(
+      (ref) => ListenableState(
+        ref.watch(voiceControllerProvider.notifier).health.reconnect.restarting,
+      ),
+    );
+
+/// The call's media and signalling legs; null outside a call.
+final voiceLinkProvider =
+    StateNotifierProvider<ListenableState<CallLink?>, CallLink?>(
+      (ref) => ListenableState(
+        ref.watch(voiceControllerProvider.notifier).health.link,
+      ),
+    );
+
 /// The last finished call's numbers, or null before any call has ended.
 final lastCallHealthProvider =
     StateNotifierProvider<

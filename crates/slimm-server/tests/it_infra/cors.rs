@@ -109,6 +109,17 @@ async fn retry_after_is_exposed_to_a_browser_script() {
     assert!(exposed.contains("retry-after"), "exposed: {exposed:?}");
 }
 
+/// A web client on another origin reads which Cloudflare data centre answered from the ray it ends in.
+#[tokio::test]
+async fn the_cloudflare_ray_is_exposed_to_a_browser_script() {
+    let (router, _guard) = configured().await;
+    let (_, headers) = headers_of(router, simple_get(WEB_CLIENT)).await;
+    let exposed = header(&headers, "access-control-expose-headers")
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    assert!(exposed.contains("cf-ray"), "exposed: {exposed:?}");
+}
+
 #[tokio::test]
 async fn another_origin_is_refused() {
     let (router, _guard) = configured().await;

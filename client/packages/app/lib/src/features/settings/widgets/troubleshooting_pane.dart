@@ -20,6 +20,7 @@ import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
 import 'call_diagnostics_row.dart';
 import 'call_health_row.dart';
+import 'connection_route_row.dart';
 import 'connection_test_row.dart';
 import 'debug_log_page.dart';
 import 'debug_log_send_sheet.dart';
@@ -52,6 +53,7 @@ class TroubleshootingPane extends ConsumerWidget {
             children: [
               MediaCapabilitySection(
                 extraRows: [
+                  ConnectionRouteRow(),
                   ConnectionTestRow(),
                   CallHealthRow(),
                   CallDiagnosticsRow(),
