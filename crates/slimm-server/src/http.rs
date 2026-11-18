@@ -83,7 +83,7 @@ mod members;
 pub mod steam_api;
 pub mod steam_link;
 pub mod steam_presence;
-use members::{member_nicknames, members_bulk, members_list};
+use members::{member_activity, member_nicknames, members_bulk, members_list};
 mod messages;
 use messages::{
     message_components, message_dto, message_enrich, message_mentions, message_validation,
@@ -335,6 +335,7 @@ pub fn router(state: AppState) -> Router {
         .merge(space_setup::routes())
         .merge(members::routes())
         .merge(member_permissions::routes())
+        .merge(member_activity::routes())
         .merge(member_nicknames::routes())
         .merge(members_bulk::routes())
         .merge(messages::routes())

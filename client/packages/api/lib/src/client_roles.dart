@@ -87,6 +87,17 @@ extension SlimmApiRoles on SlimmApi {
   Future<void> unassignRole({required String userId, required String roleId}) =>
       send('DELETE', '/members/$userId/roles/$roleId', expectNoContent: true);
 
+  /// When each member last posted where the caller can read, as Unix
+  /// milliseconds by user id. Requires MANAGE_ROLES; a member who never
+  /// posted there is absent.
+  Future<Map<String, int>> listMemberActivity() async {
+    final json = await send('GET', '/members/activity');
+    return {
+      for (final entry in (json as List<dynamic>).cast<Map<String, dynamic>>())
+        entry['user_id'] as String: entry['last_posted_at'] as int,
+    };
+  }
+
   /// Sets the deployment's role order. Requires MANAGE_ROLES. [roleIds] must
   /// name exactly the live non-`@everyone` roles, top to bottom; `@everyone`
   /// never reorders. Refused unless every role that would actually move sits

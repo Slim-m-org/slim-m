@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The selected role's Members tab: search to add, then every holder in two
-/// groups (bots, people) - both grouped the same way regardless of holder
+/// The selected role's Members tab: the members who could be given the role,
+/// most recently active first and narrowed by a search, then every holder in
+/// two groups (bots, people) - both grouped the same way regardless of holder
 /// kind, since a bot is a full principal like any other (decision 0028), not
 /// a second class of member.
 library;
@@ -15,8 +16,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../members/providers/member_presence.dart' show membersProvider;
 import '../../../../providers/admin_providers.dart' show roleLadderProvider;
 import '../../../../providers/providers.dart';
-import '../../../../role_ladder.dart';
 import '../../../../widgets/run_guarded.dart';
+import '../../providers/role_candidates.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
 import 'role_holder_avatar.dart';
@@ -24,6 +25,9 @@ import 'role_holder_avatar.dart';
 /// A group past this size collapses to this many rows plus a "+N more"
 /// summary, matching the design's own worked example.
 const _collapseAt = 5;
+
+/// How many more people each "Show more" on the add list reveals.
+const _candidatePage = 20;
 
 class RoleMembersTab extends ConsumerStatefulWidget {
   const RoleMembersTab({super.key, required this.role, this.locked = false});
@@ -42,31 +46,12 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
   final TextEditingController _search = TextEditingController();
   bool _expandBots = false;
   bool _expandPeople = false;
+  int _candidatesShown = _collapseAt;
 
   @override
   void dispose() {
     _search.dispose();
     super.dispose();
-  }
-
-  List<api.UserProfile> _candidates(
-    List<api.UserProfile> members,
-    RoleLadder ladder,
-  ) {
-    final needle = _search.text.trim().toLowerCase();
-    if (needle.isEmpty) return const [];
-    return members
-        .where((m) => !m.roleIds.contains(widget.role.id))
-        .where(
-          (m) => ladder.lockOf(widget.role, member: m, held: false) == null,
-        )
-        .where(
-          (m) =>
-              m.displayName.toLowerCase().contains(needle) ||
-              m.username.toLowerCase().contains(needle),
-        )
-        .take(5)
-        .toList();
   }
 
   Future<void> _add(api.UserProfile member) async {
@@ -112,9 +97,22 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
         final role = widget.role;
         final ladder = ref.watch(roleLadderProvider);
         final locked = widget.locked || role.isManagedByBot || role.isBotsRole;
+        // Null until known: a server without the route must not call everyone silent.
+        final activity = locked
+            ? null
+            : ref.watch(memberActivityProvider).valueOrNull;
+        final searching = _search.text.trim().isNotEmpty;
         final candidates = locked
             ? const <api.UserProfile>[]
-            : _candidates(list, ladder);
+            : roleCandidates(
+                members: list,
+                role: role,
+                ladder: ladder,
+                activity: activity ?? const {},
+                query: _search.text,
+              );
+        final shownCandidates = candidates.take(_candidatesShown).toList();
+        final moreCandidates = candidates.length - shownCandidates.length;
         final remove = locked ? null : _remove;
         bool removable(api.UserProfile m) =>
             ladder.lockOf(role, member: m, held: true) == null;
@@ -134,9 +132,10 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
                   placeholder: 'Search members to add',
                   icon: const Icon(AppIcons.search),
                   semanticLabel: 'Search members to add',
-                  onChanged: (_) => setState(() {}),
+                  onChanged: (_) =>
+                      setState(() => _candidatesShown = _collapseAt),
                   onSubmitted: (_) {
-                    if (candidates.isEmpty) return;
+                    if (!searching || candidates.isEmpty) return;
                     unawaited(_add(candidates.first));
                   },
                 ),
@@ -154,18 +153,42 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
                     SettingsSectionCard(
                       title: 'Add to this role',
                       children: [
-                        for (final (index, candidate) in candidates.indexed)
+                        for (final (index, candidate)
+                            in shownCandidates.indexed)
                           AppListRow(
+                            key: ValueKey(candidate.id),
                             leading: roleHolderAvatar(context, candidate),
                             label: candidate.displayName,
-                            meta: '@${candidate.username}',
+                            meta: activity == null
+                                ? '@${candidate.username}'
+                                : postedLabel(activity[candidate.id]),
                             trailing: _AddAction(
                               name: candidate.displayName,
-                              enterAdds: index == 0,
+                              enterAdds: searching && index == 0,
                               onAdd: () => unawaited(_add(candidate)),
                             ),
                             onTap: () => unawaited(_add(candidate)),
                           ),
+                        if (moreCandidates > 0)
+                          _ShowMoreRow(
+                            count: moreCandidates < _candidatePage
+                                ? moreCandidates
+                                : _candidatePage,
+                            onTap: () => setState(
+                              () => _candidatesShown += _candidatePage,
+                            ),
+                          ),
+                      ],
+                    )
+                  else if (searching)
+                    const SettingsSectionCard(
+                      title: 'Add to this role',
+                      children: [
+                        SettingsEmptyState(
+                          icon: AppIcons.search,
+                          title: 'No one matches',
+                          detail: 'Try another name.',
+                        ),
                       ],
                     ),
                   if (actionError case final error?) ...[
@@ -189,7 +212,9 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
                     onRemove: remove,
                     removable: removable,
                     emptyTitle: 'No people hold this role',
-                    emptyDetail: locked ? null : 'Search above to add someone.',
+                    emptyDetail: candidates.isEmpty || searching
+                        ? null
+                        : 'Add someone from the list above.',
                   ),
                 ],
               ),
@@ -199,6 +224,24 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
       },
     );
   }
+}
+
+/// The add list's last row, revealing the next [count] people.
+class _ShowMoreRow extends StatelessWidget {
+  const _ShowMoreRow({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => FocusableTapTarget(
+    onTap: onTap,
+    semanticLabel: 'Show $count more',
+    builder: (context, focused, hovered) => SettingsSubRow(
+      label: 'Show $count more',
+      trailing: const Icon(AppIcons.chevronDown, size: AppSizes.icon16),
+    ),
+  );
 }
 
 /// An Add button on every candidate; Enter in the search adds only the first,

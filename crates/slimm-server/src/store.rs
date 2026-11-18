@@ -54,6 +54,7 @@ mod interactions;
 mod invite_reuse;
 mod invites;
 mod linked_accounts;
+mod member_activity;
 mod member_gate;
 mod members_bulk;
 mod messages;
