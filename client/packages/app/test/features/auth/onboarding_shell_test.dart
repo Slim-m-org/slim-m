@@ -360,4 +360,28 @@ void main() {
 
     expect(find.text('v'), findsNothing);
   });
+
+  testWidgets('at a large OS text size the wordmark stays inside the rail', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        home: const OnboardingShell(child: SizedBox.shrink()),
+      ),
+    );
+    await tester.pump();
+
+    final mark = tester.getTopLeft(find.byType(AppBrandMark).first);
+    final word = tester.getRect(find.text('slim-m').first);
+    expect(tester.takeException(), isNull);
+    expect(word.left, greaterThan(mark.dx));
+    expect(word.right, lessThanOrEqualTo(260));
+  });
 }
