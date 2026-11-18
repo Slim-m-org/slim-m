@@ -19,6 +19,8 @@ import '../../../widgets/load_error_block.dart';
 
 const _sectionLabel = 'Welcome message';
 
+const _placeholders = '{user} mentions the new member, {space} is the name.';
+
 /// The channel choice for "none".
 const _noChannel = '';
 
@@ -61,7 +63,11 @@ class _WelcomeFormState extends ConsumerState<_WelcomeForm>
     text: widget.initial.welcomeMessage,
   );
   bool _saving = false;
+  String? _channelError;
   String? _messageError;
+
+  /// Null from a server that predates the default and still requires a message.
+  String? get _defaultMessage => widget.initial.welcomeDefaultMessage;
 
   @override
   void dispose() {
@@ -71,17 +77,18 @@ class _WelcomeFormState extends ConsumerState<_WelcomeForm>
 
   Future<void> _save() async {
     final message = _message.text.trim();
-    if (_enabled && (message.isEmpty || _channel == _noChannel)) {
-      setState(
-        () => _messageError =
-            'Pick a channel and write a message to turn this on.',
-      );
-      return;
-    }
+    final channelError = _enabled && _channel == _noChannel
+        ? 'Pick a channel to turn this on.'
+        : null;
+    final messageError = _enabled && message.isEmpty && _defaultMessage == null
+        ? 'Write a message to turn this on.'
+        : null;
     setState(() {
-      _saving = true;
-      _messageError = null;
+      _channelError = channelError;
+      _messageError = messageError;
     });
+    if (channelError != null || messageError != null) return;
+    setState(() => _saving = true);
     final ok = await guard(
       whatFailed: 'save the welcome message',
       action: () => ref
@@ -98,6 +105,12 @@ class _WelcomeFormState extends ConsumerState<_WelcomeForm>
     setState(() => _saving = false);
     if (ok) ref.invalidate(spaceSettingsProvider);
   }
+
+  void _setEnabled(bool value) => setState(() {
+    _enabled = value;
+    _channelError = null;
+    _messageError = null;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +130,7 @@ class _WelcomeFormState extends ConsumerState<_WelcomeForm>
           description: 'Posts once in a channel when someone joins.',
           semanticLabel: 'Welcome new members',
           value: _enabled,
-          onChanged: _saving ? null : (v) => setState(() => _enabled = v),
+          onChanged: _saving ? null : _setEnabled,
         ),
         SettingsSelectRow<String>(
           label: 'Welcome channel',
@@ -126,16 +139,22 @@ class _WelcomeFormState extends ConsumerState<_WelcomeForm>
               : _noChannel,
           choices: choices,
           sheetTitle: 'Welcome channel',
-          onChanged: (v) => setState(() => _channel = v),
+          onChanged: (v) => setState(() {
+            _channel = v;
+            _channelError = null;
+          }),
+          errorText: _channelError,
         ),
         SettingsCardBlock(
           children: [
             SettingsField(
               label: 'Message',
-              helper: '{user} mentions the new member, {space} is the name.',
+              helper: _defaultMessage == null
+                  ? _placeholders
+                  : 'Leave empty for the default. $_placeholders',
               child: AppInput(
                 controller: _message,
-                placeholder: 'Welcome to {space}, {user}!',
+                placeholder: _defaultMessage,
                 minLines: 2,
                 maxLines: 6,
                 counterMax: api.InputLimits.welcomeMessage,

@@ -51,6 +51,9 @@ final _bannerBytesProvider = FutureProvider.autoDispose.family<Uint8List, int>(
 class InviteLandingSection extends ConsumerStatefulWidget {
   const InviteLandingSection({super.key});
 
+  /// The backdrop the preview card is drawn on.
+  static const Key stageKey = Key('invite_landing_stage');
+
   @override
   ConsumerState<InviteLandingSection> createState() =>
       _InviteLandingSectionState();
@@ -290,8 +293,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
   /// The card as typed, before saving: an emptied name falls back to the saved one.
   Widget _card(api.SpaceSettings loaded, int memberCount) {
     final name = _name.text.trim();
-    return Align(
-      alignment: AlignmentDirectional.centerStart,
+    return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: kInviteLandingMaxWidth),
         child: InviteLandingCard(
@@ -312,33 +314,39 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
   }
 
   /// Waits for the roster, so the card never shows a head count the Space does not have.
+  /// The stage is a step below the card, so the card reads as one, as it does to a visitor.
   Widget _preview(api.SpaceSettings loaded) {
     final roster = ref.watch(membersProvider);
     final memberCount = roster.valueOrNull?.length;
     final bannerFailed =
         loaded.bannerUpdatedAt != null &&
         ref.watch(_bannerBytesProvider(loaded.bannerUpdatedAt!)).hasError;
-    return SettingsCardBlock(
-      children: [
-        if (memberCount != null)
-          _card(loaded, memberCount)
-        else if (roster.hasError)
-          AppErrorState(
-            message: 'Could not load the member count.',
-            onRetry: () => ref.invalidate(membersProvider),
-          )
-        else
-          const SizedBox(
-            height: AppSpacing.s48,
-            child: Center(child: AppSpinner(size: AppSpinnerSize.sm)),
-          ),
-        if (bannerFailed)
-          AppErrorState(
-            message: 'Could not load the banner.',
-            onRetry: () =>
-                ref.invalidate(_bannerBytesProvider(loaded.bannerUpdatedAt!)),
-          ),
-      ],
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return ColoredBox(
+      key: InviteLandingSection.stageKey,
+      color: tokens.surfaceBase,
+      child: SettingsCardBlock(
+        children: [
+          if (memberCount != null)
+            _card(loaded, memberCount)
+          else if (roster.hasError)
+            AppErrorState(
+              message: 'Could not load the member count.',
+              onRetry: () => ref.invalidate(membersProvider),
+            )
+          else
+            const SizedBox(
+              height: AppSpacing.s48,
+              child: Center(child: AppSpinner(size: AppSpinnerSize.sm)),
+            ),
+          if (bannerFailed)
+            AppErrorState(
+              message: 'Could not load the banner.',
+              onRetry: () =>
+                  ref.invalidate(_bannerBytesProvider(loaded.bannerUpdatedAt!)),
+            ),
+        ],
+      ),
     );
   }
 

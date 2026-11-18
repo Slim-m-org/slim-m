@@ -24,8 +24,9 @@ use crate::hub::Event;
 use crate::ids::ChannelId;
 use crate::ratelimit::Class;
 use crate::store::{
-    JoinPolicy, MAX_SPACE_DESCRIPTION_CHARS, MAX_SPACE_NAME_CHARS, MAX_TRANSCRIPT_RETENTION_DAYS,
-    MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome, TotpPolicy, TranscriptionMode,
+    DEFAULT_WELCOME_MESSAGE, JoinPolicy, MAX_SPACE_DESCRIPTION_CHARS, MAX_SPACE_NAME_CHARS,
+    MAX_TRANSCRIPT_RETENTION_DAYS, MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome, TotpPolicy,
+    TranscriptionMode,
 };
 
 const BODY_LIMIT: usize = 4 * 1024;
@@ -68,6 +69,8 @@ struct SpaceSettingsDto {
     welcome_channel_id: Option<String>,
     /// The welcome template; `{user}` and `{space}` are filled in.
     welcome_message: String,
+    /// What an empty `welcome_message` posts, so the client never keeps its own copy.
+    welcome_default_message: &'static str,
     /// Whether the server transcribes calls: `off`, `on_request` or `always`.
     call_transcription: &'static str,
     /// Days a finished call transcript is kept, or null to keep it forever.
@@ -161,6 +164,7 @@ async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
         welcome_enabled: welcome.enabled,
         welcome_channel_id: welcome.channel_id.map(|id| id.to_string()),
         welcome_message: welcome.message,
+        welcome_default_message: DEFAULT_WELCOME_MESSAGE,
         call_transcription: state.store.call_transcription().await?.as_str(),
         call_transcript_retention_days: state.store.call_transcript_retention_days().await?,
         call_transcription_available: state.call_audio.is_enabled(),
@@ -201,7 +205,7 @@ fn validate_name(raw: &str) -> Result<&str, ApiError> {
 }
 
 /// The welcome settings after this PATCH, or `None` when it names none of them.
-/// Turning it on needs a text channel and a message, so a half-set welcome is refused.
+/// Turning it on needs a text channel; an empty message posts the default.
 async fn merged_welcome(
     state: &AppState,
     body: &UpdateSpaceSettingsDto,
@@ -234,9 +238,9 @@ async fn merged_welcome(
     if let Some(raw) = body.welcome_message.as_deref() {
         welcome.message = validate_welcome_message(raw)?.to_owned();
     }
-    if welcome.enabled && (welcome.channel_id.is_none() || welcome.message.is_empty()) {
+    if welcome.enabled && welcome.channel_id.is_none() {
         return Err(ApiError::BadRequest(
-            "a welcome needs a channel and a message before it can be turned on",
+            "a welcome needs a channel before it can be turned on",
         ));
     }
     Ok(Some(welcome))

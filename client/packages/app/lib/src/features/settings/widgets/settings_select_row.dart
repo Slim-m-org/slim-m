@@ -44,6 +44,7 @@ class SettingsSelectRow<T> extends StatelessWidget {
     this.description,
     this.unknownLabel = 'Unknown',
     this.sub = false,
+    this.errorText,
   });
 
   final String label;
@@ -71,6 +72,9 @@ class SettingsSelectRow<T> extends StatelessWidget {
 
   /// Renders as an indented sub-row of the row above, not a row of its own.
   final bool sub;
+
+  /// A problem with the current choice, shown in red under the row.
+  final String? errorText;
 
   SettingsChoice<T>? get _currentChoice {
     final current = value;
@@ -182,8 +186,38 @@ class SettingsSelectRow<T> extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      SettingsHighlightTarget(label: label, child: _content(context));
+  Widget build(BuildContext context) => SettingsHighlightTarget(
+    label: label,
+    child: _withError(context, _content(context)),
+  );
+
+  Widget _withError(BuildContext context, Widget row) {
+    final error = errorText;
+    if (error == null) return row;
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        row,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppCardRowScope.inset,
+            0,
+            AppCardRowScope.inset,
+            AppSpacing.s12,
+          ),
+          child: Semantics(
+            liveRegion: true,
+            child: Text(
+              error,
+              style: AppText.caption.copyWith(color: tokens.dangerText),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   /// The most of the row a long value may take, so the label keeps its place.
   static const _valueShare = 0.55;

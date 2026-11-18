@@ -14321,7 +14321,15 @@ components:
           description: The text channel the welcome is posted in, or null for none.
         welcome_message:
           type: string
-          description: The welcome template; `{user}` and `{space}` are filled in. Empty when none.
+          description: >
+            The welcome template; `{user}` and `{space}` are filled in. Empty
+            means `welcome_default_message`.
+        welcome_default_message:
+          type: string
+          readOnly: true
+          description: >
+            What an empty `welcome_message` posts, for the client to show as
+            its hint. Absent from a server that still requires a message.
         totp_policy:
           type: string
           enum: [off, optional, required_for_elevated]
@@ -14410,8 +14418,8 @@ components:
         welcome_enabled:
           type: boolean
           description: >
-            Turning it on needs a text channel and a message, already stored
-            or sent in the same request.
+            Turning it on needs a text channel, already stored or sent in the
+            same request. An empty message posts the default.
         welcome_channel_id:
           type: string
           description: A text channel's id; an empty string clears it.
@@ -14420,7 +14428,8 @@ components:
           description: >
             At most 500 characters, line breaks allowed, no other control or
             invisible character. `{user}` becomes an @mention of the new
-            member and `{space}` the Space's name.
+            member and `{space}` the Space's name. Empty posts the default,
+            which `SpaceSettings.welcome_default_message` reports.
         call_transcription:
           type: string
           enum: [off, on_request, always]
