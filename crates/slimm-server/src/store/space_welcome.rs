@@ -9,7 +9,7 @@ use crate::ids::{ChannelId, UserId};
 /// Longest template, in characters. Enforced in Rust so it can move without a migration.
 pub const MAX_WELCOME_MESSAGE_CHARS: usize = 500;
 
-/// Posted when the stored template is empty; the client shows the same text as its hint.
+/// Posted when the stored template is empty; `/space/settings` sends it for the client's hint.
 pub const DEFAULT_WELCOME_MESSAGE: &str = "Welcome to {space}, {user}!";
 
 #[derive(Debug, Clone, Default)]

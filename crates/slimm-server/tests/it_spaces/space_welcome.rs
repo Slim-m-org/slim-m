@@ -117,11 +117,16 @@ async fn an_empty_message_turns_on_and_posts_the_default_welcome() {
     assert_eq!(status, StatusCode::OK, "{settings}");
     assert_eq!(settings["welcome_message"], "");
 
+    let default = settings["welcome_default_message"]
+        .as_str()
+        .expect("settings carry the default welcome");
+    let expected = default
+        .replace("{space}", settings["name"].as_str().unwrap())
+        .replace("{user}", "@sam");
+
     join(&router, &store, &root, "sam").await;
     let posted = messages(&router, &root, &general).await;
-    let content = posted[0]["content"].as_str().unwrap();
-    assert!(content.starts_with("Welcome to "), "{content}");
-    assert!(content.ends_with(", @sam!"), "{content}");
+    assert_eq!(posted[0]["content"], expected);
 }
 
 #[tokio::test]

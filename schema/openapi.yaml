@@ -14284,7 +14284,13 @@ components:
           type: string
           description: >
             The welcome template; `{user}` and `{space}` are filled in. Empty
-            means the default, "Welcome to {space}, {user}!".
+            means `welcome_default_message`.
+        welcome_default_message:
+          type: string
+          readOnly: true
+          description: >
+            What an empty `welcome_message` posts, for the client to show as
+            its hint. Absent from a server that still requires a message.
         totp_policy:
           type: string
           enum: [off, optional, required_for_elevated]
@@ -14384,7 +14390,7 @@ components:
             At most 500 characters, line breaks allowed, no other control or
             invisible character. `{user}` becomes an @mention of the new
             member and `{space}` the Space's name. Empty posts the default,
-            "Welcome to {space}, {user}!".
+            which `SpaceSettings.welcome_default_message` reports.
         call_transcription:
           type: string
           enum: [off, on_request, always]
