@@ -493,6 +493,15 @@ A scene becomes interactive by offering `controls` and carrying `state`, and by 
   Those five names are therefore reserved, and `play` is the one to watch: it drives slim's own animation loop, repeatedly sending `step` while the scene stays `live`, rather than sending you an action called `play`.
   If you want a button that plays something once, call it something else (`music-box` calls it `play tune`).
   The buttons wrap onto another line rather than being clipped, so offering several is safe on a phone.
+- A control may instead be one choice of several, shown as a dropdown: `{"label": "board size", "value": "beginner", "options": ["beginner", "intermediate", "expert"]}`.
+  It shows `value` with a chevron, and picking another option sends that option as the action, exactly as a button of that name would; picking the one in force sends nothing.
+  `label` names the choice for a screen reader and heads the phone sheet; a `value` that is not one of the `options` shows the label instead.
+  A dropdown holds at most 16 options, repeats are dropped, and one with no usable option is skipped.
+  A client older than 0.132 skips the object, so keep anything a player cannot do without reachable another way.
+  `replaces` is how: list the buttons the dropdown stands for, and put those buttons in `controls` too.
+  An older client shows the buttons, and a client that draws the dropdown leaves them out.
+  Left-out buttons do not count toward the 16 controls, and a dropdown past the 16 is not drawn, so its buttons stay.
+  A shared board is one stored frame that every viewer draws with their own client, so the frame has to carry both.
 - `state` is an opaque string slim stores and hands back on the next call - it is how a stateless module remembers the board between frames.
   Put whatever you need in it (packed cells, a generation counter, a seed); slim never looks inside.
 - An op's `tap` makes it interactive.

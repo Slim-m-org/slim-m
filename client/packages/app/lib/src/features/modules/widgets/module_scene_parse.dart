@@ -23,6 +23,7 @@ import 'dart:typed_data';
 
 import 'module_scene.dart';
 import 'module_scene_bounds.dart';
+import 'module_scene_control.dart';
 import 'module_scene_path.dart';
 import 'module_scene_sweep.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -59,9 +60,10 @@ ModuleScene? parseModuleScene(String raw) {
     ops: ops,
     background: _string(decoded['background']),
     state: _string(decoded['state']),
-    controls: _stringList(
+    controls: parseSceneControls(
       decoded['controls'],
-    ).take(ModuleScene.maxControls).toList(growable: false),
+      limit: ModuleScene.maxControls,
+    ),
     status: _string(decoded['status']),
     live: decoded['live'] == true,
     isPrivate: decoded['private'] == true,

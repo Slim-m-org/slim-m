@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../app_metrics.dart';
+import '../../app_tokens.dart';
 
 /// Marks rows that sit edge to edge inside a settings card: taller, inset by
 /// the card's own padding, and square, so the card's hairlines and a row's
@@ -55,4 +56,22 @@ class AppSelectionMarkerScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(AppSelectionMarkerScope oldWidget) => false;
+}
+
+/// Marks a subtree painted on `surfaceRaised` (a sheet, a menu, a card), where
+/// a row's usual `surfaceRaised` hover fill is the background and shows nothing.
+class AppRaisedSurfaceScope extends InheritedWidget {
+  const AppRaisedSurfaceScope({required super.child, super.key});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppRaisedSurfaceScope>() !=
+      null;
+
+  /// The hover and press fill on a raised surface: a wash of the text colour,
+  /// so a row lifts off it in every theme.
+  static Color wash(AppTokens tokens, {required bool pressed}) =>
+      tokens.textPrimary.withValues(alpha: pressed ? 0.12 : 0.07);
+
+  @override
+  bool updateShouldNotify(AppRaisedSurfaceScope oldWidget) => false;
 }

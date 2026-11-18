@@ -5,6 +5,7 @@
 /// as a real header rather than the card's own small uppercase title.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -217,4 +218,33 @@ void main() {
     );
     expect(at(midX, midY), fill, reason: 'the child still fills inside');
   });
+  testWidgets('a hovered row lifts off the card', (tester) async {
+    await tester.pumpWidget(
+      _harness(
+        SettingsSectionCard(
+          title: 'Devices',
+          children: [AppListRow(label: 'a phone', onTap: () {})],
+        ),
+      ),
+    );
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(find.text('a phone')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final fills = [
+      for (final box in tester.widgetList<AnimatedContainer>(
+        find.descendant(
+          of: _card,
+          matching: find.byWidgetPredicate((w) => w is AnimatedContainer),
+        ),
+      ))
+        if ((box.decoration as BoxDecoration?)?.color case final color?
+            when color.a > 0)
+          color,
+    ];
+    expect(fills, isNotEmpty);
+    expect(fills, everyElement(isNot(AppTokens.light.surfaceRaised)));
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 }

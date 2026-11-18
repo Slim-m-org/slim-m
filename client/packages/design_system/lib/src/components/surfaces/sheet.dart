@@ -26,6 +26,7 @@ import '../../app_metrics.dart';
 import '../../app_motion.dart';
 import '../../app_tokens.dart';
 import 'in_window_dialog.dart';
+import 'list_row_scopes.dart';
 import 'sheet_dialog_scope.dart';
 
 /// How wide a dialog is allowed to get, when it is one.
@@ -102,7 +103,9 @@ Future<T?> showAppSheet<T>(
 }) {
   // Focus moves into the sheet, so keys stop reaching the page behind it; the label names it for a screen reader.
   Widget content(BuildContext context) {
-    final body = FocusScope(autofocus: true, child: Builder(builder: builder));
+    final body = AppRaisedSurfaceScope(
+      child: FocusScope(autofocus: true, child: Builder(builder: builder)),
+    );
     if (semanticLabel == null) return body;
     return Semantics(
       scopesRoute: true,

@@ -108,7 +108,7 @@ void main() {
         controls: [for (var i = 0; i < 500; i++) 'c$i'],
       );
       expect(scene.controls, hasLength(ModuleScene.maxControls));
-      expect(scene.controls.first, 'c0');
+      expect(scene.controls.first, const SceneButton('c0'));
     });
 
     test('a scene within every ceiling loses nothing', () {
@@ -117,7 +117,7 @@ void main() {
         controls: ['play', 'step'],
       );
       expect(scene.ops, hasLength(4));
-      expect(scene.controls, ['play', 'step']);
+      expect(scene.controls, const [SceneButton('play'), SceneButton('step')]);
     });
   });
 

@@ -23,7 +23,9 @@ export 'module_scene_parse.dart' show parseModuleScene;
 export 'module_scene_ops.dart';
 export 'module_scene_types.dart';
 export 'module_scene_sweep.dart' show SceneSweep;
+export 'module_scene_control.dart' show SceneControl, SceneButton, SceneSelect;
 
+import 'module_scene_control.dart';
 import 'module_scene_ops.dart';
 
 /// A whole scene: a logical canvas, the ops to draw on it, the opaque [state]
@@ -99,8 +101,8 @@ class ModuleScene {
   /// person can use, not by whatever else happens to bound the scene.
   static const maxAspect = 4.0;
 
-  /// How many control buttons a scene may offer; the shipped modules use at
-  /// most eight, and each one is a button in a row under the board.
+  /// How many controls a scene may offer; the shipped modules use at most
+  /// eight, and each one is a button or a dropdown in a row under the board.
   static const maxControls = 16;
 
   final double width;
@@ -108,7 +110,7 @@ class ModuleScene {
   final List<SceneOp> ops;
   final String? background;
   final String? state;
-  final List<String> controls;
+  final List<SceneControl> controls;
   final String? status;
   final bool live;
 }
