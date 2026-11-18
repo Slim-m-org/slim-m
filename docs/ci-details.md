@@ -256,21 +256,28 @@ Separately, a new Swift file left out of `project.pbxproj`'s Sources build phase
 
 Two checks close this, at very different costs.
 `pbxproj-registration` is a grep over `project.pbxproj` with no Xcode involved, so it runs on `ubuntu-24.04` unconditionally, ahead of the macOS jobs.
-The `ios-unit-tests` job gained a second build step, `flutter build ios --release --no-codesign`: a real, unsigned, device-target Release build, which is what takes the same linking path `build ipa` does.
-That step is narrowed to the `changes` job's `native` path filter rather than "main is never trusted on a filter alone": unlike the XCTest job, a linking failure can only come from a native source file, `project.pbxproj`, or a dependency version, since Dart code takes no part in native linking.
-Both checks are in `verify-client-ci`'s `required_checks`, since each can fail with the other green.
+`ios release build links (device, no codesign)` runs `flutter build ios --release --no-codesign`: a real, unsigned, device-target Release build, which is what takes the same linking path `build ipa` does.
+It was a step after the XCTest run until 2026-11-18, adding a median 5.1 minutes to every native pull request, and is now its own job on a second macOS runner beside it.
+It is narrowed to the `changes` job's `native` path filter rather than "main is never trusted on a filter alone": unlike the XCTest job, a linking failure can only come from a native source file, `project.pbxproj`, or a dependency version, since Dart code takes no part in native linking.
+All three are in `verify-client-ci`'s `required_checks`, since each can fail with the others green; a client release commit always matches the filter through its pubspec bump, so the build job runs there.
 
 It lives in `client-ios-ci.yml` rather than beside the Dart job because it is the expensive one by an order of magnitude: 14 minutes against 5, measured across recent runs, which made `client-ci` a median of 11 minutes when the Dart half finishes in a third of that.
 A GitHub workflow cannot path-filter one job, so the split is what lets it be gated on the paths that can actually change its answer: the iOS project, the plugins carrying CallKit and WebRTC, `data/` (its encrypted database compiles native sqlite code, and a change there once shipped an iOS launch failure with no iOS job run), and the dependency set, which is how a Dart-side change reaches an Xcode build.
-A push to `main` uses the same filter, since it gates nothing except a release, and the release commit always matches it: release-please bumps `client/packages/app/pubspec.yaml`, which is in the filter.
+A push to `main` uses that filter, since it gates nothing except a release, and the release commit always matches it: release-please bumps `client/packages/app/pubspec.yaml`, which is in the filter.
+Since 2026-11-18 a pull request uses a narrower one, only what reaches Xcode natively: any package's `ios/`, `darwin/` or `hook/`, every pubspec, the lockfile, the workflow and its actions.
+A Dart-only change in `rtc/`, `platform/` or `data/` compiles on every other platform's job first, and still runs this on `main` and on its release commit before anything publishes; what moved is only when it runs, never whether.
 CocoaPods is cached on the lockfiles, so a restore never mixes pods resolved from a different lockfile.
 
 `flutter build ios --simulator --no-codesign --config-only` runs first because xcodebuild needs the generated Flutter config and the plugin registrant to exist before the project will open.
-`--config-only` writes them and runs pod install without compiling anything, so `xcodebuild test` is the only simulator build.
+`--config-only` writes them and runs pod install without compiling anything, so `xcodebuild build-for-testing` is the only simulator build.
 Until 2026-11-17 this step was a full `flutter build ios --simulator`, which built the app into `build/ios`, and `xcodebuild test` then built it again in its own DerivedData, about 3.8 minutes more.
-The step took a median 7.6 minutes over 30 pull request runs, about 4.3 of it the Xcode build that is now gone.
-The broadcast extension check therefore runs after the tests and reads `BroadcastExtension.appex` from that DerivedData; it checks every copy it finds, the embedded one included.
-Estimated, not yet measured: the job goes from a median 26.1 minutes to about 21-22.
+The broadcast extension check reads `BroadcastExtension.appex` from that DerivedData once the build is done; it checks every copy it finds, the embedded one included.
+
+The simulator boots in the background from the job's second step, so its boot overlaps the Flutter setup, pod install and the build, and `run xctest` only waits for it to finish.
+The build and the run are separate steps, `build-for-testing` and then `test-without-building` with `-parallel-testing-enabled NO`: the scheme marks `RunnerTests` parallelizable, and xcodebuild would clone and boot more simulators for a suite that runs in seconds.
+Measured 2026-11-18 on a slow runner (the same image swings about 2.5x between runs, and every phase scales with it): before, 255 s passed between the build finishing and the tests finishing, and another 91 s after "Test Succeeded" while xcodebuild shut its simulator down; after, the boot was done before the build, the step waited 4 s for it, and the whole run took 1.3 minutes.
+`build-for-testing` prints Xcode's build timing summary, where the Flutter build script and the Swift compile lead.
+IOS_AFTER_PLACEHOLDER
 
 The simulator is chosen from what the runner actually has rather than by name.
 A hardcoded `iPhone 16` broke the first time this ran, and it would break again silently every time GitHub rolls the image forward.
