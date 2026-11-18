@@ -11,8 +11,10 @@ import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemChannels;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart' show GoRouter;
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
@@ -92,36 +94,44 @@ Future<void> _teardown(
   await db.close();
 }
 
+/// The signed-in app at a width that fits the thread pane.
+Future<GoRouter> _pumpWide(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  tester.view.physicalSize = const Size(1400, 900);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  container.read(chosenServerProvider.notifier).restore(Uri.parse(_server));
+  container.read(sessionProvider).set(_tokens);
+
+  final router = container.read(routerProvider);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MediaQuery(
+        data: const MediaQueryData(
+          size: Size(1400, 900),
+          disableAnimations: true,
+        ),
+        child: MaterialApp.router(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          routerConfig: router,
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  return router;
+}
+
 void main() {
   testWidgets(
     'a cold /thread/:id on a wide viewport docks beside its parent, landing '
     'on the parent channel with the thread open',
     (tester) async {
-      tester.view.physicalSize = const Size(1400, 900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
-
       final (:container, :db) = _setup();
-      container.read(chosenServerProvider.notifier).restore(Uri.parse(_server));
-      container.read(sessionProvider).set(_tokens);
-
-      final router = container.read(routerProvider);
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MediaQuery(
-            data: const MediaQueryData(
-              size: Size(1400, 900),
-              disableAnimations: true,
-            ),
-            child: MaterialApp.router(
-              theme: buildTheme(Brightness.light, AppTokens.light),
-              routerConfig: router,
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
+      final router = await _pumpWide(tester, container);
 
       router.go('/thread/c-thread');
       // Resolve the parent, run the post-frame redirect, then land.
@@ -145,31 +155,8 @@ void main() {
   testWidgets(
     'the docked thread pane draws its left edge, not under the screen',
     (tester) async {
-      tester.view.physicalSize = const Size(1400, 900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
-
       final (:container, :db) = _setup();
-      container.read(chosenServerProvider.notifier).restore(Uri.parse(_server));
-      container.read(sessionProvider).set(_tokens);
-
-      final router = container.read(routerProvider);
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MediaQuery(
-            data: const MediaQueryData(
-              size: Size(1400, 900),
-              disableAnimations: true,
-            ),
-            child: MaterialApp.router(
-              theme: buildTheme(Brightness.light, AppTokens.light),
-              routerConfig: router,
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
+      final router = await _pumpWide(tester, container);
       router.go('/thread/c-thread');
       for (var i = 0; i < 4; i++) {
         await tester.pump(const Duration(milliseconds: 50));
@@ -199,4 +186,35 @@ void main() {
       await _teardown(tester, container, db);
     },
   );
+
+  testWidgets('a cold thread landing on its parent replaces its own history '
+      'entry, so browser back gets past it', (tester) async {
+    final reports = <Map<Object?, Object?>>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.navigation,
+      (call) async {
+        if (call.method == 'routeInformationUpdated') {
+          reports.add(call.arguments as Map<Object?, Object?>);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.navigation,
+        null,
+      ),
+    );
+    final (:container, :db) = _setup();
+    final router = await _pumpWide(tester, container);
+
+    router.go('/thread/c-thread');
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    final landing = reports.lastWhere((r) => r['uri'] == Routes.channel('c1'));
+    expect(landing['replace'], isTrue);
+    await _teardown(tester, container, db);
+  });
 }

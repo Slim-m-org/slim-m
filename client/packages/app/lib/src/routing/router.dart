@@ -439,7 +439,11 @@ class _ThreadDockRedirect extends ConsumerWidget {
                 context,
                 listen: false,
               );
-              context.go(Routes.channel(parentChannelId));
+              // Replaces the thread's entry, or browser back lands on it and this redirect pushes forward again.
+              Router.neglect(
+                context,
+                () => context.go(Routes.channel(parentChannelId)),
+              );
               // Docked a frame after landing: mounted mid-navigation, the web composer focused an input the outgoing page owned and dropped every keystroke.
               WidgetsBinding.instance.addPostFrameCallback(
                 (_) => dockThread(
