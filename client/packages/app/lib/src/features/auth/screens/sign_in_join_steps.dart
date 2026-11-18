@@ -10,6 +10,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/labeled_field.dart';
+import 'invite_code_check.dart';
 
 enum JoinStage { server, invite, account }
 
@@ -52,6 +53,15 @@ class HeldInvite {
 
   void accept(Uri server, String code) =>
       _accepted = (server: server, code: code);
+
+  /// Checks the code in the field on [client]'s [server] and holds it there if
+  /// it can be used; otherwise says why. Closes [client].
+  Future<String?> check(SlimmApi client, Uri server) async {
+    final code = controller.text.trim();
+    final problem = await inviteCodeProblem(client, code);
+    if (problem == null) accept(server, code);
+    return problem;
+  }
 
   void dispose() => controller.dispose();
 }

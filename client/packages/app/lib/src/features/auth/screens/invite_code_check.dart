@@ -19,6 +19,9 @@ const inviteLooksLikeWebAddress =
     'That looks like a web address. Paste an invite link that was sent to '
     'you, or just the code.';
 
+/// A reply that is not an invite check, from a host that is not a slim-m Space.
+const inviteNotFromASpace = 'The server answered, but not as a slim-m Space.';
+
 /// Why a check that never got an answer failed.
 String inviteCheckFailure(ApiException e) => e is TransportException
     ? 'Could not reach that server.'
@@ -35,6 +38,10 @@ Future<String?> inviteCodeProblem(SlimmApi client, String code) async {
   } on ApiException catch (error, stack) {
     reportFailure(LogTag.auth, 'check the invite code', error, stack);
     return inviteCheckFailure(error);
+  } catch (error, stack) {
+    // A host that is not a slim-m Space can shape any reply; see probeServerVersion.
+    reportFailure(LogTag.auth, 'check the invite code', error, stack);
+    return inviteNotFromASpace;
   } finally {
     client.close();
   }

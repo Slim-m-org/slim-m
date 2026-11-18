@@ -40,7 +40,14 @@ Future<ServerIdentityStatus> identityStatusFor(
   Uri target,
   ServerIdentity? identity,
 ) async {
-  final pinned = await keyStore.read(identityHandleFor(target));
+  final String? pinned;
+  try {
+    pinned = await keyStore.read(identityHandleFor(target));
+  } catch (error, stack) {
+    // The chip only informs; submitting runs the check that reports a locked store.
+    reportFailure(LogTag.auth, 'read the pinned server key', error, stack);
+    return ServerIdentityStatus.unknown;
+  }
   if (pinned == null) return ServerIdentityStatus.unknown;
   // A pinned address that reports no identity is a change, not an old server.
   return pinned == identity?.publicKey

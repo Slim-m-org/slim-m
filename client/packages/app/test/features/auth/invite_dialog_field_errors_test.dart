@@ -168,6 +168,23 @@ void main() {
     );
   });
 
+  testWidgets('a reply that is not an invite check is said above the buttons', (
+    tester,
+  ) async {
+    await _pump(tester, checkBody: const ['not', 'a', 'map']);
+    await _continueWith(tester, server: 'https://chat.example', code: 'CODE1');
+    await _pumpUntil(
+      tester,
+      () => find.text(inviteNotFromASpace).evaluate().isNotEmpty,
+    );
+
+    expect(_banner(), findsNothing);
+    expect(
+      tester.widget<AppButton>(find.widgetWithText(AppButton, 'Continue')).busy,
+      isFalse,
+    );
+  });
+
   testWidgets('a link whose server does not answer says so under the host', (
     tester,
   ) async {

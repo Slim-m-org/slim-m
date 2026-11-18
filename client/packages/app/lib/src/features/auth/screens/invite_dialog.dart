@@ -170,6 +170,9 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
           ? _InviteField.server
           : _InviteField.form;
       _fail(field, inviteCheckFailure(e));
+    } catch (e, stack) {
+      api.reportFailure(api.LogTag.auth, 'verify the server', e, stack);
+      if (mounted) _fail(_InviteField.form, inviteNotFromASpace);
     } finally {
       client.close();
       if (mounted) setState(() => _busy = false);

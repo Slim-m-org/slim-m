@@ -26,9 +26,17 @@ import 'server_identity_changed_step.dart';
 /// itself and must survive across every account ever signed into it.
 String identityHandleFor(Uri address) => 'server_identity:${address.origin}';
 
-/// Whether a slim-m server at an address has had its identity pinned in [keyStore].
+/// Whether a slim-m server at an address has had its identity pinned in
+/// [keyStore]; a store that cannot be read knows of none.
 Future<bool> Function(Uri server) pinnedIdentityCheck(KeyStore keyStore) =>
-    (server) async => await keyStore.read(identityHandleFor(server)) != null;
+    (server) async {
+      try {
+        return await keyStore.read(identityHandleFor(server)) != null;
+      } catch (error, stack) {
+        api.reportFailure(api.LogTag.auth, 'read a pinned key', error, stack);
+        return false;
+      }
+    };
 
 /// Identity handles of the addresses first met during this run, so the
 /// sign-in that follows does not treat a key saved a moment ago as known.

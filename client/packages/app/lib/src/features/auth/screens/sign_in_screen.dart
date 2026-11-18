@@ -32,7 +32,6 @@ import '../widgets/sign_in_credential_fields.dart';
 import '../widgets/server_warnings_modal.dart';
 import '../widgets/sign_in_error.dart';
 import '../../../invite_link.dart';
-import 'invite_code_check.dart';
 import 'sign_in_destination.dart';
 import 'sign_in_invite_notice.dart';
 import 'sign_in_join_steps.dart';
@@ -190,13 +189,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   Future<void> _checkServer() async {
     _probeDebounce?.cancel();
     if (_submittableAddress() == null) return;
-    setState(() {
-      _busy = true;
-      _error = null;
-      _failureAsked = true;
-    });
-    await _probeServer();
-    if (mounted) setState(() => _busy = false);
+    _failureAsked = true;
+    await _whileBusy(_probeServer);
   }
 
   /// Checks the code on the server in the field before any account field opens.
@@ -204,21 +198,26 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final address = _submittableAddress();
     if (address == null) return;
     final target = reduceServerAddress(address);
-    final code = _invite.controller.text.trim();
+    await _whileBusy(() async {
+      final client = ref.read(probeApiProvider)(target);
+      final problem = await _invite.check(client, target);
+      if (mounted && problem != null) {
+        setState(() => _error = (SignInErrorField.invite, problem));
+      }
+    });
+  }
+
+  /// Runs [work] with the button busy, and always gives the button back.
+  Future<void> _whileBusy(Future<void> Function() work) async {
     setState(() {
       _busy = true;
       _error = null;
     });
-    final problem = await inviteCodeProblem(
-      ref.read(probeApiProvider)(target),
-      code,
-    );
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      if (problem != null) _error = (SignInErrorField.invite, problem);
-      if (problem == null) _invite.accept(target, code);
-    });
+    try {
+      await work();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   /// A whole invite link fills both fields, as it does in the invite dialog;

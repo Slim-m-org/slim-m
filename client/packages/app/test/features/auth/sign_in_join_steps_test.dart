@@ -13,10 +13,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/auth/providers/browser_reach.dart';
 import 'package:slimm_app/src/features/auth/screens/invite_code_check.dart';
 import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_platform/platform.dart' show KeyHandle;
 import 'package:slimm_platform/testing.dart';
 
 import '../../support/async_wait.dart';
@@ -49,6 +51,15 @@ const _usable = {
   },
 };
 
+/// A key store that can be locked partway through, the way a device keychain can.
+class _LockableKeyStore extends InMemoryKeyStore {
+  bool locked = false;
+
+  @override
+  Future<String?> read(KeyHandle handle) =>
+      locked ? Future.error(StateError('keychain locked')) : super.read(handle);
+}
+
 /// What the fake server was sent, for the assertions to read.
 class _Server {
   final registered = <Map<String, Object?>>[];
@@ -62,6 +73,8 @@ Future<_Server> _pump(
   bool reachable = true,
   String? pendingInvite,
   Future<void>? versionAnswer,
+  InMemoryKeyStore? keyStore,
+  bool browserReaches = false,
 }) async {
   final server = _Server();
   final client = MockClient((request) async {
@@ -73,6 +86,7 @@ Future<_Server> _pump(
       return _json(_version(invitesOnly: invitesOnly));
     }
     if (path == '/invites/GOOD/check') return _json(_usable);
+    if (path == '/invites/SHAPED/check') return _json(const ['shaped']);
     if (path.endsWith('/check')) return _json(const {'usable': false});
     if (path == '/auth/register') {
       server.registered.add(jsonDecode(request.body) as Map<String, Object?>);
@@ -82,7 +96,9 @@ Future<_Server> _pump(
   });
   final container = ProviderContainer(
     overrides: [
-      keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+      keyStoreProvider.overrideWithValue(keyStore ?? InMemoryKeyStore()),
+      if (browserReaches)
+        browserReachProbeProvider.overrideWithValue((_) async => true),
       serverUrlProvider.overrideWith(
         (ref) => Uri.parse('https://chat.example'),
       ),
@@ -287,6 +303,50 @@ void main() {
       tester.widget<AppInput>(_input('Server')).errorText,
       contains('Could not reach this Space'),
     );
+  });
+
+  testWidgets('a reply that is not an invite check says so under the code '
+      'and gives Continue back', (tester) async {
+    await _pump(tester);
+    await _continueWith(tester, 'SHAPED');
+
+    expect(
+      tester.widget<AppInput>(_input('Invite code')).errorText,
+      inviteNotFromASpace,
+    );
+    expect(tester.widget<AppButton>(_button('Continue')).busy, isFalse);
+    expect(_input('Username'), findsNothing);
+  });
+
+  testWidgets('a key store that fails while Continue checks the address '
+      'does not leave Continue busy', (tester) async {
+    final keyStore = _LockableKeyStore();
+    await _pump(tester, invitesOnly: false, keyStore: keyStore);
+    await tester.enterText(_input('Server'), 'https://other.example');
+    await tester.pump();
+    keyStore.locked = true;
+    await tester.tap(_button('Continue'));
+    await pumpFrames(tester);
+
+    expect(_input('Username'), findsOneWidget);
+    expect(tester.widget<AppButton>(_button('Create account')).busy, isFalse);
+  });
+
+  testWidgets('a key store that fails while a browser explains an unreachable '
+      'address still says why under Server', (tester) async {
+    final keyStore = _LockableKeyStore()..locked = true;
+    await _pump(
+      tester,
+      reachable: false,
+      keyStore: keyStore,
+      browserReaches: true,
+    );
+
+    expect(
+      tester.widget<AppInput>(_input('Server')).errorText,
+      contains('Could not reach this Space'),
+    );
+    expect(tester.widget<AppButton>(_button('Continue')).busy, isFalse);
   });
 
   testWidgets('signing in to an existing account does not wait on the server', (
