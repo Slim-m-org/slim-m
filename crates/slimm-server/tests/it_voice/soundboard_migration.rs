@@ -3,12 +3,10 @@
 //! USE_SOUNDBOARD without losing what it had, and other roles are left alone.
 
 use std::path::Path;
-use std::time::Duration;
 
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
 use sqlx::migrate::Migrator;
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 
 use crate::support;
 const VERSION: i64 = 186;
@@ -21,18 +19,7 @@ async fn migrator() -> Migrator {
 
 #[tokio::test]
 async fn an_existing_everyone_role_gains_use_soundboard_and_other_roles_do_not() {
-    let (path, _guard) = support::TestDbGuard::empty("slimm-soundboard-migration");
-    let options = SqliteConnectOptions::new()
-        .filename(&path)
-        .create_if_missing(true)
-        .journal_mode(SqliteJournalMode::Wal)
-        .busy_timeout(Duration::from_secs(5))
-        .foreign_keys(true);
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect_with(options)
-        .await
-        .expect("open pool");
+    let (pool, _guard) = support::migration_db::empty_pool("slimm-soundboard-migration").await;
     let mut before = migrator().await;
     before.migrations = before
         .iter()

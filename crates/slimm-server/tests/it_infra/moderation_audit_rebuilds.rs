@@ -5,10 +5,8 @@
 //! and 0118, the rebuild that ends them (issue 1832).
 
 use std::path::Path;
-use std::time::Duration;
 
 use sqlx::migrate::Migrator;
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Row, SqlitePool};
 
 use crate::support;
@@ -41,18 +39,8 @@ async fn migrator_through(last: i64) -> Migrator {
 }
 
 async fn pool_before(version: i64) -> (SqlitePool, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::empty(&format!("slimm-audit-rebuild-{version}"));
-    let options = SqliteConnectOptions::new()
-        .filename(&path)
-        .create_if_missing(true)
-        .journal_mode(SqliteJournalMode::Wal)
-        .busy_timeout(Duration::from_secs(5))
-        .foreign_keys(true);
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect_with(options)
-        .await
-        .expect("open pool");
+    let (pool, guard) =
+        support::migration_db::empty_pool(&format!("slimm-audit-rebuild-{version}")).await;
     migrator_through(version - 1)
         .await
         .run(&pool)

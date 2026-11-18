@@ -11,10 +11,8 @@
 //! mirroring `messages_rowid_alias.rs`'s treatment of 0024.
 
 use std::path::Path;
-use std::time::Duration;
 
 use sqlx::migrate::Migrator;
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Row, SqlitePool};
 
 use crate::support;
@@ -28,18 +26,7 @@ async fn migrator() -> Migrator {
 }
 
 async fn pool_at_0024() -> (SqlitePool, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::empty("slimm-dm-channels-rebuild");
-    let options = SqliteConnectOptions::new()
-        .filename(&path)
-        .create_if_missing(true)
-        .journal_mode(SqliteJournalMode::Wal)
-        .busy_timeout(Duration::from_secs(5))
-        .foreign_keys(true);
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect_with(options)
-        .await
-        .expect("open pool");
+    let (pool, guard) = support::migration_db::empty_pool("slimm-dm-channels-rebuild").await;
 
     let mut before = migrator().await;
     assert!(

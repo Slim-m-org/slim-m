@@ -3,11 +3,9 @@
 //! skipped the store would, and its rewrite of the temporary rooms that drifted from their lobby.
 
 use std::path::Path;
-use std::time::Duration;
 
 use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 
 use crate::support;
 
@@ -127,18 +125,7 @@ async fn a_category_with_live_sub_categories_cannot_be_deleted() {
 
 /// A database migrated up to just before 0193, and the full migrator to finish it.
 async fn pool_before_0193() -> (SqlitePool, Migrator, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::empty("slimm-nested-migration-rooms");
-    let options = SqliteConnectOptions::new()
-        .filename(&path)
-        .create_if_missing(true)
-        .journal_mode(SqliteJournalMode::Wal)
-        .busy_timeout(Duration::from_secs(5))
-        .foreign_keys(true);
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect_with(options)
-        .await
-        .unwrap();
+    let (pool, guard) = support::migration_db::empty_pool("slimm-nested-migration-rooms").await;
     let full = Migrator::new(Path::new("./migrations")).await.unwrap();
     let mut before = Migrator::new(Path::new("./migrations")).await.unwrap();
     before.migrations = full.iter().filter(|m| m.version < 193).cloned().collect();
