@@ -7,8 +7,11 @@ import 'package:slimm_platform/platform.dart' show KeyStore;
 
 import '../../../server_address_input.dart';
 import '../../../server_address_reduction.dart';
+import '../../../server_scheme_policy.dart';
+import '../providers/browser_reach.dart';
 import '../widgets/server_identity_chip.dart';
 import '../widgets/server_identity_confirmation.dart';
+import '../widgets/sign_in_error.dart';
 
 /// Reduces a typed address to the scheme, host, and port worth probing.
 /// Anything else it carries (path, query, userinfo) must not ride along
@@ -17,6 +20,15 @@ import '../widgets/server_identity_confirmation.dart';
 Uri? probeTarget(String text) {
   final parsed = parseServerAddress(text);
   return parsed == null ? null : reduceServerAddress(parsed);
+}
+
+/// [text] as an address sign-in may send to, or why it may not be: one
+/// wording for every door onto the field (sign-in, recovery, the join steps).
+(Uri?, String?) submittableAddress(String text) {
+  final address = parseServerAddress(text);
+  if (address == null) return (null, serverAddressError(text));
+  if (requireSecureScheme(address) case final problem?) return (null, problem);
+  return (address, null);
 }
 
 /// How [identity] compares against whatever is pinned for [target], for
@@ -42,4 +54,38 @@ Future<ServerIdentityStatus> identityStatusFor(
 String serverHostLabel(String text) {
   final host = parseServerAddress(text)?.host ?? '';
   return host.isEmpty ? text.trim() : host;
+}
+
+/// What `/version` at a server said, or why it could not say: [failure] is
+/// worded for the server field, and both are null for no address at all.
+typedef ServerProbe = ({Version? version, String? failure});
+
+/// Asks [client]'s server what it is, and closes [client].
+///
+/// A host that answers with something that is not a slim-m `/version` is as
+/// unknown as one that refuses to connect, so the bare `catch` is deliberate:
+/// a foreign or hostile server must not crash sign-in with a shaped reply.
+Future<ServerProbe> probeServerVersion(
+  SlimmApi client,
+  Uri target, {
+  required BrowserReachProbe reach,
+  required Future<bool> Function(Uri server) knownSpace,
+}) async {
+  try {
+    return (version: await client.version(), failure: null);
+  } on ApiException catch (error, stack) {
+    reportFailure(LogTag.auth, 'check the server address', error, stack);
+    final (_, failure) = await explainSignInFailure(
+      error,
+      server: target,
+      reach: reach,
+      knownSpace: knownSpace,
+    );
+    return (version: null, failure: failure);
+  } catch (error, stack) {
+    reportFailure(LogTag.auth, 'check the server address', error, stack);
+    return (version: null, failure: notASlimServerError.$2);
+  } finally {
+    client.close();
+  }
 }

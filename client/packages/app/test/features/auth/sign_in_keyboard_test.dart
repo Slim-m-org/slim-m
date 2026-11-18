@@ -35,18 +35,31 @@ const _systemBars = {
 
 const _steps = [0.25, 0.5, 0.75, 1.0];
 
-typedef _Server = ({String label, Uri address, List<String> fields});
+typedef _Server = ({
+  String label,
+  Uri address,
+  bool invitesOnly,
+  List<String> fields,
+});
 
 final _servers = <_Server>[
   (
     label: 'self-hosted',
     address: Uri.parse('https://chat.example.test'),
+    invitesOnly: false,
     fields: ['Username', 'Password'],
   ),
   (
     label: 'official',
     address: Uri.parse(officialServer),
+    invitesOnly: false,
     fields: ['Username', 'Password'],
+  ),
+  (
+    label: 'invite-only',
+    address: Uri.parse('https://chat.example.test'),
+    invitesOnly: true,
+    fields: ['Invite code'],
   ),
 ];
 
@@ -55,7 +68,7 @@ EdgeInsets get _bars => _systemBars[defaultTargetPlatform]!;
 Future<void> _pump(
   WidgetTester tester, {
   required Size size,
-  required Uri server,
+  required _Server server,
 }) async {
   tester.view
     ..physicalSize = size
@@ -71,7 +84,7 @@ Future<void> _pump(
         'version': '0.126.0',
         'protocol': 1,
         'claimed': true,
-        'invite_required': true,
+        'invite_required': server.invitesOnly,
         'push_enabled': false,
       }),
       200,
@@ -81,7 +94,7 @@ Future<void> _pump(
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-      serverUrlProvider.overrideWith((ref) => server),
+      serverUrlProvider.overrideWith((ref) => server.address),
       assumeNewAccountProvider.overrideWith((ref) => true),
       probeApiProvider.overrideWithValue(
         (baseUrl) => SlimmApi(baseUrl: baseUrl, httpClient: httpClient),
@@ -99,6 +112,8 @@ Future<void> _pump(
       ),
     ),
   );
+  // The probe answers on the first frame and the fields it opens grow in over the next.
+  await tester.pump();
   await tester.pump(const Duration(seconds: 1));
 }
 
@@ -150,7 +165,7 @@ void main() {
         'keyboard',
         variant: platforms,
         (tester) async {
-          await _pump(tester, size: size, server: server.address);
+          await _pump(tester, size: size, server: server);
 
           for (final field in server.fields) {
             await _focus(tester, _input(field), size);

@@ -13,10 +13,11 @@ import '../../../api_failure.dart';
 
 /// Which field a failure lands on, per error grammar 03: an error belongs to
 /// the thing that failed, with that thing's content preserved.
-/// [SignInErrorField.form] is the fallback for failures no one field owns.
+/// [SignInErrorField.form] is the fallback for failures no one field owns,
+/// and [SignInErrorField.invite] is the code an invite-only Space asks for.
 /// [SignInErrorField.credentials] marks both username and password, with the
 /// message under the password, because a wrong pair does not say which half.
-enum SignInErrorField { server, username, password, credentials, form }
+enum SignInErrorField { server, invite, username, password, credentials, form }
 
 /// What to say when something other than the server failed, such as the key store.
 const unexpectedSignInError = (
@@ -49,16 +50,19 @@ const unexpectedSignInError = (
     SignInErrorField.form,
     'The server is busy. Try again shortly.',
   ),
-  NotASlimServerException() => (
-    SignInErrorField.server,
-    'No slim-m server at that address.',
-  ),
+  NotASlimServerException() => notASlimServerError,
   TransportException() => _unreachable,
   _ => (
     SignInErrorField.form,
     'The server refused that. ${sentenceCase(e.message)}',
   ),
 };
+
+/// What a host says when it answers, but not as a slim-m server.
+const notASlimServerError = (
+  SignInErrorField.server,
+  'No slim-m server at that address.',
+);
 
 const _unreachable = (
   SignInErrorField.server,

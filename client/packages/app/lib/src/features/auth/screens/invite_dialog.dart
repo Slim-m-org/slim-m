@@ -11,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../api_failure.dart';
 import '../../../invite_link.dart';
 import '../../settings/providers/display_preferences.dart';
 import '../../../providers/providers.dart';
@@ -23,6 +22,7 @@ import '../../members/widgets/invite_landing_card.dart';
 import '../../members/widgets/invite_landing_view.dart';
 import '../../../widgets/image_decode.dart';
 import '../../../widgets/space_icon.dart';
+import 'invite_code_check.dart';
 
 const double _bannerDecodeWidth = 520;
 
@@ -107,11 +107,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
 
   Future<void> _verify() async {
     if (looksLikeWebAddress(_code.text)) {
-      setState(
-        () => _error =
-            'That looks like a web address. Paste an invite link that '
-            'was sent to you, or just the code.',
-      );
+      setState(() => _error = inviteLooksLikeWebAddress);
       return;
     }
     final address = parseServerAddress(_server.text);
@@ -136,12 +132,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
       final check = await client.checkInvite(_code.text.trim());
       if (!mounted) return;
       if (check is api.InviteUnusable) {
-        // Deliberately vague: the server answers every unusable code identically so codes cannot be mined, and naming a reason here would undo that.
-        setState(
-          () => _error =
-              'That code is not usable. It may have expired '
-              'or already been used.',
-        );
+        setState(() => _error = inviteUnusable);
         return;
       }
       if (check is api.InviteUsable && mounted) {
@@ -159,11 +150,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.auth, 'verify the server', e, stack);
       if (!mounted) return;
-      setState(
-        () => _error = e is api.TransportException
-            ? 'Could not reach that server.'
-            : 'The server refused that. ${sentenceCase(e.message)}',
-      );
+      setState(() => _error = inviteCheckFailure(e));
     } finally {
       client.close();
       if (mounted) setState(() => _busy = false);

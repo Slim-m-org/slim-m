@@ -3,12 +3,13 @@
 ///
 /// Split from `sign_in_screen.dart` for its size ceiling. `/version` reports
 /// `invite_required` for a brand-new, unclaimed deployment as well as a closed
-/// one, so `claimed` picks the wording: claimed says a code is needed, a server
-/// too old to report it gets wording true of both, and an unclaimed one says
+/// one, so `claimed` decides: a claimed Space asks for the code itself before
+/// the account fields (`sign_in_join_steps.dart`), an unclaimed one says
 /// nothing here because "the first account becomes the administrator" is a
-/// warning in the acknowledge modal. The invite wording is withheld once a code is
-/// held this session: telling someone to go and redeem one right after they
-/// did is the contradiction this widget exists to avoid.
+/// warning in the acknowledge modal, and only a server too old to report
+/// `claimed` gets this hedge, true of both. It is withheld once a code is held
+/// this session: telling someone to go and redeem one right after they did is
+/// the contradiction this widget exists to avoid.
 library;
 
 import 'package:flutter/material.dart';
@@ -26,18 +27,16 @@ class InviteRequiredNotice extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (version.claimed == false) return const SizedBox.shrink();
+    if (version.claimed != null) return const SizedBox.shrink();
     if (version.inviteRequired != true ||
         ref.watch(pendingInviteProvider) != null) {
       return const SizedBox.shrink();
     }
-    return ServerNotice(
+    return const ServerNotice(
       icon: AppIcons.invite,
-      message: version.claimed == true
-          ? 'Joining needs an invite code. Ask a member for one, then enter '
-                'it under Use a different Space.'
-          : 'Joining may need an invite code. On a brand-new Space the first '
-                'account becomes its admin.',
+      message:
+          'Joining may need an invite code. On a brand-new Space the first '
+          'account becomes its admin.',
     );
   }
 }

@@ -19,9 +19,7 @@ import '../../../push/providers/push_controller.dart';
 import '../providers/browser_reach.dart';
 import '../providers/sign_in_identity.dart';
 import '../../../routing/routes.dart';
-import '../../../server_address_input.dart';
 import '../../../server_address_reduction.dart';
-import '../../../server_scheme_policy.dart';
 import '../../../widgets/labeled_field.dart';
 import '../widgets/onboarding_shell.dart';
 import '../widgets/server_identity_confirmation.dart';
@@ -31,11 +29,13 @@ import '../../../whats_new/providers/whats_new_controller.dart';
 import 'reset_password_sheet.dart';
 import 'sign_in_alternatives.dart';
 import '../widgets/sign_in_credential_fields.dart';
-import '../../settings/widgets/totp_sign_in_prompt.dart';
 import '../widgets/server_warnings_modal.dart';
 import '../widgets/sign_in_error.dart';
+import '../../../invite_link.dart';
+import 'invite_code_check.dart';
+import 'sign_in_destination.dart';
 import 'sign_in_invite_notice.dart';
-import 'sign_in_invite_redeem.dart';
+import 'sign_in_join_steps.dart';
 import 'sign_in_register.dart';
 import 'sign_in_server_probe.dart';
 import 'sign_in_reason_notices.dart';
@@ -52,10 +52,8 @@ import 'sign_in_reason_notices.dart';
 /// for the same reason an invite does: that button means there is no
 /// account here yet.
 ///
-/// Collapsed is not silent about the destination: the identity chip sits
-/// outside the branch that draws the address field, with a quieter line
-/// standing in until the probe answers, so every state of this screen says
-/// where it is about to connect.
+/// Creating an account opens in steps (`sign_in_join_steps.dart`), and every
+/// state names where it is about to connect (`sign_in_destination.dart`).
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
 
@@ -105,6 +103,21 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   Version? _probed;
   Timer? _probeDebounce;
 
+  /// Why the last probe failed; shown only while creating an account, the one
+  /// mode that waits on the server answering (see `sign_in_join_steps.dart`).
+  String? _probeFailure;
+
+  late final _invite = HeldInvite(
+    pending: ref.read(pendingInviteProvider),
+    server: probeTarget(_server.text),
+  );
+
+  JoinStage get _stage => joinStageFor(
+    creatingAccount: _creatingAccount,
+    probed: _probed,
+    inviteAccepted: _invite.acceptedFor(probeTarget(_server.text)),
+  );
+
   /// How [_probed]'s identity compares against whatever this app already
   /// pinned for the address in the field. Read alongside [_probed] so the
   /// chip never has to guess a status for an answer it has not seen yet.
@@ -131,26 +144,16 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   void dispose() {
     _probeDebounce?.cancel();
     _server.dispose();
+    _invite.dispose();
     _username.dispose();
     _password.dispose();
     super.dispose();
   }
 
-  /// One wording, shared by sign-in and recovery, so the two doors onto the
-  /// same field cannot drift apart.
-  void _badAddress() => setState(
-    () => _error = (SignInErrorField.server, serverAddressError(_server.text)),
-  );
-
   /// Asks the server in the field what it is, so the facts worth knowing
   /// before joining are on screen while the choice is still open: whether it
   /// can deliver push at all, whether joining needs an invite, and whether it
   /// offers reporting and blocking.
-  ///
-  /// Every failure resolves to "unknown". A host that answers 200 with
-  /// something that is not a slim-m `/version` body is as unknown as one that
-  /// refuses to connect, so the bare `catch` is deliberate: a foreign or
-  /// hostile server must not crash sign-in with a shaped reply.
   ///
   /// The result is applied only if the field still holds the address that was
   /// probed, on every path including failures, so a slow answer about a
@@ -160,40 +163,81 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     if (target == null) {
       setState(() {
         _probed = null;
+        _probeFailure = null;
         _identityStatus = null;
       });
       return;
     }
-    final client = ref.read(probeApiProvider)(target);
-    Version? answer;
-    try {
-      answer = await client.version();
-    } on ApiException catch (error, stack) {
-      reportFailure(LogTag.auth, 'check the server address', error, stack);
-      // Unreachable or refusing means unknown, and sign-in itself will say
-      // "could not reach that server" with more authority than a probe.
-      answer = null;
-    } catch (error, stack) {
-      reportFailure(LogTag.auth, 'check the server address', error, stack);
-      // A shaped reply from a foreign host is as unknown as a refusal.
-      answer = null;
-    } finally {
-      client.close();
-    }
-    if (!mounted) return;
-    final status = await identityStatusFor(
-      ref.read(keyStoreProvider),
+    final keyStore = ref.read(keyStoreProvider);
+    final probe = await probeServerVersion(
+      ref.read(probeApiProvider)(target),
       target,
-      answer?.identity,
+      // Only the create form says why a probe failed, so only it asks the browser.
+      reach: _creatingAccount
+          ? ref.read(browserReachProbeProvider)
+          : (_) async => null,
+      knownSpace: pinnedIdentityCheck(keyStore),
     );
     if (!mounted) return;
-    if (probeTarget(_server.text) == target) {
-      setState(() {
-        _probed = answer;
-        _identityStatus = status;
-        if (answer?.claimed == false && !_modeChosen) _creatingAccount = true;
-      });
+    final answer = probe.version;
+    final status = await identityStatusFor(keyStore, target, answer?.identity);
+    if (!mounted || probeTarget(_server.text) != target) return;
+    setState(() {
+      _probed = answer;
+      _probeFailure = probe.failure;
+      _identityStatus = status;
+      if (answer?.claimed == false && !_modeChosen) _creatingAccount = true;
+    });
+  }
+
+  /// Continue before the address has answered checks it now, without the debounce.
+  Future<void> _checkServer() async {
+    if (_submittableAddress() == null) return;
+    _probeDebounce?.cancel();
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    await _probeServer();
+    if (mounted) setState(() => _busy = false);
+  }
+
+  /// Checks the code on the server in the field before any account field opens.
+  Future<void> _checkInvite() async {
+    final address = _submittableAddress();
+    if (address == null) return;
+    final target = reduceServerAddress(address);
+    final code = _invite.controller.text.trim();
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final problem = await inviteCodeProblem(
+      ref.read(probeApiProvider)(target),
+      code,
+    );
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (problem != null) _error = (SignInErrorField.invite, problem);
+      if (problem == null) _invite.accept(target, code);
+    });
+  }
+
+  /// A whole invite link fills both fields, as it does in the invite dialog;
+  /// the server it names is probed like a typed one.
+  void _onInviteEdited(String text) {
+    if (parseInviteLink(text) case (:final server, :final code)) {
+      _invite.controller.text = code;
+      if (probeTarget(server.toString()) != probeTarget(_server.text)) {
+        _server.text = server.toString();
+        _onServerEdited(_server.text);
+        unawaited(_checkServer());
+      }
     }
+    setState(() {
+      if (_error?.$1 == SignInErrorField.invite) _error = null;
+    });
   }
 
   void _onServerEdited(String _) {
@@ -201,6 +245,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     // and the line naming the destination is read off the field itself.
     setState(() {
       _probed = null;
+      _probeFailure = null;
       _identityStatus = null;
     });
     _probeDebounce?.cancel();
@@ -216,7 +261,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       probeTarget(_server.text),
     );
     if (done == null) {
-      _badAddress();
+      _submittableAddress();
       return;
     }
     if (!done || !mounted) return;
@@ -263,7 +308,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _error = null;
     });
 
-    final invite = ref.read(pendingInviteProvider);
+    final invite = _invite.codeFor(probeTarget(_server.text));
     // Read before the awaits: the session redirect can dispose this screen mid-flight.
     final pendingInvite = ref.read(pendingInviteProvider.notifier);
     final justRegistered = ref.read(justRegisteredProvider.notifier);
@@ -288,13 +333,33 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         appInfo: ref.read(appInfoProvider.future),
       );
 
-      final completed = _creatingAccount
-          ? await _register(api, identity, invite, justRegistered)
-          : await _signIn(api, identity, invite);
-      if (!completed) return;
+      final credentials = (
+        username: _username.text.trim(),
+        password: _password.text,
+      );
+      if (_creatingAccount) {
+        await registerAccount(
+          api,
+          identity,
+          justRegistered: justRegistered,
+          inviter: ref.read(firstRunInviterProvider.notifier),
+          credentials: credentials,
+          invite: invite,
+        );
+      } else if (!mounted ||
+          !await signInToAccount(
+            context,
+            ref,
+            api,
+            identity,
+            credentials: credentials,
+            invite: invite,
+          )) {
+        return;
+      }
       endFirstContact(firstContact, reduced);
       TextInput.finishAutofillContext();
-      if (invite != null) pendingInvite.state = null;
+      pendingInvite.state = null;
       unawaited(push.register());
     } on ApiException catch (e, stack) {
       reportFailure(LogTag.auth, 'sign in', e, stack);
@@ -319,14 +384,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   /// The typed address when it can be submitted; otherwise shows why not.
   Uri? _submittableAddress() {
-    final address = parseServerAddress(_server.text);
-    if (address == null) {
-      _badAddress();
-      return null;
-    }
-    if (requireSecureScheme(address) case final schemeError?) {
-      setState(() => _error = (SignInErrorField.server, schemeError));
-      return null;
+    final (address, problem) = submittableAddress(_server.text);
+    if (problem != null) {
+      setState(() => _error = (SignInErrorField.server, problem));
     }
     return address;
   }
@@ -336,53 +396,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final warnings = serverWarningsFor(_probed);
     if (warnings.isEmpty) return Future.value(true);
     return confirmServerWarnings(context, warnings);
-  }
-
-  Future<bool> _register(
-    SlimmApi api,
-    SignInIdentity identity,
-    String? invite,
-    StateController<bool> justRegistered,
-  ) async {
-    await registerAccount(
-      api,
-      identity,
-      justRegistered: justRegistered,
-      inviter: ref.read(firstRunInviterProvider.notifier),
-      credentials: (username: _username.text.trim(), password: _password.text),
-      invite: invite,
-    );
-    return true;
-  }
-
-  /// False when the user abandoned the second-factor sheet or left the screen.
-  Future<bool> _signIn(
-    SlimmApi api,
-    SignInIdentity identity,
-    String? invite,
-  ) async {
-    final outcome = await api.login(
-      username: _username.text.trim(),
-      password: _password.text,
-      deviceName: identity.deviceName,
-      clientKind: identity.clientKind,
-      clientVersion: identity.clientVersion,
-      installId: identity.installId,
-    );
-    // No session yet, so nothing below may run until one exists; abandoning the sheet leaves the screen as it was.
-    if (outcome case SignInChallenged(:final challenge)) {
-      if (!mounted) return false;
-      final signedIn = await promptForTotpCode(
-        context,
-        ref,
-        challenge,
-        installId: identity.installId,
-      );
-      if (!signedIn) return false;
-    }
-    // An existing account can still spend a code, for the role it grants.
-    if (invite != null) await redeemInviteQuietly(api, invite);
-    return true;
   }
 
   /// Whether this run met the server for the first time just before this
@@ -396,6 +409,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final firstContact = _firstContact;
     final identityStatus = _identityStatus ?? ServerIdentityStatus.unknown;
+    final stage = _stage;
+    final serverError =
+        _errorFor(SignInErrorField.server) ??
+        (_creatingAccount ? _probeFailure : null);
 
     return OnboardingShell(
       // Creating an account is the last of the join steps; signing back in to
@@ -406,38 +423,21 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            _creatingAccount
+          SignInDestination(
+            title: _creatingAccount
                 ? 'Create an account'
                 : firstContact
                 ? 'Sign in'
                 : 'Welcome back',
-            style: AppText.title.copyWith(
-              color: tokens.textPrimary,
-              fontWeight: AppWeights.semi,
-            ),
+            host: serverHostLabel(_server.text),
+            version: _probed,
+            // A key saved moments ago by this connect matches nothing from before.
+            status:
+                firstContact && identityStatus == ServerIdentityStatus.confirmed
+                ? ServerIdentityStatus.unknown
+                : identityStatus,
+            error: _addressExpanded ? null : serverError,
           ),
-          const SizedBox(height: AppSpacing.s8),
-          // Where this is about to connect, on both branches; see the class doc.
-          if (_probed case final version?)
-            ServerIdentityChip(
-              spaceName: version.displayName,
-              host: serverHostLabel(_server.text),
-              // A key saved moments ago by this connect matches nothing from before.
-              status:
-                  firstContact &&
-                      identityStatus == ServerIdentityStatus.confirmed
-                  ? ServerIdentityStatus.unknown
-                  : identityStatus,
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.s16),
-              child: Text(
-                'Connecting to ${serverHostLabel(_server.text)}',
-                style: AppText.code.copyWith(color: tokens.textSecondary),
-              ),
-            ),
           const SignInReasonNotices(),
           if (_addressExpanded) ...[
             LabeledField(
@@ -446,7 +446,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 controller: _server,
                 placeholder: 'your-server-address.com',
                 mono: true,
-                errorText: _errorFor(SignInErrorField.server),
+                errorText: serverError,
                 keyboardType: TextInputType.url,
                 autocorrect: false,
                 semanticLabel: 'Server',
@@ -465,16 +465,39 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   'You can still use it, but phones will only see '
                   'new messages while the app is open.',
             ),
-          const SizedBox(height: AppSpacing.s16),
-          SignInCredentialFields(
-            username: _username,
-            password: _password,
-            creatingAccount: _creatingAccount,
-            usernameInvalid: _error?.$1 == SignInErrorField.credentials,
-            busy: _busy,
-            errorFor: _errorFor,
-            onSubmit: _submit,
-            onRecoverAccount: () => unawaited(_recoverAccount()),
+          // Each band brings its own gap, so a step not yet open leaves none behind.
+          AppRevealBand(
+            child: _creatingAccount && invitesOnly(_probed)
+                ? Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.s16),
+                    child: InviteCodeField(
+                      controller: _invite.controller,
+                      accepted: stage == JoinStage.account,
+                      busy: _busy,
+                      error: _errorFor(SignInErrorField.invite),
+                      onChanged: _onInviteEdited,
+                      onSubmit: _checkInvite,
+                    ),
+                  )
+                : null,
+          ),
+          AppRevealBand(
+            child: stage == JoinStage.account
+                ? Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.s16),
+                    child: SignInCredentialFields(
+                      username: _username,
+                      password: _password,
+                      creatingAccount: _creatingAccount,
+                      usernameInvalid:
+                          _error?.$1 == SignInErrorField.credentials,
+                      busy: _busy,
+                      errorFor: _errorFor,
+                      onSubmit: _submit,
+                      onRecoverAccount: () => unawaited(_recoverAccount()),
+                    ),
+                  )
+                : null,
           ),
           if (_errorFor(SignInErrorField.form) case final formError?) ...[
             const SizedBox(height: AppSpacing.s16),
@@ -488,23 +511,37 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           ],
           const SizedBox(height: AppSpacing.s24),
           AppButton(
-            label: _creatingAccount ? 'Create account' : 'Sign in',
+            label: switch (stage) {
+              JoinStage.account when _creatingAccount => 'Create account',
+              JoinStage.account => 'Sign in',
+              _ => 'Continue',
+            },
             variant: AppButtonVariant.primary,
             size: AppButtonSize.lg,
             full: true,
             busy: _busy,
-            onPressed: _submit,
+            onPressed: switch (stage) {
+              JoinStage.server => _checkServer,
+              JoinStage.invite => _checkInvite,
+              JoinStage.account => _submit,
+            },
           ),
           const SizedBox(height: AppSpacing.s12),
           // Alternatives to the action above, not a list under it.
           SignInAlternatives(
             creatingAccount: _creatingAccount,
             busy: _busy,
-            onToggleCreating: () => setState(() {
-              _creatingAccount = !_creatingAccount;
-              _modeChosen = true;
-              _error = null;
-            }),
+            onToggleCreating: () {
+              setState(() {
+                _creatingAccount = !_creatingAccount;
+                _modeChosen = true;
+                _error = null;
+              });
+              // Creating waits on the server, so a failed answer is worth asking again.
+              if (_creatingAccount && _probeFailure != null) {
+                unawaited(_checkServer());
+              }
+            },
             onUseDifferentSpace: () => context.go(Routes.onboarding),
           ),
         ],

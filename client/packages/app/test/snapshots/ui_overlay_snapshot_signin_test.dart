@@ -282,9 +282,8 @@ void main() {
       await _finish(tester, 'safety-warning-missing-block-desktop');
     });
 
-    testWidgets('invite required, shown only while creating an account', (
-      tester,
-    ) async {
+    testWidgets('invite required: the code is asked for before any account '
+        'field', (tester) async {
       await _pumpSignIn(
         tester,
         versionBody: const {
@@ -292,12 +291,14 @@ void main() {
           'version': '0.17.0',
           'protocol': 1,
           'invite_required': true,
+          'claimed': true,
           'capabilities': ['report', 'block'],
         },
       );
       await tester.tap(find.text('Create an account instead'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('invite code'), findsOneWidget);
+      expect(find.text('Invite code'), findsOneWidget);
+      expect(find.text('Username'), findsNothing);
       await _finish(tester, 'invite-required-notice-desktop');
     });
 
