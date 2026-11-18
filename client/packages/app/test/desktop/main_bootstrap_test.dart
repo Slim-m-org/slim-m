@@ -266,6 +266,7 @@ void main() {
             accessExpiresAt: 1 << 50,
           ),
         );
+    container.read(startupStatusProvider.notifier).state = 'Connecting';
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
@@ -281,7 +282,8 @@ void main() {
 
     await tester.tap(find.text('Open anyway'));
     await _pastFade(tester);
-    expect(find.byType(StartupScreen), findsNothing);
+    expect(find.text('Still connecting'), findsNothing);
+    expect(find.text('Connecting'), findsNothing);
     await tester.pumpWidget(const SizedBox());
     container.dispose();
   });
