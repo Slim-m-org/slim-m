@@ -61,6 +61,11 @@ class _SceneKeyboardGridState extends State<SceneKeyboardGrid> {
   int _col = 0;
   bool _hasFocus = false;
 
+  /// The focus-visible rule: the ring is for keyboard users, so a click that
+  /// focuses the grid hides it until the next key it answers.
+  bool _keyboardInUse = false;
+  bool _pointerFocusing = false;
+
   /// The one grid a keyboard can address: the first tappable [CellsOp], the
   /// same op [sceneTapAction] would answer a tap on a cell with.
   CellsOp? get _grid {
@@ -100,8 +105,18 @@ class _SceneKeyboardGridState extends State<SceneKeyboardGrid> {
     final hit = HitTestResult();
     WidgetsBinding.instance.hitTestInView(hit, event.position, event.viewId);
     final onField = hit.path.any((entry) => entry.target is RenderEditable);
-    if (!onField) _focusNode.requestFocus();
+    if (onField) return;
+    // The focus change lands a microtask later; only a click that moves focus leaves this for it to read.
+    _pointerFocusing = !_focusNode.hasFocus;
+    if (_keyboardInUse) setState(() => _keyboardInUse = false);
+    _focusNode.requestFocus();
   }
+
+  void _focusChanged(bool has) => setState(() {
+    _hasFocus = has;
+    if (has) _keyboardInUse = !_pointerFocusing;
+    _pointerFocusing = false;
+  });
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     // A key from a field inside the scene bubbles here; only the grid's own focus is ours.
@@ -124,6 +139,7 @@ class _SceneKeyboardGridState extends State<SceneKeyboardGrid> {
       default:
         return KeyEventResult.ignored;
     }
+    if (!_keyboardInUse) setState(() => _keyboardInUse = true);
     return KeyEventResult.handled;
   }
 
@@ -133,7 +149,7 @@ class _SceneKeyboardGridState extends State<SceneKeyboardGrid> {
     final grid = _grid;
     return Focus(
       focusNode: _focusNode,
-      onFocusChange: (has) => setState(() => _hasFocus = has),
+      onFocusChange: _focusChanged,
       onKeyEvent: _onKeyEvent,
       child: Listener(
         // Lets a click hand off to the keyboard: tap a cell, then use arrows.
@@ -145,7 +161,8 @@ class _SceneKeyboardGridState extends State<SceneKeyboardGrid> {
           child: Stack(
             children: [
               widget.child,
-              if (grid != null && _hasFocus) _highlight(grid, tokens),
+              if (grid != null && _hasFocus && _keyboardInUse)
+                _highlight(grid, tokens),
             ],
           ),
         ),

@@ -5,6 +5,7 @@ The policy behind the levels is decision [0100](../decisions/0100-module-safety-
 
 ## Level 5 additions (no level bump, nothing to declare)
 
+- A scene's `controls` may hold a dropdown, `{"label", "value", "options"}`, alongside button names; picking an option sends it as the action. This is read by the client (0.132 and later), so the server and the add-on level are unchanged, and an older client skips the entry.
 - `call.audio.started` gains `names`, an object of user id to display name (the username when there is none) for everyone in `included`.
 - `call.audio.participant` gains `name`, the same for `user_id`; it is absent when the member cannot be read.
 - Only people already in the consented set are named. A module must keep working without either field, as an older server sends neither.

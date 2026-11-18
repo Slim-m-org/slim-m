@@ -84,15 +84,22 @@ class SettingsSelectRow<T> extends StatelessWidget {
   /// without its [AppListRow] presentation: [JoinPolicyRow] renders as a
   /// [ListTile] to match its neighbours. On desktop the choices drop down
   /// anchored to [context]'s box, and a phone gets a sheet, where there is no
-  /// pointer to dismiss a dropdown by clicking away.
+  /// pointer to dismiss a dropdown by clicking away. [fromStart] drops it from
+  /// the box's start edge, for a button rather than a row's trailing value.
   static Future<T?> pick<T>(
     BuildContext context, {
     required String title,
     required T? value,
     required List<SettingsChoice<T>> choices,
+    bool fromStart = false,
   }) {
     if (MediaQuery.sizeOf(context).width >= kCompactWidth) {
-      return _pickDropdown<T>(context, value: value, choices: choices);
+      return _pickDropdown<T>(
+        context,
+        value: value,
+        choices: choices,
+        fromStart: fromStart,
+      );
     }
     if (choicesNeedSearch(choices.length)) {
       return showSearchableChoiceSheet<T>(
@@ -127,17 +134,20 @@ class SettingsSelectRow<T> extends StatelessWidget {
     BuildContext context, {
     required T? value,
     required List<SettingsChoice<T>> choices,
+    required bool fromStart,
   }) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final anchor = context.findRenderObject()! as RenderBox;
     final overlay =
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
-    final bottomRight = anchor.localToGlobal(
-      anchor.size.bottomRight(Offset.zero),
+    final corner = anchor.localToGlobal(
+      fromStart
+          ? anchor.size.bottomLeft(Offset.zero)
+          : anchor.size.bottomRight(Offset.zero),
       ancestor: overlay,
     );
     // A zero-width rect makes the menu right-align to the value side, below the row.
-    final point = Rect.fromLTWH(bottomRight.dx, bottomRight.dy + 4, 0, 0);
+    final point = Rect.fromLTWH(corner.dx, corner.dy + 4, 0, 0);
     final position = RelativeRect.fromRect(point, Offset.zero & overlay.size);
     if (choicesNeedSearch(choices.length)) {
       return showSearchableChoiceMenu<T>(
