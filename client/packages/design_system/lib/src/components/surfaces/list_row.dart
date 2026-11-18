@@ -403,6 +403,9 @@ class _AppListRowState extends State<AppListRow> with PressTracking {
     Widget content,
   ) {
     final hoverFill = !widget.selected && (pressed || _hovered);
+    final hoverColor = AppRaisedSurfaceScope.of(context)
+        ? AppRaisedSurfaceScope.wash(tokens, pressed: pressed)
+        : tokens.surfaceRaised;
     return SizedBox(
       height: rowHeight,
       child: AnimatedContainer(
@@ -428,7 +431,7 @@ class _AppListRowState extends State<AppListRow> with PressTracking {
               duration: AppMotion.reduced(context, AppMotion.fast),
               curve: AppMotion.entrance,
               decoration: BoxDecoration(
-                color: hoverFill ? tokens.surfaceRaised : Colors.transparent,
+                color: hoverFill ? hoverColor : Colors.transparent,
                 borderRadius: radius,
               ),
             ),
