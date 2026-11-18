@@ -4,7 +4,7 @@
 /// own async-bootstrap sequencing, checked without ever calling `main()`.
 library;
 
-import 'package:flutter/widgets.dart' show Router, SizedBox;
+import 'package:flutter/material.dart' show Brightness, Router, SizedBox, Theme;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,6 +14,7 @@ import 'package:slimm_app/src/desktop/startup_screen.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
+import 'package:slimm_app/src/widgets/mobile_boot_gate.dart';
 import 'package:slimm_design_system/design_system.dart' show AppMotion;
 import 'package:slimm_platform/testing.dart';
 
@@ -249,6 +250,66 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     container.dispose();
   });
+
+  testWidgets('a phone whose first catch-up neither lands nor fails is asked '
+      'about it instead of holding the splash for good', (tester) async {
+    final container = ProviderContainer(
+      overrides: [keyStoreProvider.overrideWithValue(InMemoryKeyStore())],
+    );
+    container
+        .read(sessionProvider)
+        .adopt(
+          const TokenPair(
+            userId: 'u',
+            accessToken: 'a',
+            refreshToken: 'r',
+            accessExpiresAt: 1 << 50,
+          ),
+        );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SlimMApp(isDesktopOverride: false),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Still connecting'), findsNothing);
+
+    await tester.pump(bootSplashPatience);
+    await tester.pump();
+    expect(find.text('Still connecting'), findsOneWidget);
+
+    await tester.tap(find.text('Open anyway'));
+    await _pastFade(tester);
+    expect(find.byType(StartupScreen), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
+
+  for (final (desktop, expected) in [
+    (false, Brightness.light),
+    (true, Brightness.dark),
+  ]) {
+    testWidgets('the splash on a ${desktop ? 'desktop' : 'phone or browser'} '
+        'paints $expected under a light system theme', (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final container = _container();
+      container.read(appReadyProvider.notifier).state = false;
+      container.read(startupStatusProvider.notifier).state = 'Connecting';
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: SlimMApp(isDesktopOverride: desktop),
+        ),
+      );
+      await tester.pump();
+
+      final status = tester.element(find.text('Connecting'));
+      expect(Theme.of(status).brightness, expected);
+    });
+  }
 }
 
 Future<void> _pastFade(WidgetTester tester) async {

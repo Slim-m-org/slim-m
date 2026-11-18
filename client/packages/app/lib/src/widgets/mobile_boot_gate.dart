@@ -19,6 +19,13 @@
 /// it (the bug this file used to have).
 library;
 
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../desktop/startup_screen.dart';
+
 /// Whether the boot splash should cover the home right now. Pure so its truth
 /// table is tested directly, without a real mobile host or a live socket.
 ///
@@ -36,4 +43,64 @@ bool shouldShowBootSplash({
 }) {
   if (!isMobile || synced) return false;
   return !hasFailedSinceLive;
+}
+
+/// How long the boot splash waits on that first catch-up before asking.
+const bootSplashPatience = Duration(seconds: 20);
+
+/// What the splash asks once [bootSplashPatience] has passed. A browser can
+/// reload; a second tab holding the local database is the usual cause there.
+StartupPrompt stalledBootPrompt({
+  required bool isWeb,
+  required VoidCallback onRetry,
+  required VoidCallback onOpenAnyway,
+}) => StartupPrompt(
+  title: 'Still connecting',
+  detail: isWeb
+      ? 'Close slim-m in other tabs, then reload.'
+      : 'This is taking longer than usual.',
+  primaryLabel: isWeb ? 'Reload' : 'Keep waiting',
+  onPrimary: onRetry,
+  secondaryLabel: 'Open anyway',
+  onSecondary: onOpenAnyway,
+);
+
+/// Asks [stalledBootPrompt] once the splash has held for [bootSplashPatience].
+class BootStallWatch {
+  BootStallWatch({
+    required this.prompt,
+    required this.stillCovered,
+    required this.openAnyway,
+    required this.reload,
+    this.isWeb = kIsWeb,
+  });
+
+  final StateController<StartupPrompt?> prompt;
+  final bool Function() stillCovered;
+  final VoidCallback openAnyway;
+  final VoidCallback reload;
+  final bool isWeb;
+  Timer? _timer;
+
+  void arm() {
+    _timer?.cancel();
+    _timer = Timer(bootSplashPatience, _ask);
+  }
+
+  void cancel() => _timer?.cancel();
+
+  void _ask() {
+    if (!stillCovered()) return;
+    prompt.state = stalledBootPrompt(
+      isWeb: isWeb,
+      onRetry: () {
+        prompt.state = null;
+        isWeb ? reload() : arm();
+      },
+      onOpenAnyway: () {
+        prompt.state = null;
+        openAnyway();
+      },
+    );
+  }
 }

@@ -21,9 +21,11 @@
 /// done, update phases included ("Checking for updates", "Installing ...");
 /// see `main.dart`'s `startupStatusProvider`.
 ///
-/// Always dark, regardless of the stored theme choice: that choice is
-/// itself part of the async sequence this screen exists to mask, so there
+/// Always dark on desktop, regardless of the stored theme choice: that choice
+/// is itself part of the async sequence this screen exists to mask, so there
 /// is nothing else to render it in yet. Discord's own splash does the same.
+/// A phone or browser shows it over a page that already follows the system,
+/// so there it follows the system, then the stored choice once it loads.
 library;
 
 import 'package:flutter/material.dart';
@@ -89,10 +91,14 @@ class StartupApp extends StatelessWidget {
     this.windowPort,
     this.leaving = false,
     this.rounded = false,
+    this.themeMode = ThemeMode.dark,
   });
 
   final String status;
   final StartupPrompt? prompt;
+
+  /// Dark on desktop (see the library doc); elsewhere the page beneath already follows the system.
+  final ThemeMode themeMode;
 
   /// Round the window's corners; only where the runner gives it a transparent surface.
   final bool rounded;
@@ -109,7 +115,10 @@ class StartupApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'slim-m',
     debugShowCheckedModeBanner: false,
-    theme: buildTheme(Brightness.dark, AppTokens.dark),
+    theme: buildTheme(Brightness.light, AppTokens.light),
+    darkTheme: buildTheme(Brightness.dark, AppTokens.dark),
+    themeMode: themeMode,
+    themeAnimationDuration: Duration.zero,
     builder: (context, _) => Overlay.wrap(
       child: StartupScreen(
         status: status,
@@ -239,7 +248,7 @@ class _StartupScreenState extends State<StartupScreen>
 
   @override
   Widget build(BuildContext context) {
-    const tokens = AppTokens.dark;
+    final tokens = Theme.of(context).extension<AppTokens>()!;
     final port = widget.windowPort;
     final prompt = widget.prompt;
     final word = _reduced

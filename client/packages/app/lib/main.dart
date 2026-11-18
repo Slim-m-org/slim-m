@@ -64,6 +64,7 @@ import 'src/providers/startup_restores.dart';
 import 'src/push/android_push_messages.dart';
 import 'src/routing/router.dart';
 import 'src/semantics_tap_once_per_frame.dart';
+import 'src/web_update/web_page.dart' show reloadPage;
 import 'src/web_update/web_update_pill.dart';
 import 'src/widgets/app_lock_gate.dart';
 import 'src/widgets/ui_scale_frame.dart';
@@ -347,17 +348,32 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
   bool get _onDesktop => widget.isDesktopOverride ?? isDesktopHost;
 
   void _spendCover() {
+    _stall.cancel();
     if (_coldLaunchCover) setState(() => _coldLaunchCover = false);
+  }
+
+  late final BootStallWatch _stall;
+
+  void _askIfStalled() {
+    if (!_onDesktop && _coldLaunchCover) _stall.arm();
   }
 
   @override
   void initState() {
     super.initState();
+    _stall = BootStallWatch(
+      prompt: ref.read(startupPromptProvider.notifier),
+      stillCovered: () => mounted && _coldLaunchCover,
+      openAnyway: _spendCover,
+      reload: reloadPage,
+    );
     if (ref.read(appReadyProvider) && !ref.read(sessionProvider).isSignedIn) {
       _coldLaunchCover = false;
     }
+    if (ref.read(appReadyProvider)) _askIfStalled();
     ref.listenManual(appReadyProvider, (_, ready) {
       if (ready && !ref.read(sessionProvider).isSignedIn) _spendCover();
+      if (ready) _askIfStalled();
     });
     ref.listenManual(initialSyncCompleteProvider, (_, synced) {
       if (synced) _spendCover();
@@ -374,6 +390,7 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
 
   @override
   void dispose() {
+    _stall.cancel();
     unawaited(_signOuts?.cancel());
     super.dispose();
   }
@@ -395,6 +412,9 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
       prompt: ref.watch(startupPromptProvider),
       leaving: ref.watch(startupLeavingProvider),
       rounded: currentDesktopPlatform() == DesktopPlatform.linux,
+      themeMode: _onDesktop
+          ? ThemeMode.dark
+          : resolveTheme(ref.watch(themeControllerProvider)).mode,
       windowPort: _splashIsFrameless
           ? ref.read(desktopWindowShellProvider).port
           : null,
