@@ -37,12 +37,15 @@ abstract class VoicePlayerBackend {
 /// `audioplayers`, built on first use because on Linux creating a player
 /// aborts the app where GStreamer is missing.
 class AudioPlayersVoiceBackend implements VoicePlayerBackend {
-  AudioPlayersVoiceBackend({this.afterPlay});
+  /// [player] stands in for the engine in tests.
+  AudioPlayersVoiceBackend({this.afterPlay, AudioPlayer Function()? player})
+    : _create = player ?? AudioPlayer.new;
 
   final Future<void> Function()? afterPlay;
+  final AudioPlayer Function() _create;
 
   AudioPlayer? _created;
-  AudioPlayer get _player => _created ??= AudioPlayer();
+  AudioPlayer get _player => _created ??= _create();
 
   @override
   Stream<Duration> get positions => _player.onPositionChanged;
@@ -53,8 +56,9 @@ class AudioPlayersVoiceBackend implements VoicePlayerBackend {
   @override
   Future<void> play(Uint8List bytes, String mimeType, double speed) async {
     await _player.stop();
-    await _player.setPlaybackRate(speed);
     await _player.play(BytesSource(bytes, mimeType: mimeType));
+    // Opening a clip resets the rate in the browser and in GStreamer, so it is set once the clip plays.
+    await _player.setPlaybackRate(speed);
     unawaited(afterPlay?.call());
   }
 
@@ -230,13 +234,16 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
     try {
       final bytes = await ref.read(attachmentBytesProvider(voice.id).future);
       if (state.attachmentId != voice.id) return;
-      await _engine.play(bytes, voice.contentType, state.speed);
+      final speed = state.speed;
+      await _engine.play(bytes, voice.contentType, speed);
       if (state.attachmentId != voice.id) {
         // Nothing holds this message any more, so a play that landed late must not keep sounding.
         if (state.attachmentId == null) await _engine.stop();
         return;
       }
       state = state.copyWith(loading: false, playing: true);
+      // A speed chosen while the clip was opening skipped the engine.
+      if (state.speed != speed) await _engine.setSpeed(state.speed);
     } on Object catch (error, stack) {
       AppLog.swallowed(
         LogTag.voice,
