@@ -96,6 +96,7 @@ class CanvasSurfaceStatus extends StatelessWidget {
     required this.hasCallParticipants,
     this.onAddNote,
     this.onAddShape,
+    this.onShowActivityLog,
     required this.child,
   });
 
@@ -109,6 +110,9 @@ class CanvasSurfaceStatus extends StatelessWidget {
   final VoidCallback? onAddNote;
   final VoidCallback? onAddShape;
 
+  /// Opens the text activity log, which only a screen reader is offered.
+  final VoidCallback? onShowActivityLog;
+
   final Widget child;
 
   @override
@@ -120,6 +124,7 @@ class CanvasSurfaceStatus extends StatelessWidget {
       customSemanticsActions: {
         if (onAddNote case final add?) _addNote: add,
         if (onAddShape case final add?) _addShape: add,
+        if (onShowActivityLog case final show?) _showActivityLog: show,
       },
       child: Stack(
         children: [
@@ -139,3 +144,4 @@ class CanvasSurfaceStatus extends StatelessWidget {
 
 const _addNote = CustomSemanticsAction(label: 'Add a note');
 const _addShape = CustomSemanticsAction(label: 'Add a shape');
+const _showActivityLog = CustomSemanticsAction(label: 'Show activity log');

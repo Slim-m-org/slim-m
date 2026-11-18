@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The canvas bar's overflow: "Add image from file" and "Show/Hide activity log" are
-/// always present, since placing an image needs only the USE_CANVAS bit
-/// drawing already does and the activity log is an accessibility fallback
-/// nobody should need a permission for; "Bring to front"/"Send to back"/
+/// The canvas bar's overflow: "Add image from file" is always present, since
+/// placing an image needs only the USE_CANVAS bit drawing already does;
+/// "Show activity log" is there while a screen reader is on, since the log is
+/// that reader's fallback for the drawing; "Bring to front"/"Send to back"/
 /// "Delete" appear only while something is selected and "Clear canvas"
 /// appears only for MANAGE_CANVAS. The four shape-kind rows appear only
 /// while the Shape tool is active - not on the fixed-height bar itself,
@@ -399,13 +399,15 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
                 ),
         ),
       const AppMenuDivider(),
-      AppMenuItem(
-        label: widget.activityLogOpen
-            ? 'Hide activity log'
-            : 'Show activity log',
-        leading: AppIcons.activityLog,
-        onTap: _toggleActivityLog,
-      ),
+      // A screen reader's fallback for the drawing; a sighted viewer already sees what it lists.
+      if (widget.activityLogOpen || MediaQuery.accessibleNavigationOf(context))
+        AppMenuItem(
+          label: widget.activityLogOpen
+              ? 'Hide activity log'
+              : 'Show activity log',
+          leading: AppIcons.activityLog,
+          onTap: _toggleActivityLog,
+        ),
       Consumer(
         builder: (context, ref, _) => AppMenuItem(
           label: ref.watch(canvasGridSnapProvider)

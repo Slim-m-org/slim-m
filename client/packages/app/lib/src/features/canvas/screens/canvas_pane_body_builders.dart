@@ -61,6 +61,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
     onAddShape: canvasErrorBlocksDrawing(widget.error)
         ? null
         : () => widget.onShapePlace(widget.document.worldView.center, null),
+    onShowActivityLog: _toggleActivityLog,
     child: CanvasPaneSurface(
       actions: CanvasPaneSurfaceActions(
         onDraftEnded: widget.onDraftEnded,
