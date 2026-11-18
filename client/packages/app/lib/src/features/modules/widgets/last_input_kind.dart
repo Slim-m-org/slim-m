@@ -44,7 +44,8 @@ class LastInputKind {
     return false;
   }
 
-  /// Alt-tab and shortcuts are not keyboard navigation, as in browsers.
+  /// Only keys that move focus or act on a grid count: a held push-to-talk
+  /// key is not navigation, and alt-tab and shortcuts are not either.
   bool _navigates(KeyEvent event) {
     final keyboard = HardwareKeyboard.instance;
     if (keyboard.isAltPressed ||
@@ -52,18 +53,22 @@ class LastInputKind {
         keyboard.isMetaPressed) {
       return false;
     }
-    return !_modifiers.contains(event.logicalKey);
+    return _navigation.contains(event.logicalKey);
   }
 
-  static final _modifiers = {
-    ...LogicalKeyboardKey.expandSynonyms(<LogicalKeyboardKey>{
-      LogicalKeyboardKey.shift,
-      LogicalKeyboardKey.control,
-      LogicalKeyboardKey.alt,
-      LogicalKeyboardKey.meta,
-    }),
-    LogicalKeyboardKey.capsLock,
-    LogicalKeyboardKey.fn,
-    LogicalKeyboardKey.printScreen,
+  static final _navigation = {
+    LogicalKeyboardKey.tab,
+    LogicalKeyboardKey.arrowUp,
+    LogicalKeyboardKey.arrowDown,
+    LogicalKeyboardKey.arrowLeft,
+    LogicalKeyboardKey.arrowRight,
+    LogicalKeyboardKey.enter,
+    LogicalKeyboardKey.numpadEnter,
+    LogicalKeyboardKey.space,
+    LogicalKeyboardKey.escape,
+    LogicalKeyboardKey.home,
+    LogicalKeyboardKey.end,
+    LogicalKeyboardKey.pageUp,
+    LogicalKeyboardKey.pageDown,
   };
 }

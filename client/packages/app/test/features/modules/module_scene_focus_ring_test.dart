@@ -86,6 +86,22 @@ void main() {
     expect(_ring, findsOneWidget);
   }, variant: desktop);
 
+  testWidgets('holding a push-to-talk key after the click stays quiet', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(_grid.last, kind: PointerDeviceKind.mouse);
+    await tester.pump();
+
+    for (final key in [LogicalKeyboardKey.backquote, LogicalKeyboardKey.f13]) {
+      await tester.sendKeyDownEvent(key);
+      await tester.sendKeyRepeatEvent(key);
+      await tester.pump();
+      expect(_ring, findsNothing, reason: '$key held');
+      await tester.sendKeyUpEvent(key);
+    }
+  }, variant: desktop);
+
   testWidgets('a click after the keyboard hides the ring again', (
     tester,
   ) async {
