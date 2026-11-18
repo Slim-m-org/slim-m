@@ -26,6 +26,7 @@ use crate::ratelimit::Class;
 use crate::store::{Channel, DM_CHANNEL_KIND};
 use crate::voice::{CallRingOutcome, RoomToken, VoiceError};
 
+pub(super) mod voice_access;
 pub(super) mod voice_call_audio;
 pub(super) mod voice_calls;
 pub(super) mod voice_move;
@@ -184,6 +185,8 @@ async fn heartbeat(
         .await?;
     let needed = Permissions::VIEW_CHANNEL.union(Permissions::CONNECT);
     if !permissions.contains(needed) {
+        // Still beating means still in the room, whatever change took the access away.
+        voice_access::evict(&state, ctx.user_id, channel_id).await;
         return Err(ApiError::Forbidden);
     }
     callable_channel(&state, channel_id).await?;

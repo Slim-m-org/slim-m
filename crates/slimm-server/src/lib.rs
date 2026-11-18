@@ -206,6 +206,7 @@ pub async fn run() -> anyhow::Result<()> {
     http::scene_refresh::spawn_sweep(state.clone());
     let _module_events = http::spawn_module_events(state.clone());
     let _call_audio = call_audio::runtime::spawn(state.clone());
+    http::spawn_voice_access_watch(state.clone());
     voice_transcripts::spawn_voice_transcript_sweep(state.clone());
     let steam = http::steam_link::SteamLinks::new(&config)?;
     if let Some(steam) = &steam {

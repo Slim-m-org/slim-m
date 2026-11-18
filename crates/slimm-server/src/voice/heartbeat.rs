@@ -112,6 +112,11 @@ impl CallHeartbeats {
             .collect()
     }
 
+    /// Every tracked `(user, channel)` session, fresh or not.
+    pub fn sessions(&self) -> Vec<(UserId, ChannelId)> {
+        lock(&self.state).keys().copied().collect()
+    }
+
     /// Drops a tracked session outright, e.g. once it has already been
     /// evicted for some other reason (a kick, a ban): a later sweep then has
     /// nothing stale left to rediscover and call the SFU about again.

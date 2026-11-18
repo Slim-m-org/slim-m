@@ -29,6 +29,7 @@ mod soundboard_starter;
 mod strong_noise_suppression;
 mod uplink_test;
 mod voice;
+mod voice_access_revoked;
 mod voice_call_history;
 mod voice_deafened;
 mod voice_dm;
