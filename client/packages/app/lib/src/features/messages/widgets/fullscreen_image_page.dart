@@ -22,6 +22,9 @@ import '../../../widgets/animation_gate.dart';
 import '../providers/attachment_preview_bytes.dart';
 import '../../../widgets/image_decode.dart';
 
+/// The longest side a still decodes to. A 12000 px square decoded whole draws black on the web, past the texture size a browser's GPU takes.
+const int kFullscreenStillMaxEdge = 4096;
+
 class FullscreenImagePage extends StatefulWidget {
   const FullscreenImagePage({
     super.key,
@@ -94,6 +97,20 @@ class _FullscreenImagePageState extends State<FullscreenImagePage> {
   int _screenEdge(BuildContext context) =>
       decodeEdge(context, MediaQuery.sizeOf(context).longestSide);
 
+  /// A large animation decodes every frame, so it is held to the screen; a still keeps pixels to zoom into, up to what a GPU texture can hold.
+  ImageProvider _decoded(BuildContext context) {
+    final screen = _screenEdge(context);
+    final edge = looksAnimated(widget.bytes)
+        ? screen
+        : math.max(screen, kFullscreenStillMaxEdge);
+    return ResizeImage(
+      MemoryImage(widget.bytes),
+      width: edge,
+      height: edge,
+      policy: ResizeImagePolicy.fit,
+    );
+  }
+
   Widget _maybeHero(Widget child) =>
       widget.heroTag == null ? child : Hero(tag: widget.heroTag!, child: child);
 
@@ -112,12 +129,8 @@ class _FullscreenImagePageState extends State<FullscreenImagePage> {
           maxScale: _maxScale,
           child: _maybeHero(
             AnimationGate(
-              child: Image.memory(
-                widget.bytes,
-                // A large animation decodes every frame, so it is capped to the screen; a still keeps its pixels for zoom.
-                cacheWidth: looksAnimated(widget.bytes)
-                    ? _screenEdge(context)
-                    : null,
+              child: Image(
+                image: _decoded(context),
                 // The inline preview hands over to the original without a blank frame.
                 gaplessPlayback: true,
                 fit: BoxFit.contain,
