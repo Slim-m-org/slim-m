@@ -5,6 +5,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +19,7 @@ import 'package:slimm_app/src/hidden_characters.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
@@ -28,6 +30,8 @@ const _tokens = TokenPair(
   refreshToken: 'refresh',
   accessExpiresAt: 0,
 );
+
+int _hex(Object? value) => int.parse(value! as String, radix: 16);
 
 /// A light zalgo with U+034F among its marks, as a zalgo generator draws them.
 const _zalgo = 'Z\u0301\u034F\u0316a\u0300\u0353l\u0352g\u0350o\u0345';
@@ -83,24 +87,53 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('hidesTextOutsideEmoji', () {
+    final fixture =
+        jsonDecode(
+              File(
+                '${findRepoRoot().path}/crates/slimm-server/tests/fixtures/hidden_chars.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, dynamic>;
+
     test('a combining grapheme joiner in a zalgo is refused', () {
       expect(hidesTextOutsideEmoji(_zalgo), isTrue);
       expect(hidesTextOutsideEmoji('Z\u0301a\u0300l\u0352g\u0350o'), isFalse);
     });
 
-    test('joined emoji and subdivision flags pass, a bare joiner does not', () {
-      expect(
-        hidesTextOutsideEmoji('\u{1F468}\u200D\u{1F469}\u200D\u{1F467}'),
-        isFalse,
-      );
-      expect(
-        hidesTextOutsideEmoji(
-          '\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}',
-        ),
-        isFalse,
-      );
-      expect(hidesTextOutsideEmoji('a\u200Db'), isTrue);
-      expect(hidesTextOutsideEmoji('\u{E0067}'), isTrue);
+    // Each section of the shared fixture with allowed and refused text is a case list for the server's own check.
+    for (final MapEntry(key: name, value: section) in fixture.entries) {
+      if (section case {
+        'allowed': final List<dynamic> allowed,
+        'refused': final List<dynamic> refused,
+      }) {
+        test('agrees with the server on the fixture\'s $name', () {
+          expect([
+            for (final text in allowed.cast<String>())
+              if (hidesTextOutsideEmoji(text)) text,
+          ], isEmpty);
+          expect([
+            for (final text in refused.cast<String>())
+              if (!hidesTextOutsideEmoji(text)) text,
+          ], isEmpty);
+        });
+      }
+    }
+
+    test('every code point agrees on which are emoji', () {
+      final ranges = [
+        for (final r
+            in (fixture['pictographic'] as List).cast<Map<String, dynamic>>())
+          (_hex(r['from']), _hex(r['to'])),
+      ];
+      final wrong = <String>[];
+      for (var c = 0; c <= 0x10FFFF; c++) {
+        if (c >= 0xD800 && c <= 0xDFFF) continue;
+        final expected = ranges.any((r) => c >= r.$1 && c <= r.$2);
+        if (isPictographic(c) != expected) {
+          wrong.add('U+${c.toRadixString(16).toUpperCase().padLeft(4, '0')}');
+        }
+      }
+      expect(wrong, isEmpty, reason: 'disagree with hidden_chars.json');
     });
   });
 

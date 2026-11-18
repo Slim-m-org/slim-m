@@ -123,8 +123,8 @@ pub(crate) fn hides_text_outside_emoji(text: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        draws_nothing, hides_text_outside_emoji, is_hidden_char, is_variation_selector,
-        strip_reading_rewrites,
+        draws_nothing, hides_text_outside_emoji, is_hidden_char, is_pictographic,
+        is_variation_selector, strip_reading_rewrites,
     };
 
     #[test]
@@ -236,25 +236,15 @@ mod tests {
         }
     }
 
+    /// The cases `hidden_chars.json` lists under `emoji_sequences`, which the
+    /// Dart mirror (`status_hidden_characters_test.dart`) is held to as well.
     #[test]
     fn joiners_and_tags_pass_only_inside_emoji_sequences() {
-        for ok in [
-            "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}",
-            "\u{1F3F3}\u{FE0F}\u{200D}\u{1F308}",
-            "\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E007F} flag",
-            "plain text",
-        ] {
+        let fixture = shared_fixture();
+        for ok in strings(&fixture["emoji_sequences"]["allowed"]) {
             assert!(!hides_text_outside_emoji(ok), "{ok:?}");
         }
-        for bad in [
-            "a\u{200D}b",
-            "\u{200D}",
-            "\u{1F468}\u{200D}",
-            "\u{1F3F4}\u{E0067}",
-            "\u{E0067}\u{E007F}",
-            "\u{1F468}\u{200B}",
-            "\u{202E}",
-        ] {
+        for bad in strings(&fixture["emoji_sequences"]["refused"]) {
             assert!(hides_text_outside_emoji(bad), "{bad:?}");
         }
     }
@@ -285,5 +275,36 @@ mod tests {
         for plain in fixture["plain"].as_array().unwrap() {
             assert!(!is_hidden_char(char::from_u32(hex(plain)).unwrap()));
         }
+    }
+
+    /// Every code point, against the `pictographic` ranges `hidden_chars.json`
+    /// lists: the emoji a joiner may sit between. The Dart mirror sweeps them too.
+    #[test]
+    fn the_shared_fixture_lists_exactly_the_pictographic_characters() {
+        let fixture = shared_fixture();
+        let hex = |v: &serde_json::Value| u32::from_str_radix(v.as_str().unwrap(), 16).unwrap();
+        let ranges: Vec<(u32, u32)> = fixture["pictographic"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| (hex(&r["from"]), hex(&r["to"])))
+            .collect();
+        for code in 0..=0x10FFFFu32 {
+            let Some(c) = char::from_u32(code) else {
+                continue;
+            };
+            let listed = ranges
+                .iter()
+                .any(|(from, to)| (*from..=*to).contains(&code));
+            assert_eq!(is_pictographic(c), listed, "U+{code:04X}");
+        }
+    }
+
+    fn shared_fixture() -> serde_json::Value {
+        serde_json::from_str(include_str!("../tests/fixtures/hidden_chars.json")).unwrap()
+    }
+
+    fn strings(list: &serde_json::Value) -> impl Iterator<Item = &str> {
+        list.as_array().unwrap().iter().map(|v| v.as_str().unwrap())
     }
 }

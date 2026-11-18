@@ -33,7 +33,9 @@ const _tagEnd = 0xE007F;
 
 bool _isTagLetter(int c) => c >= 0xE0020 && c <= 0xE007E;
 
-bool _isPictographic(int c) =>
+/// Mirrors `is_pictographic` in the server's `hidden_chars.rs`, held to the same
+/// fixture: the emoji a zero width joiner may sit between.
+bool isPictographic(int c) =>
     c == 0x00A9 ||
     c == 0x00AE ||
     c == 0x203C ||
@@ -52,15 +54,16 @@ bool _isPictographic(int c) =>
     c == 0x3299 ||
     (c >= 0x1F000 && c <= 0x1FAFF);
 
-/// Mirrors `hides_text_outside_emoji` in the server's `hidden_chars.rs`: a
-/// hidden character outside an emoji joiner sequence or a subdivision flag.
+/// Mirrors `hides_text_outside_emoji` in the server's `hidden_chars.rs`, held to
+/// the fixture's case lists: a hidden character outside an emoji joiner
+/// sequence or a subdivision flag.
 bool hidesTextOutsideEmoji(String text) {
   final c = text.runes.toList();
   for (var i = 0; i < c.length; i++) {
     if (c[i] == _zwj) {
       final afterEmoji =
-          i > 0 && (_isPictographic(c[i - 1]) || c[i - 1] == 0xFE0F);
-      final beforeEmoji = i + 1 < c.length && _isPictographic(c[i + 1]);
+          i > 0 && (isPictographic(c[i - 1]) || c[i - 1] == 0xFE0F);
+      final beforeEmoji = i + 1 < c.length && isPictographic(c[i + 1]);
       if (!afterEmoji || !beforeEmoji) return true;
     } else if (c[i] == _tagFlagBase) {
       var tags = 0;
