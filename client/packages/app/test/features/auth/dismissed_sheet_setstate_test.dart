@@ -11,7 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/features/auth/screens/onboarding_dialogs.dart';
+import 'package:slimm_app/src/features/auth/screens/invite_dialog.dart';
 import 'package:slimm_app/src/features/auth/screens/reset_password_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';

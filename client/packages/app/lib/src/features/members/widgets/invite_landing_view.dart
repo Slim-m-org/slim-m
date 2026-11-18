@@ -16,6 +16,7 @@ class InviteLandingView extends StatelessWidget {
     required this.onBack,
     this.onJoin,
     this.note,
+    this.fill = false,
   });
 
   final InviteLandingCard card;
@@ -27,6 +28,9 @@ class InviteLandingView extends StatelessWidget {
   /// A line under the card, such as the preview's own explanation.
   final String? note;
 
+  /// Fills a full-screen page: the card takes the height above and the actions sit at its foot.
+  final bool fill;
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -34,10 +38,13 @@ class InviteLandingView extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.s16),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Flexible(child: SingleChildScrollView(child: card)),
+          Flexible(
+            fit: fill ? FlexFit.tight : FlexFit.loose,
+            child: SingleChildScrollView(child: card),
+          ),
           if (note != null) ...[
             const SizedBox(height: AppSpacing.s8),
             Text(

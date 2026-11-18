@@ -11,7 +11,7 @@
 /// It deliberately says nothing about *why* a code was refused. The server
 /// answers unknown, expired and already-spent identically so live codes
 /// cannot be mined, and naming the reason here would undo that from the
-/// client side - the same reasoning `onboarding_dialogs.dart` records for
+/// client side - the same reasoning `invite_dialog.dart` records for
 /// invite codes.
 library;
 

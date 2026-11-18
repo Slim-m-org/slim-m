@@ -11,7 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_app/src/features/auth/screens/onboarding_dialogs.dart';
+import 'package:slimm_app/src/features/auth/screens/invite_code_check.dart';
+import 'package:slimm_app/src/features/auth/screens/invite_dialog.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -24,8 +25,11 @@ Future<void> _pump(
   int checkStatus = 200,
   bool unreachable = false,
   ({Uri server, String code})? initial,
+  bool fullScreen = false,
 }) async {
-  tester.view.physicalSize = const Size(1280, 800);
+  tester.view.physicalSize = fullScreen
+      ? const Size(390, 844)
+      : const Size(1280, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final client = MockClient((request) async {
@@ -46,7 +50,9 @@ Future<void> _pump(
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: Scaffold(body: InviteDialog(initial: initial)),
+        home: fullScreen
+            ? InviteDialog(initial: initial, fullScreen: true)
+            : Scaffold(body: InviteDialog(initial: initial)),
       ),
     ),
   );
@@ -162,6 +168,23 @@ void main() {
     );
   });
 
+  testWidgets('a reply that is not an invite check is said above the buttons', (
+    tester,
+  ) async {
+    await _pump(tester, checkBody: const ['not', 'a', 'map']);
+    await _continueWith(tester, server: 'https://chat.example', code: 'CODE1');
+    await _pumpUntil(
+      tester,
+      () => find.text(inviteNotFromASpace).evaluate().isNotEmpty,
+    );
+
+    expect(_banner(), findsNothing);
+    expect(
+      tester.widget<AppButton>(find.widgetWithText(AppButton, 'Continue')).busy,
+      isFalse,
+    );
+  });
+
   testWidgets('a link whose server does not answer says so under the host', (
     tester,
   ) async {
@@ -181,6 +204,27 @@ void main() {
       tester.getTopLeft(find.text('Could not reach that server.')).dy,
       lessThan(tester.getTopLeft(_field('Invite code')).dy),
     );
+  });
+
+  testWidgets('on a phone the full-screen page puts a refused code under the '
+      'code field, not in a banner', (tester) async {
+    await _pump(tester, fullScreen: true);
+    await _continueWith(
+      tester,
+      server: 'https://chat.example',
+      code: 'DEADCODE1',
+    );
+    await _pumpUntil(tester, () => _errorUnder(tester, 'Invite code') != null);
+
+    expect(_errorUnder(tester, 'Invite code'), inviteUnusable);
+    expect(
+      find.descendant(
+        of: _field('Invite code'),
+        matching: find.text(inviteUnusable),
+      ),
+      findsOneWidget,
+    );
+    expect(_banner(), findsNothing);
   });
 
   testWidgets('editing the field clears its error', (tester) async {
