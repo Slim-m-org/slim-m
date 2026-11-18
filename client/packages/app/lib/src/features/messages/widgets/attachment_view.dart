@@ -369,7 +369,10 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
 
   BoxConstraints _imageConstraints(double? tile) {
     if (tile == null) {
+      // A 1 px image is still something to see and tap, so the box never shrinks below a fingertip.
       return const BoxConstraints(
+        minWidth: AppSizes.rowTouch,
+        minHeight: AppSizes.rowTouch,
         maxWidth: kInlineImageMax,
         maxHeight: kInlineImageMax,
       );
@@ -389,7 +392,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     final tile = widget.tileEdge;
     return Image.memory(
       bytes,
-      fit: tile == null ? BoxFit.contain : BoxFit.cover,
+      fit: tile == null ? BoxFit.scaleDown : BoxFit.cover,
       semanticLabel: attachment.filename,
       cacheWidth: decodeWidth,
       // Bytes can decode-fail after a successful fetch; without this it paints as Flutter's raw error box.
