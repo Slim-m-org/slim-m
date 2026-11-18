@@ -73,7 +73,7 @@ class VoiceRoster {
   /// again, not until it says it finished: it does not always say so.
   void update(lk.Room room) {
     if (_restartPending(room)) {
-      _reportLocalLevel(const []);
+      _holdThroughRestart(room);
       return;
     }
     final localVoice = _host.localVoice();
@@ -129,6 +129,27 @@ class VoiceRoster {
       for (final p in all)
         if (p.isLocal || !_leftByServer.containsKey(p.identity)) p,
     ];
+  }
+
+  /// Keeps who was shown, marked unconfirmed until the room lists them again; the server's leaves still apply.
+  void _holdThroughRestart(lk.Room room) {
+    final back = {for (final p in room.remoteParticipants.values) p.identity};
+    final held = [
+      for (final p in _participants)
+        if (p.isLocal || back.contains(p.identity))
+          p
+        else if (!_leftByServer.containsKey(p.identity))
+          p.copyWith(
+            presence: CallPresence.unconfirmed,
+            isSpeaking: false,
+            audioLevel: 0,
+          ),
+    ];
+    if (!listEquals(held, _participants)) {
+      _participants = List.unmodifiable(held);
+      if (!_controller.isClosed) _controller.add(_participants);
+    }
+    _reportLocalLevel(const []);
   }
 
   bool _restartPending(lk.Room room) {

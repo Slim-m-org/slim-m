@@ -7,8 +7,10 @@ person saw the other in the call; the other thought he was alone. Here bob's
 signalling socket goes silent both ways and new ones fail, the way an edge
 that stopped forwarding looks, while his API and media paths stay up. Alice
 joins in that window: the server lists her and bob's room never hears of her.
-Bob's screen has to say so, and show her as connecting, within DETECT_SECONDS;
-once the socket is back the call has to read normally again.
+Bob's screen has to say so, and show her as connecting, within DETECT_SECONDS.
+The cut then outlasts LiveKit's patience, so the SFU drops bob as it dropped
+the owner, and bob has to be told; once the socket is back the call has to
+read normally again.
 """
 import os
 import re
@@ -19,6 +21,8 @@ from e2e_voice import (_click_channel_row, _tap_label, participants_with_mics,
                        sfu_participants)
 
 DETECT_SECONDS = float(os.environ.get("E2E_ONE_SIDED_DETECT", "30"))
+# LiveKit closed a session about 15-20 s after its signalling went quiet, on prod and here.
+EVICTED_SECONDS = float(os.environ.get("E2E_ONE_SIDED_EVICTED", "45"))
 RECOVER_SECONDS = float(os.environ.get("E2E_ONE_SIDED_RECOVER", "120"))
 CONNECTING = "connecting"
 NOT_CONNECTED = "not connected to you"
@@ -106,6 +110,12 @@ def _shown_as_connecting(view):
     return CONNECTING in tile and (view["notice"] or view["reconnecting"])
 
 
+def _told_he_is_gone(view):
+    tile = view["alice"] or ""
+    return ("Bob" not in view["sfu"] and CONNECTING in tile
+            and (view["reconnecting"] or view["lost_you"]))
+
+
 def _back_to_normal(view):
     tile = view["alice"] or ""
     return (("microphone on" in tile or "muted" in tile) and CONNECTING not in tile
@@ -135,6 +145,9 @@ def a_stalled_signal_shows_who_the_server_has(a, b, room_id):
         assert b.ev("window.__signalCut.swallowed") > 0, \
             "no signalling frame was swallowed, so this run proved nothing"
         print(f"  bob shows alice as connecting {took:.1f}s after she joined")
+        took = _until(b, room_id, EVICTED_SECONDS, _told_he_is_gone,
+                      "the SFU dropped bob while his signalling was cut")
+        print(f"  bob is told he is out of the call {took:.1f}s later, alice still connecting")
         b.ev("window.__signalCut.cut = false; 1")
         took = _until(b, room_id, RECOVER_SECONDS, _back_to_normal,
                       "bob's signalling came back")

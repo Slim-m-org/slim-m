@@ -15,9 +15,12 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../../widgets/status_banner.dart';
 import '../providers/direct_play_provider.dart';
 import '../providers/share_watch.dart';
+import '../providers/voice_health.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
+import '../providers/call_roster_gap.dart';
 import 'call_audio_banner.dart';
+import 'call_gap_banner.dart';
 import 'call_header_facts.dart';
 import 'call_stage_fit_view.dart';
 import 'local_screen_share_banner.dart';
@@ -80,6 +83,7 @@ class CallStageLayout extends ConsumerWidget {
     final voice = ref.watch(voiceFlagsProvider);
     // The roster without speaking flags: a talker flipping must not rebuild the stage, only their tile's ring.
     final participants = ref.watch(voiceSilentRosterProvider);
+    final gap = ref.watch(callRosterGapProvider);
     final watch = ref.watch(shareWatchProvider);
     final watching = ref.read(shareWatchProvider.notifier);
     final shares = activeShares(
@@ -109,9 +113,14 @@ class CallStageLayout extends ConsumerWidget {
           _CallHeader(channelId: voice.channelId),
           // One banner at a time: the reconnect notice already says why the stage is quiet.
           if (voice.rejoining || voice.reconnecting)
-            const VoiceReconnectBanner()
+            VoiceReconnectBanner(
+              mediaDown:
+                  voice.rejoining ||
+                  gap.selfMissing ||
+                  ref.watch(voiceRestartingProvider),
+            )
           else
-            const PoorConnectionBanner(),
+            const CallGapBanner(child: PoorConnectionBanner()),
           if (!isDm && voice.channelId != null)
             WatchSessionGate(
               channelId: voice.channelId!,
@@ -132,7 +141,7 @@ class CallStageLayout extends ConsumerWidget {
           const SizedBox(height: AppSpacing.s12),
           Expanded(
             child: CallStageFitView(
-              participants: participants,
+              participants: withPendingPeers(participants, gap.connecting),
               shares: shares,
               focused: watch.focused,
               directStage: directStage,
@@ -148,6 +157,26 @@ class CallStageLayout extends ConsumerWidget {
     );
   }
 }
+
+/// [shown] with a connecting tile for each of [pending], after everyone the call delivered.
+List<VoiceParticipant> withPendingPeers(
+  List<VoiceParticipant> shown,
+  List<PendingPeer> pending,
+) => pending.isEmpty
+    ? shown
+    : [
+        ...shown,
+        for (final p in pending)
+          VoiceParticipant(
+            identity: p.id,
+            name: p.name,
+            isSpeaking: false,
+            isMuted: true,
+            isLocal: false,
+            isScreenSharing: false,
+            presence: CallPresence.connecting,
+          ),
+      ];
 
 class _CallHeader extends StatelessWidget {
   const _CallHeader({required this.channelId});

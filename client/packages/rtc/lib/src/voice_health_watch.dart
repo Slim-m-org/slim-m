@@ -145,12 +145,12 @@ class VoiceHealthWatch {
       rttMs: counters.rttMs,
     );
     final before = health.link.value;
-    health.link.value = CallLink(
+    health.noteLink(CallLink(
       mediaRttMs: transport?.rttMs?.round() ?? before?.mediaRttMs,
       media: mediaRouteOf(transport) ?? before?.media,
       signalRttMs: signal.rttMs,
       signalSilence: signal.silence,
-    );
+    ));
   }
 
   List<StatsEntry> _entries(List<rtc.StatsReport> reports) =>

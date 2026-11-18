@@ -74,18 +74,30 @@ void main() {
     final harness = VoiceHarness();
     try {
       final transport = await _connected(tester, harness);
-      expect(find.text(_copy), findsNothing);
+      expect(find.textContaining(_copy), findsNothing);
 
       transport.started(ReconnectKind.resume);
       await tester.pump(const Duration(milliseconds: 1900));
       expect(
-        find.text(_copy),
+        find.textContaining(_copy),
         findsNothing,
         reason: 'still inside the debounce',
       );
 
       await tester.pump(const Duration(milliseconds: 200));
-      expect(find.text(_copy), findsOneWidget);
+      expect(find.textContaining(_copy), findsOneWidget);
+      expect(
+        find.textContaining('You can still hear everyone'),
+        findsOneWidget,
+        reason: 'a resume keeps the media path',
+      );
+      transport.started(ReconnectKind.restart);
+      await tester.pump();
+      expect(
+        find.textContaining("You can't hear or be heard"),
+        findsOneWidget,
+        reason: 'a restart rebuilds the media path',
+      );
       expect(
         harness.container.read(voiceFlagsProvider).state,
         VoiceSessionState.connected,
@@ -99,7 +111,7 @@ void main() {
 
       transport.ended('reconnected');
       await tester.pump();
-      expect(find.text(_copy), findsNothing);
+      expect(find.textContaining(_copy), findsNothing);
     } finally {
       harness.dispose();
     }
@@ -116,7 +128,7 @@ void main() {
       transport.ended('reconnected');
       await tester.pump(const Duration(seconds: 5));
 
-      expect(find.text(_copy), findsNothing);
+      expect(find.textContaining(_copy), findsNothing);
       expect(harness.container.read(voiceFlagsProvider).reconnecting, isFalse);
     } finally {
       harness.dispose();
@@ -134,10 +146,10 @@ void main() {
 
       transport.started(ReconnectKind.restart);
       await tester.pump(const Duration(seconds: 1));
-      expect(find.text(_copy), findsNothing);
+      expect(find.textContaining(_copy), findsNothing);
 
       await tester.pump(const Duration(seconds: 2));
-      expect(find.text(_copy), findsOneWidget);
+      expect(find.textContaining(_copy), findsOneWidget);
       transport.ended('reconnected');
       await tester.pump();
     } finally {

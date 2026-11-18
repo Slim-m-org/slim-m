@@ -113,8 +113,10 @@ class CallParticipantTile extends StatelessWidget {
   final VoidCallback? onExpand;
 
   String get _semanticLabel {
+    if (_pending) return '${participant.name}, connecting';
     final parts = <String>[
       participant.isLocal ? '${participant.name}, you' : participant.name,
+      if (participant.presence == CallPresence.unconfirmed) 'reconnecting',
       participant.isMuted ? 'muted' : 'microphone on',
       if (participant.isDeafened) 'deafened',
       if (poorConnection) poorConnectionLabel(participant),
@@ -124,6 +126,16 @@ class CallParticipantTile extends StatelessWidget {
     ];
     return parts.join(', ');
   }
+
+  /// The server has them in the call and this device's call has not delivered them, so no state is known.
+  bool get _pending => participant.presence == CallPresence.connecting;
+
+  /// What the corner says while the call does not vouch for them.
+  String? get _presenceCaption => switch (participant.presence) {
+    CallPresence.live => null,
+    CallPresence.connecting => 'Connecting',
+    CallPresence.unconfirmed => 'Reconnecting',
+  };
 
   /// A live feed is only worth showing - and expanding - while the flag it
   /// answers for is itself true; a stale `cameraView` handed down the frame
@@ -190,7 +202,19 @@ class CallParticipantTile extends StatelessWidget {
             ),
           ),
         ),
-      if (_showsCamera && !feed)
+      if (_presenceCaption case final caption?)
+        Positioned(
+          left: AppSpacing.s8,
+          top: AppSpacing.s8,
+          width: width - 4 * AppSpacing.s8 - AppSpacing.s16,
+          child: Text(
+            caption,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.caption.copyWith(color: onFace),
+          ),
+        )
+      else if (_showsCamera && !feed)
         Positioned(
           left: AppSpacing.s8,
           top: AppSpacing.s8,
@@ -213,17 +237,18 @@ class CallParticipantTile extends StatelessWidget {
         ),
       ),
       // Top corner, so the name keeps the tile's whole width and its "(you)".
-      Positioned(
-        right: AppSpacing.s8,
-        top: AppSpacing.s8,
-        child: TileStateBadges(
-          participant: participant,
-          shareHidden: shareHidden,
-          stacked: !feed && badgesReachAvatar(width, avatarSize, participant),
+      if (!_pending)
+        Positioned(
+          right: AppSpacing.s8,
+          top: AppSpacing.s8,
+          child: TileStateBadges(
+            participant: participant,
+            shareHidden: shareHidden,
+            stacked: !feed && badgesReachAvatar(width, avatarSize, participant),
+          ),
         ),
-      ),
       // Last, so the sentence it opens paints over the state badges.
-      if (poorConnection && !participant.isLocal)
+      if (poorConnection && !participant.isLocal && !_pending)
         Positioned(
           left: AppSpacing.s8,
           top: AppSpacing.s8,
@@ -236,10 +261,13 @@ class CallParticipantTile extends StatelessWidget {
   );
 
   Widget _body(AppTokens tokens, double avatarSize) {
+    // Dimmed, not hidden: they are probably there, but nothing this device hears says so.
     Widget backdrop({required bool feed}) => CallTileBackdrop(
       identity: participant.identity,
-      builder: (_, onFace, fill) =>
-          _face(tokens, onFace, avatarSize, fill, feed: feed),
+      builder: (_, onFace, fill) => Opacity(
+        opacity: participant.presence == CallPresence.live ? 1 : 0.55,
+        child: _face(tokens, onFace, avatarSize, fill, feed: feed),
+      ),
     );
     if (!_showsCamera) return backdrop(feed: false);
     return CameraFrameScope(builder: (_, hasFrame) => backdrop(feed: hasFrame));

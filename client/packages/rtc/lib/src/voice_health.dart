@@ -129,6 +129,7 @@ class VoiceHealth {
 
   /// Where the call's signalling socket connects, for a route check; null outside a call.
   Uri? signalUrl;
+  bool _disposed = false;
 
   /// The SDK's own transport repair, watched; see [ReconnectTracker].
   final ReconnectTracker reconnect = ReconnectTracker();
@@ -294,13 +295,24 @@ class VoiceHealth {
     _lastLogAt = null;
     _localPing = null;
     _remotePing = null;
-    link.value = null;
+    _clearLink();
     signalUrl = null;
     _publishPing();
     _publish();
   }
 
+  /// Publishes a reading of the call's legs; a sample landing after dispose is dropped.
+  void noteLink(CallLink next) {
+    if (!_disposed) link.value = next;
+  }
+
+  // A teardown after dispose still stops sampling, which clears the reading.
+  void _clearLink() {
+    if (!_disposed) link.value = null;
+  }
+
   void dispose() {
+    _disposed = true;
     reconnect.dispose();
     poorConnections.dispose();
     pingMs.dispose();
@@ -331,7 +343,7 @@ class VoiceHealth {
   void clearPing() {
     _localPing = null;
     _remotePing = null;
-    link.value = null;
+    _clearLink();
     _publishPing();
   }
 

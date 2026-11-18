@@ -63,6 +63,7 @@
  "voice: a share's own volume moves apart from the sharer's voice": 68.5,
  "voice: a shared camera tile converges and persists": 17.8,
  "voice: a signal socket dropped while the microphone publishes leaves one microphone that Mute reaches": 47.0,
+ "voice: a stalled signalling socket shows who the server says is in the call, and clears once it is back": 40.0,
  "voice: audio actually arrives": 0.0,
  "voice: calling in a dm": 4.4,
  "voice: deafening silences what you hear and nothing of what you say": 33.6,
