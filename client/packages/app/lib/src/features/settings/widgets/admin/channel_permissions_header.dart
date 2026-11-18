@@ -117,15 +117,15 @@ class HeaderRow extends StatelessWidget {
                         width: metrics.cellWidth,
                         onRemove: () => onRemove(column),
                       ),
-                    SizedBox(
+                    Container(
                       width: metrics.addWidth,
-                      child: Center(
-                        child: AppIconButton(
-                          icon: AppIcons.add,
-                          semanticLabel: 'Add a role or member to this grid',
-                          tooltip: 'Add a role or member',
-                          onPressed: onAdd,
-                        ),
+                      alignment: Alignment.bottomCenter,
+                      padding: const EdgeInsets.only(bottom: _bandBottom),
+                      child: AppIconButton(
+                        icon: AppIcons.add,
+                        semanticLabel: 'Add a role or member to this grid',
+                        tooltip: 'Add a role or member',
+                        onPressed: onAdd,
                       ),
                     ),
                   ],

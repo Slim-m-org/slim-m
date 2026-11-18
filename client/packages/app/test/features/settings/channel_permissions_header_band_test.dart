@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The grid's column names sit in a band as tall as its tallest column, every
 /// column starting at one line, and once the band is pinned over scrolled
-/// rows it closes the card's frame along its top.
+/// rows it closes the card's frame along its top. The add button sits on the
+/// line the columns' own controls share.
 library;
 
 import 'package:flutter/material.dart';
@@ -86,6 +87,16 @@ void main() {
     final cellBottom = tester.getRect(everyone).bottom;
     expect(cellTop - band.top, lessThanOrEqualTo(AppSpacing.s12));
     expect(band.bottom - cellBottom, lessThanOrEqualTo(AppSpacing.s8));
+  });
+
+  testWidgets('the add button sits on the columns\' control line', (
+    tester,
+  ) async {
+    await _openGrid(tester);
+
+    final control = tester.getCenter(find.byTooltip(everyoneColumnTooltip));
+    final add = tester.getCenter(find.byTooltip('Add a role or member'));
+    expect(add.dy, moreOrLessEquals(control.dy, epsilon: 0.5));
   });
 
   testWidgets('pinned over the rows, the band closes the frame on top', (
