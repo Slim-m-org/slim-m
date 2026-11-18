@@ -145,9 +145,25 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      - name: set up flutter (stable channel)
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: 3.47.0
+          cache: true
+
+      - uses: ./.github/actions/native-hooks-cache
+
+      # --enforce-lockfile, for the same reason the Rust side builds --locked:
+      # without it the committed lockfile is advisory and CI can silently
+      # resolve versions nobody committed.
+      - name: resolve workspace dependencies
+        working-directory: client
+        run: flutter pub get --enforce-lockfile
+
       # Chosen from what the runner actually has, not by name: a hardcoded
       # 'iPhone 16' broke on day one and would break on every image roll.
-      # Booted here, in the background, so the boot overlaps the setup and the build instead of starting the test run.
+      # Booted in the background while config-only fetches the Swift packages; during the Flutter cache restore it cut that download to a fifth.
       - name: pick an available simulator and start booting it
         id: sim
         run: |
@@ -174,22 +190,6 @@ jobs:
           (xcrun simctl bootstatus "$udid" -b && echo "booted in $(($(date +%s) - started))s") \
             > "$RUNNER_TEMP/simulator-boot.log" 2>&1 &
 
-      - name: set up flutter (stable channel)
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
-        with:
-          channel: stable
-          flutter-version: 3.47.0
-          cache: true
-
-      - uses: ./.github/actions/native-hooks-cache
-
-      # --enforce-lockfile, for the same reason the Rust side builds --locked:
-      # without it the committed lockfile is advisory and CI can silently
-      # resolve versions nobody committed.
-      - name: resolve workspace dependencies
-        working-directory: client
-        run: flutter pub get --enforce-lockfile
-
       # Measured 2026-11-17: pod install took 2.2 s on a miss, so this saves little; the lockfiles decide its contents.
       - name: cache cocoapods
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -202,7 +202,7 @@ jobs:
           # matching the dependencies it claims to have.
           key: pods-${{ runner.os }}-${{ hashFiles('client/packages/app/ios/Podfile.lock', 'client/pubspec.lock') }}
 
-      # Config only: build-for-testing is the one simulator build, in the default DerivedData where this step resolves the Swift packages.
+      # Config only: build-for-testing below is the one simulator build, so this writes the Flutter config, resolves the Swift packages and runs pod install.
       - name: generate the ios project
         working-directory: client/packages/app
         run: flutter build ios --simulator --no-codesign --config-only
