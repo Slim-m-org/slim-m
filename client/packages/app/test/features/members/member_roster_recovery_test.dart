@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A members pane that failed to load comes back on its own, and switching
-/// channels quickly fetches only the roster of the channel it stops on.
+/// channels quickly fetches only the first roster and the one it stops on.
 library;
 
 import 'dart:convert';
@@ -71,30 +71,36 @@ void main() {
     expect(find.text('Priya'), findsOneWidget);
   });
 
-  test('switching channels quickly fetches only where it stops', () async {
-    final fetched = <String?>[];
-    final container = ProviderContainer(
-      overrides: [
-        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-        sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-        mockApiOverride((request) async {
-          fetched.add(request.url.queryParameters['channel']);
-          return http.Response(jsonEncode([_priya]), 200);
-        }),
-      ],
-    );
-    addTearDown(container.dispose);
+  test(
+    'switching channels quickly fetches the first and where it stops',
+    () async {
+      final fetched = <String?>[];
+      final container = ProviderContainer(
+        overrides: [
+          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+          sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+          mockApiOverride((request) async {
+            fetched.add(request.url.queryParameters['channel']);
+            return http.Response(jsonEncode([_priya]), 200);
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    for (final channel in ['a', 'b', 'c']) {
-      final open = container.listen(channelMembersProvider(channel), (_, _) {});
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      open.close();
-    }
-    final last = container.listen(channelMembersProvider('d'), (_, _) {});
-    addTearDown(last.close);
-    final roster = await container.read(channelMembersProvider('d').future);
+      for (final channel in ['a', 'b', 'c']) {
+        final open = container.listen(
+          channelMembersProvider(channel),
+          (_, _) {},
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        open.close();
+      }
+      final last = container.listen(channelMembersProvider('d'), (_, _) {});
+      addTearDown(last.close);
+      final roster = await container.read(channelMembersProvider('d').future);
 
-    expect(roster.single.displayName, 'Priya');
-    expect(fetched, ['d']);
-  });
+      expect(roster.single.displayName, 'Priya');
+      expect(fetched, ['a', 'd']);
+    },
+  );
 }
