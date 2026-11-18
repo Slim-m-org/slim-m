@@ -27,6 +27,59 @@ bool isHiddenCharacter(int c) =>
     (c >= 0xFFF9 && c <= 0xFFFC) ||
     (c >= 0xE0000 && c <= 0xE007F);
 
+const _zwj = 0x200D;
+const _tagFlagBase = 0x1F3F4;
+const _tagEnd = 0xE007F;
+
+bool _isTagLetter(int c) => c >= 0xE0020 && c <= 0xE007E;
+
+bool _isPictographic(int c) =>
+    c == 0x00A9 ||
+    c == 0x00AE ||
+    c == 0x203C ||
+    c == 0x2049 ||
+    c == 0x2122 ||
+    c == 0x2139 ||
+    (c >= 0x2190 && c <= 0x21FF) ||
+    (c >= 0x2300 && c <= 0x23FF) ||
+    c == 0x24C2 ||
+    (c >= 0x25A0 && c <= 0x27BF) ||
+    (c >= 0x2900 && c <= 0x297F) ||
+    (c >= 0x2B00 && c <= 0x2BFF) ||
+    c == 0x3030 ||
+    c == 0x303D ||
+    c == 0x3297 ||
+    c == 0x3299 ||
+    (c >= 0x1F000 && c <= 0x1FAFF);
+
+/// Mirrors `hides_text_outside_emoji` in the server's `hidden_chars.rs`: a
+/// hidden character outside an emoji joiner sequence or a subdivision flag.
+bool hidesTextOutsideEmoji(String text) {
+  final c = text.runes.toList();
+  for (var i = 0; i < c.length; i++) {
+    if (c[i] == _zwj) {
+      final afterEmoji =
+          i > 0 && (_isPictographic(c[i - 1]) || c[i - 1] == 0xFE0F);
+      final beforeEmoji = i + 1 < c.length && _isPictographic(c[i + 1]);
+      if (!afterEmoji || !beforeEmoji) return true;
+    } else if (c[i] == _tagFlagBase) {
+      var tags = 0;
+      while (i + 1 + tags < c.length && _isTagLetter(c[i + 1 + tags])) {
+        tags++;
+      }
+      final closed = i + 1 + tags < c.length && c[i + 1 + tags] == _tagEnd;
+      if (tags > 0 && closed) i += tags + 1;
+    } else if (isHiddenCharacter(c[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// What a profile field says when [hidesTextOutsideEmoji] refuses its text.
+const hiddenCharactersRefusal =
+    'Remove the invisible characters, then try again.';
+
 /// Whether [c] is a hidden character a reader would have seen as a break
 /// between words: a tab, a line or paragraph break, or a vertical tab or form
 /// feed. [visibleText] keeps the break as a space instead of fusing the words.

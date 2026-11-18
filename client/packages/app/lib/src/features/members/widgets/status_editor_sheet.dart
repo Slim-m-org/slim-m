@@ -16,6 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/member_presence.dart' show memberProfileOverridesProvider;
 import '../../../providers/providers.dart';
+import 'status_text_refusal.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/member_actions.dart';
 
@@ -83,7 +84,15 @@ class _StatusEditorSheetState extends ConsumerState<_StatusEditorSheet>
     if (ok) Navigator.of(context).pop();
   }
 
-  Future<void> _save() => _apply(_controller.text.trim());
+  Future<void> _save() {
+    final text = _controller.text.trim();
+    final refusal = statusTextRefusal(text);
+    if (refusal != null) {
+      setActionError(refusal);
+      return Future.value();
+    }
+    return _apply(text);
+  }
 
   Future<void> _clear() {
     _controller.clear();
