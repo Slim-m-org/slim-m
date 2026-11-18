@@ -75,23 +75,36 @@ class _ProfileColourFieldState extends ConsumerState<ProfileColourField> {
     _saving = true;
     final container = ProviderScope.containerOf(context, listen: false);
     String? failure;
-    for (var next = _queued; next != null; next = _queued) {
-      _queued = null;
-      failure = await _send(container, next);
-    }
-    _saving = false;
+    var reread = false;
     try {
-      await container.refresh(meProvider.future);
-    } on Object catch (e, stack) {
-      api.AppLog.swallowed(api.LogTag.ui, 'Re-read the profile', e, stack);
-      // Unknown truth after a failed save: drop the guess. After a good one, the guess is what the server took.
-      if (failure == null) return;
+      // A pick made during the re-read saves too, so only the last run's outcome ever shows.
+      while (_queued != null) {
+        for (var next = _queued; next != null; next = _queued) {
+          _queued = null;
+          failure = await _send(container, next);
+        }
+        reread = await _reread(container);
+      }
+    } finally {
+      _saving = false;
     }
-    if (!mounted) return;
+    // Unknown truth after a failed save: drop the guess. After a good one, the guess is what the server took.
+    if (!mounted || (!reread && failure == null)) return;
     setState(() {
       _shown = null;
       _error = failure;
     });
+  }
+
+  /// Re-reads the profile after the saves; false when that failed.
+  Future<bool> _reread(ProviderContainer container) async {
+    try {
+      await container.refresh(meProvider.future);
+      return true;
+    } on Object catch (e, stack) {
+      api.AppLog.swallowed(api.LogTag.ui, 'Re-read the profile', e, stack);
+      return false;
+    }
   }
 
   /// Runs one save; the sentence saying why it failed, or null.
@@ -113,6 +126,11 @@ class _ProfileColourFieldState extends ConsumerState<ProfileColourField> {
 
   @override
   Widget build(BuildContext context) {
+    // A guess kept past a failed re-read gives way to the next profile the server sends.
+    ref.listen(meProvider, (_, next) {
+      if (_saving || _shown == null || next is! AsyncData<api.Me>) return;
+      setState(() => _shown = null);
+    });
     final me = ref.watch(meProvider).valueOrNull;
     final custom = me?.profileColorRgb;
     return Column(

@@ -36,6 +36,11 @@ class _Server {
   var colour = 0;
   Completer<void>? hold;
   int? refuse;
+
+  /// Holds or refuses the profile re-read that follows the saves.
+  Completer<void>? holdRead;
+  var refuseRead = false;
+  late final ProviderContainer container;
 }
 
 Future<_Server> _pump(WidgetTester tester) async {
@@ -57,6 +62,11 @@ Future<_Server> _pump(WidgetTester tester) async {
             return http.Response('{"error":"slow down"}', 429, headers: json);
           }
           server.colour = index;
+        } else if (request.url.path == '/me') {
+          await server.holdRead?.future;
+          if (server.refuseRead) {
+            return http.Response('{"error":"down"}', 503, headers: json);
+          }
         }
         return http.Response(
           jsonEncode({
@@ -74,6 +84,7 @@ Future<_Server> _pump(WidgetTester tester) async {
     ],
   );
   addTearDown(container.dispose);
+  server.container = container;
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
@@ -132,5 +143,48 @@ void main() {
 
     expect(find.textContaining('Could not save the profile colour'), findsOne);
     expect(_selected(tester, 'Pink'), isTrue);
+  });
+
+  testWidgets('a pick made during the re-read waits for it, then saves', (
+    tester,
+  ) async {
+    final server = await _pump(tester);
+    server.refuse = _names.indexOf('Purple');
+    server.holdRead = Completer();
+
+    await tester.tap(_swatch('Purple'));
+    await pumpFrames(tester);
+    server.hold = Completer();
+    await tester.tap(_swatch('Blue'));
+    await pumpFrames(tester);
+
+    server.holdRead!.complete();
+    await pumpFrames(tester);
+    expect(_selected(tester, 'Blue'), isTrue, reason: 'Blue is still saving');
+    expect(find.textContaining('Could not'), findsNothing);
+
+    server.hold!.complete();
+    await pumpFrames(tester);
+    expect(server.saved, [_names.indexOf('Purple'), _names.indexOf('Blue')]);
+    expect(_selected(tester, 'Blue'), isTrue);
+    expect(find.textContaining('Could not'), findsNothing);
+  });
+
+  testWidgets('a good save whose re-read failed yields to the next change', (
+    tester,
+  ) async {
+    final server = await _pump(tester);
+    server.refuseRead = true;
+
+    await tester.tap(_swatch('Orange'));
+    await pumpFrames(tester);
+    expect(_selected(tester, 'Orange'), isTrue);
+
+    server
+      ..refuseRead = false
+      ..colour = _names.indexOf('Green');
+    server.container.invalidate(meProvider);
+    await pumpFrames(tester);
+    expect(_selected(tester, 'Green'), isTrue);
   });
 }
