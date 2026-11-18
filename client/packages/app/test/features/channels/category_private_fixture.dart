@@ -90,6 +90,8 @@ class OverwriteServer {
       return http.Response('', 204);
     }
     if (request.method == 'PUT') {
+      // A sub-category's own save stops it following its parent, as the server does.
+      if (synced.containsKey(base)) synced[base] = false;
       final edits = ((jsonDecode(request.body) as Map)['overwrites'] as List)
           .cast<Map<String, dynamic>>();
       writes[base] = edits;

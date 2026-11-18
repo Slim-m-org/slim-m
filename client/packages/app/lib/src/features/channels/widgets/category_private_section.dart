@@ -30,10 +30,20 @@ class CategoryPrivateSection extends ConsumerStatefulWidget {
     required this.name,
     this.subCategories = const [],
     this.channels = const [],
+    this.leading = const [],
+    this.trailing = const [],
+    this.followsParent = false,
   });
 
   final String categoryId;
   final String name;
+
+  /// Rows the card opens and closes with, around its own.
+  final List<Widget> leading;
+  final List<Widget> trailing;
+
+  /// A sub-category following its parent takes its access from there, so it only lists who sees it.
+  final bool followsParent;
   final List<ChannelCategoryRow> subCategories;
   final List<Channel> channels;
 
@@ -142,9 +152,20 @@ class _CategoryPrivateSectionState extends ConsumerState<CategoryPrivateSection>
     }
     final private = _optimistic ?? stored ?? false;
     final error = actionError;
+    if (widget.followsParent) {
+      return SettingsSectionCard(
+        topGap: 0,
+        children: [
+          ...widget.leading,
+          WhoCanSee(target: _target, readOnly: true),
+          ...widget.trailing,
+        ],
+      );
+    }
     return SettingsSectionCard(
       topGap: 0,
       children: [
+        ...widget.leading,
         SettingsToggleRow(
           label: 'Private category',
           description: 'Only administrators and people you add can see it.',
@@ -173,6 +194,7 @@ class _CategoryPrivateSectionState extends ConsumerState<CategoryPrivateSection>
             ),
           ],
         ),
+        ...widget.trailing,
       ],
     );
   }

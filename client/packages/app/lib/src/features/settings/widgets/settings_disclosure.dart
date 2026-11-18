@@ -18,6 +18,7 @@ class SettingsDisclosure extends StatefulWidget {
     required this.children,
     this.initiallyExpanded = false,
     this.toggleKey,
+    this.onExpandedChanged,
   });
 
   final String title;
@@ -31,6 +32,9 @@ class SettingsDisclosure extends StatefulWidget {
   /// What is currently chosen inside, so the folded row still answers.
   final String summary;
   final List<Widget> children;
+
+  /// For a host that shows what the row opens somewhere other than [children].
+  final ValueChanged<bool>? onExpandedChanged;
 
   @override
   State<SettingsDisclosure> createState() => _SettingsDisclosureState();
@@ -95,7 +99,10 @@ class _SettingsDisclosureState extends State<SettingsDisclosure> {
               ),
             ],
           ),
-          onTap: () => setState(() => _expanded = !_expanded),
+          onTap: () {
+            setState(() => _expanded = !_expanded);
+            widget.onExpandedChanged?.call(_expanded);
+          },
         ),
         if (_expanded) ...widget.children,
       ],

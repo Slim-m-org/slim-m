@@ -122,7 +122,7 @@ class _CategoryUnsyncedNoticeState extends ConsumerState<CategoryUnsyncedNotice>
       context,
       categoryId: sub.id,
       categoryName: '${widget.categoryName} / ${sub.name}',
-      isSubCategory: true,
+      parentName: widget.categoryName,
       channels: [
         for (final c in widget.channels)
           if (c.categoryId == sub.id) c,
