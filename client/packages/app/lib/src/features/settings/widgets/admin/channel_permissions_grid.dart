@@ -490,6 +490,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       changed: state != CellState.resolve(origAllow, origDeny, spec.bit),
       disabled: !grantable || _saving || column.locked,
       label: '${spec.label}, ${column.label}',
+      tooltip: '${spec.label} for ${column.label}',
       onTap: () => _cycle(column, spec.bit, grantable),
     );
   }

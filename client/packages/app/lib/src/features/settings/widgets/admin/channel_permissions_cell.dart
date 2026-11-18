@@ -44,46 +44,44 @@ class CellChip extends StatelessWidget {
   final double width;
   final double height;
 
-  Color _lift(AppTokens tokens) {
-    if (pressed) return tokens.textPrimary.withValues(alpha: 0.14);
-    return hovered
-        ? tokens.textPrimary.withValues(alpha: 0.07)
-        : Colors.transparent;
+  /// Fill, border and glyph for [state], one step stronger while hovered or pressed.
+  (Color, Color, Color, IconData) _paint(AppTokens tokens) {
+    final active = hovered || pressed;
+    return switch (state) {
+      CellState.allow => (
+        tokens.accentFill,
+        active ? tokens.accent : tokens.accentFill,
+        tokens.accentOn,
+        AppIcons.check,
+      ),
+      CellState.deny => (
+        tokens.dangerText.withValues(alpha: active ? 0.22 : 0.14),
+        tokens.dangerBorder,
+        tokens.dangerText,
+        AppIcons.dismiss,
+      ),
+      CellState.inherit => (
+        active
+            ? tokens.surfaceRaised
+            : (disabled ? Colors.transparent : tokens.surfaceSunken),
+        active ? tokens.borderStrong : tokens.borderSubtle,
+        active
+            ? tokens.textPrimary
+            : (disabled ? tokens.textDisabled : tokens.textSecondary),
+        disabled ? AppIcons.restrictedChannel : AppIcons.shapeArrow,
+      ),
+    };
   }
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final (fill, border, glyph, icon) = switch (state) {
-      CellState.allow => (
-        tokens.accentFill,
-        tokens.accentFill,
-        tokens.accentOn,
-        AppIcons.check,
-      ),
-      CellState.deny => (
-        tokens.dangerText.withValues(alpha: 0.14),
-        tokens.dangerBorder,
-        tokens.dangerText,
-        AppIcons.dismiss,
-      ),
-      CellState.inherit when disabled => (
-        Colors.transparent,
-        tokens.borderSubtle,
-        tokens.textDisabled,
-        AppIcons.restrictedChannel,
-      ),
-      CellState.inherit => (
-        tokens.surfaceSunken,
-        tokens.borderSubtle,
-        tokens.textSecondary,
-        AppIcons.shapeArrow,
-      ),
-    };
-    final lift = _lift(tokens);
+    final (fill, border, glyph, icon) = _paint(tokens);
+    final duration = AppMotion.reduced(context, AppMotion.fast);
     return AnimatedScale(
-      scale: pressed ? 0.92 : 1,
-      duration: const Duration(milliseconds: 90),
+      scale: pressed ? 0.94 : 1,
+      duration: duration,
+      curve: AppMotion.entrance,
       child: SizedBox(
         width: width,
         height: height,
@@ -91,7 +89,16 @@ class CellChip extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Positioned.fill(
-              child: _body(tokens, fill, border, lift, icon, glyph),
+              child: AnimatedContainer(
+                duration: duration,
+                curve: AppMotion.entrance,
+                decoration: BoxDecoration(
+                  color: fill,
+                  border: Border.all(color: border, width: 1.5),
+                  borderRadius: BorderRadius.circular(AppRadii.control),
+                ),
+                child: Icon(icon, size: AppSizes.icon16, color: glyph),
+              ),
             ),
             if (changed)
               Positioned(
@@ -112,31 +119,10 @@ class CellChip extends StatelessWidget {
       ),
     );
   }
-
-  Widget _body(
-    AppTokens tokens,
-    Color fill,
-    Color border,
-    Color lift,
-    IconData icon,
-    Color glyph,
-  ) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: fill,
-        border: Border.all(color: border, width: 1.5),
-        borderRadius: BorderRadius.circular(AppRadii.control),
-      ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: lift,
-          borderRadius: BorderRadius.circular(AppRadii.control),
-        ),
-        child: Icon(icon, size: 16, color: glyph),
-      ),
-    );
-  }
 }
+
+/// How long a pointer rests on a cell before its tooltip says what it is.
+const cellTooltipWait = Duration(milliseconds: 500);
 
 /// One spelling for the inherit state you may not change, in the legend and on the cell.
 const inheritBlockedLabel = "Inherit (you can't grant this)";
@@ -153,6 +139,7 @@ class Cell extends StatefulWidget {
     required this.label,
     required this.onTap,
     this.changed = false,
+    this.tooltip,
   });
 
   final bool changed;
@@ -160,6 +147,9 @@ class Cell extends StatefulWidget {
   final bool disabled;
   final String label;
   final VoidCallback onTap;
+
+  /// Names the permission and whose column it is, ahead of the state, on hover.
+  final String? tooltip;
 
   @override
   State<Cell> createState() => _CellState();
@@ -182,20 +172,25 @@ class _CellState extends State<Cell> {
   };
 
   @override
-  Widget build(BuildContext context) => Listener(
-    onPointerDown: (_) => _setPressed(true),
-    onPointerUp: (_) => _setPressed(false),
-    onPointerCancel: (_) => _setPressed(false),
-    child: SizedBox.expand(
-      child: FocusableTapTarget(
-        semanticLabel: '${widget.label}: $_stateLabel',
-        onTap: widget.onTap,
-        builder: (context, focused, hovered) => CellChip(
-          state: widget.state,
-          disabled: widget.disabled,
-          pressed: _pressed,
-          hovered: hovered,
-          changed: widget.changed,
+  Widget build(BuildContext context) => Tooltip(
+    message: '${widget.tooltip ?? widget.label}: $_stateLabel',
+    excludeFromSemantics: true,
+    waitDuration: cellTooltipWait,
+    child: Listener(
+      onPointerDown: (_) => _setPressed(true),
+      onPointerUp: (_) => _setPressed(false),
+      onPointerCancel: (_) => _setPressed(false),
+      child: SizedBox.expand(
+        child: FocusableTapTarget(
+          semanticLabel: '${widget.label}: $_stateLabel',
+          onTap: widget.onTap,
+          builder: (context, focused, hovered) => CellChip(
+            state: widget.state,
+            disabled: widget.disabled,
+            pressed: _pressed,
+            hovered: hovered,
+            changed: widget.changed,
+          ),
         ),
       ),
     ),

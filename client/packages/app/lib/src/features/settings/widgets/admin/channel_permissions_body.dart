@@ -8,6 +8,8 @@
 /// follows the body, rather than a table that scrolls its own labels away.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -47,6 +49,7 @@ class _PermissionGridViewState extends State<PermissionGridView> {
   final _body = ScrollController();
   final _header = ScrollController();
   final _section = GlobalKey();
+  final _hovered = HoveredRow();
   final Set<String> _collapsed = {};
 
   /// Groups still worth showing for the current filter, each with the
@@ -84,6 +87,7 @@ class _PermissionGridViewState extends State<PermissionGridView> {
     _body.removeListener(_followBody);
     _body.dispose();
     _header.dispose();
+    _hovered.dispose();
     super.dispose();
   }
 
@@ -206,6 +210,8 @@ class _PermissionGridViewState extends State<PermissionGridView> {
                       GridLabelRow(
                         label: spec.label,
                         height: metrics.rowHeight,
+                        bit: spec.bit,
+                        hovered: _hovered,
                       ),
                 ],
               ],
@@ -216,7 +222,8 @@ class _PermissionGridViewState extends State<PermissionGridView> {
               controller: _body,
               scrollDirection: Axis.horizontal,
               child: SizedBox(
-                width: metrics.contentWidth,
+                // At least the visible width, so a hovered row's tint reaches the card's edge.
+                width: math.max(metrics.contentWidth, metrics.viewportWidth),
                 child: Column(
                   children: [
                     for (final group in groups) ...[
@@ -234,6 +241,8 @@ class _PermissionGridViewState extends State<PermissionGridView> {
                           GridRow(
                             columns: widget.columns,
                             metrics: metrics,
+                            bit: spec.bit,
+                            hovered: _hovered,
                             cellBuilder: (column) =>
                                 widget.cellBuilder(column, spec),
                           ),
