@@ -208,6 +208,8 @@ jobs:
         working-directory: client/packages/app/ios
         run: |
           set -euo pipefail
+          log="$RUNNER_TEMP/build-for-testing.log"
+          # Only stdout goes through xcpretty, which drops lines it does not know; a failure prints the raw tail for the same reason.
           xcodebuild build-for-testing \
             -workspace Runner.xcworkspace \
             -scheme Runner \
@@ -217,8 +219,9 @@ jobs:
             -showBuildTimingSummary \
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            2>&1 | tee "$RUNNER_TEMP/build-for-testing.log" | xcpretty || exit "${PIPESTATUS[0]}"
-          sed -n '/Build Timing Summary/,$p' "$RUNNER_TEMP/build-for-testing.log"
+            | tee "$log" | xcpretty \
+            || { code=${PIPESTATUS[0]}; echo "raw xcodebuild output, last 200 lines:"; tail -n 200 "$log"; exit "$code"; }
+          sed -n '/Build Timing Summary/,$p' "$log"
 
       # An app extension carrying a Frameworks directory is refused by the
       # store with error 90206, which only surfaces at upload - after a
@@ -267,7 +270,8 @@ jobs:
             -only-testing:RunnerTests \
             -parallel-testing-enabled NO \
             -resultBundlePath "$RUNNER_TEMP/RunnerTests.xcresult" \
-            | xcpretty || exit "${PIPESTATUS[0]}"
+            | tee "$RUNNER_TEMP/xctest.log" | xcpretty \
+            || { code=${PIPESTATUS[0]}; echo "raw xcodebuild output, last 200 lines:"; tail -n 200 "$RUNNER_TEMP/xctest.log"; exit "$code"; }
 
       # xcpretty drops Xcode 26's test lines, so a failing test showed its name and never its message.
       - name: print the failing tests' messages
@@ -281,8 +285,8 @@ jobs:
         if: needs.changes.outputs.native == 'true'
         run: |
           SECONDS=0
-          xcrun simctl shutdown "${{ steps.sim.outputs.udid }}"
-          echo "shut down in ${SECONDS}s"
+          xcrun simctl shutdown "${{ steps.sim.outputs.udid }}" || echo "not shut down (simctl exit $?); the release build runs anyway"
+          echo "took ${SECONDS}s"
 
       # PR #292's actual failure: a link error only `build ipa` (Release,
       # device) hit, never the Debug simulator build above. This is that
