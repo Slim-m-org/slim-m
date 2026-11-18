@@ -6905,6 +6905,74 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /notification-preferences/categories:
+    get:
+      operationId: listCategoryMutes
+      tags: [push]
+      summary: List the categories the caller has muted.
+      responses:
+        "200":
+          description: The caller's muted categories that still exist.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryMuteEntry"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /notification-preferences/categories/{categoryId}:
+    parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: muteCategory
+      tags: [push]
+      summary: Mute every channel in this category and its sub-categories.
+      description: >
+        Covers channels filed into the category later too. A channel's own
+        override (`setChannelNotificationOverride`) still wins over the
+        category mute. Idempotent. A category the caller cannot see answers
+        404, identically whether or not it exists.
+      responses:
+        "200":
+          description: The category is muted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryMuteEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: unmuteCategory
+      tags: [push]
+      summary: Unmute this category.
+      description: >
+        Idempotent, and needs no view of the category: it only touches the
+        caller's own row.
+      responses:
+        "204":
+          description: The category is not muted.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /voice-notifications/channels:
     get:
       operationId: listVoiceNotifications
@@ -20230,6 +20298,14 @@ components:
           type: string
           enum: [everything, mentions, nothing]
 
+    CategoryMuteEntry:
+      type: object
+      required: [category_id]
+      properties:
+        category_id:
+          type: string
+          format: uuid
+
     VoiceNotificationRequest:
       type: object
       required: [joins, streams]
@@ -21041,6 +21117,7 @@ components:
         - $ref: "#/components/schemas/AdminAlertsChanged"
         - $ref: "#/components/schemas/ReadStateChanged"
         - $ref: "#/components/schemas/NotificationOverrideChanged"
+        - $ref: "#/components/schemas/CategoryMuteChanged"
         - $ref: "#/components/schemas/MessageEphemeral"
         - $ref: "#/components/schemas/MessageComponents"
         - $ref: "#/components/schemas/MessageEmbeds"
@@ -22486,6 +22563,23 @@ components:
           description: >
             `everything`, `mentions` or `nothing`; null once the channel follows the account
             default.
+
+    CategoryMuteChanged:
+      type: object
+      required: [type, category_id, muted]
+      description: >
+        This account muted or unmuted a category from one of its devices.
+        Delivered only to the account's own connections. A write that changes
+        nothing is not announced.
+      properties:
+        type:
+          type: string
+          enum: [category_mute.changed]
+        category_id:
+          type: string
+          format: uuid
+        muted:
+          type: boolean
 
     NewDeviceSignIn:
       type: object

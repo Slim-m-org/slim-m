@@ -30,9 +30,13 @@ class SectionLabel extends StatefulWidget {
     this.collapsed = false,
     this.indicator,
     this.onToggle,
+    this.muted = false,
   });
 
   final String text;
+
+  /// This account muted the category; a bell-off glyph follows its name, as on a muted row.
+  final bool muted;
 
   /// Null for a header that does not fold (Direct messages, the implicit
   /// uncategorised bucket); otherwise pressing the header calls it.
@@ -72,10 +76,25 @@ class _SectionLabelState extends State<SectionLabel> {
       header: true,
       label: widget.text,
       child: ExcludeSemantics(
-        child: Text(
-          widget.text,
-          overflow: TextOverflow.ellipsis,
-          style: AppText.label.copyWith(color: tokens.textSecondary),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                widget.text,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.label.copyWith(color: tokens.textSecondary),
+              ),
+            ),
+            if (widget.muted) ...[
+              const SizedBox(width: AppSpacing.s4),
+              Icon(
+                AppIcons.notificationsOff,
+                size: AppSizes.icon12,
+                color: tokens.textSecondary,
+              ),
+            ],
+          ],
         ),
       ),
     );

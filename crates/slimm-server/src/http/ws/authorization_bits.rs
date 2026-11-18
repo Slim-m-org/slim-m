@@ -82,6 +82,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::AdminAlertsChanged
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
+        | Event::CategoryMuteChanged { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }

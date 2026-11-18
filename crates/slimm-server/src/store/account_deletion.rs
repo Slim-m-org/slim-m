@@ -251,6 +251,9 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        sqlx::query!("DELETE FROM category_mutes WHERE user_id = ?", user_id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query!("DELETE FROM voice_notify_prefs WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;

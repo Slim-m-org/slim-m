@@ -154,6 +154,12 @@ ServerEvent? overlayFrame(Map<String, dynamic> decoded) {
             ? NotificationPreference.parse(decoded['preference'] as String)
             : null,
       ),
+    'category_mute.changed'
+        when decoded['category_id'] is String && decoded['muted'] is bool =>
+      CategoryMuteChanged(
+        categoryId: decoded['category_id'] as String,
+        muted: decoded['muted'] as bool,
+      ),
     'message.components'
         when decoded['channel_id'] is String &&
             decoded['message_id'] is String &&

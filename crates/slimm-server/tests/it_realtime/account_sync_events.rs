@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Account-scoped changes reach the account's other open sockets live and
-//! nobody else's: "Mark as unread" and a per-channel notification override.
+//! nobody else's: "Mark as unread", a per-channel notification override and a category mute.
 
 use std::time::Duration;
 
@@ -224,6 +224,54 @@ async fn a_channel_override_reaches_the_other_device_and_nobody_else() {
         .await
         .expect("clearing is announced too");
     assert!(frame["preference"].is_null());
+    assert!(
+        frame_within(&mut bob_ws, Duration::from_millis(300))
+            .await
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn a_category_mute_reaches_the_other_device_and_nobody_else() {
+    let (store, _guard) = support::new_store("slimm-account-sync-category-mute").await;
+    seed_everyone(&store).await;
+    let category = store.create_category("games").await.unwrap().id;
+    store
+        .create_channel_with_id(
+            ChannelId::generate(),
+            "lobby",
+            "text",
+            Some(category),
+            None,
+            slimm_server::store::ChannelDefaults::default(),
+        )
+        .await
+        .unwrap();
+    let state = support::app::state(store.clone());
+    let (alice, phone_token, _ticket) = account(&store, "alice").await;
+    let (_desktop_token, desktop_ticket) = device(&store, alice).await;
+    let (_bob, _bob_token, bob_ticket) = account(&store, "bob").await;
+    let addr = serve(state.clone()).await;
+    let mut desktop = connect(addr, &desktop_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+    let uri = format!("/notification-preferences/categories/{category}");
+
+    for (method, muted) in [("PUT", true), ("DELETE", false)] {
+        let answer = http::router(state.clone())
+            .oneshot(request(method, &uri, &phone_token, json!({})))
+            .await
+            .unwrap();
+        assert!(
+            answer.status().is_success(),
+            "{method}: {}",
+            answer.status()
+        );
+        let frame = frame_of_kind(&mut desktop, "category_mute.changed")
+            .await
+            .expect("the other device must hear about the mute");
+        assert_eq!(frame["category_id"], category.to_string());
+        assert_eq!(frame["muted"], muted);
+    }
     assert!(
         frame_within(&mut bob_ws, Duration::from_millis(300))
             .await
