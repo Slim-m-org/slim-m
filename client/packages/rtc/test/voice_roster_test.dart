@@ -189,6 +189,24 @@ void main() {
       expect(bob(), CallPresence.live);
     });
 
+    test('someone already back is live while another is still held', () {
+      final room = withBob()..people['cy'] = FakePeer('cy');
+      roster.update(room);
+      reconnecting = true;
+      room.people.clear();
+      roster.update(room);
+      expect(bob(), CallPresence.unconfirmed);
+
+      room.people['bob'] = FakePeer('bob');
+      roster.update(room);
+
+      expect(bob(), CallPresence.live);
+      expect(
+        roster.participants.firstWhere((p) => p.identity == 'cy').presence,
+        CallPresence.unconfirmed,
+      );
+    });
+
     test('drops someone the server saw leave instead of holding them', () {
       final room = withBob();
       roster.update(room);

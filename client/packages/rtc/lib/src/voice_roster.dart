@@ -132,12 +132,24 @@ class VoiceRoster {
   }
 
   /// Keeps who was shown, marked unconfirmed until the room lists them again; the server's leaves still apply.
+  ///
+  /// Someone the room already lists again is shown as the room has them now, live.
   void _holdThroughRestart(lk.Room room) {
-    final back = {for (final p in room.remoteParticipants.values) p.identity};
+    final back = {
+      for (final p in snapshotParticipants(
+        room,
+        speakingSensitivity: _sensitivity,
+        localVoice: _host.localVoice(),
+        localDeafened: _host.deafened(),
+      ))
+        if (!p.isLocal) p.identity: p,
+    };
     final held = [
       for (final p in _participants)
-        if (p.isLocal || back.contains(p.identity))
+        if (p.isLocal)
           p
+        else if (back[p.identity] case final fresh?)
+          fresh
         else if (!_leftByServer.containsKey(p.identity))
           p.copyWith(
             presence: CallPresence.unconfirmed,
