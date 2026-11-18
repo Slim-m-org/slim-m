@@ -81,7 +81,36 @@ class DirectMessagesSection extends ConsumerWidget {
             selected: channel.id == selectedId,
             child: DmRow(channel: channel, selected: channel.id == selectedId),
           ),
+        if (others.isEmpty)
+          const _EmptyHint('No direct messages yet.', depth: 0),
       ],
+    );
+  }
+}
+
+/// Says a section is empty where its rows would be, so its header is not left bare.
+class _EmptyHint extends StatelessWidget {
+  const _EmptyHint(this.text, {required this.depth});
+
+  final String text;
+
+  /// How many category levels in, so it lines up with that section's rows.
+  final int depth;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.s8 + kRailRowInset * depth,
+        AppSpacing.s4,
+        AppSpacing.s8,
+        AppSpacing.s4,
+      ),
+      child: Text(
+        text,
+        style: AppText.caption.copyWith(color: tokens.textSecondary),
+      ),
     );
   }
 }
@@ -311,12 +340,27 @@ class _ChannelCategorySectionsState
       canManage: widget.canManage,
       menuKey: menuKey,
     );
-    return depth == 0
+    final indented = depth == 0
         ? header
         : Padding(
             padding: EdgeInsets.only(left: kRailRowInset * depth),
             child: header,
           );
+    // Only a manager sees an empty category; it is a place to add or drop a channel, so it says so.
+    final empty =
+        !_dragging &&
+        !view.folded(category) &&
+        view.channelsBeneath(category).isEmpty &&
+        view.tree.childrenOf(category.id).isEmpty;
+    if (!empty) return indented;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        indented,
+        _EmptyHint('No channels yet.', depth: depth + 1),
+      ],
+    );
   }
 }
 
