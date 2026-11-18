@@ -150,16 +150,16 @@ class _MemberProfileNoteFieldState
                 controller: _controller,
                 focusNode: _focusNode,
                 enabled: _seeded && !_saving,
-                maxLength: api.kUserNoteMaxChars,
+                inputFormatters: [CodePointLengthLimit(api.kUserNoteMaxChars)],
                 maxLines: null,
                 style: AppText.caption.copyWith(color: tokens.textPrimary),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   filled: false,
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
                   isDense: true,
-                  counterText: '',
+                  counterText: _nearLimitCount(_controller.text),
                   hintText: 'Add a private note',
                 ),
                 onChanged: (_) => setState(() {}),
@@ -223,4 +223,11 @@ class _DashedRectPainter extends CustomPainter {
   @override
   bool shouldRepaint(_DashedRectPainter oldDelegate) =>
       oldDelegate.color != color;
+}
+
+/// The note's count once it nears the cap, so the cut is seen before it lands.
+String _nearLimitCount(String text) {
+  final count = inputCharCount(text);
+  const max = api.kUserNoteMaxChars;
+  return count < max * 0.8 ? '' : '$count/$max';
 }

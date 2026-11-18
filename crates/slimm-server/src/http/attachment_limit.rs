@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{Authed, Json, enforce, require_manage_server};
+use crate::hub::Event;
 use crate::ratelimit::Class;
 
 const BODY_LIMIT: usize = 256;
@@ -72,6 +73,8 @@ async fn update_limit(
         return Err(ApiError::BadRequest("max_bytes out of range"));
     }
     state.store.set_attachment_max_bytes(body.max_bytes).await?;
+    // `/version` carries the limit, and a member's picker refuses by it.
+    state.hub.publish(Event::SpaceSettingsChanged);
     Ok(Json(AttachmentLimitDto {
         max_bytes: body.max_bytes,
         server_max_bytes,

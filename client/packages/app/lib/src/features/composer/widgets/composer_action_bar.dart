@@ -35,6 +35,7 @@ class ComposerActionBar extends ConsumerWidget {
     required this.channelName,
     required this.hasText,
     required this.canSend,
+    this.sendBlockedReason,
     required this.canRecord,
     required this.onVoiceSent,
     required this.onSend,
@@ -75,6 +76,9 @@ class ComposerActionBar extends ConsumerWidget {
   /// Whether [onSendPressed] is offered at all right now; see
   /// `composer.dart`'s own `_canSend` for everything that feeds it.
   final bool canSend;
+
+  /// Said by a disabled Send's tooltip: why what is staged holds the send.
+  final String? sendBlockedReason;
 
   /// Whether the mic may stand in for Send: an empty composer with nothing staged.
   final bool canRecord;
@@ -163,7 +167,12 @@ class ComposerActionBar extends ConsumerWidget {
                             semanticLabel: isThread
                                 ? 'Send reply'
                                 : 'Send message',
-                            tooltip: isThread ? 'Send reply' : 'Send message',
+                            tooltip: canSend
+                                ? (isThread ? 'Send reply' : 'Send message')
+                                : sendBlockedReason ??
+                                      (isThread
+                                          ? 'Send reply'
+                                          : 'Send message'),
                             onPressed: canSend ? onSendPressed : null,
                           ),
                       ],

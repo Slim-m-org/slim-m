@@ -433,6 +433,7 @@ Six things to know:
 - **You own the value.** Whatever `value` you send back in the next scene is what the field shows, so you can correct, clear or reformat what somebody typed. The one exception is a field they currently have focused: a scene arriving mid-typing leaves it alone rather than overwriting under their cursor.
 - **`submit` is required** and must be non-empty, because nothing could report a submission otherwise. An op without one is skipped.
 - **`max` is clamped** to 512 characters. The text rides back to you on every submission, so a module cannot ask for an unbounded one.
+  It counts code points, what Rust's `str::chars` counts, so one family emoji is seven of them; the field cuts what is typed past it without a counter, since a counter would cover your scene.
 - **`w` is held between zero and the scene's longer side**, and a scene carries at most eight fields.
 - **Each field needs its own `submit`.** A later field that reuses a name is skipped, because slim keeps one text controller per name.
 

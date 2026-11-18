@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! A change to anything `/version` shows about the Space reaches every
 //! connected member as `Event::SpaceSettingsChanged`, so their clients re-read
-//! it: the name, the description, the icon and the Space default theme, not only
-//! the module switches. Publishing or removing a theme, which any member may do,
-//! publishes only `Event::SpaceThemesChanged`, so it never refetches `/version`.
+//! it: the name, the description, the icon, the attachment limit and the Space
+//! default theme, not only the module switches. Publishing or removing a
+//! theme, which any member may do, publishes only `Event::SpaceThemesChanged`,
+//! so it never refetches `/version`.
 
 use axum::Router;
 use axum::body::Body;
@@ -103,6 +104,23 @@ async fn a_description_a_noise_default_and_the_invite_switch_each_publish() {
         w.patch(body.clone()).await;
         assert_eq!(settings_changed(&w.published()), 1, "{body}");
     }
+}
+
+#[tokio::test]
+async fn changing_the_attachment_limit_publishes() {
+    let mut w = world().await;
+    let body = json!({"max_bytes": 0});
+    let (status, _) = call_as(
+        &w.router,
+        "PATCH",
+        "/space/attachment-limit",
+        &w.admin,
+        Some(body),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    assert_eq!(settings_changed(&w.published()), 1);
 }
 
 #[tokio::test]

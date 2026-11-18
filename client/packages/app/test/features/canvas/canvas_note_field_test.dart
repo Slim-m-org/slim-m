@@ -213,13 +213,13 @@ void main() {
       selection: TextSelection.collapsed(offset: full.length + 2),
     );
     await tester.pump();
-    expect(find.text('This note is full.'), findsNothing);
+    expect(find.text(noteFullSentence), findsNothing);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
 
     expect(controller.text, '- $full');
-    expect(find.text('This note is full.'), findsOneWidget);
+    expect(find.text(noteFullSentence), findsOneWidget);
   });
 
   testWidgets('typing past the limit is refused and says so', (tester) async {
@@ -233,6 +233,6 @@ void main() {
     await tester.pump();
 
     expect(noteWireBytes(controller.text), lessThanOrEqualTo(maxNoteTextBytes));
-    expect(find.text('This note is full.'), findsOneWidget);
+    expect(find.text(noteFullSentence), findsOneWidget);
   });
 }

@@ -10,12 +10,13 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../composer/providers/composer_attachment_drop.dart';
+import '../../composer/widgets/composer_attachments.dart'
+    show kMaxStagedAttachments;
 import '../providers/incoming_share.dart';
 import 'shared_file_source.dart';
 
-/// The server accepts this many attachments per message
-/// (`MAX_ATTACHMENTS_PER_MESSAGE` in `store/attachments.rs`).
-const kMaxSharedFiles = 10;
+/// The server accepts this many attachments per message.
+const kMaxSharedFiles = kMaxStagedAttachments;
 
 /// Said when the other app shared more than the OS let slim-m read.
 String unreadableNotice(int count) => count == 1
@@ -23,7 +24,7 @@ String unreadableNotice(int count) => count == 1
     : '$count shared items could not be read, so they are left out.';
 
 /// Stages [share]'s files through [target]. A refusal from the staging itself
-/// (a file over the server's limit) replaces the notes set up front.
+/// (a file over the server's limit) shows beside the notes set up front.
 Future<void> stageShare(
   ComposerAttachmentDropTarget target,
   IncomingShare share,

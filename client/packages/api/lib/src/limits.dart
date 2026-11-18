@@ -67,6 +67,9 @@ abstract final class InputLimits {
 
   /// `roles::ROLE_COLOR_COUNT`: how many colours the role palette holds.
   static const int roleColors = 10;
+
+  /// `attachments::MAX_ATTACHMENTS_PER_MESSAGE`: files one message carries.
+  static const int attachmentsPerMessage = 10;
 }
 
 /// What a username may hold, the server's own rule.

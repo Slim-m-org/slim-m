@@ -15,3 +15,27 @@ pub const MAX_PASSWORD_CHARS: usize = 1024;
 
 /// Longest search query, for message search and the GIF picker alike.
 pub const MAX_QUERY_CHARS: usize = 200;
+
+/// How far a value runs past its cap, as a refusal says it: "3 characters
+/// over the 4000-character limit", singular for one.
+pub fn chars_over_limit(over: usize, max: usize) -> String {
+    let unit = if over == 1 { "character" } else { "characters" };
+    format!("{over} {unit} over the {max}-character limit")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::chars_over_limit;
+
+    #[test]
+    fn one_character_over_is_singular() {
+        assert_eq!(
+            chars_over_limit(1, 64),
+            "1 character over the 64-character limit"
+        );
+        assert_eq!(
+            chars_over_limit(2, 64),
+            "2 characters over the 64-character limit"
+        );
+    }
+}

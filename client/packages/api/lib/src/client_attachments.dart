@@ -7,6 +7,7 @@ import 'exceptions.dart';
 import 'models.dart';
 import 'client.dart';
 import 'client_transport.dart';
+import 'upload_send.dart';
 
 /// Attachments: upload bytes once, reference the returned id in
 /// [SlimmApi.sendMessage], fetch them back. The `attachments` tag.
@@ -100,24 +101,14 @@ extension SlimmApiAttachments on SlimmApi {
       ..contentLength = length
       ..headers['content-type'] = 'application/octet-stream'
       ..headers['authorization'] = 'Bearer $token';
-    var sent = 0;
-    final body = open().map((chunk) {
-      sent += chunk.length;
-      onProgress?.call(sent);
-      return chunk;
-    });
-    unawaited(
-      request.sink
-          .addStream(body)
-          .then((_) => request.sink.close())
-          .catchError((Object e, StackTrace st) {
-        request.sink.addError(e, st);
-        request.sink.close();
-      }),
-    );
     final http.Response response;
     try {
-      var sending = link.client.send(request);
+      var sending = sendUpload(
+        link.client,
+        request,
+        open(),
+        onProgress: onProgress,
+      );
       if (sendDeadline != null) sending = sending.timeout(sendDeadline);
       response = await http.Response.fromStream(
         await sending,

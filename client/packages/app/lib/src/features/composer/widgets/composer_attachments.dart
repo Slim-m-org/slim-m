@@ -27,6 +27,9 @@ import '../providers/composer_actions.dart';
 
 export 'staged_attachment_model.dart';
 
+/// The files one message carries; the server refuses a send with more.
+const kMaxStagedAttachments = api.InputLimits.attachmentsPerMessage;
+
 /// Stages attachments for one channel's composer: a pick is visible the
 /// moment it happens, its upload runs in the background, and a failure stays
 /// in place until it is retried or removed rather than vanishing.
@@ -81,6 +84,37 @@ class AttachmentStagingController extends ChangeNotifier {
   /// failed and needs a retry or a removal before it stops claiming a slot.
   bool get hasBlockingAttachment => _items.any((a) => a is! UploadedAttachment);
 
+  int get uploadingCount => _items.whereType<UploadingAttachment>().length;
+  int get failedCount => _items.whereType<FailedAttachment>().length;
+
+  /// Whether another file would take this message past what the server takes.
+  bool get isFull => _items.length >= kMaxStagedAttachments;
+
+  /// The sentence a refused [filename] gets once [isFull].
+  String _fullRefusal(String filename) => _refuse(
+    '$filename was not added: one message holds up to '
+    '$kMaxStagedAttachments files.',
+  );
+
+  String? _refusal;
+
+  /// Why the latest file offered here was not taken, shown until dismissed,
+  /// sent past or cleared by the next pick: a refused file never appears in
+  /// the tray, so this sentence is the only trace of it.
+  String? get refusal => _refusal;
+
+  void dismissRefusal() {
+    if (_refusal == null) return;
+    _refusal = null;
+    notifyListeners();
+  }
+
+  String _refuse(String message) {
+    _refusal = message;
+    notifyListeners();
+    return message;
+  }
+
   /// The ids a send may reference. Deliberately only the uploaded ones: a
   /// caller must also check [hasBlockingAttachment] first, or a send while
   /// something is still pending would go out short of what was staged.
@@ -104,8 +138,9 @@ class AttachmentStagingController extends ChangeNotifier {
   /// Stages [attachment] as already uploaded, with [bytes] purely for the
   /// tile's own local preview - the picker (`gif_picker.dart`'s own selectGif
   /// call) already stored it server-side, so there is no upload to run here,
-  /// unlike [stage].
-  void addResolved(api.Attachment attachment, Uint8List bytes) {
+  /// unlike [stage]. Answers the refusal sentence once [isFull], else null.
+  String? addResolved(api.Attachment attachment, Uint8List bytes) {
+    if (isFull) return _fullRefusal(attachment.filename);
     final localId = 'staged-${_nextLocalId++}';
     _items.add(
       UploadedAttachment(
@@ -116,12 +151,14 @@ class AttachmentStagingController extends ChangeNotifier {
       ),
     );
     notifyListeners();
+    return null;
   }
 
   /// Stages [bytes] and returns once it is in [items], before the upload
   /// this starts has any chance to resolve - a caller awaiting this sees the
-  /// pending entry, never a gap where nothing is staged at all.
-  Future<void> stage(Uint8List bytes, String filename) =>
+  /// pending entry, never a gap where nothing is staged at all. Answers the
+  /// refusal sentence once [isFull], else null.
+  Future<String?> stage(Uint8List bytes, String filename) =>
       stageBody(AttachmentBody.memory(bytes), filename);
 
   /// Stages [file], first refusing it when it is over the server's limit.
@@ -129,6 +166,7 @@ class AttachmentStagingController extends ChangeNotifier {
   /// The tile is shown before the content is read, so a large pick appears at
   /// once. Answers the refusal sentence, or null when it was staged.
   Future<String?> stageFile(FileSource file) async {
+    if (isFull) return _fullRefusal(file.name);
     final length = await file.length();
     final limit = await maxBytes?.call();
     if (limit != null && length > limit) {
@@ -136,29 +174,29 @@ class AttachmentStagingController extends ChangeNotifier {
           '${file.name} is ${formatByteSize(length)}, over this server\'s '
           'limit of ${formatByteSize(limit)} per file.';
       onFailure?.call(file.name, message);
-      return message;
+      return _refuse(message);
     }
     if (length <= kInMemoryAttachmentBytes) {
-      await stage(await file.readAll(), file.name);
-    } else {
-      await stageBody(
-        AttachmentBody.stream(
-          length: length,
-          open: file.openRead,
-          openAt: file.openReadAt,
-        ),
-        file.name,
-      );
+      return stage(await file.readAll(), file.name);
     }
-    return null;
+    return stageBody(
+      AttachmentBody.stream(
+        length: length,
+        open: file.openRead,
+        openAt: file.openReadAt,
+      ),
+      file.name,
+    );
   }
 
   /// [stage] for any [AttachmentBody], including a streamed one.
-  Future<void> stageBody(AttachmentBody body, String filename) async {
+  Future<String?> stageBody(AttachmentBody body, String filename) async {
+    if (isFull) return _fullRefusal(filename);
     final item = _uploading('staged-${_nextLocalId++}', filename, body);
     _items.add(item);
     notifyListeners();
     unawaited(_runUpload(item));
+    return null;
   }
 
   UploadingAttachment _uploading(
@@ -205,6 +243,7 @@ class AttachmentStagingController extends ChangeNotifier {
         ),
       );
       _spoilers.removeAll([for (final a in taken) a.localId]);
+      dismissRefusal();
     } on Object {
       _items.insertAll(0, taken);
       notifyListeners();
@@ -218,6 +257,17 @@ class AttachmentStagingController extends ChangeNotifier {
     }
     _items.removeWhere((a) => a.localId == localId);
     _spoilers.remove(localId);
+    notifyListeners();
+  }
+
+  /// Drops every failed file at once, so a burst refused by the rate limit
+  /// is one tap to clear rather than one per tile.
+  void removeFailed() {
+    final failed = _items.whereType<FailedAttachment>().toList();
+    if (failed.isEmpty) return;
+    failed.forEach(_drop);
+    _items.removeWhere((a) => a is FailedAttachment);
+    _spoilers.removeAll([for (final a in failed) a.localId]);
     notifyListeners();
   }
 
@@ -243,6 +293,7 @@ class AttachmentStagingController extends ChangeNotifier {
     _items.forEach(_drop);
     _items.clear();
     _spoilers.clear();
+    _refusal = null;
     notifyListeners();
   }
 
