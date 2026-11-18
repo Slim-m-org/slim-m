@@ -155,17 +155,35 @@ void main() {
     await _leave(call);
   });
 
-  testWidgets('your own share is a calm tile with a Stop sharing button', (
+  testWidgets(
+    'your own share shows its live preview and a Stop sharing button',
+    (tester) async {
+      final call = await _connected(tester, [
+        _p('me', local: true),
+        _p('a', sharing: false),
+      ], _wide);
+      expect(find.byKey(const Key('fake-share-view-me')), findsOneWidget);
+      expect(find.text('You are sharing your screen'), findsOneWidget);
+      final stop = tester.getRect(find.text('Stop sharing'));
+      expect(tester.getRect(_tile('me')).contains(stop.center), isTrue);
+      call.session.shareCalls.clear();
+      await tester.tap(find.text('Stop sharing'));
+      await tester.pump();
+      expect(call.session.shareCalls.map((c) => c.enabled), [false]);
+      await _leave(call);
+    },
+  );
+
+  testWidgets('your own share beside a peer\'s still shows its preview', (
     tester,
   ) async {
     final call = await _connected(tester, [
       _p('me', local: true),
-      _p('a', sharing: false),
+      _p('a'),
     ], _wide);
-    expect(find.byKey(const Key('fake-share-view-me')), findsNothing);
-    expect(find.text('You are sharing your screen'), findsOneWidget);
-    final stop = tester.getRect(find.text('Stop sharing'));
-    expect(tester.getRect(_tile('me')).contains(stop.center), isTrue);
+    expect(find.byKey(const Key('fake-share-view-me')), findsOneWidget);
+    expect(find.byKey(const Key('fake-share-view-a')), findsOneWidget);
+    expect(_area(tester, _tile('a')), greaterThan(_area(tester, _tile('me'))));
     await _leave(call);
   });
 

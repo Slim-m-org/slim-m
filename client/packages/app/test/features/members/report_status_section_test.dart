@@ -111,6 +111,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('No report found with that ID.'), findsOneWidget);
     expect(find.text('Resolved. Filed just now.'), findsNothing);
+    // An ID that matches nothing is the field's error, said under it rather than boxed.
+    expect(find.byWidgetPredicate((w) => w is AppErrorState), findsNothing);
+    final field = find.byWidgetPredicate((w) => w is AppInput);
+    expect(tester.widget<AppInput>(field).invalid, isTrue);
+    expect(
+      tester.getTopLeft(find.text('No report found with that ID.')).dy,
+      greaterThan(tester.getBottomLeft(field).dy),
+    );
   });
 
   test('filedAgo buckets sit on their boundaries', () {

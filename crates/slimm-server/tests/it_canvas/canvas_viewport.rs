@@ -87,36 +87,36 @@ async fn place(store: &Store, channel: ChannelId, author: UserId, x: f64) {
         .expect("placed");
 }
 
-/// Seeing a channel is not seeing its canvas. A member with VIEW_CHANNEL and
-/// no USE_CANVAS is refused, which matters because the canvas is where a voice
-/// room's shared work lives and a listen-only guest is a real role.
+/// Seeing a channel is seeing its canvas: a member with VIEW_CHANNEL and no
+/// USE_CANVAS reads it as a spectator, and only a member who cannot see the
+/// channel is refused.
 #[tokio::test]
-async fn reading_a_canvas_needs_the_canvas_bit_as_well_as_the_view_bit() {
+async fn a_member_without_the_canvas_bit_reads_the_canvas_as_a_spectator() {
     let (store, _guard) = new_store().await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
         .unwrap();
-    let drawers = store
-        .create_role("drawers", Permissions::USE_CANVAS, false)
-        .await
-        .unwrap();
     let app = app(store.clone());
     let channel = store.create_channel("canvas", "voice").await.unwrap().id;
 
-    let (token, user) = register(&store, "ann").await;
-    let (status, body) = get(&app, &region(channel), &token).await;
-    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
-
-    store.assign_role(user, drawers).await.unwrap();
+    let (token, _) = register(&store, "ann").await;
     let (status, body) = get(&app, &region(channel), &token).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["objects"], Value::Array(Vec::new()));
     assert_eq!(body["has_more"], Value::Bool(false));
+
+    let (outsider, user) = register(&store, "bob").await;
+    store
+        .set_member_overwrite(channel, user, Permissions::NONE, Permissions::VIEW_CHANNEL)
+        .await
+        .unwrap();
+    let (status, body) = get(&app, &region(channel), &outsider).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
 }
 
 /// The gate reads the evaluator's per-channel answer, so a role that grants
-/// the canvas everywhere still loses in a channel that denies it. A
+/// the canvas everywhere still loses in a channel hidden from the member. A
 /// deployment-wide check of the wrong shape is a bug this project has already
 /// shipped once, in report resolution.
 #[tokio::test]
@@ -136,7 +136,7 @@ async fn the_canvas_gate_is_evaluated_per_channel() {
 
     let (token, user) = register(&store, "ann").await;
     store
-        .set_member_overwrite(closed, user, Permissions::NONE, Permissions::USE_CANVAS)
+        .set_member_overwrite(closed, user, Permissions::NONE, Permissions::VIEW_CHANNEL)
         .await
         .unwrap();
 

@@ -25,6 +25,7 @@ export 'client_channel_admin.dart'
 export 'client_canvas.dart' show SlimmApiCanvas;
 export 'client_diagnostics.dart' show SlimmApiDiagnostics;
 export 'client_direct_route.dart' show SlimmApiDirectRoute;
+export 'client_edge.dart' show SlimmApiEdge;
 export 'client_dms.dart' show SlimmApiDms;
 export 'client_dock.dart' show SlimmApiDock;
 export 'client_emoji.dart' show SlimmApiEmoji;
@@ -151,7 +152,10 @@ class SlimmApi {
     return baseUrl.replace(scheme: scheme, path: '/ws');
   }
 
-  void close() => link.client.close();
+  void close() {
+    link.edge.close();
+    link.client.close();
+  }
 
   /// Whether requests are currently going over the server's own network.
   bool get usesDirectRoute => link.route?.active ?? false;

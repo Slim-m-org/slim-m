@@ -754,7 +754,7 @@ client/packages/app/test/features/settings/totp_policy_off_test.dart 0 1
 client/packages/app/test/features/settings/totp_section_test.dart 9 12
 client/packages/app/test/features/settings/totp_sign_in_test.dart 1 6
 client/packages/app/test/features/settings/webhooks_screen_test.dart 4 16
-client/packages/app/test/features/settings/welcome_section_test.dart 3 7
+client/packages/app/test/features/settings/welcome_section_test.dart 2 5
 client/packages/app/test/features/voice/audio_device_section_listing_test.dart 0 1
 client/packages/app/test/features/voice/bot_call_controls_test.dart 8 4
 client/packages/app/test/features/voice/call_dock_accent_test.dart 2 0

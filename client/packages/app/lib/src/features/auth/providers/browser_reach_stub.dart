@@ -3,3 +3,5 @@
 library;
 
 Future<bool?> answersOutsideBrowserRules(Uri server) async => null;
+
+bool browserSaysOnline() => true;

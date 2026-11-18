@@ -83,6 +83,8 @@ struct DeviceDto {
     id: String,
     name: String,
     created_at: i64,
+    /// When the live session began; `created_at` is when this install first signed in.
+    signed_in_at: i64,
     last_seen_at: Option<i64>,
     /// A coarse client kind ("ios", "android", "desktop", "web"), or `null`
     /// for a session opened before this field existed.
@@ -99,6 +101,7 @@ impl From<Device> for DeviceDto {
             id: device.id.to_string(),
             name: device.name,
             created_at: device.created_at,
+            signed_in_at: device.signed_in_at,
             last_seen_at: device.last_seen_at,
             client_kind: device.client_kind,
             client_version: device.client_version,

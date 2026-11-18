@@ -14,7 +14,7 @@ class EmojiAddResult {
   const EmojiAddResult({
     required this.upload,
     this.reason,
-    this.problem,
+    this.refusal,
     this.named = false,
   });
 
@@ -23,8 +23,8 @@ class EmojiAddResult {
   /// Null when the image was created.
   final String? reason;
 
-  /// What the server said is wrong with this image's name, when it named the image.
-  final String? problem;
+  /// What the server said is wrong with this image, when it named the image.
+  final api.ItemRefusal? refusal;
 
   /// A row on screen already says why, so the summary counts it without listing it.
   final bool named;

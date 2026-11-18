@@ -233,6 +233,10 @@ Win32Window::MessageHandler(HWND hwnd,
 }
 
 void Win32Window::Destroy() {
+  // Off screen first, so a teardown that stalls never leaves an empty white window behind.
+  if (window_handle_) {
+    ShowWindow(window_handle_, SW_HIDE);
+  }
   OnDestroy();
 
   if (window_handle_) {

@@ -305,6 +305,25 @@ void main() {
     );
   }
 
+  testWidgets('a description of emoji stops at the server cap, counted', (
+    tester,
+  ) async {
+    const family =
+        '\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}\u{200D}\u{1F466}';
+    await _pump(tester, _Server(), 390);
+    await tester.enterText(_descriptionField, family * 100);
+    await tester.pump();
+
+    final typed = tester.widget<TextField>(_descriptionField).controller!.text;
+    expect(typed.runes.length, InputLimits.spaceDescription);
+    expect(
+      find.text(
+        '${InputLimits.spaceDescription}/${InputLimits.spaceDescription}',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('the description field is multi-line', (tester) async {
     await _pump(tester, _Server(), 390);
     final field = tester.widget<TextField>(_descriptionField);

@@ -134,6 +134,22 @@ void main() {
     }
   });
 
+  testWidgets('the ways in sit straight under the question, with no tagline '
+      'between them', (tester) async {
+    await _pumpOnboarding(
+      tester,
+      versionBody: const {'name': 'slim-m', 'version': '0.6.0', 'protocol': 1},
+      onServerChosen: (server, invite) {},
+    );
+
+    final question = tester.getRect(find.text('Where are you joining?'));
+    final first = tester.getRect(
+      find.bySemanticsLabel(RegExp('^Join the official Space')),
+    );
+    expect(first.top - question.bottom, AppSpacing.s24);
+    expect(find.textContaining('host yourself'), findsNothing);
+  });
+
   testWidgets('a server too old to report an identity is not blocked on one', (
     tester,
   ) async {

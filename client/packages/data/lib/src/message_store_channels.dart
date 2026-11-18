@@ -84,8 +84,8 @@ Future<void> upsertChannels(
 /// one). A thread already known locally is kept until an explicit
 /// `ChannelDeleted` event removes it - the same event any other channel's
 /// deletion is learned through.
-Future<void> replaceChannels(
-    MessageStore store, List<api.Channel> channels) async {
+Future<void> replaceChannels(MessageStore store, List<api.Channel> channels,
+    {Set<String> alsoKeep = const {}}) async {
   final db = store.db;
   await db.transaction(() async {
     await store.upsertChannels(channels);
@@ -93,7 +93,7 @@ Future<void> replaceChannels(
           ..where((c) => c.parentMessageId.isNotNull()))
         .map((c) => c.id)
         .get();
-    final keep = {...channels.map((c) => c.id), ...threadIds};
+    final keep = {...channels.map((c) => c.id), ...threadIds, ...alsoKeep};
     final stale =
         await (db.select(db.channels)..where((c) => c.id.isNotIn(keep))).get();
     for (final row in stale) {

@@ -1,16 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// One channel's permission overwrites as a grid: a column per principal
-/// with (or being given) an overwrite, a row per permission, grouped. Each
-/// cell is tri-state (allow/inherit/deny). Replaces the old "pick a target,
-/// set every permission at once" flow (`current_overwrites_section.dart`,
-/// `overwrite_target_picker_sheets.dart`'s role/member pickers, and
-/// `permission_overwrite_row.dart`), which made a routine one-cell change a
-/// full-overwrite resubmission.
-///
-/// Edits batch the same way the roles pane's Permissions tab does: every
-/// cell tap only touches local state until Save, which applies the whole
-/// pending set in one `batchSetChannelOverwrites` call. This file owns that
-/// state; `channel_permissions_grid_rows.dart` is the presentational half.
+/// One channel's permission overwrites as a grid: a column per principal,
+/// a row per permission, each cell tri-state (allow/inherit/deny). Cell taps
+/// stay local until Save applies the whole pending set in one batch call;
+/// `channel_permissions_grid_rows.dart` is the presentational half.
 library;
 
 import 'package:flutter/material.dart';
@@ -26,6 +18,7 @@ import '../../../channels/providers/channel_permissions.dart';
 import '../../../members/providers/member_presence.dart'
     show channelMembersProvider, membersProvider;
 import '../../../../widgets/run_guarded.dart';
+import '../save_footer_scope.dart';
 import '../settings_save_bar.dart';
 import 'category_sync_banner.dart';
 import 'channel_permissions_body.dart';
@@ -455,7 +448,17 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
             child: AppErrorState(message: error, onDismiss: clearActionError),
           ),
         if (shrinkWrap) card else Expanded(child: card),
-        if (_isDirty) _saveBar(shrinkWrap: shrinkWrap),
+        SaveFooterSlot(
+          save: _isDirty
+              ? (
+                  changeCount: _changeCount,
+                  saving: _saving,
+                  onDiscard: _discard,
+                  onSave: _save,
+                )
+              : null,
+          inline: (_) => _saveBar(shrinkWrap: shrinkWrap),
+        ),
       ],
     );
   }
@@ -487,6 +490,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       changed: state != CellState.resolve(origAllow, origDeny, spec.bit),
       disabled: !grantable || _saving || column.locked,
       label: '${spec.label}, ${column.label}',
+      tooltip: '${spec.label} for ${column.label}',
       onTap: () => _cycle(column, spec.bit, grantable),
     );
   }

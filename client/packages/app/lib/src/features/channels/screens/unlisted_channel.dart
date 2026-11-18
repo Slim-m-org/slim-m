@@ -10,6 +10,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/threads.dart';
@@ -26,15 +27,19 @@ class UnlistedChannel extends ConsumerWidget {
     final parent = ref.watch(threadParentProvider(channelId));
     return parent.when(
       loading: () => const Center(child: AppSpinner(size: AppSpinnerSize.lg)),
-      error: (_, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s16),
-          child: AppErrorState(
-            message: 'Could not open this channel.',
-            onRetry: () => ref.invalidate(threadParentProvider(channelId)),
-          ),
-        ),
-      ),
+      // The server refuses an id that is not one at all; that is as missing as an unknown one.
+      error: (error, _) => error is api.BadRequestException
+          ? const ChannelNotFound()
+          : Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.s16),
+                child: AppErrorState(
+                  message: 'Could not open this channel.',
+                  onRetry: () =>
+                      ref.invalidate(threadParentProvider(channelId)),
+                ),
+              ),
+            ),
       data: (found) {
         final parentChannelId = found.parentChannelId;
         if (parentChannelId == null) return const ChannelNotFound();

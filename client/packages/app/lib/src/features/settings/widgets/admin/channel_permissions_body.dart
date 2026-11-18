@@ -8,6 +8,8 @@
 /// follows the body, rather than a table that scrolls its own labels away.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -47,6 +49,7 @@ class _PermissionGridViewState extends State<PermissionGridView> {
   final _body = ScrollController();
   final _header = ScrollController();
   final _section = GlobalKey();
+  final _hovered = HoveredRow();
   final Set<String> _collapsed = {};
 
   /// Groups still worth showing for the current filter, each with the
@@ -84,6 +87,7 @@ class _PermissionGridViewState extends State<PermissionGridView> {
     _body.removeListener(_followBody);
     _body.dispose();
     _header.dispose();
+    _hovered.dispose();
     super.dispose();
   }
 
@@ -100,6 +104,11 @@ class _PermissionGridViewState extends State<PermissionGridView> {
       final metrics = GridMetrics.forWidth(
         box.maxWidth,
         columnCount: widget.columns.length,
+      );
+      final headerHeight = headerBandHeight(
+        context,
+        widget.columns,
+        metrics.cellWidth,
       );
       final rows = Stack(
         children: [
@@ -122,6 +131,7 @@ class _PermissionGridViewState extends State<PermissionGridView> {
       final header = HeaderRow(
         columns: widget.columns,
         metrics: metrics,
+        height: headerHeight,
         controller: _header,
         onAdd: widget.onAdd,
         onRemove: widget.onRemove,
@@ -143,7 +153,7 @@ class _PermissionGridViewState extends State<PermissionGridView> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(height: metrics.headerHeight),
+              SizedBox(height: headerHeight),
               rows,
             ],
           ),
@@ -154,7 +164,8 @@ class _PermissionGridViewState extends State<PermissionGridView> {
             child: ViewportPin(
               edge: ViewportEdge.top,
               section: _section,
-              child: _PinnedHeaderSurface(child: header),
+              builder: (context, pinned) =>
+                  _PinnedHeaderSurface(pinned: pinned, child: header),
             ),
           ),
         ],
@@ -199,6 +210,8 @@ class _PermissionGridViewState extends State<PermissionGridView> {
                       GridLabelRow(
                         label: spec.label,
                         height: metrics.rowHeight,
+                        bit: spec.bit,
+                        hovered: _hovered,
                       ),
                 ],
               ],
@@ -209,7 +222,8 @@ class _PermissionGridViewState extends State<PermissionGridView> {
               controller: _body,
               scrollDirection: Axis.horizontal,
               child: SizedBox(
-                width: metrics.contentWidth,
+                // At least the visible width, so a hovered row's tint reaches the card's edge.
+                width: math.max(metrics.contentWidth, metrics.viewportWidth),
                 child: Column(
                   children: [
                     for (final group in groups) ...[
@@ -227,6 +241,8 @@ class _PermissionGridViewState extends State<PermissionGridView> {
                           GridRow(
                             columns: widget.columns,
                             metrics: metrics,
+                            bit: spec.bit,
+                            hovered: _hovered,
                             cellBuilder: (column) =>
                                 widget.cellBuilder(column, spec),
                           ),
@@ -340,20 +356,30 @@ class _NoMatches extends StatelessWidget {
   }
 }
 
-/// The card's own fill and side borders behind the column names, so a pinned header neither shows rows through it nor cuts the card's frame.
-class _PinnedHeaderSurface extends StatelessWidget {
-  const _PinnedHeaderSurface({required this.child});
+/// Keys the band behind the column names, for tests reading its frame.
+const pinnedHeaderSurfaceKey = Key('grid-pinned-header');
 
+/// The card's own fill and side borders behind the column names, so a pinned
+/// header neither shows rows through it nor cuts the card's frame; held off
+/// its place, it closes the frame along its top edge too.
+class _PinnedHeaderSurface extends StatelessWidget {
+  const _PinnedHeaderSurface({required this.pinned, required this.child});
+
+  final bool pinned;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final side = BorderSide(color: tokens.borderSubtle);
     return DecoratedBox(
+      key: pinnedHeaderSurfaceKey,
       decoration: BoxDecoration(
         color: tokens.surfaceRaised,
-        border: Border.symmetric(
-          vertical: BorderSide(color: tokens.borderSubtle),
+        border: Border(
+          left: side,
+          right: side,
+          top: pinned ? side : BorderSide.none,
         ),
       ),
       child: child,

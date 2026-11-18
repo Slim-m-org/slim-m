@@ -41,7 +41,6 @@ use super::error::ApiError;
 use super::escalation::escalation_guard;
 use super::extract::require_manage_roles;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
-use super::hidden_chars::is_hidden_char;
 use super::messages::parse_uuid;
 use super::space::present;
 use crate::hub::{Event, RoleChange};
@@ -49,7 +48,9 @@ use crate::ids::{RoleId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{ROLE_COLOR_COUNT, Role, RoleChanges, RoleGuardError, RoleWithCount};
+use role_names::{require_distinct_role_name, validate_role_name};
 
+mod role_names;
 pub(super) mod role_preview;
 pub(super) mod role_reorder;
 
@@ -191,6 +192,7 @@ async fn create(
         .map(|raw| parse_uuid(raw).map(RoleId))
         .transpose()?
         .unwrap_or_else(RoleId::generate);
+    require_distinct_role_name(&state, name, id).await?;
 
     // Never `@everyone`: exactly one exists, seeded only by
     // `Store::bootstrap_deployment`, and this endpoint cannot ask for it.
@@ -240,6 +242,9 @@ async fn update(
     let role_id = RoleId(parse_uuid(&role_id)?);
 
     let name = req.name.as_deref().map(validate_role_name).transpose()?;
+    if let Some(name) = name {
+        require_distinct_role_name(&state, name, role_id).await?;
+    }
     let permissions = req
         .permissions
         .map(|bits| grantable(caller_permissions, bits))
@@ -467,19 +472,6 @@ fn role_guard_error(err: RoleGuardError) -> ApiError {
         }
         RoleGuardError::Internal(e) => e.into(),
     }
-}
-
-fn validate_role_name(name: &str) -> Result<&str, ApiError> {
-    let trimmed = name.trim();
-    if trimmed.is_empty() || trimmed.chars().count() > crate::limits::MAX_NAME_CHARS {
-        return Err(ApiError::BadRequest("name must be 1 to 64 characters"));
-    }
-    if trimmed.chars().any(is_hidden_char) {
-        return Err(ApiError::BadRequest(
-            "name must not contain control or invisible characters",
-        ));
-    }
-    Ok(trimmed)
 }
 
 /// `None` is no colour, which is always valid.

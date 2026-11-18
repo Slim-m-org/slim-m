@@ -177,6 +177,9 @@ class CanvasPaneFixture {
   /// Every `GET .../attachments/{id}` the pane's image hydrator sent.
   int attachmentFetches = 0;
 
+  /// Every `POST /attachments` the pane sent.
+  int attachmentUploads = 0;
+
   /// The signed-in member's own permission bitmask, as `GET /me` answers it.
   final int mePermissions;
 
@@ -184,7 +187,7 @@ class CanvasPaneFixture {
   /// [mePermissions], but a test proving the per-channel gate (rather than
   /// the deployment-wide one) drives the canvas menu passes a different
   /// value here to make the two genuinely disagree.
-  final int channelPermissions;
+  int channelPermissions;
   final List<Map<String, dynamic>> posted = [];
 
   /// When set, a placement POST is recorded but its reply waits on this.
@@ -368,6 +371,7 @@ class CanvasPaneFixture {
           });
         }
         if (request.url.path == '/attachments' && request.method == 'POST') {
+          attachmentUploads++;
           if (attachmentUploadStatus != 200) {
             return http.Response(
               jsonEncode({'error': 'refused'}),

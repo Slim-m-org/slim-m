@@ -80,6 +80,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::AdminAlertsChanged
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
+        | Event::CategoryMuteChanged { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }

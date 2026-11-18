@@ -52,8 +52,8 @@ class _Present {
   final String name;
 }
 
-/// Positioned top-right - the error/truncation banners already
-/// claim the top-left-to-center band, and the floating dock owns the bottom.
+/// Positioned top-right - the zoom readout and its chips claim the top-left,
+/// and the floating dock and the notice above it own the bottom.
 /// [IgnorePointer]-wrapped throughout, the same treatment `CanvasPresenceLayer`
 /// already gives camera bubbles: this is presence chrome, never a drawing
 /// target.

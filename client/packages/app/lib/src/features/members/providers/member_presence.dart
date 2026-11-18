@@ -8,6 +8,7 @@ library;
 
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
@@ -53,9 +54,45 @@ final membersProvider = FutureProvider.autoDispose<List<api.UserProfile>>(
 /// removed-members screen - all want the deployment-wide list, and narrowing
 /// it under them would hide exactly the people they exist to reach.
 final channelMembersProvider = FutureProvider.autoDispose
-    .family<List<api.UserProfile>, String>(
-      (ref, channelId) => _pagedMembers(ref, ref.watch(apiProvider), channelId),
-    );
+    .family<List<api.UserProfile>, String>((ref, channelId) async {
+      final client = ref.watch(apiProvider);
+      // Awaited only when pacing, so an unpaced fetch starts in the same turn as before.
+      final wait = ref.read(_rosterPaceProvider).settle(ref, channelId);
+      if (wait != null) await wait;
+      return _pagedMembers(ref, client, channelId);
+    });
+
+/// How soon after another channel's roster fetch the next one waits instead of
+/// starting; past the 300 ms a switch of someone clicking down the rail.
+const channelMembersSettle = Duration(milliseconds: 500);
+
+/// Which channel's roster was last asked for and when, so a burst of channel
+/// switches fetches the first channel and the one it stops on, not each between.
+class _RosterPace {
+  DateTime? _last;
+  String? _lastChannel;
+
+  /// Null for the same channel or after a quiet spell; mid-burst, done after
+  /// [channelMembersSettle], or never once the reader leaves.
+  Future<void>? settle(Ref ref, String channelId) {
+    final now = clock.now();
+    final last = _last;
+    final sameChannel = channelId == _lastChannel;
+    _last = now;
+    _lastChannel = channelId;
+    if (sameChannel ||
+        last == null ||
+        now.difference(last) >= channelMembersSettle) {
+      return null;
+    }
+    final settled = Completer<void>();
+    final timer = Timer(channelMembersSettle, settled.complete);
+    ref.onDispose(timer.cancel);
+    return settled.future;
+  }
+}
+
+final _rosterPaceProvider = Provider<_RosterPace>((ref) => _RosterPace());
 
 /// Rebuilt on every sign-in: a reader that keeps the roster alive (the desktop
 /// notifier) would otherwise hold a stale session's failure past the next one.

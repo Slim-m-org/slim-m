@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 
 import 'audio_stats.dart';
+import 'call_link.dart';
 import 'voice_reconnect_tracker.dart';
 import 'voice_health_summary.dart';
 import 'voice_health_window.dart';
@@ -122,6 +123,13 @@ class VoiceHealth {
   /// Round trip to the voice server in whole milliseconds, null before the
   /// first sample and once the call ends.
   final ValueNotifier<int?> pingMs = ValueNotifier(null);
+
+  /// The call's media path and signalling socket, null outside a call; see [CallLink].
+  final ValueNotifier<CallLink?> link = ValueNotifier(null);
+
+  /// Where the call's signalling socket connects, for a route check; null outside a call.
+  Uri? signalUrl;
+  bool _disposed = false;
 
   /// The SDK's own transport repair, watched; see [ReconnectTracker].
   final ReconnectTracker reconnect = ReconnectTracker();
@@ -287,14 +295,28 @@ class VoiceHealth {
     _lastLogAt = null;
     _localPing = null;
     _remotePing = null;
+    _clearLink();
+    signalUrl = null;
     _publishPing();
     _publish();
   }
 
+  /// Publishes a reading of the call's legs; a sample landing after dispose is dropped.
+  void noteLink(CallLink next) {
+    if (!_disposed) link.value = next;
+  }
+
+  // A teardown after dispose still stops sampling, which clears the reading.
+  void _clearLink() {
+    if (!_disposed) link.value = null;
+  }
+
   void dispose() {
+    _disposed = true;
     reconnect.dispose();
     poorConnections.dispose();
     pingMs.dispose();
+    link.dispose();
     lastCall.dispose();
   }
 
@@ -321,6 +343,7 @@ class VoiceHealth {
   void clearPing() {
     _localPing = null;
     _remotePing = null;
+    _clearLink();
     _publishPing();
   }
 

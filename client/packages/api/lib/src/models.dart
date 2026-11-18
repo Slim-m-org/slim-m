@@ -87,6 +87,7 @@ import 'models_forwards.dart';
 import 'models_polls.dart';
 import 'models_reactions.dart';
 import 'models_via_module.dart';
+import 'text_marks.dart';
 
 /// A session's credentials. The tokens are secrets: never log this.
 class TokenPair {
@@ -306,7 +307,10 @@ class Message {
         id: json['id'] as String,
         channelId: json['channel_id'] as String,
         authorId: json['author_id'] as String?,
-        authorDisplayName: json['author_display_name'] as String?,
+        authorDisplayName: switch (json['author_display_name']) {
+          final String name => capCombiningMarks(name),
+          _ => null,
+        },
         seq: json['seq'] as int,
         content: json['content'] as String,
         createdAt: json['created_at'] as int,
@@ -371,11 +375,17 @@ class Device {
     required this.isCurrent,
     this.clientKind,
     this.clientVersion,
+    this.signedInAt,
   });
 
   final String id;
   final String name;
+
+  /// When this install first signed in; signing in again keeps it.
   final int createdAt;
+
+  /// When the current session began, or null from a server older than this field.
+  final int? signedInAt;
   final int? lastSeenAt;
 
   /// A coarse client kind ("ios"/"android"/"desktop"/"web"), or null for a
@@ -394,6 +404,7 @@ class Device {
         id: json['id'] as String,
         name: json['name'] as String,
         createdAt: json['created_at'] as int,
+        signedInAt: json['signed_in_at'] as int?,
         lastSeenAt: json['last_seen_at'] as int?,
         clientKind: json['client_kind'] as String?,
         clientVersion: json['client_version'] as String?,

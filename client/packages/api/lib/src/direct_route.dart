@@ -50,6 +50,10 @@ abstract interface class DirectRoute {
   /// Whether the server advertised an address a connection test can pin to.
   bool get hasAddresses;
 
+  /// How many times the connection pool has been replaced; a request that
+  /// spans a change opened a fresh connection.
+  int get poolRenewals;
+
   /// A client that stays on one route and never falls back: the advertised
   /// address when [direct], the public hostname otherwise. Null when [direct]
   /// is asked for and there is no address. The caller closes it.

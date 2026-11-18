@@ -50,6 +50,7 @@ void startAccountServices(ProviderContainer container) {
   container.listen(blocksProvider, (_, _) {});
   container.listen(channelNotificationOverridesProvider, (_, _) {});
   container.listen(roleChangeWatcherProvider, (_, _) {});
+  container.listen(timeoutExpiryWatcherProvider, (_, _) {});
   container.listen(notificationSoundControllerProvider, (_, _) {});
   container.listen(holdMusicControllerProvider, (_, _) {});
   container.listen(holdMusicSyncProvider, (_, _) {});

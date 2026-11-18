@@ -78,6 +78,7 @@ import e2e_voice_quality
 import e2e_voice_volume
 import e2e_voice_hangup
 import e2e_voice_network
+import e2e_voice_one_sided
 import e2e_voice_signal_drop
 import e2e_video_quality
 import e2e_voice_rejoin
@@ -370,6 +371,10 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice: a signal socket dropped while the microphone publishes leaves "
          "one microphone that Mute reaches",
          lambda: e2e_voice_signal_drop.a_signal_drop_mid_publish_converges(
+             a, b, room_id)),
+        ("voice: a stalled signalling socket shows who the server says is in "
+         "the call, and clears once it is back",
+         lambda: e2e_voice_one_sided.a_stalled_signal_shows_who_the_server_has(
              a, b, room_id)),
         ("voice: noise suppression quiets the noise floor and keeps the voice",
          lambda: e2e_voice_noise.suppression_quiets_the_noise_floor(

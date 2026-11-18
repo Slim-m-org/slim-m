@@ -52,6 +52,9 @@ abstract final class AppIcons {
 
   /// Connected to the server over its own network rather than the internet.
   static const IconData localNetwork = LucideIcons.plug300;
+
+  /// The way this device reaches the server: which network, and what is in between.
+  static const IconData connectionRoute = LucideIcons.route300;
   static const IconData chevronDown = LucideIcons.chevronDown300;
   static const IconData chevronUp = LucideIcons.chevronUp300;
 

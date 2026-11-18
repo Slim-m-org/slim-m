@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The row of buttons under a module scene.
+/// The row of buttons and dropdowns under a module scene.
 ///
 /// Split out of `module_scene_view.dart` when the full-screen presentation
 /// pushed that file past the review ceiling. They are free functions taking
@@ -11,18 +11,26 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../settings/widgets/settings_select_row.dart';
+import 'module_scene_control.dart';
+
 List<Widget> sceneControls({
-  required List<String> controls,
+  required List<SceneControl> controls,
   required bool playing,
   required VoidCallback onTogglePlay,
   required void Function(String action) onAction,
-}) {
-  final widgets = <Widget>[];
-  for (final control in controls) {
-    widgets.add(_controlButton(control, playing, onTogglePlay, onAction));
-  }
-  return widgets;
-}
+}) => [
+  for (final control in controls)
+    switch (control) {
+      SceneButton(:final name) => _controlButton(
+        name,
+        playing,
+        onTogglePlay,
+        onAction,
+      ),
+      SceneSelect() => _SelectControl(select: control, onAction: onAction),
+    },
+];
 
 /// One control's button.
 ///
@@ -106,4 +114,42 @@ class _CustomControl extends StatelessWidget {
     onPressed: onPressed,
     semanticLabel: label,
   );
+}
+
+/// A choice of several, shown as the one in force with a chevron: a desktop
+/// drops the options down from it, a phone lifts them in a sheet.
+class _SelectControl extends StatelessWidget {
+  const _SelectControl({required this.select, required this.onAction});
+
+  final SceneSelect select;
+  final void Function(String action) onAction;
+
+  Future<void> _open(BuildContext context) async {
+    final chosen = await SettingsSelectRow.pick<String>(
+      context,
+      title: select.label,
+      value: select.value,
+      choices: [
+        for (final option in select.options)
+          SettingsChoice(value: option, label: option),
+      ],
+      fromStart: true,
+    );
+    if (chosen != null && chosen != select.value) onAction(chosen);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = select.value ?? select.label;
+    return AppButton(
+      label: shown,
+      size: AppButtonSize.sm,
+      variant: AppButtonVariant.secondary,
+      trailingIcon: AppIcons.chevronDown,
+      semanticLabel: select.value == null
+          ? select.label
+          : '${select.label}, currently $shown',
+      onPressed: () => _open(context),
+    );
+  }
 }

@@ -53,10 +53,14 @@ class DirectMessagesSection extends ConsumerWidget {
     super.key,
     required this.channels,
     required this.selectedId,
+    required this.listed,
   });
 
   final List<Channel> channels;
   final String? selectedId;
+
+  /// Whether [channels] is the server's answer yet, so an empty one may say so.
+  final bool listed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -81,7 +85,36 @@ class DirectMessagesSection extends ConsumerWidget {
             selected: channel.id == selectedId,
             child: DmRow(channel: channel, selected: channel.id == selectedId),
           ),
+        if (others.isEmpty && listed)
+          const _EmptyHint('No direct messages yet.', depth: 0),
       ],
+    );
+  }
+}
+
+/// Says a section is empty where its rows would be, so its header is not left bare.
+class _EmptyHint extends StatelessWidget {
+  const _EmptyHint(this.text, {required this.depth});
+
+  final String text;
+
+  /// How many category levels in, so it lines up with that section's rows.
+  final int depth;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.s8 + kRailRowInset * depth,
+        AppSpacing.s4,
+        AppSpacing.s8,
+        AppSpacing.s4,
+      ),
+      child: Text(
+        text,
+        style: AppText.caption.copyWith(color: tokens.textSecondary),
+      ),
     );
   }
 }
@@ -258,16 +291,25 @@ class _ChannelCategorySectionsState
       return const SizedBox.shrink();
     }
     final place = category == null ? 'Channels' : view.tree.pathOf(category);
-    final menuKey = category == null || carried || !widget.canManage
+    final menuKey = category == null || carried
         ? null
         : _categoryMenuKeys.putIfAbsent(
             category.id,
             GlobalKey<ContextMenuRegionState>.new,
           );
+    // A phone header's menu opens from the held press, as a row's does.
+    final kebab = menuKey != null && !AppTouchTargets.of(context);
     // Any section, the implicit uncategorised one included: it is a real place a channel can live.
     final label = SectionLabel(
       category?.name ?? 'Channels',
       collapsed: view.folded(category),
+      muted:
+          category != null &&
+          ref.watch(
+            channelNotificationOverridesProvider.select(
+              (s) => s.isCategoryMuted(category.id),
+            ),
+          ),
       indicator: category == null ? null : view.rollupOf(category),
       onToggle: category == null
           ? null
@@ -276,20 +318,23 @@ class _ChannelCategorySectionsState
                   .read(collapsedCategoriesProvider.notifier)
                   .toggleShown(category.id, parentId: category.parentId),
             ),
-      trailingBuilder: !widget.canManage
+      trailingBuilder: !widget.canManage && !kebab
           ? null
           : (revealed, onFocusChange) => Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                AddChannelGlyph(
-                  categoryId: category?.id,
-                  categoryName: place,
-                  initialKind: kindToAddIn(category, view.channelsOf(category)),
-                  revealed: revealed && !carried,
-                  onFocusChange: onFocusChange,
-                ),
-                // A phone header's menu opens from the held press, as a row's does.
-                if (menuKey != null && !AppTouchTargets.of(context))
+                if (widget.canManage)
+                  AddChannelGlyph(
+                    categoryId: category?.id,
+                    categoryName: place,
+                    initialKind: kindToAddIn(
+                      category,
+                      view.channelsOf(category),
+                    ),
+                    revealed: revealed && !carried,
+                    onFocusChange: onFocusChange,
+                  ),
+                if (kebab)
                   CategoryMenuGlyph(
                     categoryName: place,
                     revealed: revealed,
@@ -311,12 +356,33 @@ class _ChannelCategorySectionsState
       canManage: widget.canManage,
       menuKey: menuKey,
     );
-    return depth == 0
+    final indented = depth == 0
         ? header
         : Padding(
             padding: EdgeInsets.only(left: kRailRowInset * depth),
             child: header,
           );
+    // Only a manager sees an empty category; it is a place to add or drop a channel, so it says so.
+    final empty =
+        !view.folded(category) &&
+        view.channelsBeneath(category).isEmpty &&
+        view.tree.childrenOf(category.id).isEmpty;
+    if (!empty) return indented;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        indented,
+        // Hidden but sized during a drag, so the rows under the finger do not jump as it starts.
+        Visibility(
+          visible: !_dragging,
+          maintainState: true,
+          maintainAnimation: true,
+          maintainSize: true,
+          child: _EmptyHint('No channels yet.', depth: depth + 1),
+        ),
+      ],
+    );
   }
 }
 

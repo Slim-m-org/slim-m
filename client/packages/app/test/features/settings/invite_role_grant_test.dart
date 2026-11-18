@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
+import 'package:slimm_app/src/role_ladder.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/invite_role_grant_picker.dart';
@@ -72,6 +73,7 @@ Future<void> _pump(
   WidgetTester tester,
   int myPermissions, {
   bool rolesFetchFails = false,
+  RoleLadder? ladder,
 }) async {
   final client = MockClient((request) async {
     if (rolesFetchFails && request.url.path == '/roles') {
@@ -90,6 +92,7 @@ Future<void> _pump(
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       myPermissionsProvider.overrideWithValue(myPermissions),
+      if (ladder != null) roleLadderProvider.overrideWithValue(ladder),
       apiProvider.overrideWith((ref) {
         final built = api.SlimmApi(
           baseUrl: Uri.parse('http://localhost:8080'),
@@ -183,6 +186,20 @@ void main() {
       find.descendant(of: find.byType(AppMenu), matching: find.text('None')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('a role at or above the caller is never offered', (tester) async {
+    await _pump(
+      tester,
+      Perm.manageRoles | Perm.manageMessages,
+      ladder: const RoleLadder(
+        permissions: Perm.manageRoles | Perm.manageMessages,
+        topPosition: 0,
+      ),
+    );
+
+    // moderator sits at position 0, level with the caller's highest role.
+    expect(find.text('Role granted'), findsNothing);
   });
 
   testWidgets('roles that exist for bots are never offered', (tester) async {

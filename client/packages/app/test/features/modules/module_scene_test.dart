@@ -66,7 +66,12 @@ void main() {
       expect(scene.live, isTrue);
       expect(scene.state, '3,3,0,000010000');
       expect(scene.status, 'Generation 0 · 1 alive');
-      expect(scene.controls, ['play', 'step', 'random', 'clear']);
+      expect(scene.controls, const [
+        SceneButton('play'),
+        SceneButton('step'),
+        SceneButton('random'),
+        SceneButton('clear'),
+      ]);
       final op = scene.ops.single as CellsOp;
       expect(op.cols, 3);
       expect(op.rows, 3);

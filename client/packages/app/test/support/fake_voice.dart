@@ -71,8 +71,8 @@ class FakeVoiceController extends VoiceController {
   );
 
   @override
-  Future<void> join(String channelId) {
-    if (!recording) return super.join(channelId);
+  Future<void> join(String channelId, {bool muted = false}) {
+    if (!recording) return super.join(channelId, muted: muted);
     calls.add('join:$channelId');
     state =
         joinOutcome ??

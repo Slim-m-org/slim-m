@@ -283,6 +283,30 @@ void main() {
     expect(button.right, closeTo(400 - AppSpacing.s16 - AppSpacing.s8, 1));
   });
 
+  testWidgets('deleting a role names who holds it and what invites lose', (
+    tester,
+  ) async {
+    await _pump(tester, [
+      _role('role-everyone', 'everyone', everyone: true),
+      _role('role-mod', 'mod', memberCount: 3, position: 1),
+    ], size: const Size(900, 1400));
+    await tester.tap(find.text('mod'));
+    await pumpFrames(tester);
+    await tester.tap(find.text('Display'));
+    await pumpFrames(tester);
+    await tester.tap(find.text('Delete role'));
+    await pumpFrames(tester);
+
+    expect(
+      find.textContaining('The 3 members holding it lose'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Invites that grant it will grant no role.'),
+      findsOneWidget,
+    );
+  });
+
   group('the role ladder', () {
     final roles = [
       _role('role-admin', 'admin', position: 3),

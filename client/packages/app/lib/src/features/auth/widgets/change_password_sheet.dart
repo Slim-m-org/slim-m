@@ -4,8 +4,9 @@
 ///
 /// `showAppSheet`, so a bottom sheet on a phone and a centred dialog on a
 /// desktop (`docs/design/desktop-vs-mobile.md`, rule 4: a short task with a
-/// submit). It follows `reauth_sheet.dart`: the caller owns the request, and a
-/// refusal stays on screen as an `AppErrorState` rather than closing the sheet.
+/// submit). It follows `reauth_sheet.dart`: the caller owns the request, a
+/// refused password or code shows under its field, and any other refusal stays
+/// on screen as an `AppErrorState` rather than closing the sheet.
 library;
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import 'package:slimm_api/api.dart'
     show InputLimits, LogTag, kPasswordMinChars, reportFailure;
 import 'package:slimm_design_system/design_system.dart';
 
+import 'reauth_sheet.dart' show ReauthField, reauthFieldOf;
 import 'sign_in_credential_fields.dart' show passwordRule;
 import '../../../widgets/labeled_field.dart';
 
@@ -66,6 +68,14 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
   String get _codeText => _code.text.replaceAll(RegExp(r'\s'), '');
 
   bool get _mismatch => _confirm.text.isNotEmpty && _confirm.text != _next.text;
+
+  String? _errorOn(ReauthField field) =>
+      _error != null && reauthFieldOf(_error!) == field ? _error : null;
+
+  /// Typing into a field answers that field's own error.
+  void _edited(ReauthField field) => setState(() {
+    if (_errorOn(field) != null) _error = null;
+  });
 
   bool get _ready =>
       _current.text.isNotEmpty &&
@@ -136,6 +146,8 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
               controller: _current,
               autofocus: true,
               hint: AutofillHints.password,
+              errorText: _errorOn(ReauthField.password),
+              onChanged: () => _edited(ReauthField.password),
             ),
             const SizedBox(height: AppSpacing.s8),
             _field(
@@ -168,15 +180,16 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                     FilteringTextInputFormatter.deny(RegExp(r'\n')),
                   ],
                   semanticLabel: 'Authentication code',
-                  onChanged: (_) => setState(() {}),
+                  errorText: _errorOn(ReauthField.code),
+                  onChanged: (_) => _edited(ReauthField.code),
                   onSubmitted: (_) => _submit(),
                 ),
               ),
             ],
-            if (_error != null) ...[
+            if (_errorOn(ReauthField.form) case final error?) ...[
               const SizedBox(height: AppSpacing.s8),
               AppErrorState(
-                message: _error!,
+                message: error,
                 onDismiss: () => setState(() => _error = null),
               ),
             ],
@@ -199,6 +212,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
     required String hint,
     String? helper,
     String? errorText,
+    VoidCallback? onChanged,
     bool autofocus = false,
     bool last = false,
   }) => LabeledField(
@@ -215,7 +229,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
       autocorrect: false,
       autofillHints: [hint],
       semanticLabel: label,
-      onChanged: (_) => setState(() {}),
+      onChanged: (_) => onChanged == null ? setState(() {}) : onChanged(),
       onSubmitted: (_) => last ? _submit() : null,
     ),
   );

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Who a canvas frame reaches: both `VIEW_CHANNEL` and `USE_CANVAS`, and
-//! never a member an overwrite denied the canvas.
+//! Who a canvas frame reaches: everyone who can see the channel, a spectator
+//! without `USE_CANVAS` included, and never a member it is hidden from.
 
 use std::time::Duration;
 
@@ -18,11 +18,11 @@ use crate::canvas_live::requests::{
 };
 use crate::support;
 
-/// The load-bearing one. Carol holds `VIEW_CHANNEL` and is denied `USE_CANVAS`
-/// by a member overwrite, so she reads the channel and must never be handed a
-/// canvas frame; a cache that only remembers the view bit delivers to her.
+/// The load-bearing one. Carol is denied `USE_CANVAS` by a member overwrite
+/// and still watches the canvas, so she is handed the frame; Dave is denied
+/// `VIEW_CHANNEL` and must never be.
 #[tokio::test]
-async fn a_canvas_frame_needs_both_bits_and_a_denied_member_never_sees_one() {
+async fn a_spectator_receives_a_canvas_frame_and_a_member_who_cannot_see_the_channel_does_not() {
     let (store, _guard) = new_store().await;
     let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
@@ -34,10 +34,16 @@ async fn a_canvas_frame_needs_both_bits_and_a_denied_member_never_sees_one() {
         .set_member_overwrite(channel, carol, Permissions::NONE, Permissions::USE_CANVAS)
         .await
         .unwrap();
+    let (_dave_access, dave_ticket, dave) = user_ticket(&store, "dave").await;
+    store
+        .set_member_overwrite(channel, dave, Permissions::NONE, Permissions::VIEW_CHANNEL)
+        .await
+        .unwrap();
 
     let addr = serve(state.clone()).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
     let mut carol_ws = connect(addr, &carol_ticket).await;
+    let mut dave_ws = connect(addr, &dave_ticket).await;
 
     let response = http::router(state.clone())
         .oneshot(place_request(channel, &alice_access))
@@ -52,18 +58,20 @@ async fn a_canvas_frame_needs_both_bits_and_a_denied_member_never_sees_one() {
     assert_eq!(frame["object"]["kind"], "stroke");
     assert_eq!(frame["object"]["x"], 4.0);
 
-    let carol_next =
-        tokio::time::timeout(Duration::from_millis(300), read_frame(&mut carol_ws)).await;
+    let frame = read_frame(&mut carol_ws).await;
+    assert_eq!(frame["type"], "canvas.object.placed", "carol spectates");
+
+    let dave_next =
+        tokio::time::timeout(Duration::from_millis(300), read_frame(&mut dave_ws)).await;
     assert!(
-        carol_next.is_err(),
-        "carol is denied USE_CANVAS and must not receive canvas frames",
+        dave_next.is_err(),
+        "dave cannot see the channel and must not receive canvas frames",
     );
 }
 
-/// A member an overwrite denies `USE_CANVAS` must receive no removal, clear, restore, move or reorder, just as she receives no placement; reverting `extra_bit` to a `matches!` naming only `CanvasObjectPlaced` fails this.
+/// A spectator without `USE_CANVAS` receives every removal, clear, restore, move and reorder, just as she receives a placement.
 #[tokio::test]
-async fn a_removal_a_clear_a_restore_a_move_and_a_reorder_need_both_bits_and_a_denied_member_never_sees_any()
- {
+async fn a_spectator_receives_a_removal_a_clear_a_restore_a_move_and_a_reorder() {
     let (store, _guard) = new_store().await;
     let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
@@ -178,16 +186,28 @@ async fn a_removal_a_clear_a_restore_a_move_and_a_reorder_need_both_bits_and_a_d
     assert_eq!(frame["type"], "canvas.cleared_scoped");
     assert_eq!(frame["kinds"], json!(["stroke"]));
 
-    let carol_next =
-        tokio::time::timeout(Duration::from_millis(300), read_frame(&mut carol_ws)).await;
-    assert!(
-        carol_next.is_err(),
-        "carol is denied USE_CANVAS and must receive none of a removal, a clear, a restore, a move, or a reorder",
+    let mut seen = Vec::new();
+    for _ in 0..8 {
+        seen.push(read_frame(&mut carol_ws).await["type"].clone());
+    }
+    assert_eq!(
+        seen,
+        vec![
+            json!("canvas.object.placed"),
+            json!("canvas.objects.removed"),
+            json!("canvas.object.placed"),
+            json!("canvas.cleared"),
+            json!("canvas.objects.restored"),
+            json!("canvas.object.moved"),
+            json!("canvas.object.reordered"),
+            json!("canvas.cleared_scoped"),
+        ],
+        "carol spectates every change alice makes",
     );
 }
 
-/// An edited note reaches everyone with USE_CANVAS carrying its new props,
-/// and nobody without it (decision 0072).
+/// An edited note reaches everyone who can see the channel carrying its new
+/// props, a spectator included (decision 0072).
 #[tokio::test]
 async fn an_edited_note_reaches_the_channel_with_its_new_props() {
     let (store, _guard) = new_store().await;
@@ -236,10 +256,14 @@ async fn an_edited_note_reaches_the_channel_with_its_new_props() {
     assert_eq!(frame["object_id"], note_id);
     assert_eq!(frame["props"]["text"], "after");
 
-    let carol_next =
-        tokio::time::timeout(Duration::from_millis(300), read_frame(&mut carol_ws)).await;
-    assert!(
-        carol_next.is_err(),
-        "carol has no USE_CANVAS and must not see the edit"
+    assert_eq!(
+        read_frame(&mut carol_ws).await["type"],
+        "canvas.object.placed"
     );
+    let frame = read_frame(&mut carol_ws).await;
+    assert_eq!(
+        frame["type"], "canvas.object.edited",
+        "carol spectates the edit"
+    );
+    assert_eq!(frame["props"]["text"], "after");
 }

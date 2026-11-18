@@ -87,6 +87,12 @@ class SyncEventApplier {
               .read(channelNotificationOverridesProvider.notifier)
               .applyRemote(channelId, preference);
         }
+      case CategoryMuteChanged(:final categoryId, :final muted):
+        if (_ref.exists(channelNotificationOverridesProvider)) {
+          _ref
+              .read(channelNotificationOverridesProvider.notifier)
+              .applyRemoteCategory(categoryId, muted: muted);
+        }
       case ChannelCreated(:final channel):
       case ChannelUpdated(:final channel):
         await store.upsertChannels([channel]);

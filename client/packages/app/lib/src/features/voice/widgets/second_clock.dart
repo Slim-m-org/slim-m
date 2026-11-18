@@ -1,49 +1,72 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// One shared 1 Hz source for every on-screen clock. It runs only while some
-/// readout is subscribed and the app is focused, so a minimised window or a
-/// covered route spends nothing on a number nobody can read.
+/// One shared 1 Hz source for every on-screen clock. It runs while some readout
+/// is subscribed and the window is on screen, focused or not: a call is often
+/// watched from beside a game. A hidden or minimised window spends nothing.
 library;
 
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class SecondClock with WidgetsBindingObserver {
+import '../../../providers/app_lifecycle.dart'
+    show appLifecycleProvider, isWindowVisible;
+
+class SecondClock {
   SecondClock._();
 
   static final instance = SecondClock._();
 
   final _listeners = <VoidCallback>{};
   Timer? _timer;
+  ProviderContainer? _source;
+  ProviderSubscription<AppLifecycleState>? _lifecycle;
+  AppLifecycleState? _state;
 
   bool get isRunning => _timer != null;
 
-  bool get _focused {
-    final state = WidgetsBinding.instance.lifecycleState;
-    return state == null || state == AppLifecycleState.resumed;
+  bool get _onScreen {
+    final state = _state;
+    return state == null || isWindowVisible(state);
+  }
+
+  /// Takes the window's state from [container]'s [appLifecycleProvider], which
+  /// corrects what the embedder reports; null forgets it and runs whenever wanted.
+  void follow(ProviderContainer? container) {
+    if (container == _source) return;
+    _lifecycle?.close();
+    _lifecycle = null;
+    _source = container;
+    _state = null;
+    if (container != null) {
+      _lifecycle = container.listen<AppLifecycleState>(
+        appLifecycleProvider,
+        (_, state) => _onLifecycle(state),
+        fireImmediately: true,
+      );
+    }
+    _sync();
   }
 
   void addListener(VoidCallback listener) {
-    if (_listeners.isEmpty) WidgetsBinding.instance.addObserver(this);
     _listeners.add(listener);
     _sync();
   }
 
   void removeListener(VoidCallback listener) {
     _listeners.remove(listener);
-    if (_listeners.isEmpty) WidgetsBinding.instance.removeObserver(this);
     _sync();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  void _onLifecycle(AppLifecycleState state) {
+    _state = state;
     _sync();
-    // A clock that sat out the background is stale the moment focus returns.
+    // A clock that sat out a hidden window is stale the moment it shows again.
     if (_timer != null) _notify();
   }
 
   void _sync() {
-    final wanted = _listeners.isNotEmpty && _focused;
+    final wanted = _listeners.isNotEmpty && _onScreen;
     if (wanted && _timer == null) {
       _timer = Timer.periodic(const Duration(seconds: 1), (_) => _notify());
     } else if (!wanted) {

@@ -45,6 +45,7 @@ class CanvasPaneSurfaceActions {
     required this.onRecenter,
     required this.onToolChanged,
     required this.onBringIntoBoard,
+    this.onShowActivityLog,
     this.participantMenuItemsBuilder,
     this.onFocusTile,
     required this.cameraViewFor,
@@ -84,6 +85,9 @@ class CanvasPaneSurfaceActions {
   final VoidCallback onRecenter;
   final ValueChanged<CanvasTool> onToolChanged;
   final VoidCallback onBringIntoBoard;
+
+  /// Opens the text activity log from the board's own key.
+  final VoidCallback? onShowActivityLog;
   final List<Widget> Function(
     BuildContext context,
     VoiceParticipant participant,

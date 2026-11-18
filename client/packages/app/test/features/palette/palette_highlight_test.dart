@@ -72,6 +72,11 @@ void main() {
       expect(snippet.substring(1), isNot(startsWith(' ')));
     });
 
+    test('a spoiler the cut would open is not cut, so it stays hidden', () {
+      final text = '||${List.filled(30, 'secret').join(' ')} needle||';
+      expect(paletteSnippet(text, 'needle'), text);
+    });
+
     test('marking inside spans leaves an emoji image and styles alone', () {
       const style = TextStyle(fontStyle: FontStyle.italic);
       const emoji = WidgetSpan(child: SizedBox());

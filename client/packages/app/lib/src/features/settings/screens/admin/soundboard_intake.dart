@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show SoundClip;
 
+import '../../../../format.dart';
 import '../../../../hidden_characters.dart';
 
 /// Largest clip the server accepts, so a bigger file is refused before it is sent.
@@ -17,16 +18,18 @@ const soundClipMaxNameChars = 32;
 
 /// One chosen file, before it is uploaded.
 class SoundClipPick {
-  const SoundClipPick({
-    required this.fileName,
-    required this.bytes,
-    this.tooLarge = false,
-  });
+  const SoundClipPick({required this.fileName, required this.bytes, int? size})
+    : _size = size;
   final String fileName;
   final List<int> bytes;
 
+  /// The file's own size, known before its [bytes] are read, so a file too
+  /// large to read still says how large it is.
+  int get size => _size ?? bytes.length;
+  final int? _size;
+
   /// Over [soundClipMaxBytes], so its [bytes] were never read.
-  final bool tooLarge;
+  bool get tooLarge => size > soundClipMaxBytes;
 
   /// The file's name without its extension, cut to what a clip may be called.
   String get suggestedName {
@@ -40,15 +43,21 @@ class SoundClipPick {
 String soundClipMimeType(String fileName) =>
     fileName.toLowerCase().endsWith('.wav') ? 'audio/wav' : 'audio/mpeg';
 
+bool _isClipType(String fileName) {
+  final name = fileName.toLowerCase();
+  return name.endsWith('.mp3') || name.endsWith('.wav');
+}
+
 /// Why [pick] cannot become a clip whatever it is named, or null.
 String? soundClipFileProblem(SoundClipPick pick) {
-  final name = pick.fileName.toLowerCase();
-  if (!name.endsWith('.mp3') && !name.endsWith('.wav')) {
+  if (!_isClipType(pick.fileName)) {
     return 'Only mp3 and wav files can be clips.';
   }
-  if (pick.tooLarge || pick.bytes.length > soundClipMaxBytes) {
-    return 'That file is over 512 KB. A clip is at most 512 KB.';
+  if (pick.tooLarge) {
+    return 'That file is ${formatByteSize(pick.size)}. A clip can be at most '
+        '512 KB.';
   }
+  if (pick.size == 0) return 'That file is empty.';
   return null;
 }
 
@@ -89,12 +98,12 @@ Future<SoundClipPick> _readPick(
   Future<int?> Function() length,
   Future<List<int>> Function() read,
 ) async {
-  final unread = SoundClipPick(fileName: fileName, bytes: const []);
-  if (soundClipFileProblem(unread) != null) return unread;
-  final size = await length();
-  if (size != null && size > soundClipMaxBytes) {
-    return SoundClipPick(fileName: fileName, bytes: const [], tooLarge: true);
+  if (!_isClipType(fileName)) {
+    return SoundClipPick(fileName: fileName, bytes: const []);
   }
+  final size = await length();
+  final sized = SoundClipPick(fileName: fileName, bytes: const [], size: size);
+  if (size != null && soundClipFileProblem(sized) != null) return sized;
   return SoundClipPick(fileName: fileName, bytes: await read());
 }
 

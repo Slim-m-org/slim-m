@@ -25,8 +25,8 @@ class CanvasViewModeControls extends StatelessWidget {
     builder: (context, _) {
       final personal = mode.personal;
       return Wrap(
-        spacing: AppSpacing.s8,
-        runSpacing: AppSpacing.s8,
+        spacing: AppSpacing.s4,
+        runSpacing: AppSpacing.s4,
         children: [
           _Pill(
             tokens: tokens,
@@ -90,7 +90,6 @@ class _Pill extends StatelessWidget {
       child: CanvasPillSurface(
         tokens: tokens,
         color: selected ? tokens.accentSoft : null,
-        borderColor: selected ? tokens.accent : null,
         onTap: onTap,
         child: ConstrainedBox(
           constraints: const BoxConstraints(

@@ -375,7 +375,7 @@ async fn refresh(
         RefreshOutcome::Rotated(tokens) => Ok(Json(token_response(&tokens))),
         // A benign miss and a detected replay look identical to the client: the
         // only move either way is to log in again.
-        RefreshOutcome::Denied | RefreshOutcome::Reused => Err(ApiError::Unauthorized),
+        RefreshOutcome::Denied(_) | RefreshOutcome::Reused => Err(ApiError::Unauthorized),
     }
 }
 

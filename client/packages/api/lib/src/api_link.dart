@@ -5,6 +5,7 @@ library;
 import 'package:http/http.dart' as http;
 
 import 'direct_route.dart';
+import 'edge_route.dart';
 import 'models.dart';
 
 class ApiLink {
@@ -21,4 +22,7 @@ class ApiLink {
   final Map<String, String> resumableUploads = {};
 
   Future<TokenPair>? refreshInFlight;
+
+  /// Which data centre, if any, the API's own traffic passes through.
+  final EdgeWatch edge = EdgeWatch();
 }

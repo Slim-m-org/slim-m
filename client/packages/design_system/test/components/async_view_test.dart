@@ -126,6 +126,25 @@ void main() {
     },
   );
 
+  testWidgets('a failed refresh keeps the data subtree and its state', (
+    tester,
+  ) async {
+    Widget view(AppAsyncState<int> value) => AppAsyncView<int>(
+          value: value,
+          data: (context, _) => const _Draft(),
+          errorMessage: 'Could not load the list.',
+        );
+    await _pump(tester, view(const AppAsyncState(data: 1)));
+    await tester.enterText(find.byKey(_Draft.field), 'unsaved');
+
+    await _pump(tester, view(const AppAsyncState(data: 1, error: 'boom')));
+    expect(find.text('Could not load the list.'), findsOneWidget);
+    expect(find.text('unsaved'), findsOneWidget);
+
+    await _pump(tester, view(const AppAsyncState(data: 1)));
+    expect(find.text('unsaved'), findsOneWidget);
+  });
+
   testWidgets('loading with nothing yet known shows the spinner, not blank', (
     tester,
   ) async {
@@ -158,4 +177,28 @@ void main() {
     expect(find.text('Could not load the list.'), findsNothing);
     expect(find.text('0 items'), findsNothing);
   });
+}
+
+/// Holds its text in its own state, as a settings draft does.
+class _Draft extends StatefulWidget {
+  const _Draft();
+
+  static const field = Key('draft-field');
+
+  @override
+  State<_Draft> createState() => _DraftState();
+}
+
+class _DraftState extends State<_Draft> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      TextField(key: _Draft.field, controller: _controller);
 }

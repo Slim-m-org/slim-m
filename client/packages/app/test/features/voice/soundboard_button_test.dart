@@ -6,6 +6,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -115,11 +116,11 @@ Future<void> _open(WidgetTester tester) async {
 
 List<Map<String, Object?>> _numbered(int count) => [
   for (var i = 0; i < count; i++)
-    {'id': 'c$i', 'name': 'Clip $i', 'duration_ms': 1000, 'created_at': i},
+    {'id': 'c$i', 'name': 'Clip$i', 'duration_ms': 1000, 'created_at': i},
 ];
 
 Finder get _menu =>
-    find.ancestor(of: find.text('Clip 0'), matching: _isMenu).first;
+    find.ancestor(of: find.text('Clip0'), matching: _isMenu).first;
 
 final _isMenu = find.byWidgetPredicate((w) => w is AppMenu);
 
@@ -145,7 +146,12 @@ void main() {
     expect(tile.bottom, lessThan(button.top), reason: 'above the dock');
     expect(find.bySemanticsLabel('Air horn, 1.5 s'), findsOneWidget);
     expect(find.bySemanticsLabel('Sad trombone, 3.2 s'), findsOneWidget);
-    expect(find.byTooltip('Air horn, 1.5 s'), findsOneWidget);
+    expect(find.byTooltip('Air horn, 1.5 s'), findsNothing);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: tester.getCenter(_tile('clip-1')));
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Air horn, 1.5 s'), findsNothing, reason: 'no hover tip');
     expect(find.text('Soundboard'), findsNothing, reason: 'no heading');
   });
 
@@ -155,7 +161,7 @@ void main() {
       await _pump(tester, _Wire(clips: _numbered(12)));
       await _open(tester);
 
-      final scroll = Scrollable.of(tester.element(find.text('Clip 0')));
+      final scroll = Scrollable.of(tester.element(find.text('Clip0')));
       expect(scroll.position.maxScrollExtent, 0, reason: 'no scrolling');
       final tops = {
         for (var i = 0; i < 12; i++) tester.getRect(_tile('c$i')).top,
@@ -182,7 +188,7 @@ void main() {
     await _pump(tester, _Wire(clips: _numbered(48)));
     await _open(tester);
 
-    final scroll = Scrollable.of(tester.element(find.text('Clip 0')));
+    final scroll = Scrollable.of(tester.element(find.text('Clip0')));
     expect(scroll.position.maxScrollExtent, greaterThan(0));
   });
 
@@ -283,9 +289,10 @@ void main() {
     },
   );
 
-  testWidgets(
-    'on a phone a long name wraps whole with no tooltip, and the sheet is named',
-    (tester) async {
+  for (final width in [390.0, 1280.0]) {
+    testWidgets('at $width a long name wraps whole with no tooltip', (
+      tester,
+    ) async {
       const long = 'a very long clip name here ok';
       await _pump(
         tester,
@@ -294,7 +301,7 @@ void main() {
             {'id': 'long', 'name': long, 'duration_ms': 1100, 'created_at': 0},
           ],
         ),
-        width: 390,
+        width: width,
       );
       final semantics = tester.ensureSemantics();
       await _open(tester);
@@ -305,24 +312,25 @@ void main() {
           matching: find.byWidgetPredicate((w) => w is Tooltip),
         ),
         findsNothing,
-        reason: 'no tooltip on touch',
       );
       expect(find.byTooltip('$long, 1.1 s'), findsNothing);
       final name = tester.renderObject<RenderParagraph>(find.text(long));
       expect(name.didExceedMaxLines, isFalse, reason: 'the name is whole');
+      expect(find.bySemanticsLabel('$long, 1.1 s'), findsOneWidget);
       expect(
-        find.bySemanticsLabel('Soundboard').evaluate().where((e) {
-          final node = tester.getSemantics(
-            find.byElementPredicate((x) => x == e),
-          );
-          return node.getSemanticsData().flagsCollection.namesRoute;
-        }),
-        isNotEmpty,
-        reason: 'a screen reader hears the sheet named',
+        width > 600 ||
+            find.bySemanticsLabel('Soundboard').evaluate().where((e) {
+              final node = tester.getSemantics(
+                find.byElementPredicate((x) => x == e),
+              );
+              return node.getSemanticsData().flagsCollection.namesRoute;
+            }).isNotEmpty,
+        isTrue,
+        reason: 'a screen reader hears the phone sheet named',
       );
       semantics.dispose();
-    },
-  );
+    });
+  }
 
   testWidgets('Tab reaches a tile and Enter plays it', (tester) async {
     final wire = _Wire();

@@ -392,6 +392,12 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'troubleshooting',
+    'Connection',
+    description: 'How this device reaches the server right now.',
+    keywords: ['route', 'cloudflare', 'lan', 'ping', 'relay', 'location'],
+  ),
+  SettingsEntry(
+    'troubleshooting',
     'Connection test',
     description: 'Latency and speed to the server.',
     keywords: ['speed', 'ping', 'latency', 'lan', 'cloudflare', 'network'],

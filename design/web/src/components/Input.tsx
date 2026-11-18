@@ -11,6 +11,8 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   icon?: ReactNode;
   /** After the text: a shortcut hint or a clear button. */
   trailing?: ReactNode;
+  /** A standing note under the field; errorText takes its place while there is one, so the form keeps its height. */
+  helperText?: string;
   /** Shown under the field in the danger colour and turns the border danger. */
   errorText?: string;
   /** IBM Plex Mono, for invite codes and server addresses. */
@@ -25,12 +27,13 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
 
 const codePoints = (text: string) => Array.from(text).length;
 
-/** A text field on the raised surface: 1px border, accent border plus a 2px accent ring on focus, danger border with error text under it. */
+/** A text field on the raised surface: 1px border, accent border plus a 2px accent ring on focus, danger border with error text under it in place of any helper note. */
 export function Input({
   size = 'md',
   label,
   icon,
   trailing,
+  helperText,
   errorText,
   mono = false,
   multiline = false,
@@ -46,6 +49,7 @@ export function Input({
   ...rest
 }: InputProps) {
   const id = useId();
+  const noteId = `${id}-note`;
   const [typed, setTyped] = useState(String(defaultValue ?? ''));
   const hasError = !!errorText;
   const grows = multiline || minLines !== undefined || maxLines !== undefined;
@@ -68,6 +72,7 @@ export function Input({
     value,
     defaultValue,
     'aria-invalid': hasError || undefined,
+    'aria-describedby': hasError || helperText ? noteId : undefined,
     onChange: (event: React.ChangeEvent<HTMLInputElement & HTMLTextAreaElement>) => {
       setTyped(event.target.value);
       onChange?.(event);
@@ -102,7 +107,16 @@ export function Input({
           {length}/{counterMax}
         </span>
       )}
-      {hasError && <span className="sm-input__error">{errorText}</span>}
+      {(hasError || helperText) && (
+        <span className="sm-input__beneath" id={noteId} aria-live="polite">
+          {helperText && (
+            <span className="sm-input__helper" aria-hidden={hasError || undefined}>
+              {helperText}
+            </span>
+          )}
+          {hasError && <span className="sm-input__error">{errorText}</span>}
+        </span>
+      )}
     </div>
   );
 }

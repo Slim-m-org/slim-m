@@ -131,16 +131,18 @@ class _Group extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadii.card - 1),
             child: Material(
               type: MaterialType.transparency,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.s8,
-                  vertical: AppSpacing.s4,
-                ),
-                child: Column(
-                  children: [
-                    for (final c in group.channels)
-                      _ChannelPickRow(channel: c, onPick: onPick),
-                  ],
+              child: AppRaisedSurfaceScope(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s8,
+                    vertical: AppSpacing.s4,
+                  ),
+                  child: Column(
+                    children: [
+                      for (final c in group.channels)
+                        _ChannelPickRow(channel: c, onPick: onPick),
+                    ],
+                  ),
                 ),
               ),
             ),

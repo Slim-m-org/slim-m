@@ -19,6 +19,7 @@ import 'package:slimm_rtc/rtc.dart'
 
 export 'src/desktop/startup_state.dart';
 
+import 'src/api_failure.dart' show loadFailureRetries;
 import 'src/audio/sound_backend_warmup.dart';
 import 'src/features/settings/providers/resolved_theme.dart';
 import 'src/features/settings/providers/stored_theme.dart';
@@ -63,6 +64,8 @@ import 'src/widgets/mobile_boot_gate.dart';
 import 'src/providers/startup_restores.dart';
 import 'src/push/android_push_messages.dart';
 import 'src/routing/router.dart';
+import 'src/semantics_tap_once_per_frame.dart';
+import 'src/web_update/web_page.dart' show reloadPage;
 import 'src/web_update/web_update_pill.dart';
 import 'src/widgets/app_lock_gate.dart';
 import 'src/widgets/ui_scale_frame.dart';
@@ -70,6 +73,7 @@ import 'src/features/auth/widgets/client_too_old_gate.dart';
 import 'src/features/auth/widgets/server_identity_change_gate.dart';
 import 'src/features/voice/providers/voice_settings_controller.dart';
 import 'src/features/voice/widgets/call_audio_prompt.dart';
+import 'src/features/voice/widgets/second_clock.dart';
 import 'src/features/voice/widgets/incoming_call_overlay.dart';
 import 'src/features/voice/widgets/picture_in_picture_gate.dart';
 import 'src/features/voice/widgets/popout_host.dart';
@@ -107,7 +111,8 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 /// window mapped at the native 1280x720 default instead of the small splash
 /// size. Waiting for the real first frame avoids that race entirely.
 Future<void> main([List<String> args = const []]) async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final binding = WidgetsFlutterBinding.ensureInitialized();
+  SemanticsTapOncePerFrame.install(binding.platformDispatcher, binding);
   if (isAndroidHost) unawaited(drawUnderSystemBars());
   // Before the first SharedPreferences read, which countLaunch makes.
   registerPreferencesStore();
@@ -131,6 +136,9 @@ Future<void> main([List<String> args = const []]) async {
   final container = host.createFirst();
   // Before anything that can throw, so startup failures land in the log too.
   installDiagnostics(container);
+  // The window's state is one for the process, so the clock follows whichever account is on screen.
+  SecondClock.instance.follow(container);
+  host.addListener(() => SecondClock.instance.follow(host.active?.container));
 
   container.read(appReadyProvider.notifier).state = false;
   unawaited(
@@ -329,10 +337,13 @@ bool get _splashIsFrameless =>
 /// was, without any screen checking for itself. How it looks follows the
 /// stored appearance choice, which is restored before the first frame.
 class SlimMApp extends ConsumerStatefulWidget {
-  const SlimMApp({super.key, this.isDesktopOverride});
+  const SlimMApp({super.key, this.isDesktopOverride, this.isWebOverride});
 
   /// Lets a widget test take the phone branch; `flutter test` on Linux is a desktop host.
   final bool? isDesktopOverride;
+
+  /// Lets a widget test take the browser branch; only a browser's splash follows the theme.
+  final bool? isWebOverride;
 
   @override
   ConsumerState<SlimMApp> createState() => _SlimMAppState();
@@ -344,18 +355,36 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
 
   bool get _onDesktop => widget.isDesktopOverride ?? isDesktopHost;
 
+  bool get _onWeb => widget.isWebOverride ?? kIsWeb;
+
   void _spendCover() {
+    _stall.cancel();
     if (_coldLaunchCover) setState(() => _coldLaunchCover = false);
+  }
+
+  late final BootStallWatch _stall;
+
+  void _askIfStalled() {
+    if (!_onDesktop && _coldLaunchCover) _stall.arm();
   }
 
   @override
   void initState() {
     super.initState();
+    _stall = BootStallWatch(
+      prompt: ref.read(startupPromptProvider.notifier),
+      stillCovered: () => mounted && _coldLaunchCover,
+      openAnyway: _spendCover,
+      reload: reloadPage,
+      anotherTabIsOpen: ref.read(crossTabProvider).anotherTabIsOpen,
+    );
     if (ref.read(appReadyProvider) && !ref.read(sessionProvider).isSignedIn) {
       _coldLaunchCover = false;
     }
+    if (ref.read(appReadyProvider)) _askIfStalled();
     ref.listenManual(appReadyProvider, (_, ready) {
       if (ready && !ref.read(sessionProvider).isSignedIn) _spendCover();
+      if (ready) _askIfStalled();
     });
     ref.listenManual(initialSyncCompleteProvider, (_, synced) {
       if (synced) _spendCover();
@@ -372,6 +401,7 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
 
   @override
   void dispose() {
+    _stall.cancel();
     unawaited(_signOuts?.cancel());
     super.dispose();
   }
@@ -393,6 +423,7 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
       prompt: ref.watch(startupPromptProvider),
       leaving: ref.watch(startupLeavingProvider),
       rounded: currentDesktopPlatform() == DesktopPlatform.linux,
+      themeMode: _onWeb ? _theme().mode : ThemeMode.dark,
       windowPort: _splashIsFrameless
           ? ref.read(desktopWindowShellProvider).port
           : null,
@@ -407,14 +438,15 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
     );
   }
 
+  ResolvedTheme _theme() => resolveTheme(
+    ref.watch(themeControllerProvider),
+    custom: ref.watch(customThemeProvider),
+    spaceDefault: ref.watch(spaceDefaultThemeProvider),
+  );
+
   Widget _app() {
-    final choice = ref.watch(themeControllerProvider);
     final highContrast = ref.watch(highContrastControllerProvider);
-    final theme = resolveTheme(
-      choice,
-      custom: ref.watch(customThemeProvider),
-      spaceDefault: ref.watch(spaceDefaultThemeProvider),
-    );
+    final theme = _theme();
     ref.watch(spaceThemeSyncProvider);
     final lightTokens = highContrast
         ? applyHighContrast(theme.light)
@@ -520,7 +552,9 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
     );
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: systemBarsFor(Theme.of(context).brightness),
-      child: EnterActivatesButtons(child: mirrored),
+      child: EnterActivatesButtons(
+        child: AppLoadRetryPolicy(retries: loadFailureRetries, child: mirrored),
+      ),
     );
   },
 );

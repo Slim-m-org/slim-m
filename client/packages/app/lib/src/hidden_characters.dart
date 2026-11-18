@@ -4,6 +4,8 @@
 /// ones that draw nothing.
 library;
 
+import 'package:slimm_api/api.dart' show capCombiningMarks;
+
 /// Mirrors `is_hidden_char` in the server's `hidden_chars.rs`; both are held to
 /// `crates/slimm-server/tests/fixtures/hidden_chars.json`. The server refuses
 /// text holding any of these (activity text, names, labels) rather than
@@ -27,6 +29,83 @@ bool isHiddenCharacter(int c) =>
     (c >= 0xFFF9 && c <= 0xFFFC) ||
     (c >= 0xE0000 && c <= 0xE007F);
 
+const _zwj = 0x200D;
+const _tagFlagBase = 0x1F3F4;
+const _tagEnd = 0xE007F;
+
+bool _isTagLetter(int c) => c >= 0xE0020 && c <= 0xE007E;
+
+/// Mirrors `is_pictographic` in the server's `hidden_chars.rs`, held to the same
+/// fixture: the emoji a zero width joiner may sit between.
+bool isPictographic(int c) =>
+    c == 0x00A9 ||
+    c == 0x00AE ||
+    c == 0x203C ||
+    c == 0x2049 ||
+    c == 0x2122 ||
+    c == 0x2139 ||
+    (c >= 0x2190 && c <= 0x21FF) ||
+    (c >= 0x2300 && c <= 0x23FF) ||
+    c == 0x24C2 ||
+    (c >= 0x25A0 && c <= 0x27BF) ||
+    (c >= 0x2900 && c <= 0x297F) ||
+    (c >= 0x2B00 && c <= 0x2BFF) ||
+    c == 0x3030 ||
+    c == 0x303D ||
+    c == 0x3297 ||
+    c == 0x3299 ||
+    (c >= 0x1F000 && c <= 0x1FAFF);
+
+/// The combining grapheme joiner: draws nothing, but stacked diacritics carry it between marks.
+const _cgj = 0x034F;
+
+/// Unicode White_Space, which Rust's `char::is_whitespace` tests on the server.
+bool _isWhitespace(int c) =>
+    (c >= 0x09 && c <= 0x0D) ||
+    c == 0x20 ||
+    c == 0x85 ||
+    c == 0xA0 ||
+    c == 0x1680 ||
+    (c >= 0x2000 && c <= 0x200A) ||
+    c == 0x2028 ||
+    c == 0x2029 ||
+    c == 0x202F ||
+    c == 0x205F ||
+    c == 0x3000;
+
+/// Mirrors `hides_text_outside_emoji` in the server's `hidden_chars.rs`, held to
+/// the fixture's case lists: a hidden character outside an emoji joiner
+/// sequence, a subdivision flag, or a mark run ([_cgj] after something drawn).
+bool hidesTextOutsideEmoji(String text) {
+  final c = text.runes.toList();
+  var afterDrawn = false;
+  for (var i = 0; i < c.length; i++) {
+    final continuesACluster = c[i] == _cgj && afterDrawn;
+    afterDrawn =
+        continuesACluster || !(_isWhitespace(c[i]) || isHiddenCharacter(c[i]));
+    if (c[i] == _zwj) {
+      final afterEmoji =
+          i > 0 && (isPictographic(c[i - 1]) || c[i - 1] == 0xFE0F);
+      final beforeEmoji = i + 1 < c.length && isPictographic(c[i + 1]);
+      if (!afterEmoji || !beforeEmoji) return true;
+    } else if (c[i] == _tagFlagBase) {
+      var tags = 0;
+      while (i + 1 + tags < c.length && _isTagLetter(c[i + 1 + tags])) {
+        tags++;
+      }
+      final closed = i + 1 + tags < c.length && c[i + 1 + tags] == _tagEnd;
+      if (tags > 0 && closed) i += tags + 1;
+    } else if (isHiddenCharacter(c[i]) && !continuesACluster) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// What a profile field says when [hidesTextOutsideEmoji] refuses its text.
+const hiddenCharactersRefusal =
+    'Remove the invisible characters, then try again.';
+
 /// Whether [c] is a hidden character a reader would have seen as a break
 /// between words: a tab, a line or paragraph break, or a vertical tab or form
 /// feed. [visibleText] keeps the break as a space instead of fusing the words.
@@ -46,6 +125,19 @@ String visibleText(String text) {
   }
   return out.toString().replaceAll(RegExp(r' {2,}'), ' ').trim();
 }
+
+/// [text] without the bidi overrides U+202D and U+202E, which redraw the
+/// letters around them in reverse (`evil\u202Etxt.exe` reads `evilexe.txt`).
+/// The server strips them from what is sent now; this covers older messages.
+/// Embeddings and isolates stay, since mixed-direction text relies on them.
+String withoutBidiOverrides(String text) =>
+    text.contains(_bidiOverride) ? text.replaceAll(_bidiOverride, '') : text;
+
+final _bidiOverride = RegExp('[\u202D\u202E]');
+
+/// [text] ready to draw as prose: well-formed, mark stacks capped, no bidi override.
+String drawableText(String text) =>
+    withoutBidiOverrides(capCombiningMarks(wellFormedUtf16(text)));
 
 /// [text] with each unpaired UTF-16 surrogate replaced by U+FFFD, which is
 /// what the web renderer draws anyway; the native one throws on it instead.

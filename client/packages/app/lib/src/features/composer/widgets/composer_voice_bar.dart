@@ -17,14 +17,21 @@ import 'composer_attachments.dart';
 /// which now holds it, uploaded.
 typedef VoiceSent = void Function(AttachmentStagingController staging);
 
+/// Why Send keeps a clip back once files dropped during the recording fill the tray.
+const kVoiceTrayFullRefusal =
+    'A message holds up to $kMaxStagedAttachments files. '
+    'Remove one to send this.';
+
 /// The mic that stands in for Send. It wakes a moment after it appears, so the
-/// second click of a double-click on Send cannot land on it and start recording.
+/// second click of a double-click on Send cannot land on it and start recording,
+/// and every click while it sleeps starts that moment again, so clicking Send
+/// over and over never records.
 class ComposerMicButton extends StatefulWidget {
   const ComposerMicButton({super.key, required this.onPressed});
 
   final VoidCallback onPressed;
 
-  /// How long a fresh mic ignores presses.
+  /// How long a fresh mic, or one just clicked while asleep, ignores presses.
   static const wakeDelay = Duration(milliseconds: 600);
 
   @override
@@ -32,12 +39,17 @@ class ComposerMicButton extends StatefulWidget {
 }
 
 class _ComposerMicButtonState extends State<ComposerMicButton> {
-  late final Timer _wake;
+  Timer? _wake;
   bool _awake = false;
 
   @override
   void initState() {
     super.initState();
+    _sleep();
+  }
+
+  void _sleep() {
+    _wake?.cancel();
     _wake = Timer(ComposerMicButton.wakeDelay, () {
       if (mounted) setState(() => _awake = true);
     });
@@ -45,16 +57,21 @@ class _ComposerMicButtonState extends State<ComposerMicButton> {
 
   @override
   void dispose() {
-    _wake.cancel();
+    _wake?.cancel();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => AppIconButton(
-    icon: AppIcons.mic,
-    semanticLabel: 'Record a voice message',
-    tooltip: 'Record a voice message',
-    onPressed: _awake ? widget.onPressed : null,
+  Widget build(BuildContext context) => Listener(
+    onPointerDown: (_) {
+      if (!_awake) _sleep();
+    },
+    child: AppIconButton(
+      icon: AppIcons.mic,
+      semanticLabel: 'Record a voice message',
+      tooltip: 'Record a voice message',
+      onPressed: _awake ? widget.onPressed : null,
+    ),
   );
 }
 
@@ -112,9 +129,11 @@ class ComposerVoiceBar extends ConsumerWidget {
   Future<void> _send(WidgetRef ref, VoiceRecorder recorder) async {
     // Read before the upload, which a channel switch can outlast.
     final staging = ref.read(attachmentStagingProvider(channelId));
-    final sent = await recorder.send();
+    final sent = await recorder.send(
+      refusal: () => staging.isFull ? kVoiceTrayFullRefusal : null,
+    );
     if (sent == null) return;
-    staging.addResolved(sent.$1, sent.$2);
+    if (staging.addResolved(sent.$1, sent.$2) != null) return;
     onSent(staging);
   }
 }

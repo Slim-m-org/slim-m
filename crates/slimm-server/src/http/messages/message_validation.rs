@@ -36,8 +36,8 @@ pub(in crate::http) fn validate_content(
     let len = content.chars().count();
     if len > MESSAGE_MAX_CHARS {
         return Err(ApiError::BadRequestDetail(format!(
-            "message is {} characters over the {MESSAGE_MAX_CHARS}-character limit",
-            len - MESSAGE_MAX_CHARS,
+            "message is {}",
+            crate::limits::chars_over_limit(len - MESSAGE_MAX_CHARS, MESSAGE_MAX_CHARS),
         )));
     }
     Ok(content)

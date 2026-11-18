@@ -43,6 +43,7 @@ class SpaceSettings {
     this.welcomeEnabled = false,
     this.welcomeChannelId,
     this.welcomeMessage = '',
+    this.welcomeDefaultMessage,
     this.callTranscription = CallTranscriptionMode.off,
     this.callTranscriptRetentionDays = 30,
     this.callTranscriptionAvailable = true,
@@ -89,6 +90,9 @@ class SpaceSettings {
   /// The welcome template, with `{user}` and `{space}` placeholders.
   final String welcomeMessage;
 
+  /// What an empty [welcomeMessage] posts; null from a server that requires one.
+  final String? welcomeDefaultMessage;
+
   /// Whether the server transcribes calls, and how it starts (decision 0113).
   final CallTranscriptionMode callTranscription;
 
@@ -126,6 +130,7 @@ class SpaceSettings {
         welcomeEnabled: json['welcome_enabled'] as bool? ?? false,
         welcomeChannelId: json['welcome_channel_id'] as String?,
         welcomeMessage: json['welcome_message'] as String? ?? '',
+        welcomeDefaultMessage: json['welcome_default_message'] as String?,
         callTranscription: CallTranscriptionMode.parse(
           json['call_transcription'] as String?,
         ),

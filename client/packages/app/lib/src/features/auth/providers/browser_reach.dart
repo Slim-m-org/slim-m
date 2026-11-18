@@ -15,3 +15,8 @@ typedef BrowserReachProbe = Future<bool?> Function(Uri server);
 final browserReachProbeProvider = Provider<BrowserReachProbe>(
   (ref) => answersOutsideBrowserRules,
 );
+
+/// Whether the browser says it has a network connection; always true off the web.
+final browserOnlineProvider = Provider<bool Function()>(
+  (ref) => browserSaysOnline,
+);

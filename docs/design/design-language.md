@@ -3,6 +3,7 @@
 Scope: color, typography, spacing, iconography, motion, and how they compile into Flutter design tokens.
 
 Wording (one verb per action, one name per thing) is in [`wording.md`](wording.md).
+Where an error or a status notice goes (under its field, floating and fading, or a banner) is in [`errors-and-status.md`](errors-and-status.md).
 
 > **Status, 2026-07-26.** This is the original proposal. Where it disagrees with
 > `client/packages/design_system/lib/src/app_tokens.dart`, **the code is
@@ -123,6 +124,7 @@ Tokens: `duration.fast` 100ms (press, hover), `duration.base` 180ms (panel and r
 Nothing in the chrome runs longer than 280ms, and nothing is decorative motion with no functional purpose.
 The Voice Canvas is one exception: direct-manipulation gestures (drag, pan, zoom, pinch) run with zero added easing, tracking input 1:1 every frame, since eased motion under a live cursor feels laggy and works against the drag targets already set in `voice-canvas.md`; easing is reserved for system-initiated moves.
 All non-essential motion respects the OS "reduce motion" setting, collapsing to instant state changes.
+A new message fades and rises in only when it arrives after a quiet stretch (800ms with no other arrival) while the reader is at the bottom; a steady stream (a busy channel, a bot) lands still until it pauses, and a newer row finishes the one before it, because stacked or back-to-back entrances read as flicker, not arrival.
 Motion animates paint, never layout: a side pane snaps to its width and its content slides or fades in (`AppPanelReveal`), because a width tween relays the whole neighbouring pane on every frame, and beside a live call that rebuilt the dock and tiles a dozen times per toggle and stuttered the app (2026-11-07).
 Rejected: backdrop-blur "frosted glass" overlays, a look several competitors are adopting, both for render cost on lower-end GPUs and because avoiding it serves differentiation.
 Risk: near-zero-motion chrome can read as lifeless; the Voice Canvas is the intentional counterweight, allowed more energetic motion since it is the feature meant to feel alive.

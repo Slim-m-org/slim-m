@@ -179,7 +179,11 @@ Widget _appRows(
       for (final app in list)
         AppListRow(
           label: app.name,
-          subtitle: moduleCommandDetail(app.description, app.module),
+          subtitle: moduleCommandDetail(
+            app.description,
+            app.module,
+            shownAs: app.name,
+          ),
           leading: Icon(
             AppIcons.dock,
             size: AppSizes.icon16,

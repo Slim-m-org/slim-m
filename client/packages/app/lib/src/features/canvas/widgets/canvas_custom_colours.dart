@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The custom-colour tiles beside the six named ones: a picker and the last
-/// few colours chosen with it.
+/// The canvas's one colour row: the named colours, the custom colours picked
+/// most recently standing in for the trailing ones, and the picker at its end.
 library;
+
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,40 +14,82 @@ import '../../../widgets/control_swatch_row.dart';
 import '../providers/canvas_pen_style.dart';
 import '../providers/canvas_recent_colours.dart';
 
-/// A tile that opens the colour picker, then the recent colours, each handing
-/// a `#rrggbb` key to [onChoose]. [selectedKey] marks the one in use.
-List<ControlSwatch> canvasCustomColourSwatches({
+/// The six named pen colours, [selectedKey] marked, each handing its key to [onChoose].
+List<ControlSwatch> canvasPenColourSwatches({
+  required String selectedKey,
+  required ValueChanged<String> onChoose,
+}) => [
+  for (final choice in canvasPenColors)
+    ControlSwatch(
+      label: choice.label,
+      color: choice.color,
+      selected: selectedKey == choice.key,
+      onSelected: () => onChoose(choice.key),
+    ),
+];
+
+/// [defaults] with the newest custom colours in place of its last entries,
+/// then the picker, so the row keeps one length however many are remembered.
+///
+/// The first default always stays, and so does the selected one: the entry
+/// before it gives way instead. A custom colour hands its `#rrggbb` key to
+/// [onChoose], and [selectedKey] marks the one in use.
+List<ControlSwatch> canvasColourRow({
   required BuildContext context,
   required WidgetRef ref,
+  required List<ControlSwatch> defaults,
   required String selectedKey,
   required ValueChanged<String> onChoose,
   Color? plainColour,
-  int recentLimit = canvasRecentColoursMax,
 }) {
-  final current = resolveCanvasInk(
-    canvasPenInkByKey,
-    selectedKey,
-    plainColour ?? AppCanvasColors.annotation,
-  );
+  final recent = ref.watch(canvasRecentColoursProvider);
+  final keptSelected = defaults.indexWhere((s) => s.selected) > 0 ? 1 : 0;
+  final replaced = math.min(recent.length, defaults.length - 1 - keptSelected);
   return [
-    ControlSwatch(
-      label: 'Custom colour',
-      selected: false,
-      mark: const Icon(AppIcons.appearance, size: AppSizes.icon20),
-      onSelected: () async {
-        final picked = await showAppColourPicker(context, initial: current);
-        if (picked == null) return;
-        final hex = canvasHexOf(picked);
-        await ref.read(canvasRecentColoursProvider.notifier).remember(hex);
-        onChoose(hex);
-      },
-    ),
-    for (final hex in ref.watch(canvasRecentColoursProvider).take(recentLimit))
+    ..._withoutTrailing(defaults, replaced),
+    for (final hex in recent.take(replaced))
       ControlSwatch(
         label: 'Custom $hex',
         selected: selectedKey == hex,
         color: parseCanvasHexColor(hex),
         onSelected: () => onChoose(hex),
       ),
+    _picker(context, ref, selectedKey, onChoose, plainColour),
   ];
 }
+
+/// [defaults] less its last [count] entries other than the first and the selected one.
+List<ControlSwatch> _withoutTrailing(List<ControlSwatch> defaults, int count) {
+  final kept = [...defaults];
+  var left = count;
+  for (var i = kept.length - 1; i > 0 && left > 0; i--) {
+    if (kept[i].selected) continue;
+    kept.removeAt(i);
+    left--;
+  }
+  return kept;
+}
+
+ControlSwatch _picker(
+  BuildContext context,
+  WidgetRef ref,
+  String selectedKey,
+  ValueChanged<String> onChoose,
+  Color? plainColour,
+) => ControlSwatch(
+  label: 'Custom colour',
+  selected: false,
+  mark: const Icon(AppIcons.appearance, size: AppSizes.icon20),
+  onSelected: () async {
+    final current = resolveCanvasInk(
+      canvasPenInkByKey,
+      selectedKey,
+      plainColour ?? AppCanvasColors.annotation,
+    );
+    final picked = await showAppColourPicker(context, initial: current);
+    if (picked == null) return;
+    final hex = canvasHexOf(picked);
+    await ref.read(canvasRecentColoursProvider.notifier).remember(hex);
+    onChoose(hex);
+  },
+);

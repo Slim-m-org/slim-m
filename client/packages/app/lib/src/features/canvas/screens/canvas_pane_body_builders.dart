@@ -7,7 +7,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
     tool: widget.tool,
     onToolChanged: widget.onToolChanged,
     // A banner already says a place would fail; pen/note/shape must not stay selectable underneath it.
-    canDraw: !canvasErrorBlocksDrawing(widget.error),
+    canDraw: _canDraw,
     canUndo: widget.canUndo,
     onUndo: widget.onUndo,
     canRedo: widget.canRedo,
@@ -37,6 +37,9 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
     onShowTile: (key) => widget.tileOverrides.setHidden(key, false),
     fullscreen: widget.fullscreen,
     onToggleFullscreen: widget.onToggleFullscreen,
+    toolsHidden: widget.toolsHidden,
+    onToggleToolsHidden: widget.onToggleToolsHidden,
+    readOnly: widget.readOnly,
   );
 
   /// Rebuilds on `document.objectCount`, the same trigger `_surface` uses, so the summary does not freeze at the count it read when opened.
@@ -55,12 +58,13 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
     loading: widget.loading,
     hasError: widget.error != null,
     hasCallParticipants: widget.callParticipants.isNotEmpty,
-    onAddNote: canvasErrorBlocksDrawing(widget.error)
-        ? null
-        : () => widget.onNotePlace(widget.document.worldView.center),
-    onAddShape: canvasErrorBlocksDrawing(widget.error)
-        ? null
-        : () => widget.onShapePlace(widget.document.worldView.center, null),
+    onAddNote: _canDraw
+        ? () => widget.onNotePlace(widget.document.worldView.center)
+        : null,
+    onAddShape: _canDraw
+        ? () => widget.onShapePlace(widget.document.worldView.center, null)
+        : null,
+    onShowActivityLog: _toggleActivityLog,
     child: CanvasPaneSurface(
       actions: CanvasPaneSurfaceActions(
         onDraftEnded: widget.onDraftEnded,
@@ -93,6 +97,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
         onRecenter: widget.onRecenter,
         onToolChanged: widget.onToolChanged,
         onBringIntoBoard: widget.onBringIntoBoard,
+        onShowActivityLog: _toggleActivityLog,
         onFocusTile: widget.onFocusTile,
         participantMenuItemsBuilder: widget.participantMenuItemsBuilder,
         cameraViewFor: widget.cameraViewFor,
@@ -104,6 +109,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
       cursors: widget.cursors,
       document: widget.document,
       error: widget.error,
+      truncated: widget.truncated,
       noteEditor: widget.noteEditor,
       noteSpans: widget.noteSpans,
       noteSpansRevision: widget.noteSpansRevision,
@@ -121,6 +127,10 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
       presenceFrames: _presenceFrames,
       focusedTileKey: widget.focusedTileKey,
       boardFocusNode: widget.boardFocusNode,
+      readOnly: widget.readOnly,
     ),
   );
+
+  bool get _canDraw =>
+      !widget.readOnly && !canvasErrorBlocksDrawing(widget.error);
 }

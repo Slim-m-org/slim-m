@@ -116,9 +116,9 @@ void main() {
       );
       final tile = _rects(tester, find.byType(CallParticipantTile)).first;
       expect(
-        stage.bottom,
-        lessThanOrEqualTo(tile.top),
-        reason: 'the stage sits above the participant strip',
+        stage.bottom <= tile.top || stage.right <= tile.left,
+        isTrue,
+        reason: 'the people sit below or beside the stage: $stage, $tile',
       );
       expect(
         stage.width * stage.height,

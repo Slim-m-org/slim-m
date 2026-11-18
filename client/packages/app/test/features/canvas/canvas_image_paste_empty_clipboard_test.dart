@@ -43,6 +43,7 @@ void main() {
           onPlaced: (_) {},
           onError: errors.add,
           timedOutUntil: () => null,
+          mayPlace: () => true,
         );
 
         await paste.pasteFromKeystroke();

@@ -18,6 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../channels/providers/channel_history.dart';
 import '../../../providers/sync_controller.dart';
 import 'message_context_menu.dart';
+import 'message_entrance.dart';
 import 'message_jump.dart';
 import 'message_transcript_dividers.dart';
 import 'message_transcript_rows.dart';
@@ -39,7 +40,8 @@ import '../../../widgets/floating_clearance.dart';
 typedef MessageActionsFor =
     MessageActions Function(Message message, bool hasExistingThread);
 
-/// Past this many rows a thread scrolls as an ordinary reversed list.
+/// Past this many rows a thread, or a transcript fitting its content, scrolls
+/// as an ordinary reversed list.
 const int _shrinkWrapThreadMax = 40;
 
 const _startKey = ValueKey<String>('transcript-start');
@@ -53,11 +55,13 @@ class MessageTranscript extends StatefulWidget {
     required this.historyKnown,
     this.channelName,
     this.channelIsThread = false,
+    this.fitContent = false,
     this.channelIsVoice = false,
     this.dmAudience = DmAudience.pair,
     this.channelTopic,
     this.threadParent,
     required this.scrollController,
+    this.atLatest = true,
     required this.lastReadSeq,
     required this.selfId,
     required this.knownUsernames,
@@ -122,9 +126,15 @@ class MessageTranscript extends StatefulWidget {
   /// Whether this transcript is a thread's own, which takes its own start
   /// copy rather than a channel welcome with an empty name in it.
   final bool channelIsThread;
+
+  /// As tall as its rows while short, for a sheet that hugs its chat.
+  final bool fitContent;
   final String? channelTopic;
 
   final ScrollController scrollController;
+
+  /// Whether the reader is at the newest end, as the scroll tracker that marks read answers it; only then does an arrival rise in.
+  final bool atLatest;
   final int lastReadSeq;
 
   /// This account's own user id, so a message it wrote never counts as
@@ -186,14 +196,8 @@ class MessageTranscript extends StatefulWidget {
 }
 
 class _MessageTranscriptState extends State<MessageTranscript> {
-  /// The newest row animates in only when its id is not in here, so a
-  /// genuinely new arrival slides in while the initial load, a recycle on
-  /// scroll-back, and an unrelated parent rebuild render it statically. Holds
-  /// the first window's tail and each newest id since, capped at
-  /// [_seenCap]; reset with the widget, which is per channel.
-  final Set<String> _seen = {};
-  static const _seenCap = 64;
-  bool _hydrated = false;
+  /// Kept per channel, with the widget, so a recycle or rebuild never replays an entrance.
+  final EntranceGate _entrance = EntranceGate();
 
   /// Kept across rebuilds on purpose; see its own doc comment for why living
   /// on the per-build delegate would defeat it.
@@ -268,7 +272,10 @@ class _MessageTranscriptState extends State<MessageTranscript> {
   void didUpdateWidget(MessageTranscript oldWidget) {
     super.didUpdateWidget(oldWidget);
     // A different channel's rows may be sized quite differently, so what settled against these ones stops being evidence about anything.
-    if (oldWidget.channelId != widget.channelId) _extent.reset();
+    if (oldWidget.channelId != widget.channelId) {
+      _extent.reset();
+      _entrance.reset();
+    }
     if (oldWidget.scrollController == widget.scrollController) return;
     oldWidget.scrollController.removeListener(_onScroll);
     widget.scrollController.addListener(_onScroll);
@@ -319,15 +326,6 @@ class _MessageTranscriptState extends State<MessageTranscript> {
       ? Align(alignment: Alignment.topCenter, child: _transcript(context))
       : _transcript(context);
 
-  /// Remembers the newest row, and on the first build the tail it could fall back to when the newest is deleted.
-  void _markSeen(List<TranscriptItem> items) {
-    final fresh = _hydrated ? items.skip(items.length - 1) : items;
-    _seen.addAll(fresh.map((item) => item.id));
-    while (_seen.length > _seenCap) {
-      _seen.remove(_seen.first);
-    }
-  }
-
   Widget _transcript(BuildContext context) {
     final messages = widget.messages;
     final items = mergePrivateAnswers(messages, widget.privateAnswers);
@@ -343,7 +341,8 @@ class _MessageTranscriptState extends State<MessageTranscript> {
     );
     // Shrink-wrapped, a thread lays out every row: affordable only while it is short.
     final shrinkWrap =
-        widget.channelIsThread && items.length <= _shrinkWrapThreadMax;
+        (widget.channelIsThread || widget.fitContent) &&
+        items.length <= _shrinkWrapThreadMax;
     if (items.isEmpty) {
       return EmptyTranscript(
         start: start,
@@ -357,10 +356,7 @@ class _MessageTranscriptState extends State<MessageTranscript> {
 
     _checkAfterLayout();
     _estimateJumpScroll();
-    final newestId = items.last.id;
-    final animateNewest = _hydrated && !_seen.contains(newestId);
-    _markSeen(items);
-    _hydrated = true;
+    final animateNewest = _entrance.admit(items, atLatest: widget.atLatest);
 
     final frame = _Frame(
       items: items,
@@ -409,6 +405,7 @@ class _MessageTranscriptState extends State<MessageTranscript> {
     return MessageEntrance(
       key: ValueKey(item.id),
       animateOnMount: frame.animateNewest && i == 0,
+      newest: i == 0,
       child: content,
     );
   }

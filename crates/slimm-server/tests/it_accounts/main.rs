@@ -59,6 +59,7 @@ mod picture_uploads;
 mod reauth_throttle;
 mod recovery;
 mod recovery_expired;
+mod refresh_dropped;
 mod register_display_name_optional;
 mod registration_gate;
 mod saved_messages;

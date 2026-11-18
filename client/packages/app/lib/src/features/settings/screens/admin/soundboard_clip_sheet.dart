@@ -305,7 +305,7 @@ class _FileRow extends StatelessWidget {
                 style: AppText.ui.copyWith(color: tokens.textPrimary),
               ),
               Text(
-                formatByteSize(pick.bytes.length),
+                formatByteSize(pick.size),
                 style: AppText.caption.copyWith(color: tokens.textSecondary),
               ),
             ],

@@ -22,17 +22,26 @@ import '../../../../widgets/confirm_dialog.dart';
 import '../../../members/widgets/role_color.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_detail_row.dart';
+import '../../widgets/settings_draft_guard.dart';
 import '../../widgets/settings_save_bar.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
 
 class RoleDisplayTab extends ConsumerStatefulWidget {
-  const RoleDisplayTab({super.key, required this.role, this.locked = false});
+  const RoleDisplayTab({
+    super.key,
+    required this.role,
+    this.locked = false,
+    this.draft,
+  });
 
   final api.Role role;
 
   /// The role is not below the viewer's highest; see `role_detail.dart`.
   final bool locked;
+
+  /// Told whether edits are unsaved, so leaving asks first.
+  final DraftLeaveGuard? draft;
 
   @override
   ConsumerState<RoleDisplayTab> createState() => _RoleDisplayTabState();
@@ -94,6 +103,9 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
   Future<void> _save() async {
     if (_pendingCount == 0 || _saving) return;
     final index = _color?.index;
+    // Read before the await: the role's own change event can refresh widget.role first.
+    final regroups = _colorChanged || _hoistChanged;
+    final hoistChanged = _hoistChanged;
     setState(() => _saving = true);
     final ok = await guard(
       whatFailed: 'save the role',
@@ -112,18 +124,27 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
     setState(() => _saving = false);
     if (!ok) return;
     ref.invalidate(rolesProvider);
-    if (_colorChanged || _hoistChanged) ref.invalidate(membersProvider);
-    if (_hoistChanged) ref.invalidate(channelMembersProvider);
+    if (regroups) ref.invalidate(membersProvider);
+    if (hoistChanged) ref.invalidate(channelMembersProvider);
     setState(() => _color = _mentionable = _hoist = null);
+  }
+
+  static String _deleteMessage(int holders) {
+    final who = switch (holders) {
+      0 => 'No one holds this role.',
+      1 => 'The 1 member holding it loses whatever it grants immediately.',
+      _ =>
+        'The $holders members holding it lose whatever it grants immediately.',
+    };
+    return '$who Invites that grant it will grant no role. '
+        'This cannot be undone.';
   }
 
   Future<void> _delete() async {
     final confirmed = await confirmDangerousAction(
       context,
       title: 'Delete "${widget.role.name}"?',
-      message:
-          'Members holding this role lose whatever it grants immediately. '
-          'This cannot be undone.',
+      message: _deleteMessage(widget.role.memberCount),
       confirmLabel: 'Delete',
     );
     if (!confirmed || !mounted) return;
@@ -139,6 +160,7 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
 
   @override
   Widget build(BuildContext context) {
+    widget.draft?.reportAfterFrame(() => _pendingCount > 0);
     final role = widget.role;
     final locked = widget.locked;
     final color = _color == null ? chosenRoleIndex(role.color) : _color!.index;

@@ -3823,6 +3823,33 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /members/activity:
+    get:
+      operationId: listMemberActivity
+      tags: [roles]
+      summary: When each member last posted. Requires MANAGE_ROLES.
+      description: >
+        For the role editor, which offers the most recently active members
+        first. Counts only live messages in channels the caller can view and
+        in the threads under them, so a private channel never shows that
+        somebody is active in it. A member
+        with no such message is absent. Rate limited like other aggregate reads.
+      responses:
+        "200":
+          description: One entry per member who has posted, in no particular order.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemberActivity"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /members/removed:
     get:
       operationId: listRemovedMembers
@@ -6878,6 +6905,74 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /notification-preferences/categories:
+    get:
+      operationId: listCategoryMutes
+      tags: [push]
+      summary: List the categories the caller has muted.
+      responses:
+        "200":
+          description: The caller's muted categories that still exist.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryMuteEntry"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /notification-preferences/categories/{categoryId}:
+    parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: muteCategory
+      tags: [push]
+      summary: Mute every channel in this category and its sub-categories.
+      description: >
+        Covers channels filed into the category later too. A channel's own
+        override (`setChannelNotificationOverride`) still wins over the
+        category mute. Idempotent. A category the caller cannot see answers
+        404, identically whether or not it exists.
+      responses:
+        "200":
+          description: The category is muted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryMuteEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: unmuteCategory
+      tags: [push]
+      summary: Unmute this category.
+      description: >
+        Idempotent, and needs no view of the category: it only touches the
+        caller's own row.
+      responses:
+        "204":
+          description: The category is not muted.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /voice-notifications/channels:
     get:
       operationId: listVoiceNotifications
@@ -7311,7 +7406,8 @@ paths:
       tags: [canvas]
       summary: Read the canvas objects in a region of a channel's canvas.
       description: >
-        Requires `VIEW_CHANNEL` and `USE_CANVAS`, evaluated for this channel.
+        Requires `VIEW_CHANNEL`, evaluated for this channel. A member without
+        `USE_CANVAS` reads the canvas as a spectator; drawing needs that bit.
         Returns every live object whose bounding box intersects the rectangle
         given by `min_x`, `min_y`, `max_x` and `max_y`, in paint order (`z_index`
         then `seq`), backed by a spatial index rather than a scan of the canvas.
@@ -7420,10 +7516,9 @@ paths:
       description: >
         Requires `VIEW_CHANNEL` and `USE_CANVAS`, evaluated for this channel,
         and is additionally refused while the caller is timed out. A timeout
-        does not subtract `USE_CANVAS` (that one bit means view *and* draw, so
-        subtracting it would blank the canvas rather than make it read-only),
-        so this route checks the timeout itself: a timed-out member keeps
-        seeing the canvas and cannot add to it.
+        does not subtract `USE_CANVAS` (a timed-out member still erases their
+        own ink with it), so this route checks the timeout itself: a timed-out
+        member keeps seeing the canvas and cannot add to it.
 
 
         `id` is a client-generated UUIDv7 and is the idempotency key, the same
@@ -7566,7 +7661,7 @@ paths:
       tags: [canvas]
       summary: Page a channel's canvas op stream from a cursor.
       description: >
-        Requires `VIEW_CHANNEL` and `USE_CANVAS`, evaluated for this channel,
+        Requires `VIEW_CHANNEL`, evaluated for this channel,
         byte-identical to the viewport read's gate. No timeout check: this is
         a read.
 
@@ -7802,7 +7897,7 @@ paths:
       tags: [canvas]
       summary: Read which canvas objects in a channel are locked in place.
       description: >
-        Requires `VIEW_CHANNEL` and `USE_CANVAS`, the same gate as the
+        Requires `VIEW_CHANNEL`, the same gate as the
         viewport read. Lists live objects only. A locked object refuses a
         `move` or `reorder` op with 409, and an erase that names it leaves
         it in place while removing the rest. No pagination: a channel holds
@@ -7883,7 +7978,7 @@ paths:
       tags: [canvas]
       summary: Read every camera or screen-share tile a channel's canvas remembers.
       description: >
-        Requires `VIEW_CHANNEL` and `USE_CANVAS`, evaluated for this channel,
+        Requires `VIEW_CHANNEL`, evaluated for this channel,
         byte-identical to the viewport read's gate. No timeout check: this is
         a read.
 
@@ -12743,7 +12838,9 @@ paths:
 
 
         A refusal about one image names it in `error` and also in the
-        `item_index` and `item_code` fields of the error body.
+        `item_index` and `item_code` fields of the error body. `items` lists
+        every refused image of the request, that one first, so all of them
+        can be fixed before trying again.
       requestBody:
         required: true
         content:
@@ -13319,6 +13416,24 @@ components:
             `unsupported_type`, `too_many_pixels`, `name_taken`,
             `builtin_name` or `full`. Present only with `item_index`; read
             an unknown value as a refusal of that image for another reason.
+        items:
+          type: array
+          description: >
+            Present with `item_index`: every refused entry of the request in
+            order, the one `item_index` names first.
+          items:
+            type: object
+            required: [index, code, error]
+            properties:
+              index:
+                type: integer
+                description: Zero-based position in the request's list.
+              code:
+                type: string
+                description: Why, one of the `item_code` values.
+              error:
+                type: string
+                description: The sentence naming that entry and its reason.
         code:
           type: string
           description: >
@@ -13932,6 +14047,18 @@ components:
             MANAGE_ROLES, not BAN_MEMBERS: redeeming a code applies the role
             it grants, so a caller who could not grant it must not read one.
 
+    MemberActivity:
+      type: object
+      required: [user_id, last_posted_at]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        last_posted_at:
+          type: integer
+          format: int64
+          description: Unix milliseconds of the member's newest live message.
+
     SpaceRemoval:
       type: object
       required: [user_id, username, display_name, removed_at]
@@ -14282,7 +14409,15 @@ components:
           description: The text channel the welcome is posted in, or null for none.
         welcome_message:
           type: string
-          description: The welcome template; `{user}` and `{space}` are filled in. Empty when none.
+          description: >
+            The welcome template; `{user}` and `{space}` are filled in. Empty
+            means `welcome_default_message`.
+        welcome_default_message:
+          type: string
+          readOnly: true
+          description: >
+            What an empty `welcome_message` posts, for the client to show as
+            its hint. Absent from a server that still requires a message.
         totp_policy:
           type: string
           enum: [off, optional, required_for_elevated]
@@ -14371,8 +14506,8 @@ components:
         welcome_enabled:
           type: boolean
           description: >
-            Turning it on needs a text channel and a message, already stored
-            or sent in the same request.
+            Turning it on needs a text channel, already stored or sent in the
+            same request. An empty message posts the default.
         welcome_channel_id:
           type: string
           description: A text channel's id; an empty string clears it.
@@ -14381,7 +14516,8 @@ components:
           description: >
             At most 500 characters, line breaks allowed, no other control or
             invisible character. `{user}` becomes an @mention of the new
-            member and `{space}` the Space's name.
+            member and `{space}` the Space's name. Empty posts the default,
+            which `SpaceSettings.welcome_default_message` reports.
         call_transcription:
           type: string
           enum: [off, on_request, always]
@@ -16122,7 +16258,7 @@ components:
 
     Device:
       type: object
-      required: [id, name, created_at, is_current]
+      required: [id, name, created_at, signed_in_at, is_current]
       properties:
         id:
           type: string
@@ -16132,6 +16268,14 @@ components:
         created_at:
           type: integer
           format: int64
+          description: When this install first signed in to the account.
+        signed_in_at:
+          type: integer
+          format: int64
+          description: >
+            When the device's current session began. Signing in again from
+            the same install starts a new session on the same device, so
+            this can be later than `created_at`.
         last_seen_at:
           type: [integer, "null"]
           format: int64
@@ -20182,6 +20326,14 @@ components:
           type: string
           enum: [everything, mentions, nothing]
 
+    CategoryMuteEntry:
+      type: object
+      required: [category_id]
+      properties:
+        category_id:
+          type: string
+          format: uuid
+
     VoiceNotificationRequest:
       type: object
       required: [joins, streams]
@@ -20993,6 +21145,7 @@ components:
         - $ref: "#/components/schemas/AdminAlertsChanged"
         - $ref: "#/components/schemas/ReadStateChanged"
         - $ref: "#/components/schemas/NotificationOverrideChanged"
+        - $ref: "#/components/schemas/CategoryMuteChanged"
         - $ref: "#/components/schemas/MessageEphemeral"
         - $ref: "#/components/schemas/MessageComponents"
         - $ref: "#/components/schemas/MessageEmbeds"
@@ -21010,9 +21163,9 @@ components:
       required: [type, channel_id, seq, object]
       description: >-
         An object was placed on a channel's canvas. Delivered only to
-        connections holding both `VIEW_CHANNEL` and `USE_CANVAS` in that
-        channel, matching what the viewport read requires, and only for a fresh
-        write - an idempotent replay broadcasts nothing.
+        connections holding `VIEW_CHANNEL` in that channel, matching what the
+        viewport read requires (a spectator without `USE_CANVAS` included),
+        and only for a fresh write - an idempotent replay broadcasts nothing.
       properties:
         type:
           type: string
@@ -22353,9 +22506,10 @@ components:
       required: [type]
       description: >
         A Space setting that `/version` shows changed: the name, description
-        or icon, a Space-wide display switch, or the default theme. Carries no
-        fields; a receiving client re-reads `/version` and `/space/themes`,
-        which every member can read.
+        or icon, a Space-wide display switch, the default theme, or the
+        per-file attachment limit (`max_attachment_bytes`). Carries no fields;
+        a receiving client re-reads `/version` and `/space/themes`, which
+        every member can read.
       properties:
         type:
           type: string
@@ -22438,6 +22592,23 @@ components:
           description: >
             `everything`, `mentions` or `nothing`; null once the channel follows the account
             default.
+
+    CategoryMuteChanged:
+      type: object
+      required: [type, category_id, muted]
+      description: >
+        This account muted or unmuted a category from one of its devices.
+        Delivered only to the account's own connections. A write that changes
+        nothing is not announced.
+      properties:
+        type:
+          type: string
+          enum: [category_mute.changed]
+        category_id:
+          type: string
+          format: uuid
+        muted:
+          type: boolean
 
     NewDeviceSignIn:
       type: object

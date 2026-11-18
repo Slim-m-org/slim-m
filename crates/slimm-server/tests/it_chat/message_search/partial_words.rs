@@ -154,3 +154,16 @@ async fn a_one_character_word_matches_whole_words_only() {
     assert_eq!(setup.contents("w sp").await, ["w marks the spot"]);
     assert_eq!(setup.contents("W").await, ["w marks the spot"]);
 }
+
+/// FTS5 reads a `MATCH` that opens with `*` as a special query and refuses it,
+/// so such text searches its words like any other refused syntax.
+#[tokio::test]
+async fn a_leading_star_searches_its_words() {
+    let (setup, _guard) = Setup::new().await;
+    setup.send("wind turbine").await;
+    setup.send("unrelated words").await;
+
+    for q in ["*wind", "* turbine", "*wind turb", "**turbine"] {
+        assert_eq!(setup.contents(q).await, ["wind turbine"], "q={q}");
+    }
+}

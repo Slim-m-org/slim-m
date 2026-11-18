@@ -97,14 +97,14 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       _window = _ref.read(screenOverlayProvider),
       super(const ScreenOverlayState()) {
     _ref.listen(voiceSettingsControllerProvider, (_, _) => _reconcile());
-    _ref.listen(voiceFlagsProvider, (prev, next) {
+    _ref.listen(voiceFlagsAtOnce, (prev, next) {
       if (prev?.channelId == null && next.channelId != null) _reprobe();
       _reconcile();
       _rosterHold.recheck();
     });
     _ref.listen(screenOverlaySupportProvider, (_, _) => _reconcile());
     localShareCapturedSize.addListener(_onCapturedSize);
-    _ref.listen(voiceParticipantsProvider, (_, _) {
+    _ref.listen(voiceParticipantsAtOnce, (_, _) {
       _syncPanel();
       _rosterHold.recheck();
     });
@@ -153,7 +153,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       const OverlaySupport.unsupported();
 
   bool get _sharingWholeScreen {
-    final flags = _ref.read(voiceFlagsProvider);
+    final flags = _ref.read(voiceFlagsAtOnce);
     final share = _ref
         .read(voiceControllerProvider.notifier)
         .share
@@ -165,7 +165,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
 
   /// Viewers may draw: the setting is on and something is being shared, a window included.
   bool get _consentWanted {
-    final flags = _ref.read(voiceFlagsProvider);
+    final flags = _ref.read(voiceFlagsAtOnce);
     return _ref
             .read(voiceSettingsControllerProvider)
             .screenShareAllowAnnotations &&
@@ -192,7 +192,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
 
   /// Hidden while a whole screen is shared on Linux, which cannot keep the panel out of the stream.
   bool get _panelWanted {
-    final flags = _ref.read(voiceFlagsProvider);
+    final flags = _ref.read(voiceFlagsAtOnce);
     return _support.supported &&
         _ref.read(voiceSettingsControllerProvider).callOverlayEnabled &&
         flags.channelId != null &&
@@ -259,9 +259,9 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       api.LogTag.platform,
       'Drawing consent starting: overlay wanted=$_wanted, window=$_sharedWindow, supported=${_support.supported}',
     );
-    final flags = _ref.read(voiceFlagsProvider);
+    final flags = _ref.read(voiceFlagsAtOnce);
     final self = _ref
-        .read(voiceParticipantsProvider)
+        .read(voiceParticipantsAtOnce)
         .where((p) => p.isLocal)
         .firstOrNull;
     if (self == null || flags.channelId == null) return;
@@ -424,7 +424,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   /// Sends the panel only when what it says changed, so a speaking flicker that changes no row costs nothing.
   void _syncPanel() {
     if (!_panelUp || !mounted) return;
-    final participants = _ref.read(voiceParticipantsProvider);
+    final participants = _ref.read(voiceParticipantsAtOnce);
     final panel = callOverlayPanel(
       participants,
       monitor: _panelMonitor,
@@ -501,10 +501,10 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
 
   /// The call my consent went out in, or null once I have left or switched it.
   String? _stillInCall() =>
-      _ref.read(voiceFlagsProvider).channelId == _channelId ? _channelId : null;
+      _ref.read(voiceFlagsAtOnce).channelId == _channelId ? _channelId : null;
 
   Iterable<String> _callMembers() =>
-      _ref.read(voiceParticipantsProvider).map((p) => p.identity);
+      _ref.read(voiceParticipantsAtOnce).map((p) => p.identity);
 
   void _admit(api.CanvasScreenAnnotation event) {
     final accepted = overlayAccepts(

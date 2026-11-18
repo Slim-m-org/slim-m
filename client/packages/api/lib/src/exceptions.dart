@@ -108,30 +108,57 @@ class NotFoundException extends ApiException {
 /// The request collided with existing state, for example reusing a message id
 /// that already belongs to a different channel or author.
 class ConflictException extends ApiException {
-  const ConflictException(super.message, {this.item});
+  const ConflictException(super.message, {this.item, this.items = const []});
 
   /// The entry of a batch request the server refused, when it names one.
   final ItemRefusal? item;
+
+  /// Every entry the server refused, [item] first; empty when it names none.
+  /// A server that sends no `items` list still names [item] here.
+  final List<ItemRefusal> items;
 }
 
 /// The request failed validation.
 class BadRequestException extends ApiException {
-  const BadRequestException(super.message, {this.item});
+  const BadRequestException(super.message, {this.item, this.items = const []});
 
   /// The entry of a batch request the server refused, when it names one.
   final ItemRefusal? item;
+
+  /// Every entry the server refused, [item] first; empty when it names none.
+  /// A server that sends no `items` list still names [item] here.
+  final List<ItemRefusal> items;
 }
 
 /// Which entry of a batch request the server refused and why, as the error
 /// body's `item_index` and `item_code` say it, so no caller reads the sentence.
 class ItemRefusal {
-  const ItemRefusal(this.index, this.code);
+  const ItemRefusal(this.index, this.code, {this.error});
 
   /// Zero-based position in the request's list.
   final int index;
 
   /// A stable reason such as `name_taken`; an unknown one is still a refusal.
   final String code;
+
+  /// The server's own sentence for this entry, when it sent one.
+  final String? error;
+
+  /// The error body's `items`, skipping any entry that is not well formed.
+  static List<ItemRefusal> listFrom(Object? raw) => [
+        if (raw is List)
+          for (final entry in raw)
+            if (entry is Map<String, dynamic> &&
+                entry['index'] is int &&
+                (entry['index'] as int) >= 0 &&
+                entry['code'] is String)
+              ItemRefusal(
+                entry['index'] as int,
+                entry['code'] as String,
+                error:
+                    entry['error'] is String ? entry['error'] as String : null,
+              ),
+      ];
 }
 
 /// Over the rate budget for this traffic class. Back off before retrying.

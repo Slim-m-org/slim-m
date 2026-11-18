@@ -280,14 +280,27 @@ double? _bitrate(num? bytes, num timestampMs, VideoStreamStats? previous) {
   return (bytes - lastBytes) * 8 / seconds;
 }
 
-/// The nominated network path in [entries], or null when the report has none.
+/// The candidate pair the transport is using: the one it names as selected,
+/// else one flagged selected, else the first nominated or succeeded pair.
+StatsEntry? selectedCandidatePair(List<StatsEntry> entries) {
+  final pairs = entries.where((e) => e.type == 'candidate-pair').toList();
+  final selectedId = entries
+      .where((e) => e.type == 'transport')
+      .map((e) => e.text('selectedCandidatePairId'))
+      .whereType<String>()
+      .firstOrNull;
+  return pairs.where((e) => e.id == selectedId).firstOrNull ??
+      pairs.where((e) => e.flag('selected') ?? false).firstOrNull ??
+      pairs
+          .where((e) =>
+              (e.flag('nominated') ?? false) || e.text('state') == 'succeeded')
+          .firstOrNull;
+}
+
+/// The network path the transport is using in [entries], or null when the report has none.
 TransportStats? parseTransportStats(List<StatsEntry> entries) {
   final byId = {for (final e in entries) e.id: e};
-  final pair = entries
-      .where((e) => e.type == 'candidate-pair')
-      .where((e) =>
-          (e.flag('nominated') ?? false) || e.text('state') == 'succeeded')
-      .firstOrNull;
+  final pair = selectedCandidatePair(entries);
   if (pair == null) return null;
   final rtt = pair.number('currentRoundTripTime');
   return TransportStats(

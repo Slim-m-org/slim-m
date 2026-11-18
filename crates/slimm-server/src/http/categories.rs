@@ -17,7 +17,7 @@ use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::hidden_chars::is_hidden_char;
 use super::messages::parse_uuid;
 use crate::hub::Event;
-use crate::ids::ChannelCategoryId;
+use crate::ids::{ChannelCategoryId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{CategoryUpdate, CategoryWriteError, ChannelCategory};
@@ -107,23 +107,7 @@ async fn list(
     AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<CategoryDto>>, ApiError> {
-    let categories = state.store.list_categories().await?;
-    let manages = state
-        .store
-        .base_permissions(ctx.user_id)
-        .await?
-        .contains(Permissions::MANAGE_CHANNELS);
-    let holding = match manages {
-        true => HashSet::new(),
-        false => state
-            .store
-            .visible_channels(ctx.user_id)
-            .await?
-            .into_iter()
-            .filter_map(|channel| channel.category_id)
-            .collect(),
-    };
-    let visible = visible_categories(&categories, manages, &holding);
+    let (categories, visible) = categories_visible_to(&state, ctx.user_id).await?;
     Ok(Json(
         categories
             .into_iter()
@@ -131,6 +115,31 @@ async fn list(
             .map(CategoryDto::from)
             .collect(),
     ))
+}
+
+/// Every live category, and the ids of those `user_id` can see ([`visible_categories`]).
+pub(super) async fn categories_visible_to(
+    state: &AppState,
+    user_id: UserId,
+) -> Result<(Vec<ChannelCategory>, HashSet<ChannelCategoryId>), ApiError> {
+    let categories = state.store.list_categories().await?;
+    let manages = state
+        .store
+        .base_permissions(user_id)
+        .await?
+        .contains(Permissions::MANAGE_CHANNELS);
+    let holding = match manages {
+        true => HashSet::new(),
+        false => state
+            .store
+            .visible_channels(user_id)
+            .await?
+            .into_iter()
+            .filter_map(|channel| channel.category_id)
+            .collect(),
+    };
+    let visible = visible_categories(&categories, manages, &holding);
+    Ok((categories, visible))
 }
 
 /// The category closure: every category for a channel manager, else those in `holding` plus their parents.

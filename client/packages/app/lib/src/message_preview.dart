@@ -18,7 +18,7 @@ const spoilerPlaceholder = '[spoiler]';
 /// Walks the same parse the transcript renders, so a preview can never show
 /// what the transcript hides. Empty when nothing is left.
 String plainPreview(String content) {
-  final withoutFences = wellFormedUtf16(content).replaceAll(_fence, ' [code] ');
+  final withoutFences = drawableText(content).replaceAll(_fence, ' [code] ');
   final text = parseInline(withoutFences).map(_flatten).join();
   return text.replaceAll(_whitespace, ' ').trim();
 }

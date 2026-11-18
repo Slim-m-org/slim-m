@@ -27,15 +27,24 @@ final canvasHasChatProvider = Provider.autoDispose.family<bool, String>(
 );
 
 /// The chat over the canvas, for a width with no room to dock it.
-Future<void> showCanvasChatSheet(BuildContext context, String channelId) =>
-    showAppSheet<void>(
-      context,
-      semanticLabel: 'Text chat',
-      builder: (context) => SizedBox(
-        height: MediaQuery.sizeOf(context).height * 0.8,
-        child: ChannelScreen(channelId: channelId, showHeader: false),
-      ),
-    );
+Future<void> showCanvasChatSheet(
+  BuildContext context,
+  String channelId,
+) => showAppSheet<void>(
+  context,
+  semanticLabel: 'Text chat',
+  // As tall as the chat up to the cap, so a short one opens on its messages, not on empty space.
+  builder: (context) => ConstrainedBox(
+    constraints: BoxConstraints(
+      maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+    ),
+    child: ChannelScreen(
+      channelId: channelId,
+      showHeader: false,
+      fitContent: true,
+    ),
+  ),
+);
 
 /// Whether this width docks the chat beside the canvas instead of sheeting it.
 bool canvasChatDocks(BuildContext context) =>

@@ -90,7 +90,9 @@ List<Widget> channelRowMenuItems(
       channel.id,
       close,
       muteLabel: 'Mute channel',
-      channelDefault: channelDefaultOf(channel),
+      channelDefault: container
+          .read(channelNotificationOverridesProvider)
+          .defaultFor(channel),
       voiceChannel: channel.kind == 'voice',
     ),
     if (canManage || canManageRoles || canEditThisRoom) ...[

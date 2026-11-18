@@ -4,6 +4,8 @@
 /// Split out of `channel_permissions_grid_rows.dart`.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
@@ -17,6 +19,53 @@ const everyoneColumnTooltip =
     'Applies to everyone and cannot be removed. '
     'Deny View channels here to make this private.';
 
+/// Above and below a header cell's content, inside the band.
+const double _bandTop = AppSpacing.s8;
+const double _bandBottom = AppSpacing.s4;
+
+/// How tall the header band is: the tallest column's icon, name and summary
+/// over its control, so no column leaves an empty strip above the others.
+double headerBandHeight(
+  BuildContext context,
+  List<GridColumn> columns,
+  double cellWidth,
+) {
+  final scaler = MediaQuery.textScalerOf(context);
+  final direction = Directionality.of(context);
+  final ambient = DefaultTextStyle.of(context).style;
+  double height(String text, TextStyle style, {int? maxLines}) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: ambient.merge(style)),
+      textDirection: direction,
+      textScaler: scaler,
+      maxLines: maxLines,
+    )..layout(maxWidth: math.max(0, cellWidth - 2 * _cellGutter));
+    final measured = painter.height;
+    painter.dispose();
+    return measured;
+  }
+
+  var tallest = 0.0;
+  for (final column in columns) {
+    final summary = summaryLines(column.allowCount, column.denyCount);
+    tallest = math.max(
+      tallest,
+      AppSizes.icon20 +
+          AppSpacing.s4 +
+          height(column.label, AppText.caption, maxLines: 2) +
+          AppSpacing.s4 +
+          height(summary.join('\n'), AppText.micro),
+    );
+  }
+  final control = AppTouchTargets.of(context)
+      ? AppSizes.rowTouch
+      : AppSizes.rowPointer;
+  return _bandTop + tallest + control + _bandBottom;
+}
+
+/// Between a header cell's text and its neighbour's.
+const double _cellGutter = 2;
+
 /// The principal columns' headers, kept in step with the body by
 /// [controller]; the body is what the user drags.
 class HeaderRow extends StatelessWidget {
@@ -24,6 +73,7 @@ class HeaderRow extends StatelessWidget {
     super.key,
     required this.columns,
     required this.metrics,
+    required this.height,
     required this.controller,
     required this.onAdd,
     required this.onRemove,
@@ -31,6 +81,9 @@ class HeaderRow extends StatelessWidget {
 
   final List<GridColumn> columns;
   final GridMetrics metrics;
+
+  /// From [headerBandHeight].
+  final double height;
   final ScrollController controller;
   final VoidCallback onAdd;
 
@@ -46,7 +99,7 @@ class HeaderRow extends StatelessWidget {
         border: Border(bottom: BorderSide(color: tokens.borderSubtle)),
       ),
       child: SizedBox(
-        height: metrics.headerHeight,
+        height: height,
         child: Row(
           children: [
             SizedBox(width: metrics.labelWidth),
@@ -56,7 +109,7 @@ class HeaderRow extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 physics: const NeverScrollableScrollPhysics(),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     for (final column in columns)
                       HeaderCell(
@@ -64,17 +117,15 @@ class HeaderRow extends StatelessWidget {
                         width: metrics.cellWidth,
                         onRemove: () => onRemove(column),
                       ),
-                    SizedBox(
+                    Container(
                       width: metrics.addWidth,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-                        child: Center(
-                          child: AppIconButton(
-                            icon: AppIcons.add,
-                            semanticLabel: 'Add a role or member to this grid',
-                            onPressed: onAdd,
-                          ),
-                        ),
+                      alignment: Alignment.bottomCenter,
+                      padding: const EdgeInsets.only(bottom: _bandBottom),
+                      child: AppIconButton(
+                        icon: AppIcons.add,
+                        semanticLabel: 'Add a role or member to this grid',
+                        tooltip: 'Add a role or member',
+                        onPressed: onAdd,
                       ),
                     ),
                   ],
@@ -110,9 +161,13 @@ class HeaderCell extends StatelessWidget {
     return SizedBox(
       width: width,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.fromLTRB(
+          _cellGutter,
+          _bandTop,
+          _cellGutter,
+          _bandBottom,
+        ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
             Tooltip(
               message: column.label,
@@ -121,10 +176,13 @@ class HeaderCell extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   column.kind == api.OverwriteTarget.role
-                      ? Icon(
-                          AppIcons.shield,
-                          size: AppSizes.icon16,
-                          color: tokens.textSecondary,
+                      ? SizedBox.square(
+                          dimension: AppSizes.icon20,
+                          child: Icon(
+                            AppIcons.shield,
+                            size: AppSizes.icon16,
+                            color: tokens.textSecondary,
+                          ),
                         )
                       : UserAvatar(
                           name: column.label,
@@ -154,6 +212,7 @@ class HeaderCell extends StatelessWidget {
               allow: column.allowCount,
               deny: column.denyCount,
             ),
+            const Spacer(),
             if (column.isEveryone)
               const AppIconButton(
                 icon: AppIcons.info,
@@ -197,11 +256,7 @@ class ColumnSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final style = AppText.micro.copyWith(color: tokens.textSecondary);
-    final lines = [
-      if (allow > 0) '$allow allow',
-      if (deny > 0) '$deny deny',
-      if (allow == 0 && deny == 0) 'No overrides',
-    ];
+    final lines = summaryLines(allow, deny);
     return Semantics(
       container: true,
       label: lines.join(', '),
@@ -216,3 +271,10 @@ class ColumnSummary extends StatelessWidget {
     );
   }
 }
+
+/// [ColumnSummary]'s lines, which the band's height is measured from.
+List<String> summaryLines(int allow, int deny) => [
+  if (allow > 0) '$allow allow',
+  if (deny > 0) '$deny deny',
+  if (allow == 0 && deny == 0) 'No overrides',
+];

@@ -119,6 +119,9 @@ impl Store {
     /// nobody replied to in a thread; the thread's own override still wins
     /// when one exists, since it is the more specific answer.
     ///
+    /// Below those, a mute on the channel's category or its parent category
+    /// (`store/category_mutes.rs`) silences it; a thread follows its parent's category.
+    ///
     /// A member with no row of their own gets the stricter of the channel's
     /// default (`channels.default_notification`, its parent's for a thread)
     /// and their account preference, so a default only ever narrows. It is
@@ -160,18 +163,25 @@ impl Store {
         // Built, not a fixed `query!`: the id list is variable length; see `user_profiles`.
         let mut builder = QueryBuilder::new(
             "SELECT u.id AS id, \
-             COALESCE(c.preference, p.preference, CASE \
+             COALESCE(c.preference, p.preference, CASE WHEN EXISTS (SELECT 1 FROM category_mutes m \
+               WHERE m.user_id = u.id AND m.category_id IN (d.category_id, d.category_parent_id)) \
+               THEN 'nothing' END, CASE \
                WHEN 'nothing' IN (d.level, u.notification_preference) THEN 'nothing' \
                WHEN 'mentions' IN (d.level, d.voice_level, u.notification_preference) THEN 'mentions' \
                ELSE 'everything' END) AS preference, \
              COALESCE(c.preference, p.preference) IS NOT NULL AS overridden \
              FROM users u \
              LEFT JOIN (SELECT COALESCE(pc.default_notification, cc.default_notification) AS level, \
-               CASE COALESCE(pc.kind, cc.kind) WHEN 'voice' THEN 'mentions' END AS voice_level \
+               CASE COALESCE(pc.kind, cc.kind) WHEN 'voice' THEN 'mentions' END AS voice_level, \
+               cat.id AS category_id, cat.parent_id AS category_parent_id \
                FROM channels cc LEFT JOIN channels pc ON pc.id = ",
         );
         builder.push_bind(parent_channel_id);
-        builder.push(" WHERE cc.id = ");
+        builder.push(
+            " LEFT JOIN channel_categories cat \
+             ON cat.id = COALESCE(pc.category_id, cc.category_id) AND cat.deleted_at IS NULL \
+             WHERE cc.id = ",
+        );
         builder.push_bind(channel_id);
         builder.push(
             ") d ON 1 \

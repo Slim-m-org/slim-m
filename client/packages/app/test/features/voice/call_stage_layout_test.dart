@@ -201,7 +201,7 @@ void main() {
       final harness = await _connected(tester, const [_meSharing]);
       addTearDown(harness.dispose);
 
-      expect(find.byKey(const Key('fake-share-view-user-1')), findsNothing);
+      expect(find.byKey(const Key('fake-share-view-user-1')), findsOneWidget);
       expect(find.text('Stop sharing'), findsOneWidget);
 
       await _leave(harness);
@@ -218,8 +218,8 @@ void main() {
       addTearDown(harness.dispose);
 
       expect(find.byKey(const Key('fake-share-view-user-2')), findsOneWidget);
-      expect(find.byKey(const Key('fake-share-view-user-1')), findsNothing);
-      expect(find.text('Stop sharing'), findsOneWidget);
+      expect(find.byKey(const Key('fake-share-view-user-1')), findsOneWidget);
+      expect(find.bySemanticsLabel('Stop sharing'), findsOneWidget);
 
       await _leave(harness);
     },

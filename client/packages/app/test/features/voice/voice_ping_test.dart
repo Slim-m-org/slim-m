@@ -7,6 +7,8 @@ import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/connection/connection_route.dart';
+import 'package:slimm_app/src/features/connection/providers/connection_report.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_health.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_ping.dart';
 import 'package:slimm_app/src/features/voice/widgets/voice_ping_readout.dart';
@@ -14,14 +16,42 @@ import 'package:slimm_app/src/features/voice/widgets/call_header_facts.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/widgets/space_connection_dot.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_api/api.dart' show EdgeReading;
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_controller_harness.dart';
 
-Widget _app(Widget child, {ValueNotifier<int?>? ping}) => ProviderScope(
+class _FixedStatus extends ConnectionStatusNotifier {
+  int refreshes = 0;
+
+  @override
+  ConnectionStatus build() => (
+    report: connectionReportOf(
+      server: EdgeReading(
+        colo: 'GRU',
+        direct: false,
+        roundTrip: const Duration(milliseconds: 182),
+        at: DateTime.now(),
+      ),
+      signalTrace: null,
+      call: const CallLink(mediaRttMs: 4, media: MediaRoute.direct),
+    ),
+    concern: const RouteConcern(city: 'São Paulo'),
+  );
+
+  @override
+  Future<void> refresh() async => refreshes++;
+}
+
+Widget _app(
+  Widget child, {
+  ValueNotifier<int?>? ping,
+  _FixedStatus Function()? status,
+}) => ProviderScope(
   overrides: [
     if (ping != null)
       voicePingProvider.overrideWith((ref) => ListenableState(ping)),
+    if (status != null) connectionStatusProvider.overrideWith(status),
   ],
   child: MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),
@@ -72,14 +102,69 @@ void main() {
     await tester.pumpWidget(
       _app(const VoicePingReadout(style: TextStyle()), ping: ping),
     );
-    expect(find.bySemanticsLabel('Voice ping good'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Connection details, voice ping good'),
+      findsOneWidget,
+    );
     ping.value = 61;
     await tester.pump();
-    expect(find.bySemanticsLabel('Voice ping good'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Connection details, voice ping good'),
+      findsOneWidget,
+    );
     ping.value = 250;
     await tester.pump();
-    expect(find.bySemanticsLabel('Voice ping poor'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Connection details, voice ping poor'),
+      findsOneWidget,
+    );
     handle.dispose();
+  });
+
+  testWidgets('tapping the readout opens the connection details and measures', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final ping = ValueNotifier<int?>(4);
+    addTearDown(ping.dispose);
+    final status = _FixedStatus();
+    await tester.pumpWidget(
+      _app(
+        const VoicePingReadout(style: TextStyle()),
+        ping: ping,
+        status: () => status,
+      ),
+    );
+    await tester.tap(find.text('4 ms'));
+    await tester.pump();
+    await tester.pump(AppMotion.base);
+    expect(find.text('Cloudflare São Paulo, 182\u00a0ms'), findsOneWidget);
+    expect(find.text('Direct, 4\u00a0ms'), findsOneWidget);
+    expect(
+      find.textContaining('routing you through São Paulo'),
+      findsOneWidget,
+    );
+    expect(status.refreshes, 1);
+  });
+
+  testWidgets('a far route tints a good ping amber', (tester) async {
+    final ping = ValueNotifier<int?>(4);
+    addTearDown(ping.dispose);
+    await tester.pumpWidget(
+      _app(
+        const VoicePingReadout(style: TextStyle(), routeConcern: true),
+        ping: ping,
+      ),
+    );
+    final tokens = Theme.of(
+      tester.element(find.text('4 ms')),
+    ).extension<AppTokens>()!;
+    expect(
+      tester.widget<Text>(find.text('4 ms')).style!.color,
+      tokens.warnText,
+    );
   });
 
   testWidgets('hovering the connection dot adds the voice ping in a call', (

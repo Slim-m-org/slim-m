@@ -5,9 +5,11 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' show Request, Response;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/last_text_channel.dart';
@@ -31,11 +33,15 @@ Future<void> _settle(WidgetTester tester) async {
 
 Future<({ProviderContainer container, SlimmDatabase db})> _open(
   WidgetTester tester,
-  double width,
-) async {
+  double width, {
+  Future<Response?> Function(Request request)? answer,
+}) async {
   final quiet = quietClient();
   final s = setup(
-    httpClient: MockClient((request) => quiet.get(request.url)),
+    httpClient: MockClient(
+      (request) async =>
+          await answer?.call(request) ?? await quiet.get(request.url),
+    ),
     signedIn: true,
     extraOverrides: [initialSyncCompleteProvider.overrideWith((ref) => true)],
   );
@@ -81,6 +87,34 @@ void main() {
       await teardown(tester, s.container, s.db);
     });
   }
+
+  testWidgets('leaving a deleted channel replaces its history entry, so '
+      'browser back is not bounced forward again', (tester) async {
+    final s = await _open(tester, 1400);
+    final reports = <Map<Object?, Object?>>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.navigation,
+      (call) async {
+        if (call.method == 'routeInformationUpdated') {
+          reports.add(call.arguments as Map<Object?, Object?>);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.navigation,
+        null,
+      ),
+    );
+
+    await _delete(s.container, s.db);
+    await _settle(tester);
+
+    final leave = reports.lastWhere((r) => r['uri'] == '/channels/c1');
+    expect(leave['replace'], isTrue);
+    await teardown(tester, s.container, s.db);
+  });
 
   testWidgets('losing access to the open channel goes back saying so', (
     tester,
@@ -129,6 +163,24 @@ void main() {
 
     expect(_location(tester), '/channels/nowhere');
     expect(s.container.read(toastsProvider), isEmpty);
+    await teardown(tester, s.container, s.db);
+  });
+
+  testWidgets('a malformed channel id reads as not found, with no retry', (
+    tester,
+  ) async {
+    final s = await _open(
+      tester,
+      1400,
+      answer: (request) async => request.url.path.endsWith('/thread-parent')
+          ? Response('{"error":"invalid uuid"}', 400)
+          : null,
+    );
+    _router(tester).go('/channels/not-a-channel');
+    await _settle(tester);
+
+    expect(find.textContaining('This channel was not found'), findsOneWidget);
+    expect(find.text('Retry'), findsNothing);
     await teardown(tester, s.container, s.db);
   });
 

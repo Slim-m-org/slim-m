@@ -421,6 +421,11 @@ impl VoiceService {
         self.heartbeats.contains(user_id, channel_id)
     }
 
+    /// Every `(user, channel)` call with a heartbeat on record, for re-checking who may stay.
+    pub fn calls(&self) -> Vec<(UserId, ChannelId)> {
+        self.heartbeats.sessions()
+    }
+
     /// Who is in `channel_id`'s call as of `now`, for deciding who to ring: a recent
     /// heartbeat, and no leave from the SFU since, so a dropped device is not counted.
     pub fn in_call_at(&self, channel_id: ChannelId, now: std::time::Instant) -> Vec<UserId> {

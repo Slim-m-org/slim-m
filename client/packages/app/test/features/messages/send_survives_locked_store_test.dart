@@ -27,6 +27,7 @@ class _LockedStore extends MessageStore {
     required String channelId,
     required String authorId,
     required String content,
+    String? authorDisplayName,
     String? replyToId,
     bool mentionReply = true,
     List<String> attachmentIds = const [],
@@ -38,6 +39,7 @@ class _LockedStore extends MessageStore {
       channelId: channelId,
       authorId: authorId,
       content: content,
+      authorDisplayName: authorDisplayName,
       replyToId: replyToId,
       mentionReply: mentionReply,
       attachmentIds: attachmentIds,
@@ -74,7 +76,7 @@ Future<int> _sendWith(_LockedStore Function(SlimmDatabase) make) async {
             ),
           ),
           httpClient: MockClient((request) async {
-            posts++;
+            if (request.method == 'POST') posts++;
             final body = jsonDecode(request.body) as Map<String, dynamic>;
             return http.Response(
               jsonEncode({

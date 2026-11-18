@@ -15,6 +15,7 @@ import '../../../default_server.dart';
 import '../../../deep_links.dart';
 import '../../../providers/providers.dart';
 import '../../accounts/widgets/add_server_cancel.dart';
+import 'invite_dialog.dart';
 import 'onboarding_dialogs.dart';
 import '../widgets/onboarding_shell.dart';
 import '../widgets/server_identity_confirmation.dart';
@@ -53,11 +54,6 @@ class OnboardingScreen extends ConsumerWidget {
               color: tokens.textPrimary,
               fontWeight: AppWeights.semi,
             ),
-          ),
-          const SizedBox(height: AppSpacing.s8),
-          Text(
-            'Chat and voice you host yourself.',
-            style: AppText.body.copyWith(color: tokens.textSecondary),
           ),
           const SizedBox(height: AppSpacing.s24),
           // Staggered a beat apart so the three ways in arrive as a sequence.
@@ -107,10 +103,7 @@ class OnboardingScreen extends ConsumerWidget {
     WidgetRef ref, {
     ({Uri server, String code})? initial,
   }) async {
-    final result = await showAppSheet<(Uri, String)>(
-      context,
-      builder: (context) => InviteDialog(initial: initial),
-    );
+    final result = await showInviteDialog(context, initial: initial);
     if (result == null || !context.mounted) return;
 
     final (server, code) = result;

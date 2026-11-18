@@ -164,4 +164,24 @@ extension SlimmApiPush on SlimmApi {
         '/notification-preferences/channels/$channelId',
         expectNoContent: true,
       );
+
+  /// The ids of the categories this account muted.
+  Future<List<String>> listCategoryMutes() async {
+    final json = await send('GET', '/notification-preferences/categories');
+    return [
+      for (final entry in json as List<dynamic>)
+        (entry as Map<String, dynamic>)['category_id'] as String,
+    ];
+  }
+
+  /// Mutes every channel in [categoryId] and its sub-categories that has no override of its own.
+  Future<void> muteCategory(String categoryId) =>
+      send('PUT', '/notification-preferences/categories/$categoryId');
+
+  /// Unmutes [categoryId].
+  Future<void> unmuteCategory(String categoryId) => send(
+        'DELETE',
+        '/notification-preferences/categories/$categoryId',
+        expectNoContent: true,
+      );
 }

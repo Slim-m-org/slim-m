@@ -13,10 +13,11 @@ import '../../../api_failure.dart';
 
 /// Which field a failure lands on, per error grammar 03: an error belongs to
 /// the thing that failed, with that thing's content preserved.
-/// [SignInErrorField.form] is the fallback for failures no one field owns.
+/// [SignInErrorField.form] is the fallback for failures no one field owns,
+/// and [SignInErrorField.invite] is the code an invite-only Space asks for.
 /// [SignInErrorField.credentials] marks both username and password, with the
 /// message under the password, because a wrong pair does not say which half.
-enum SignInErrorField { server, username, password, credentials, form }
+enum SignInErrorField { server, invite, username, password, credentials, form }
 
 /// What to say when something other than the server failed, such as the key store.
 const unexpectedSignInError = (
@@ -49,10 +50,7 @@ const unexpectedSignInError = (
     SignInErrorField.form,
     'The server is busy. Try again shortly.',
   ),
-  NotASlimServerException() => (
-    SignInErrorField.server,
-    'No slim-m server at that address.',
-  ),
+  NotASlimServerException() => notASlimServerError,
   TransportException() => _unreachable,
   _ => (
     SignInErrorField.form,
@@ -60,11 +58,37 @@ const unexpectedSignInError = (
   ),
 };
 
+/// What a host says when it answers, but not as a slim-m server.
+const notASlimServerError = (
+  SignInErrorField.server,
+  'No slim-m server at that address.',
+);
+
 const _unreachable = (
   SignInErrorField.server,
   'Could not reach this Space. Check the address, or try again if it is '
       'restarting. Nothing was sent.',
 );
+
+const _offline = (
+  SignInErrorField.form,
+  'This device is offline. Check your connection, then try again. Nothing '
+      'was sent.',
+);
+
+/// The empty field a submit would send, named before anything goes out.
+(SignInErrorField, String)? missingCredential({
+  required String username,
+  required String password,
+}) {
+  if (username.trim().isEmpty) {
+    return (SignInErrorField.username, 'Enter your username.');
+  }
+  if (password.isEmpty) {
+    return (SignInErrorField.password, 'Enter your password.');
+  }
+  return null;
+}
 
 const _blockedByBrowser = (
   SignInErrorField.server,
@@ -74,12 +98,15 @@ const _blockedByBrowser = (
 
 /// [signInErrorFor], except a failed connection that [reach] still answers is
 /// called a browser block when [knownSpace]: an opaque answer could be any site.
+/// An [offline] device is told about its own connection instead.
 Future<(SignInErrorField, String)> explainSignInFailure(
   ApiException e, {
   required Uri? server,
   required Future<bool?> Function(Uri server) reach,
   required Future<bool> Function(Uri server) knownSpace,
+  bool offline = false,
 }) async {
+  if (e is TransportException && offline) return _offline;
   if (e is! TransportException || server == null) return signInErrorFor(e);
   if (await reach(server) != true) return _unreachable;
   return await knownSpace(server) ? _blockedByBrowser : _unreachable;

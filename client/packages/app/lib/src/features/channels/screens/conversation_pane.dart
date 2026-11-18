@@ -263,7 +263,13 @@ class _LeaveRemovedRoomState extends ConsumerState<_LeaveRemovedRoom> {
       final notice = widget.notice;
       if (notice != null) ref.read(toastsProvider.notifier).show(notice);
       final fallback = widget.fallback;
-      context.go(fallback == null ? Routes.channels : Routes.channel(fallback));
+      // Replaces the dead entry: a push would bounce browser back forward again, so older history could not be reached.
+      Router.neglect(
+        context,
+        () => context.go(
+          fallback == null ? Routes.channels : Routes.channel(fallback),
+        ),
+      );
     });
   }
 

@@ -66,7 +66,10 @@ Widget participantTile(
               kind: FullscreenVideoKind.camera,
             )
           : null,
-      contextMenuItemsBuilder: menuItemsBuilder == null
+      // Nothing to turn down or watch for someone the call has not delivered yet.
+      contextMenuItemsBuilder:
+          menuItemsBuilder == null ||
+              participant.presence == CallPresence.connecting
           ? null
           : (menuContext, close) =>
                 menuItemsBuilder(menuContext, participant, close),

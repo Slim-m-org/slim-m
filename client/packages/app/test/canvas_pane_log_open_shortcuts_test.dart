@@ -17,6 +17,9 @@ void main() {
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(accessibleNavigation: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     await pumpCanvasPane(tester, container);
     await tester.pumpAndSettle();
 

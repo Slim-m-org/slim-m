@@ -207,8 +207,8 @@ void main() {
         // The stage's own caption already says you are sharing; the
         // banner would only repeat it.
         expect(find.text('You are sharing your screen.'), findsNothing);
-        // Your own screen is never mirrored back; a tile with a Stop button stands in.
-        expect(find.byKey(const Key('fake-share-view-me')), findsNothing);
+        // Your own share shows its live preview, with a Stop button on it.
+        expect(find.byKey(const Key('fake-share-view-me')), findsOneWidget);
         expect(find.text('Stop sharing'), findsOneWidget);
         expect(find.text('You are sharing your screen'), findsOneWidget);
         await controller.leave();

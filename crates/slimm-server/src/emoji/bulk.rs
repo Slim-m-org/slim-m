@@ -19,8 +19,8 @@
 //! [`super::add_emoji`] enforces one at a time, run here before a single byte
 //! is written.
 //!
-//! Validated as a whole, written as a whole: every image is checked before
-//! any of them touch the store, and [`crate::store::Store::create_custom_emoji_batch`]
+//! Validated as a whole, written as a whole: every image is checked, and every
+//! refusal reported, before any of them touch the store, and [`crate::store::Store::create_custom_emoji_batch`]
 //! creates all of the rows in one transaction, so a batch that fails partway
 //! (a bad image, a name collision) leaves none of it behind rather than the
 //! first few. That is `messages_bulk`'s own rule, applied here: a caller
@@ -30,9 +30,11 @@
 //! Distinct from [`super::import`], the operator's directory importer: that
 //! one visits a directory unattended and reports each file's own fate since
 //! nobody is present to react to a partial refusal. This instead answers one
-//! HTTP request from an admin who is present, can read a single reason, and
+//! HTTP request from an admin who is present, can read every reason at once, and
 //! can retry with a narrower batch - so all-or-nothing is the more useful
 //! answer here, not the importer's skip-and-continue.
+
+use std::collections::HashSet;
 
 use super::{AddError, ValidatedImage, refused, validate_image};
 use crate::ids::{EmojiId, UserId};
@@ -64,10 +66,9 @@ pub const MAX_BULK_TOTAL_BYTES: u64 = 20 * 1024 * 1024;
 /// failure can come back from here.
 #[derive(Debug)]
 pub enum BulkAddError {
-    /// The image at this index failed the same check [`super::add_emoji`]
-    /// would refuse it for, including a name already taken - by another
-    /// image earlier in this same batch, or by an existing emoji.
-    Item { index: usize, error: AddError },
+    /// Every image, by index, that failed the check [`super::add_emoji`] would refuse it for,
+    /// a name already taken by an existing emoji or an earlier image in the batch included.
+    Items(Vec<(usize, AddError)>),
     /// The database or the blob directory refused the write.
     Storage(anyhow::Error),
 }
@@ -97,17 +98,26 @@ pub async fn add_emoji_bulk(
     items: Vec<(String, Vec<u8>)>,
     uploader: Option<UserId>,
 ) -> Result<Vec<CustomEmoji>, BulkAddError> {
+    let mut taken: HashSet<String> = store
+        .list_custom_emoji()
+        .await
+        .map_err(BulkAddError::Storage)?
+        .into_iter()
+        .map(|e| e.name)
+        .collect();
     let mut validated: Vec<ValidatedImage> = Vec::with_capacity(items.len());
+    let mut refusals = Vec::new();
     for (index, (raw_name, bytes)) in items.into_iter().enumerate() {
-        let image = validate_image(&raw_name, bytes)
-            .map_err(|error| BulkAddError::Item { index, error })?;
-        if validated.iter().any(|v| v.name == image.name) {
-            return Err(BulkAddError::Item {
-                index,
-                error: AddError::NameTaken,
-            });
+        match validate_image(&raw_name, bytes) {
+            Err(error) => refusals.push((index, error)),
+            Ok(image) if !taken.insert(image.name.clone()) => {
+                refusals.push((index, AddError::NameTaken));
+            }
+            Ok(image) => validated.push(image),
         }
-        validated.push(image);
+    }
+    if !refusals.is_empty() {
+        return Err(BulkAddError::Items(refusals));
     }
     if validated.is_empty() {
         return Ok(Vec::new());
@@ -142,8 +152,5 @@ pub async fn add_emoji_bulk(
         .await
         .map_err(BulkAddError::Storage)?;
 
-    outcome.map_err(|(index, err)| BulkAddError::Item {
-        index,
-        error: refused(err),
-    })
+    outcome.map_err(|(index, err)| BulkAddError::Items(vec![(index, refused(err))]))
 }

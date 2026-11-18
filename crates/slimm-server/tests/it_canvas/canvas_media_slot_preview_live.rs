@@ -84,8 +84,9 @@ async fn a_locked_tile_streams_nothing() {
     assert_no_frame_of_type(&mut bob_ws, KIND).await;
 }
 
+/// A spectator watches a tile being dragged but cannot drag one.
 #[tokio::test]
-async fn a_member_denied_use_canvas_neither_sends_nor_receives() {
+async fn a_member_denied_use_canvas_receives_but_cannot_send() {
     let (store, _guard) = support::new_store("slimm-media-slot-preview").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
@@ -107,7 +108,7 @@ async fn a_member_denied_use_canvas_neither_sends_nor_receives() {
     let mut carol_ws = connect(addr, &carol_ticket).await;
 
     send_preview(&mut alice_ws, channel, alice_id, 1.0).await;
-    assert_no_frame_of_type(&mut carol_ws, KIND).await;
+    read_frame_of_type(&mut carol_ws, KIND).await;
     // The sender is not sent its own frame, so alice sees nothing from herself.
     assert_no_frame_of_type(&mut alice_ws, KIND).await;
 

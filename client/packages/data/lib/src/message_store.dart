@@ -16,6 +16,7 @@ import 'message_store_drafts.dart' as drafts_impl;
 import 'message_store_pending_attachments.dart' as pending_impl;
 import 'message_store_recent_ops.dart';
 import 'message_store_retention.dart' as retention_impl;
+import 'message_store_recovery.dart' as recovery_impl;
 import 'message_store_rows.dart' as rows_impl;
 import 'message_store_cursors.dart' show CursorAdvance, ReadMarker;
 
@@ -234,6 +235,9 @@ class MessageStore {
     return rows.map((r) => r.toDto()).toList(growable: false);
   }
 
+  /// How many sends have not reached the server yet, pending or failed.
+  Future<int> unsentCount() => recovery_impl.countUnsentSends(this);
+
   /// Every channel's cursors, for a bundled catch-up request.
   Future<List<api.ScopeCursor>> allCursors() => cursors_impl.allCursors(this);
 
@@ -251,8 +255,13 @@ class MessageStore {
   /// perform itself. [upsertChannels] must never gain this: a single-channel
   /// call (a rename, a freshly created channel) would wipe every other row.
   /// The body lives in `message_store_channels.dart`.
-  Future<void> replaceChannels(List<api.Channel> channels) =>
-      channels_impl.replaceChannels(this, channels);
+  ///
+  /// [alsoKeep] survives the prune: channels that arrived after [channels] was asked for.
+  Future<void> replaceChannels(
+    List<api.Channel> channels, {
+    Set<String> alsoKeep = const {},
+  }) =>
+      channels_impl.replaceChannels(this, channels, alsoKeep: alsoKeep);
 
   /// Applies one message from the server, whichever route it arrived by.
   ///
@@ -341,12 +350,14 @@ class MessageStore {
 
   /// Records a message the user just sent, before the server has seen it, so it
   /// appears immediately. Replaced in place by [applyMessage] on acknowledgement
-  /// because both are keyed by the same client-generated id.
+  /// because both are keyed by the same client-generated id. [authorDisplayName]
+  /// names the sender while no profile of theirs has loaded.
   Future<void> addPending({
     required String id,
     required String channelId,
     required String authorId,
     required String content,
+    String? authorDisplayName,
     String? replyToId,
     bool mentionReply = true,
     List<String> attachmentIds = const [],
@@ -364,6 +375,7 @@ class MessageStore {
             id: id,
             channelId: channelId,
             authorId: Value(authorId),
+            authorDisplayName: Value.absentIfNull(authorDisplayName),
             content: content,
             createdAt: DateTime.now().millisecondsSinceEpoch,
             pending: const Value(true),

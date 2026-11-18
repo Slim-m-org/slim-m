@@ -50,6 +50,14 @@ async fn receive(
         }
     };
 
+    if let Some(channel_id) = foreign_channel(&state, &event).await {
+        tracing::debug!(
+            %channel_id,
+            event = %event.event,
+            "ignored a webhook for a room this deployment never had"
+        );
+        return StatusCode::NO_CONTENT;
+    }
     track_session(&state, &event).await;
     let room_finished = room_finished_channel(&event);
     reconcile_roster(&state, &event).await;
@@ -62,6 +70,16 @@ async fn receive(
     }
     track_call_audio(&state, room_finished, presence).await;
     StatusCode::NO_CONTENT
+}
+
+/// The channel the event's room names when this deployment never had it: one LiveKit can serve
+/// several deployments, and its webhook brings every one of them each room's events.
+async fn foreign_channel(state: &AppState, event: &WebhookEvent) -> Option<ChannelId> {
+    let channel_id = event.channel_id()?;
+    match state.store.channel_including_deleted(channel_id).await {
+        Ok(None) => Some(channel_id),
+        Ok(Some(_)) | Err(_) => None,
+    }
 }
 
 /// Has the SFU announce a join that published nothing, which it would otherwise batch for up to
@@ -79,11 +97,7 @@ fn announce_now(state: &AppState, channel_id: ChannelId, user_id: UserId) {
 /// event. Awaited, so a leave never races the join it closes; a failure is
 /// logged and the delivery still succeeds, since LiveKit would only retry it.
 async fn track_session(state: &AppState, event: &WebhookEvent) {
-    let Some(channel_id) = event
-        .room
-        .as_ref()
-        .and_then(|room| voice::channel_for_room(&room.name))
-    else {
+    let Some(channel_id) = event.channel_id() else {
         return;
     };
     let at = crate::store::now_ms();
@@ -123,11 +137,7 @@ async fn reconcile_roster(state: &AppState, event: &WebhookEvent) {
     if event.participant.is_none() || event.event == "room_finished" {
         return;
     }
-    if let Some(channel_id) = event
-        .room
-        .as_ref()
-        .and_then(|room| voice::channel_for_room(&room.name))
-    {
+    if let Some(channel_id) = event.channel_id() {
         state.voice.reconcile_live_state(channel_id).await;
     }
 }
@@ -136,10 +146,7 @@ fn room_finished_channel(event: &WebhookEvent) -> Option<ChannelId> {
     if event.event != "room_finished" {
         return None;
     }
-    event
-        .room
-        .as_ref()
-        .and_then(|room| voice::channel_for_room(&room.name))
+    event.channel_id()
 }
 
 /// A real join or leave `apply` saw: the channel, the member, and whether they joined.
@@ -186,10 +193,7 @@ async fn track_call_audio(
 /// event this server does not act on (`room_started`, egress events, a track
 /// that is not screen-share sourced, and so on). Returns a real join or leave.
 fn apply(state: &AppState, event: WebhookEvent) -> Option<Presence> {
-    let channel_id = event
-        .room
-        .as_ref()
-        .and_then(|room| voice::channel_for_room(&room.name))?;
+    let channel_id = event.channel_id()?;
     state.voice.roster_cache().invalidate(channel_id);
     let live_state = state.voice.live_state();
     if event.event == "room_finished" {

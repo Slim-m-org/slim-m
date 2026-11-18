@@ -62,6 +62,7 @@ class CanvasObjectContextMenu extends StatefulWidget {
     required this.onToolChanged,
     this.onEditNote,
     this.canDraw = true,
+    this.readOnly = false,
     this.wheel,
   });
 
@@ -73,6 +74,9 @@ class CanvasObjectContextMenu extends StatefulWidget {
   /// False while the pane's error says placing would fail again; disables the
   /// empty-space items that place something, as the overflow menu does.
   final bool canDraw;
+
+  /// A spectator: objects get no menu, and empty space offers only Recenter.
+  final bool readOnly;
 
   /// Whether the caller holds MANAGE_CANVAS - widens which objects a
   /// right-click can resolve a target from, the same bit
@@ -183,11 +187,13 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     if (id != null) _openFor(id, pointerGlobal: null);
   }
 
-  bool _allowed(CanvasStroke stroke) => canvasMayActOn(
-    stroke,
-    canManage: widget.canManage,
-    selfId: widget.selfId,
-  );
+  bool _allowed(CanvasStroke stroke) =>
+      !widget.readOnly &&
+      canvasMayActOn(
+        stroke,
+        canManage: widget.canManage,
+        selfId: widget.selfId,
+      );
 
   /// The topmost object, the same one `beginSelect` would pick, so a
   /// right-click resolves to the target a left-click select would have.
@@ -233,6 +239,7 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
   }
 
   void _openFor(String id, {required Offset? pointerGlobal}) {
+    if (widget.readOnly) return;
     if (widget.tool == CanvasTool.pan) {
       widget.document.selectedObjectId.value = id;
     }
@@ -444,11 +451,12 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     return AppMenu(
       width: 200,
       children: [
-        AppMenuItem(
-          label: 'Add note',
-          leading: AppIcons.note,
-          onTap: widget.canDraw ? _addNote : null,
-        ),
+        if (!widget.readOnly)
+          AppMenuItem(
+            label: 'Add note',
+            leading: AppIcons.note,
+            onTap: widget.canDraw ? _addNote : null,
+          ),
         AppMenuItem(
           label: 'Recenter view',
           leading: AppIcons.recenter,

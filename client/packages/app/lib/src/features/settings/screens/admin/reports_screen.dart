@@ -18,6 +18,7 @@ import '../../../../providers/admin_providers.dart' show myPermissionsProvider;
 import '../../../members/providers/reports_controller.dart';
 import '../../../../routing/routes.dart';
 import '../settings_screen_scaffold.dart';
+import 'paged_first_load.dart';
 import 'report_card.dart';
 import 'report_history_pane.dart';
 import 'reports_load_more_row.dart';
@@ -105,12 +106,10 @@ class _OpenQueuePane extends ConsumerWidget {
     final reports = ref.watch(reportsControllerProvider);
     final controller = ref.read(reportsControllerProvider.notifier);
     return AppAsyncView<List<api.Report>>(
-      // Only when there is nothing to show instead; see ReportsLoadMoreRow.
-      value: AppAsyncState(
-        data: reports.loading && reports.reports.isEmpty
-            ? null
-            : reports.reports,
-        error: reports.reports.isEmpty ? reports.error : null,
+      value: pagedFirstLoad(
+        reports.reports,
+        loading: reports.loading,
+        failure: reports.failure,
       ),
       errorMessage: 'Could not load reports.',
       onRetry: controller.refresh,

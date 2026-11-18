@@ -19,6 +19,7 @@ import '../../../../providers/providers.dart';
 import '../../../composer/providers/slash_command.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_empty.dart';
+import '../../widgets/settings_draft_guard.dart';
 import '../../widgets/settings_save_bar.dart';
 import '../../widgets/settings_section_header.dart';
 import 'role_permissions_rows.dart';
@@ -37,12 +38,16 @@ class RolePermissionsTab extends ConsumerStatefulWidget {
     super.key,
     required this.role,
     this.locked = false,
+    this.draft,
   });
 
   final api.Role role;
 
   /// The role is not below the viewer's highest, so every toggle only shows.
   final bool locked;
+
+  /// Told whether edits are unsaved, so leaving asks first.
+  final DraftLeaveGuard? draft;
 
   @override
   ConsumerState<RolePermissionsTab> createState() => _RolePermissionsTabState();
@@ -90,15 +95,21 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
 
   Future<void> _save() async {
     setState(() => _saving = true);
+    final before = _pendingCount;
     final ok = await guard(whatFailed: 'save permissions', action: _applyAll);
     if (!mounted) return;
     setState(() => _saving = false);
+    // A save that changed nothing would only refetch into a load error that drops the draft.
+    if (ok || _pendingCount < before) _refetch();
+    if (ok) _discard();
+  }
+
+  void _refetch() {
     ref.invalidate(rolesProvider);
     ref.invalidate(roleModulePermissionsProvider(widget.role.id));
     ref.invalidate(codeBlockRunnerProvider);
     ref.invalidate(slashCommandProvider);
     ref.invalidate(appLaunchProvider);
-    if (ok) _discard();
   }
 
   Future<void> _applyAll() async {
@@ -150,6 +161,7 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
 
   @override
   Widget build(BuildContext context) {
+    widget.draft?.reportAfterFrame(() => _pendingCount > 0);
     final granted = ref
         .watch(roleModulePermissionsProvider(widget.role.id))
         .valueOrNull;

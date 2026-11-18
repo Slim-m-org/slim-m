@@ -16,6 +16,7 @@ library;
 
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
@@ -176,7 +177,8 @@ final channelOverwritesSyncedProvider = FutureProvider.autoDispose
 /// watch as documentation of the dependency, not as the thing keeping this
 /// alive.
 ///
-/// Also, with [refreshPermissionsAfterReconnect] beside it, the one place
+/// Also, with [refreshPermissionsAfterReconnect] and
+/// [timeoutExpiryWatcherProvider] beside it, the one place
 /// [channelPermissionsProvider] and [myVisibleChannelsProvider] are
 /// invalidated - see
 /// docs/decisions/0011-per-channel-permissions.md. A role or role-assignment
@@ -230,6 +232,25 @@ void refreshPermissionsAfterReconnect(Ref ref) {
   _refreshVisibleChannels(ref);
   if (ref.exists(rolesProvider)) ref.invalidate(rolesProvider);
 }
+
+/// Refetches what a timeout withheld once it runs out: the server sends no
+/// event then, so the bits fetched during it would otherwise stay stale.
+final timeoutExpiryWatcherProvider = Provider.autoDispose<void>((ref) {
+  Timer? expiry;
+  ref.onDispose(() => expiry?.cancel());
+  ref.listen(meProvider.select((me) => me.valueOrNull?.timedOutUntil), (
+    _,
+    until,
+  ) {
+    expiry?.cancel();
+    if (until == null) return;
+    final left = until - clock.now().millisecondsSinceEpoch;
+    expiry = Timer(Duration(milliseconds: left < 0 ? 0 : left), () {
+      ref.invalidate(meProvider);
+      ref.invalidate(channelPermissionsProvider);
+    });
+  }, fireImmediately: true);
+});
 
 // ref.invalidate on a never-watched provider mounts and fetches it.
 void _refreshVisibleChannels(Ref ref) {

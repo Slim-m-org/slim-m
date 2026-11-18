@@ -104,10 +104,10 @@ class DesktopTrayController with TrayListener {
     _presenceSubscription?.close();
     _boundCall = _callContainer;
     _boundScreen = _screenContainer;
-    // Selected to the three flags this menu draws, so a roster change never fires it.
+    // Off the controller itself: a derived provider waits for a frame, and the tray draws none.
     _voiceSubscription = _boundCall!.listen(
-      voiceFlagsProvider.select(
-        (f) => (f.state, f.microphoneEnabled, f.deafened),
+      voiceControllerProvider.select(
+        (s) => (s.state, s.microphoneEnabled, s.deafened),
       ),
       (previous, next) => _rebuildMenu(),
     );
@@ -229,7 +229,7 @@ class DesktopTrayController with TrayListener {
   }
 
   Future<void> _setContextMenu() async {
-    final voiceFlags = _callContainer.read(voiceFlagsProvider);
+    final voiceFlags = _callContainer.read(voiceFlagsAtOnce);
     final inCall = voiceFlags.state == VoiceSessionState.connected;
     final selected = _screenContainer.read(ownPresenceProvider);
     final items = trayMenuActions(inCall: inCall)

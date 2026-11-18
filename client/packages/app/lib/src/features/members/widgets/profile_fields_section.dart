@@ -13,6 +13,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
+import '../../../hidden_characters.dart';
 import '../providers/profile_draft.dart';
 import '../../../providers/providers.dart';
 import '../../settings/widgets/settings_section_header.dart';
@@ -81,6 +82,10 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
   Future<void> _savePronouns() async {
     final text = _pronouns.text.trim();
     if (text == _savedPronouns) return;
+    if (hidesTextOutsideEmoji(text)) {
+      setState(() => _pronounsError = hiddenCharactersRefusal);
+      return;
+    }
     final container = ProviderScope.containerOf(context, listen: false);
     try {
       await container.read(memberActionsProvider).updateMe(pronouns: text);
@@ -100,6 +105,10 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
   Future<void> _saveAbout() async {
     final text = _about.text.trim();
     if (text == _savedAbout) return;
+    if (hidesTextOutsideEmoji(text.replaceAll('\n', ''))) {
+      setState(() => _aboutError = hiddenCharactersRefusal);
+      return;
+    }
     final container = ProviderScope.containerOf(context, listen: false);
     try {
       await container.read(memberActionsProvider).updateMe(about: text);
@@ -159,7 +168,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
               trailing: ValueListenableBuilder(
                 valueListenable: _about,
                 builder: (context, value, _) => Text(
-                  '${value.text.runes.length} / ${api.InputLimits.about}',
+                  '${inputCharCount(value.text)} / ${api.InputLimits.about}',
                   style: AppText.code.copyWith(
                     fontSize: AppText.micro.fontSize,
                     color: tokens.textSecondary,
@@ -168,6 +177,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
               ),
               child: AppInput(
                 maxLength: api.InputLimits.about,
+                counterNearLimit: false,
                 minLines: 3,
                 maxLines: 3,
                 controller: _about,

@@ -433,6 +433,7 @@ Six things to know:
 - **You own the value.** Whatever `value` you send back in the next scene is what the field shows, so you can correct, clear or reformat what somebody typed. The one exception is a field they currently have focused: a scene arriving mid-typing leaves it alone rather than overwriting under their cursor.
 - **`submit` is required** and must be non-empty, because nothing could report a submission otherwise. An op without one is skipped.
 - **`max` is clamped** to 512 characters. The text rides back to you on every submission, so a module cannot ask for an unbounded one.
+  It counts code points, what Rust's `str::chars` counts, so one family emoji is seven of them; the field cuts what is typed past it without a counter, since a counter would cover your scene.
 - **`w` is held between zero and the scene's longer side**, and a scene carries at most eight fields.
 - **Each field needs its own `submit`.** A later field that reuses a name is skipped, because slim keeps one text controller per name.
 
@@ -493,6 +494,15 @@ A scene becomes interactive by offering `controls` and carrying `state`, and by 
   Those five names are therefore reserved, and `play` is the one to watch: it drives slim's own animation loop, repeatedly sending `step` while the scene stays `live`, rather than sending you an action called `play`.
   If you want a button that plays something once, call it something else (`music-box` calls it `play tune`).
   The buttons wrap onto another line rather than being clipped, so offering several is safe on a phone.
+- A control may instead be one choice of several, shown as a dropdown: `{"label": "board size", "value": "beginner", "options": ["beginner", "intermediate", "expert"]}`.
+  It shows `value` with a chevron, and picking another option sends that option as the action, exactly as a button of that name would; picking the one in force sends nothing.
+  `label` names the choice for a screen reader and heads the phone sheet; a `value` that is not one of the `options` shows the label instead.
+  A dropdown holds at most 16 options, repeats are dropped, and one with no usable option is skipped.
+  A client older than 0.132 skips the object, so keep anything a player cannot do without reachable another way.
+  `replaces` is how: list the buttons the dropdown stands for, and put those buttons in `controls` too.
+  An older client shows the buttons, and a client that draws the dropdown leaves them out.
+  Left-out buttons do not count toward the 16 controls, and a dropdown past the 16 is not drawn, so its buttons stay.
+  A shared board is one stored frame that every viewer draws with their own client, so the frame has to carry both.
 - `state` is an opaque string slim stores and hands back on the next call - it is how a stateless module remembers the board between frames.
   Put whatever you need in it (packed cells, a generation counter, a seed); slim never looks inside.
 - An op's `tap` makes it interactive.

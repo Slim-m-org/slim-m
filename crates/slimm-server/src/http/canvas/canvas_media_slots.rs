@@ -23,7 +23,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
-use super::canvas_write::canvas_access;
+use super::canvas_write::{canvas_access, canvas_read_access};
 use crate::hub::{CanvasEvent, Event};
 use crate::ids::ChannelId;
 use crate::store::{CanvasMediaSlot, MediaSlotError, MediaSlotKind};
@@ -92,7 +92,7 @@ async fn list(
     State(state): State<AppState>,
 ) -> Result<Json<SlotsDto>, ApiError> {
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    canvas_access(&state, ctx.user_id, channel_id).await?;
+    canvas_read_access(&state, ctx.user_id, channel_id).await?;
     let (version, slots) = state.store.list_canvas_media_slots(channel_id).await?;
     Ok(Json(SlotsDto {
         slots: slots.into_iter().map(CanvasMediaSlotDto::from).collect(),

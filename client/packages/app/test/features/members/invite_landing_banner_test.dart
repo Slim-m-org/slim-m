@@ -76,8 +76,9 @@ Future<void> _pump(
   WidgetTester tester,
   _Server server, {
   bool Function()? until,
+  double width = 390,
 }) async {
-  tester.view.physicalSize = const Size(390, 1400);
+  tester.view.physicalSize = Size(width, 1400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final container = ProviderContainer(
@@ -206,6 +207,33 @@ void main() {
     expect(card.right, lessThanOrEqualTo(390));
     expect(find.text('Preview as a visitor'), findsNothing);
   });
+
+  for (final width in [390.0, 1280.0]) {
+    testWidgets('the preview card sits centred on its own stage at $width', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _Server()..banner.complete(_bannerReply()),
+        width: width,
+      );
+      final stage = tester.getRect(find.byKey(InviteLandingSection.stageKey));
+      final card = tester.getRect(_card);
+      expect(card.center.dx, moreOrLessEquals(stage.center.dx, epsilon: 0.5));
+      expect(card.left - stage.left, greaterThanOrEqualTo(AppSpacing.s16));
+      expect(card.top - stage.top, greaterThanOrEqualTo(AppSpacing.s16));
+      expect(stage.bottom - card.bottom, greaterThanOrEqualTo(AppSpacing.s16));
+      final fill = tester.widget<ColoredBox>(
+        find.byKey(InviteLandingSection.stageKey),
+      );
+      expect(
+        fill.color,
+        isNot(AppTokens.light.surfaceRaised),
+        reason:
+            'the card is surfaceRaised, so a stage of the same fill hides it',
+      );
+    });
+  }
 
   testWidgets('the preview waits for the roster, then counts its members', (
     tester,

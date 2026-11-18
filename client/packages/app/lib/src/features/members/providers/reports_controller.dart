@@ -34,6 +34,7 @@ class ReportsState {
     this.reports = const [],
     this.loading = true,
     this.error,
+    this.failure,
     this.more = false,
   });
 
@@ -44,6 +45,9 @@ class ReportsState {
   /// instead of them: a failed "load more" must not throw away the pages
   /// already on screen.
   final String? error;
+
+  /// What was caught behind [error], so a view can tell a lost permission from a fault.
+  final Object? failure;
 
   /// Whether the last page came back full, which is the only thing that says
   /// more may follow. Preserved across a failure, or a single network blip
@@ -126,6 +130,7 @@ class ReportsController extends StateNotifier<ReportsState> {
         reports: after == null ? held : onto,
         loading: false,
         error: sentence,
+        failure: e,
         more: more,
       );
     }

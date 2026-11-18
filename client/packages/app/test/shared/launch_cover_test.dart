@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+import 'dart:ui' show ViewFocusDirection, ViewFocusEvent, ViewFocusState;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/launch_cover.dart';
@@ -58,5 +60,26 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.bySemanticsLabel('home'), findsOneWidget, reason: 'mid fade');
     semantics.dispose();
+  });
+
+  testWidgets('the view gaining focus mid fade finds a first focus', (
+    tester,
+  ) async {
+    Widget app(String label) => MaterialApp(
+      home: TextButton(onPressed: () {}, child: Text(label)),
+    );
+    await tester.pumpWidget(
+      LaunchCover(covered: true, cover: app('splash'), child: app('home')),
+    );
+
+    tester.binding.handleViewFocusChanged(
+      ViewFocusEvent(
+        viewId: tester.view.viewId,
+        state: ViewFocusState.focused,
+        direction: ViewFocusDirection.forward,
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
   });
 }
