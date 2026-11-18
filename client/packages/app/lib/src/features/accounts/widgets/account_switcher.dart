@@ -12,9 +12,11 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/anchored_menu.dart';
 import '../../../widgets/animated_menu_portal.dart';
+import '../providers/account_host.dart';
 import '../providers/account_providers.dart';
 import 'account_server_label.dart';
 import 'account_unread_badge.dart';
+import 'sign_out_confirm.dart';
 
 /// Wraps the header's server identity. With no account host it is just [child].
 class AccountSwitcherTrigger extends ConsumerStatefulWidget {
@@ -130,8 +132,10 @@ class AccountSwitcherMenu extends ConsumerWidget {
               unawaited(host?.switchTo(entry.account.origin));
             },
             onSignOut: () {
+              // The menu's own context goes with it; the navigator outlives it for the question.
+              final navigator = Navigator.of(context);
               onDone();
-              unawaited(host?.signOut(entry.account.origin));
+              unawaited(_signOut(navigator.context, host, entry));
             },
           ),
         const AppMenuDivider(),
@@ -147,6 +151,16 @@ class AccountSwitcherMenu extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// Asks first while [entry]'s own store holds an unsent message, not the store on screen.
+Future<void> _signOut(
+  BuildContext context,
+  AccountHost? host,
+  AccountEntry entry,
+) async {
+  if (!await confirmSignOutLosingUnsent(context, entry.container.read)) return;
+  await host?.signOut(entry.account.origin);
 }
 
 class _ServerRow extends StatelessWidget {
