@@ -34,6 +34,7 @@ class VoiceChannelIdle extends ConsumerWidget {
     required this.onJoin,
     required this.onOpenCanvas,
     this.onJoinWithMic,
+    this.onRetry,
     this.errorMessage,
     this.canRetry = true,
     this.recap,
@@ -47,6 +48,9 @@ class VoiceChannelIdle extends ConsumerWidget {
 
   /// Joins with the mic as the person left it, offered beside [onJoin] on an empty channel.
   final VoidCallback? onJoinWithMic;
+
+  /// Repeats a failed join in the mic mode it used; null retries with [onJoin].
+  final VoidCallback? onRetry;
   final VoidCallback onOpenCanvas;
   final String? errorMessage;
   final bool canRetry;
@@ -104,14 +108,14 @@ class VoiceChannelIdle extends ConsumerWidget {
     if (focused != null) _adoptFocus(ref, focused);
     final ended = recap;
     final recapShown = ended != null && ended.isWorthShowing;
-    // Blank while the history loads, so a channel with calls never flashes the empty state first.
-    if (!history.hasValue && !history.hasError) return const SizedBox.shrink();
+    // While the history loads the empty state stands in, so Join is never held back by the request.
     if (calls.isEmpty && !recapShown) {
       return VoiceChannelEmpty(
         channelId: channelId,
         rejoin: ended != null,
         onJoinMuted: onJoin,
         onJoin: onJoinWithMic,
+        onRetry: onRetry,
         errorMessage: errorMessage,
         canRetry: canRetry,
       );
@@ -124,7 +128,7 @@ class VoiceChannelIdle extends ConsumerWidget {
         compact: compact,
         lastCallAt: finished.isEmpty ? null : finished.first.endedAt,
         now: now,
-        onJoin: onJoin,
+        onJoin: errorMessage == null ? onJoin : onRetry ?? onJoin,
         errorMessage: errorMessage,
         canRetry: canRetry,
       ),

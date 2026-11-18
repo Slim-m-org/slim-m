@@ -105,6 +105,9 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   /// opened for its chat still joins.
   String? _autoJoinedFor;
 
+  /// Whether the idle pane's last join opened the mic, so Try again repeats it.
+  bool _joinedWithMic = false;
+
   /// The channel this account is in on another device, while its prompt waits.
   String? _elsewhere;
   VoidCallback? _confirmedJoin;
@@ -142,6 +145,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
         : null;
     _check++;
     _checking = false;
+    _joinedWithMic = false;
     _elsewhere = null;
     _confirmedJoin = null;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -225,6 +229,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   /// The idle pane's join: muted unless [withMic], marked as attempted like a rejoin.
   void _joinMuted(VoiceController controller, {bool withMic = false}) {
     _autoJoinedFor = widget.channelId;
+    _joinedWithMic = withMic;
     final channelId = widget.channelId;
     unawaited(
       _joinConfirmed(
@@ -322,6 +327,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
           recap: recapForChannel(voice, channelId),
           onJoin: () => _joinMuted(controller),
           onJoinWithMic: () => _joinMuted(controller, withMic: true),
+          onRetry: () => _joinMuted(controller, withMic: _joinedWithMic),
           onOpenCanvas: () =>
               ref.read(canvasOpenProvider.notifier).state = channelId,
         ),

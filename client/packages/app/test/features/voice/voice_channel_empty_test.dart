@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A voice channel with no call to show: a centred empty state with the
-/// channel's name, who can join, and Join beside Join muted.
+/// channel's name, who can join, and Join muted first with Join beside it.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +24,9 @@ Future<void> _pump(
   required VoidCallback onJoin,
   required Channel channel,
   VoidCallback? onJoinWithMic,
+  VoidCallback? onRetry,
+  String? error,
+  Future<api.VoiceCallHistory>? history,
   double width = 1100,
   double? paneWidth,
 }) async {
@@ -35,11 +40,15 @@ Future<void> _pump(
       ...callPeople(const [], const {}),
       channelByIdProvider.overrideWith((ref, id) => Stream.value(channel)),
       voiceCallHistoryProvider.overrideWith(
-        (ref, channelId) async => const api.VoiceCallHistory(
-          retentionDays: 0,
-          canvasObjectCount: 0,
-          calls: [],
-        ),
+        (ref, channelId) =>
+            history ??
+            Future.value(
+              const api.VoiceCallHistory(
+                retentionDays: 0,
+                canvasObjectCount: 0,
+                calls: [],
+              ),
+            ),
       ),
     ],
   );
@@ -58,6 +67,8 @@ Future<void> _pump(
                 channelId: 'voice-1',
                 onJoin: onJoin,
                 onJoinWithMic: onJoinWithMic,
+                onRetry: onRetry,
+                errorMessage: error,
                 onOpenCanvas: () {},
               ),
             ),
@@ -86,6 +97,9 @@ Channel lounge({bool restricted = false, bool joinMuted = false}) => Channel(
   restricted: restricted,
 );
 
+AppButtonVariant _variantOf(WidgetTester tester, String label) =>
+    tester.widget<AppButton>(find.widgetWithText(AppButton, label)).variant;
+
 void main() {
   for (final width in [390.0, 1100.0]) {
     testWidgets('at $width an empty channel is a centred empty state', (
@@ -111,6 +125,49 @@ void main() {
       expect((withMic, muted), (1, 1));
     });
   }
+
+  testWidgets('Join muted is the primary action, Join the secondary one', (
+    tester,
+  ) async {
+    await _pump(tester, onJoin: () {}, onJoinWithMic: () {}, channel: lounge());
+    expect(_variantOf(tester, 'Join muted'), AppButtonVariant.primary);
+    expect(_variantOf(tester, 'Join'), AppButtonVariant.secondary);
+    final muted = tester.getCenter(find.text('Join muted'));
+    final plain = tester.getCenter(find.text('Join'));
+    expect(muted.dx, lessThan(plain.dx), reason: 'the default reads first');
+  });
+
+  testWidgets('Join is there while the call history is still loading', (
+    tester,
+  ) async {
+    var muted = 0;
+    await _pump(
+      tester,
+      onJoin: () => muted++,
+      onJoinWithMic: () {},
+      channel: lounge(),
+      history: Completer<api.VoiceCallHistory>().future,
+    );
+    expect(find.text('lounge'), findsOneWidget);
+    await tester.tap(find.text('Join muted'));
+    expect(muted, 1);
+  });
+
+  testWidgets('Try again repeats the join that failed', (tester) async {
+    var muted = 0;
+    var retried = 0;
+    await _pump(
+      tester,
+      onJoin: () => muted++,
+      onJoinWithMic: () {},
+      onRetry: () => retried++,
+      error: 'Could not join the call.',
+      channel: lounge(),
+    );
+    expect(find.text('Could not join the call.'), findsOneWidget);
+    await tester.tap(find.text('Try again'));
+    expect((retried, muted), (1, 0));
+  });
 
   testWidgets('a private channel says who can join', (tester) async {
     await _pump(

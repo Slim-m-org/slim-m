@@ -21,6 +21,7 @@ class VoiceChannelEmpty extends ConsumerWidget {
     required this.channelId,
     required this.onJoinMuted,
     this.onJoin,
+    this.onRetry,
     this.rejoin = false,
     this.errorMessage,
     this.canRetry = true,
@@ -31,6 +32,9 @@ class VoiceChannelEmpty extends ConsumerWidget {
 
   /// Joins with the mic as the person left it; null offers only the muted join.
   final VoidCallback? onJoin;
+
+  /// Repeats the join that failed, in the mic mode it used; null retries muted.
+  final VoidCallback? onRetry;
 
   /// The person just left this call, so the buttons say Rejoin.
   final bool rejoin;
@@ -104,30 +108,35 @@ class VoiceChannelEmpty extends ConsumerWidget {
 
   Widget _actions({required bool joinsMuted}) {
     final verb = rejoin ? 'Rejoin' : 'Join';
-    final withMic = joinsMuted || errorMessage != null ? null : onJoin;
+    if (errorMessage != null) {
+      return AppButton(
+        label: 'Try again',
+        variant: AppButtonVariant.primary,
+        onPressed: onRetry ?? onJoinMuted,
+      );
+    }
     final muted = AppButton(
-      label: errorMessage != null ? 'Try again' : '$verb muted',
+      label: '$verb muted',
       semanticLabel: rejoin ? 'Rejoin the call muted' : 'Join the call muted',
-      icon: errorMessage != null ? null : AppIcons.micOff,
-      variant: withMic == null
-          ? AppButtonVariant.primary
-          : AppButtonVariant.secondary,
+      icon: AppIcons.micOff,
+      variant: AppButtonVariant.primary,
       onPressed: onJoinMuted,
     );
+    final withMic = joinsMuted ? null : onJoin;
     if (withMic == null) return muted;
     return Wrap(
       alignment: WrapAlignment.center,
       spacing: AppSpacing.s8,
       runSpacing: AppSpacing.s8,
       children: [
+        muted,
         AppButton(
           label: verb,
           semanticLabel: rejoin ? 'Rejoin the call' : 'Join the call',
           icon: AppIcons.voice,
-          variant: AppButtonVariant.primary,
+          variant: AppButtonVariant.secondary,
           onPressed: withMic,
         ),
-        muted,
       ],
     );
   }
