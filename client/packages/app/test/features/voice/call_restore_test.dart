@@ -322,6 +322,31 @@ void main() {
       expect(found?.channelName, 'Lounge');
     });
 
+    test('the offer stays stored until it is answered', () async {
+      final prefs = await _prefs({callRestoreKey: _record(at: DateTime.now())});
+      final container = _container(prefs);
+
+      expect(await container.read(callToRestoreProvider)(), isNotNull);
+      expect(
+        await container.read(callToRestoreProvider)(),
+        isNotNull,
+        reason: 'a reload before Rejoin or Not now must ask again',
+      );
+      await container.read(answerCallToRestoreProvider)();
+      expect(await container.read(callToRestoreProvider)(), isNull);
+    });
+
+    test('an offer past five minutes is cleared', () async {
+      final prefs = await _prefs({
+        callRestoreKey: _record(
+          at: DateTime.now().subtract(const Duration(minutes: 6)),
+        ),
+      });
+
+      expect(await _container(prefs).read(callToRestoreProvider)(), isNull);
+      expect(prefs.getString(callRestoreKey), isNull);
+    });
+
     test('nothing comes back while in a call on another device', () async {
       final prefs = await _prefs({callRestoreKey: _record(at: DateTime.now())});
       final container = _container(prefs, elsewhere: 'voice-1');

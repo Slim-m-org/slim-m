@@ -3,6 +3,7 @@
 /// showing it can leave saying access was taken away.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
@@ -57,6 +58,44 @@ void main() {
     expect(reported, [
       {'secret': 'secret'},
     ]);
+  });
+
+  test('a channel created while a refresh is in flight is not lost', () async {
+    final db = SlimmDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final store = MessageStore(db);
+    final answer = Completer<void>();
+    final api = testApi((request) async {
+      final path = request.url.path;
+      if (path == '/channels') {
+        await answer.future;
+        return _json([_c('general')]);
+      }
+      if (path == '/categories' || path == '/dms') return _json(<Object>[]);
+      if (path == '/read-states') return _json(<Object>[]);
+      return http.Response('nf', 404);
+    }, session: SessionStore(tokens: _tokens));
+    await store.upsertChannels([
+      const Channel(id: 'general', name: 'general', kind: 'text', createdAt: 0),
+    ]);
+    final reported = <Map<String, String>>[];
+
+    final refresh = ChannelRefresher(
+      onLost: reported.add,
+    ).refresh(api, store, isCurrent: () => true);
+    await pumpEventQueue();
+    await store.upsertChannels([
+      const Channel(id: 'new', name: 'new-channel', kind: 'text', createdAt: 1),
+    ]);
+    answer.complete();
+    await refresh;
+
+    expect(reported, isEmpty);
+    expect(
+      [for (final c in await store.allChannels()) c.id],
+      containsAll(['general', 'new']),
+      reason: 'the listing was asked for before the channel existed',
+    );
   });
 
   test('threads, DMs and rooms are not access losses', () async {

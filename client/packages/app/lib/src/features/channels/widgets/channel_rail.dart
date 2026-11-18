@@ -307,6 +307,9 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
                 if (empty != null) return empty;
                 final list = _railList(
                   channels: channels,
+                  dmsListed:
+                      channelSnapshot.hasData &&
+                      ref.watch(initialSyncCompleteProvider),
                   categories: withPendingCategoryOrder(
                     categorySnapshot.data ?? const <ChannelCategoryRow>[],
                     ref.watch(categoryOrderControllerProvider).pendingOrder,
@@ -342,6 +345,7 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
   // Slivers, not one column: the filler sliver gives touch a long-press target under the last row, however short the list is.
   Widget _railList({
     required List<Channel> channels,
+    required bool dmsListed,
     required List<ChannelCategoryRow> categories,
     required String? selected,
     required bool canManageChannels,
@@ -370,6 +374,7 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
                         .where((c) => c.kind == dmChannelKind)
                         .toList(),
                     selectedId: selected,
+                    listed: dmsListed,
                   ),
                   ChannelCategorySections(
                     channels: channels

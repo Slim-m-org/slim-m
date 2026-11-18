@@ -71,6 +71,7 @@ Future<(_CountingSession, ProviderContainer)> _open(
   bool deafened = false,
   bool noticeDue = false,
   bool connects = false,
+  List<String>? answers,
 }) async {
   final session = _CountingSession(connects: connects);
   // Read from its stored form, as a start does, so a field the record drops is lost here too.
@@ -92,6 +93,9 @@ Future<(_CountingSession, ProviderContainer)> _open(
         () async => (call: call, channelName: 'Lounge'),
       ),
       callRestoreWatchProvider.overrideWithValue(null),
+      answerCallToRestoreProvider.overrideWithValue(
+        () async => answers?.add('answered'),
+      ),
       mockApiOverride(
         (request) async => switch (request.url.path) {
           final path when path.endsWith('/voice/token') => _json({
@@ -168,6 +172,26 @@ void main() {
 
     await tester.tap(find.byKey(callRestoreRejoinKey));
     await _settle(tester);
+    expect(session.joins, [true]);
+  });
+
+  testWidgets('the offer is cleared only once it is answered', (tester) async {
+    final answers = <String>[];
+    await _open(tester, restart: false, answers: answers);
+
+    expect(find.text('Rejoin the call?'), findsOneWidget);
+    expect(answers, isEmpty, reason: 'a reload now must offer it again');
+
+    await tester.tap(find.byKey(callRestoreDismissKey));
+    await _settle(tester);
+    expect(answers, ['answered']);
+  });
+
+  testWidgets('a restart clears the offer as it rejoins', (tester) async {
+    final answers = <String>[];
+    final (session, _) = await _open(tester, restart: true, answers: answers);
+
+    expect(answers, ['answered']);
     expect(session.joins, [true]);
   });
 

@@ -68,6 +68,8 @@ class ChannelRefresher {
     required bool Function() isCurrent,
     RateLimitWait wait = sleepFor,
   }) async {
+    // What was held when the listing was asked for: a channel added locally since (one just created) is neither stale nor lost.
+    final before = {for (final c in await store.allChannels()) c.id};
     // Three independent reads issued concurrently, then awaited together; Future.wait rethrows the first failure and consumes the rest, abandoning the write.
     final channelsFuture = api.listChannels();
     final categoriesFuture = api.listCategories();
@@ -83,9 +85,19 @@ class ChannelRefresher {
       ...channels,
       ...dms.map((dm) => channelFromDm(dm, selfId: selfId)),
     ];
-    await store.replaceChannels(all);
+    final arrived = {
+      for (final c in held)
+        if (!before.contains(c.id)) c.id,
+    };
+    await store.replaceChannels(all, alsoKeep: arrived);
     if (!isCurrent()) return;
-    final lost = lostChannels(held, {for (final c in all) c.id});
+    final lost = lostChannels(
+      [
+        for (final c in held)
+          if (before.contains(c.id)) c,
+      ],
+      {for (final c in all) c.id},
+    );
     if (lost.isNotEmpty) onLost?.call(lost);
     await store.replaceCategories(categories);
     if (categories.isNotEmpty) {

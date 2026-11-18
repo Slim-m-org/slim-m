@@ -19,6 +19,48 @@
     {"from": "FFF9", "to": "FFFC", "why": "interlinear annotation, object replacement"},
     {"from": "E0000", "to": "E007F", "why": "tag characters"}
   ],
+  "pictographic": [
+    {"from": "00A9", "to": "00A9", "why": "copyright"},
+    {"from": "00AE", "to": "00AE", "why": "registered"},
+    {"from": "203C", "to": "203C", "why": "double exclamation"},
+    {"from": "2049", "to": "2049", "why": "exclamation question"},
+    {"from": "2122", "to": "2122", "why": "trade mark"},
+    {"from": "2139", "to": "2139", "why": "information"},
+    {"from": "2190", "to": "21FF", "why": "arrows"},
+    {"from": "2300", "to": "23FF", "why": "miscellaneous technical"},
+    {"from": "24C2", "to": "24C2", "why": "circled M"},
+    {"from": "25A0", "to": "27BF", "why": "shapes, symbols and dingbats"},
+    {"from": "2900", "to": "297F", "why": "supplemental arrows"},
+    {"from": "2B00", "to": "2BFF", "why": "miscellaneous symbols and arrows"},
+    {"from": "3030", "to": "3030", "why": "wavy dash"},
+    {"from": "303D", "to": "303D", "why": "part alternation mark"},
+    {"from": "3297", "to": "3297", "why": "circled ideograph congratulation"},
+    {"from": "3299", "to": "3299", "why": "circled ideograph secret"},
+    {"from": "1F000", "to": "1FAFF", "why": "emoji and pictograph blocks"}
+  ],
+  "emoji_sequences": {
+    "why": "status, About, pronouns and polls keep a zero width joiner only between two emoji and tag characters only as a subdivision flag; the client checks the same text before sending",
+    "allowed": [
+      "\ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67",
+      "\ud83c\udff3\ufe0f\u200d\ud83c\udf08",
+      "\u2764\ufe0f\u200d\ud83d\udd25",
+      "\ud83c\udff4\udb40\udc67\udb40\udc62\udb40\udc73\udb40\udc63\udb40\udc74\udb40\udc7f",
+      "\ud83c\udff4\udb40\udc67\udb40\udc62\udb40\udc73\udb40\udc7f flag",
+      "Z\u0301a\u0300l\u0352g\u0350o",
+      "plain text"
+    ],
+    "refused": [
+      "a\u200db",
+      "\u200d",
+      "\ud83d\udc68\u200d",
+      "\u200d\ud83d\udc68",
+      "\ud83c\udff4\udb40\udc67",
+      "\udb40\udc67",
+      "\udb40\udc67\udb40\udc7f",
+      "\ud83d\udc68\u200b",
+      "\u202e"
+    ]
+  },
   "plain": ["0061", "0020", "00E9", "4E2D", "FE0F", "2764", "1F600"],
   "code_layout_exempt": ["0009", "000A", "000D"],
   "grapheme_joiner": {

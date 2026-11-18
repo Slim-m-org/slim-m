@@ -129,13 +129,22 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
     setState(() => _color = _mentionable = _hoist = null);
   }
 
+  static String _deleteMessage(int holders) {
+    final who = switch (holders) {
+      0 => 'No one holds this role.',
+      1 => 'The 1 member holding it loses whatever it grants immediately.',
+      _ =>
+        'The $holders members holding it lose whatever it grants immediately.',
+    };
+    return '$who Invites that grant it will grant no role. '
+        'This cannot be undone.';
+  }
+
   Future<void> _delete() async {
     final confirmed = await confirmDangerousAction(
       context,
       title: 'Delete "${widget.role.name}"?',
-      message:
-          'Members holding this role lose whatever it grants immediately. '
-          'This cannot be undone.',
+      message: _deleteMessage(widget.role.memberCount),
       confirmLabel: 'Delete',
     );
     if (!confirmed || !mounted) return;

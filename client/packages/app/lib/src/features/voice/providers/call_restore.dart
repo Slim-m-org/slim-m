@@ -169,13 +169,20 @@ class CallRestore {
     return call != null && call.userId == userId ? call : null;
   }
 
-  /// [userId]'s call to bring back, cleared as it is read; null when there is none or it is too old.
-  Future<CallToRestore?> take(String userId) async {
+  /// [userId]'s call to bring back, kept until it is answered; an expired one is cleared and null.
+  Future<CallToRestore?> offer(String userId) async {
     final call = peek(userId);
     if (call == null) return null;
-    await _prefs.remove(callRestoreKey);
     final age = _now().difference(call.at);
-    if (age.isNegative || age > callRestoreWindow) return null;
+    if (!age.isNegative && age <= callRestoreWindow) return call;
+    await _prefs.remove(callRestoreKey);
+    return null;
+  }
+
+  /// [userId]'s call to bring back, cleared as it is read; null when there is none or it is too old.
+  Future<CallToRestore?> take(String userId) async {
+    final call = await offer(userId);
+    if (call != null) await _prefs.remove(callRestoreKey);
     return call;
   }
 }
@@ -235,7 +242,8 @@ final restorableChannelProvider =
 
 typedef RestorableCall = ({CallToRestore call, String channelName});
 
-/// The call to bring back on this start, read once; null when there is nothing to bring back.
+/// The call to bring back on this start; null when there is none. It stays
+/// stored until [answerCallToRestoreProvider], so a reload before an answer offers it again.
 final callToRestoreProvider = Provider<Future<RestorableCall?> Function()>(
   (ref) => () async {
     final userId = ref.read(apiProvider).session.tokens?.userId;
@@ -244,17 +252,26 @@ final callToRestoreProvider = Provider<Future<RestorableCall?> Function()>(
       return null;
     }
     final restore = await ref.read(callRestoreProvider.future);
-    final call = await restore.take(userId);
+    final call = await restore.offer(userId);
     if (call == null) return null;
     final name = await ref.read(restorableChannelProvider)(call.channelId);
-    if (name == null || ref.read(voiceFlagsProvider).channelId != null) {
-      return null;
-    }
-    // Back in a call on another device by now, which a rejoin here would take away.
-    if (await ref.read(voiceElsewhereCheckProvider)(call.channelId) != null) {
+    if (ref.read(voiceFlagsProvider).channelId != null) return null;
+    // Gone, or back in a call on another device by now, which a rejoin here would take away.
+    if (name == null ||
+        await ref.read(voiceElsewhereCheckProvider)(call.channelId) != null) {
+      await restore.take(userId);
       return null;
     }
     return (call: call, channelName: name);
+  },
+);
+
+/// Clears the call on offer once it is rejoined or turned down.
+final answerCallToRestoreProvider = Provider<Future<void> Function()>(
+  (ref) => () async {
+    final userId = ref.read(apiProvider).session.tokens?.userId;
+    if (userId == null) return;
+    await (await ref.read(callRestoreProvider.future)).take(userId);
   },
 );
 
@@ -302,6 +319,7 @@ final offScreenCallRestoreProvider = Provider<Future<void> Function()>(
     if (await ref.read(transcriptionNoticeActionsProvider).isDue()) return;
     final found = await ref.read(callToRestoreProvider)();
     if (found == null) return;
+    await ref.read(answerCallToRestoreProvider)();
     await ref.read(rejoinRestoredCallProvider)(found.call);
   },
 );

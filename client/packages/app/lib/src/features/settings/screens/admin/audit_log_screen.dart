@@ -14,6 +14,7 @@ import '../../../../routing/routes.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
+import 'paged_first_load.dart';
 import 'audit_log_row.dart';
 import 'reports_load_more_row.dart';
 
@@ -45,10 +46,7 @@ class AuditLogPane extends ConsumerWidget {
     resolveAuthorProfiles(ref, items.expand(_namedIds));
 
     return AppAsyncView<List<api.AdminChange>>(
-      value: AppAsyncState(
-        data: log.loading && items.isEmpty ? null : items,
-        error: items.isEmpty ? log.error : null,
-      ),
+      value: pagedFirstLoad(items, loading: log.loading, failure: log.failure),
       errorMessage: 'Could not load the audit log.',
       onRetry: controller.refresh,
       data: (context, list) => ListView(

@@ -75,10 +75,16 @@ class MemberVoiceChip extends ConsumerWidget {
         ),
       ),
     );
-    if (!endGap) return chip;
+    // The full name for a chip cut short in a narrow pane.
+    final named = Tooltip(
+      message: 'In ${channel.name}',
+      excludeFromSemantics: true,
+      child: chip,
+    );
+    if (!endGap) return named;
     return Padding(
       padding: const EdgeInsets.only(right: AppSpacing.s4),
-      child: chip,
+      child: named,
     );
   }
 }

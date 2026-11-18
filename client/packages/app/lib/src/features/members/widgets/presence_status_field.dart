@@ -18,6 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/member_presence.dart' show memberProfileOverridesProvider;
 import '../../../providers/providers.dart';
+import 'status_text_refusal.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/member_actions.dart';
 
@@ -82,7 +83,11 @@ class _PresenceStatusFieldState extends ConsumerState<PresenceStatusField>
 
   Future<void> _submit() {
     final text = _controller.text.trim();
-    if (inputCharCount(text) > InputLimits.statusText) return Future.value();
+    final refusal = statusTextRefusal(text);
+    if (refusal != null) {
+      setActionError(refusal);
+      return Future.value();
+    }
     return _apply(text);
   }
 

@@ -12,6 +12,9 @@ class LoadErrorBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.all(AppSpacing.s16),
-    child: AppErrorState(message: message, onRetry: onRetry),
+    child: AppLoadRetry(
+      onRetry: onRetry,
+      child: AppErrorState(message: message, onRetry: onRetry),
+    ),
   );
 }

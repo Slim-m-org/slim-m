@@ -354,4 +354,17 @@ void main() {
 
     await _teardown(tester, container);
   });
+
+  testWidgets('an empty store before the first sync lands claims no empty DM '
+      'list', (tester) async {
+    final container = await _pumpRail(tester, overrides: [_storeEmpty()]);
+    expect(find.text('Direct messages'), findsOneWidget);
+    expect(find.text('No direct messages yet.'), findsNothing);
+
+    container.read(initialSyncCompleteProvider.notifier).state = true;
+    await tester.pump();
+    expect(find.text('No direct messages yet.'), findsOneWidget);
+
+    await _teardown(tester, container);
+  });
 }

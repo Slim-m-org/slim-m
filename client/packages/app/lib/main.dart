@@ -19,6 +19,7 @@ import 'package:slimm_rtc/rtc.dart'
 
 export 'src/desktop/startup_state.dart';
 
+import 'src/api_failure.dart' show loadFailureRetries;
 import 'src/audio/sound_backend_warmup.dart';
 import 'src/features/settings/providers/resolved_theme.dart';
 import 'src/features/settings/providers/stored_theme.dart';
@@ -524,7 +525,9 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
     );
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: systemBarsFor(Theme.of(context).brightness),
-      child: EnterActivatesButtons(child: mirrored),
+      child: EnterActivatesButtons(
+        child: AppLoadRetryPolicy(retries: loadFailureRetries, child: mirrored),
+      ),
     );
   },
 );

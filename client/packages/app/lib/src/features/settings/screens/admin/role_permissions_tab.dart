@@ -95,15 +95,21 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
 
   Future<void> _save() async {
     setState(() => _saving = true);
+    final before = _pendingCount;
     final ok = await guard(whatFailed: 'save permissions', action: _applyAll);
     if (!mounted) return;
     setState(() => _saving = false);
+    // A save that changed nothing would only refetch into a load error that drops the draft.
+    if (ok || _pendingCount < before) _refetch();
+    if (ok) _discard();
+  }
+
+  void _refetch() {
     ref.invalidate(rolesProvider);
     ref.invalidate(roleModulePermissionsProvider(widget.role.id));
     ref.invalidate(codeBlockRunnerProvider);
     ref.invalidate(slashCommandProvider);
     ref.invalidate(appLaunchProvider);
-    if (ok) _discard();
   }
 
   Future<void> _applyAll() async {
