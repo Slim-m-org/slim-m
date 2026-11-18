@@ -12,8 +12,9 @@ import 'package:slimm_voice_canvas/src/canvas_document.dart';
 import 'package:slimm_voice_canvas/src/canvas_painters.dart';
 
 import 'support/canvas_painter_fixtures.dart';
+import 'support/ink_texture_pixels.dart';
 
-const _size = Size(1000, 1000);
+const _size = inkTestSize;
 
 CanvasStrokeInput _stroke(String id, double x, double y, {int seq = 1}) =>
     CanvasStrokeInput(
@@ -44,50 +45,6 @@ int _strokesDrawn(StrokePainter painter) {
   return canvas.deviceStrokeWidths.length;
 }
 
-/// Antialiased edges differ by a few levels between two raster paths.
-const _edgeTolerance = 24;
-
-Future<Uint8List> _pixels(WidgetTester tester, StrokePainter painter) async =>
-    (await tester.runAsync(() async {
-      final recorder = ui.PictureRecorder();
-      painter.paint(Canvas(recorder), _size);
-      final image = await recorder.endRecording().toImage(1000, 1000);
-      final bytes = await image.toByteData();
-      image.dispose();
-      return bytes!.buffer.asUint8List();
-    }))!;
-
-/// Paints twice, so the second frame draws from a texture.
-Future<void> _warm(WidgetTester tester, StrokePainter painter) async {
-  painter.devicePixelRatio = 1;
-  await _pixels(tester, painter);
-  await _pixels(tester, painter);
-  expect(painter.debugHasInkTexture, isTrue);
-}
-
-/// The next frame of [painter] against a fresh painter's live strokes.
-Future<void> _expectMatchesLive(
-  WidgetTester tester,
-  StrokePainter painter,
-  CanvasDocument document,
-) async {
-  final cached = await _pixels(tester, painter);
-  final reference = StrokePainter(document: document, ink: ink)
-    ..devicePixelRatio = 1;
-  addTearDown(reference.dispose);
-  final live = await _pixels(tester, reference);
-  expect(_worstChannelGap(cached, live), lessThan(_edgeTolerance));
-}
-
-int _worstChannelGap(Uint8List a, Uint8List b) {
-  var worst = 0;
-  for (var i = 0; i < a.length; i++) {
-    final gap = (a[i] - b[i]).abs();
-    if (gap > worst) worst = gap;
-  }
-  return worst;
-}
-
 void main() {
   late CanvasDocument document;
   late StrokePainter painter;
@@ -114,12 +71,12 @@ void main() {
   testWidgets('a moved object is patched into the texture, not replayed', (
     tester,
   ) async {
-    await _warm(tester, painter);
+    await warmInkTexture(tester, painter);
     final before = painter.debugObjectsPainted;
     document
       ..moveObject('s86', 500, 500, 16, 16)
       ..refresh();
-    await _expectMatchesLive(tester, painter, document);
+    await expectInkMatchesLive(tester, painter, document);
     expect(painter.debugHasInkTexture, isTrue);
     expect(
       painter.debugObjectsPainted - before,
@@ -155,24 +112,24 @@ void main() {
   testWidgets(
       'a drag that begins and ends between two frames still repaints '
       'it', (tester) async {
-    await _warm(tester, painter);
+    await warmInkTexture(tester, painter);
     document
       ..elevatedObjectId.value = 's87'
       ..moveObject('s87', 300, 300, 16, 16)
       ..elevatedObjectId.value = null
       ..refresh();
-    await _expectMatchesLive(tester, painter, document);
+    await expectInkMatchesLive(tester, painter, document);
   });
 
   testWidgets('a removed object leaves the texture on the next frame', (
     tester,
   ) async {
-    await _warm(tester, painter);
+    await warmInkTexture(tester, painter);
     final before = painter.debugObjectsPainted;
     document
       ..removeObject('s85')
       ..refresh();
-    await _expectMatchesLive(tester, painter, document);
+    await expectInkMatchesLive(tester, painter, document);
     expect(painter.debugObjectsPainted - before, lessThan(10));
   });
 
@@ -205,7 +162,7 @@ void main() {
       final cached = await frame();
       expect(painter.debugHasInkTexture, isTrue);
 
-      expect(_worstChannelGap(live, cached), lessThan(_edgeTolerance));
+      expect(worstChannelGap(live, cached), lessThan(inkEdgeTolerance));
 
       document.setCamera(const Camera(x: 130, y: 100));
       final panned = await frame();
@@ -217,7 +174,7 @@ void main() {
       final expected = (await image.toByteData())!.buffer.asUint8List();
       image.dispose();
       reference.dispose();
-      expect(_worstChannelGap(panned, expected), lessThan(_edgeTolerance));
+      expect(worstChannelGap(panned, expected), lessThan(inkEdgeTolerance));
     });
   });
 

@@ -276,6 +276,7 @@ class InkLayerCache {
       }
     });
     final camera = Camera(x: _world.left, y: _world.top, zoom: _zoom);
+    final reach = widestInkReach(document, _zoom);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder)..scale(_dpr);
     canvas.drawImageRect(
@@ -285,13 +286,15 @@ class InkLayerCache {
       _copyPaint,
     );
     for (final box in boxes) {
+      final clip = _onPixels(box);
+      final cleared = _inWorld(clip);
       canvas
         ..save()
-        ..clipRect(_onPixels(box), doAntiAlias: false)
+        ..clipRect(clip, doAntiAlias: false)
         ..drawColor(const Color(0x00000000), BlendMode.clear);
       paintSlots(canvas, camera, [
-        for (final slot in document.orderedSlotsIn(box))
-          if (_members.containsKey(slot)) slot,
+        for (final slot in document.orderedSlotsIn(cleared.inflate(reach)))
+          if (_members[slot]?.bounds.overlaps(cleared) ?? false) slot,
       ]);
       canvas.restore();
     }
@@ -316,6 +319,14 @@ class InkLayerCache {
       snap(world.bottom - _world.top, up: true),
     );
   }
+
+  /// A rect in the texture's logical space, back in the world.
+  Rect _inWorld(Rect texture) => Rect.fromLTRB(
+        _world.left + texture.left / _zoom,
+        _world.top + texture.top / _zoom,
+        _world.left + texture.right / _zoom,
+        _world.top + texture.bottom / _zoom,
+      );
 
   static final Paint _copyPaint = Paint()..filterQuality = FilterQuality.none;
 
