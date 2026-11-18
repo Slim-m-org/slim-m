@@ -206,6 +206,80 @@ void main() {
     expect(fit.people.first.width, greaterThan(720));
   });
 
+  for (final (name, box) in [('1280', _w1280), ('1920', _w1920)]) {
+    test(
+      'at $name one share and one person sit side by side, flush at the top',
+      () {
+        final fit = _fit(box, _shares(1), 1);
+        final share = fit.items['s0']!;
+        final person = fit.people.single;
+        expect(person.left, closeTo(share.right + _gap, 0.01));
+        expect(person.top, closeTo(share.top, 0.01));
+        expect(person.width, greaterThanOrEqualTo(160));
+        expect(
+          share.width * share.height,
+          greaterThan(4 * person.width * person.height),
+        );
+      },
+    );
+
+    for (final n in [2, 4]) {
+      test('at $name one share and $n people pack beside it as a bento', () {
+        final fit = _fit(box, _shares(1), n);
+        final share = fit.items['s0']!;
+        expect(fit.people, hasLength(n));
+        for (final r in fit.people) {
+          expect(r.left, closeTo(share.right + _gap, 0.01));
+          expect(r.width, greaterThanOrEqualTo(160));
+        }
+        expect(fit.people.first.top, closeTo(share.top, 0.01));
+        expect(fit.people.last.bottom, closeTo(share.bottom, 0.01));
+        final block = fit.people.last.right - share.left;
+        expect(
+          (share.left - 0) - (box.width - fit.people.last.right),
+          closeTo(0, 0.01),
+          reason: 'the block of $block is centred',
+        );
+      });
+    }
+  }
+
+  test('on a phone the people keep the strip below the share', () {
+    final fit = _fit(_phone, _shares(1), 2);
+    final share = fit.items['s0']!;
+    expect(fit.people.every((r) => r.top > share.bottom), isTrue);
+  });
+
+  for (final (name, box) in [('1280', _w1280), ('1920', _w1920)]) {
+    for (final n in [5, 6, 8]) {
+      test('at $name a share and $n people keep a row of readable tiles', () {
+        final fit = _fit(box, _shares(1), n);
+        final share = fit.items['s0']!;
+        expect(fit.people, hasLength(n));
+        expect(fit.people.every((r) => r.top > share.bottom), isTrue);
+        expect({for (final r in fit.people) r.top}, hasLength(1));
+        expect(
+          fit.people.first.width,
+          greaterThanOrEqualTo(box == _w1920 ? 160 : 112),
+          reason: 'not shrunk to 96px for a few % of fill',
+        );
+        expect(
+          share.width * share.height,
+          greaterThan(0.65 * box.width * box.height),
+        );
+      });
+    }
+  }
+
+  test('bigger tiles for ten people never cost the share a fifth of it', () {
+    final fit = _fit(_w1280, _shares(1), 10);
+    final share = fit.items['s0']!;
+    expect(
+      share.width * share.height,
+      greaterThan(0.48 * _w1280.width * _w1280.height),
+    );
+  });
+
   test('an empty call lays out nothing', () {
     final fit = _fit(_w1280, <StageItem>[]);
     expect(fit.items, isEmpty);

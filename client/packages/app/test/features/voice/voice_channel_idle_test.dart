@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The idle voice pane's behaviour (design 13): its button joins muted,
 /// tapping an earlier call swaps it into the timeline, a failed join shows
-/// its reason with a retry, and a server without history still gets a
-/// join bar and no error.
+/// its reason with a retry, and a server without history gets the empty
+/// state and no error.
 library;
 
 import 'package:flutter/material.dart';
@@ -390,9 +390,10 @@ void main() {
     expect(find.text('Join muted'), findsNothing);
   });
 
-  testWidgets('no history is just a join bar, never an error', (tester) async {
+  testWidgets('no history is the empty state, never an error', (tester) async {
     await _pump(tester, onJoin: () {});
     expect(find.text("Can't see who is here."), findsOneWidget);
+    expect(find.text('Anyone in this space can join'), findsOneWidget);
     expect(find.text('Last call'), findsNothing);
     expect(find.byType(AppErrorState), findsNothing);
   });

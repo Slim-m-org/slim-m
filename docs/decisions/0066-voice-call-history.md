@@ -17,7 +17,7 @@ A call starts when a channel's room goes from nobody to somebody and ends when i
 A call's canvas moments (an image pasted, strokes drawn) are not copied either; they are read from the canvas objects that already carry their author and time, inside the call's span.
 Rows older than 30 days are swept, and the response states that retention so the client can say it on the pane.
 
-A deployment without the webhook configured keeps no history and the pane falls back to its join bar alone.
+A deployment without the webhook configured keeps no history and the pane shows its empty state (see the 2026-11-18 amendment).
 
 ## Who sees what
 
@@ -38,3 +38,12 @@ The pane only showed finished calls, so anyone leaving a call that carried on sa
 It now shows a call still going at the top, labelled "This call", running up to now; finished calls follow below as before.
 The "0m" rows were real: someone joined an empty channel and left within seconds.
 A finished call shorter than a minute is no longer listed; a call still going always is.
+
+## Amended 2026-11-18: the empty state
+
+The owner said the empty voice channel view "looks bad": with nothing to look back on, the join bar sat alone at the top of a blank pane.
+A channel with no calls to show (no webhook, a server too old, a failed load, or no calls yet) now gets a centred empty state instead: the channel's name, who is in it now, who can join, and the ways to join.
+Join muted stays the primary action, as design 13 has it, with a plain Join beside it as the secondary one; a channel that joins muted offers only Join muted, and Try again repeats whichever join failed.
+The empty state also stands in while the history loads, so Join is never held back by the request.
+It waits a quarter of a second first, so a channel whose history arrives quickly goes straight to it and never flashes the empty state.
+The history of the last few voice channels visited is kept, so coming back shows it at once and refetches behind it.

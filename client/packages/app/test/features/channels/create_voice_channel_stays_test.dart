@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Creating a voice channel selects it without joining it, and the sheet a
+/// Creating a voice channel leaves the person where they were, and the sheet a
 /// voice category's "+" opens starts on Voice.
 library;
 
@@ -33,6 +33,8 @@ Finder _nameField() => find.byWidgetPredicate(
   (w) => w is AppInput && w.placeholder == 'Channel name',
 );
 
+var _creates = 0;
+
 Future<GoRouter> _pump(WidgetTester tester, Widget opener) async {
   final db = SlimmDatabase(NativeDatabase.memory());
   addTearDown(db.close);
@@ -56,6 +58,7 @@ Future<GoRouter> _pump(WidgetTester tester, Widget opener) async {
         storeProvider.overrideWith((ref) async => MessageStore(db)),
         mockApiOverride((request) async {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
+          _creates++;
           return http.Response(
             jsonEncode({
               'id': 'new-voice',
@@ -79,36 +82,39 @@ Future<GoRouter> _pump(WidgetTester tester, Widget opener) async {
 }
 
 void main() {
-  testWidgets('a new voice channel is selected without joining its call', (
-    tester,
-  ) async {
-    final router = await _pump(
-      tester,
-      Builder(
-        builder: (context) => TextButton(
-          onPressed: () => showCreateChannelSheet(context, initialKind: 'text'),
-          child: const Text('open'),
+  testWidgets(
+    'a new voice channel does not open, so nobody lands in its empty call view',
+    (tester) async {
+      final router = await _pump(
+        tester,
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () =>
+                showCreateChannelSheet(context, initialKind: 'text'),
+            child: const Text('open'),
+          ),
         ),
-      ),
-    );
-    await tester.tap(find.text('open'));
-    await pumpFrames(tester, frames: 30);
-    await tester.tap(find.text('Voice'));
-    await tester.enterText(_nameField(), 'hangout');
-    await tester.pump();
+      );
+      await tester.tap(find.text('open'));
+      await pumpFrames(tester, frames: 30);
+      await tester.tap(find.text('Voice'));
+      await tester.enterText(_nameField(), 'hangout');
+      await tester.pump();
 
-    await tester.tap(find.text('Create channel'));
-    await waitUntil(
-      tester,
-      () => router.routerDelegate.currentConfiguration.uri.path != '/start',
-      reason: 'the new channel was never opened',
-    );
+      final before = _creates;
+      await tester.tap(find.text('Create channel'));
+      await waitUntil(
+        tester,
+        () => _creates > before,
+        reason: 'the channel was never created',
+      );
+      await pumpFrames(tester, frames: 30);
 
-    expect(
-      router.routerDelegate.currentConfiguration.uri.toString(),
-      Routes.channel('new-voice', openChat: true),
-    );
-  });
+      expect(find.text('Create channel'), findsNothing, reason: 'sheet closed');
+
+      expect(router.routerDelegate.currentConfiguration.uri.path, '/start');
+    },
+  );
 
   testWidgets('the + of a voice category starts the sheet on Voice', (
     tester,

@@ -65,7 +65,11 @@ class ScreenShareStage extends ConsumerStatefulWidget {
     this.stripVolume,
     this.stripQuality,
     this.personItems,
+    this.onStopSharing,
   });
+
+  /// Stops the viewer's own share from a button on the stage, since a phone has no hover on the dock's; null for a peer's.
+  final VoidCallback? onStopSharing;
 
   /// The sharer's own rows (their voice volume, mute, profile) above the stream's, since a sharer has no separate tile.
   final List<Widget> Function(VoidCallback close)? personItems;
@@ -103,8 +107,7 @@ class ScreenShareStage extends ConsumerStatefulWidget {
   /// only in the tests that build this widget in isolation.
   final VoidCallback? onExpand;
 
-  /// The remote sharer's identity, which offers the pop-out row; null for
-  /// the local share, which is never previewed back to the sharer.
+  /// The sharer's identity, which offers the pop-out row.
   final String? popOutIdentity;
 
   /// The remote sharer whose screen a viewer may draw on, when they allow it; null for the local share.
@@ -195,28 +198,67 @@ class _ScreenShareStageState extends ConsumerState<ScreenShareStage> {
               if (widget.annotateSharerId != null) _annotate(),
               if (widget.previewMarksOf != null)
                 _preview(widget.previewMarksOf!),
-              if (widget.showCaption)
+              if (widget.showCaption || widget.onStopSharing != null)
                 Positioned(
                   left: 6,
                   bottom: 6,
                   right: 6,
-                  child: Align(
-                    alignment: Alignment.bottomLeft,
-                    child: RevealFade(
-                      revealed: revealed || widget.isLocal,
-                      child: MediaLabelChip(
-                        icon: AppIcons.screenShare,
-                        label: widget.isLocal
-                            ? 'You are sharing your screen'
-                            : "${widget.sharerName}'s screen",
-                      ),
-                    ),
-                  ),
+                  child: _footer(revealed),
                 ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// The narrowest stage that fits a labelled Stop sharing button.
+  static const double _labelledStopFrom = 240;
+
+  /// The narrowest stage that also fits the caption beside that button, which says the same.
+  static const double _captionBesideStopFrom = 400;
+
+  Widget _footer(bool revealed) => LayoutBuilder(
+    builder: (context, box) => _footerRow(
+      revealed,
+      labelledStop: box.maxWidth >= _labelledStopFrom,
+      caption:
+          widget.showCaption &&
+          (widget.onStopSharing == null ||
+              box.maxWidth >= _captionBesideStopFrom),
+    ),
+  );
+
+  Widget _footerRow(
+    bool revealed, {
+    required bool labelledStop,
+    required bool caption,
+  }) {
+    final stop = widget.onStopSharing;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Align(
+            alignment: Alignment.bottomLeft,
+            child: caption
+                ? RevealFade(
+                    revealed: revealed || widget.isLocal,
+                    child: MediaLabelChip(
+                      icon: AppIcons.screenShare,
+                      label: widget.isLocal
+                          ? 'You are sharing your screen'
+                          : "${widget.sharerName}'s screen",
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ),
+        if (stop != null) ...[
+          const SizedBox(width: AppSpacing.s8),
+          _StopSharingButton(onPressed: stop, labelled: labelledStop),
+        ],
+      ],
     );
   }
 
@@ -280,4 +322,42 @@ class _ScreenShareStageState extends ConsumerState<ScreenShareStage> {
       ),
     );
   }
+}
+
+/// The labelled button where the stage has room for it, the bare icon on a small tile.
+class _StopSharingButton extends StatelessWidget {
+  const _StopSharingButton({required this.onPressed, required this.labelled});
+
+  final VoidCallback onPressed;
+  final bool labelled;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    // The danger button has no fill of its own, and a shared screen behind it can be any colour.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: tokens.surfaceBase,
+        borderRadius: BorderRadius.circular(AppRadii.control),
+      ),
+      child: _button(),
+    );
+  }
+
+  Widget _button() => labelled
+      ? AppButton(
+          label: 'Stop sharing',
+          icon: AppIcons.screenShareStop,
+          variant: AppButtonVariant.danger,
+          size: AppButtonSize.sm,
+          onPressed: onPressed,
+        )
+      : AppIconButton(
+          icon: AppIcons.screenShareStop,
+          semanticLabel: 'Stop sharing',
+          tooltip: 'Stop sharing',
+          variant: AppIconButtonVariant.danger,
+          size: AppIconButtonSize.sm,
+          onPressed: onPressed,
+        );
 }
