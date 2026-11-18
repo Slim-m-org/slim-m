@@ -53,10 +53,14 @@ class DirectMessagesSection extends ConsumerWidget {
     super.key,
     required this.channels,
     required this.selectedId,
+    required this.listed,
   });
 
   final List<Channel> channels;
   final String? selectedId;
+
+  /// Whether [channels] is the server's answer yet, so an empty one may say so.
+  final bool listed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -81,7 +85,7 @@ class DirectMessagesSection extends ConsumerWidget {
             selected: channel.id == selectedId,
             child: DmRow(channel: channel, selected: channel.id == selectedId),
           ),
-        if (others.isEmpty)
+        if (others.isEmpty && listed)
           const _EmptyHint('No direct messages yet.', depth: 0),
       ],
     );
@@ -348,7 +352,6 @@ class _ChannelCategorySectionsState
           );
     // Only a manager sees an empty category; it is a place to add or drop a channel, so it says so.
     final empty =
-        !_dragging &&
         !view.folded(category) &&
         view.channelsBeneath(category).isEmpty &&
         view.tree.childrenOf(category.id).isEmpty;
@@ -358,7 +361,14 @@ class _ChannelCategorySectionsState
       mainAxisSize: MainAxisSize.min,
       children: [
         indented,
-        _EmptyHint('No channels yet.', depth: depth + 1),
+        // Hidden but sized during a drag, so the rows under the finger do not jump as it starts.
+        Visibility(
+          visible: !_dragging,
+          maintainState: true,
+          maintainAnimation: true,
+          maintainSize: true,
+          child: _EmptyHint('No channels yet.', depth: depth + 1),
+        ),
       ],
     );
   }

@@ -113,7 +113,11 @@ Widget _harness({
   GoRouter? router,
 }) {
   final body = Scaffold(
-    body: DirectMessagesSection(channels: channels, selectedId: selectedId),
+    body: DirectMessagesSection(
+      channels: channels,
+      selectedId: selectedId,
+      listed: true,
+    ),
   );
   final child = router == null
       ? MaterialApp(
@@ -183,6 +187,7 @@ void main() {
               // isPersonalSpace defaults to false: a matching label, no matching identity.
               channels: [_dm('dm-imposter', personalSpaceName)],
               selectedId: null,
+              listed: true,
             ),
           ),
         ),
@@ -240,6 +245,7 @@ void main() {
             body: DirectMessagesSection(
               channels: [_dm('dm-1', 'Priya')],
               selectedId: null,
+              listed: true,
             ),
           ),
         ),
