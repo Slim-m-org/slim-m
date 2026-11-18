@@ -63,6 +63,7 @@ class PaletteResultItem {
     this.message,
     this.messageChannelLabel,
     this.transcript,
+    this.showsAllOf,
   });
 
   final String label;
@@ -79,7 +80,28 @@ class PaletteResultItem {
   final api.Message? message;
   final String? messageChannelLabel;
   final api.TranscriptHit? transcript;
+
+  /// Set on the row that lists a capped section whole: how many matched. It keeps the palette open.
+  final int? showsAllOf;
   final Future<void> Function(BuildContext context, WidgetRef ref) onSelect;
+}
+
+/// [items] cut to [paletteResultLimit], ending in a row that calls [showAll] when more matched.
+List<PaletteResultItem> capWithShowAll(
+  List<PaletteResultItem> items, {
+  required String noun,
+  required VoidCallback showAll,
+}) {
+  if (items.length <= paletteResultLimit) return items;
+  return [
+    ...items.take(paletteResultLimit),
+    PaletteResultItem(
+      label: 'Show all ${items.length} $noun',
+      leading: AppIcons.chevronDown,
+      showsAllOf: items.length,
+      onSelect: (_, _) async => showAll(),
+    ),
+  ];
 }
 
 /// Whether [channel] is worth showing for [query]. An empty query matches
@@ -141,6 +163,7 @@ List<PaletteResultItem> buildChannelItems(
   String? selfDisplayName,
   Map<String, String> categoryNames = const {},
   String? currentChannelId,
+  int? limit = paletteResultLimit,
 }) => [
   for (final channel
       in channels
@@ -149,7 +172,7 @@ List<PaletteResultItem> buildChannelItems(
             (c) =>
                 channelMatchesQuery(c, query, selfDisplayName: selfDisplayName),
           )
-          .take(paletteResultLimit))
+          .take(limit ?? channels.length))
     PaletteResultItem(
       label: channel.name,
       kind: PaletteKind.channel,
@@ -160,17 +183,59 @@ List<PaletteResultItem> buildChannelItems(
     ),
 ];
 
+/// The Channels and Group chats sections; with [showAll] each is capped and ends in a row that lists it whole.
+List<(String, List<PaletteResultItem>)> channelSections(
+  List<Channel> channels,
+  String query, {
+  String? selfDisplayName,
+  Map<String, String> categoryNames = const {},
+  String? currentChannelId,
+  VoidCallback? showAll,
+}) {
+  List<PaletteResultItem> capped(List<PaletteResultItem> all, String noun) =>
+      showAll == null ? all : capWithShowAll(all, noun: noun, showAll: showAll);
+  return [
+    (
+      'Channels',
+      capped(
+        buildChannelItems(
+          channels,
+          query,
+          selfDisplayName: selfDisplayName,
+          categoryNames: categoryNames,
+          currentChannelId: currentChannelId,
+          limit: null,
+        ),
+        'channels',
+      ),
+    ),
+    (
+      'Group chats',
+      capped(
+        buildGroupDmItems(
+          channels,
+          query,
+          currentChannelId: currentChannelId,
+          limit: null,
+        ),
+        'group chats',
+      ),
+    ),
+  ];
+}
+
 /// Group DMs matching [query], by the name the rail lists them under.
 List<PaletteResultItem> buildGroupDmItems(
   List<Channel> channels,
   String query, {
   String? currentChannelId,
+  int? limit = paletteResultLimit,
 }) => [
   for (final channel
       in channels
           .where((c) => c.isGroupDm)
           .where((c) => channelMatchesQuery(c, query))
-          .take(paletteResultLimit))
+          .take(limit ?? channels.length))
     PaletteResultItem(
       label: channel.name,
       kind: PaletteKind.channel,

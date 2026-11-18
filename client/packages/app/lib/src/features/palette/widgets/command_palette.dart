@@ -148,6 +148,17 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     super.dispose();
   }
 
+  /// Puts [prefix] in front of the query, as if typed, to list one section whole.
+  void _scopeTo(String prefix) {
+    final text = '$prefix${parsePaletteQuery(_query).text}';
+    _controller.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+    _onQueryChanged(text);
+    _focusNode.requestFocus();
+  }
+
   void _onQueryChanged(String value) {
     setState(() {
       _query = value;
@@ -240,7 +251,9 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
             : 'open that result',
         action: () => item.onSelect(context, ref),
       );
-      if (done && mounted) Navigator.of(context).pop();
+      if (done && mounted && item.showsAllOf == null) {
+        Navigator.of(context).pop();
+      }
     } finally {
       _running = false;
     }
@@ -380,24 +393,13 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     final everything = scope == PaletteScope.all;
     return <(String, List<PaletteResultItem>)>[
       if (everything || scope == PaletteScope.channels)
-        (
-          'Channels',
-          buildChannelItems(
-            inputs.channels,
-            query,
-            selfDisplayName: inputs.me?.displayName,
-            categoryNames: inputs.categoryNames,
-            currentChannelId: widget.currentChannelId,
-          ),
-        ),
-      if (everything || scope == PaletteScope.channels)
-        (
-          'Group chats',
-          buildGroupDmItems(
-            inputs.channels,
-            query,
-            currentChannelId: widget.currentChannelId,
-          ),
+        ...channelSections(
+          inputs.channels,
+          query,
+          selfDisplayName: inputs.me?.displayName,
+          categoryNames: inputs.categoryNames,
+          currentChannelId: widget.currentChannelId,
+          showAll: everything ? () => _scopeTo('#') : null,
         ),
       if (everything || scope == PaletteScope.people)
         (
@@ -441,7 +443,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     for (final group in groups) {
       final header = PaletteSectionHeader(
         label: group.$1,
-        count: group.$2.length,
+        count: group.$2.last.showsAllOf ?? group.$2.length,
       );
       for (final (i, item) in group.$2.indexed) {
         final at = index++;
