@@ -130,6 +130,34 @@ It is not in `verify-client-ci`'s `required_checks`.
 
 The twelve `app-N` legs deal `packages/app`'s test files by measured time, not by count: `scripts/lib/client_shards.py deal` puts each file, longest first, on the emptiest shard using the seconds in `scripts/lib/client_durations.json`, and a file missing from it costs a default so a new test is never dropped.
 To refresh the durations after the suite changes a lot, run `flutter test --reporter json --concurrency=2 > run.json` in `client/packages/app`, then `python3 scripts/lib/client_shards.py record run.json`.
+Record from that plain per-file run, never from a bundled one: the durations are per test file.
+
+### The app shards run bundles, not one isolate per file
+
+About half of a per-file run is loading, not testing: every file is compiled on its own and boots a fresh `flutter_tester`.
+So `scripts/lib/client_bundles.py deal` writes gitignored entrypoints under `client/packages/app/test/.bundles/`, one per folder (`test/features/<x>`, `test/<dir>`, or the `test/` root), cut into chunks of about 30 seconds of test time.
+Each bundle imports its folder's test files with a prefix and runs each `main` inside a `group` named after the file, so a failure reads `test/features/x/y_test.dart <test name>` and still names its file.
+Files that load real fonts share bundles only with each other (`<folder>_fonts_<n>`): a loaded font stays loaded and changes text metrics for every later file, which broke a geometry test in `continuation_marker_test` when it followed `attachment_spoiler_test`.
+Files that set `PackageInfo`'s mock values are kept apart the same way (`<folder>_appinfo_<n>`), since nothing resets them: `title_bar_consolidation_test`'s version overflowed `update_chip_test`'s title bar.
+The dealer then deals bundles and the files that run alone across the twelve shards by predicted time.
+
+Some files cannot share an isolate, and those still run alone:
+
+- the snapshot matrix (`test/snapshots/`, `ui_snapshot_*`), which capture mode runs per file;
+- a `main` that is not a plain synchronous `void main()`, since a group body cannot be async;
+- a top-level `tearDownAll`, process-wide `HttpOverrides`/`IOOverrides` or `Directory.current`, `Platform.script`, a custom test binding, or `matchesGoldenFile`;
+- a file that binds a real loopback server: once any earlier file in the isolate starts the test binding, its mock HTTP answers every request with 400;
+- the files in `scripts/lib/client_bundle_lone.txt`, each proven to fail only when bundled, with what leaks into it.
+
+`python3 scripts/lib/client_bundles.py verify [features_sync ...]` runs the named bundles (all by default) and then their files one by one, and lists every file whose test names or results differ; `compare per-file.json bundled.json` does the same for two runs already made.
+A bundled failure that passes when its file runs alone is a leak between files: add the file to `client_bundle_lone.txt` with the reason, or fix whatever earlier file leaves state behind.
+`python3 scripts/lib/client_bundles.py run --concurrency 2` runs the whole app package bundled, for a local gate.
+The repository variable `SLIMM_TEST_PER_FILE=1` (or the same environment variable locally) turns bundling off and deals plain files again.
+
+Measured 2026-11-17 on the 32-core dev box, whole app package, `--concurrency=2 --reporter json`, same tree, load about 2: one file per isolate took 1158 s wall and 2531 CPU-s; bundled it took 505 s and 1128 CPU-s, with the same 12620 tests and the same results for every one.
+Two of the twelve CI shards run locally the same way went from 111 s to 36 s and from 96 s to 44 s.
+A failed shard reruns its failed bundled files alone (`client_bundles.py retry`): a file that passes alone is reported as a warning naming it, and the shard stays green, so a leak a new file brings never turns an unrelated pull request red.
+Hand-picked runs (`flutter test <files>`) and the pre-push hook still run files one by one, so a test that passes only because of state an earlier file left behind still fails there.
 
 ### Where a pull request's time goes, measured 2026-10-02
 

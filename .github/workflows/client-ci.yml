@@ -193,19 +193,25 @@ jobs:
         working-directory: client
         run: flutter pub get --enforce-lockfile
 
+      # Most files share an isolate per folder chunk; the repository variable SLIMM_TEST_PER_FILE=1 undoes that (docs/ci-details.md).
       - name: packages/app (sharded)
         if: matrix.shard != ''
         working-directory: client/packages/app
         env:
           SHARDS: "12"
           SHARD_INDEX: ${{ matrix.shard }}
+          SLIMM_TEST_PER_FILE: ${{ vars.SLIMM_TEST_PER_FILE }}
         run: |
           set -euo pipefail
-          mapfile -t files < <(python3 ../../../scripts/lib/client_shards.py deal --shards "$SHARDS" --index "$SHARD_INDEX")
-          printf 'shard %s/%s: %d files\n' "$SHARD_INDEX" "$SHARDS" "${#files[@]}"
+          mapfile -t files < <(python3 ../../../scripts/lib/client_bundles.py deal --shards "$SHARDS" --index "$SHARD_INDEX")
+          printf 'shard %s/%s: %d entrypoints\n' "$SHARD_INDEX" "$SHARDS" "${#files[@]}"
           # A failed dealer inside < <(...) escapes set -e, and an empty list makes flutter test run every file.
           if [ "${#files[@]}" -eq 0 ]; then echo "::error::the dealer gave shard $SHARD_INDEX no files"; exit 1; fi
-          flutter test "${files[@]}"
+          # A file that fails bundled but passes alone is a leak between files: a warning that names it, not a red shard.
+          mkdir -p build
+          if ! flutter test --file-reporter json:build/app-tests.json "${files[@]}"; then
+            python3 ../../../scripts/lib/client_bundles.py retry build/app-tests.json
+          fi
 
       # Capture mode builds the real mic preview and runs timers on real time; it rotted unseen for 12 tests once.
       - name: packages/app UI snapshots in capture mode

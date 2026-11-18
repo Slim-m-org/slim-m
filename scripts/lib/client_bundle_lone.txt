@@ -1,0 +1,9 @@
+# Test files proven to leak state into the next file when bundled; each runs in its own isolate.
+# One per line: path  # what leaks. scripts/lib/client_bundles.py verify finds them.
+test/desktop/desktop_tray_controller_test.dart  # counts window-port calls an earlier file's tray work also makes
+test/diagnostics/voice_choices_log_test.dart  # reads the process-wide log, which earlier files' late work writes to
+test/features/members/home_shell_medium_members_test.dart  # finds no semantics labels after an earlier file's tests
+test/shared/disk_byte_cache_miss_test.dart  # reads the process-wide log, which earlier files' late work writes to
+test/sync/sync_failure_log_test.dart  # reads the process-wide log, which earlier files' late work writes to
+test/features/accounts/account_services_test.dart  # its ring test's audioplayers init fails after the test ends
+test/features/canvas/canvas_paging_test.dart  # its paging test fails after it ends; alone the isolate exits first

@@ -209,6 +209,9 @@ for d in . packages/*/; do [ -d "${d%/}/test" ] && (cd "${d%/}" && flutter test)
 # one file, or one case by its test name
 (cd packages/app && flutter test test/shared/api_failure_test.dart)
 (cd packages/app && flutter test test/shared/api_failure_test.dart --plain-name '<substring of the test name>')
+
+# the app package bundled many files to an isolate, as CI's app shards run it (docs/ci-details.md)
+python3 ../scripts/lib/client_bundles.py run --concurrency 2
 ```
 
 Goldens run inside those suites rather than a job of their own, and should be regenerated in CI.
