@@ -84,8 +84,8 @@ class SettingsSelectRow<T> extends StatelessWidget {
   /// without its [AppListRow] presentation: [JoinPolicyRow] renders as a
   /// [ListTile] to match its neighbours. On desktop the choices drop down
   /// anchored to [context]'s box, and a phone gets a sheet, where there is no
-  /// pointer to dismiss a dropdown by clicking away. [fromStart] drops it from
-  /// the box's start edge, for a button rather than a row's trailing value.
+  /// pointer to dismiss a dropdown by clicking away. [fromStart] hangs it under
+  /// a button instead, growing toward the window's middle.
   static Future<T?> pick<T>(
     BuildContext context, {
     required String title,
@@ -140,15 +140,19 @@ class SettingsSelectRow<T> extends StatelessWidget {
     final anchor = context.findRenderObject()! as RenderBox;
     final overlay =
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
-    final corner = anchor.localToGlobal(
-      fromStart
-          ? anchor.size.bottomLeft(Offset.zero)
-          : anchor.size.bottomRight(Offset.zero),
+    final start = anchor.localToGlobal(
+      anchor.size.bottomLeft(Offset.zero),
       ancestor: overlay,
     );
-    // A zero-width rect makes the menu right-align to the value side, below the row.
-    final point = Rect.fromLTWH(corner.dx, corner.dy + 4, 0, 0);
-    final position = RelativeRect.fromRect(point, Offset.zero & overlay.size);
+    final end = anchor.localToGlobal(
+      anchor.size.bottomRight(Offset.zero),
+      ancestor: overlay,
+    );
+    // A row's menu right-aligns to its value side; a button's hangs from whichever of its edges keeps it on screen.
+    final edge = fromStart
+        ? Rect.fromLTRB(start.dx, end.dy + 4, end.dx, end.dy + 4)
+        : Rect.fromLTWH(end.dx, end.dy + 4, 0, 0);
+    final position = RelativeRect.fromRect(edge, Offset.zero & overlay.size);
     if (choicesNeedSearch(choices.length)) {
       return showSearchableChoiceMenu<T>(
         context,

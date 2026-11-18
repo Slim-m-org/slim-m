@@ -30,7 +30,11 @@ ModuleScene _scene(List<Object?> controls) => parseModuleScene(
   }),
 )!;
 
-Future<List<String>> _pump(WidgetTester tester, ModuleScene scene) async {
+Future<List<String>> _pump(
+  WidgetTester tester,
+  ModuleScene scene, {
+  Alignment alignment = Alignment.topLeft,
+}) async {
   final sent = <String>[];
   tester.view.physicalSize = const Size(1200, 800);
   tester.view.devicePixelRatio = 1;
@@ -40,7 +44,7 @@ Future<List<String>> _pump(WidgetTester tester, ModuleScene scene) async {
       theme: buildTheme(Brightness.dark, AppTokens.dark),
       home: Scaffold(
         body: Align(
-          alignment: Alignment.topLeft,
+          alignment: alignment,
           child: SizedBox(
             width: 400,
             child: ModuleSceneView(
@@ -159,5 +163,37 @@ void main() {
 
       expect(sent, isEmpty);
     });
+  });
+
+  group('the menu stays under its button', () {
+    final scene = _scene([
+      {'label': 'board size', 'value': 'beginner', 'options': _sizes},
+    ]);
+    final menu = find.ancestor(
+      of: find.text('expert'),
+      matching: find.byWidgetPredicate(
+        (w) => w is Material && w.color == AppTokens.dark.surfaceRaised,
+      ),
+    );
+
+    for (final (side, alignment) in [
+      ('left', Alignment.topLeft),
+      ('right', Alignment.topRight),
+    ]) {
+      testWidgets('with the button in the $side half of the window', (
+        tester,
+      ) async {
+        await _pump(tester, scene, alignment: alignment);
+        final button = tester.getRect(find.text('beginner'));
+
+        await tester.tap(find.text('beginner'), kind: PointerDeviceKind.mouse);
+        await _settle(tester);
+        final dropped = tester.getRect(menu.first);
+
+        expect(dropped.top, greaterThanOrEqualTo(button.bottom));
+        expect(dropped.left, lessThan(button.right), reason: 'overlaps');
+        expect(dropped.right, greaterThan(button.left), reason: 'overlaps');
+      });
+    }
   });
 }
