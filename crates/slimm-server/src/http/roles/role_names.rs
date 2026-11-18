@@ -28,6 +28,9 @@ fn folded_role_name(name: &str) -> String {
 }
 
 /// Refuses `name` for `role_id` when it reads as a mention or as another role's name.
+///
+/// A name that reads the same as the role's own passes, so a role named before
+/// this rule can still be edited by a client that resends its name.
 pub(super) async fn require_distinct_role_name(
     state: &AppState,
     name: &str,
@@ -35,7 +38,11 @@ pub(super) async fn require_distinct_role_name(
 ) -> Result<(), ApiError> {
     let folded = folded_role_name(name);
     let roles = state.store.list_roles().await?;
-    let renaming_everyone = roles.iter().any(|r| r.id == role_id && r.is_everyone);
+    let own = roles.iter().find(|r| r.id == role_id);
+    if own.is_some_and(|r| folded_role_name(&r.name) == folded) {
+        return Ok(());
+    }
+    let renaming_everyone = own.is_some_and(|r| r.is_everyone);
     if !renaming_everyone && RESERVED_ROLE_NAMES.contains(&folded.as_str()) {
         return Err(ApiError::BadRequest(
             "that name is reserved for @everyone and @here",

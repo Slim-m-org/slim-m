@@ -67,3 +67,30 @@ async fn a_second_role_may_not_share_a_name_in_any_case() {
     );
     assert_eq!(retried["id"], mods.as_str());
 }
+
+#[tokio::test]
+async fn a_role_already_named_like_a_mention_or_another_role_can_still_be_edited() {
+    let app = TestApp::start("slimm-role-names").await;
+    let no_permissions = slimm_server::permissions::Permissions::NONE;
+    let mut ids = Vec::new();
+    for name in ["here", "Mods", "mods"] {
+        let id = app.store.create_role(name, no_permissions, false).await;
+        ids.push(id.unwrap().to_string());
+    }
+
+    for (id, name) in ids.iter().zip(["HERE", "Mods", "@mods"]) {
+        let uri = format!("/roles/{id}");
+        let body = json!({ "name": name, "color": 2 });
+        let (status, body) = app.call("PATCH", &uri, &app.admin.token, Some(body)).await;
+        assert_eq!(status, StatusCode::OK, "{name:?} resent unchanged: {body}");
+    }
+    assert_eq!(
+        rename(&app, &ids[0], "everyone").await,
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(rename(&app, &ids[1], "MODS too").await, StatusCode::OK);
+    assert_eq!(
+        rename(&app, &ids[2], "mods too").await,
+        StatusCode::CONFLICT
+    );
+}
