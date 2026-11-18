@@ -3,6 +3,7 @@
 Scope: color, typography, spacing, iconography, motion, and how they compile into Flutter design tokens.
 
 Wording (one verb per action, one name per thing) is in [`wording.md`](wording.md).
+Where an error or a status notice goes (under its field, floating and fading, or a banner) is in [`errors-and-status.md`](errors-and-status.md).
 
 > **Status, 2026-07-26.** This is the original proposal. Where it disagrees with
 > `client/packages/design_system/lib/src/app_tokens.dart`, **the code is

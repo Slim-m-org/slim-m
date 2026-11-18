@@ -219,7 +219,9 @@ void main() {
 
   /// Silently dropping objects is what the strategy forbids: a truncated page
   /// has to say it was truncated.
-  testWidgets('a truncated page renders a callout', (tester) async {
+  testWidgets('a truncated page says so beside the zoom readout', (
+    tester,
+  ) async {
     final fixture = CanvasPaneFixture(hasMore: true)
       ..objects = [canvasObjectJson('a')];
     final container = fixture.container();
@@ -228,7 +230,7 @@ void main() {
     await pumpCanvasPane(tester, container);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Zoom in to see it'), findsOneWidget);
+    expect(find.text('Some ink hidden - zoom in'), findsOneWidget);
   });
 
   /// Opening the canvas used to fire three requests: one against the

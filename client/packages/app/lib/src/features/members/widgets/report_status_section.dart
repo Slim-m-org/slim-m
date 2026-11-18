@@ -161,6 +161,9 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
   final _idController = TextEditingController();
   api.MyReportStatus? _result;
   String? _error;
+
+  /// Set when nothing has the typed ID, which is the field's error rather than a failed check.
+  String? _notFound;
   bool _busy = false;
 
   @override
@@ -176,6 +179,7 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
       _busy = true;
       _result = null;
       _error = null;
+      _notFound = null;
     });
     try {
       final status = await ref
@@ -197,7 +201,7 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
       setState(() {
         _busy = false;
         // Same wording either way; the server route refuses to tell those apart.
-        _error = 'No report found with that ID.';
+        _notFound = 'No report found with that ID.';
       });
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.ui, 'check the report status', e, stack);
@@ -235,6 +239,10 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
                     placeholder: _reportIdLabel,
                     semanticLabel: _reportIdLabel,
                     mono: true,
+                    invalid: _notFound != null,
+                    onChanged: (_) {
+                      if (_notFound != null) setState(() => _notFound = null);
+                    },
                     onSubmitted: (_) => _check(),
                   ),
                 ),
@@ -249,6 +257,18 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
                       ? 'Resolved. Filed ${filedAgo(status.createdAt)}.'
                       : 'Still open. Filed ${filedAgo(status.createdAt)}.',
                   style: AppText.body.copyWith(color: tokens.textPrimary),
+                ),
+              ),
+            if (_notFound case final notFound?)
+              // Inset like AppInput's own error line, so it starts under the border and not the focus ring.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    notFound,
+                    style: AppText.caption.copyWith(color: tokens.dangerText),
+                  ),
                 ),
               ),
             if (_error case final error?)

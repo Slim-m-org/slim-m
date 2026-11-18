@@ -36,6 +36,7 @@ class CanvasPaneSurface extends StatelessWidget {
     required this.cursors,
     required this.document,
     required this.error,
+    this.truncated = false,
     required this.noteEditor,
     required this.noteSpans,
     required this.noteSpansRevision,
@@ -62,6 +63,9 @@ class CanvasPaneSurface extends StatelessWidget {
   final CanvasCursors? cursors;
   final CanvasDocument document;
   final String? error;
+
+  /// Whether the region read was capped, so some ink is not drawn at this zoom.
+  final bool truncated;
   final Widget? noteEditor;
   final NoteSpanBuilder? noteSpans;
   final int noteSpansRevision;
@@ -251,6 +255,7 @@ class CanvasPaneSurface extends StatelessWidget {
           viewMode: viewMode,
           onFit: actions.onRecenter,
           onBringIn: actions.onBringIntoBoard,
+          truncated: truncated,
         ),
       ],
     ),

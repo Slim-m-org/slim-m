@@ -354,8 +354,14 @@ void main() {
     await _pump(tester, server);
     await _startEnrolment(tester);
 
-    expect(find.text('That password is not correct.'), findsOneWidget);
-    expect(find.byType(AppErrorState), findsOneWidget);
+    // The password field's own error, under the field rather than boxed.
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is AppInput && w.errorText == 'That password is not correct.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(AppErrorState), findsNothing);
     expect(find.byType(SnackBar), findsNothing);
     expect(find.text('JBSWY3DPEHPK3PXP'), findsNothing);
     expect(find.widgetWithText(AppButton, 'Continue'), findsOneWidget);

@@ -51,9 +51,6 @@ final steamLinkStatusProvider =
       SteamLinkStatusController.new,
     );
 
-const _refused =
-    'That code did not work. It may have expired, or belong to another account.';
-
 class SteamLinkFinisher {
   SteamLinkFinisher({
     required this.actions,
@@ -79,7 +76,7 @@ class SteamLinkFinisher {
       if (!_closed) onLinked();
       return null;
     } on api.NotFoundException {
-      return _refused;
+      return linkCodeRefused;
     } on api.ApiException catch (error, stack) {
       return reportFailureSentence(
         api.LogTag.ui,

@@ -26,6 +26,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../widgets/canvas_pill_surface.dart';
 
+import 'canvas_board_keys.dart' show canvasZoomStep, zoomCanvasAboutCentre;
 import 'canvas_outside_board_notice.dart';
 import 'canvas_people_cluster.dart';
 import 'canvas_people_panel.dart';
@@ -41,7 +42,11 @@ class CanvasZoomIndicator extends StatelessWidget {
     required this.onFit,
     this.viewMode,
     required this.onBringIn,
+    this.truncated = false,
   });
+
+  /// Whether some ink in view is not drawn at this zoom, said beside the readout.
+  final bool truncated;
 
   /// Moves objects the board cannot hold back onto it.
   final VoidCallback onBringIn;
@@ -93,13 +98,28 @@ class CanvasZoomIndicator extends StatelessWidget {
         ),
         Row(
           mainAxisSize: MainAxisSize.min,
+          // Top, not centre: chips that wrap to a second line must not pull the readout down.
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _zoomPill(),
+            // One Wrap, not two Flexibles: those split the row in half and cut a lone chip short.
             Flexible(
-              child: CanvasOutsideBoardNotice(
-                document: document,
-                tokens: tokens,
-                onBringIn: onBringIn,
+              // Each chip pads its own left, so one that is not shown leaves no gap; only lines need spacing.
+              child: Wrap(
+                runSpacing: AppSpacing.s8,
+                children: [
+                  CanvasOutsideBoardNotice(
+                    document: document,
+                    tokens: tokens,
+                    onBringIn: onBringIn,
+                  ),
+                  _HiddenInkNotice(
+                    hidden: truncated,
+                    tokens: tokens,
+                    onZoomIn: () =>
+                        zoomCanvasAboutCentre(document, canvasZoomStep),
+                  ),
+                ],
               ),
             ),
           ],
@@ -154,5 +174,62 @@ class CanvasZoomIndicator extends StatelessWidget {
         ),
       );
     },
+  );
+}
+
+/// Says that the capped region read left some ink undrawn and zooms in a step on a tap, fading with the condition.
+class _HiddenInkNotice extends StatelessWidget {
+  const _HiddenInkNotice({
+    required this.hidden,
+    required this.tokens,
+    required this.onZoomIn,
+  });
+
+  final bool hidden;
+  final AppTokens tokens;
+  final VoidCallback onZoomIn;
+
+  @override
+  Widget build(BuildContext context) => AnimatedSwitcher(
+    duration: AppMotion.reduced(context, AppMotion.base),
+    switchInCurve: AppMotion.entrance,
+    switchOutCurve: AppMotion.exit,
+    child: !hidden
+        ? const SizedBox.shrink()
+        : Padding(
+            padding: const EdgeInsets.only(left: AppSpacing.s8),
+            child: Semantics(
+              container: true,
+              button: true,
+              liveRegion: true,
+              label: 'Some ink is hidden at this zoom, zoom in',
+              excludeSemantics: true,
+              onTap: onZoomIn,
+              child: CanvasPillSurface(
+                tokens: tokens,
+                onTap: onZoomIn,
+                child: SizedBox(
+                  height: AppSizes.icon28,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.s12,
+                    ),
+                    child: Center(
+                      widthFactor: 1,
+                      child: Text(
+                        'Some ink hidden - zoom in',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.caption.copyWith(
+                          color: tokens.textSecondary,
+                          fontWeight: AppWeights.medium,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
   );
 }
