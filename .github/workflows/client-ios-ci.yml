@@ -251,23 +251,22 @@ jobs:
             || { cat "$RUNNER_TEMP/simulator-boot.log"; exit 1; }
           echo "booted in ${SECONDS}s"
 
-      # The one booted simulator: parallel testing would clone and boot more of them for a suite that runs in seconds.
+      # From the build's .xctestrun (reopening the workspace cost up to 2.5 minutes), on the one booted simulator, with no parallel clones.
       - name: run xctest
-        working-directory: client/packages/app/ios
         timeout-minutes: 30
         run: |
           set -euo pipefail
-          udid="${{ steps.sim.outputs.udid }}"
+          xctestrun=$(find "$HOME/Library/Developer/Xcode/DerivedData" -maxdepth 4 -path '*/Build/Products/*.xctestrun' -print -quit)
+          if [ -z "$xctestrun" ]; then
+            echo "::error::build-for-testing wrote no .xctestrun"
+            exit 1
+          fi
           xcodebuild test-without-building \
-            -workspace Runner.xcworkspace \
-            -scheme Runner \
-            -destination "id=$udid" \
-            -clonedSourcePackagesDirPath ../build/ios/SourcePackages \
-            -skipPackageUpdates \
+            -xctestrun "$xctestrun" \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
             -only-testing:RunnerTests \
             -parallel-testing-enabled NO \
             -resultBundlePath "$RUNNER_TEMP/RunnerTests.xcresult" \
-            CODE_SIGNING_ALLOWED=NO \
             | xcpretty || exit "${PIPESTATUS[0]}"
 
       # xcpretty drops Xcode 26's test lines, so a failing test showed its name and never its message.
