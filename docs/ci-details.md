@@ -129,6 +129,7 @@ Files are split only by state no teardown undoes (real fonts, `PackageInfo` mock
 A file that cannot share a page loads alone: the VM bundles' reasons, a library-level test annotation (`@TestOn`, `@Timeout` and the like, which only an entrypoint's own library carries), and the files in `scripts/lib/chrome_bundle_lone.txt`.
 Three packages run at once, each with `--no-pub`, since the workspace's `pub get` ran a step earlier and concurrent ones would race on its package config.
 A failed package reruns its failed bundled files alone: a file that passes alone is a warning naming it, the same rule as the app shards, and `SLIMM_TEST_PER_FILE=1` turns the bundling off here too.
+A package's output prints only once it finishes, so when the job fails or is cancelled, its 25 minute limit included, it uploads `client/build/chrome-tests/` (every package's log and json results) as the `chrome-tests-logs` artifact.
 `scripts/lib/test_chrome_bundles.py` checks every listed file is bundled once or loads alone, and the retry rules.
 
 Measured locally on the whole list, 2026-11-18: about nine minutes one file at a time, 207 s bundled one package at a time, 94 s three at a time, with the same 1800 tests, and every app file's results matched a per-file run.

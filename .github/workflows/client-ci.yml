@@ -348,6 +348,16 @@ jobs:
           SLIMM_TEST_PER_FILE: ${{ vars.SLIMM_TEST_PER_FILE }}
         run: scripts/chrome-tests.sh --jobs 3
 
+      # A package prints only once it finishes, so a job killed at its time limit has its logs only on disk.
+      - name: upload the per-package logs
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: chrome-tests-logs
+          path: client/build/chrome-tests
+          if-no-files-found: ignore
+          retention-days: 7
+
   # A native desktop plugin's own CMake is invisible to analyze, test and the
   # web build alike: adding audioplayers put a gstreamer-1.0 pkg-config
   # requirement into the Linux build that nothing on a pull request compiled,

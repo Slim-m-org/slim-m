@@ -28,6 +28,7 @@ PACKAGES = os.path.join(CLIENT, "packages")
 LIST = os.path.join(CLIENT, "chrome-tests.txt")
 LONE_FILE = os.path.join(HERE, "chrome_bundle_lone.txt")
 BUNDLE_DIR = os.path.join("test", ".chrome_bundles")
+OUT_DIR = os.path.join(CLIENT, "build", "chrome-tests")
 _FLUTTER_TEST_DEP = re.compile(r"^\s+flutter_test:", re.M)
 
 
@@ -163,7 +164,7 @@ def _read(path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("cmd", choices=["run", "plan"])
-    parser.add_argument("--out", default=os.path.join(CLIENT, "build", "chrome-tests"))
+    parser.add_argument("--out", default=OUT_DIR)
     parser.add_argument("--jobs", type=int, default=3, help="packages run at once")
     args = parser.parse_args(argv)
     if args.cmd == "plan":

@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,8 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import chrome_bundles  # noqa: E402
+from config_source import strip_comments  # noqa: E402
+from test_windows_builds_do_not_run_under_bash import jobs, steps  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 PLAIN = "void main() {\n  test('a', () {});\n}\n"
@@ -167,6 +170,23 @@ class PoolTest(unittest.TestCase):
         self.assertEqual(seen, [("b", ["test/x_test.dart", "test/y_test.dart"]), ("a", ["test/x_test.dart"])])
         self.assertIn("output of a", out.getvalue())
         self.assertIn("output of b", out.getvalue())
+
+
+class WorkflowTest(unittest.TestCase):
+    def test_the_job_uploads_the_logs_when_it_fails_or_is_cancelled(self):
+        """A package prints only once it finishes, so a job killed at its limit has its logs only on disk."""
+        workflow = strip_comments((ROOT / ".github" / "workflows" / "client-ci.yml").read_text())
+        out = os.path.relpath(chrome_bundles.OUT_DIR, ROOT)
+        uploads = [s for s in steps(jobs(workflow)["test-chrome"]) if "actions/upload-artifact@" in s]
+        kept = [s for s in uploads
+                if re.search(rf"^\s+path:\s*{re.escape(out)}/?\s*$", s, re.M)
+                and re.search(r"^\s+if:.*(always\(\)|failure\(\).*cancelled\(\))", s, re.M)]
+        self.assertEqual(len(kept), 1, f"test-chrome uploads {out} on failure or cancel once")
+
+    def test_the_script_writes_where_the_job_uploads_from(self):
+        with mock.patch.object(chrome_bundles, "run", return_value=0) as run:
+            chrome_bundles.main(["run"])
+        run.assert_called_once_with(chrome_bundles.OUT_DIR, 3)
 
 
 if __name__ == "__main__":
