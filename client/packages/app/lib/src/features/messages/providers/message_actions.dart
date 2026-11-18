@@ -379,7 +379,7 @@ Future<void> bulkDeleteMessagesAction(
 ///
 /// [onQueued] fires once the local row exists and before the request goes
 /// out, which is when a sender wants the transcript scrolled. The request
-/// waits for any earlier send in [channelId], see [ChannelSendQueue].
+/// waits for every send in [channelId] called before this one, see [ChannelSendQueue].
 Future<void> sendOptimistically(
   ProviderReader read, {
   required String id,
@@ -392,50 +392,55 @@ Future<void> sendOptimistically(
   bool mentionReply = true,
   VoidCallback? onQueued,
 }) async {
-  final store = await read(storeProvider.future);
-  final me = read(effectiveMeProvider);
-  await _keepLocally(
-    'queue the message',
-    () => store.addPending(
-      id: id,
-      channelId: channelId,
-      authorId: authorId,
-      authorDisplayName: me?.id == authorId ? me?.displayName : null,
-      content: content,
-      replyToId: replyToId,
-      mentionReply: mentionReply,
-      attachmentIds: attachmentIds,
-      spoilerIds: spoilerIds,
-    ),
-  );
-  onQueued?.call();
+  // Before the first await, so a local write that has to retry cannot let a later send overtake this one.
+  final slot = read(channelSendQueueProvider).reserve(channelId);
   try {
-    final client = read(apiProvider);
-    final sent = await read(channelSendQueueProvider).run(
-      channelId,
-      () => client.sendMessage(
-        channelId: channelId,
+    final store = await read(storeProvider.future);
+    final me = read(effectiveMeProvider);
+    await _keepLocally(
+      'queue the message',
+      () => store.addPending(
         id: id,
+        channelId: channelId,
+        authorId: authorId,
+        authorDisplayName: me?.id == authorId ? me?.displayName : null,
         content: content,
-        attachmentIds: attachmentIds,
-        spoilerAttachmentIds: spoilerIds,
         replyToId: replyToId,
         mentionReply: mentionReply,
+        attachmentIds: attachmentIds,
+        spoilerIds: spoilerIds,
       ),
     );
-    // Lands on the same row, because it carries the same id.
-    await _keepLocally(
-      'store the sent message',
-      () => store.applyMessage(sent),
-    );
-    read(messageExtrasProvider.notifier).applyMessage(sent);
-    // The device clock, since the countdown ticks on it; the server's `created_at` can sit minutes off a skewed device and pin the countdown.
-    read(
-      slowModeLastSentProvider.notifier,
-    ).recordSent(channelId, DateTime.now());
-  } on api.ApiException catch (e, stack) {
-    api.reportFailure(api.LogTag.ui, 'send the message', e, stack);
-    await store.markFailed(id, reason: _sendFailureReason(e));
+    onQueued?.call();
+    try {
+      final client = read(apiProvider);
+      final sent = await slot.run(
+        () => client.sendMessage(
+          channelId: channelId,
+          id: id,
+          content: content,
+          attachmentIds: attachmentIds,
+          spoilerAttachmentIds: spoilerIds,
+          replyToId: replyToId,
+          mentionReply: mentionReply,
+        ),
+      );
+      // Lands on the same row, because it carries the same id.
+      await _keepLocally(
+        'store the sent message',
+        () => store.applyMessage(sent),
+      );
+      read(messageExtrasProvider.notifier).applyMessage(sent);
+      // The device clock, since the countdown ticks on it; the server's `created_at` can sit minutes off a skewed device and pin the countdown.
+      read(
+        slowModeLastSentProvider.notifier,
+      ).recordSent(channelId, DateTime.now());
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'send the message', e, stack);
+      await store.markFailed(id, reason: _sendFailureReason(e));
+    }
+  } finally {
+    slot.release();
   }
 }
 

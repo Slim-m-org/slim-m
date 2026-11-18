@@ -50,12 +50,54 @@ class _SlowFirstServer {
   }
 }
 
-ProviderContainer _container(_SlowFirstServer server) {
+/// A store whose first write of [lockedId] loses a lock race, as
+/// `send_survives_locked_store_test.dart` has it, so that write is retried.
+class _LockedOnce extends MessageStore {
+  _LockedOnce(super.db, this.lockedId);
+
+  final String lockedId;
+  var _locked = true;
+
+  @override
+  Future<void> addPending({
+    required String id,
+    required String channelId,
+    required String authorId,
+    required String content,
+    String? authorDisplayName,
+    String? replyToId,
+    bool mentionReply = true,
+    List<String> attachmentIds = const [],
+    List<String> spoilerIds = const [],
+  }) async {
+    if (id == lockedId && _locked) {
+      _locked = false;
+      throw StateError('database is locked');
+    }
+    return super.addPending(
+      id: id,
+      channelId: channelId,
+      authorId: authorId,
+      content: content,
+      authorDisplayName: authorDisplayName,
+      replyToId: replyToId,
+      mentionReply: mentionReply,
+      attachmentIds: attachmentIds,
+      spoilerIds: spoilerIds,
+    );
+  }
+}
+
+ProviderContainer _container(
+  _SlowFirstServer server, {
+  MessageStore Function(SlimmDatabase db) store = MessageStore.new,
+}) {
   final db = SlimmDatabase(NativeDatabase.memory());
   addTearDown(db.close);
+  final local = store(db);
   final container = ProviderContainer(
     overrides: [
-      storeProvider.overrideWith((ref) async => MessageStore(db)),
+      storeProvider.overrideWith((ref) async => local),
       apiProvider.overrideWith(
         (ref) => api.SlimmApi(
           baseUrl: Uri.parse('http://localhost'),
@@ -94,6 +136,21 @@ void main() {
     ]);
     expect(server.seqOf, {'m1': 1, 'm2': 2, 'm3': 3});
   });
+
+  test(
+    'a send whose local write is retried still goes out in typed order',
+    () async {
+      final server = _SlowFirstServer({});
+      final container = _container(
+        server,
+        store: (db) => _LockedOnce(db, 'm1'),
+      );
+      await Future.wait([
+        for (final id in ['m1', 'm2', 'm3']) _send(container, 'c1', id),
+      ]);
+      expect(server.seqOf, {'m1': 1, 'm2': 2, 'm3': 3});
+    },
+  );
 
   test('a slow send in one channel does not hold up another', () async {
     final server = _SlowFirstServer({'a1'});
