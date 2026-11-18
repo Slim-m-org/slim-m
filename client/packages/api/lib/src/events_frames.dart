@@ -321,7 +321,7 @@ class CategoryChanged extends ServerEvent {
   const CategoryChanged();
 }
 
-/// A Space-wide display setting changed; a receiver re-reads `/version`.
+/// A Space setting `/version` shows changed, the attachment limit included; a receiver re-reads `/version`.
 class SpaceSettingsChanged extends ServerEvent {
   const SpaceSettingsChanged();
 }

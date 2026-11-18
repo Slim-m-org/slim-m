@@ -22353,9 +22353,10 @@ components:
       required: [type]
       description: >
         A Space setting that `/version` shows changed: the name, description
-        or icon, a Space-wide display switch, or the default theme. Carries no
-        fields; a receiving client re-reads `/version` and `/space/themes`,
-        which every member can read.
+        or icon, a Space-wide display switch, the default theme, or the
+        per-file attachment limit (`max_attachment_bytes`). Carries no fields;
+        a receiving client re-reads `/version` and `/space/themes`, which
+        every member can read.
       properties:
         type:
           type: string
