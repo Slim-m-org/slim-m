@@ -55,6 +55,7 @@ import '../../../routing/breakpoints.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../providers/canvas_focus_video_hold.dart';
 import '../providers/canvas_self_presence.dart';
+import '../providers/canvas_spectating.dart';
 import '../providers/canvas_tools_hidden.dart';
 import '../../composer/widgets/composer_clipboard_image.dart'
     show pasteKeystrokeReadsClipboardImage;
@@ -159,6 +160,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     changed: _refresh,
     onPlaced: (id, tool) => _selectPlaced(id, startedWith: tool),
     focusBoard: _boardFocusNode.requestFocus,
+    spectating: () => _spectating,
   );
 
   /// The last mouse click on a note, so a second one soon after is a double click.
@@ -238,6 +240,12 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       meProvider.select((m) => m.valueOrNull?.timedOutUntil),
       (_, _) => _timeoutBanner.watch(),
     );
+    // A spectator's tool is always Move: every other tool edits the canvas.
+    ref.listenManual(canvasSpectatingProvider(widget.channelId), (_, watching) {
+      if (watching && _tool != CanvasTool.pan) {
+        _refresh(() => _tool = CanvasTool.pan);
+      }
+    });
     // This pane is the only content mounted while it exists, so one listener for the whole mount is safe: nothing else here could hold it at the same time.
     _imagePaste.start();
     _document.setBottomInset(
@@ -258,7 +266,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     super.didChangeDependencies();
     if (_toolInitialised) return;
     _toolInitialised = true;
-    _tool = _defaultTool;
+    _tool = _spectating ? CanvasTool.pan : _defaultTool;
     _disarmIfAlreadyFullscreen();
   }
 
@@ -284,6 +292,9 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       _refresh(() => _tool = CanvasTool.pan);
     }
   }
+
+  /// Whether this viewer only watches; safe to read, since build() watches it.
+  bool get _spectating => ref.read(canvasSpectatingProvider(widget.channelId));
 
   /// The same bridge [_refresh] is, for a caller that needs the raw
   /// boolean rather than a guarded `setState` - `mounted` itself is
@@ -329,7 +340,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
         (info) => info.valueOrNull?.supportsPartialClear ?? false,
       ),
     );
-    final canDraw = !canvasErrorBlocksDrawing(engineState.error);
+    final spectating = ref.watch(canvasSpectatingProvider(widget.channelId));
+    final canDraw = !spectating && !canvasErrorBlocksDrawing(engineState.error);
     // Held here: the layer reports its release from dispose, when ref can no longer be read.
     final interest = ref.read(videoInterestRelayProvider);
     return CanvasRealWindowScope(
@@ -353,7 +365,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
               const SingleActivator(LogicalKeyboardKey.escape):
                   _closeMemberPane,
             // None of these while a note is being typed in (its field owns them) or while the log hides the board.
-            if (!editingNote && !_activityLogOpen) ..._canvasEditShortcuts(),
+            if (!editingNote && !_activityLogOpen && !spectating)
+              ..._canvasEditShortcuts(),
           },
           child: Listener(
             behavior: HitTestBehavior.translucent,
@@ -484,6 +497,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   onToggleSelfBubbleHidden: _onToggleSelfBubbleHidden,
                   toolsHidden: ref.watch(canvasToolsHiddenProvider),
                   onToggleToolsHidden: _onToggleToolsHidden,
+                  readOnly: spectating,
                   callError: _callFailure(voiceFlags),
                   onRetryCall: voiceFlags.retryable
                       ? () => unawaited(

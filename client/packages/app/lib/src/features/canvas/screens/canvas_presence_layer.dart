@@ -45,10 +45,14 @@ class CanvasPresenceLayer extends StatefulWidget {
     this.focusedKey,
     this.onFocus,
     this.onPointerMoved,
+    this.readOnly = false,
   });
 
   /// Relays this device's pointer over a tile, which the surface beneath it cannot see.
   final PointerMoved? onPointerMoved;
+
+  /// A spectator arranges tiles only in the personal view, and never locks one.
+  final bool readOnly;
 
   /// The tile the camera is fitted to; the backdrop shows its video and it takes no controls, so a drag cannot move it.
   final String? focusedKey;
@@ -344,11 +348,12 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
       worldRect: rect,
       camera: camera,
       locked: locked,
+      movable: !widget.readOnly || widget.overrides.personal,
       tool: widget.tool,
       document: widget.document,
       onRectChanged: (next) => widget.overrides.setRect(key, next),
       onRectCommitted: commit,
-      onToggleLocked: widget.overrides.personal
+      onToggleLocked: widget.overrides.personal || widget.readOnly
           ? null
           : () {
               widget.overrides.setLocked(key, !locked);

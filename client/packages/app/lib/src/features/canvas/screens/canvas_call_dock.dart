@@ -112,6 +112,7 @@ class CanvasDockData {
     required this.onToggleFullscreen,
     this.toolsHidden = false,
     this.onToggleToolsHidden,
+    this.readOnly = false,
   });
 
   final CanvasTool tool;
@@ -166,8 +167,11 @@ class CanvasDockData {
   final bool toolsHidden;
   final VoidCallback? onToggleToolsHidden;
 
-  /// The tool strip shows unless the activity log replaced the board or the tools are folded away.
-  bool get showsTools => !activityLogOpen && !toolsHidden;
+  /// A spectator without `USE_CANVAS`: no tools, no undo, nothing in the overflow that edits.
+  final bool readOnly;
+
+  /// The tool strip shows unless the activity log replaced the board, the tools are folded away, or this viewer only watches.
+  bool get showsTools => !activityLogOpen && !toolsHidden && !readOnly;
 }
 
 /// [call] whenever this device is connected to a call in [channelId], or is

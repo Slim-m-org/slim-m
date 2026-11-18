@@ -20,7 +20,7 @@ use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json, Query};
 use super::super::messages::parse_uuid;
 use super::CanvasObjectDto;
-use super::canvas_write::canvas_access;
+use super::canvas_write::canvas_read_access;
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 use crate::store::{CanvasOpBody, CanvasOpEntry};
@@ -200,7 +200,7 @@ fn ids<T: std::fmt::Display>(values: Vec<T>) -> Vec<String> {
 
 /// `GET /channels/{channel_id}/canvas/ops`.
 ///
-/// Gate is [`canvas_access`], the same as the viewport read: no timeout check, since this is
+/// Gate is [`canvas_read_access`], the same as the viewport read: no timeout check, since this is
 /// a read.
 pub(in crate::http) async fn list_ops(
     AuthedLimited(ctx): AuthedLimited<CANVAS>,
@@ -209,7 +209,7 @@ pub(in crate::http) async fn list_ops(
     State(state): State<AppState>,
 ) -> Result<Json<CanvasOpsPageDto>, ApiError> {
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    let permissions = canvas_access(&state, ctx.user_id, channel_id).await?;
+    let permissions = canvas_read_access(&state, ctx.user_id, channel_id).await?;
     if params.after_seq < 0 {
         return Err(ApiError::BadRequest("after_seq must not be negative"));
     }

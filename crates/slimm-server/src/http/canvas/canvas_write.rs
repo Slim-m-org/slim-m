@@ -5,11 +5,10 @@
 //! carries both halves of the surface past the review budget.
 //!
 //! This is the first caller of the direct timeout check `store::timeouts`
-//! promised. `TIMEOUT_DENY` deliberately spares `USE_CANVAS`, because that one
-//! bit means view *and* draw and subtracting it would blank the canvas rather
-//! than make it read-only, so the write path asks about the timeout itself. A
-//! timed-out member keeps seeing the canvas and cannot add to it, which is the
-//! behaviour the bit cannot express.
+//! promised. `TIMEOUT_DENY` deliberately spares `USE_CANVAS`, which a
+//! timed-out member still needs to erase their own ink, so the write path asks
+//! about the timeout itself. A timed-out member keeps seeing the canvas and
+//! cannot add to it.
 //!
 //! Three ceilings apply and each bounds a different thing: `MAX_PROPS_BYTES`
 //! bounds one object, [`crate::store::MAX_OBJECT_EXTENT`] bounds the area one
@@ -189,6 +188,23 @@ pub(super) fn place_error_api(error: PlaceError) -> ApiError {
         }
         PlaceError::Internal(err) => err.into(),
     }
+}
+
+/// The caller's permissions in this channel when they can see it, else `Forbidden`: reading
+/// needs only `VIEW_CHANNEL`, so a member without `USE_CANVAS` spectates (decision 0127).
+pub(super) async fn canvas_read_access(
+    state: &AppState,
+    user_id: crate::ids::UserId,
+    channel_id: ChannelId,
+) -> Result<Permissions, ApiError> {
+    let permissions = state
+        .store
+        .permissions_in_channel(user_id, channel_id)
+        .await?;
+    if !permissions.contains(Permissions::VIEW_CHANNEL) {
+        return Err(ApiError::Forbidden);
+    }
+    Ok(permissions)
 }
 
 /// The caller's permissions in this channel when they hold the view and draw bits, else `Forbidden`.

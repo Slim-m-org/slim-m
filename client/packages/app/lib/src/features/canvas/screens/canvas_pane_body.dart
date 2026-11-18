@@ -117,6 +117,7 @@ class CanvasPaneBody extends StatefulWidget {
     required this.onToggleSelfBubbleHidden,
     this.toolsHidden = false,
     this.onToggleToolsHidden,
+    this.readOnly = false,
     required this.fullscreen,
     required this.onToggleFullscreen,
     this.focusedTileKey,
@@ -291,6 +292,9 @@ class CanvasPaneBody extends StatefulWidget {
   /// Whether the drawing tools are folded away on this device, and the overflow's way to flip it.
   final bool toolsHidden;
   final VoidCallback? onToggleToolsHidden;
+
+  /// A spectator without `USE_CANVAS`: watches the shared board and keeps a personal view, and edits nothing.
+  final bool readOnly;
 
   /// Whether this canvas has dropped its chrome to show nothing but the
   /// surface, and the one control that flips it - see

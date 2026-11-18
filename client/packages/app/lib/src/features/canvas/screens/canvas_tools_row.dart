@@ -81,6 +81,7 @@ class CanvasToolsRow extends StatefulWidget {
     this.chatChannelId,
     this.toolsHidden = false,
     this.onToggleToolsHidden,
+    this.readOnly = false,
   });
 
   /// See [CanvasOverflowMenu.opensBelow].
@@ -165,6 +166,9 @@ class CanvasToolsRow extends StatefulWidget {
   final bool toolsHidden;
   final VoidCallback? onToggleToolsHidden;
 
+  /// A spectator: undo and redo go too, and the overflow offers only what changes this viewer's own view.
+  final bool readOnly;
+
   final CanvasToolsRowPart part;
 
   @override
@@ -229,20 +233,22 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
           Flexible(child: _toolStrip(tokens)),
           const SizedBox(width: AppSpacing.s8),
         ],
-        AppIconButton(
-          icon: AppIcons.undo,
-          semanticLabel: 'Undo',
-          tooltip: widget.canUndo ? 'Undo' : 'Nothing to undo yet',
-          onPressed: widget.canUndo ? widget.onUndo : null,
-        ),
-        const SizedBox(width: AppSpacing.s4),
-        AppIconButton(
-          icon: AppIcons.redo,
-          semanticLabel: 'Redo',
-          tooltip: widget.canRedo ? 'Redo' : 'Nothing to redo yet',
-          onPressed: widget.canRedo ? widget.onRedo : null,
-        ),
-        const SizedBox(width: AppSpacing.s4),
+        if (!widget.readOnly) ...[
+          AppIconButton(
+            icon: AppIcons.undo,
+            semanticLabel: 'Undo',
+            tooltip: widget.canUndo ? 'Undo' : 'Nothing to undo yet',
+            onPressed: widget.canUndo ? widget.onUndo : null,
+          ),
+          const SizedBox(width: AppSpacing.s4),
+          AppIconButton(
+            icon: AppIcons.redo,
+            semanticLabel: 'Redo',
+            tooltip: widget.canRedo ? 'Redo' : 'Nothing to redo yet',
+            onPressed: widget.canRedo ? widget.onRedo : null,
+          ),
+          const SizedBox(width: AppSpacing.s4),
+        ],
         CanvasOverflowMenu(
           onAddImageFile: widget.onAddImageFile,
           canDraw: widget.canDraw,
@@ -269,6 +275,7 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
           chatChannelId: widget.chatChannelId,
           toolsHidden: widget.toolsHidden,
           onToggleToolsHidden: widget.onToggleToolsHidden,
+          readOnly: widget.readOnly,
         ),
       ],
     );

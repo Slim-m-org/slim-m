@@ -53,6 +53,7 @@ class CanvasPaneSurface extends StatelessWidget {
     required this.presenceFrames,
     this.focusedTileKey,
     this.boardFocusNode,
+    this.readOnly = false,
   });
 
   final CanvasPaneSurfaceActions actions;
@@ -84,12 +85,15 @@ class CanvasPaneSurface extends StatelessWidget {
   /// Focus node for [CanvasBoardKeys] so the pane can return focus to the board.
   final FocusNode? boardFocusNode;
 
+  /// A spectator: no object menu, no tool wheel, and call tiles arranged only in the personal view.
+  final bool readOnly;
+
   @override
   Widget build(BuildContext context) => CanvasBoardKeys(
     document: document,
     tool: tool,
     onOpenActions: menuRequests.request,
-    onOpenToolWheel: toolWheel.requestOpen,
+    onOpenToolWheel: readOnly ? () {} : toolWheel.requestOpen,
     onPlaceNote: actions.onNotePlace,
     onPlaceText: actions.onTextPlace,
     onPlaceShape: (world) => actions.onShapePlace(world, null),
@@ -184,7 +188,8 @@ class CanvasPaneSurface extends StatelessWidget {
           onDeleteSelected: actions.onDeleteSelected,
           onAddNoteAt: actions.onNotePlace,
           onEditNote: actions.onEditNote,
-          canDraw: !canvasErrorBlocksDrawing(error),
+          canDraw: !readOnly && !canvasErrorBlocksDrawing(error),
+          readOnly: readOnly,
           onRecenter: actions.onRecenter,
           onToolChanged: actions.onToolChanged,
           wheel: toolWheel,
@@ -193,28 +198,29 @@ class CanvasPaneSurface extends StatelessWidget {
           Positioned.fill(
             child: CanvasStampGhost(document: document, placement: stamping),
           ),
-        Consumer(
-          builder: (context, ref, _) => CanvasToolWheelLayer(
-            stamps: ref.watch(canvasStampsSupportedProvider),
-            document: document,
-            controller: toolWheel,
-            tool: tool,
-            shapeKind: shapeKind,
-            canDraw: !canvasErrorBlocksDrawing(error),
-            isObjectAt: (world) =>
-                hitTestTopmost(
-                  document,
-                  world,
-                  allowed: (stroke) => canvasMayActOn(
-                    stroke,
-                    canManage: canManage,
-                    selfId: selfId,
-                  ),
-                ) !=
-                null,
-            onToolChanged: actions.onToolChanged,
+        if (!readOnly)
+          Consumer(
+            builder: (context, ref, _) => CanvasToolWheelLayer(
+              stamps: ref.watch(canvasStampsSupportedProvider),
+              document: document,
+              controller: toolWheel,
+              tool: tool,
+              shapeKind: shapeKind,
+              canDraw: !canvasErrorBlocksDrawing(error),
+              isObjectAt: (world) =>
+                  hitTestTopmost(
+                    document,
+                    world,
+                    allowed: (stroke) => canvasMayActOn(
+                      stroke,
+                      canManage: canManage,
+                      selfId: selfId,
+                    ),
+                  ) !=
+                  null,
+              onToolChanged: actions.onToolChanged,
+            ),
           ),
-        ),
         CanvasBoardObjectSemantics(
           document: document,
           onOpenActions: menuRequests.request,
@@ -237,6 +243,7 @@ class CanvasPaneSurface extends StatelessWidget {
           focusedKey: focusedTileKey,
           onFocus: actions.onFocusTile,
           onPointerMoved: actions.onPointerMoved,
+          readOnly: readOnly,
         ),
         ?noteEditor,
         // Topmost and non-interactive - see its own doc for why a pan or a tile drag stopping at worldLimit otherwise looks like nothing happened.

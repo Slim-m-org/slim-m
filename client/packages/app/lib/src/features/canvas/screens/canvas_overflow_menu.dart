@@ -72,6 +72,7 @@ class CanvasOverflowMenu extends StatefulWidget {
     this.chatChannelId,
     this.toolsHidden = false,
     this.onToggleToolsHidden,
+    this.readOnly = false,
   });
 
   /// The voice channel whose text chat a row here opens, for a header with no room for its own toggle; null for none.
@@ -141,6 +142,9 @@ class CanvasOverflowMenu extends StatefulWidget {
   /// Whether the drawing tools are folded away, and the item that flips it; null offers none.
   final bool toolsHidden;
   final VoidCallback? onToggleToolsHidden;
+
+  /// A spectator: only the items that change this viewer's own view.
+  final bool readOnly;
 
   @override
   State<CanvasOverflowMenu> createState() => _CanvasOverflowMenuState();
@@ -377,7 +381,7 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
 
   List<Widget> _menuItems(BuildContext context, String? selected) {
     return [
-      if (widget.onAddImageFile case final addImage?)
+      if (widget.onAddImageFile case final addImage? when !widget.readOnly)
         AppMenuItem(
           label: 'Add image from file',
           leading: AppIcons.image,
@@ -415,42 +419,51 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
                   ),
                 ),
         ),
-      const AppMenuDivider(),
-      // A screen reader's fallback for the drawing; a sighted viewer already sees what it lists.
-      if (widget.activityLogOpen || MediaQuery.accessibleNavigationOf(context))
-        AppMenuItem(
-          label: widget.activityLogOpen
-              ? 'Hide activity log'
-              : 'Show activity log',
-          leading: AppIcons.activityLog,
-          onTap: _toggleActivityLog,
-        ),
-      Consumer(
-        builder: (context, ref, _) => AppMenuItem(
-          label: ref.watch(canvasGridSnapProvider)
-              ? 'Stop snapping to grid'
-              : 'Snap to grid',
-          leading: AppIcons.snapToGrid,
-          onTap: () {
-            _hide();
-            unawaited(ref.read(canvasGridSnapProvider.notifier).toggle());
-          },
-        ),
-      ),
-      if (widget.hasSelfBubble) ...[
-        AppMenuItem(
-          label: 'People here',
-          leading: AppIcons.members,
-          onTap: _openParticipants,
-        ),
-        _selfBubbleItem(),
-      ],
+      ..._withDivider([
+        // A screen reader's fallback for the drawing; a sighted viewer already sees what it lists.
+        if (widget.activityLogOpen ||
+            MediaQuery.accessibleNavigationOf(context))
+          AppMenuItem(
+            label: widget.activityLogOpen
+                ? 'Hide activity log'
+                : 'Show activity log',
+            leading: AppIcons.activityLog,
+            onTap: _toggleActivityLog,
+          ),
+        if (!widget.readOnly)
+          Consumer(
+            builder: (context, ref, _) => AppMenuItem(
+              label: ref.watch(canvasGridSnapProvider)
+                  ? 'Stop snapping to grid'
+                  : 'Snap to grid',
+              leading: AppIcons.snapToGrid,
+              onTap: () {
+                _hide();
+                unawaited(ref.read(canvasGridSnapProvider.notifier).toggle());
+              },
+            ),
+          ),
+        if (widget.hasSelfBubble) ...[
+          AppMenuItem(
+            label: 'People here',
+            leading: AppIcons.members,
+            onTap: _openParticipants,
+          ),
+          _selfBubbleItem(),
+        ],
+      ]),
       ..._hiddenTileItems(),
-      ..._shapeKindItems(),
-      if (selected != null) ..._selectionItems(selected),
-      ..._manageItems(),
+      if (!widget.readOnly) ...[
+        ..._shapeKindItems(),
+        if (selected != null) ..._selectionItems(selected),
+        ..._manageItems(),
+      ],
     ];
   }
+
+  /// A section with its divider, or nothing at all when the section is empty.
+  static List<Widget> _withDivider(List<Widget> items) =>
+      items.isEmpty ? const [] : [const AppMenuDivider(), ...items];
 
   Widget _selfBubbleItem() => AppMenuItem(
     label: widget.selfBubbleHidden

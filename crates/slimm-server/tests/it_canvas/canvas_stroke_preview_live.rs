@@ -53,10 +53,8 @@ fn now_ms() -> i64 {
         .as_millis() as i64
 }
 
-/// The load-bearing pair: a viewer holding both bits receives the frame, with
-/// every field carried through, and a viewer denied `USE_CANVAS`
-/// specifically receives nothing even though `VIEW_CHANNEL` alone would pass
-/// a plain channel-scoped check. Mirrors `canvas_cursor_live.rs`'s own pair.
+/// A viewer receives the frame with every field carried through; a spectator
+/// without `USE_CANVAS` (below) does too, since watching needs only `VIEW_CHANNEL`.
 #[tokio::test]
 async fn a_viewer_with_both_bits_receives_the_preview() {
     let (store, _guard) = support::new_store("slimm-canvas-stroke-preview-live").await;
@@ -89,7 +87,7 @@ async fn a_viewer_with_both_bits_receives_the_preview() {
 }
 
 #[tokio::test]
-async fn a_member_denied_use_canvas_never_sees_a_preview() {
+async fn a_spectator_without_use_canvas_still_sees_a_preview() {
     let (store, _guard) = support::new_store("slimm-canvas-stroke-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
@@ -120,7 +118,7 @@ async fn a_member_denied_use_canvas_never_sees_a_preview() {
     )
     .await;
 
-    assert_no_frame_of_type(&mut carol_ws, "canvas.stroke_preview.updated").await;
+    read_frame_of_type(&mut carol_ws, "canvas.stroke_preview.updated").await;
 }
 
 /// Hiding presence does not hide live ink from people who can view the

@@ -7311,7 +7311,8 @@ paths:
       tags: [canvas]
       summary: Read the canvas objects in a region of a channel's canvas.
       description: >
-        Requires `VIEW_CHANNEL` and `USE_CANVAS`, evaluated for this channel.
+        Requires `VIEW_CHANNEL`, evaluated for this channel. A member without
+        `USE_CANVAS` reads the canvas as a spectator; drawing needs that bit.
         Returns every live object whose bounding box intersects the rectangle
         given by `min_x`, `min_y`, `max_x` and `max_y`, in paint order (`z_index`
         then `seq`), backed by a spatial index rather than a scan of the canvas.
@@ -7420,10 +7421,9 @@ paths:
       description: >
         Requires `VIEW_CHANNEL` and `USE_CANVAS`, evaluated for this channel,
         and is additionally refused while the caller is timed out. A timeout
-        does not subtract `USE_CANVAS` (that one bit means view *and* draw, so
-        subtracting it would blank the canvas rather than make it read-only),
-        so this route checks the timeout itself: a timed-out member keeps
-        seeing the canvas and cannot add to it.
+        does not subtract `USE_CANVAS` (a timed-out member still erases their
+        own ink with it), so this route checks the timeout itself: a timed-out
+        member keeps seeing the canvas and cannot add to it.
 
 
         `id` is a client-generated UUIDv7 and is the idempotency key, the same
@@ -7566,7 +7566,7 @@ paths:
       tags: [canvas]
       summary: Page a channel's canvas op stream from a cursor.
       description: >
-        Requires `VIEW_CHANNEL` and `USE_CANVAS`, evaluated for this channel,
+        Requires `VIEW_CHANNEL`, evaluated for this channel,
         byte-identical to the viewport read's gate. No timeout check: this is
         a read.
 
@@ -7802,7 +7802,7 @@ paths:
       tags: [canvas]
       summary: Read which canvas objects in a channel are locked in place.
       description: >
-        Requires `VIEW_CHANNEL` and `USE_CANVAS`, the same gate as the
+        Requires `VIEW_CHANNEL`, the same gate as the
         viewport read. Lists live objects only. A locked object refuses a
         `move` or `reorder` op with 409, and an erase that names it leaves
         it in place while removing the rest. No pagination: a channel holds
@@ -7883,7 +7883,7 @@ paths:
       tags: [canvas]
       summary: Read every camera or screen-share tile a channel's canvas remembers.
       description: >
-        Requires `VIEW_CHANNEL` and `USE_CANVAS`, evaluated for this channel,
+        Requires `VIEW_CHANNEL`, evaluated for this channel,
         byte-identical to the viewport read's gate. No timeout check: this is
         a read.
 
@@ -21010,9 +21010,9 @@ components:
       required: [type, channel_id, seq, object]
       description: >-
         An object was placed on a channel's canvas. Delivered only to
-        connections holding both `VIEW_CHANNEL` and `USE_CANVAS` in that
-        channel, matching what the viewport read requires, and only for a fresh
-        write - an idempotent replay broadcasts nothing.
+        connections holding `VIEW_CHANNEL` in that channel, matching what the
+        viewport read requires (a spectator without `USE_CANVAS` included),
+        and only for a fresh write - an idempotent replay broadcasts nothing.
       properties:
         type:
           type: string
