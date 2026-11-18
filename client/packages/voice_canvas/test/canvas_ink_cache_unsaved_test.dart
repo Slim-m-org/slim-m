@@ -14,7 +14,9 @@ import 'support/canvas_painter_fixtures.dart';
 import 'support/ink_texture_pixels.dart';
 
 const _blue = Color(0xFF2050E0);
-const _unsavedCount = 60;
+
+/// One past the live cap, so every one of them folds in and none paints live over the texture.
+const _unsavedCount = 49;
 
 CanvasStrokeInput _stroke(
   String id,

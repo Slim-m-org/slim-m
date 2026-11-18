@@ -201,14 +201,22 @@ class InkLayerCache {
       pad -= 0.05;
     }
     pad = math.max(pad, 0);
-    final logical = logicalFor(pad);
-    if (pixelsFor(logical) > _maxCachePixels) {
+    if (pixelsFor(logicalFor(pad)) > _maxCachePixels) {
       clear();
       return false;
     }
+    // The texture's own pixels must land on the screen's, or at a pixel ratio like 1.25 the cached ink sits half a pixel off the live ink.
+    double onPixels(double logical) => (logical * dpr).roundToDouble() / dpr;
+    final padX = onPixels(size.width * pad);
+    final padY = onPixels(size.height * pad);
+    final pixels = (
+      width: ((size.width + 2 * padX) * dpr).ceil(),
+      height: ((size.height + 2 * padY) * dpr).ceil(),
+    );
+    final logical = Size(pixels.width / dpr, pixels.height / dpr);
     final world = Rect.fromLTWH(
-      camera.x - size.width * pad / camera.zoom,
-      camera.y - size.height * pad / camera.zoom,
+      camera.x - padX / camera.zoom,
+      camera.y - padY / camera.zoom,
       logical.width / camera.zoom,
       logical.height / camera.zoom,
     );
@@ -221,10 +229,7 @@ class InkLayerCache {
     paintSlots(
         canvas, Camera(x: world.left, y: world.top, zoom: camera.zoom), slots);
     final picture = recorder.endRecording();
-    final image = picture.toImageSync(
-      (logical.width * dpr).ceil(),
-      (logical.height * dpr).ceil(),
-    );
+    final image = picture.toImageSync(pixels.width, pixels.height);
     picture.dispose();
     _image?.dispose();
     _image = image;

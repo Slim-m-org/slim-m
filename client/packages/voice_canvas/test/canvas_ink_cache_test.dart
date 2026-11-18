@@ -16,6 +16,9 @@ import 'support/ink_texture_pixels.dart';
 
 const _size = inkTestSize;
 
+/// One pixel in five thousand: round caps shade apart by a third of that at a fractional pixel ratio, a texture half a pixel off by three times it.
+const _capStray = 0.0002;
+
 CanvasStrokeInput _stroke(String id, double x, double y, {int seq = 1}) =>
     CanvasStrokeInput(
       id: id,
@@ -120,6 +123,24 @@ void main() {
       ..refresh();
     await expectInkMatchesLive(tester, painter, document);
   });
+
+  for (final dpr in [1.25, 1.5, 1.75, 2.625]) {
+    testWidgets(
+        'the texture and its patches at a ${dpr}x pixel ratio sit on '
+        'the live ink', (tester) async {
+      await warmInkTexture(tester, painter, dpr: dpr);
+      await expectInkMatchesLive(tester, painter, document, stray: _capStray);
+      document
+        ..moveObject('s86', 503.3, 497.7, 16, 16)
+        ..refresh();
+      await expectInkMatchesLive(tester, painter, document, stray: _capStray);
+      document
+        ..removeObject('s87')
+        ..refresh();
+      await expectInkMatchesLive(tester, painter, document, stray: _capStray);
+      expect(painter.debugHasInkTexture, isTrue);
+    });
+  }
 
   testWidgets('a removed object leaves the texture on the next frame', (
     tester,
