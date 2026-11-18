@@ -26,7 +26,8 @@ import 'role_holder_avatar.dart';
 /// summary, matching the design's own worked example.
 const _collapseAt = 5;
 
-/// How many more people each "Show more" on the add list reveals.
+/// How many people the add list shows at once, all of them up to this many;
+/// each "Show more" reveals this many again.
 const _candidatePage = 20;
 
 class RoleMembersTab extends ConsumerStatefulWidget {
@@ -46,7 +47,7 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
   final TextEditingController _search = TextEditingController();
   bool _expandBots = false;
   bool _expandPeople = false;
-  int _candidatesShown = _collapseAt;
+  int _candidatesShown = _candidatePage;
 
   @override
   void dispose() {
@@ -97,12 +98,16 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
         final role = widget.role;
         final ladder = ref.watch(roleLadderProvider);
         final locked = widget.locked || role.isManagedByBot || role.isBotsRole;
-        // Null until known: a server without the route must not call everyone silent.
-        final activity = locked
-            ? null
-            : ref.watch(memberActivityProvider).valueOrNull;
+        final activityState = locked ? null : ref.watch(memberActivityProvider);
+        // Null when it failed: a server without the route must not call everyone silent.
+        final activity = activityState?.valueOrNull;
+        // Rows wait for their order, so a click never lands on a row that is about to move.
+        final ordering =
+            activityState != null &&
+            !activityState.hasValue &&
+            !activityState.hasError;
         final searching = _search.text.trim().isNotEmpty;
-        final candidates = locked
+        final candidates = locked || ordering
             ? const <api.UserProfile>[]
             : roleCandidates(
                 members: list,
@@ -133,7 +138,7 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
                   icon: const Icon(AppIcons.search),
                   semanticLabel: 'Search members to add',
                   onChanged: (_) =>
-                      setState(() => _candidatesShown = _collapseAt),
+                      setState(() => _candidatesShown = _candidatePage),
                   onSubmitted: (_) {
                     if (!searching || candidates.isEmpty) return;
                     unawaited(_add(candidates.first));
@@ -149,7 +154,19 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
                   40,
                 ),
                 children: [
-                  if (candidates.isNotEmpty)
+                  if (ordering)
+                    const SettingsSectionCard(
+                      title: 'Add to this role',
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.all(AppSpacing.s16),
+                          child: Center(
+                            child: AppSpinner(size: AppSpinnerSize.lg),
+                          ),
+                        ),
+                      ],
+                    )
+                  else if (candidates.isNotEmpty)
                     SettingsSectionCard(
                       title: 'Add to this role',
                       children: [
@@ -167,7 +184,10 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
                               enterAdds: searching && index == 0,
                               onAdd: () => unawaited(_add(candidate)),
                             ),
-                            onTap: () => unawaited(_add(candidate)),
+                            // Unasked rows add only from their button, so a stray tap grants nothing.
+                            onTap: searching
+                                ? () => unawaited(_add(candidate))
+                                : null,
                           ),
                         if (moreCandidates > 0)
                           _ShowMoreRow(
@@ -212,7 +232,7 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
                     onRemove: remove,
                     removable: removable,
                     emptyTitle: 'No people hold this role',
-                    emptyDetail: candidates.isEmpty || searching
+                    emptyDetail: ordering || candidates.isEmpty || searching
                         ? null
                         : 'Add someone from the list above.',
                   ),

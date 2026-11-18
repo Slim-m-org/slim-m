@@ -3,15 +3,19 @@
 /// before any search, most recently active first, with a short activity label.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
+import 'package:slimm_app/src/features/settings/providers/role_candidates.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/role_members_tab.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../support/async_wait.dart';
+import '../../support/reduced_motion_harness.dart';
 import 'roles_config_harness.dart';
 
 const _role = api.Role(
@@ -55,6 +59,9 @@ Future<ConfigHarness> _open(
   await pumpFrames(tester);
   return h;
 }
+
+/// The tab's list, not the search field's own scrollable above it.
+Finder get _list => find.byWidgetPredicate((w) => w is Scrollable).last;
 
 double _top(WidgetTester tester, String text) =>
     tester.getTopLeft(find.text(text)).dy;
@@ -105,15 +112,93 @@ void main() {
     expect(find.text('person'), findsNothing);
   });
 
-  testWidgets('a long list shows five, then more on request', (tester) async {
+  testWidgets('a small Space lists everyone, with no Show more', (
+    tester,
+  ) async {
+    await _open(tester, [for (var i = 0; i < 20; i++) _member('p$i')]);
+
+    expect(find.widgetWithText(AppButton, 'Add'), findsNWidgets(20));
+    expect(find.textContaining('more'), findsNothing);
+  });
+
+  testWidgets('a long list shows twenty, then more on request', (tester) async {
     await _open(tester, [for (var i = 0; i < 30; i++) _member('p$i')]);
 
-    expect(find.widgetWithText(AppButton, 'Add'), findsNWidgets(5));
-    await tester.tap(find.text('Show 20 more'));
+    expect(find.widgetWithText(AppButton, 'Add'), findsNWidgets(20));
+    expect(find.text('p9'), findsNothing);
+    await tester.ensureVisible(find.text('Show 10 more'));
+    await tester.pump();
+    await tester.tap(find.text('Show 10 more'));
     await pumpFrames(tester);
 
-    expect(find.widgetWithText(AppButton, 'Add'), findsNWidgets(25));
-    expect(find.text('Show 5 more'), findsOneWidget);
+    expect(find.textContaining('Show'), findsNothing);
+    await tester.scrollUntilVisible(find.text('p9'), 200, scrollable: _list);
+    expect(
+      find.text('p9'),
+      findsOneWidget,
+      reason: 'last by name, so last shown',
+    );
+  });
+
+  testWidgets('an unasked row adds only from its Add button', (tester) async {
+    final h = await _open(tester, [_member('nadia')]);
+
+    await tester.tap(find.text('nadia'));
+    await pumpFrames(tester);
+    expect(h.writes, isEmpty, reason: 'a stray tap on the row grants nothing');
+
+    await tester.tap(find.widgetWithText(AppButton, 'Add'));
+    await pumpFrames(tester);
+    expect(h.writes.map((w) => '${w.method} ${w.path}'), [
+      'PUT /members/nadia/roles/role-mod',
+    ]);
+  });
+
+  testWidgets('a searched row still adds on tap', (tester) async {
+    final h = await _open(tester, [_member('nadia'), _member('omar')]);
+
+    await tester.enterText(
+      find.byWidgetPredicate((w) => w is TextField),
+      'nad',
+    );
+    await pumpFrames(tester);
+    await tester.tap(find.text('nadia'));
+    await pumpFrames(tester);
+
+    expect(h.writes.map((w) => '${w.method} ${w.path}'), [
+      'PUT /members/nadia/roles/role-mod',
+    ]);
+  });
+
+  testWidgets('the list waits for activity before it shows any row', (
+    tester,
+  ) async {
+    final activity = Completer<Map<String, int>>();
+    // Reduced motion stills the spinner, which would otherwise never let the harness settle.
+    await ConfigHarness().pump(
+      tester,
+      MediaQuery(
+        data: reducedMotionData().copyWith(size: const Size(900, 900)),
+        child: const RoleMembersTab(role: _role),
+      ),
+      overrides: [
+        membersProvider.overrideWith(
+          (ref) async => [_member('alpha'), _member('zed')],
+        ),
+        memberActivityProvider.overrideWith((ref) => activity.future),
+      ],
+    );
+    await pumpFrames(tester);
+
+    expect(find.text('Add to this role'), findsOneWidget);
+    expect(find.text('alpha'), findsNothing, reason: 'no row before its order');
+    expect(find.widgetWithText(AppButton, 'Add'), findsNothing);
+
+    activity.complete({'zed': _now});
+    await pumpFrames(tester);
+
+    expect(_top(tester, 'zed'), lessThan(_top(tester, 'alpha')));
+    expect(find.text('Posted just now'), findsOneWidget);
   });
 
   testWidgets('Enter in an empty search adds nobody', (tester) async {
