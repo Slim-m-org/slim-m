@@ -25,14 +25,19 @@ const _tokens = TokenPair(
   accessExpiresAt: 0,
 );
 
-String _deviceJson(String id, String name, {bool isCurrent = false}) =>
-    jsonEncode({
-      'id': id,
-      'name': name,
-      'created_at': 0,
-      'last_seen_at': DateTime.now().millisecondsSinceEpoch,
-      'is_current': isCurrent,
-    });
+String _deviceJson(
+  String id,
+  String name, {
+  bool isCurrent = false,
+  Map<String, Object?> extra = const {},
+}) => jsonEncode({
+  'id': id,
+  'name': name,
+  'created_at': 0,
+  'last_seen_at': DateTime.now().millisecondsSinceEpoch,
+  'is_current': isCurrent,
+  ...extra,
+});
 
 Future<ProviderContainer> _pump(
   WidgetTester tester,
@@ -265,5 +270,37 @@ void main() {
       tester.getTopLeft(find.text('This laptop')).dy,
       lessThan(tester.getTopLeft(find.text('A phone')).dy),
     );
+  });
+
+  testWidgets('a browser that signed out and back in says it signed in just '
+      'now, not when the install first did', (tester) async {
+    final now = DateTime.now();
+    await _pump(tester, (request) {
+      if (request.method == 'GET' && request.url.path == '/devices') {
+        final row = _deviceJson(
+          'web',
+          'Web (Firefox)',
+          extra: {
+            'created_at': now
+                .subtract(const Duration(days: 30))
+                .millisecondsSinceEpoch,
+            'signed_in_at': now.millisecondsSinceEpoch,
+            'client_kind': 'web',
+            'client_version': '0.131.0',
+          },
+        );
+        return http.Response(
+          '[$row]',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('{}', 404);
+    });
+
+    final line = find.textContaining('signed\u00A0in');
+    expect(line, findsOneWidget);
+    final text = tester.widget<Text>(line).data!.replaceAll('\u00A0', ' ');
+    expect(text, endsWith('signed in just now'));
   });
 }

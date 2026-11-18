@@ -15,15 +15,21 @@ api.Device _device({
   String? clientVersion,
   int? lastSeenAt,
   int? createdAt,
-}) => api.Device(
-  id: 'd1',
-  name: name,
-  createdAt: createdAt ?? DateTime.now().millisecondsSinceEpoch,
-  lastSeenAt: lastSeenAt,
-  isCurrent: false,
-  clientKind: clientKind,
-  clientVersion: clientVersion,
-);
+  int? signedInAt,
+  bool fromOlderServer = false,
+}) {
+  final now = DateTime.now().millisecondsSinceEpoch;
+  return api.Device(
+    id: 'd1',
+    name: name,
+    createdAt: createdAt ?? now,
+    signedInAt: fromOlderServer ? null : signedInAt ?? now,
+    lastSeenAt: lastSeenAt,
+    isCurrent: false,
+    clientKind: clientKind,
+    clientVersion: clientVersion,
+  );
+}
 
 void main() {
   group('devicePlatformLabel', () {
@@ -74,8 +80,28 @@ void main() {
       );
     });
 
-    test('says when each session signed in, so two alike can be told '
-        'apart', () {
+    test('says when the session signed in, not when the install first '
+        'did', () {
+      final now = DateTime.now();
+      final line = deviceDetailLine(
+        _device(
+          clientKind: 'web',
+          clientVersion: '0.131.0',
+          lastSeenAt: now.millisecondsSinceEpoch,
+          createdAt: now
+              .subtract(const Duration(days: 30))
+              .millisecondsSinceEpoch,
+          signedInAt: now.millisecondsSinceEpoch,
+        ),
+      );
+      expect(
+        line?.replaceAll('\u00A0', ' '),
+        'web 0.131.0 · active now · signed in just now',
+      );
+    });
+
+    test('from a server without the session time it says when the install '
+        'first signed in', () {
       final now = DateTime.now();
       final line = deviceDetailLine(
         _device(
@@ -85,11 +111,12 @@ void main() {
           createdAt: now
               .subtract(const Duration(days: 3))
               .millisecondsSinceEpoch,
+          fromOlderServer: true,
         ),
       );
       expect(
         line?.replaceAll('\u00A0', ' '),
-        'web 0.131.0 · active now · signed in 3d ago',
+        'web 0.131.0 · active now · first signed in 3d ago',
       );
     });
   });

@@ -244,7 +244,10 @@ String? deviceDetailLine(api.Device device) {
   ].join(' ');
   final raw = lastUsed(device.lastSeenAt).replaceFirst('Last used ', '');
   final active = raw.replaceRange(0, 1, raw[0].toLowerCase());
-  final signedIn = 'signed in ${formatRelativeAgeMs(device.createdAt)}';
+  final session = device.signedInAt;
+  final signedIn = session == null
+      ? 'first signed in ${formatRelativeAgeMs(device.createdAt)}'
+      : 'signed in ${formatRelativeAgeMs(session)}';
   // Wraps only between the parts, never inside one, on a narrow screen.
   return [
     client,
