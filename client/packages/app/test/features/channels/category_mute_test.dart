@@ -51,6 +51,9 @@ class _Rig {
   final requests = <String>[];
   final List<String> stored;
   bool refuseWrites = false;
+
+  /// How many of the next channel-override reads answer 500.
+  int failChannelReads = 0;
   late final MessageStore store;
   late final ProviderContainer container;
 
@@ -100,6 +103,10 @@ class _Rig {
     if (request.method != 'GET') requests.add('${request.method} $path');
     if (refuseWrites && request.method != 'GET') {
       return http.Response(jsonEncode({'error': 'no'}), 500);
+    }
+    if (path == '/notification-preferences/channels' && failChannelReads > 0) {
+      failChannelReads--;
+      return http.Response(jsonEncode({'error': 'down'}), 500);
     }
     if (path == '/notification-preferences/categories') {
       return _json([
@@ -202,5 +209,20 @@ void main() {
       const api.CategoryMuteChanged(categoryId: 'retro', muted: false),
     );
     expect(rig.effective(_snes), isNull);
+  });
+
+  test('a read that works after a failed one clears the failure', () async {
+    final rig = _Rig()..failChannelReads = 2;
+    await rig.start();
+    ChannelNotificationOverridesState held() =>
+        rig.container.read(channelNotificationOverridesProvider);
+    expect(held().error, isNotNull);
+
+    await rig.state.muteCategory('games');
+    expect(held().error, isNotNull);
+
+    await rig.state.refresh();
+    expect(held().error, isNull);
+    expect(held().settled, isTrue);
   });
 }

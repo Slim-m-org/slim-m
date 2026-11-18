@@ -39,6 +39,7 @@ class ChannelNotificationOverridesState {
     this.byChannel = const {},
     this.settled = false,
     this.error,
+    this.categoriesFailed = false,
     this.mutedCategories = const {},
     this.categoryParents = const {},
   });
@@ -56,6 +57,9 @@ class ChannelNotificationOverridesState {
   /// these.
   final String? error;
 
+  /// Whether the last read of the muted categories failed, so the next connect asks again.
+  final bool categoriesFailed;
+
   /// The categories this account muted itself; a sub-category of one is muted with it.
   final Set<String> mutedCategories;
 
@@ -65,12 +69,16 @@ class ChannelNotificationOverridesState {
   ChannelNotificationOverridesState copyWith({
     Map<String, api.NotificationPreference>? byChannel,
     bool? settled,
+    String? error,
+    bool clearError = false,
+    bool? categoriesFailed,
     Set<String>? mutedCategories,
     Map<String, String>? categoryParents,
   }) => ChannelNotificationOverridesState(
     byChannel: byChannel ?? this.byChannel,
     settled: settled ?? this.settled,
-    error: error,
+    error: clearError ? null : error ?? this.error,
+    categoriesFailed: categoriesFailed ?? this.categoriesFailed,
     mutedCategories: mutedCategories ?? this.mutedCategories,
     categoryParents: categoryParents ?? this.categoryParents,
   );
@@ -196,7 +204,11 @@ class ChannelNotificationOverridesController
           byChannel[key] = value;
         }
       }
-      state = state.copyWith(byChannel: byChannel, settled: true);
+      state = state.copyWith(
+        byChannel: byChannel,
+        settled: true,
+        clearError: true,
+      );
     } catch (error, stack) {
       api.reportFailure(
         api.LogTag.ui,
@@ -206,13 +218,7 @@ class ChannelNotificationOverridesController
       );
       if (!mounted || generation != _generation) return;
       final message = error is api.ApiException ? error.message : '$error';
-      state = ChannelNotificationOverridesState(
-        byChannel: state.byChannel,
-        settled: true,
-        error: message,
-        mutedCategories: state.mutedCategories,
-        categoryParents: state.categoryParents,
-      );
+      state = state.copyWith(settled: true, error: message);
     }
   }
 
@@ -224,7 +230,7 @@ class ChannelNotificationOverridesController
       for (final MapEntry(:key, :value) in _categoryEdits.entries) {
         value ? muted.add(key) : muted.remove(key);
       }
-      state = state.copyWith(mutedCategories: muted);
+      state = state.copyWith(mutedCategories: muted, categoriesFailed: false);
       _followParents();
     } catch (error, stack) {
       api.reportFailure(
@@ -233,6 +239,8 @@ class ChannelNotificationOverridesController
         error,
         stack,
       );
+      if (!mounted || generation != _generation) return;
+      state = state.copyWith(categoriesFailed: true);
     }
   }
 
