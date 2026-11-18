@@ -20,6 +20,7 @@ mod member_moderation_evicts_dm_calls;
 mod ring_audience;
 mod ring_do_not_disturb;
 mod ring_live_call;
+mod ring_throttle;
 mod screen_share_cap;
 mod screen_stamps;
 mod soundboard;
