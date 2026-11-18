@@ -80,6 +80,11 @@ pub struct ParticipantInfo {
 }
 
 impl WebhookEvent {
+    /// The channel the event's room names, or `None` for a room not shaped like one of ours.
+    pub fn channel_id(&self) -> Option<ChannelId> {
+        channel_for_room(&self.room.as_ref()?.name)
+    }
+
     /// When the SFU says the event's participant joined, in unix milliseconds; `None` when it predates the field.
     pub fn participant_joined_at_ms(&self) -> Option<i64> {
         let participant = self.participant.as_ref()?;

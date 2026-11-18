@@ -17,10 +17,12 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::http::{self, AppState};
+use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
+use uuid::Uuid;
 
 use crate::support;
 use support::livekit_webhook::{sign_webhook, webhook_request};
@@ -279,4 +281,52 @@ async fn a_hidden_participants_join_reaches_only_themselves() {
         .is_none(),
         "a hidden participant's join must not reach another viewer"
     );
+}
+
+/// One LiveKit can serve several deployments and its webhook reaches each of them with every
+/// room's events, so a room naming a channel this deployment never had is left alone.
+#[tokio::test]
+async fn a_room_this_deployment_never_had_is_left_alone() {
+    let (store, _guard) = support::new_store("slimm-live-voice-participant-events-test").await;
+    let state = state_for(&store);
+    let (channel, user) = (ChannelId(Uuid::now_v7()), UserId(Uuid::now_v7()));
+    let room = slimm_server::voice::room_for_channel(channel);
+
+    let joined_status = deliver(
+        http::router(state.clone()),
+        joined(&room, &user.to_string()),
+    )
+    .await;
+    assert!(!state.voice.live_state().is_present(channel, user));
+    let left_status = deliver(http::router(state.clone()), left(&room, &user.to_string())).await;
+    assert!(!state.voice.live_state().has_left(channel, user));
+
+    assert_eq!(
+        (joined_status, left_status),
+        (StatusCode::NO_CONTENT, StatusCode::NO_CONTENT)
+    );
+}
+
+/// A deleted channel is still this deployment's own, so the leaves after it ends the call count.
+#[tokio::test]
+async fn a_channel_deleted_mid_call_still_hears_its_leaves() {
+    let (store, _guard) = support::new_store("slimm-live-voice-participant-events-test").await;
+    store
+        .create_role("everyone", Permissions::VIEW_CHANNEL, true)
+        .await
+        .unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
+    store.create_channel("general", "text").await.unwrap();
+    let (_alice_token, alice_id) = member(&store, "alice").await;
+    let alice = UserId(alice_id.parse().unwrap());
+    let state = state_for(&store);
+    let room = slimm_server::voice::room_for_channel(channel.id);
+
+    deliver(http::router(state.clone()), joined(&room, &alice_id)).await;
+    assert!(state.voice.live_state().is_present(channel.id, alice));
+    assert!(store.delete_channel(channel.id).await.unwrap());
+    let status = deliver(http::router(state.clone()), left(&room, &alice_id)).await;
+
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert!(state.voice.live_state().has_left(channel.id, alice));
 }
