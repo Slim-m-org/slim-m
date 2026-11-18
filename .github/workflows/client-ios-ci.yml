@@ -163,8 +163,7 @@ jobs:
 
       # Chosen from what the runner actually has, not by name: a hardcoded
       # 'iPhone 16' broke on day one and would break on every image roll.
-      # Booted in the background while config-only fetches the Swift packages; during the Flutter cache restore it cut that download to a fifth.
-      - name: pick an available simulator and start booting it
+      - name: pick an available simulator
         id: sim
         run: |
           set -euo pipefail
@@ -186,9 +185,6 @@ jobs:
           fi
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
           xcrun simctl list devices available | grep "$udid" || true
-          started=$(date +%s)
-          (xcrun simctl bootstatus "$udid" -b && echo "booted in $(($(date +%s) - started))s") \
-            > "$RUNNER_TEMP/simulator-boot.log" 2>&1 &
 
       # Measured 2026-11-17: pod install took 2.2 s on a miss, so this saves little; the lockfiles decide its contents.
       - name: cache cocoapods
@@ -246,21 +242,22 @@ jobs:
           fi
           echo "the extension embeds no frameworks"
 
-      # One already-booted simulator: parallel testing would clone and boot more of them for a suite that runs in seconds.
+      # Booted here, not in the background: on a 3-core runner the boot slowed whatever ran beside it by about as much as it saved.
+      - name: boot the simulator
+        timeout-minutes: 15
+        run: |
+          SECONDS=0
+          xcrun simctl bootstatus "${{ steps.sim.outputs.udid }}" -b > "$RUNNER_TEMP/simulator-boot.log" \
+            || { cat "$RUNNER_TEMP/simulator-boot.log"; exit 1; }
+          echo "booted in ${SECONDS}s"
+
+      # The one booted simulator: parallel testing would clone and boot more of them for a suite that runs in seconds.
       - name: run xctest
         working-directory: client/packages/app/ios
         timeout-minutes: 30
         run: |
           set -euo pipefail
           udid="${{ steps.sim.outputs.udid }}"
-          SECONDS=0
-          if ! xcrun simctl bootstatus "$udid" -b; then
-            echo "::error::the simulator did not boot"
-            cat "$RUNNER_TEMP/simulator-boot.log" || true
-            exit 1
-          fi
-          echo "waited ${SECONDS}s for the simulator to finish booting"
-          tail -n 1 "$RUNNER_TEMP/simulator-boot.log"
           xcodebuild test-without-building \
             -workspace Runner.xcworkspace \
             -scheme Runner \
