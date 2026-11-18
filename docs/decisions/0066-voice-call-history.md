@@ -44,4 +44,6 @@ A finished call shorter than a minute is no longer listed; a call still going al
 The owner said the empty voice channel view "looks bad": with nothing to look back on, the join bar sat alone at the top of a blank pane.
 A channel with no calls to show (no webhook, a server too old, a failed load, or no calls yet) now gets a centred empty state instead: the channel's name, who is in it now, who can join, and the ways to join.
 Join muted stays the primary action, as design 13 has it, with a plain Join beside it as the secondary one; a channel that joins muted offers only Join muted, and Try again repeats whichever join failed.
-The empty state also stands in while the history loads, so Join is never held back by the request, and the history of the last few voice channels visited is kept, so coming back shows it at once and refetches behind it.
+The empty state also stands in while the history loads, so Join is never held back by the request.
+It waits a quarter of a second first, so a channel whose history arrives quickly goes straight to it and never flashes the empty state.
+The history of the last few voice channels visited is kept, so coming back shows it at once and refetches behind it.
