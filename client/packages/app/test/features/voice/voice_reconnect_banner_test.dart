@@ -36,7 +36,7 @@ const _bob = VoiceParticipant(
 
 const _copy = 'Reconnecting to the call.';
 
-Future<ReconnectTracker> _connected(
+Future<FakeSession> _connected(
   WidgetTester tester,
   VoiceHarness harness,
 ) async {
@@ -65,7 +65,7 @@ Future<ReconnectTracker> _connected(
   session.emitParticipants(const [_me, _bob]);
   await tester.pump();
   await tester.pump();
-  return session.health.reconnect;
+  return session;
 }
 
 void main() {
@@ -73,7 +73,8 @@ void main() {
       'end of it removes it', (tester) async {
     final harness = VoiceHarness();
     try {
-      final transport = await _connected(tester, harness);
+      final session = await _connected(tester, harness);
+      final transport = session.health.reconnect;
       expect(find.textContaining(_copy), findsNothing);
 
       transport.started(ReconnectKind.resume);
@@ -87,9 +88,19 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       expect(find.textContaining(_copy), findsOneWidget);
       expect(
-        find.textContaining('You can still hear everyone'),
+        find.textContaining('out of date'),
+        findsNothing,
+        reason: 'an ordinary resume says nothing it does not know',
+      );
+      expect(find.textContaining('hear everyone'), findsNothing);
+      session.health.noteLink(
+        const CallLink(signalSilence: kSignalSilentAfter),
+      );
+      await tester.pump();
+      expect(
+        find.text('Reconnecting to the call. Who is here may be out of date.'),
         findsOneWidget,
-        reason: 'a resume keeps the media path',
+        reason: 'the signalling socket has missed its answers',
       );
       transport.started(ReconnectKind.restart);
       await tester.pump();
@@ -121,7 +132,7 @@ void main() {
       'the banner', (tester) async {
     final harness = VoiceHarness();
     try {
-      final transport = await _connected(tester, harness);
+      final transport = (await _connected(tester, harness)).health.reconnect;
 
       transport.started(ReconnectKind.resume);
       await tester.pump(const Duration(milliseconds: 400));
@@ -138,7 +149,7 @@ void main() {
   testWidgets('a second blip waits out its own debounce', (tester) async {
     final harness = VoiceHarness();
     try {
-      final transport = await _connected(tester, harness);
+      final transport = (await _connected(tester, harness)).health.reconnect;
       transport.started(ReconnectKind.resume);
       await tester.pump(kReconnectBannerDelay + const Duration(seconds: 1));
       transport.ended('reconnected');

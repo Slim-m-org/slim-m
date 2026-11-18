@@ -41,6 +41,14 @@ final voiceRestartingProvider =
       ),
     );
 
+/// The call's media and signalling legs; null outside a call.
+final voiceLinkProvider =
+    StateNotifierProvider<ListenableState<CallLink?>, CallLink?>(
+      (ref) => ListenableState(
+        ref.watch(voiceControllerProvider.notifier).health.link,
+      ),
+    );
+
 /// The last finished call's numbers, or null before any call has ended.
 final lastCallHealthProvider =
     StateNotifierProvider<

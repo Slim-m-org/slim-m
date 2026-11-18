@@ -118,6 +118,9 @@ class CallStageLayout extends ConsumerWidget {
                   voice.rejoining ||
                   gap.selfMissing ||
                   ref.watch(voiceRestartingProvider),
+              signalSilent: ref.watch(
+                voiceLinkProvider.select((l) => l?.signalSilent ?? false),
+              ),
             )
           else
             const CallGapBanner(child: PoorConnectionBanner()),
