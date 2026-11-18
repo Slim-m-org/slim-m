@@ -16,6 +16,7 @@ import 'package:slimm_app/src/features/voice/widgets/call_header_facts.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/widgets/space_connection_dot.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_api/api.dart' show EdgeReading;
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_controller_harness.dart';
@@ -26,17 +27,16 @@ class _FixedStatus extends ConnectionStatusNotifier {
   @override
   ConnectionStatus build() => (
     report: connectionReportOf(
-      direct: false,
-      responded: true,
-      apiColo: 'GRU',
-      apiRoundTrip: const Duration(milliseconds: 182),
-      apiMeasuredAt: DateTime.now(),
-      serverTrace: null,
+      server: EdgeReading(
+        colo: 'GRU',
+        direct: false,
+        roundTrip: const Duration(milliseconds: 182),
+        at: DateTime.now(),
+      ),
       signalTrace: null,
       call: const CallLink(mediaRttMs: 4, media: MediaRoute.direct),
-      now: DateTime.now(),
     ),
-    concern: const RouteConcern(farCity: 'São Paulo'),
+    concern: const RouteConcern(city: 'São Paulo'),
   );
 
   @override

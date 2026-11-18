@@ -4,7 +4,7 @@
 /// Plain data and pure functions, so the thresholds are tested without a network.
 library;
 
-import 'package:slimm_api/api.dart' show EdgeTrace;
+import 'package:slimm_api/api.dart' show EdgeReading, EdgeTrace;
 import 'package:slimm_rtc/rtc.dart' show CallLink, MediaRoute;
 
 import 'cloudflare_colos.g.dart';
@@ -19,10 +19,13 @@ const int kSlowRouteMs = 250;
 /// A call audio round trip under which a slow route is the route's fault, not the network's.
 const int kQuickMediaMs = 100;
 
-/// Silence on the call's signalling socket that already means a lost answer.
+/// How far a Cloudflare leg may run past the call audio's own round trip before it is a detour.
 ///
-/// LiveKit pings every few seconds and gives up after 15 s; past this one answer is overdue.
-const Duration kSignalSilentAfter = Duration(seconds: 12);
+/// The normal path measured above sits at most about 110 ms past call audio.
+const int kDetourMs = 200;
+
+/// How long a leg's last measurement may stand behind a concern.
+const Duration kConcernFreshFor = Duration(seconds: 60);
 
 /// Which way the API's traffic reaches the server.
 enum ServerRoute { localNetwork, cloudflare, internet }
@@ -30,117 +33,111 @@ enum ServerRoute { localNetwork, cloudflare, internet }
 /// The city a data centre code names, or the code itself when the table does not know it.
 String coloCity(String colo) => cloudflareColos[colo]?.$1 ?? colo;
 
-String? _coloCountry(String? colo) =>
-    colo == null ? null : cloudflareColos[colo]?.$2;
-
 /// Everything the connection details show, as of [checkedAt].
 class ConnectionReport {
   const ConnectionReport({
     this.server,
     this.serverColo,
     this.serverRttMs,
-    this.country,
+    this.serverAt,
     this.inCall = false,
     this.signalColo,
     this.signalRttMs,
+    this.signalAt,
     this.signalSilent = false,
     this.media,
     this.mediaRttMs,
     this.checkedAt,
   });
 
-  /// Null until the first response says which way it came.
+  /// Null until the first timed request says which way it went.
   final ServerRoute? server;
   final String? serverColo;
   final int? serverRttMs;
 
-  /// The two-letter country Cloudflare places this device in.
-  final String? country;
+  /// When the server leg was measured; a new value is a new measurement.
+  final DateTime? serverAt;
   final bool inCall;
   final String? signalColo;
   final int? signalRttMs;
+
+  /// When the signalling round trip was last renewed; a new value is a new measurement.
+  final DateTime? signalAt;
   final bool signalSilent;
   final MediaRoute? media;
   final int? mediaRttMs;
+
+  /// The older of the server leg's measurement and the call's last sample.
   final DateTime? checkedAt;
 }
 
-/// Builds the report from what each leg last measured.
+/// Builds the report from what each leg last measured; the server leg's route and figure come from one request.
 ConnectionReport connectionReportOf({
-  required bool direct,
-  required bool responded,
-  required String? apiColo,
-  required Duration? apiRoundTrip,
-  required DateTime? apiMeasuredAt,
-  required EdgeTrace? serverTrace,
+  required EdgeReading? server,
   required EdgeTrace? signalTrace,
   required CallLink? call,
-  required DateTime now,
 }) {
-  final server = direct
-      ? ServerRoute.localNetwork
-      : !responded
+  final route = server == null
       ? null
-      : apiColo != null
+      : server.colo != null
       ? ServerRoute.cloudflare
+      : server.direct
+      ? ServerRoute.localNetwork
       : ServerRoute.internet;
-  final silence = call?.signalSilence;
+  final times = [server?.at, call?.at].whereType<DateTime>().toList()..sort();
   return ConnectionReport(
-    server: server,
-    serverColo: server == ServerRoute.cloudflare ? apiColo : null,
-    serverRttMs: apiRoundTrip?.inMilliseconds,
-    country: serverTrace?.country ?? signalTrace?.country,
+    server: route,
+    serverColo: server?.colo,
+    serverRttMs: server?.roundTrip.inMilliseconds,
+    serverAt: server?.at,
     inCall: call != null,
     signalColo: call == null ? null : signalTrace?.colo,
     signalRttMs: call?.signalRttMs,
-    signalSilent: silence != null && silence >= kSignalSilentAfter,
+    signalAt: call?.signalAt,
+    signalSilent: call?.signalSilent ?? false,
     media: call?.media,
     mediaRttMs: call?.mediaRttMs,
-    checkedAt: call != null ? now : apiMeasuredAt,
+    checkedAt: times.firstOrNull,
   );
 }
 
-/// Why the route deserves a word, or null when it does not.
+/// Why the route deserves a word: a Cloudflare leg measured slow beside quick call audio.
 class RouteConcern {
-  const RouteConcern({this.farCity});
+  const RouteConcern({required this.city});
 
-  /// The data centre city outside the device's country; null when the concern is only speed.
-  final String? farCity;
+  /// The city of the data centre the slow leg passes through.
+  final String city;
 
-  String get message => farCity != null
-      ? 'Cloudflare is routing you through $farCity right now. '
-            'Calls may be slower to join and to notice who left.'
-      : 'The route to the server is slow right now. '
-            'Calls may be slower to join and to notice who left.';
+  String get message =>
+      'Cloudflare is routing you through $city, and it is slow right now. '
+      'Calls may be slower to join and to notice who left.';
 
   @override
-  bool operator ==(Object other) =>
-      other is RouteConcern && other.farCity == farCity;
+  bool operator ==(Object other) => other is RouteConcern && other.city == city;
 
   @override
-  int get hashCode => farCity.hashCode;
+  int get hashCode => city.hashCode;
 }
 
-/// The concern [report] raises on its own, before any smoothing.
-RouteConcern? routeConcernOf(ConnectionReport report) {
-  final home = report.country;
-  for (final colo in [report.serverColo, report.signalColo]) {
-    final where = _coloCountry(colo);
-    if (home != null && where != null && where != home) {
-      return RouteConcern(farCity: coloCity(colo!));
-    }
-  }
-  final media = report.mediaRttMs;
-  final quickMedia = media == null || media < kQuickMediaMs;
-  final overCloudflare = [
-    if (report.server == ServerRoute.cloudflare) report.serverRttMs,
-    if (report.signalColo != null) report.signalRttMs,
-  ].whereType<int>();
-  if (quickMedia && overCloudflare.any((ms) => ms >= kSlowRouteMs)) {
-    return const RouteConcern();
-  }
-  return null;
+/// Whether [legMs] over Cloudflare is slow beside call audio at [mediaMs]; never without a call audio reading.
+bool slowBesideMedia(int? legMs, int? mediaMs) {
+  if (legMs == null || mediaMs == null) return false;
+  return (legMs >= kSlowRouteMs && mediaMs < kQuickMediaMs) ||
+      legMs - mediaMs >= kDetourMs;
 }
+
+/// The concern the server leg raises on its own, before any smoothing.
+RouteConcern? serverConcernOf(ConnectionReport r) =>
+    r.server == ServerRoute.cloudflare &&
+        slowBesideMedia(r.serverRttMs, r.mediaRttMs)
+    ? RouteConcern(city: coloCity(r.serverColo!))
+    : null;
+
+/// The concern the signalling leg raises on its own, before any smoothing.
+RouteConcern? signalConcernOf(ConnectionReport r) =>
+    r.signalColo != null && slowBesideMedia(r.signalRttMs, r.mediaRttMs)
+    ? RouteConcern(city: coloCity(r.signalColo!))
+    : null;
 
 /// Shows a concern after two readings in a row, and clears it after three clean ones,
 /// so a single flip between nearby data centres never flickers it.
@@ -163,6 +160,42 @@ class RouteConcernGate {
       if (_shown != null || ++_bad >= showAfter) _shown = now;
     }
     return _shown;
+  }
+}
+
+/// One leg's [RouteConcernGate], fed once per measurement, never per recompute, and only in a call.
+class _LegWatch {
+  _LegWatch(this._concernOf, this._measuredAt);
+
+  final RouteConcern? Function(ConnectionReport) _concernOf;
+  final DateTime? Function(ConnectionReport) _measuredAt;
+  RouteConcernGate _gate = RouteConcernGate();
+  DateTime? _seen;
+
+  RouteConcern? update(ConnectionReport r, DateTime now) {
+    final at = r.inCall ? _measuredAt(r) : null;
+    if (at == null) {
+      _gate = RouteConcernGate();
+      _seen = null;
+      return null;
+    }
+    if (at != _seen) {
+      _seen = at;
+      _gate.update(_concernOf(r));
+    }
+    return now.difference(at) < kConcernFreshFor ? _gate.shown : null;
+  }
+}
+
+/// The smoothed concern across the Cloudflare legs; see [RouteConcernGate].
+class RouteWatch {
+  final _signal = _LegWatch(signalConcernOf, (r) => r.signalAt);
+  final _server = _LegWatch(serverConcernOf, (r) => r.serverAt);
+
+  RouteConcern? update(ConnectionReport r, DateTime now) {
+    final signal = _signal.update(r, now);
+    final server = _server.update(r, now);
+    return signal ?? server;
   }
 }
 

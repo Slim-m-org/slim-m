@@ -34,7 +34,6 @@ class EventConnection {
     Duration keepaliveInterval = const Duration(seconds: 20),
     WebSocketChannel Function(Uri url)? open,
     bool? active,
-    void Function(Duration roundTrip)? onRoundTrip,
   }) async {
     final channel = (open ?? WebSocketChannel.connect)(url);
     // A connect that lands after the timeout would otherwise leave a socket nobody listens to.
@@ -62,11 +61,7 @@ class EventConnection {
               'Dropped a server message that could not be read', error, stack);
           return;
         }
-        if (event is PongEvent) {
-          liveness?.ponged();
-        } else if (event != null) {
-          events.add(event);
-        }
+        if (event != null && event is! PongEvent) events.add(event);
       },
       onError: events.addError,
       onDone: () {
@@ -105,7 +100,6 @@ class EventConnection {
         final live = SocketLiveness(
           ping: () => channel.sink.add(jsonEncode({'type': 'ping'})),
           interval: keepaliveInterval,
-          onRoundTrip: onRoundTrip,
           onSilent: () {
             unawaited(subscription.cancel());
             unawaited(channel.sink.close());

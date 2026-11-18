@@ -25,9 +25,12 @@ class VoiceHealthWatchHost {
 
 /// Samples the call's audio stats into [health] and [diagnostics].
 class VoiceHealthWatch {
-  VoiceHealthWatch(this._host);
+  VoiceHealthWatch(this._host, {DateTime Function()? clock})
+      : _clock = clock ?? DateTime.now,
+        _pulse = SignalPulse(clock: clock);
 
   final VoiceHealthWatchHost _host;
+  final DateTime Function() _clock;
 
   /// Per-person quality and the last call's summary; see [VoiceHealth].
   final VoiceHealth health = VoiceHealth();
@@ -47,7 +50,7 @@ class VoiceHealthWatch {
   );
 
   final _mediaSource = MediaSourceNote();
-  final _pulse = SignalPulse();
+  final SignalPulse _pulse;
 
   void _log(String line, {LogLevel level = LogLevel.info}) {
     diagnostics.noteHealthLine(line);
@@ -125,7 +128,7 @@ class VoiceHealthWatch {
     final reports =
         track is lk.LocalAudioTrack ? await track.sender?.getStats() : null;
     if (reports == null) {
-      _noteLink(room, null);
+      _noteLink(room, await _heardTransport(room));
       return null;
     }
     final entries = _entries(reports);
@@ -134,6 +137,20 @@ class VoiceHealthWatch {
     _noteLink(room, transport);
     _mediaSource.note(entries, _host.diag);
     return parseAudioSend(entries);
+  }
+
+  /// The path as a receiver sees it, for a listener with no microphone published.
+  Future<TransportStats?> _heardTransport(lk.Room? room) async {
+    final peers = room?.remoteParticipants.values.toList() ?? const [];
+    for (final peer in peers) {
+      for (final pub in peer.audioTrackPublications) {
+        final track = pub.track;
+        if (track is! lk.RemoteAudioTrack) continue;
+        final reports = await track.receiver?.getStats();
+        if (reports != null) return parseTransportStats(_entries(reports));
+      }
+    }
+    return null;
   }
 
   /// Keeps the last media reading when [transport] is null, so a muted moment does not blank it.
@@ -150,6 +167,8 @@ class VoiceHealthWatch {
       media: mediaRouteOf(transport) ?? before?.media,
       signalRttMs: signal.rttMs,
       signalSilence: signal.silence,
+      signalAt: signal.heardAt,
+      at: _clock(),
     ));
   }
 

@@ -66,20 +66,25 @@ void main() {
     test('counts silence from the last pong the SDK counted', () {
       var now = DateTime(2026, 11, 18, 20);
       final pulse = SignalPulse(clock: () => now);
-      expect(pulse.observe(pings: 0, rttMs: 0), (rttMs: null, silence: null));
+      expect(
+        pulse.observe(pings: 0, rttMs: 0),
+        (rttMs: null, silence: null, heardAt: null),
+      );
+      final first = now;
       expect(
         pulse.observe(pings: 1, rttMs: 42),
-        (rttMs: 42, silence: Duration.zero),
+        (rttMs: 42, silence: Duration.zero, heardAt: first),
       );
       now = now.add(const Duration(seconds: 5));
+      final second = now;
       expect(
         pulse.observe(pings: 2, rttMs: 44),
-        (rttMs: 44, silence: Duration.zero),
+        (rttMs: 44, silence: Duration.zero, heardAt: second),
       );
       now = now.add(const Duration(seconds: 12));
       expect(
         pulse.observe(pings: 2, rttMs: 44),
-        (rttMs: 44, silence: const Duration(seconds: 12)),
+        (rttMs: 44, silence: const Duration(seconds: 12), heardAt: second),
       );
     });
   });

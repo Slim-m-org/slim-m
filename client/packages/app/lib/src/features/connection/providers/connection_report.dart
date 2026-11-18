@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The live connection report: the API's own traffic, the call's legs, and Cloudflare's traces.
+/// The live connection report: timed requests to the server, the call's legs, and a Cloudflare trace of the call's host.
 ///
-/// Traces are fetched on demand, when something first watches this and once
-/// per call, never on a timer; only their data centre and country are kept.
+/// Nothing here runs on a timer: the server is timed when something first
+/// watches this, when a call starts or comes back from a repair, and on a
+/// check; the call's host is traced at the same moments in a call. Only the
+/// trace's data centre is kept.
 library;
 
 import 'dart:async';
@@ -15,7 +17,7 @@ import '../../../providers/providers.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../connection_route.dart';
 
-/// The report and the concern it raises once smoothed by [RouteConcernGate].
+/// The report and the concern it raises once smoothed by [RouteWatch].
 typedef ConnectionStatus = ({ConnectionReport report, RouteConcern? concern});
 
 final connectionStatusProvider =
@@ -26,10 +28,10 @@ final connectionStatusProvider =
 class ConnectionStatusNotifier extends AutoDisposeNotifier<ConnectionStatus> {
   late SlimmApi _api;
   late VoiceHealth _health;
-  final _gate = RouteConcernGate();
-  EdgeTrace? _serverTrace;
+  final _watch = RouteWatch();
   EdgeTrace? _signalTrace;
   bool _hadCall = false;
+  bool _repairing = false;
   bool _gone = false;
 
   @override
@@ -37,64 +39,63 @@ class ConnectionStatusNotifier extends AutoDisposeNotifier<ConnectionStatus> {
     _api = ref.watch(apiProvider);
     _health = ref.watch(voiceControllerProvider.notifier).health;
     final edge = _api.edge.changes.listen((_) => _recompute());
-    final direct = _api.directRouteChanges.listen((_) => _recompute());
+    final repair = _health.reconnect.active;
     _health.link.addListener(_onCall);
+    repair.addListener(_onRepair);
     _gone = false;
     ref.onDispose(() {
       _gone = true;
       unawaited(edge.cancel());
-      unawaited(direct.cancel());
       _health.link.removeListener(_onCall);
+      repair.removeListener(_onRepair);
     });
-    unawaited(_traceServer());
     _hadCall = _health.link.value != null;
-    if (_hadCall) unawaited(_traceSignal());
+    _repairing = repair.value;
+    unawaited(refresh());
     return _read();
   }
 
-  /// Measures the server leg now and asks Cloudflare again, for a person who opened the details.
+  /// Times the server now and, in a call, traces the call's host again.
   Future<void> refresh() async {
     await Future.wait([
       _api.measureRoundTrip(),
-      _traceServer(),
       if (_health.link.value != null) _traceSignal(),
     ]);
   }
 
   void _onCall() {
     final inCall = _health.link.value != null;
-    if (inCall && !_hadCall) unawaited(_traceSignal());
+    if (inCall && !_hadCall) unawaited(refresh());
     if (!inCall) _signalTrace = null;
     _hadCall = inCall;
     _recompute();
   }
 
-  Future<void> _traceServer() async {
-    _serverTrace = await _api.cloudflareTrace();
-    _recompute();
+  // A repaired signalling socket may have landed in another data centre.
+  void _onRepair() {
+    final repairing = _health.reconnect.active.value;
+    if (_repairing && !repairing && _health.link.value != null) {
+      unawaited(refresh());
+    }
+    _repairing = repairing;
   }
 
   Future<void> _traceSignal() async {
     final url = _health.signalUrl;
     if (url == null) return;
-    _signalTrace = await _api.cloudflareTrace(host: url);
+    final trace = await _api.cloudflareTrace(host: url);
+    if (_health.link.value == null) return;
+    _signalTrace = trace;
     _recompute();
   }
 
   ConnectionStatus _read() {
-    final edge = _api.edge;
     final report = connectionReportOf(
-      direct: _api.usesDirectRoute,
-      responded: edge.seen,
-      apiColo: edge.colo,
-      apiRoundTrip: edge.roundTrip,
-      apiMeasuredAt: edge.measuredAt,
-      serverTrace: _serverTrace,
+      server: _api.edge.last,
       signalTrace: _signalTrace,
       call: _health.link.value,
-      now: DateTime.now(),
     );
-    return (report: report, concern: _gate.update(routeConcernOf(report)));
+    return (report: report, concern: _watch.update(report, DateTime.now()));
   }
 
   void _recompute() {

@@ -17,83 +17,60 @@ String? cloudflareColoOf(String? cfRay) {
 
 /// What Cloudflare's `/cdn-cgi/trace` says about a connection.
 class EdgeTrace {
-  const EdgeTrace({required this.colo, required this.country});
+  const EdgeTrace({required this.colo});
 
   /// The data centre code, such as `IAD`.
   final String colo;
 
-  /// The two-letter country Cloudflare places this device in, when it says.
-  final String? country;
+  @override
+  bool operator ==(Object other) => other is EdgeTrace && other.colo == colo;
 
   @override
-  bool operator ==(Object other) =>
-      other is EdgeTrace && other.colo == colo && other.country == country;
-
-  @override
-  int get hashCode => Object.hash(colo, country);
+  int get hashCode => colo.hashCode;
 }
 
-/// Reads only `colo=` and `loc=` from a trace body; the address it also carries is never kept.
+/// Reads only `colo=` from a trace body; the address and location it also carries are never kept.
 EdgeTrace? parseCloudflareTrace(String body) {
-  String? colo;
-  String? country;
   for (final line in body.split('\n')) {
-    final eq = line.indexOf('=');
-    if (eq < 0) continue;
-    final value = line.substring(eq + 1).trim();
-    switch (line.substring(0, eq)) {
-      case 'colo':
-        colo = _iata.hasMatch(value.toUpperCase()) ? value.toUpperCase() : null;
-      case 'loc':
-        country = RegExp(r'^[A-Za-z]{2}$').hasMatch(value)
-            ? value.toUpperCase()
-            : null;
-    }
+    if (!line.startsWith('colo=')) continue;
+    final value = line.substring('colo='.length).trim().toUpperCase();
+    return _iata.hasMatch(value) ? EdgeTrace(colo: value) : null;
   }
-  return colo == null ? null : EdgeTrace(colo: colo, country: country);
+  return null;
 }
 
-/// The API's route as its own traffic shows it: the last response's data
-/// centre and the event socket's last round trip.
-class EdgeWatch {
-  EdgeWatch({DateTime Function()? clock}) : _clock = clock ?? DateTime.now;
+/// One timed request to the server, with the way that same request travelled.
+class EdgeReading {
+  const EdgeReading({
+    required this.colo,
+    required this.direct,
+    required this.roundTrip,
+    required this.at,
+  });
 
-  final DateTime Function() _clock;
+  /// The data centre the response came through; null when no Cloudflare was in between.
+  final String? colo;
+
+  /// Whether the request went over the server's own network.
+  final bool direct;
+  final Duration roundTrip;
+  final DateTime at;
+}
+
+/// The API's route as its own timed requests last showed it.
+class EdgeWatch {
   final _changes = StreamController<void>.broadcast();
 
-  /// The data centre the last response came through; null when it came
-  /// straight from the server, or before any response.
-  String? get colo => _colo;
-  String? _colo;
+  /// The last timed request; null before one answered.
+  EdgeReading? get last => _last;
+  EdgeReading? _last;
 
-  /// Whether any response has been seen, so a null [colo] means "no CDN".
-  bool get seen => _seen;
-  bool _seen = false;
-
-  /// The event socket's last ping to pong.
-  Duration? get roundTrip => _roundTrip;
-  Duration? _roundTrip;
-
-  /// When [roundTrip] was measured.
-  DateTime? get measuredAt => _measuredAt;
-  DateTime? _measuredAt;
-
-  /// Fires on any change of the above.
+  /// Fires on each new [last].
   Stream<void> get changes => _changes.stream;
 
-  void noteResponse(String? cfRay) {
+  void note(EdgeReading reading) {
     if (_changes.isClosed) return;
-    final colo = cloudflareColoOf(cfRay);
-    if (_seen && colo == _colo) return;
-    _seen = true;
-    _colo = colo;
-    _changes.add(null);
-  }
-
-  void noteRoundTrip(Duration roundTrip) {
-    if (_changes.isClosed) return;
-    _roundTrip = roundTrip;
-    _measuredAt = _clock();
+    _last = reading;
     _changes.add(null);
   }
 

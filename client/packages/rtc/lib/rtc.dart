@@ -27,7 +27,7 @@ export 'src/screen_share_cursor.dart';
 export 'src/broadcast_bridge.dart';
 export 'src/call_diagnostics.dart'
     show CallDiagnostics, kDiagnosticsSummaryCap, kDiagnosticsTimelineCap;
-export 'src/call_link.dart' show CallLink, MediaRoute;
+export 'src/call_link.dart' show CallLink, MediaRoute, kSignalSilentAfter;
 export 'src/call_stats.dart';
 export 'src/strong_noise_suppression.dart';
 export 'src/strong_inactivity.dart';

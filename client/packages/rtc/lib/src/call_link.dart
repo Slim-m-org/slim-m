@@ -29,6 +29,11 @@ MediaRoute? mediaRouteOf(TransportStats? transport) {
   return transport.protocol == 'tcp' ? MediaRoute.directTcp : MediaRoute.direct;
 }
 
+/// Silence on the call's signalling socket that already means a lost answer.
+///
+/// LiveKit pings every few seconds and gives up after 15 s; past this one answer is overdue.
+const Duration kSignalSilentAfter = Duration(seconds: 12);
+
 /// One reading of the call's two legs; any part is null until measured.
 class CallLink {
   const CallLink({
@@ -36,6 +41,8 @@ class CallLink {
     this.media,
     this.signalRttMs,
     this.signalSilence,
+    this.signalAt,
+    this.at,
   });
 
   /// Round trip of the media path, in whole milliseconds.
@@ -48,11 +55,23 @@ class CallLink {
   /// How long the signalling socket has gone without answering a ping.
   final Duration? signalSilence;
 
+  /// When [signalRttMs] was last renewed by an answer, so one answer counts once.
+  final DateTime? signalAt;
+
+  /// When this reading was taken.
+  final DateTime? at;
+
+  /// Whether the signalling socket has missed an answer, so who is in the call may be out of date.
+  bool get signalSilent =>
+      (signalSilence ?? Duration.zero) >= kSignalSilentAfter;
+
   CallLink copyWith({int? mediaRttMs, MediaRoute? media}) => CallLink(
         mediaRttMs: mediaRttMs ?? this.mediaRttMs,
         media: media ?? this.media,
         signalRttMs: signalRttMs,
         signalSilence: signalSilence,
+        signalAt: signalAt,
+        at: at,
       );
 
   @override
@@ -61,11 +80,13 @@ class CallLink {
       other.mediaRttMs == mediaRttMs &&
       other.media == media &&
       other.signalRttMs == signalRttMs &&
-      other.signalSilence == signalSilence;
+      other.signalSilence == signalSilence &&
+      other.signalAt == signalAt &&
+      other.at == at;
 
   @override
   int get hashCode =>
-      Object.hash(mediaRttMs, media, signalRttMs, signalSilence);
+      Object.hash(mediaRttMs, media, signalRttMs, signalSilence, signalAt, at);
 }
 
 /// Times the signalling socket's answers from the SDK's own ping counter.
@@ -77,7 +98,7 @@ class SignalPulse {
   DateTime? _heardAt;
 
   /// Feeds the SDK's pong count and round trip; a count of 0 is not yet measured.
-  ({int? rttMs, Duration? silence}) observe({
+  ({int? rttMs, Duration? silence, DateTime? heardAt}) observe({
     required int pings,
     required int rttMs,
   }) {
@@ -86,11 +107,12 @@ class SignalPulse {
       _pings = pings;
       _heardAt = now;
     }
-    if (pings == 0) return (rttMs: null, silence: null);
+    if (pings == 0) return (rttMs: null, silence: null, heardAt: null);
     final heard = _heardAt;
     return (
       rttMs: rttMs > 0 ? rttMs : null,
       silence: heard == null ? null : now.difference(heard),
+      heardAt: heard,
     );
   }
 

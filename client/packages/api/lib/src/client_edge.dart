@@ -47,16 +47,26 @@ extension SlimmApiEdge on SlimmApi {
     }
   }
 
-  /// Times one request to the server now, and records it in [edge].
-  Future<Duration?> measureRoundTrip() async {
-    final clock = Stopwatch()..start();
+  /// Times one request to the server now, and records it in [edge] with the route it took.
+  Future<EdgeReading?> measureRoundTrip({DateTime Function()? clock}) async {
+    final watch = Stopwatch()..start();
+    String? cfRay;
     try {
-      await send('GET', '/diagnostics/ping');
+      await send(
+        'GET',
+        '/diagnostics/ping',
+        onHeaders: (headers) => cfRay = headers['cf-ray'],
+      );
     } on ApiException {
       return null;
     }
-    final elapsed = clock.elapsed;
-    edge.noteRoundTrip(elapsed);
-    return elapsed;
+    final reading = EdgeReading(
+      colo: cloudflareColoOf(cfRay),
+      direct: usesDirectRoute,
+      roundTrip: watch.elapsed,
+      at: (clock ?? DateTime.now)(),
+    );
+    edge.note(reading);
+    return reading;
   }
 }

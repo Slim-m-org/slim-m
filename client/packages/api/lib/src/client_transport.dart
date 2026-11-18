@@ -248,13 +248,10 @@ extension SlimmApiTransport on SlimmApi {
   }) async {
     try {
       // Chained, never `Future(() async { ... })`; see the note on this method.
-      final response = await (over ?? link.client)
+      return await (over ?? link.client)
           .send(request)
           .then(http.Response.fromStream)
           .timeout(deadline);
-      // A probe over a pinned route is not the route requests take.
-      if (over == null) link.edge.noteResponse(response.headers['cf-ray']);
-      return response;
     } on TimeoutException {
       throw TransportException(
         '$label got no answer within ${deadline.inSeconds} seconds',

@@ -366,7 +366,6 @@ class SyncController extends StateNotifier<SyncStatus> {
       ticket: ticket.ticket,
       open: api.openWebSocket,
       active: activeAtHello?.call(),
-      onRoundTrip: api.edge.noteRoundTrip,
     );
     if (generation != _generation) {
       await connection.close();
