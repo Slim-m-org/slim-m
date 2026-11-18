@@ -24,6 +24,7 @@ final voiceCallHistoryProvider = FutureProvider.autoDispose
       Timer? pending;
       var watched = true;
       var stale = false;
+      var disposed = false;
       // Unwatched, a change only marks it stale, so the next visit still shows the old history while it refetches.
       void refresh() {
         if (watched) return ref.invalidateSelf();
@@ -52,6 +53,7 @@ final voiceCallHistoryProvider = FutureProvider.autoDispose
         pending = Timer(Duration.zero, ref.invalidateSelf);
       });
       ref.onDispose(() {
+        disposed = true;
         pending?.cancel();
         unawaited(sub.cancel());
       });
@@ -71,7 +73,8 @@ final voiceCallHistoryProvider = FutureProvider.autoDispose
           calls: [],
         );
       } catch (_) {
-        _recent.release(channelId);
+        // A build already replaced holds no link; the one under this key is its successor's.
+        if (!disposed) _recent.release(channelId);
         rethrow;
       }
     });

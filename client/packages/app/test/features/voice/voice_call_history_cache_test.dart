@@ -23,7 +23,8 @@ typedef _Rig = ({
   List<String> requests,
 });
 
-_Rig _rig({int status = 200}) {
+/// [firstFailsAfter] holds the first request that long, then fails it.
+_Rig _rig({int status = 200, Duration? firstFailsAfter}) {
   final events = StreamController<api.ServerEvent>.broadcast();
   final requests = <String>[];
   final container = ProviderContainer(
@@ -41,10 +42,15 @@ _Rig _rig({int status = 200}) {
       liveEventsProvider.overrideWithValue(events.stream),
       mockApiOverride((request) async {
         requests.add(request.url.path);
+        final count = requests.length;
+        if (count == 1 && firstFailsAfter != null) {
+          await Future<void>.delayed(firstFailsAfter);
+          return http.Response('{}', 500);
+        }
         return http.Response(
           jsonEncode({
             'retention_days': 30,
-            'canvas_object_count': requests.length,
+            'canvas_object_count': count,
             'calls': const <Object>[],
           }),
           status,
@@ -101,6 +107,28 @@ void main() {
       _settle(async);
       expect(rig.requests, hasLength(2));
       expect(second.read().valueOrNull?.canvasObjectCount, 2);
+    });
+  });
+
+  test('a stale load that fails late keeps the newer history', () {
+    fakeAsync((async) {
+      final rig = _rig(firstFailsAfter: voiceCallHistoryRefreshDelay * 2);
+      addTearDown(rig.container.dispose);
+      final first = _visit(rig);
+      rig.events.add(
+        const api.VoiceParticipantJoined(channelId: 'voice-1', userId: 'kiki'),
+      );
+      async.elapse(voiceCallHistoryRefreshDelay);
+      _settle(async);
+      expect(first.read().valueOrNull?.canvasObjectCount, 2);
+      async.elapse(voiceCallHistoryRefreshDelay * 2);
+      expect(rig.requests, hasLength(2), reason: 'the first one has failed');
+      _leave(async, first);
+
+      final second = _visit(rig);
+      expect(second.read().valueOrNull?.canvasObjectCount, 2, reason: 'kept');
+      _settle(async);
+      expect(rig.requests, hasLength(2));
     });
   });
 
