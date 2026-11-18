@@ -241,16 +241,14 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
                   onCancel: widget.onCancelReply,
                 ),
         ),
-        // Not mounted at all, so no drop or share can stage into it; the staging and the draft outlive it.
-        if (readOnly)
-          const ComposerReadOnlyBar()
-        else
-          ComposerAutofocus(
-            channelId: channelId,
-            focusOnMount: widget.autofocus,
-            focusRequests: widget.focusRequests,
-            child: composer,
-          ),
+        // Kept mounted across the swap, so Send coming back does not refocus the field as if just opened.
+        ComposerAutofocus(
+          channelId: channelId,
+          focusOnMount: widget.autofocus,
+          focusRequests: widget.focusRequests,
+          // No composer at all while read-only, so no drop or share can stage into it; the staging and the draft outlive it.
+          child: readOnly ? const ComposerReadOnlyBar() : composer,
+        ),
       ],
     );
   }
