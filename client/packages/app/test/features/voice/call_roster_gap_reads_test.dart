@@ -43,10 +43,11 @@ const _bobRow = {
 };
 const _aliceRow = {'user_id': 'user-2', 'display_name': 'Alice'};
 
-/// The server's roster, read from [rows] each time, or a 503 while [failing].
+/// The server's roster, read from [rows] each time after [delay], or a 503 while [failing].
 class _Roster {
   List<Map<String, Object>> rows = const [_bobRow, _aliceRow];
   bool failing = false;
+  Duration delay = Duration.zero;
 
   http.Client client() {
     final base = voiceApi();
@@ -54,6 +55,7 @@ class _Roster {
       if (!request.url.path.endsWith('/voice/roster')) {
         return base.send(request).then(http.Response.fromStream);
       }
+      if (delay > Duration.zero) await Future<void>.delayed(delay);
       if (failing) return http.Response('', 503);
       return http.Response(
         jsonEncode({'participants': rows, 'call_age_ms': 1000}),
@@ -151,6 +153,49 @@ void main() {
       roster.failing = true;
       await call.advance(kRosterGapPoll);
       await call.advance(kRosterGapStale - kRosterGapPoll);
+      expect(find.textContaining('The call server lost you'), findsNothing);
+    } finally {
+      call.dispose();
+    }
+  });
+
+  testWidgets('reads that answer slowly still confirm someone undelivered, '
+      'and keep them shown', (tester) async {
+    final roster = _Roster()..delay = const Duration(seconds: 6);
+    final call = _Call(tester, roster);
+    final handle = tester.ensureSemantics();
+    try {
+      await call.start(const [_me]);
+      for (var s = 1; s <= 40; s++) {
+        await call.advance(const Duration(seconds: 1));
+        if (s < 23) continue;
+        expect(
+          find.bySemanticsLabel('Alice, connecting'),
+          findsOneWidget,
+          reason: 'at ${s}s',
+        );
+      }
+    } finally {
+      call.dispose();
+      handle.dispose();
+    }
+  });
+
+  testWidgets('a slow read that then fails still drops the gap it outlived', (
+    tester,
+  ) async {
+    final roster = _Roster()..rows = const [_aliceRow];
+    final call = _Call(tester, roster);
+    try {
+      await call.start(const [_me, _alice]);
+      await call.advance(kRosterGapPoll);
+      expect(find.textContaining('The call server lost you'), findsOneWidget);
+      roster
+        ..delay = const Duration(seconds: 6)
+        ..failing = true;
+      for (var s = 1; s <= 17; s++) {
+        await call.advance(const Duration(seconds: 1));
+      }
       expect(find.textContaining('The call server lost you'), findsNothing);
     } finally {
       call.dispose();

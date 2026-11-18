@@ -30,8 +30,8 @@ const kRosterGapPoll = Duration(seconds: 10);
 
 /// How long a shown gap may stand on the last good reading while reads fail.
 ///
-/// A failed read is no evidence either way, so past this the gap is dropped
-/// rather than left naming someone who may have left.
+/// A failed read is no evidence either way, so past this the gap is dropped;
+/// a read still out is waited for, as it may yet answer.
 const kRosterGapStale = Duration(seconds: 15);
 
 /// Someone the server lists in the call whom this device's call has not delivered.
@@ -150,15 +150,20 @@ class CallRosterGapNotifier extends AutoDisposeNotifier<CallRosterGap> {
         if (!p.isLocal) p.identity,
     };
 
-    void dropStale() {
+    void clear() {
       if (gone) return;
       tracker.reset();
       state = CallRosterGap.none;
     }
 
+    // A read still out decides for itself when it answers or fails.
+    void lapse() {
+      if (!inFlight) clear();
+    }
+
     void observe(List<api.VoiceRosterParticipant> server) {
       stale?.cancel();
-      stale = Timer(kRosterGapStale, dropStale);
+      stale = Timer(kRosterGapStale, lapse);
       state = tracker.observe(
         server: server,
         shown: shown(),
@@ -177,13 +182,14 @@ class CallRosterGapNotifier extends AutoDisposeNotifier<CallRosterGap> {
         )).participants;
         if (!gone) observe(server);
       } on Object catch (error, stack) {
-        // No reading at all: the last one ages until [kRosterGapStale] drops it.
         api.AppLog.swallowed(
           api.LogTag.voice,
           'Could not compare the call with the server',
           error,
           stack,
         );
+        // Its timer has run, so the last good reading is past [kRosterGapStale].
+        if (stale?.isActive == false) clear();
       } finally {
         inFlight = false;
       }
@@ -208,7 +214,7 @@ class CallRosterGapNotifier extends AutoDisposeNotifier<CallRosterGap> {
     // Nothing was read while unwatched, so a stage shown again confirms afresh; a timer, as a resume can land mid-build.
     ref.onResume(() {
       tracker.reset();
-      stale = Timer(Duration.zero, dropStale);
+      stale = Timer(Duration.zero, clear);
       unawaited(poll());
     });
     ref.onDispose(() {
