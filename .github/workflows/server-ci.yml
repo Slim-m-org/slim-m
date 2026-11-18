@@ -142,9 +142,6 @@ jobs:
         with:
           tool: cargo-nextest@0.9.143
       - name: test
-        env:
-          # PRs fuzz a quick seed sample; main, where releases are cut, explores the full range.
-          SLIMM_FULL_FUZZ: ${{ github.event_name == 'push' && '1' || '0' }}
         run: cargo nextest run --locked --workspace --partition hash:${{ matrix.partition }}/3
       - name: doctests
         # nextest does not run doctests; run them separately so they stay covered.

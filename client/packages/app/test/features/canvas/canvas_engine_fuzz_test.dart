@@ -17,12 +17,11 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../support/canvas_fuzz_actions.dart';
 import '../../support/canvas_fuzz_checks.dart';
 import '../../support/canvas_fuzz_world.dart';
-import '../../support/fuzz_budget.dart';
 
 int _env(String name, int fallback) =>
     int.tryParse(Platform.environment[name] ?? '') ?? fallback;
 
-final int _seeds = _env('CANVAS_FUZZ_SEEDS', fuzzSeeds(full: 200, quick: 20));
+final int _seeds = _env('CANVAS_FUZZ_SEEDS', 200);
 final int _first = _env('CANVAS_FUZZ_FIRST', 0);
 final int _ticks = _env('CANVAS_FUZZ_TICKS', 520);
 
