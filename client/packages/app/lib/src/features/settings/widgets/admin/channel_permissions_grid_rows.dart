@@ -55,7 +55,6 @@ class GridMetrics {
     required this.cellWidth,
     required this.addWidth,
     required this.rowHeight,
-    required this.headerHeight,
     required this.contentWidth,
     required this.viewportWidth,
     required this.compact,
@@ -75,7 +74,6 @@ class GridMetrics {
       cellWidth: cellWidth,
       addWidth: addWidth,
       rowHeight: compact ? AppSizes.rowTouch : wideRowHeight,
-      headerHeight: compact ? compactHeaderHeight : wideHeaderHeight,
       contentWidth: cellWidth * columnCount + addWidth,
       viewportWidth: viewport,
       compact: compact,
@@ -89,10 +87,6 @@ class GridMetrics {
   static const double wideCellWidth = 72;
   static const double wideRowHeight = 40;
   static const double groupHeaderHeight = 40;
-  static const double wideHeaderHeight = 124;
-
-  /// Room for the remove button at its 44dp touch size.
-  static const double compactHeaderHeight = 120;
 
   final double labelWidth;
   final double cellWidth;
@@ -100,7 +94,6 @@ class GridMetrics {
   /// The add column only holds a 44dp button, so it never takes a full cell.
   final double addWidth;
   final double rowHeight;
-  final double headerHeight;
 
   /// Width of every principal column plus the add column.
   final double contentWidth;
@@ -135,6 +128,7 @@ class Legend extends StatelessWidget {
     return Wrap(
       spacing: AppSpacing.s16,
       runSpacing: AppSpacing.s8,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         item(CellState.allow, 'Allow'),
         item(CellState.inherit, 'Inherit from role'),
@@ -202,27 +196,79 @@ class GroupHeaderRow extends StatelessWidget {
   }
 }
 
-/// One permission's name in the pinned label column.
-class GridLabelRow extends StatelessWidget {
-  const GridLabelRow({super.key, required this.label, required this.height});
+/// The permission row under the pointer, shared by its pinned label and its
+/// scrolling cells so the highlight spans both.
+class HoveredRow extends ValueNotifier<int?> {
+  HoveredRow() : super(null);
+}
 
-  final String label;
-  final double height;
+/// Tints one permission's half of a row while the pointer is anywhere on it.
+class _RowHover extends StatelessWidget {
+  const _RowHover({
+    required this.hovered,
+    required this.bit,
+    required this.child,
+  });
+
+  final HoveredRow hovered;
+  final int bit;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return SizedBox(
-      height: height,
-      child: Padding(
-        padding: const EdgeInsets.only(left: AppSpacing.s16, right: 8),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            label,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.ui.copyWith(color: tokens.textPrimary),
+    return MouseRegion(
+      onEnter: (_) => hovered.value = bit,
+      onExit: (_) {
+        if (hovered.value == bit) hovered.value = null;
+      },
+      child: ValueListenableBuilder(
+        valueListenable: hovered,
+        builder: (context, row, child) => AnimatedContainer(
+          duration: AppMotion.reduced(context, AppMotion.fast),
+          curve: AppMotion.entrance,
+          color: row == bit ? tokens.surfaceBase : Colors.transparent,
+          child: child,
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// One permission's name in the pinned label column.
+class GridLabelRow extends StatelessWidget {
+  const GridLabelRow({
+    super.key,
+    required this.label,
+    required this.height,
+    required this.bit,
+    required this.hovered,
+  });
+
+  final String label;
+  final double height;
+  final int bit;
+  final HoveredRow hovered;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return _RowHover(
+      hovered: hovered,
+      bit: bit,
+      child: SizedBox(
+        height: height,
+        child: Padding(
+          padding: const EdgeInsets.only(left: AppSpacing.s16, right: 8),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.ui.copyWith(color: tokens.textPrimary),
+            ),
           ),
         ),
       ),
@@ -238,21 +284,29 @@ class GridRow extends StatelessWidget {
     required this.columns,
     required this.metrics,
     required this.cellBuilder,
+    required this.bit,
+    required this.hovered,
   });
 
   final List<GridColumn> columns;
   final GridMetrics metrics;
   final Widget Function(GridColumn column) cellBuilder;
+  final int bit;
+  final HoveredRow hovered;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: metrics.rowHeight,
-    child: Row(
-      children: [
-        for (final column in columns)
-          SizedBox(width: metrics.cellWidth, child: cellBuilder(column)),
-        SizedBox(width: metrics.addWidth),
-      ],
+  Widget build(BuildContext context) => _RowHover(
+    hovered: hovered,
+    bit: bit,
+    child: SizedBox(
+      height: metrics.rowHeight,
+      child: Row(
+        children: [
+          for (final column in columns)
+            SizedBox(width: metrics.cellWidth, child: cellBuilder(column)),
+          SizedBox(width: metrics.addWidth),
+        ],
+      ),
     ),
   );
 }

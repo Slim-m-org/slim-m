@@ -198,7 +198,7 @@ class _CategoryHeaderMenuState extends ConsumerState<CategoryHeaderMenu> {
                 context,
                 categoryId: category.id,
                 categoryName: tree.pathOf(category),
-                isSubCategory: parent != null,
+                parentName: parent?.name,
                 holdsSubCategories: nests && parent == null,
                 subCategories: subs,
                 channels: channels,

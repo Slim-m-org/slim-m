@@ -269,6 +269,8 @@ class _SheetDialog extends StatelessWidget {
       surfaceTintColor: Colors.transparent,
       elevation: bare ? 0 : null,
       insetPadding: const EdgeInsets.all(AppSpacing.s24),
+      // A docked footer runs to the bottom edge; unclipped its square corners poke past the curve.
+      clipBehavior: bare ? Clip.none : Clip.antiAlias,
       shape: bare
           ? null
           : RoundedRectangleBorder(

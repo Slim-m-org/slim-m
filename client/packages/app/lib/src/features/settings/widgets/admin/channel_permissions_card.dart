@@ -30,34 +30,42 @@ class PermissionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final radius = BorderRadius.circular(AppRadii.card);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: tokens.surfaceRaised,
-        border: Border.all(color: tokens.borderSubtle),
-        borderRadius: BorderRadius.circular(AppRadii.card),
+        borderRadius: radius,
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadii.card - 1),
-        child: Column(
-          mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            PermissionsToolbar(
-              filter: filter,
-              onFilterChanged: onFilterChanged,
-              onAdd: onAdd,
-            ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.s16,
-                0,
-                AppSpacing.s16,
-                0,
+      child: DecoratedBox(
+        // In front, so a hovered row's tint cannot cover the card's edge.
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          border: Border.all(color: tokens.borderSubtle),
+          borderRadius: radius,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadii.card - 1),
+          child: Column(
+            mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              PermissionsToolbar(
+                filter: filter,
+                onFilterChanged: onFilterChanged,
+                onAdd: onAdd,
               ),
-              child: Legend(),
-            ),
-            if (shrinkWrap) grid else Expanded(child: grid),
-          ],
+              const Padding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.s16,
+                  0,
+                  AppSpacing.s16,
+                  0,
+                ),
+                child: Legend(),
+              ),
+              if (shrinkWrap) grid else Expanded(child: grid),
+            ],
+          ),
         ),
       ),
     );

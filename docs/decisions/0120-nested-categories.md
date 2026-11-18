@@ -312,7 +312,9 @@ At compact width the rail is `channel_rail_drawer`, which is this same widget wi
 - "Create sub-category..." appears on a top-level header when the server nests.
 - "Move category up" and "Move category down" move it among its siblings.
 - "Move into..." appears on a category with no sub-categories and lists every other top-level category in a sheet, and "Move out of gamers" appears on a sub-category.
-- "Permissions..." opens the same grid, and a sub-category's adds a sync line: "Follows its parent category's permissions." or "Has its own permissions." with "Sync with parent category".
+- "Permissions..." opens the same grid, and a sub-category's sheet opens on a "Follow <parent>" switch.
+  While it follows, the sheet only lists who can see it, since its access is set on the parent.
+  Turning the switch off saves an empty batch, which changes no permission but stops it following; turning it on asks first and runs "Sync with parent".
 - A top-level category's permissions caption says that channels and sub-categories following it get these permissions, and that anyone who can see a channel in one of its sub-categories also sees its name.
   It does not list which sub-categories follow it, which would cost one request per sub-category each time the sheet opens.
 - "Delete category..." says where the contents go: up into the parent for a sub-category, and for a parent, that its sub-categories become categories of their own.

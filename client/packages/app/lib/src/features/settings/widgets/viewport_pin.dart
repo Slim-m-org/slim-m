@@ -13,14 +13,18 @@ class ViewportPin extends StatefulWidget {
     super.key,
     required this.edge,
     required this.section,
-    required this.child,
-  });
+    this.child,
+    this.builder,
+  }) : assert((child == null) != (builder == null), 'child or builder');
 
   final ViewportEdge edge;
 
   /// The section the child may travel within, so it never floats past it.
   final GlobalKey section;
-  final Widget child;
+  final Widget? child;
+
+  /// For a child drawn differently while it is held off its place in the layout.
+  final Widget Function(BuildContext context, bool pinned)? builder;
 
   @override
   State<ViewportPin> createState() => _ViewportPinState();
@@ -115,6 +119,9 @@ class _ViewportPinState extends State<ViewportPin> {
 
   @override
   Widget build(BuildContext context) {
-    return Transform.translate(offset: Offset(0, _shift), child: widget.child);
+    return Transform.translate(
+      offset: Offset(0, _shift),
+      child: widget.builder?.call(context, _shift != 0) ?? widget.child,
+    );
   }
 }
