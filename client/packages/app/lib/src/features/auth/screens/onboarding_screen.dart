@@ -15,6 +15,7 @@ import '../../../default_server.dart';
 import '../../../deep_links.dart';
 import '../../../providers/providers.dart';
 import '../../accounts/widgets/add_server_cancel.dart';
+import 'invite_dialog.dart';
 import 'onboarding_dialogs.dart';
 import '../widgets/onboarding_shell.dart';
 import '../widgets/server_identity_confirmation.dart';
@@ -102,10 +103,7 @@ class OnboardingScreen extends ConsumerWidget {
     WidgetRef ref, {
     ({Uri server, String code})? initial,
   }) async {
-    final result = await showAppSheet<(Uri, String)>(
-      context,
-      builder: (context) => InviteDialog(initial: initial),
-    );
+    final result = await showInviteDialog(context, initial: initial);
     if (result == null || !context.mounted) return;
 
     final (server, code) = result;
