@@ -31,6 +31,7 @@ import '../../messages/providers/message_selection.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/widgets/call_keyboard_pill.dart';
 import '../../../widgets/dock_height_reporter.dart';
+import '../../../providers/admin_providers.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 import '../../composer/widgets/composer.dart';
@@ -86,9 +87,10 @@ class ChannelComposerArea extends ConsumerStatefulWidget {
 }
 
 class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
-  Timer? _expiry;
-  int? _expiryFor;
   StreamSubscription<api.ServerEvent>? _deletes;
+
+  /// The last settled answer to whether Send is missing here; see [_readOnlyNow].
+  bool _readOnly = false;
 
   /// Why a reply or an edit in progress just went away, until dismissed.
   String? _goneNotice;
@@ -111,7 +113,6 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
 
   @override
   void dispose() {
-    _expiry?.cancel();
     unawaited(_deletes?.cancel());
     super.dispose();
   }
@@ -128,19 +129,6 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
       widget.onCancelReply();
       setState(() => _goneNotice = replyGoneNotice);
     }
-  }
-
-  /// Rebuilds once at [until] so the banner leaves with the timeout, not at the next unrelated rebuild.
-  void _scheduleExpiry(int? until) {
-    if (until == _expiryFor) return;
-    _expiry?.cancel();
-    _expiryFor = until;
-    if (until == null) return;
-    final remaining = until - clock.now().millisecondsSinceEpoch;
-    if (remaining <= 0) return;
-    _expiry = Timer(Duration(milliseconds: remaining), () {
-      if (mounted) setState(() {});
-    });
   }
 
   // The main pane only: a docked thread shares the call's channel page and its keyboard.
@@ -198,14 +186,14 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
         ],
       );
     }
+    // Refetches me when a timeout ends, which is also what rebuilds this so its banner leaves on time.
+    ref.watch(timeoutExpiryWatcherProvider);
     final me = ref.watch(meProvider).valueOrNull;
     final timedOutUntil = me?.timedOutUntil;
-    _scheduleExpiry(timedOutUntil);
     final stillTimedOut =
         timedOutUntil != null &&
         timedOutUntil > clock.now().millisecondsSinceEpoch;
-    // A timeout already says why, in its own banner above the composer.
-    final readOnly = !stillTimedOut && _cannotSend(channelId);
+    final readOnly = _readOnlyNow(channelId);
     final composer = Composer(
       controller: widget.controller,
       channelId: channelId,
@@ -260,11 +248,16 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
     );
   }
 
-  /// Read live: a revoked Send swaps the composer out at once, rather than
-  /// only showing as a failure after the next message.
-  bool _cannotSend(String channelId) {
-    final bits = ref.watch(channelPermissionsProvider(channelId)).valueOrNull;
-    if (bits == null) return false;
-    return bits & (Perm.sendMessages | Perm.administrator) == 0;
+  /// Whether Send is missing here, read live; a timeout shows its own banner instead.
+  /// While either answer is refetched the last one stands, so a timeout ending never flashes the bar.
+  bool _readOnlyNow(String channelId) {
+    final me = ref.watch(meProvider);
+    final bits = ref.watch(channelPermissionsProvider(channelId));
+    if (me.isLoading || bits.isLoading || bits.hasError) return _readOnly;
+    const send = Perm.sendMessages | Perm.administrator;
+    return _readOnly =
+        me.valueOrNull?.timedOutUntil == null &&
+        bits.hasValue &&
+        bits.requireValue & send == 0;
   }
 }
