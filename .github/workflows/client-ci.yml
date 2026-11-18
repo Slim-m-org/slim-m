@@ -24,6 +24,13 @@ on:
       # The smoke job runs this script, so a change to it must trigger the job that exercises it.
       - "scripts/desktop-shell-smoke.sh"
       - "scripts/chrome-tests.sh"
+      # The test jobs run these to bundle, deal and retry test files.
+      - "scripts/lib/chrome_*"
+      - "scripts/lib/client_bundle*"
+      - "scripts/lib/client_shards.py"
+      - "scripts/lib/client_durations.json"
+      - "scripts/lib/dart_source.py"
+      - "scripts/lib/safe_paths.py"
       # A release-please version bump (CHANGELOG + the two pubspecs) is
       # deliberately NOT excluded here. verify-release-checks.yml gates every
       # client publish job on this workflow's checks being present on the exact
@@ -50,6 +57,13 @@ on:
       # The smoke job runs this script, so a change to it must trigger the job that exercises it.
       - "scripts/desktop-shell-smoke.sh"
       - "scripts/chrome-tests.sh"
+      # The test jobs run these to bundle, deal and retry test files.
+      - "scripts/lib/chrome_*"
+      - "scripts/lib/client_bundle*"
+      - "scripts/lib/client_shards.py"
+      - "scripts/lib/client_durations.json"
+      - "scripts/lib/dart_source.py"
+      - "scripts/lib/safe_paths.py"
       # A release-please version bump (CHANGELOG + the two pubspecs) is
       # deliberately NOT excluded here. verify-release-checks.yml gates every
       # client publish job on this workflow's checks being present on the exact
@@ -309,16 +323,11 @@ jobs:
       - name: verify tests and web build passed
         run: echo "test-shards and web build both passed"
 
-  # Dart compiled to JavaScript, which the VM suites cannot see: see docs/ci.md, `client-ci`.
+  # Dart compiled to JavaScript, which the VM suites cannot see: see docs/ci-details.md, "Logic tests also run as JavaScript".
   test-chrome:
-    name: logic tests under dart2js (chrome ${{ matrix.leg }})
+    name: logic tests compiled to javascript (chrome)
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    # Two legs, each with half the files: one job took 20.6 minutes at the median (p90 21.1, max 21.8, 38 runs), the critical path of the workflow.
-    strategy:
-      fail-fast: false
-      matrix:
-        leg: [1, 2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -333,10 +342,11 @@ jobs:
         working-directory: client
         run: flutter pub get --enforce-lockfile
 
+      # One page per package instead of one per file, three packages at a time; SLIMM_TEST_PER_FILE=1 undoes the bundling.
       - name: flutter test --platform chrome
         env:
-          CHROME_LEG: ${{ matrix.leg }}/2
-        run: scripts/chrome-tests.sh
+          SLIMM_TEST_PER_FILE: ${{ vars.SLIMM_TEST_PER_FILE }}
+        run: scripts/chrome-tests.sh --jobs 3
 
   # A native desktop plugin's own CMake is invisible to analyze, test and the
   # web build alike: adding audioplayers put a gstreamer-1.0 pkg-config

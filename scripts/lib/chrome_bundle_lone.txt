@@ -1,0 +1,2 @@
+# Chrome-list files proven to leak state into the next file when bundled; each loads in its own page.
+# One per line: <package>/test/<path>  # what leaks. A bundled failure that passes alone names its file in a warning.
