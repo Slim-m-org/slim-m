@@ -109,6 +109,7 @@ class ChannelScreen extends ConsumerStatefulWidget {
     required this.channelId,
     this.isThread = false,
     this.showHeader = true,
+    this.fitContent = false,
     this.autofocusComposer = false,
     super.key,
   });
@@ -139,6 +140,10 @@ class ChannelScreen extends ConsumerStatefulWidget {
   /// acceptable for a secondary surface beside a live call, the same trade
   /// [ThreadScreen] already makes for its own docked transcript.
   final bool showHeader;
+
+  /// Sizes to its messages up to the height it is given, for a sheet that
+  /// should not open on empty space; a pane fills its height.
+  final bool fitContent;
 
   /// See `ComposerAutofocus`; only the docked thread pane sets it.
   final bool autofocusComposer;
@@ -416,6 +421,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
         channelId: widget.channelId,
         blockedDm: blockedDm,
         child: Column(
+          mainAxisSize: widget.fitContent ? MainAxisSize.min : MainAxisSize.max,
           children: [
             // A thread supplies its own bar at every width; see thread_screen.dart.
             if (layout.showsBothPanes && !isThread && widget.showHeader)
@@ -476,6 +482,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
               manuallyUnread: channel?.manuallyUnread ?? false,
               onMarkRead: _markReadUpToLatest,
               onReply: _startReply,
+              fitContent: widget.fitContent,
             ),
             // Kept mounted under the page, so a staged file and the reply survive a look through search.
             Offstage(

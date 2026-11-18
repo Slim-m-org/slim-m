@@ -21,6 +21,8 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 /// as a named file. [maxEdge] caps the frozen-frame box on both axes.
 /// [showBadge] false hides the play badge while the preview is already
 /// animating under a pointer, keeping the tile's layout as it was.
+/// [tileEdge] is a gallery tile's: the preview fills it uncaptioned, as the
+/// revealed tile does, so a tap does not resize it.
 class AttachmentRevealTile extends StatelessWidget {
   const AttachmentRevealTile({
     super.key,
@@ -31,6 +33,7 @@ class AttachmentRevealTile extends StatelessWidget {
     this.line,
     this.preview,
     this.showBadge = true,
+    this.tileEdge,
   });
 
   final String caption;
@@ -40,24 +43,28 @@ class AttachmentRevealTile extends StatelessWidget {
   final String? line;
   final Widget? preview;
   final bool showBadge;
+  final double? tileEdge;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final radius = BorderRadius.circular(AppRadii.control);
+    final tile = tileEdge;
 
     final Widget body = preview != null
         ? ClipRRect(
             borderRadius: radius,
             child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: maxEdge,
-                maxHeight: maxEdge,
-              ),
+              constraints: tile == null
+                  ? BoxConstraints(maxWidth: maxEdge, maxHeight: maxEdge)
+                  : attachmentTileBox(tile),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  preview!,
+                  if (tile == null)
+                    preview!
+                  else
+                    Positioned.fill(child: preview!),
                   // Hidden, not removed: the badge may be what sizes this stack.
                   Visibility(
                     visible: showBadge,
@@ -111,12 +118,16 @@ class AttachmentRevealTile extends StatelessWidget {
                   ),
                   child: body,
                 ),
-                const SizedBox(height: AppSpacing.s4),
-                Text(
-                  caption,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
+                if (tile == null) ...[
+                  const SizedBox(height: AppSpacing.s4),
+                  Text(
+                    caption,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption.copyWith(
+                      color: tokens.textSecondary,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -125,6 +136,10 @@ class AttachmentRevealTile extends StatelessWidget {
     );
   }
 }
+
+/// A gallery tile's picture: the tile less the 1px border around it.
+BoxConstraints attachmentTileBox(double tile) =>
+    BoxConstraints.tight(Size.square(tile - 2));
 
 /// The play glyph centred over a held gif's first frame.
 class _PlayBadge extends StatelessWidget {
@@ -159,10 +174,14 @@ class AttachmentFirstFrame extends StatefulWidget {
     super.key,
     required this.bytes,
     required this.cacheWidth,
+    this.fit = BoxFit.contain,
   });
 
   final Uint8List bytes;
   final int cacheWidth;
+
+  /// Cover in a gallery tile, as the revealed tile's image is.
+  final BoxFit fit;
 
   @override
   State<AttachmentFirstFrame> createState() => _AttachmentFirstFrameState();
@@ -179,9 +198,9 @@ class _AttachmentFirstFrameState extends State<AttachmentFirstFrame> {
 
   Future<void> _decode() async {
     try {
-      final codec = await ui.instantiateImageCodec(
-        widget.bytes,
-        targetWidth: widget.cacheWidth,
+      final codec = await ui.instantiateImageCodecWithSize(
+        await ui.ImmutableBuffer.fromUint8List(widget.bytes),
+        getTargetSize: _noUpscale,
       );
       final frame = await codec.getNextFrame();
       codec.dispose();
@@ -200,6 +219,13 @@ class _AttachmentFirstFrameState extends State<AttachmentFirstFrame> {
     }
   }
 
+  /// Shrinks to [AttachmentFirstFrame.cacheWidth] but never stretches, as
+  /// `Image.memory`'s `cacheWidth` does, so the frame is the size it plays at.
+  ui.TargetImageSize _noUpscale(int width, int height) =>
+      width > widget.cacheWidth
+      ? ui.TargetImageSize(width: widget.cacheWidth)
+      : ui.TargetImageSize(width: width, height: height);
+
   @override
   void dispose() {
     _frame?.dispose();
@@ -211,6 +237,6 @@ class _AttachmentFirstFrameState extends State<AttachmentFirstFrame> {
     final frame = _frame;
     // Null (failed or still decoding): a neutral box keeps the badge tappable.
     if (frame == null) return const AttachmentPlaceholder();
-    return RawImage(image: frame, fit: BoxFit.contain);
+    return RawImage(image: frame, fit: widget.fit);
   }
 }

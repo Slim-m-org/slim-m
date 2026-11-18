@@ -40,7 +40,8 @@ import '../../../widgets/floating_clearance.dart';
 typedef MessageActionsFor =
     MessageActions Function(Message message, bool hasExistingThread);
 
-/// Past this many rows a thread scrolls as an ordinary reversed list.
+/// Past this many rows a thread, or a transcript fitting its content, scrolls
+/// as an ordinary reversed list.
 const int _shrinkWrapThreadMax = 40;
 
 const _startKey = ValueKey<String>('transcript-start');
@@ -54,6 +55,7 @@ class MessageTranscript extends StatefulWidget {
     required this.historyKnown,
     this.channelName,
     this.channelIsThread = false,
+    this.fitContent = false,
     this.channelIsVoice = false,
     this.dmAudience = DmAudience.pair,
     this.channelTopic,
@@ -124,6 +126,9 @@ class MessageTranscript extends StatefulWidget {
   /// Whether this transcript is a thread's own, which takes its own start
   /// copy rather than a channel welcome with an empty name in it.
   final bool channelIsThread;
+
+  /// As tall as its rows while short, for a sheet that hugs its chat.
+  final bool fitContent;
   final String? channelTopic;
 
   final ScrollController scrollController;
@@ -336,7 +341,8 @@ class _MessageTranscriptState extends State<MessageTranscript> {
     );
     // Shrink-wrapped, a thread lays out every row: affordable only while it is short.
     final shrinkWrap =
-        widget.channelIsThread && items.length <= _shrinkWrapThreadMax;
+        (widget.channelIsThread || widget.fitContent) &&
+        items.length <= _shrinkWrapThreadMax;
     if (items.isEmpty) {
       return EmptyTranscript(
         start: start,
