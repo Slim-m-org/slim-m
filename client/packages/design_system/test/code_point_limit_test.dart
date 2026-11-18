@@ -147,4 +147,42 @@ void main() {
     expect(find.bySemanticsLabel('0/64'), findsOneWidget);
     semantics.dispose();
   });
+
+  testWidgets('a hard cap shows its count once the value nears it', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: AppInput(controller: controller, maxLength: 10),
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(TextField), 'abcdefg');
+    await tester.pump();
+    expect(find.text('7/10'), findsNothing);
+    await tester.enterText(find.byType(TextField), 'abcdefgh');
+    await tester.pump();
+    expect(find.text('8/10'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'abcdefghijklmnop');
+    await tester.pump();
+    expect(find.text('10/10'), findsOneWidget, reason: 'the cut is seen');
+  });
+
+  testWidgets('a fixed-length code keeps no counter', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: const Scaffold(
+          body: AppInput(maxLength: 6, counterNearLimit: false),
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(TextField), '123456');
+    await tester.pump();
+    expect(find.text('6/6'), findsNothing);
+  });
 }

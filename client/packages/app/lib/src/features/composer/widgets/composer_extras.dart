@@ -20,6 +20,11 @@ export 'composer_field.dart';
 int? messageLengthOverage(int length) =>
     length > kMessageMaxChars ? length - kMessageMaxChars : null;
 
+/// The over-limit band's sentence, singular for one character.
+String messageOverLimitSentence(int overBy) =>
+    'Message is $overBy ${overBy == 1 ? 'character' : 'characters'} over '
+    'the $kMessageMaxChars-character limit.';
+
 /// Below this margin a count is not worth showing at all: an ordinary short
 /// message generates no counter.
 const _counterWarnMargin = 500;
@@ -154,11 +159,7 @@ class ComposerBanners extends StatelessWidget {
         AppRevealBand(
           child: overBy == null
               ? null
-              : ComposerInlineError(
-                  message:
-                      'Message is $overBy characters over the '
-                      '$kMessageMaxChars-character limit.',
-                ),
+              : ComposerInlineError(message: messageOverLimitSentence(overBy)),
         ),
         AppRevealBand(
           child: slowModeRemainingSeconds <= 0

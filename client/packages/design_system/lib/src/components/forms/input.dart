@@ -43,6 +43,7 @@ class AppInput extends StatefulWidget {
     this.textInputAction,
     this.inputFormatters,
     this.maxLength,
+    this.counterNearLimit = true,
     this.counterMax,
     this.autofillHints,
     this.autocorrect = true,
@@ -93,6 +94,10 @@ class AppInput extends StatefulWidget {
   /// The most characters the field takes, matching the server's cap for it, so
   /// a value the server would refuse cannot be typed or pasted in.
   final int? maxLength;
+
+  /// Shows the [maxLength] count once the value nears it, so the cap is seen
+  /// before it cuts. Off for a fixed-length code, where the count is noise.
+  final bool counterNearLimit;
 
   /// A soft limit: typing may run past it, and a counter under the field turns
   /// red when it does so the caller's save check can refuse with a reason.
@@ -152,34 +157,56 @@ class _AppInputState extends State<AppInput> {
   // Only read when there is no controller to listen to instead.
   String _uncontrolledText = '';
 
+  /// The counter's limit, and whether it shows only once the value nears it.
+  (int, bool)? get _counter => switch ((widget.counterMax, widget.maxLength)) {
+        (final soft?, _) => (soft, false),
+        (null, final hard?) when widget.counterNearLimit => (hard, true),
+        _ => null,
+      };
+
   void _onChanged(String value) {
-    if (widget.counterMax != null && widget.controller == null) {
+    if (_counter != null && widget.controller == null) {
       setState(() => _uncontrolledText = value);
     }
     widget.onChanged?.call(value);
   }
 
-  Widget _counter(AppTokens tokens, int max) {
+  /// The share of a hard cap past which its counter appears.
+  static const _nearLimit = 0.8;
+
+  Widget _counterLine(AppTokens tokens, int max, {required bool nearOnly}) {
     Widget count(String text) {
       final length = inputCharCount(text);
-      return Text(
-        '$length/$max',
-        style: AppText.micro.copyWith(
-          color: length > max ? tokens.dangerText : tokens.textSecondary,
+      if (nearOnly && length < max * _nearLimit) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.s4),
+        // Its own node, so the count never merges into the field's label.
+        child: Semantics(
+          container: true,
+          child: Padding(
+            padding: _beneathTheBorder,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '$length/$max',
+                style: AppText.micro.copyWith(
+                  color:
+                      length > max ? tokens.dangerText : tokens.textSecondary,
+                ),
+              ),
+            ),
+          ),
         ),
       );
     }
 
     final controller = widget.controller;
-    return Align(
-      alignment: Alignment.centerRight,
-      child: controller == null
-          ? count(_uncontrolledText)
-          : ListenableBuilder(
-              listenable: controller,
-              builder: (context, _) => count(controller.text),
-            ),
-    );
+    return controller == null
+        ? count(_uncontrolledText)
+        : ListenableBuilder(
+            listenable: controller,
+            builder: (context, _) => count(controller.text),
+          );
   }
 
   bool get _multiline => widget.minLines != null || widget.maxLines != null;
@@ -200,17 +227,8 @@ class _AppInputState extends State<AppInput> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _ring(tokens, _field(tokens, hasError)),
-        if (widget.counterMax case final max?) ...[
-          const SizedBox(height: AppSpacing.s4),
-          // Its own node, so the count never merges into the field's label.
-          Semantics(
-            container: true,
-            child: Padding(
-              padding: _beneathTheBorder,
-              child: _counter(tokens, max),
-            ),
-          ),
-        ],
+        if (_counter case (final max, final nearOnly))
+          _counterLine(tokens, max, nearOnly: nearOnly),
         if (hasMessage) ...[
           const SizedBox(height: AppSpacing.s4),
           Padding(

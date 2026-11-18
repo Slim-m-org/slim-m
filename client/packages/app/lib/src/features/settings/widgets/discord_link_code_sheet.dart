@@ -109,6 +109,7 @@ class _DiscordLinkCodeSheetState extends ConsumerState<_DiscordLinkCodeSheet> {
               key: ValueKey('${widget.service.toLowerCase()}-link-code-field'),
               controller: _code,
               maxLength: _maxPasteChars,
+              counterNearLimit: false,
               autofocus: true,
               autocorrect: false,
               mono: true,

@@ -13,7 +13,6 @@ library;
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show LengthLimitingTextInputFormatter;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
@@ -40,12 +39,6 @@ const _maxQuestionChars = api.InputLimits.pollQuestion;
 
 /// Mirrors `store::polls::MAX_OPTION_CHARS`.
 const _maxOptionChars = api.InputLimits.pollOption;
-
-/// Not `const`: [LengthLimitingTextInputFormatter] has no const constructor.
-final _questionFormatters = [
-  LengthLimitingTextInputFormatter(_maxQuestionChars),
-];
-final _optionFormatters = [LengthLimitingTextInputFormatter(_maxOptionChars)];
 
 Future<void> showPollComposerSheet(BuildContext context, String channelId) {
   return showAppSheet<void>(
@@ -225,7 +218,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
                 controller: _question,
                 placeholder: 'Ask a question',
                 autofocus: true,
-                inputFormatters: _questionFormatters,
+                maxLength: _maxQuestionChars,
                 trailing: button,
                 onChanged: (_) => setState(() {}),
                 semanticLabel: 'Poll question',
@@ -250,7 +243,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
                               child: AppInput(
                                 controller: _options[i],
                                 placeholder: 'Option ${i + 1}',
-                                inputFormatters: _optionFormatters,
+                                maxLength: _maxOptionChars,
                                 trailing: button,
                                 onChanged: (_) => setState(() {}),
                                 semanticLabel: 'Option ${i + 1}',

@@ -73,11 +73,17 @@ class _ReportReasonSheetState extends State<_ReportReasonSheet> {
             controller: _controller,
             autofocus: true,
             maxLines: 3,
-            maxLength: api.InputLimits.reportReason,
+            // The server's unit: Flutter's own maxLength counts graphemes.
+            inputFormatters: [
+              CodePointLengthLimit(api.InputLimits.reportReason),
+            ],
             style: AppText.body.copyWith(color: tokens.textPrimary),
             cursorColor: tokens.accent,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'What is wrong with it?',
+              counterText:
+                  '${inputCharCount(_controller.text)}/'
+                  '${api.InputLimits.reportReason}',
             ),
             onChanged: (_) => setState(() {}),
           ),

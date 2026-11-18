@@ -12,6 +12,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_extras.dart'
+    show messageOverLimitSentence;
 import 'package:slimm_design_system/design_system.dart';
 
 import 'composer_harness.dart';
@@ -114,5 +116,13 @@ void main() {
 
     expect(tester.widget<AppIconButton>(sendButton).onPressed, isNotNull);
     expect(find.textContaining('character limit'), findsNothing);
+  });
+
+  test('one character over reads in the singular', () {
+    expect(
+      messageOverLimitSentence(1),
+      'Message is 1 character over the 4000-character limit.',
+    );
+    expect(messageOverLimitSentence(2), contains('2 characters over'));
   });
 }

@@ -66,5 +66,5 @@ async fn an_over_long_poll_caption_names_how_far_over_it_is() {
         .as_str()
         .unwrap()
         .to_owned();
-    assert!(error.contains("1 characters over"), "{error}");
+    assert!(error.contains("1 character over"), "{error}");
 }

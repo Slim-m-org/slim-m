@@ -159,7 +159,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
               trailing: ValueListenableBuilder(
                 valueListenable: _about,
                 builder: (context, value, _) => Text(
-                  '${value.text.runes.length} / ${api.InputLimits.about}',
+                  '${inputCharCount(value.text)} / ${api.InputLimits.about}',
                   style: AppText.code.copyWith(
                     fontSize: AppText.micro.fontSize,
                     color: tokens.textSecondary,
@@ -168,6 +168,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
               ),
               child: AppInput(
                 maxLength: api.InputLimits.about,
+                counterNearLimit: false,
                 minLines: 3,
                 maxLines: 3,
                 controller: _about,
