@@ -9,4 +9,7 @@ class _SingleProcess implements CrossTab {
 
   @override
   Stream<void> get storageChanges => const Stream.empty();
+
+  @override
+  Future<bool> anotherTabIsOpen() async => false;
 }

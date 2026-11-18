@@ -21,7 +21,7 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show VoidCallback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../desktop/startup_screen.dart';
@@ -48,18 +48,18 @@ bool shouldShowBootSplash({
 /// How long the boot splash waits on that first catch-up before asking.
 const bootSplashPatience = Duration(seconds: 20);
 
-/// What the splash asks once [bootSplashPatience] has passed. A browser can
-/// reload; a second tab holding the local database is the usual cause there.
+/// What the splash asks once [bootSplashPatience] has passed. A second tab
+/// holding the browser's local database is the one cause a reload clears.
 StartupPrompt stalledBootPrompt({
-  required bool isWeb,
+  required bool anotherTabOpen,
   required VoidCallback onRetry,
   required VoidCallback onOpenAnyway,
 }) => StartupPrompt(
   title: 'Still connecting',
-  detail: isWeb
+  detail: anotherTabOpen
       ? 'Close slim-m in other tabs, then reload.'
       : 'This is taking longer than usual.',
-  primaryLabel: isWeb ? 'Reload' : 'Keep waiting',
+  primaryLabel: anotherTabOpen ? 'Reload' : 'Keep waiting',
   onPrimary: onRetry,
   secondaryLabel: 'Open anyway',
   onSecondary: onOpenAnyway,
@@ -72,30 +72,32 @@ class BootStallWatch {
     required this.stillCovered,
     required this.openAnyway,
     required this.reload,
-    this.isWeb = kIsWeb,
+    required this.anotherTabIsOpen,
   });
 
   final StateController<StartupPrompt?> prompt;
   final bool Function() stillCovered;
   final VoidCallback openAnyway;
   final VoidCallback reload;
-  final bool isWeb;
+  final Future<bool> Function() anotherTabIsOpen;
   Timer? _timer;
 
   void arm() {
     _timer?.cancel();
-    _timer = Timer(bootSplashPatience, _ask);
+    _timer = Timer(bootSplashPatience, () => unawaited(_ask()));
   }
 
   void cancel() => _timer?.cancel();
 
-  void _ask() {
+  Future<void> _ask() async {
+    if (!stillCovered()) return;
+    final otherTab = await anotherTabIsOpen();
     if (!stillCovered()) return;
     prompt.state = stalledBootPrompt(
-      isWeb: isWeb,
+      anotherTabOpen: otherTab,
       onRetry: () {
         prompt.state = null;
-        isWeb ? reload() : arm();
+        otherTab ? reload() : arm();
       },
       onOpenAnyway: () {
         prompt.state = null;

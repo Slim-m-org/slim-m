@@ -371,6 +371,7 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
       stillCovered: () => mounted && _coldLaunchCover,
       openAnyway: _spendCover,
       reload: reloadPage,
+      anotherTabIsOpen: ref.read(crossTabProvider).anotherTabIsOpen,
     );
     if (ref.read(appReadyProvider) && !ref.read(sessionProvider).isSignedIn) {
       _coldLaunchCover = false;
