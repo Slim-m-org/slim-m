@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// One shared 1 Hz source for every on-screen clock. It runs only while some
-/// readout is subscribed and the app is focused, so a minimised window or a
-/// covered route spends nothing on a number nobody can read.
+/// One shared 1 Hz source for every on-screen clock. It runs while some readout
+/// is subscribed and the window is on screen, focused or not: a call is often
+/// watched from beside a game. A hidden window or covered route spends nothing.
 library;
 
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+
+import '../../../providers/app_lifecycle.dart' show isWindowVisible;
 
 class SecondClock with WidgetsBindingObserver {
   SecondClock._();
@@ -18,9 +20,9 @@ class SecondClock with WidgetsBindingObserver {
 
   bool get isRunning => _timer != null;
 
-  bool get _focused {
+  bool get _onScreen {
     final state = WidgetsBinding.instance.lifecycleState;
-    return state == null || state == AppLifecycleState.resumed;
+    return state == null || isWindowVisible(state);
   }
 
   void addListener(VoidCallback listener) {
@@ -38,12 +40,12 @@ class SecondClock with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _sync();
-    // A clock that sat out the background is stale the moment focus returns.
+    // A clock that sat out a hidden window is stale the moment it shows again.
     if (_timer != null) _notify();
   }
 
   void _sync() {
-    final wanted = _listeners.isNotEmpty && _focused;
+    final wanted = _listeners.isNotEmpty && _onScreen;
     if (wanted && _timer == null) {
       _timer = Timer.periodic(const Duration(seconds: 1), (_) => _notify());
     } else if (!wanted) {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The shared call clock runs only while a readout is mounted, visible and the
-/// app is focused, and one timer serves every readout.
+/// The shared call clock runs only while a readout is mounted and the window is
+/// on screen, focused or not, and one timer serves every readout.
 library;
 
 import 'package:flutter/material.dart';
@@ -24,9 +24,26 @@ Widget _app({bool enabled = true, int readouts = 3}) {
   );
 }
 
-void main() {
-  final clock = SecondClock.instance;
+final clock = SecondClock.instance;
 
+void _setLifecycle(WidgetTester tester, AppLifecycleState state) =>
+    tester.binding.handleAppLifecycleStateChanged(state);
+
+/// Counts the shared clock's ticks while [body] runs, and never leaves the counter subscribed.
+Future<void> _countingTicks(
+  Future<void> Function(int Function() ticks) body,
+) async {
+  var count = 0;
+  void tick() => count++;
+  clock.addListener(tick);
+  try {
+    await body(() => count);
+  } finally {
+    clock.removeListener(tick);
+  }
+}
+
+void main() {
   testWidgets('three readouts share one running timer', (tester) async {
     await tester.pumpWidget(_app());
     expect(clock.isRunning, isTrue);
@@ -35,15 +52,38 @@ void main() {
     expect(clock.isRunning, isFalse);
   });
 
-  testWidgets('an unfocused app stops the timer and focus restarts it', (
+  testWidgets('an unfocused window keeps every readout ticking', (
     tester,
   ) async {
+    addTearDown(() => _setLifecycle(tester, AppLifecycleState.resumed));
     await tester.pumpWidget(_app());
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-    expect(clock.isRunning, isFalse);
+    await _countingTicks((ticks) async {
+      _setLifecycle(tester, AppLifecycleState.inactive);
+      final before = ticks();
+      await tester.pump(const Duration(seconds: 3));
+      expect(clock.isRunning, isTrue);
+      expect(ticks() - before, 3);
+    });
+    await tester.pumpWidget(const SizedBox());
+  });
 
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    expect(clock.isRunning, isTrue);
+  testWidgets('a hidden window stops the timer and showing it catches up', (
+    tester,
+  ) async {
+    addTearDown(() => _setLifecycle(tester, AppLifecycleState.resumed));
+    await tester.pumpWidget(_app());
+    await _countingTicks((ticks) async {
+      _setLifecycle(tester, AppLifecycleState.inactive);
+      _setLifecycle(tester, AppLifecycleState.hidden);
+      expect(clock.isRunning, isFalse);
+      final before = ticks();
+      await tester.pump(const Duration(seconds: 3));
+      expect(ticks(), before);
+
+      _setLifecycle(tester, AppLifecycleState.inactive);
+      expect(clock.isRunning, isTrue);
+      expect(ticks(), before + 1);
+    });
     await tester.pumpWidget(const SizedBox());
   });
 
