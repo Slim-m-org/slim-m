@@ -30,6 +30,7 @@ import '../../messages/providers/message_editing.dart';
 import '../../messages/providers/message_selection.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/widgets/call_keyboard_pill.dart';
+import '../../../routing/breakpoints.dart';
 import '../../../widgets/dock_height_reporter.dart';
 import '../../../providers/admin_providers.dart';
 import '../../../providers/live_events.dart';
@@ -43,6 +44,7 @@ import '../providers/channel_permissions.dart';
 import '../../messages/widgets/message_selection_bar.dart';
 import '../../messages/widgets/reply_banner.dart';
 import '../../members/widgets/timeout_banner.dart';
+import '../../share/providers/incoming_share.dart';
 import 'channel_message_actions.dart';
 
 /// Shown when the message being replied to is deleted while the reply is typed.
@@ -50,6 +52,10 @@ const replyGoneNotice = 'The message you were replying to was deleted.';
 
 /// Shown when a message is deleted elsewhere while it is being edited here.
 const editGoneNotice = 'Your edit was not saved: the message was deleted.';
+
+/// Shown when files are shared to a channel where Send is not allowed.
+const shareRefusedNotice =
+    'The shared files were not attached: you cannot send messages here.';
 
 class ChannelComposerArea extends ConsumerStatefulWidget {
   const ChannelComposerArea({
@@ -92,7 +98,7 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
   /// The last settled answer to whether Send is missing here; see [_readOnlyNow].
   bool _readOnly = false;
 
-  /// Why a reply or an edit in progress just went away, until dismissed.
+  /// Why a reply, an edit or a share in progress just went away, until dismissed.
   String? _goneNotice;
 
   @override
@@ -194,6 +200,7 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
         timedOutUntil != null &&
         timedOutUntil > clock.now().millisecondsSinceEpoch;
     final readOnly = _readOnlyNow(channelId);
+    if (readOnly) _refuseShare(channelId);
     final composer = Composer(
       controller: widget.controller,
       channelId: channelId,
@@ -215,7 +222,11 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
           child: _goneNotice == null
               ? null
               : Padding(
-                  padding: const EdgeInsets.all(AppSpacing.s8),
+                  // The composer's gutter, so the notice lines up with the field or bar below it.
+                  padding: EdgeInsets.symmetric(
+                    horizontal: paneGutterOf(context),
+                    vertical: AppSpacing.s8,
+                  ),
                   child: AppErrorState(
                     message: _goneNotice!,
                     onDismiss: () => setState(() => _goneNotice = null),
@@ -230,22 +241,29 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
                   onCancel: widget.onCancelReply,
                 ),
         ),
-        // Hidden rather than removed, so a staged file and the draft are still there if Send comes back.
-        ExcludeFocus(
-          excluding: readOnly,
-          child: Offstage(
-            offstage: readOnly,
-            child: ComposerAutofocus(
-              channelId: channelId,
-              focusOnMount: widget.autofocus,
-              focusRequests: widget.focusRequests,
-              child: composer,
-            ),
+        // Not mounted at all, so no drop or share can stage into it; the staging and the draft outlive it.
+        if (readOnly)
+          const ComposerReadOnlyBar()
+        else
+          ComposerAutofocus(
+            channelId: channelId,
+            focusOnMount: widget.autofocus,
+            focusRequests: widget.focusRequests,
+            child: composer,
           ),
-        ),
-        if (readOnly) const ComposerReadOnlyBar(),
       ],
     );
+  }
+
+  /// A share handed here has no composer to land in, so it is dropped with a word rather than left waiting.
+  void _refuseShare(String channelId) {
+    bool forHere() => ref.read(shareHandoffProvider)?.channelId == channelId;
+    if (ref.watch(shareHandoffProvider)?.channelId != channelId) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !forHere()) return;
+      ref.read(shareHandoffProvider.notifier).state = null;
+      setState(() => _goneNotice = shareRefusedNotice);
+    });
   }
 
   /// Whether Send is missing here, read live; a timeout shows its own banner instead.
