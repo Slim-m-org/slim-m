@@ -164,8 +164,9 @@ async fn a_mark_outside_the_screen_is_dropped() {
     assert_no_frame_of_type(&mut alice_ws, KIND).await;
 }
 
+/// A spectator in the call sees the marks on the shared screen but cannot add one.
 #[tokio::test]
-async fn a_member_denied_use_canvas_neither_sends_nor_receives() {
+async fn a_member_denied_use_canvas_receives_but_cannot_send() {
     let (store, _guard) = support::new_store("slimm-screen-annotation").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
@@ -186,7 +187,7 @@ async fn a_member_denied_use_canvas_neither_sends_nor_receives() {
     let mut carol_ws = connect(addr, &carol_ticket).await;
 
     send_stroke(&mut alice_ws, channel, alice_id, json!([0.1, 0.1])).await;
-    assert_no_frame_of_type(&mut carol_ws, KIND).await;
+    read_frame_of_type(&mut carol_ws, KIND).await;
     read_frame_of_type(&mut alice_ws, KIND).await;
 
     send_stroke(&mut carol_ws, channel, alice_id, json!([0.2, 0.2])).await;

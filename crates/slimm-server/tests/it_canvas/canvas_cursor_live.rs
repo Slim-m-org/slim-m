@@ -25,11 +25,8 @@ async fn send_cursor(ws: &mut Client, channel_id: &str, x: f64, y: f64) {
     .unwrap();
 }
 
-/// The load-bearing pair: a viewer holding both bits receives the frame, and
-/// a viewer denied `USE_CANVAS` specifically (below) receives nothing, even
-/// though `VIEW_CHANNEL` alone would already pass a plain channel-scoped
-/// check. Mirrors `canvas_live.rs`'s placement test for the same reason: a
-/// cache or a gate that only remembers the view bit would deliver here.
+/// A viewer receives the frame; a spectator without `USE_CANVAS` (below)
+/// does too, since watching a canvas needs only `VIEW_CHANNEL`.
 #[tokio::test]
 async fn a_viewer_with_both_bits_receives_the_cursor() {
     let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
@@ -83,7 +80,7 @@ async fn a_pointer_leaving_the_canvas_is_relayed() {
 }
 
 #[tokio::test]
-async fn a_member_denied_use_canvas_never_sees_a_cursor() {
+async fn a_spectator_without_use_canvas_still_sees_a_cursor() {
     let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
@@ -107,7 +104,7 @@ async fn a_member_denied_use_canvas_never_sees_a_cursor() {
 
     send_cursor(&mut alice_ws, &channel.to_string(), 12.5, -4.0).await;
 
-    assert_no_frame_of_type(&mut carol_ws, "canvas.cursor.moved").await;
+    read_frame_of_type(&mut carol_ws, "canvas.cursor.moved").await;
 }
 
 /// Hiding presence does not hide live ink from people who can view the

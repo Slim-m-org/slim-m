@@ -31,19 +31,14 @@ Color _colorOf(WidgetTester tester, Finder finder) {
 }
 
 void main() {
-  testWidgets('the empty-canvas instructions are at least 4.5:1', (
-    tester,
-  ) async {
+  testWidgets('the empty-canvas line is at least 4.5:1', (tester) async {
     final fixture = CanvasPaneFixture();
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
     await pumpCanvasPane(tester, container);
 
-    final color = _colorOf(
-      tester,
-      find.textContaining('Draw with the pen, drop a note'),
-    );
+    final color = _colorOf(tester, find.text('Nothing on this canvas yet'));
 
     expect(
       _contrast(color, AppTokens.dark.surfaceBase),

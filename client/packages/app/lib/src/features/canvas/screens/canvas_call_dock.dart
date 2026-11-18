@@ -110,6 +110,9 @@ class CanvasDockData {
     required this.onShowTile,
     required this.fullscreen,
     required this.onToggleFullscreen,
+    this.toolsHidden = false,
+    this.onToggleToolsHidden,
+    this.readOnly = false,
   });
 
   final CanvasTool tool;
@@ -159,6 +162,16 @@ class CanvasDockData {
   /// While true the dock's close button becomes the way back out.
   final bool fullscreen;
   final VoidCallback onToggleFullscreen;
+
+  /// Whether this viewer folded the drawing tools away, and the overflow's way to flip it; null offers no toggle.
+  final bool toolsHidden;
+  final VoidCallback? onToggleToolsHidden;
+
+  /// A spectator without `USE_CANVAS`: no tools, no undo, nothing in the overflow that edits.
+  final bool readOnly;
+
+  /// The tool strip shows unless the activity log replaced the board, the tools are folded away, or this viewer only watches.
+  bool get showsTools => !activityLogOpen && !toolsHidden && !readOnly;
 }
 
 /// [call] whenever this device is connected to a call in [channelId], or is
@@ -327,7 +340,7 @@ class CanvasCallDock extends ConsumerWidget {
 
   static List<Widget> _stackedCanvasRows(CanvasDockData canvas) {
     return [
-      if (!canvas.activityLogOpen)
+      if (canvas.showsTools)
         CanvasDockToolsRow(canvas: canvas, part: CanvasToolsRowPart.toolsOnly),
       Row(
         mainAxisSize: MainAxisSize.min,

@@ -58,7 +58,8 @@ impl Permissions {
     pub const CONNECT: Self = Self(1 << 11);
     /// Transmit audio in a voice channel.
     pub const SPEAK: Self = Self(1 << 12);
-    /// View and draw on the voice canvas.
+    /// Draw on the voice canvas. Watching it needs only `VIEW_CHANNEL`, so a
+    /// member without this bit spectates.
     pub const USE_CANVAS: Self = Self(1 << 13);
     /// Moderate canvas objects (move or remove others' work).
     pub const MANAGE_CANVAS: Self = Self(1 << 14);

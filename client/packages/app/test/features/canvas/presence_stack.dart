@@ -26,6 +26,7 @@ class PresenceStack extends StatefulWidget {
     this.focusedKey,
     this.onFocus,
     this.onPointerMoved,
+    this.readOnly = false,
   });
 
   final CanvasDocument document;
@@ -47,6 +48,7 @@ class PresenceStack extends StatefulWidget {
   final String? focusedKey;
   final ValueChanged<String>? onFocus;
   final PointerMoved? onPointerMoved;
+  final bool readOnly;
 
   @override
   State<PresenceStack> createState() => _PresenceStackState();
@@ -82,6 +84,7 @@ class _PresenceStackState extends State<PresenceStack> {
         focusedKey: widget.focusedKey,
         onFocus: widget.onFocus,
         onPointerMoved: widget.onPointerMoved,
+        readOnly: widget.readOnly,
       ),
     ],
   );

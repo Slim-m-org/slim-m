@@ -13,7 +13,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
-use super::canvas_write::canvas_access;
+use super::canvas_write::{canvas_access, canvas_read_access};
 use crate::hub::{CanvasEvent, Event};
 use crate::ids::{CanvasObjectId, ChannelId, UserId};
 use crate::permissions::Permissions;
@@ -42,7 +42,7 @@ async fn list(
     State(state): State<AppState>,
 ) -> Result<Json<LocksDto>, ApiError> {
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    canvas_access(&state, ctx.user_id, channel_id).await?;
+    canvas_read_access(&state, ctx.user_id, channel_id).await?;
     let (version, ids) = state.store.list_canvas_object_locks(channel_id).await?;
     Ok(Json(LocksDto {
         object_ids: ids.into_iter().map(|id| id.to_string()).collect(),

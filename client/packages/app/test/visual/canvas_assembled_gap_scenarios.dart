@@ -124,10 +124,13 @@ void registerCanvasOverflowMenuOpen() {
 }
 
 /// The activity log panel: the drawing surface unmounted, the panel's own
-/// summary and list in its place - reached the same way a real caller
+/// summary and list in its place - reached the same way a screen reader user
 /// would, through the overflow item rather than any test-only shortcut.
 void registerCanvasActivityLogOpen() {
   testWidgets('canvas-activity-log-open, dark', (tester) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(accessibleNavigation: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     final document = buildBusyDocument();
     addTearDown(document.dispose);
     await renderCanvasAssembledPane(

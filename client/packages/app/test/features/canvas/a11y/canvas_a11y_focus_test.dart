@@ -99,11 +99,7 @@ void main() {
     final rig = await pumpA11yCanvas(tester);
     await openOverflowByKeyboard(tester);
 
-    for (final item in [
-      'Enter fullscreen',
-      'Show activity log',
-      'People here',
-    ]) {
+    for (final item in ['Enter fullscreen', 'Snap to grid', 'People here']) {
       expect(await arrowTo(tester, item), isTrue, reason: item);
       expect(await _focusShows(rig), isTrue, reason: item);
     }

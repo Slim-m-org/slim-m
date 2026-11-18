@@ -166,6 +166,31 @@ void main() {
       expect(rig.tools, isEmpty);
     });
 
+    testWidgets('the wheel sits flat on the canvas, with no drop shadow', (
+      tester,
+    ) async {
+      final rig = _Rig();
+      await tester.pumpWidget(rig.build());
+      final gesture = await _rightDown(tester, const Offset(400, 300));
+      await tester.pump(_hold);
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final disc = tester.widget<DecoratedBox>(
+        find
+            .descendant(
+              of: _wheel,
+              matching: find.byWidgetPredicate(
+                (w) =>
+                    w is DecoratedBox &&
+                    (w.decoration as BoxDecoration?)?.shape == BoxShape.circle,
+              ),
+            )
+            .first,
+      );
+      expect((disc.decoration as BoxDecoration).boxShadow, isNull);
+    });
+
     testWidgets('a flick toward a tool and a release arms that tool', (
       tester,
     ) async {

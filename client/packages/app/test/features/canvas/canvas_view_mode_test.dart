@@ -124,6 +124,49 @@ void main() {
     rig.mode.showShared();
     expect(painted(), _own);
   });
+  for (final touch in [false, true]) {
+    testWidgets('the corner pills sit 4 apart, the zoom pill 4 below the row '
+        '(touch: $touch)', (tester) async {
+      final rig = Rig();
+      addTearDown(rig.dispose);
+      await tester.pumpWidget(
+        AppTouchTargets(enabled: touch, child: _wrap(rig)),
+      );
+
+      final viewPill = tester.getRect(
+        find.bySemanticsLabel(RegExp(r'^Shared view, ')),
+      );
+      final zoomPill = tester.getRect(
+        find.bySemanticsLabel(RegExp(r'^Fit view, ')),
+      );
+      expect(zoomPill.left, viewPill.left);
+      expect(zoomPill.top - viewPill.bottom, AppSpacing.s4);
+    });
+  }
+
+  testWidgets('the personal pill is tinted, never outlined like focus', (
+    tester,
+  ) async {
+    final rig = Rig();
+    addTearDown(rig.dispose);
+    rig.mode.showPersonal();
+    await tester.pumpWidget(_wrap(rig));
+
+    final pill = tester.widget<Material>(
+      find.ancestor(
+        of: find.text('Personal view'),
+        matching: find.byWidgetPredicate(
+          (w) => w is Material && w.shape is StadiumBorder,
+        ),
+      ),
+    );
+    expect(pill.color, AppTokens.light.accentSoft);
+    expect(
+      (pill.shape! as StadiumBorder).side.color,
+      AppTokens.light.borderSubtle,
+    );
+  });
+
   testWidgets('the pill names the view and a tap switches it', (tester) async {
     final rig = Rig();
     addTearDown(rig.dispose);

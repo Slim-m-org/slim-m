@@ -213,7 +213,6 @@ class _CanvasToolWheelState extends State<CanvasToolWheel> {
                           color: tokens.surfaceRaised,
                           shape: BoxShape.circle,
                           border: Border.all(color: tokens.borderSubtle),
-                          boxShadow: AppShadows.float,
                         ),
                         child: Stack(
                           alignment: Alignment.center,

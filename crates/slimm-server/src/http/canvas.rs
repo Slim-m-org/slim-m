@@ -27,7 +27,7 @@ use serde_json::value::RawValue;
 use self::canvas_batch::{MAX_BATCH_BODY_BYTES, place_batch};
 use self::canvas_ops::list_ops;
 use self::canvas_ops_write::submit_op;
-use self::canvas_write::{MAX_BODY_BYTES, canvas_access, place};
+use self::canvas_write::{MAX_BODY_BYTES, canvas_read_access, place};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{AuthedLimited, CANVAS, Json, Query};
@@ -156,7 +156,7 @@ async fn viewport(
     State(state): State<AppState>,
 ) -> Result<Json<ViewportDto>, ApiError> {
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    canvas_access(&state, ctx.user_id, channel_id).await?;
+    canvas_read_access(&state, ctx.user_id, channel_id).await?;
 
     let view = rect(params.min_x, params.min_y, params.max_x, params.max_y)?;
     let previous = match (

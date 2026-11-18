@@ -112,7 +112,8 @@ One connection's memory of which channels its viewer may see.
 `MAX_CONNECTIONS` is 1024 against a read pool of 8 shared with the write path, so a busy channel spends most of the pool re-deriving an answer that changes far more rarely than messages arrive.
 
 A whole [`Permissions`] set is cached rather than one bit.
-`authorize` no longer asks one question: a canvas frame is gated on `VIEW_CHANNEL` *and* `USE_CANVAS`, since the read route requires both and a member denied the second by an overwrite must not be handed over the socket what `GET /canvas/objects` refuses them.
+`authorize` no longer asks one question: a frame can need a second bit beyond `VIEW_CHANNEL` (a live transcript line needs `VIEW_TRANSCRIPTS`), matching what its read route requires, so a member denied that bit by an overwrite is not handed over the socket what the route refuses them.
+A canvas frame needs only `VIEW_CHANNEL`, since a member without `USE_CANVAS` spectates the canvas.
 Caching the set costs nothing over caching the bit - `has_permission` is `permissions_in_channel().contains`, the same five queries - and an earlier version of this doc argued the opposite from a mechanism that is gone: what made a set risky was event-keyed invalidation, and the epoch below replaced that.
 A set taken at epoch N is exactly as fresh as one bit taken at epoch N.
 

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The board as one keyboard stop: arrows pan, plus and minus zoom, 0 fits,
-/// ] and [ step the selection through what is in view, and Enter places with
-/// the armed tool or opens the selected object's actions.
+/// ] and [ step the selection through what is in view, Enter places with the
+/// armed tool or opens the selected object's actions, and L opens the
+/// activity log.
 library;
 
 import 'package:flutter/material.dart';
@@ -41,6 +42,7 @@ class CanvasBoardKeys extends StatefulWidget {
     required this.onPlaceNote,
     this.onPlaceText,
     required this.onPlaceShape,
+    this.onShowActivityLog,
     this.focusNode,
     required this.child,
   });
@@ -60,6 +62,10 @@ class CanvasBoardKeys extends StatefulWidget {
   final ValueChanged<Offset> onPlaceNote;
   final ValueChanged<Offset>? onPlaceText;
   final ValueChanged<Offset> onPlaceShape;
+
+  /// Opens the text activity log: a screen reader's fallback for the drawing,
+  /// on a key because Linux and Windows never report a reader to the app.
+  final VoidCallback? onShowActivityLog;
 
   /// Optional external node so the pane can return focus to the board after a sheet or inline editor closes.
   final FocusNode? focusNode;
@@ -175,6 +181,7 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
             (widget.tool ?? CanvasTool.pan) == CanvasTool.pan &&
             _deselect(),
       LogicalKeyboardKey.contextMenu => once && _openMenu(),
+      LogicalKeyboardKey.keyL => once && _showActivityLog(),
       LogicalKeyboardKey.f10 => once && keys.isShiftPressed && _openMenu(),
       _ => false,
     };
@@ -251,6 +258,11 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
     return true;
   }
 
+  bool _showActivityLog() {
+    widget.onShowActivityLog?.call();
+    return widget.onShowActivityLog != null;
+  }
+
   bool _deselect() {
     if (_document.selectedObjectId.value == null) return false;
     _document.selectedObjectId.value = null;
@@ -275,7 +287,8 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
         label: 'Canvas board',
         hint:
             'Arrow keys pan, plus and minus zoom, 0 fits, square brackets '
-            'step through objects, Enter opens the selected one, the menu key opens the tool wheel',
+            'step through objects, Enter opens the selected one, the menu key opens the tool wheel'
+            '${widget.onShowActivityLog == null ? '' : ', L opens the activity log'}',
         child: DecoratedBox(
           position: DecorationPosition.foreground,
           decoration: BoxDecoration(

@@ -76,6 +76,12 @@
 /// exempt. Until that is settled these print, so a regression shows up in CI
 /// output and the numbers cannot silently drift.
 ///
+/// ## Active state
+///
+/// An active icon button's tint and accent glyph sit within about 1.25:1 of
+/// the inactive look, so its top-edge marker bar is the cue that is not hue
+/// alone, held to WCAG 1.4.11's 3:1 against the page and its own tint.
+///
 /// ## Canvas cursor hues
 ///
 /// Categorical identity for remote participants. They only work as identity if
@@ -229,6 +235,38 @@ void main() {
       expect(boosted.status, t.status);
       expect(boosted.dangerText, t.dangerText);
       expect(boosted.warnText, t.warnText);
+    });
+  });
+
+  themes.forEach((name, t) {
+    testWidgets('$name active icon button is marked beyond hue, at 3:1', (
+      tester,
+    ) async {
+      // WCAG 1.4.11: the active cue reads against the page and its own tint. See "Active state" above.
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(
+              name == 'light' ? Brightness.light : Brightness.dark, t),
+          home: Center(
+            child: AppIconButton(
+              icon: AppIcons.settings,
+              semanticLabel: 'Settings',
+              onPressed: () {},
+              active: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final marker = find.byKey(AppIconButton.activeMarkerKey);
+      expect(marker, findsOneWidget, reason: '$name active is a tint alone');
+      final box = tester.widget<DecoratedBox>(marker).decoration;
+      final cue = (box as BoxDecoration).color!;
+      for (final bg in [t.surfaceBase, t.surfaceRaised, t.accentSoft]) {
+        expect(_contrast(cue, bg), greaterThanOrEqualTo(3.0),
+            reason: '$name on $bg');
+      }
     });
   });
 

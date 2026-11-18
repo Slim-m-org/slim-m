@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/providers/canvas_pen_style.dart';
+import 'package:slimm_app/src/features/canvas/providers/canvas_recent_colours.dart';
 import 'package:slimm_app/src/widgets/control_slider_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -19,6 +20,15 @@ import '../../support/canvas_call_dock_fixtures.dart';
 import '../../support/canvas_tools_row_fixtures.dart';
 
 Finder get _caret => find.byIcon(AppIcons.chevronDown);
+
+class _Recent extends CanvasRecentColours {
+  _Recent(this.colours);
+
+  final List<String> colours;
+
+  @override
+  List<String> build() => colours;
+}
 
 Finder _tool(String label) => find.byWidgetPredicate(
   (w) => w is AppIconButton && w.semanticLabel == label,
@@ -152,6 +162,42 @@ void main() {
       };
       expect(ys, hasLength(1), reason: 'the six colours share one line');
     });
+
+    testWidgets(
+      'recent custom colours take the last places in the one colour row',
+      (tester) async {
+        await pumpCanvasCallDock(
+          tester,
+          canvas: buildCanvasDockData(),
+          overrides: [
+            canvasRecentColoursProvider.overrideWith(
+              () => _Recent(['#112233', '#445566']),
+            ),
+          ],
+        );
+        await tester.tap(_caret);
+        await tester.pump(const Duration(milliseconds: 400));
+
+        const row = [
+          'Coral',
+          'Amber',
+          'Green',
+          'Blue',
+          'Custom #112233',
+          'Custom #445566',
+          'Custom colour',
+        ];
+        for (final label in row) {
+          expect(find.byTooltip(label), findsOneWidget, reason: label);
+        }
+        expect(find.byTooltip('Purple'), findsNothing);
+        expect(find.byTooltip('Pink'), findsNothing);
+        final ys = {
+          for (final label in row) tester.getCenter(find.byTooltip(label)).dy,
+        };
+        expect(ys, hasLength(1), reason: 'one colour row, not two');
+      },
+    );
 
     testWidgets('a plain press on the pen keeps its action and opens nothing', (
       tester,

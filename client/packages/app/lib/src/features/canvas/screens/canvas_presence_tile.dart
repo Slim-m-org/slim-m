@@ -39,6 +39,7 @@ class CanvasPresenceManipulableTile extends StatefulWidget {
     this.participantItemsBuilder,
     this.onPointerMoved,
     this.personal = false,
+    this.movable = true,
   });
 
   final Rect worldRect;
@@ -85,6 +86,9 @@ class CanvasPresenceManipulableTile extends StatefulWidget {
 
   /// Whether the tile is being placed for this device alone; a change mid-drag cancels the drag.
   final bool personal;
+
+  /// False for a spectator in the shared view: the tile passes pointers through like a locked one.
+  final bool movable;
   @override
   State<CanvasPresenceManipulableTile> createState() =>
       _CanvasPresenceManipulableTileState();
@@ -121,7 +125,8 @@ class _CanvasPresenceManipulableTileState
   /// See this file's own library doc: true whenever a pointer landing on
   /// this tile means something to whatever is stacked behind it instead of
   /// to this tile itself.
-  bool get _passThrough => widget.locked || widget.tool != CanvasTool.pan;
+  bool get _passThrough =>
+      widget.locked || !widget.movable || widget.tool != CanvasTool.pan;
 
   Rect? _dragStartRect;
   Offset _dragTotal = Offset.zero;

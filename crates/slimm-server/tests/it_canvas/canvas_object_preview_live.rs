@@ -50,11 +50,8 @@ async fn send_preview(
     .unwrap();
 }
 
-/// The load-bearing pair: a viewer holding both bits receives the frame, and
-/// a viewer denied `USE_CANVAS` specifically (below) receives nothing, even
-/// though `VIEW_CHANNEL` alone would already pass a plain channel-scoped
-/// check. Mirrors `canvas_live.rs`'s placement test for the same reason: a
-/// cache or a gate that only remembers the view bit would deliver here.
+/// A viewer receives the frame; a spectator without `USE_CANVAS` (below)
+/// does too, since watching a canvas needs only `VIEW_CHANNEL`.
 #[tokio::test]
 async fn a_viewer_with_both_bits_receives_the_preview() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
@@ -88,7 +85,7 @@ async fn a_viewer_with_both_bits_receives_the_preview() {
 }
 
 #[tokio::test]
-async fn a_member_denied_use_canvas_never_sees_a_preview() {
+async fn a_spectator_without_use_canvas_still_sees_a_preview() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
@@ -120,7 +117,7 @@ async fn a_member_denied_use_canvas_never_sees_a_preview() {
     )
     .await;
 
-    assert_no_frame_of_type(&mut carol_ws, "canvas.object_preview.updated").await;
+    read_frame_of_type(&mut carol_ws, "canvas.object_preview.updated").await;
 }
 
 /// Hiding presence does not hide live ink from people who can view the
