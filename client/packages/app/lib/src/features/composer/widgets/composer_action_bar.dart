@@ -158,7 +158,9 @@ class ComposerActionBar extends ConsumerWidget {
                     children: [
                       _leadingButton(context, folded: folded),
                       const SizedBox(width: AppSpacing.s8),
+                      // Keyed: a fold changes the leading button's type, which would remount the field and drop its keyboard.
                       Expanded(
+                        key: const ValueKey('composer-field'),
                         child: ComposerField(
                           controller: controller,
                           focusNode: focusNode,

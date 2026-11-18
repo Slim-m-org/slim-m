@@ -21,6 +21,7 @@ final _bar = find.byKey(const Key('composer-action-bar')).first;
 final _poll = find.byTooltip('Create a poll');
 final _code = find.byTooltip('Insert code');
 final _more = find.byTooltip('More actions');
+final _editableText = find.byWidgetPredicate((w) => w is EditableText);
 
 Future<void> _shell(
   WidgetTester tester, {
@@ -98,6 +99,37 @@ void main() {
         expect(_poll, findsOneWidget);
         expect(_code, findsOneWidget);
         expect(_more, findsNothing);
+      },
+    );
+  });
+
+  testWidgets('toggling the member pane mid-sentence keeps the keyboard', (
+    tester,
+  ) async {
+    await _shell(
+      tester,
+      width: 836,
+      members: true,
+      check: () async {
+        final editable = find
+            .descendant(of: _field, matching: _editableText)
+            .first;
+        await tester.showKeyboard(editable);
+        tester.testTextInput.enterText('hello');
+        await tester.pump();
+        final before = tester.state<EditableTextState>(editable);
+
+        final container = ProviderScope.containerOf(tester.element(_field));
+        container.read(memberPaneVisibleProvider.notifier).state = false;
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+        expect(_poll, findsOneWidget, reason: 'the bar unfolded');
+
+        expect(tester.testTextInput.hasAnyClients, isTrue);
+        expect(tester.state<EditableTextState>(editable), same(before));
+        tester.testTextInput.enterText('hello there');
+        await tester.pump();
+        expect(before.textEditingValue.text, 'hello there');
       },
     );
   });
