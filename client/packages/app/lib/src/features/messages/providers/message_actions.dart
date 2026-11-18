@@ -18,6 +18,7 @@ import 'package:slimm_data/data.dart';
 
 import '../../../api_failure.dart';
 import '../../../permissions.dart';
+import 'channel_send_queue.dart';
 import 'message_extras.dart';
 import 'poll_vote_failure.dart';
 import 'message_search.dart' show ProviderReader;
@@ -377,7 +378,8 @@ Future<void> bulkDeleteMessagesAction(
 /// `Ref`, and the two share no common supertype in this Riverpod version.
 ///
 /// [onQueued] fires once the local row exists and before the request goes
-/// out, which is when a sender wants the transcript scrolled.
+/// out, which is when a sender wants the transcript scrolled. The request
+/// waits for any earlier send in [channelId], see [ChannelSendQueue].
 Future<void> sendOptimistically(
   ProviderReader read, {
   required String id,
@@ -406,14 +408,18 @@ Future<void> sendOptimistically(
   );
   onQueued?.call();
   try {
-    final sent = await read(apiProvider).sendMessage(
-      channelId: channelId,
-      id: id,
-      content: content,
-      attachmentIds: attachmentIds,
-      spoilerAttachmentIds: spoilerIds,
-      replyToId: replyToId,
-      mentionReply: mentionReply,
+    final client = read(apiProvider);
+    final sent = await read(channelSendQueueProvider).run(
+      channelId,
+      () => client.sendMessage(
+        channelId: channelId,
+        id: id,
+        content: content,
+        attachmentIds: attachmentIds,
+        spoilerAttachmentIds: spoilerIds,
+        replyToId: replyToId,
+        mentionReply: mentionReply,
+      ),
     );
     // Lands on the same row, because it carries the same id.
     await _keepLocally(
