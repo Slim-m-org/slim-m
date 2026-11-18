@@ -24,8 +24,11 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
 }
 
-Future<AccountHarness> _withUnsentOnSecond(WidgetTester tester) async {
-  final h = await twoServers(tester);
+Future<AccountHarness> _withUnsentOnSecond(
+  WidgetTester tester, {
+  Size size = const Size(1280, 800),
+}) async {
+  final h = await twoServers(tester, size: size);
   await tester.runAsync(() async {
     final store = await h.host
         .runtimeFor(_second)!
@@ -66,6 +69,18 @@ void main() {
     await _settle(tester);
 
     expect(h.host.accounts.map((r) => r.account!.origin), [_first, _second]);
+  });
+
+  testWidgets('on a phone the sheet closes and the question still comes', (
+    tester,
+  ) async {
+    final h = await _withUnsentOnSecond(tester, size: const Size(390, 844));
+
+    expect(find.text('Add a server'), findsNothing);
+    await tester.tap(find.widgetWithText(AppButton, 'Sign out'));
+    await _settle(tester);
+
+    expect(h.host.accounts.map((r) => r.account!.origin), [_first]);
   });
 
   testWidgets('confirming signs out of that server', (tester) async {
