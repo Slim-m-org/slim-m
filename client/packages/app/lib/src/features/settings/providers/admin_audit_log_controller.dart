@@ -19,6 +19,7 @@ class AdminAuditLogState {
     this.items = const [],
     this.loading = true,
     this.error,
+    this.failure,
     this.more = false,
   });
 
@@ -28,6 +29,9 @@ class AdminAuditLogState {
   /// A sentence to show, kept beside [items] so a failed "load more" keeps the
   /// pages on screen.
   final String? error;
+
+  /// What was caught behind [error], so a view can tell a lost permission from a fault.
+  final Object? failure;
 
   /// Whether the last page came back full, the only sign that more follows.
   final bool more;
@@ -83,6 +87,7 @@ class AdminAuditLogController extends StateNotifier<AdminAuditLogState> {
         items: before == null ? held : onto,
         loading: false,
         error: sentence,
+        failure: e,
         more: more,
       );
     }

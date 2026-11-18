@@ -63,6 +63,7 @@ class AppAsyncView<T> extends StatefulWidget {
   /// Plain words, never an exception. What failed and what it means.
   final String errorMessage;
 
+  /// Offered, and run on a backoff, unless the nearest [AppLoadRetryPolicy] refuses the error.
   final VoidCallback? onRetry;
 
   /// Shown beneath the spinner. A bare spinner is fine for a fast fetch; a
@@ -84,6 +85,15 @@ class _AppAsyncViewState<T> extends State<AppAsyncView<T>> {
   /// Moves the data under the error banner without a remount, so a draft in it survives a failed refresh.
   final _dataKey = GlobalKey();
 
+  /// Outlives the error view, which a retry's spinner unmounts; only a load that lands resets it.
+  final _backoff = AppLoadBackoff();
+
+  @override
+  void didUpdateWidget(AppAsyncView<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (value.error == null && value.data != null) _backoff.reset();
+  }
+
   AppAsyncState<T> get value => widget.value;
   String get errorMessage => widget.errorMessage;
   VoidCallback? get onRetry => widget.onRetry;
@@ -99,7 +109,7 @@ class _AppAsyncViewState<T> extends State<AppAsyncView<T>> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
 
-    if (value.error != null) return _errored();
+    if (value.error case final error?) return _errored(error);
 
     final resolved = value.data;
     if (resolved == null) return _loading(tokens);
@@ -113,26 +123,20 @@ class _AppAsyncViewState<T> extends State<AppAsyncView<T>> {
     return AppFadeIn(child: _data(context, resolved));
   }
 
-  Widget _errored() {
+  Widget _errored(Object error) {
     // Kept and shown below rather than discarded; see this class's own doc.
     final stale = value.data;
     if (stale == null) {
       return _wrap(
         Padding(
           padding: const EdgeInsets.all(AppSpacing.s16),
-          child: AppLoadRetry(
-            onRetry: onRetry,
-            child: AppErrorState(message: errorMessage, onRetry: onRetry),
-          ),
+          child: _retrying(error),
         ),
       );
     }
     final banner = Padding(
       padding: const EdgeInsets.all(AppSpacing.s12),
-      child: AppLoadRetry(
-        onRetry: onRetry,
-        child: AppErrorState(message: errorMessage, onRetry: onRetry),
-      ),
+      child: _retrying(error),
     );
     // Which layout is safe follows the constraint actually given here.
     return LayoutBuilder(
@@ -147,6 +151,15 @@ class _AppAsyncViewState<T> extends State<AppAsyncView<T>> {
               : _data(context, stale),
         ],
       ),
+    );
+  }
+
+  Widget _retrying(Object error) {
+    final retry = AppLoadRetryPolicy.allows(context, error) ? onRetry : null;
+    return AppLoadRetry(
+      onRetry: retry,
+      backoff: _backoff,
+      child: AppErrorState(message: errorMessage, onRetry: retry),
     );
   }
 

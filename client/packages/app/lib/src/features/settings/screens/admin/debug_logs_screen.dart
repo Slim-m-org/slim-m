@@ -13,6 +13,7 @@ import '../../providers/debug_logs_controller.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
+import 'paged_first_load.dart';
 import 'debug_log_row.dart';
 import 'reports_load_more_row.dart';
 
@@ -40,9 +41,10 @@ class DebugLogsPane extends ConsumerWidget {
     final items = logs.items;
 
     return AppAsyncView<List<api.DebugLogEntry>>(
-      value: AppAsyncState(
-        data: logs.loading && items.isEmpty ? null : items,
-        error: items.isEmpty ? logs.error : null,
+      value: pagedFirstLoad(
+        items,
+        loading: logs.loading,
+        failure: logs.failure,
       ),
       errorMessage: 'Could not load the debug logs.',
       onRetry: controller.refresh,
