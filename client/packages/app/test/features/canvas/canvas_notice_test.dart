@@ -10,6 +10,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_call_dock.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_forbidden_message.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_zoom_indicator.dart';
+import 'package:slimm_app/src/features/canvas/widgets/canvas_pill_surface.dart';
 import 'package:slimm_app/src/widgets/status_pill.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -181,4 +182,59 @@ void main() {
     await tester.pump();
     expect(document.camera.zoom, greaterThan(before));
   });
+
+  testWidgets('the board chips keep a gap when a narrow pane wraps them', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1024, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    document.setViewport(const Size(470, 600));
+    document.outsideBoardCount.value = 3;
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: buildTheme(Brightness.dark, AppTokens.dark),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 470,
+                height: 600,
+                child: Stack(
+                  children: [
+                    CanvasZoomIndicator(
+                      document: document,
+                      tokens: AppTokens.dark,
+                      onFit: () {},
+                      onBringIn: () {},
+                      truncated: true,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await pumpFrames(tester, frames: 20);
+
+    final outside = _pillAround(tester, '3 outside the board - bring in');
+    final hidden = _pillAround(tester, 'Some ink hidden - zoom in');
+    expect(hidden.top, greaterThan(outside.top));
+    expect(hidden.top - outside.bottom, AppSpacing.s8);
+    expect(hidden.left, outside.left);
+  });
 }
+
+Rect _pillAround(WidgetTester tester, String label) => tester.getRect(
+  find
+      .ancestor(
+        of: find.text(label),
+        matching: find.byWidgetPredicate((w) => w is CanvasPillSurface),
+      )
+      .first,
+);

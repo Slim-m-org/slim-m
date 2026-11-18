@@ -104,7 +104,9 @@ class CanvasZoomIndicator extends StatelessWidget {
             _zoomPill(),
             // One Wrap, not two Flexibles: those split the row in half and cut a lone chip short.
             Flexible(
+              // Each chip pads its own left, so one that is not shown leaves no gap; only lines need spacing.
               child: Wrap(
+                runSpacing: AppSpacing.s8,
                 children: [
                   CanvasOutsideBoardNotice(
                     document: document,
