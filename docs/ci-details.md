@@ -283,7 +283,17 @@ A booted simulator also keeps its own daemons busy (`diagnosticd`, `ApplePushSer
 `build-for-testing` prints Xcode's build timing summary, where the Flutter build script (the Dart compile, 70 to 95 s of silence on a slow runner) and the Swift compile lead.
 It passes `-clonedSourcePackagesDirPath ../build/ios/SourcePackages`, where `--config-only` resolved the Swift packages: without it xcodebuild cloned every package again into its own DerivedData, about 80 s.
 It also turns off the index store (`COMPILER_INDEX_STORE_ENABLE=NO`), which nothing on CI reads.
-IOS_AFTER_PLACEHOLDER
+
+Measured on #2422's runs, 2026-11-18, in minutes, against the 30 runs before it:
+
+| | before | after |
+| --- | --- | --- |
+| build plus boot plus tests (the old `run xctest` step) | median 10.8, 4.2 to 24.6 | 4.3, 7.0 and 9.0 with the final steps; 7.9 to 8.3 on slow runners with earlier ones |
+| release device build | median 5.1 | 2.7, 3.4 and 7.0 |
+| whole job, native change | no run since #2419; 17.1 and 19.8 without the release build, so an estimated 22 to 25 | 9.5, 14.0 and 21.1 |
+
+On the fastest runner the test part is unchanged (4.2 against 4.3): what this saves is the slow runner's simulator work, and what it cannot touch is the runner's speed, the Flutter cache restore and the Swift package fetch, which together moved the whole job by more than every change here.
+The tests themselves take 20 s; launching the Flutter app they are hosted in takes most of the rest of that step.
 
 The simulator is chosen from what the runner actually has rather than by name.
 A hardcoded `iPhone 16` broke the first time this ran, and it would break again silently every time GitHub rolls the image forward.
