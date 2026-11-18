@@ -2,11 +2,16 @@
 /// A sub-category's permissions sheet opens on whether it follows its parent
 /// (decision 0120): following, it only lists who can see it; the switch stops
 /// or resumes following, and "Who can see this" is never cut at its card.
+/// Until it is known whether it follows, the sheet offers nothing to edit.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:slimm_app/src/features/channels/widgets/category_permissions_sheet.dart';
+import 'package:slimm_app/src/features/channels/widgets/category_unsynced_notice.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../support/async_wait.dart';
@@ -19,6 +24,19 @@ Finder _toggle(String label) =>
 
 final _follow = _toggle('Follow Gamers');
 final _private = _toggle('Private category');
+
+/// Answers nothing until [release] completes, as a slow first load does.
+class HeldSyncServer extends OverwriteServer {
+  HeldSyncServer(super.rows, {super.synced});
+
+  final release = Completer<void>();
+
+  @override
+  Future<http.Response> handle(http.Request request) async {
+    await release.future;
+    return super.handle(request);
+  }
+}
 
 void main() {
   testWidgets('following, it lists who can see it and offers nothing to edit', (
@@ -62,6 +80,44 @@ void main() {
     await pumpFrames(tester);
 
     expect(server.requests, contains('POST /categories/sub/overwrites/sync'));
+    expect(_private, findsNothing);
+  });
+
+  testWidgets('following, it still names a channel that keeps its own', (
+    tester,
+  ) async {
+    final server = OverwriteServer(
+      {_sub: [], '/channels/mc': []},
+      synced: {_sub: true, '/channels/mc': false},
+    );
+    await openCategorySheet(
+      tester,
+      server,
+      channels: [privateChannel('mc', 'sub')],
+    );
+    await waitUntil(
+      tester,
+      () => server.requests.contains('GET /channels/mc/overwrites'),
+    );
+    await pumpFrames(tester);
+
+    expect(_private, findsNothing);
+    expect(find.text(unsyncedMessage(0, 1)), findsOneWidget);
+  });
+
+  testWidgets('until it is known whether it follows, nothing is editable', (
+    tester,
+  ) async {
+    final server = HeldSyncServer({_sub: []}, synced: {_sub: true});
+    await openCategorySheet(tester, server);
+
+    expect(_follow, findsOneWidget);
+    expect(_private, findsNothing, reason: 'a tap would un-sync it');
+    expect(find.byKey(categoryAdvancedToggleKey), findsNothing);
+
+    server.release.complete();
+    await pumpFrames(tester);
+    expect(find.text('Uses the same permissions as Gamers.'), findsOneWidget);
     expect(_private, findsNothing);
   });
 

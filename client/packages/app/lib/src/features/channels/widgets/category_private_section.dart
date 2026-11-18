@@ -43,7 +43,8 @@ class CategoryPrivateSection extends ConsumerStatefulWidget {
   final List<Widget> trailing;
 
   /// A sub-category following its parent takes its access from there, so it only lists who sees it.
-  final bool followsParent;
+  /// Null until that is known: only [leading] shows, so nothing can un-sync it by accident.
+  final bool? followsParent;
   final List<ChannelCategoryRow> subCategories;
   final List<Channel> channels;
 
@@ -152,12 +153,28 @@ class _CategoryPrivateSectionState extends ConsumerState<CategoryPrivateSection>
     }
     final private = _optimistic ?? stored ?? false;
     final error = actionError;
-    if (widget.followsParent) {
+    final unsynced = CategoryUnsyncedNotice(
+      categoryId: widget.categoryId,
+      categoryName: widget.name,
+      subCategories: widget.subCategories,
+      channels: widget.channels,
+    );
+    final follows = widget.followsParent;
+    if (follows == null) {
+      return SettingsSectionCard(topGap: 0, children: widget.leading);
+    }
+    if (follows) {
       return SettingsSectionCard(
         topGap: 0,
         children: [
           ...widget.leading,
-          WhoCanSee(target: _target, readOnly: true),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              WhoCanSee(target: _target, readOnly: true),
+              unsynced,
+            ],
+          ),
           ...widget.trailing,
         ],
       );
@@ -186,12 +203,7 @@ class _CategoryPrivateSectionState extends ConsumerState<CategoryPrivateSection>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             WhoCanSee(target: _target, private: _optimistic),
-            CategoryUnsyncedNotice(
-              categoryId: widget.categoryId,
-              categoryName: widget.name,
-              subCategories: widget.subCategories,
-              channels: widget.channels,
-            ),
+            unsynced,
           ],
         ),
         ...widget.trailing,

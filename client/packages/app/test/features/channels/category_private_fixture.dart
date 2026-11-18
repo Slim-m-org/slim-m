@@ -186,6 +186,7 @@ Future<void> openCategorySheet(
   List<api.Role> roles = privateRoles,
   bool dark = false,
   Key? boundary,
+  List<Channel> channels = const [],
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -225,6 +226,7 @@ Future<void> openCategorySheet(
                       ? 'Gamers'
                       : '$parentName / Minecraft',
                   parentName: parentName,
+                  channels: channels,
                 ),
                 child: const Text('open'),
               ),

@@ -75,12 +75,12 @@ class _CategoryPermissionsSheetState
     extends ConsumerState<_CategoryPermissionsSheet> {
   bool _advanced = false;
 
-  bool _followsParent() =>
-      widget.parentName != null &&
-      ref
-              .watch(categoryOverwritesSyncedProvider(widget.categoryId))
-              .valueOrNull ==
-          true;
+  /// Null for a sub-category until its load says whether it follows.
+  bool? _followsParent() => widget.parentName == null
+      ? false
+      : ref
+            .watch(categoryOverwritesSyncedProvider(widget.categoryId))
+            .valueOrNull;
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +120,7 @@ class _CategoryPermissionsSheetState
                   ),
               ],
               trailing: [
-                if (!follows)
+                if (follows == false)
                   SettingsDisclosure(
                     title: 'Advanced',
                     summary: 'Every permission',
@@ -132,7 +132,7 @@ class _CategoryPermissionsSheetState
                   ),
               ],
             ),
-            if (_advanced && !follows) ...[
+            if (_advanced && follows == false) ...[
               const SizedBox(height: AppSpacing.s16),
               ChannelPermissionsGrid.forCategory(categoryId: widget.categoryId),
             ],
