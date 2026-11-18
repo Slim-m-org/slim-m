@@ -241,7 +241,11 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
           child: Stack(
             fit: StackFit.passthrough,
             children: [
-              AttachmentFirstFrame(bytes: bytes, cacheWidth: decodeWidth),
+              AttachmentFirstFrame(
+                bytes: bytes,
+                cacheWidth: decodeWidth,
+                fit: BoxFit.contain,
+              ),
               if (_hovered)
                 Positioned.fill(
                   child: Image.memory(
@@ -386,13 +390,18 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     required int decodeWidth,
     required bool still,
   }) {
-    if (still) {
-      return AttachmentFirstFrame(bytes: bytes, cacheWidth: decodeWidth);
-    }
     final tile = widget.tileEdge;
+    final fit = tile == null ? BoxFit.scaleDown : BoxFit.cover;
+    if (still) {
+      return AttachmentFirstFrame(
+        bytes: bytes,
+        cacheWidth: decodeWidth,
+        fit: fit,
+      );
+    }
     return Image.memory(
       bytes,
-      fit: tile == null ? BoxFit.scaleDown : BoxFit.cover,
+      fit: fit,
       semanticLabel: attachment.filename,
       cacheWidth: decodeWidth,
       // Bytes can decode-fail after a successful fetch; without this it paints as Flutter's raw error box.

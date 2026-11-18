@@ -154,15 +154,20 @@ class _PlayBadge extends StatelessWidget {
 
 /// A gif's first frame, decoded once and shown still, so autoplay-off shows
 /// what the gif is without animating (and re-decoding every frame) until asked.
+/// Decoded and fitted as the moving copy is, so swapping one for the other never resizes it.
 class AttachmentFirstFrame extends StatefulWidget {
   const AttachmentFirstFrame({
     super.key,
     required this.bytes,
     required this.cacheWidth,
+    required this.fit,
   });
 
   final Uint8List bytes;
+
+  /// The widest it decodes to; a smaller gif keeps its own size.
   final int cacheWidth;
+  final BoxFit fit;
 
   @override
   State<AttachmentFirstFrame> createState() => _AttachmentFirstFrameState();
@@ -182,6 +187,7 @@ class _AttachmentFirstFrameState extends State<AttachmentFirstFrame> {
       final codec = await ui.instantiateImageCodec(
         widget.bytes,
         targetWidth: widget.cacheWidth,
+        allowUpscaling: false,
       );
       final frame = await codec.getNextFrame();
       codec.dispose();
@@ -211,6 +217,6 @@ class _AttachmentFirstFrameState extends State<AttachmentFirstFrame> {
     final frame = _frame;
     // Null (failed or still decoding): a neutral box keeps the badge tappable.
     if (frame == null) return const AttachmentPlaceholder();
-    return RawImage(image: frame, fit: BoxFit.contain);
+    return RawImage(image: frame, fit: widget.fit);
   }
 }
