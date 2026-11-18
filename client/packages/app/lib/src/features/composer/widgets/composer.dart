@@ -256,11 +256,11 @@ class _ComposerState extends ConsumerState<Composer> {
 
   void _handleChange() {
     final stats = ComposerTextStats.of(widget.controller.text);
-    final query = composerQueryAt(
-      widget.controller.text,
-      widget.controller.selection.baseOffset,
-      _botCommands,
-    );
+    final TextSelection(:isCollapsed, :extentOffset) =
+        widget.controller.selection;
+    // A range is no caret: its far end may already sit outside the trigger.
+    final caret = isCollapsed ? extentOffset : -1;
+    final query = composerQueryAt(widget.controller.text, caret, _botCommands);
     final changed = stats.changedFrom(_stats) || query != _autocomplete.query;
     final newlyMentioned = _mentionHelp.unseen(
       mentionedBotUsernames(
