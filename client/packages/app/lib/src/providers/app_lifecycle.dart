@@ -216,6 +216,14 @@ bool isSeenNow(BuildContext context) {
       TickerMode.valuesOf(context).enabled;
 }
 
+/// The container [context] sits under, or null for a widget mounted bare, as
+/// a test of one widget does. For a plain `State` that follows the window.
+ProviderContainer? windowScopeOf(BuildContext context) {
+  final scope = context
+      .getElementForInheritedWidgetOfExactType<UncontrolledProviderScope>();
+  return (scope?.widget as UncontrolledProviderScope?)?.container;
+}
+
 /// Whether a phone has left the screen; a desktop window never counts, and
 /// `inactive` is only a pulled shade.
 bool isBackgroundedOnPhone(AppLifecycleState state, {required bool mobile}) =>

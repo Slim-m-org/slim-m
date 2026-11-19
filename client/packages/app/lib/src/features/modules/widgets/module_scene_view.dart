@@ -19,11 +19,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
-import '../../../providers/app_lifecycle.dart' show isWindowVisible;
+import '../../../providers/app_lifecycle.dart';
 import 'module_scene.dart';
 import 'module_scene_bounds.dart';
 import 'module_scene_busy.dart';
@@ -83,8 +84,7 @@ class ModuleSceneView extends StatefulWidget {
   State<ModuleSceneView> createState() => _ModuleSceneViewState();
 }
 
-class _ModuleSceneViewState extends State<ModuleSceneView>
-    with WidgetsBindingObserver {
+class _ModuleSceneViewState extends State<ModuleSceneView> {
   /// How fast this may ask, and what to do when told it is asking too fast.
   /// Shared by play's timer and the drag queue; see [ScenePacing].
   final _pacing = ScenePacing();
@@ -94,6 +94,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
 
   /// Decoded bitmaps for this view's `image` ops; see `module_scene_images.dart`.
   final _images = SceneImageCache();
+  ProviderSubscription<bool>? _window;
   bool _busy = false;
   bool _playing = false;
   String? _error;
@@ -111,15 +112,12 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
   void initState() {
     super.initState();
     _ownStates.remember(widget.initial.state);
-    WidgetsBinding.instance.addObserver(this);
+    // Play asks the server every tick, so it must not run unseen; an unfocused window is still seen.
+    _window = windowScopeOf(context)?.listen(appVisibleProvider, (_, visible) {
+      if (!visible && _playing) _stopAndRepaint();
+    });
     // A finished decode changes what this paints with no scene or tap involved.
     _images.addListener(_onImageDecoded);
-  }
-
-  // Play asks the server every tick, so it must not run unseen; an unfocused window is still seen.
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!isWindowVisible(state) && _playing) _stopAndRepaint();
   }
 
   @override
@@ -165,7 +163,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    _window?.close();
     _timer?.cancel();
     _images.removeListener(_onImageDecoded);
     _images.dispose();
