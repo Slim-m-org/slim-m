@@ -350,6 +350,9 @@ The rules below are what keep the claims true; each was a bug found by `sync_con
   This is also what stops a second browser tab, which shares the database but not the in-memory record of recent deletes, from storing a message again after the first tab deleted it.
 - A row in a catch-up page at or below the message cursor is written only when it is already held, for the same reason.
   The cursor can pass a page still in flight: live frames land first, or the other tab applied its own page.
+- A server delete is remembered whatever the row's state, including a send still waiting for its answer.
+  A catch-up can deliver the delete of a message whose send request has not answered yet, and the answer would otherwise store it again.
+  Only the user dropping an unsent message (`discardUnsent`) is not remembered, because that send may have landed and then belongs in the channel.
 - Catch-up moves the message cursor to `latest_seq`, the server's head, once a scope's page is complete.
   A deleted message keeps its seq, so the page alone can end short of the head, and a late frame for one of those deleted messages would otherwise look like the next message.
   The standing seq (what the unread dot reads) does not move with it.

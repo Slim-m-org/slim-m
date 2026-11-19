@@ -96,15 +96,19 @@ Future<void> coverCursorHelper(
 }
 
 /// Drops one message row, walking the channel's standing seq and mention cursor back to the newest row left of each.
-/// A delivered or unheld message is remembered as deleted, so a late copy of it is not stored again.
-Future<void> discardRowHelper(MessageStore store, String id) async {
+/// With [serverDeleted] the message is remembered as deleted, so a late copy of it is not stored again.
+Future<void> discardRowHelper(
+  MessageStore store,
+  String id, {
+  required bool serverDeleted,
+}) async {
   final db = store.db;
   await db.transaction(() async {
     final gone = await (db.select(db.messages)..where((m) => m.id.equals(id)))
         .getSingleOrNull();
     await (db.delete(db.messages)..where((m) => m.id.equals(id))).go();
-    // A row never delivered is an unsent draft; anything else is a server delete.
-    if (gone == null || gone.seq > 0) store.recentOps.removed(id);
+    // Also a row still pending: its send can answer after the delete arrives.
+    if (serverDeleted) store.recentOps.removed(id);
     if (gone == null || gone.seq <= 0) return;
     final row = await channelRow(store, gone.channelId);
     if (row == null) return;

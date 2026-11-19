@@ -402,13 +402,17 @@ class MessageStore {
     ));
   }
 
-  /// Drops one message's local row: a pending or failed send the user chose
-  /// not to keep, or one just deleted server-side (this device's own delete
-  /// call, or a live `message.deleted` event for someone else's) that must
-  /// vanish from every view. Same operation either way.
-  Future<void> discard(String id) async {
+  /// Drops a message the server deleted (an op, a live frame, this device's own
+  /// delete call) and remembers it, so a late copy is not stored again.
+  Future<void> discard(String id) => _drop(id, serverDeleted: true);
+
+  /// Drops a pending or failed send the user chose not to keep. Not remembered:
+  /// a send that did reach the server still arrives through sync.
+  Future<void> discardUnsent(String id) => _drop(id, serverDeleted: false);
+
+  Future<void> _drop(String id, {required bool serverDeleted}) async {
     await pending_impl.forgetPendingAttachments(this, id);
-    await cursors_impl.discardRowHelper(this, id);
+    await cursors_impl.discardRowHelper(this, id, serverDeleted: serverDeleted);
   }
 
   /// The attachment ids a send was queued with, for a retry to carry again.
