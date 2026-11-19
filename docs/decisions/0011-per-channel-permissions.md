@@ -231,3 +231,14 @@ A thread-local `set_default` subscriber therefore counts nothing, and a test bui
 
 The resolution itself moved to `store/permissions_resolve.rs`: three rounds for the channel lookups whatever the id count, and one pair query plus two block reads for however many DMs are in the list.
 The equivalence tests this record asked for still carry the correctness argument; the new file only carries the cost.
+
+## Amended 2026-11-19: a deployment-wide manage bit stops at a channel its holder cannot see
+
+The per-site verdict above left the manage routes on their deployment-wide gates, and a security sweep found what that cost (`docs/internals.md`, "The private surface sweep").
+A role holding MANAGE_CHANNELS, MANAGE_ROLES or MANAGE_SERVER without ADMINISTRATOR could rename, delete, re-permission and prune a private channel it could not see, and read its name, topic and overwrites back.
+
+The manage routes that take a channel or category id now also need VIEW_CHANNEL there, and answer a hidden one as a missing one: channel rename and delete, channel and category overwrites (read, write, sync), channel retention, and the webhook admin routes (decision 0030's addendum of the same date).
+A category's grant ceiling is what the caller holds under the category's own rows, the same ceiling a channel's rows always had, in place of the deployment-wide set.
+Decision 0125's flow still works, because the row that keeps the caller in is written in the same save that makes the category private.
+
+Not changed, and left to the owner: `GET /categories` still lists every category to a channel manager (decision 0120), the audit log still names what was changed to anyone with MANAGE_SERVER, and a manager can still file a channel under, reorder, rename or delete a category whose channels they cannot see.

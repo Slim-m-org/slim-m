@@ -328,3 +328,34 @@ Every await that is followed by a write has to re-check it, including the ones i
 The ticket mint and the socket connect are network round trips too.
 A stop landing inside either used to return from start having already assigned a socket the superseding teardown had run too early to see, leaving it live and applying frames with nothing left holding a handle to close it.
 The catch-up, event applier, reconnector and session-end cleanup are separate classes in `sync/providers` that are told whether a given generation is still current.
+
+## The private surface sweep
+
+`crates/slimm-server/tests/it_infra/private_surface/`
+
+One deployment holds a private category with a synced channel, a private voice channel, a thread, a webhook, a direct message and a group, and everything private in it carries a canary word.
+Two sweeps walk `schema/openapi.yaml`, so a route is covered from the day it is documented, with no list to keep up.
+
+- The read sweep sends every GET with every private id in its path, and the search routes with every canary as the query.
+  An answer may contain neither a canary nor a private id the request did not name.
+- The ask-twice sweep sends every route twice: once naming private ids in its path, query and body, and once naming ids that name nothing.
+  The two answers must match, status and error text alike, with a success compared only as a success.
+  A difference means the route acted on, or admitted to, something its caller cannot see.
+
+They run for a plain member, for a bot with no permissions, and for a manager holding every permission but ADMINISTRATOR; the read sweep also runs for a member who was in the channel and lost it.
+A control run as the admin must meet every canary, so a sweep that stops finding things because the world broke fails too.
+
+What the sweep found on 2026-11-19, each now with its own test beside the route:
+
+- Naming a hidden channel on an upload answered differently from naming none, and a hidden channel's ATTACH_FILES overwrite lent an upload to someone who could not see it.
+- MANAGE_ROLES read and wrote the overwrites of a channel, and of a category, its holder could not see.
+  A deny is not a grant, so the grant ceiling never stopped a manager shutting a private channel's own members out, and on a category the ceiling was the deployment-wide set, so they could let themselves in.
+- MANAGE_CHANNELS renamed and deleted a channel its holder could not see, and the rename answered with its name and topic.
+- MANAGE_SERVER read, counted and pruned a hidden channel's retention, and listed, renamed, rotated and revoked the webhooks of one.
+
+The rule they all broke is decision 0011's: a channel's permissions stop at the channel, whatever the caller holds deployment-wide, and only ADMINISTRATOR sees everything.
+A route that takes a channel, category or message id therefore answers a hidden one exactly as it answers one that does not exist, before any other validation of the request.
+
+Two things a manager is told by design are skipped by name in `mod.rs`: `GET /categories` lists every category to a channel manager (decision 0120), and the audit log names what was changed.
+The sweep does not reach the websocket, push, voice with a live SFU, or call transcripts, which keep their own tests.
+The routes in `NEVER` (`probe.rs`) are not asked, because they end the session the sweep runs with or keep a limit of their own on disk.
