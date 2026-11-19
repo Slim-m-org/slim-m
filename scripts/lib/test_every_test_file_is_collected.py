@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-TEST_CASE = re.compile(r"^class \w+\((?:unittest\.)?TestCase\):", re.M)
+TEST_CASE = re.compile(r"^class \w+\((?:unittest\.)?\w*TestCase\):", re.M)
 BARE_TEST = re.compile(r"^def test_\w+\(", re.M)
 
 
@@ -32,6 +32,10 @@ class EveryTestFileIsCollectedTest(unittest.TestCase):
 
     def test_a_test_case_is_seen_as_collected(self):
         source = "class ATest(unittest.TestCase):\n    def test_it(self):\n        pass\n"
+        self.assertFalse(uncollected(source))
+
+    def test_a_case_built_on_a_shared_base_case_is_seen_as_collected(self):
+        source = "class ATest(RestoreTestCase):\n    def test_it(self):\n        pass\n"
         self.assertFalse(uncollected(source))
 
 
