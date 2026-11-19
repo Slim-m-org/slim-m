@@ -40,6 +40,7 @@ import backup_modules
 import backup_side_files
 import file_digest
 import path_guard
+import sqlite_read_only
 
 STALE_SCRATCH_AGE_S = 6 * 60 * 60
 _SCRATCH_NAME = re.compile(r"\d{8}T\d{6}Z")
@@ -85,7 +86,7 @@ def restore_database(snapshot, scratch_dir):
 
 def check_integrity(restored_db):
     """`ok`, or what is wrong, including a file too damaged to be queried."""
-    conn = sqlite3.connect(f"file:{restored_db}?mode=ro", uri=True)
+    conn = sqlite_read_only.connect(restored_db)
     try:
         return conn.execute("PRAGMA integrity_check").fetchone()[0]
     except sqlite3.DatabaseError as error:
@@ -95,7 +96,7 @@ def check_integrity(restored_db):
 
 
 def check_attachments(restored_db, mirror_dir):
-    conn = sqlite3.connect(f"file:{restored_db}?mode=ro", uri=True)
+    conn = sqlite_read_only.connect(restored_db)
     try:
         rows = conn.execute("SELECT sha256, size FROM attachments").fetchall()
     finally:
@@ -128,7 +129,7 @@ def check_attachments(restored_db, mirror_dir):
 
 
 def check_avatars(restored_db, mirror_dir):
-    conn = sqlite3.connect(f"file:{restored_db}?mode=ro", uri=True)
+    conn = sqlite_read_only.connect(restored_db)
     try:
         rows = conn.execute(
             "SELECT id, username FROM users WHERE avatar_updated_at IS NOT NULL AND deleted_at IS NULL"

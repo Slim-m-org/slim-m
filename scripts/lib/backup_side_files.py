@@ -12,10 +12,10 @@ scripts in a checkout can be newer than the image the deployment runs.
 """
 import re
 import shutil
-import sqlite3
 from pathlib import Path
 
 import path_guard
+import sqlite_read_only
 
 AVATARS = "avatars"
 ATTACHMENTS = "attachments"
@@ -82,7 +82,7 @@ def expected_files(db_path):
 
     Returns them with the reasons for any row that could not be turned into a file name.
     """
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    conn = sqlite_read_only.connect(db_path)
     found, malformed = [], []
     try:
         for kind in (_space_files, _user_banners, _linked_pictures, _kept_originals):

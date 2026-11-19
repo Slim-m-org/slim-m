@@ -9,6 +9,8 @@ short-lived goes in a not-backed-up table with the reason.
 """
 import backup_side_files as side
 
+_SYNC_ATTACHMENTS = "backup_lib.sync_attachments"
+
 MIRRORED_DIRECTORIES = {side.ATTACHMENTS, side.AVATARS}
 NOT_BACKED_UP_DIRECTORIES = {
     "previews": "derived from the attachment and rebuilt on demand",
@@ -18,10 +20,10 @@ NOT_BACKED_UP_DIRECTORIES = {
 
 # (the server's path builder, the name it is given) -> the function that mirrors that file.
 MIRRORED_NAMES = {
-    ("attachment_path", "sha256_hex"): "backup_lib.sync_attachments",
-    ("attachments_dir", "sha256_hex"): "backup_lib.sync_attachments",
-    ("attachments_dir", "hex_id"): "backup_lib.sync_attachments",
-    ("attachments_dir", "&hex_id"): "backup_lib.sync_attachments",
+    ("attachment_path", "sha256_hex"): _SYNC_ATTACHMENTS,
+    ("attachments_dir", "sha256_hex"): _SYNC_ATTACHMENTS,
+    ("attachments_dir", "hex_id"): _SYNC_ATTACHMENTS,
+    ("attachments_dir", "&hex_id"): _SYNC_ATTACHMENTS,
     ("attachments_dir", 'format!("{sha256_hex}{ORIGINAL_SUFFIX}")'): "backup_side_files._kept_originals",
     ("avatar_path", "user_id"): "backup_lib.sync_avatars",
     ("avatars_dir", "user_id"): "backup_lib.sync_avatars",

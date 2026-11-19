@@ -9,7 +9,6 @@ rolled back still has it: kept, which is every banner and icon of a backup
 taken before backup_side_files.py existed. Neither has it: missing, which
 stops the restore unless the operator passes --allow-missing-files.
 """
-import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -17,6 +16,7 @@ import backup_modules
 import backup_side_files
 import file_digest
 import path_guard
+import sqlite_read_only
 import restore_drill_lib
 
 ATTACHMENTS = backup_side_files.ATTACHMENTS
@@ -40,7 +40,7 @@ class Plan:
 
 def _referenced_files(snapshot):
     """Every media file the snapshot references, as (directory, name, size or None)."""
-    conn = sqlite3.connect(f"file:{snapshot}?mode=ro", uri=True)
+    conn = sqlite_read_only.connect(snapshot)
     try:
         attachments = conn.execute("SELECT sha256, size FROM attachments").fetchall()
         avatars = conn.execute(

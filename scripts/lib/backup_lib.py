@@ -47,13 +47,13 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import quote
 
 import backup_modules
 import backup_report
 import backup_side_files
 import file_digest
 import path_guard
+import sqlite_read_only
 import snapshot_info
 
 EXIT_FAILED = 1
@@ -104,9 +104,7 @@ def parse_args(argv):
 
 
 def vacuum_into(source_db, dest_db):
-    resolved_source = Path(source_db).resolve()
-    uri = f"file:{quote(str(resolved_source), safe='/')}?mode=ro"
-    conn = sqlite3.connect(uri, uri=True)
+    conn = sqlite_read_only.connect(source_db)
     try:
         conn.execute("VACUUM INTO ?", (str(dest_db),))
     finally:

@@ -12,6 +12,8 @@ import sqlite3
 import uuid
 from pathlib import Path
 
+_MIGRATION_GLOB = "*.sql"
+
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "crates" / "slimm-server" / "migrations"
 _images = {}
 
@@ -25,7 +27,7 @@ _SQLX_MIGRATIONS = """CREATE TABLE _sqlx_migrations (
 
 def apply_migrations(conn, migrations_dir=MIGRATIONS_DIR):
     conn.execute(_SQLX_MIGRATIONS)
-    for migration in sorted(Path(migrations_dir).glob("*.sql")):
+    for migration in sorted(Path(migrations_dir).glob(_MIGRATION_GLOB)):
         conn.executescript(migration.read_text())
         version, _, description = migration.stem.partition("_")
         conn.execute(
@@ -37,12 +39,12 @@ def apply_migrations(conn, migrations_dir=MIGRATIONS_DIR):
 
 
 def latest_migration(migrations_dir=MIGRATIONS_DIR):
-    return max(int(path.stem.partition("_")[0]) for path in Path(migrations_dir).glob("*.sql"))
+    return max(int(path.stem.partition("_")[0]) for path in Path(migrations_dir).glob(_MIGRATION_GLOB))
 
 
 def _migrations_digest(migrations_dir):
     digest = hashlib.sha256()
-    for migration in sorted(Path(migrations_dir).glob("*.sql")):
+    for migration in sorted(Path(migrations_dir).glob(_MIGRATION_GLOB)):
         digest.update(migration.name.encode() + b"\0" + migration.read_bytes() + b"\0")
     return digest.hexdigest()
 
