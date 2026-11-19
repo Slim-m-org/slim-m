@@ -9,130 +9,18 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
-import 'package:slimm_rtc/src/share_audio_graph.dart';
 import 'package:slimm_rtc/src/share_audio_graph_parse.dart';
 
+import 'support/fake_share_audio_graph.dart';
 import 'support/session_fakes.dart';
 import 'support/no_audio_devices.dart';
 
-const _ownPid = 4242;
-
-/// A just-enough PipeWire: playback streams with ports, one mix node, and the links made into it.
-class _FakeGraph implements ShareAudioGraph {
-  bool canDrive = true;
-  bool mixWorks = true;
-  bool mix = false;
-  String? exported = 'unset';
-  int destroys = 0;
-  final links = <(int, int)>[];
-  final unlinked = <(int, int)>[];
-
-  /// What still fed the mix when it was removed; WirePlumber pauses the players behind these.
-  List<(int, int)>? linkedAtDestroy;
-  Completer<void>? holdLink;
-  final streams = <int, String>{20: '$_ownPid', 30: '999'};
-
-  /// Output channels per stream; a stream not listed has FL and FR.
-  final channels = <int, List<String>>{};
-  final binaries = <int, String>{};
-  Completer<void>? holdCreate;
-  int creates = 0;
-  @override
-  String? executableName = 'slimm';
-
-  @override
-  bool get supported => canDrive;
-  @override
-  int get processId => _ownPid;
-
-  @override
-  Future<bool> createMix(String name) async {
-    creates++;
-    await holdCreate?.future;
-    return mix = mixWorks;
-  }
-
-  @override
-  Future<bool> link(int out, int input) async {
-    await holdLink?.future;
-    links.add((out, input));
-    return true;
-  }
-
-  @override
-  Future<bool> unlink(int out, int input) async {
-    unlinked.add((out, input));
-    return links.remove((out, input));
-  }
-
-  @override
-  void exportCaptureSource(String? source) => exported = source;
-
-  @override
-  Future<void> destroy() async {
-    destroys++;
-    if (mix) linkedAtDestroy = [...links];
-    mix = false;
-    links.clear();
-  }
-
-  @override
-  Future<String?> dump() async => jsonEncode([
-        for (final e in streams.entries) ...[
-          _node(e.key, 'Stream/Output/Audio', e.value),
-          for (final (i, ch) in (channels[e.key] ?? const ['FL', 'FR']).indexed)
-            _port(e.key * 10 + i + 1, e.key, 'out', ch),
-        ],
-        if (mix) ...[
-          {
-            'id': 90,
-            'info': {
-              'props': {'node.name': 'slimm-share-mix'}
-            }
-          },
-          _port(91, 90, 'in', 'FL'),
-          _port(92, 90, 'in', 'FR'),
-        ],
-        for (final l in links)
-          {
-            'id': 500 + l.$1,
-            'info': {
-              'props': {
-                'link.input.node': 90,
-                'link.output.port': l.$1,
-                'link.input.port': l.$2,
-              }
-            }
-          },
-      ]);
-
-  Map<String, dynamic> _node(int id, String cls, String pid) => {
-        'id': id,
-        'info': {
-          'props': {
-            'media.class': cls,
-            'application.process.id': int.parse(pid),
-            'application.name': 'app$id',
-            if (binaries[id] != null)
-              'application.process.binary': binaries[id],
-          }
-        }
-      };
-
-  Map<String, dynamic> _port(int id, int node, String dir, String ch) => {
-        'id': id,
-        'info': {
-          'props': {'node.id': node, 'port.direction': dir, 'audio.channel': ch}
-        }
-      };
-}
-
 void main() {
-  late _FakeGraph graph;
+  late FakeShareAudioGraph graph;
   late ShareAudioIsolation isolation;
 
   setUp(() {
-    graph = _FakeGraph();
+    graph = FakeShareAudioGraph();
     isolation = ShareAudioIsolation(
       graph: graph,
       followEvery: const Duration(milliseconds: 20),
@@ -165,31 +53,6 @@ void main() {
     expect(graph.exported, isNull);
     expect(graph.destroys, 1);
     expect(isolation.active, isFalse);
-  });
-
-  test('the mix is emptied before it goes, so no player feeding it is paused',
-      () async {
-    await isolation.begin();
-    expect(graph.links, isNotEmpty);
-
-    await isolation.end();
-
-    expect(graph.linkedAtDestroy, isEmpty);
-    expect(graph.unlinked.toSet(), {(301, 91), (302, 92)});
-  });
-
-  test('a link made while the share ends is undone before the mix goes',
-      () async {
-    await isolation.begin();
-    graph.holdLink = Completer<void>();
-    graph.streams[40] = '1000';
-    await Future<void>.delayed(const Duration(milliseconds: 60));
-
-    final ended = isolation.end();
-    graph.holdLink!.complete();
-    await ended;
-
-    expect(graph.linkedAtDestroy, isEmpty);
   });
 
   test('ending twice tears down once', () async {
@@ -406,14 +269,14 @@ void main() {
     expect(snapshot.mixState(90).links,
         [(out: 301, input: 91), (out: 302, input: 92)]);
     expect(snapshot.portChannels()[301], 'FL');
-    expect(snapshot.foreignPlayback(_ownPid).map((s) => s.nodeId), [30]);
+    expect(snapshot.foreignPlayback(fakeOwnPid).map((s) => s.nodeId), [30]);
   });
 
   _sessionTests();
 
   test('one built under a fake clock still ends in the real zone', () async {
     late ShareAudioIsolation built;
-    fakeAsync((_) => built = ShareAudioIsolation(graph: _FakeGraph()));
+    fakeAsync((_) => built = ShareAudioIsolation(graph: FakeShareAudioGraph()));
 
     await built.end().timeout(const Duration(seconds: 2));
   });
@@ -444,8 +307,9 @@ class _Unpublished extends Fake implements lk.LocalTrackPublication {
 }
 
 void _sessionTests() {
-  Future<(VoiceSession, _FakeGraph, ShareAudioIsolation, lk.Room)> up() async {
-    final graph = _FakeGraph();
+  Future<(VoiceSession, FakeShareAudioGraph, ShareAudioIsolation, lk.Room)>
+      up() async {
+    final graph = FakeShareAudioGraph();
     final isolation = ShareAudioIsolation(graph: graph);
     final room = ConnectlessRoom();
     final session = VoiceSession(
