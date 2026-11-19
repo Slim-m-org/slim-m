@@ -4,6 +4,8 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'message_notes.dart';
+
 /// What a viewer voted: one [option], or on a ranked poll a [ranking] best first.
 class PollBallot {
   const PollBallot({this.option, this.ranking});
@@ -20,10 +22,19 @@ class PollVoteFailure {
   final PollBallot ballot;
 }
 
-/// Keyed by message, and null while the last vote on it stands.
-final pollVoteFailureProvider = StateProvider.family<PollVoteFailure?, String>(
-  (ref, messageId) => null,
-);
+/// The votes the server refused, by message; a message is absent while its last vote stands.
+final pollVoteFailuresProvider =
+    NotifierProvider<
+      MessageNotes<PollVoteFailure>,
+      Map<String, PollVoteFailure>
+    >(MessageNotes.new);
+
+/// One message's refused vote, and null while the last vote on it stands.
+final pollVoteFailureProvider = Provider.autoDispose
+    .family<PollVoteFailure?, String>(
+      (ref, messageId) =>
+          ref.watch(pollVoteFailuresProvider.select((all) => all[messageId])),
+    );
 
 /// A ballot tapped while an earlier one on the same poll was still out.
 typedef QueuedPollBallot = ({PollBallot ballot, String whatFailed});

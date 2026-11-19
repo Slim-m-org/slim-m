@@ -80,15 +80,9 @@ class LinkPreviewList extends ConsumerWidget {
             child: AppErrorState(
               message: failure,
               onRetry: remove,
-              onDismiss: () =>
-                  ref
-                          .read(
-                            linkPreviewRemovalErrorProvider(
-                              message.id,
-                            ).notifier,
-                          )
-                          .state =
-                      null,
+              onDismiss: () => ref
+                  .read(linkPreviewRemovalErrorsProvider.notifier)
+                  .put(message.id, null),
             ),
           ),
       ],

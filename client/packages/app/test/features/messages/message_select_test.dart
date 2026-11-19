@@ -94,6 +94,8 @@ Future<_Harness> _pump(
   container.read(buttonPressesProvider);
   await tester.pumpWidget(
     UncontrolledProviderScope(
+      // A second pump in one test brings a new container; a scope re-pointed at one keeps scheduling on the first.
+      key: ObjectKey(container),
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
