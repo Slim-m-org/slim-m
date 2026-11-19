@@ -74,19 +74,26 @@ def level_change_db(before_db, after_db):
 
 
 def applied_gain_db(samples, min_source_db=-50.0):
-    """The gain the app applied, from windows where the source was audible.
+    """The gain the app applied: the heard power over the source's, summed over the same windows.
 
     `samples` is `[(seconds, effective_db, source_db)]`, the heard level and
-    the level of the same stream before the app's gain. Comparing the two in
-    the same window cancels the sender's own level drift, which a comparison
-    of two separate stretches of a call cannot. None when the source never
-    cleared `min_source_db`, since then there is nothing to scale.
+    the level of the same stream before the app's gain, read side by side, so
+    the sender's own level drift cancels. Each is read by its own analyser in
+    its own audio context, never at quite the same instant, so on speech one
+    window's ratio swings by several dB and the median of those ratios missed
+    a 1.5 dB tolerance now and then; summed over the measurement the offset
+    cancels too. None when the source never cleared `min_source_db`, since then
+    there is nothing to scale.
     """
-    gains = [max(eff, SILENCE_DB) - src for _, eff, src in samples
-             if src >= min_source_db]
-    if not gains:
+    if not any(src >= min_source_db for _, _, src in samples):
         return None
-    return percentile(gains, 50)
+    heard = sum(_power(max(eff, SILENCE_DB)) for _, eff, _ in samples)
+    source = sum(_power(src) for _, _, src in samples)
+    return 10.0 * math.log10(heard / source)
+
+
+def _power(db):
+    return 10.0 ** (db / 10.0)
 
 
 def loudest_heard_db(samples, min_source_db=-50.0):
