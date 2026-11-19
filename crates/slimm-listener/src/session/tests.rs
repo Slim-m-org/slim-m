@@ -94,6 +94,7 @@ fn publish(rig: &Rig, who: &str, sid: &str, microphone: bool) {
         .send(RoomEvent::Published {
             track: track(who, sid),
             microphone,
+            muted: false,
         })
         .unwrap();
 }
@@ -352,4 +353,81 @@ async fn a_stop_mid_sentence_still_reports_what_was_said() {
     };
     assert_eq!(identity, "alice");
     assert_eq!(rig.task.await.unwrap(), Ending::Stopped);
+}
+
+/// Collects what the session logs on this thread, without colour codes.
+/// Tracing caches interest per callsite across parallel tests, so only a line no other test logs is safe to assert.
+#[derive(Clone, Default)]
+struct Logs(Arc<Mutex<Vec<u8>>>);
+
+impl std::io::Write for Logs {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().unwrap().extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl Logs {
+    fn capture(&self) -> tracing::subscriber::DefaultGuard {
+        let sink = self.clone();
+        tracing::subscriber::set_default(
+            tracing_subscriber::fmt()
+                .with_ansi(false)
+                .with_writer(move || sink.clone())
+                .finish(),
+        )
+    }
+
+    fn lines_with(&self, needle: &str) -> Vec<String> {
+        String::from_utf8_lossy(&self.0.lock().unwrap())
+            .lines()
+            .filter(|line| line.contains(needle))
+            .map(str::to_owned)
+            .collect()
+    }
+}
+
+#[tokio::test]
+async fn a_muted_microphone_stays_subscribed_and_its_unmute_is_logged() {
+    let logs = Logs::default();
+    let _guard = logs.capture();
+    let mut rig = rig(&["alice"]);
+    assert!(matches!(
+        next_report(&mut rig).await,
+        Report::Started { .. }
+    ));
+    for (who, sid) in [("alice", "TR_a"), ("bob", "TR_b")] {
+        rig.events
+            .send(RoomEvent::Published {
+                track: track(who, sid),
+                microphone: true,
+                muted: true,
+            })
+            .unwrap();
+        rig.events
+            .send(RoomEvent::Muted {
+                track: track(who, sid),
+                muted: false,
+            })
+            .unwrap();
+    }
+    say(&rig, "alice");
+    let Report::Segment { identity, .. } = next_report(&mut rig).await else {
+        panic!("speech after unmuting is heard");
+    };
+    assert_eq!(identity, "alice");
+    assert_eq!(
+        *rig.calls.lock().unwrap(),
+        vec![(track("alice", "TR_a"), true)],
+        "muting never changes who is subscribed"
+    );
+    let unmuted = logs.lines_with("microphone mute ");
+    assert!(
+        unmuted.len() == 1 && unmuted[0].contains("identity=alice muted=false"),
+        "only the subscribed microphone is logged: {unmuted:?}"
+    );
 }
