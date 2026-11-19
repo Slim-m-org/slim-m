@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A transcript finished while the socket was down is never replayed, so a
 /// reconnect rereads every open channel's newest page, and the first connect
-/// does not; turning transcripts back on rereads them too.
+/// does not; turning transcripts back on rereads them too, and turning them
+/// off hides them without a restart.
 library;
 
 import 'package:drift/native.dart';
@@ -11,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/channels/providers/mounted_channels.dart';
 import 'package:slimm_app/src/features/messages/providers/message_extras.dart';
+import 'package:slimm_app/src/features/messages/providers/voice_transcripts.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/server_info.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -192,6 +194,42 @@ void main() {
 
       expect(rig.pages, 1);
       expect(rig.held(), VoiceTranscriptStatus.ready);
+    } finally {
+      await rig.close();
+    }
+  });
+
+  testWidgets('turning transcripts off hides a held one as soon as the '
+      'settings frame lands', (tester) async {
+    final rig = _Rig(tester);
+    await rig.start();
+    try {
+      await rig.connect();
+      rig.container.listen(voiceTranscriptsShownProvider, (_, _) {});
+      await tester.runAsync(
+        () => rig.container.read(serverInfoProvider.future),
+      );
+      rig.container.read(messageExtrasProvider.notifier).applyMessages([
+        Message.fromJson(_voice('ready')),
+      ]);
+      String? words() => voiceTranscriptWords(
+        rig.container
+            .read(messageExtrasProvider.notifier)
+            .extrasFor('m1')
+            .attachments
+            .first,
+        spaceShows: rig.container.read(voiceTranscriptsShownProvider),
+      );
+      expect(words(), 'hello');
+
+      rig.transcribe = false;
+      await tester.runAsync(() async {
+        rig.server.pushEvent({'type': 'space.settings_changed'});
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+
+      expect(words(), isNull);
+      expect(rig.pages, 0, reason: 'hiding them rereads nothing');
     } finally {
       await rig.close();
     }
