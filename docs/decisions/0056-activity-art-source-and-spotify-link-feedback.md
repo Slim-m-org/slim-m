@@ -74,3 +74,23 @@ MPRIS `mpris:artUrl` is passed through only when it satisfies the same rule, whi
 Windows SMTC and the macOS source are unchanged; their art and player name are not read.
 
 Everything stays off by default, and appear-offline still stops both feeds from opening and the server from announcing.
+
+## Addendum, 2026-11-19: Windows
+
+A Windows user reported that linking was "stuck on the agree page".
+Reproduced in the win11 VM on the 0.131.0 setup install, three separate causes:
+
+- Only the setup registered `slimm://`.
+  A zip copy, `install.cmd` and a copy moved in from Settings > About had no handler, and Edge drops a redirect to an unregistered scheme with no prompt, so the page stays on Agree.
+  Every copy now registers the scheme when it starts (`link_scheme.cpp`), pointing at the launcher from the per-user layout and at itself otherwise.
+- A second launch handed its link over through app_links, which only accepts a running copy at the same exe path.
+  When the launcher started a newer `app-<version>` folder than the running copy, the link was lost.
+  The runner now matches the running copy by file name and sends the link on its own channel.
+- With the scheme working, the token exchange failed with `CERTIFICATE_VERIFY_FAILED` and Settings said Spotify sent a reply the app could not read.
+  `accounts.spotify.com` chains to Starfield Root G2, which a fresh Windows does not store: Windows downloads such roots the first time its own TLS stack needs one.
+  Dart reads only the roots already stored, and Edge verifies with its own root store, so signing in there never installs it.
+  On Windows the Spotify client now opens the host once through WinHTTP when that happens, which lets Windows fetch the root, then retries over a fresh `SecurityContext`.
+  Other hosts the app reaches from Dart can meet the same gap; `RootFetchingClient` is the tool if one does.
+
+Edge's "This site is trying to open slim-m" prompt has Cancel as its default button.
+Settings does not mention the prompt yet.
