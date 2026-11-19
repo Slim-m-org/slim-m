@@ -13166,9 +13166,11 @@ components:
         An id a browser tab keeps for itself across reloads, since every tab of
         one profile shares one session. A join token carries it in the device
         tag, and the roster compares it, so `this_device` tells two tabs apart.
-        A native client sends none. Longer than 64 characters answers 400.
+        A native client sends none. Anything but 1 to 64 lowercase hex
+        characters answers 400.
       schema:
         type: string
+        pattern: "^[0-9a-f]{1,64}$"
         maxLength: 64
     DockSourceQuery:
       name: source

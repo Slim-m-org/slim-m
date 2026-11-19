@@ -34,9 +34,18 @@ fn device_shown(token: &str) -> String {
         .to_owned()
 }
 
-#[tokio::test]
-async fn a_second_tab_of_one_session_sees_the_first_tabs_call_as_elsewhere() {
-    let (store, _guard) = support::new_store("slimm-voice-roster-tabs").await;
+/// One signed-in browser session beside a voice channel, over a fake SFU.
+struct Browser {
+    app: axum::Router,
+    token: String,
+    channel: String,
+    account: String,
+    room: RecordingRoomService,
+    _guard: support::TestDbGuard,
+}
+
+async fn browser(prefix: &str) -> Browser {
+    let (store, guard) = support::new_store(prefix).await;
     store
         .create_role(
             "everyone",
@@ -51,24 +60,42 @@ async fn a_second_tab_of_one_session_sees_the_first_tabs_call_as_elsewhere() {
         .await
         .unwrap();
     let session = store.open_session(account.id, "browser").await.unwrap();
-    let token = session.access_token;
     let room = RecordingRoomService::default();
     let voice = VoiceService::for_test(
         &spawn_sfu(room.clone()).await,
         "APItestkey",
         "a-test-secret-of-at-least-32-characters",
     );
-    let app = support::app::builder(store.clone()).voice(voice).router();
+    Browser {
+        app: support::app::builder(store.clone()).voice(voice).router(),
+        token: session.access_token,
+        channel: channel.id.to_string(),
+        account: account.id.to_string(),
+        room,
+        _guard: guard,
+    }
+}
+
+#[tokio::test]
+async fn a_second_tab_of_one_session_sees_the_first_tabs_call_as_elsewhere() {
+    let Browser {
+        app,
+        token,
+        channel,
+        account,
+        room,
+        _guard,
+    } = browser("slimm-voice-roster-tabs").await;
 
     let joined = call(
         &app,
         "POST",
-        &format!("/channels/{}/voice/token?tab=first", channel.id),
+        &format!("/channels/{channel}/voice/token?tab=f1"),
         &token,
     )
     .await;
     room.seat_listing(vec![json!({
-        "identity": account.id.to_string(),
+        "identity": account,
         "name": "alice",
         "attributes": { (DEVICE_ATTRIBUTE): device_shown(joined["token"].as_str().unwrap()) },
     })]);
@@ -76,12 +103,50 @@ async fn a_second_tab_of_one_session_sees_the_first_tabs_call_as_elsewhere() {
     let this_device = |tab: &'static str| {
         let app = app.clone();
         let token = token.clone();
-        let uri = format!("/channels/{}/voice/roster?tab={tab}", channel.id);
+        let uri = format!("/channels/{channel}/voice/roster?tab={tab}");
         async move { call(&app, "GET", &uri, &token).await["participants"][0]["this_device"].clone() }
     };
     assert_eq!(
-        (this_device("second").await, this_device("first").await),
+        (this_device("5e").await, this_device("f1").await),
         (json!(false), json!(true)),
         "the second tab is told of the first tab's call, and the first tab, reloaded, still owns it"
+    );
+}
+
+#[tokio::test]
+async fn a_tab_id_is_lowercase_hex_up_to_64_characters_as_the_schema_says() {
+    let Browser {
+        app,
+        token,
+        channel,
+        _guard,
+        ..
+    } = browser("slimm-voice-tab-shape").await;
+    let status = |tab: String| {
+        let app = app.clone();
+        let uri = format!("/channels/{channel}/voice/roster?tab={tab}");
+        let token = token.clone();
+        async move {
+            app.oneshot(request("GET", &uri, Some(&token)))
+                .await
+                .unwrap()
+                .status()
+        }
+    };
+    let accented = "%C3%A9".repeat(30);
+    assert_eq!(
+        (
+            status("0f".repeat(32)).await,
+            status("0f".repeat(32) + "0").await,
+            status("ABCDEF".to_owned()).await,
+            status(accented).await,
+        ),
+        (
+            StatusCode::OK,
+            StatusCode::BAD_REQUEST,
+            StatusCode::BAD_REQUEST,
+            StatusCode::BAD_REQUEST,
+        ),
+        "64 hex characters, one too many, uppercase, and 30 accented characters"
     );
 }

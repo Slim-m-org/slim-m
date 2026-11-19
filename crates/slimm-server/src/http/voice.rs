@@ -42,7 +42,7 @@ pub(super) mod voice_webhook;
 /// Every body here is a small JSON document; refused well before axum's 2 MB default.
 const BODY_LIMIT: usize = 64 * 1024;
 
-/// The longest tab id taken; a client makes its own as a short random string.
+/// The longest tab id taken; the web client makes its own as 32 lowercase hex characters.
 const MAX_TAB_LEN: usize = 64;
 
 /// The tab a browser keeps for itself, since every tab of one profile shares one session.
@@ -54,11 +54,17 @@ struct TabParams {
 impl TabParams {
     fn device(self, device_id: DeviceId) -> Result<VoiceDevice, ApiError> {
         let tab = self.tab.filter(|tab| !tab.is_empty());
-        if tab.as_ref().is_some_and(|tab| tab.len() > MAX_TAB_LEN) {
-            return Err(ApiError::BadRequest("tab is too long"));
+        if tab.as_ref().is_some_and(|tab| !is_tab_id(tab)) {
+            return Err(ApiError::BadRequest(
+                "tab must be up to 64 lowercase hex characters",
+            ));
         }
         Ok(VoiceDevice { device_id, tab })
     }
+}
+
+fn is_tab_id(tab: &str) -> bool {
+    tab.len() <= MAX_TAB_LEN && tab.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
 pub fn routes() -> Router<AppState> {
