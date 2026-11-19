@@ -23,6 +23,8 @@ class AccountRoot extends StatelessWidget {
   /// What the active account shows.
   final Widget app;
 
+  /// The active account first: a tree torn down in order then lets go of the
+  /// other accounts, a row naming one say, while their scopes still stand.
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: host,
@@ -31,12 +33,17 @@ class AccountRoot extends StatelessWidget {
       textDirection: TextDirection.ltr,
       children: [
         for (final runtime in host.runtimes)
-          UncontrolledProviderScope(
-            key: ObjectKey(runtime.container),
-            container: runtime.container,
-            child: runtime == host.active ? app : const SizedBox.shrink(),
-          ),
+          if (runtime == host.active) _scope(runtime, app),
+        for (final runtime in host.runtimes)
+          if (runtime != host.active) _scope(runtime, const SizedBox.shrink()),
       ],
     ),
   );
+
+  Widget _scope(AccountRuntime runtime, Widget child) =>
+      UncontrolledProviderScope(
+        key: ObjectKey(runtime.container),
+        container: runtime.container,
+        child: child,
+      );
 }

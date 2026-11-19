@@ -182,7 +182,7 @@ class _ServerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ServerIdentityScope(
+    return ServerIdentity(
       entry: entry,
       builder: (context, name, iconUpdatedAt) => AppListRow(
         label: name,
@@ -190,6 +190,7 @@ class _ServerRow extends StatelessWidget {
         selected: entry.active,
         stateDescription: entry.active ? 'Current server' : null,
         leading: ServerIconTile(
+          entry: entry,
           name: name,
           iconUpdatedAt: iconUpdatedAt,
           size: AppSizes.icon20,

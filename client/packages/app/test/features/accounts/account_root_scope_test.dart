@@ -32,6 +32,9 @@ final _watched = ValueNotifier('one');
 /// Whether the app under test shows the other account's name, as an open switcher does.
 final _namesOther = ValueNotifier(false);
 
+/// Whether it shows its own account's name too, as the switcher's current row does.
+final _namesOwn = ValueNotifier(false);
+
 class _App extends StatelessWidget {
   const _App();
 
@@ -50,7 +53,13 @@ class _App extends StatelessWidget {
       ),
       ValueListenableBuilder(
         valueListenable: _namesOther,
-        builder: (context, shown, _) => shown ? const _OtherName() : _none,
+        builder: (context, shown, _) =>
+            shown ? const _Name(active: false) : _none,
+      ),
+      ValueListenableBuilder(
+        valueListenable: _namesOwn,
+        builder: (context, shown, _) =>
+            shown ? const _Name(active: true) : _none,
       ),
     ],
   );
@@ -58,19 +67,21 @@ class _App extends StatelessWidget {
 
 const _none = SizedBox.shrink();
 
-/// The first account out of view, named through its own container.
-class _OtherName extends ConsumerWidget {
-  const _OtherName();
+/// The account on screen, or the first one out of view, named through its own container.
+class _Name extends ConsumerWidget {
+  const _Name({required this.active});
+
+  final bool active;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final other = ref
         .watch(accountsSnapshotProvider)
         .entries
-        .where((e) => !e.active)
+        .where((e) => e.active == active)
         .firstOrNull;
     if (other == null) return _none;
-    return ServerIdentityScope(
+    return ServerIdentity(
       entry: other,
       builder: (context, name, _) =>
           Text(name, textDirection: TextDirection.ltr),
@@ -85,6 +96,7 @@ void main() {
     _disposed.clear();
     _watched.value = 'one';
     _namesOther.value = false;
+    _namesOwn.value = false;
   });
 
   Future<void> boot(WidgetTester tester) async {
@@ -157,6 +169,23 @@ void main() {
 
     expect(_disposed, contains('late'));
     expect(seen, [8]);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('leaving an account whose own name is on screen, with a '
+      'refresh queued, unmounts cleanly', (tester) async {
+    await boot(tester);
+    final first = h.host.runtimeFor(_first)!.container;
+    _namesOwn.value = true;
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('First'), findsOneWidget);
+
+    first.read(_count.notifier).state = 1;
+    await switchTo(tester, _second);
+
+    expect(tester.takeException(), isNull);
+    expect(_disposed, contains('one'));
     await tester.pumpWidget(const SizedBox());
   });
 

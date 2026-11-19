@@ -40,7 +40,7 @@ class AccountCallPill extends ConsumerWidget {
             padding: const EdgeInsets.all(
               AppSpacing.s16,
             ).copyWith(top: AppSpacing.s16 + clearOfHeader),
-            child: ServerIdentityScope(
+            child: ServerIdentity(
               entry: entry,
               builder: (context, name, _) => _Pill(
                 name: name,
