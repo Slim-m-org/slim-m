@@ -276,7 +276,7 @@ def scenarios(a, b, admin, member, room_id, server, secret):
              member.me()["id"])),
         ("reconcile: an edit and a delete while a client is away",
          lambda: e2e_reconcile.survives_an_absence(
-             b, a, L.TEXT_CHANNEL, admin)),
+             b, a, L.TEXT_CHANNEL, member)),
         ("canvas: opening it from the channel header",
          lambda: e2e_canvas.open_on_both(a, b, L.VOICE_CHANNEL)),
         ("canvas: a stroke arrives on the other client live",
