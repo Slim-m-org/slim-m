@@ -175,6 +175,20 @@ void Wire(ICoreWebView2* webview) {
           })
           .Get(),
       &token);
+  // The player needs no camera, microphone, location or the like; autoplay stays WebView2's own allow.
+  webview->add_PermissionRequested(
+      Callback<ICoreWebView2PermissionRequestedEventHandler>(
+          [](ICoreWebView2*, ICoreWebView2PermissionRequestedEventArgs* args) {
+            COREWEBVIEW2_PERMISSION_KIND kind =
+                COREWEBVIEW2_PERMISSION_KIND_UNKNOWN_PERMISSION;
+            if (FAILED(args->get_PermissionKind(&kind)) ||
+                kind != COREWEBVIEW2_PERMISSION_KIND_AUTOPLAY) {
+              args->put_State(COREWEBVIEW2_PERMISSION_STATE_DENY);
+            }
+            return S_OK;
+          })
+          .Get(),
+      &token);
   webview->add_ProcessFailed(
       Callback<ICoreWebView2ProcessFailedEventHandler>(
           [](ICoreWebView2*, ICoreWebView2ProcessFailedEventArgs*) {
@@ -192,6 +206,11 @@ void Configure(ICoreWebView2* webview) {
     settings->put_AreDefaultContextMenusEnabled(FALSE);
     settings->put_IsStatusBarEnabled(FALSE);
     settings->put_IsZoomControlEnabled(FALSE);
+  }
+  // Print, find and reload belong to a browser, not a player; the keys then reach nothing.
+  ComPtr<ICoreWebView2Settings3> settings3;
+  if (settings && SUCCEEDED(settings.As(&settings3))) {
+    settings3->put_AreBrowserAcceleratorKeysEnabled(FALSE);
   }
 }
 
