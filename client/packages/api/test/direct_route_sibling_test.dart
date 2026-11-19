@@ -191,8 +191,8 @@ void main() {
   });
 
   test(
-      'a host that is not beside the server, a plain socket or another port '
-      'is never dialled', () async {
+      'a host that is not beside the server, a plain socket, another port '
+      'or a URL that is no socket is never dialled', () async {
     final (r, _) = await onLan('proxy');
     final before = dials;
 
@@ -201,7 +201,9 @@ void main() {
     expect(await open(r, 'wss://$_sibling:7880/rtc'), isNull);
     expect(await open(r, 'wss://$_sibling/rtc'), isNull);
     expect(await open(r, 'wss://127.0.0.1:$_port/rtc'), isNull);
+    expect(await open(r, 'https://$_sibling:$_port/rtc'), isNull);
     expect(dials, before);
+    expect(await open(r, _signal), startsWith('direct'), reason: 'no back-off');
   });
 
   test(

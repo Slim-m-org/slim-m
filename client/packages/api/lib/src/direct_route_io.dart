@@ -158,13 +158,12 @@ class IoDirectRoute implements DirectRoute {
     return _addresses[_next % _addresses.length];
   }
 
-  /// A host beside the server's, over TLS on its port, only while requests
-  /// already take the advertised address: that is the proof this device is
-  /// on the server's network now, so nothing is probed from elsewhere.
+  /// A socket to a host beside the server's, over TLS on its port, only while
+  /// requests already take the advertised address: that is the proof this
+  /// device is on the server's network now, so nothing is probed from elsewhere.
   ({String host, int port})? _siblingCandidate(Uri url) {
-    final secure = url.isScheme('wss') || url.isScheme('https');
     final port = url.hasPort ? url.port : 443;
-    if (!secure || !_active || _addresses.isEmpty) return null;
+    if (!url.isScheme('wss') || !_active || _addresses.isEmpty) return null;
     if (port != _base.port || !siblingHost(url.host, _base.host)) return null;
     if (_siblingBackoff.holds(_clock())) return null;
     return _addresses[_next % _addresses.length];
@@ -182,12 +181,13 @@ class IoDirectRoute implements DirectRoute {
         ConnectionTask.fromSocket(_dial(to, target), () {});
     // A LAN address is dialled itself, so no proxy can stand in for it.
     client.findProxy = (_) => 'DIRECT';
-    final opening = WebSocket.connect(
-      url.toString(),
-      headers: headers,
-      customClient: client,
-    );
+    Future<WebSocket>? opening;
     try {
+      opening = WebSocket.connect(
+        url.toString(),
+        headers: headers,
+        customClient: client,
+      );
       final socket = await opening.timeout(_siblingTimeout);
       _siblingBackoff.reset();
       return IOWebSocketChannel(socket);
@@ -199,7 +199,7 @@ class IoDirectRoute implements DirectRoute {
       _siblingBackoff.fail(_clock());
       client.close(force: true);
       // A socket that opens past the deadline has nobody else to close it.
-      unawaited(opening.then<void>((late) => late.close(), onError: (_) {}));
+      unawaited(opening?.then<void>((late) => late.close(), onError: (_) {}));
       return null;
     } finally {
       client.close();
