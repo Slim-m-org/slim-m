@@ -162,6 +162,35 @@ void main() {
     await channel.sink.close(status.normalClosure);
   });
 
+  test(
+      'an event socket URL without a port goes public on 443, with no '
+      'address advertised and after a failed direct dial', () async {
+    final asked = <int>[];
+    final r = IoDirectRoute(
+      Uri.parse('https://$_host'),
+      context: _trusting,
+      connectPublic: (host, port) {
+        asked.add(port);
+        return Socket.connect(InternetAddress.loopbackIPv4, public.port);
+      },
+      connectDirect: (host, port) =>
+          Future.error(const SocketException('unreachable')),
+      clock: () => now,
+    );
+    addTearDown(r.httpClient.close);
+    Future<Object?> open() async {
+      final channel = r.connectWebSocket(Uri.parse('wss://$_host/ws'));
+      final first = await channel.stream.first;
+      await channel.sink.close(status.normalClosure);
+      return first;
+    }
+
+    expect(await open(), 'public');
+    r.advertise(['127.0.0.1:443']);
+    expect(await open(), 'public');
+    expect(asked, [443, 443]);
+  });
+
   test('another host is never shortcut', () async {
     final (direct, directSeen) = await _server('direct', _host);
     directTarget = direct.port;

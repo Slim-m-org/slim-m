@@ -42,8 +42,7 @@ import '../../../canvas/widgets/stamp_view.dart';
 import '../../../screen_overlay/providers/stamp_content.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_value_row.dart';
-import '../../../channels/screens/channel_screen.dart'
-    show knownRoleNamesFrom, knownUsernamesFrom;
+import '../../../members/providers/known_mention_names.dart';
 import 'report_card_actions.dart';
 import 'report_card_labels.dart';
 import 'report_card_quick_actions.dart';

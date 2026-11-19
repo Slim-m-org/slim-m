@@ -151,15 +151,18 @@ class VoiceRecorder
   final List<double> _samples = [];
   bool _sampling = false;
 
+  /// Every microphone close still running, which a call starting waits for:
+  /// on Android a close clears the Bluetooth route the call takes.
+  Future<void> _closing = Future.value();
+
   /// Replaced in tests so elapsed time can be set by hand.
   @visibleForTesting
   DateTime Function() now = DateTime.now;
 
   @override
   VoiceRecordingState build(String channelId) {
-    final unregister = ref
-        .read(callStartYieldsProvider)
-        .add(() => _giveWay(forCall: true));
+    final yields = ref.read(callStartYieldsProvider);
+    final unregister = yields.add(() => _giveWay(forCall: true));
     final signIns = _dropOnAccountChange();
     ref.listen(accountActiveProvider, (_, onScreen) {
       if (!onScreen) unawaited(_giveWay(forCall: false));
@@ -174,9 +177,19 @@ class VoiceRecorder
       _hold = null;
       _attempt++;
       _timer?.cancel();
-      unawaited(_backend?.cancel());
+      if (_backend case final backend?) _track(backend.cancel());
+      // A microphone still closing as the recorder goes keeps the next call waiting.
+      final closing = _closing;
+      unawaited(closing.whenComplete(yields.add(() => closing)));
     });
     return const VoiceRecordingState();
+  }
+
+  /// Adds [close] to the microphone closes a call starting waits for.
+  void _track(Future<Object?> close) {
+    final quiet = close.then<void>((_) {}, onError: (Object _) {});
+    final before = _closing;
+    _closing = before.then((_) => quiet);
   }
 
   Future<void> start() async {
@@ -240,7 +253,7 @@ class VoiceRecorder
   /// Whether a cancel or disposal overtook the start of [attempt]; if so its microphone is closed here.
   bool _superseded(int attempt, VoiceCaptureBackend backend) {
     if (attempt == _attempt) return false;
-    unawaited(backend.cancel());
+    _track(backend.cancel());
     return true;
   }
 
@@ -311,10 +324,15 @@ class VoiceRecorder
   }
 
   /// A call starting, or its account leaving the screen, stops a recording and
-  /// keeps the clip; one still opening is dropped.
+  /// keeps the clip; one still opening is dropped. Either way it waits for
+  /// every microphone still closing.
   Future<void> _giveWay({required bool forCall}) async {
-    if (state.phase == VoicePhase.starting) return cancel();
-    if (state.phase == VoicePhase.recording) await _finish(forCall: forCall);
+    if (state.phase == VoicePhase.starting) {
+      await cancel();
+    } else if (state.phase == VoicePhase.recording) {
+      await _finish(forCall: forCall);
+    }
+    await _closing;
   }
 
   /// Ends the recording and keeps the clip for [send]; a stray tap is dropped.
@@ -338,7 +356,9 @@ class VoiceRecorder
     );
     final VoiceCapture? capture;
     try {
-      capture = await backend.stop();
+      final stopping = backend.stop();
+      _track(stopping);
+      capture = await stopping;
     } on Object catch (error, stack) {
       AppLog.swallowed(
         LogTag.voice,
@@ -378,7 +398,10 @@ class VoiceRecorder
     final backend = _backend;
     _backend = null;
     state = const VoiceRecordingState();
-    await backend?.cancel();
+    if (backend == null) return;
+    final closing = backend.cancel();
+    _track(closing);
+    await closing;
   }
 
   /// Ends the recording if it is still running, uploads it as a voice message

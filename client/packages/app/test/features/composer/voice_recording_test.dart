@@ -55,8 +55,14 @@ class FakeCapture implements VoiceCaptureBackend {
     );
   }
 
+  /// When set, cancel waits on it, the way a microphone closing does.
+  Future<void>? discarding;
+
   @override
-  Future<void> cancel() async => cancelled = true;
+  Future<void> cancel() async {
+    if (discarding case final closing?) await closing;
+    cancelled = true;
+  }
 }
 
 class FakeActions implements ComposerActions {

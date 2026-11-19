@@ -2,6 +2,8 @@
 library;
 
 import 'dart:async';
+import 'package:web_socket_channel/web_socket_channel.dart';
+
 import 'direct_route.dart';
 import 'client.dart';
 import 'client_transport.dart';
@@ -25,4 +27,12 @@ extension SlimmApiDirectRoute on SlimmApi {
 
   /// Tries the server's own network again at once; see [DirectRoute.retryNow].
   void retryDirectRoute() => link.route?.retryNow();
+
+  /// A socket to [url] over the server's own network, or null to connect
+  /// normally; see [DirectRoute.connectSiblingDirect].
+  Future<WebSocketChannel?> connectSiblingDirect(
+    Uri url, {
+    Map<String, String>? headers,
+  }) async =>
+      await link.route?.connectSiblingDirect(url, headers: headers);
 }

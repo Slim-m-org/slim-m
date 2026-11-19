@@ -239,3 +239,98 @@ async fn a_swept_stale_heartbeat_publishes_voice_activity_changed() {
         other => panic!("expected VoiceActivityChanged, got {other:?}"),
     }
 }
+
+/// Heartbeats travel the API path, which can break while the call's media is fine.
+#[tokio::test]
+async fn a_stale_heartbeat_is_kept_while_the_sfu_reports_the_member_active() {
+    let recorder = RecordingRoomService::default();
+    let url = spawn_sfu(recorder.clone()).await;
+    let voice = voice_at(&url);
+    let hub = Hub::new();
+    let mut rx = hub.subscribe();
+
+    let (user, channel) = (UserId::generate(), ChannelId::generate());
+    recorder.seat_active(&[user]);
+    let start = Instant::now();
+    voice.record_heartbeat_at_for_test(user, channel, start);
+
+    let evicted =
+        slimm_server::sweep_stale_voice_calls_at(&voice, &hub, start + Duration::from_secs(41))
+            .await;
+
+    assert!(evicted.is_empty());
+    assert!(recorder.removed.lock().unwrap().is_empty());
+    assert!(
+        voice.has_heartbeat(user, channel),
+        "the next sweep asks again"
+    );
+    assert!(rx.try_recv().is_err(), "nobody is told a kept member left");
+}
+
+#[tokio::test]
+async fn a_stale_heartbeat_gone_from_the_room_is_evicted() {
+    let recorder = RecordingRoomService::default();
+    let url = spawn_sfu(recorder.clone()).await;
+    let voice = voice_at(&url);
+    let hub = Hub::new();
+
+    let (user, other, channel) = (
+        UserId::generate(),
+        UserId::generate(),
+        ChannelId::generate(),
+    );
+    recorder.seat_active(&[other]);
+    let start = Instant::now();
+    voice.record_heartbeat_at_for_test(user, channel, start);
+    voice.record_heartbeat_at_for_test(other, channel, start);
+
+    let evicted =
+        slimm_server::sweep_stale_voice_calls_at(&voice, &hub, start + Duration::from_secs(41))
+            .await;
+
+    assert_eq!(evicted, [(user, channel)]);
+    let removed = recorder.removed.lock().unwrap();
+    assert_eq!(removed.len(), 1);
+    assert_eq!(removed[0]["identity"], user.to_string());
+    assert!(voice.has_heartbeat(other, channel));
+}
+
+/// A dead client the SFU has not reaped yet still goes, just later.
+#[tokio::test]
+async fn the_cap_evicts_a_member_the_sfu_still_reports_active() {
+    let recorder = RecordingRoomService::default();
+    let url = spawn_sfu(recorder.clone()).await;
+    let voice = voice_at(&url);
+    let hub = Hub::new();
+
+    let (user, channel) = (UserId::generate(), ChannelId::generate());
+    recorder.seat_active(&[user]);
+    let start = Instant::now();
+    voice.record_heartbeat_at_for_test(user, channel, start);
+
+    let before_cap = start + Duration::from_secs(119);
+    let kept = slimm_server::sweep_stale_voice_calls_at(&voice, &hub, before_cap).await;
+    assert!(kept.is_empty());
+
+    let at_cap = start + Duration::from_secs(120);
+    let evicted = slimm_server::sweep_stale_voice_calls_at(&voice, &hub, at_cap).await;
+    assert_eq!(evicted, [(user, channel)]);
+    assert_eq!(recorder.removed.lock().unwrap().len(), 1);
+    assert!(!voice.has_heartbeat(user, channel));
+}
+
+/// An SFU that cannot be asked vouches for nobody, so the stale call goes as it always did.
+#[tokio::test]
+async fn an_sfu_that_cannot_answer_still_evicts() {
+    let voice = voice_at("http://127.0.0.1:1");
+    let hub = Hub::new();
+
+    let (user, channel) = (UserId::generate(), ChannelId::generate());
+    let start = Instant::now();
+    voice.record_heartbeat_at_for_test(user, channel, start);
+
+    let evicted =
+        slimm_server::sweep_stale_voice_calls_at(&voice, &hub, start + Duration::from_secs(41))
+            .await;
+    assert_eq!(evicted, [(user, channel)]);
+}

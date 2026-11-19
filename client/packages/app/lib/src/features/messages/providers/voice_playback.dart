@@ -145,10 +145,8 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
         }
       });
     }
-    // The yields are shared by every community, so a call joined in another one stops or pauses this message too.
-    ref.onDispose(
-      ref.read(callStartYieldsProvider).add(_ios ? stopForCall : _pauseForCall),
-    );
+    // The yields are shared by every community, so a call joined in another one pauses this message too.
+    ref.onDispose(ref.read(callStartYieldsProvider).add(_pauseForCall));
     ref.listen(accountActiveProvider, (_, onScreen) {
       if (!onScreen) unawaited(_pauseForCall());
     });
@@ -189,14 +187,7 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
     await _start(voice);
   }
 
-  /// Stops a message before a call claims the audio session it shares on iOS.
-  Future<void> stopForCall() async {
-    if (!_ios) return;
-    state = VoicePlaybackState(speed: state.speed);
-    await _backend?.stop();
-  }
-
-  /// Elsewhere a call starting pauses a message where it is, so Play resumes it.
+  /// A call starting pauses a message where it is, so Play resumes it.
   Future<void> _pauseForCall() async {
     if (state.loading) {
       // Nothing holds the message now, so its play stops as it lands.
@@ -213,7 +204,12 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
   // On iOS a call holds the shared audio session, which playback would take.
   bool _refusedInCall(Attachment voice) {
     if (!_ios || !ref.read(callHoldsAudioSessionProvider)()) return false;
+    // A paused message keeps its place for after the call; one still loading lets go, so its play stops as it lands.
+    final held = state.loading ? null : state.attachmentId;
     state = VoicePlaybackState(
+      attachmentId: held,
+      playing: state.playing,
+      position: state.position,
       speed: state.speed,
       error: VoicePlaybackError.inCall,
       errorFor: voice.id,

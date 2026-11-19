@@ -24,6 +24,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../members/providers/known_mention_names.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../members/providers/bot_ui_uses.dart';
 import '../providers/channel_history.dart';
@@ -51,7 +52,6 @@ import '../../messages/widgets/message_transcript.dart';
 import '../../messages/widgets/message_transcript_widgets.dart';
 import '../../messages/widgets/thread_parent_card.dart';
 import 'channel_message_actions.dart';
-import 'channel_screen.dart' show knownRoleNamesFrom, knownUsernamesFrom;
 import 'channel_screen_streams.dart';
 import 'channel_transcript_scroll.dart';
 

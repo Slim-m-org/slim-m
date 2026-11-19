@@ -34,7 +34,7 @@ import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
+import 'package:slimm_app/src/features/members/providers/known_mention_names.dart';
 import 'package:slimm_app/src/widgets/space_connection_dot.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
@@ -140,7 +140,7 @@ api.Me? _readEffectiveMe(WidgetRef ref) => ref.watch(effectiveMeProvider);
 /// itself, `autoDispose`, read with no permanent watcher keeping it alive.
 api.Me? _readMeDirect(WidgetRef ref) => ref.watch(meProvider).valueOrNull;
 
-/// Mirrors `channel_screen.dart`'s own transcript wiring (line 258): the same
+/// Mirrors `channel_transcript_pane.dart`'s own transcript wiring: the same
 /// [knownUsernamesFrom] call feeding the same [MessageBody] a real message
 /// row renders.
 class _MentionUnderTest extends ConsumerWidget {

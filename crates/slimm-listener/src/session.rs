@@ -88,6 +88,7 @@ struct Heard {
 struct Track {
     microphone: bool,
     subscribed: bool,
+    muted: bool,
 }
 
 /// Runs the session until it ends, then leaves the room. Reports `ended` itself
@@ -184,7 +185,7 @@ impl<R: RoomSource> Session<R> {
             };
             if info.subscribed != on {
                 info.subscribed = on;
-                tracing::info!(session = %self.id, identity = %track.identity, on, "microphone subscription");
+                tracing::info!(session = %self.id, identity = %track.identity, on, muted = info.muted, "microphone subscription");
                 self.room.subscribe(&track, on);
             }
         }
@@ -202,16 +203,22 @@ impl<R: RoomSource> Session<R> {
 
     fn on_event(&mut self, event: RoomEvent) {
         match event {
-            RoomEvent::Published { track, microphone } => {
+            RoomEvent::Published {
+                track,
+                microphone,
+                muted,
+            } => {
                 self.tracks.insert(
                     track,
                     Track {
                         microphone,
                         subscribed: false,
+                        muted,
                     },
                 );
                 self.reconcile();
             }
+            RoomEvent::Muted { track, muted } => self.on_muted(&track, muted),
             RoomEvent::Unpublished { track } => {
                 self.tracks.remove(&track);
             }
@@ -225,6 +232,17 @@ impl<R: RoomSource> Session<R> {
                 }
             }
             RoomEvent::Closed => {}
+        }
+    }
+
+    /// Logged for a subscribed microphone only, so a silent transcript can be told from a muted speaker.
+    fn on_muted(&mut self, track: &TrackRef, muted: bool) {
+        let Some(info) = self.tracks.get_mut(track) else {
+            return;
+        };
+        info.muted = muted;
+        if info.subscribed {
+            tracing::info!(session = %self.id, identity = %track.identity, muted, "microphone mute");
         }
     }
 

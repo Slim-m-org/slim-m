@@ -173,7 +173,7 @@ class InboxRow extends ConsumerWidget {
       );
       return;
     }
-    router.go(Routes.channel(entry.channel.id));
+    router.go(Routes.channel(entry.channel.id, openChat: true));
   }
 
   @override

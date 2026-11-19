@@ -237,9 +237,11 @@ fn apply(state: &AppState, event: WebhookEvent) -> Option<Presence> {
             });
         }
         "track_published" => {
+            nudge_if_microphone(state, channel_id, &event);
             publish_share_change(state, &live_state, channel_id, (user_id, sid), &event, true);
         }
         "track_unpublished" => {
+            nudge_if_microphone(state, channel_id, &event);
             publish_share_change(
                 state,
                 &live_state,
@@ -252,6 +254,20 @@ fn apply(state: &AppState, event: WebhookEvent) -> Option<Presence> {
         _ => {}
     }
     presence
+}
+
+/// Publishing or dropping a microphone track flips a roster's `is_muted` with no mute report from
+/// the caller, so this is what tells viewers outside the call to read it again.
+fn nudge_if_microphone(state: &AppState, channel_id: ChannelId, event: &WebhookEvent) {
+    let is_microphone = event
+        .track
+        .as_ref()
+        .is_some_and(|track| track.source.eq_ignore_ascii_case("MICROPHONE"));
+    if is_microphone {
+        state
+            .hub
+            .publish(Event::VoiceActivityChanged { channel_id });
+    }
 }
 
 /// The shared half of the `track_published`/`track_unpublished` arms: only a

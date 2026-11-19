@@ -3,7 +3,7 @@
 /// [MessageBody] pipeline the channel transcript uses, but it built its own
 /// `knownUsernames` set with `membersProvider.maybeWhen(data: ..., orElse: ()
 /// => const {})` instead of reusing [knownUsernamesFrom]
-/// (`channel_screen.dart`) - `orElse` fires on `AsyncError` exactly the same
+/// (`known_mention_names.dart`) - `orElse` fires on `AsyncError` exactly the same
 /// as on `AsyncLoading`, so a `/members` refetch failing while a moderator
 /// already has the queue open dropped every known username and unhighlighted
 /// every mention in the reported snapshot. This is the same backlog #110

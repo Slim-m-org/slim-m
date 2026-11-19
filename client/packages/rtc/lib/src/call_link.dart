@@ -42,6 +42,7 @@ class CallLink {
     this.signalRttMs,
     this.signalSilence,
     this.signalAt,
+    this.signalDirect = false,
     this.at,
   });
 
@@ -58,6 +59,9 @@ class CallLink {
   /// When [signalRttMs] was last renewed by an answer, so one answer counts once.
   final DateTime? signalAt;
 
+  /// Whether the signalling socket goes over the server's own network rather than the public route.
+  final bool signalDirect;
+
   /// When this reading was taken.
   final DateTime? at;
 
@@ -71,6 +75,7 @@ class CallLink {
         signalRttMs: signalRttMs,
         signalSilence: signalSilence,
         signalAt: signalAt,
+        signalDirect: signalDirect,
         at: at,
       );
 
@@ -82,11 +87,19 @@ class CallLink {
       other.signalRttMs == signalRttMs &&
       other.signalSilence == signalSilence &&
       other.signalAt == signalAt &&
+      other.signalDirect == signalDirect &&
       other.at == at;
 
   @override
-  int get hashCode =>
-      Object.hash(mediaRttMs, media, signalRttMs, signalSilence, signalAt, at);
+  int get hashCode => Object.hash(
+        mediaRttMs,
+        media,
+        signalRttMs,
+        signalSilence,
+        signalAt,
+        signalDirect,
+        at,
+      );
 }
 
 /// Times the signalling socket's answers from the SDK's own ping counter.

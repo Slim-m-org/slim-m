@@ -282,7 +282,7 @@ List<_Ranked> _massMentionCandidates(String term) => [
 /// field - the only role catalog available to an ordinary composer, since
 /// `GET /roles` itself stays MANAGE_ROLES-gated. A role nobody currently in
 /// the roster holds is therefore not offered here, the same boundary
-/// `knownRoleNamesFrom` (`channel_screen.dart`) already draws for rendering.
+/// `knownRoleNamesFrom` (`known_mention_names.dart`) already draws for rendering.
 /// Always inserted with the `@[Name]` bracket syntax, even for a name that
 /// would also fit the plain `@name` charset, so the rule stays simple and
 /// exceptionless: bracketed is always a role.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// On iOS a call and a voice message share one audio session: joining stops
-/// the message before the connect, and nothing starts or resumes during the
-/// call. Elsewhere a call starting pauses the message, and Play resumes it.
+/// A call starting pauses a voice message before the connect, on every
+/// platform, so Play resumes it. On iOS, where a call and a message share one
+/// audio session, nothing starts or resumes during the call.
 library;
 
 import 'dart:async';
@@ -54,37 +54,104 @@ void main() {
   void joinCall(ProviderContainer c) =>
       c.read(_call.notifier).state = const VoiceFlags(channelId: 'lounge');
 
-  test('joining a call on iOS stops a message before the connect', () async {
-    final c = container(ios: true);
-    final playback = c.read(voicePlaybackProvider.notifier);
-    await playback.toggle(voiceMessage('a'));
-    expect(c.read(voicePlaybackProvider).playing, isTrue);
+  void leaveCall(ProviderContainer c) =>
+      c.read(_call.notifier).state = const VoiceFlags();
 
-    joinCall(c);
-    await c.read(soundSessionReleaseProvider)();
+  for (final ios in [false, true]) {
+    test('a call starting pauses a message where it is, iOS $ios', () async {
+      final c = container(ios: ios);
+      final playback = c.read(voicePlaybackProvider.notifier);
+      final message = voiceMessage('a');
+      await playback.toggle(message);
+      player.position.add(const Duration(seconds: 7));
+      await Future<void>.delayed(Duration.zero);
 
-    expect(player.log.last, 'stop');
-    expect(c.read(voicePlaybackProvider).attachmentId, isNull);
-    expect(c.read(voicePlaybackProvider).playing, isFalse);
-  });
+      joinCall(c);
+      await c.read(callStartYieldsProvider).callStarting();
+      await c.read(soundSessionReleaseProvider)();
+
+      expect(player.log.last, 'pause', reason: 'paused, not stopped');
+      final paused = c.read(voicePlaybackProvider);
+      expect(paused.playing, isFalse);
+      expect(paused.attachmentId, 'a');
+      expect(paused.position, const Duration(seconds: 7));
+
+      leaveCall(c);
+      await playback.toggle(message);
+
+      expect(player.log.last, 'resume');
+      expect(c.read(voicePlaybackProvider).playing, isTrue);
+    });
+
+    test(
+      'a message still loading when a call starts never plays, iOS $ios',
+      () async {
+        final slow = _SlowPlayer();
+        final c = container(ios: ios, engine: slow);
+        final starting = c
+            .read(voicePlaybackProvider.notifier)
+            .toggle(voiceMessage('a'));
+        await slow.started.future;
+
+        joinCall(c);
+        await c.read(callStartYieldsProvider).callStarting();
+        slow.release.complete();
+        await starting;
+
+        expect(slow.log.last, 'stop');
+        expect(c.read(voicePlaybackProvider).playing, isFalse);
+      },
+    );
+  }
 
   test(
-    'a play still starting when the call joins is stopped as it lands',
+    'a message paused on iOS keeps its place through a refused Play in a call',
+    () async {
+      final c = container(ios: true);
+      final playback = c.read(voicePlaybackProvider.notifier);
+      final message = voiceMessage('a');
+      await playback.toggle(message);
+      player.position.add(const Duration(seconds: 7));
+      await Future<void>.delayed(Duration.zero);
+      await playback.toggle(message);
+      expect(player.log.last, 'pause');
+
+      joinCall(c);
+      await playback.toggle(message);
+      await playback.toggle(voiceMessage('b'));
+
+      expect(player.log, isNot(contains('resume')));
+      final refused = c.read(voicePlaybackProvider);
+      expect(refused.error, VoicePlaybackError.inCall);
+      expect(refused.errorFor, 'b');
+      expect(refused.attachmentId, 'a');
+      expect(refused.position, const Duration(seconds: 7));
+
+      leaveCall(c);
+      await playback.toggle(message);
+
+      expect(player.log.last, 'resume');
+      expect(c.read(voicePlaybackProvider).playing, isTrue);
+    },
+  );
+
+  test(
+    'a message still loading as Play is refused in a call stops as it lands',
     () async {
       final slow = _SlowPlayer();
       final c = container(ios: true, engine: slow);
-      final starting = c
-          .read(voicePlaybackProvider.notifier)
-          .toggle(voiceMessage('a'));
+      final playback = c.read(voicePlaybackProvider.notifier);
+      final starting = playback.toggle(voiceMessage('a'));
       await slow.started.future;
 
       joinCall(c);
-      await c.read(soundSessionReleaseProvider)();
+      await playback.toggle(voiceMessage('b'));
       slow.release.complete();
       await starting;
 
       expect(slow.log.last, 'stop');
       expect(c.read(voicePlaybackProvider).playing, isFalse);
+      expect(c.read(voicePlaybackProvider).attachmentId, isNull);
     },
   );
 
@@ -122,52 +189,9 @@ void main() {
       await c.read(voicePlaybackProvider.notifier).toggle(voiceMessage('a'));
       expect(c.read(voicePlaybackProvider).error, VoicePlaybackError.inCall);
 
-      c.read(_call.notifier).state = const VoiceFlags();
+      leaveCall(c);
 
       expect(c.read(voicePlaybackProvider).error, isNull);
-    },
-  );
-
-  test('elsewhere a call starting pauses a message where it is', () async {
-    final c = container(ios: false);
-    final playback = c.read(voicePlaybackProvider.notifier);
-    final message = voiceMessage('a');
-    await playback.toggle(message);
-    player.position.add(const Duration(seconds: 7));
-    await Future<void>.delayed(Duration.zero);
-
-    joinCall(c);
-    await c.read(callStartYieldsProvider).callStarting();
-
-    expect(player.log.last, 'pause', reason: 'paused, not stopped');
-    final paused = c.read(voicePlaybackProvider);
-    expect(paused.playing, isFalse);
-    expect(paused.attachmentId, 'a');
-    expect(paused.position, const Duration(seconds: 7));
-
-    await playback.toggle(message);
-
-    expect(player.log.last, 'resume');
-    expect(c.read(voicePlaybackProvider).playing, isTrue);
-  });
-
-  test(
-    'elsewhere a message still loading when a call starts never plays',
-    () async {
-      final slow = _SlowPlayer();
-      final c = container(ios: false, engine: slow);
-      final starting = c
-          .read(voicePlaybackProvider.notifier)
-          .toggle(voiceMessage('a'));
-      await slow.started.future;
-
-      joinCall(c);
-      await c.read(callStartYieldsProvider).callStarting();
-      slow.release.complete();
-      await starting;
-
-      expect(slow.log.last, 'stop');
-      expect(c.read(voicePlaybackProvider).playing, isFalse);
     },
   );
 
@@ -182,17 +206,4 @@ void main() {
 
     expect(player.log.skip(1), ['pause']);
   });
-
-  test(
-    'a call starting on iOS stops the message, whichever community joins',
-    () async {
-      final c = container(ios: true);
-      await c.read(voicePlaybackProvider.notifier).toggle(voiceMessage('a'));
-
-      await c.read(callStartYieldsProvider).callStarting();
-
-      expect(player.log.last, 'stop');
-      expect(c.read(voicePlaybackProvider).playing, isFalse);
-    },
-  );
 }

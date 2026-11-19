@@ -59,13 +59,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     Duration voiceHeartbeatInterval = const Duration(seconds: 15),
     List<Duration> autoRejoinDelays = VoiceAutoRejoin.defaultDelays,
     DateTime Function()? now,
-  }) : _session =
-           session ??
-           VoiceSession(
-             joinTimings: _ref.read(joinTimingsProvider),
-             audioLog: (line, {level = api.LogLevel.info}) =>
-                 api.AppLog.at(level, api.LogTag.voice, line),
-           ),
+  }) : _session = session ?? callSession(_ref),
        _callLifecycle = callLifecycle ?? CallLifecycleChannel(),
        _foreground =
            foreground ??
@@ -294,7 +288,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     // Before the token round trip, so a muted join that fails there is retried muted.
     if (muted) state = _joinMuted.showMuted(state);
     if (callStarts) await _ref.read(callStartYieldsProvider).callStarting();
-    // Awaited before the connect: a ring stopping later would deactivate the call's audio session.
+    // Awaited before the connect, so no ring is still sounding when the call takes the audio session.
     await _ref.read(soundSessionReleaseProvider)();
     if (superseded()) return;
     await _sfu.run(channelId, muted, superseded);
@@ -368,6 +362,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     final want = !state.microphoneEnabled;
     final got = await _session.setMicrophoneEnabled(want);
     if (generation != _callGeneration) return;
+    if (got) unawaited(devices.publishMutedState(!want));
     // Reflects what happened rather than what was asked for, so the button
     // never claims a microphone is open when the SFU refused the track.
     final error = got

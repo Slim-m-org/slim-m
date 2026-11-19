@@ -66,6 +66,31 @@ void main() {
       },
     );
 
+    test(
+      'signalling over his own network reads as local, though a public trace '
+      'named a data centre, and never raises a concern',
+      () {
+        final local = _report(
+          direct: true,
+          apiColo: null,
+          apiMs: 1,
+          signalColo: 'GRU',
+          call: const CallLink(
+            mediaRttMs: 20,
+            media: MediaRoute.direct,
+            signalRttMs: 400,
+            signalDirect: true,
+          ),
+        );
+        expect(
+          connectionLegs(local)[1].value,
+          'Your local network, 400\u00a0ms',
+        );
+        expect(local.signalColo, isNull);
+        expect(signalConcernOf(local), isNull);
+      },
+    );
+
     test('a request answered through Cloudflare reads as Cloudflare even '
         'while the local route is on for others', () {
       final legs = connectionLegs(_report(direct: true, apiColo: 'EWR'));
