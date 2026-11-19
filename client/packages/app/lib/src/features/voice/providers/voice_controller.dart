@@ -292,6 +292,9 @@ class VoiceController extends StateNotifier<VoiceState> {
     await _ref.read(soundSessionReleaseProvider)();
     if (superseded()) return;
     await _sfu.run(channelId, muted, superseded);
+    if (switching && await _sfu.endCallSwitchedFrom(superseded)) {
+      unawaited(_heartbeat.forgetLast());
+    }
   }
 
   /// Supersedes any in-flight [join], and is superseded the same way: a leave

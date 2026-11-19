@@ -71,6 +71,8 @@ class VoiceSessionSync {
       return;
     }
     _syncHeartbeat(s);
+    // A refused join's failure stays on screen when the session goes idle under it.
+    if (s == VoiceSessionState.idle && _showsRefusal) return;
     // The clock starts at the connected transition only; see VoiceCallClock.
     access.state = switch (s) {
       VoiceSessionState.connected when _current.connectedAt == null =>
@@ -89,6 +91,11 @@ class VoiceSessionSync {
       unawaited(shareResume.onConnected());
     }
   }
+
+  bool get _showsRefusal =>
+      _current.state == VoiceSessionState.failed &&
+      _current.error != null &&
+      !_current.joining;
 
   /// livekit rebuilt the connection, which rejoined this client as a participant with no deafened mark.
   void onTransportRestarted() {

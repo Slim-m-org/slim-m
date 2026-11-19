@@ -55,6 +55,43 @@ void main() {
 
   tearDown(harness.dispose);
 
+  test('a switch the server refuses ends the call switched from', () {
+    fakeAsync((async) {
+      final requests = <http.Request>[];
+      final session = FakeSession();
+      final controller = harness.controllerWith(session, _api(requests));
+
+      unawaited(controller.join('lounge'));
+      async.flushMicrotasks();
+      session.emitState(VoiceSessionState.connected);
+      async.flushMicrotasks();
+      expect(session.state, VoiceSessionState.connected);
+
+      unawaited(controller.join('full'));
+      async.flushMicrotasks();
+
+      expect(controller.state.channelId, 'full');
+      expect(controller.state.state, VoiceSessionState.failed);
+      expect(controller.state.error, isNotNull);
+      expect(
+        session.state,
+        isNot(VoiceSessionState.connected),
+        reason:
+            'the screen shows no call, so the lounge must not still '
+            'have this microphone in it',
+      );
+      expect(_forgotten(requests), ['lounge']);
+
+      final beats = requests.length;
+      async.elapse(const Duration(seconds: 40));
+      expect(
+        requests.length,
+        beats,
+        reason: 'nothing may keep proving a call that ended',
+      );
+    });
+  });
+
   test('a switch tells the server the call switched from was left', () {
     fakeAsync((async) {
       final requests = <http.Request>[];
