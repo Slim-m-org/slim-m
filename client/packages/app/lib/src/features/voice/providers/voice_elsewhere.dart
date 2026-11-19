@@ -73,6 +73,18 @@ Future<bool> _targetListsSelf(Ref ref, String channelId) async {
   }
 }
 
+/// Whether the room lists this account on a device other than this one.
+///
+/// The SFU ends a connection as "joined from another device" for this client's
+/// own reconnect overtaking its old connection too, and only the room can say which it was.
+/// A room that cannot be read answers no, since a reconnect is what a failing network produces.
+typedef ReplacedCheck = Future<bool> Function(String channelId);
+
+final voiceReplacedCheckProvider = Provider<ReplacedCheck>(
+  (ref) =>
+      (channelId) => _targetListsSelf(ref, channelId),
+);
+
 /// A re-click on the open voice channel, for its screen to act on so the
 /// join goes through the same confirmation as an arrival.
 final voiceRejoinRequestProvider = StateProvider<({String channelId, int n})?>(

@@ -47,14 +47,20 @@ const tokens = TokenPair(
 /// media transport stays up entirely, the case
 /// `voice_call_heartbeat_test.dart`'s lag tests need: a POST failure with no
 /// change to how `/voice/token` answers.
+/// [listedOnThisDevice] has the room list this account: on this device, or on another when false.
 http.Client voiceApi({
   int status = 200,
   bool canPublish = true,
   String sfuUrl = 'wss://sfu.example.com',
   bool failHeartbeat = false,
   int? callAgeMs,
+  bool? listedOnThisDevice,
   void Function(http.Request request)? onRequest,
 }) {
+  final listed = listedOnThisDevice == null
+      ? ''
+      : '{"user_id":"${tokens.userId}","display_name":"Me",'
+            '"this_device":$listedOnThisDevice}';
   return MockClient((request) async {
     onRequest?.call(request);
     if (request.url.path.endsWith('/voice/heartbeat')) {
@@ -64,7 +70,10 @@ http.Client voiceApi({
       return http.Response('', 204);
     }
     if (request.url.path.endsWith('/voice/roster')) {
-      return http.Response('{"participants":[],"call_age_ms":$callAgeMs}', 200);
+      return http.Response(
+        '{"participants":[$listed],"call_age_ms":$callAgeMs}',
+        200,
+      );
     }
     if (!request.url.path.endsWith('/voice/token')) {
       return http.Response('{}', 404);

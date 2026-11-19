@@ -8,6 +8,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_auto_rejoin.dart';
 import 'voice_call_clock.dart';
+import 'voice_elsewhere.dart';
 import 'voice_state.dart';
 import 'voice_state_access.dart';
 
@@ -29,6 +30,12 @@ class VoiceRejoin {
   final VoiceCallClock _callClock;
   final Ref _ref;
   final Future<void> Function(String channelId) _join;
+
+  /// The channel whose drop the SFU blamed on another device, until the room confirms or clears it.
+  String? _blamedOnOtherDevice;
+
+  /// Whether the last drop was another device taking the call, as the room confirmed.
+  bool replacedElsewhere = false;
 
   VoiceState get _current => _access.state;
 
@@ -55,22 +62,50 @@ class VoiceRejoin {
       dropped == VoiceDisconnect.heartbeatLagEviction;
 
   /// Marks the call failed for an SFU-decided drop, and queues a rejoin when the drop was an accident.
+  ///
+  /// The SFU reports [VoiceDisconnect.replacedByOtherDevice] for this client's own reconnect
+  /// overtaking its old connection as well, so that drop is rejoined unless the room lists another device.
   void endCallForDrop(VoiceDisconnect dropped) {
+    final channelId = _current.channelId;
     // Read before the copyWith clears it: only a connected call is one to put back.
-    final rejoinable = rejoinableDrop(dropped);
+    final blamed =
+        dropped == VoiceDisconnect.replacedByOtherDevice &&
+        _current.connectedAt != null;
+    final rejoinable = rejoinableDrop(dropped) || blamed;
     final wasConnected = _callClock.hold(
       _current.connectedAt,
       rejoinable: rejoinable,
     );
+    _blamedOnOtherDevice = blamed ? channelId : null;
+    replacedElsewhere = false;
     _access.state = _current.copyWith(
       state: VoiceSessionState.failed,
-      error: dropped.message,
+      error: blamed ? _checkingMessage : dropped.message,
       clearConnectedAt: true,
     );
-    final channelId = _current.channelId;
     if (wasConnected && rejoinable && channelId != null) {
       _scheduleAutoRejoin(channelId);
     }
+  }
+
+  /// Shown under the reconnecting banner while the room is asked who holds the call.
+  static final _checkingMessage = VoiceDisconnect.heartbeatLagEviction.message;
+
+  /// Asks the room whether another device took the call in [channelId], and ends the comeback when one did.
+  Future<bool> _replaced(String channelId) async {
+    if (_blamedOnOtherDevice != channelId) return false;
+    final replaced = await _ref.read(voiceReplacedCheckProvider)(channelId);
+    // A newer drop while asking queued an attempt of its own.
+    if (_blamedOnOtherDevice != channelId) return true;
+    _blamedOnOtherDevice = null;
+    if (!replaced || _current.channelId != channelId) return false;
+    replacedElsewhere = true;
+    _callClock.forget();
+    _access.state = _current.copyWith(
+      error: VoiceDisconnect.replacedByOtherDevice.message,
+      rejoining: false,
+    );
+    return true;
   }
 
   /// Queues the next attempt and records whether there was one to queue, so
@@ -105,6 +140,9 @@ class VoiceRejoin {
   Future<void> _attemptAutoRejoin(String channelId) async {
     // A hang-up or another channel already moved on; this attempt is not about that call.
     if (_current.channelId != channelId) return;
+    if (await _replaced(channelId)) return;
+    // A join made by hand while the room was asked is the call now.
+    if (_current.channelId != channelId || _current.joining) return;
     autoAttemptChannel = channelId;
     try {
       await _join(channelId);

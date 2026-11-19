@@ -172,7 +172,7 @@ void main() {
       final session = _RejoiningSession();
       final controller = harness.controllerWith(
         session,
-        voiceApi(),
+        voiceApi(listedOnThisDevice: false),
         autoRejoinDelays: delays,
       );
 
