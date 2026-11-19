@@ -178,3 +178,47 @@ async fn a_recorded_sweep_run_shows_up_in_sweeps() {
     assert_eq!(sweeps[0]["last_reclaimed"], json!(3));
     assert!(sweeps[0]["last_run_at"].as_i64().unwrap() > 0);
 }
+
+/// A manager's ranked list names only the channels they can see; the total still counts the rest.
+#[tokio::test]
+async fn top_channels_leaves_out_a_channel_the_manager_cannot_see() {
+    let (s, _guard) = store("slimm-storage-hidden-channel").await;
+    let (admin, member) = deployment(&s).await;
+    let managers = s.create_role("managers", Permissions::MANAGE_SERVER, false);
+    s.assign_role(member.id, managers.await.unwrap())
+        .await
+        .unwrap();
+    let everyone = s.list_roles().await.unwrap();
+    let everyone = everyone.iter().find(|role| role.is_everyone).unwrap().id;
+    let staff = s.create_channel("staff", "text").await.unwrap();
+    s.set_role_overwrite(
+        staff.id,
+        everyone,
+        Permissions::NONE,
+        Permissions::VIEW_CHANNEL,
+    )
+    .await
+    .unwrap();
+    s.store_attachment(&[4; 32], 4_000, "image/png", "staff.png", Some(admin.id))
+        .await
+        .unwrap();
+    s.send_message(NewMessage {
+        attachment_ids: &[[4; 32].to_vec()],
+        spoiler_ids: &[],
+        ..NewMessage::plain(staff.id, admin.id, MessageId::generate(), "staff")
+    })
+    .await
+    .unwrap();
+
+    let router = app(s.clone());
+    let mut seen = Vec::new();
+    for user in [member.id, admin.id] {
+        let session = s.open_session(user, "laptop").await.unwrap();
+        let response = router.clone().oneshot(request(&session.access_token));
+        let body = json_body(response.await.unwrap()).await;
+        assert_eq!(body["attachment_bytes"], json!(4_000));
+        seen.push(body["top_channels"].clone());
+    }
+    assert_eq!(seen[0], json!([]), "the manager is shown a hidden channel");
+    assert_eq!(seen[1][0]["name"], json!("staff"));
+}
