@@ -157,10 +157,18 @@ None loses data; each is late by however long the window stays hidden.
   `video_playback_controls.dart` leaves its bar up, `channel_draft_saver.dart` saves the draft when typing pauses instead of at once, and what `composer_context_menu.dart`, `app_lock_controller.dart` and `web_update_watch.dart` do with it only matters on a phone or in a browser.
   None of them holds anything open; the push-to-talk hold, which did, now follows `appFocusedProvider`.
 
-Not yet checked on a real desktop:
+Checked on real desktops on 2026-11-19 (tester build 0.130.95 of `fix/focus-audit`, local server and LiveKit):
 
-- Windows: the tray menu on a window closed to the tray, and Win+D twice on a maximised window in a call (the call timer must keep running without a click).
-- Windows: whether a minimised window is ever activated at all (closing the foreground window and Win+D are the likely ways). The focus check above is written from `window_manager`'s source, not from a reproduction.
-- KDE Wayland: the suspended state on the owner's own session, in the real app. The measurement above used a bare GTK 3 window under a virtual KWin.
+- Windows 11 VM: in a call with the window maximised, Win+D twice left the call timer running without a click.
+  Closed to the tray, opening the tray menu kept the window hidden and the channel unread, and new messages raised a toast.
+  Unfocused, new messages appeared with the New divider and the taskbar badge.
+  A minimised window made the foreground window with `SetForegroundWindow` stays iconic and receives focus.
+  The app stayed hidden through that focus, a message sent then stayed unread, and restoring from the taskbar marked it read.
+- openSUSE Tumbleweed VM, KDE Plasma 6 Wayland (KWin 6.8): the real Flutter runner receives the suspended state on a minimise.
+  The voice roster poll, which runs only while the window is on screen, stopped while minimised and fired the moment it was restored.
+  Unfocused beside another window, or fully covered by one, the call timer and new messages kept updating and the poll kept running.
+  Restoring from a minimise mid-call showed the right call time at once.
+
+Not yet checked: the owner's own KDE session, and a second monitor.
 
 Riverpod 3 refreshes providers on a timer when no frame comes, which closes the whole class; until that upgrade, new background work follows the rule above.
