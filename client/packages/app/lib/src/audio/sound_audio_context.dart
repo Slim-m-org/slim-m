@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// How a chime may play while a call holds the device's audio.
 ///
-/// On iOS audioplayers sets the shared session's category on every play and
-/// deactivates the session when its last player stops. During a call that
-/// session is WebRTC's, so a chime there could switch the mic off, move the
-/// call to the speaker, or stop its audio; it is skipped instead.
+/// On iOS audioplayers sets the shared session's category on every play.
+/// During a call that session is WebRTC's, so a chime there could switch the
+/// mic off, move the call to the speaker, or stop its audio; it is skipped
+/// instead.
 library;
 
 import 'dart:async';

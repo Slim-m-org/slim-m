@@ -48,7 +48,7 @@ void main() {
   });
 
   test(
-    'another community joining a call stops a message here on iOS',
+    'another community joining a call pauses a message here on iOS',
     () async {
       final shared = CallStartYields();
       final c = container(ios: true, yields: shared);
@@ -57,8 +57,9 @@ void main() {
 
       await shared.callStarting();
 
-      expect(player.log.last, 'stop');
+      expect(player.log.last, 'pause');
       expect(c.read(voicePlaybackProvider).playing, isFalse);
+      expect(c.read(voicePlaybackProvider).attachmentId, 'a');
     },
   );
 
