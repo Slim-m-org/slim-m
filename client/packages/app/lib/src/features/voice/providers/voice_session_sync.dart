@@ -106,12 +106,15 @@ class VoiceSessionSync {
     if (_current.deafened) republishDeafened();
   }
 
-  /// A drop the SFU decided on: the reason is the only thing that can tell
+  /// A drop the SFU decided on: the reason, or the server's own word that the call moved, is the only thing that can tell
   /// "you joined elsewhere" from "your network went". A `removed` that
   /// arrives while this client's own heartbeat has been failing is far
   /// more likely the server's stale-heartbeat sweep than a moderator.
   VoiceDisconnect? _classifiedDisconnect() {
     final raw = session.lastDisconnect;
+    if (raw != null && rejoin.movedAway(_current.channelId)) {
+      return VoiceDisconnect.movedToOtherDevice;
+    }
     final lagging = raw == VoiceDisconnect.removed && heartbeat.isLagging;
     return lagging ? VoiceDisconnect.heartbeatLagEviction : raw;
   }

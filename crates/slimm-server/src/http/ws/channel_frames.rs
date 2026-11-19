@@ -307,6 +307,7 @@ pub(super) fn to_frame(
         | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
+        | Event::VoiceRemoved { .. }
         | Event::VoiceNotice { .. }
         | Event::SoundboardPlayed { .. }
         | Event::VoiceSessionClosed { .. }

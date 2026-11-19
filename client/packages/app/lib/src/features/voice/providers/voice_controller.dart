@@ -242,6 +242,9 @@ class VoiceController extends StateNotifier<VoiceState> {
 
   bool _keepMicNextJoin = false;
 
+  /// The server ended this device's call in [channelId] for one on another device.
+  void noteMovedAway(String channelId) => _rejoin.noteMovedAway(channelId);
+
   /// A channel switch (or a [leave]) mid-join starts or ends a newer call on
   /// this same instance, so every write below is guarded by [superseded]:
   /// reproduced without it, an abandoned join's belated failure landed as

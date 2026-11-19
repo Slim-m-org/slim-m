@@ -11,7 +11,9 @@ use serde_json::Value;
 use std::sync::Arc;
 
 use slimm_server::call_audio::CallAudioView;
-use slimm_server::hub::{CanvasEvent, Event, MessageEvent, RoleChange, RoleLook};
+use slimm_server::hub::{
+    CanvasEvent, Event, MessageEvent, RoleChange, RoleLook, VoiceRemovalReason,
+};
 use slimm_server::ids::{
     CallRingId, CanvasObjectId, CanvasOpId, ChannelId, MessageId, RoleId, Seq, SessionId, UserId,
 };
@@ -392,6 +394,11 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             to_channel_name: "lounge".into(),
             moved_by_id: bob,
             moved_by_name: "bob".into(),
+        },
+        Event::VoiceRemoved {
+            user_id: alice,
+            channel_id: channel,
+            reason: VoiceRemovalReason::OtherDevice,
         },
         Event::VoiceNotice {
             user_id: alice,

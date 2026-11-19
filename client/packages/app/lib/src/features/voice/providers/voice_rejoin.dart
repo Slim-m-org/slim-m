@@ -37,6 +37,9 @@ class VoiceRejoin {
   /// The channel whose call another device of this account is known to hold.
   String? _heldElsewhere;
 
+  /// The channel the server said it took this account out of for a call on another device.
+  String? _movedAway;
+
   /// Told when a call stops being this device's to end on record, so nothing forgets it later either.
   void Function()? onHeldElsewhere;
 
@@ -54,16 +57,36 @@ class VoiceRejoin {
   void connected() {
     _blamedOnOtherDevice = null;
     _heldElsewhere = null;
+    _movedAway = null;
   }
 
   /// The server refused this device's own comeback to [channelId]: the account's call is elsewhere by now.
   void noteOnCallElsewhere(String channelId) {
     if (_current.channelId != channelId) return;
+    _holdElsewhere(channelId, onCallElsewhere);
+  }
+
+  /// Whether the server said it ended [channelId]'s call here for one on another device.
+  bool movedAway(String? channelId) =>
+      channelId != null && _movedAway == channelId;
+
+  /// The server ended this device's call in [channelId] because the account joined one on another device.
+  ///
+  /// The frame and the SFU's drop race: a drop already shown gets its reason now, and one still to come reads it from [movedAway].
+  void noteMovedAway(String channelId) {
+    if (_current.channelId != channelId) return;
+    _movedAway = channelId;
+    if (_current.state != VoiceSessionState.failed || _current.joining) return;
+    _attempts.cancelPending();
+    _holdElsewhere(channelId, VoiceDisconnect.movedToOtherDevice.message);
+  }
+
+  void _holdElsewhere(String channelId, String message) {
     _blamedOnOtherDevice = null;
     _heldElsewhere = channelId;
     onHeldElsewhere?.call();
     _callClock.forget();
-    _access.state = _current.copyWith(error: onCallElsewhere, rejoining: false);
+    _access.state = _current.copyWith(error: message, rejoining: false);
   }
 
   VoiceState get _current => _access.state;
@@ -105,9 +128,10 @@ class VoiceRejoin {
       _current.connectedAt,
       rejoinable: rejoinable,
     );
+    final moved = dropped == VoiceDisconnect.movedToOtherDevice;
     _blamedOnOtherDevice = blamed ? channelId : null;
-    _heldElsewhere = null;
-    if (blamed) onHeldElsewhere?.call();
+    _heldElsewhere = moved ? channelId : null;
+    if (blamed || moved) onHeldElsewhere?.call();
     _access.state = _current.copyWith(
       state: VoiceSessionState.failed,
       error: blamed ? _checkingMessage : dropped.message,

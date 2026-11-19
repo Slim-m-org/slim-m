@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use crate::hub::Event;
+use crate::hub::{Event, VoiceRemovalReason};
 use crate::ids::{ChannelId, DeviceId, UserId};
 use crate::voice::{RoomParticipant, VoiceDevice, VoiceError};
 
@@ -150,11 +150,18 @@ async fn end_call(state: &AppState, user_id: UserId, channel_id: ChannelId) {
             .publish(Event::VoiceActivityChanged { channel_id });
     }
     match state.voice.remove_participant(channel_id, user_id).await {
-        Ok(()) => tracing::info!(
-            %user_id,
-            %channel_id,
-            "ended a member's older call after they joined another"
-        ),
+        Ok(()) => {
+            tracing::info!(
+                %user_id,
+                %channel_id,
+                "ended a member's older call after they joined another"
+            );
+            state.hub.publish(Event::VoiceRemoved {
+                user_id,
+                channel_id,
+                reason: VoiceRemovalReason::OtherDevice,
+            });
+        }
         Err(VoiceError::Unavailable) => {}
         Err(VoiceError::Internal(err)) => {
             tracing::warn!(%err, %channel_id, "could not end a member's older call");

@@ -306,6 +306,12 @@ ServerEvent? rosterFrame(Map<String, dynamic> decoded) {
         movedById: decoded['moved_by_id'] as String,
         movedByName: decoded['moved_by_name'] as String,
       ),
+    'voice.removed' when decoded['channel_id'] is String => VoiceRemoved(
+        channelId: decoded['channel_id'] as String,
+        reason: decoded['reason'] == 'other_device'
+            ? VoiceRemovalReason.otherDevice
+            : VoiceRemovalReason.unknown,
+      ),
     'voice.notice'
         when decoded['channel_id'] is String &&
             decoded['actor_id'] is String &&

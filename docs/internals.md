@@ -337,7 +337,9 @@ After the SDK gives up, `VoiceAutoRejoin` asks for a new token, so that request 
 The client then stops trying and says so; "Try again" is a person's own join, which is never refused this way and moves the call back.
 The record of who asked for what is in memory, so after a restart a join with no token on record ends nothing and the member can be on two calls until either hangs up, which is what every join did before this rule.
 An older server ignores `automatic`, and an older client never sends it; the webhook rule covers the SDK's reconnect either way.
-The device that loses its call is told it is no longer in it; it is not told why.
+The device that loses its call is told why: after the SFU accepts the removal the server sends that account a `voice.removed` frame with `reason: other_device`, and the client says "Your call moved to another device." instead of "You're no longer in this call."
+The frame and the SFU's drop race, so the client takes either order: a frame first marks the call, and the drop that follows reads as moved; a drop first is shown as a removal until the frame replaces its text and cancels any comeback queued for it.
+Within one room the SFU's own duplicate-identity drop already names the other device once the roster confirms it.
 After the other device hangs up, the first can still be offered "Join here" for a call nobody is in, until its next roster read of that channel drops the sighting (`voiceSelfSeenTtl` bounds it at 90 s).
 
 The SFU's "duplicate identity" does not mean another device.
