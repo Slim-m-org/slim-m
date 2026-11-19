@@ -259,6 +259,61 @@ class SoakDriver {
     }
   }
 
+  /// Draws [frames] frames and counts the ones something had asked for.
+  Future<int> _framesAsked(int frames) async {
+    var asked = 0;
+    for (var i = 0; i < frames; i++) {
+      if (tester.binding.hasScheduledFrame) asked++;
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    return asked;
+  }
+
+  /// Frames asked for per frame drawn with nothing arriving, the floor of [benchBackgroundFrames].
+  Future<double> benchIdleFrames(int count) async =>
+      await _framesAsked(count * _settleFrames) / (count * _settleFrames);
+
+  /// Frames the window is asked to draw for one event in an account that is
+  /// not on screen, by kind of event. Nothing on screen changes for any of them.
+  Future<Map<String, double>> benchBackgroundFrames(int count) async {
+    final origin = app.origins.last;
+    final world = app.worlds[origin]!;
+    final kinds = <String, Map<String, dynamic> Function()>{
+      'message': () => {
+        'type': 'message.created',
+        'message': world.nextMessage(world.textChannelIds.last),
+      },
+      'typing': () => {
+        'type': 'typing.started',
+        'channel_id': world.textChannelIds.last,
+        'user_id': world.randomMember(),
+      },
+      'presence': () {
+        final member = world.randomMember();
+        final status = _pick(const ['online', 'away', 'offline']);
+        world.presence[member] = status;
+        return {
+          'type': 'presence.changed',
+          'user_id': member,
+          'status': status,
+        };
+      },
+    };
+    final asked = <String, double>{};
+    for (final MapEntry(key: kind, value: frame) in kinds.entries) {
+      var frames = 0;
+      for (var i = 0; i < count; i++) {
+        await _deliver(origin, frame());
+        frames += await _framesAsked(_settleFrames);
+      }
+      asked[kind] = frames / count;
+    }
+    return asked;
+  }
+
+  /// Frames drawn after an event, enough for a store write to reach its watchers.
+  static const _settleFrames = 4;
+
   /// Microseconds of real time to take one message into the open channel and draw it.
   Future<int> benchOpenChannel(int count) async {
     final origin = activeOrigin;

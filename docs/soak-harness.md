@@ -70,6 +70,8 @@ The table has one column per sample.
 | `bench.idle_rebuilds` | Widget rebuilds per frame with nothing arriving, as the floor for the next two. |
 | `bench.rebuilds_per_message` | Widget rebuilds to take one message into the open channel. |
 | `bench.background_rebuilds` | The same for a message in an account that is not on screen. |
+| `bench.idle_frames` | Frames asked for per frame drawn with nothing arriving, as the floor for the next one. |
+| `bench.background_frames.*` | Frames the window is asked to draw for one message, typing start or presence change in an account that is not on screen. Nothing on screen changes, so each is drawn for nothing. |
 | `bench.*_us`, `bench.channel_switch_ms` | Real time for the same work. Debug build, software rendering: compare runs, not against a release build. |
 | `since_last.*` | Rebuilds and real time since the previous sample. |
 | `heap.kb`, `rss.mb` | Dart heap after a forced collection, and the process's resident size. |
@@ -121,3 +123,4 @@ Measured and left as it is:
 - A message in the open channel still rebuilds the rail twice, because the channel flips to unread and back as the read marker follows, and the channel screen rebuilds on its own row stream.
 - The local store keeps up to a thousand rows for every channel, so `db.messages` climbs for as long as there are channels that have not reached that.
 - The call dock, a toast and the desktop entrance each leave a curve undisposed. Each goes with its controller, so nothing is held.
+- An account out of view asks for about one frame for each message and each presence change, and none for most typing starts, where the window at rest asks for none. That is what keeping its scope mounted costs (decision 0068, the 2026-11-19 amendment). The message figure is a little high here: the fake community has no answer for the notification settings, so each message refetches them.

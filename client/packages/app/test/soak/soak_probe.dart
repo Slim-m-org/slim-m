@@ -72,6 +72,9 @@ class SoakProbe {
     final background = await driver.benchBackground(benchMessages);
     final backgroundRebuilds = rebuilds.take();
     final backgroundRoots = rebuilds.takeRoots();
+    await tester.pump(const Duration(seconds: 8));
+    final idleFrames = await driver.benchIdleFrames(benchMessages);
+    final backgroundFrames = await driver.benchBackgroundFrames(benchMessages);
     final switching = await driver.benchChannelSwitch();
     await driver.rest();
     rebuilds
@@ -122,6 +125,9 @@ class SoakProbe {
         'bench.idle_rebuilds': _total(idleRebuilds) / benchMessages,
         'bench.rebuilds_per_message': _total(messageRebuilds) / benchMessages,
         'bench.background_rebuilds': _total(backgroundRebuilds) / benchMessages,
+        'bench.idle_frames': idleFrames,
+        for (final MapEntry(:key, :value) in backgroundFrames.entries)
+          'bench.background_frames.$key': value,
         'bench.message_us': message,
         'bench.background_message_us': background,
         'bench.channel_switch_ms': switching,
