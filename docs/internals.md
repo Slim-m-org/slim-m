@@ -341,5 +341,6 @@ The container then keeps every `autoDispose` provider it ever built and stops te
 
 `ServerIdentityScope` is the other scope in the app.
 It scopes another account's container for a switcher row or the call pill, and is safe only because the root's scope for that container outlives it.
-`test/features/accounts/account_root_scope_test.dart` holds the three cases: disposal after leaving, disposal and refresh after coming back, and refresh while out of view.
+`test/features/accounts/account_root_scope_test.dart` holds the four cases: disposal after leaving, disposal and refresh after coming back, refresh while out of view, and an account out of view whose name was shown and hidden again.
+The soak harness's smoke run (`docs/soak-harness.md`) fails on the same fault, as live-event listeners that keep climbing.
 
