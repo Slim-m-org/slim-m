@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'database.dart';
 import 'message_store.dart';
+import 'message_store_cursors.dart' as cursors_impl;
 import 'message_store_recent_ops.dart';
 import 'message_store_rows.dart' as rows_impl;
 
@@ -83,8 +84,13 @@ Future<List<api.Message>> _notAlreadyCovered(
   }
   return [
     for (final message in incoming)
-      if (message.seq > cursors[message.channelId]! ||
-          stored.containsKey(message.id))
+      if (stored.containsKey(message.id) ||
+          !cursors_impl.cursorCovers(
+            store,
+            message.channelId,
+            cursors[message.channelId]!,
+            message.seq,
+          ))
         message,
   ];
 }

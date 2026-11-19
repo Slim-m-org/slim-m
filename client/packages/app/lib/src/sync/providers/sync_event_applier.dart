@@ -224,7 +224,8 @@ class SyncEventApplier {
   /// carries the same message in order.
   ///
   /// One the cursor already covers was caught up past, so a row that is not
-  /// here was deleted since or is deliberately not held. Storing it brings a
+  /// here was deleted since or is deliberately not held. One below where a
+  /// first write started the cursor was never caught up past, and is stored. Storing it brings a
   /// deleted message back: its delete is behind the op cursor by then, which a
   /// second tab on the same database reaches without ever applying it.
   ///
@@ -239,7 +240,8 @@ class SyncEventApplier {
     if (!isCurrent()) return true;
     if (cursor == null) return false;
     if (message.seq <= cursor) {
-      return !await store.hasMessage(channelId, message.id);
+      return store.cursorCovers(channelId, cursor, message.seq) &&
+          !await store.hasMessage(channelId, message.id);
     }
     if (message.seq == cursor + 1) return false;
     unawaited(

@@ -66,6 +66,21 @@ void main() {
     expect(row.standingSeq > row.lastReadSeq, isFalse);
   });
 
+  test(
+      'a page of older messages still lands after a first write moved the cursor',
+      () async {
+    await store.applyMessage(_message(3));
+    expect(await store.cursorFor('c1'), 3);
+
+    await store.applyMessages(
+      [_message(1), _message(2)],
+      advance: CursorAdvance.always,
+    );
+
+    final held = await store.channelSnapshot('c1');
+    expect(held.map((m) => m.seq), unorderedEquals([1, 2, 3]));
+  });
+
   test('the next message after a covered tail is contiguous', () async {
     await store.applyMessage(_message(1));
     await store.coverCursor('c1', 3);

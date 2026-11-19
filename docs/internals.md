@@ -350,6 +350,10 @@ The rules below are what keep the claims true; each was a bug found by `sync_con
   This is also what stops a second browser tab, which shares the database but not the in-memory record of recent deletes, from storing a message again after the first tab deleted it.
 - A row in a catch-up page at or below the message cursor is written only when it is already held, for the same reason.
   The cursor can pass a page still in flight: live frames land first, or the other tab applied its own page.
+- Neither of those two rules reaches below where a first write started the cursor.
+  A channel with no cursor takes it from the first rows written, whatever brought them: the newest page when the channel is opened, or the answer to a send.
+  Nothing older than those rows was delivered, so an older row arriving afterwards (the first catch-up page, a frame held during the connect) is stored, not read as deleted.
+  The store remembers that starting point in memory (`cursorStartedAbove`); the property test's model does not exercise it, `channel_screen_day_divider_sync_race_test.dart` and the two tests named for it do.
 - A server delete is remembered whatever the row's state, including a send still waiting for its answer.
   A catch-up can deliver the delete of a message whose send request has not answered yet, and the answer would otherwise store it again.
   Only the user dropping an unsent message (`discardUnsent`) is not remembered, because that send may have landed and then belongs in the channel.

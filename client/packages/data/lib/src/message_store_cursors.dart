@@ -73,9 +73,22 @@ Future<void> advanceCursorHelper(
     final nextHeld = seqs.where((seq) => seq > cursor).reduce(math.min);
     if (nextHeld > cursor + 1) return;
   }
+  if (cursor == 0 && advance == CursorAdvance.whenContiguous) {
+    store.cursorStartedAbove[channelId] = seqs.reduce(math.min) - 1;
+  }
   await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
       .write(ChannelsCompanion(cursor: Value(newest)));
 }
+
+/// Whether [cursor] passing [seq] means the sync stream delivered that message
+/// or the server deleted it, so a copy that is not held must not be stored.
+///
+/// False at or below where a first write started the cursor: a page or a send's
+/// answer landing in a channel with no cursor starts it at its own rows, and
+/// nothing older was ever delivered. Kept in memory, since what can still
+/// arrive from before that start does not outlive the process.
+bool cursorCovers(MessageStore store, String channelId, int cursor, int seq) =>
+    seq <= cursor && seq > (store.cursorStartedAbove[channelId] ?? 0);
 
 /// Raises a channel's cursor to [seq] without a row at it; see [MessageStore.coverCursor].
 ///

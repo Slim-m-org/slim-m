@@ -40,6 +40,13 @@ class MessageStore {
   /// The edits and deletes applied so far, which an older copy must not undo.
   final recentOps = RecentOps();
 
+  /// Per channel, the seq a first write started its cursor above; see [cursorCovers].
+  final cursorStartedAbove = <String, int>{};
+
+  /// Whether [cursor] passing [seq] means that message was delivered or deleted.
+  bool cursorCovers(String channelId, int cursor, int seq) =>
+      cursors_impl.cursorCovers(this, channelId, cursor, seq);
+
   // --- Reads ---
 
   /// Watches the newest [limit] messages in a channel, oldest first, as the UI
@@ -309,6 +316,7 @@ class MessageStore {
         opCursor: Value(null),
       ));
     });
+    cursorStartedAbove.remove(channelId);
   }
 
   /// Drops a channel this account deleted server-side, along with its
@@ -338,6 +346,7 @@ class MessageStore {
       await db.delete(db.pendingAttachments).go();
     });
     recentOps.clear();
+    cursorStartedAbove.clear();
   }
 
   /// Every channel's unsent composer text, as a map. See

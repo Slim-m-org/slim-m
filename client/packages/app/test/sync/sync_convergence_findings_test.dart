@@ -237,6 +237,25 @@ void main() {
       });
 
       test(
+        'still lands below a cursor that an answer to a send started',
+        () async {
+          final world = await _world();
+          final earlier = [world.server.send('one'), world.server.send('two')];
+          world.server.send('mine');
+          await world.store.applyMessage(
+            api.Message.fromJson(world.server.messages.last.toJson('c1')),
+          );
+
+          world.wire.addAll(earlier);
+          await world.deliver();
+          await world.deliver();
+
+          expect(await world.contentOf('m1'), 'one');
+          expect(await world.contentOf('m2'), 'two');
+        },
+      );
+
+      test(
         'still lands when it is the sender\'s own pending message',
         () async {
           final world = await _world();
