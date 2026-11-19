@@ -9,7 +9,8 @@ set -uo pipefail
 
 readonly UPDATE_LIMIT="${APT_UPDATE_LIMIT:-4m}"
 readonly INSTALL_LIMIT="${APT_INSTALL_LIMIT:-6m}"
-readonly APT_OPTS=(-o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+# A stalled attempt killed by timeout leaves its dpkg running with the lock held, so the retry waits for it instead of failing at once.
+readonly APT_OPTS=(-o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o DPkg::Lock::Timeout=180)
 readonly FALLBACK="http://archive.ubuntu.com/ubuntu"
 readonly APT_ETC="${APT_ETC:-/etc/apt}"
 
