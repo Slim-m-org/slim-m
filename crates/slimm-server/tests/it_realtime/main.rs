@@ -35,6 +35,7 @@ mod read_state_devices;
 mod read_state_sync;
 mod reports_changed_ws;
 mod space_settings_changed_event;
+mod sync_mentions;
 mod sync_message_ops;
 mod typing;
 mod typing_disconnect;

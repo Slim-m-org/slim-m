@@ -83,6 +83,10 @@ struct ScopeCursor {
     /// that carries none is never told to reset from an op gap.
     #[serde(default)]
     after_op_seq: Option<i64>,
+    /// The client's mention cursor names no message it holds that still mentions the caller,
+    /// as a reset's marker or an edit can leave it, so it asks for `mentioned_seq` to heal it.
+    #[serde(default)]
+    check_mention: bool,
 }
 
 #[derive(Serialize)]
@@ -109,6 +113,11 @@ struct ScopeDelta {
     /// which is how a new client tells it from one that has no op stream.
     op_latest_seq: i64,
     ops_has_more: bool,
+    /// The seq of the newest live message here that mentions the caller, 0 when none does,
+    /// so a client that resets the scope keeps a mention older than the page it refetches.
+    /// Only on a scope that resets or whose cursor asked; see [`mark_mentions`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mentioned_seq: Option<i64>,
 }
 
 // --- Handlers ---
@@ -242,7 +251,7 @@ async fn sync(
         })
         .collect();
 
-    // Read after the permission check, never before it; two batched reads, not a few lookups per scope.
+    // Read after the permission check, never before it; batched reads, not a few lookups per scope.
     let viewable_ids: Vec<ChannelId> = viewable.iter().map(|(_, id)| *id).collect();
     let heads = state.store.seq_heads(&viewable_ids).await?;
     let op_cursor_ids: Vec<ChannelId> = viewable
@@ -253,6 +262,7 @@ async fn sync(
     let floors = state.store.earliest_message_op_seqs(&op_cursor_ids).await?;
 
     let mut scopes = Vec::new();
+    let mut marked = Vec::new();
     let mut budget = AGGREGATE_LIMIT;
     let mut bytes = SYNC_RESPONSE_BYTES;
     for (cursor, channel_id) in viewable {
@@ -299,18 +309,45 @@ async fn sync(
             }
         };
 
+        let reset = message_reset || ops.reset;
+        if reset || cursor.check_mention {
+            marked.push((scopes.len(), channel_id));
+        }
         scopes.push(ScopeDelta {
             channel_id: cursor.channel_id,
             messages,
             has_more,
-            reset: message_reset || ops.reset,
+            reset,
             ops: ops.ops,
             op_latest_seq: ops.op_latest_seq,
             ops_has_more: ops.ops_has_more,
+            mentioned_seq: None,
         });
     }
+    mark_mentions(&state, ctx.user_id, &mut scopes, &marked).await?;
 
     Ok(Json(SyncResponse { scopes }))
+}
+
+/// Fills in `mentioned_seq` on the scopes at `marked` alone, in one batched read.
+///
+/// The read scans every mention of the caller, which only grows, so it stays off the
+/// steady-state path: only a reset or a cursor that asks needs the marker.
+async fn mark_mentions(
+    state: &AppState,
+    user_id: crate::ids::UserId,
+    scopes: &mut [ScopeDelta],
+    marked: &[(usize, ChannelId)],
+) -> Result<(), ApiError> {
+    if marked.is_empty() {
+        return Ok(());
+    }
+    let ids: Vec<ChannelId> = marked.iter().map(|(_, id)| *id).collect();
+    let newest = state.store.newest_mentions_for(user_id, &ids).await?;
+    for (at, id) in marked {
+        scopes[*at].mentioned_seq = Some(newest.get(id).copied().unwrap_or(0));
+    }
+    Ok(())
 }
 
 /// Drops messages from the back until the page fits the shared byte budget,
@@ -346,6 +383,7 @@ fn trim_messages_to_budget(dtos: &mut Vec<MessageDto>, budget: &mut usize) -> bo
 /// first, which for a `None`-then-`Some` pair dropped the op cursor
 /// entirely - latent, since the real client never sends duplicates, but a
 /// dedupe that quietly discards half a cursor is wrong on its own terms.
+/// Either duplicate asking for the mention marker asks for it.
 fn dedupe_scopes(scopes: Vec<ScopeCursor>) -> Vec<ScopeCursor> {
     let mut deduped: Vec<ScopeCursor> = Vec::new();
     let mut index: HashMap<String, usize> = HashMap::new();
@@ -357,6 +395,7 @@ fn dedupe_scopes(scopes: Vec<ScopeCursor>) -> Vec<ScopeCursor> {
                     (Some(kept), Some(dup)) => Some(kept.min(dup)),
                     (kept, dup) => kept.or(dup),
                 };
+                deduped[at].check_mention |= cursor.check_mention;
             }
             None => {
                 index.insert(cursor.channel_id.clone(), deduped.len());
@@ -420,6 +459,7 @@ mod tests {
             channel_id: id.to_owned(),
             after_seq,
             after_op_seq,
+            check_mention: false,
         }
     }
 

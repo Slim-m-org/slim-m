@@ -49,7 +49,10 @@ pub fn routes() -> Router<AppState> {
             "/channels/{channel_id}/messages/polls",
             post(create).layer(from_fn(run_to_completion)),
         )
-        .route("/messages/{message_id}/polls/vote", put(vote))
+        .route(
+            "/messages/{message_id}/polls/vote",
+            put(vote).layer(from_fn(run_to_completion)),
+        )
         .layer(DefaultBodyLimit::max(POLL_BODY_LIMIT))
 }
 

@@ -51,6 +51,7 @@ class ScopeCursor {
     required this.channelId,
     required this.afterSeq,
     this.afterOpSeq,
+    this.checkMention = false,
   });
 
   final String channelId;
@@ -63,10 +64,16 @@ class ScopeCursor {
   /// never a reset from an op gap. Sending it is what opts a scope in.
   final int? afterOpSeq;
 
+  /// Asks for the scope's [ScopeDelta.mentionedSeq]: the mention cursor names
+  /// no held message that still mentions this account, so only the server can
+  /// lower it.
+  final bool checkMention;
+
   Map<String, dynamic> toJson() => {
         'channel_id': channelId,
         'after_seq': afterSeq,
         if (afterOpSeq != null) 'after_op_seq': afterOpSeq,
+        if (checkMention) 'check_mention': true,
       };
 }
 
@@ -80,6 +87,7 @@ class ScopeDelta {
     this.ops = const <MessageOp>[],
     this.opLatestSeq,
     this.opsHasMore = false,
+    this.mentionedSeq,
   });
 
   final String channelId;
@@ -112,6 +120,10 @@ class ScopeDelta {
   /// More ops remain past what this response carried.
   final bool opsHasMore;
 
+  /// The newest live message here that mentions this account, 0 when none
+  /// does; only on a reset scope or one whose cursor set [ScopeCursor.checkMention].
+  final int? mentionedSeq;
+
   factory ScopeDelta.fromJson(Map<String, dynamic> json) => ScopeDelta(
         channelId: json['channel_id'] as String,
         messages: (json['messages'] as List<dynamic>)
@@ -124,5 +136,6 @@ class ScopeDelta {
             .toList(growable: false),
         opLatestSeq: json['op_latest_seq'] as int?,
         opsHasMore: json['ops_has_more'] as bool? ?? false,
+        mentionedSeq: json['mentioned_seq'] as int?,
       );
 }

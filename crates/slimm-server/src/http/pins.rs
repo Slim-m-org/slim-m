@@ -14,6 +14,7 @@ use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
+use axum::middleware::from_fn;
 use axum::routing::{get, put};
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +23,7 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
 use super::message_enrich::with_reactions;
 use super::messages::{MessageDto, parse_uuid};
+use super::post_commit::run_to_completion;
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId};
 use crate::permissions::Permissions;
@@ -43,7 +45,7 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route(
             "/channels/{channel_id}/messages/{message_id}/pin",
-            put(pin).delete(unpin),
+            put(pin).delete(unpin).layer(from_fn(run_to_completion)),
         )
         .route("/channels/{channel_id}/pins", get(list))
         .route("/channels/{channel_id}/pins/count", get(count))

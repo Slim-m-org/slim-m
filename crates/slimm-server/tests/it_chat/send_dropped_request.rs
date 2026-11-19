@@ -153,3 +153,61 @@ async fn an_edit_dropped_after_it_committed_is_still_announced_once() {
     }
     assert_eq!(announced, 1, "an edit the others never saw");
 }
+
+/// A reaction has no op stream to catch it up, so a dropped attempt's frame is the only signal anybody gets.
+#[tokio::test]
+async fn a_reaction_dropped_after_it_committed_is_still_announced() {
+    let (store, _guard) = support::new_store("slimm-reaction-dropped").await;
+    store
+        .create_role(
+            "everyone",
+            Permissions::VIEW_CHANNEL
+                .union(Permissions::SEND_MESSAGES)
+                .union(Permissions::ADD_REACTIONS),
+            true,
+        )
+        .await
+        .unwrap();
+    let hub = Hub::new();
+    let app = support::app::builder(store.clone())
+        .hub(hub.clone())
+        .router();
+    let user = store.create_user("alice", "Alice").await.unwrap();
+    let token = store
+        .open_session(user.id, "dev")
+        .await
+        .unwrap()
+        .access_token;
+    let channel = store.create_channel("general", "text").await.unwrap();
+    let id = MessageId::generate();
+    store
+        .send_message(NewMessage::plain(channel.id, user.id, id, "hello"))
+        .await
+        .unwrap();
+    let mut events = hub.subscribe();
+
+    let uri = format!("/messages/{id}/reactions/%F0%9F%91%8D");
+    let mut react = Box::pin(app.oneshot(request("PUT", &uri, &token, None)));
+    loop {
+        let finished =
+            std::future::poll_fn(|cx| Poll::Ready(react.as_mut().poll(cx).is_ready())).await;
+        assert!(
+            !finished,
+            "the reaction finished before it could be dropped"
+        );
+        if !store.reaction_reactors(id).await.unwrap().is_empty() {
+            break;
+        }
+    }
+    drop(react);
+
+    let mut announced = 0;
+    while let Ok(Ok(event)) = tokio::time::timeout(Duration::from_millis(500), events.recv()).await
+    {
+        if matches!(&event, Event::Message(MessageEvent::ReactionsChanged { message_id, .. }) if *message_id == id)
+        {
+            announced += 1;
+        }
+    }
+    assert_eq!(announced, 1, "a stored reaction nobody else was told about");
+}

@@ -45,6 +45,7 @@ mod voice_notify;
 mod voice_notify_prefs;
 mod voice_rooms;
 mod voice_roster;
+mod voice_roster_tabs;
 mod voice_sessions;
 mod voice_sweep;
 mod voice_visibility_cache;

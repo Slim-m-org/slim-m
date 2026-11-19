@@ -19,4 +19,9 @@ abstract interface class CrossTab {
 
   /// Whether another tab of this profile is open; false when it cannot tell.
   Future<bool> anotherTabIsOpen();
+
+  /// An id this tab keeps across its own reloads and shares with no other
+  /// open tab, ready once the tab holds it; null where one process is the
+  /// whole session or the browser keeps no session storage.
+  Future<String?> get tabId;
 }

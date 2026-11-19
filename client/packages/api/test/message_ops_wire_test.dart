@@ -88,6 +88,20 @@ void main() {
 
       expect(cursor.toJson(), {'channel_id': 'c1', 'after_seq': 12});
     });
+
+    test('only a cursor that asks for the mention marker names it', () {
+      const asking = ScopeCursor(
+        channelId: 'c1',
+        afterSeq: 12,
+        checkMention: true,
+      );
+
+      expect(asking.toJson()['check_mention'], isTrue);
+      expect(
+        const ScopeCursor(channelId: 'c1', afterSeq: 12).toJson(),
+        isNot(contains('check_mention')),
+      );
+    });
   });
 
   group('ScopeDelta', () {

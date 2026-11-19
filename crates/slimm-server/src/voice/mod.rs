@@ -37,7 +37,7 @@
 use serde::Serialize;
 
 use crate::config::Config;
-use crate::ids::{ChannelId, DeviceId, UserId};
+use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 
 mod call_record;
@@ -58,6 +58,7 @@ pub use live_state::RoomLiveState;
 pub use notice_windows::{NOTICE_WINDOW_MS, NoticeWindows};
 pub use ring::{CallRingOutcome, CallRings, Canceled, Declined, RING_TIMEOUT, StaleRing};
 pub use roster::{RoomParticipant, RosterCache};
+pub use token::VoiceDevice;
 use token::{Claims, VideoGrant, http_url_for, unix_secs};
 pub use webhook::{WebhookError, WebhookEvent, channel_for_room, is_screen_share_source};
 
@@ -239,12 +240,16 @@ impl VoiceService {
 
     /// What everyone in `channel_id`'s room sees in place of `device_id`, which stays private.
     /// None when voice is off.
-    pub fn device_tag(&self, channel_id: ChannelId, device_id: DeviceId) -> Option<String> {
+    pub fn device_tag(
+        &self,
+        channel_id: ChannelId,
+        device: impl Into<VoiceDevice>,
+    ) -> Option<String> {
         let enabled = self.inner.as_ref()?;
         Some(token::device_tag(
             &enabled.api_secret,
             channel_id,
-            device_id,
+            &device.into(),
         ))
     }
 
@@ -284,14 +289,14 @@ impl VoiceService {
         user_id: UserId,
         permissions: Permissions,
         display_name: &str,
-        device_id: DeviceId,
+        device: impl Into<VoiceDevice>,
     ) -> Result<RoomToken, VoiceError> {
         let Some(enabled) = self.inner.as_ref() else {
             return Err(VoiceError::Unavailable);
         };
 
         let room = room_for_channel(channel_id);
-        let device = token::device_tag(&enabled.api_secret, channel_id, device_id);
+        let device = token::device_tag(&enabled.api_secret, channel_id, &device.into());
         let can_publish = permissions.contains(Permissions::SPEAK);
         let can_publish_data = permissions.contains(Permissions::USE_CANVAS);
         let now = unix_secs();
