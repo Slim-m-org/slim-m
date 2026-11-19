@@ -9,6 +9,7 @@
 
 #include "webkit_loader.h"
 #include "youtube_player_navigation.h"
+#include "youtube_player_policy.h"
 
 namespace {
 
