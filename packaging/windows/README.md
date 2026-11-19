@@ -21,8 +21,9 @@ That copies the app to `%LOCALAPPDATA%\slim-m\app-<version>\`, puts the `slim-m.
 Nothing outside your profile is touched and there is no elevation prompt.
 
 Windows cannot replace a running exe, so each version lives in its own folder.
-`slim-m.exe` reads the `current` file, which holds a version number, and starts that folder.
-An update unpacks the next version into a new folder, rewrites `current` through a temp file and a replacing rename, and restarts through the launcher.
+`slim-m.exe` reads the `current` file, which holds a version number, and starts that version from the `app` folder beside it.
+`app` holds hard links to the files of the version `current` names, so every version runs from the same `app\slimm_app.exe` path and Windows Firewall sees one app across updates (see below).
+An update unpacks the next version into a new folder, rewrites `current` through a temp file and a replacing rename, and restarts through the launcher, which then relinks `app`.
 
 The previous version is kept until the new one has stayed up for 20 seconds, then older folders are removed.
 If the new version fails to start three times in a row, the launcher moves `current` back to `previous` and the app says so in a banner.
@@ -43,22 +44,33 @@ Build the setup with `iscc /DAppVersion=<version> /DSourceDir=<release folder> s
 Run `go generate ./...` in `launcher/` first: it embeds the app icon as a resource (`rsrc_windows_amd64.syso`, gitignored) with a pinned go-winres.
 Then build it with `GOOS=windows go build -ldflags "-H=windowsgui -s -w" -o slim-m.exe ./launcher`.
 
-## No firewall prompt
+## The firewall prompt
 
-slim-m must never listen for inbound connections, so Windows Firewall never asks to allow it.
-The firewall keys its rules on the exe path and every update runs from a new `app-<version>` folder, so a listener would ask again after each update.
-libwebrtc is the only part that listens: a passive TCP ICE candidate opens a listening socket on every interface address.
-The mic preview's in-process loopback gathers no TCP candidates (`loopbackPeerConfiguration`), and a Windows call gathers none when the server offers TURN over TLS or TCP (`callPeerConfiguration`).
-A deployment with no TCP relay keeps them, because LiveKit's TCP port is then the only way through a network that blocks UDP, so there a call on such a network can still raise the prompt.
+Windows Firewall asks "Do you want to allow public and private networks to access this app?" the first time an exe listens for inbound connections, and records the answer as an inbound rule pair (TCP and UDP) keyed on that exe's full path.
+libwebrtc is the only part of slim-m that listens: a passive TCP ICE candidate opens a listening socket on every interface address.
+The mic preview's in-process loopback gathers no TCP candidates (`loopbackPeerConfiguration`), and a Windows call gathers none when the server offers TURN over TLS or TCP (`callPeerConfiguration`), so there is no prompt at all on such a deployment.
+A deployment with no TCP relay keeps them, because LiveKit's TCP port is then the only way through a network that blocks UDP, so the first call there asks.
 Cancel does not break that call: it blocks inbound only, and the TCP connection the call uses is outbound.
 `client/packages/rtc/test/peer_connection_sites_gate_test.dart` fails when a peer connection is created anywhere else.
 Both settings need the `tcpCandidatePolicy` key, which the WebRTC fork reads on Windows and Linux since `fix/desktop-tcp-candidate-policy`.
 
+Because the rule is keyed on the path, every version runs from the same `app\slimm_app.exe`, so that question comes once per install, not once per update.
+Before that, each version ran from its own `app-<version>` folder, so each update asked again and left one more rule pair behind for a folder that no longer exists.
+Removing those needs an administrator, so slim-m leaves them alone; they are harmless, and an elevated PowerShell clears them with `Get-NetFirewallApplicationFilter | ? Program -like '*\slim-m\app-*' | Get-NetFirewallRule | Remove-NetFirewallRule`.
+
+The launcher keeps `app` in step with `current`.
+When every file of the version folder is already the same file under `app`, it starts it there.
+Otherwise it builds `app.next` from hard links, renames `app` to `app.old`, renames `app.next` to `app` and deletes `app.old`.
+It only does that when nothing runs from `app`, which it proves by deleting `app\slimm_app.exe`: Windows refuses that while any copy of the exe runs.
+A restart into an update waits up to 15 seconds for the old copy to exit; a launch while an older version still runs from `app`, and any failure, start the version folder directly instead, as before.
+A junction would not do: the firewall records the path a junction resolves to.
+
 To check a build by hand, from an elevated PowerShell:
 
 1. `auditpol /set /subcategory:"{0CCE9226-69AE-11D9-BED3-505054503030}" /success:enable /failure:enable` turns on the Filtering Platform Connection audit.
-2. Copy the release folder to a path that has never run, start it there, open Settings > Voice and screen share, then join and leave a call.
+2. Copy the release folder to a path that has never run, start it there, open Settings > Voice and screen share, then join and leave a call on a server that offers TURN over TLS.
 3. `Get-WinEvent -FilterHashtable @{LogName='Security'; Id=5154,5031} | ? Message -match 'slimm_app'` must list nothing: 5154 is a socket permitted to listen, 5031 is the prompt.
+   On a server without a TCP relay the same call lists them, and after an update to the per-user install a second call must list them for `app\slimm_app.exe` again but raise no new prompt or rule.
 4. Set the subcategory back with `/success:disable /failure:disable`.
 
 The audit log records a listener however briefly it lives, which polling `Get-NetTCPConnection -State Listen` cannot promise.

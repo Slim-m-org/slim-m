@@ -3,14 +3,11 @@
 package main
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 )
-
-var errInUse = errors.New("the file is in use")
 
 func shipped(t *testing.T, versions ...string) string {
 	t.Helper()
@@ -26,19 +23,19 @@ func shipped(t *testing.T, versions ...string) string {
 	return root
 }
 
-// stubRelease makes the run folder's executable refuse deletion `busy` times, as a running copy does.
+// stubRelease reports a copy running from the run folder for the first `busy` checks.
 func stubRelease(t *testing.T, busy int) *int {
 	t.Helper()
 	paused := 0
-	removeFile = func(path string) error {
+	runningFrom = func(string) bool {
 		if busy > 0 {
 			busy--
-			return errInUse
+			return true
 		}
-		return os.Remove(path)
+		return false
 	}
 	pause = func(time.Duration) { paused++ }
-	t.Cleanup(func() { removeFile, pause = os.Remove, time.Sleep })
+	t.Cleanup(func() { runningFrom, pause = processRunningFrom, time.Sleep })
 	return &paused
 }
 

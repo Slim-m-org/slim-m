@@ -409,7 +409,7 @@ Caddy already owns 443 here, and stock Caddy cannot route a non-HTTP TLS connect
 A `tls_port` that is reachable but not on 443 does nothing: clients never try it, gather no relay candidate, and a relay-only join times out.
 
 It also matters on Windows.
-Without a TCP or TLS relay, the Windows app keeps its TCP candidates so the `LIVEKIT_TCP_PORT` fallback still works, and those listen on the machine, so Windows may ask once whether to allow slim-m through its firewall.
+Without a TCP or TLS relay, the Windows app keeps its TCP candidates so the `LIVEKIT_TCP_PORT` fallback still works, and those listen on the machine, so Windows asks once, at the first call, whether to allow slim-m through its firewall; every version runs from the same path, so updates keep the answer.
 With TURN/TLS configured, the app drops its TCP candidates and that prompt should not appear.
 
 With an SNI router, the simplest setup lets the router terminate TLS and pass plain TCP to LiveKit.

@@ -27,6 +27,8 @@ func osProcessAlive(pid int) bool {
 	return err == nil && process.Signal(syscall.Signal(0)) == nil
 }
 
+func processRunningFrom(string) bool { return false }
+
 func fail(message string) {
 	fmt.Fprintln(os.Stderr, message)
 	os.Exit(1)

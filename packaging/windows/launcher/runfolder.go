@@ -22,10 +22,10 @@ const (
 	releasePoll  = 200 * time.Millisecond
 )
 
-// removeFile and pause are replaced in tests, which cannot hold a running exe open.
+// runningFrom and pause are replaced in tests, which cannot run an exe from a folder.
 var (
-	removeFile = os.Remove
-	pause      = time.Sleep
+	runningFrom = processRunningFrom
+	pause       = time.Sleep
 )
 
 // runFrom returns the folder to start the version in dir from: the run folder
@@ -79,13 +79,12 @@ func mirrors(src, run string) bool {
 	return err == nil && found
 }
 
-// release deletes the run folder's executable, which Windows refuses while any
-// copy of it runs, so success means nothing runs from the folder.
+// release reports whether nothing runs from the run folder, asking up to tries
+// times. Neither deleting the exe nor renaming the folder proves it: Windows
+// allows both for a hard link or a folder whose running exe holds no handles.
 func release(run string, tries int) bool {
-	exe := filepath.Join(run, appExecutable)
 	for i := 0; i < tries; i++ {
-		err := removeFile(exe)
-		if err == nil || errors.Is(err, fs.ErrNotExist) {
+		if !runningFrom(run) {
 			return true
 		}
 		if i+1 < tries {
