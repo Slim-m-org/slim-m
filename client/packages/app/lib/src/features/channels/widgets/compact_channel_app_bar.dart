@@ -21,8 +21,9 @@ import '../providers/channel_search_controller.dart';
 import '../providers/pins_controller.dart';
 import '../../canvas/widgets/canvas_open_button.dart';
 import '../../voice/widgets/dm_call_button.dart';
+import '../../voice/providers/voice_flags.dart';
 import '../../voice/screens/voice_text_pane.dart'
-    show VoiceChatAction, voiceChatPaneVisibleProvider;
+    show CallDetailsAction, VoiceChatAction, voiceChatPaneVisibleProvider;
 import 'channel_title_glyph.dart';
 import 'group_dm_members_sheet.dart';
 import 'channel_topic_text.dart';
@@ -58,11 +59,15 @@ class CompactChannelAppBar extends ConsumerWidget
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final channel = ref.watch(channelByIdProvider(channelId)).valueOrNull;
+    final inCall = ref.watch(
+      voiceFlagsProvider.select((voice) => voice.inCallStageFor(channelId)),
+    );
     return _bar(
       context,
       channel,
       tokens,
-      ref.watch(voiceChatPaneVisibleProvider),
+      voiceChatOpen: ref.watch(voiceChatPaneVisibleProvider),
+      inCall: inCall,
     );
   }
 
@@ -70,9 +75,10 @@ class CompactChannelAppBar extends ConsumerWidget
   AppBar _bar(
     BuildContext context,
     Channel? channel,
-    AppTokens tokens,
-    bool voiceChatOpen,
-  ) {
+    AppTokens tokens, {
+    required bool voiceChatOpen,
+    required bool inCall,
+  }) {
     final isVoice = channel?.kind == 'voice';
     // See `ChannelHeader.isDm`'s own doc comment for why.
     final isDm = channel?.kind == 'dm';
@@ -110,6 +116,9 @@ class CompactChannelAppBar extends ConsumerWidget
         if (!isVoice) _ThreadsAction(channelId: channelId),
         DmCallButton(channelId: channelId),
         CanvasOpenButton(channelId: channelId, isVoice: isVoice, isDm: isDm),
+        // Over the call only: with the chat open the bar already holds its search and pins.
+        if (isVoice && inCall && !voiceChatOpen)
+          CallDetailsAction(channelId: channelId),
         if (isVoice) VoiceChatAction(channelId: channelId),
         if (!isDm) const _MembersAction(),
         const SizedBox(width: AppSpacing.s8),

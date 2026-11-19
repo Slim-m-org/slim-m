@@ -47,3 +47,12 @@ Join muted stays the primary action, as design 13 has it, with a plain Join besi
 The empty state also stands in while the history loads, so Join is never held back by the request.
 It waits a quarter of a second first, so a channel whose history arrives quickly goes straight to it and never flashes the empty state.
 The history of the last few voice channels visited is kept, so coming back shows it at once and refetches behind it.
+
+## Amended 2026-11-19: in a call, and without joining
+
+The owner pointed out that this record was only reachable after hanging up: the page shows it while you are not in the call, and clicking a voice channel joins.
+In a call, a "Call details" toggle beside the chat's in the header now shows the same sections (this call's timeline, what happened, the live transcript, the calls before it), one widget shared with the page.
+Where `fitsThreadPane` has room they dock beside the stage in the slot the chat uses, and opening either one closes the other; narrower, they open as a sheet (desktop-vs-mobile.md rule 3).
+Clicking a voice channel still joins it.
+Its right-click and long-press menu gains "View details", which opens the page without joining.
+The page's join bar now offers a plain Join beside Join muted, which stays the primary action, as the empty state already did; a channel that joins muted still offers only Join muted.

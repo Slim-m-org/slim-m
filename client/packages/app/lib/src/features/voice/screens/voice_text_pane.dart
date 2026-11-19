@@ -23,7 +23,13 @@
 /// "width decides, re-checked live on resize" rule
 /// (desktop-vs-mobile.md law 1): a narrow medium window has no room to dock
 /// the call and a transcript side by side.
+///
+/// The same slot holds the call's details (`call_details_pane.dart`) instead
+/// of the chat while they are open: one pane beside the call at a time, the
+/// way a docked thread takes the member pane's place.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,6 +41,7 @@ import '../../../widgets/header_icon_action.dart';
 import '../../channels/screens/channel_screen.dart';
 import '../providers/voice_chat_unread.dart';
 import '../widgets/voice_chat_unread_dot.dart';
+import 'call_details_pane.dart';
 
 /// Whether the voice channel's docked chat pane is open, at desktop widths.
 /// Defaults closed: opening a voice channel keeps the call stage at full
@@ -42,8 +49,29 @@ import '../widgets/voice_chat_unread_dot.dart';
 /// existing call the moment this ships.
 final voiceChatPaneVisibleProvider = StateProvider<bool>((ref) => false);
 
+/// Whether the call's details are docked open beside it. Opening the chat
+/// closes them, since the two share the one slot.
+final callDetailsOpenProvider = StateProvider<bool>((ref) {
+  ref.listen<bool>(voiceChatPaneVisibleProvider, (_, chat) {
+    if (chat) ref.controller.state = false;
+  });
+  return false;
+});
+
+/// Docks the call's details open or shut where they fit, closing the chat
+/// they replace; narrower, opens them as a sheet.
+void toggleCallDetails(BuildContext context, WidgetRef ref, String channelId) {
+  if (!callDetailsDocks(context)) {
+    unawaited(showCallDetailsSheet(context, channelId));
+    return;
+  }
+  final open = ref.read(callDetailsOpenProvider);
+  if (!open) ref.read(voiceChatPaneVisibleProvider.notifier).state = false;
+  ref.read(callDetailsOpenProvider.notifier).state = !open;
+}
+
 /// The docked pane at desktop widths: [call] full width, or split with the
-/// channel's own transcript and composer beside it. Mirrors
+/// channel's own transcript and composer beside it, or with [details]. Mirrors
 /// `_MemberPaneSlot`/`_ThreadPaneSlot` in `home_shell_pane_slots.dart` in
 /// unmounting its content when closed, so a hidden pane's `ChannelScreen` is
 /// not sitting behind it still fetching; its width snaps rather than tweens,
@@ -52,17 +80,25 @@ class VoiceCallWithChatPane extends ConsumerWidget {
   const VoiceCallWithChatPane({
     required this.channelId,
     required this.call,
+    this.details,
     super.key,
   });
 
   final String channelId;
   final Widget call;
 
+  /// The call's details, shown in the slot while [callDetailsOpenProvider] is; null offers none.
+  final Widget? details;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final open = ref.watch(voiceChatPaneVisibleProvider);
+    final chat = ref.watch(voiceChatPaneVisibleProvider);
+    final details = ref.watch(callDetailsOpenProvider) ? this.details : null;
+    final open = chat || details != null;
     return Row(
+      // A body shorter than the pane, the idle page's, starts under the header rather than centred.
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(child: call),
         // Snapped, not animated: every frame of a width tween relaid the call's dock and tiles beside a live share.
@@ -81,12 +117,15 @@ class VoiceCallWithChatPane extends ConsumerWidget {
                         ),
                       ),
                       child: AppPanelReveal(
+                        key: ValueKey(chat ? 'chat' : 'details'),
                         fromLeft: false,
                         // See ChannelScreen.showHeader's own doc for why this pane omits its own header.
-                        child: ChannelScreen(
-                          channelId: channelId,
-                          showHeader: false,
-                        ),
+                        child: chat
+                            ? ChannelScreen(
+                                channelId: channelId,
+                                showHeader: false,
+                              )
+                            : details!,
                       ),
                     ),
                   )
@@ -156,6 +195,27 @@ class VoiceChatAction extends ConsumerWidget {
         onPressed: () =>
             ref.read(voiceChatPaneVisibleProvider.notifier).state = !open,
       ),
+    );
+  }
+}
+
+/// The call details toggle in a voice channel's app bar, beside the chat's.
+/// Lit while docked open; where they cannot dock it opens them as a sheet.
+class CallDetailsAction extends ConsumerWidget {
+  const CallDetailsAction({super.key, required this.channelId});
+
+  final String channelId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final open = ref.watch(callDetailsOpenProvider);
+    return HeaderIconAction(
+      icon: AppIcons.activityLog,
+      label: 'Call details',
+      // A sheet opens rather than switching anything on, so it is a plain button there.
+      active: callDetailsDocks(context) ? open : null,
+      touch: true,
+      onPressed: () => toggleCallDetails(context, ref, channelId),
     );
   }
 }
