@@ -30,6 +30,9 @@ enum OpsOutcome {
 /// Applies a page of ops in order and advances the op cursor to the last one
 /// actually applied.
 ///
+/// An op at or below the cursor is skipped: its content is the text as the
+/// page was read, which a newer edit applied since would be replaced by.
+///
 /// The cursor moves per op rather than once at the end, so an interruption
 /// leaves the client asking for exactly what it has not yet seen rather than
 /// replaying a page it half-applied. Replaying is harmless (an edit and a
@@ -41,6 +44,9 @@ Future<OpsOutcome> applyOps(
   List<MessageOp> ops,
 ) async {
   for (final op in ops) {
+    // A live frame can apply this op, and newer ones, while the page is in flight.
+    final cursor = await store.opCursorFor(channelId);
+    if (cursor != null && op.seq <= cursor) continue;
     switch (op) {
       case MessageEditOp(
         :final content,

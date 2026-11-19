@@ -78,6 +78,29 @@ void main() {
     });
   });
 
+  group('a catch-up answer that was read before newer live edits landed', () {
+    test('does not put the older text back', () async {
+      final world = await _world();
+      final server = world.server;
+      await world.controller.reconcile();
+      world.wire.add(server.send('zero'));
+      await world.deliver();
+      world.wire.add(server.edit(server.messages.single, 'one'));
+      await world.startHeldCatchUp();
+      world.wire.add(server.edit(server.messages.single, 'two'));
+      await world.deliver();
+      await world.deliver();
+      expect(await world.contentOf('m1'), 'two');
+
+      world.releaseAnswer();
+      await pumpEventQueue(times: 20);
+
+      expect(await world.contentOf('m1'), 'two');
+      await world.settle();
+      expect(await world.disagreement(), isNull);
+    });
+  });
+
   group('a live op for a channel with no op cursor', () {
     test('does not start the cursor past ops nobody applied', () async {
       final world = await _world();
