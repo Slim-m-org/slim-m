@@ -371,7 +371,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
       );
 
   /// Flips on mobile with no picker at all, and asks on desktop, mirroring
-  /// [_share]'s own fork between "the OS decides" and "list, then choose".
+  /// `pickShareSource`'s fork between "the OS decides" and "list, then choose".
   Future<void> _switchCamera(BuildContext context) async {
     final controller = widget.controller;
     final settings = ref.read(voiceSettingsControllerProvider.notifier);
@@ -385,7 +385,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
       final devices = await controller.video.cameraDevices();
       if (devices.isEmpty) return;
       if (!context.mounted) return;
-      // A single-entry list has nothing to choose between, mirroring _share.
+      // One device has nothing to choose between, mirroring pickShareSource.
       if (devices.length == 1) {
         await pickCameraDevice(controller.video, settings, devices.first);
         return;

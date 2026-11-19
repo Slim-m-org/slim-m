@@ -167,8 +167,8 @@ void main() {
   });
 
   /// docs/decisions/0011-per-channel-permissions.md, site 5's fourth call
-  /// site, missed by that PR: `_onSelectStart`'s own local gate, not just
-  /// the erase gate and the context menu.
+  /// site, missed by that PR: `CanvasSelectGesture.start`'s own local gate,
+  /// not just the erase gate and the context menu.
   testWidgets(
     'the select tool cannot pick up another member\'s object when only the '
     'deployment-wide bit grants MANAGE_CANVAS, not the per-channel answer',
