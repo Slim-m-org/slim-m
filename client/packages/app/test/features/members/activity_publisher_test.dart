@@ -7,6 +7,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -21,6 +22,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
+import '../../support/window_lifecycle.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -328,5 +330,30 @@ void main() {
     await h.start(enabled: true);
     await h.settle();
     expect(h.calls, isEmpty);
+  });
+
+  testWidgets('appearing offline from the tray stops the feed in a hidden '
+      'window', (tester) async {
+    final source = _FakeSource();
+    final h = _Harness(source: source);
+    await tester.runAsync(() => h.start(enabled: true));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: h.container,
+        child: const SizedBox(),
+      ),
+    );
+    await tester.pump(Duration.zero);
+    expect(source.open, isTrue);
+
+    await hideTestWindow(tester);
+    h.container.read(presenceVisibilityDisplayProvider.notifier).state =
+        api.PresenceVisibility.hidden;
+    await tester.idle();
+
+    expect(source.open, isFalse);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(h.dispose);
   });
 }
