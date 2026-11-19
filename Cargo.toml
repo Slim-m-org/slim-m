@@ -40,7 +40,7 @@ base64 = "0.22"
 # `getrandom` turns on rand_core's OsRng, the entropy behind both the Argon2
 # salt and the opaque token secrets, unifying onto argon2's own rand_core.
 rand_core = { version = "0.6", features = ["getrandom"] }
-# RFC 6238 TOTP (decision 0047). The 5.x hold and the feature cuts are both load-bearing; see docs/dependencies.md.
+# RFC 6238 TOTP (decision 0048). The feature cuts are load-bearing; 5.x is only the current line. See docs/dependencies.md.
 totp-rs = { version = "5.7", default-features = false, features = ["otpauth"] }
 # Anonymous sealed boxes for the content-free push envelope. The stable line,
 # not the 0.10 pre-release; see docs/dependencies.md.
@@ -53,8 +53,8 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 # Transitive through reqwest; named so the relay URL's scheme and host can be
 # validated at startup without hand-rolled parsing.
 url = "2"
-# The server's trust-on-first-use identity keypair. Feature cuts and the 2.x
-# version hold are both load-bearing; see docs/dependencies.md.
+# The server's trust-on-first-use identity keypair. The feature cuts are
+# load-bearing; 2.x is only the current line. See docs/dependencies.md.
 ed25519-dalek = { version = "2.2", default-features = false, features = ["zeroize"] }
 # Pure-Rust WASM interpreter for the module runtime host (decision 0021,
 # Phase 3): no JIT, small binary footprint, and fuel metering for CPU limits.
