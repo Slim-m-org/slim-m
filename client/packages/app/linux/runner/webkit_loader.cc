@@ -8,7 +8,7 @@ namespace {
 
 // The 4.1 API is GTK3, the toolkit Flutter's embedder uses; 6.0 is GTK4.
 const char* kLibrary = "libwebkit2gtk-4.1.so.0";
-// webkit_web_view_evaluate_javascript arrived in 2.40.
+// webkit_web_view_evaluate_javascript and is_main_frame_main_resource arrived in 2.40.
 constexpr unsigned kMinMajor = 2;
 constexpr unsigned kMinMinor = 40;
 
@@ -51,6 +51,10 @@ bool BindAll(void* lib) {
          Bind(lib, "webkit_web_view_load_html", &g_api.web_view_load_html) &&
          Bind(lib, "webkit_web_view_evaluate_javascript",
               &g_api.web_view_evaluate_javascript) &&
+         Bind(lib, "webkit_response_policy_decision_is_main_frame_main_resource",
+              &g_api.response_policy_decision_is_main_frame_main_resource) &&
+         Bind(lib, "webkit_response_policy_decision_get_request",
+              &g_api.response_policy_decision_get_request) &&
          Bind(lib, "webkit_navigation_policy_decision_get_navigation_action",
               &g_api.policy_decision_get_navigation_action) &&
          Bind(lib, "webkit_navigation_action_get_request",

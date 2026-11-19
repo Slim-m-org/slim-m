@@ -8,16 +8,13 @@
 #include <string>
 
 #include "webkit_loader.h"
+#include "youtube_player_navigation.h"
 
 namespace {
 
 const char* kChannelName = "top.npcserver.slimm/youtube_player";
-const char* kHostOrigin = "https://top.npcserver.slimm/";
 const char* kMessageHandler = "slimm";
-// WebKitPolicyDecisionType, WebKitNavigationType and WebKitAutoplayPolicy values from the 4.1 API.
-constexpr int kNavigationAction = 0;
-constexpr int kNewWindowAction = 1;
-constexpr int kLinkClicked = 0;
+// The WebKitAutoplayPolicy value from the 4.1 API.
 constexpr int kAutoplayAllow = 0;
 
 struct Player {
@@ -91,34 +88,12 @@ void OnScriptMessage(void* manager, void* result, gpointer user_data) {
   if (text != nullptr) Send(text);
 }
 
-bool IsHostPage(const char* uri) {
-  return uri != nullptr && std::strncmp(uri, kHostOrigin, std::strlen(kHostOrigin)) == 0;
-}
-
 void OpenExternally(const char* uri) {
   if (uri == nullptr) return;
   if (std::strncmp(uri, "https://", 8) != 0 && std::strncmp(uri, "http://", 7) != 0) {
     return;
   }
   g_app_info_launch_default_for_uri(uri, nullptr, nullptr);
-}
-
-// The player's own frames load in place; a clicked link or a new window (the YouTube logo, "watch on YouTube") opens in the browser.
-gboolean OnDecidePolicy(GtkWidget* view, void* decision, int type,
-                        gpointer user_data) {
-  if (type != kNavigationAction && type != kNewWindowAction) return FALSE;
-  const slimm_webkit::Api* api = slimm_webkit::Load();
-  void* action = api->policy_decision_get_navigation_action(decision);
-  const char* uri =
-      api->uri_request_get_uri(api->navigation_action_get_request(action));
-  bool clicked = api->navigation_action_get_navigation_type(action) == kLinkClicked;
-  if (type == kNewWindowAction || (clicked && !IsHostPage(uri))) {
-    OpenExternally(uri);
-    api->policy_decision_ignore(decision);
-    return TRUE;
-  }
-  api->policy_decision_use(decision);
-  return TRUE;
 }
 
 // The view fills the window and WebKit fullscreens the window (FALSE lets it); Dart hides its own chrome.
@@ -171,7 +146,7 @@ bool Create(const char* html) {
                "media-playback-requires-user-gesture", FALSE,
                "enable-fullscreen", TRUE,
                "enable-developer-extras", FALSE, nullptr);
-  g_signal_connect(view, "decide-policy", G_CALLBACK(OnDecidePolicy), nullptr);
+  slimm_youtube::GuardNavigation(view, OpenExternally);
   g_signal_connect(view, "enter-fullscreen", G_CALLBACK(OnEnterFullscreen), nullptr);
   g_signal_connect(view, "leave-fullscreen", G_CALLBACK(OnLeaveFullscreen), nullptr);
   g_signal_connect(view, "web-process-terminated",
@@ -179,7 +154,7 @@ bool Create(const char* html) {
   g_player.view = view;
   gtk_overlay_add_overlay(g_player.overlay, view);
   ApplyGeometry();
-  api->web_view_load_html(view, html, kHostOrigin);
+  api->web_view_load_html(view, html, slimm_youtube::kHostOrigin);
   return true;
 }
 

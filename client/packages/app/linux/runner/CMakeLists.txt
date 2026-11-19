@@ -23,6 +23,7 @@ add_executable(${BINARY_NAME}
   "screen_overlay_stamps.cc"
   "webkit_loader.cc"
   "youtube_player_channel.cc"
+  "youtube_player_navigation.cc"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
 )
 

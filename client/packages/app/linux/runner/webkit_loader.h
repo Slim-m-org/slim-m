@@ -24,6 +24,9 @@ struct Api {
                                        GCancellable* cancellable,
                                        GAsyncReadyCallback callback,
                                        gpointer user_data) = nullptr;
+  gboolean (*response_policy_decision_is_main_frame_main_resource)(
+      void* decision) = nullptr;
+  void* (*response_policy_decision_get_request)(void* decision) = nullptr;
   void* (*policy_decision_get_navigation_action)(void* decision) = nullptr;
   void* (*navigation_action_get_request)(void* action) = nullptr;
   int (*navigation_action_get_navigation_type)(void* action) = nullptr;
