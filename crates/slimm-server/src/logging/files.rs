@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Server log files on the data volume: one or more per UTC day, bounded by
-//! age and by total size, and read back newest last for an admin download.
+//! age and by total size. `recent.rs` reads them back for a download.
 
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, BufWriter, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use jiff::civil::Date;
@@ -36,11 +36,11 @@ impl FileLimits {
 }
 
 #[derive(Debug)]
-struct LogFile {
-    path: PathBuf,
-    day: Date,
-    index: u32,
-    bytes: u64,
+pub(super) struct LogFile {
+    pub(super) path: PathBuf,
+    pub(super) day: Date,
+    pub(super) index: u32,
+    pub(super) bytes: u64,
 }
 
 struct Current {
@@ -54,6 +54,7 @@ pub struct RollingFiles {
     dir: PathBuf,
     limits: FileLimits,
     current: Option<Current>,
+    warned: bool,
 }
 
 impl RollingFiles {
@@ -63,6 +64,7 @@ impl RollingFiles {
             dir: dir.to_owned(),
             limits,
             current: None,
+            warned: false,
         })
     }
 
@@ -93,7 +95,8 @@ impl RollingFiles {
     }
 
     /// Reuses today's newest file while it has room, so a restart keeps appending to it.
-    fn start(&self, day: Date) -> io::Result<Current> {
+    fn start(&mut self, day: Date) -> io::Result<Current> {
+        create_private_dir(&self.dir)?;
         let newest = list(&self.dir)?
             .into_iter()
             .filter(|f| f.day == day)
@@ -105,7 +108,9 @@ impl RollingFiles {
         };
         let path = self.dir.join(file_name(day, index));
         let file = open_private_append(&path)?;
-        self.prune(day, &path)?;
+        if let Err(error) = self.prune(day, &path) {
+            self.warn_once(&error);
+        }
         Ok(Current {
             file: BufWriter::new(file),
             day,
@@ -113,7 +118,16 @@ impl RollingFiles {
         })
     }
 
+    /// Best effort: a file that cannot be deleted is skipped, and logging goes on.
+    fn warn_once(&mut self, error: &io::Error) {
+        if !self.warned {
+            self.warned = true;
+            tracing::warn!(%error, dir = ?self.dir, "could not delete an old server log file");
+        }
+    }
+
     /// Leaves room for the current file to fill, so the total bound holds between rotations too.
+    /// A file dated after today comes from a clock that ran ahead, and goes first.
     fn prune(&self, today: Date, current: &Path) -> io::Result<()> {
         let cutoff = today
             .checked_sub(Span::new().days(i64::from(self.limits.keep_days)))
@@ -122,20 +136,27 @@ impl RollingFiles {
             .into_iter()
             .filter(|f| f.path != current)
             .collect();
-        older.sort_by_key(|f| (f.day, f.index));
+        older.sort_by_key(|f| (f.day <= today, f.day, f.index));
         let budget = self
             .limits
             .max_total_bytes
             .saturating_sub(self.limits.max_file_bytes);
         let mut total: u64 = older.iter().map(|f| f.bytes).sum();
+        let mut failed = None;
         for file in older {
-            if file.day > cutoff && total <= budget {
+            let in_range = file.day > cutoff && file.day <= today;
+            if in_range && total <= budget {
                 continue;
             }
-            fs::remove_file(&file.path)?;
-            total -= file.bytes;
+            match fs::remove_file(&file.path) {
+                Ok(()) => total = total.saturating_sub(file.bytes),
+                Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                    total = total.saturating_sub(file.bytes);
+                }
+                Err(error) => failed = failed.or(Some(error)),
+            }
         }
-        Ok(())
+        failed.map_or(Ok(()), Err)
     }
 }
 
@@ -149,82 +170,35 @@ fn parse_name(name: &str) -> Option<(Date, u32)> {
     Some((day.parse().ok()?, index.parse().ok()?))
 }
 
-fn list(dir: &Path) -> io::Result<Vec<LogFile>> {
+/// The log files in `dir`; an entry that vanishes or cannot be read while listing is skipped.
+pub(super) fn list(dir: &Path) -> io::Result<Vec<LogFile>> {
     let mut files = Vec::new();
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
+    for entry in fs::read_dir(dir)?.flatten() {
         let name = entry.file_name();
         let Some((day, index)) = name.to_str().and_then(parse_name) else {
             continue;
         };
+        let Ok(metadata) = entry.metadata() else {
+            continue;
+        };
+        if !metadata.is_file() {
+            continue;
+        }
         files.push(LogFile {
             path: entry.path(),
             day,
             index,
-            bytes: entry.metadata()?.len(),
+            bytes: metadata.len(),
         });
     }
     Ok(files)
 }
 
-/// The newest log text in `dir`, at most `max_bytes`, oldest line first.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub struct RecentLogs {
-    pub text: String,
-    /// Older lines exist that did not fit.
-    pub truncated: bool,
-}
-
-pub fn recent(dir: &Path, max_bytes: u64) -> io::Result<RecentLogs> {
-    let mut files = match list(dir) {
-        Ok(files) => files,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(RecentLogs::default()),
-        Err(error) => return Err(error),
-    };
-    files.sort_by_key(|f| std::cmp::Reverse((f.day, f.index)));
-    let mut chunks = Vec::new();
-    let mut left = max_bytes;
-    let mut truncated = false;
-    for file in files {
-        if left == 0 {
-            truncated = true;
-            break;
-        }
-        let (chunk, cut) = read_tail(&file.path, left)?;
-        left -= chunk.len() as u64;
-        chunks.push(chunk);
-        if cut {
-            truncated = true;
-            break;
-        }
-    }
-    chunks.reverse();
-    Ok(RecentLogs {
-        text: String::from_utf8_lossy(&chunks.concat()).into_owned(),
-        truncated,
-    })
-}
-
-/// The last `max_bytes` of `path` starting at a line, and whether anything before it was left out.
-fn read_tail(path: &Path, max_bytes: u64) -> io::Result<(Vec<u8>, bool)> {
-    let mut file = File::open(path)?;
-    let size = file.metadata()?.len();
-    if size <= max_bytes {
-        let mut all = Vec::new();
-        file.read_to_end(&mut all)?;
-        return Ok((all, false));
-    }
-    file.seek(SeekFrom::Start(size - max_bytes))?;
-    let mut tail = Vec::new();
-    file.read_to_end(&mut tail)?;
-    let start = tail
-        .iter()
-        .position(|&b| b == b'\n')
-        .map_or(tail.len(), |i| i + 1);
-    Ok((tail.split_off(start), true))
-}
-
+/// Sets 0700 only on a directory it creates, so an operator's own shared directory keeps its mode.
 fn create_private_dir(dir: &Path) -> io::Result<()> {
+    if dir.is_dir() {
+        return Ok(());
+    }
     fs::create_dir_all(dir)?;
     #[cfg(unix)]
     {

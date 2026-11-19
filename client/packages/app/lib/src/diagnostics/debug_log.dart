@@ -122,15 +122,13 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
   int get _limit => _detailSources.isEmpty ? capacity : detailedCapacity;
 
   /// Keeps up to [detailedCapacity] entries while any [source] has [on], as a
-  /// space with server debug logging does (decision 0129).
+  /// space with server debug logging does (decision 0129). Turning it off
+  /// trims nothing at once; later records shrink the log one at a time.
   void keepDetail(Object source, {required bool on}) {
-    if (!mounted) return;
-    final changed = on
-        ? _detailSources.add(source)
-        : _detailSources.remove(source);
-    if (changed && state.length > _limit) {
-      state = _bounded(state);
-      _scheduleSave();
+    if (on) {
+      _detailSources.add(source);
+    } else {
+      _detailSources.remove(source);
     }
   }
 
@@ -138,7 +136,10 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
     final saved = await persistence?.load() ?? const [];
     if (!mounted || saved.isEmpty) return;
     final merged = [...state, ...saved];
-    state = merged.length > _limit ? merged.sublist(0, _limit) : merged;
+    // Up to the detailed bound: the space's mode is not known yet this early.
+    state = merged.length > detailedCapacity
+        ? merged.sublist(0, detailedCapacity)
+        : merged;
   }
 
   @override
@@ -181,10 +182,10 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
   List<DiagnosticEvent> _bounded(List<DiagnosticEvent> events) {
     if (events.length <= _limit) return events;
     final trimmed = List.of(events);
-    while (trimmed.length > _limit) {
+    do {
       final victim = trimmed.lastIndexWhere((e) => e.level == LogLevel.debug);
       trimmed.removeAt(victim == -1 ? trimmed.length - 1 : victim);
-    }
+    } while (trimmed.length > detailedCapacity);
     return trimmed;
   }
 

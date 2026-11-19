@@ -6,10 +6,13 @@ use axum::Extension;
 use axum::http::StatusCode;
 use serde_json::json;
 use slimm_server::http::ServerLogsDir;
-use slimm_server::logging::{FileLimits, LogMode, LogSettings, Logging, RollingFiles, recent};
+use slimm_server::logging::{
+    FileLimits, LogMode, LogSettings, Logging, RollingFiles, plan_recent, read_plan, today,
+};
+use tower::ServiceExt;
 
 use crate::support;
-use support::app::{call, general_channel_id, register_id_token, router};
+use support::app::{call, general_channel_id, register_id_token, request_bare, router};
 
 #[tokio::test]
 async fn an_admin_switches_the_mode_and_every_client_can_read_it() {
@@ -69,8 +72,21 @@ async fn an_admin_switches_the_mode_and_every_client_can_read_it() {
     assert_eq!(version["debug_logging"], "compact");
 }
 
+async fn download(app: &axum::Router, token: &str) -> (StatusCode, String) {
+    let response = app
+        .clone()
+        .oneshot(request_bare("GET", "/space/server-logs", Some(token)))
+        .await
+        .unwrap();
+    let status = response.status();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    (status, String::from_utf8(bytes.to_vec()).unwrap())
+}
+
 #[tokio::test]
-async fn an_admin_downloads_the_newest_lines_from_the_files() {
+async fn an_admin_downloads_the_newest_lines_as_text_and_it_is_audited() {
     let (store, _guard) = support::new_store("slimm-log-download").await;
     let (_, admin) = register_id_token(&store, "root").await;
     let (_, member) = register_id_token(&store, "nia").await;
@@ -82,29 +98,46 @@ async fn an_admin_downloads_the_newest_lines_from_the_files() {
     files.flush().unwrap();
 
     let app = router(store.clone()).layer(Extension(ServerLogsDir(Some(dir))));
-    let (status, _) = call(&app, "GET", "/space/server-logs", Some(&member), None).await;
-    assert_eq!(status, StatusCode::FORBIDDEN);
-    let (status, body) = call(&app, "GET", "/space/server-logs", Some(&admin), None).await;
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["log"], "the call dropped here\n");
+    assert_eq!(download(&app, &member).await.0, StatusCode::FORBIDDEN);
     assert_eq!(
-        (&body["truncated"], &body["files_enabled"]),
-        (&json!(false), &json!(true))
+        download(&app, &admin).await,
+        (StatusCode::OK, "the call dropped here\n".to_owned())
+    );
+    let (_, audit) = call(&app, "GET", "/space/audit-log", Some(&admin), None).await;
+    assert!(
+        audit.to_string().contains("space.server_logs_download"),
+        "{audit}"
     );
 
     let without_files = router(store).layer(Extension(ServerLogsDir(None)));
-    let (_, body) = call(
-        &without_files,
-        "GET",
-        "/space/server-logs",
-        Some(&admin),
-        None,
-    )
-    .await;
     assert_eq!(
-        (&body["log"], &body["files_enabled"]),
-        (&json!(""), &json!(false))
+        download(&without_files, &admin).await.0,
+        StatusCode::NOT_IMPLEMENTED
     );
+}
+
+#[tokio::test]
+async fn a_second_download_waits_its_turn() {
+    let (store, _guard) = support::new_store("slimm-log-one-at-a-time").await;
+    let (_, admin) = register_id_token(&store, "root").await;
+    let (dir, _dir_guard) = support::TestDirGuard::new("slimm-log-one-at-a-time-files");
+    let mut files = RollingFiles::open(&dir, FileLimits::new(14, 1 << 20)).unwrap();
+    files.append(b"line\n", jiff::Timestamp::now()).unwrap();
+    files.flush().unwrap();
+    let app = router(store).layer(Extension(ServerLogsDir(Some(dir))));
+
+    let first = app
+        .clone()
+        .oneshot(request_bare("GET", "/space/server-logs", Some(&admin)))
+        .await
+        .unwrap();
+    assert_eq!(first.status(), StatusCode::OK);
+    assert_eq!(
+        download(&app, &admin).await.0,
+        StatusCode::TOO_MANY_REQUESTS
+    );
+    drop(first);
+    assert_eq!(download(&app, &admin).await.0, StatusCode::OK);
 }
 
 const PASSWORD: &str = "correct-horse-battery-7731";
@@ -149,7 +182,8 @@ async fn verbose_never_writes_a_password_a_token_or_what_someone_wrote() {
     assert_eq!(status, StatusCode::OK);
 
     built.logging.flush();
-    let text = recent(&dir, 1 << 24).unwrap().text;
+    let plan = plan_recent(&dir, 1 << 24, today()).unwrap();
+    let text = String::from_utf8(read_plan(&plan).unwrap()).unwrap();
     assert!(
         text.contains("auth: signed in"),
         "Verbose was not on: {text}"

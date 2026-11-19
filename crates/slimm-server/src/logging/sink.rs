@@ -39,10 +39,10 @@ impl FileSink {
         })
     }
 
-    /// Waits until every line queued so far is on disk, or a couple of seconds pass.
+    /// Waits until every line queued so far is on disk, or a couple of seconds pass; skipped while the queue is full.
     pub fn flush(&self) {
         let (ack, done) = mpsc::sync_channel(1);
-        if self.queue.send(Message::Flush(ack)).is_ok() {
+        if self.queue.try_send(Message::Flush(ack)).is_ok() {
             let _ = done.recv_timeout(FLUSH_WAIT);
         }
     }

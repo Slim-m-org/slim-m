@@ -96,24 +96,8 @@ fn a_restart_appends_to_todays_file_and_keeps_what_was_there() {
         .unwrap();
     second.flush().unwrap();
     assert_eq!(names(&dir.0), ["slimm-server.2026-11-19.000.log"]);
-    let recent = recent(&dir.0, 1 << 20).unwrap();
-    assert_eq!(recent.text, "before the restart\nafter the restart\n");
-    assert!(!recent.truncated);
-}
-
-#[test]
-fn recent_keeps_the_newest_whole_lines_across_files() {
-    let dir = ScratchDir::new("log-recent");
-    let mut files = RollingFiles::open(&dir.0, limits(14, 1 << 20, 12)).unwrap();
-    for line in ["one 1\n", "two 22\n", "three 3\n", "four 44\n"] {
-        files.append(line.as_bytes(), at("2026-11-19")).unwrap();
-    }
-    files.flush().unwrap();
-    let everything = recent(&dir.0, 1 << 20).unwrap();
-    assert_eq!(everything.text, "one 1\ntwo 22\nthree 3\nfour 44\n");
-    let tail = recent(&dir.0, 12).unwrap();
-    assert_eq!(tail.text, "four 44\n");
-    assert!(tail.truncated);
+    let text = fs::read_to_string(dir.0.join("slimm-server.2026-11-19.000.log")).unwrap();
+    assert_eq!(text, "before the restart\nafter the restart\n");
 }
 
 #[test]
@@ -129,7 +113,48 @@ fn files_that_are_not_logs_are_left_alone() {
 }
 
 #[test]
-fn a_missing_directory_downloads_as_empty() {
-    let dir = ScratchDir::new("log-missing");
-    assert_eq!(recent(&dir.0, 100).unwrap(), RecentLogs::default());
+fn a_file_dated_after_today_is_deleted_first() {
+    let dir = ScratchDir::new("log-future");
+    fs::create_dir_all(&dir.0).unwrap();
+    fs::write(
+        dir.0.join("slimm-server.2031-01-01.000.log"),
+        b"from a clock that ran ahead\n",
+    )
+    .unwrap();
+    let mut files = RollingFiles::open(&dir.0, limits(14, 1 << 20, 1 << 16)).unwrap();
+    files.append(b"today\n", at("2026-11-19")).unwrap();
+    assert_eq!(names(&dir.0), ["slimm-server.2026-11-19.000.log"]);
+}
+
+#[test]
+fn something_that_cannot_be_deleted_never_stops_the_logging() {
+    let dir = ScratchDir::new("log-stuck");
+    fs::create_dir_all(dir.0.join("slimm-server.2026-11-01.000.log")).unwrap();
+    let mut files = RollingFiles::open(&dir.0, limits(3, 1 << 20, 1 << 16)).unwrap();
+    files.append(b"still written\n", at("2026-11-19")).unwrap();
+    files.flush().unwrap();
+    let text = fs::read_to_string(dir.0.join("slimm-server.2026-11-19.000.log")).unwrap();
+    assert_eq!(text, "still written\n");
+}
+
+#[cfg(unix)]
+#[test]
+fn an_existing_directory_keeps_the_mode_its_operator_gave_it() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = ScratchDir::new("log-shared");
+    fs::create_dir_all(&dir.0).unwrap();
+    fs::set_permissions(&dir.0, fs::Permissions::from_mode(0o750)).unwrap();
+    RollingFiles::open(&dir.0, limits(14, 1 << 20, 1 << 16)).unwrap();
+    let mode = fs::metadata(&dir.0).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o750);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_directory_it_creates_is_private() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = ScratchDir::new("log-private");
+    RollingFiles::open(&dir.0, limits(14, 1 << 20, 1 << 16)).unwrap();
+    let mode = fs::metadata(&dir.0).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o700);
 }

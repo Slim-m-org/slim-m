@@ -5,12 +5,13 @@
 
 mod files;
 mod format;
+mod recent;
 mod sink;
 mod throttle;
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 use std::time::Duration;
 
 use tracing::Dispatch;
@@ -18,7 +19,8 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Registry, fmt, reload};
 
-pub use files::{FileLimits, RecentLogs, RollingFiles, recent};
+pub use files::{FileLimits, RollingFiles};
+pub use recent::{RecentPlan, Segment, plan_recent, read_plan, read_segment};
 
 use crate::config::Config;
 
@@ -141,6 +143,8 @@ fn beside_database(database_path: &str) -> PathBuf {
 /// A built logging stack and the handles that change it while it runs.
 pub struct Logging {
     filter: reload::Handle<EnvFilter, Registry>,
+    /// Holds the filter and the layout to one mode while either changes.
+    switching: Mutex<()>,
     base: String,
     mode: Arc<AtomicU8>,
     files: Option<sink::FileSink>,
@@ -185,6 +189,7 @@ impl Logging {
             .with(filter)
             .with(throttle::Throttle::new(
                 DEBUG_LINES_PER_SECOND,
+                mode.clone(),
                 throttled.clone(),
             ))
             .with(stdout_layer)
@@ -192,6 +197,7 @@ impl Logging {
         Built {
             logging: Self {
                 filter: handle,
+                switching: Mutex::new(()),
                 base,
                 mode,
                 dir: files.as_ref().and(settings.dir.clone()),
@@ -209,6 +215,10 @@ impl Logging {
 
     /// Swaps the filter and the line layout in place; the next event already follows it.
     pub fn set_mode(&self, mode: LogMode) {
+        let _switching = self
+            .switching
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         if let Err(error) = self.filter.reload(filter_for(&self.base, mode)) {
             tracing::warn!(%error, "could not change the server log filter");
             return;
@@ -279,7 +289,36 @@ pub fn install(settings: &LogSettings) -> anyhow::Result<&'static Logging> {
     if let Some(error) = built.file_error {
         tracing::warn!(%error, dir = ?settings.dir, "server logs go to stdout only");
     }
+    if let Some(dir) = logging.dir().filter(|dir| readable_by_others(dir)) {
+        tracing::warn!(?dir, "the server log directory is readable by other users");
+    }
     Ok(logging)
+}
+
+#[cfg(unix)]
+fn readable_by_others(dir: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::metadata(dir).is_ok_and(|m| m.permissions().mode() & 0o077 != 0)
+}
+
+#[cfg(not(unix))]
+fn readable_by_others(_dir: &Path) -> bool {
+    false
+}
+
+static MODE_CHANGE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+/// Held across storing a new mode and applying it, so two admins changing it
+/// at once cannot leave the stored mode and the running one apart.
+pub async fn mode_change() -> tokio::sync::MutexGuard<'static, ()> {
+    MODE_CHANGE.lock().await
+}
+
+/// Today's date in UTC, the calendar the log files are named in.
+pub fn today() -> jiff::civil::Date {
+    jiff::Timestamp::now()
+        .to_zoned(jiff::tz::TimeZone::UTC)
+        .date()
 }
 
 /// The installed stack; None in tests that never install one.

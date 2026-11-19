@@ -45,6 +45,7 @@ Dependencies (sqlx, hyper, the LiveKit client) stay at the floor in every mode: 
 So that the modes have something to show, the subsystems the owner hunts bugs in gained a few one-line debug events with key fields: a socket opening and closing (with why, and how long it lived), sign-in and refresh outcomes, a voice join token being issued, and every LiveKit webhook (event, room, participant, and LiveKit's disconnect reason, now parsed).
 
 Verbose is rate-limited: a call site may write at most 50 debug or trace lines a second, and the rest are counted and reported once a minute at `info`.
+The other modes are never throttled, because Compact's per-request line comes from one call site and a cap there would hide requests.
 `info`, `warn` and `error` are never throttled.
 
 ### Persistence: rotating files on the data volume
@@ -55,7 +56,9 @@ Nothing in compose changes for that, and the backup container copies the databas
 - A new file starts each UTC day and whenever one reaches an eighth of the total budget (at most 32 MiB).
 - A restart appends to today's newest file, so the lines just before a crash or redeploy sit next to the ones after it.
 - Kept for `SLIMM_LOG_KEEP_DAYS` days (14) and at most `SLIMM_LOG_MAX_BYTES` in total (256 MiB); the oldest file goes first. `SLIMM_LOG_MAX_BYTES=0` writes no files. `SLIMM_LOG_DIR` moves them.
-- The directory is 0700 and each file 0600, like the data key.
+- A directory the server creates is 0700 and each file 0600, like the data key; an existing directory keeps its mode, with a warning if others can read it.
+- A file dated after today, from a clock that ran ahead, is deleted first and never read as the newest.
+- Deleting old files is best effort: one that cannot be deleted is skipped with a single warning, and logging goes on.
 - A writer thread owns the files, so a slow disk never stalls a request; it flushes whenever its queue runs dry, and a full queue drops the line and counts it rather than blocking.
 - If the directory cannot be opened the server says so once and logs to stdout only, rather than refusing to start.
 
@@ -64,6 +67,7 @@ Verbose fills the budget fastest, so on a busy space it shortens how far back th
 ### Reading them
 
 - An admin downloads the newest 16 MiB from Space settings, Debug logs, through `GET /space/server-logs` (Manage server).
+  It streams plain text file by file from a plan made from the file sizes, so a file still growing cannot make it longer, runs one at a time, and is written to the audit log.
 - An operator reads `/data/logs` directly, for example `docker compose exec server ls /data/logs` or the volume path on the host.
 
 ### What never reaches a log, in any mode

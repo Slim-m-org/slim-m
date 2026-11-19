@@ -445,6 +445,7 @@ async fn update(
         state.store.set_call_transcript_retention_days(days).await?;
     }
     if let Some(mode) = log_mode {
+        let _changing = crate::logging::mode_change().await;
         state.store.set_log_mode(mode).await?;
         crate::logging::apply_mode(mode);
     }

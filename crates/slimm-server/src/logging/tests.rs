@@ -12,7 +12,8 @@ fn settings(dir: &Path, base: &str) -> LogSettings {
 
 fn written(logging: &Logging) -> String {
     logging.flush();
-    recent(logging.dir().unwrap(), 1 << 24).unwrap().text
+    let plan = plan_recent(logging.dir().unwrap(), 1 << 24, today()).unwrap();
+    String::from_utf8(read_plan(&plan).unwrap()).unwrap()
 }
 
 fn emit_each_kind() {
@@ -170,4 +171,17 @@ fn the_files_never_carry_the_colour_codes_stdout_gets() {
     let text = written(&built.logging);
     assert!(text.contains("route=\"/space/settings\""), "{text}");
     assert!(!text.contains('\x1b'), "{text:?}");
+}
+
+#[test]
+fn compact_never_throttles_its_one_line_per_request() {
+    let dir = ScratchDir::new("log-compact-burst");
+    let built = Logging::build(&settings(&dir.0, ""), false);
+    tracing::dispatcher::with_default(&built.dispatch, || {
+        built.logging.set_mode(LogMode::Compact);
+        for i in 0..300 {
+            tracing::debug!(target: "slimm_server::http::ws", i, "burst");
+        }
+    });
+    assert_eq!(written(&built.logging).matches("burst").count(), 300);
 }

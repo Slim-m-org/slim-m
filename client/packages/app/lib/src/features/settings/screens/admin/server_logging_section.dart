@@ -4,7 +4,6 @@
 library;
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,7 +29,7 @@ const _modes = <(String, ServerLogMode)>[
 ];
 
 String _consequence(ServerLogMode mode) => switch (mode) {
-  ServerLogMode.off => 'Warnings and errors only.',
+  ServerLogMode.off => 'Startup, warnings and errors.',
   ServerLogMode.compact => 'One line per call, sync, sign-in and media event.',
   ServerLogMode.verbose => 'Everything. Older logs are cleared sooner.',
 };
@@ -73,10 +72,10 @@ class _ServerLoggingSectionState extends ConsumerState<ServerLoggingSection>
     await guard(
       whatFailed: 'download the server logs',
       action: () async {
-        final logs = await api.serverLogs();
-        noFiles = !logs.filesEnabled;
-        if (noFiles) return;
-        await save(_fileName(DateTime.now()), utf8.encode(logs.log));
+        final log = await api.serverLogs();
+        noFiles = log == null;
+        if (log == null) return;
+        await save(_fileName(DateTime.now()), log);
       },
     );
     if (!mounted) return;

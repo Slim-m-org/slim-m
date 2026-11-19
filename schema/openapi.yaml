@@ -11195,23 +11195,29 @@ paths:
       tags: [space]
       summary: Download the newest server log lines.
       description: >
-        Gated on MANAGE_SERVER. Reads the rotating log files on the data
-        volume (decision 0129), which outlive restarts and redeploys, so the
-        lines from before the last restart are included. Older lines stay in
-        the files for an operator to read directly.
+        Gated on MANAGE_SERVER and audited. Streams the newest 16 MiB of the
+        rotating log files on the data volume (decision 0129) as plain text,
+        oldest line first, so lines from before the last restart are
+        included. When older lines exist the text starts with a line saying
+        so; they stay in the files for an operator to read directly. One
+        download runs at a time: another answers 429 until it finishes.
       responses:
         "200":
           description: The newest lines.
           content:
-            application/json:
+            text/plain:
               schema:
-                $ref: "#/components/schemas/ServerLogs"
+                type: string
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: >
+            This server writes no log files (`SLIMM_LOG_MAX_BYTES` is 0 or
+            the directory could not be opened).
   /space/link-previews:
     get:
       operationId: getSpaceLinkPreviews
@@ -15224,21 +15230,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SpaceUplinkTest"
-    ServerLogs:
-      type: object
-      required: [log, truncated, files_enabled]
-      properties:
-        log:
-          type: string
-          description: The newest server log lines, oldest first, at most 16 MiB.
-        truncated:
-          type: boolean
-          description: Older lines exist on the data volume than fit in one download.
-        files_enabled:
-          type: boolean
-          description: >
-            False when this server writes no log files (`SLIMM_LOG_MAX_BYTES`
-            is 0 or the directory could not be opened); `log` is then empty.
     SpaceLinkPreviews:
       type: object
       required: [enabled]

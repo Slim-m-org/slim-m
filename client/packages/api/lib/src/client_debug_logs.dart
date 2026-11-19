@@ -5,13 +5,18 @@ import 'dart:async';
 import 'models.dart';
 import 'client.dart';
 import 'client_transport.dart';
+import 'exceptions.dart';
 
 /// Debug logs sent to the admins (`/debug-logs`), and the server's own (`/space/server-logs`).
 extension SlimmApiDebugLogs on SlimmApi {
-  /// The newest server log lines. Requires MANAGE_SERVER.
-  Future<ServerLogs> serverLogs() async {
-    final json = await send('GET', '/space/server-logs');
-    return ServerLogs.fromJson(json as Map<String, dynamic>);
+  /// The newest server log lines as UTF-8 text, or null when the server keeps
+  /// no log files. Requires MANAGE_SERVER.
+  Future<List<int>?> serverLogs() async {
+    try {
+      return (await fetchBytes('/space/server-logs')).bytes;
+    } on NotConfiguredException {
+      return null;
+    }
   }
 
   /// Sends [log] to the admins. Any signed-in member may.

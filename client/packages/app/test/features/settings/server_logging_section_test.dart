@@ -61,11 +61,17 @@ Future<_Server> _open(
         }
         return _json({'join_policy': 'invite', 'debug_logging': server.mode});
       case '/space/server-logs':
-        return _json({
-          'log': server.filesEnabled ? 'the call dropped here\n' : '',
-          'truncated': false,
-          'files_enabled': server.filesEnabled,
-        });
+        return server.filesEnabled
+            ? http.Response(
+                'the call dropped here\n',
+                200,
+                headers: {'content-type': 'text/plain; charset=utf-8'},
+              )
+            : http.Response(
+                '{"error":"this server keeps no log files"}',
+                501,
+                headers: {'content-type': 'application/json'},
+              );
     }
     return http.Response('{"error":"unexpected"}', 404);
   });
@@ -119,7 +125,7 @@ void main() {
         for (final label in ['Off', 'Compact', 'Verbose']) {
           expect(find.text(label), findsOneWidget);
         }
-        expect(find.text('Warnings and errors only.'), findsOneWidget);
+        expect(find.text('Startup, warnings and errors.'), findsOneWidget);
 
         await tester.tap(find.text('Verbose'));
         await _frames(tester);
