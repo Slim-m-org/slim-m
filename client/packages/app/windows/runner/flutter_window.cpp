@@ -10,6 +10,7 @@
 #include "now_playing_channel.h"
 #include "screen_overlay_channel.h"
 #include "single_instance.h"
+#include "youtube_player_channel.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -44,6 +45,8 @@ bool FlutterWindow::OnCreate() {
   RegisterTaskbarAttentionChannel(flutter_controller_->engine()->messenger(),
                                   GetHandle());
   RegisterWindowsToastsChannel(flutter_controller_->engine()->messenger());
+  RegisterYoutubePlayerChannel(flutter_controller_->engine()->messenger(),
+                               flutter_controller_->view()->GetNativeWindow());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {

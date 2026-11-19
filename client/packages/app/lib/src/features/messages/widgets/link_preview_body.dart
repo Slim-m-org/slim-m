@@ -6,6 +6,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show LinkPreview;
@@ -14,6 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../external_link.dart';
 import '../../../routing/modal_page.dart' show kScrimColor;
 import '../../../widgets/text_link.dart';
+import '../../video/widgets/inline_video_player.dart';
 import '../providers/media_preferences.dart';
 import 'attachment_reveal.dart';
 import 'attachment_view.dart' show AttachmentView, kInlineImageMax;
@@ -29,6 +31,7 @@ class LinkPreviewBody extends StatelessWidget {
     required this.onReveal,
     required this.playing,
     required this.onPlay,
+    this.playingInPanel = false,
   });
 
   final String url;
@@ -39,9 +42,12 @@ class LinkPreviewBody extends StatelessWidget {
   final bool revealed;
   final VoidCallback onReveal;
 
-  /// Whether the inline web player has replaced a video's thumbnail.
+  /// Whether the inline player has replaced a video's thumbnail.
   final bool playing;
   final VoidCallback onPlay;
+
+  /// Whether this video is the one playing in the desktop panel.
+  final bool playingInPanel;
 
   @override
   Widget build(BuildContext context) {
@@ -102,6 +108,7 @@ class LinkPreviewBody extends StatelessWidget {
               revealed: revealed,
               onReveal: onReveal,
               playing: playing,
+              playingInPanel: playingInPanel,
               onPlay: onPlay,
             ),
           ),
@@ -153,7 +160,8 @@ const _youtubeAllow =
 
 /// The preview's media area: a static thumbnail for an ordinary link, or,
 /// for a recognized video, the same thumbnail under a play glyph (tap calls
-/// [onPlay]) that becomes an inline web player once [playing]. The
+/// [onPlay]) that becomes the inline player once [playing], or says the
+/// video is in the desktop panel while [playingInPanel]. The
 /// auto-download reveal gate below applies to the thumbnail exactly as it
 /// always has - the click-to-play affordance is a second, separate action on
 /// top of it, never a way around it.
@@ -164,6 +172,7 @@ class _LinkPreviewMedia extends ConsumerWidget {
     required this.revealed,
     required this.onReveal,
     required this.playing,
+    required this.playingInPanel,
     required this.onPlay,
   });
 
@@ -172,10 +181,20 @@ class _LinkPreviewMedia extends ConsumerWidget {
   final bool revealed;
   final VoidCallback onReveal;
   final bool playing;
+  final bool playingInPanel;
   final VoidCallback onPlay;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final videoId = preview.videoId;
+    if (playing && !kIsWeb && preview.isPlayableVideo && videoId != null) {
+      return InlineVideoPlayer(
+        url: url,
+        videoId: videoId,
+        start: preview.videoStart,
+        maxWidth: kInlineImageMax,
+      );
+    }
     if (playing) {
       final embedUrl = preview.embedUrl;
       if (embedUrl == null) return const SizedBox.shrink();
@@ -210,6 +229,12 @@ class _LinkPreviewMedia extends ConsumerWidget {
         : LinkPreviewThumbnail(token: token, url: url);
     if (!preview.isPlayableVideo) return thumbnail;
 
+    if (playingInPanel) {
+      return Stack(
+        alignment: Alignment.center,
+        children: [thumbnail, const _InPanelBadge()],
+      );
+    }
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -269,6 +294,42 @@ class _PlayGlyph extends StatelessWidget {
         AppIcons.play,
         size: AppSizes.icon28,
         color: _glyphOnDark,
+      ),
+    );
+  }
+}
+
+/// Stands where the play glyph was while the video plays in the desktop
+/// panel, so the reader can see which message is on screen beside them.
+class _InPanelBadge extends StatelessWidget {
+  const _InPanelBadge();
+
+  static const _onScrim = Color(0xFFFFFFFF);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s12,
+        vertical: AppSpacing.s8,
+      ),
+      decoration: BoxDecoration(
+        color: kScrimColor,
+        borderRadius: BorderRadius.circular(AppRadii.control),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(AppIcons.play, size: AppSizes.icon16, color: _onScrim),
+          const SizedBox(width: AppSpacing.s8),
+          Text(
+            'Playing in panel',
+            style: AppText.caption.copyWith(
+              color: _onScrim,
+              fontWeight: AppWeights.semi,
+            ),
+          ),
+        ],
       ),
     );
   }

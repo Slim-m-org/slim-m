@@ -42,6 +42,7 @@
 # README's own account of what this pass could and could not verify.
 
 app-id: top.npcserver.slimm
+# No WebKitGTK here, so the in-app YouTube player is off and a video opens in the browser (decision 0128).
 runtime: org.freedesktop.Platform
 runtime-version: "25.08"
 sdk: org.freedesktop.Sdk

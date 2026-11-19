@@ -222,6 +222,7 @@ fn card(entity: Entity, page: Preview, oembed: OembedData, allow_private: bool) 
             provider: VideoProvider::Spotify,
             id: entity.id,
             kind: Some(entity.kind),
+            start_s: None,
         }),
         author_name: None,
         author_url: None,

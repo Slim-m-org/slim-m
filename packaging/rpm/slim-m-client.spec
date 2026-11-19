@@ -94,6 +94,8 @@ Requires:       libepoxy.so.0()(64bit)
 Recommends:     xdg-desktop-portal
 # Loaded with dlopen: lets the screen overlay sit above other windows on Wayland (decision 0096).
 Recommends:     gtk-layer-shell
+# Loaded with dlopen: the in-app YouTube player; without it a video opens in the browser (decision 0128).
+Recommends:     webkit2gtk4.1
 # kf6-kwallet's ksecretd serves the same org.freedesktop.secrets libsecret wants.
 Recommends:     (gnome-keyring or kf6-kwallet)
 

@@ -96,6 +96,7 @@ class LinkPreview {
     this.videoProvider,
     this.videoId,
     this.mediaKind,
+    this.videoStartMs,
     this.durationMs,
     this.authorName,
     this.authorUrl,
@@ -141,6 +142,12 @@ class LinkPreview {
   /// The track's or episode's length, when its page declared one.
   final int? durationMs;
 
+  /// Where a YouTube link's `t=` asked playback to begin, in milliseconds.
+  final int? videoStartMs;
+
+  /// [videoStartMs] as a [Duration]; zero when the link named no start.
+  Duration get videoStart => Duration(milliseconds: videoStartMs ?? 0);
+
   /// Whether this preview is a YouTube video that renders click-to-play over
   /// its thumbnail. A Spotify item is never this, since nothing may be drawn
   /// over its artwork; see [spotify].
@@ -164,6 +171,7 @@ class LinkPreview {
         ),
         videoId: json['video_id'] as String?,
         mediaKind: SpotifyKind.fromWire(json['media_kind'] as String?),
+        videoStartMs: (json['video_start_ms'] as num?)?.toInt(),
         durationMs: (json['duration_ms'] as num?)?.toInt(),
         authorName: json['author_name'] as String?,
         authorUrl: json['author_url'] as String?,
@@ -171,16 +179,17 @@ class LinkPreview {
 
   /// The `youtube-nocookie.com` embed URL for inline web playback - no
   /// cookies set until the reader taps and this actually loads. Null unless
-  /// [isPlayableVideo]. Desktop and mobile do not use this: they open [url]
-  /// (the pasted link itself) in the system browser instead, since Flutter
-  /// has no iframe host off the web engine.
+  /// [isPlayableVideo]. Only the web build loads it directly; every other
+  /// platform drives the same player through its own webview host.
   Uri? get embedUrl {
     final id = videoId;
     if (videoProvider != LinkPreviewVideoProvider.youtube || id == null) {
       return null;
     }
+    final startS = videoStart.inSeconds;
     return Uri.https('www.youtube-nocookie.com', '/embed/$id', {
       'autoplay': '1',
+      if (startS > 0) 'start': '$startS',
     });
   }
 }

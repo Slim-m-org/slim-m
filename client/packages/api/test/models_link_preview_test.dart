@@ -79,6 +79,30 @@ void main() {
     );
   });
 
+  test('a link start time reads as videoStart and reaches the embed URL', () {
+    final preview = LinkPreview.fromJson({
+      'url': 'https://youtu.be/dQw4w9WgXcQ?t=90',
+      'video_provider': 'youtube',
+      'video_id': 'dQw4w9WgXcQ',
+      'video_start_ms': 90000,
+    });
+    expect(preview.videoStart, const Duration(seconds: 90));
+    expect(
+      preview.embedUrl.toString(),
+      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&start=90',
+    );
+  });
+
+  test('an older server with no start reads videoStart as zero', () {
+    final preview = LinkPreview.fromJson({
+      'url': 'https://youtu.be/dQw4w9WgXcQ',
+      'video_provider': 'youtube',
+      'video_id': 'dQw4w9WgXcQ',
+    });
+    expect(preview.videoStartMs, isNull);
+    expect(preview.videoStart, Duration.zero);
+  });
+
   test('embedUrl is null for a non-video preview', () {
     final preview = LinkPreview.fromJson({'url': 'https://example.com'});
     expect(preview.embedUrl, isNull);

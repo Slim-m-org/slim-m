@@ -19,6 +19,7 @@ add_executable(${BINARY_NAME} WIN32
   "utils.cpp"
   "win32_window.cpp"
   "windows_toasts_channel.cpp"
+  "youtube_player_channel.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
   "Runner.rc"
   "runner.exe.manifest"
@@ -60,6 +61,33 @@ target_compile_definitions(screen_overlay_win PRIVATE "NOMINMAX" "UNICODE" "_UNI
 target_include_directories(screen_overlay_win PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(screen_overlay_win PUBLIC "gdiplus" "user32" "gdi32" "shlwapi" "dxgi" "dwmapi")
 
+# The YouTube panel's WebView2 SDK, hash-pinned with only the static loader linked; see docs/dependencies.md.
+set(WEBVIEW2_VERSION "1.0.4314.35")
+set(WEBVIEW2_SHA256 "90778deb1b77e36292828b4b5833c9255c27533f40e0ddd55891ae718944edc4")
+set(WEBVIEW2_DIR "${CMAKE_BINARY_DIR}/webview2-${WEBVIEW2_VERSION}")
+if(NOT EXISTS "${WEBVIEW2_DIR}/build/native/include/WebView2.h")
+  set(WEBVIEW2_ARCHIVE "${CMAKE_BINARY_DIR}/webview2-${WEBVIEW2_VERSION}.zip")
+  file(DOWNLOAD
+    "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/${WEBVIEW2_VERSION}"
+    "${WEBVIEW2_ARCHIVE}"
+    EXPECTED_HASH SHA256=${WEBVIEW2_SHA256}
+    TLS_VERIFY ON)
+  file(ARCHIVE_EXTRACT INPUT "${WEBVIEW2_ARCHIVE}" DESTINATION "${WEBVIEW2_DIR}")
+endif()
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|arm64|aarch64")
+  set(WEBVIEW2_ARCH "arm64")
+else()
+  set(WEBVIEW2_ARCH "x64")
+endif()
+add_library(youtube_player_win STATIC "youtube_player_win.cpp")
+target_compile_features(youtube_player_win PUBLIC cxx_std_17)
+target_compile_definitions(youtube_player_win PRIVATE "NOMINMAX" "UNICODE" "_UNICODE")
+target_include_directories(youtube_player_win PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(youtube_player_win PRIVATE "${WEBVIEW2_DIR}/build/native/include")
+target_link_libraries(youtube_player_win PUBLIC
+  "${WEBVIEW2_DIR}/build/native/${WEBVIEW2_ARCH}/WebView2LoaderStatic.lib"
+  "shlwapi" "shell32" "ole32" "advapi32" "version")
+
 # Apply the standard set of build settings. This can be removed for applications
 # that need different build settings.
 apply_standard_settings(${BINARY_NAME})
@@ -84,6 +112,7 @@ target_link_libraries(${BINARY_NAME} PRIVATE "ole32.lib" "gdi32.lib" "user32.lib
 target_link_libraries(${BINARY_NAME} PRIVATE now_playing_smtc)
 target_link_libraries(${BINARY_NAME} PRIVATE toast_history_win)
 target_link_libraries(${BINARY_NAME} PRIVATE screen_overlay_win)
+target_link_libraries(${BINARY_NAME} PRIVATE youtube_player_win)
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.

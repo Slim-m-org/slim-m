@@ -139,6 +139,13 @@ The practical consequence: a build of this manifest on any machine is only as tr
 A local Fedora build proved the manifest could produce a working bundle at all, and still missed two of these three (the appindicator soname the other direction, and both the libdir default and the icon loader, since the local machine's own tooling happened to paper over or not trigger either).
 That is the whole reason `flatpak-ci` builds on `ubuntu-latest` specifically, matching `release.yml`'s own `linux-client` runner rather than any other environment: it is the one host whose quirks are the ones that will actually reach a shipped release, so it is the only build result worth calling authoritative for this manifest.
 
+## Known gap: no in-app YouTube player
+
+The desktop YouTube panel (decision 0128) loads WebKitGTK 4.1 with `dlopen` at run time.
+`org.freedesktop.Platform//25.08` carries no WebKit, so in the flatpak the player reports itself unavailable and a tapped video opens in the browser, the same as before the panel existed.
+Switching to `org.gnome.Platform` would bring `webkit2gtk-4.1` back, but GNOME drops it from its SDK after 51 (gnome-build-meta commit e7643120, supported until September 2027), the runtime is a much larger download, and WebKitGTK 6.0 is GTK4, which Flutter's GTK3 embedder cannot share a process with.
+So the runtime stays as it is and the gap stays documented here.
+
 ## Permissions, briefly
 
 The manifest's own inline comments carry the reasoning for each non-obvious `finish-args` entry.

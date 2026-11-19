@@ -10,8 +10,9 @@ import '../routing/breakpoints.dart';
 import '../widgets/app_panel_reveal.dart';
 import '../features/members/widgets/member_pane.dart';
 import '../features/messages/screens/thread_screen.dart';
+import '../features/video/widgets/docked_video_panel.dart';
 
-// The two docked third-pane slots (member roster, thread), split from home_shell.dart for the line budget.
+// The docked third-pane slots (member roster, thread, video), split from home_shell.dart for the line budget.
 /// Builds [build] with whether [channelId] is a DM, resolved from the local store.
 Widget withChannelKind(
   WidgetRef ref,
@@ -120,3 +121,50 @@ class ThreadPaneSlot extends ConsumerWidget {
     );
   }
 }
+
+/// The docked video beside the transcript, in the third-pane slot: the
+/// player on top and, when the roster would have shown, the roster under it,
+/// so a video never costs the reader their member list.
+class VideoPaneSlot extends StatelessWidget {
+  const VideoPaneSlot({
+    super.key,
+    required this.channelId,
+    required this.withMembers,
+  });
+
+  final String? channelId;
+  final bool withMembers;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return SizedBox(
+      width: kThreadPaneWidth,
+      // Container, not DecoratedBox, for the same inset reason as ThreadPaneSlot.
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(left: BorderSide(color: tokens.borderStrong)),
+        ),
+        child: AppPanelReveal(
+          fromLeft: false,
+          child: DockedVideoPanel(
+            layout: DockedVideoLayout.side,
+            below: withMembers ? AppMemberPane(channelId: channelId) : null,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The docked video above the conversation, where no third pane fits. The
+/// conversation is its own semantics container, since the modal barrier in
+/// its navigator drops everything painted before it in the same one.
+Widget videoStripAbove(Widget conversation, {required bool show}) => show
+    ? Column(
+        children: [
+          const DockedVideoPanel(layout: DockedVideoLayout.strip),
+          Expanded(child: Semantics(container: true, child: conversation)),
+        ],
+      )
+    : conversation;
