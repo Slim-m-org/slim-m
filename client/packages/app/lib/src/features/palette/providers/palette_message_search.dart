@@ -16,6 +16,7 @@ class PaletteMessageSearch extends ChangeNotifier {
   final ProviderReader _read;
   ParsedSearchQuery? _query;
   int _limit = 0;
+  String? _cursor;
   int _generation = 0;
   bool _disposed = false;
 
@@ -50,8 +51,8 @@ class PaletteMessageSearch extends ChangeNotifier {
   /// The next page after the hits already shown.
   Future<void> loadMore() async {
     final query = _query;
-    if (query == null || loading || !more || results.isEmpty) return;
-    await _page(query, after: results.last.id);
+    if (query == null || loading || !more) return;
+    await _page(query, after: _cursor);
   }
 
   /// Runs the last query again, from its first page.
@@ -73,11 +74,12 @@ class PaletteMessageSearch extends ChangeNotifier {
     if (_disposed || generation != _generation) return;
     final earlier = after == null ? const <api.Message>[] : results;
     switch (result) {
-      case MessageSearchHits(:final messages):
+      case MessageSearchHits(:final messages, :final fetched, :final lastId):
+        _cursor = lastId;
         _set(
           results: [...earlier, ...messages],
           loading: false,
-          more: messages.length >= _limit,
+          more: fetched >= _limit,
         );
       case MessageSearchForbidden():
         _set(results: const [], loading: false, more: false, forbidden: true);

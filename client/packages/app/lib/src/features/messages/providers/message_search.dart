@@ -23,8 +23,15 @@ sealed class MessageSearchResult {
 
 /// Hits with any blocked author already dropped.
 class MessageSearchHits extends MessageSearchResult {
-  const MessageSearchHits(this.messages);
+  const MessageSearchHits(this.messages, {this.fetched = 0, this.lastId});
   final List<api.Message> messages;
+
+  /// How many the server sent before blocked authors were dropped, so a
+  /// full page still reads as full.
+  final int fetched;
+
+  /// The last hit the server sent, which the next page starts after.
+  final String? lastId;
 }
 
 /// The caller may not search this channel at all.
@@ -91,6 +98,8 @@ Future<MessageSearchResult> searchMessages(
       hits
           .where((message) => !blocks.contains(message.authorId))
           .toList(growable: false),
+      fetched: hits.length,
+      lastId: hits.lastOrNull?.id,
     );
   } on api.ForbiddenException catch (error, stack) {
     api.AppLog.swallowed(
