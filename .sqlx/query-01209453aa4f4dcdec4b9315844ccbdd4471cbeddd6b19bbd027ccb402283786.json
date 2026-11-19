@@ -6,52 +6,112 @@
       {
         "name": "id!",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "debug_logs",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "user_id: UserId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "debug_logs",
+            "name": "user_id"
+          }
+        }
       },
       {
         "name": "username",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "username"
+          }
+        }
       },
       {
         "name": "display_name",
         "ordinal": 3,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "display_name"
+          }
+        }
       },
       {
         "name": "note",
         "ordinal": 4,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "debug_logs",
+            "name": "note"
+          }
+        }
       },
       {
         "name": "app_version",
         "ordinal": 5,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "debug_logs",
+            "name": "app_version"
+          }
+        }
       },
       {
         "name": "platform",
         "ordinal": 6,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "debug_logs",
+            "name": "platform"
+          }
+        }
       },
       {
         "name": "size_bytes",
         "ordinal": 7,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "debug_logs",
+            "name": "size_bytes"
+          }
+        }
       },
       {
         "name": "created_at",
         "ordinal": 8,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "debug_logs",
+            "name": "created_at"
+          }
+        }
       },
       {
         "name": "log",
         "ordinal": 9,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "debug_logs",
+            "name": "log"
+          }
+        }
       }
     ],
     "parameters": {

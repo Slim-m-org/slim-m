@@ -9,7 +9,7 @@ use crate::support;
 use std::fs;
 use std::path::Path;
 
-use sqlx::{Row, SqlitePool};
+use sqlx::{AssertSqlSafe, Row, SqlitePool};
 
 async fn new_pool(name: &str) -> (SqlitePool, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(name);
@@ -37,7 +37,7 @@ async fn the_duplicate_thread_check_seeks_the_parent_index() {
 
     let explain = format!("EXPLAIN QUERY PLAN {sql}");
     let zero = vec![0u8; 16];
-    let rows = sqlx::query(&explain)
+    let rows = sqlx::query(AssertSqlSafe(explain))
         .bind(&zero)
         .fetch_all(&pool)
         .await

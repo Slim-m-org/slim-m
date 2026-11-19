@@ -29,13 +29,13 @@ fn joined_reason(stored: &str, added: &str) -> Option<String> {
 /// Keeps a report off a moderator's queue and history unless they may see where it came from:
 /// its channel, or for a stamp report spanning channels, one of its pictures' channels.
 pub(super) fn push_hidden_channel_filter(
-    builder: &mut QueryBuilder<'_, Sqlite>,
+    builder: &mut QueryBuilder<Sqlite>,
     hidden_channels: &[ChannelId],
 ) {
     if hidden_channels.is_empty() {
         return;
     }
-    let push_hidden = |builder: &mut QueryBuilder<'_, Sqlite>| {
+    let push_hidden = |builder: &mut QueryBuilder<Sqlite>| {
         let mut separated = builder.separated(", ");
         for channel_id in hidden_channels {
             separated.push_bind(*channel_id);

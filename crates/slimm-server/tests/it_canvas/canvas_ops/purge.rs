@@ -7,7 +7,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use slimm_server::ids::{CanvasObjectId, CanvasOpId, ChannelId, UserId};
 use slimm_server::store::{CanvasOpRequest, PlaceRequest, Store};
-use sqlx::SqlitePool;
+use sqlx::{AssertSqlSafe, SqlitePool};
 use tower::ServiceExt;
 
 use crate::canvas_ops::fixtures::{app, general, member, new_store_and_pool, register};
@@ -42,7 +42,7 @@ async fn erase(store: &Store, channel: ChannelId, actor: UserId, object: CanvasO
 }
 
 async fn count(pool: &SqlitePool, table: &str) -> i64 {
-    sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table}"))
+    sqlx::query_scalar(AssertSqlSafe(format!("SELECT COUNT(*) FROM {table}")))
         .fetch_one(pool)
         .await
         .unwrap()

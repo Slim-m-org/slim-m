@@ -6,47 +6,101 @@
       {
         "name": "channel_id!: ChannelId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "channel_id"
+          }
+        }
       },
       {
         "name": "author_id?: UserId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "author_id"
+          }
+        }
       },
       {
         "name": "created_at!: i64",
         "ordinal": 2,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "created_at"
+          }
+        }
       },
       {
         "name": "content!: String",
         "ordinal": 3,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "content"
+          }
+        }
       },
       {
         "name": "origin_message_id?: MessageId",
         "ordinal": 4,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "message_forwards",
+            "name": "origin_message_id"
+          }
+        }
       },
       {
         "name": "origin_channel_id?: ChannelId",
         "ordinal": 5,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "message_forwards",
+            "name": "origin_channel_id"
+          }
+        }
       },
       {
         "name": "origin_author_id?: UserId",
         "ordinal": 6,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "message_forwards",
+            "name": "origin_author_id"
+          }
+        }
       },
       {
         "name": "origin_created_at?: i64",
         "ordinal": 7,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "message_forwards",
+            "name": "origin_created_at"
+          }
+        }
       },
       {
         "name": "origin_content?: String",
         "ordinal": 8,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "message_forwards",
+            "name": "origin_content"
+          }
+        }
       }
     ],
     "parameters": {
@@ -57,11 +111,11 @@
       true,
       false,
       false,
-      false,
-      false,
       true,
-      false,
-      false
+      true,
+      true,
+      true,
+      true
     ]
   },
   "hash": "7d5ed9fcd83ac0e65bbfe501d2feb7775416e8faae63a13c020b3211a57b1c20"

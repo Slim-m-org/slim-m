@@ -6,7 +6,13 @@
       {
         "name": "prefix",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bot_command_registrations",
+            "name": "prefix"
+          }
+        }
       }
     ],
     "parameters": {

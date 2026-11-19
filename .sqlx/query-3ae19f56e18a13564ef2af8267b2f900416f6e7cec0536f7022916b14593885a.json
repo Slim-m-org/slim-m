@@ -6,7 +6,13 @@
       {
         "name": "revoked_at",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "sessions",
+            "name": "revoked_at"
+          }
+        }
       }
     ],
     "parameters": {

@@ -12,9 +12,9 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, bail};
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use crypto_secretbox::aead::rand_core::{OsRng, TryRngCore};
 use crypto_secretbox::aead::{Aead, KeyInit};
 use crypto_secretbox::{Key, Nonce, XSalsa20Poly1305};
+use rand_core::{OsRng, RngCore};
 
 const KEY_BYTES: usize = 32;
 const NONCE_BYTES: usize = 24;
@@ -208,6 +208,14 @@ mod tests {
         assert!(!sealed.contains("JBSWY3DPEHPK3PXP"));
         assert_eq!(key.open("user-a", &sealed).unwrap(), "JBSWY3DPEHPK3PXP");
         assert!(key.open("user-b", &sealed).is_err());
+    }
+
+    /// Sealed by `crypto_secretbox` 0.2.0-pre.0, which wrote every secret stored before 2026-11.
+    #[test]
+    fn a_value_sealed_by_the_earlier_crate_still_opens() {
+        let key = DataKey::from_bytes(std::array::from_fn(|i| i as u8));
+        let sealed = "enc1:oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3xTsvhOoSj7FuOHpVDFalOEPm0mivB+3kNXhsEsXsJoMcy5udadNY";
+        assert_eq!(key.open("user-a", sealed).unwrap(), "JBSWY3DPEHPK3PXP");
     }
 
     #[test]

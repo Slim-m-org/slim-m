@@ -9,7 +9,7 @@
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use crypto_box::SecretKey;
-use crypto_box::aead::rand_core::{OsRng, TryRngCore};
+use crypto_box::aead::OsRng;
 use serde_json::{Value, json};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -31,7 +31,7 @@ pub(crate) async fn register_device(
     push_token: &str,
     voip_push_token: Option<&str>,
 ) -> SecretKey {
-    let secret = SecretKey::generate(&mut OsRng.unwrap_err());
+    let secret = SecretKey::generate(&mut OsRng);
     let response = app
         .clone()
         .oneshot(request(

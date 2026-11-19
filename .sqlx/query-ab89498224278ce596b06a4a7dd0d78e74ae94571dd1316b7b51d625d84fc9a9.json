@@ -6,12 +6,24 @@
       {
         "name": "pinned_by: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "pinned_messages",
+            "name": "pinned_by"
+          }
+        }
       },
       {
         "name": "pinned_at!",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "pinned_messages",
+            "name": "pinned_at"
+          }
+        }
       }
     ],
     "parameters": {

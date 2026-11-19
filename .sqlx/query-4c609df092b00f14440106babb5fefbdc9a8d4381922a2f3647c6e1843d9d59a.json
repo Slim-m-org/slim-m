@@ -6,22 +6,36 @@
       {
         "name": "user_id!: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "author_id"
+          }
+        }
       },
       {
         "name": "kind!",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "kind"
+          }
+        }
       },
       {
         "name": "first_at!: i64",
         "ordinal": 2,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       },
       {
         "name": "count!: i64",
         "ordinal": 3,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -29,9 +43,9 @@
     },
     "nullable": [
       true,
+      true,
       false,
-      null,
-      null
+      false
     ]
   },
   "hash": "4c609df092b00f14440106babb5fefbdc9a8d4381922a2f3647c6e1843d9d59a"

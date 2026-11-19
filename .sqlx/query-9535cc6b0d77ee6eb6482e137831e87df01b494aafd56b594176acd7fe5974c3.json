@@ -6,7 +6,13 @@
       {
         "name": "sha256!",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "custom_emoji",
+            "name": "sha256"
+          }
+        }
       }
     ],
     "parameters": {

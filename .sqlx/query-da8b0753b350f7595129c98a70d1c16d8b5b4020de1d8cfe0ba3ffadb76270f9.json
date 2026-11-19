@@ -6,17 +6,35 @@
       {
         "name": "id!: ChannelCategoryId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "channel_categories",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "parent_id: ChannelCategoryId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "channel_categories",
+            "name": "parent_id"
+          }
+        }
       },
       {
         "name": "position!: i64",
         "ordinal": 2,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "channel_categories",
+            "name": "position"
+          }
+        }
       }
     ],
     "parameters": {

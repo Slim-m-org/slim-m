@@ -6,37 +6,79 @@
       {
         "name": "id!: Uuid",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "channel_id!: ChannelId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "channel_id"
+          }
+        }
       },
       {
         "name": "sender_id!: UserId",
         "ordinal": 2,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "sender_id"
+          }
+        }
       },
       {
         "name": "target_id!: UserId",
         "ordinal": 3,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "target_id"
+          }
+        }
       },
       {
         "name": "sha256!: Vec<u8>",
         "ordinal": 4,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "sha256"
+          }
+        }
       },
       {
         "name": "report_id?: Uuid",
         "ordinal": 5,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "report_id"
+          }
+        }
       },
       {
         "name": "created_at!",
         "ordinal": 6,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "created_at"
+          }
+        }
       }
     ],
     "parameters": {

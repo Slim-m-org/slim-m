@@ -6,22 +6,46 @@
       {
         "name": "until",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "member_timeouts",
+            "name": "until"
+          }
+        }
       },
       {
         "name": "reason",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "member_timeouts",
+            "name": "reason"
+          }
+        }
       },
       {
         "name": "issued_by?: UserId",
         "ordinal": 2,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "member_timeouts",
+            "name": "issued_by"
+          }
+        }
       },
       {
         "name": "issued_at",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "member_timeouts",
+            "name": "issued_at"
+          }
+        }
       }
     ],
     "parameters": {

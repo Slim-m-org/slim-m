@@ -6,42 +6,90 @@
       {
         "name": "id!: WebhookId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "user_id!: UserId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "user_id"
+          }
+        }
       },
       {
         "name": "channel_id!: ChannelId",
         "ordinal": 2,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "channel_id"
+          }
+        }
       },
       {
         "name": "label",
         "ordinal": 3,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "label"
+          }
+        }
       },
       {
         "name": "created_at",
         "ordinal": 4,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "created_at"
+          }
+        }
       },
       {
         "name": "last_delivery_at",
         "ordinal": 5,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "last_delivery_at"
+          }
+        }
       },
       {
         "name": "created_by?: UserId",
         "ordinal": 6,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "created_by"
+          }
+        }
       },
       {
         "name": "created_by_display_name?",
         "ordinal": 7,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "display_name"
+          }
+        }
       }
     ],
     "parameters": {
@@ -55,7 +103,7 @@
       false,
       true,
       true,
-      false
+      true
     ]
   },
   "hash": "11b2b4c040407153c03cf56013f6239f825347c72d9841f29729b960baf697fc"

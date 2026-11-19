@@ -4,7 +4,7 @@
 
 use slimm_server::config::Config;
 use slimm_server::db;
-use sqlx::Row;
+use sqlx::{AssertSqlSafe, Row};
 
 use crate::support;
 use support::exports::{account, world};
@@ -285,7 +285,7 @@ async fn user_references() -> Vec<(String, String)> {
     .collect();
     let mut found = Vec::new();
     for table in tables {
-        let fks = sqlx::query(&format!("PRAGMA foreign_key_list({table})"))
+        let fks = sqlx::query(AssertSqlSafe(format!("PRAGMA foreign_key_list({table})")))
             .fetch_all(&pool)
             .await
             .expect("foreign keys");

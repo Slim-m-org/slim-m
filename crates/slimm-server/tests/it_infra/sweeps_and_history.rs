@@ -6,7 +6,7 @@ use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::ids::UserId;
 use slimm_server::store::{HistoryCursor, ModerationHistoryItem, Store};
-use sqlx::SqlitePool;
+use sqlx::{AssertSqlSafe, SqlitePool};
 use uuid::Uuid;
 
 use crate::support;
@@ -32,7 +32,7 @@ fn now() -> i64 {
 }
 
 async fn rows(pool: &SqlitePool, table: &str) -> i64 {
-    sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table}"))
+    sqlx::query_scalar(AssertSqlSafe(format!("SELECT COUNT(*) FROM {table}")))
         .fetch_one(pool)
         .await
         .unwrap()

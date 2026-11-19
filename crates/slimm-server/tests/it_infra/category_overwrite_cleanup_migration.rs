@@ -4,8 +4,8 @@
 
 use std::path::Path;
 
-use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
+use sqlx::{AssertSqlSafe, SqlitePool};
 
 use crate::support;
 const VERSION: i64 = 146;
@@ -53,7 +53,10 @@ async fn orphaned_category_overwrites_are_removed_and_valid_ones_stay() {
         gone_user = id(6),
     );
     for statement in seed.split(';') {
-        sqlx::query(statement).execute(&pool).await.unwrap();
+        sqlx::query(AssertSqlSafe(statement))
+            .execute(&pool)
+            .await
+            .unwrap();
     }
 
     full.run(&pool).await.unwrap();

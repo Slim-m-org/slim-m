@@ -6,12 +6,24 @@
       {
         "name": "is_bot",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "is_bot"
+          }
+        }
       },
       {
         "name": "is_webhook",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "is_webhook"
+          }
+        }
       }
     ],
     "parameters": {

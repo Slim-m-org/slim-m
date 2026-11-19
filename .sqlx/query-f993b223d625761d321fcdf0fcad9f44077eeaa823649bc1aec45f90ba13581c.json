@@ -6,7 +6,13 @@
       {
         "name": "successor_hash",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "refresh_tokens",
+            "name": "successor_hash"
+          }
+        }
       }
     ],
     "parameters": {

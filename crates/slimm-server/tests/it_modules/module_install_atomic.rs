@@ -23,6 +23,7 @@ use std::path::Path;
 use tower::ServiceExt;
 
 use crate::support;
+use sqlx::AssertSqlSafe;
 use support::app::app;
 use support::wasm_fixtures::{canned_ok_wasm, sha256_hex};
 
@@ -175,10 +176,13 @@ async fn size_capped_pool(prefix: &str) -> (Store, support::TestDbGuard) {
         .fetch_one(&pool)
         .await
         .expect("read page_count");
-    sqlx::query(&format!("PRAGMA max_page_count = {}", page_count + 4))
-        .execute(&pool)
-        .await
-        .expect("cap max_page_count");
+    sqlx::query(AssertSqlSafe(format!(
+        "PRAGMA max_page_count = {}",
+        page_count + 4
+    )))
+    .execute(&pool)
+    .await
+    .expect("cap max_page_count");
     (Store::new(pool), guard)
 }
 

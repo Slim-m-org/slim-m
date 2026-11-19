@@ -6,37 +6,79 @@
       {
         "name": "channel_id!: ChannelId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "channel_id"
+          }
+        }
       },
       {
         "name": "seq!: i64",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "seq"
+          }
+        }
       },
       {
         "name": "kind!",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "kind"
+          }
+        }
       },
       {
         "name": "actor_id: UserId",
         "ordinal": 3,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "actor_id"
+          }
+        }
       },
       {
         "name": "bound_seq: i64",
         "ordinal": 4,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "bound_seq"
+          }
+        }
       },
       {
         "name": "affected: i64",
         "ordinal": 5,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "affected"
+          }
+        }
       },
       {
         "name": "created_at!: i64",
         "ordinal": 6,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "created_at"
+          }
+        }
       }
     ],
     "parameters": {
@@ -44,7 +86,7 @@
     },
     "nullable": [
       false,
-      false,
+      null,
       false,
       true,
       true,

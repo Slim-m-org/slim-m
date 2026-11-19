@@ -6,12 +6,19 @@
       {
         "name": "author_id: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "author_id"
+          }
+        }
       },
       {
         "name": "locked!: bool",
         "ordinal": 1,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -19,7 +26,7 @@
     },
     "nullable": [
       true,
-      null
+      false
     ]
   },
   "hash": "56f05169206f9706ecf8bc90d90550b3c99c462980cbf55729cd7cfee7edfa74"

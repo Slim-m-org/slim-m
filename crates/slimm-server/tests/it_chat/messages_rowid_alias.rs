@@ -17,7 +17,7 @@ use std::path::Path;
 use slimm_server::ids::ChannelId;
 use slimm_server::store::{MessageSearchFilters, Store};
 use sqlx::migrate::Migrator;
-use sqlx::{Row, SqlitePool};
+use sqlx::{AssertSqlSafe, Row, SqlitePool};
 use uuid::Uuid;
 
 use crate::support;
@@ -142,7 +142,7 @@ async fn search_ids(pool: &SqlitePool, query: &str, keyed_on: &str) -> Vec<Strin
          JOIN messages m ON m.{keyed_on} = messages_fts.rowid
          WHERE messages_fts MATCH ? ORDER BY m.seq"
     );
-    sqlx::query(&sql)
+    sqlx::query(AssertSqlSafe(sql))
         .bind(query)
         .fetch_all(pool)
         .await
@@ -153,7 +153,7 @@ async fn search_ids(pool: &SqlitePool, query: &str, keyed_on: &str) -> Vec<Strin
 }
 
 async fn count(pool: &SqlitePool, table: &str) -> i64 {
-    sqlx::query_scalar(&format!("SELECT count(*) FROM {table}"))
+    sqlx::query_scalar(AssertSqlSafe(format!("SELECT count(*) FROM {table}")))
         .fetch_one(pool)
         .await
         .unwrap_or_else(|e| panic!("counting {table}: {e}"))

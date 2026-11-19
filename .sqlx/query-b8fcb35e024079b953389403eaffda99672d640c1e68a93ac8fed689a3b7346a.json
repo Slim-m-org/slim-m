@@ -6,32 +6,68 @@
       {
         "name": "id!: CallTranscriptId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "call_transcripts",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "channel_id!: ChannelId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "call_transcripts",
+            "name": "channel_id"
+          }
+        }
       },
       {
         "name": "started_at",
         "ordinal": 2,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "call_transcripts",
+            "name": "started_at"
+          }
+        }
       },
       {
         "name": "ended_at",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "call_transcripts",
+            "name": "ended_at"
+          }
+        }
       },
       {
         "name": "mode",
         "ordinal": 4,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "call_transcripts",
+            "name": "mode"
+          }
+        }
       },
       {
         "name": "started_by: UserId",
         "ordinal": 5,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "call_transcripts",
+            "name": "started_by"
+          }
+        }
       }
     ],
     "parameters": {

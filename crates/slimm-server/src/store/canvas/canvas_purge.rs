@@ -31,7 +31,7 @@ impl From<sqlx::Error> for PurgeError {
     }
 }
 
-fn in_list<'a>(builder: &mut QueryBuilder<'a, sqlx::Sqlite>, ids: &'a [CanvasObjectId]) {
+fn in_list(builder: &mut QueryBuilder<sqlx::Sqlite>, ids: &[CanvasObjectId]) {
     builder.push(" IN (");
     let mut separated = builder.separated(", ");
     for id in ids {

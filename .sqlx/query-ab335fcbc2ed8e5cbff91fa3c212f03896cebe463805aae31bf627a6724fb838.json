@@ -6,22 +6,46 @@
       {
         "name": "module_id!",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "module_health",
+            "name": "module_id"
+          }
+        }
       },
       {
         "name": "consecutive_failures!",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "module_health",
+            "name": "consecutive_failures"
+          }
+        }
       },
       {
         "name": "disabled_reason",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "module_health",
+            "name": "disabled_reason"
+          }
+        }
       },
       {
         "name": "events_dropped!",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "module_health",
+            "name": "events_dropped"
+          }
+        }
       }
     ],
     "parameters": {

@@ -6,7 +6,13 @@
       {
         "name": "notification_preference!",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "notification_preference"
+          }
+        }
       }
     ],
     "parameters": {

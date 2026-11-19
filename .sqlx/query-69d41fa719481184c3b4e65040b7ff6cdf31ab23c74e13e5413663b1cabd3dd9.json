@@ -6,7 +6,13 @@
       {
         "name": "id: ChannelId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "notification_schedule_allowed_channels",
+            "name": "allowed_channel_id"
+          }
+        }
       }
     ],
     "parameters": {

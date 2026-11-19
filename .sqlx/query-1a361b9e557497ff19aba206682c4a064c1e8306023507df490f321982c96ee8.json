@@ -6,42 +6,90 @@
       {
         "name": "user_id!: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "totp_challenges",
+            "name": "user_id"
+          }
+        }
       },
       {
         "name": "device_name",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "totp_challenges",
+            "name": "device_name"
+          }
+        }
       },
       {
         "name": "client_kind",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "totp_challenges",
+            "name": "client_kind"
+          }
+        }
       },
       {
         "name": "client_version",
         "ordinal": 3,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "totp_challenges",
+            "name": "client_version"
+          }
+        }
       },
       {
         "name": "secret",
         "ordinal": 4,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_totp_factors",
+            "name": "secret"
+          }
+        }
       },
       {
         "name": "last_step",
         "ordinal": 5,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "user_totp_factors",
+            "name": "last_step"
+          }
+        }
       },
       {
         "name": "failed_attempts",
         "ordinal": 6,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "user_totp_factors",
+            "name": "failed_attempts"
+          }
+        }
       },
       {
         "name": "locked_until",
         "ordinal": 7,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "user_totp_factors",
+            "name": "locked_until"
+          }
+        }
       }
     ],
     "parameters": {

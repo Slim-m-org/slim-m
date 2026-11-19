@@ -6,19 +6,26 @@
       {
         "name": "nested!: bool",
         "ordinal": 0,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       },
       {
         "name": "synced!: bool",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "channel_categories",
+            "name": "permissions_synced"
+          }
+        }
       }
     ],
     "parameters": {
       "Right": 1
     },
     "nullable": [
-      null,
+      false,
       false
     ]
   },

@@ -6,12 +6,24 @@
       {
         "name": "is_everyone!: bool",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "roles",
+            "name": "is_everyone"
+          }
+        }
       },
       {
         "name": "is_bots_role!: bool",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "roles",
+            "name": "is_bots_role"
+          }
+        }
       }
     ],
     "parameters": {

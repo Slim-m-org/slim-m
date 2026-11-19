@@ -18,7 +18,7 @@ use totp_support::{app_with_hub, json_body, member, request};
 
 async fn world(
     prefix: &str,
-    trigger: &str,
+    trigger: &'static str,
 ) -> (Store, axum::Router, Hub, String, support::TestDbGuard) {
     let (store, router, hub, token, guard, mut conn) = world_with_conn(prefix).await;
     conn.execute(trigger).await.unwrap();

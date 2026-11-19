@@ -17,6 +17,7 @@ SHA-256 and eight digits are both in the spec and buy nothing here - the secret 
 
 The RFC arithmetic is `totp-rs`, not hand-rolled.
 It is held at the 5.x line, and that is load-bearing: 6.0 moved to `hmac` 0.13 and `crypto-common` 0.2.x, which cannot co-exist with the `crypto-common` 0.2.0-rc.4 that this tree's exact-pinned `crypto_box` pre-release requires.
+Amended 2026-11-18: `crypto_box` moved to its stable 0.9.1 line, so that conflict is gone and 6.0 now resolves; see `docs/dependencies.md`.
 5.x rides the `hmac`/`sha1`/`sha2` versions already present and adds only `base32` and `constant_time_eq`.
 
 TOTP is the right shape for a self-hosted product: no SMS, no third-party service, nothing for an operator to configure, and no per-deployment account with anybody.

@@ -5,8 +5,8 @@
 
 use std::path::Path;
 
-use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
+use sqlx::{AssertSqlSafe, SqlitePool};
 
 use crate::support;
 fn id(n: u8) -> String {
@@ -33,7 +33,10 @@ async fn pool_before(version: i64) -> (SqlitePool, Migrator, support::TestDbGuar
 
 async fn seed(pool: &SqlitePool, statements: &str) {
     for statement in statements.split(';') {
-        sqlx::query(statement).execute(pool).await.unwrap();
+        sqlx::query(AssertSqlSafe(statement))
+            .execute(pool)
+            .await
+            .unwrap();
     }
 }
 
@@ -169,7 +172,10 @@ async fn voice_rows(
         "SELECT substr(sha256, 1, 1), substr({owner}, 1, 1), voice_duration_ms, substr(voice_waveform, 1, 1)
          FROM {table} ORDER BY sha256, {owner}"
     );
-    let rows: Vec<StoredVoice> = sqlx::query_as(&sql).fetch_all(pool).await.unwrap();
+    let rows: Vec<StoredVoice> = sqlx::query_as(AssertSqlSafe(sql))
+        .fetch_all(pool)
+        .await
+        .unwrap();
     rows.into_iter()
         .map(|(sha, owner, ms, wave)| (sha[0], owner[0], ms, wave.map(|w| w[0])))
         .collect()

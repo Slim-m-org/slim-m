@@ -4,7 +4,7 @@ From a fresh clone to the server, the client and the end-to-end harness running,
 
 ## What you need
 
-- Rust (the version in `rust-toolchain.toml`), with `sqlx-cli` 0.8 for database work.
+- Rust (the version in `rust-toolchain.toml`), with `sqlx-cli` 0.9.1 for database work.
 - Flutter 3.47 / Dart 3.13 for the client.
 - Docker, for LiveKit in the end-to-end harness and for the server image.
 - Python 3 for the scripts under `scripts/`, Node for the commit-message lint.

@@ -6,47 +6,91 @@
       {
         "name": "id!: Uuid",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "channel_id!: ChannelId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "channel_id"
+          }
+        }
       },
       {
         "name": "sender_id!: UserId",
         "ordinal": 2,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "sender_id"
+          }
+        }
       },
       {
         "name": "target_id!: UserId",
         "ordinal": 3,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "target_id"
+          }
+        }
       },
       {
         "name": "sha256!: Vec<u8>",
         "ordinal": 4,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "sha256"
+          }
+        }
       },
       {
         "name": "report_id?: Uuid",
         "ordinal": 5,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "report_id"
+          }
+        }
       },
       {
         "name": "created_at!",
         "ordinal": 6,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "created_at"
+          }
+        }
       },
       {
         "name": "sent!: i64",
         "ordinal": 7,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       },
       {
         "name": "unreported!: i64",
         "ordinal": 8,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -60,8 +104,8 @@
       false,
       true,
       false,
-      null,
-      null
+      false,
+      false
     ]
   },
   "hash": "743fdac2d286138af99bbb58a075e0883ee941be0e67a3810e1b12c803bb5481"

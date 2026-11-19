@@ -6,57 +6,123 @@
       {
         "name": "id!: CanvasObjectId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "kind!",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "kind"
+          }
+        }
       },
       {
         "name": "z_index!: i64",
         "ordinal": 2,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "z_index"
+          }
+        }
       },
       {
         "name": "x!: f64",
         "ordinal": 3,
-        "type_info": "Float"
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "x"
+          }
+        }
       },
       {
         "name": "y!: f64",
         "ordinal": 4,
-        "type_info": "Float"
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "y"
+          }
+        }
       },
       {
         "name": "w!: f64",
         "ordinal": 5,
-        "type_info": "Float"
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "w"
+          }
+        }
       },
       {
         "name": "h!: f64",
         "ordinal": 6,
-        "type_info": "Float"
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "h"
+          }
+        }
       },
       {
         "name": "props!",
         "ordinal": 7,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "canvas_object_props",
+            "name": "props"
+          }
+        }
       },
       {
         "name": "author_id: UserId",
         "ordinal": 8,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "author_id"
+          }
+        }
       },
       {
         "name": "seq!: Seq",
         "ordinal": 9,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "seq"
+          }
+        }
       },
       {
         "name": "created_at!: i64",
         "ordinal": 10,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "created_at"
+          }
+        }
       }
     ],
     "parameters": {

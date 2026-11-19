@@ -6,27 +6,52 @@
       {
         "name": "subject_kind",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reports",
+            "name": "subject_kind"
+          }
+        }
       },
       {
         "name": "subject_id!: Uuid",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "reports",
+            "name": "subject_id"
+          }
+        }
       },
       {
         "name": "channel_id: ChannelId",
         "ordinal": 2,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "reports",
+            "name": "channel_id"
+          }
+        }
       },
       {
         "name": "created_at",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "reports",
+            "name": "created_at"
+          }
+        }
       },
       {
         "name": "resolved!: bool",
         "ordinal": 4,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -37,7 +62,7 @@
       false,
       true,
       false,
-      null
+      false
     ]
   },
   "hash": "b8d80d6729c769a2e97096f429a1d1d0b22f225f08aaee87936f8082d4ccbae6"

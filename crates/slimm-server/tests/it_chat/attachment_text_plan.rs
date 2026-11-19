@@ -8,7 +8,7 @@
 use std::fs;
 use std::path::Path;
 
-use sqlx::Row;
+use sqlx::{AssertSqlSafe, Row};
 
 use crate::support;
 /// The file without its comment lines, so a comment quoting an old query is never the one planned.
@@ -51,7 +51,7 @@ async fn the_attachment_match_probes_message_text_per_row_instead_of_materialisi
         .replace("{ids}", "?2, ?3")
         .replace("{shown}", &shown);
 
-    let plan: Vec<String> = sqlx::query(&format!("EXPLAIN QUERY PLAN {sql}"))
+    let plan: Vec<String> = sqlx::query(AssertSqlSafe(format!("EXPLAIN QUERY PLAN {sql}")))
         .bind("hello")
         .bind(1_i64)
         .bind(2_i64)
