@@ -189,10 +189,12 @@ def _refusal(args, snapshot, database):
 def _backup_refusal(plan, allow_missing):
     """Why this backup cannot be restored; a damaged database is never restored, whatever was allowed."""
     if plan.integrity != "ok":
-        return f"the snapshot failed its integrity check ({plan.integrity})"
+        return (f"the snapshot failed its integrity check ({plan.integrity}), so nothing was "
+                "restored")
     if plan.gaps and not allow_missing:
-        return (f"the backup lacks {plan.gaps} file(s) its database references. Pass "
-                "--allow-missing-files to restore the database and every file it does hold")
+        return (f"the backup lacks {plan.gaps} file(s) its database references, so nothing was "
+                "restored. Pass --allow-missing-files to restore the database and every file "
+                "the backup does hold.")
     return None
 
 
@@ -224,7 +226,7 @@ def run(args):
     refusal = _backup_refusal(plan, args.allow_missing_files)
     if refusal:
         _report_gaps(plan, restored=False)
-        print(f"{refusal}, so nothing was restored", file=sys.stderr)
+        print(refusal, file=sys.stderr)
         return 1
 
     data_dir.mkdir(parents=True, exist_ok=True)
