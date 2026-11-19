@@ -97,9 +97,15 @@ class SyncModelServer {
   api.Message _wire(ModelMessage message) =>
       api.Message.fromJson(message.toJson(channelId));
 
-  /// The newest page, newest first, as `GET /channels/{id}/messages` answers.
-  List<Map<String, dynamic>> newest() => [
-    for (final m in live.toList().reversed.take(newestPage))
+  /// A page of at most [limit] rows below [before], newest first, as
+  /// `GET /channels/{id}/messages` answers; the newest page when [before] is null.
+  List<Map<String, dynamic>> newest({int? before, int? limit}) => [
+    for (final m
+        in live
+            .where((m) => before == null || m.seq < before)
+            .toList()
+            .reversed
+            .take(limit ?? newestPage))
       m.toJson(channelId),
   ];
 

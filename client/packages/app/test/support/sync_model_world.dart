@@ -62,6 +62,7 @@ class SyncModelWorld {
         sessionProvider.overrideWithValue(api.SessionStore()),
         storeProvider.overrideWith((ref) async => store),
         syncChunkRetryDelaysProvider.overrideWithValue(const []),
+        syncNewestPageProvider.overrideWithValue(server.newestPage),
         apiProvider.overrideWith((ref) {
           final client = testApi(
             _answer,
@@ -106,7 +107,13 @@ class SyncModelWorld {
     }
     if (path == '/channels/${server.channelId}/messages') {
       newestPageReads++;
-      return jsonHttpResponse(server.newest());
+      final query = request.url.queryParameters;
+      return jsonHttpResponse(
+        server.newest(
+          before: int.tryParse(query['before'] ?? ''),
+          limit: int.tryParse(query['limit'] ?? ''),
+        ),
+      );
     }
     return jsonHttpResponse(const <String, dynamic>{});
   }
@@ -149,6 +156,12 @@ class SyncModelWorld {
     )..where((m) => m.id.equals(id))).get();
     return rows.isEmpty ? null : rows.single.content;
   }
+
+  /// The seqs of the delivered rows held, oldest first.
+  Future<List<int>> heldSeqs() async => [
+    for (final row in await db.select(db.messages).get())
+      if (row.seq > 0) row.seq,
+  ]..sort();
 
   /// How the store differs from the server, or null when it does not.
   Future<String?> disagreement() async {

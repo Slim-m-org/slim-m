@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 library;
 
+import 'dart:math' as math;
+
 import 'package:drift/drift.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'database.dart';
@@ -68,6 +70,9 @@ Future<void> applyMessagesBatched(
   });
 }
 
+/// Ids per statement, well under the bound-variable limit of an old SQLite.
+const _idsPerStatement = 200;
+
 /// See [MessageStore.replaceHeld].
 ///
 /// The page is written without the covered-row rule: it is the server's own
@@ -76,27 +81,41 @@ Future<void> applyMessagesBatched(
 Future<void> replaceHeldBatched(
   MessageStore store,
   String channelId,
-  List<api.Message> page,
-  int through,
-) async {
+  List<api.Message> page, {
+  required int from,
+  required int through,
+}) async {
   final db = store.db;
-  final kept = [for (final message in page) message.id];
+  final kept = {for (final message in page) message.id};
   await db.transaction(() async {
-    await (db.delete(db.messages)
-          ..where((m) =>
-              m.channelId.equals(channelId) &
-              m.seq.isBiggerThanValue(0) &
-              m.seq.isSmallerOrEqualValue(through) &
-              m.id.isNotIn(kept)))
-        .go();
-    await applyMessagesBatched(
-      store,
-      page,
-      CursorAdvance.always,
-      skipCovered: false,
-    );
+    final held = await (db.selectOnly(db.messages)
+          ..addColumns([db.messages.id])
+          ..where(db.messages.channelId.equals(channelId) &
+              db.messages.seq.isBiggerThanValue(0) &
+              db.messages.seq.isBiggerOrEqualValue(from) &
+              db.messages.seq.isSmallerOrEqualValue(through)))
+        .map((row) => row.read(db.messages.id)!)
+        .get();
+    final gone = held.where((id) => !kept.contains(id)).toList();
+    for (final ids in _slices(gone)) {
+      await (db.delete(db.messages)..where((m) => m.id.isIn(ids))).go();
+    }
+    for (final rows in _slices(page)) {
+      await applyMessagesBatched(
+        store,
+        rows,
+        CursorAdvance.always,
+        skipCovered: false,
+      );
+    }
     await cursors_impl.restandHelper(store, channelId);
   });
+}
+
+Iterable<List<T>> _slices<T>(List<T> all) sync* {
+  for (var at = 0; at < all.length; at += _idsPerStatement) {
+    yield all.sublist(at, math.min(at + _idsPerStatement, all.length));
+  }
 }
 
 /// The sync stream's rows, less those at or below their channel's cursor that

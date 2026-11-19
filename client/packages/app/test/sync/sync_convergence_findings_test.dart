@@ -440,6 +440,27 @@ void main() {
       expect(counts, everyElement(2));
     });
 
+    test('keeps and corrects the rows older than its newest page', () async {
+      final world = SyncModelWorld(server: SyncModelServer(newestPage: 5));
+      await world.open();
+      addTearDown(world.close);
+      final server = world.server;
+      for (var i = 0; i < 12; i++) {
+        world.wire.add(server.send('v$i'));
+        await world.deliver();
+      }
+      server.edit(server.messages[1], 'edited while away');
+      server.delete(server.messages[2]);
+
+      await world.controller.reconcile();
+
+      expect(await world.contentOf('m1'), 'v0');
+      expect(await world.contentOf('m2'), 'edited while away');
+      expect(await world.contentOf('m3'), isNull);
+      expect(await world.heldSeqs(), [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+      expect(await world.disagreement(), isNull);
+    });
+
     test('adopts the head without refetching when nothing is held', () async {
       final world = await _world();
       final first = world.server.send('hello');

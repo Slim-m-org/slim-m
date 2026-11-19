@@ -295,14 +295,21 @@ class MessageStore {
   }) =>
       batch_impl.applyMessagesBatched(this, messages, advance);
 
-  /// Makes [page] the only delivered rows held at or below [through], in one
-  /// write, so a reader never sees the channel without its messages.
+  /// Makes [page] the only delivered rows held from seq [from] through
+  /// [through], in one write, so a reader never sees the span without its rows.
   Future<void> replaceHeld(
     String channelId,
     List<api.Message> page, {
+    required int from,
     required int through,
   }) =>
-      batch_impl.replaceHeldBatched(this, channelId, page, through);
+      batch_impl.replaceHeldBatched(
+        this,
+        channelId,
+        page,
+        from: from,
+        through: through,
+      );
 
   /// Drops a channel's cached messages and rewinds its cursor. Used when the
   /// server answers catch-up with `reset`, meaning the gap was too large to
