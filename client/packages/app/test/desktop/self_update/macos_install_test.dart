@@ -18,6 +18,33 @@ void _makeBundle(String path, String marker, {bool runnable = true}) {
   if (runnable) Process.runSync('chmod', ['+x', exe.path]);
 }
 
+/// A bundle codesign accepts: a Mach-O executable and an Info.plist naming it.
+void _makeSignableBundle(String path) {
+  final exe = '$path/Contents/MacOS/slimm_app';
+  Directory('$path/Contents/MacOS').createSync(recursive: true);
+  File('/usr/bin/true').copySync(exe);
+  Process.runSync('chmod', ['+x', exe]);
+  File('$path/Contents/Info.plist').writeAsStringSync(_signablePlist);
+}
+
+const _signablePlist = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleExecutable</key>
+  <string>slimm_app</string>
+  <key>CFBundleIdentifier</key>
+  <string>top.npcserver.slimm.selfupdatetest</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+</dict>
+</plist>
+''';
+
+void _expectRan(ProcessResult done) =>
+    expect(done.exitCode, 0, reason: '${done.stdout}${done.stderr}');
+
 String _marker(String bundle) =>
     File('$bundle/Contents/MacOS/slimm_app').readAsStringSync();
 
@@ -269,10 +296,12 @@ void main() {
     'ditto, xattr and codesign handle a real ad-hoc signed bundle',
     () async {
       final app = '${root.path}/real/slimm_app.app';
-      _makeBundle(app, '#!/bin/sh\n');
-      Process.runSync('codesign', ['--force', '--sign', '-', app]);
+      _makeSignableBundle(app);
+      _expectRan(Process.runSync('codesign', ['--force', '--sign', '-', app]));
       final zip = File('${root.path}/real.zip');
-      Process.runSync('ditto', ['-c', '-k', '--keepParent', app, zip.path]);
+      _expectRan(
+        Process.runSync('ditto', ['-c', '-k', '--keepParent', app, zip.path]),
+      );
       final out = Directory('${root.path}/out')..createSync();
       await unpackWithDitto(zip, out);
       final unpacked = Directory('${out.path}/slimm_app.app');
