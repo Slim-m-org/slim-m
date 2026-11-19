@@ -227,7 +227,7 @@ class VoiceRecorder
       state = VoiceRecordingState(
         phase: VoicePhase.failed,
         error: needsTools
-            ? 'Could not record. On Linux this needs ffmpeg and parecord '
+            ? 'Could not record. On Linux this needs parecord '
                   '(pulseaudio-utils) installed.'
             : 'The microphone could not be opened.',
       );
@@ -471,8 +471,8 @@ final voiceRecorderProvider = NotifierProvider.autoDispose
 /// The channel whose voice message is recording now, if any.
 final recordingVoiceChannelProvider = StateProvider<String?>((ref) => null);
 
-/// Linux records through the ffmpeg and parecord programs, so a failed start
-/// there is most often one of them missing. Replaced in tests.
+/// Linux records through the parecord program, so a failed start there is
+/// most often it missing. Replaced in tests.
 final voiceRecordingNeedsToolsProvider = Provider<bool>((ref) => isLinuxHost);
 
 /// Whether a call rules out recording: on iPhone and Android both share one
