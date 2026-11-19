@@ -57,7 +57,9 @@ web.LockManager? get _locks {
 /// Session storage, unlike local storage, is one tab's own and outlives its reloads.
 const _tabIdKey = 'slimm.tab_id';
 
-String _readOrMakeTabId() {
+/// Null when session storage is out of reach, so the server falls back to the
+/// device's own tag, which a reload still matches.
+String? _readOrMakeTabId() {
   try {
     final storage = web.window.sessionStorage;
     final held = storage.getItem(_tabIdKey);
@@ -68,11 +70,11 @@ String _readOrMakeTabId() {
   } on Object catch (error, stack) {
     AppLog.swallowed(
       LogTag.platform,
-      'Session storage is unavailable; this tab id lasts until a reload',
+      'Session storage is unavailable; voice tells this tab by its device',
       error,
       stack,
     );
-    return _randomTabId();
+    return null;
   }
 }
 
@@ -86,7 +88,7 @@ String _randomTabId() {
 
 class _BrowserTabs implements CrossTab {
   @override
-  late final String tabId = _readOrMakeTabId();
+  late final String? tabId = _readOrMakeTabId();
 
   @override
   Future<T> exclusive<T>(String name, Future<T> Function() body) {
