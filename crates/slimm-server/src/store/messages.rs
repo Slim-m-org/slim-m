@@ -42,6 +42,7 @@ pub(super) mod message_ops;
 pub(super) mod message_reads;
 pub(super) mod message_retention;
 pub(super) mod message_search;
+pub(super) mod message_search_filters;
 pub(super) mod messages_bulk;
 pub(super) mod messages_bulk_window;
 mod retention_candidates;

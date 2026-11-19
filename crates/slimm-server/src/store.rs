@@ -62,7 +62,7 @@ mod messages;
 mod soundboard;
 use messages::{
     message_embeds, message_forwards, message_history, message_module_origins, message_ops,
-    message_retention, message_search, messages_bulk,
+    message_retention, message_search, message_search_filters, messages_bulk,
 };
 mod models;
 mod moderation_audit;
@@ -222,7 +222,8 @@ pub use message_history::{MAX_EDIT_REVISIONS, MessageRevision};
 pub use message_module_origins::{ModuleOrigin, ModuleStamp};
 pub use message_ops::{MessageOpEntry, MessageOpKind, MessageOpsPage};
 pub use message_retention::{MAX_MESSAGE_RETENTION_DAYS, PrunedMessage, SweptMessageRetention};
-pub use message_search::{FtsQuery, MessageSearchFilters, SearchError};
+pub use message_search::{FtsQuery, SearchError};
+pub use message_search_filters::{HasKind, MentionedUser, MessageSearchFilters};
 pub use messages::{Edited, MessageDeletion, NewMessage, SendError, Sent};
 pub use messages_bulk::{BulkDeleteError, BulkDeletion, DeletedMessage};
 pub use models::{Channel, ChannelCategory, ChannelRoom, Message, User};

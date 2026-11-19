@@ -9,7 +9,8 @@
 //! [`operators_identity`] (`from:`/`in:`, both of which resolve a caller-
 //! supplied name and so both carry an oracle-safety obligation) and
 //! [`operators_content`] (`has:`/`before:`/`after:`, which read a message's
-//! own bytes rather than resolving anything). [`cross_channel`] is the
+//! own bytes rather than resolving anything), and [`operators_kinds`] (the
+//! finer `has:` kinds, `mentions:` and `pinned:`). [`cross_channel`] is the
 //! deployment-wide `GET /search/messages` scope instead of the per-channel
 //! route the rest of this suite pins. [`partial_words`] is how a plain word
 //! matches as a prefix while FTS5 syntax keeps its meaning. [`fixtures`] is
@@ -23,5 +24,6 @@ mod fixtures;
 mod fts_order;
 mod operators_content;
 mod operators_identity;
+mod operators_kinds;
 mod partial_words;
 mod threads;

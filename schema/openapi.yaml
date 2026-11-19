@@ -6181,9 +6181,10 @@ paths:
         every word must match. A one-character word matches whole words only,
         so `w` finds a lone `w` and not `Windows`. A `q` written in FTS5 syntax (`AND`/`OR`/`NOT`,
         `"phrase"`, `NEAR(...)`, an explicit `*`) keeps its exact meaning.
-        `q` is optional: a search made entirely of `from`/`in`/
-        `has`/`after_date`/`before_date` needs no free text at all, though at
-        least one of `q` and those filters is required. Results are
+        `q` is optional: a search made entirely of `from`/`in`/`has`/
+        `mentions`/`pinned`/`after_date`/`before_date` needs no free text at
+        all, though at least one of `q` and those filters is required. The
+        query grammar a client builds these from is docs/search.md. Results are
         permission-filtered exactly like listing and keyset paginated on
         `seq` the same way. A `q` that is not valid FTS5 syntax, such as
         `.iso`, searches its words as prefixes instead, and one with no
@@ -6251,11 +6252,32 @@ paths:
         - name: has
           in: query
           description: >
-            `has:attachment` and/or `has:link` (`has=attachment,link` for
-            both). `link` is a plain, case-sensitive substring match for
-            `http://`/`https://` in the content, not a real URL parse.
+            One or more kinds of content, comma-separated, all of which a hit
+            must carry (`has=image,link` wants both): `attachment` (any file),
+            `image`, `video`, `voice` (a voice message), `file` (an attachment
+            that is none of those three), `link`, `embed` (a bot or webhook
+            embed) and `poll`. `link` is a plain, case-sensitive substring
+            match for `http://`/`https://` in the content, not a real URL
+            parse. Any other value answers 400.
           schema:
             type: string
+        - name: mentions
+          in: query
+          description: >
+            Only messages that directly mention this username, ignoring case
+            (`mentions:username`): an `@username` in the text that pinged
+            them, never an `@everyone`, `@here` or role mention that reached
+            them. A username matching no live account answers with no
+            results, never an error, the same rule `from` follows.
+          schema:
+            type: string
+        - name: pinned
+          in: query
+          description: >
+            `true` keeps only pinned messages, `false` only unpinned ones
+            (`pinned:true`). Absent searches both.
+          schema:
+            type: boolean
         - name: after_date
           in: query
           description: >
@@ -6373,11 +6395,32 @@ paths:
         - name: has
           in: query
           description: >
-            `has:attachment` and/or `has:link` (`has=attachment,link` for
-            both). `link` is a plain, case-sensitive substring match for
-            `http://`/`https://` in the content, not a real URL parse.
+            One or more kinds of content, comma-separated, all of which a hit
+            must carry (`has=image,link` wants both): `attachment` (any file),
+            `image`, `video`, `voice` (a voice message), `file` (an attachment
+            that is none of those three), `link`, `embed` (a bot or webhook
+            embed) and `poll`. `link` is a plain, case-sensitive substring
+            match for `http://`/`https://` in the content, not a real URL
+            parse. Any other value answers 400.
           schema:
             type: string
+        - name: mentions
+          in: query
+          description: >
+            Only messages that directly mention this username, ignoring case
+            (`mentions:username`): an `@username` in the text that pinged
+            them, never an `@everyone`, `@here` or role mention that reached
+            them. A username matching no live account answers with no
+            results, never an error, the same rule `from` follows.
+          schema:
+            type: string
+        - name: pinned
+          in: query
+          description: >
+            `true` keeps only pinned messages, `false` only unpinned ones
+            (`pinned:true`). Absent searches both.
+          schema:
+            type: boolean
         - name: after_date
           in: query
           description: >

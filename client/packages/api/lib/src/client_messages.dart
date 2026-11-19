@@ -165,17 +165,20 @@ extension SlimmApiMessages on SlimmApi {
   /// trailing `*` prefix) is available; it is optional now, since the
   /// Slack-style operators below can carry a search on their own, but the
   /// server refuses a request with none of [q], [from], [inChannel], [has],
-  /// [afterDate] or [beforeDate] set. Results are permission-filtered and
+  /// [mentions], [pinned], [afterDate] or [beforeDate] set. Results are permission-filtered and
   /// keyset paginated on `seq` exactly like [SlimmApi.listMessages].
   ///
   /// [from] narrows to one author's exact username. [inChannel] searches a
   /// named channel instead of [channelId]; a name that does not exist, or
   /// resolves only to channels this caller cannot view, answers with an
   /// empty list rather than an error, so it is never a way to learn a
-  /// hidden channel exists. [has] is `attachment`, `link`, or both
-  /// comma-separated (`attachment,link`). [afterDate]/[beforeDate] are
-  /// `YYYY-MM-DD`: `afterDate` is inclusive of the named day, `beforeDate`
-  /// excludes it.
+  /// hidden channel exists. [has] is one or more of `attachment`, `image`,
+  /// `video`, `voice`, `file`, `link`, `embed` and `poll`, comma-separated,
+  /// all required. [mentions] keeps direct `@username` mentions of one
+  /// person, and [pinned] pinned (or unpinned) messages. [afterDate]/
+  /// [beforeDate] are `YYYY-MM-DD`: `afterDate` is inclusive of the named
+  /// day, `beforeDate` excludes it. [beforeId] is the last hit of the
+  /// previous page.
   Future<List<Message>> searchMessages(
     String channelId, {
     String? q,
@@ -184,8 +187,11 @@ extension SlimmApiMessages on SlimmApi {
     String? from,
     String? inChannel,
     String? has,
+    String? mentions,
+    bool? pinned,
     String? afterDate,
     String? beforeDate,
+    String? beforeId,
   }) async {
     final query = _searchQuery(
       q: q,
@@ -194,8 +200,11 @@ extension SlimmApiMessages on SlimmApi {
       from: from,
       inChannel: inChannel,
       has: has,
+      mentions: mentions,
+      pinned: pinned,
       afterDate: afterDate,
       beforeDate: beforeDate,
+      beforeId: beforeId,
     );
     final json = await send(
       'GET',
@@ -222,8 +231,11 @@ extension SlimmApiMessages on SlimmApi {
     String? from,
     String? inChannel,
     String? has,
+    String? mentions,
+    bool? pinned,
     String? afterDate,
     String? beforeDate,
+    String? beforeId,
   }) async {
     final query = _searchQuery(
       q: q,
@@ -232,8 +244,11 @@ extension SlimmApiMessages on SlimmApi {
       from: from,
       inChannel: inChannel,
       has: has,
+      mentions: mentions,
+      pinned: pinned,
       afterDate: afterDate,
       beforeDate: beforeDate,
+      beforeId: beforeId,
     );
     final json = await send('GET', '/search/messages', query: query);
     return (json as List<dynamic>)
@@ -492,8 +507,11 @@ Map<String, String> _searchQuery({
   String? from,
   String? inChannel,
   String? has,
+  String? mentions,
+  bool? pinned,
   String? afterDate,
   String? beforeDate,
+  String? beforeId,
 }) =>
     {
       if (q != null) 'q': q,
@@ -502,7 +520,10 @@ Map<String, String> _searchQuery({
       if (from != null) 'from': from,
       if (inChannel != null) 'in': inChannel,
       if (has != null) 'has': has,
+      if (mentions != null) 'mentions': mentions,
+      if (pinned != null) 'pinned': '$pinned',
       if (afterDate != null) 'after_date': afterDate,
       if (beforeDate != null) 'before_date': beforeDate,
+      if (beforeId != null) 'before_id': beforeId,
       'include_threads': 'true',
     };
