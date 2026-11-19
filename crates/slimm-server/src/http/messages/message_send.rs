@@ -151,12 +151,15 @@ pub(super) async fn send(
         embeds::store_and_reload(&state, id, sent.fresh, &embeds),
         super::message_components::store_and_reload(&state, id, sent.fresh, &components),
     );
-    let attachments: Vec<_> = attachments?
+    let attachments: Vec<_> = after_commit("reading its attachments back", attachments)
         .into_iter()
         .next()
         .map(|(_, summaries)| summaries)
         .unwrap_or_default();
-    let forwarded = forwarded?.into_iter().next().map(|(_, summary)| summary);
+    let forwarded = after_commit("reading its forward back", forwarded)
+        .into_iter()
+        .next()
+        .map(|(_, summary)| summary);
     let stored_embeds = after_commit("its embeds", stored_embeds);
     let stored_components = after_commit("its components", stored_components);
 
