@@ -182,4 +182,30 @@ void main() {
       expect(_forgotten(requests), contains('lounge'));
     });
   });
+
+  test('a failed switch away from a call another device took leaves that call '
+      'on record', () {
+    fakeAsync((async) {
+      final requests = <http.Request>[];
+      final session = FakeSession();
+      final controller = harness.controllerWith(session, _api(requests));
+      unawaited(controller.join('lounge'));
+      async.flushMicrotasks();
+      session.emitState(VoiceSessionState.connected);
+      async.flushMicrotasks();
+      session.dropWith(VoiceDisconnect.replacedByOtherDevice);
+      async.flushMicrotasks();
+
+      unawaited(controller.join('full'));
+      async.flushMicrotasks();
+      unawaited(controller.leave());
+      async.flushMicrotasks();
+
+      expect(
+        _forgotten(requests),
+        isNot(contains('lounge')),
+        reason: 'the lounge on record is the other device\'s by now',
+      );
+    });
+  });
 }

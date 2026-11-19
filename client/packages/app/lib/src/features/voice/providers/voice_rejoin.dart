@@ -37,6 +37,9 @@ class VoiceRejoin {
   /// The channel whose call another device of this account is known to hold.
   String? _heldElsewhere;
 
+  /// Told when a call stops being this device's to end on record, so nothing forgets it later either.
+  void Function()? onHeldElsewhere;
+
   /// Shown when this device stayed out of a call because the account is on one elsewhere.
   static const onCallElsewhere =
       "You're on a call on another device, so this one did not rejoin.";
@@ -58,6 +61,7 @@ class VoiceRejoin {
     if (_current.channelId != channelId) return;
     _blamedOnOtherDevice = null;
     _heldElsewhere = channelId;
+    onHeldElsewhere?.call();
     _callClock.forget();
     _access.state = _current.copyWith(error: onCallElsewhere, rejoining: false);
   }
@@ -103,6 +107,7 @@ class VoiceRejoin {
     );
     _blamedOnOtherDevice = blamed ? channelId : null;
     _heldElsewhere = null;
+    if (blamed) onHeldElsewhere?.call();
     _access.state = _current.copyWith(
       state: VoiceSessionState.failed,
       error: blamed ? _checkingMessage : dropped.message,

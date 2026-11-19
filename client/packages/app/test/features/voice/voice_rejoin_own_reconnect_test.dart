@@ -319,4 +319,25 @@ void main() {
       expect(call.controller.state.error, isNull);
     });
   });
+
+  test('joining another call after a refused comeback leaves the first on '
+      'record', () {
+    fakeAsync((async) {
+      final seen = <http.Request>[];
+      final call = inCallThenBlamed(
+        async,
+        voiceApi(refuseComeback: true, onRequest: seen.add),
+        drop: VoiceDisconnect.connectionLost,
+      );
+      async.elapse(delays.first);
+      async.flushMicrotasks();
+      expect(call.controller.state.error, VoiceRejoin.onCallElsewhere);
+
+      unawaited(call.controller.join('channel-2'));
+      async.flushMicrotasks();
+
+      expect(call.controller.state.state, VoiceSessionState.connected);
+      expect(forgets(seen), 0, reason: 'that call may be another device\'s');
+    });
+  });
 }

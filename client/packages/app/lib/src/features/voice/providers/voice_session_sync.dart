@@ -34,7 +34,9 @@ class VoiceSessionSync {
     required this.cameras,
     required this.republishDeafened,
     required this.log,
-  });
+  }) {
+    rejoin.onHeldElsewhere = () => heartbeat.stop(disown: true);
+  }
 
   final VoiceSession session;
   final VoiceStateAccess access;

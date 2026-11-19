@@ -354,6 +354,7 @@ The rejoin that follows is marked `automatic`, and the server checks the room ag
 A heartbeat is keyed by member and channel, not by device.
 A device that lost its call to another device must therefore not send the forget when its person dismisses the ended call, or it ends the other device's place on record until that device's next beat.
 That holds from the moment the SFU blames another device, before the roster has answered, and after a refused automatic rejoin: until something says the call is this device's again, its place on record is not this device's to end.
+The heartbeat lets go of the call at that same moment, because a hang-up is not the only thing that forgets: a switch to another call, failed or not, forgets the call it last proved.
 When the drop was this device's own reconnect after all, the cost is a record that goes stale and is swept 40 s later.
 A switch never passes through a leave, so the heartbeat itself forgets the call it last proved when it starts proving another.
 A switch that fails ends the call switched from and tells the server so, whether the server refused it (a full room, no permission, the server unreachable) with the session still in the old room, or the SFU connect failed after the session had already left it.
