@@ -83,3 +83,17 @@ final voiceCallHistoryProvider = FutureProvider.autoDispose
 /// for the most recent one.
 final selectedVoiceCallProvider = StateProvider.autoDispose
     .family<int?, String>((ref, channelId) => null);
+
+/// A View details on the voice channel already on screen, for its call to
+/// open its details: the route flag alone does not change on a second pick.
+final callDetailsRequestProvider = StateProvider<({String channelId, int n})?>(
+  (ref) => null,
+);
+
+void requestCallDetails(ProviderContainer container, String channelId) {
+  final last = container.read(callDetailsRequestProvider);
+  container.read(callDetailsRequestProvider.notifier).state = (
+    channelId: channelId,
+    n: (last?.n ?? 0) + 1,
+  );
+}

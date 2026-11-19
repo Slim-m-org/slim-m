@@ -164,6 +164,7 @@ GoRouter testRouter(String location) => GoRouter(
               builder: (context, state) => ConversationPane(
                 channelId: state.pathParameters['channelId']!,
                 openChat: Routes.opensChat(state.uri),
+                openDetails: Routes.opensDetails(state.uri),
               ),
             ),
           ],
