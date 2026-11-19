@@ -6,67 +6,145 @@
       {
         "name": "module_id!",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "module_run_stats",
+            "name": "module_id"
+          }
+        }
       },
       {
         "name": "command!",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "module_run_stats",
+            "name": "command"
+          }
+        }
       },
       {
         "name": "run_count!",
         "ordinal": 2,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "module_run_stats",
+            "name": "run_count"
+          }
+        }
       },
       {
         "name": "failure_count!",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "module_run_stats",
+            "name": "failure_count"
+          }
+        }
       },
       {
         "name": "last_run_at!",
         "ordinal": 4,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "module_run_stats",
+            "name": "last_run_at"
+          }
+        }
       },
       {
         "name": "last_ok_at",
         "ordinal": 5,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "module_run_stats",
+            "name": "last_ok_at"
+          }
+        }
       },
       {
         "name": "failing_since",
         "ordinal": 6,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "module_run_stats",
+            "name": "failing_since"
+          }
+        }
       },
       {
         "name": "last_error",
         "ordinal": 7,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "module_run_stats",
+            "name": "last_error"
+          }
+        }
       },
       {
         "name": "last_error_at",
         "ordinal": 8,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "module_run_stats",
+            "name": "last_error_at"
+          }
+        }
       },
       {
         "name": "last_duration_ms!",
         "ordinal": 9,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "module_run_stats",
+            "name": "last_duration_ms"
+          }
+        }
       },
       {
         "name": "max_duration_ms!",
         "ordinal": 10,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "module_run_stats",
+            "name": "max_duration_ms"
+          }
+        }
       },
       {
         "name": "last_fuel_used",
         "ordinal": 11,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "module_run_stats",
+            "name": "last_fuel_used"
+          }
+        }
       },
       {
         "name": "max_fuel_used!",
         "ordinal": 12,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "module_run_stats",
+            "name": "max_fuel_used"
+          }
+        }
       }
     ],
     "parameters": {

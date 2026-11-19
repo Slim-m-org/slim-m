@@ -6,12 +6,24 @@
       {
         "name": "user_id!: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "link_states",
+            "name": "user_id"
+          }
+        }
       },
       {
         "name": "expires_at!",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "link_states",
+            "name": "expires_at"
+          }
+        }
       }
     ],
     "parameters": {

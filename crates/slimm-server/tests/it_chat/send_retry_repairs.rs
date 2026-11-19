@@ -9,6 +9,7 @@ use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
+use sqlx::AssertSqlSafe;
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -139,10 +140,10 @@ async fn a_bot_retry_stores_the_buttons_and_embeds_its_first_attempt_failed_to()
     };
 
     for table in ["message_components", "message_embeds"] {
-        sqlx::query(&format!(
+        sqlx::query(AssertSqlSafe(format!(
             "CREATE TRIGGER fail_{table} BEFORE INSERT ON {table}
              BEGIN SELECT RAISE(ABORT, 'simulated failure'); END"
-        ))
+        )))
         .execute(&pool)
         .await
         .unwrap();
@@ -154,7 +155,7 @@ async fn a_bot_retry_stores_the_buttons_and_embeds_its_first_attempt_failed_to()
         "the simulated failure did not bite"
     );
     for table in ["message_components", "message_embeds"] {
-        sqlx::query(&format!("DROP TRIGGER fail_{table}"))
+        sqlx::query(AssertSqlSafe(format!("DROP TRIGGER fail_{table}")))
             .execute(&pool)
             .await
             .unwrap();

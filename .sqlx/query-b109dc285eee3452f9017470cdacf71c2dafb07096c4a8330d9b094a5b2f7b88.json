@@ -6,12 +6,24 @@
       {
         "name": "allow!: i64",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "channel_overwrites",
+            "name": "allow"
+          }
+        }
       },
       {
         "name": "deny!: i64",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "channel_overwrites",
+            "name": "deny"
+          }
+        }
       }
     ],
     "parameters": {

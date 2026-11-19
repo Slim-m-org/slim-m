@@ -6,7 +6,13 @@
       {
         "name": "parent_id: ChannelCategoryId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "channel_categories",
+            "name": "parent_id"
+          }
+        }
       }
     ],
     "parameters": {

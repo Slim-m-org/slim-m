@@ -27,7 +27,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 envy = "0.4"
 uuid = { version = "1", features = ["v7", "v5"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "uuid"] }
+sqlx = { version = "0.9.1", features = ["runtime-tokio", "sqlite", "migrate", "uuid"] }
 anyhow = "1"
 # Auth primitives: Argon2id hashing, SHA-256 token hashing, URL-safe base64.
 # All long-established audited crates, not fresh single-maintainer projects.

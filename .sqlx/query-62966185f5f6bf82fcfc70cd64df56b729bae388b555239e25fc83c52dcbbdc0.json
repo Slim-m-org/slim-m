@@ -6,7 +6,13 @@
       {
         "name": "role_grant: RoleId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "invites",
+            "name": "role_grant"
+          }
+        }
       }
     ],
     "parameters": {

@@ -6,12 +6,24 @@
       {
         "name": "joined_at!: i64",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "voice_sessions",
+            "name": "joined_at"
+          }
+        }
       },
       {
         "name": "left_at",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "voice_sessions",
+            "name": "left_at"
+          }
+        }
       }
     ],
     "parameters": {

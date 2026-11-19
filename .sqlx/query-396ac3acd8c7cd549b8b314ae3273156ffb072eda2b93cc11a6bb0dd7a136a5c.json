@@ -6,22 +6,46 @@
       {
         "name": "enabled!: bool",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "space_settings",
+            "name": "join_gate"
+          }
+        }
       },
       {
         "name": "rules!: String",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "space_settings",
+            "name": "rules_text"
+          }
+        }
       },
       {
         "name": "rules_channel_id: ChannelId",
         "ordinal": 2,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "space_settings",
+            "name": "rules_channel_id"
+          }
+        }
       },
       {
         "name": "joins_paused!: bool",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "space_settings",
+            "name": "joins_paused"
+          }
+        }
       }
     ],
     "parameters": {

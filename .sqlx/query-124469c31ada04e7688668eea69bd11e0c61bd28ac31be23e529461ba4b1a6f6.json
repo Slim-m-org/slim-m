@@ -6,32 +6,68 @@
       {
         "name": "user_id!: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "link_handoffs",
+            "name": "user_id"
+          }
+        }
       },
       {
         "name": "external_id!",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "link_handoffs",
+            "name": "external_id"
+          }
+        }
       },
       {
         "name": "username!",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "link_handoffs",
+            "name": "username"
+          }
+        }
       },
       {
         "name": "display_name",
         "ordinal": 3,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "link_handoffs",
+            "name": "display_name"
+          }
+        }
       },
       {
         "name": "avatar_hash",
         "ordinal": 4,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "link_handoffs",
+            "name": "avatar_hash"
+          }
+        }
       },
       {
         "name": "expires_at!",
         "ordinal": 5,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "link_handoffs",
+            "name": "expires_at"
+          }
+        }
       }
     ],
     "parameters": {

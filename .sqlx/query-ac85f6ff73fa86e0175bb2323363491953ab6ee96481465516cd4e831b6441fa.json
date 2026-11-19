@@ -6,12 +6,19 @@
       {
         "name": "role_id!: RoleId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "member_roles",
+            "name": "role_id"
+          }
+        }
       },
       {
         "name": "count!: i64",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {

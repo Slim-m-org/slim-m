@@ -6,12 +6,24 @@
       {
         "name": "channel_id!: ChannelId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "channel_id"
+          }
+        }
       },
       {
         "name": "seq!: i64",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "seq"
+          }
+        }
       }
     ],
     "parameters": {
@@ -19,7 +31,7 @@
     },
     "nullable": [
       false,
-      false
+      null
     ]
   },
   "hash": "6b52bb3b60fb5e711d9b6ce3cc498ad71c2079e02bed97fc33bc90df69b30008"

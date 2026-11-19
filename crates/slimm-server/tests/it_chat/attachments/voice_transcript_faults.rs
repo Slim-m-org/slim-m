@@ -14,7 +14,7 @@ use slimm_server::voice_transcripts::{Failure, VoiceTranscriber};
 use crate::attachments::text_search::{World, world};
 use crate::attachments::voice_transcripts::{Fake, send_voice, transcript_of};
 
-async fn exec(world: &World, sql: &str) {
+async fn exec(world: &World, sql: &'static str) {
     sqlx::query(sql).execute(&world.pool).await.unwrap();
 }
 

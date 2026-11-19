@@ -2,6 +2,8 @@
 //! Shared scenes that ask the host to redraw them: when the next redraw is
 //! due, and when the chain stops unless a person presses something.
 
+use sqlx::AssertSqlSafe;
+
 use super::Store;
 use crate::ids::MessageId;
 
@@ -20,10 +22,10 @@ impl Store {
         } else {
             "until_at = scene_refreshes.until_at"
         };
-        sqlx::query(&format!(
+        sqlx::query(AssertSqlSafe(format!(
             "INSERT INTO scene_refreshes (message_id, due_at, until_at) VALUES (?, ?, ?) \
              ON CONFLICT (message_id) DO UPDATE SET due_at = excluded.due_at, {conflict}"
-        ))
+        )))
         .bind(message_id)
         .bind(due_at)
         .bind(until_at)

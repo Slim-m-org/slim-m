@@ -6,12 +6,19 @@
       {
         "name": "position!: i64",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "poll_options",
+            "name": "position"
+          }
+        }
       },
       {
         "name": "votes!: i64",
         "ordinal": 1,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -19,7 +26,7 @@
     },
     "nullable": [
       false,
-      null
+      false
     ]
   },
   "hash": "ee8e2bf49b4b3cf579812ba82ec235ce664e69936296846983e84b4f680a9b91"

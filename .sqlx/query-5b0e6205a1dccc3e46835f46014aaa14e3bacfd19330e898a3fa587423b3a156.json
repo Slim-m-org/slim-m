@@ -6,14 +6,15 @@
       {
         "name": "one!: i64",
         "ordinal": 0,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {
       "Right": 1
     },
     "nullable": [
-      null
+      false
     ]
   },
   "hash": "5b0e6205a1dccc3e46835f46014aaa14e3bacfd19330e898a3fa587423b3a156"

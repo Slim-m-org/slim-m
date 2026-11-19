@@ -6,37 +6,79 @@
       {
         "name": "user_id!: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "username",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "username"
+          }
+        }
       },
       {
         "name": "display_name",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "display_name"
+          }
+        }
       },
       {
         "name": "created_at",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "created_at"
+          }
+        }
       },
       {
         "name": "bot_prefix",
         "ordinal": 4,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "bot_prefix"
+          }
+        }
       },
       {
         "name": "token_name?",
         "ordinal": 5,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bot_tokens",
+            "name": "name"
+          }
+        }
       },
       {
         "name": "last_used_at?",
         "ordinal": 6,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "bot_tokens",
+            "name": "last_used_at"
+          }
+        }
       }
     ],
     "parameters": {
@@ -48,7 +90,7 @@
       false,
       false,
       true,
-      false,
+      true,
       true
     ]
   },

@@ -6,7 +6,13 @@
       {
         "name": "presence_visibility!",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "presence_visibility"
+          }
+        }
       }
     ],
     "parameters": {

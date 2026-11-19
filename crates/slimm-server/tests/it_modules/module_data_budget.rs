@@ -6,8 +6,8 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
-use sqlx::Connection;
 use sqlx::sqlite::SqliteConnection;
+use sqlx::{AssertSqlSafe, Connection};
 
 use crate::support;
 use support::TestDirGuard;
@@ -21,7 +21,10 @@ async fn seed(dir: &Path, id: &str, rows: u32) {
          INSERT INTO xp (user_id, points, ratio, active) \
          SELECT 'user-' || x || '-' || hex(randomblob(64)), x, 0.5, 1 FROM c"
     );
-    sqlx::query(&sql).execute(&mut conn).await.unwrap();
+    sqlx::query(AssertSqlSafe(sql))
+        .execute(&mut conn)
+        .await
+        .unwrap();
 }
 
 fn slow_query() -> Value {

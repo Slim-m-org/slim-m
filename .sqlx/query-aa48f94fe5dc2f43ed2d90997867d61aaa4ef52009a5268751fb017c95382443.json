@@ -6,17 +6,35 @@
       {
         "name": "name!",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sweep_status",
+            "name": "name"
+          }
+        }
       },
       {
         "name": "last_run_at!: i64",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "sweep_status",
+            "name": "last_run_at"
+          }
+        }
       },
       {
         "name": "last_reclaimed!: i64",
         "ordinal": 2,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "sweep_status",
+            "name": "last_reclaimed"
+          }
+        }
       }
     ],
     "parameters": {

@@ -6,12 +6,19 @@
       {
         "name": "display_name",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "display_name"
+          }
+        }
       },
       {
         "name": "removed!: bool",
         "ordinal": 1,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -19,7 +26,7 @@
     },
     "nullable": [
       false,
-      null
+      false
     ]
   },
   "hash": "b30a770c79136946fc8c7c5325273ba34f980e65658c71aa5fdcc5614677630a"

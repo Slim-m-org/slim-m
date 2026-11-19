@@ -2,8 +2,8 @@
 //! Export jobs: one row per requested archive, from queued to expired.
 //! The row is the job's status and the only record of the archive, whose file under the media root is named after the row id.
 
-use sqlx::Row;
 use sqlx::sqlite::SqliteRow;
+use sqlx::{AssertSqlSafe, Row};
 
 use super::{Store, now_ms};
 use crate::ids::{ExportId, UserId};
@@ -188,9 +188,9 @@ impl Store {
     }
 
     pub async fn data_export(&self, id: ExportId) -> anyhow::Result<Option<DataExport>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(AssertSqlSafe(format!(
             "SELECT {COLUMNS} FROM data_exports WHERE id = ? AND dismissed = 0"
-        ))
+        )))
         .bind(id)
         .fetch_optional(&self.pool)
         .await?;
@@ -203,10 +203,10 @@ impl Store {
         user_id: UserId,
         limit: i64,
     ) -> anyhow::Result<Vec<DataExport>> {
-        let rows = sqlx::query(&format!(
+        let rows = sqlx::query(AssertSqlSafe(format!(
             "SELECT {COLUMNS} FROM data_exports WHERE user_id = ? AND dismissed = 0
              ORDER BY created_at DESC LIMIT ?"
-        ))
+        )))
         .bind(user_id)
         .bind(limit)
         .fetch_all(&self.pool)

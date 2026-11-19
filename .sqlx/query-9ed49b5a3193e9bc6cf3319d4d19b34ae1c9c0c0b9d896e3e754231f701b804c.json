@@ -6,12 +6,24 @@
       {
         "name": "allow!: Permissions",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "category_overwrites",
+            "name": "allow"
+          }
+        }
       },
       {
         "name": "deny!: Permissions",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "category_overwrites",
+            "name": "deny"
+          }
+        }
       }
     ],
     "parameters": {

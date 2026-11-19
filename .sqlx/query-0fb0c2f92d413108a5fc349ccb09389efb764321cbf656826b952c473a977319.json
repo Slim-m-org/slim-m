@@ -6,12 +6,24 @@
       {
         "name": "id!: MessageId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "created_at!: i64",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "created_at"
+          }
+        }
       }
     ],
     "parameters": {

@@ -6,12 +6,24 @@
       {
         "name": "author_id: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "author_id"
+          }
+        }
       },
       {
         "name": "deleted_at: i64",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "deleted_at"
+          }
+        }
       }
     ],
     "parameters": {

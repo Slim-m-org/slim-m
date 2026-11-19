@@ -24,7 +24,7 @@
 
 use slimm_server::config::Config;
 use slimm_server::db;
-use sqlx::Row;
+use sqlx::{AssertSqlSafe, Row};
 
 use crate::support;
 /// What happens to a user-referencing column when that user's account goes.
@@ -250,7 +250,7 @@ async fn user_references() -> Vec<(String, String)> {
 
     let mut found = Vec::new();
     for table in tables {
-        let fks = sqlx::query(&format!("PRAGMA foreign_key_list({table})"))
+        let fks = sqlx::query(AssertSqlSafe(format!("PRAGMA foreign_key_list({table})")))
             .fetch_all(&pool)
             .await
             .expect("foreign keys");
@@ -322,7 +322,7 @@ async fn seed_reference(
     column: &str,
     user: &[u8],
 ) -> Result<(), sqlx::Error> {
-    let info = sqlx::query(&format!("PRAGMA table_info({table})"))
+    let info = sqlx::query(AssertSqlSafe(format!("PRAGMA table_info({table})")))
         .fetch_all(&mut *conn)
         .await?;
     let definition: String =
@@ -365,7 +365,7 @@ async fn seed_reference(
         names.join(", "),
         literals.join(", ")
     );
-    let mut insert = sqlx::query(&sql);
+    let mut insert = sqlx::query(AssertSqlSafe(sql));
     for value in &values {
         insert = insert.bind(value.as_slice());
     }
@@ -374,11 +374,13 @@ async fn seed_reference(
 
 /// How many rows of `table` still name `user` in `column`.
 async fn references(pool: &sqlx::SqlitePool, table: &str, column: &str, user: &[u8]) -> i64 {
-    sqlx::query_scalar(&format!("SELECT count(*) FROM {table} WHERE {column} = ?"))
-        .bind(user)
-        .fetch_one(pool)
-        .await
-        .expect("count")
+    sqlx::query_scalar(AssertSqlSafe(format!(
+        "SELECT count(*) FROM {table} WHERE {column} = ?"
+    )))
+    .bind(user)
+    .fetch_one(pool)
+    .await
+    .expect("count")
 }
 
 /// A recorded decision is a promise, and this is the test that it is kept.

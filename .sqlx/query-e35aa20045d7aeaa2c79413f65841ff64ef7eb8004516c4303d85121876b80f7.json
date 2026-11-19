@@ -6,22 +6,36 @@
       {
         "name": "channel_id!: ChannelId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "dm_channels",
+            "name": "channel_id"
+          }
+        }
       },
       {
         "name": "other_id!: UserId",
         "ordinal": 1,
-        "type_info": "Null"
+        "type_info": "Blob",
+        "origin": "Expression"
       },
       {
         "name": "created_at!",
         "ordinal": 2,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "channels",
+            "name": "created_at"
+          }
+        }
       },
       {
         "name": "activity_at!: i64",
         "ordinal": 3,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -29,9 +43,9 @@
     },
     "nullable": [
       false,
-      null,
       false,
-      null
+      false,
+      false
     ]
   },
   "hash": "e35aa20045d7aeaa2c79413f65841ff64ef7eb8004516c4303d85121876b80f7"

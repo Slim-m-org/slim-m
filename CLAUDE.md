@@ -157,7 +157,7 @@ Available:
 - Docker
 - Node
 - authenticated `gh`
-- `sqlx-cli` 0.8
+- `sqlx-cli` 0.9
 
 Android builds require the user-local Temurin 21 JDK:
 

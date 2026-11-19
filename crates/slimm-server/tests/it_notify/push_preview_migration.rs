@@ -4,8 +4,8 @@
 
 use std::path::Path;
 
-use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
+use sqlx::{AssertSqlSafe, SqlitePool};
 
 use crate::support;
 const VERSION: i64 = 97;
@@ -52,8 +52,14 @@ async fn opted_in_accounts_are_seeded_and_the_rest_stay_unset() {
         b = id(2),
         c = id(3)
     );
-    sqlx::query(&users).execute(&pool).await.unwrap();
-    sqlx::query(&devices).execute(&pool).await.unwrap();
+    sqlx::query(AssertSqlSafe(users))
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(AssertSqlSafe(devices))
+        .execute(&pool)
+        .await
+        .unwrap();
     let devices_before: Vec<(Vec<u8>, i64)> =
         sqlx::query_as("SELECT id, push_include_content FROM devices ORDER BY id")
             .fetch_all(&pool)

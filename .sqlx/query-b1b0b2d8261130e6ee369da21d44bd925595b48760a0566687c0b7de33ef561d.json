@@ -6,7 +6,13 @@
       {
         "name": "category_id!: ChannelCategoryId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "category_mutes",
+            "name": "category_id"
+          }
+        }
       }
     ],
     "parameters": {

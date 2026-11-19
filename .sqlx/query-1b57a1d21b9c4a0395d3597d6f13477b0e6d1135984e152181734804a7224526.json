@@ -6,62 +6,134 @@
       {
         "name": "id!: FavoriteId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "user_favorites",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "kind!",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_favorites",
+            "name": "kind"
+          }
+        }
       },
       {
         "name": "created_at!",
         "ordinal": 2,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "user_favorites",
+            "name": "created_at"
+          }
+        }
       },
       {
         "name": "title!",
         "ordinal": 3,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_favorites",
+            "name": "title"
+          }
+        }
       },
       {
         "name": "width!",
         "ordinal": 4,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "user_favorites",
+            "name": "width"
+          }
+        }
       },
       {
         "name": "height!",
         "ordinal": 5,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "user_favorites",
+            "name": "height"
+          }
+        }
       },
       {
         "name": "gif_preview_url",
         "ordinal": 6,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_favorites",
+            "name": "gif_preview_url"
+          }
+        }
       },
       {
         "name": "gif_full_url",
         "ordinal": 7,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_favorites",
+            "name": "gif_full_url"
+          }
+        }
       },
       {
         "name": "attachment_sha256: Vec<u8>",
         "ordinal": 8,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "user_favorites",
+            "name": "attachment_sha256"
+          }
+        }
       },
       {
         "name": "content_type",
         "ordinal": 9,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_favorites",
+            "name": "content_type"
+          }
+        }
       },
       {
         "name": "message_id?: MessageId",
         "ordinal": 10,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "user_favorites",
+            "name": "message_id"
+          }
+        }
       },
       {
         "name": "channel_id?: ChannelId",
         "ordinal": 11,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "channel_id"
+          }
+        }
       }
     ],
     "parameters": {
@@ -79,7 +151,7 @@
       true,
       true,
       true,
-      false
+      true
     ]
   },
   "hash": "1b57a1d21b9c4a0395d3597d6f13477b0e6d1135984e152181734804a7224526"

@@ -6,14 +6,15 @@
       {
         "name": "nested!: bool",
         "ordinal": 0,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {
       "Right": 1
     },
     "nullable": [
-      null
+      false
     ]
   },
   "hash": "473ccdec23a8f4c8804b3589c5133b461e4255926b1be0335236aa70bdd3bb9e"

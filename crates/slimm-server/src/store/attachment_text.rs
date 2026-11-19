@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 
-use sqlx::Row;
+use sqlx::{AssertSqlSafe, Row};
 
 use super::voice_transcripts::TRANSCRIPT_TEXT_SHOWN;
 use super::{Store, now_ms};
@@ -163,7 +163,7 @@ impl Store {
         let sql = MATCHING_TEXT_SQL
             .replace("{ids}", &placeholders)
             .replace("{shown}", TRANSCRIPT_TEXT_SHOWN);
-        let mut matching = sqlx::query(&sql).bind(query.to_owned());
+        let mut matching = sqlx::query(AssertSqlSafe(sql)).bind(query.to_owned());
         for id in message_ids {
             matching = matching.bind(*id);
         }

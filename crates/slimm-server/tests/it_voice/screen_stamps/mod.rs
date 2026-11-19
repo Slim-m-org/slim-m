@@ -22,7 +22,7 @@ use slimm_server::http::{self, AppState};
 use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
-use sqlx::SqlitePool;
+use sqlx::{AssertSqlSafe, SqlitePool};
 use tower::ServiceExt;
 
 use crate::support;
@@ -175,15 +175,17 @@ impl Rig {
     /// Ages every stamp and every attachment by a day and a minute.
     pub async fn age_a_day(&self) {
         for table in ["screen_stamps", "attachments"] {
-            sqlx::query(&format!("UPDATE {table} SET created_at = created_at - ?"))
-                .bind(DAY_MS + 60_000)
-                .execute(&self.pool)
-                .await
-                .unwrap();
+            sqlx::query(AssertSqlSafe(format!(
+                "UPDATE {table} SET created_at = created_at - ?"
+            )))
+            .bind(DAY_MS + 60_000)
+            .execute(&self.pool)
+            .await
+            .unwrap();
         }
     }
 
-    pub async fn count(&self, sql: &str) -> i64 {
+    pub async fn count(&self, sql: &'static str) -> i64 {
         sqlx::query_scalar(sql).fetch_one(&self.pool).await.unwrap()
     }
 }

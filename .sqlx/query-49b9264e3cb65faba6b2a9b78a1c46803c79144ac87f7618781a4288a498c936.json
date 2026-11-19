@@ -6,32 +6,63 @@
       {
         "name": "id!: ChannelCategoryId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "channel_categories",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "name!",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "channel_categories",
+            "name": "name"
+          }
+        }
       },
       {
         "name": "position!: i64",
         "ordinal": 2,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "channel_categories",
+            "name": "position"
+          }
+        }
       },
       {
         "name": "created_at!",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "channel_categories",
+            "name": "created_at"
+          }
+        }
       },
       {
         "name": "parent_id: ChannelCategoryId",
         "ordinal": 4,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "channel_categories",
+            "name": "parent_id"
+          }
+        }
       },
       {
         "name": "live!: bool",
         "ordinal": 5,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -43,7 +74,7 @@
       false,
       false,
       true,
-      null
+      false
     ]
   },
   "hash": "49b9264e3cb65faba6b2a9b78a1c46803c79144ac87f7618781a4288a498c936"

@@ -33,6 +33,23 @@ It is on the 5.x line, which rides the `hmac`, `sha1` and `sha2` versions alread
 6.0 moves onto `hmac` 0.13 and `crypto-common` 0.2, which could not resolve beside the old `crypto_box` pre-release pin (see below).
 That pin is gone and 6.0 now resolves, so moving to it is an ordinary upgrade rather than a blocked one.
 
+## sqlx
+
+The SQLite pool, the compile-checked `query!` macros and the embedded migrations, built with `runtime-tokio`, `sqlite`, `migrate` and `uuid`.
+
+It is on 0.9 (since 2026-11-18).
+0.9.0 still capped `libsqlite3-sys` below 0.38, which bundles SQLite 3.51; 0.9.1 widened the range to below 0.41, and the lockfile holds 0.40.0, which bundles SQLite 3.54.1.
+That clears RUSTSEC-2026-0459 (uninitialised page-cache memory when a database and a crafted `-wal` with a different page size are opened together, fixed in SQLite 3.54.0), so `deny.toml` no longer ignores it.
+`libsqlite3-sys` is not named in the manifest: sqlx picks it inside its own range, and the scheduled advisory check fails if the lockfile ever falls back below 0.39.
+
+0.9 refuses a `query()` whose text is not a `&'static str`.
+Where the server builds SQL at run time, the text comes only from constants or from identifiers already validated (the module data store's schema, `module_runtime/data_schema.rs`), every value is bound, and the call wraps the text in `AssertSqlSafe` so the exception is visible in review.
+Module code never reaches statement text.
+
+Migration checksums did not change: both lines store a SHA-384 of the file, and nothing here sets the 0.9 `sqlx.toml` option to ignore characters.
+Checked 2026-11-18 by seeding a deployment with the 0.8 server (an account, a message, a sealed TOTP factor), reopening it with the 0.9 server, rolling back to 0.8 and forward again: `_sqlx_migrations` was untouched, and the TOTP sign-in and the message worked each time.
+The offline cache (`.sqlx/`) needs `sqlx-cli` 0.9.1 to regenerate; 0.9 also records each column's origin table there.
+
 ## crypto_box
 
 Anonymous sealed boxes (libsodium `crypto_box_seal`, X25519 plus XSalsa20Poly1305) for the content-free push envelope.

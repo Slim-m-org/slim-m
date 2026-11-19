@@ -6,12 +6,24 @@
       {
         "name": "channel_id: ChannelId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "channel_notification_prefs",
+            "name": "channel_id"
+          }
+        }
       },
       {
         "name": "preference",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "channel_notification_prefs",
+            "name": "preference"
+          }
+        }
       }
     ],
     "parameters": {

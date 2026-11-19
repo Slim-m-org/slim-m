@@ -6,22 +6,46 @@
       {
         "name": "user_id!: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "bot_tokens",
+            "name": "bot_user_id"
+          }
+        }
       },
       {
         "name": "session_id!: SessionId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "bot_tokens",
+            "name": "session_id"
+          }
+        }
       },
       {
         "name": "device_id!: DeviceId",
         "ordinal": 2,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "sessions",
+            "name": "device_id"
+          }
+        }
       },
       {
         "name": "last_used_at",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "bot_tokens",
+            "name": "last_used_at"
+          }
+        }
       }
     ],
     "parameters": {

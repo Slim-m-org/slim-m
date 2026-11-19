@@ -6,7 +6,13 @@
       {
         "name": "user_id!: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "devices",
+            "name": "user_id"
+          }
+        }
       }
     ],
     "parameters": {

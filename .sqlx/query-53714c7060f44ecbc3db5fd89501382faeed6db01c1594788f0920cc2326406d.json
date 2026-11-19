@@ -6,17 +6,35 @@
       {
         "name": "channel_id!: ChannelId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "channel_id"
+          }
+        }
       },
       {
         "name": "sender_id!: UserId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "sender_id"
+          }
+        }
       },
       {
         "name": "target_id!: UserId",
         "ordinal": 2,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "target_id"
+          }
+        }
       }
     ],
     "parameters": {

@@ -4,8 +4,8 @@
 
 use std::path::Path;
 
-use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
+use sqlx::{AssertSqlSafe, SqlitePool};
 
 use crate::support;
 
@@ -14,7 +14,7 @@ fn id(n: u8) -> String {
 }
 
 async fn exec(pool: &SqlitePool, sql: &str) -> Result<(), String> {
-    sqlx::query(sql)
+    sqlx::query(AssertSqlSafe(sql))
         .execute(pool)
         .await
         .map(|_| ())
@@ -134,11 +134,11 @@ async fn pool_before_0193() -> (SqlitePool, Migrator, support::TestDbGuard) {
 }
 
 async fn rows_of(pool: &SqlitePool, channel: u8) -> Vec<(String, Vec<u8>, i64, i64)> {
-    sqlx::query_as(&format!(
+    sqlx::query_as(AssertSqlSafe(format!(
         "SELECT target_type, target_id, allow, deny FROM channel_overwrites
          WHERE channel_id = {} ORDER BY target_type, target_id",
         id(channel)
-    ))
+    )))
     .fetch_all(pool)
     .await
     .unwrap()
@@ -177,7 +177,10 @@ async fn a_live_room_that_drifted_from_its_lobby_is_rewritten_from_it() {
         bare = id(8),
     );
     for statement in seed.split(';') {
-        sqlx::query(statement).execute(&pool).await.unwrap();
+        sqlx::query(AssertSqlSafe(statement))
+            .execute(&pool)
+            .await
+            .unwrap();
     }
     let gone_before = rows_of(&pool, 6).await;
     let other_before = rows_of(&pool, 7).await;

@@ -6,12 +6,24 @@
       {
         "name": "user_id!: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "user_totp_factors",
+            "name": "user_id"
+          }
+        }
       },
       {
         "name": "secret",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_totp_factors",
+            "name": "secret"
+          }
+        }
       }
     ],
     "parameters": {

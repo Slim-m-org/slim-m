@@ -6,20 +6,22 @@
       {
         "name": "hour!: i64",
         "ordinal": 0,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       },
       {
         "name": "c!: i64",
         "ordinal": 1,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {
       "Right": 1
     },
     "nullable": [
-      null,
-      null
+      true,
+      false
     ]
   },
   "hash": "604bf8d4760eda78c2526c559600a1c5654473b4163cdcda3c7b0e9b8944feb8"

@@ -6,12 +6,24 @@
       {
         "name": "user_a!: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "dm_channels",
+            "name": "user_a"
+          }
+        }
       },
       {
         "name": "user_b!: UserId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "dm_channels",
+            "name": "user_b"
+          }
+        }
       }
     ],
     "parameters": {

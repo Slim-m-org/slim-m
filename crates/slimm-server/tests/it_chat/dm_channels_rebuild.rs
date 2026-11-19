@@ -13,7 +13,7 @@
 use std::path::Path;
 
 use sqlx::migrate::Migrator;
-use sqlx::{Row, SqlitePool};
+use sqlx::{AssertSqlSafe, Row, SqlitePool};
 
 use crate::support;
 /// The migration under test. Everything before it is the starting point.
@@ -86,7 +86,7 @@ async fn pairs(pool: &SqlitePool) -> Vec<(String, String, String, i64)> {
 }
 
 async fn count(pool: &SqlitePool, table: &str) -> i64 {
-    sqlx::query_scalar(&format!("SELECT count(*) FROM {table}"))
+    sqlx::query_scalar(AssertSqlSafe(format!("SELECT count(*) FROM {table}")))
         .fetch_one(pool)
         .await
         .unwrap_or_else(|e| panic!("counting {table}: {e}"))

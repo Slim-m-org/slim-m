@@ -8,7 +8,7 @@
 use crate::support;
 use slimm_server::ids::UserId;
 use slimm_server::store::ProfileUpdate;
-use sqlx::Row;
+use sqlx::{AssertSqlSafe, Row};
 
 const PROFILE_COLUMNS: [&str; 7] = [
     "status_text",
@@ -22,10 +22,10 @@ const PROFILE_COLUMNS: [&str; 7] = [
 
 async fn profile_cells(pool: &sqlx::SqlitePool, user: UserId) -> Vec<bool> {
     let probes = PROFILE_COLUMNS.map(|c| format!("typeof({c}) <> 'null'"));
-    let row = sqlx::query(&format!(
+    let row = sqlx::query(AssertSqlSafe(format!(
         "SELECT {} FROM users WHERE id = ?",
         probes.join(", ")
-    ))
+    )))
     .bind(user)
     .fetch_one(pool)
     .await
