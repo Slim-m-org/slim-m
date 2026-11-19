@@ -368,6 +368,8 @@ After one quiet catch-up the store must agree with the model: nothing missing ab
 A second test runs two controllers over one database, as two browser tabs do, each with its own wire.
 That one is held to what a single socket can do (frames in order, a loss drops everything in flight and is followed by a catch-up), because a tab that applies a delete it never saw created is not something a socket produces.
 `SLIMM_FULL_FUZZ=1` runs the full seed range.
+The two-tab case also runs in a real browser: the e2e scenario in `scripts/lib/e2e_tabs_delete.py` holds one tab's script with the debugger while the other sees a message arrive and go, then lets it replay both frames.
+The lifecycle freeze (`Page.setWebLifecycleState`) looks like the natural tool and is not: a headless tab ignores it, and the scenario passed with the rule switched off.
 When `sync.rs` changes what a scope answers, change the model with it.
 
 Known gaps, none of them fixed here:
