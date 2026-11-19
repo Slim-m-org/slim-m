@@ -94,7 +94,7 @@ def expected_files(db_path):
     return found, malformed
 
 
-def _is_present(path, size):
+def is_present(path, size):
     if not path.is_file():
         return False
     actual = path.stat().st_size
@@ -114,7 +114,7 @@ def sync(snapshot_db, source_media_dir, mirror_dir):
         except path_guard.PathValidationError as error:
             malformed.append(str(error))
             continue
-        if size is not None and _is_present(dest, size):
+        if size is not None and is_present(dest, size):
             already_present += 1
             continue
         if not src.is_file():
@@ -142,7 +142,7 @@ def check(restored_db, mirror_dir):
         except path_guard.PathValidationError as error:
             malformed.append(str(error))
             continue
-        if _is_present(path, size):
+        if is_present(path, size):
             verified += 1
         else:
             missing.append(f"{directory}/{name}")

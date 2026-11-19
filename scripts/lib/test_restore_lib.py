@@ -2,11 +2,14 @@
 """A backup restores into a data directory holding everything its database references."""
 import contextlib
 import io
+import os
+import shutil
 import sqlite3
 import sys
 import tempfile
 import unittest
 import uuid
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -148,6 +151,7 @@ class RestoreTest(RestoreTestCase):
 
         self.assertEqual(code, 1)
         self.assertIn("MISSING", output)
+        self.assertIn("--allow-missing-files", output)
         self.assertFalse((self.data_dir / "slimm.db").exists())
 
     def test_a_read_only_backup_still_restores(self):
@@ -187,6 +191,131 @@ class RestoreTest(RestoreTestCase):
 
         self.assertEqual(code, 1)
         self.assertIn("no database snapshot", output)
+
+
+class RestoreWithGapsTest(RestoreTestCase):
+    """A backup that lacks a file is still the way back, when the gap is filled or accepted."""
+
+    def _deployment_being_rolled_back(self):
+        shutil.copytree(self.live, self.data_dir)
+
+    def test_a_mirror_from_before_icons_were_backed_up_rolls_back_over_the_icon_still_there(self):
+        self._back_up()
+        (self.backup_root / "avatars" / "space-icon").unlink()
+        self._deployment_being_rolled_back()
+
+        code, output = self._restore("--force")
+
+        self.assertEqual(code, 0, output)
+        self.assertEqual((self.data_dir / "media" / "avatars" / "space-icon").read_bytes(), b"icon")
+        self.assertIn("avatars/space-icon", output)
+        self.assertNotIn("MISSING", output)
+
+    def test_an_attachment_only_the_data_directory_holds_must_still_hash_to_its_name(self):
+        self._back_up()
+        (self.backup_root / "attachments" / self.sha.hex()).unlink()
+        self._deployment_being_rolled_back()
+        rotted = bytes(len(self.photo))
+        (self.data_dir / "media" / "attachments" / self.sha.hex()).write_bytes(rotted)
+
+        code, output = self._restore("--force")
+
+        self.assertEqual(code, 1)
+        self.assertRegex(output, rf"MISSING +attachments/{self.sha.hex()}")
+        self.assertEqual((self.data_dir / "slimm.db").read_bytes(),
+                         (self.live / "slimm.db").read_bytes())
+
+    def test_allow_missing_files_restores_everything_else_and_names_what_it_skipped(self):
+        self._back_up()
+        (self.backup_root / "attachments" / self.sha.hex()).unlink()
+
+        code, output = self._restore("--allow-missing-files")
+
+        self.assertEqual(code, 0, output)
+        self.assertTrue((self.data_dir / "slimm.db").is_file())
+        self.assertEqual((self.data_dir / "media" / "avatars" / "space-icon").read_bytes(), b"icon")
+        self.assertIn(f"NOT RESTORED  attachments/{self.sha.hex()}", output)
+
+    def test_a_row_that_names_no_file_is_refused_then_skipped_when_allowed(self):
+        self._back_up()
+        snapshot = next((self.backup_root / "db").glob("slimm-*.db"))
+        conn = sqlite3.connect(str(snapshot))
+        conn.execute("INSERT INTO attachments (sha256, size, content_type, created_at) "
+                     "VALUES (x'0102', 2, 'image/png', 0)")
+        conn.commit()
+        conn.close()
+
+        refused, _ = self._restore()
+        allowed, output = self._restore("--allow-missing-files")
+
+        self.assertEqual((refused, allowed), (1, 0), output)
+        self.assertIn("MALFORMED", output)
+
+    def test_a_damaged_snapshot_is_refused_even_when_missing_files_are_allowed(self):
+        self._back_up()
+        snapshot = next((self.backup_root / "db").glob("slimm-*.db"))
+        snapshot.write_bytes(b"not a database at all" * 64)
+
+        code, output = self._restore("--allow-missing-files")
+
+        self.assertEqual(code, 1)
+        self.assertIn("integrity", output)
+        self.assertFalse((self.data_dir / "slimm.db").exists())
+
+    def test_a_damaged_module_file_is_a_gap_like_any_other(self):
+        self._back_up()
+        (self.backup_root / "modules" / "notes.db").write_bytes(b"torn" * 300)
+
+        refused, _ = self._restore()
+        allowed, output = self._restore("--allow-missing-files")
+
+        self.assertEqual((refused, allowed), (1, 0), output)
+        self.assertIn("NOT RESTORED  modules/notes.db", output)
+        self.assertFalse((self.data_dir / "modules" / "notes.db").exists())
+
+
+class RestoreInPlaceTest(RestoreTestCase):
+    """A rollback rewrites only what differs, and never leaves a half-written file under a real name."""
+
+    def test_an_attachment_already_in_the_data_directory_is_not_rewritten(self):
+        self._back_up()
+        shutil.copytree(self.live, self.data_dir)
+        attachment = self.data_dir / "media" / "attachments" / self.sha.hex()
+        before = attachment.stat().st_ino
+
+        code, output = self._restore("--force")
+
+        self.assertEqual(code, 0, output)
+        self.assertEqual(attachment.stat().st_ino, before)
+        self.assertIn("1 already in place", output)
+
+    def test_an_attachment_of_the_wrong_size_is_replaced(self):
+        self._back_up()
+        shutil.copytree(self.live, self.data_dir)
+        attachment = self.data_dir / "media" / "attachments" / self.sha.hex()
+        attachment.write_bytes(b"cut short")
+
+        code, _ = self._restore("--force")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(attachment.read_bytes(), self.photo)
+
+    def test_a_file_arrives_under_a_temporary_name_first(self):
+        self._back_up()
+        seen = []
+        real_replace = os.replace
+
+        def watching(source, dest):
+            seen.append((Path(source).name, Path(dest).name))
+            return real_replace(source, dest)
+
+        with mock.patch("os.replace", watching):
+            code, _ = self._restore()
+
+        self.assertEqual(code, 0)
+        self.assertIn((f".tmp-restore-{self.sha.hex()}", self.sha.hex()), seen)
+        leftovers = [p.name for p in self.data_dir.rglob(".tmp-restore-*")]
+        self.assertEqual(leftovers, [])
 
 
 if __name__ == "__main__":

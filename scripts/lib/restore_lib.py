@@ -6,29 +6,27 @@ is written when it fails. Then the snapshot becomes `slimm.db`, and every file
 that snapshot references is copied out of the mirror: attachments, avatars,
 the banners, icons and kept originals of backup_side_files.py, and the module
 data files. Files the mirror holds for rows since deleted are left behind.
+restore_plan.py decides which files are copied, already there, or missing.
 
 The server must be stopped. A data directory that already holds a database is
 refused unless --force, which moves the old database aside instead of
 deleting it. docs/OPERATING.md, Backups and restore, has the commands.
 """
 import argparse
-import contextlib
-import io
 import os
 import shutil
-import sqlite3
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import backup_modules
-import backup_side_files
-import path_guard
 import restore_drill_lib
+import restore_plan
 
 # The uid and gid the server image runs as.
 SERVER_OWNER = "65532:65532"
 KEY_FILE = "slimm-data.key"
+# The server's own leftover sweep removes this prefix, should a restore be cut off mid-copy.
+PARTIAL_PREFIX = ".tmp-restore-"
 
 
 def _owner(raw):
@@ -54,56 +52,23 @@ def parse_args(argv):
                         "the user the server image runs as)")
     parser.add_argument("--force", action="store_true",
                         help="restore over an existing database, which is moved aside first")
+    parser.add_argument("--allow-missing-files", action="store_true",
+                        help="restore the database and every file the backup does hold, and list "
+                        "the files it lacks, instead of refusing")
     return parser.parse_args(argv)
 
 
-def verify_backup(snapshot, backup_root, data_dir):
-    """What the restore drill says about this snapshot: its exit code and its report.
-
-    The drill's scratch copy goes under the data directory, so the backup can be mounted read-only.
-    """
-    report = io.StringIO()
-    scratch = Path(data_dir, ".restore-check")
-    args = restore_drill_lib.parse_args([
-        "--backup-root", str(backup_root), "--db-snapshot", str(snapshot),
-        "--scratch-dir", str(scratch),
-    ])
-    try:
-        with contextlib.redirect_stdout(report), contextlib.redirect_stderr(report):
-            code = restore_drill_lib.run(args)
-    finally:
-        shutil.rmtree(scratch, ignore_errors=True)
-    return code, report.getvalue()
+def _copy_into_place(source, dest, partial):
+    """A cut-off copy never sits under the real name, and the file it replaces survives until the rename."""
+    shutil.copy2(source, partial)
+    os.replace(partial, dest)
 
 
-def _referenced_files(snapshot):
-    """Every media file the snapshot references, as (directory, name) under the mirror."""
-    conn = sqlite3.connect(f"file:{snapshot}?mode=ro", uri=True)
-    try:
-        attachments = conn.execute("SELECT sha256 FROM attachments").fetchall()
-        avatars = conn.execute(
-            "SELECT id FROM users WHERE avatar_updated_at IS NOT NULL AND deleted_at IS NULL"
-        ).fetchall()
-    finally:
-        conn.close()
-    files = [("attachments", path_guard.sha256_hex(blob)) for (blob,) in attachments]
-    files += [("avatars", path_guard.avatar_uuid(blob)) for (blob,) in avatars]
-    side_files, _ = backup_side_files.expected_files(snapshot)
-    files += [(directory, name) for directory, name, _ in side_files]
-    return files
-
-
-def _copy_media(snapshot, backup_root, media_dir):
-    copied = 0
-    for directory, name in _referenced_files(snapshot):
-        source = path_guard.contained_path(Path(backup_root, directory), name)
-        dest_dir = Path(media_dir, directory)
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        dest = path_guard.contained_path(dest_dir, name)
-        dest.unlink(missing_ok=True)
-        shutil.copy2(source, dest)
-        copied += 1
-    return copied
+def _copy_media(plan):
+    for source, dest in plan.copies:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        _copy_into_place(source, dest, dest.with_name(PARTIAL_PREFIX + dest.name))
+    return len(plan.copies)
 
 
 def _move_aside(database, stamp):
@@ -118,19 +83,18 @@ def _move_aside(database, stamp):
     return moved
 
 
-def _copy_modules(backup_root, modules_dir, stamp):
+def _copy_modules(plan, modules_dir, stamp):
     """Replaces each module data file, moving the old one aside with the WAL that would replay onto the new."""
-    sources = backup_modules.module_files(Path(backup_root, "modules"))
-    if sources:
-        Path(modules_dir).mkdir(parents=True, exist_ok=True)
+    if plan.modules:
+        modules_dir.mkdir(parents=True, exist_ok=True)
     moved = []
-    for source in sources:
-        dest = Path(modules_dir, source.name)
-        partial = Path(modules_dir, f".{source.name}.restoring")
+    for source in plan.modules:
+        dest = modules_dir / source.name
+        partial = modules_dir / f".{source.name}.restoring"
         shutil.copy2(source, partial)
         moved += _move_aside(dest, stamp)
         os.replace(partial, dest)
-    return len(sources), moved
+    return len(plan.modules), moved
 
 
 def _place_key(key_file, data_dir):
@@ -161,6 +125,24 @@ def _refusal(args, snapshot, database):
     return None
 
 
+def _backup_refusal(plan, allow_missing):
+    """Why this backup cannot be restored; a damaged database is never restored, whatever was allowed."""
+    if plan.integrity != "ok":
+        return f"the snapshot failed its integrity check ({plan.integrity})"
+    if plan.gaps and not allow_missing:
+        return (f"the backup lacks {plan.gaps} file(s) its database references. Pass "
+                "--allow-missing-files to restore the database and every file it does hold")
+    return None
+
+
+def _report_gaps(plan, restored):
+    marker = "NOT RESTORED" if restored else "MISSING   "
+    for name in plan.missing:
+        print(f"  {marker}  {name}", file=sys.stderr)
+    for reason in plan.malformed:
+        print(f"  MALFORMED   {reason}", file=sys.stderr)
+
+
 def run(args):
     backup_root, data_dir = Path(args.backup_root), Path(args.data_dir)
     snapshot = (Path(args.db_snapshot) if args.db_snapshot
@@ -171,26 +153,33 @@ def run(args):
         print(refusal, file=sys.stderr)
         return 1
 
-    data_dir.mkdir(parents=True, exist_ok=True)
-    code, report = verify_backup(snapshot, backup_root, data_dir)
-    if code != 0:
-        print(report, file=sys.stderr, end="")
-        print("the backup failed its check, so nothing was restored", file=sys.stderr)
+    plan = restore_plan.build(snapshot, backup_root, data_dir)
+    refusal = _backup_refusal(plan, args.allow_missing_files)
+    if refusal:
+        _report_gaps(plan, restored=False)
+        print(f"{refusal}, so nothing was restored", file=sys.stderr)
         return 1
 
+    data_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     moved = _move_aside(database, stamp)
-    partial = data_dir / ".slimm.db.restoring"
-    shutil.copyfile(snapshot, partial)
-    os.replace(partial, database)
-    media = _copy_media(snapshot, backup_root, data_dir / "media")
-    modules, moved_modules = _copy_modules(backup_root, data_dir / "modules", stamp)
+    _copy_into_place(snapshot, database, data_dir / ".slimm.db.restoring")
+    media = _copy_media(plan)
+    modules, moved_modules = _copy_modules(plan, data_dir / "modules", stamp)
     if args.data_key_file:
         _place_key(args.data_key_file, data_dir)
     owned = _give_to(args.owner, data_dir)
 
     print(f"restored {snapshot.name} to {database}")
-    print(f"media files: {media} copied; module data files: {modules} copied")
+    print(f"media files: {media} copied, {plan.in_place} already in place; "
+          f"module data files: {modules} copied")
+    if plan.kept:
+        print("not in the backup, so the copy already in the data directory was kept: "
+              + ", ".join(plan.kept))
+    if plan.gaps:
+        print(f"{plan.gaps} file(s) the database references are in neither the backup nor "
+              "the data directory:", file=sys.stderr)
+        _report_gaps(plan, restored=True)
     if moved:
         print(f"the database that was here is kept as {', '.join(moved)}")
     if moved_modules:
