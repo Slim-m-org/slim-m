@@ -246,6 +246,32 @@ void main() {
     },
   );
 
+  test(
+    'a call starting waits for a recording already being finished',
+    () async {
+      await started();
+      await rig.advance(const Duration(seconds: 3));
+      final finish = Completer<void>();
+      rig.capture.finishing = finish.future;
+      final stopping = rig.recorder.stop();
+      expect(rig.state.phase, VoicePhase.stopping);
+
+      var yielded = false;
+      final yielding = rig.container
+          .read(callStartYieldsProvider)
+          .callStarting()
+          .then((_) => yielded = true);
+      await pumpEventQueue();
+      expect(yielded, isFalse, reason: 'the microphone is still closing');
+
+      finish.complete();
+      await yielding;
+      await stopping;
+      expect(rig.capture.stopped, isTrue);
+      expect(rig.state.phase, VoicePhase.stopped);
+    },
+  );
+
   test('stopping by hand says nothing about a call', () async {
     await started();
     await rig.advance(const Duration(seconds: 3));

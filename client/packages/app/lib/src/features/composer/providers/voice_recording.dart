@@ -151,6 +151,10 @@ class VoiceRecorder
   final List<double> _samples = [];
   bool _sampling = false;
 
+  /// The latest stop of the microphone, which a call starting waits for: on
+  /// Android it clears the Bluetooth route the call takes.
+  Future<void> _closing = Future.value();
+
   /// Replaced in tests so elapsed time can be set by hand.
   @visibleForTesting
   DateTime Function() now = DateTime.now;
@@ -311,10 +315,11 @@ class VoiceRecorder
   }
 
   /// A call starting, or its account leaving the screen, stops a recording and
-  /// keeps the clip; one still opening is dropped.
+  /// keeps the clip; one still opening is dropped, one still closing awaited.
   Future<void> _giveWay({required bool forCall}) async {
     if (state.phase == VoicePhase.starting) return cancel();
     if (state.phase == VoicePhase.recording) await _finish(forCall: forCall);
+    await _closing;
   }
 
   /// Ends the recording and keeps the clip for [send]; a stray tap is dropped.
@@ -338,7 +343,9 @@ class VoiceRecorder
     );
     final VoiceCapture? capture;
     try {
-      capture = await backend.stop();
+      final stopping = backend.stop();
+      _closing = stopping.then<void>((_) {}, onError: (Object _) {});
+      capture = await stopping;
     } on Object catch (error, stack) {
       AppLog.swallowed(
         LogTag.voice,
