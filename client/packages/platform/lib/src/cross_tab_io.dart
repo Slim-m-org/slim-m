@@ -14,5 +14,5 @@ class _SingleProcess implements CrossTab {
   Future<bool> anotherTabIsOpen() async => false;
 
   @override
-  String? get tabId => null;
+  Future<String?> get tabId => Future.value();
 }

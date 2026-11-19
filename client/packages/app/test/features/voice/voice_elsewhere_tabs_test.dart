@@ -26,10 +26,12 @@ const _tokens = TokenPair(
 );
 
 class _Tab implements CrossTab {
-  _Tab(this.tabId);
+  _Tab(this._id);
+
+  final String _id;
 
   @override
-  final String? tabId;
+  Future<String?> get tabId async => _id;
 
   @override
   Future<T> exclusive<T>(String name, Future<T> Function() body) => body();

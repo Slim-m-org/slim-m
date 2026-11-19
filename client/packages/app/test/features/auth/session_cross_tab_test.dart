@@ -31,7 +31,7 @@ class _FakeTabs implements CrossTab {
   Future<bool> anotherTabIsOpen() async => false;
 
   @override
-  String? get tabId => null;
+  Future<String?> get tabId => Future.value();
 }
 
 const _mine = TokenPair(

@@ -38,15 +38,26 @@ void Function() _blockSessionStorage() {
 void main() {
   tearDown(() => web.window.sessionStorage.removeItem(_key));
 
-  test('a reload keeps the id its tab left in session storage', () {
+  test('a reload keeps the id its tab left in session storage', () async {
     web.window.sessionStorage.setItem(_key, 'ab12');
-    expect(CrossTab().tabId, 'ab12');
+    expect(await CrossTab().tabId, 'ab12');
   });
 
-  test('a tab whose session storage is blocked sends no id at all', () {
+  test(
+      'a duplicated tab, holding a copy of the session storage, takes an '
+      'id of its own', () async {
+    web.window.sessionStorage.setItem(_key, 'cd34');
+    final original = await CrossTab().tabId;
+    final duplicate = await CrossTab().tabId;
+    expect(original, 'cd34');
+    expect(duplicate, isNot(original));
+    expect(web.window.sessionStorage.getItem(_key), duplicate);
+  });
+
+  test('a tab whose session storage is blocked sends no id at all', () async {
     addTearDown(_blockSessionStorage());
     expect(
-      CrossTab().tabId,
+      await CrossTab().tabId,
       isNull,
       reason: 'a fresh id on every load would make a reload its own stranger',
     );

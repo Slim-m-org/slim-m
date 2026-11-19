@@ -148,7 +148,7 @@ class SlimmApi {
 
   /// The id a browser tab keeps for itself, sent with each voice join and
   /// roster read so another tab's call never reads as this one's.
-  String? voiceTab;
+  Future<String?> voiceTab = Future.value();
 
   /// The WebSocket URL for this server, with the scheme mapped from http(s).
   Uri get webSocketUrl {

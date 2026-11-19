@@ -18,12 +18,14 @@ const _presenceLock = 'slimm-tab-open';
 /// Once per tab, however many accounts it hosts, so the held count is the tab count.
 var _presenceHeld = false;
 
+/// What a lock callback returns to hold its lock until the tab goes.
+final _forever = Completer<JSAny?>().future.toJS;
+
 void _holdPresence() {
   final locks = _locks;
   if (_presenceHeld || locks == null) return;
   _presenceHeld = true;
-  final forever = Completer<JSAny?>().future.toJS;
-  final granted = ((JSAny? _) => forever).toJS;
+  final granted = ((JSAny? _) => _forever).toJS;
   unawaited(
     locks
         .request(_presenceLock, web.LockOptions(mode: 'shared'), granted)
@@ -59,12 +61,16 @@ const _tabIdKey = 'slimm.tab_id';
 
 /// Null when session storage is out of reach, so the server falls back to the
 /// device's own tag, which a reload still matches.
-String? _readOrMakeTabId() {
+Future<String?> _claimTabId() async {
   try {
     final storage = web.window.sessionStorage;
     final held = storage.getItem(_tabIdKey);
-    if (held != null && held.isNotEmpty) return held;
+    // A duplicated tab copies session storage, so the id is ours only if no live tab holds it.
+    if (held != null && held.isNotEmpty && await _holdForTheTab(held)) {
+      return held;
+    }
     final made = _randomTabId();
+    await _holdForTheTab(made);
     storage.setItem(_tabIdKey, made);
     return made;
   } on Object catch (error, stack) {
@@ -78,6 +84,41 @@ String? _readOrMakeTabId() {
   }
 }
 
+/// Holds [id]'s lock for the life of this tab; false when another live tab
+/// holds it. A reload's old document lets go of it before the new one asks.
+Future<bool> _holdForTheTab(String id) {
+  final locks = _locks;
+  if (locks == null) return Future.value(true);
+  final held = Completer<bool>();
+  JSAny? granted(web.Lock? lock) {
+    held.complete(lock != null);
+    return lock == null ? null : _forever;
+  }
+
+  unawaited(
+    locks
+        .request(
+          'slimm.tab.$id',
+          web.LockOptions(ifAvailable: true),
+          granted.toJS,
+        )
+        .toDart
+        .then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stack) {
+        AppLog.swallowed(
+          LogTag.platform,
+          'Could not hold this tab id; keeping it unchecked',
+          error,
+          stack,
+        );
+        if (!held.isCompleted) held.complete(true);
+      },
+    ),
+  );
+  return held.future;
+}
+
 String _randomTabId() {
   final random = Random.secure();
   return List.generate(
@@ -88,7 +129,7 @@ String _randomTabId() {
 
 class _BrowserTabs implements CrossTab {
   @override
-  late final String? tabId = _readOrMakeTabId();
+  late final Future<String?> tabId = _claimTabId();
 
   @override
   Future<T> exclusive<T>(String name, Future<T> Function() body) {
