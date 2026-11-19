@@ -142,6 +142,31 @@ void main() {
     },
   );
 
+  group('a catch-up answer landing in a tab the other tab has moved past', () {
+    Future<(SyncModelWorld, SyncModelWorld)> tabs() async {
+      final first = await _world();
+      final second = SyncModelWorld(server: first.server, sharing: first);
+      await second.open();
+      addTearDown(second.close);
+      return (first, second);
+    }
+
+    test('does not bring back a message the other tab deleted', () async {
+      final (first, second) = await tabs();
+      await first.controller.reconcile();
+      first.wire.add(first.server.send('hello'));
+      await second.startHeldCatchUp();
+      await first.deliver();
+      first.wire.add(first.server.delete(first.server.messages.single));
+      await first.deliver();
+
+      second.releaseAnswer();
+      await pumpEventQueue(times: 20);
+
+      expect(await first.contentOf('m1'), isNull);
+    });
+  });
+
   group('a live op for a channel with no op cursor', () {
     test('does not start the cursor past ops nobody applied', () async {
       final world = await _world();

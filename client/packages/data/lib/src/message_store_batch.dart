@@ -33,7 +33,12 @@ Future<void> applyMessagesBatched(
           in await (db.select(db.messages)..where((m) => m.id.isIn(ids))).get())
         row.id: row,
     };
-    final winners = batchWinners(incoming, stored);
+    final winners = batchWinners(
+      advance == CursorAdvance.always
+          ? await _notAlreadyCovered(store, incoming, stored)
+          : incoming,
+      stored,
+    );
     if (winners.isEmpty) return;
     final writes = [
       for (final message in winners.values)
@@ -59,6 +64,29 @@ Future<void> applyMessagesBatched(
       await store.advanceMentionCursor(entry.key, entry.value);
     }
   });
+}
+
+/// The sync stream's rows, less those at or below their channel's cursor that
+/// are not held: the cursor passed them, so a missing one was deleted since.
+///
+/// The cursor can pass a page still in flight when live frames land first, or
+/// when another tab on the same database applied it, and only that tab
+/// remembers the delete.
+Future<List<api.Message>> _notAlreadyCovered(
+  MessageStore store,
+  List<api.Message> incoming,
+  Map<String, MessageRow> stored,
+) async {
+  final cursors = <String, int>{};
+  for (final channelId in {for (final m in incoming) m.channelId}) {
+    cursors[channelId] = await store.cursorFor(channelId) ?? 0;
+  }
+  return [
+    for (final message in incoming)
+      if (message.seq > cursors[message.channelId]! ||
+          stored.containsKey(message.id))
+        message,
+  ];
 }
 
 /// Whether [prior] already holds an edit newer than [message] carries. A

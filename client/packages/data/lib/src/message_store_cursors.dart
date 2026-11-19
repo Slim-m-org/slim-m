@@ -42,7 +42,8 @@ enum CursorAdvance {
   whenContiguous,
 
   /// Whatever the rows: they are the sync stream's own answer to the cursor,
-  /// where a seq the server no longer lists is not a gap.
+  /// where a seq the server no longer lists is not a gap. A row the cursor
+  /// has since passed is only written when it is already held.
   always,
 }
 
