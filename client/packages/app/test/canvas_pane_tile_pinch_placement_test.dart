@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// `canvas_surface_gestures_test.dart`'s own pinch-cancellation guard
-/// (`_resolvePendingPlacement`, gated on this surface's own `_pointers`
+/// (`CanvasPendingPlacement.resolve`, gated on this surface's own pointers
 /// dropping to zero) only ever sees a second finger that lands on bare
 /// canvas. `CanvasPresenceLayer` paints an unlocked tile's opaque
 /// `GestureDetector` above `CanvasSurface`, so a second finger landing on a
