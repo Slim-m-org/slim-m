@@ -97,7 +97,9 @@ services:
           tcp_port: ${LIVEKIT_TCP_PORT:-7881}
           port_range_start: ${LIVEKIT_UDP_PORT_START:-50000}
           port_range_end: ${LIVEKIT_UDP_PORT_END:-50100}
-          use_external_ip: true
+          # Both defaults suit a host reached from the internet; a LAN-only host sets them, deploy/README.md.
+          use_external_ip: ${LIVEKIT_USE_EXTERNAL_IP:-true}
+          node_ip: "${LIVEKIT_NODE_IP:-}"
           # Explicit so a changed server default cannot silently start pausing tracks.
           congestion_control:
             enabled: true
