@@ -99,13 +99,13 @@ async fn may_report(
 }
 
 /// Has every roster of the channel re-read, so a viewer outside the call sees the new icon.
-/// Only for a caller with a call on record there, so a bystander cannot make the channel refetch.
+/// The cached read always drops, since that is local; only a caller with a call on record makes
+/// the channel refetch, so a bystander cannot.
 fn nudge_roster(state: &AppState, ctx: &SessionContext, channel_id: ChannelId) {
-    if !state.voice.has_heartbeat(ctx.user_id, channel_id) {
-        return;
-    }
     state.voice.roster_cache().invalidate(channel_id);
-    state
-        .hub
-        .publish(Event::VoiceActivityChanged { channel_id });
+    if state.voice.has_heartbeat(ctx.user_id, channel_id) {
+        state
+            .hub
+            .publish(Event::VoiceActivityChanged { channel_id });
+    }
 }

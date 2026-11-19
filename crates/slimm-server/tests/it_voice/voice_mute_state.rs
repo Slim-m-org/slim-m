@@ -94,6 +94,11 @@ impl World {
             .await
             .0
     }
+
+    async fn beat(&self, who: &Account) -> StatusCode {
+        let uri = format!("/channels/{}/voice/heartbeat", self.channel);
+        call_as(&self.app, "POST", &uri, &who.token, None).await.0
+    }
 }
 
 fn nudged(rx: &mut Receiver<Event>, channel: ChannelId) -> bool {
@@ -193,4 +198,37 @@ async fn muting_needs_connect_and_a_voice_deployment() {
     )
     .await;
     assert_eq!(status, StatusCode::NOT_IMPLEMENTED);
+}
+
+#[tokio::test]
+async fn a_report_before_the_first_heartbeat_still_drops_the_cached_roster() {
+    let w = world("slimm-deafen-before-beat").await;
+    w.recorder.seat_listing(vec![entry(w.bob.id, false, false)]);
+    assert_eq!(w.shown(w.bob.id).await.1, json!(false));
+
+    w.recorder.seat_listing(vec![entry(w.bob.id, false, true)]);
+    assert_eq!(
+        w.report(&w.bob, "deafened", true).await,
+        StatusCode::NO_CONTENT
+    );
+
+    assert_eq!(
+        w.shown(w.bob.id).await.1,
+        json!(true),
+        "a roster read from before the deafen is not served after it"
+    );
+}
+
+#[tokio::test]
+async fn a_first_heartbeat_nudge_is_never_answered_from_before_it() {
+    let w = world("slimm-first-beat-fresh").await;
+    w.recorder.seat_listing(vec![entry(w.bob.id, false, false)]);
+    assert_eq!(w.shown(w.bob.id).await, (json!(false), json!(false)));
+
+    w.recorder.seat_listing(vec![entry(w.bob.id, true, true)]);
+    let mut rx = w.hub.subscribe();
+    assert_eq!(w.beat(&w.bob).await, StatusCode::NO_CONTENT);
+
+    assert!(nudged(&mut rx, w.channel), "a first heartbeat is a join");
+    assert_eq!(w.shown(w.bob.id).await, (json!(true), json!(true)));
 }

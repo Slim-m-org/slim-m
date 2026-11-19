@@ -210,6 +210,8 @@ async fn heartbeat(
         .voice
         .record_heartbeat_reporting_new(ctx.user_id, channel_id);
     if is_a_real_join {
+        // A report sent before this first beat could not nudge, so the cached read may predate it.
+        state.voice.roster_cache().invalidate(channel_id);
         state
             .hub
             .publish(Event::VoiceActivityChanged { channel_id });
