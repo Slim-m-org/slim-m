@@ -92,6 +92,31 @@ void main() {
     await setup.dispose();
   });
 
+  test('hidden to the tray, a message still raises its notification', () async {
+    if (!isDesktopHost) return;
+    addTearDown(
+      () => binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed),
+    );
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    final setup = await wireNotifier();
+
+    setup.events.add(
+      api.MessageCreated(
+        notifierMessage(
+          id: 'm1',
+          authorId: 'alice',
+          authorDisplayName: 'Alice',
+          channelId: 'group-1',
+        ),
+      ),
+    );
+    await settleNotifier(setup);
+
+    expect(setup.notifications.shown, ['Alice in #general: hi']);
+    await setup.dispose();
+  });
+
   test('the banner carries the server and channel it was posted for', () async {
     if (!isDesktopHost) return;
     binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);

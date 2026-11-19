@@ -72,6 +72,11 @@ void main() {
     await h.store.applyMessages([channelMessage(4)]);
     await flush(tester);
 
+    expect(
+      find.text('message 4'),
+      findsOneWidget,
+      reason: 'a window on a second monitor shows it without being clicked',
+    );
     expect(await _lastReadSeq(h.db), 3);
 
     window.setFocused(true);
