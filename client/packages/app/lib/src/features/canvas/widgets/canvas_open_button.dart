@@ -31,7 +31,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/header_icon_action.dart';
 import '../../voice/providers/voice_flags.dart';
-import '../screens/canvas_pane.dart';
+import '../providers/canvas_open.dart';
 
 const canvasOpenButtonKey = Key('canvas_open_button');
 

@@ -12,7 +12,6 @@ import 'package:flutter_test/flutter_test.dart';
 /// shared piece down a layer, then delete its line.
 const _knownExceptions = {
   // Widgets that open a screen or pane.
-  'features/canvas/widgets/canvas_open_button.dart -> features/canvas/screens/canvas_pane.dart',
   'features/channels/widgets/channel_row_menu.dart -> features/channels/screens/channel_settings_screen.dart',
   'features/channels/widgets/compact_channel_app_bar.dart -> features/voice/screens/voice_text_pane.dart',
   'features/channels/widgets/dm_row.dart -> features/voice/screens/dm_call_pane.dart',
