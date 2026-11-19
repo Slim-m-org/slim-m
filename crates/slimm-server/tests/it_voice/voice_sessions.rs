@@ -241,7 +241,44 @@ async fn startup_closes_every_session_left_open() {
         .await;
     w.deliver("participant_joined", Some((w.other, "PA_2")))
         .await;
-    slimm_server::reconcile_on_startup(&w.store).await;
+    slimm_server::reconcile_on_startup(&w.store, &w.voice).await;
+    assert!(w.sessions().await.iter().all(|r| !r["left_at"].is_null()));
+}
+
+/// A deploy restarts this server under a call the SFU keeps carrying.
+#[tokio::test]
+async fn startup_carries_on_the_session_of_a_member_still_on_the_call() {
+    let w = world("slimm-vs-startup-live").await;
+    w.deliver("participant_joined", Some((w.user, "PA_1")))
+        .await;
+    w.deliver("participant_joined", Some((w.other, "PA_2")))
+        .await;
+    let sfu = support::fake_sfu::RecordingRoomService::default();
+    sfu.seat_listing(vec![
+        json!({ "identity": w.user.to_string(), "sid": "PA_1" }),
+        json!({ "identity": w.other.to_string(), "sid": "PA_later" }),
+    ]);
+    let url = support::fake_sfu::spawn_sfu(sfu).await;
+    let voice = VoiceService::for_test(&url, API_KEY, API_SECRET);
+
+    slimm_server::reconcile_on_startup(&w.store, &voice).await;
+
+    let rows = w.sessions().await;
+    let open: Vec<&Value> = rows.iter().filter(|r| r["left_at"].is_null()).collect();
+    assert_eq!(open.len(), 1, "{rows:?}");
+    assert_eq!(open[0]["sid"], "PA_1");
+    let ended = rows
+        .iter()
+        .find(|r| r["sid"] == "PA_1" && !r["left_at"].is_null());
+    assert_eq!(
+        ended.expect("the stretch before the restart")["left_at"],
+        open[0]["joined_at"],
+        "the two rows must meet, so no call time is lost or counted twice"
+    );
+    assert_eq!(
+        w.deliver("participant_left", Some((w.user, "PA_1"))).await,
+        StatusCode::NO_CONTENT
+    );
     assert!(w.sessions().await.iter().all(|r| !r["left_at"].is_null()));
 }
 
