@@ -356,7 +356,7 @@ extension SlimmApiTransport on SlimmApi {
           timeoutReason: timeoutReason,
         ),
       404 => NotFoundException(reason, unexplained: !explained),
-      409 => ConflictException(reason, item: item, items: items),
+      409 => ConflictException(reason, item: item, items: items, code: code),
       429 => RateLimitedException(
           reason,
           retryAfter: _retryAfter(response) ?? bodyRetryAfter,

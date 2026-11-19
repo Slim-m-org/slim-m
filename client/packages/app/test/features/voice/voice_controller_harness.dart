@@ -49,6 +49,7 @@ const tokens = TokenPair(
 /// change to how `/voice/token` answers.
 /// [listedOnThisDevice] has the room list this account: on this device, or on another when false.
 /// [rosterUnreadable] answers the room's list with a 503 for as long as it says so.
+/// [refuseComeback] refuses a token asked with `automatic=true`, as a server whose account is on a call elsewhere does.
 http.Client voiceApi({
   int status = 200,
   bool canPublish = true,
@@ -57,6 +58,7 @@ http.Client voiceApi({
   int? callAgeMs,
   bool? listedOnThisDevice,
   bool Function()? rosterUnreadable,
+  bool refuseComeback = false,
   void Function(http.Request request)? onRequest,
 }) {
   final listed = listedOnThisDevice == null
@@ -80,6 +82,14 @@ http.Client voiceApi({
     }
     if (!request.url.path.endsWith('/voice/token')) {
       return http.Response('{}', 404);
+    }
+    if (refuseComeback && request.url.queryParameters['automatic'] == 'true') {
+      return http.Response(
+        '{"error":"this account is on a call on another device",'
+        '"code":"on_call_elsewhere"}',
+        409,
+        headers: {'content-type': 'application/json'},
+      );
     }
     if (status != 200) {
       return http.Response(

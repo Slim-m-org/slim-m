@@ -108,7 +108,21 @@ class NotFoundException extends ApiException {
 /// The request collided with existing state, for example reusing a message id
 /// that already belongs to a different channel or author.
 class ConflictException extends ApiException {
-  const ConflictException(super.message, {this.item, this.items = const []});
+  const ConflictException(
+    super.message, {
+    this.item,
+    this.items = const [],
+    this.code,
+  });
+
+  /// The server's stable reason, such as [onCallElsewhereCode], when it names one.
+  final String? code;
+
+  /// An automatic rejoin refused: the account is on a call elsewhere by now.
+  bool get isOnCallElsewhere => code == onCallElsewhereCode;
+
+  /// Mirrors `ELSEWHERE_CODE` in the server's `http/voice/voice_one_call.rs`.
+  static const onCallElsewhereCode = 'on_call_elsewhere';
 
   /// The entry of a batch request the server refused, when it names one.
   final ItemRefusal? item;

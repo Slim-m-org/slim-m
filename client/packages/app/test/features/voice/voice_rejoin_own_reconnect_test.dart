@@ -9,6 +9,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_rejoin.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_controller_harness.dart';
@@ -46,8 +47,9 @@ void main() {
 
   ({VoiceController controller, _RejoiningSession session}) inCallThenBlamed(
     FakeAsync async,
-    http.Client api,
-  ) {
+    http.Client api, {
+    VoiceDisconnect drop = VoiceDisconnect.replacedByOtherDevice,
+  }) {
     final session = _RejoiningSession();
     final controller = harness.controllerWith(
       session,
@@ -57,7 +59,7 @@ void main() {
     unawaited(controller.join('channel-1'));
     async.flushMicrotasks();
     expect(controller.state.state, VoiceSessionState.connected);
-    session.dropWith(VoiceDisconnect.replacedByOtherDevice);
+    session.dropWith(drop);
     async.flushMicrotasks();
     return (controller: controller, session: session);
   }
@@ -256,6 +258,65 @@ void main() {
         call.controller.state.error,
         VoiceDisconnect.connectionLost.message,
       );
+    });
+  });
+
+  Iterable<http.Request> tokenAsks(List<http.Request> seen) =>
+      seen.where((r) => r.url.path.endsWith('/voice/token'));
+
+  test('a comeback gives way to a call the account made since', () {
+    fakeAsync((async) {
+      final seen = <http.Request>[];
+      final call = inCallThenBlamed(
+        async,
+        voiceApi(refuseComeback: true, onRequest: seen.add),
+        drop: VoiceDisconnect.connectionLost,
+      );
+      expect(call.controller.state.rejoining, isTrue);
+      expect(
+        tokenAsks(seen).single.url.queryParameters,
+        isNot(contains('automatic')),
+        reason: 'a person\'s own join moves the call, so it is never refused',
+      );
+
+      async.elapse(delays.reduce((a, b) => a + b) * 2);
+      async.flushMicrotasks();
+
+      expect(tokenAsks(seen), hasLength(2), reason: 'refused once is refused');
+      expect(tokenAsks(seen).last.url.queryParameters['automatic'], 'true');
+      expect(call.session.joins, 1);
+      expect(call.controller.state.rejoining, isFalse);
+      expect(call.controller.state.state, VoiceSessionState.failed);
+      expect(call.controller.state.error, VoiceRejoin.onCallElsewhere);
+      expect(
+        call.controller.state.retryable,
+        isTrue,
+        reason: 'moving the call back here is the person\'s to choose',
+      );
+
+      unawaited(call.controller.leave());
+      async.flushMicrotasks();
+      expect(forgets(seen), 0, reason: 'the call on record is not this one');
+    });
+  });
+
+  test('a person can still move the call back after a refused comeback', () {
+    fakeAsync((async) {
+      final call = inCallThenBlamed(
+        async,
+        voiceApi(refuseComeback: true),
+        drop: VoiceDisconnect.connectionLost,
+      );
+      async.elapse(delays.first);
+      async.flushMicrotasks();
+      expect(call.session.joins, 1);
+
+      unawaited(call.controller.join('channel-1'));
+      async.flushMicrotasks();
+
+      expect(call.session.joins, 2);
+      expect(call.controller.state.state, VoiceSessionState.connected);
+      expect(call.controller.state.error, isNull);
     });
   });
 }

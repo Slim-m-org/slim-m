@@ -37,6 +37,10 @@ class VoiceRejoin {
   /// The channel whose call another device of this account is known to hold.
   String? _heldElsewhere;
 
+  /// Shown when this device stayed out of a call because the account is on one elsewhere.
+  static const onCallElsewhere =
+      "You're on a call on another device, so this one did not rejoin.";
+
   /// Whether [channelId]'s place on record is not this device's to end: another device holds
   /// the call, or the SFU blamed one for the drop and nothing has cleared it yet.
   bool heldElsewhere(String? channelId) =>
@@ -47,6 +51,15 @@ class VoiceRejoin {
   void connected() {
     _blamedOnOtherDevice = null;
     _heldElsewhere = null;
+  }
+
+  /// The server refused this device's own comeback to [channelId]: the account's call is elsewhere by now.
+  void noteOnCallElsewhere(String channelId) {
+    if (_current.channelId != channelId) return;
+    _blamedOnOtherDevice = null;
+    _heldElsewhere = channelId;
+    _callClock.forget();
+    _access.state = _current.copyWith(error: onCallElsewhere, rejoining: false);
   }
 
   VoiceState get _current => _access.state;
@@ -179,6 +192,7 @@ class VoiceRejoin {
     }
     if (_current.channelId != channelId) return;
     if (_current.state == VoiceSessionState.connected) return;
+    if (_heldElsewhere == channelId) return;
     // A refusal that cannot change (forbidden, no voice, insecure SFU) is the person's to act on.
     if (!_current.retryable) {
       _access.state = _current.copyWith(rejoining: false);

@@ -100,7 +100,7 @@ class VoiceController extends StateNotifier<VoiceState> {
       callGeneration: () => _callGeneration,
     );
     _rejoin = VoiceRejoin(access, _autoRejoin, _callClock, _ref, join);
-    _sfu = VoiceSfuConnect(_session, _ref, access, _joinMuted, input);
+    _sfu = VoiceSfuConnect(_session, _ref, access, _joinMuted, input, _rejoin);
     _sync = VoiceSessionSync(
       session: _session,
       access: access,
