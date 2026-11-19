@@ -92,6 +92,15 @@ main reached 2,785,656 by 0.131.0, and #2423 (the batch after it) reached 2,831,
 Raising it is a decision, made in the same pull request as the growth with the reason in its body, like the server's binary budget (30 MiB since 2026-11-16, see docs/dependencies.md).
 Run it locally after `flutter build web --release` in `client/packages/app`.
 
+### Android builds download from Google's Maven Central mirror first
+
+Maven Central and the Gradle plugin portal answer GitHub's shared runner addresses with 429 Too Many Requests often enough that android builds failed on dependency downloads, before any of our code built (three times on 2026-11-18 alone).
+The setup-java Gradle cache does not break that loop by itself, because it is saved only after a job succeeds.
+`.github/actions/gradle-mirror` installs an init script in `~/.gradle/init.d` that puts `maven-central.storage-download.googleapis.com` first in every build's repositories, Flutter's own included `flutter_tools/gradle` build too, and raises Gradle's download retries to 8 with a 2 s backoff.
+The mirror skips plugin markers and Google's own groups (`com.android`, `androidx`, `com.google.android`, `com.google.firebase`, `com.google.gms`, `com.google.mlkit`), because those differ from Central's copies and dependency verification pins the originals.
+A build whose settings declare no plugin repositories gets the plugin portal back after the mirror, and a build that fails on project repositories (flutter_tools sets `FAIL_ON_PROJECT_REPOS`) keeps its settings list.
+Checked from an empty Gradle home: the release runtime classpath resolves with verification on, with about 1,200 downloads through the mirror and 14 left on Central.
+
 ### Native build hooks are cached, and explain their own failures
 
 Every job that runs `flutter build` or `flutter test` (here, in `client-macos-ci`, `client-windows-ci`, `client-ios-ci`, `desktop-clients`, `main-builds`, `release` and `flatpak-ci`) uses two composite actions.
