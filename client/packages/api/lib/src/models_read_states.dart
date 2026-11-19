@@ -80,6 +80,7 @@ class ScopeDelta {
     this.ops = const <MessageOp>[],
     this.opLatestSeq,
     this.opsHasMore = false,
+    this.mentionedSeq,
   });
 
   final String channelId;
@@ -112,6 +113,10 @@ class ScopeDelta {
   /// More ops remain past what this response carried.
   final bool opsHasMore;
 
+  /// The newest live message here that mentions this account, 0 when none
+  /// does; null from a server too old to say, which a reset then cannot keep.
+  final int? mentionedSeq;
+
   factory ScopeDelta.fromJson(Map<String, dynamic> json) => ScopeDelta(
         channelId: json['channel_id'] as String,
         messages: (json['messages'] as List<dynamic>)
@@ -124,5 +129,6 @@ class ScopeDelta {
             .toList(growable: false),
         opLatestSeq: json['op_latest_seq'] as int?,
         opsHasMore: json['ops_has_more'] as bool? ?? false,
+        mentionedSeq: json['mentioned_seq'] as int?,
       );
 }

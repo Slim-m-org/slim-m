@@ -109,6 +109,9 @@ struct ScopeDelta {
     /// which is how a new client tells it from one that has no op stream.
     op_latest_seq: i64,
     ops_has_more: bool,
+    /// The seq of the newest live message here that mentions the caller, 0 when none does,
+    /// so a client that resets the scope keeps a mention older than the page it refetches.
+    mentioned_seq: i64,
 }
 
 // --- Handlers ---
@@ -242,7 +245,7 @@ async fn sync(
         })
         .collect();
 
-    // Read after the permission check, never before it; two batched reads, not a few lookups per scope.
+    // Read after the permission check, never before it; batched reads, not a few lookups per scope.
     let viewable_ids: Vec<ChannelId> = viewable.iter().map(|(_, id)| *id).collect();
     let heads = state.store.seq_heads(&viewable_ids).await?;
     let op_cursor_ids: Vec<ChannelId> = viewable
@@ -251,6 +254,10 @@ async fn sync(
         .map(|(_, id)| *id)
         .collect();
     let floors = state.store.earliest_message_op_seqs(&op_cursor_ids).await?;
+    let mentions = state
+        .store
+        .newest_mentions_for(ctx.user_id, &viewable_ids)
+        .await?;
 
     let mut scopes = Vec::new();
     let mut budget = AGGREGATE_LIMIT;
@@ -307,6 +314,7 @@ async fn sync(
             ops: ops.ops,
             op_latest_seq: ops.op_latest_seq,
             ops_has_more: ops.ops_has_more,
+            mentioned_seq: mentions.get(&channel_id).copied().unwrap_or(0),
         });
     }
 

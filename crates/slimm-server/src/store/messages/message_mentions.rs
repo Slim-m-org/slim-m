@@ -4,12 +4,12 @@
 //! back per caller. See migration 0061 for why this is a side table rather
 //! than a column on `messages`.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use sqlx::QueryBuilder;
 
 use super::super::Store;
-use crate::ids::{MessageId, UserId};
+use crate::ids::{ChannelId, MessageId, UserId};
 
 impl Store {
     /// Replaces `message_id`'s whole mention set. Delete-then-insert rather
@@ -87,6 +87,37 @@ impl Store {
                     .map_err(Into::into)
             })
             .collect()
+    }
+
+    /// The seq of the newest live message mentioning `viewer` in each of `channel_ids`.
+    /// A channel with none is absent, and callers read it as 0, the client's own "no mention".
+    pub async fn newest_mentions_for(
+        &self,
+        viewer: UserId,
+        channel_ids: &[ChannelId],
+    ) -> anyhow::Result<HashMap<ChannelId, i64>> {
+        use sqlx::Row;
+
+        let mut newest = HashMap::new();
+        for chunk in channel_ids.chunks(super::super::MAX_IDS_PER_QUERY - 1) {
+            // CROSS JOIN pins the viewer's own rows as the outer loop; one channel otherwise scans all of its messages.
+            let mut builder = QueryBuilder::new(
+                "SELECT m.channel_id, MAX(m.seq) AS seq FROM message_mentions mm \
+                 CROSS JOIN messages m ON m.id = mm.message_id \
+                 WHERE mm.user_id = ",
+            );
+            builder.push_bind(viewer);
+            builder.push(" AND m.deleted_at IS NULL AND m.channel_id IN (");
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(") GROUP BY m.channel_id");
+            for row in builder.build().fetch_all(&self.pool).await? {
+                newest.insert(row.try_get("channel_id")?, row.try_get("seq")?);
+            }
+        }
+        Ok(newest)
     }
 
     /// Everyone `message_id` mentions, for the live path to resolve once per

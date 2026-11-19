@@ -185,7 +185,7 @@ class SyncCatchUp {
   }
 
   /// Drops a scope's cached messages and both its cursors, then refetches the
-  /// newest page.
+  /// newest page and restores the mention cursor from [delta]'s marker.
   ///
   /// The op cursor restarts at the head [delta] reported, which was read
   /// before the page is: an op landing after the page was read is then still
@@ -207,6 +207,10 @@ class SyncCatchUp {
     if (!_isCurrent(generation)) return;
     await store.applyMessages(fresh, advance: CursorAdvance.always);
     _ref.read(messageExtrasProvider.notifier).applyMessages(fresh);
+    // The page holds only the newest messages; an older unread mention is known by the server's marker alone.
+    if (delta.mentionedSeq case final seq? when seq > 0) {
+      await store.advanceMentionCursor(channelId, seq);
+    }
   }
 }
 

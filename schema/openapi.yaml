@@ -20659,7 +20659,7 @@ components:
 
     ScopeDelta:
       type: object
-      required: [channel_id, messages, has_more, reset, ops, op_latest_seq, ops_has_more]
+      required: [channel_id, messages, has_more, reset, ops, op_latest_seq, ops_has_more, mentioned_seq]
       properties:
         channel_id:
           type: string
@@ -20697,6 +20697,13 @@ components:
         ops_has_more:
           type: boolean
           description: More ops remain past what this response carried.
+        mentioned_seq:
+          type: integer
+          format: int64
+          description: >
+            The seq of the newest live message in this channel that mentions the
+            caller, 0 when none does, so a client that resets the scope keeps a
+            mention older than the page it refetches.
 
     MessageOp:
       type: object
