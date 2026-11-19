@@ -121,13 +121,14 @@ class _SceneKeyboardGridState extends State<SceneKeyboardGrid> {
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     // A key from a field inside the scene bubbles here; only the grid's own focus is ours.
-    if (_grid == null || event is! KeyDownEvent || !node.hasPrimaryFocus) {
-      return KeyEventResult.ignored;
-    }
-    // Held to talk, so Space or an arrow bound to push-to-talk reveals and moves nothing.
+    if (_grid == null || !node.hasPrimaryFocus) return KeyEventResult.ignored;
+    // Held to talk: kept from the app's arrow traversal too, which would move focus out of the grid.
     if (event.logicalKey == PushToTalkKey.inWindow) {
-      return KeyEventResult.ignored;
+      return event is KeyUpEvent
+          ? KeyEventResult.ignored
+          : KeyEventResult.handled;
     }
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
     switch (event.logicalKey) {
       case LogicalKeyboardKey.arrowUp:
         _move(-1, 0);

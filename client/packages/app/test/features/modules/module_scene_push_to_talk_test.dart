@@ -35,6 +35,9 @@ final _ring = find.byWidgetPredicate(
 
 final _grid = find.bySemanticsLabel(RegExp('^Scene grid'));
 
+bool _gridHasFocus() =>
+    FocusManager.instance.primaryFocus?.debugLabel == 'Module scene grid';
+
 void main() {
   final desktop = TargetPlatformVariant.only(TargetPlatform.linux);
   final harness = VoiceHarness();
@@ -60,20 +63,24 @@ void main() {
           theme: buildTheme(Brightness.dark, _tokens),
           home: PushToTalkListener(
             child: Scaffold(
-              body: Center(
-                child: SizedBox(
-                  width: 400,
-                  child: ModuleSceneView(
-                    initial: parseModuleScene(sceneJson(0))!,
-                    runCommand: (input) async {
-                      actions.add(jsonDecode(input)['action'] as String);
-                      return api.RunModuleCommandResult(
-                        ok: true,
-                        output: sceneJson(++gen),
-                      );
-                    },
+              body: Row(
+                children: [
+                  SizedBox(
+                    width: 400,
+                    child: ModuleSceneView(
+                      initial: parseModuleScene(sceneJson(0))!,
+                      runCommand: (input) async {
+                        actions.add(jsonDecode(input)['action'] as String);
+                        return api.RunModuleCommandResult(
+                          ok: true,
+                          output: sceneJson(++gen),
+                        );
+                      },
+                    ),
                   ),
-                ),
+                  // A focusable neighbour, so arrow traversal leaking out of the grid has somewhere to land.
+                  TextButton(onPressed: () {}, child: const Text('Beside')),
+                ],
               ),
             ),
           ),
@@ -92,6 +99,7 @@ void main() {
   for (final talkKey in [
     LogicalKeyboardKey.space,
     LogicalKeyboardKey.arrowRight,
+    LogicalKeyboardKey.arrowDown,
   ]) {
     testWidgets('holding ${talkKey.debugName} to talk leaves the grid alone', (
       tester,
@@ -101,6 +109,7 @@ void main() {
       await controller.toggleMicrophone();
       await pumpFrames(tester);
       expect(controller.state.microphoneEnabled, isFalse, reason: 'baseline');
+      expect(_gridHasFocus(), isTrue, reason: 'the tap focused the grid');
 
       await tester.sendKeyDownEvent(talkKey);
       await tester.sendKeyRepeatEvent(talkKey);
@@ -108,6 +117,7 @@ void main() {
 
       expect(controller.state.microphoneEnabled, isTrue, reason: 'talking');
       expect(_ring, findsNothing);
+      expect(_gridHasFocus(), isTrue, reason: 'focus stayed on the grid');
       await tester.sendKeyUpEvent(talkKey);
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await pumpFrames(tester);
