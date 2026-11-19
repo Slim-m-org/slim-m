@@ -185,6 +185,13 @@ void AnInstalledCopyRegistersItsLauncher() {
                               InLayout) == kRoot + L"\\slim-m.exe");
 }
 
+void TheRunFolderRegistersItsLauncher() {
+  CHECK(slimm::LinkHandlerFor(kRoot + L"\\app\\slimm_app.exe", InLayout) ==
+        kRoot + L"\\slim-m.exe");
+  const std::wstring lookalike = kRoot + L"\\apps\\slimm_app.exe";
+  CHECK(slimm::LinkHandlerFor(lookalike, InLayout) == lookalike);
+}
+
 void ACopyOutsideTheLayoutRegistersItself() {
   const std::wstring unzipped = L"C:\\Users\\Ann\\Downloads\\slim-m\\slimm_app.exe";
   CHECK(slimm::LinkHandlerFor(unzipped, InLayout) == unzipped);
@@ -244,6 +251,7 @@ int main() {
   ALinkForwardsToACopyFromAnotherVersionFolder();
   OnlyASlimmArgumentIsALink();
   AnInstalledCopyRegistersItsLauncher();
+  TheRunFolderRegistersItsLauncher();
   ACopyOutsideTheLayoutRegistersItself();
   TheOpenCommandMatchesTheSetup();
   ALogicalRectScalesToPhysicalPixels();

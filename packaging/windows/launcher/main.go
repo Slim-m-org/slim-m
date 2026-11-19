@@ -29,6 +29,7 @@ func main() {
 	if settled(root) {
 		_ = realSwapper().swapLauncher(root, filepath.Join(root, launcherName))
 	}
+	dir = runFrom(root, dir, relaunch)
 	pid, err := start(filepath.Join(dir, appExecutable), dir, os.Args[1:])
 	if err != nil {
 		fail(err.Error())
