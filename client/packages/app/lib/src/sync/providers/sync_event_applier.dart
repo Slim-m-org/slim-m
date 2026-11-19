@@ -77,6 +77,7 @@ class SyncEventApplier {
           store,
           isCurrent,
           () => store.discard(messageId),
+          finalWhateverTheCursor: true,
         );
       case ReadStateChanged(
         :final channelId,
@@ -263,6 +264,10 @@ class SyncEventApplier {
   /// A channel with no cursor gets one only from the stream's first op: any
   /// later op would start it past ops nobody applied.
   ///
+  /// A delete is [finalWhateverTheCursor]: one the cursor already covers is
+  /// still written, because another tab can have moved the shared cursor past
+  /// it, and only the tab that wrote it remembers it against a late page.
+  ///
   /// [isCurrent] is rechecked after the cursor read: a sign-out or reconnect
   /// landing inside that await leaves a number from a store the newer run has
   /// since moved past.
@@ -270,13 +275,14 @@ class SyncEventApplier {
     ({String channelId, int? opSeq}) op,
     MessageStore store,
     bool Function() isCurrent,
-    Future<void> Function() write,
-  ) async {
+    Future<void> Function() write, {
+    bool finalWhateverTheCursor = false,
+  }) async {
     final cursor = await store.opCursorFor(op.channelId);
     if (!isCurrent()) return;
     switch (liveOpDecision(op.opSeq, cursor)) {
       case LiveOpOutcome.ignored:
-        return;
+        if (finalWhateverTheCursor) await write();
       case LiveOpOutcome.needsReconcile:
         unawaited(
           _reconcile().catchError(

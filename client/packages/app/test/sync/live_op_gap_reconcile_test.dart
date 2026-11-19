@@ -127,7 +127,41 @@ void main() {
     expect(h.requests, isEmpty, reason: 'an in-order op needs no catch-up');
   });
 
-  test('an op at or below the cursor is ignored without a catch-up', () async {
+  test(
+    'an edit at or below the cursor is ignored without a catch-up',
+    () async {
+      final h = _harness();
+      final controller = await _seeded(h, cursor: 3);
+
+      await controller.applyServerEventForTest(
+        const MessageEdited(
+          Message(
+            id: 'm1',
+            channelId: 'c1',
+            authorId: 'user-1',
+            authorDisplayName: 'User One',
+            seq: 1,
+            content: 'an older edit',
+            createdAt: 0,
+            editedAt: 1,
+          ),
+          opSeq: 2,
+        ),
+      );
+      await pumpEventQueue();
+
+      expect(
+        (await h.store.watchChannel('c1').first).single.content,
+        'still here',
+        reason: 'an already-seen edit is a no-op',
+      );
+      expect(await h.store.opCursorFor('c1'), 3);
+      expect(h.requests, isEmpty);
+    },
+  );
+
+  test('a delete at or below the cursor still drops the row, and moves '
+      'nothing else', () async {
     final h = _harness();
     final controller = await _seeded(h, cursor: 3);
 
@@ -138,8 +172,8 @@ void main() {
 
     expect(
       await _hasM1(h.store),
-      isTrue,
-      reason: 'an already-seen op is a no-op',
+      isFalse,
+      reason: 'a delete is final whatever the cursor says',
     );
     expect(await h.store.opCursorFor('c1'), 3);
     expect(h.requests, isEmpty);

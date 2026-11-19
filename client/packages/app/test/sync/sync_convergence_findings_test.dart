@@ -187,6 +187,55 @@ void main() {
     });
   });
 
+  group('a history page read before a delete that the other tab applied', () {
+    Future<(SyncModelWorld, SyncModelWorld, api.Message)> deleted() async {
+      final first = await _world();
+      final second = SyncModelWorld(server: first.server, sharing: first);
+      await second.open();
+      addTearDown(second.close);
+      await first.controller.reconcile();
+      final created = first.server.send('hello');
+      for (final world in [first, second]) {
+        world.wire.add(created);
+        await world.deliver();
+      }
+      final page = _copyOf(first.server.messages.single);
+      final gone = first.server.delete(first.server.messages.single);
+      first.wire.add(gone);
+      second.wire.add(gone);
+      return (first, second, page);
+    }
+
+    test(
+      'is not stored by the tab whose delete frame the cursor covered',
+      () async {
+        final (first, second, page) = await deleted();
+        await first.deliver();
+        await second.deliver();
+
+        await second.store.applyMessages([page]);
+
+        expect(await second.contentOf('m1'), isNull);
+      },
+    );
+
+    test(
+      'is not stored by the tab whose catch-up brought the delete late',
+      () async {
+        final (first, second, page) = await deleted();
+        second.wire.clear();
+        await second.startHeldCatchUp();
+        await first.deliver();
+        second.releaseAnswer();
+        await pumpEventQueue(times: 20);
+
+        await second.store.applyMessages([page]);
+
+        expect(await second.contentOf('m1'), isNull);
+      },
+    );
+  });
+
   group('a catch-up edit op whose write a newer live edit beat', () {
     test('does not put the older text back', () async {
       final world = SyncModelWorld(makeStore: _EditLandsMidOp.new);
