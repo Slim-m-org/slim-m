@@ -69,6 +69,9 @@ class VoiceCallFlow {
   /// tell that a newer call has taken this session over; see [leave].
   int _generation = 0;
 
+  /// Counts the hang-ups asked, so a join still queued can tell one came after it; see [join].
+  int _leavesAsked = 0;
+
   Stream<VoiceSessionState> get states => _states.stream;
 
   /// A full restart the call came back from; see [VoiceSession.transportRestarts].
@@ -77,6 +80,7 @@ class VoiceCallFlow {
   /// Joins a room with a server-minted token; [canPublish] only stops a listen-only join from opening the microphone, and rejoining leaves the old connection first.
   /// Overlapping calls serialize, so a second tap or a channel switch mid-connect waits and the state ends as the last caller asked.
   /// A join also waits, up to [kJoinWaitsForLeave], for a leave still tearing down: livekit's cleanup of that room stops the platform audio session.
+  /// A leave asked after this join, while it still waits its turn, is the newer ask: the join then opens nothing.
   Future<void> join({
     required String url,
     required String token,
@@ -84,6 +88,7 @@ class VoiceCallFlow {
     bool cameraEnabled = false,
     bool canPublish = true,
   }) {
+    final leavesAtAsk = _leavesAsked;
     final previous = _joining ?? Future<void>.value();
     final current = previous
         .catchError(ignoreError(LogTag.voice,
@@ -95,6 +100,7 @@ class VoiceCallFlow {
             microphoneEnabled: microphoneEnabled,
             cameraEnabled: cameraEnabled,
             canPublish: canPublish,
+            leavesAtAsk: leavesAtAsk,
           ),
         );
     _joining = current.whenComplete(() {
@@ -107,6 +113,7 @@ class VoiceCallFlow {
   ///
   /// A leave a newer join took over, past [kJoinWaitsForLeave], resets nothing: that join made the resets.
   Future<void> leave() {
+    _leavesAsked++;
     final ending = _end(replaced: false);
     final settled = ending.catchError(ignoreError(
         LogTag.voice, 'A leave failed; whoever asked for it has the error'));
@@ -178,12 +185,12 @@ class VoiceCallFlow {
     required bool microphoneEnabled,
     required bool cameraEnabled,
     required bool canPublish,
+    required int leavesAtAsk,
   }) async {
-    if (disposed) return;
-    final asked = _generation;
+    // A leave asked while this queued behind another join is the newer ask.
+    if (disposed || leavesAtAsk != _leavesAsked) return;
     await _afterLeave();
-    // A leave asked while this waited is the newer ask.
-    if (disposed || asked != _generation) return;
+    if (disposed || leavesAtAsk != _leavesAsked) return;
     _core.readiness.mayPublish = canPublish;
     if (room != null) await _end(replaced: true);
     // Claims the session past the leave above, whose own guard has run by now.
