@@ -8811,7 +8811,8 @@ paths:
       description: >
         The SFU already carries the mute on the caller's own track, which the
         roster reads as `is_muted`; this has everyone watching the channel
-        re-read it (`voice.activity`). Needs VIEW_CHANNEL and CONNECT, on a
+        re-read it (`voice.activity`) once the SFU shows the reported state,
+        waiting up to about 2 s for it. Needs VIEW_CHANNEL and CONNECT, on a
         voice channel or a direct message. Idempotent, and a no-op when the
         caller has no call on record in the channel.
       requestBody:

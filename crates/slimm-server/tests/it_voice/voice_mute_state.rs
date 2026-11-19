@@ -2,7 +2,7 @@
 //! Who is muted or deafened, as someone outside the call sees it: the roster reads it off the
 //! SFU, and a mute or deafen report has every viewer of the channel read it again.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use axum::Router;
 use axum::http::StatusCode;
@@ -261,4 +261,54 @@ async fn a_microphone_published_after_the_join_has_viewers_read_again() {
 
     assert!(nudged(&mut rx, w.channel), "viewers are told to re-read");
     assert_eq!(w.shown(w.bob.id).await.0, json!(false));
+}
+
+#[tokio::test]
+async fn a_mute_report_that_beats_the_sfu_waits_for_it() {
+    let w = world("slimm-mute-beats-sfu").await;
+    w.recorder.seat_listing(vec![entry(w.bob.id, false, false)]);
+    w.voice
+        .record_heartbeat_at_for_test(w.bob.id, w.channel, Instant::now());
+    assert_eq!(w.shown(w.bob.id).await.0, json!(false));
+
+    let recorder = w.recorder.clone();
+    let muted_at_the_sfu = entry(w.bob.id, true, false);
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(400)).await;
+        recorder.seat_listing(vec![muted_at_the_sfu]);
+    });
+    let mut rx = w.hub.subscribe();
+    assert_eq!(
+        w.report(&w.bob, "muted", true).await,
+        StatusCode::NO_CONTENT
+    );
+
+    assert!(nudged(&mut rx, w.channel));
+    assert_eq!(
+        w.shown(w.bob.id).await.0,
+        json!(true),
+        "the nudge waits until the SFU shows the mute"
+    );
+}
+
+#[tokio::test]
+async fn a_mute_the_sfu_never_shows_still_nudges_after_a_bounded_wait() {
+    let w = world("slimm-mute-never-shown").await;
+    w.recorder.seat_listing(vec![entry(w.bob.id, false, false)]);
+    w.voice
+        .record_heartbeat_at_for_test(w.bob.id, w.channel, Instant::now());
+    let mut rx = w.hub.subscribe();
+
+    let started = Instant::now();
+    assert_eq!(
+        w.report(&w.bob, "muted", true).await,
+        StatusCode::NO_CONTENT
+    );
+
+    assert!(
+        started.elapsed() < Duration::from_secs(4),
+        "{:?}",
+        started.elapsed()
+    );
+    assert!(nudged(&mut rx, w.channel));
 }

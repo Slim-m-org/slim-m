@@ -2,6 +2,8 @@
 //! What a caller tells the call about their own microphone and hearing, so the people in it and
 //! everyone watching the channel from outside it see the right icons.
 
+use std::time::Duration;
+
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
@@ -12,13 +14,17 @@ use super::super::error::ApiError;
 use super::super::extract::{Authed, Json, enforce};
 use super::super::messages::parse_uuid;
 use crate::hub::Event;
-use crate::ids::ChannelId;
+use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::SessionContext;
 use crate::voice::VoiceError;
 
 const NO_VOICE: &str = "this server has no voice configured";
+
+/// How long a mute report waits for the SFU to show it, and how often it looks meanwhile.
+const MUTE_SETTLE_WINDOW: Duration = Duration::from_secs(2);
+const MUTE_SETTLE_POLL: Duration = Duration::from_millis(200);
 
 #[derive(Deserialize)]
 pub(super) struct DeafenedRequest {
@@ -62,7 +68,8 @@ pub(super) async fn set_deafened(
 }
 
 /// Tells everyone watching the channel that the caller muted or unmuted. The SFU already carries
-/// the mute on the caller's own track, which the roster reads; this only says to read it again.
+/// the mute on the caller's own track, which the roster reads; this only says to read it again,
+/// once the SFU shows it.
 pub(super) async fn set_muted(
     Authed(ctx): Authed,
     parts: Parts,
@@ -77,8 +84,39 @@ pub(super) async fn set_muted(
     }
     may_report(&state, &ctx, channel_id).await?;
     tracing::debug!(user_id = %ctx.user_id, %channel_id, muted = body.muted, "a caller changed their mute");
+    if state.voice.has_heartbeat(ctx.user_id, channel_id) {
+        until_the_sfu_shows(&state, ctx.user_id, channel_id, body.muted).await;
+    }
     nudge_roster(&state, &ctx, channel_id);
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Waits up to [`MUTE_SETTLE_WINDOW`] for the SFU to show the caller's mic as reported: the mute
+/// travels the signal websocket, and a roster read cached before it lands would stay stale.
+async fn until_the_sfu_shows(
+    state: &AppState,
+    user_id: UserId,
+    channel_id: ChannelId,
+    muted: bool,
+) {
+    let deadline = tokio::time::Instant::now() + MUTE_SETTLE_WINDOW;
+    loop {
+        let shown = match state.voice.list_participants(channel_id).await {
+            Ok(listing) => listing.into_iter().find(|p| p.user_id == user_id),
+            Err(err) => {
+                tracing::debug!(?err, "could not read a reported mute back from the SFU");
+                return;
+            }
+        };
+        if shown.is_none_or(|participant| participant.is_muted == muted) {
+            return;
+        }
+        if tokio::time::Instant::now() + MUTE_SETTLE_POLL > deadline {
+            tracing::debug!(%user_id, %channel_id, muted, "the SFU did not show a reported mute in time");
+            return;
+        }
+        tokio::time::sleep(MUTE_SETTLE_POLL).await;
+    }
 }
 
 /// The gate both reports share: `VIEW_CHANNEL` and `CONNECT` on a channel that can host a call.
