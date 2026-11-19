@@ -229,13 +229,6 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       },
     );
     _timeoutBanner.watch();
-    // Plain assignment: setState is not allowed in initState, and nothing has built yet.
-    if (canvasErrorBlocksDrawing(
-          ref.read(canvasEngineProvider(widget.channelId)).error,
-        ) &&
-        _tool.placesObjects) {
-      _tool = CanvasTool.pan;
-    }
     ref.listenManual(
       meProvider.select((m) => m.valueOrNull?.timedOutUntil),
       (_, _) => _timeoutBanner.watch(),
@@ -266,7 +259,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     super.didChangeDependencies();
     if (_toolInitialised) return;
     _toolInitialised = true;
-    _tool = _spectating ? CanvasTool.pan : _defaultTool;
+    _tool = _spectating || _drawingRefused ? CanvasTool.pan : _defaultTool;
     _disarmIfAlreadyFullscreen();
   }
 
@@ -286,15 +279,22 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     super.dispose();
   }
 
-  /// A refused canvas cannot take ink, so an armed pen, note or shape goes back to Pan rather than failing on every press.
+  /// A refused canvas cannot take ink, so an armed pen, note or shape goes back to Pan rather than failing on every press, and leaving fullscreen does not re-arm it.
   void _disarmWhenDrawingIsRefused(String? error) {
-    if (canvasErrorBlocksDrawing(error) && _tool.placesObjects) {
-      _refresh(() => _tool = CanvasTool.pan);
+    if (!canvasErrorBlocksDrawing(error)) return;
+    if (_toolBeforeFullscreen?.placesObjects ?? false) {
+      _toolBeforeFullscreen = null;
     }
+    if (_tool.placesObjects) _refresh(() => _tool = CanvasTool.pan);
   }
 
   /// Whether this viewer only watches; safe to read, since build() watches it.
   bool get _spectating => ref.read(canvasSpectatingProvider(widget.channelId));
+
+  /// Whether placing would be refused again; safe to read, since build() watches the engine.
+  bool get _drawingRefused => canvasErrorBlocksDrawing(
+    ref.read(canvasEngineProvider(widget.channelId)).error,
+  );
 
   /// The same bridge [_refresh] is, for a caller that needs the raw
   /// boolean rather than a guarded `setState` - `mounted` itself is
