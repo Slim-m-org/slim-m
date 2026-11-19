@@ -6,11 +6,15 @@
 /// the controller is asked is `push_to_talk_test.dart`.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/desktop/desktop_window_port.dart';
+import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/providers/app_lock_controller.dart';
 import 'package:slimm_app/src/features/composer/providers/composer_focus.dart';
 import 'package:slimm_app/src/features/voice/providers/push_to_talk_gate.dart';
@@ -182,6 +186,43 @@ void main() {
     expect(controller.state.microphoneEnabled, isTrue);
     harness.container.read(pushToTalkGateProvider).release(HoldSource.global);
     await tester.pump();
+    await controller.leave();
+  });
+
+  testWidgets('a blur only the window reports ends an in-window hold', (
+    tester,
+  ) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final events = StreamController<DesktopWindowEventKind>.broadcast(
+      sync: true,
+    );
+    addTearDown(events.close);
+    final controller = await connect(
+      tester,
+      const SizedBox.shrink(),
+      extraOverrides: [
+        appLifecycleProvider.overrideWith(
+          (ref) =>
+              AppLifecycleNotifier(mobile: false, windowEvents: events.stream),
+        ),
+      ],
+    );
+    await controller.toggleMicrophone();
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyV);
+    await tester.pump();
+    expect(controller.state.microphoneEnabled, isTrue);
+
+    // A pop-out taking focus: the embedder never leaves resumed, and the key-up goes elsewhere.
+    events.add(DesktopWindowEventKind.blur);
+    await tester.pump();
+
+    expect(WidgetsBinding.instance.lifecycleState, AppLifecycleState.resumed);
+    expect(
+      controller.state.microphoneEnabled,
+      isFalse,
+      reason: 'a hold left down in an unfocused window is an open microphone',
+    );
     await controller.leave();
   });
 
