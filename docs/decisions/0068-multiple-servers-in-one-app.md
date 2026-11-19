@@ -91,9 +91,26 @@ When the scope unmounts with something queued, which a switch always causes beca
 From then on nothing `autoDispose` in that account was ever disposed, and a provider derived from another stopped refreshing its listeners, on screen or off, until the app restarted.
 Closing the switcher did the same to an account out of view, because its rows scope that account's container to show its name and icon.
 
-What it costs: a container out of view now runs its queue on a frame, like the one on screen always has, instead of on a timer.
-A hidden window draws no frames, so that queue waits until the window shows again.
-Streams, notifiers and the socket do not go through it and are unaffected.
+What it costs, in two parts.
+
+A hidden window draws no frames, so the queue of every container waits until the window shows again.
+That was already true of the account on screen; it is now true of the ones out of view too, which used to run theirs on a timer for as long as they had never been shown.
+A notifier, a stream and the socket do not go through the queue.
+A listener on a derived provider does: it hears a change only after the provider rebuilds, which is on the next frame.
+So anything that must act while the window is in the tray listens to a select straight off the notifier, the `...AtOnce` listenables (`voiceFlagsAtOnce`, `voiceParticipantsAtOnce`, `appFocusedAtOnce`).
+The host's own call tracking, the deafen of a restored call and the viewing report were moved to them with this amendment; the tray, the call restore record and the screen overlay already used them.
+What still waits for a frame in a hidden window, and is left that way: the activity publisher hearing that the person went hidden on another device.
+The server applies that rule itself, so nothing is shown that should not be.
+
+An account out of view now asks the window for a frame whenever its queue has work, and with nothing on screen changed that frame is drawn for nothing.
+The soak harness counts them (`bench.background_frames.*`, `docs/soak-harness.md`): about one frame for a message, about one for a presence change, none for most typing starts, against none with the window at rest.
+The rate follows the rate of events and cannot pass the display's: an account that receives five events a second asks an otherwise idle window for about five frames a second.
+What one such frame costs in a release build, in CPU and in a GPU that could otherwise sleep, has not been measured.
+If it turns out to matter, the remedy is to coalesce at the source of the busiest derived providers, the presence map and the message extras, and not to take the scopes away again.
+
+The rows that name another server, in the switcher, the call pill and the share step, used to mount a second scope for that server's container.
+They now listen to the container instead (`ServerIdentity`), so the root's scope is the only one a container ever has.
+A second scope that left the tree in the same frame as a switch kept a run it never made, and a debug build stopped on it.
 See `docs/internals.md`, account scopes.
 
 ## What is global and what is per account
