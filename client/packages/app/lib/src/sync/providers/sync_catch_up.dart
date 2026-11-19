@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart' hide Message;
 
+import '../../features/channels/providers/channel_history.dart';
 import '../../features/messages/providers/message_extras.dart';
 import '../../features/messages/providers/message_ops_sync.dart';
 import '../../features/messages/providers/retention_policy.dart';
@@ -295,6 +296,9 @@ class SyncCatchUp {
         (await store.channelRow(channelId))?.mentionedSeq ??
         0;
     await store.resetChannel(channelId);
+    // Paging would otherwise go on from below rows that are no longer held.
+    _ref.read(messageExtrasProvider.notifier).forgetPages(channelId);
+    _ref.invalidate(channelHistoryProvider(channelId));
     await store.setOpCursor(channelId, delta.opLatestSeq);
     final limit = _ref.read(syncNewestPageProvider);
     final fresh = await retryWhenRateLimited(

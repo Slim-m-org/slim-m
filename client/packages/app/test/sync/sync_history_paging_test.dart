@@ -48,4 +48,17 @@ void main() {
     expect(await world.heldSeqs(), [for (var seq = 1; seq <= 120; seq++) seq]);
     expect(await world.disagreement(), isNull);
   });
+
+  test('a reset lets paging start again from the page it refetched', () async {
+    final world = await _pagedBack(server: SyncModelServer(snapshotGap: 10));
+    for (var i = 0; i < 20; i++) {
+      world.server.send('later $i');
+    }
+
+    await world.controller.reconcile();
+
+    expect((await world.heldSeqs()).first, 91);
+    await _pageToStart(world);
+    expect(await world.heldSeqs(), [for (var seq = 1; seq <= 140; seq++) seq]);
+  });
 }
