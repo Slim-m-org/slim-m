@@ -341,11 +341,20 @@ The rules below are what keep the claims true; each was a bug found by `sync_con
   A write that fails then leaves the op ahead of the cursor, and the next catch-up delivers it.
 - A channel with no op cursor adopts the server's head only while it holds no messages.
   One that already holds some (a channel that appeared this session and took its first messages live, or one opened before its first catch-up landed) refetches its newest page instead, since ops before that head may name rows it holds.
-  That refetch swaps the rows in one write (`MessageStore.replaceHeld`) and moves the op cursor only once the page is stored, so an open channel is never shown empty; a server `reset` still clears first, because its cursor has to rewind.
+  That refetch rereads every page from the newest down to the oldest row held, not only the newest one, so history the user paged in stays and an op on it from before the head is still caught.
+  It swaps the rows in one write (`MessageStore.replaceHeld`) and moves the op cursor only once the pages are stored, so an open channel is never shown empty.
+  The swap only drops rows inside the span the pages cover, or below it once a short page proved the channel's start.
+  The pages are written without the covered-row rule below: they are the server's own answer for their span, and where a first write started the cursor is known only to the store that made it.
+  A server `reset` still clears first, because its cursor has to rewind.
+  It also restarts the channel's paging state (`channelHistoryProvider` and the extras' hydrated ranges), which would otherwise page on from below rows that are no longer held and leave a hole.
 - A live op starts a missing op cursor only when it is op 1.
   Any other would start it past ops nobody applied.
-- An op in a catch-up page at or below the op cursor is skipped.
+- An edit op in a catch-up page at or below the op cursor is skipped.
   Its content is the text as the page was read, and live frames applied since may be newer.
+  That check and the write are separate awaits, so `MessageStore.applyEdit` also refuses an edit whose stamp is older than the row's.
+- A delete is final, so it is applied whatever the op cursor says: a live frame the cursor covers and a catch-up op at or below it both still drop the row and are remembered.
+  Only the cursor move is skipped.
+  The op cursor is shared by every tab on the database and the record of recent deletes is not, so a tab that skipped a delete because another tab had applied it would store the message again from a history page read before it.
 - A created frame at or below the message cursor is dropped unless the row is held.
   The cursor only passes a message that catch-up delivered, so a missing row was deleted since.
   This is also what stops a second browser tab, which shares the database but not the in-memory record of recent deletes, from storing a message again after the first tab deleted it.
@@ -374,6 +383,13 @@ When `sync.rs` changes what a scope answers, change the model with it.
 
 Known gaps, none of them fixed here:
 
+- Where a first write started a cursor (`cursorStartedAbove`) is kept per store, so it is lost on a restart and unknown to a second tab.
+  There, a created frame or a row of a `/sync` page still in flight that sits below that start is read as deleted and dropped until the channel is opened, when its newest page fills it.
+- Pages written with `CursorAdvance.whenContiguous` (the page on opening a channel or a thread, scroll-back) are outside the covered-row rule and rely on the record of recent deletes alone.
+  A tab that never sees a delete, because its frame was lost and the other tab moved the shared op cursor past it before this tab's catch-up asked, still stores the message from a page read before the delete.
+- The first-catch-up refetch stops after `channelWindowCeiling` rows.
+  Rows held below that are left as they are, unchecked against ops from before the head; no window shows them and the retention sweep drops them.
+- Two edits with the same `edited_at` stamp are not ordered; the one written last stands.
 - Against a server that predates `latest_seq`, a created frame for a message deleted before a reset read its page is still stored.
 - Reactions, poll tallies and thread counts are not sequenced; a reconnect refetches the open channels' pages for them (see `open_channel_rehydrate.dart`).
   Pins are not sequenced either and are not on a message page, so the same reconnect rereads each open channel's pin list (`sync_live_refresh.dart`).
