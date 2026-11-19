@@ -40,6 +40,9 @@ class VoiceCallHeartbeat {
   final DateTime Function() _now;
   Timer? _timer;
 
+  /// The call the server was last told is live, until it is told that call was left.
+  String? _toldLive;
+
   /// When the last heartbeat POST actually succeeded. `null` before the
   /// first send lands, so [isLagging] cannot misread a call that only just
   /// started as one whose heartbeat has been failing.
@@ -68,6 +71,10 @@ class VoiceCallHeartbeat {
   /// moment it stopped holding.
   void start(String? channelId) {
     if (_timer != null || channelId == null) return;
+    // A switch never passes through a leave, so the call switched from is forgotten here.
+    final previous = _toldLive;
+    if (previous != null && previous != channelId) unawaited(forget(previous));
+    _toldLive = channelId;
     // Optimistic: a call that just connected has not failed anything yet.
     _lastSuccessAt = _now();
     unawaited(_send(channelId));
@@ -93,11 +100,18 @@ class VoiceCallHeartbeat {
   /// "removed a voice participant with no recent heartbeat" entry around
   /// until the staleness window catches up on its own.
   Future<void> forget(String channelId) async {
+    if (_toldLive == channelId) _toldLive = null;
     try {
       await _ref.read(apiProvider).forgetVoiceHeartbeat(channelId);
     } catch (e) {
       _log('Could not tell the server this call was left', detail: e);
     }
+  }
+
+  /// [forget] for whichever call the server still counts as live, if any.
+  Future<void> forgetLast() async {
+    final channelId = _toldLive;
+    if (channelId != null) await forget(channelId);
   }
 
   void _log(String message, {Object? detail}) =>

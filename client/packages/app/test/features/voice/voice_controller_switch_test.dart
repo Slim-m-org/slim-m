@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+/// Switching from one call to another: what becomes of the call switched from.
+library;
+
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:fake_async/fake_async.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:slimm_rtc/rtc.dart';
+
+import 'voice_controller_harness.dart';
+
+/// Grants a token for every channel but `full`, which is refused; records every request.
+http.Client _api(List<http.Request> requests) => MockClient((request) async {
+  requests.add(request);
+  final path = request.url.path;
+  if (path.endsWith('/voice/heartbeat')) return http.Response('', 204);
+  if (path.endsWith('/voice/roster')) {
+    return http.Response('{"participants":[],"call_age_ms":null}', 200);
+  }
+  if (!path.endsWith('/voice/token')) return http.Response('{}', 404);
+  if (path.contains('/full/')) {
+    return http.Response(
+      jsonEncode({
+        'error': {'code': 'forbidden', 'message': 'that room is full'},
+      }),
+      403,
+      headers: {'content-type': 'application/json'},
+    );
+  }
+  return http.Response(
+    jsonEncode({
+      'url': 'wss://sfu.example.com',
+      'room': 'room',
+      'token': 'jwt',
+      'expires_at': 0,
+      'can_publish': true,
+    }),
+    200,
+    headers: {'content-type': 'application/json'},
+  );
+});
+
+Iterable<String> _forgotten(List<http.Request> requests) => requests
+    .where(
+      (r) => r.method == 'DELETE' && r.url.path.endsWith('/voice/heartbeat'),
+    )
+    .map((r) => r.url.pathSegments[1]);
+
+void main() {
+  final harness = VoiceHarness();
+
+  tearDown(harness.dispose);
+
+  test('a switch tells the server the call switched from was left', () {
+    fakeAsync((async) {
+      final requests = <http.Request>[];
+      final session = FakeSession();
+      final controller = harness.controllerWith(session, _api(requests));
+
+      unawaited(controller.join('lounge'));
+      async.flushMicrotasks();
+      session.emitState(VoiceSessionState.connected);
+      async.flushMicrotasks();
+
+      unawaited(controller.join('games'));
+      async.flushMicrotasks();
+      // The session leaves the old room and connects the new one.
+      session.emitState(VoiceSessionState.idle);
+      session.emitState(VoiceSessionState.connected);
+      async.flushMicrotasks();
+
+      expect(controller.state.channelId, 'games');
+      expect(
+        _forgotten(requests),
+        ['lounge'],
+        reason:
+            'left unsaid, the server counts this member in the lounge '
+            'until its sweep, and a ring started there keeps ringing',
+      );
+    });
+  });
+}
