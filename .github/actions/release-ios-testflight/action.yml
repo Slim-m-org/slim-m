@@ -103,7 +103,12 @@ runs:
       working-directory: client/packages/app
       run: |
         ipa=(build/ios/ipa/*.ipa)
-        xcrun altool --upload-app --type ios \
-          --file "${ipa[0]}" \
-          --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-          --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+        # App Store Connect's app lookup fails now and then before anything uploads (altool error 19); a retry of an upload that did land fails as a duplicate.
+        for attempt in 1 2 3; do
+          xcrun altool --upload-app --type ios \
+            --file "${ipa[0]}" \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" && exit 0
+          [ "$attempt" -eq 3 ] || { echo "upload attempt $attempt failed; retrying in 60s"; sleep 60; }
+        done
+        exit 1
