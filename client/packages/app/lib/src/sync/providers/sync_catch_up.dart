@@ -158,7 +158,7 @@ class SyncCatchUp {
           break;
       }
     }
-    // Only a cursor that asked gets a marker here: it names a message this client never held.
+    // Only a cursor that asked gets a marker here: it names no held message that still mentions us.
     if (delta.mentionedSeq case final seq?) {
       await store.healMentionCursor(delta.channelId, seq);
     }

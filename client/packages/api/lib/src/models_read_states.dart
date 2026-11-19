@@ -65,7 +65,8 @@ class ScopeCursor {
   final int? afterOpSeq;
 
   /// Asks for the scope's [ScopeDelta.mentionedSeq]: the mention cursor names
-  /// a message this client does not hold, so only the server can lower it.
+  /// no held message that still mentions this account, so only the server can
+  /// lower it.
   final bool checkMention;
 
   Map<String, dynamic> toJson() => {

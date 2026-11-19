@@ -83,8 +83,8 @@ struct ScopeCursor {
     /// that carries none is never told to reset from an op gap.
     #[serde(default)]
     after_op_seq: Option<i64>,
-    /// The client's mention cursor names a message it never held, which only a reset's marker
-    /// leaves it with, so it asks for `mentioned_seq` to heal it once that message goes.
+    /// The client's mention cursor names no message it holds that still mentions the caller,
+    /// as a reset's marker or an edit can leave it, so it asks for `mentioned_seq` to heal it.
     #[serde(default)]
     check_mention: bool,
 }

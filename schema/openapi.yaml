@@ -20669,9 +20669,9 @@ components:
           default: false
           description: >
             Asks for this scope's `mentioned_seq`. A client sends it when its
-            mention cursor names a message it does not hold, which a reset's
-            marker can leave, so the marker can lower it once that message is
-            deleted or edited away.
+            mention cursor names no message it holds that still mentions the
+            caller, as a reset's marker or an edit can leave it, so the marker
+            can lower it once that mention is deleted or edited away.
 
     SyncResponse:
       type: object
