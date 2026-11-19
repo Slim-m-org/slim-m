@@ -209,6 +209,7 @@ void main() {
       await tester.runAsync(
         () => rig.container.read(serverInfoProvider.future),
       );
+      rig.container.read(mountedChannelsProvider).register('c1');
       rig.container.read(messageExtrasProvider.notifier).applyMessages([
         Message.fromJson(_voice('ready')),
       ]);
