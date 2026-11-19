@@ -4,7 +4,8 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_data/data.dart' show CursorAdvance;
+import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_data/data.dart' show CursorAdvance, MessageStore;
 
 import '../support/sync_model_world.dart';
 
@@ -15,7 +16,100 @@ Future<SyncModelWorld> _world() async {
   return world;
 }
 
+/// A store whose next delete or edit write fails once, as a write that lost a lock race does.
+class _FailsOnce extends MessageStore {
+  _FailsOnce(super.db);
+
+  bool failNext = false;
+
+  void _maybeFail() {
+    if (!failNext) return;
+    failNext = false;
+    throw StateError('database is locked');
+  }
+
+  @override
+  Future<void> discard(String id) async {
+    _maybeFail();
+    return super.discard(id);
+  }
+
+  @override
+  Future<void> applyEdited(api.Message message) async {
+    _maybeFail();
+    return super.applyEdited(message);
+  }
+}
+
 void main() {
+  group('a live op whose write fails', () {
+    Future<(SyncModelWorld, _FailsOnce)> failing() async {
+      final world = SyncModelWorld(makeStore: _FailsOnce.new);
+      await world.open();
+      addTearDown(world.close);
+      await world.controller.reconcile();
+      world.wire.add(world.server.send('hello'));
+      await world.deliver();
+      return (world, world.store as _FailsOnce);
+    }
+
+    test('is still owed: the delete lands on the next catch-up', () async {
+      final (world, store) = await failing();
+      world.wire.add(world.server.delete(world.server.messages.single));
+      store.failNext = true;
+
+      await expectLater(world.deliver(), throwsStateError);
+      await world.controller.reconcile();
+
+      expect(await world.contentOf('m1'), isNull);
+      expect(await world.disagreement(), isNull);
+    });
+
+    test('is still owed: the edit lands on the next catch-up', () async {
+      final (world, store) = await failing();
+      world.wire.add(world.server.edit(world.server.messages.single, 'bye'));
+      store.failNext = true;
+
+      await expectLater(world.deliver(), throwsStateError);
+      await world.controller.reconcile();
+
+      expect(await world.contentOf('m1'), 'bye');
+      expect(await world.disagreement(), isNull);
+    });
+  });
+
+  group('a live op for a channel with no op cursor', () {
+    test('does not start the cursor past ops nobody applied', () async {
+      final world = await _world();
+      final server = world.server;
+      world.wire.add(server.send('first'));
+      await world.deliver();
+      server.delete(server.messages.first);
+      world.wire.add(server.send('second'));
+      await world.deliver();
+      world.wire.add(server.edit(server.messages.last, 'second, edited'));
+      await world.deliver();
+
+      await world.controller.reconcile();
+
+      expect(await world.contentOf('m1'), isNull);
+      expect(await world.disagreement(), isNull);
+    });
+
+    test('starts the cursor on the stream\'s first op', () async {
+      final world = await _world();
+      world.wire.add(world.server.send('first'));
+      await world.deliver();
+      world.wire.add(world.server.edit(world.server.messages.single, 'x'));
+      await world.deliver();
+
+      expect(await world.store.opCursorFor('c1'), 1);
+      await world.controller.reconcile();
+      expect(world.newestPageReads, 0);
+      expect(await world.disagreement(), isNull);
+    });
+  });
+
   group(
     'a created frame the cursor already covers, for a message not held',
     () {

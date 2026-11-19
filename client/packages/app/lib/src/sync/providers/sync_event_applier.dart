@@ -53,23 +53,31 @@ class SyncEventApplier {
       case MessageEdited(:final message, :final opSeq):
         await _materialise(message.channelId, api, store, isCurrent);
         if (!isCurrent()) return;
-        if (!await _placeLiveOp(message.channelId, opSeq, store, isCurrent)) {
-          return;
-        }
-        await store.applyEdited(message);
+        await _applyLiveOp(
+          (channelId: message.channelId, opSeq: opSeq),
+          store,
+          isCurrent,
+          () => store.applyEdited(message),
+        );
       case MessageLinkPreviewsRemoved(
         :final channelId,
         :final messageId,
         :final opSeq,
       ):
-        if (!await _placeLiveOp(channelId, opSeq, store, isCurrent)) return;
-        if (!isCurrent()) return;
-        await store.markLinkPreviewsRemoved(messageId);
+        await _applyLiveOp(
+          (channelId: channelId, opSeq: opSeq),
+          store,
+          isCurrent,
+          () => store.markLinkPreviewsRemoved(messageId),
+        );
       case MessageDeleted(:final channelId, :final messageId, :final opSeq):
-        if (!await _placeLiveOp(channelId, opSeq, store, isCurrent)) return;
-        if (!isCurrent()) return;
         // Without this case a delete by another user stayed visible until the next full resync.
-        await store.discard(messageId);
+        await _applyLiveOp(
+          (channelId: channelId, opSeq: opSeq),
+          store,
+          isCurrent,
+          () => store.discard(messageId),
+        );
       case ReadStateChanged(
         :final channelId,
         :final lastReadSeq,
@@ -242,31 +250,31 @@ class SyncEventApplier {
     return true;
   }
 
-  /// Decides whether a live op may be applied, and advances the cursor when
-  /// it may. Answers false when the caller must not apply the payload.
+  /// Applies a live op with [write] when it is the next one, then advances the cursor.
   ///
   /// A gap schedules one reconcile rather than applying an op it cannot place:
   /// moving the cursor past something never seen would strand it permanently,
   /// where a stall only lasts until the next round.
   ///
-  /// [isCurrent] is rechecked after the cursor read, not only before the call.
-  /// Reading the cursor is an await, and a sign-out or reconnect landing inside
-  /// it leaves this holding a number from a store the newer run has since moved
-  /// past - writing it back would advance a cursor over ops that run never saw,
-  /// which is the permanent stranding the paragraph above exists to avoid. It
-  /// is the guard every other checkpoint in [SyncController.start] already
-  /// applies; this one path was reading the cursor without it.
-  Future<bool> _placeLiveOp(
-    String channelId,
-    int? opSeq,
+  /// The write comes first, so one that fails is still ahead of the cursor
+  /// and the next catch-up delivers it; see docs/internals.md, sync convergence.
+  /// A channel with no cursor gets one only from the stream's first op: any
+  /// later op would start it past ops nobody applied.
+  ///
+  /// [isCurrent] is rechecked after the cursor read: a sign-out or reconnect
+  /// landing inside that await leaves a number from a store the newer run has
+  /// since moved past.
+  Future<void> _applyLiveOp(
+    ({String channelId, int? opSeq}) op,
     MessageStore store,
     bool Function() isCurrent,
+    Future<void> Function() write,
   ) async {
-    final cursor = await store.opCursorFor(channelId);
-    if (!isCurrent()) return false;
-    switch (liveOpDecision(opSeq, cursor)) {
+    final cursor = await store.opCursorFor(op.channelId);
+    if (!isCurrent()) return;
+    switch (liveOpDecision(op.opSeq, cursor)) {
       case LiveOpOutcome.ignored:
-        return false;
+        return;
       case LiveOpOutcome.needsReconcile:
         unawaited(
           _reconcile().catchError(
@@ -276,10 +284,11 @@ class SyncEventApplier {
             ),
           ),
         );
-        return false;
       case LiveOpOutcome.applied:
-        if (opSeq != null) await store.setOpCursor(channelId, opSeq);
-        return true;
+        await write();
+        final seq = op.opSeq;
+        if (seq == null || (cursor == null && seq != 1)) return;
+        await store.setOpCursor(op.channelId, seq);
     }
   }
 }
