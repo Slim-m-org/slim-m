@@ -25,6 +25,11 @@ class _FakeGraph implements ShareAudioGraph {
   String? exported = 'unset';
   int destroys = 0;
   final links = <(int, int)>[];
+  final unlinked = <(int, int)>[];
+
+  /// What still fed the mix when it was removed; WirePlumber pauses the players behind these.
+  List<(int, int)>? linkedAtDestroy;
+  Completer<void>? holdLink;
   final streams = <int, String>{20: '$_ownPid', 30: '999'};
 
   /// Output channels per stream; a stream not listed has FL and FR.
@@ -49,8 +54,15 @@ class _FakeGraph implements ShareAudioGraph {
 
   @override
   Future<bool> link(int out, int input) async {
+    await holdLink?.future;
     links.add((out, input));
     return true;
+  }
+
+  @override
+  Future<bool> unlink(int out, int input) async {
+    unlinked.add((out, input));
+    return links.remove((out, input));
   }
 
   @override
@@ -59,6 +71,7 @@ class _FakeGraph implements ShareAudioGraph {
   @override
   Future<void> destroy() async {
     destroys++;
+    if (mix) linkedAtDestroy = [...links];
     mix = false;
     links.clear();
   }
@@ -84,7 +97,11 @@ class _FakeGraph implements ShareAudioGraph {
           {
             'id': 500 + l.$1,
             'info': {
-              'props': {'link.input.node': 90, 'link.output.port': l.$1}
+              'props': {
+                'link.input.node': 90,
+                'link.output.port': l.$1,
+                'link.input.port': l.$2,
+              }
             }
           },
       ]);
@@ -148,6 +165,31 @@ void main() {
     expect(graph.exported, isNull);
     expect(graph.destroys, 1);
     expect(isolation.active, isFalse);
+  });
+
+  test('the mix is emptied before it goes, so no player feeding it is paused',
+      () async {
+    await isolation.begin();
+    expect(graph.links, isNotEmpty);
+
+    await isolation.end();
+
+    expect(graph.linkedAtDestroy, isEmpty);
+    expect(graph.unlinked.toSet(), {(301, 91), (302, 92)});
+  });
+
+  test('a link made while the share ends is undone before the mix goes',
+      () async {
+    await isolation.begin();
+    graph.holdLink = Completer<void>();
+    graph.streams[40] = '1000';
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+
+    final ended = isolation.end();
+    graph.holdLink!.complete();
+    await ended;
+
+    expect(graph.linkedAtDestroy, isEmpty);
   });
 
   test('ending twice tears down once', () async {
@@ -361,7 +403,8 @@ void main() {
     final snapshot = ShareGraphSnapshot.parse((await graph.dump())!);
     expect(snapshot.nodeIdNamed(shareMixNode), 90);
     expect(snapshot.mixState(90).inPorts, [91, 92]);
-    expect(snapshot.mixState(90).linkedOutPorts, {301, 302});
+    expect(snapshot.mixState(90).links,
+        [(out: 301, input: 91), (out: 302, input: 92)]);
     expect(snapshot.portChannels()[301], 'FL');
     expect(snapshot.foreignPlayback(_ownPid).map((s) => s.nodeId), [30]);
   });

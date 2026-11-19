@@ -108,6 +108,18 @@ class PipewireShareGraph implements ShareAudioGraph {
   }
 
   @override
+  Future<bool> unlink(int out, int input) async {
+    try {
+      final result = await Process.run('pw-link', ['-d', '$out', '$input']);
+      return result.exitCode == 0;
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice, 'Could not unlink audio ports', error, stack);
+      return false;
+    }
+  }
+
+  @override
   void exportCaptureSource(String? source) {
     final libc = ffi.DynamicLibrary.process();
     final key = _captureSourceVariable.toNativeUtf8();
