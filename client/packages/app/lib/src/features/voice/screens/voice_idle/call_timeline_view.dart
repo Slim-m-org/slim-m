@@ -58,27 +58,11 @@ class CallTimelineView extends ConsumerWidget {
                   : _nameColumnWidth,
             ),
             Expanded(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // A narrow pane or a large text size shrinks the times rather than overflowing the row.
-                  for (final at in model.ticks(compact ? 3 : 5))
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          formatClock(
-                            DateTime.fromMillisecondsSinceEpoch(at),
-                            use24Hour: use24,
-                          ),
-                          maxLines: 1,
-                          style: AppText.code.copyWith(
-                            color: tokens.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+              child: _TimeAxis(
+                model: model,
+                most: compact ? 3 : 5,
+                use24Hour: use24,
+                style: AppText.code.copyWith(color: tokens.textSecondary),
               ),
             ),
           ],
@@ -86,6 +70,76 @@ class CallTimelineView extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// Up to [most] of the call's times, fewer when the widest one would not fit
+/// that many across, so a 12-hour clock at 10 to 12 o'clock never overflows.
+class _TimeAxis extends StatelessWidget {
+  const _TimeAxis({
+    required this.model,
+    required this.most,
+    required this.use24Hour,
+    required this.style,
+  });
+
+  final CallTimelineModel model;
+  final int most;
+  final bool use24Hour;
+  final TextStyle style;
+
+  String _label(int at) => formatClock(
+    DateTime.fromMillisecondsSinceEpoch(at),
+    use24Hour: use24Hour,
+  );
+
+  double _widest(BuildContext context, List<int> ticks) {
+    final painter = TextPainter(
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    );
+    var widest = 0.0;
+    for (final at in ticks) {
+      painter
+        ..text = TextSpan(
+          text: _label(at),
+          style: DefaultTextStyle.of(context).style.merge(style),
+        )
+        ..layout();
+      widest = math.max(widest, painter.width);
+    }
+    painter.dispose();
+    return widest;
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      var count = most;
+      var ticks = model.ticks(count);
+      while (count > 2 &&
+          count * _widest(context, ticks) + (count - 1) * AppSpacing.s8 >
+              constraints.maxWidth) {
+        count--;
+        ticks = model.ticks(count);
+      }
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          for (final at in ticks)
+            Flexible(
+              child: Text(
+                _label(at),
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+                style: style,
+              ),
+            ),
+        ],
+      );
+    },
+  );
 }
 
 const double _nameColumnWidth = 176;

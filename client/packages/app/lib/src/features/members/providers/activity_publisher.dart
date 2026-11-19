@@ -27,10 +27,7 @@ class ActivityPublisher {
       _ref.listen<bool>(feed.enabled, (_, _) => _refresh());
       _ref.listen<bool>(feed.available, (_, _) => _refresh());
     }
-    _ref.listen<api.PresenceVisibility?>(
-      ownVisibilityProvider,
-      (_, _) => _refresh(),
-    );
+    onOwnVisibilityChanged(_ref, _refresh);
     _events = _ref.read(liveEventsProvider).listen(_onEvent);
     _refresh();
   }
@@ -52,7 +49,7 @@ class ActivityPublisher {
   /// Not until the visibility is known: before `/me` answers, a user hidden
   /// on the server would otherwise have their feeds opened at launch.
   bool get _mayShare {
-    final visibility = _ref.read(ownVisibilityProvider);
+    final visibility = ownVisibilityNow(_ref);
     return visibility != null && visibility != api.PresenceVisibility.hidden;
   }
 

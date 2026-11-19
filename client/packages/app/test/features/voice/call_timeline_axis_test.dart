@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The call record's time axis starts exactly where the lanes start, so the
-/// first time sits under the first minute of the call, and its times stay
-/// inside the row in a narrow pane.
+/// first time sits under the first minute of the call, and its times fit the
+/// docked call details whatever the hour reads.
 library;
 
 import 'package:flutter/material.dart';
@@ -11,42 +11,57 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_idle/call_timeline_model.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_idle/call_timeline_view.dart';
+import 'package:slimm_app/src/routing/breakpoints.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _min = 60000;
 
-api.VoiceCall _call(int startedAt) => api.VoiceCall(
-  startedAt: startedAt,
-  endedAt: startedAt + 120 * _min,
-  canvas: const [],
-  events: [
-    api.VoiceCallEvent(
-      at: startedAt,
-      userId: 'nick',
-      kind: api.VoiceCallEventKind.joined,
-    ),
-    api.VoiceCallEvent(
-      at: startedAt + 120 * _min,
-      userId: 'nick',
-      kind: api.VoiceCallEventKind.left,
-    ),
-  ],
+CallTimelineModel _call(int start, int end) => CallTimelineModel.from(
+  api.VoiceCall(
+    startedAt: start,
+    endedAt: end,
+    canvas: const [],
+    events: [
+      api.VoiceCallEvent(
+        at: start,
+        userId: 'nick',
+        kind: api.VoiceCallEventKind.joined,
+      ),
+      api.VoiceCallEvent(
+        at: end,
+        userId: 'nick',
+        kind: api.VoiceCallEventKind.left,
+      ),
+    ],
+  ),
+  now: end,
 );
 
-Future<void> _pumpTimeline(
+Future<void> _pump(
   WidgetTester tester,
   CallTimelineModel model, {
   required bool compact,
+  required double width,
+  double textScale = 1,
 }) async {
+  tester.view.physicalSize = Size(width, 600);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [userProfileProvider.overrideWith((ref, id) async => null)],
-      child: MaterialApp(
-        theme: buildTheme(Brightness.light, AppTokens.light),
-        home: Scaffold(
-          body: Padding(
-            padding: const EdgeInsets.all(AppSpacing.s16),
-            child: CallTimelineView(model: model, compact: compact),
+      child: MediaQuery(
+        data: MediaQueryData(
+          size: Size(width, 600),
+          textScaler: TextScaler.linear(textScale),
+        ),
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.all(AppSpacing.s16),
+              child: CallTimelineView(model: model, compact: compact),
+            ),
           ),
         ),
       ),
@@ -55,25 +70,30 @@ Future<void> _pumpTimeline(
   await tester.pump();
 }
 
+final _times = find.textContaining(RegExp(r'^\d+:\d\d'));
+
 void main() {
-  testWidgets('the longest clock times stay inside a third-pane-wide row', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(360, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final tenAm = DateTime(2026, 1, 1, 10).millisecondsSinceEpoch;
-    final model = CallTimelineModel.from(_call(tenAm), now: tenAm);
-    await _pumpTimeline(tester, model, compact: true);
-    expect(tester.takeException(), isNull);
-    final times = find.textContaining(RegExp(r'^\d+:\d\d'));
-    expect(times, findsNWidgets(3));
-    for (var i = 0; i < 3; i++) {
-      final rect = tester.getRect(times.at(i));
-      expect(rect.left, greaterThanOrEqualTo(AppSpacing.s16));
-      expect(rect.right, lessThanOrEqualTo(360 - AppSpacing.s16 + 0.5));
-    }
-  });
+  for (final (compact, textScale) in [(true, 1.0), (true, 2.0), (false, 1.0)]) {
+    testWidgets('a call from 10 to 12 o\'clock keeps its times on the axis '
+        '(compact: $compact, text x$textScale)', (tester) async {
+      final start = DateTime(2026, 11, 19, 10, 15).millisecondsSinceEpoch;
+      final width = compact ? kThreadPaneWidth : 640.0;
+      await _pump(
+        tester,
+        _call(start, start + 115 * _min),
+        compact: compact,
+        width: width,
+        textScale: textScale,
+      );
+      expect(tester.takeException(), isNull, reason: 'no overflow');
+      expect(_times, findsAtLeastNWidgets(2), reason: 'start and end');
+      for (final time in tester.widgetList<Text>(_times)) {
+        final rect = tester.getRect(find.byWidget(time));
+        expect(rect.left, greaterThanOrEqualTo(AppSpacing.s16 - 0.5));
+        expect(rect.right, lessThanOrEqualTo(width - AppSpacing.s16 + 0.5));
+      }
+    });
+  }
 
   for (final compact in [true, false]) {
     testWidgets(

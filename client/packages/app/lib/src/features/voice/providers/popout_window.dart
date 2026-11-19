@@ -9,6 +9,7 @@ import '../../../desktop/popout/popout_windowing.dart';
 import '../../../providers/app_lock_controller.dart';
 import 'call_mini_player.dart';
 import 'share_watch.dart';
+import 'voice_controller.dart';
 import 'voice_flags.dart';
 
 /// Null hides every pop-out control: web, and any desktop build without the
@@ -65,15 +66,23 @@ bool _isLive(MiniPlayerFeed feed, List<VoiceParticipant> participants) {
 /// connected and the app is unlocked; a feed missing here has its window closed.
 ///
 /// The windows are separate views outside the lock gate, so a lock closes them all.
-final popOutLiveFeedsProvider = Provider<List<MiniPlayerFeed>>((ref) {
-  final feeds = ref.watch(popOutFeedsProvider);
-  if (feeds.isEmpty || ref.watch(appLockControllerProvider)) return const [];
-  final connected = ref.watch(
-    voiceFlagsProvider.select((f) => f.state == VoiceSessionState.connected),
-  );
-  if (!connected) return const [];
-  final stopped = ref.watch(shareWatchProvider.select((s) => s.stopped));
-  final participants = ref.watch(voiceParticipantsProvider);
+final popOutLiveFeedsProvider = Provider<List<MiniPlayerFeed>>(
+  (ref) => _liveFeeds(ref.watch),
+);
+
+final _connected = voiceControllerProvider.select(
+  (s) => s.state == VoiceSessionState.connected,
+);
+final _stoppedShares = shareWatchProvider.select((s) => s.stopped);
+
+List<MiniPlayerFeed> _liveFeeds(
+  T Function<T>(ProviderListenable<T> provider) read,
+) {
+  final feeds = read(popOutFeedsProvider);
+  if (feeds.isEmpty || read(appLockControllerProvider)) return const [];
+  if (!read(_connected)) return const [];
+  final stopped = read(_stoppedShares);
+  final participants = read(voiceParticipantsAtOnce);
   return [
     for (final feed in feeds)
       if (!(feed.kind == FeedKind.screenShare &&
@@ -81,4 +90,23 @@ final popOutLiveFeedsProvider = Provider<List<MiniPlayerFeed>>((ref) {
           _isLive(feed, participants))
         feed,
   ];
-});
+}
+
+/// Runs [onChange] with the live popped-out feeds, now and at once on every
+/// change of what decides them.
+///
+/// [popOutLiveFeedsProvider] is derived, so a listener on it waits for a
+/// frame, and the main window draws none while it sits in the tray with a
+/// pop-out still open.
+void onPopOutLiveFeedsChanged(
+  Ref ref,
+  void Function(List<MiniPlayerFeed> feeds) onChange,
+) {
+  void sync() => onChange(_liveFeeds(ref.read));
+  ref.listen(popOutFeedsProvider, (_, _) => sync());
+  ref.listen(appLockControllerProvider, (_, _) => sync());
+  ref.listen(_connected, (_, _) => sync());
+  ref.listen(_stoppedShares, (_, _) => sync());
+  ref.listen(voiceParticipantsAtOnce, (_, _) => sync());
+  sync();
+}

@@ -20,6 +20,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/fake_voice.dart';
+import '../../support/window_lifecycle.dart';
 import 'voice_controller_harness.dart';
 
 const _ada = VoiceParticipant(
@@ -36,7 +37,10 @@ const _feed = (identity: 'u-ada', name: 'Ada', kind: FeedKind.screenShare);
 void main() {
   setUp(TestWidgetsFlutterBinding.ensureInitialized);
 
-  Future<(ProviderContainer, FakeSession)> pump(WidgetTester tester) async {
+  Future<(ProviderContainer, FakeSession)> pump(
+    WidgetTester tester, {
+    bool poppedOut = true,
+  }) async {
     SharedPreferences.setMockInitialValues({
       'slimm.voice.pause_video_when_unfocused': true,
     });
@@ -63,7 +67,7 @@ void main() {
     container.read(voiceSettingsControllerProvider);
     await tester.runAsync(() => container.read(preferencesProvider.future));
     container.read(videoInterestHostProvider);
-    container.read(popOutFeedsProvider.notifier).open(_feed);
+    if (poppedOut) container.read(popOutFeedsProvider.notifier).open(_feed);
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
@@ -73,7 +77,8 @@ void main() {
         ),
       ),
     );
-    await tester.pump();
+    // Runs the refresh the container queued on a timer before it had a scope to draw frames for it.
+    await tester.pump(Duration.zero);
     return (container, session);
   }
 
@@ -107,4 +112,24 @@ void main() {
       container.dispose();
     });
   }
+
+  testWidgets('a feed popped out while the main window is hidden is '
+      'subscribed with no frame drawn', (tester) async {
+    final (container, session) = await pump(tester, poppedOut: false);
+    await hideTestWindow(tester);
+    await tester.idle();
+    expect(session.videoInterests.last, isEmpty);
+
+    container.read(popOutFeedsProvider.notifier).open(_feed);
+    await tester.idle();
+    expect(session.videoInterests.last, {'screen:u-ada'});
+
+    (container.read(voiceControllerProvider.notifier) as FakeVoiceController)
+        .set(const VoiceState());
+    await tester.idle();
+    expect(session.videoInterests.last, isEmpty);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
 }

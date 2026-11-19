@@ -12,7 +12,6 @@ import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import 'video_pause.dart';
 import 'voice_controller.dart';
-import 'voice_flags.dart';
 
 /// Whether the camera should be off for the window state, on a phone only.
 final cameraBackgroundPausedProvider = Provider<bool>(
@@ -55,11 +54,17 @@ final cameraBackgroundHostProvider = Provider<void>((ref) {
     cameraOn: () => ref.read(voiceControllerProvider).cameraEnabled,
     setCamera: controller.video.setCameraPublishing,
   );
-  ref.listen<bool>(cameraBackgroundPausedProvider, (_, paused) {
-    unawaited(pause.apply(paused: paused));
-  }, fireImmediately: true);
+  // A phone only, and at once: a backgrounded app draws no frame to refresh a derived provider on.
+  final phone = !ref.watch(pauseOnUnfocusedAppliesProvider);
+  onVideoPauseChanged(
+    ref,
+    local: true,
+    onChange: (paused) => unawaited(pause.apply(paused: paused && phone)),
+  );
   ref.listen<bool>(
-    voiceFlagsProvider.select((f) => f.state == VoiceSessionState.connected),
+    voiceControllerProvider.select(
+      (s) => s.state == VoiceSessionState.connected,
+    ),
     (_, connected) {
       if (!connected) pause.forget();
     },

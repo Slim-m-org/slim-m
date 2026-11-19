@@ -12,8 +12,11 @@ import 'server_identity_recheck.dart';
 
 /// Whether the server presents a key that contradicts its pin and nobody has chosen yet.
 /// A re-probe in flight keeps the answer it had, like the screen does.
-final serverIdentityMismatchedProvider = Provider<bool>(
-  (ref) => ref.watch(serverIdentityChangeProvider).valueOrNull != null,
+///
+/// A selection, so the sync hears a mismatch at once: a provider of its own
+/// would wait for a frame, and a window in the tray draws none.
+final serverIdentityMismatchedProvider = serverIdentityChangeProvider.select(
+  (change) => change.valueOrNull != null,
 );
 
 /// Hands each API client the gate that holds its session back.

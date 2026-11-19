@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
@@ -20,6 +21,8 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart' show MessageStore, SlimmDatabase;
 import 'package:slimm_platform/testing.dart';
+
+import '../../support/window_lifecycle.dart';
 
 const _keyA = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
 const _keyB = 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=';
@@ -188,6 +191,9 @@ Future<_Rig> _rig({String? pinned = _keyA}) async {
 }
 
 void main() {
+  // The widget binding the last test brings in answers every request with a 400 of its own.
+  setUp(() => HttpOverrides.global = null);
+
   test(
     'a changed key gets no signed-in request and no socket until trusted',
     () async {
@@ -321,5 +327,37 @@ void main() {
     await rig.trustPresentedKey();
     await channels;
     expect(rig.server.signedIn, contains('GET /channels'));
+  });
+
+  testWidgets('a key that changes behind a reconnect stops sync in a hidden '
+      'window', (tester) async {
+    late _Rig rig;
+    await tester.runAsync(() async {
+      rig = await _rig();
+      rig.container.read(syncControllerProvider.notifier);
+      await rig.untilLive();
+    });
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: rig.container,
+        child: const SizedBox(),
+      ),
+    );
+    await hideTestWindow(tester);
+
+    await tester.runAsync(() async {
+      final asked = rig.server.versionReads;
+      rig.server.presentedKey = _keyB;
+      for (final socket in List.of(rig.server.sockets)) {
+        await socket.close();
+      }
+      await rig.until(() => rig.server.socketsOpened == 2, 'reconnected');
+      await rig.until(() => rig.server.versionReads > asked, 'asked again');
+      await rig.until(() => rig.server.sockets.isEmpty, 'stood down');
+      await rig.quiet();
+
+      expect(rig.server.socketsOpened, 2);
+      expect(rig.status, SyncStatus.offline);
+    });
   });
 }

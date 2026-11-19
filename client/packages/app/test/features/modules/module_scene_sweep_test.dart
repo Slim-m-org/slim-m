@@ -4,12 +4,16 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_painter.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_sweep.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_timeline.dart';
 import 'package:slimm_design_system/design_system.dart';
+
+import '../../support/window_lifecycle.dart';
 
 ModuleScene _scene(String opsJson) => parseModuleScene(
   '{"\$slim":"scene/1","width":100,"height":100,"ops":[$opsJson]}',
@@ -110,18 +114,24 @@ void main() {
   });
 
   group('the clock', () {
-    Widget host(ModuleScene scene, {bool disableAnimations = false}) =>
-        MaterialApp(
-          home: MediaQuery(
-            data: MediaQueryData(disableAnimations: disableAnimations),
-            child: SceneTimeline(
-              scene: scene,
-              tokens: AppTokens.dark,
-              images: const {},
-              size: const Size(100, 100),
-            ),
+    Widget host(
+      ModuleScene scene, {
+      bool disableAnimations = false,
+      AppLifecycleNotifier? window,
+    }) => ProviderScope(
+      overrides: [if (window != null) windowLifecycle(window)],
+      child: MaterialApp(
+        home: MediaQuery(
+          data: MediaQueryData(disableAnimations: disableAnimations),
+          child: SceneTimeline(
+            scene: scene,
+            tokens: AppTokens.dark,
+            images: const {},
+            size: const Size(100, 100),
           ),
-        );
+        ),
+      ),
+    );
 
     ModuleScenePainter painter(WidgetTester tester) =>
         tester
@@ -193,6 +203,18 @@ void main() {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump(const Duration(seconds: 3));
       expect(painter(tester).time, isNull, reason: 'it does not replay');
+    });
+
+    testWidgets('a blur only the window reported stops it too', (tester) async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      final window = windowIn(AppLifecycleState.resumed);
+      await tester.pumpWidget(host(moving, window: window));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // The window lost focus; make the embedder's own report the stale one.
+      window.didChangeAppLifecycleState(AppLifecycleState.inactive);
+      await tester.pump();
+      expect(painter(tester).time, isNull);
     });
 
     testWidgets('a scene off screen has no ticker (TickerMode off)', (

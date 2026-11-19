@@ -34,7 +34,6 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
@@ -43,6 +42,7 @@ import '../../features/accounts/providers/account_slot.dart';
 import '../../features/accounts/providers/notification_target.dart';
 import 'desktop_message_text_settings.dart';
 import 'desktop_notification_text.dart';
+import '../../providers/app_lifecycle.dart';
 import '../../providers/live_events.dart';
 import '../../features/members/providers/member_presence.dart'
     show memberProfileOverridesProvider, membersProvider;
@@ -76,8 +76,7 @@ class _DesktopMessageNotifier {
 
   Future<void> _onMessageCreated(api.Message message) async {
     // Skip while focused: a foreground app shows unread in the rail already, but only for the account on screen.
-    final foreground =
-        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    final foreground = _ref.read(appFocusedProvider);
     if (foreground && _ref.read(accountActiveProvider)) return;
 
     final alert = await _ref.read(messageAlertPolicyProvider).evaluate(message);

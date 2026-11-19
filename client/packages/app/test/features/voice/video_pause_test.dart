@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/features/voice/providers/video_interest_relay.dart';
+import 'package:slimm_app/src/features/voice/providers/camera_background_pause.dart';
 import 'package:slimm_app/src/features/voice/providers/video_pause.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -270,6 +271,27 @@ void main() {
       },
     );
 
+    testWidgets('a hidden window stops receiving video with no frame drawn', (
+      tester,
+    ) async {
+      addTearDown(
+        () => tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        ),
+      );
+      final c = await pump(tester);
+      c.read(videoInterestHostProvider);
+      await tester.pump();
+      c.read(videoInterestRelayProvider).refresh();
+      expect(_lastSession!.videoInterests.last, isNotEmpty);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      await tester.idle();
+
+      expect(_lastSession!.videoInterests.last, isEmpty);
+    });
+
     testWidgets('an unfocused window keeps its video interest', (tester) async {
       final c = await pump(tester);
       c.read(videoInterestHostProvider);
@@ -320,6 +342,35 @@ void main() {
         await Future<void>.delayed(Duration.zero);
       },
     );
+
+    testWidgets('a backgrounded phone stops its camera with no frame drawn', (
+      tester,
+    ) async {
+      addTearDown(
+        () => tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        ),
+      );
+      final r = (await tester.runAsync(() => _rig(desktop: false)))!;
+      (r.container.read(voiceControllerProvider.notifier)
+              as FakeVoiceController)
+          .update((s) => s.copyWith(cameraEnabled: true));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: r.container,
+          child: const SizedBox(),
+        ),
+      );
+      r.container.read(cameraBackgroundHostProvider);
+      await tester.pump();
+      expect(r.session.cameraToggles, isEmpty);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.idle();
+
+      expect(r.session.cameraToggles, [false]);
+    });
 
     testWidgets('a connected call with no video mounted wants none', (
       tester,

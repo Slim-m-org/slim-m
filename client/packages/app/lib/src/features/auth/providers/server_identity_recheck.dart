@@ -7,11 +7,14 @@
 /// and only ever answers with an identity that contradicts a pin.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../widgets/server_identity_confirmation.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/sync_controller.dart';
 import 'server_version_probe.dart';
 
 /// What a pinned server presents instead of its pinned key.
@@ -54,6 +57,20 @@ class ServerIdentityChange extends AsyncNotifier<IdentityMismatch?> {
     ref.invalidateSelf();
   }
 
+  /// Asks again the moment the sync is live, without waiting to be read: a
+  /// window in the tray draws no frame, and nothing else would refresh this.
+  void _recheckOnReconnect() {
+    var current = true;
+    ref.onDispose(() => current = false);
+    ref.listen(syncControllerProvider, (previous, next) {
+      if (next != SyncStatus.live || previous == SyncStatus.live) return;
+      // After the probe's own listener has marked it stale, whichever of the two runs first.
+      scheduleMicrotask(() {
+        if (current) future.ignore();
+      });
+    });
+  }
+
   @override
   Future<IdentityMismatch?> build() async {
     final proven = state.valueOrNull;
@@ -65,6 +82,7 @@ class ServerIdentityChange extends AsyncNotifier<IdentityMismatch?> {
         .read(identityHandleFor(server));
     if (pinned == null) return null;
 
+    _recheckOnReconnect();
     final version = await ref.watch(serverVersionProbeProvider.future);
     if (version == null) {
       return proven?.presented?.publicKey == pinned ? null : proven;

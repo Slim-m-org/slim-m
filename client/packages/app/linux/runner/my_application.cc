@@ -12,6 +12,7 @@
 #include "linux_tray_probe_channel.h"
 #include "linux_idle_channel.h"
 #include "linux_window_mapped_channel.h"
+#include "linux_window_suspended_channel.h"
 #include "youtube_player_channel.h"
 
 struct _MyApplication {
@@ -124,6 +125,8 @@ static void my_application_activate(GApplication* application) {
 
   // Lets the splash-to-real-window handoff wait for the splash to be mapped; see linux_window_mapped_channel.h.
   linux_window_mapped_channel_register(self->messenger, window);
+  // A Wayland minimise changes no window state; see linux_window_suspended_channel.h.
+  linux_window_suspended_channel_register(self->messenger, window);
   linux_idle_channel_register(self->messenger);
   youtube_player_channel_register(self->messenger, GTK_OVERLAY(overlay));
 

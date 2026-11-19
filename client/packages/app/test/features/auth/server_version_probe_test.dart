@@ -5,6 +5,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -12,12 +13,14 @@ import 'package:http/testing.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/auth/providers/client_floor.dart';
+import 'package:slimm_app/src/features/auth/providers/server_identity_hold.dart';
 import 'package:slimm_app/src/features/auth/providers/server_identity_recheck.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../../support/fake_sync.dart';
+import '../../support/window_lifecycle.dart';
 
 const _server = 'https://chat.example';
 const _handle = 'server_identity:$_server';
@@ -36,6 +39,7 @@ class _Harness {
   final ProviderContainer container;
   final NoopSyncController sync;
   int versionReads = 0;
+  String presentedKey = _key;
 
   Future<void> settle() async {
     await pumpEventQueue();
@@ -58,7 +62,7 @@ Future<_Harness> _harness({bool failProbe = false}) async {
         'version': '1.0.0',
         'protocol': 1,
         'identity': {
-          'public_key': _key,
+          'public_key': harness.presentedKey,
           'fingerprint': 'deadbeefcafebabefeedface1337d00d',
           'fingerprint_groups': ['dead', 'beef', 'cafe', 'babe'],
           'color_strip': [0, 1, 2, 3],
@@ -157,4 +161,33 @@ void main() {
       expect(harness.versionReads, reads);
     },
   );
+
+  testWidgets('a reconnect in a hidden window asks again and reports a changed '
+      'key, with nothing reading it', (tester) async {
+    late _Harness harness;
+    await tester.runAsync(() async {
+      harness = await _harness();
+      await harness.settle();
+    });
+    final mismatched = <bool>[];
+    harness.container.listen(
+      serverIdentityMismatchedProvider,
+      (_, now) => mismatched.add(now),
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: harness.container,
+        child: const SizedBox(),
+      ),
+    );
+    await hideTestWindow(tester);
+
+    harness.presentedKey = 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=';
+    harness.sync.report(SyncStatus.connecting);
+    harness.sync.report(SyncStatus.live);
+    await tester.runAsync(pumpEventQueue);
+
+    expect(harness.versionReads, 2);
+    expect(mismatched, [true]);
+  });
 }

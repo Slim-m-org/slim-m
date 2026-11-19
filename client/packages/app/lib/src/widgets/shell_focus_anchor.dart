@@ -9,6 +9,9 @@
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../providers/app_lifecycle.dart';
 
 class ShellFocusAnchor extends StatefulWidget {
   const ShellFocusAnchor({required this.child, super.key});
@@ -42,10 +45,10 @@ class _ShellFocusAnchorState extends State<ShellFocusAnchor> {
     _route = ModalRoute.of(context);
   }
 
-  bool get _appActive {
-    final state = WidgetsBinding.instance.lifecycleState;
-    return state == null || state == AppLifecycleState.resumed;
-  }
+  bool get _appActive => ProviderScope.containerOf(
+    context,
+    listen: false,
+  ).read(appFocusedProvider);
 
   bool get _uncovered => _route?.isCurrent ?? true;
 

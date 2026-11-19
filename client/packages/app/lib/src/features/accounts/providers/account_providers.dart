@@ -57,6 +57,23 @@ class AccountsSnapshot {
   }
 }
 
+/// Runs [onChange] now and on every change the host reports, frame or no
+/// frame; with no host it runs once, with no accounts.
+///
+/// For work that must go on while the window is hidden. A provider watching
+/// [accountsSnapshotProvider] is only recomputed on a frame.
+void onAccountsChanged(
+  Ref ref,
+  void Function(List<AccountRuntime> accounts) onChange,
+) {
+  final host = ref.watch(accountHostProvider);
+  if (host == null) return onChange(const []);
+  void changed() => onChange(host.accounts);
+  host.addListener(changed);
+  ref.onDispose(() => host.removeListener(changed));
+  changed();
+}
+
 /// Rebuilds whenever the host reports a change; empty with no host.
 final accountsSnapshotProvider = Provider.autoDispose<AccountsSnapshot>((ref) {
   final host = ref.watch(accountHostProvider);

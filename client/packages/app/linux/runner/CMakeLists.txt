@@ -13,6 +13,7 @@ add_executable(${BINARY_NAME}
   "linux_tray_probe_channel.cc"
   "linux_second_instance_channel.cc"
   "linux_window_mapped_channel.cc"
+  "linux_window_suspended_channel.cc"
   "linux_idle_channel.cc"
   "ext-idle-notify-v1-protocol.c"
   "linux_screen_overlay_channel.cc"

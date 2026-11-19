@@ -139,7 +139,7 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
   @override
   VoicePlaybackState build() {
     if (_ios) {
-      ref.listen(voiceFlagsProvider.select((f) => f.channelId), (_, channel) {
+      ref.listen(voiceChannelAtOnce, (_, channel) {
         if (channel == null && state.error == VoicePlaybackError.inCall) {
           dismissError();
         }

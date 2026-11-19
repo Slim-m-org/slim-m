@@ -283,7 +283,7 @@ void main() {
       expect(player.opened.single, media);
     });
 
-    testWidgets('an unfocused window opens nothing, and losing focus pauses', (
+    testWidgets('a hidden window opens nothing, and hiding pauses', (
       tester,
     ) async {
       final binding = TestWidgetsFlutterBinding.instance;
@@ -291,6 +291,7 @@ void main() {
         () => binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed),
       );
       binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
       final player = FakePlayer();
       final source = ScriptedSource([media]);
       await _pumpFaked(tester, source, player);
@@ -307,7 +308,27 @@ void main() {
 
       binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       await tester.pump();
+      expect(player.pauses, 0, reason: 'a second monitor is still watched');
+
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      await tester.idle();
       expect(player.pauses, 1, reason: 'nobody is watching it play');
+    });
+
+    testWidgets('a video posted to an unfocused window still opens', (
+      tester,
+    ) async {
+      final binding = TestWidgetsFlutterBinding.instance;
+      addTearDown(
+        () => binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed),
+      );
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      final player = FakePlayer();
+      final source = ScriptedSource([media]);
+      await _pumpFaked(tester, source, player);
+      await tester.pump();
+      await tester.pump();
+      expect(source.opens, 1);
     });
 
     testWidgets('disposing disposes the player and the source', (tester) async {
