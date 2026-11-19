@@ -1,30 +1,30 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Leaving a call, when leaving is not instantaneous.
 ///
-/// `_teardown` clears `_room` before it awaits anything, deliberately, so a
-/// join racing a teardown can tell at once that it has been superseded. The
-/// cost of that is the mirror case nothing covered: a join starting *during*
-/// a teardown builds its room unobstructed, and then the leave that was
-/// still unwinding resumes and reports the session idle over the top of it.
-///
-/// The room disconnect is what makes the window real rather than theoretical
-/// - it is a round trip to the SFU, and no hang-up control in the app waits
-/// on it before becoming tappable again.
+/// The room disconnect is a round trip to the SFU, and no hang-up control in
+/// the app waits on it before becoming tappable again, so a rejoin can land
+/// while the leave is still unwinding. That join waits for the leave: livekit's
+/// cleanup of the old room stops the platform audio session, and the leave's
+/// own resets (deafen, local mutes) must reach the next call, not be skipped.
 library;
 
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_rtc/src/voice_call_flow.dart' show kJoinWaitsForLeave;
 import 'support/no_audio_devices.dart';
 
-/// A room that connects immediately and whose `disconnect` blocks on [gate],
-/// standing in for the SFU round trip a hang-up really waits on.
-class _SlowLeaveRoom extends lk.Room {
-  _SlowLeaveRoom(this.gate, this.log);
-  final Future<void> gate;
+/// A room that logs its connect, disconnect and dispose under [label];
+/// [leaveGate] holds its disconnect and [disposeGate] its dispose.
+class _TracedRoom extends lk.Room {
+  _TracedRoom(this.label, this.log, {this.leaveGate, this.disposeGate});
+  final String label;
   final List<String> log;
+  final Future<void>? leaveGate;
+  final Future<void>? disposeGate;
 
   @override
   Future<void> connect(
@@ -33,14 +33,33 @@ class _SlowLeaveRoom extends lk.Room {
     lk.ConnectOptions? connectOptions,
     lk.RoomOptions? roomOptions,
     lk.FastConnectOptions? fastConnectOptions,
-  }) async {}
+  }) async =>
+      log.add('$label connect');
 
   @override
   Future<void> disconnect() async {
-    log.add('disconnect');
-    await gate;
+    log.add('$label disconnect');
+    await leaveGate;
     await super.disconnect();
   }
+
+  @override
+  Future<bool> dispose() async {
+    log.add('$label dispose');
+    await disposeGate;
+    return super.dispose();
+  }
+}
+
+/// The first call's disconnect waits on [gate]; every later room is quick.
+VoiceSession _racedSession(Future<void> gate, List<String> log) {
+  var built = 0;
+  return VoiceSession(
+    audioDevices: const NoAudioDevices(),
+    roomFactory: () => ++built == 1
+        ? _TracedRoom('old', log, leaveGate: gate)
+        : _TracedRoom('new', log),
+  );
 }
 
 /// A room that connects immediately and logs its own disconnect, so a test
@@ -86,21 +105,11 @@ class _ThrowingBridge implements BroadcastBridge {
 
 void main() {
   test(
-      'a join that lands while a leave is still disconnecting is not '
-      'reported idle by it', () async {
+      'a join that lands while a leave is still disconnecting connects once '
+      'the old room is gone, and stays connected', () async {
     final gate = Completer<void>();
     final log = <String>[];
-    var built = 0;
-    final session = VoiceSession(
-      audioDevices: const NoAudioDevices(),
-      roomFactory: () {
-        built++;
-        // Only the first call's own disconnect is the slow one being raced.
-        return built == 1
-            ? _SlowLeaveRoom(gate.future, log)
-            : _LoggingRoom(log);
-      },
-    );
+    final session = _racedSession(gate.future, log);
     addTearDown(session.dispose);
 
     await session.join(url: 'wss://a.invalid', token: 't1');
@@ -108,20 +117,89 @@ void main() {
 
     final leaving = session.leave();
     await pumpEventQueue();
-    expect(log, ['disconnect'], reason: 'the teardown is genuinely in flight');
+    expect(log.last, 'old disconnect', reason: 'the teardown is in flight');
 
-    await session.join(url: 'wss://a.invalid', token: 't2');
-    expect(session.state, VoiceSessionState.connected);
+    final joining = session.join(url: 'wss://a.invalid', token: 't2');
+    await pumpEventQueue();
+    expect(log, isNot(contains('new connect')),
+        reason: "the old room's cleanup stops the audio session a new one "
+            'started, so the new one must not start under it');
 
     gate.complete();
     await leaving;
+    await joining;
     await pumpEventQueue();
 
     expect(
-      session.state,
-      VoiceSessionState.connected,
-      reason: 'the superseded leave speaks for a call that is already over',
-    );
+        log, ['old connect', 'old disconnect', 'old dispose', 'new connect']);
+    expect(session.state, VoiceSessionState.connected);
+  });
+
+  test('a rejoin that lands mid-leave starts the next call heard', () async {
+    final gate = Completer<void>();
+    final session = _racedSession(gate.future, []);
+    addTearDown(session.dispose);
+    await session.join(url: 'wss://a.invalid', token: 't1');
+    expect(await session.setDeafened(true), isTrue);
+
+    final leaving = session.leave();
+    await pumpEventQueue();
+    final joining = session.join(url: 'wss://a.invalid', token: 't2');
+    await pumpEventQueue();
+    gate.complete();
+    await leaving;
+    await joining;
+
+    expect(session.state, VoiceSessionState.connected);
+    expect(session.deafened, isFalse,
+        reason: 'the app shows a call after a leave undeafened, so the '
+            'session must not still be holding everyone silent');
+  });
+
+  test('a leave asked while a join waits on an earlier leave wins', () async {
+    final gate = Completer<void>();
+    final log = <String>[];
+    final session = _racedSession(gate.future, log);
+    addTearDown(session.dispose);
+    await session.join(url: 'wss://a.invalid', token: 't1');
+
+    final leaving = session.leave();
+    await pumpEventQueue();
+    final joining = session.join(url: 'wss://a.invalid', token: 't2');
+    await pumpEventQueue();
+    final leavingAgain = session.leave();
+    gate.complete();
+    await Future.wait([leaving, joining, leavingAgain]);
+
+    expect(log, isNot(contains('new connect')));
+    expect(session.state, VoiceSessionState.idle);
+  });
+
+  test('a leave that never finishes tearing down holds a join only so long',
+      () {
+    fakeAsync((async) {
+      final log = <String>[];
+      var built = 0;
+      final session = VoiceSession(
+        audioDevices: const NoAudioDevices(),
+        roomFactory: () => ++built == 1
+            ? _TracedRoom('old', log, disposeGate: Completer<void>().future)
+            : _TracedRoom('new', log),
+      );
+      session.join(url: 'wss://a.invalid', token: 't1');
+      async.flushMicrotasks();
+      session.setDeafened(true);
+      session.leave();
+      async.flushMicrotasks();
+      session.join(url: 'wss://a.invalid', token: 't2');
+      async.elapse(kJoinWaitsForLeave - const Duration(milliseconds: 1));
+      expect(log, isNot(contains('new connect')));
+
+      async.elapse(const Duration(milliseconds: 2));
+      expect(log.last, 'new connect');
+      expect(session.state, VoiceSessionState.connected);
+      expect(session.deafened, isFalse);
+    });
   });
 
   test('a leave that is not superseded still reports idle', () async {

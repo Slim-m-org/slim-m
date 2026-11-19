@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What iOS reports around a call - each CallKit step and its result, the
-/// shared `AVAudioSession`'s interruptions and route changes - as plain
-/// lines for the call's diagnostics.
+/// What iOS reports around a call - each CallKit step and its result, CallKit
+/// activating and deactivating the audio session, the shared
+/// `AVAudioSession`'s interruptions and route changes - as plain lines for
+/// the call's diagnostics.
 ///
 /// The native side sends raw values (`VoiceCallReporter.swift`) and the words
 /// live here, where a test can pin them. Ports are named by type only
@@ -13,6 +14,9 @@ library;
 String? describeCallSystemEvent(Map<Object?, Object?> event) =>
     switch (event['kind']) {
       'callKit' => _callKit(event),
+      'callKitAudio' => 'CallKit '
+          '${event['active'] == true ? 'activated' : 'deactivated'} '
+          'the audio session: ${describeAudioSession(event)}',
       'interruption' => _interruption(event),
       'routeChange' =>
         'Audio route changed (${_routeReason(event['reason'])}): '

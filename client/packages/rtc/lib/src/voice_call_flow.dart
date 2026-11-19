@@ -7,7 +7,7 @@ import 'dart:async';
 
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart'
-    show AppLog, LogTag, ignoreError, reportFailure;
+    show AppLog, LogLevel, LogTag, ignoreError, reportFailure;
 
 import 'audio_event_scope.dart';
 import 'audio_gain.dart' as rtc_gain;
@@ -26,6 +26,9 @@ import 'voice_session_core.dart';
 /// a hang-up during an outage stayed on screen for those 10 s. The room is
 /// disposed either way, which is what closes the connections.
 const kLeaveGoodbyeWait = Duration(seconds: 2);
+
+/// The longest a join waits for a leave still tearing down; see [VoiceCallFlow.join].
+const kJoinWaitsForLeave = Duration(seconds: 5);
 
 /// Owns the room, the call's state and its generation, and orders the
 /// teardown; every other part of the call is reached through [VoiceSessionCore].
@@ -58,6 +61,9 @@ class VoiceCallFlow {
   /// The in-flight join, so a second call serializes behind it; see [join].
   Future<void>? _joining;
 
+  /// The leave still tearing down, which the next join waits for; see [join].
+  Future<void>? _leaving;
+
   /// Bumped by every join and every leave, so a teardown still unwinding can
   /// tell that a newer call has taken this session over; see [leave].
   int _generation = 0;
@@ -69,6 +75,7 @@ class VoiceCallFlow {
 
   /// Joins a room with a server-minted token; [canPublish] only stops a listen-only join from opening the microphone, and rejoining leaves the old connection first.
   /// Overlapping calls serialize, so a second tap or a channel switch mid-connect waits and the state ends as the last caller asked.
+  /// A join also waits, up to [kJoinWaitsForLeave], for a leave still tearing down: livekit's cleanup of that room stops the platform audio session.
   Future<void> join({
     required String url,
     required String token,
@@ -97,8 +104,17 @@ class VoiceCallFlow {
 
   /// Leaves the call and resets deafen and mutes with it. Safe to call when not in one.
   ///
-  /// A leave a newer join already superseded resets nothing: [_teardown] clears `room` before it awaits.
-  Future<void> leave() => _end(replaced: false);
+  /// A leave a newer join took over, past [kJoinWaitsForLeave], resets nothing: that join made the resets.
+  Future<void> leave() {
+    final ending = _end(replaced: false);
+    final settled = ending.catchError(ignoreError(
+        LogTag.voice, 'A leave failed; whoever asked for it has the error'));
+    _leaving = settled;
+    unawaited(settled.whenComplete(() {
+      if (identical(_leaving, settled)) _leaving = null;
+    }));
+    return ending;
+  }
 
   /// [replaced] is a join taking over a call nobody left, which stays deafened:
   /// a rejoin after a drop, or a switch, must not start playing a call its listener silenced.
@@ -106,6 +122,10 @@ class VoiceCallFlow {
     final generation = ++_generation;
     await _teardown();
     if (generation != _generation) return;
+    _resetForNewCall(replaced: replaced);
+  }
+
+  void _resetForNewCall({required bool replaced}) {
     _core.roster.set(const []);
     _core.listener.resetForNewCall(keepDeafened: replaced);
     // Gain deliberately survives: somebody you turned down stays turned down.
@@ -113,6 +133,21 @@ class VoiceCallFlow {
     droppedWhileSharing = false;
     _core.video.resetForNewCall();
     _setState(VoiceSessionState.idle);
+  }
+
+  /// Waits for a leave still tearing down; one that outlasts the wait is taken
+  /// over, with the resets it would have made on reaching idle.
+  Future<void> _afterLeave() async {
+    final leaving = _leaving;
+    if (leaving == null) return;
+    try {
+      await leaving.timeout(kJoinWaitsForLeave);
+    } on TimeoutException {
+      _core.diag('The last call was still closing; joining anyway',
+          level: LogLevel.warning);
+      if (identical(_leaving, leaving)) _leaving = null;
+      _resetForNewCall(replaced: false);
+    }
   }
 
   Future<void> dispose() async {
@@ -144,6 +179,10 @@ class VoiceCallFlow {
     required bool canPublish,
   }) async {
     if (disposed) return;
+    final asked = _generation;
+    await _afterLeave();
+    // A leave asked while this waited is the newer ask.
+    if (disposed || asked != _generation) return;
     _core.readiness.mayPublish = canPublish;
     if (room != null) await _end(replaced: true);
     // Claims the session past the leave above, whose own guard has run by now.

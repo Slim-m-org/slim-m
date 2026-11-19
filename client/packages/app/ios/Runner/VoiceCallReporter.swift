@@ -193,6 +193,14 @@ final class AudioSessionObserver {
     observe(AVAudioSession.mediaServicesWereResetNotification) { _ in ["kind": "mediaServicesReset"] }
   }
 
+  /// CallKit activating or deactivating the session for its call, with the session as it then is.
+  static func callKitHandOff(active: Bool) -> [String: Any] {
+    var event = snapshot()
+    event["kind"] = "callKitAudio"
+    event["active"] = active
+    return event
+  }
+
   static func snapshot() -> [String: Any] {
     let session = AVAudioSession.sharedInstance()
     let route = session.currentRoute
@@ -225,15 +233,12 @@ final class AudioSessionObserver {
 /// onto one shared provider needs a device to confirm the ringtone and audio
 /// session hand-off, so it is left apart.
 ///
-/// `provider(_:didActivate:)`/`didDeactivate:` are deliberately not
-/// implemented: wiring them to the `AVAudioSession` livekit_client and
-/// flutter_webrtc use for the call would need importing WebRTC's own audio
-/// session type directly into this target and setting its manual-audio mode
-/// globally, which affects every call this app makes, CallKit-reported or
-/// not, and cannot be verified without a real device. Left for a follow-up
-/// on https://github.com/NC1107/slim-m/issues/212 rather than guessed at
-/// here; the default (no manual audio session hand-off) is what this app
-/// already runs today.
+/// `provider(_:didActivate:)`/`didDeactivate:` only record CallKit's hand-off
+/// in the call report. Handing the session to CallKit instead (livekit's
+/// externalCallSystem mode, the engine gated until `didActivate`) changes
+/// every call this app makes and cannot be verified without a real device,
+/// so it waits for a report that shows the hand-off breaking a call; see
+/// https://github.com/NC1107/slim-m/issues/212.
 final class VoiceCallChannel: NSObject, CXProviderDelegate {
   static let name = "top.npcserver.slimm/call_lifecycle"
 
@@ -311,6 +316,14 @@ final class VoiceCallChannel: NSObject, CXProviderDelegate {
 
   func providerDidReset(_: CXProvider) {
     // Intentionally empty: this app holds no CallKit state to tear down on a provider reset.
+  }
+
+  func provider(_: CXProvider, didActivate _: AVAudioSession) {
+    lifecycle.onEvent?(AudioSessionObserver.callKitHandOff(active: true))
+  }
+
+  func provider(_: CXProvider, didDeactivate _: AVAudioSession) {
+    lifecycle.onEvent?(AudioSessionObserver.callKitHandOff(active: false))
   }
 
   func provider(_: CXProvider, perform action: CXStartCallAction) {
