@@ -55,4 +55,37 @@ void main() {
     expect(during.last, 'destroy');
     expect(graph.linkedAtDestroy, isEmpty);
   });
+
+  group('a sound server that stops answering cannot hold up the end of a share',
+      () {
+    setUp(() {
+      isolation = ShareAudioIsolation(
+        graph: graph,
+        followEvery: const Duration(milliseconds: 20),
+        emptyWithin: const Duration(milliseconds: 50),
+      );
+    });
+
+    test('while the mix is being emptied', () async {
+      await isolation.begin();
+      graph.holdDump = Completer<void>();
+
+      await isolation.end().timeout(const Duration(seconds: 1));
+
+      expect(graph.destroys, 1);
+      expect(isolation.active, isFalse);
+    });
+
+    test('while a link is still being made', () async {
+      await isolation.begin();
+      graph.holdLink = Completer<void>();
+      graph.streams[40] = '1000';
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+
+      await isolation.end().timeout(const Duration(seconds: 1));
+
+      expect(graph.destroys, 1);
+      expect(isolation.active, isFalse);
+    });
+  });
 }

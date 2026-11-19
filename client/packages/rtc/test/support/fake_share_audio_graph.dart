@@ -27,6 +27,9 @@ class FakeShareAudioGraph implements ShareAudioGraph {
   /// What still fed the mix when it was removed; WirePlumber pauses the players behind these.
   List<(int, int)>? linkedAtDestroy;
   Completer<void>? holdLink;
+
+  /// Holds every dump until completed, like a sound server that stopped answering.
+  Completer<void>? holdDump;
   final streams = <int, String>{20: '$fakeOwnPid', 30: '999'};
 
   /// Output channels per stream; a stream not listed has FL and FR.
@@ -79,6 +82,7 @@ class FakeShareAudioGraph implements ShareAudioGraph {
   @override
   Future<String?> dump() async {
     calls.add('dump');
+    await holdDump?.future;
     return jsonEncode([
       for (final e in streams.entries) ...[
         _node(e.key, 'Stream/Output/Audio', e.value),

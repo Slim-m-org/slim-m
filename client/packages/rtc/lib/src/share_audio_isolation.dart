@@ -26,10 +26,14 @@ class ShareAudioIsolation {
   ShareAudioIsolation({
     ShareAudioGraph? graph,
     this.followEvery = const Duration(seconds: 1),
+    this.emptyWithin = const Duration(milliseconds: 1500),
   }) : _graph = graph ?? PipewireShareGraph();
 
   final ShareAudioGraph _graph;
   final Duration followEvery;
+
+  /// How long ending a share waits for the mix to empty before removing it anyway, so a wedged sound server cannot hold up stopping the share or leaving the call.
+  final Duration emptyWithin;
   int? _mixNode;
   Timer? _follow;
   Future<void>? _linking;
@@ -90,11 +94,18 @@ class ShareAudioIsolation {
     _graph.exportCaptureSource(null);
     _mixNode = null;
     try {
-      await _linking;
-      await _empty(mix);
+      await _unhook(mix).timeout(emptyWithin, onTimeout: () {
+        AppLog.warning(LogTag.voice,
+            'The share mix did not empty in time; media players feeding it may pause');
+      });
     } finally {
       await _graph.destroy();
     }
+  }
+
+  Future<void> _unhook(int mix) async {
+    await _linking;
+    await _empty(mix);
   }
 
   /// WirePlumber pauses every media player still feeding a sink that goes away, Spotify included.
@@ -104,9 +115,9 @@ class ShareAudioIsolation {
       if (dump == null) return;
       final links = ShareGraphSnapshot.parse(dump).mixState(mix).links;
       if (links.isEmpty) return;
-      for (final link in links) {
-        await _graph.unlink(link.out, link.input);
-      }
+      await Future.wait([
+        for (final link in links) _graph.unlink(link.out, link.input),
+      ]);
     }
   }
 
