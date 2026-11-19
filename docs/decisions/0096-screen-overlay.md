@@ -171,6 +171,9 @@ Owner, 2026-11-04: "validate the overlay setup, maybe it would be nice to do lik
 - On Windows the panel has its own window, so it stays on its chosen monitor while the drawing overlay covers the shared one.
 - Monitor: the one the app window is on when the runner can tell (GDK `monitor_at_window` on Linux, `MonitorFromWindow` on Windows), otherwise the primary.
   It is chosen when the panel opens and does not follow the window to another monitor mid-call.
+- Monitor layout changes (2026-11-18): a monitor plugged in or removed, moved, resized, rescaled or made primary makes the runner send `displaysChanged` 250 ms after the burst of changes ends, and the controller reopens the panel and any drawing overlay on the new layout.
+  Windows hears it from `WM_DISPLAYCHANGE` and `WM_DPICHANGED` on an open overlay window; Linux from GDK's monitor signals (`display_watch.cc`), always.
+  Checked on Linux with a harness on headless sway (each change one notice, a burst of three one notice) and on Xvfb, where GDK sees a resize but not RandR virtual monitors.
 - Overlay screen (2026-11-06): with two or more screens the setting offers Automatic (the rule above) or a named screen.
   Owner, 2026-11-06: "on the call overlay can we have it pick a monitor to display on? might help with the canvas drawing also".
   The pick is stored as the screen's position and size, so a reorder does not move it, and an unplugged pick falls back to Automatic.

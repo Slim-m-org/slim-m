@@ -12,7 +12,7 @@ import 'screen_overlay.dart';
 
 const screenOverlayChannelName = 'slimm/screen_overlay';
 
-/// What the runner calls when the monitor layout changed under an open overlay window.
+/// What the runner calls once the monitor layout has changed (Windows while an overlay window is open, Linux always).
 const screenOverlayDisplaysChanged = 'displaysChanged';
 
 // One per channel for every instance: a second method call handler would replace the first.

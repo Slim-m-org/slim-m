@@ -4,7 +4,7 @@
 
 #include <flutter_linux/flutter_linux.h>
 
-// The runner half of ScreenOverlay (platform/screen_overlay_channel.dart): `support`, `show`, `draw` and `hide` for the click-through overlay in screen_overlay.h.
+// The runner half of ScreenOverlay (platform/screen_overlay_channel.dart): `support`, `show`, `draw` and `hide` for the click-through overlay in screen_overlay.h, and `displaysChanged` back to Dart after the monitors change.
 void linux_screen_overlay_channel_register(FlBinaryMessenger* messenger);
 
 #endif  // FLUTTER_LINUX_SCREEN_OVERLAY_CHANNEL_H_
