@@ -35,6 +35,7 @@ import '../../../routing/breakpoints.dart';
 import '../../../routing/launch_route.dart';
 import '../../../routing/routes.dart';
 import '../widgets/transcription_notice.dart';
+import 'call_details_pane.dart';
 import 'voice_in_call.dart';
 import '../../canvas/screens/canvas_pane.dart' show canvasOpenProvider;
 import 'voice_idle/voice_channel_idle.dart';
@@ -71,6 +72,7 @@ class VoiceScreen extends ConsumerStatefulWidget {
     required this.channelId,
     this.isDm = false,
     this.openChat = false,
+    this.openDetails = false,
     super.key,
   });
 
@@ -82,6 +84,11 @@ class VoiceScreen extends ConsumerStatefulWidget {
   /// on the same screen. Picking the channel from the rail arrives without
   /// this and joins directly, as it always has.
   final bool openChat;
+
+  /// Arrived to look over the channel's calls - its row menu's View details -
+  /// rather than to talk: the page shows them with Join beside them, and the
+  /// call is not joined. Already in this call, its details open instead.
+  final bool openDetails;
 
   /// Whether this is a DM's call rather than a real voice channel's, so the
   /// rejoin screen can say "Call" instead of "Voice channel".
@@ -101,8 +108,8 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   /// mounted - does not retry itself on every rebuild. Reset only by
   /// [_arrive]: when [widget]'s own channel changes, which is what makes
   /// revisiting the same channel a fresh attempt again, and when
-  /// [VoiceScreen.openChat] flips, so the rail's pick of a channel that was
-  /// opened for its chat still joins.
+  /// [VoiceScreen.openChat] or [VoiceScreen.openDetails] flips, so the rail's
+  /// pick of a channel that was opened to read or look over still joins.
   String? _autoJoinedFor;
 
   /// The channel this account is in on another device, while its prompt waits.
@@ -123,13 +130,15 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   void didUpdateWidget(covariant VoiceScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.channelId != widget.channelId ||
-        oldWidget.openChat != widget.openChat) {
+        oldWidget.openChat != widget.openChat ||
+        oldWidget.openDetails != widget.openDetails) {
       _arrive();
     }
   }
 
-  /// A fresh arrival owes an automatic join, unless the member came to read:
-  /// then it counts as already attempted, and the chat opens instead.
+  /// A fresh arrival owes an automatic join, unless the member came to read
+  /// or look: then it counts as already attempted, and the chat or the
+  /// channel's calls show instead.
   void _arrive() {
     // Closing the canvas remounts this screen with no memory; the handoff carries it across, however long the canvas was open.
     final handedOff = ref.read(_canvasHandoffProvider) == widget.channelId;
@@ -137,22 +146,30 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     final loaded =
         !widget.isDm &&
         ref.read(launchRouteProvider).takeArrival(widget.channelId);
-    _autoJoinedFor = widget.openChat || handedOff || loaded
-        ? widget.channelId
-        : null;
+    final looking = widget.openChat || widget.openDetails;
+    _autoJoinedFor = looking || handedOff || loaded ? widget.channelId : null;
     _check++;
     _checking = false;
     _elsewhere = null;
     _confirmedJoin = null;
+    final channelId = widget.channelId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (handedOff) ref.read(_canvasHandoffProvider.notifier).state = null;
       // A phone has no docked pane to remember, so an arrival starts on the call unless it came to read.
       final compact = LayoutClass.of(context) == LayoutClass.compact;
-      if (widget.openChat || compact) {
+      if (looking || compact) {
         ref.read(voiceChatPaneVisibleProvider.notifier).state = widget.openChat;
       }
+      final inCall = ref.read(voiceFlagsProvider).inCallStageFor(channelId);
+      if (widget.openDetails && inCall) _showDetails();
     });
+  }
+
+  /// Opens the call's details, docked or as a sheet, unless already docked open.
+  void _showDetails() {
+    if (callDetailsDocks(context) && ref.read(callDetailsOpenProvider)) return;
+    toggleCallDetails(context, ref, widget.channelId);
   }
 
   void _maybeAutoJoin(VoiceController controller) {
@@ -422,7 +439,13 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     return PaneSurface(
       color: tokens.surfaceBase,
       child: canDock
-          ? VoiceCallWithChatPane(channelId: channelId, call: callBody)
+          ? VoiceCallWithChatPane(
+              channelId: channelId,
+              call: callBody,
+              details: stage == 'call'
+                  ? CallDetailsPanel(channelId: channelId)
+                  : null,
+            )
           : VoiceCallWithChatTabs(channelId: channelId, call: callBody),
     );
   }

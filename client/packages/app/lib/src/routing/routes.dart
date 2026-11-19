@@ -10,6 +10,10 @@ library;
 /// expects something to navigate to, and a query key is not one.
 const _openChatQuery = 'chat';
 
+/// The query flag [Routes.channel] sets for `openDetails`, kept out of
+/// [Routes] for the same reason as [_openChatQuery].
+const _openDetailsQuery = 'details';
+
 /// The query key [Routes.personalSettingsPane] sets, kept out of [Routes] for
 /// the same reason as [_openChatQuery].
 const settingsPaneQuery = 'pane';
@@ -97,9 +101,18 @@ abstract final class Routes {
 
   /// The messages of one channel. [openChat] arrives to read them: a voice
   /// channel then opens its chat and leaves its call unjoined (see
-  /// `VoiceScreen.openChat`); a text channel ignores it.
-  static String channel(String id, {bool openChat = false}) =>
-      openChat ? '/channels/$id?$_openChatQuery=1' : '/channels/$id';
+  /// `VoiceScreen.openChat`); a text channel ignores it. [openDetails]
+  /// arrives to look over a voice channel's calls without joining (see
+  /// `VoiceScreen.openDetails`).
+  static String channel(
+    String id, {
+    bool openChat = false,
+    bool openDetails = false,
+  }) => switch ((openChat, openDetails)) {
+    (true, _) => '/channels/$id?$_openChatQuery=1',
+    (_, true) => '/channels/$id?$_openDetailsQuery=1',
+    _ => '/channels/$id',
+  };
 
   /// One message in [channelId]: opens the channel scrolled to it and lit.
   /// Always reads rather than joins, like a jump from search (see `openChat`).
@@ -108,6 +121,10 @@ abstract final class Routes {
 
   /// Whether [uri] was built by [channel] with `openChat`.
   static bool opensChat(Uri uri) => uri.queryParameters[_openChatQuery] == '1';
+
+  /// Whether [uri] was built by [channel] with `openDetails`.
+  static bool opensDetails(Uri uri) =>
+      uri.queryParameters[_openDetailsQuery] == '1';
 
   /// The pattern go_router matches, as distinct from a built path.
   static const channelPattern = '/channels/:channelId';

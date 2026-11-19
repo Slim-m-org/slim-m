@@ -52,6 +52,8 @@ class ChannelHeader extends ConsumerWidget {
     required this.onToggleSearch,
     this.textChatOpen = false,
     this.onToggleTextChat,
+    this.callDetailsOpen = false,
+    this.onToggleCallDetails,
   });
 
   final String channelId;
@@ -95,6 +97,10 @@ class ChannelHeader extends ConsumerWidget {
   /// dock at - `VoiceScreen`'s own condition - so it is never dead chrome.
   final bool textChatOpen;
   final VoidCallback? onToggleTextChat;
+
+  /// The voice shell's toggle for the call's details; null outside the call.
+  final bool callDetailsOpen;
+  final VoidCallback? onToggleCallDetails;
   final VoidCallback onToggleSearch;
 
   @override
@@ -217,6 +223,13 @@ class ChannelHeader extends ConsumerWidget {
                     active: textChatOpen,
                     onPressed: toggle,
                   ),
+                ),
+              if (onToggleCallDetails case final toggle?)
+                HeaderIconAction(
+                  icon: AppIcons.activityLog,
+                  label: 'Call details',
+                  active: callDetailsOpen,
+                  onPressed: toggle,
                 ),
               if (CanvasOpenButton.shows(
                 context,

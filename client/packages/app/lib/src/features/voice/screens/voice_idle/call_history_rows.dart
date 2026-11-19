@@ -74,6 +74,12 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
 
   CallTimelineModel get model => widget.model;
 
+  /// Raised over the page; on a sheet, which is raised already, a wash instead.
+  static Color _fill(BuildContext context, AppTokens tokens) =>
+      AppRaisedSurfaceScope.of(context)
+      ? AppRaisedSurfaceScope.wash(tokens, pressed: false)
+      : tokens.surfaceRaised;
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -106,7 +112,7 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
             decoration: BoxDecoration(
               color: widget.selected || _hovered
-                  ? tokens.surfaceRaised
+                  ? _fill(context, tokens)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(AppRadii.control),
               border: _focused ? Border.all(color: tokens.focusRing) : null,

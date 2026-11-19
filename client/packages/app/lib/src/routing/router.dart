@@ -372,6 +372,7 @@ Page<void> _channelPage(BuildContext context, GoRouterState state) {
     ConversationPane(
       channelId: channelId,
       openChat: Routes.opensChat(state.uri),
+      openDetails: Routes.opensDetails(state.uri),
     ),
     key: ValueKey('channel-$channelId'),
   );
