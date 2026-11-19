@@ -156,3 +156,18 @@ fn every_mode_name_round_trips() {
     }
     assert_eq!(LogMode::parse("loud"), None);
 }
+
+#[test]
+fn the_files_never_carry_the_colour_codes_stdout_gets() {
+    let dir = ScratchDir::new("log-plain");
+    let built = Logging::build(&settings(&dir.0, ""), true);
+    tracing::dispatcher::with_default(&built.dispatch, || {
+        let span =
+            tracing::info_span!(target: "slimm_server", "http_request", route = "/space/settings");
+        let _entered = span.enter();
+        tracing::info!(target: "slimm_server", "inside a request");
+    });
+    let text = written(&built.logging);
+    assert!(text.contains("route=\"/space/settings\""), "{text}");
+    assert!(!text.contains('\x1b'), "{text:?}");
+}

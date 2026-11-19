@@ -176,6 +176,7 @@ impl Logging {
             stdout.then(|| fmt::layer().event_format(format::ModeFormat::new(mode.clone())));
         let file_layer = files.clone().map(|sink| {
             fmt::layer()
+                .fmt_fields(format::PlainFields::default())
                 .event_format(format::ModeFormat::new(mode.clone()))
                 .with_ansi(false)
                 .with_writer(sink)

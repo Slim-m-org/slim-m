@@ -7,7 +7,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 use tracing::{Event, Subscriber};
-use tracing_subscriber::fmt::format::{Compact, Format, Full, Writer};
+use tracing_subscriber::field::RecordFields;
+use tracing_subscriber::fmt::format::{Compact, DefaultFields, Format, Full, Writer};
 use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::registry::LookupSpan;
 
@@ -50,5 +51,16 @@ where
             LogMode::Compact => self.compact.format_event(ctx, writer, event),
             LogMode::Verbose => self.verbose.format_event(ctx, writer, event),
         }
+    }
+}
+
+/// The files' field formatter. A type of its own, because span fields are formatted once per
+/// formatter type and kept on the span, and stdout's copy carries colour codes.
+#[derive(Default)]
+pub struct PlainFields(DefaultFields);
+
+impl<'writer> FormatFields<'writer> for PlainFields {
+    fn format_fields<R: RecordFields>(&self, writer: Writer<'writer>, fields: R) -> fmt::Result {
+        self.0.format_fields(writer, fields)
     }
 }
