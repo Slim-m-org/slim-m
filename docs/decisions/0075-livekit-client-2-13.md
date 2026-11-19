@@ -32,7 +32,7 @@ Before, a server that sent any of these ended the call as `unknown`, which is no
 ## Reconnects are not handled twice
 
 Our rejoin (`VoiceControllerRejoinMixin`) runs only after `RoomDisconnectedEvent`, that is after livekit has given up.
-livekit's resume and full reconnect run unchanged: outside the three cases under "Three places the engine steps in", no code of ours repairs, retries or restarts anything while the SDK is at it, and none should.
+livekit's resume and full reconnect run unchanged: outside the cases under "Where the engine steps in", no code of ours repairs, retries or restarts anything while the SDK is at it, and none should.
 A second layer reacting to the same blip is what the resume fix removes the need for.
 
 Display-only observers are allowed (amended for v121, where the audit found a reconnect invisible for up to about 44 s).
@@ -50,7 +50,7 @@ Only `RoomReconnecting` starts it: livekit announces every reconnect, a resume i
 It ends when the SDK lists everyone the roster shows again, without waiting for `RoomReconnected`: `Room` republishes the local tracks before it emits that event, and a publish that times out there throws out of the handler, so the event never comes.
 With nobody else shown there is nothing to tell by, and the hold lasts until the event or the 60 s quiet release, as before.
 
-## Three places the engine steps in
+## Where the engine steps in
 
 Amended 2026-11-15, after dropping a client's signal socket around a microphone publish in the e2e harness left three wrecks the SDK never repaired.
 `CallEngine`, the `Engine` subclass every call room is built on, now acts in exactly these cases, and each ends in the SDK's own machinery:
@@ -62,6 +62,10 @@ Amended 2026-11-15, after dropping a client's signal socket around a microphone 
   The SDK re-applies the old answer to the new offer, which fails on the m-line order every time, and it retried that ten times over about 50 s.
 - An offer still unanswered 5 s after a resume completed, over a live signal socket, asks for a full restart the way a failed negotiation does.
   An offer sent in the gap between the socket closing and the resume starting is dropped, and a publisher with no remote description waits for its answer for the rest of the call: nothing published afterwards reaches the server.
+- A closed engine never reports a full reconnect in progress (amended 2026-11-19).
+  `Room` drops an engine disconnect while a full reconnect runs, but a server leave can close the engine during one: a resume that timed out while the SFU was stalled still connects once the SFU is back, and the `DUPLICATE_IDENTITY` leave the restart's own join earns it arrives on that stale socket.
+  The engine then closed, skipped every later attempt, and the room never emitted `RoomDisconnectedEvent`, so the call stayed on screen with no connection behind it until the person left and rejoined.
+  Now the room hears the disconnect, and our rejoin takes the call back as it does for any drop blamed on another device.
 
 The session adds one repair of its own: a microphone the person wants on that has no publication, with no publish or recovery running, is published again.
 A full restart clears the publications before it republishes them, and a republish that fails there leaves none and emits nothing.
