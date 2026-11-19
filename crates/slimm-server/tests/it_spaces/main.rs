@@ -16,6 +16,7 @@ mod category_permissions;
 mod channel_create_idempotency;
 mod channel_create_private;
 mod channel_join_muted;
+mod channel_manage_hidden;
 mod channel_order;
 mod channel_order_hidden;
 mod channel_order_rooms;

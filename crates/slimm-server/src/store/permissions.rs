@@ -237,8 +237,8 @@ impl Store {
     /// it was soft-deleted. [`Self::channel`] excludes a deleted row, so the
     /// ordinary check always answers "no channel" once this fires; a delete
     /// leaves roles and overwrites untouched, so evaluating them against the
-    /// pre-delete row is exact, not a snapshot. Never called for a DM:
-    /// `http::channels::delete` refuses to delete one.
+    /// pre-delete row is exact, not a snapshot. A DM answers from its pair,
+    /// and `http::channels::delete` refuses to delete one either way.
     pub async fn viewed_channel_before_delete(
         &self,
         user_id: UserId,
