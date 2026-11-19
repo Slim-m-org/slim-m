@@ -242,3 +242,15 @@ A category's grant ceiling is what the caller holds under the category's own row
 Decision 0125's flow still works, because the row that keeps the caller in is written in the same save that makes the category private.
 
 Not changed, and left to the owner: `GET /categories` still lists every category to a channel manager (decision 0120), the audit log still names what was changed to anyone with MANAGE_SERVER, and a manager can still file a channel under, reorder, rename or delete a category whose channels they cannot see.
+
+### The same day, second pass: settings that name a channel
+
+A review of that sweep found the rule also has to hold where a channel id arrives in a settings body, which the list above did not cover.
+A MANAGE_SERVER holder choosing a channel for something that then acts there needs to hold, in that channel, what the thing will do:
+
+- a module's schedule channel and the welcome channel post, so the chooser needs VIEW_CHANNEL and SEND_MESSAGES (400 as for a missing channel when hidden, 403 when visible but read-only), and the welcome channel is never a thread;
+- a module's call-audio list and the rules channel need VIEW_CHANNEL, and a manager's call-audio list is only the channels they can see, with the rest left armed or unarmed as they were;
+- the storage report ranks only the channels its reader can see, with the total unchanged.
+
+The value already stored is accepted again for the welcome and rules channels, so saving a settings form an administrator filled in does not need sight of what they chose.
+`PATCH /channels/{id}` answers 404 for a direct message before any other check; the store already refused the write, but a voice-only field used to answer 400 for one.

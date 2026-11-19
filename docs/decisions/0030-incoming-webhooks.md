@@ -402,3 +402,14 @@ The security sweep (`docs/internals.md`, "The private surface sweep") found the 
 - No webhook points at a direct message or a group, whoever asks: those belong to their parties, and a webhook is not one.
 
 An administrator sees and may post in every channel, so nothing changes for one.
+
+### The same day, second pass: no webhook without an off switch
+
+Following the channel alone stranded two kinds of webhook: one minted at a direct message before that was refused, and one whose channel was since deleted (deleting a channel leaves its webhooks).
+Nobody holds VIEW_CHANNEL in either, an administrator included, so nobody could list or revoke them while the credential stayed valid.
+
+- An administrator is listed every webhook and may revoke any, wherever it points.
+  Revoking hands out nothing, so it needs no reach into the channel; renaming and rotating still do.
+- Delivery answers the 404 an unknown webhook gets when the channel is deleted or is a direct message, so such a row posts nothing even before someone revokes it.
+
+Not done, and worth a card: deleting a channel could delete its webhooks in the same transaction, which would make the second case impossible instead of harmless.

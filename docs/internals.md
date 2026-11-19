@@ -333,8 +333,10 @@ The catch-up, event applier, reconnector and session-end cleanup are separate cl
 
 `crates/slimm-server/tests/it_infra/private_surface/`
 
-One deployment holds a private category with a synced channel, a private voice channel, a thread, a webhook, a direct message and a group, and everything private in it carries a canary word.
-Two sweeps walk `schema/openapi.yaml`, so a route is covered from the day it is documented, with no list to keep up.
+One deployment holds a private category with a synced channel, a private voice channel, a thread, a webhook, a file, a direct message and a group, and everything private in it carries a canary word.
+A module is installed, approved to schedule and to hear calls, and armed for the private voice channel.
+Two sweeps walk `schema/openapi.yaml`, so a route is asked from the day it is documented, with no list to keep up.
+Being asked is not the same as being covered: "What the sweep cannot see" below says where the difference is.
 
 - The read sweep sends every GET with every private id in its path, and the search routes with every canary as the query.
   An answer may contain neither a canary nor a private id the request did not name.
@@ -359,3 +361,30 @@ A route that takes a channel, category or message id therefore answers a hidden 
 Two things a manager is told by design are skipped by name in `mod.rs`: `GET /categories` lists every category to a channel manager (decision 0120), and the audit log names what was changed.
 The sweep does not reach the websocket, push, voice with a live SFU, or call transcripts, which keep their own tests.
 The routes in `NEVER` (`probe.rs`) are not asked, because they end the session the sweep runs with or keep a limit of their own on disk.
+
+### What the sweep cannot see
+
+A review of the first version found five routes it walked past, all settings routes that take a channel id in their body and checked only its kind: a module's schedule channel and call-audio list, the welcome channel, the rules channel, and the storage report's ranked channels.
+Each was a MANAGE_SERVER holder reaching a channel they cannot see; each now needs the caller's own VIEW_CHANNEL there (and SEND_MESSAGES where the setting makes something post), and has a test beside the route.
+The sweep missed them for three reasons, and only the first two are closed.
+
+- A body that does not parse is refused the same way for both asks, so nothing in it is compared.
+  About fifty routes were blind this way, for want of one required field each.
+  `loaded_body` now carries every required field, `its_own_fields` holds the shapes two routes disagree on, and the ask-twice sweep fails on any refusal that reads like a parse error (`never_read`) unless the route is in `UNREAD_BODIES` with its reason.
+  A new route with a new required field therefore fails the sweep until the field is added.
+- A path parameter the sweep had no id for got a channel id and answered 404 before the body was read.
+  `candidates` now gives `{moduleId}` the installed module and `{webhookId}` the private webhook.
+  Role, emoji, clip, theme, report, export, upload, favourite, source and transcript ids still get a channel id, so the body of a route under one of those is not reached.
+- The read sweep finds only what the world holds.
+  The world has no report, no export, no call transcript, no schedule channel and no welcome or rules channel set to a private channel, so a GET that would name one of those is not tested here.
+
+Three more limits are worth knowing before trusting a green run.
+
+- A refusal the handler writes itself, before it looks at the ids, is as blind as a parse error and is not detected: a kind that must be one of two words, a list that needs one to five entries.
+  Listing every 400 the manager's sweep meets (print `named` in `ask_twice`) shows them; on 2026-11-19 they were favourites, a canvas batch, an interaction form, a module hook, a media slot and the push and schedule settings.
+- The sweep changes the deployment as it goes, so a route asked late may meet a public channel or message an earlier route deleted.
+  The module is put back before every ask (`keep_the_module`); nothing else is.
+- A success is compared only as a success, so a route that succeeds for both asks but acts on the private id for one of them passes.
+
+Known and left: an installed module's `schedule_channel_id` is shown to every MANAGE_SERVER holder in the Dock's module list, and moving a schedule takes the module's overwrite off the previous channel without asking whether the caller can see it.
+An administrator who sets the rules channel to a private channel publishes its id to every member through `GET /space/rules`; that is the administrator's choice, not a leak.
