@@ -19518,6 +19518,13 @@ components:
             "artist", "show" or "episode". A client builds the item's web
             link, app link and embed from media_kind and video_id together.
             Null for YouTube and for an ordinary link.
+        video_start_ms:
+          type: [integer, "null"]
+          description: >
+            Where a YouTube link asked playback to begin, in milliseconds
+            (whole seconds), from its t= or start= parameter (90, 90s or
+            1h2m3s). Null when the link named no start, an unreadable one, or
+            one past 100 hours, and always null for Spotify.
         duration_ms:
           type: [integer, "null"]
           description: >

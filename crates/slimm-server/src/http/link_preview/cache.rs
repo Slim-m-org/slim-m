@@ -350,6 +350,7 @@ mod tests {
                     provider: VideoProvider::Youtube,
                     id: "dQw4w9WgXcQ".to_owned(),
                     kind: None,
+                    start_s: Some(42),
                 }),
                 ..Preview::default()
             },
@@ -357,6 +358,7 @@ mod tests {
         let video = cached.video.expect("a video was set");
         assert_eq!(video.provider, VideoProvider::Youtube);
         assert_eq!(video.id, "dQw4w9WgXcQ");
+        assert_eq!(video.start_s, Some(42));
     }
 
     #[test]
