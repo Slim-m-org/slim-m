@@ -9,7 +9,7 @@ use serde_json::json;
 use slimm_server::config::Config;
 use slimm_server::hub::{Event, Hub, MessageEvent};
 use slimm_server::store::Store;
-use sqlx::{AssertSqlSafe, Connection, Executor};
+use sqlx::{Connection, Executor};
 use tower::ServiceExt;
 
 use crate::support;
@@ -18,7 +18,7 @@ use totp_support::{app_with_hub, json_body, member, request};
 
 async fn world(
     prefix: &str,
-    trigger: &str,
+    trigger: &'static str,
 ) -> (Store, axum::Router, Hub, String, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(prefix);
     let config = Config {
@@ -33,7 +33,7 @@ async fn world(
     let mut conn = sqlx::SqliteConnection::connect(&format!("sqlite://{path}"))
         .await
         .unwrap();
-    conn.execute(AssertSqlSafe(trigger)).await.unwrap();
+    conn.execute(trigger).await.unwrap();
     let hub = Hub::new();
     let router = app_with_hub(store.clone(), auth, hub.clone());
     (store, router, hub, token, guard)
