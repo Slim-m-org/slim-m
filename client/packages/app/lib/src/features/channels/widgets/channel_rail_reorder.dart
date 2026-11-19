@@ -65,6 +65,7 @@ class ReorderableChannelRows extends StatefulWidget {
     this.carriedRowInset = 0,
     this.collapsed = const {},
     this.categoriesNest = false,
+    this.headingOnly = const {},
   });
 
   final List<ChannelSection> sections;
@@ -96,6 +97,9 @@ class ReorderableChannelRows extends StatefulWidget {
 
   /// Whether a lifted header may be filed under another (decision 0120).
   final bool categoriesNest;
+
+  /// See [DesktopRailReorder.headingOnly].
+  final Set<String> headingOnly;
 
   /// Builds one channel's row, told whether *this render* actually wraps it
   /// in a drag listener - false in the plain-[Column] branch, true in the
@@ -134,6 +138,7 @@ class _ReorderableChannelRowsState extends State<ReorderableChannelRows> {
         carriedRowBuilder: widget.carriedRowBuilder,
         carriedRowInset: widget.carriedRowInset,
         categoriesNest: widget.categoriesNest,
+        headingOnly: widget.headingOnly,
         carriedHeaderBuilder: widget.carriedHeaderBuilder,
         headerBuilder: widget.headerBuilder,
         onReorder: widget.onReorder,

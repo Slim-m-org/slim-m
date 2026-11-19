@@ -41,7 +41,7 @@ struct ReorderCategoriesRequest {
 }
 
 /// Applies the arrangement in one transaction and answers every category the caller is listed,
-/// in tree order; the rest keep their places. Publishes one `CategoryChanged` only when something moved.
+/// in tree order; the hidden ones and the headings they may not manage keep their places. Publishes one `CategoryChanged` only when something moved.
 async fn reorder(
     Authed(ctx): Authed,
     parts: Parts,
@@ -53,24 +53,22 @@ async fn reorder(
     let groups = parse_groups(&req.groups)?;
     let sight = CategorySight::of(&state, ctx.user_id).await?;
     let hidden = sight.hidden();
+    let fixed = sight.heading_only();
 
     match state
         .store
-        .reorder_categories_around(&groups, &hidden)
+        .reorder_categories_around(&groups, &hidden, &fixed)
         .await
     {
         Ok(outcome) => {
             if !outcome.moved.is_empty() {
                 state.hub.publish(Event::CategoryChanged);
             }
-            Ok(Json(
-                outcome
-                    .categories
-                    .into_iter()
-                    .filter(|category| sight.listed.contains(&category.id))
-                    .map(CategoryDto::from)
-                    .collect(),
-            ))
+            let sight = CategorySight {
+                categories: outcome.categories,
+                ..sight
+            };
+            Ok(Json(sight.listed_dtos()))
         }
         Err(err) => Err(refusal(err)),
     }

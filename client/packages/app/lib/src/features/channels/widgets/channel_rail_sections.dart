@@ -202,6 +202,7 @@ class _ChannelCategorySectionsState
           _header(view, category, carried: true),
       collapsed: view.collapsed,
       categoriesNest: ref.watch(categoriesNestProvider),
+      headingOnly: ref.watch(headingOnlyCategoriesProvider),
       onReorderCategories: (groups) => unawaited(
         ref.read(categoryOrderControllerProvider.notifier).arrange(groups),
       ),
@@ -353,7 +354,9 @@ class _ChannelCategorySectionsState
       collapsed: view.collapsed,
       label: label,
       channels: view.channelsBeneath(category),
-      canManage: widget.canManage,
+      canManage:
+          widget.canManage &&
+          !ref.watch(headingOnlyCategoriesProvider).contains(category.id),
       menuKey: menuKey,
     );
     final indented = depth == 0

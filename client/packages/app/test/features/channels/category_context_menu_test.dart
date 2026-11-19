@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/channels/providers/category_nesting.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -51,11 +52,16 @@ Channel _channel() => const Channel(
   categoryId: 'cat1',
 );
 
-Future<void> _pump(WidgetTester tester, {required bool canManage}) async {
+Future<void> _pump(
+  WidgetTester tester, {
+  required bool canManage,
+  Set<String> headingOnly = const {},
+}) async {
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+      headingOnlyCategoriesProvider.overrideWith((ref) => headingOnly),
     ],
   );
   addTearDown(container.dispose);
@@ -125,6 +131,17 @@ void main() {
 
     expect(find.text('Rename category'), findsOneWidget);
     expect(find.byType(AppInput), findsOneWidget);
+  });
+
+  testWidgets('a category listed only as a heading offers neither verb', (
+    tester,
+  ) async {
+    await _pump(tester, canManage: true, headingOnly: {'cat1'});
+    await _openMenu(tester);
+
+    expect(find.text('Mark all as read'), findsOneWidget);
+    expect(find.text('Rename category...'), findsNothing);
+    expect(find.text('Delete category...'), findsNothing);
   });
 
   testWidgets('without MANAGE_CHANNELS the header has no menu', (tester) async {

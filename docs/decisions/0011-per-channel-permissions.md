@@ -263,3 +263,7 @@ Only ADMINISTRATOR is listed every category.
 Every category route judges a category by that one list and answers one missing from it as one that does not exist: rename and re-parent (404, or 400 for a hidden parent), delete (204 with nothing deleted), create under it or retry its id, file a channel under it on create or in `PUT /channels/order`, and naming it in `PUT /categories/order`.
 `PUT /categories/order` takes only the categories the caller is listed; each hidden one keeps its parent and its index among its siblings, and the answer lists only what the caller sees.
 A role preview of a MANAGE_CHANNELS role is listed the same way, by that role's view of each category's rows.
+A category listed to a manager only as the heading over a sub-category they can view is not theirs to manage: renaming, re-parenting or deleting it needs sight of it under its own overwrites, as its overwrite routes already did, and answers as for a missing category without it.
+A reorder keeps such a heading where it is, the way it keeps a hidden one, though the caller may still name it.
+`GET /categories` says which is which with an additive `manageable` flag, so the client offers no rename, delete or drag for a heading.
+Filing a channel or a sub-category under a heading stays open: it changes nothing about the heading itself.

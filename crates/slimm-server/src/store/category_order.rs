@@ -61,16 +61,18 @@ impl Store {
         &self,
         groups: &[CategoryOrderGroup],
     ) -> Result<CategoryReorderOutcome, ReorderCategoriesError> {
-        self.reorder_categories_around(groups, &HashSet::new())
+        self.reorder_categories_around(groups, &HashSet::new(), &HashSet::new())
             .await
     }
 
     /// [`Self::reorder_categories`] for a caller kept from the `hidden` categories: `groups`
     /// names only the rest, and each hidden one keeps its parent and its index among its siblings.
+    /// The `fixed` ones may be named but stay where they are, as a hidden one does.
     pub async fn reorder_categories_around(
         &self,
         groups: &[CategoryOrderGroup],
         hidden: &HashSet<ChannelCategoryId>,
+        fixed: &HashSet<ChannelCategoryId>,
     ) -> Result<CategoryReorderOutcome, ReorderCategoriesError> {
         let mut tx = self.begin_write().await?;
         let before = live_placements(&mut tx).await?;
@@ -80,7 +82,20 @@ impl Store {
             .map(|(id, placement)| (*id, *placement))
             .collect();
         validate(groups, &shown)?;
-        let groups = &with_hidden(groups, &before, hidden);
+        let unmoved: Vec<CategoryOrderGroup> = groups
+            .iter()
+            .map(|group| CategoryOrderGroup {
+                parent_id: group.parent_id,
+                category_ids: group
+                    .category_ids
+                    .iter()
+                    .filter(|id| !fixed.contains(id))
+                    .copied()
+                    .collect(),
+            })
+            .collect();
+        let kept: HashSet<ChannelCategoryId> = hidden.union(fixed).copied().collect();
+        let groups = &with_hidden(&unmoved, &before, &kept);
         validate(groups, &before)?;
 
         let target: Vec<(ChannelCategoryId, Placement)> = groups

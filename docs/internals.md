@@ -419,6 +419,7 @@ What the sweep found on 2026-11-19, each now with its own test beside the route:
 - MANAGE_CHANNELS renamed and deleted a channel its holder could not see, and the rename answered with its name and topic.
 - MANAGE_SERVER read, counted and pruned a hidden channel's retention, and listed, renamed, rotated and revoked the webhooks of one.
 - MANAGE_CHANNELS was listed every category, private ones included, and renamed, deleted, reordered and filed channels under ones its holder could not see (decision 0011's third pass).
+  A category such a holder is listed only as a heading answers rename, move and delete as a missing one too, with its own test beside the sweep (`it_spaces/category_heading_only.rs`), since the sweep's world has no heading.
 
 The rule they all broke is decision 0011's: a channel's permissions stop at the channel, whatever the caller holds deployment-wide, and only ADMINISTRATOR sees everything.
 A route that takes a channel, category or message id therefore answers a hidden one exactly as it answers one that does not exist, before any other validation of the request.

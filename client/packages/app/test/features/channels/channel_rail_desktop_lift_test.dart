@@ -64,6 +64,7 @@ Future<_Rail> _pump(
   List<ChannelSection>? sections,
   double height = 900,
   bool hideEmptyUncategorised = false,
+  Set<String> headingOnly = const {},
 }) async {
   tester.view.physicalSize = Size(1280, height);
   tester.view.devicePixelRatio = 1;
@@ -80,6 +81,7 @@ Future<_Rail> _pump(
           child: ReorderableChannelRows(
             sections: sections ?? _sections(),
             canManage: true,
+            headingOnly: headingOnly,
             onReorder: rail.channelReports.add,
             onReorderCategories: (groups) =>
                 rail.categoryReports.add(_topLevel(groups)),
@@ -276,6 +278,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(rail.categoryReports.single, ['c2', 'c1', 'c3']);
     expect(rail.channelReports, isEmpty);
+  });
+
+  testWidgets('a category listed only as a heading never lifts', (
+    tester,
+  ) async {
+    final rail = await _pump(tester, headingOnly: {'c1'});
+    final from = tester.getCenter(find.text('header:c1'));
+    final gesture = await _press(tester, from);
+
+    expect(find.text('b'), findsOneWidget, reason: 'nothing folded away');
+    await _carryTo(tester, gesture, from, Offset(from.dx, from.dy + 200));
+    await gesture.up();
+    await tester.pump(_hold);
+    expect(rail.categoryReports, isEmpty);
   });
 
   testWidgets('a category can land at the very start and the very end', (

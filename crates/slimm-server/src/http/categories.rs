@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Channel category routes (decisions 0006 and 0120). Every mutation needs
 //! deployment-level MANAGE_CHANNELS, checked before any id in the body is read,
-//! and answers a category the caller is not listed as one that does not exist.
+//! and answers a category the caller is not listed, or may not manage, as one that does not exist.
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
@@ -42,6 +42,18 @@ pub(super) struct CategoryDto {
     /// Always sent, null for a top-level category, so a client can tell this
     /// server nests from an older one that omits the key.
     parent_id: Option<String>,
+    /// Whether the caller may rename, delete or move it; absent where no caller's view is meant.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    manageable: Option<bool>,
+}
+
+impl CategoryDto {
+    pub(super) fn with_manageable(self, manageable: bool) -> Self {
+        Self {
+            manageable: Some(manageable),
+            ..self
+        }
+    }
 }
 
 impl From<ChannelCategory> for CategoryDto {
@@ -52,6 +64,7 @@ impl From<ChannelCategory> for CategoryDto {
             position: category.position,
             created_at: category.created_at,
             parent_id: category.parent_id.map(|id| id.to_string()),
+            manageable: None,
         }
     }
 }
@@ -108,17 +121,10 @@ async fn list(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<CategoryDto>>, ApiError> {
     let sight = CategorySight::of(&state, ctx.user_id).await?;
-    Ok(Json(
-        sight
-            .categories
-            .into_iter()
-            .filter(|c| sight.listed.contains(&c.id))
-            .map(CategoryDto::from)
-            .collect(),
-    ))
+    Ok(Json(sight.listed_dtos()))
 }
 
-/// `id` unless the caller is kept from it, which answers `missing`, what an id naming nothing gets.
+/// `id` unless the caller is not listed it, which answers `missing`, what an id naming nothing gets.
 fn unless_hidden(
     sight: &CategorySight,
     id: Option<ChannelCategoryId>,
@@ -144,11 +150,9 @@ async fn create(
     let parent = parse_category_id(req.parent_id.as_deref())?;
     // A retry answers the stored row, which must not hand a hidden category's name to someone else.
     let sight = CategorySight::of(&state, ctx.user_id).await?;
-    unless_hidden(
-        &sight,
-        Some(id),
-        ApiError::Conflict("that category id is already in use"),
-    )?;
+    if sight.closes(id) {
+        return Err(ApiError::Conflict("that category id is already in use"));
+    }
     let parent = unless_hidden(&sight, parent, UNKNOWN_PARENT)?;
 
     let created = state
@@ -188,7 +192,9 @@ async fn update(
     }
     // Where the store would refuse a missing category, then a missing parent, in that order.
     let sight = CategorySight::of(&state, ctx.user_id).await?;
-    unless_hidden(&sight, Some(category_id), CATEGORY_NOT_FOUND)?;
+    if sight.closes(category_id) {
+        return Err(CATEGORY_NOT_FOUND);
+    }
     let parent = parent
         .map(|parent| unless_hidden(&sight, parent, UNKNOWN_PARENT))
         .transpose()?;
@@ -214,11 +220,11 @@ async fn delete(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_channels(&state, ctx.user_id).await?;
     let category_id = ChannelCategoryId(parse_uuid(&category_id)?);
-    // One the caller is kept from answers as one already gone does.
-    let hidden = CategorySight::of(&state, ctx.user_id)
+    // One the caller may not manage answers as one already gone does.
+    let closed = CategorySight::of(&state, ctx.user_id)
         .await?
-        .hides(category_id);
-    if !hidden && state.store.delete_category(category_id).await? {
+        .closes(category_id);
+    if !closed && state.store.delete_category(category_id).await? {
         state.hub.publish(Event::CategoryChanged);
     }
     Ok(StatusCode::NO_CONTENT)

@@ -6,15 +6,18 @@
 use std::collections::HashSet;
 
 use super::AppState;
+use super::categories::CategoryDto;
 use super::error::ApiError;
 use crate::ids::{ChannelCategoryId, UserId};
 use crate::permissions::Permissions;
 use crate::store::ChannelCategory;
 
-/// Every live category in tree order, and the ids of those the caller is listed.
+/// Every live category in tree order, the ids of those the caller is listed, and of those they
+/// may rename, delete or move: the ones whose own rows let them view it, never a heading only.
 pub(super) struct CategorySight {
     pub(super) categories: Vec<ChannelCategory>,
     pub(super) listed: HashSet<ChannelCategoryId>,
+    pub(super) manageable: HashSet<ChannelCategoryId>,
 }
 
 impl CategorySight {
@@ -24,8 +27,13 @@ impl CategorySight {
         let categories = state.store.list_categories().await?;
         let base = state.store.base_permissions(user_id).await?;
         if base.contains(Permissions::ADMINISTRATOR) {
-            let listed = categories.iter().map(|c| c.id).collect();
-            return Ok(Self { categories, listed });
+            let listed: HashSet<_> = categories.iter().map(|c| c.id).collect();
+            let manageable = listed.clone();
+            return Ok(Self {
+                categories,
+                listed,
+                manageable,
+            });
         }
         let mut holding: HashSet<ChannelCategoryId> = state
             .store
@@ -34,11 +42,17 @@ impl CategorySight {
             .into_iter()
             .filter_map(|channel| channel.category_id)
             .collect();
-        if base.contains(Permissions::MANAGE_CHANNELS) {
-            holding.extend(state.store.categories_viewable_by(user_id).await?);
-        }
+        let manageable = match base.contains(Permissions::MANAGE_CHANNELS) {
+            true => state.store.categories_viewable_by(user_id).await?,
+            false => HashSet::new(),
+        };
+        holding.extend(manageable.iter().copied());
         let listed = with_parents(&categories, &holding);
-        Ok(Self { categories, listed })
+        Ok(Self {
+            categories,
+            listed,
+            manageable,
+        })
     }
 
     /// Whether `id` names a live category the caller is not listed.
@@ -46,10 +60,34 @@ impl CategorySight {
         !self.listed.contains(&id) && self.categories.iter().any(|c| c.id == id)
     }
 
+    /// Whether `id` names a live category the caller may not rename, delete or move.
+    pub(super) fn closes(&self, id: ChannelCategoryId) -> bool {
+        !self.manageable.contains(&id) && self.categories.iter().any(|c| c.id == id)
+    }
+
     /// The live categories the caller is not listed.
     pub(super) fn hidden(&self) -> HashSet<ChannelCategoryId> {
         let ids = self.categories.iter().map(|c| c.id);
         ids.filter(|id| !self.listed.contains(id)).collect()
+    }
+
+    /// The categories the caller is listed only as a heading: shown, but kept where they are.
+    pub(super) fn heading_only(&self) -> HashSet<ChannelCategoryId> {
+        let listed = self.listed.iter().copied();
+        listed.filter(|id| !self.manageable.contains(id)).collect()
+    }
+
+    /// The listed categories in tree order, each saying whether the caller may manage it.
+    pub(super) fn listed_dtos(self) -> Vec<CategoryDto> {
+        let (listed, manageable) = (self.listed, self.manageable);
+        self.categories
+            .into_iter()
+            .filter(|c| listed.contains(&c.id))
+            .map(|c| {
+                let can = manageable.contains(&c.id);
+                CategoryDto::from(c).with_manageable(can)
+            })
+            .collect()
     }
 }
 

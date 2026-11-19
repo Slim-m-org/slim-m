@@ -42,6 +42,7 @@ class DesktopRailReorder extends StatefulWidget {
     this.carriedHeaderBuilder,
     this.carriedRowInset = 0,
     this.categoriesNest = false,
+    this.headingOnly = const {},
     required this.onReorder,
     required this.onReorderCategories,
   });
@@ -58,6 +59,9 @@ class DesktopRailReorder extends StatefulWidget {
 
   /// Whether a carried category may be filed under another (decision 0120).
   final bool categoriesNest;
+
+  /// Categories listed only as a heading, which never lift.
+  final Set<String> headingOnly;
   final Widget Function(ChannelCategoryRow? category)? carriedHeaderBuilder;
   final Widget Function(ChannelCategoryRow? category) headerBuilder;
   final ValueChanged<List<ChannelOrderGroup>> onReorder;
@@ -192,7 +196,8 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
           _RailItem(
             id: 'h:${category?.id}',
             dimmed: lifted,
-            liftable: category != null,
+            liftable:
+                category != null && !widget.headingOnly.contains(category.id),
             isCategory: true,
             liftId: category?.id ?? '',
             inset: _headerInset(s),
