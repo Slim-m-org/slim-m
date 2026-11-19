@@ -1,20 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Searching a channel on a phone and tapping a hit that sits far back in its
-/// history: the owner's "Win11_24H2_English_x64.iso" report, where the hit
-/// listed "Found in" its file name and tapping it did nothing.
+/// Opening a search hit that sits far back in a channel's history, the way
+/// the palette does: the owner's "Win11_24H2_English_x64.iso" report, where
+/// tapping the hit did nothing.
 ///
-/// Drives the real [ChannelScreen] at 390x844 with the real search field, a
-/// fake server that pages history the way the real one does, and a search
-/// route that names a message outside what is loaded.
+/// Drives the real [ChannelScreen] at 390x844 with a fake server that pages
+/// history the way the real one does, jumping to a message outside what is
+/// loaded; how it is going shows above the transcript, never as a snack bar.
 library;
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/channels/providers/channel_search_controller.dart';
-import 'package:slimm_app/src/features/channels/widgets/compact_channel_search.dart';
 import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_jump.dart';
 
@@ -47,25 +44,11 @@ Map<String, dynamic> _fileHit(int seq, {String channelId = 'c1'}) => {
   'matched_attachment_id': 'a$seq',
 };
 
-final _searchBar = find.byWidgetPredicate((w) => w is CompactChannelSearchBar);
-
-/// The hit row, whose text is the file's name since only the file matched.
-final _hit = find.text(_fileName);
 final _flash = find.byWidgetPredicate((w) => w is MessageJumpHighlight);
 
 /// The transcript's own list, whose rect is what "on screen" means here.
 final _transcript = find.byWidgetPredicate((w) => w is Scrollable).first;
 final _snackBar = find.byWidgetPredicate((w) => w is SnackBar);
-
-/// The compact app bar's magnifier toggles this same provider, so opening it
-/// here is the tap; the query itself is typed into the real field.
-Future<void> _searchFor(WidgetTester tester, HistoryHarness harness) async {
-  harness.container.read(channelSearchProvider('c1').notifier).toggle();
-  await flush(tester);
-  await tester.enterText(_searchBar, 'iso');
-  await tester.pump(channelSearchDebounce);
-  await flush(tester);
-}
 
 Future<HistoryHarness> _mountPhone(
   WidgetTester tester, {
@@ -74,25 +57,17 @@ Future<HistoryHarness> _mountPhone(
   required int hitSeq,
   bool holdOlderPages = false,
   bool olderPagesFail = false,
-  String hitChannelId = 'c1',
-  bool typeQuery = true,
 }) async {
   final harness = await mountChannel(
     tester,
     serverSeqs: serverSeqs,
     seededSeqs: seededSeqs,
-    searchHits: [_fileHit(hitSeq, channelId: hitChannelId)],
+    searchHits: [_fileHit(hitSeq)],
     holdOlderPages: holdOlderPages,
     olderPagesFail: olderPagesFail,
   );
   tester.view.physicalSize = const Size(390, 844);
   await flush(tester);
-  if (typeQuery) {
-    await _searchFor(tester, harness);
-  } else {
-    harness.container.read(channelSearchProvider('c1').notifier).toggle();
-    await flush(tester);
-  }
   return harness;
 }
 
@@ -104,9 +79,15 @@ Future<void> _unmount(WidgetTester tester) async {
   }
 }
 
-Future<void> _tapHit(WidgetTester tester) async {
-  expect(_hit, findsOneWidget);
-  await tester.tap(_hit);
+/// What picking the hit in the palette does once the palette has closed.
+Future<void> _openHit(
+  WidgetTester tester,
+  HistoryHarness harness,
+  int seq,
+) async {
+  unawaited(
+    harness.container.read(messageJumpProvider.notifier).jumpTo('c1', 'm$seq'),
+  );
   await tester.pump();
 }
 
@@ -135,10 +116,9 @@ void main() {
       seededSeqs: _range(71, 120),
       hitSeq: 100,
     );
-    await _tapHit(tester);
+    await _openHit(tester, harness, 100);
 
     expect(await _untilLanded(tester, harness), isTrue);
-    expect(harness.container.read(channelSearchProvider('c1')).open, isFalse);
 
     await tester.pump(const Duration(seconds: 3));
     await _unmount(tester);
@@ -153,7 +133,7 @@ void main() {
       seededSeqs: _range(301, 1000),
       hitSeq: 400,
     );
-    await _tapHit(tester);
+    await _openHit(tester, harness, 400);
 
     expect(
       await _untilLanded(tester, harness),
@@ -173,7 +153,7 @@ void main() {
       seededSeqs: _range(951, 1000),
       hitSeq: 300,
     );
-    await _tapHit(tester);
+    await _openHit(tester, harness, 300);
 
     expect(await _untilLanded(tester, harness), isTrue);
 
@@ -181,7 +161,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('the panel says it is finding the message while pages load', (
+  testWidgets('it says it is finding the message while pages load', (
     tester,
   ) async {
     final harness = await _mountPhone(
@@ -191,7 +171,7 @@ void main() {
       hitSeq: 100,
       holdOlderPages: true,
     );
-    await _tapHit(tester);
+    await _openHit(tester, harness, 100);
     await flush(tester);
 
     expect(
@@ -199,7 +179,6 @@ void main() {
       findsOneWidget,
       reason: 'a tap with no sign of progress reads as a tap that did nothing',
     );
-    expect(_searchBar, findsOneWidget);
 
     harness.releaseOlderPages();
     expect(await _untilLanded(tester, harness), isTrue);
@@ -216,7 +195,7 @@ void main() {
       seededSeqs: _range(1551, 1600),
       hitSeq: 100,
     );
-    await _tapHit(tester);
+    await _openHit(tester, harness, 100);
 
     expect(await _untilLanded(tester, harness), isTrue);
     await tester.pump(const Duration(seconds: 1));
@@ -240,119 +219,48 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('a hit the server no longer has is explained in the panel, '
-      'not in a snack bar', (tester) async {
+  testWidgets('a hit the server no longer has is explained above the '
+      'transcript, not in a snack bar', (tester) async {
     final harness = await _mountPhone(
       tester,
       serverSeqs: _range(2, 1600),
       seededSeqs: _range(1551, 1600),
       hitSeq: 1,
     );
-    await _tapHit(tester);
+    await _openHit(tester, harness, 1);
 
     expect(await _untilLanded(tester, harness), isFalse);
     await flush(tester);
 
     expect(find.textContaining('Could not find that message'), findsOneWidget);
-    expect(_searchBar, findsOneWidget, reason: 'the hits stay for another try');
-    expect(_hit, findsOneWidget);
     expect(_snackBar, findsNothing);
 
     await _unmount(tester);
   });
 
-  testWidgets('a page that cannot be fetched offers a retry in the panel', (
-    tester,
-  ) async {
-    final harness = await _mountPhone(
-      tester,
-      serverSeqs: _range(1, 200),
-      seededSeqs: _range(151, 200),
-      hitSeq: 100,
-      olderPagesFail: true,
-    );
-    await _tapHit(tester);
+  testWidgets(
+    'a page that cannot be fetched offers a retry above the transcript',
+    (tester) async {
+      final harness = await _mountPhone(
+        tester,
+        serverSeqs: _range(1, 200),
+        seededSeqs: _range(151, 200),
+        hitSeq: 100,
+        olderPagesFail: true,
+      );
+      await _openHit(tester, harness, 100);
 
-    expect(await _untilLanded(tester, harness), isFalse);
-    await flush(tester);
+      expect(await _untilLanded(tester, harness), isFalse);
+      await flush(tester);
 
-    expect(
-      find.text('Could not load older messages to find it. Try again.'),
-      findsOneWidget,
-    );
-    expect(find.text('Retry'), findsOneWidget);
-    expect(_searchBar, findsOneWidget);
-    expect(_snackBar, findsNothing);
+      expect(
+        find.text('Could not load older messages to find it. Try again.'),
+        findsOneWidget,
+      );
+      expect(find.text('Retry'), findsOneWidget);
+      expect(_snackBar, findsNothing);
 
-    await _unmount(tester);
-  });
-
-  testWidgets('a hit in another channel clears this search on the way out', (
-    tester,
-  ) async {
-    await _mountPhone(
-      tester,
-      serverSeqs: _range(1, 120),
-      seededSeqs: _range(71, 120),
-      hitSeq: 100,
-      hitChannelId: 'c2',
-    );
-    final container = ProviderScope.containerOf(tester.element(_searchBar));
-    await _tapHit(tester);
-    await tester.pump(const Duration(milliseconds: 100));
-
-    expect(container.read(channelSearchProvider('c1')).open, isFalse);
-
-    await tester.pump(const Duration(seconds: 3));
-    await _unmount(tester);
-  });
-
-  testWidgets('a jump from elsewhere closes an empty search page, so the '
-      'row it lands on can be seen', (tester) async {
-    final harness = await _mountPhone(
-      tester,
-      serverSeqs: _range(1, 120),
-      seededSeqs: _range(71, 120),
-      hitSeq: 100,
-      typeQuery: false,
-    );
-    unawaited(
-      harness.container.read(messageJumpProvider.notifier).jumpTo('c1', 'm100'),
-    );
-
-    expect(await _untilLanded(tester, harness), isTrue);
-    expect(harness.container.read(channelSearchProvider('c1')).open, isFalse);
-    expect(_searchBar, findsNothing);
-
-    await tester.pump(const Duration(seconds: 3));
-    await _unmount(tester);
-  });
-
-  testWidgets('typing a new query drops the hit that was being found', (
-    tester,
-  ) async {
-    final harness = await _mountPhone(
-      tester,
-      serverSeqs: _range(1, 400),
-      seededSeqs: _range(351, 400),
-      hitSeq: 100,
-      holdOlderPages: true,
-    );
-    await _tapHit(tester);
-    await flush(tester);
-    expect(find.text('Finding that message'), findsOneWidget);
-
-    await tester.enterText(_searchBar, 'iso image');
-    await tester.pump(channelSearchDebounce);
-    harness.releaseOlderPages();
-    await flush(tester);
-    await flush(tester);
-
-    expect(find.text('Finding that message'), findsNothing);
-    expect(_flash, findsNothing);
-    expect(harness.container.read(channelSearchProvider('c1')).open, isTrue);
-    expect(_hit, findsOneWidget);
-
-    await _unmount(tester);
-  });
+      await _unmount(tester);
+    },
+  );
 }

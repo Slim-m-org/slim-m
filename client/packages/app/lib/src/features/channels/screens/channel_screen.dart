@@ -21,7 +21,6 @@ import '../../accounts/providers/account_slot.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../providers/channel_drafts.dart';
 import '../providers/channel_history.dart';
-import '../providers/channel_search_controller.dart';
 import '../../messages/providers/message_actions.dart';
 import '../../messages/providers/message_context_window.dart';
 import '../../messages/providers/message_jump.dart';
@@ -35,8 +34,6 @@ import '../widgets/channel_attachment_drop_zone.dart';
 import '../widgets/channel_header.dart';
 import '../../composer/widgets/composer_attachments.dart' show StagedSend;
 import '../../composer/widgets/composer_text_controller.dart';
-import '../widgets/channel_search.dart';
-import '../widgets/compact_channel_search.dart';
 import 'channel_composer_area.dart';
 import 'channel_draft_saver.dart';
 import 'channel_read_marker.dart';
@@ -97,10 +94,6 @@ class ChannelScreen extends ConsumerStatefulWidget {
 
 class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   final _composer = ComposerTextController();
-
-  /// The query text only; the search itself (open, hits, failure) lives in
-  /// [channelSearchProvider], which the compact app bar drives too.
-  final _searchController = TextEditingController();
 
   /// The message the next send will reply to, if any. Cleared by sending,
   /// by an explicit cancel, and by switching channels - a reply is scoped to
@@ -179,7 +172,6 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     if (oldWidget.channelId != widget.channelId) {
       _mountedChannels.unregister(oldWidget.channelId);
       _mountedChannels.register(widget.channelId);
-      _searchController.clear();
       // A jump neither finished nor consumed before the switch must not
       // replay against whichever channel is open next.
       ref.read(messageJumpProvider.notifier).cancelFor(oldWidget.channelId);
@@ -209,7 +201,6 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     _composer.dispose();
     _composerFocusRequests.dispose();
     _scrollTracker.dispose();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -258,19 +249,6 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
 
   void _cancelReply() => setState(() => _replyingTo = null);
 
-  /// Both the flag and the query live in [channelSearchProvider] so the
-  /// compact layout's app bar, built above this screen, can drive them too.
-  void _search(String query) => ref
-      .read(channelSearchProvider(widget.channelId).notifier)
-      .queryChanged(query);
-
-  void _toggleSearch() =>
-      ref.read(channelSearchProvider(widget.channelId).notifier).toggle();
-
-  void _searchNow(String query) => unawaited(
-    ref.read(channelSearchProvider(widget.channelId).notifier).run(query),
-  );
-
   /// The same test `ViewingReporter` applies before telling the server a channel is open.
   bool get _watched =>
       ref.read(appFocusedProvider) && ref.read(accountActiveProvider);
@@ -304,15 +282,6 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   Widget build(BuildContext context) {
     final storeAsync = ref.watch(storeProvider);
     final layout = LayoutClass.of(context);
-    final search = ref.watch(channelSearchProvider(widget.channelId));
-    // Search can now be closed from the app bar as well as from the header,
-    // and either way the field it typed into has to empty with it.
-    ref.listen(channelSearchProvider(widget.channelId).select((s) => s.open), (
-      _,
-      open,
-    ) {
-      if (!open) _searchController.clear();
-    });
     ref.listen(appFocusedProvider, (_, _) => _readWhatArrivedUnwatched());
     ref.listen(accountActiveProvider, (_, _) => _readWhatArrivedUnwatched());
     final blocked = ref.watch(blocksProvider.select((state) => state.ids));
@@ -327,7 +296,6 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
           store: store,
           channel: channelSnapshot.data,
           layout: layout,
-          search: search,
           blocked: blocked,
         ),
       ),
@@ -338,7 +306,6 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     required MessageStore store,
     required Channel? channel,
     required LayoutClass layout,
-    required ChannelSearchState search,
     required Set<String> blocked,
   }) {
     final channelName = channel?.name ?? '';
@@ -351,101 +318,61 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     final hashChannelName = channel?.kind == 'text' || isVoice
         ? channelName
         : null;
-    // Below kCompactWidth an open search is a page of its own, not a bar over the transcript.
-    final searchPage = !layout.showsBothPanes && search.open;
-
-    // Back closes the page first; the nearest route is this pane's own, so it wins over any shell scaffold above.
-    return PopScope(
-      canPop: !searchPage,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _toggleSearch();
-      },
-      child: ChannelAttachmentDropZone(
-        channelId: widget.channelId,
-        blockedDm: blockedDm,
-        child: Column(
-          mainAxisSize: widget.fitContent ? MainAxisSize.min : MainAxisSize.max,
-          children: [
-            // A thread supplies its own bar at every width; see thread_screen.dart.
-            if (layout.showsBothPanes && !isThread && widget.showHeader)
-              ChannelHeader(
-                channelId: widget.channelId,
-                name: channelName,
-                topic: channel?.topic,
-                isVoice: isVoice,
-                isDm: channel?.kind == 'dm',
-                dmParticipantId: dmPartnerId,
-                groupMemberIds: channel?.groupMemberIds ?? const [],
-                isPersonalSpace: channel?.isPersonalSpace ?? false,
-                restricted: channel?.restricted ?? false,
-                searchOpen: search.open,
-                onToggleSearch: _toggleSearch,
-              ),
-            if (searchPage)
-              CompactChannelSearchBar(
-                controller: _searchController,
-                scope: channelSearchScope(
-                  name: hashChannelName,
-                  isVoice: isVoice,
-                  isThread: isThread,
-                ),
-                onChanged: _search,
-                onSubmitted: _searchNow,
-                onCancel: _toggleSearch,
-              ),
-            AppRevealBand(
-              child: search.open && !searchPage
-                  ? ChannelSearchBar(
-                      controller: _searchController,
-                      onChanged: _search,
-                      label: channel?.kind == 'dm'
-                          ? 'Search this conversation'
-                          : 'Search this channel',
-                    )
-                  : null,
-            ),
-            ChannelTranscriptPane(
+    return ChannelAttachmentDropZone(
+      channelId: widget.channelId,
+      blockedDm: blockedDm,
+      child: Column(
+        mainAxisSize: widget.fitContent ? MainAxisSize.min : MainAxisSize.max,
+        children: [
+          // A thread supplies its own bar at every width; see thread_screen.dart.
+          if (layout.showsBothPanes && !isThread && widget.showHeader)
+            ChannelHeader(
               channelId: widget.channelId,
-              store: store,
-              streams: _streams,
-              scrollTracker: _scrollTracker,
-              composer: _composer,
-              hashChannelName: hashChannelName,
+              name: channelName,
+              topic: channel?.topic,
               isVoice: isVoice,
-              dmAudience: channel?.isPersonalSpace ?? false
-                  ? DmAudience.self
-                  : channel?.isGroupDm ?? false
-                  ? DmAudience.group
-                  : DmAudience.pair,
-              searchPage: searchPage,
-              channelTopic: channel?.topic,
-              isThread: isThread,
-              lastReadSeq: channel?.lastReadSeq ?? 0,
-              syncedSeq: channel?.cursor ?? 0,
-              manuallyUnread: channel?.manuallyUnread ?? false,
-              onMarkRead: _markReadUpToLatest,
-              onReply: _startReply,
-              fitContent: widget.fitContent,
+              isDm: channel?.kind == 'dm',
+              dmParticipantId: dmPartnerId,
+              groupMemberIds: channel?.groupMemberIds ?? const [],
+              isPersonalSpace: channel?.isPersonalSpace ?? false,
+              restricted: channel?.restricted ?? false,
             ),
-            // Kept mounted under the page, so a staged file and the reply survive a look through search.
-            Offstage(
-              offstage: searchPage,
-              child: blockedDm
-                  ? BlockedDmNotice(userId: dmPartnerId, name: channelName)
-                  : ChannelComposerArea(
-                      channelId: widget.channelId,
-                      controller: _composer,
-                      channelName: hashChannelName ?? '',
-                      onSend: _send,
-                      replyingTo: _replyingTo,
-                      onCancelReply: _cancelReply,
-                      autofocus: widget.autofocusComposer,
-                      focusRequests: _composerFocusRequests,
-                      reportsExtent: !isThread,
-                    ),
-            ),
-          ],
-        ),
+          ChannelTranscriptPane(
+            channelId: widget.channelId,
+            store: store,
+            streams: _streams,
+            scrollTracker: _scrollTracker,
+            composer: _composer,
+            hashChannelName: hashChannelName,
+            isVoice: isVoice,
+            dmAudience: channel?.isPersonalSpace ?? false
+                ? DmAudience.self
+                : channel?.isGroupDm ?? false
+                ? DmAudience.group
+                : DmAudience.pair,
+            channelTopic: channel?.topic,
+            isThread: isThread,
+            lastReadSeq: channel?.lastReadSeq ?? 0,
+            syncedSeq: channel?.cursor ?? 0,
+            manuallyUnread: channel?.manuallyUnread ?? false,
+            onMarkRead: _markReadUpToLatest,
+            onReply: _startReply,
+            fitContent: widget.fitContent,
+          ),
+          blockedDm
+              ? BlockedDmNotice(userId: dmPartnerId, name: channelName)
+              : ChannelComposerArea(
+                  channelId: widget.channelId,
+                  controller: _composer,
+                  channelName: hashChannelName ?? '',
+                  onSend: _send,
+                  replyingTo: _replyingTo,
+                  onCancelReply: _cancelReply,
+                  autofocus: widget.autofocusComposer,
+                  focusRequests: _composerFocusRequests,
+                  reportsExtent: !isThread,
+                ),
+        ],
       ),
     );
   }

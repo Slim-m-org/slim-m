@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A search hit found through an attachment's text says so, naming the file,
 /// and a hit found through its own text does not. A voice message found through
-/// its transcript shows what was said rather than its file name.
+/// its transcript shows what was said rather than its file name. Drawn as the
+/// palette's message row, the one place hits are listed.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/channels/widgets/channel_search.dart';
 import 'package:slimm_app/src/features/messages/providers/message_search.dart';
 import 'package:slimm_app/src/features/palette/widgets/command_palette_items.dart'
     show messageResultItem;
+import 'package:slimm_app/src/features/palette/widgets/command_palette_rows.dart';
 
 import 'message_row_harness.dart';
 
@@ -60,11 +61,17 @@ api.Message _voiceHit({String text = 'meet me at the lighthouse'}) =>
 Future<void> _pump(WidgetTester tester, api.Message message) =>
     tester.pumpWidget(
       harness(
-        SearchResultRow(
-          message: message,
-          knownUsernames: const {},
-          customEmoji: const {},
-          onSelect: (_) {},
+        PaletteResultRow(
+          item: messageResultItem(
+            message,
+            channelLabel: '#general',
+            authorName: 'Priya',
+            onSelect: (_, _) async {},
+          ),
+          query: '',
+          highlighted: false,
+          touch: false,
+          onTap: () {},
         ),
       ),
     );
@@ -82,13 +89,13 @@ void main() {
   testWidgets('an attachment hit says which file it was found in', (
     tester,
   ) async {
-    await _pump(tester, _hit(matched: 'a1'));
-    expect(find.text('Found in notes.txt'), findsOneWidget);
+    await _pump(tester, _hit(content: 'see attached', matched: 'a1'));
+    expect(find.textContaining('\u00B7 in notes.txt'), findsOneWidget);
   });
 
   testWidgets('a hit on the message text carries no file line', (tester) async {
     await _pump(tester, _hit(content: 'hello'));
-    expect(find.textContaining('Found in'), findsNothing);
+    expect(find.textContaining('notes.txt'), findsNothing);
   });
 
   test('a voice hit gives its transcript, and any other hit none', () {
@@ -104,7 +111,7 @@ void main() {
     await _pump(tester, _voiceHit());
     expect(find.text('meet me at the lighthouse'), findsOneWidget);
     expect(find.textContaining('voice-message.ogg'), findsNothing);
-    expect(find.text('Found in a voice message'), findsOneWidget);
+    expect(find.textContaining('\u00B7 in a voice message'), findsOneWidget);
   });
 
   test('the palette labels a voice hit with what was said', () {
@@ -137,23 +144,6 @@ void main() {
       find.bySemanticsLabel('Message from Priya: found in notes.txt'),
       findsOneWidget,
     );
-    semantics.dispose();
-  });
-
-  testWidgets('the wide row reads a hit as the palette and narrow page do', (
-    tester,
-  ) async {
-    final semantics = tester.ensureSemantics();
-    for (final hit in [_voiceHit(), _hit(matched: 'a1'), _hit(content: 'hi')]) {
-      await _pump(tester, hit);
-      final narrow = messageResultItem(
-        hit,
-        channelLabel: '#general',
-        authorName: 'Priya',
-        onSelect: (_, _) async {},
-      );
-      expect(find.bySemanticsLabel(narrow.semanticLabel!), findsOneWidget);
-    }
     semantics.dispose();
   });
 }

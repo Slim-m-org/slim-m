@@ -17,7 +17,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/header_icon_action.dart';
 import '../providers/channel_by_id_provider.dart';
-import '../providers/channel_search_controller.dart';
+import '../../palette/widgets/conversation_search.dart';
 import '../providers/pins_controller.dart';
 import '../../canvas/widgets/canvas_open_button.dart';
 import '../../voice/widgets/dm_call_button.dart';
@@ -111,7 +111,13 @@ class CompactChannelAppBar extends ConsumerWidget
       // A voice channel's messages live in its chat, so these show once that is open; threads never.
       actions: [
         if (!isVoice || voiceChatOpen)
-          ChannelSearchAction(channelId: channelId),
+          ChannelSearchAction(
+            channelId: channelId,
+            label: conversationSearchLabel(
+              name: channel?.name ?? '',
+              isDm: isDm,
+            ),
+          ),
         if (!isVoice || voiceChatOpen) _PinsAction(channelId: channelId),
         if (!isVoice) _ThreadsAction(channelId: channelId),
         DmCallButton(channelId: channelId),
@@ -211,26 +217,27 @@ class _Title extends StatelessWidget {
   }
 }
 
-/// The search toggle, shared with `thread_screen.dart`'s `ThreadScreen`
+/// The search button, shared with `thread_screen.dart`'s `ThreadScreen`
 /// since a thread's messages are searchable the same way a real channel's are.
-class ChannelSearchAction extends ConsumerWidget {
-  const ChannelSearchAction({super.key, required this.channelId});
+class ChannelSearchAction extends StatelessWidget {
+  const ChannelSearchAction({
+    super.key,
+    required this.channelId,
+    required this.label,
+  });
 
   final String channelId;
 
+  /// What the search's `in:` chip calls this conversation.
+  final String label;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final open = ref.watch(
-      channelSearchProvider(channelId).select((s) => s.open),
-    );
-    return HeaderIconAction(
-      icon: AppIcons.search,
-      label: 'Search messages',
-      active: open,
-      onPressed: () =>
-          ref.read(channelSearchProvider(channelId).notifier).toggle(),
-    );
-  }
+  Widget build(BuildContext context) => HeaderIconAction(
+    icon: AppIcons.search,
+    label: 'Search messages',
+    onPressed: () =>
+        openConversationSearch(context, channelId: channelId, label: label),
+  );
 }
 
 /// The pill's live count has nowhere to sit in a toolbar, so it goes into the

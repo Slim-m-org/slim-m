@@ -71,13 +71,11 @@ void main() {
         container: container,
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: Scaffold(
+          home: const Scaffold(
             body: ChannelHeader(
               channelId: 'c1',
               name: 'general',
               isVoice: false,
-              searchOpen: false,
-              onToggleSearch: () {},
             ),
           ),
         ),
@@ -101,13 +99,11 @@ void main() {
       routes: [
         GoRoute(
           path: '/',
-          builder: (context, state) => Scaffold(
+          builder: (context, state) => const Scaffold(
             body: ChannelHeader(
               channelId: 'c1',
               name: 'general',
               isVoice: false,
-              searchOpen: false,
-              onToggleSearch: () {},
             ),
           ),
         ),
@@ -141,13 +137,11 @@ void main() {
         container: container,
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: Scaffold(
+          home: const Scaffold(
             body: ChannelHeader(
               channelId: 'c1',
               name: 'general',
               isVoice: false,
-              searchOpen: false,
-              onToggleSearch: () {},
             ),
           ),
         ),
@@ -179,8 +173,6 @@ void main() {
               name: 'Alice',
               isVoice: false,
               isDm: isDm,
-              searchOpen: false,
-              onToggleSearch: () {},
             ),
           ),
         ),
@@ -214,14 +206,12 @@ void main() {
         container: container,
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: Scaffold(
+          home: const Scaffold(
             body: ChannelHeader(
               channelId: 'c1',
               name: 'Alice',
               isVoice: false,
               isDm: true,
-              searchOpen: false,
-              onToggleSearch: () {},
             ),
           ),
         ),
@@ -253,15 +243,13 @@ void main() {
         container: container,
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: Scaffold(
+          home: const Scaffold(
             body: ChannelHeader(
               channelId: 'c1',
               name: personalSpaceName,
               isVoice: false,
               isDm: true,
               isPersonalSpace: true,
-              searchOpen: false,
-              onToggleSearch: () {},
             ),
           ),
         ),
@@ -287,14 +275,12 @@ void main() {
         container: container,
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: Scaffold(
+          home: const Scaffold(
             body: ChannelHeader(
               channelId: 'c1',
               name: 'staff',
               isVoice: false,
               restricted: true,
-              searchOpen: false,
-              onToggleSearch: () {},
             ),
           ),
         ),
@@ -317,13 +303,11 @@ void main() {
           container: container,
           child: MaterialApp(
             theme: buildTheme(Brightness.light, AppTokens.light),
-            home: Scaffold(
+            home: const Scaffold(
               body: ChannelHeader(
                 channelId: 'c1',
                 name: 'general',
                 isVoice: false,
-                searchOpen: false,
-                onToggleSearch: () {},
               ),
             ),
           ),
@@ -362,8 +346,6 @@ void main() {
               name: name,
               topic: topic,
               isVoice: false,
-              searchOpen: false,
-              onToggleSearch: () {},
             ),
           ),
         ),
@@ -441,8 +423,6 @@ void main() {
               channelId: 'v1',
               name: 'voice',
               isVoice: true,
-              searchOpen: false,
-              onToggleSearch: () {},
               textChatOpen: true,
               onToggleTextChat: onToggleTextChat,
             ),

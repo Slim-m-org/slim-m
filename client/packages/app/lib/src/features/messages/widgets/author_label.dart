@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The single place a message author's display name is resolved, closing the
 /// recorded debt that a renamed author's already-cached messages never
-/// reconciled: `message_row_identity.dart`, `channel_search.dart`,
+/// reconciled: `message_row_identity.dart`, the old in-channel search,
 /// `pinned_messages_sheet.dart` and `command_palette_items.dart` used to each
 /// carry their own copy of the "cached name, or a fallback for a missing
 /// author" rule and none of them ever refreshed it.

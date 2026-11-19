@@ -17,7 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/channels/providers/channel_search_controller.dart';
+import 'package:slimm_app/src/features/palette/widgets/palette_filter_chips.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/messages/screens/thread_screen.dart';
@@ -290,50 +290,41 @@ void main() {
       'a thread header search acts on the thread, never the parent channel, '
       'at ${entry.key} width',
       (tester) async {
-        final container = await _pumpThread(tester, entry.value);
+        await _pumpThread(tester, entry.value);
 
         await tester.tap(find.bySemanticsLabel('Search messages'));
         for (var i = 0; i < 5; i++) {
           await tester.pump(const Duration(milliseconds: 20));
         }
 
-        expect(
-          container.read(channelSearchProvider('c1')).open,
-          isTrue,
-          reason: "the thread's own search state must open",
+        final chips = tester.widget<PaletteFilterChips>(
+          find.byWidgetPredicate((w) => w is PaletteFilterChips),
         );
         expect(
-          container.read(channelSearchProvider('parent-channel')).open,
-          isFalse,
-          reason:
-              'channelSearchProvider is keyed per channel id, so opening '
-              "search in the thread must not touch the parent channel's "
-              'copy of the same provider',
+          chips.filters.single.channelId,
+          'c1',
+          reason: "the search is scoped to the thread's own channel id",
         );
-        expect(
-          find.byKey(const Key('channel-search-cancel')),
-          entry.key == 'compact' ? findsOneWidget : findsNothing,
-          reason: 'only the phone swaps its app bar for the search page',
-        );
+        expect(chips.filters.single.label, 'this thread');
 
         await _settle(tester);
       },
     );
   }
 
-  testWidgets('a phone thread search is a page in place of the app bar, and '
-      'back or Cancel returns the bar', (tester) async {
+  testWidgets('a phone thread search is the palette over the thread, and '
+      'back or Cancel returns to the thread', (tester) async {
     await _pumpThread(tester, const Size(500, 800));
-    final cancel = find.byKey(const Key('channel-search-cancel'));
+    final cancel = find.byKey(const Key('command-palette-cancel'));
 
     await tester.tap(find.bySemanticsLabel('Search messages'));
     await _frames(tester);
     expect(cancel, findsOneWidget);
-    expect(find.text('Search this thread'), findsOneWidget);
-    expect(find.text('Thread'), findsNothing);
+    expect(find.text('Search messages'), findsOneWidget);
 
     await tester.tap(cancel);
     await _frames(tester);
+    await tester.pump(const Duration(milliseconds: 300));
     expect(cancel, findsNothing);
     expect(find.text('Thread'), findsOneWidget);
 
@@ -341,6 +332,7 @@ void main() {
     await _frames(tester);
     await tester.binding.handlePopRoute();
     await _frames(tester);
+    await tester.pump(const Duration(milliseconds: 300));
     expect(cancel, findsNothing);
     expect(find.text('Thread'), findsOneWidget);
     expect(

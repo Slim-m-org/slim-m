@@ -76,7 +76,6 @@ app/test/features/canvas/canvas_sync_reset_test.dart
 app/test/features/canvas/canvas_sync_test.dart
 app/test/features/channels/channel_grouping_test.dart
 app/test/features/channels/channel_permissions_provider_test.dart
-app/test/features/channels/channel_search_controller_test.dart
 app/test/features/channels/collapsed_categories_preference_test.dart
 app/test/features/composer/composer_attachments_test.dart
 app/test/features/composer/composer_autocomplete_items_test.dart

@@ -9,8 +9,7 @@
 /// `.select` (the same shape `messageExtrasProvider` already uses; see its
 /// own doc comment) means a row only rebuilds when its own answer changes.
 ///
-/// `autoDispose.family` keyed by channel id, matching `channelSearchProvider`:
-/// `ChannelScreen`'s own `State` can outlive a channel switch, so a plain
+/// `autoDispose.family` keyed by channel id: `ChannelScreen`'s own `State` can outlive a channel switch, so a plain
 /// (non-family) provider would let an edit started in one channel keep
 /// showing after switching to another.
 library;

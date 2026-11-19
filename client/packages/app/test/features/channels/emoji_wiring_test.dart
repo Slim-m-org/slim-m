@@ -4,8 +4,8 @@
 ///
 /// Every other emoji suite passes with the app unable to render a single one:
 /// delete the three lines in `channel_screen.dart` that read
-/// `customEmojiIndexProvider` and hand it to `MessageRow` and to
-/// `ChannelSearchResults`, and `dart analyze`, `dart format` and all of
+/// `customEmojiIndexProvider` and hand it to `MessageRow` and to the
+/// palette's search hits, and `dart analyze`, `dart format` and all of
 /// `flutter test` stay green while every `:shortcode:` in the running app
 /// silently degrades to the literal text someone typed.
 ///
@@ -18,6 +18,7 @@
 /// exactly what makes this hole invisible.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -27,11 +28,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/channels/providers/channel_search_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
-import 'package:slimm_app/src/features/channels/widgets/channel_search.dart';
+import 'package:slimm_app/src/features/messages/providers/message_search_query.dart';
+import 'package:slimm_app/src/features/palette/widgets/command_palette.dart';
+import 'package:slimm_app/src/features/palette/widgets/command_palette_rows.dart';
 import 'package:slimm_app/src/features/emoji/widgets/custom_emoji_image.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_data/data.dart';
@@ -222,22 +224,35 @@ void main() {
       'search results are a second render path with its own wiring', (
     tester,
   ) async {
-    final container = await _pumpChannel(tester);
+    await _pumpChannel(tester);
 
-    await container.read(channelSearchProvider('c1').notifier).run('shipped');
+    unawaited(
+      openCommandPalette(
+        tester.element(find.byType(ChannelScreen)),
+        scope: const SearchFilter(
+          SearchKey.inChannel,
+          'general',
+          channelId: 'c1',
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('command-palette-input')),
+      'shipped',
+    );
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 20));
     }
 
-    expect(find.byType(ChannelSearchResults), findsOneWidget);
     expect(
       find.descendant(
-        of: find.byType(ChannelSearchResults),
+        of: find.byType(PaletteResultRow),
         matching: find.byType(CustomEmojiImage),
       ),
       findsOneWidget,
       reason:
-          'ChannelScreen must hand the same index to ChannelSearchResults; '
+          'the palette must resolve the same index for its hits; '
           'the transcript being wired says nothing about this path',
     );
 

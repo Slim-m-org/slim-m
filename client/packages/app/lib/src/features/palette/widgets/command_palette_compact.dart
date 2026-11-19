@@ -73,9 +73,13 @@ class CommandPaletteCompactShell extends StatelessWidget {
     required this.searchField,
     required this.results,
     required this.onCancel,
+    this.chips,
   });
 
   final Widget searchField;
+
+  /// The search's filters, under the field and its Cancel rather than beside Cancel.
+  final Widget? chips;
   final Widget results;
   final VoidCallback onCancel;
 
@@ -101,7 +105,20 @@ class CommandPaletteCompactShell extends StatelessWidget {
                 PaletteCompactSearchRow(
                   searchField: searchField,
                   onCancel: onCancel,
+                  divider: chips == null,
                 ),
+                if (chips case final chips?) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.s12,
+                      0,
+                      AppSpacing.s12,
+                      AppSpacing.s8,
+                    ),
+                    child: Align(alignment: Alignment.centerLeft, child: chips),
+                  ),
+                  const AppMenuDivider(),
+                ],
                 results,
               ],
             ),

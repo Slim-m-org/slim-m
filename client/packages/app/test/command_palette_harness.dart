@@ -57,21 +57,21 @@ api.UserProfile profile(String id, String name) => api.UserProfile(
 /// client so an unexpected call surfaces immediately instead of returning
 /// something plausible-looking.
 ///
-/// The palette only ever calls `GET /search/messages` (its cross-channel
-/// scope), never the per-channel `.../messages/search` route
-/// `channelSearchProvider` uses; both are matched here so this fixture stays
-/// useful if a future test drives the per-channel route through the same
-/// client.
+/// Both search routes are matched: the cross-channel `GET /search/messages`,
+/// and a conversation's own `.../messages/search` that an `in:` chip picked
+/// from a list goes through. [onSearch] sees each search request.
 http.Client fakeClient({
   List<String> blocked = const [],
   List<Map<String, dynamic>> hits = const [],
   bool searchForbidden = false,
+  void Function(Uri url)? onSearch,
 }) => MockClient((request) async {
   if (request.url.path == '/blocks') {
     return http.Response(jsonEncode(blocked), 200);
   }
   if (request.url.path == '/search/messages' ||
       request.url.path.endsWith('/messages/search')) {
+    onSearch?.call(request.url);
     if (searchForbidden) {
       return http.Response(jsonEncode({'error': 'denied'}), 403);
     }
@@ -103,6 +103,7 @@ http.Client fakeClient({
   bool searchForbidden = false,
   List<api.UserProfile>? members,
   List<Override> overrides = const [],
+  void Function(Uri url)? onSearch,
 }) {
   final db = SlimmDatabase(NativeDatabase.memory());
   final container = ProviderContainer(
@@ -117,6 +118,7 @@ http.Client fakeClient({
             blocked: blocked,
             hits: hits,
             searchForbidden: searchForbidden,
+            onSearch: onSearch,
           ),
         );
         ref.onDispose(client.close);

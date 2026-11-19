@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Jumping to a message: the one entry point every tappable result (search,
-/// pins, the command palette) calls, the row wrapper that scrolls to and
-/// flashes the arrival, and the notice for when it cannot be reached.
+/// pins, the command palette) calls, and the row wrapper that scrolls to and
+/// flashes the arrival.
 library;
 
 import 'dart:async';
@@ -14,7 +14,6 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/message_jump.dart';
 import '../providers/message_search.dart' show ProviderReader;
 import '../../../routing/routes.dart';
-import '../../../widgets/app_snackbar.dart';
 
 /// Switches to [channelId] if [currentChannelId] says it is not already
 /// open, then asks [MessageJumpController] to bring [messageId] into view
@@ -47,28 +46,13 @@ void jumpToMessage(
   unawaited(read(messageJumpProvider.notifier).jumpTo(channelId, messageId));
 }
 
-/// What the channel screen needs from [messageJumpProvider] in one call:
-/// watches it for [channelId]'s own arrival (if any, for
-/// `MessageTranscript`'s highlight params) and listens for a refusal to show
-/// a plain notice for rather than a silent no-op.
-///
-/// With [inlineNotice] the caller shows the refusal itself, where the tap was
-/// made, so no snack bar is raised and the notice is left standing for it.
+/// [channelId]'s own arrival, if a jump has landed in it, for
+/// `MessageTranscript`'s highlight. A refusal is shown above the transcript
+/// by `MessageJumpStatus`, never as a toast.
 ({String messageId, int token})? watchMessageJump(
   WidgetRef ref,
-  BuildContext context,
-  String channelId, {
-  bool inlineNotice = false,
-}) {
-  final arrival = jumpArrivalFor(ref.watch(messageJumpProvider), channelId);
-  ref.listen(messageJumpProvider, (_, next) {
-    final notice = jumpNoticeFor(next, channelId);
-    if (notice == null || inlineNotice) return;
-    showAppSnackbar(context, notice.text);
-    ref.read(messageJumpProvider.notifier).dismissNotice(notice.token);
-  });
-  return arrival;
-}
+  String channelId,
+) => jumpArrivalFor(ref.watch(messageJumpProvider), channelId);
 
 /// Wraps the one row a jump has landed on: scrolls it into view, then flashes
 /// a tinted background that fades out - Discord's own arrival cue, held flat

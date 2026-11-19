@@ -71,8 +71,6 @@ Widget _wide({required bool isVoice}) => Scaffold(
     channelId: 'c1',
     name: 'general',
     isVoice: isVoice,
-    searchOpen: false,
-    onToggleSearch: () {},
     onToggleTextChat: isVoice ? () {} : null,
   ),
 );
