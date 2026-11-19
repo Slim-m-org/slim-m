@@ -106,17 +106,8 @@ def _copy_media(snapshot, backup_root, media_dir):
     return copied
 
 
-def _copy_modules(backup_root, modules_dir):
-    sources = backup_modules.module_files(Path(backup_root, "modules"))
-    if sources:
-        Path(modules_dir).mkdir(parents=True, exist_ok=True)
-    for source in sources:
-        shutil.copy2(source, Path(modules_dir, source.name))
-    return len(sources)
-
-
 def _move_aside(database, stamp):
-    """Keeps the database being replaced, with its WAL, under a name no server opens."""
+    """Keeps a database being replaced, with its WAL, under a name nothing opens."""
     moved = []
     for suffix in ("", "-wal", "-shm"):
         current = Path(str(database) + suffix)
@@ -125,6 +116,21 @@ def _move_aside(database, stamp):
             current.rename(kept)
             moved.append(kept.name)
     return moved
+
+
+def _copy_modules(backup_root, modules_dir, stamp):
+    """Replaces each module data file, moving the old one aside with the WAL that would replay onto the new."""
+    sources = backup_modules.module_files(Path(backup_root, "modules"))
+    if sources:
+        Path(modules_dir).mkdir(parents=True, exist_ok=True)
+    moved = []
+    for source in sources:
+        dest = Path(modules_dir, source.name)
+        partial = Path(modules_dir, f".{source.name}.restoring")
+        shutil.copy2(source, partial)
+        moved += _move_aside(dest, stamp)
+        os.replace(partial, dest)
+    return len(sources), moved
 
 
 def _place_key(key_file, data_dir):
@@ -178,7 +184,7 @@ def run(args):
     shutil.copyfile(snapshot, partial)
     os.replace(partial, database)
     media = _copy_media(snapshot, backup_root, data_dir / "media")
-    modules = _copy_modules(backup_root, data_dir / "modules")
+    modules, moved_modules = _copy_modules(backup_root, data_dir / "modules", stamp)
     if args.data_key_file:
         _place_key(args.data_key_file, data_dir)
     owned = _give_to(args.owner, data_dir)
@@ -187,6 +193,8 @@ def run(args):
     print(f"media files: {media} copied; module data files: {modules} copied")
     if moved:
         print(f"the database that was here is kept as {', '.join(moved)}")
+    if moved_modules:
+        print(f"module data files that were here are kept in modules/ as {', '.join(moved_modules)}")
     if owned:
         print(f"owner set to {args.owner[0]}:{args.owner[1]}")
     if not args.data_key_file and not (data_dir / KEY_FILE).is_file():

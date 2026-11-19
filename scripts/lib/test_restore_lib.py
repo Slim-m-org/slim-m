@@ -121,6 +121,25 @@ class RestoreTest(RestoreTestCase):
         self.assertEqual(
             (self.data_dir / kept[0]).read_bytes(), b"the old database")
 
+    def test_force_moves_an_old_module_file_and_its_wal_aside(self):
+        self._back_up()
+        modules = self.data_dir / "modules"
+        modules.mkdir(parents=True)
+        (self.data_dir / "slimm.db").write_bytes(b"the old database")
+        (modules / "notes.db").write_bytes(b"the old notes")
+        (modules / "notes.db-wal").write_bytes(b"pages written after the backup")
+
+        code, _ = self._restore("--force")
+
+        self.assertEqual(code, 0)
+        self.assertFalse((modules / "notes.db-wal").exists())
+        kept = sorted(path.name for path in modules.glob("notes.db.before-restore-*"))
+        self.assertEqual(len(kept), 2)
+        self.assertEqual((modules / kept[0]).read_bytes(), b"the old notes")
+        restored = sqlite3.connect(str(modules / "notes.db"))
+        self.assertEqual(restored.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+        restored.close()
+
     def test_a_backup_missing_a_referenced_file_restores_nothing(self):
         self._back_up()
         (self.backup_root / "attachments" / self.sha.hex()).unlink()
