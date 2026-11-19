@@ -273,12 +273,15 @@ final appInfoProvider = FutureProvider.autoDispose<PackageInfo>(
 /// Nothing that carries the session leaves it until the server's identity has
 /// been checked against its pin (decision 0036).
 final apiProvider = Provider<SlimmApi>((ref) {
-  final api = SlimmApi(
-    baseUrl: ref.watch(serverUrlProvider),
-    // Read, not watched: the store follows sign-ins itself, and a rebuild would close in-flight requests.
-    session: ref.read(sessionProvider),
-    trustGate: ref.read(serverIdentityGateProvider).forClient(),
-  )..clientReport = (kind: deviceClientKind, version: null);
+  final api =
+      SlimmApi(
+          baseUrl: ref.watch(serverUrlProvider),
+          // Read, not watched: the store follows sign-ins itself, and a rebuild would close in-flight requests.
+          session: ref.read(sessionProvider),
+          trustGate: ref.read(serverIdentityGateProvider).forClient(),
+        )
+        ..clientReport = (kind: deviceClientKind, version: null)
+        ..voiceTab = ref.read(crossTabProvider).tabId;
   // The version arrives asynchronously; until then a refresh reports the kind alone.
   unawaited(
     PackageInfo.fromPlatform().then(

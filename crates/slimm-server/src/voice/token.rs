@@ -47,14 +47,36 @@ pub(super) struct VideoGrant {
     pub(super) hidden: bool,
 }
 
+/// Which running copy of a client a join or a roster read comes from: the session's device,
+/// and the tab a browser keeps for itself, since every tab of one profile shares one session.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VoiceDevice {
+    pub device_id: DeviceId,
+    pub tab: Option<String>,
+}
+
+impl From<DeviceId> for VoiceDevice {
+    fn from(device_id: DeviceId) -> Self {
+        Self {
+            device_id,
+            tab: None,
+        }
+    }
+}
+
 /// A keyed hash of the channel and device: the same for one device in one channel, unrelated
 /// across channels, and no use to anyone without the SFU secret.
-pub(super) fn device_tag(secret: &str, channel_id: ChannelId, device_id: DeviceId) -> String {
+pub(super) fn device_tag(secret: &str, channel_id: ChannelId, device: &VoiceDevice) -> String {
     let mut mac =
         <Hmac<Sha256>>::new_from_slice(secret.as_bytes()).expect("HMAC takes a key of any length");
     mac.update(b"slimm-voice-device-v1");
     mac.update(channel_id.0.as_bytes());
-    mac.update(device_id.0.as_bytes());
+    mac.update(device.device_id.0.as_bytes());
+    // After the fixed-length device id, so a tab can never collide with a device of its own.
+    if let Some(tab) = &device.tab {
+        mac.update(b"tab");
+        mac.update(tab.as_bytes());
+    }
     crate::media::to_hex(&mac.finalize().into_bytes()[..16])
 }
 

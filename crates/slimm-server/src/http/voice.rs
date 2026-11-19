@@ -10,21 +10,21 @@ use axum::http::StatusCode;
 use axum::http::request::Parts;
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
 use super::escalation::escalation_guard;
-use super::extract::{Authed, enforce};
+use super::extract::{Authed, Query, enforce};
 use super::messages::parse_uuid;
 use super::role_ladder::Ladder;
 use crate::hub::Event;
-use crate::ids::{ChannelId, UserId};
+use crate::ids::{ChannelId, DeviceId, UserId};
 use crate::permissions::Permissions;
 use crate::presence::Visibility;
 use crate::ratelimit::Class;
 use crate::store::{Channel, DM_CHANNEL_KIND};
-use crate::voice::{CallRingOutcome, RoomToken, VoiceError};
+use crate::voice::{CallRingOutcome, RoomToken, VoiceDevice, VoiceError};
 
 pub(super) mod voice_access;
 pub(super) mod voice_call_audio;
@@ -41,6 +41,25 @@ pub(super) mod voice_webhook;
 
 /// Every body here is a small JSON document; refused well before axum's 2 MB default.
 const BODY_LIMIT: usize = 64 * 1024;
+
+/// The longest tab id taken; a client makes its own as a short random string.
+const MAX_TAB_LEN: usize = 64;
+
+/// The tab a browser keeps for itself, since every tab of one profile shares one session.
+#[derive(Deserialize)]
+struct TabParams {
+    tab: Option<String>,
+}
+
+impl TabParams {
+    fn device(self, device_id: DeviceId) -> Result<VoiceDevice, ApiError> {
+        let tab = self.tab.filter(|tab| !tab.is_empty());
+        if tab.as_ref().is_some_and(|tab| tab.len() > MAX_TAB_LEN) {
+            return Err(ApiError::BadRequest("tab is too long"));
+        }
+        Ok(VoiceDevice { device_id, tab })
+    }
+}
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -122,10 +141,12 @@ async fn token(
     Authed(ctx): Authed,
     parts: Parts,
     Path(channel_id): Path<String>,
+    Query(tab): Query<TabParams>,
     State(state): State<AppState>,
 ) -> Result<Json<TokenResponse>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
+    let device = tab.device(ctx.device_id)?;
 
     let permissions = state
         .store
@@ -152,13 +173,10 @@ async fn token(
         .map(|u| u.display_name.as_str())
         .unwrap_or("unknown");
 
-    match state.voice.mint(
-        channel_id,
-        ctx.user_id,
-        permissions,
-        display_name,
-        ctx.device_id,
-    ) {
+    match state
+        .voice
+        .mint(channel_id, ctx.user_id, permissions, display_name, device)
+    {
         Ok(token) => Ok(Json(token.into())),
         // No SFU is a supported configuration, not a fault; say so plainly.
         Err(VoiceError::Unavailable) => Err(ApiError::NotConfigured(
@@ -310,10 +328,12 @@ async fn roster(
     Authed(ctx): Authed,
     parts: Parts,
     Path(channel_id): Path<String>,
+    Query(tab): Query<TabParams>,
     State(state): State<AppState>,
 ) -> Result<Json<RosterResponse>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
+    let device = tab.device(ctx.device_id)?;
 
     let permissions = state
         .store
@@ -347,7 +367,7 @@ async fn roster(
     let now = crate::store::now_ms();
     let mut earliest_join: Option<i64> = None;
     let mut participants = Vec::with_capacity(connected.len());
-    let my_device = state.voice.device_tag(channel_id, ctx.device_id);
+    let my_device = state.voice.device_tag(channel_id, device);
     // A token minted before device tags carried the raw id, and its call can outlive a deploy.
     let my_raw_device = ctx.device_id.to_string();
     for participant in connected {

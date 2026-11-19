@@ -16,7 +16,12 @@ extension SlimmApiVoice on SlimmApi {
   /// a supported way to run text-only rather than a fault, so a caller should
   /// hide voice rather than retry.
   Future<VoiceToken> voiceToken(String channelId) async {
-    final json = await send('POST', '/channels/$channelId/voice/token');
+    final tab = voiceTab;
+    final json = await send(
+      'POST',
+      '/channels/$channelId/voice/token',
+      query: tab == null ? null : {'tab': tab},
+    );
     return VoiceToken.fromJson(json as Map<String, dynamic>);
   }
 
@@ -111,7 +116,12 @@ extension SlimmApiVoice on SlimmApi {
 
   /// [voiceRoster] with the call's age the same response carries.
   Future<VoiceRoster> voiceRosterSnapshot(String channelId) async {
-    final json = await send('GET', '/channels/$channelId/voice/roster');
+    final tab = voiceTab;
+    final json = await send(
+      'GET',
+      '/channels/$channelId/voice/roster',
+      query: tab == null ? null : {'tab': tab},
+    );
     return VoiceRoster.fromJson(json as Map<String, dynamic>);
   }
 

@@ -8109,6 +8109,7 @@ paths:
         owner and anyone with `MANAGE_CHANNELS` are never refused this way.
       parameters:
         - $ref: "#/components/parameters/ChannelId"
+        - $ref: "#/components/parameters/VoiceTab"
       responses:
         "200":
           description: A join token for the channel's room.
@@ -8674,6 +8675,7 @@ paths:
         a 200 with an empty list, which means the room is genuinely empty.
       parameters:
         - $ref: "#/components/parameters/ChannelId"
+        - $ref: "#/components/parameters/VoiceTab"
       responses:
         "200":
           description: Who the SFU reports as connected, visible to this caller.
@@ -13156,6 +13158,18 @@ components:
       schema:
         type: string
         format: uuid
+    VoiceTab:
+      name: tab
+      in: query
+      required: false
+      description: >
+        An id a browser tab keeps for itself across reloads, since every tab of
+        one profile shares one session. A join token carries it in the device
+        tag, and the roster compares it, so `this_device` tells two tabs apart.
+        A native client sends none. Longer than 64 characters answers 400.
+      schema:
+        type: string
+        maxLength: 64
     DockSourceQuery:
       name: source
       in: query
@@ -19724,9 +19738,10 @@ components:
           type: boolean
           description: >-
             True only on the caller's own entry when that connection was
-            joined from the device asking, so a connection this device left
-            behind (after a reload or a crash) is not mistaken for the call
-            running on another device. Always false for anyone else.
+            joined from the device asking, and from the same `tab` when one is
+            sent, so a connection this device left behind (after a reload or a
+            crash) is not mistaken for the call running on another device.
+            Always false for anyone else.
 
     ReactionSummary:
       type: object

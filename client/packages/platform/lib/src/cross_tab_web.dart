@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:math';
 
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:web/web.dart' as web;
@@ -53,7 +54,40 @@ web.LockManager? get _locks {
   }
 }
 
+/// Session storage, unlike local storage, is one tab's own and outlives its reloads.
+const _tabIdKey = 'slimm.tab_id';
+
+String _readOrMakeTabId() {
+  try {
+    final storage = web.window.sessionStorage;
+    final held = storage.getItem(_tabIdKey);
+    if (held != null && held.isNotEmpty) return held;
+    final made = _randomTabId();
+    storage.setItem(_tabIdKey, made);
+    return made;
+  } on Object catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.platform,
+      'Session storage is unavailable; this tab id lasts until a reload',
+      error,
+      stack,
+    );
+    return _randomTabId();
+  }
+}
+
+String _randomTabId() {
+  final random = Random.secure();
+  return List.generate(
+    16,
+    (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ).join();
+}
+
 class _BrowserTabs implements CrossTab {
+  @override
+  late final String tabId = _readOrMakeTabId();
+
   @override
   Future<T> exclusive<T>(String name, Future<T> Function() body) {
     final locks = _locks;
