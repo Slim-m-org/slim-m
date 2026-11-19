@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/shell_focus_anchor.dart';
 
@@ -67,7 +68,11 @@ void main() {
     // ignore: invalid_use_of_visible_for_testing_member
     FocusManager.instance.listenToApplicationLifecycleChangesIfSupported();
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pumpWidget(_Rig(composer: composer, dialogField: dialogField));
+    await tester.pumpWidget(
+      ProviderScope(
+        child: _Rig(composer: composer, dialogField: dialogField),
+      ),
+    );
     await tester.pump();
   }
 

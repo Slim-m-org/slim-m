@@ -133,7 +133,7 @@ final shareWatchProvider =
             .cameras
             .setVideoBlocked(keys),
       );
-      // A dropped call reports an empty roster; the choices wait for the one after the rejoin.
+      // A dropped call reports an empty roster, then its state; a frame shows both together, so the choices wait for the rejoin.
       ref.listen<List<VoiceParticipant>>(voiceParticipantsProvider, (
         _,
         participants,
@@ -146,9 +146,7 @@ final shareWatchProvider =
             if (p.isScreenSharing) p.identity,
         });
       }, fireImmediately: true);
-      ref.listen<String?>(
-        voiceFlagsProvider.select((f) => f.channelId),
-        (_, _) => controller.clear(),
-      );
+      // At once: a call that ends in a hidden window must not hand its choices to the next one.
+      ref.listen<String?>(voiceChannelAtOnce, (_, _) => controller.clear());
       return controller;
     });

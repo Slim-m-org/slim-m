@@ -153,20 +153,20 @@ class ScreenAnnotationFeed extends ChangeNotifier {
 }
 
 final screenAnnotationFeedProvider = Provider<ScreenAnnotationFeed>((ref) {
+  // The synchronous selections throughout: marks land on a shared screen while the window is in the tray.
   final feed = ScreenAnnotationFeed(
     selfId: () => ref
-        .read(voiceParticipantsProvider)
+        .read(voiceParticipantsAtOnce)
         .where((p) => p.isLocal)
         .firstOrNull
         ?.identity,
-    callChannelId: () => ref.read(voiceFlagsProvider).channelId,
-    callMembers: () =>
-        ref.read(voiceParticipantsProvider).map((p) => p.identity),
+    callChannelId: () => ref.read(voiceFlagsAtOnce).channelId,
+    callMembers: () => ref.read(voiceParticipantsAtOnce).map((p) => p.identity),
     isBlocked: (userId) => ref.read(blocksProvider).contains(userId),
     loadStamp: (content) => ref.read(stampImageCacheProvider).load(content),
   );
-  ref.listen(voiceParticipantsProvider, (_, _) => feed.rosterChanged());
-  ref.listen(voiceFlagsProvider, (_, _) => feed.rosterChanged());
+  ref.listen(voiceParticipantsAtOnce, (_, _) => feed.rosterChanged());
+  ref.listen(voiceFlagsAtOnce, (_, _) => feed.rosterChanged());
   final sub = ref
       .read(syncControllerProvider.notifier)
       .liveEvents

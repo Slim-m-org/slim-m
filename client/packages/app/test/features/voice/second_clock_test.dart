@@ -154,6 +154,28 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('a window restored without focus ticks again unclicked', (
+    tester,
+  ) async {
+    addTearDown(() => _setLifecycle(tester, AppLifecycleState.resumed));
+    final events = _followNewLifecycle();
+    await tester.pumpWidget(_app());
+    await _countingTicks((ticks) async {
+      events.add(DesktopWindowEventKind.minimize);
+      _setLifecycle(tester, AppLifecycleState.inactive);
+      _setLifecycle(tester, AppLifecycleState.hidden);
+      expect(clock.isRunning, isFalse);
+
+      // Shown again on a second monitor, never focused, with no restore event.
+      _setLifecycle(tester, AppLifecycleState.inactive);
+      expect(clock.isRunning, isTrue);
+      final before = ticks();
+      await tester.pump(const Duration(seconds: 3));
+      expect(ticks() - before, 3);
+    });
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('a covered readout does not subscribe', (tester) async {
     await tester.pumpWidget(_app(enabled: false));
     expect(clock.isRunning, isFalse);

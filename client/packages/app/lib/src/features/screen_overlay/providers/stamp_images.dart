@@ -246,10 +246,7 @@ final stampImageCacheProvider = Provider<StampImageCache>((ref) {
     customEmojiBytes: (id) => ref.read(customEmojiImageProvider(id).future),
     customIndex: () => ref.read(customEmojiIndexProvider),
   );
-  ref.listen(voiceFlagsProvider.select((flags) => flags.channelId), (
-    before,
-    after,
-  ) {
+  ref.listen(voiceChannelAtOnce, (before, after) {
     if (before != after) cache.clear();
   });
   ref.onDispose(cache.clear);

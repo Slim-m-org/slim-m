@@ -174,6 +174,10 @@ final voiceFlagsProvider = Provider<VoiceFlags>(
 /// drawn, as under a window hidden to the tray: a derived provider waits for one.
 final voiceFlagsAtOnce = voiceControllerProvider.select(VoiceFlags.from);
 
+/// The call's channel for a listener that must hear the call end with no frame
+/// drawn; see [voiceFlagsAtOnce].
+final voiceChannelAtOnce = voiceControllerProvider.select((s) => s.channelId);
+
 /// The high-churn slice of [voiceControllerProvider]: the live roster alone.
 /// A watcher rebuilds on every join, leave, mute or speaking change - exactly
 /// the noise [voiceFlagsProvider] exists to shield everything else from.

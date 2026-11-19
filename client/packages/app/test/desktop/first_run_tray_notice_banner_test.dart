@@ -6,7 +6,10 @@
 /// to point at.
 library;
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -84,5 +87,48 @@ void main() {
       prefs.getBool(firstRunTrayNoticeShownKey(CloseAction.hideToTray)),
       isNot(isTrue),
     );
+  });
+
+  testWidgets('paints the window surface around itself, not the bare window', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final boundary = GlobalKey();
+    // The desktop chrome hosts it on a transparent Material, so its margin shows the native window, black on Windows.
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firstRunTrayNoticeCloseActionProvider.overrideWith(
+            (ref) => CloseAction.hideToTray,
+          ),
+        ],
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: Material(
+            type: MaterialType.transparency,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: RepaintBoundary(
+                key: boundary,
+                child: const FirstRunTrayNoticeBanner(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final render =
+        boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final corner = await tester.runAsync(() async {
+      final image = await render.toImage();
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      image.dispose();
+      return bytes!.getUint32(0);
+    });
+
+    final rgb = AppTokens.light.surfaceBase.toARGB32() & 0xFFFFFF;
+    expect(corner, rgb << 8 | 0xFF);
   });
 }

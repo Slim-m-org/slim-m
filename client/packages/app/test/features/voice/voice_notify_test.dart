@@ -19,7 +19,12 @@ import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'package:slimm_app/src/push/providers/push_controller.dart';
+import 'package:slimm_platform/platform.dart';
+import '../../support/desktop_message_notifier_harness.dart'
+    show FakeNotifications;
 import '../../support/fake_api.dart';
+import '../../support/window_lifecycle.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -54,12 +59,14 @@ class _Server {
 ProviderContainer _container(
   _Server server, {
   Stream<api.ServerEvent>? events,
+  List<Override> extra = const [],
 }) {
   final container = ProviderContainer(
     overrides: [
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       liveEventsProvider.overrideWithValue(events ?? const Stream.empty()),
       mockApiOverride(server.handle),
+      ...extra,
     ],
   );
   addTearDown(container.dispose);
@@ -166,6 +173,38 @@ void main() {
       });
     },
   );
+
+  test('a notice to a window that lost focus goes to the OS', () async {
+    if (!isDesktopHost) return;
+    TestWidgetsFlutterBinding.ensureInitialized()
+        .handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final events = StreamController<api.ServerEvent>.broadcast();
+    addTearDown(events.close);
+    final shown = FakeNotifications();
+    final container = _container(
+      _Server(),
+      events: events.stream,
+      extra: [
+        localNotificationsProvider.overrideWithValue(shown),
+        // Blurred as the window reports it, with the embedder still saying resumed.
+        windowLifecycle(windowIn(AppLifecycleState.inactive)),
+      ],
+    );
+    container.listen(voiceNoticeProvider, (_, _) {});
+
+    events.add(
+      const api.VoiceNotice(
+        channelId: 'lounge',
+        actorId: 'ada',
+        activity: api.VoiceActivity.callStarted,
+      ),
+    );
+    await pumpEventQueue();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(container.read(voiceNoticeProvider), isNull);
+    expect(shown.shown, hasLength(1));
+  });
 
   test('the notice says who did what and where', () {
     expect(

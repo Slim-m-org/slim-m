@@ -77,7 +77,7 @@ class AccountHarness {
       store: store,
       createContainer: _container,
       startServices: (_) async {},
-      onActivate: (_) async {},
+      onActivate: (runtime) => onActivate(runtime),
       readSession: (r) => restoreAccountSession(store, r),
       signOutRuntime: (r) async {
         r.container.read(sessionProvider).clear();
@@ -87,6 +87,9 @@ class AccountHarness {
 
   final InMemoryKeyStore keys;
   final List<Override> extraOverrides;
+
+  /// What putting an account on screen waits on; a test can make it slow.
+  Future<void> Function(AccountRuntime runtime) onActivate = (_) async {};
   late final AccountStore store;
   late final AccountHost host;
   final databases = <SlimmDatabase>[];

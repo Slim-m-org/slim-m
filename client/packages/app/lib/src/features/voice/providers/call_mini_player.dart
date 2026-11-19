@@ -44,7 +44,7 @@ void moveMiniPlayer(WidgetRef ref, MiniPlayerCorner corner) {
 /// Set when the viewer dismisses the card; it stays dismissed until the call ends.
 final miniPlayerDismissedProvider = StateProvider<bool>((ref) {
   ref.listen<String?>(
-    voiceFlagsProvider.select((f) => f.channelId),
+    voiceChannelAtOnce,
     (_, _) => ref.controller.state = false,
   );
   return false;

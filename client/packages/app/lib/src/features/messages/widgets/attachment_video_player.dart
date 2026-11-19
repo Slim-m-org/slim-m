@@ -155,16 +155,16 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     );
   }
 
-  /// Opening the source is the expensive part, so it waits until the row is
-  /// on screen in a focused window; a row only inside the list's cache extent never pays.
+  /// Opening the source is the expensive part, so it waits until the row is on
+  /// screen in a window somebody can see, focused or not; a row only inside the
+  /// list's cache extent never pays.
   void _onVisibility(bool visible) {
     _onScreen = visible;
     _syncPlayback();
   }
 
   void _syncPlayback() {
-    final focused = ref.read(appFocusedProvider);
-    if (_onScreen && focused) {
+    if (_onScreen && ref.read(appVisibleProvider)) {
       if (!_loadStarted) {
         _loadStarted = true;
         unawaited(_load());
@@ -283,7 +283,7 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     );
     final caption =
         '${attachment.filename} · ${formatByteSize(attachment.size)}';
-    ref.listen(appFocusedProvider, (_, _) => _syncPlayback());
+    ref.listen(appVisibleProvider, (_, _) => _syncPlayback());
 
     final canCopy = ref.watch(clipboardFileWriterProvider).supported;
 

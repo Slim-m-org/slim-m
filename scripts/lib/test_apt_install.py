@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-"""scripts/apt-install.sh trusts its deb cache only when it installed what was asked for, its fallback really leaves a stalled mirror, and the action saves the debs as soon as they installed."""
+"""scripts/apt-install.sh trusts its deb cache only when it installed what was asked for, its fallback really leaves a stalled mirror and waits out the dpkg a stalled attempt left running, and the action saves the debs as soon as they installed."""
 
 import os
 import stat
@@ -35,6 +35,15 @@ STALLING_APT_GET = (
     "host=$(grep -oE 'https?://[^[:space:]]+' <<<\"$sources\" | head -1)\n"
     'if [[ "$host" == *azure* ]]; then exit 124; fi\n'
     'echo "served by $host" >> "$CALLS"\n'
+)
+
+# The first install stalls and its dpkg keeps the lock, as a killed apt-get leaves it; apt only waits for a held lock when told to.
+ORPHANED_DPKG_APT_GET = (
+    'echo "apt-get $*" >> "$CALLS"\n'
+    '[[ " $* " == *" install "* ]] || exit 0\n'
+    'if [[ ! -e "$LOCK" ]]; then touch "$LOCK"; exit 124; fi\n'
+    'if [[ " $* " != *" DPkg::Lock::Timeout="* ]]; then echo "E: Could not get lock" >> "$CALLS"; exit 100; fi\n'
+    'echo "installed after the lock was freed" >> "$CALLS"\n'
 )
 
 
@@ -128,6 +137,29 @@ class AptInstallFallback(unittest.TestCase):
         )
         self.assertEqual(code, 0, calls)
         self.assertIn("served by http://archive.ubuntu.com/ubuntu/", calls)
+
+
+class AptInstallOrphanedDpkg(unittest.TestCase):
+    def test_the_retry_waits_for_the_dpkg_a_stalled_attempt_left_running(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bin_dir = root / "bin"
+            write_fakes(bin_dir, {**FAKES, "apt-get": ORPHANED_DPKG_APT_GET})
+            etc = root / "etc-apt"
+            (etc / "sources.list.d").mkdir(parents=True)
+            calls = root / "calls"
+            calls.write_text("")
+            env = dict(
+                os.environ,
+                PATH=f"{bin_dir}:{os.environ['PATH']}",
+                APT_ETC=str(etc),
+                CALLS=str(calls),
+                LOCK=str(root / "dpkg-lock"),
+            )
+            env.pop("APT_DEB_CACHE", None)
+            result = subprocess.run(["bash", str(SCRIPT), "libmpv2"], env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, calls.read_text())
+            self.assertIn("installed after the lock was freed", calls.read_text())
 
 
 class AptInstallActionShape(unittest.TestCase):

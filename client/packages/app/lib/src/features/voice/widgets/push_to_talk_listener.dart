@@ -38,8 +38,7 @@ class PushToTalkListener extends ConsumerStatefulWidget {
   ConsumerState<PushToTalkListener> createState() => _PushToTalkListenerState();
 }
 
-class _PushToTalkListenerState extends ConsumerState<PushToTalkListener>
-    with WidgetsBindingObserver {
+class _PushToTalkListenerState extends ConsumerState<PushToTalkListener> {
   @override
   void initState() {
     super.initState();
@@ -55,7 +54,11 @@ class _PushToTalkListenerState extends ConsumerState<PushToTalkListener>
       fireImmediately: true,
     );
     HardwareKeyboard.instance.addHandler(_handleKey);
-    WidgetsBinding.instance.addObserver(this);
+    // The window never sees the key-up once it loses focus; only global capture still can.
+    ref.listenManual(appFocusedProvider, (_, focused) {
+      if (focused) return;
+      ref.read(pushToTalkGateProvider).release(HoldSource.inWindow);
+    });
   }
 
   @override
@@ -63,16 +66,8 @@ class _PushToTalkListenerState extends ConsumerState<PushToTalkListener>
     if (isDesktopHost) {
       PushToTalkKey.withdraw(this);
       HardwareKeyboard.instance.removeHandler(_handleKey);
-      WidgetsBinding.instance.removeObserver(this);
     }
     super.dispose();
-  }
-
-  /// The window never sees the key-up once it loses focus; only global capture still can.
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) return;
-    ref.read(pushToTalkGateProvider).release(HoldSource.inWindow);
   }
 
   bool _handleKey(KeyEvent event) {

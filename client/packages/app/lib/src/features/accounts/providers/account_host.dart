@@ -251,7 +251,7 @@ class AccountHost extends ChangeNotifier {
     );
     runtime._cancels.add(unread.close);
 
-    // At once: an account out of view under a hidden window gets no frame to refresh on.
+    // At once, not on the next frame: a call can start or end while the window is in the tray.
     final voice = container.listen<VoiceFlags>(voiceFlagsAtOnce, (_, next) {
       final live = next.state == VoiceSessionState.connected || next.rejoining;
       if (live == runtime.inCall) return;
@@ -287,14 +287,19 @@ class AccountHost extends ChangeNotifier {
     if (previous == next) return;
     previous?.container.read(accountActiveProvider.notifier).state = false;
     next.container.read(accountActiveProvider.notifier).state = true;
+    if (previous != null) _stillMounted.add(previous.container);
     _active = next;
-    if (next.slot.restoreFailed) await readSession(next);
-    await onActivate(next);
-    if (next.account != null) {
-      _index = _index.withActive(next.account!.origin);
-      unawaited(_saveIndex());
+    try {
+      if (next.slot.restoreFailed) await readSession(next);
+      await onActivate(next);
+      if (next.account != null) {
+        _index = _index.withActive(next.account!.origin);
+        unawaited(_saveIndex());
+      }
+      _changed();
+    } finally {
+      if (previous != null) _releaseAfterSwap(previous.container);
     }
-    _changed();
   }
 
   /// Mounts an empty container at onboarding; sign-in runs unchanged inside it.
@@ -390,12 +395,33 @@ class AccountHost extends ChangeNotifier {
       cancel();
     }
     runtime._cancels.clear();
-    // After the frame that stops showing it, so no widget reads a closed container.
-    SchedulerBinding.instance.addPostFrameCallback(
-      (_) => runtime.container.dispose(),
-    );
-    SchedulerBinding.instance.ensureVisualUpdate();
+    _closeWhenUnshown(runtime.container);
     _changed();
+  }
+
+  /// Closes after the frame that stops showing it, so no widget builds or
+  /// reads from a closed container. A hidden window draws no frame, so there a
+  /// container with no widgets under it is closed at once instead: waiting
+  /// would keep a removed account's socket and timers alive until it is shown.
+  void _closeWhenUnshown(ProviderContainer container) {
+    final scheduler = SchedulerBinding.instance;
+    if (!scheduler.framesEnabled && !_stillMounted.contains(container)) {
+      Timer.run(container.dispose);
+      return;
+    }
+    scheduler.addPostFrameCallback((_) => container.dispose());
+    scheduler.ensureVisualUpdate();
+  }
+
+  /// Containers that were on screen and whose widgets no frame has unmounted yet.
+  final Set<ProviderContainer> _stillMounted = {};
+
+  /// Released by the first frame after the notify that swaps the tree; a
+  /// frame drawn while the activation was still awaiting showed it unchanged.
+  void _releaseAfterSwap(ProviderContainer container) {
+    SchedulerBinding.instance.addPostFrameCallback(
+      (_) => _stillMounted.remove(container),
+    );
   }
 
   Future<void> _saveIndex() async {

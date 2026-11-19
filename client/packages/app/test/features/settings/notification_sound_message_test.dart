@@ -18,7 +18,7 @@ import 'package:slimm_app/src/audio/notification_sound.dart';
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/features/channels/providers/mounted_channels.dart';
 import 'package:slimm_app/src/features/settings/providers/ui_sound_settings.dart';
-import 'package:slimm_app/src/providers/app_lifecycle.dart';
+import 'package:flutter/widgets.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/settings/providers/notification_sound_controller.dart';
 import 'package:slimm_app/src/features/settings/providers/notification_sound_settings.dart';
@@ -27,6 +27,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_sound_player.dart';
 import '../../support/fake_api.dart';
+import '../../support/window_lifecycle.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -238,7 +239,13 @@ void main() {
   group('in the channel on screen', () {
     Future<_Setup> viewing({bool focused = true}) async {
       final setup = await _wire(
-        extra: [appFocusedProvider.overrideWithValue(focused)],
+        extra: [
+          windowLifecycle(
+            windowIn(
+              focused ? AppLifecycleState.resumed : AppLifecycleState.inactive,
+            ),
+          ),
+        ],
       );
       setup.container.read(mountedChannelsProvider).register('group-1');
       setup.container.read(uiSoundSettingsProvider);
