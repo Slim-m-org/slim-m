@@ -23,6 +23,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
+import '../../../providers/app_lifecycle.dart' show isWindowVisible;
 import 'module_scene.dart';
 import 'module_scene_bounds.dart';
 import 'module_scene_busy.dart';
@@ -115,10 +116,10 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
     _images.addListener(_onImageDecoded);
   }
 
-  // Play asks the server every tick, so it must not run unseen.
+  // Play asks the server every tick, so it must not run unseen; an unfocused window is still seen.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed && _playing) _stopAndRepaint();
+    if (!isWindowVisible(state) && _playing) _stopAndRepaint();
   }
 
   @override

@@ -39,7 +39,14 @@ Future<void> _pump(
 );
 
 void main() {
-  testWidgets('play stops when the app loses focus', (tester) async {
+  testWidgets('play runs on in an unfocused window and stops in a hidden one', (
+    tester,
+  ) async {
+    addTearDown(
+      () => tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      ),
+    );
     var calls = 0;
     await _pump(tester, ValueNotifier(true), () => calls++);
     await tester.tap(find.bySemanticsLabel('Play'));
@@ -48,11 +55,17 @@ void main() {
 
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     await tester.pump();
-    final before = calls;
+    final unfocused = calls;
     await tester.pump(const Duration(seconds: 5));
-    expect(calls, before);
-    expect(find.bySemanticsLabel('Play'), findsOneWidget);
+    expect(calls, greaterThan(unfocused), reason: 'it is still being watched');
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    final hidden = calls;
+    await tester.pump(const Duration(seconds: 5));
+    expect(calls, hidden);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(find.bySemanticsLabel('Play'), findsOneWidget);
   });
 
   testWidgets('play stops when the view is covered', (tester) async {
