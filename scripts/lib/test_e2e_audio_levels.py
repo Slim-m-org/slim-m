@@ -90,10 +90,11 @@ class AppliedGainTest(unittest.TestCase):
         # Bursts that start sharp and fade, read by an output analyser 70% of a window ahead of the source's.
         source = [-10.0, -13.0, -16.0, -19.0, -22.0, -25.0, -60.0, -60.0] * 8
         gain = lv.volume_to_db(0.125)
-        ahead = source[1:] + source[-1:]
+        # Wrapping the loop leaves no unmatched window at the edge, so only the readers' offset is under test.
+        ahead = source[1:] + source[:1]
         samples = [(0.05 * i, gain + 10 * math.log10(0.3 * 10 ** (now / 10) + 0.7 * 10 ** (nxt / 10)), now)
                    for i, (now, nxt) in enumerate(zip(source, ahead))]
-        self.assertAlmostEqual(lv.applied_gain_db(samples), gain, delta=0.2)
+        self.assertAlmostEqual(lv.applied_gain_db(samples), gain, delta=0.01)
 
     def test_a_source_that_never_speaks_has_no_gain_to_report(self):
         self.assertIsNone(lv.applied_gain_db([(0.0, -120.0, -90.0)]))
