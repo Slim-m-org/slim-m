@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_participant_drag.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
@@ -66,6 +67,38 @@ void main() {
       if (widget is MemberPaneSlot) rebuilt.add('member pane slot');
     };
     await tester.runAsync(() => store.applyMessage(_message('c2', 2)));
+    await settle(tester);
+
+    expect(rebuilt, isEmpty);
+
+    debugOnRebuildDirtyWidget = null;
+    await teardown(tester, s.container, s.db);
+  });
+
+  testWidgets('a message in the open channel rebuilds no shell widget', (
+    tester,
+  ) async {
+    final s = setup(httpClient: quietClient(), signedIn: true);
+    final store = MessageStore(s.db);
+    await tester.runAsync(() async {
+      await store.upsertChannels(const [
+        api.Channel(id: 'c1', name: 'one', kind: 'text', createdAt: 0),
+        api.Channel(id: 'c2', name: 'two', kind: 'text', createdAt: 1),
+      ]);
+      await store.applyMessage(_message('c1', 1));
+    });
+    await pumpAtWidth(tester, s.container, 1400, location: '/channels/c1');
+    await settle(tester);
+
+    debugOnRebuildDirtyWidget = (element, _) {
+      final widget = element.widget;
+      if (widget is HomeShell) rebuilt.add('shell');
+      if (widget is ChannelRail) rebuilt.add('rail');
+      if (widget is MemberPaneSlot) rebuilt.add('member pane slot');
+      if (widget is ConversationPane) rebuilt.add('conversation pane');
+      if (widget is ChannelScreen) rebuilt.add('channel screen');
+    };
+    await tester.runAsync(() => store.applyMessage(_message('c1', 2)));
     await settle(tester);
 
     expect(rebuilt, isEmpty);

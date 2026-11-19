@@ -82,11 +82,28 @@ class ConversationPane extends ConsumerWidget {
   }
 
   Widget _resolved(BuildContext context, WidgetRef ref, LayoutClass layout) {
-    final row = ref.watch(channelByIdProvider(channelId));
-    final channel = row.valueOrNull;
+    // Only what the pane reads: the row itself changes with every message and read marker.
+    final row = ref.watch(
+      channelByIdProvider(channelId).select((row) {
+        final channel = row.valueOrNull;
+        return (
+          loaded: row.hasValue,
+          channel: channel == null
+              ? null
+              : (
+                  kind: channel.kind,
+                  createsRooms: channel.createsRooms,
+                  name: channel.name,
+                  topic: channel.topic,
+                  restricted: channel.restricted,
+                ),
+        );
+      }),
+    );
+    final channel = row.channel;
     // Before the first sync, or before the row has emitted, an unresolved id may just not have arrived yet.
     if (channel == null &&
-        row.hasValue &&
+        row.loaded &&
         ref.watch(initialSyncCompleteProvider)) {
       return _unresolved(ref);
     }
