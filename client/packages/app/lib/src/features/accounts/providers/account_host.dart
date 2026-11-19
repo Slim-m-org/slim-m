@@ -284,6 +284,7 @@ class AccountHost extends ChangeNotifier {
     if (previous == next) return;
     previous?.container.read(accountActiveProvider.notifier).state = false;
     next.container.read(accountActiveProvider.notifier).state = true;
+    if (previous != null) _holdUntilUnmounted(previous.container);
     _active = next;
     if (next.slot.restoreFailed) await readSession(next);
     await onActivate(next);
@@ -391,17 +392,28 @@ class AccountHost extends ChangeNotifier {
     _changed();
   }
 
-  /// Closes after the frame that stops showing it, so no widget builds from a
-  /// closed container. A hidden window draws no frame, and waiting for one
+  /// Closes after the frame that stops showing it, so no widget builds or
+  /// reads from a closed container. A hidden window draws no frame, so there a
+  /// container with no widgets under it is closed at once instead: waiting
   /// would keep a removed account's socket and timers alive until it is shown.
   void _closeWhenUnshown(ProviderContainer container) {
     final scheduler = SchedulerBinding.instance;
-    if (!scheduler.framesEnabled) {
+    if (!scheduler.framesEnabled && !_stillMounted.contains(container)) {
       Timer.run(container.dispose);
       return;
     }
     scheduler.addPostFrameCallback((_) => container.dispose());
     scheduler.ensureVisualUpdate();
+  }
+
+  /// Containers that were on screen and whose widgets no frame has unmounted yet.
+  final Set<ProviderContainer> _stillMounted = {};
+
+  void _holdUntilUnmounted(ProviderContainer container) {
+    _stillMounted.add(container);
+    SchedulerBinding.instance.addPostFrameCallback(
+      (_) => _stillMounted.remove(container),
+    );
   }
 
   Future<void> _saveIndex() async {
