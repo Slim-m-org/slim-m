@@ -4,6 +4,7 @@
 
 use axum::http::StatusCode;
 use serde_json::{Value, json};
+use slimm_server::ids::ChannelId;
 use slimm_server::permissions::Permissions;
 
 use crate::support;
@@ -138,4 +139,45 @@ async fn nobody_points_a_webhook_at_a_direct_message() {
         let (status, body) = mint(&app, &app.admin.token, channel).await;
         assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
     }
+}
+
+/// A webhook minted at a direct message before that was refused, and one whose channel was since deleted.
+#[tokio::test]
+async fn an_administrator_lists_and_revokes_a_webhook_whose_channel_nobody_can_reach() {
+    let app = TestApp::start("slimm-webhook-scope-stranded").await;
+    let carol = register_account(&app.store, "carol").await;
+    let open = format!("/dms/{}", carol.id);
+    let (_, dm) = app.call("POST", &open, &app.member.token, None).await;
+    let dm = ChannelId(dm["channel_id"].as_str().unwrap().parse().unwrap());
+    let old = app.store.create_webhook(dm, "old", app.admin.id).await;
+    let old = old.expect("a webhook from before the rule");
+    let old_path = format!("/webhooks/{}/{}", old.webhook.id, old.token);
+    let doomed = app.create_channel("doomed").await;
+    let (_, gone) = mint(&app, &app.admin.token, &doomed).await;
+    let uri = format!("/channels/{doomed}");
+    let (status, _) = app.call("DELETE", &uri, &app.admin.token, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    for path in [old_path.as_str(), gone["delivery_path"].as_str().unwrap()] {
+        assert_eq!(deliver(&app, path).await, StatusCode::NOT_FOUND, "{path}");
+    }
+    assert!(
+        app.store
+            .list_messages(dm, None, 10)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+
+    let admin = &app.admin.token;
+    let (_, listed) = app.call("GET", "/webhooks", admin, None).await;
+    assert_eq!(listed.as_array().unwrap().len(), 2, "{listed}");
+    let old_id = old.webhook.id.to_string();
+    for id in [old_id.as_str(), gone["webhook"]["id"].as_str().unwrap()] {
+        let revoke = format!("/webhooks/{id}/revoke");
+        let (status, body) = app.call("POST", &revoke, admin, None).await;
+        assert_eq!(status, StatusCode::NO_CONTENT, "{id}: {body}");
+    }
+    let (_, listed) = app.call("GET", "/webhooks", admin, None).await;
+    assert_eq!(listed, json!([]));
 }

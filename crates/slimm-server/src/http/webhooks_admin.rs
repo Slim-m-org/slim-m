@@ -5,7 +5,8 @@
 //!
 //! `MANAGE_SERVER` is the gate, and every route also follows the webhook's
 //! channel ([`Reach`]): one the caller cannot see is as good as missing, and a
-//! credential that posts is only handed to someone who may post there.
+//! credential that posts is only handed to someone who may post there. An
+//! administrator lists and revokes every webhook, so none outlives its off switch.
 //!
 //! Gated on `MANAGE_SERVER` exactly like `bots.rs`, and deliberately not
 //! reusing any of its handlers: a webhook has no permissions to grant and no
@@ -25,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::auth::validate_label;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce, require_manage_server};
+use super::extract::{Authed, Json, enforce, require_base_permission, require_manage_server};
 use super::messages::parse_uuid;
 use crate::ids::{ChannelId, UserId, WebhookId};
 use crate::permissions::Permissions;
@@ -102,8 +103,10 @@ async fn list(
     Authed(ctx): Authed,
 ) -> Result<Json<Vec<WebhookDto>>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
-    require_manage_server(&state, ctx.user_id).await?;
     let webhooks = state.store.list_webhooks().await?;
+    if is_administrator(&state, ctx.user_id).await? {
+        return Ok(Json(webhooks.into_iter().map(WebhookDto::from).collect()));
+    }
     let channels: Vec<ChannelId> = webhooks.iter().map(|w| w.channel_id).collect();
     let held = state
         .store
@@ -114,6 +117,13 @@ async fn list(
             .is_some_and(|p| p.contains(Permissions::VIEW_CHANNEL))
     });
     Ok(Json(visible.map(WebhookDto::from).collect()))
+}
+
+/// Refuses a caller without `MANAGE_SERVER`, and says whether they are an administrator:
+/// the one caller a webhook in a direct message or a deleted channel is still listed for.
+async fn is_administrator(state: &AppState, user: UserId) -> Result<bool, ApiError> {
+    let held = require_base_permission(state, user, Permissions::MANAGE_SERVER).await?;
+    Ok(held.contains(Permissions::ADMINISTRATOR))
 }
 
 /// What a caller may do with the webhooks of one channel.
@@ -255,9 +265,11 @@ async fn revoke(
     Path(webhook_id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
-    require_manage_server(&state, ctx.user_id).await?;
     let webhook_id = WebhookId(parse_uuid(&webhook_id)?);
-    reachable(&state, ctx.user_id, webhook_id).await?;
+    // Revoking hands out nothing, so an administrator may do it wherever the webhook points.
+    if !is_administrator(&state, ctx.user_id).await? {
+        reachable(&state, ctx.user_id, webhook_id).await?;
+    }
     if !state.store.revoke_webhook(webhook_id, ctx.user_id).await? {
         return Err(ApiError::NotFound("no such webhook"));
     }
