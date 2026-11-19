@@ -93,3 +93,60 @@ async fn an_overwrite_granting_attach_files_allows_an_upload_for_that_channel() 
         .unwrap();
     assert_eq!(session.status(), StatusCode::CREATED);
 }
+
+/// A channel the member cannot see lends them nothing: its overwrite may grant
+/// ATTACH_FILES, and naming it must answer like naming a channel that does not exist.
+#[tokio::test]
+async fn a_channel_the_member_cannot_see_never_allows_an_upload() {
+    let (store, _guard) = new_store().await;
+    let (_admin, _) = register(&store, "root").await;
+    let everyone = store
+        .list_roles()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|r| r.is_everyone)
+        .expect("bootstrap seeds @everyone")
+        .id;
+    let hidden = store.create_channel("staff-media", "text").await.unwrap();
+    store
+        .set_channel_overwrites_batch(
+            hidden.id,
+            &[OverwriteBatchEntry {
+                target_type: "role",
+                target_id: everyone.0,
+                allow: Permissions::ATTACH_FILES,
+                deny: Permissions::VIEW_CHANNEL,
+            }],
+        )
+        .await
+        .unwrap();
+    let (member, _) = register(&store, "nia").await;
+    let app = app(store);
+    let nowhere = uuid::Uuid::now_v7();
+
+    for channel in [hidden.id.to_string(), nowhere.to_string()] {
+        let upload = app
+            .clone()
+            .oneshot(request_bytes(
+                "POST",
+                &format!("/attachments?filename=a.png&channel_id={channel}"),
+                &member,
+                png(4),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(upload.status(), StatusCode::FORBIDDEN, "{channel}");
+        let session = app
+            .clone()
+            .oneshot(request_json(
+                "POST",
+                "/attachments/uploads",
+                &member,
+                json!({ "filename": "b.png", "size": 12, "channel_id": channel }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(session.status(), StatusCode::FORBIDDEN, "{channel}");
+    }
+}
