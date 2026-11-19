@@ -167,7 +167,7 @@ An ad-hoc bundle that the updater itself downloaded runs because it carries no q
 The owner, on seeing a firewall rule pair for each old `app-<version>` folder in the Windows VM: "lets fix it, that doesnt sound optimal for windows users".
 
 Windows Firewall asks to allow an app the first time its exe listens for inbound connections, and keys the rule it writes on that exe's full path.
-slim-m listens only through libwebrtc's passive TCP candidates, which a Windows call gathers when the server offers no TURN over TLS or TCP (see `packaging/windows/README.md`).
+slim-m listens only through libwebrtc's passive TCP candidates, which a Windows call gathers when the server offers no TURN over TLS or TCP and UDP does not connect first (see `packaging/windows/README.md`).
 With one folder per version, every update gave the app a new path, so the first such call after each update asked again and the old rule pair stayed behind for a folder the prune had deleted.
 
 The launcher now starts every version from `%LOCALAPPDATA%\slim-m\app`, a folder of hard links to the files of the version `current` names, so the path the firewall sees never changes and the question comes once per install.
@@ -175,8 +175,8 @@ Version folders, the pointers, the start count and rollback are unchanged; `app`
 
 - Hard links need no elevation and no developer mode, unlike a symlink.
   A directory junction would have been simpler, but the firewall records the path a junction resolves to, so it changes nothing (checked in the VM with a listening probe started through a junction and through a hard link).
-- The launcher rebuilds `app` only when nothing runs from it, which it proves by deleting `app\slimm_app.exe`: Windows refuses to delete any link of an exe while it runs.
-  A rename of the folder would not prove it, because Windows lets a folder be renamed while an exe in it runs.
+- The launcher rebuilds `app` only when no process runs an exe from it, going by each process's image path.
+  Deleting `app\slimm_app.exe` would not prove it, because Windows deletes one hard link of a running exe without complaint (seen in the VM: the first build of this deleted it under a running copy and then failed to rename the folder), and neither would renaming the folder, which Windows allows while the exe in it runs.
   A restart into an update waits up to 15 seconds for the old copy to exit; a launch beside a running older version, and any failure, start the version folder directly, as before.
 - The rebuild links into `app.next` and swaps it in by two renames, so an interrupted rebuild leaves the old folder or none, and the next start repairs it.
 - The app, Start on login and the `slimm://` registration treat `app` as part of the layout, and the uninstaller removes it.

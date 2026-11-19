@@ -49,7 +49,8 @@ Then build it with `GOOS=windows go build -ldflags "-H=windowsgui -s -w" -o slim
 Windows Firewall asks "Do you want to allow public and private networks to access this app?" the first time an exe listens for inbound connections, and records the answer as an inbound rule pair (TCP and UDP) keyed on that exe's full path.
 libwebrtc is the only part of slim-m that listens: a passive TCP ICE candidate opens a listening socket on every interface address.
 The mic preview's in-process loopback gathers no TCP candidates (`loopbackPeerConfiguration`), and a Windows call gathers none when the server offers TURN over TLS or TCP (`callPeerConfiguration`), so there is no prompt at all on such a deployment.
-A deployment with no TCP relay keeps them, because LiveKit's TCP port is then the only way through a network that blocks UDP, so the first call there asks.
+A deployment with no TCP relay keeps them, because LiveKit's TCP port is then the only way through a network that blocks UDP, so a call there can ask.
+libwebrtc only reaches its TCP step when UDP has not connected first: in the Windows VM a call to a LAN server over UDP opened no listener, and the same call with LiveKit's UDP ports unreachable opened twelve and raised the prompt.
 Cancel does not break that call: it blocks inbound only, and the TCP connection the call uses is outbound.
 `client/packages/rtc/test/peer_connection_sites_gate_test.dart` fails when a peer connection is created anywhere else.
 Both settings need the `tcpCandidatePolicy` key, which the WebRTC fork reads on Windows and Linux since `fix/desktop-tcp-candidate-policy`.
@@ -61,7 +62,8 @@ Removing those needs an administrator, so slim-m leaves them alone; they are har
 The launcher keeps `app` in step with `current`.
 When every file of the version folder is already the same file under `app`, it starts it there.
 Otherwise it builds `app.next` from hard links, renames `app` to `app.old`, renames `app.next` to `app` and deletes `app.old`.
-It only does that when nothing runs from `app`, which it proves by deleting `app\slimm_app.exe`: Windows refuses that while any copy of the exe runs.
+It only does that when no process runs an exe from `app`, which it checks by the image path of every process it can see.
+Neither deleting `app\slimm_app.exe` nor renaming `app` would prove it: Windows allows deleting one hard link of a running exe, and renaming a folder whose running exe holds no other files open.
 A restart into an update waits up to 15 seconds for the old copy to exit; a launch while an older version still runs from `app`, and any failure, start the version folder directly instead, as before.
 A junction would not do: the firewall records the path a junction resolves to.
 

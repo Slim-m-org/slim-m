@@ -78,7 +78,7 @@ Its default button is **Don't run**, so you have to click **More info** first, t
 That warning means Microsoft has not seen this app before, which is true.
 If you would rather not click through it, use the browser instead.
 
-On a server with no TURN over TLS, Windows Firewall may ask once, the first time you join a call, whether slim-m may use public and private networks.
+On a server with no TURN over TLS, Windows Firewall may ask once, the first time a call does not connect over UDP straight away, whether slim-m may use public and private networks.
 Either answer leaves calls working, because the call's own connection is outbound.
 Updates keep running from the same place, so the question does not come back after an update.
 
