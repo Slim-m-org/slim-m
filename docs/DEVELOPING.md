@@ -52,6 +52,9 @@ cargo sqlx prepare --workspace -- --all-targets
 
 A migration that has reached `main` is never edited, renamed or renumbered; fix mistakes with a new one, and run `python3 scripts/lock-migrations.py` after adding one.
 
+A new kind of file under the media root (a directory, a name joined onto `attachments/` or `avatars/`, a `Media::write_*`, a picture's `*_updated_at` column) needs its backup in the same change.
+`scripts/lib/test_backup_covers_every_media_file.py` fails until `scripts/lib/backup_coverage.py` lists it, as mirrored or as deliberately not backed up.
+
 ## Client
 
 ```bash

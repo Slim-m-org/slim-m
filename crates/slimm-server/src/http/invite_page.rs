@@ -113,7 +113,7 @@ pub(super) fn landing_page(landing: &Landing) -> String {
                      Open in slim-m</a>"
                 ),
                 format!(
-                    "<a class=\"btn\" id=\"web\" hidden href=\"/app/join?server={server}&amp;code={code}\">\
+                    "<a class=\"btn\" id=\"web\" hidden href=\"/app/#/join?server={server}&amp;code={code}\">\
                      Open in browser</a>"
                 ),
                 WEB_PROBE,
@@ -159,7 +159,9 @@ mod tests {
     fn deep_link_carries_server_and_code() {
         let html = landing_page(&landing("Home"));
         assert!(html.contains("slimm://join?server=https%3A%2F%2Fchat.example&amp;code=abc234"));
-        assert!(html.contains("/app/join?server=https%3A%2F%2Fchat.example"));
+        assert!(
+            html.contains("href=\"/app/#/join?server=https%3A%2F%2Fchat.example&amp;code=abc234\"")
+        );
         assert!(html.contains("/invites/abc234/icon"));
     }
 

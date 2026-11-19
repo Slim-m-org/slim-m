@@ -27,6 +27,7 @@ def print_report(dest_db, manifest, removed):
         print(f"  MISSING SOURCE FILE  avatars/{name}", file=sys.stderr)
     for reason in avatars["malformed"]:
         print(f"  MALFORMED ID  avatars: {reason}", file=sys.stderr)
+    _print_side_files(manifest["side_files"])
     print(f"modules: {len(modules['copied'])}/{modules['total']} data files copied")
     for reason in modules["failed"]:
         print(f"  FAILED  modules/{reason}", file=sys.stderr)
@@ -34,15 +35,27 @@ def print_report(dest_db, manifest, removed):
         print(f"pruned {len(removed)} older snapshot(s): {', '.join(removed)}")
 
 
-def warnings_for(attachments, avatars):
+def _print_side_files(side_files):
+    print(
+        f"banners, icons and originals: {side_files['copied']} copied, "
+        f"{side_files['already_present']} already present, "
+        f"{len(side_files['missing_source'])} missing on disk"
+    )
+    for name in side_files["missing_source"]:
+        print(f"  MISSING SOURCE FILE  {name}", file=sys.stderr)
+    for reason in side_files["malformed"]:
+        print(f"  MALFORMED ID  {reason}", file=sys.stderr)
+
+
+def warnings_for(*mirrors):
     """Gaps the restore drill judges against the mirror, so they never stop it from running."""
     found = []
-    orphaned = len(attachments["missing_source"]) + len(avatars["missing_source"])
+    orphaned = sum(len(mirror["missing_source"]) for mirror in mirrors)
     if orphaned:
         found.append(
             f"the live deployment has orphaned database rows with no file behind them ({orphaned})"
         )
-    malformed = len(attachments["malformed"]) + len(avatars["malformed"])
+    malformed = sum(len(mirror["malformed"]) for mirror in mirrors)
     if malformed:
         found.append(
             f"the database holds rows whose id is not a well-formed reference, "
