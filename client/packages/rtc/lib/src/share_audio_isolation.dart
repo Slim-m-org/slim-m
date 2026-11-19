@@ -17,6 +17,24 @@ const shareMixSource = '$shareMixNode.monitor';
 /// Bounds the unlink-and-check rounds before the mix goes regardless.
 const _emptyPasses = 5;
 
+/// Every isolation from the start of its [ShareAudioIsolation.begin] to its end.
+final _live = <ShareAudioIsolation>{};
+
+/// Ends every share's mix still up, for an app about to quit or restart; gives up after [within].
+/// The mix goes with the process otherwise, links and all, and WirePlumber pauses each player still feeding it.
+Future<void> endShareAudioBeforeExit({
+  Duration within = const Duration(seconds: 2),
+}) async {
+  final ending = [for (final isolation in _live.toList()) isolation.end()];
+  if (ending.isEmpty) return;
+  try {
+    await Future.wait(ending).timeout(within);
+  } on Object catch (error, stack) {
+    AppLog.swallowed(
+        LogTag.voice, 'Could not end share audio before exit', error, stack);
+  }
+}
+
 /// Builds, for the length of a share, a private mix of every app's audio but this app's own.
 /// Like venmic it only adds a node and links; the default output and every stream's routing stay as they were.
 ///
@@ -67,6 +85,13 @@ class ShareAudioIsolation {
   Future<bool> _begin() async {
     if (active) return true;
     if (!_graph.supported) return false;
+    _live.add(this);
+    final up = await _bringUp();
+    if (!up) _live.remove(this);
+    return up;
+  }
+
+  Future<bool> _bringUp() async {
     final ends = _ends;
     bool ended() => ends != _ends;
     if (!await _graph.createMix(shareMixNode)) {
@@ -87,6 +112,7 @@ class ShareAudioIsolation {
   }
 
   Future<void> _end() async {
+    _live.remove(this);
     _follow?.cancel();
     _follow = null;
     final mix = _mixNode;

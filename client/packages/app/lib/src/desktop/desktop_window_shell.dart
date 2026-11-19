@@ -36,6 +36,7 @@ import 'window_final_geometry.dart';
 import 'window_geometry_store.dart';
 import 'window_view_size.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
+import 'package:slimm_rtc/rtc.dart' show endShareAudioBeforeExit;
 
 export 'window_view_size.dart';
 
@@ -50,13 +51,15 @@ class DesktopWindowShell {
     SecondInstanceChannel? secondInstances,
     bool active = false,
     bool frameless = false,
+    Future<void> Function() beforeExit = endShareAudioBeforeExit,
   }) : port = port ?? WindowManagerDesktopWindowPort(),
        _positionSupported = positionSupported,
        _chromePlatform = chromePlatform,
        _splashMappedProbe = splashMappedProbe,
        _secondInstances = secondInstances ?? SecondInstanceChannel(),
        _active = active,
-       _framelessApplied = frameless;
+       _framelessApplied = frameless,
+       _beforeExit = beforeExit;
 
   /// Shared by every step here, and the one port [TitleBar] drags, minimizes
   /// and maximizes through; the native listener must be registered only once.
@@ -90,9 +93,13 @@ class DesktopWindowShell {
   /// The native window controller [registerListenersAndTray] builds, for geometry persistence.
   DesktopWindowController? get windowController => _controller;
 
-  /// Writes any pending geometry, then destroys the window through [port].
+  /// What must not outlive this process: the Linux share audio mix, which would pause the media players feeding it.
+  final Future<void> Function() _beforeExit;
+
+  /// Writes any pending geometry, ends a share's audio mix, then destroys the window through [port].
   Future<void> quit(DesktopWindowPort port) async {
     await _forgetCall();
+    await _beforeExit();
     try {
       await _controller?.flush();
     } catch (error, stack) {
@@ -104,6 +111,12 @@ class DesktopWindowShell {
       );
     }
     await port.destroy();
+  }
+
+  /// Starts a fresh copy through [port] once a share's audio mix has ended, as [quit] does.
+  Future<void> relaunch(DesktopWindowPort port) async {
+    await _beforeExit();
+    await port.relaunch();
   }
 
   DesktopWindowController? _controller;

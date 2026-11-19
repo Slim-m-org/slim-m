@@ -88,4 +88,41 @@ void main() {
       expect(isolation.active, isFalse);
     });
   });
+
+  group('an app quitting or restarting mid-share', () {
+    test('empties every mix still up before it goes', () async {
+      final other = FakeShareAudioGraph();
+      final second = ShareAudioIsolation(graph: other);
+      addTearDown(second.end);
+      await isolation.begin();
+      await second.begin();
+
+      await endShareAudioBeforeExit();
+
+      for (final g in [graph, other]) {
+        expect(g.destroys, 1);
+        expect(g.linkedAtDestroy, isEmpty);
+      }
+      expect(isolation.active, isFalse);
+    });
+
+    test('leaves a share that already ended alone', () async {
+      await isolation.begin();
+      await isolation.end();
+
+      await endShareAudioBeforeExit();
+
+      expect(graph.destroys, 1);
+    });
+
+    test('gives up on a sound server that stopped answering', () async {
+      await isolation.begin();
+      final hold = graph.holdDump = Completer<void>();
+      addTearDown(hold.complete);
+
+      await endShareAudioBeforeExit(
+        within: const Duration(milliseconds: 50),
+      ).timeout(const Duration(seconds: 1));
+    });
+  });
 }

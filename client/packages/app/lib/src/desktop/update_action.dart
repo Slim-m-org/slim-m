@@ -23,6 +23,7 @@ import '../providers/windows_adopt.dart';
 import '../features/voice/providers/call_restore.dart';
 import '../features/voice/providers/voice_flags.dart';
 import 'desktop_window_port.dart';
+import 'desktop_window_shell.dart' show desktopWindowShellProvider;
 import 'self_update/self_update_controller.dart';
 import 'update_check.dart';
 import 'windows_adopt_confirm.dart';
@@ -156,7 +157,8 @@ Future<void> restartKeepingCall(WidgetRef ref, DesktopWindowPort port) async {
   final restore =
       await (callSpace?.read(callRestoreProvider.future) ??
           ref.read(callRestoreProvider.future));
-  await restore.relaunchKeepingCall(port.relaunch);
+  final shell = ref.read(desktopWindowShellProvider);
+  await restore.relaunchKeepingCall(() => shell.relaunch(port));
 }
 
 /// Whether a call is open in any Space, on screen or not.

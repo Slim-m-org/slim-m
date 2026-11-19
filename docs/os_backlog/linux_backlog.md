@@ -50,7 +50,9 @@ WirePlumber 0.5 (`linking/mpris-pause.lua`, setting `linking.pause-playback`, on
 Our mix is a sink every other app's playback is linked into, so destroying it at the end of each share paused Spotify, a YouTube tab, and any other MPRIS player.
 `ShareAudioIsolation` now unlinks everything feeding the mix, checks with `pw-dump` that the links are gone, and only then removes it.
 Reproduced on a private PipeWire (alsa and bluez monitors off, its own D-Bus) with a stand-in MPRIS player: before, WirePlumber logged "node removed: pausing linked media player" and the player got `Pause`; after, nine shares in a row paused nothing.
-A crash mid-share still removes the mix with its links in place, so that one case can still pause a player.
+Quitting or restarting mid-share (tray Quit, Ctrl+Q, the window menu, closing with close-to-tray off, Restart) used to skip that: the window went, `pw-cli` saw its input close, and PipeWire removed the mix with every link in place.
+`DesktopWindowShell.quit` and `relaunch` now call `endShareAudioBeforeExit` first, bounded at 2 s.
+A crash, a kill, or the desktop session ending under the app still removes the mix with its links in place, so those can still pause a player.
 
 **`Helper.setVolume` (per-participant call volume) throws on Linux, and the client already guards against calling it there.**
 Confirmed from the pre-trim `CLAUDE.md`'s "Moderating a member" section, quoted in full because the mechanism matters: "Linux and Windows throw. They share `common/cpp`, whose lookup scans only a `remote_streams_` map filled by the Plan B `OnAddStream` callback; LiveKit uses Unified Plan, where that never fires, so the map is always empty and the call returns 'Unable to find provided track'. flutter_webrtc's wrapper does not catch it, unlike every sibling in that file."
