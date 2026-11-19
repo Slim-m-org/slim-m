@@ -341,6 +341,8 @@ The container then keeps every `autoDispose` provider it ever built and stops te
 
 `ServerIdentityScope` is the other scope in the app.
 It scopes another account's container for a switcher row or the call pill, and is safe only because the root's scope for that container outlives it.
+It is keyed by its container, and any other scope must be too: a scope element handed a different container registers with neither properly, since Riverpod only registers on mount and unregisters on unmount.
+The old container keeps handing it work, which a debug build reports as "Only one task can be scheduled at a time".
 `test/features/accounts/account_root_scope_test.dart` holds the four cases: disposal after leaving, disposal and refresh after coming back, refresh while out of view, and an account out of view whose name was shown and hidden again.
 The soak harness's smoke run (`docs/soak-harness.md`) fails on the same fault, as live-event listeners that keep climbing.
 
