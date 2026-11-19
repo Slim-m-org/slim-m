@@ -142,6 +142,7 @@ FlValue* SupportReply() {
     fl_value_set_string_take(entry, "width", fl_value_new_int(m.width));
     fl_value_set_string_take(entry, "height", fl_value_new_int(m.height));
     fl_value_set_string_take(entry, "primary", fl_value_new_bool(m.primary));
+    fl_value_set_string_take(entry, "name", fl_value_new_string(m.name.c_str()));
     fl_value_append_take(list, entry);
   }
   fl_value_set_string_take(reply, "monitors", list);

@@ -30,6 +30,7 @@ import '../../voice/providers/voice_settings_controller.dart';
 import 'call_overlay_avatar.dart';
 import 'call_overlay_panel.dart';
 import 'overlay_marks.dart';
+import 'portal_screen.dart';
 import 'screen_annotation_board.dart';
 import 'screen_annotation_consent.dart';
 import 'screen_annotation_mapping.dart';
@@ -99,6 +100,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     _ref.listen(voiceSettingsControllerProvider, (_, _) => _reconcile());
     _ref.listen(voiceFlagsAtOnce, (prev, next) {
       if (prev?.channelId == null && next.channelId != null) _reprobe();
+      if (!next.screenSharing) _portalScreen.forget();
       _reconcile();
       _rosterHold.recheck();
     });
@@ -123,6 +125,9 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     _window,
     clock: _clock,
     stamps: () => _ref.read(stampImageCacheProvider),
+  );
+  late final _portalScreen = PortalScreen(
+    () => _ref.read(portalSharedMonitorProvider)(),
   );
   late final _rosterHold = RosterHold(
     callChannelId: _stillInCall,
@@ -239,6 +244,10 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   /// Closes what was opened for the old monitor layout, for the passes after it to open again on the new one.
   Future<void> _leaveOldLayout() async {
     _relayout = false;
+    if (!_windows && _sharingWholeScreen) {
+      await _portalScreen.layoutChanging(_support.monitors);
+      if (!mounted) return;
+    }
     await _freshSupport();
     if (!mounted) return;
     api.AppLog.info(
@@ -326,11 +335,11 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     if (window != null) return _showOverWindow(window);
     final controller = _ref.read(voiceControllerProvider.notifier);
     final captured = localShareCapturedSize.value;
-    final portal = _windows ? null : await _portalMonitor();
+    final shared = _windows ? null : await _portalScreen.find(monitors);
     if (!mounted) return false;
     final candidates = pickSharedMonitors(
       monitors,
-      portalOrigin: portal == null ? null : (x: portal.x, y: portal.y),
+      portalIndex: shared,
       sourceId: _windows ? controller.share.lastShareSourceId : null,
       screenNumber: _windows
           ? screenNumberFromLabel(controller.share.lastShareSource?.name ?? '')
@@ -382,9 +391,6 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       return _support;
     }
   }
-
-  Future<PortalMonitor?> _portalMonitor() =>
-      _ref.read(portalSharedMonitorProvider)();
 
   Future<void> _hideOverlay() async {
     _marks.reset();

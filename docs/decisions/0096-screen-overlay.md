@@ -80,8 +80,11 @@ A window share would need the window's rectangle and to follow it as it moves an
 Which monitor is shared:
 
 - Windows: the capturer's own "Screen N" label, taken as the Nth monitor in enumeration order, because the app's own source picker chose it.
-- Linux Wayland: the portal's picker makes the choice and never says which monitor.
-  The size of the first captured frame narrows the choice to the monitors whose shape matches.
+- Linux Wayland: the portal's picker makes the choice.
+  KDE's portal reports the chosen monitor's position with the stream, which the flutter_webrtc fork passes on (`portalSharedMonitor`); GNOME's does not.
+  That position holds only in the layout it was reported in: KWin and X11 keep the top-left monitor at 0,0, so plugging one in on the left, rearranging, or rescaling a neighbour moves the shared one (2026-11-19).
+  So the monitor at that position is pinned by name (GDK's connector, like DP-1, else make and model), and after a layout change the name finds it (`portal_screen.dart`); a name the new layout lacks, or has twice, falls through to the shape rule.
+  Without a usable position, the size of the first captured frame narrows the choice to the monitors whose shape matches.
   Wayland reports no primary monitor, so a tie cannot be broken honestly: the overlay opens on every monitor that matches, and on every monitor when the size is unknown.
   This replaced a primary-monitor tie-break that always chose the first monitor, so on two identical monitors a share of the second one drew on the first (2026-11-02, nested KWin with two outputs).
   A mark may therefore also appear on a monitor that is not shared; that is shown rather than silently missing.

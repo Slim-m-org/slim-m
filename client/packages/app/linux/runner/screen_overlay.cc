@@ -275,6 +275,21 @@ void ShowOn(GdkMonitor* monitor, int index) {
   gtk_widget_show_all(window);
 }
 
+// GTK 3 offers the connector only through this deprecated call, on X11 and Wayland alike.
+std::string MonitorName(GdkDisplay* display, int index, GdkMonitor* monitor) {
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+  gchar* plug = gdk_screen_get_monitor_plug_name(gdk_display_get_default_screen(display), index);
+  G_GNUC_END_IGNORE_DEPRECATIONS
+  std::string name = plug != nullptr ? plug : "";
+  g_free(plug);
+  if (!name.empty()) return name;
+  const char* make = gdk_monitor_get_manufacturer(monitor);
+  const char* model = gdk_monitor_get_model(monitor);
+  if (make != nullptr) name = make;
+  if (model != nullptr) name += (name.empty() ? "" : " ") + std::string(model);
+  return name;
+}
+
 }  // namespace
 
 bool Supported(std::vector<Monitor>* monitors) {
@@ -287,7 +302,8 @@ bool Supported(std::vector<Monitor>* monitors) {
     gdk_monitor_get_geometry(monitor, &geometry);
     monitors->push_back(
         {geometry.x, geometry.y, geometry.width, geometry.height,
-         static_cast<bool>(gdk_monitor_is_primary(monitor))});
+         static_cast<bool>(gdk_monitor_is_primary(monitor)),
+         MonitorName(display, i, monitor)});
   }
   return !monitors->empty();
 }
