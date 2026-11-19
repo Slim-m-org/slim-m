@@ -19,12 +19,18 @@ class VoiceCamera {
   VoiceCamera(
     this._host,
     this._density, {
+    required bool Function() connecting,
     CameraDevices? devices,
     Duration joinTimeout = kJoinCameraTimeout,
-  })  : switching = CameraSwitching(devices ?? const HardwareCameraDevices()),
+  })  : _connecting = connecting,
+        switching = CameraSwitching(devices ?? const HardwareCameraDevices()),
         _join = CameraJoin(timeout: joinTimeout);
 
   final VoiceScreenShareHost _host;
+
+  /// Whether the call is still connecting, when a toggle cannot reach a room yet.
+  final bool Function() _connecting;
+  bool? _askedWhileConnecting;
   final CameraSwitching switching;
   final ValueListenable<lk.AdaptiveStreamPixelDensity> _density;
   final CameraJoin _join;
@@ -39,6 +45,9 @@ class VoiceCamera {
 
   /// The camera a join asked for opens after "connected"; this reports its start, failure and end.
   Stream<CameraJoinOpen> get joinOpens => _join.events;
+
+  /// Whether the join opens the camera: a toggle made while it was connecting wins over [asked].
+  bool wantedAtJoin(bool asked) => _askedWhileConnecting ?? asked;
 
   Future<List<CameraDevice>> devices() =>
       _host.reported('list cameras', const [], switching.devices);
@@ -67,6 +76,7 @@ class VoiceCamera {
   Future<bool> trySetEnabled(bool enabled) async {
     final room = _host.room();
     if (room == null) return false;
+    if (_connecting()) _askedWhileConnecting = enabled;
     final result = await _setEnabled(room, enabled);
     final error = result.error;
     if (error != null) _host.noteError(error);
@@ -118,8 +128,11 @@ class VoiceCamera {
         },
       );
 
-  /// Drops a join-time open still in flight.
-  void cancelJoin() => _join.cancel();
+  /// Drops a join-time open still in flight, and any toggle made while it connected.
+  void cancelJoin() {
+    _askedWhileConnecting = null;
+    _join.cancel();
+  }
 
   Widget view(String identity) {
     final room = _host.room();

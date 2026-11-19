@@ -29,6 +29,7 @@ import 'pulse_audio.dart';
 import 'share_audio_isolation.dart';
 import 'signal_route.dart';
 import 'start_bitrate_room.dart';
+import 'video_orphans.dart';
 import 'video_quality.dart';
 import 'voice_audio_devices.dart';
 import 'voice_call_flow.dart';
@@ -38,6 +39,7 @@ import 'voice_listener_audio.dart';
 import 'voice_log.dart';
 import 'voice_mic_readiness.dart';
 import 'voice_mic_recovery.dart';
+import 'voice_models.dart';
 import 'voice_processing_control.dart';
 import 'voice_roster.dart';
 import 'voice_session_camera.dart';
@@ -200,6 +202,7 @@ class VoiceSessionCore {
     camera = VoiceCamera(
       share.host,
       video.density,
+      connecting: () => flow.state == VoiceSessionState.connecting,
       devices: cameraDevices,
       joinTimeout: cameraJoinTimeout,
     );
@@ -238,6 +241,7 @@ class VoiceSessionCore {
   late final VoiceCamera camera;
   late final VoiceRoster roster;
   late final setupLog = LiveKitSetupLog(diag);
+  final videoOrphans = VideoOrphans();
 
   /// The first seconds of each call and every audio event after; see [JoinAudioProbe].
   late final joinProbe = JoinAudioProbe(

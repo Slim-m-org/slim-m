@@ -217,7 +217,7 @@ class VoiceCallFlow {
       _core.refresh();
       _setState(VoiceSessionState.connected);
       // A slow webcam must not hold "connected" back; see CameraJoin.
-      if (cameraEnabled) {
+      if (_core.camera.wantedAtJoin(cameraEnabled)) {
         unawaited(
           _core.camera.openAfterJoin(
             joining,
@@ -259,6 +259,7 @@ class VoiceCallFlow {
     _cancelEvents = joining.events.listen((event) {
       _noteTransport(event);
       _core.mic.onRoomEvent(event);
+      _core.videoOrphans.onRoomEvent(event);
       final replaced = audioReplacedBy(event);
       if (replaced != null) audio.trackReplaced(replaced);
       if (event is lk.TrackSubscribedEvent &&
@@ -326,10 +327,29 @@ class VoiceCallFlow {
       _core.stall.watchdog.observe(const []);
       return;
     }
-    if (room == null || state != VoiceSessionState.connected) return;
+    final live = room;
+    if (live == null || state != VoiceSessionState.connected) return;
     _core.healthWatch.glitchWatch.start();
     _core.refresh();
+    unawaited(_stopOrphanedVideo(live));
     if (!_restarts.isClosed) _restarts.add(null);
+  }
+
+  /// A restart whose republish failed leaves camera and screen capturing unpublished; see [VideoOrphans].
+  Future<void> _stopOrphanedVideo(lk.Room live) async {
+    try {
+      final stopped =
+          await _core.videoOrphans.stopUnpublished(live.localParticipant);
+      if (stopped.isEmpty || !identical(room, live)) return;
+      if (stopped.contains(lk.TrackSource.screenShareVideo)) {
+        await _core.share.control.stopActiveBroadcast();
+        await _core.share.control.shareEnded();
+      }
+      _core.refresh();
+    } on Object catch (error, stack) {
+      AppLog.swallowed(LogTag.voice,
+          'Could not stop video left capturing after a restart', error, stack);
+    }
   }
 
   /// A disconnect this client did not ask for: the SFU removed this
@@ -408,6 +428,7 @@ class VoiceCallFlow {
     }
     // The disconnect stops only published tracks.
     await _step(_core.mic.stopUnpublished);
+    await _step(() => _core.videoOrphans.stopUnpublished(null));
   }
 
   void _setState(VoiceSessionState next) {
