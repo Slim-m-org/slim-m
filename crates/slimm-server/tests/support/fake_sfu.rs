@@ -67,6 +67,14 @@ impl RecordingRoomService {
         *self.roster.lock().unwrap() = participants;
     }
 
+    /// [`Self::seat_listing`] for `room` alone.
+    pub fn seat_in_listing(&self, room: &str, participants: Vec<Value>) {
+        self.rooms
+            .lock()
+            .unwrap()
+            .insert(room.to_owned(), participants);
+    }
+
     /// Makes every later `ListParticipants` answer only after `delay`, as a slow SFU would.
     pub fn delay_listing(&self, delay: Duration) {
         *self.listing_delay.lock().unwrap() = delay;

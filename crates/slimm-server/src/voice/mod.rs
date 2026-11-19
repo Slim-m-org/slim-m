@@ -40,6 +40,7 @@ use crate::config::Config;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 
+mod asked_calls;
 mod call_record;
 mod heartbeat;
 mod live_state;
@@ -52,6 +53,7 @@ mod stale_calls;
 mod token;
 mod watch_viewing;
 mod webhook;
+pub use asked_calls::AskedCalls;
 pub(crate) use call_record::{push_if_heard, record_finished_call};
 use heartbeat::{CallHeartbeats, IN_CALL_WITHIN};
 pub use live_state::RoomLiveState;
@@ -151,6 +153,8 @@ pub struct VoiceService {
     watch_viewing: watch_viewing::WatchViewing,
     /// Ephemeral like its siblings; see `voice::notice_windows`'s own doc.
     notice_windows: NoticeWindows,
+    /// Ephemeral like its siblings; see `voice::asked_calls`'s own doc.
+    asked_calls: AskedCalls,
 }
 
 struct Enabled {
@@ -176,6 +180,7 @@ impl VoiceService {
             roster_cache: roster::RosterCache::default(),
             watch_viewing: watch_viewing::WatchViewing::default(),
             notice_windows: NoticeWindows::default(),
+            asked_calls: AskedCalls::default(),
         }
     }
 
@@ -227,6 +232,11 @@ impl VoiceService {
     /// The per-recipient limit on voice activity notices.
     pub fn notice_windows(&self) -> &NoticeWindows {
         &self.notice_windows
+    }
+
+    /// The call each member last asked a token for.
+    pub fn asked_calls(&self) -> &AskedCalls {
+        &self.asked_calls
     }
 
     /// Who on each call plays the watch party's title themselves.

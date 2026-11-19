@@ -52,6 +52,14 @@ struct TabParams {
     tab: Option<String>,
 }
 
+#[derive(Deserialize)]
+struct TokenParams {
+    tab: Option<String>,
+    /// Set by a client rejoining by itself after a drop, which gives way to a call made since.
+    #[serde(default)]
+    automatic: bool,
+}
+
 impl TabParams {
     fn device(self, device_id: DeviceId) -> Result<VoiceDevice, ApiError> {
         let tab = self.tab.filter(|tab| !tab.is_empty());
@@ -148,12 +156,12 @@ async fn token(
     Authed(ctx): Authed,
     parts: Parts,
     Path(channel_id): Path<String>,
-    Query(tab): Query<TabParams>,
+    Query(params): Query<TokenParams>,
     State(state): State<AppState>,
 ) -> Result<Json<TokenResponse>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    let device = tab.device(ctx.device_id)?;
+    let device = TabParams { tab: params.tab }.device(ctx.device_id)?;
 
     let permissions = state
         .store
@@ -173,6 +181,10 @@ async fn token(
     )
     .await?;
 
+    if params.automatic {
+        voice_one_call::check_comeback(&state, ctx.user_id, channel_id, &device).await?;
+    }
+
     // The token's name comes from the account, never from what the caller sends.
     let profile = state.store.user_profile(ctx.user_id).await?;
     let display_name = profile
@@ -184,7 +196,10 @@ async fn token(
         .voice
         .mint(channel_id, ctx.user_id, permissions, display_name, device)
     {
-        Ok(token) => Ok(Json(token.into())),
+        Ok(token) => {
+            state.voice.asked_calls().note(ctx.user_id, channel_id);
+            Ok(Json(token.into()))
+        }
         // No SFU is a supported configuration, not a fault; say so plainly.
         Err(VoiceError::Unavailable) => Err(ApiError::NotConfigured(
             "this server has no voice configured",
@@ -375,8 +390,6 @@ async fn roster(
     let mut earliest_join: Option<i64> = None;
     let mut participants = Vec::with_capacity(connected.len());
     let my_device = state.voice.device_tag(channel_id, device);
-    // A token minted before device tags carried the raw id, and its call can outlive a deploy.
-    let my_raw_device = ctx.device_id.to_string();
     for participant in connected {
         if participant.user_id != ctx.user_id
             && visibilities.get(&participant.user_id) == Some(&Visibility::Hidden)
@@ -388,10 +401,7 @@ async fn roster(
             (a, b) => a.or(b),
         };
         let this_device = participant.user_id == ctx.user_id
-            && participant
-                .device_id
-                .as_deref()
-                .is_some_and(|shown| Some(shown) == my_device.as_deref() || shown == my_raw_device);
+            && voice_one_call::is_device(&participant, my_device.as_deref(), ctx.device_id);
         participants.push(RosterParticipantDto {
             this_device,
             user_id: participant.user_id.to_string(),

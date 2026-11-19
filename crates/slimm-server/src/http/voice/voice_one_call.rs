@@ -4,15 +4,23 @@
 
 use std::collections::HashSet;
 
-use super::super::AppState;
-use crate::hub::Event;
-use crate::ids::{ChannelId, UserId};
-use crate::voice::VoiceError;
+use axum::http::StatusCode;
 
-/// Ends every call `user_id` joined before `joined_at_ms`, other than the one in `joined`.
+use super::super::AppState;
+use super::super::error::ApiError;
+use crate::hub::Event;
+use crate::ids::{ChannelId, DeviceId, UserId};
+use crate::voice::{RoomParticipant, VoiceDevice, VoiceError};
+
+/// The `code` of a comeback refused because the member's call is somewhere else by now.
+const ELSEWHERE_CODE: &str = "on_call_elsewhere";
+
+/// Settles the member's other calls after a join into `joined` at `joined_at_ms`.
 ///
-/// Only a connection the SFU itself lists as older is removed, so a join reported late,
-/// after the member is already back in another room, ends nothing.
+/// The call the member last asked a token for is the one kept. A join into it ends every call
+/// the SFU lists as older, so a join reported late, after the member is already back in another
+/// room, ends nothing. A join into any other room is a device walking back in on a token the SFU
+/// renewed, and is itself removed. With no token on record, after a restart, nothing is ended.
 pub(super) async fn end_older_calls(
     state: &AppState,
     user_id: UserId,
@@ -27,11 +35,75 @@ pub(super) async fn end_older_calls(
     if elsewhere.is_empty() || state.store.is_bot(user_id).await.unwrap_or(true) {
         return;
     }
+    let asked = state.voice.asked_calls().last(user_id);
     for channel_id in elsewhere {
-        if joined_before(state, user_id, channel_id, joined_at_ms).await {
-            end_call(state, user_id, channel_id).await;
+        if !joined_before(state, user_id, channel_id, joined_at_ms).await {
+            continue;
+        }
+        match asked {
+            Some(asked) if asked == joined => end_call(state, user_id, channel_id).await,
+            Some(_) => return end_call(state, user_id, joined).await,
+            None => tracing::info!(
+                %user_id,
+                %channel_id,
+                "left a member on two calls: no token on record says which they chose"
+            ),
         }
     }
+}
+
+/// Refuses a rejoin the client makes by itself when the member's call is elsewhere by now: in
+/// another channel, or in this one on another of their devices. A person's own join is never
+/// asked this, since that one moves the call.
+pub(in crate::http) async fn check_comeback(
+    state: &AppState,
+    user_id: UserId,
+    channel_id: ChannelId,
+    device: &VoiceDevice,
+) -> Result<(), ApiError> {
+    if state.store.is_bot(user_id).await? {
+        return Ok(());
+    }
+    let moved_on = !calls_elsewhere(state, user_id, channel_id).is_empty()
+        || held_by_another_device(state, user_id, channel_id, device).await;
+    if moved_on {
+        return Err(ApiError::Coded {
+            status: StatusCode::CONFLICT,
+            message: "this account is on a call on another device",
+            code: ELSEWHERE_CODE,
+        });
+    }
+    Ok(())
+}
+
+/// An SFU that cannot be read answers no: a comeback is what a failing network produces.
+async fn held_by_another_device(
+    state: &AppState,
+    user_id: UserId,
+    channel_id: ChannelId,
+    device: &VoiceDevice,
+) -> bool {
+    let Ok(listed) = state.voice.list_participants(channel_id).await else {
+        return false;
+    };
+    let tag = state.voice.device_tag(channel_id, device.clone());
+    listed
+        .iter()
+        .filter(|p| p.user_id == user_id)
+        .any(|p| p.device_id.is_some() && !is_device(p, tag.as_deref(), device.device_id))
+}
+
+/// Whether `participant` is the connection of the device asking. A token minted before device
+/// tags carried the raw id, and its call can outlive a deploy.
+pub(in crate::http) fn is_device(
+    participant: &RoomParticipant,
+    tag: Option<&str>,
+    device_id: DeviceId,
+) -> bool {
+    participant
+        .device_id
+        .as_deref()
+        .is_some_and(|shown| Some(shown) == tag || shown == device_id.to_string())
 }
 
 /// The other channels the member is on a call in, by heartbeat or by the SFU's own word.
