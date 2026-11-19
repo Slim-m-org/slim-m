@@ -31,13 +31,14 @@ Set<int> staleNotificationIds({
 /// Mounted once on the app-level container beside [appBadgeSyncProvider].
 final notificationReadSyncProvider = Provider<void>((ref) {
   if (!isAndroidHost) return;
-  final entries = ref.watch(accountsSnapshotProvider).entries;
-  final stale = staleNotificationIds(
-    readChannelIds: {
-      for (final e in entries)
-        ...?e.container.read(readChannelIdsProvider).valueOrNull,
-    },
-    unreadCount: appBadgeCount(entries.map((e) => e.unread)),
-  );
-  ref.read(localNotificationsProvider).cancelShown(stale);
+  onAccountsChanged(ref, (accounts) {
+    final stale = staleNotificationIds(
+      readChannelIds: {
+        for (final a in accounts)
+          ...?a.container.read(readChannelIdsProvider).valueOrNull,
+      },
+      unreadCount: appBadgeCount(accounts.map((a) => a.unread)),
+    );
+    ref.read(localNotificationsProvider).cancelShown(stale);
+  });
 });

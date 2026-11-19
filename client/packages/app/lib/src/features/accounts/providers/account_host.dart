@@ -248,7 +248,8 @@ class AccountHost extends ChangeNotifier {
     );
     runtime._cancels.add(unread.close);
 
-    final voice = container.listen<VoiceFlags>(voiceFlagsProvider, (_, next) {
+    // At once, not on the next frame: a call can start or end while the window is in the tray.
+    final voice = container.listen<VoiceFlags>(voiceFlagsAtOnce, (_, next) {
       final live = next.state == VoiceSessionState.connected || next.rejoining;
       if (live == runtime.inCall) return;
       runtime.inCall = live;

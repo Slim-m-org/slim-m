@@ -73,7 +73,8 @@ void main() {
         ),
       ),
     );
-    await tester.pump();
+    // Runs the refresh the container queued on a timer before it had a scope to draw frames for it.
+    await tester.pump(Duration.zero);
     return (container, session);
   }
 
