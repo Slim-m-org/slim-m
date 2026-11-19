@@ -5,6 +5,7 @@
 use axum::http::StatusCode;
 use serde_json::json;
 use slimm_server::call_audio::runtime;
+use slimm_server::permissions::Permissions;
 
 use crate::support;
 use support::call_audio_world::{KEEPS, MODULE, PURPOSE, Rig, now_ms};
@@ -373,4 +374,63 @@ async fn an_ask_whose_listener_cannot_start_is_not_answered_with_a_session() {
     assert_eq!(body.get("session"), None);
     rig.wait_session(None).await;
     assert!(rig.listener.of_type("start").is_empty());
+}
+
+/// MANAGE_SERVER arms, disarms and lists only the voice channels its holder can see.
+#[tokio::test]
+async fn a_manager_neither_arms_disarms_nor_is_shown_a_voice_channel_they_cannot_see() {
+    let rig = Rig::start("slimm-call-audio-hidden", 1).await;
+    let manager = &rig.people[0];
+    let role = rig
+        .store
+        .create_role("managers", Permissions::MANAGE_SERVER, false);
+    rig.store
+        .assign_role(manager.id, role.await.unwrap())
+        .await
+        .unwrap();
+    let everyone = rig.store.list_roles().await.unwrap();
+    let everyone = everyone.iter().find(|role| role.is_everyone).unwrap().id;
+    let (view, none) = (Permissions::VIEW_CHANNEL, Permissions::NONE);
+    let mut hidden = Vec::new();
+    for name in ["staff", "board"] {
+        let channel = rig.store.create_channel(name, "voice").await.unwrap().id;
+        rig.store
+            .set_role_overwrite(channel, everyone, none, view)
+            .await
+            .unwrap();
+        rig.store
+            .set_member_overwrite(channel, rig.bot, view, none)
+            .await
+            .unwrap();
+        hidden.push(channel);
+    }
+    let (staff, board) = (hidden[0], hidden[1]);
+    assert_eq!(rig.arm(&[rig.channel, staff]).await, StatusCode::OK);
+
+    let uri = format!("/space/dock/modules/{MODULE}/call-audio-channels");
+    let put = |ids: Vec<String>| rig.call(manager, "PUT", &uri, Some(json!({"channel_ids": ids})));
+    let nowhere = uuid::Uuid::now_v7().to_string();
+    let unknown = put(vec![nowhere]).await;
+    assert_eq!(unknown.0, StatusCode::BAD_REQUEST, "{}", unknown.1);
+    for channel in [staff, board] {
+        assert_eq!(
+            put(vec![channel.to_string()]).await,
+            unknown,
+            "hidden answers like missing"
+        );
+    }
+
+    let (_, listed) = rig.call(manager, "GET", &uri, None).await;
+    assert_eq!(listed["channel_ids"], json!([rig.channel.to_string()]));
+    let (status, emptied) = put(Vec::new()).await;
+    assert_eq!(
+        (status, &emptied["channel_ids"]),
+        (StatusCode::OK, &json!([]))
+    );
+    let armed = rig.store.module_call_audio_channels(MODULE).await.unwrap();
+    assert_eq!(
+        armed,
+        vec![staff],
+        "the manager's list never named the hidden one"
+    );
 }
