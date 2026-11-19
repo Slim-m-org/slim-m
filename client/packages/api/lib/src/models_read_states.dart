@@ -88,6 +88,7 @@ class ScopeDelta {
     this.opLatestSeq,
     this.opsHasMore = false,
     this.mentionedSeq,
+    this.latestSeq,
   });
 
   final String channelId;
@@ -124,6 +125,11 @@ class ScopeDelta {
   /// does; only on a reset scope or one whose cursor set [ScopeCursor.checkMention].
   final int? mentionedSeq;
 
+  /// The highest message seq the channel has allocated, read before
+  /// [messages]; null from a server that predates it. With [hasMore] false,
+  /// nothing at or below it is left to deliver, deleted messages included.
+  final int? latestSeq;
+
   factory ScopeDelta.fromJson(Map<String, dynamic> json) => ScopeDelta(
         channelId: json['channel_id'] as String,
         messages: (json['messages'] as List<dynamic>)
@@ -137,5 +143,6 @@ class ScopeDelta {
         opLatestSeq: json['op_latest_seq'] as int?,
         opsHasMore: json['ops_has_more'] as bool? ?? false,
         mentionedSeq: json['mentioned_seq'] as int?,
+        latestSeq: json['latest_seq'] as int?,
       );
 }

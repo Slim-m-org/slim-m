@@ -404,3 +404,29 @@ async fn the_byte_budget_cuts_the_message_half_and_reports_more() {
         "the budget admits two whole scopes before it cuts the third"
     );
 }
+
+/// A deleted message keeps its seq, so the page ends short of the head; the
+/// head is what lets a client's cursor cover the deleted tail too.
+#[tokio::test]
+async fn the_message_head_is_reported_past_a_deleted_tail() {
+    let (store, app, _guard) = world().await;
+    let (token, user) = register(&store, "root").await;
+    let channel = store.list_channels().await.unwrap()[0].id;
+
+    send(&store, channel, user, "one").await;
+    let gone = send(&store, channel, user, "two").await;
+    store.delete_message(gone, user).await.unwrap();
+
+    let (status, body) = sync(
+        &app,
+        &token,
+        json!([{ "channel_id": channel.to_string(), "after_seq": 0 }]),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let scope = &body["scopes"][0];
+    assert_eq!(scope["messages"].as_array().unwrap().len(), 1);
+    assert_eq!(scope["messages"][0]["seq"], 1);
+    assert_eq!(scope["has_more"], false);
+    assert_eq!(scope["latest_seq"], 2);
+}

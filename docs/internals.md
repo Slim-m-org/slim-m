@@ -388,3 +388,69 @@ Three more limits are worth knowing before trusting a green run.
 
 Known and left: an installed module's `schedule_channel_id` is shown to every MANAGE_SERVER holder in the Dock's module list, and moving a schedule takes the module's overwrite off the previous channel without asking whether the caller can see it.
 An administrator who sets the rules channel to a private channel publishes its id to every member through `GET /space/rules`; that is the administrator's choice, not a leak.
+
+## Sync convergence
+
+The local store has two cursors per channel, and each one is a claim.
+The message cursor says every message seq through it is either held or gone.
+The op cursor says every edit and delete through it has been applied.
+A cursor that moves without its claim being true is never corrected, because catch-up only asks for what comes after it.
+The rules below are what keep the claims true; each was a bug found by `sync_convergence_property_test.dart` or by reading, and each is pinned in `sync_convergence_findings_test.dart`.
+
+- A live op is written first and its cursor moves second.
+  A write that fails then leaves the op ahead of the cursor, and the next catch-up delivers it.
+- A channel with no op cursor adopts the server's head only while it holds no messages.
+  One that already holds some (a channel that appeared this session and took its first messages live, or one opened before its first catch-up landed) refetches its newest page instead, since ops before that head may name rows it holds.
+  That refetch rereads every page from the newest down to the oldest row held, not only the newest one, so history the user paged in stays and an op on it from before the head is still caught.
+  It swaps the rows in one write (`MessageStore.replaceHeld`) and moves the op cursor only once the pages are stored, so an open channel is never shown empty.
+  The swap only drops rows inside the span the pages cover, or below it once a short page proved the channel's start.
+  The pages are written without the covered-row rule below: they are the server's own answer for their span, and where a first write started the cursor is known only to the store that made it.
+  A server `reset` still clears first, because its cursor has to rewind.
+  It also restarts the channel's paging state (`channelHistoryProvider` and the extras' hydrated ranges), which would otherwise page on from below rows that are no longer held and leave a hole.
+- A live op starts a missing op cursor only when it is op 1.
+  Any other would start it past ops nobody applied.
+- An edit op in a catch-up page at or below the op cursor is skipped.
+  Its content is the text as the page was read, and live frames applied since may be newer.
+  That check and the write are separate awaits, so `MessageStore.applyEdit` also refuses an edit whose stamp is older than the row's.
+- A delete is final, so it is applied whatever the op cursor says: a live frame the cursor covers and a catch-up op at or below it both still drop the row and are remembered.
+  Only the cursor move is skipped.
+  The op cursor is shared by every tab on the database and the record of recent deletes is not, so a tab that skipped a delete because another tab had applied it would store the message again from a history page read before it.
+- A created frame at or below the message cursor is dropped unless the row is held.
+  The cursor only passes a message that catch-up delivered, so a missing row was deleted since.
+  This is also what stops a second browser tab, which shares the database but not the in-memory record of recent deletes, from storing a message again after the first tab deleted it.
+- A row in a catch-up page at or below the message cursor is written only when it is already held, for the same reason.
+  The cursor can pass a page still in flight: live frames land first, or the other tab applied its own page.
+- Neither of those two rules reaches below where a first write started the cursor.
+  A channel with no cursor takes it from the first rows written, whatever brought them: the newest page when the channel is opened, or the answer to a send.
+  Nothing older than those rows was delivered, so an older row arriving afterwards (the first catch-up page, a frame held during the connect) is stored, not read as deleted.
+  The store remembers that starting point in memory (`cursorStartedAbove`); the property test's model does not exercise it, `channel_screen_day_divider_sync_race_test.dart` and the two tests named for it do.
+- A server delete is remembered whatever the row's state, including a send still waiting for its answer.
+  A catch-up can deliver the delete of a message whose send request has not answered yet, and the answer would otherwise store it again.
+  Only the user dropping an unsent message (`discardUnsent`) is not remembered, because that send may have landed and then belongs in the channel.
+- Catch-up moves the message cursor to `latest_seq`, the server's head, once a scope's page is complete.
+  A deleted message keeps its seq, so the page alone can end short of the head, and a late frame for one of those deleted messages would otherwise look like the next message.
+  The standing seq (what the unread dot reads) does not move with it.
+
+The property test drives a real `SyncController` and store against `test/support/sync_model_server.dart`, a small model of `http/sync.rs` and `http/sync_ops.rs`.
+It loses, repeats and reorders live frames, and holds catch-up answers so they land after frames that are newer than they are.
+After one quiet catch-up the store must agree with the model: nothing missing above the oldest held row, nothing stale, nothing the server deleted.
+A second test runs two controllers over one database, as two browser tabs do, each with its own wire.
+That one is held to what a single socket can do (frames in order, a loss drops everything in flight and is followed by a catch-up), because a tab that applies a delete it never saw created is not something a socket produces.
+`SLIMM_FULL_FUZZ=1` runs the full seed range.
+The two-tab case also runs in a real browser: the e2e scenario in `scripts/lib/e2e_tabs_delete.py` holds one tab's script with the debugger while the other sees a message arrive and go, then lets it replay both frames.
+The lifecycle freeze (`Page.setWebLifecycleState`) looks like the natural tool and is not: a headless tab ignores it, and the scenario passed with the rule switched off.
+When `sync.rs` changes what a scope answers, change the model with it.
+
+Known gaps, none of them fixed here:
+
+- Where a first write started a cursor (`cursorStartedAbove`) is kept per store, so it is lost on a restart and unknown to a second tab.
+  There, a created frame or a row of a `/sync` page still in flight that sits below that start is read as deleted and dropped until the channel is opened, when its newest page fills it.
+- Pages written with `CursorAdvance.whenContiguous` (the page on opening a channel or a thread, scroll-back) are outside the covered-row rule and rely on the record of recent deletes alone.
+  A tab that never sees a delete, because its frame was lost and the other tab moved the shared op cursor past it before this tab's catch-up asked, still stores the message from a page read before the delete.
+- The first-catch-up refetch stops after `channelWindowCeiling` rows.
+  Rows held below that are left as they are, unchecked against ops from before the head; no window shows them and the retention sweep drops them.
+- Two edits with the same `edited_at` stamp are not ordered; the one written last stands.
+- Against a server that predates `latest_seq`, a created frame for a message deleted before a reset read its page is still stored.
+- Reactions, poll tallies and thread counts are not sequenced; a reconnect refetches the open channels' pages for them (see `open_channel_rehydrate.dart`).
+  Pins are not sequenced either and are not on a message page, so the same reconnect rereads each open channel's pin list (`sync_live_refresh.dart`).
+- A send that reached the server, whose answer was lost, and which was then deleted elsewhere is answered as sent when it is retried, because the id still matches the deleted row.

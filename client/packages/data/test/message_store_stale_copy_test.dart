@@ -64,6 +64,22 @@ void main() {
     expect(await _held(store, 'm2'), isNull);
   });
 
+  test('a send deleted by the server before it answered is not stored again',
+      () async {
+    final store = await _store();
+    await store.addPending(
+      id: 'm2',
+      channelId: 'c1',
+      authorId: 'user-1',
+      content: 'first draft',
+    );
+
+    await store.discard('m2');
+    await store.applyMessage(_message(2));
+
+    expect(await _held(store, 'm2'), isNull);
+  });
+
   test('a page read before an edit does not put the old text back', () async {
     final store = await _store();
     await store.applyMessage(_message(2));
@@ -138,7 +154,7 @@ void main() {
       content: 'first draft',
     );
 
-    await store.discard('m2');
+    await store.discardUnsent('m2');
     await store.applyMessage(_message(2));
 
     expect(await _held(store, 'm2'), isNotNull);

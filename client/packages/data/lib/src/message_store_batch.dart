@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 library;
 
+import 'dart:math' as math;
+
 import 'package:drift/drift.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'database.dart';
 import 'message_store.dart';
+import 'message_store_cursors.dart' as cursors_impl;
 import 'message_store_recent_ops.dart';
 import 'message_store_rows.dart' as rows_impl;
 
@@ -19,8 +22,9 @@ import 'message_store_rows.dart' as rows_impl;
 Future<void> applyMessagesBatched(
   MessageStore store,
   Iterable<api.Message> messages,
-  CursorAdvance advance,
-) async {
+  CursorAdvance advance, {
+  bool skipCovered = true,
+}) async {
   final db = store.db;
   final recent = store.recentOps;
   final incoming =
@@ -33,7 +37,12 @@ Future<void> applyMessagesBatched(
           in await (db.select(db.messages)..where((m) => m.id.isIn(ids))).get())
         row.id: row,
     };
-    final winners = batchWinners(incoming, stored);
+    final winners = batchWinners(
+      advance == CursorAdvance.always && skipCovered
+          ? await _notAlreadyCovered(store, incoming, stored)
+          : incoming,
+      stored,
+    );
     if (winners.isEmpty) return;
     final writes = [
       for (final message in winners.values)
@@ -59,6 +68,82 @@ Future<void> applyMessagesBatched(
       await store.advanceMentionCursor(entry.key, entry.value);
     }
   });
+}
+
+/// Ids per statement, well under the bound-variable limit of an old SQLite.
+const _idsPerStatement = 200;
+
+/// See [MessageStore.replaceHeld].
+///
+/// The page is written without the covered-row rule: it is the server's own
+/// answer for its span, and where a first write started the cursor is known
+/// only to the store that made it (see `cursorCovers`).
+Future<void> replaceHeldBatched(
+  MessageStore store,
+  String channelId,
+  List<api.Message> page, {
+  required int from,
+  required int through,
+}) async {
+  final db = store.db;
+  final kept = {for (final message in page) message.id};
+  await db.transaction(() async {
+    final held = await (db.selectOnly(db.messages)
+          ..addColumns([db.messages.id])
+          ..where(db.messages.channelId.equals(channelId) &
+              db.messages.seq.isBiggerThanValue(0) &
+              db.messages.seq.isBiggerOrEqualValue(from) &
+              db.messages.seq.isSmallerOrEqualValue(through)))
+        .map((row) => row.read(db.messages.id)!)
+        .get();
+    final gone = held.where((id) => !kept.contains(id)).toList();
+    for (final ids in _slices(gone)) {
+      await (db.delete(db.messages)..where((m) => m.id.isIn(ids))).go();
+    }
+    for (final rows in _slices(page)) {
+      await applyMessagesBatched(
+        store,
+        rows,
+        CursorAdvance.always,
+        skipCovered: false,
+      );
+    }
+    await cursors_impl.restandHelper(store, channelId);
+  });
+}
+
+Iterable<List<T>> _slices<T>(List<T> all) sync* {
+  for (var at = 0; at < all.length; at += _idsPerStatement) {
+    yield all.sublist(at, math.min(at + _idsPerStatement, all.length));
+  }
+}
+
+/// The sync stream's rows, less those at or below their channel's cursor that
+/// are not held: the cursor passed them, so a missing one was deleted since.
+///
+/// The cursor can pass a page still in flight when live frames land first, or
+/// when another tab on the same database applied it, and only that tab
+/// remembers the delete.
+Future<List<api.Message>> _notAlreadyCovered(
+  MessageStore store,
+  List<api.Message> incoming,
+  Map<String, MessageRow> stored,
+) async {
+  final cursors = <String, int>{};
+  for (final channelId in {for (final m in incoming) m.channelId}) {
+    cursors[channelId] = await store.cursorFor(channelId) ?? 0;
+  }
+  return [
+    for (final message in incoming)
+      if (stored.containsKey(message.id) ||
+          !cursors_impl.cursorCovers(
+            store,
+            message.channelId,
+            cursors[message.channelId]!,
+            message.seq,
+          ))
+        message,
+  ];
 }
 
 /// Whether [prior] already holds an edit newer than [message] carries. A

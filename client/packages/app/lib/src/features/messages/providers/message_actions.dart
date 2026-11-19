@@ -494,4 +494,4 @@ Future<void> retryMessage(ProviderReader read, Message message) async {
 
 /// Discards a failed send. Nothing reached the server, so nothing to undo.
 Future<void> discardMessage(ProviderReader read, Message message) async =>
-    (await read(storeProvider.future)).discard(message.id);
+    (await read(storeProvider.future)).discardUnsent(message.id);

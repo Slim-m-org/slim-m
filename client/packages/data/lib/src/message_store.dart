@@ -40,6 +40,13 @@ class MessageStore {
   /// The edits and deletes applied so far, which an older copy must not undo.
   final recentOps = RecentOps();
 
+  /// Per channel, the seq a first write started its cursor above; see [cursorCovers].
+  final cursorStartedAbove = <String, int>{};
+
+  /// Whether [cursor] passing [seq] means that message was delivered or deleted.
+  bool cursorCovers(String channelId, int cursor, int seq) =>
+      cursors_impl.cursorCovers(this, channelId, cursor, seq);
+
   // --- Reads ---
 
   /// Watches the newest [limit] messages in a channel, oldest first, as the UI
@@ -288,6 +295,22 @@ class MessageStore {
   }) =>
       batch_impl.applyMessagesBatched(this, messages, advance);
 
+  /// Makes [page] the only delivered rows held from seq [from] through
+  /// [through], in one write, so a reader never sees the span without its rows.
+  Future<void> replaceHeld(
+    String channelId,
+    List<api.Message> page, {
+    required int from,
+    required int through,
+  }) =>
+      batch_impl.replaceHeldBatched(
+        this,
+        channelId,
+        page,
+        from: from,
+        through: through,
+      );
+
   /// Drops a channel's cached messages and rewinds its cursor. Used when the
   /// server answers catch-up with `reset`, meaning the gap was too large to
   /// stream and local state cannot be trusted. Only server-confirmed rows are
@@ -309,6 +332,7 @@ class MessageStore {
         opCursor: Value(null),
       ));
     });
+    cursorStartedAbove.remove(channelId);
   }
 
   /// Drops a channel this account deleted server-side, along with its
@@ -338,6 +362,7 @@ class MessageStore {
       await db.delete(db.pendingAttachments).go();
     });
     recentOps.clear();
+    cursorStartedAbove.clear();
   }
 
   /// Every channel's unsent composer text, as a map. See
@@ -402,13 +427,17 @@ class MessageStore {
     ));
   }
 
-  /// Drops one message's local row: a pending or failed send the user chose
-  /// not to keep, or one just deleted server-side (this device's own delete
-  /// call, or a live `message.deleted` event for someone else's) that must
-  /// vanish from every view. Same operation either way.
-  Future<void> discard(String id) async {
+  /// Drops a message the server deleted (an op, a live frame, this device's own
+  /// delete call) and remembers it, so a late copy is not stored again.
+  Future<void> discard(String id) => _drop(id, serverDeleted: true);
+
+  /// Drops a pending or failed send the user chose not to keep. Not remembered:
+  /// a send that did reach the server still arrives through sync.
+  Future<void> discardUnsent(String id) => _drop(id, serverDeleted: false);
+
+  Future<void> _drop(String id, {required bool serverDeleted}) async {
     await pending_impl.forgetPendingAttachments(this, id);
-    await cursors_impl.discardRowHelper(this, id);
+    await cursors_impl.discardRowHelper(this, id, serverDeleted: serverDeleted);
   }
 
   /// The attachment ids a send was queued with, for a retry to carry again.
@@ -431,14 +460,13 @@ class MessageStore {
   /// materialised as a row with no `seq`; it never writes `seq`, which
   /// belongs to the message stream and not to this one; and it never advances
   /// the message cursor, which would skip whatever sits between.
+  ///
+  /// An edit older than the one the row already holds is dropped: a catch-up
+  /// op can be written after a newer live edit landed.
   Future<void> applyEdit(
       String messageId, String content, int? editedAt) async {
     recentOps.edited(messageId, content, editedAt);
-    await (db.update(db.messages)..where((m) => m.id.equals(messageId)))
-        .write(MessagesCompanion(
-      content: Value(content),
-      editedAt: Value(editedAt),
-    ));
+    await rows_impl.writeEdit(db, messageId, content, editedAt);
   }
 
   /// Applies a live edit: written over a row already held, and only remembered
@@ -497,6 +525,11 @@ class MessageStore {
     CursorAdvance advance,
   ) =>
       cursors_impl.advanceCursorHelper(this, channelId, seqs, advance);
+
+  /// Raises a channel's cursor to [seq], the server's head once a catch-up
+  /// page is complete: every seq through it is delivered or deleted.
+  Future<void> coverCursor(String channelId, int seq) =>
+      cursors_impl.coverCursorHelper(this, channelId, seq);
 
   /// [advanceCursor]'s own shape for `mentionedSeq`, only ever called for a
   /// message whose `mentionsMe` is true.

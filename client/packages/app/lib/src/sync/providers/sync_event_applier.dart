@@ -53,23 +53,32 @@ class SyncEventApplier {
       case MessageEdited(:final message, :final opSeq):
         await _materialise(message.channelId, api, store, isCurrent);
         if (!isCurrent()) return;
-        if (!await _placeLiveOp(message.channelId, opSeq, store, isCurrent)) {
-          return;
-        }
-        await store.applyEdited(message);
+        await _applyLiveOp(
+          (channelId: message.channelId, opSeq: opSeq),
+          store,
+          isCurrent,
+          () => store.applyEdited(message),
+        );
       case MessageLinkPreviewsRemoved(
         :final channelId,
         :final messageId,
         :final opSeq,
       ):
-        if (!await _placeLiveOp(channelId, opSeq, store, isCurrent)) return;
-        if (!isCurrent()) return;
-        await store.markLinkPreviewsRemoved(messageId);
+        await _applyLiveOp(
+          (channelId: channelId, opSeq: opSeq),
+          store,
+          isCurrent,
+          () => store.markLinkPreviewsRemoved(messageId),
+        );
       case MessageDeleted(:final channelId, :final messageId, :final opSeq):
-        if (!await _placeLiveOp(channelId, opSeq, store, isCurrent)) return;
-        if (!isCurrent()) return;
         // Without this case a delete by another user stayed visible until the next full resync.
-        await store.discard(messageId);
+        await _applyLiveOp(
+          (channelId: channelId, opSeq: opSeq),
+          store,
+          isCurrent,
+          () => store.discard(messageId),
+          finalWhateverTheCursor: true,
+        );
       case ReadStateChanged(
         :final channelId,
         :final lastReadSeq,
@@ -144,7 +153,8 @@ class SyncEventApplier {
     final message = event.message;
     await _materialise(message.channelId, api, store, isCurrent);
     if (!isCurrent()) return;
-    if (await _skipsOver(message.channelId, message.seq, store, isCurrent)) {
+    final placed = (id: message.id, seq: message.seq);
+    if (await _cannotPlace(message.channelId, placed, store, isCurrent)) {
       return;
     }
     await store.applyMessage(message);
@@ -206,23 +216,35 @@ class SyncEventApplier {
     }
   }
 
-  /// Whether a message numbered [seq] sits more than one past its channel's cursor, so a
-  /// message in between was never seen. Messages are dense per channel, so
-  /// that is a real gap, not a guess.
+  /// Whether a created [message] in [channelId] must not be applied: it sits more than one
+  /// past its channel's cursor, or at or below it without being held.
   ///
-  /// Applying it would move the cursor past what was lost for good, so it is
-  /// left to the reconcile it schedules, whose page carries the same message
-  /// in order. Answers true when the caller must not apply it, which includes
-  /// a run superseded while the cursor was being read.
-  Future<bool> _skipsOver(
+  /// Messages are dense per channel, so one further ahead means a message in
+  /// between was never seen. Applying it would move the cursor past what was
+  /// lost for good, so it is left to the reconcile it schedules, whose page
+  /// carries the same message in order.
+  ///
+  /// One the cursor already covers was caught up past, so a row that is not
+  /// here was deleted since or is deliberately not held. One below where a
+  /// first write started the cursor was never caught up past, and is stored. Storing it brings a
+  /// deleted message back: its delete is behind the op cursor by then, which a
+  /// second tab on the same database reaches without ever applying it.
+  ///
+  /// Also true for a run superseded while the cursor was being read.
+  Future<bool> _cannotPlace(
     String channelId,
-    int seq,
+    ({String id, int seq}) message,
     MessageStore store,
     bool Function() isCurrent,
   ) async {
     final cursor = await store.cursorFor(channelId);
     if (!isCurrent()) return true;
-    if (cursor == null || seq <= cursor + 1) return false;
+    if (cursor == null) return false;
+    if (message.seq <= cursor) {
+      return store.cursorCovers(channelId, cursor, message.seq) &&
+          !await store.hasMessage(channelId, message.id);
+    }
+    if (message.seq == cursor + 1) return false;
     unawaited(
       _reconcile().catchError(
         ignoreError(LogTag.sync, 're-check state after the connection dropped'),
@@ -231,31 +253,36 @@ class SyncEventApplier {
     return true;
   }
 
-  /// Decides whether a live op may be applied, and advances the cursor when
-  /// it may. Answers false when the caller must not apply the payload.
+  /// Applies a live op with [write] when it is the next one, then advances the cursor.
   ///
   /// A gap schedules one reconcile rather than applying an op it cannot place:
   /// moving the cursor past something never seen would strand it permanently,
   /// where a stall only lasts until the next round.
   ///
-  /// [isCurrent] is rechecked after the cursor read, not only before the call.
-  /// Reading the cursor is an await, and a sign-out or reconnect landing inside
-  /// it leaves this holding a number from a store the newer run has since moved
-  /// past - writing it back would advance a cursor over ops that run never saw,
-  /// which is the permanent stranding the paragraph above exists to avoid. It
-  /// is the guard every other checkpoint in [SyncController.start] already
-  /// applies; this one path was reading the cursor without it.
-  Future<bool> _placeLiveOp(
-    String channelId,
-    int? opSeq,
+  /// The write comes first, so one that fails is still ahead of the cursor
+  /// and the next catch-up delivers it; see docs/internals.md, sync convergence.
+  /// A channel with no cursor gets one only from the stream's first op: any
+  /// later op would start it past ops nobody applied.
+  ///
+  /// A delete is [finalWhateverTheCursor]: one the cursor already covers is
+  /// still written, because another tab can have moved the shared cursor past
+  /// it, and only the tab that wrote it remembers it against a late page.
+  ///
+  /// [isCurrent] is rechecked after the cursor read: a sign-out or reconnect
+  /// landing inside that await leaves a number from a store the newer run has
+  /// since moved past.
+  Future<void> _applyLiveOp(
+    ({String channelId, int? opSeq}) op,
     MessageStore store,
     bool Function() isCurrent,
-  ) async {
-    final cursor = await store.opCursorFor(channelId);
-    if (!isCurrent()) return false;
-    switch (liveOpDecision(opSeq, cursor)) {
+    Future<void> Function() write, {
+    bool finalWhateverTheCursor = false,
+  }) async {
+    final cursor = await store.opCursorFor(op.channelId);
+    if (!isCurrent()) return;
+    switch (liveOpDecision(op.opSeq, cursor)) {
       case LiveOpOutcome.ignored:
-        return false;
+        if (finalWhateverTheCursor) await write();
       case LiveOpOutcome.needsReconcile:
         unawaited(
           _reconcile().catchError(
@@ -265,10 +292,11 @@ class SyncEventApplier {
             ),
           ),
         );
-        return false;
       case LiveOpOutcome.applied:
-        if (opSeq != null) await store.setOpCursor(channelId, opSeq);
-        return true;
+        await write();
+        final seq = op.opSeq;
+        if (seq == null || (cursor == null && seq != 1)) return;
+        await store.setOpCursor(op.channelId, seq);
     }
   }
 }

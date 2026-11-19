@@ -20751,6 +20751,15 @@ components:
             mention older than the page it refetches. Present only when `reset`
             is true or the scope's cursor set `check_mention`: the read behind it
             scans every mention of the caller.
+        latest_seq:
+          type: integer
+          format: int64
+          description: >
+            The highest message seq allocated in this channel, 0 when none has
+            been, read before `messages`. A deleted message keeps its seq, so
+            this can sit past the newest message delivered. When `has_more` is
+            false nothing at or below it is left to deliver, and a client moves
+            its cursor to it. Absent on a server that predates it.
 
     MessageOp:
       type: object

@@ -42,7 +42,8 @@ enum CursorAdvance {
   whenContiguous,
 
   /// Whatever the rows: they are the sync stream's own answer to the cursor,
-  /// where a seq the server no longer lists is not a gap.
+  /// where a seq the server no longer lists is not a gap. A row the cursor
+  /// has since passed is only written when it is already held.
   always,
 }
 
@@ -72,20 +73,55 @@ Future<void> advanceCursorHelper(
     final nextHeld = seqs.where((seq) => seq > cursor).reduce(math.min);
     if (nextHeld > cursor + 1) return;
   }
+  if (cursor == 0 && advance == CursorAdvance.whenContiguous) {
+    store.cursorStartedAbove[channelId] = seqs.reduce(math.min) - 1;
+  }
   await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
       .write(ChannelsCompanion(cursor: Value(newest)));
 }
 
+/// Whether [cursor] passing [seq] means the sync stream delivered that message
+/// or the server deleted it, so a copy that is not held must not be stored.
+///
+/// False at or below where a first write started the cursor: a page or a send's
+/// answer landing in a channel with no cursor starts it at its own rows, and
+/// nothing older was ever delivered. Kept in memory, so a restart or a second
+/// tab does not know it; `replaceHeld` therefore never asks.
+bool cursorCovers(MessageStore store, String channelId, int cursor, int seq) =>
+    seq <= cursor && seq > (store.cursorStartedAbove[channelId] ?? 0);
+
+/// Raises a channel's cursor to [seq] without a row at it; see [MessageStore.coverCursor].
+///
+/// The standing seq is pinned first where it was still read off the cursor,
+/// so covering deleted messages does not light the channel as unread.
+Future<void> coverCursorHelper(
+    MessageStore store, String channelId, int seq) async {
+  final db = store.db;
+  await db.transaction(() async {
+    final row = await channelRow(store, channelId);
+    if (row == null || row.cursor >= seq) return;
+    await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
+        .write(ChannelsCompanion(
+      cursor: Value(seq),
+      liveSeq: Value(row.liveSeq ?? row.cursor),
+    ));
+  });
+}
+
 /// Drops one message row, walking the channel's standing seq and mention cursor back to the newest row left of each.
-/// A delivered or unheld message is remembered as deleted, so a late copy of it is not stored again.
-Future<void> discardRowHelper(MessageStore store, String id) async {
+/// With [serverDeleted] the message is remembered as deleted, so a late copy of it is not stored again.
+Future<void> discardRowHelper(
+  MessageStore store,
+  String id, {
+  required bool serverDeleted,
+}) async {
   final db = store.db;
   await db.transaction(() async {
     final gone = await (db.select(db.messages)..where((m) => m.id.equals(id)))
         .getSingleOrNull();
     await (db.delete(db.messages)..where((m) => m.id.equals(id))).go();
-    // A row never delivered is an unsent draft; anything else is a server delete.
-    if (gone == null || gone.seq > 0) store.recentOps.removed(id);
+    // Also a row still pending: its send can answer after the delete arrives.
+    if (serverDeleted) store.recentOps.removed(id);
     if (gone == null || gone.seq <= 0) return;
     final row = await channelRow(store, gone.channelId);
     if (row == null) return;
@@ -101,6 +137,17 @@ Future<void> discardRowHelper(MessageStore store, String id) async {
           : const Value.absent(),
     ));
   });
+}
+
+/// Walks the standing seq back to the newest row held, after rows were dropped without [discardRowHelper].
+Future<void> restandHelper(MessageStore store, String channelId) async {
+  final db = store.db;
+  final row = await channelRow(store, channelId);
+  if (row == null) return;
+  final newest = await _newestHeldSeq(db, channelId);
+  if ((row.liveSeq ?? row.cursor) <= newest) return;
+  await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
+      .write(ChannelsCompanion(liveSeq: Value(newest)));
 }
 
 Future<int> _newestHeldSeq(
