@@ -85,7 +85,14 @@ class CallDetailsShell {
       'user_id': who,
       'kind': kind,
     };
-    final yesterday = startedAt - 20 * 60 * _min;
+    // Midday yesterday by the local clock, so the label reads "yesterday" at any hour the suite runs.
+    final started = DateTime.fromMillisecondsSinceEpoch(startedAt);
+    final yesterday = DateTime(
+      started.year,
+      started.month,
+      started.day - 1,
+      12,
+    ).millisecondsSinceEpoch;
     return {
       'retention_days': 30,
       'canvas_object_count': 0,
