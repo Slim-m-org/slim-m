@@ -159,4 +159,25 @@ void main() {
       });
     },
   );
+
+  test('hanging up before the room has answered leaves the call on record', () {
+    fakeAsync((async) {
+      final seen = <http.Request>[];
+      final call = inCallThenBlamed(
+        async,
+        voiceApi(listedOnThisDevice: false, onRequest: seen.add),
+      );
+      expect(call.controller.state.rejoining, isTrue);
+
+      unawaited(call.controller.leave());
+      async.flushMicrotasks();
+      async.elapse(delays.reduce((a, b) => a + b));
+
+      expect(
+        forgets(seen),
+        0,
+        reason: 'nothing has said this call is not the other device\'s',
+      );
+    });
+  });
 }

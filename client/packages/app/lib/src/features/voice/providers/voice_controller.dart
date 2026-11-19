@@ -321,7 +321,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     _shareResume.forget();
     final channelId = state.channelId;
     final startedAt = state.connectedAt;
-    final theirs = _rejoin.heldElsewhere(_session.lastDisconnect);
+    final theirs = _rejoin.heldElsewhere(channelId);
     // Read before `_session.leave()`, so nobody still here misreads as having left when we did.
     final recap = channelId != null && startedAt != null
         ? _activity.summary(

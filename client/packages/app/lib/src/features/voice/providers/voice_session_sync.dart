@@ -121,6 +121,7 @@ class VoiceSessionSync {
         heartbeat.start(_current.channelId);
         input.watchSpaceNoiseSuppression();
         autoRejoin.connected();
+        rejoin.connected();
         if (_current.rejoining) {
           access.state = _current.copyWith(rejoining: false);
         }

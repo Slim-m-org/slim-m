@@ -34,11 +34,20 @@ class VoiceRejoin {
   /// The channel whose drop the SFU blamed on another device, until the room confirms or clears it.
   String? _blamedOnOtherDevice;
 
-  bool _replacedElsewhere = false;
+  /// The channel whose call another device of this account is known to hold.
+  String? _heldElsewhere;
 
-  /// Whether the call that ended with [last] is another device's now, so its place on record is not this device's to end.
-  bool heldElsewhere(VoiceDisconnect? last) =>
-      _replacedElsewhere && last == VoiceDisconnect.replacedByOtherDevice;
+  /// Whether [channelId]'s place on record is not this device's to end: another device holds
+  /// the call, or the SFU blamed one for the drop and nothing has cleared it yet.
+  bool heldElsewhere(String? channelId) =>
+      channelId != null &&
+      (_heldElsewhere == channelId || _blamedOnOtherDevice == channelId);
+
+  /// A call that connected here is this device's again.
+  void connected() {
+    _blamedOnOtherDevice = null;
+    _heldElsewhere = null;
+  }
 
   VoiceState get _current => _access.state;
 
@@ -80,7 +89,7 @@ class VoiceRejoin {
       rejoinable: rejoinable,
     );
     _blamedOnOtherDevice = blamed ? channelId : null;
-    _replacedElsewhere = false;
+    _heldElsewhere = null;
     _access.state = _current.copyWith(
       state: VoiceSessionState.failed,
       error: blamed ? _checkingMessage : dropped.message,
@@ -102,7 +111,7 @@ class VoiceRejoin {
     if (_blamedOnOtherDevice != channelId) return true;
     _blamedOnOtherDevice = null;
     if (!replaced || _current.channelId != channelId) return false;
-    _replacedElsewhere = true;
+    _heldElsewhere = channelId;
     _callClock.forget();
     _access.state = _current.copyWith(
       error: VoiceDisconnect.replacedByOtherDevice.message,
