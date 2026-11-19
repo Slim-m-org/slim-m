@@ -8,7 +8,7 @@ use crate::hub::{Event, Hub};
 use crate::ids::{ChannelId, UserId};
 use crate::store::{self, SessionScope, Store, VoiceSession};
 use crate::sweeps::spawn_sweep;
-use crate::voice::VoiceService;
+use crate::voice::{VoiceError, VoiceService};
 
 /// How often voice sessions past their retention are deleted.
 const SWEEP_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60 * 60);
@@ -41,7 +41,7 @@ pub async fn close_stale_sessions(store: &Store, hub: &Hub, stale: &[(UserId, Ch
 
 /// Closes every session left open by a previous run, since the leaves that
 /// would have ended them may have been missed while the server was down, then
-/// opens one again for each member the SFU still has on that same connection.
+/// opens one again for each member the SFU still has on those calls.
 pub async fn reconcile_on_startup(store: &Store, voice: &VoiceService) {
     let at = store::now_ms();
     let closed = match store.close_voice_sessions(SessionScope::Everyone, at).await {
@@ -62,25 +62,29 @@ pub async fn reconcile_on_startup(store: &Store, voice: &VoiceService) {
     );
 }
 
-/// A call outlives a restart of this server, so its members' sessions carry on in a new row
-/// from `at`. An SFU that cannot answer leaves the sessions closed.
+/// A call outlives a restart of this server, so everyone the SFU lists on a call that had a
+/// session open gets a new row from `at`, under the connection they have now: a join or a
+/// reconnect made while this server was down sent a webhook nobody received.
 async fn reopen_live(store: &Store, voice: &VoiceService, closed: &[VoiceSession], at: i64) -> u64 {
     let channels: BTreeSet<ChannelId> = closed.iter().map(|s| s.channel_id).collect();
     let mut reopened = 0;
-    for channel_id in channels {
+    for (asked, channel_id) in channels.iter().enumerate() {
         // One unanswered read is the last: startup must not wait out a timeout per channel.
-        let Ok(listed) = voice.list_participants(channel_id).await else {
-            break;
+        let listed = match voice.list_participants(*channel_id).await {
+            Ok(listed) => listed,
+            Err(VoiceError::Unavailable) => break,
+            Err(VoiceError::Internal(err)) => {
+                tracing::warn!(
+                    %err,
+                    left_closed = channels.len() - asked,
+                    "the sfu did not answer at startup, so the calls not yet asked about keep their sessions closed"
+                );
+                break;
+            }
         };
-        let still_on = closed.iter().filter(|session| {
-            session.channel_id == channel_id
-                && listed
-                    .iter()
-                    .any(|p| p.user_id == session.user_id && p.sid == session.sid)
-        });
-        for session in still_on {
+        for member in listed {
             match store
-                .open_voice_session(channel_id, session.user_id, &session.sid, at)
+                .open_voice_session(*channel_id, member.user_id, &member.sid, at)
                 .await
             {
                 Ok(opened) => reopened += u64::from(opened),

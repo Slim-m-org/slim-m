@@ -256,7 +256,6 @@ async fn startup_carries_on_the_session_of_a_member_still_on_the_call() {
     let sfu = support::fake_sfu::RecordingRoomService::default();
     sfu.seat_listing(vec![
         json!({ "identity": w.user.to_string(), "sid": "PA_1" }),
-        json!({ "identity": w.other.to_string(), "sid": "PA_later" }),
     ]);
     let url = support::fake_sfu::spawn_sfu(sfu).await;
     let voice = VoiceService::for_test(&url, API_KEY, API_SECRET);
@@ -280,6 +279,47 @@ async fn startup_carries_on_the_session_of_a_member_still_on_the_call() {
         StatusCode::NO_CONTENT
     );
     assert!(w.sessions().await.iter().all(|r| !r["left_at"].is_null()));
+}
+
+/// Joins the SFU took while this server was down sent webhooks nobody received.
+#[tokio::test]
+async fn startup_opens_a_session_for_a_member_who_connected_while_it_was_down() {
+    let w = world("slimm-vs-startup-missed").await;
+    w.deliver("participant_joined", Some((w.user, "PA_1")))
+        .await;
+    w.deliver("participant_joined", Some((w.other, "PA_2")))
+        .await;
+    let newcomer = w.store.create_user("ravi", "Ravi").await.unwrap().id;
+    let sfu = support::fake_sfu::RecordingRoomService::default();
+    sfu.seat_listing(vec![
+        json!({ "identity": w.user.to_string(), "sid": "PA_1" }),
+        json!({ "identity": w.other.to_string(), "sid": "PA_reconnected" }),
+        json!({ "identity": newcomer.to_string(), "sid": "PA_new" }),
+    ]);
+    let url = support::fake_sfu::spawn_sfu(sfu).await;
+    let voice = VoiceService::for_test(&url, API_KEY, API_SECRET);
+
+    slimm_server::reconcile_on_startup(&w.store, &voice).await;
+
+    let rows = w.sessions().await;
+    let mut open: Vec<&str> = rows
+        .iter()
+        .filter(|r| r["left_at"].is_null())
+        .map(|r| r["sid"].as_str().unwrap())
+        .collect();
+    open.sort_unstable();
+    assert_eq!(open, ["PA_1", "PA_new", "PA_reconnected"], "{rows:?}");
+    assert_eq!(
+        w.deliver("participant_left", Some((w.other, "PA_reconnected")))
+            .await,
+        StatusCode::NO_CONTENT
+    );
+    let rows = w.sessions().await;
+    let reconnected = rows.iter().find(|r| r["sid"] == "PA_reconnected");
+    assert!(
+        !reconnected.unwrap()["left_at"].is_null(),
+        "the leave of the new connection ends the session opened for it"
+    );
 }
 
 #[tokio::test]
