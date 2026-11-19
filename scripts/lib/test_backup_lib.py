@@ -8,6 +8,9 @@ addCleanup runs the directory's cleanup whether the test passes or fails,
 so a failed assertion never leaves anything behind in the shared /tmp
 tmpfs.
 """
+import contextlib
+import io
+import os
 import sqlite3
 import sys
 import tempfile
@@ -312,6 +315,20 @@ class RunTest(BackupTestCase):
         self.assertIn("orphaned database rows", warnings[0])
         self.assertIn("(1)", warnings[0])
         self.assertEqual(len(list((self.backup_root / "db").glob("slimm-*.db"))), 1)
+
+    @unittest.skipIf(os.geteuid() == 0, "root writes anywhere")
+    def test_a_backup_root_it_may_not_write_fails_with_the_reason(self):
+        fixtures.build_database(self.source_db)
+        self.backup_root.mkdir()
+        self.backup_root.chmod(0o555)
+        self.addCleanup(self.backup_root.chmod, 0o755)
+        stderr = io.StringIO()
+
+        with contextlib.redirect_stderr(stderr):
+            code = backup_lib.run(self._args())
+
+        self.assertEqual(code, backup_lib.EXIT_FAILED)
+        self.assertIn("chown root:root", stderr.getvalue())
 
     def test_no_source_database_exits_non_zero(self):
         code = backup_lib.run(self._args())
