@@ -8,6 +8,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'anchored_popover.dart';
 import 'floating_dock_card.dart';
+import 'rise_fade_transition.dart';
 
 /// Opens [popoverBuilder] anchored to [anchor] (or [anchorRect], in overlay
 /// coordinates) on a wide window, and [sheetBuilder] (default: the popover's
@@ -52,24 +53,8 @@ Future<T?> showAnchoredPopoverOrSheet<T>(
       above: above,
       child: popoverBuilder(context),
     ),
-    transitionBuilder: (context, animation, _, child) {
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: AppMotion.entrance,
-        reverseCurve: AppMotion.exit,
-      );
-      return FadeTransition(
-        opacity: curved,
-        child: AnimatedBuilder(
-          animation: curved,
-          builder: (context, child) => Transform.translate(
-            offset: Offset(0, (1 - curved.value) * 8),
-            child: child,
-          ),
-          child: child,
-        ),
-      );
-    },
+    transitionBuilder: (context, animation, _, child) =>
+        RiseFadeTransition(animation: animation, rise: 8, child: child),
   );
 }
 

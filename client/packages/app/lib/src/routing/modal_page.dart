@@ -15,6 +15,7 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../features/voice/widgets/voice_strip_indicator.dart';
+import '../widgets/rise_fade_transition.dart';
 
 /// How large the floating panel is allowed to get.
 ///
@@ -69,22 +70,7 @@ Page<void> modalPage(
           child,
         );
       }
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: AppMotion.entrance,
-        reverseCurve: AppMotion.exit,
-      );
-      return FadeTransition(
-        opacity: curved,
-        child: AnimatedBuilder(
-          animation: curved,
-          builder: (context, child) => Transform.translate(
-            offset: Offset(0, (1 - curved.value) * 16),
-            child: child,
-          ),
-          child: child,
-        ),
-      );
+      return RiseFadeTransition(animation: animation, rise: 16, child: child);
     },
     child: _ModalSurface(
       maxWidth: maxWidth,

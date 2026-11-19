@@ -70,59 +70,117 @@ Widget _fadeThroughTransition(
   Animation<double> animation,
   Animation<double> secondaryAnimation,
   Widget child,
-) {
-  final curved = CurvedAnimation(
-    parent: animation,
-    curve: AppMotion.entrance,
-    reverseCurve: AppMotion.exit,
-  );
-  if (LayoutClass.of(context) == LayoutClass.compact) {
-    final curvedOut = CurvedAnimation(
-      parent: secondaryAnimation,
+) => _FadeThrough(
+  animation: animation,
+  secondaryAnimation: secondaryAnimation,
+  child: child,
+);
+
+/// The transition itself, holding its curves for as long as the route shows.
+///
+/// A route rebuilds its transition on every frame it animates, so curves made
+/// in the builder were three more listeners on the route's animations a frame.
+class _FadeThrough extends StatefulWidget {
+  const _FadeThrough({
+    required this.animation,
+    required this.secondaryAnimation,
+    required this.child,
+  });
+
+  final Animation<double> animation;
+  final Animation<double> secondaryAnimation;
+  final Widget child;
+
+  @override
+  State<_FadeThrough> createState() => _FadeThroughState();
+}
+
+class _FadeThroughState extends State<_FadeThrough> {
+  late List<CurvedAnimation> _curves = _makeCurves();
+
+  /// This page's own entrance, its underlay role, then the wide fade in and fade out.
+  List<CurvedAnimation> _makeCurves() => [
+    CurvedAnimation(
+      parent: widget.animation,
       curve: AppMotion.entrance,
       reverseCurve: AppMotion.exit,
-    );
-    return SlideTransition(
-      // This page's own entrance: in from the right edge.
-      position: Tween<Offset>(
-        begin: const Offset(1, 0),
-        end: Offset.zero,
-      ).animate(curved),
-      child: SlideTransition(
-        // And its underlay role: 30% left while the next page covers it.
+    ),
+    CurvedAnimation(
+      parent: widget.secondaryAnimation,
+      curve: AppMotion.entrance,
+      reverseCurve: AppMotion.exit,
+    ),
+    CurvedAnimation(
+      parent: widget.animation,
+      curve: const Interval(0.35, 1, curve: Curves.easeOut),
+    ),
+    CurvedAnimation(
+      parent: widget.secondaryAnimation,
+      curve: const Interval(0, 0.35, curve: Curves.easeIn),
+    ),
+  ];
+
+  void _disposeCurves() {
+    for (final curve in _curves) {
+      curve.dispose();
+    }
+  }
+
+  @override
+  void didUpdateWidget(_FadeThrough oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.animation == widget.animation &&
+        oldWidget.secondaryAnimation == widget.secondaryAnimation) {
+      return;
+    }
+    _disposeCurves();
+    _curves = _makeCurves();
+  }
+
+  @override
+  void dispose() {
+    _disposeCurves();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final [curved, curvedOut, incoming, outgoing] = _curves;
+    if (LayoutClass.of(context) == LayoutClass.compact) {
+      return SlideTransition(
+        // This page's own entrance: in from the right edge.
         position: Tween<Offset>(
-          begin: Offset.zero,
-          end: const Offset(-0.3, 0),
-        ).animate(curvedOut),
-        // Opaque, or the page it slides over shows through its transparent text surface.
-        child: ColoredBox(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          child: child,
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(curved),
+        child: SlideTransition(
+          // And its underlay role: 30% left while the next page covers it.
+          position: Tween<Offset>(
+            begin: Offset.zero,
+            end: const Offset(-0.3, 0),
+          ).animate(curvedOut),
+          // Opaque, or the page it slides over shows through its transparent text surface.
+          child: ColoredBox(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: widget.child,
+          ),
+        ),
+      );
+    }
+    // A fade-through, not a cross-fade: see fadeThroughPage's own doc.
+    return FadeTransition(
+      // Its underlay role: gone before whatever replaces it becomes legible.
+      opacity: Tween<double>(begin: 1, end: 0).animate(outgoing),
+      child: FadeTransition(
+        opacity: incoming,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.02),
+            end: Offset.zero,
+          ).animate(curved),
+          child: widget.child,
         ),
       ),
     );
   }
-  // A fade-through, not a cross-fade: see fadeThroughPage's own doc.
-  final incoming = CurvedAnimation(
-    parent: animation,
-    curve: const Interval(0.35, 1, curve: Curves.easeOut),
-  );
-  final outgoing = CurvedAnimation(
-    parent: secondaryAnimation,
-    curve: const Interval(0, 0.35, curve: Curves.easeIn),
-  );
-  return FadeTransition(
-    // Its underlay role: gone before whatever replaces it becomes legible.
-    opacity: Tween<double>(begin: 1, end: 0).animate(outgoing),
-    child: FadeTransition(
-      opacity: incoming,
-      child: SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, 0.02),
-          end: Offset.zero,
-        ).animate(curved),
-        child: child,
-      ),
-    ),
-  );
 }
