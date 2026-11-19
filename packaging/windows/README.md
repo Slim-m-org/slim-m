@@ -67,7 +67,7 @@ It only does that when no process runs an exe from `app`, which it checks by com
 Neither deleting `app\slimm_app.exe` nor renaming `app` would prove it: Windows allows deleting one hard link of a running exe, and renaming a folder whose running exe holds no other files open.
 A restart into an update waits up to 32 seconds for the old copy to exit, longer than the app's own 30 second wait; a launch while an older version still runs from `app`, and any failure, start the version folder directly instead, as before, and a copy that fails to start from `app` is started once more from its version folder.
 Launchers take turns through an exclusive `.launcher.lock` in the install folder, held from choosing the version to starting it, so two at once (a double-click, setup's Start beside a link) neither count one start twice nor rebuild `app` under each other; one that waits too long starts the current version folder without touching anything.
-The launcher marks the app it starts with `SLIMM_FROM_LAUNCHER`, and a copy started from `app` without it, such as a taskbar pin of the window, hands its start to the launcher, so the start count, rollback and relinking still happen.
+The launcher marks the app it starts with `SLIMM_FROM_LAUNCHER`, and a copy started from `app` without it, such as a taskbar pin of the window, hands its start to the launcher with `--from-run-folder`, which waits for that copy to exit as a restart does, so the start count, rollback and relinking still happen.
 A junction would not do: the firewall records the path a junction resolves to.
 
 To check a build by hand, from an elevated PowerShell:

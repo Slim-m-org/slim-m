@@ -79,6 +79,10 @@ std::wstring LinkHandlerFor(const std::wstring& exe, Exists exists) {
 /// Set by the launcher on the app it starts (prepare.go has the same name).
 constexpr wchar_t kFromLauncherVariable[] = L"SLIMM_FROM_LAUNCHER";
 
+/// Passed to the launcher on a hand-over, so it waits for this copy to exit
+/// before it relinks the run folder (prepare.go has the same text).
+constexpr wchar_t kHandoffArgument[] = L"--from-run-folder";
+
 /// The launcher to hand this start to, or empty to carry on: a copy in the run
 /// folder that the launcher did not start (a taskbar pin of its window) would
 /// skip the start count, rollback and relinking that only the launcher does.

@@ -55,3 +55,13 @@ func TestTheRunnerReadsTheVariableTheLauncherSets(t *testing.T) {
 		t.Fatalf("link_handoff.h does not read %s, so every launch would hand itself back to the launcher", launcherEnv)
 	}
 }
+
+func TestTheRunnerHandsOverWithTheArgumentTheLauncherTakes(t *testing.T) {
+	data, err := os.ReadFile("../../../client/packages/app/windows/runner/link_handoff.h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `kHandoffArgument[] = L"`+handoffArgument+`";`) {
+		t.Fatalf("link_handoff.h does not pass %s, so the launcher would not wait for the copy handing over", handoffArgument)
+	}
+}

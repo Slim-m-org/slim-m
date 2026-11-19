@@ -24,7 +24,8 @@ bool HandStartToLauncher(const wchar_t* command_line) {
   const std::wstring launcher =
       slimm::LauncherToHandTo(ExecutablePath(), from_launcher, IsFile);
   if (launcher.empty()) return false;
-  std::wstring line = L"\"" + launcher + L"\"";
+  std::wstring line =
+      L"\"" + launcher + L"\" " + slimm::kHandoffArgument;
   if (command_line != nullptr && *command_line != L'\0') {
     line += L" ";
     line += command_line;

@@ -36,7 +36,8 @@ var (
 
 // runFrom returns the folder to start the version in dir from: the run folder
 // when it holds that version or can be rebuilt to, and dir itself otherwise.
-func runFrom(root, dir string, relaunch bool) string {
+// wait gives a copy that is exiting from the run folder time to go.
+func runFrom(root, dir string, wait bool) string {
 	if !exists(filepath.Join(dir, runFolderMarker)) {
 		return dir
 	}
@@ -45,7 +46,7 @@ func runFrom(root, dir string, relaunch bool) string {
 		return run
 	}
 	tries := 1
-	if relaunch {
+	if wait {
 		tries = releaseTries
 	}
 	if !release(run, tries) || rebuild(dir, run) != nil {

@@ -25,15 +25,16 @@ func main() {
 		defer unlock()
 	}
 	running := instanceRunning(root)
-	relaunch := isRelaunch(os.Args[1:])
-	dir, fallback, err := pick(root, relaunch, locked)
+	args, handoff := takeHandoff(os.Args[1:])
+	relaunch := isRelaunch(args)
+	dir, fallback, err := pick(root, relaunch, relaunch || handoff, locked)
 	if err != nil {
 		fail(err.Error())
 	}
 	if locked && settled(root) {
 		_ = realSwapper().swapLauncher(root, filepath.Join(root, launcherName))
 	}
-	pid, err := startFrom(dir, fallback, os.Args[1:])
+	pid, err := startFrom(dir, fallback, args)
 	if err != nil {
 		fail(err.Error())
 	}

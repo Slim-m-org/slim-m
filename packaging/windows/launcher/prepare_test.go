@@ -22,7 +22,7 @@ func pendingUpdate(t *testing.T) string {
 func TestALauncherWithoutTheLockCountsNothingAndLeavesTheRunFolder(t *testing.T) {
 	root := pendingUpdate(t)
 	stubRelease(t, 0)
-	dir, fallback, err := pick(root, false, false)
+	dir, fallback, err := pick(root, false, false, false)
 	if err != nil || dir != versionDir(root, "0.89.0") || fallback != dir {
 		t.Fatalf("got %q, %q, %v", dir, fallback, err)
 	}
@@ -62,7 +62,7 @@ func TestLaunchesAtTheSameTimeEachCountOnceAndLeaveOneWholeRunFolder(t *testing.
 				return
 			}
 			defer unlock()
-			if _, _, err := pick(root, false, true); err != nil {
+			if _, _, err := pick(root, false, false, true); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -89,5 +89,23 @@ func TestAFailedStartFromTheRunFolderTriesTheVersionFolder(t *testing.T) {
 	pid, err := startFrom("root/app", "root/app-0.89.0", nil)
 	if err != nil || pid != 42 || len(tried) != 2 {
 		t.Fatalf("pid %d, err %v, tried %v", pid, err, tried)
+	}
+}
+
+func TestAHandedOverStartWaitsForTheCopyThatHandedItOver(t *testing.T) {
+	root := pendingUpdate(t)
+	stubRelease(t, 0)
+	runFrom(root, versionDir(root, "0.88.0"), false)
+	paused := stubRelease(t, 3)
+	args, handoff := takeHandoff([]string{handoffArgument, "slimm://invite?code=x"})
+	if !handoff || len(args) != 1 || args[0] != "slimm://invite?code=x" {
+		t.Fatalf("got %v, %v", args, handoff)
+	}
+	dir, _, err := pick(root, false, handoff, true)
+	if err != nil || dir != runPath(root) || *paused != 3 {
+		t.Fatalf("started from %q after %d waits, %v", dir, *paused, err)
+	}
+	if engineIn(t, runPath(root)) != "engine 0.89.0" {
+		t.Fatal("the run folder was not relinked to current")
 	}
 }
