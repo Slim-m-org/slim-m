@@ -93,7 +93,7 @@ runs:
       run: |
         # --enforce-lockfile: resolve exactly what pubspec.lock pins.
         flutter pub get --enforce-lockfile
-        # Build number from the run number and build name from the tag, never from pubspec. Both stores reject a reuse; see docs/ci.md.
+        # Build number from the run number and build name from the caller's version input: the release tag's in release.yml, pubspec's tracked version in main-builds. Both stores reject a reuse; see docs/ci.md.
         flutter build ipa --release --export-options-plist=ios/ExportOptions.plist --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
           --build-name=${{ inputs.version }} \
           --build-number=${{ github.run_number }}
