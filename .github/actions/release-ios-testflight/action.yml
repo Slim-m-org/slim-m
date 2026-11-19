@@ -6,7 +6,7 @@ description: Import the signing assets, build the ipa and upload it to TestFligh
 
 inputs:
   version:
-    description: client version, from release-please's client_version output
+    description: client version, release-please's client_version or, on a main build, pubspec's
     required: true
   spotify_client_id:
     description: Spotify app id for rich presence; empty keeps the feature off

@@ -31,6 +31,9 @@ on:
       - ".github/actions/linux-tarball/**"
       - ".github/actions/native-hooks-cache/**"
       - ".github/actions/native-hooks-diagnose/**"
+      - ".github/actions/release-ios-testflight/**"
+      - ".github/actions/select-xcode/**"
+      - "scripts/select-xcode.sh"
       - ".sqlx/**"
       # Its own file, so a change to how these builds work is run by them.
       - ".github/workflows/main-builds.yml"
@@ -106,6 +109,9 @@ jobs:
               - '.github/actions/linux-tarball/**'
               - '.github/actions/native-hooks-cache/**'
               - '.github/actions/native-hooks-diagnose/**'
+              - '.github/actions/release-ios-testflight/**'
+              - '.github/actions/select-xcode/**'
+              - 'scripts/select-xcode.sh'
             server:
               - 'crates/**'
             listener:
@@ -315,7 +321,7 @@ jobs:
   ios-testflight:
     needs: [changes]
     if: needs.changes.outputs.client == 'true' && (github.event_name == 'workflow_dispatch' || vars.CONTINUOUS_TESTFLIGHT != 'false')
-    runs-on: macos-latest
+    runs-on: xcode-27
     timeout-minutes: 30
     permissions:
       contents: read
@@ -352,91 +358,14 @@ jobs:
           version="$(grep -m1 '^version:' client/pubspec.yaml | awk '{print $2}')"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
-      # A throwaway keychain, not the login one, and set-key-partition-list so codesign never hangs waiting for permission.
-      - name: import signing assets
+      - uses: ./.github/actions/select-xcode
         if: steps.gate.outputs.ready == 'true'
-        run: |
-          KEYDIR="${HOME}/.appstoreconnect/private_keys"
-          mkdir -p "$KEYDIR"
-          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" \
-            > "${KEYDIR}/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
-
-          CERT_PATH="${RUNNER_TEMP}/build_certificate.p12"
-          PROFILE_PATH="${RUNNER_TEMP}/build_pp.mobileprovision"
-          KEYCHAIN_PATH="${RUNNER_TEMP}/app-signing.keychain-db"
-          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
-
-          printf '%s' "$IOS_SIGNING_CERTIFICATE_P12" | base64 --decode > "$CERT_PATH"
-          printf '%s' "$IOS_PROVISIONING_PROFILE" | base64 --decode > "$PROFILE_PATH"
-          BROADCAST_PROFILE_PATH="${RUNNER_TEMP}/build_pp_broadcast.mobileprovision"
-          printf '%s' "$IOS_BROADCAST_PROVISIONING_PROFILE" \
-            | base64 --decode > "$BROADCAST_PROFILE_PATH"
-          NSE_PROFILE_PATH="${RUNNER_TEMP}/build_pp_nse.mobileprovision"
-          printf '%s' "$IOS_NSE_PROVISIONING_PROFILE" | base64 --decode > "$NSE_PROFILE_PATH"
-
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERT_PATH" -P "$IOS_SIGNING_CERTIFICATE_PASSWORD" \
-            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple: \
-            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
-
-          PROFILE_DIR="${HOME}/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILE_DIR"
-          INSTALLED=""
-          for pp in "$PROFILE_PATH" "$BROADCAST_PROFILE_PATH" "$NSE_PROFILE_PATH"; do
-            UUID="$(security cms -D -i "$pp" | plutil -extract UUID raw -o - -)"
-            NAME="$(security cms -D -i "$pp" | plutil -extract Name raw -o - -)"
-            cp "$pp" "${PROFILE_DIR}/${UUID}.mobileprovision"
-            echo "installed profile ${NAME} (${UUID})"
-            INSTALLED="${INSTALLED}${NAME}\n"
-          done
-
-          EXPORT_OPTIONS=client/packages/app/ios/ExportOptions.plist
-          /usr/libexec/PlistBuddy -c "Print :provisioningProfiles" "$EXPORT_OPTIONS" \
-            | sed -n 's/^ *[^ ]* = \(.*\)$/\1/p' > "${RUNNER_TEMP}/wanted_profiles"
-          printf '%b' "$INSTALLED" > "${RUNNER_TEMP}/installed_profiles"
-          missing=0
-          while read -r want; do
-            [ -n "$want" ] || continue
-            grep -qxF "$want" "${RUNNER_TEMP}/installed_profiles" || {
-              echo "::error::ExportOptions names profile '${want}', which is not installed"
-              missing=1
-            }
-          done < "${RUNNER_TEMP}/wanted_profiles"
-          [ "$missing" -eq 0 ] || exit 1
-
-          echo "signing identities available to codesign:"
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
-
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      # release.yml's own build and upload; the build name is pubspec's tracked version here, never a tag.
+      - uses: ./.github/actions/release-ios-testflight
         if: steps.gate.outputs.ready == 'true'
         with:
-          channel: stable
-          flutter-version: 3.47.0
-
-      - uses: ./.github/actions/native-hooks-cache
-      # Build number from the run number, build name from pubspec's tracked version; both stores reject a reuse.
-      - name: build ipa
-        if: steps.gate.outputs.ready == 'true'
-        working-directory: client/packages/app
-        run: |
-          flutter pub get --enforce-lockfile
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
-            --build-name=${{ steps.ver.outputs.version }} \
-            --build-number=${{ github.run_number }}
-
-      - name: upload to TestFlight
-        if: steps.gate.outputs.ready == 'true'
-        working-directory: client/packages/app
-        run: |
-          ipa=(build/ios/ipa/*.ipa)
-          xcrun altool --upload-app --type ios \
-            --file "${ipa[0]}" \
-            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          version: ${{ steps.ver.outputs.version }}
+          spotify_client_id: ${{ vars.SLIMM_SPOTIFY_CLIENT_ID }}
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
 
   # Pulled into its own file, copr-publish.yml, once this workflow reached

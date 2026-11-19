@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# The one place the Xcode for every iOS and macOS job is pinned. Those jobs run
+# on the `xcode-<major>` runner label of the same major, which
+# scripts/lib/test_xcode_is_pinned.py holds them to.
+#
+# A release build only: App Store Connect refuses a submission built with a beta
+# Xcode, and the image carries betas beside the releases (Xcode_27.3_beta).
+# From April 2027 it refuses an upload built below the iOS 27 SDK (ITMS-90725),
+# and every upload built below it until then gets a warning email.
+
+name: select xcode
+description: Switch the runner to the pinned Xcode, failing if the image lacks it or its iOS SDK is older than App Store Connect accepts.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        XCODE_VERSION: "27.2"
+        MIN_IOS_SDK: "27"
+      run: '"$GITHUB_WORKSPACE/scripts/select-xcode.sh" "$XCODE_VERSION" "$MIN_IOS_SDK"'

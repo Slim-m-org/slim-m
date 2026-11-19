@@ -222,7 +222,20 @@ GitHub moves `ubuntu-latest` to Ubuntu 26 on 2026-10-19, which would change the 
 `scripts/lib/test_runners_are_pinned.py` refuses the label in any workflow.
 Moving to a new image is a deliberate PR, dispatched against an existing tag first.
 Windows jobs run on `windows-2025`, and the same test refuses `windows-latest`.
-`macos-latest` is not pinned: the iOS and macOS jobs depend on the Xcode that it carries.
+The same test refuses `macos-latest`: the iOS and macOS jobs run on `xcode-27`, the next section's pin.
+
+### Xcode is pinned
+
+Every iOS and macOS job (`client-ios-ci`, `client-macos-ci`, the two `ios-testflight` jobs and `desktop-clients`' `macos-client`) runs on the `xcode-27` runner label and calls `.github/actions/select-xcode` before Flutter or any Xcode tool runs.
+That action is the one place the Xcode version is written down: it runs `scripts/select-xcode.sh`, which points `xcode-select` at `/Applications/Xcode_<version>.app` and fails, naming the Xcodes the image does have, when that path is missing.
+It also fails when the selected Xcode's iOS SDK is older than the one App Store Connect accepts, so a pin moved back to an old Xcode stops before a 30 minute build rather than at the store.
+Until 2026-11-18 no job chose an Xcode, and every build took the `macos-latest` default, Xcode 26.6 with the iOS 26.5 SDK.
+Every TestFlight upload then came back with ITMS-90725 ("Starting April 2027, iOS and iPadOS apps must be built with the iOS 27 SDK or later"), as a warning in the altool output and an App Store Connect email per build.
+GitHub organises its macOS images by Xcode major since Xcode 27 (`xcode-27`, generally available 2026-10-15, on macOS 27, arm64 only); `macos-26` and `macos-latest` carry only Xcode 26.
+The pin is 27.2 (27B52), the newest release on the image; the image also carries 27.0, 27.1 (its default) and, from its next update, a 27.3 beta, and App Store Connect refuses a submission built with a beta.
+A newer Xcode is a deliberate PR: change the version in the action, and the label with it when the major moves; `scripts/lib/test_xcode_is_pinned.py` fails when a macOS job is on another label, never selects the pin, or builds before selecting it.
+Xcode 27 refuses a deployment target below iOS 15 or macOS 12.
+The iOS targets were already at 15.0; the macOS project moved from 10.15 to 12.0, the same edit Flutter 3.47's own migration had been making to the working copy at every `flutter build macos`.
 
 ### Goldens are not a separate job
 
@@ -1061,13 +1074,15 @@ The redundant build pushes the same `latest` the release itself would have pushe
 The trigger must also name everything the workflow calls.
 Commit f453f678 fixed `.github/actions/linux-tarball` and matched no path, so the run it started skipped every job and finished green with nothing built.
 The trigger and the `client` filter now list each composite action the workflow reaches, nested calls included (`apt-install`, `linux-build-deps`, `linux-tarball`, `native-hooks-cache`, `native-hooks-diagnose`), and `copr-publish.yml` feeds `packaging`.
-A wildcard over `.github/actions/` is deliberately not used: the `release-*` actions are called only by `release.yml`, so an edit to one of them would otherwise build the client, upload to TestFlight and redeploy web.
+A wildcard over `.github/actions/` is deliberately not used: the other `release-*` actions are called only by `release.yml`, so an edit to one of them would otherwise build the client, upload to TestFlight and redeploy web.
+`release-ios-testflight` and `select-xcode` are listed because `ios-testflight` here calls them, the first since 2026-11-18.
 `scripts/lib/test_main_builds_triggers_on_everything_it_uses.py` fails when a `uses: ./.github/...` target is missing from the trigger or the filter, or when a trigger path reaches no filter and is not on its short allowlist.
 A change to `main-builds.yml` itself still triggers a run that builds nothing; that is on the allowlist on purpose.
 
 ### What each side does
 
 The client side reuses `release.yml`'s `ios-testflight`, `android-client` and `linux-client` steps verbatim where the two paths overlap: the throwaway keychain and `set-key-partition-list` for iOS, the upload-key signer verification for Android, the Fedora container for the rpm build.
+For iOS that is the same `release-ios-testflight` action since 2026-11-18; until then this job carried an inline copy of its steps.
 It differs because there is no tagged release to publish against: `softprops/action-gh-release` has nothing to attach to on an untagged push, so the Android apk and aab go up as `actions/upload-artifact` run artifacts instead (there is no Android device to test the push path here, and the Play upload stays manual regardless, so an artifact is all this path is for).
 The Linux side goes further than an artifact: it lands on the owner's actual Fedora machine, through COPR, covered in its own section below.
 And the version name passed to `--build-name` is read directly out of `client/pubspec.yaml` (the file release-please itself writes, and the exact value this workflow's own trigger excludes from re-triggering it) rather than out of a release-please output or a tag, since neither exists here; it therefore repeats across every continuous build until the next real release moves it, which is fine, because uniqueness is per version-and-build, not per version alone.

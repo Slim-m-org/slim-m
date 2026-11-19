@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# GitHub-hosted labels newer than the pinned actionlint knows. xcode-27 is
+# GitHub's Xcode 27 image, generally available since 2026-10-15; actionlint
+# has only this key for labels it does not ship, though these are not self-hosted.
+self-hosted-runner:
+  labels:
+    - xcode-27

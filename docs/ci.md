@@ -87,7 +87,7 @@ Path-gated so a server-only or schema-only change never triggers the Flutter cli
 The app shards fuzz canvas gestures with a quick seed sample on pull requests and the full seed range on pushes to `main` (`SLIMM_FULL_FUZZ=1`); the gesture findings are pinned in their own tests, so a pull request still runs every known case.
 The engine fuzz and the server's canvas fuzz run their full range everywhere.
 
-Details, in [ci-details.md](ci-details.md#client-ci): The web bundle budget; The app shards are dealt by measured time; The app shards run bundles, not one isolate per file; Native build hooks are cached, and explain their own failures; Logic tests also run as JavaScript; Where a pull request's time goes, measured 2026-10-02; The UI snapshot capture is its own leg; Runner labels are pinned; Goldens are not a separate job; The iOS unit-test job, and why it is its own workflow; The registration and release-configuration checks, and why PR #292 needed both.
+Details, in [ci-details.md](ci-details.md#client-ci): The web bundle budget; The app shards are dealt by measured time; The app shards run bundles, not one isolate per file; Native build hooks are cached, and explain their own failures; Logic tests also run as JavaScript; Where a pull request's time goes, measured 2026-10-02; The UI snapshot capture is its own leg; Runner labels are pinned; Xcode is pinned; Goldens are not a separate job; The iOS unit-test job, and why it is its own workflow; The registration and release-configuration checks, and why PR #292 needed both.
 
 ## schema-ci
 
