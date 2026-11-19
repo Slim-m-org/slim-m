@@ -469,7 +469,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// the server through [_commits] - and records it as one undoable gesture
   /// regardless of how many segments [splitStroke] broke it into.
   void _onStroke(List<Offset> worldPoints) {
-    if (_spectating) return;
+    if (_spectating || _drawingRefused) return;
     final selfId = ref.read(meProvider).valueOrNull?.id;
     final ids = <String>[];
     final width = canvasPenWorldWidth(_pen.width, _document.camera.zoom);

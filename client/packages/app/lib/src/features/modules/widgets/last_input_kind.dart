@@ -9,6 +9,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
+import '../../voice/providers/push_to_talk_key.dart';
+
 class LastInputKind {
   LastInputKind._();
 
@@ -44,11 +46,12 @@ class LastInputKind {
     return false;
   }
 
-  /// Only keys that move focus or act on a grid count: a held push-to-talk
-  /// key is not navigation, and alt-tab and shortcuts are not either.
+  /// Only keys that move focus or act on a grid count, never the push-to-talk
+  /// key (even Space or an arrow), alt-tab or a shortcut.
   bool _navigates(KeyEvent event) {
     final keyboard = HardwareKeyboard.instance;
-    if (keyboard.isAltPressed ||
+    if (event.logicalKey == PushToTalkKey.inWindow ||
+        keyboard.isAltPressed ||
         keyboard.isControlPressed ||
         keyboard.isMetaPressed) {
       return false;

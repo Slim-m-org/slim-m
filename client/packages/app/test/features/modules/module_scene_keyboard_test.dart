@@ -13,6 +13,7 @@ import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
 import '../../support/module_scene_fixtures.dart';
 
 void main() {
@@ -105,4 +106,56 @@ void main() {
 
     expect(actions, ['toggle:0,0']);
   });
+
+  testWidgets(
+    'holding an arrow keeps moving the cursor and keeps focus in the grid',
+    (tester) async {
+      final actions = <String>[];
+      var gen = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.dark, AppTokens.dark),
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                child: ModuleSceneView(
+                  initial: parseModuleScene(sceneJson(0))!,
+                  runCommand: (input) async {
+                    actions.add(jsonDecode(input)['action'] as String);
+                    return api.RunModuleCommandResult(
+                      ok: true,
+                      output: sceneJson(++gen),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await pumpFrames(tester);
+      final grid = find.bySemanticsLabel(RegExp('^Scene grid'));
+      final gesture = await tester.startGesture(tester.getCenter(grid.last));
+      await gesture.cancel();
+      await pumpFrames(tester);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowDown);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowDown);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowDown);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowDown);
+      await pumpFrames(tester);
+      expect(
+        FocusManager.instance.primaryFocus?.debugLabel,
+        'Module scene grid',
+      );
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+      await pumpFrames(tester);
+      expect(actions, ['toggle:3,0'], reason: 'a held enter activates once');
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.linux),
+  );
 }

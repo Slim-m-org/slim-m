@@ -22,6 +22,7 @@ import 'package:slimm_platform/platform.dart';
 import '../../../providers/app_lifecycle.dart';
 import '../providers/global_hotkeys_controller.dart';
 import '../providers/push_to_talk_gate.dart';
+import '../providers/push_to_talk_key.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
 
@@ -46,6 +47,13 @@ class _PushToTalkListenerState extends ConsumerState<PushToTalkListener>
     // Read once, unawaited: a handler-time first read would otherwise see the pre-load default on this build's very first key event.
     ref.read(voiceSettingsControllerProvider);
     ref.read(globalHotkeysProvider);
+    ref.listenManual(
+      voiceSettingsControllerProvider.select(
+        (s) => s.pushToTalkEnabled ? s.pushToTalkKey : null,
+      ),
+      (_, key) => PushToTalkKey.publish(this, key),
+      fireImmediately: true,
+    );
     HardwareKeyboard.instance.addHandler(_handleKey);
     WidgetsBinding.instance.addObserver(this);
   }
@@ -53,6 +61,7 @@ class _PushToTalkListenerState extends ConsumerState<PushToTalkListener>
   @override
   void dispose() {
     if (isDesktopHost) {
+      PushToTalkKey.withdraw(this);
       HardwareKeyboard.instance.removeHandler(_handleKey);
       WidgetsBinding.instance.removeObserver(this);
     }
