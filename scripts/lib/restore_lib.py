@@ -21,6 +21,7 @@ from pathlib import Path
 
 import restore_drill_lib
 import restore_plan
+import snapshot_info
 
 try:
     import fcntl
@@ -62,7 +63,35 @@ def parse_args(argv):
     parser.add_argument("--allow-missing-files", action="store_true",
                         help="restore the database and every file the backup does hold, and list "
                         "the files it lacks, instead of refusing")
+    parser.add_argument("--list", action="store_true",
+                        help="list the snapshots with the migration each is at, and restore nothing")
+    parser.add_argument("--before-migration", type=int, default=None, metavar="N",
+                        help="restore the newest snapshot from before migration N, the number in "
+                        "an older server's 'migration N was previously applied but is missing'")
     return parser.parse_args(argv)
+
+
+def _list(backup_root, out=None):
+    for snapshot, version in snapshot_info.snapshots(backup_root):
+        print(f"{snapshot}  {snapshot_info.describe(version)}", file=out)
+
+
+def _choose_snapshot(args, backup_root):
+    """The snapshot to restore, or None with the reason it is not the one asked for."""
+    limit = args.before_migration
+    if args.db_snapshot:
+        snapshot = Path(args.db_snapshot)
+        version = snapshot_info.schema_version(snapshot) if snapshot.is_file() else None
+        if limit is not None and (version is None or version >= limit):
+            return None, (f"{snapshot.name} is at {snapshot_info.describe(version)}, "
+                          f"not before migration {limit}")
+        return snapshot, None
+    if limit is None:
+        return restore_drill_lib.latest_snapshot(backup_root), None
+    snapshot = snapshot_info.newest_before(backup_root, limit)
+    if snapshot is None:
+        return None, f"no snapshot under {backup_root}/db/ is from before migration {limit}"
+    return snapshot, None
 
 
 def _copy_into_place(source, dest, partial):
@@ -177,8 +206,14 @@ def _report_gaps(plan, restored):
 
 def run(args):
     backup_root, data_dir = Path(args.backup_root), Path(args.data_dir)
-    snapshot = (Path(args.db_snapshot) if args.db_snapshot
-                else restore_drill_lib.latest_snapshot(backup_root))
+    if args.list:
+        _list(backup_root)
+        return 0
+    snapshot, wrong_snapshot = _choose_snapshot(args, backup_root)
+    if wrong_snapshot:
+        print(f"{wrong_snapshot}, so nothing was restored. The snapshots:", file=sys.stderr)
+        _list(backup_root, sys.stderr)
+        return 1
     database = data_dir / "slimm.db"
     refusal = _refusal(args, snapshot, database)
     if refusal:
@@ -202,7 +237,8 @@ def run(args):
         _place_key(args.data_key_file, data_dir)
     owned = _give_to(args.owner, data_dir)
 
-    print(f"restored {snapshot.name} to {database}")
+    version = snapshot_info.describe(snapshot_info.schema_version(database))
+    print(f"restored {snapshot.name} to {database} ({version})")
     print(f"media files: {media} copied, {plan.in_place} already in place; "
           f"module data files: {modules} copied")
     if plan.kept:

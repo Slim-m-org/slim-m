@@ -54,6 +54,7 @@ import backup_report
 import backup_side_files
 import file_digest
 import path_guard
+import snapshot_info
 
 EXIT_FAILED = 1
 EXIT_WARNINGS = 3
@@ -261,6 +262,7 @@ def take_backup(args):
         "source_media_dir": str(args.media_dir),
         "vacuum_seconds": round(vacuum_seconds, 3),
         "snapshot_bytes": snapshot_bytes,
+        "schema_version": snapshot_info.schema_version(dest_db),
         "attachments": attachments,
         "avatars": avatars,
         "side_files": side_files,

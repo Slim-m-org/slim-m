@@ -10,6 +10,7 @@ tmpfs.
 """
 import contextlib
 import io
+import json
 import os
 import sqlite3
 import sys
@@ -297,6 +298,8 @@ class RunTest(BackupTestCase):
         self.assertEqual(code, 0)
         manifests = list((self.backup_root / "db").glob("*.manifest.json"))
         self.assertEqual(len(manifests), 1)
+        recorded = json.loads(manifests[0].read_text())["schema_version"]
+        self.assertEqual(recorded, fixtures.latest_migration())
 
     def test_a_clean_backup_has_no_warnings(self):
         fixtures.build_database(self.source_db)

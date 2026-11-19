@@ -362,5 +362,68 @@ class RestoreUnderARunningServerTest(RestoreTestCase):
         self.assertEqual(code, 0, output)
 
 
+class RestoreAcrossAnUpgradeTest(RestoreTestCase):
+    """The nightly keeps writing snapshots after an upgrade, so the newest is not the way back."""
+
+    def setUp(self):
+        super().setUp()
+        self._back_up()
+        self.before = next((self.backup_root / "db").glob("slimm-*.db"))
+        self.upgraded_to = fixtures.latest_migration() + 1
+        self.after = self.before.with_name("slimm-29991231T030000Z.db")
+        shutil.copyfile(self.before, self.after)
+        conn = sqlite3.connect(str(self.after))
+        conn.execute(
+            "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time) "
+            "VALUES (?, 'the upgrade', 1, x'00', 0)", (self.upgraded_to,))
+        conn.commit()
+        conn.close()
+
+    def _restored_version(self):
+        conn = sqlite3.connect(str(self.data_dir / "slimm.db"))
+        try:
+            return conn.execute("SELECT max(version) FROM _sqlx_migrations").fetchone()[0]
+        finally:
+            conn.close()
+
+    def test_list_names_every_snapshot_with_its_migration_and_restores_nothing(self):
+        code, output = self._restore("--list")
+
+        self.assertEqual(code, 0)
+        self.assertRegex(output, rf"{self.before.name} +migration {self.upgraded_to - 1}\b")
+        self.assertRegex(output, rf"{self.after.name} +migration {self.upgraded_to}\b")
+        self.assertFalse(self.data_dir.exists())
+
+    def test_before_migration_picks_the_newest_snapshot_the_older_server_can_open(self):
+        code, output = self._restore("--before-migration", str(self.upgraded_to))
+
+        self.assertEqual(code, 0, output)
+        self.assertEqual(self._restored_version(), self.upgraded_to - 1)
+        self.assertIn(f"migration {self.upgraded_to - 1}", output)
+
+    def test_a_named_snapshot_from_after_the_upgrade_is_refused(self):
+        code, output = self._restore("--before-migration", str(self.upgraded_to),
+                                     "--db-snapshot", str(self.after))
+
+        self.assertEqual(code, 1)
+        self.assertIn(f"migration {self.upgraded_to}", output)
+        self.assertFalse((self.data_dir / "slimm.db").exists())
+
+    def test_no_snapshot_from_before_the_upgrade_is_a_refusal_that_lists_what_there_is(self):
+        self.before.unlink()
+
+        code, output = self._restore("--before-migration", str(self.upgraded_to))
+
+        self.assertEqual(code, 1)
+        self.assertIn(self.after.name, output)
+        self.assertFalse((self.data_dir / "slimm.db").exists())
+
+    def test_a_plain_restore_says_which_migration_it_restored(self):
+        code, output = self._restore()
+
+        self.assertEqual(code, 0)
+        self.assertIn(f"migration {self.upgraded_to}", output)
+
+
 if __name__ == "__main__":
     unittest.main()

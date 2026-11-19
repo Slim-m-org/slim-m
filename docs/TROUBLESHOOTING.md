@@ -39,7 +39,8 @@ Related symptoms:
 Check `docker compose logs server` for the line starting `Error:`.
 
 - `migration N was previously applied but is missing in the resolved migrations`: the image is older than the database.
-  Migrations only go forward, so going back means restoring the backup from before the upgrade (`docker compose run --rm restore --force`), or going forward again.
+  Migrations only go forward, so going back means restoring a snapshot from before the upgrade, or going forward again.
+  `docker compose run --rm restore --force --before-migration N`, with the `N` from that line, picks the newest snapshot this image can open; the newest snapshot of all may already be migrated, because the nightly backup runs after an upgrade too.
 - `SLIMM_PUSH_RELAY_URL is not a valid URL: ""`, or another setting named with an empty value: the image is older than the compose file.
   Check out the tag of the release you pinned (`git checkout server-v<version>`), so the two match.
 - `SLIMM_LIVEKIT_...` named: the voice overlay is on and one of its three values is missing from `.env`.

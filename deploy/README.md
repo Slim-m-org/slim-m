@@ -805,9 +805,13 @@ So a newer server has already changed the database by the time you decide you wa
 Restoring a snapshot is the rollback procedure, not a last resort:
 
 1. `docker compose down` - stop writing before you copy anything.
-2. Restore the backup taken *before* the upgrade: `docker compose run --rm restore --force`. See [Restoring a backup](#restoring-a-backup).
+2. Restore a snapshot taken *before* the upgrade, and name it, because the newest one may not be: `docker compose run --rm restore --force --before-migration N`, where `N` is the number in the older server's `migration N was previously applied but is missing`. See [Restoring a backup](#restoring-a-backup). Do this before step 3, since the restore command comes from the newer checkout.
 3. Put `SLIMM_VERSION` back to the version that made that backup, and check out that release's tag so the compose file matches it.
 4. `docker compose up -d`.
+
+With the `backup` profile on, the nightly run keeps writing snapshots after the upgrade, so a day later the newest snapshot is already migrated and restoring it changes nothing.
+`docker compose run --rm restore --list` prints every snapshot with the migration it is at; `--before-migration N` picks the newest one the older server can open, and `--db-snapshot /backup/db/slimm-<time>.db` names one yourself.
+The nightly also prunes: with `SLIMM_BACKUP_KEEP=14` the snapshot from before the upgrade is gone after two weeks, so copy it out of the backup directory if you want a way back for longer.
 
 An older image started on the newer database without that restore does not run: it restarts in a loop with `migration N was previously applied but is missing in the resolved migrations` in `docker compose logs server`.
 Nothing is damaged by that; do the restore, or go forward again.
