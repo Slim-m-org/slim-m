@@ -153,8 +153,6 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
   /// With chips the palette is a message search, and nothing else.
   bool get _filtering => _field.filters.isNotEmpty;
 
-  bool get _typingValue => _field.typingValue;
-
   /// Puts [prefix] in front of the query, as if typed, to list one section whole.
   void _scopeTo(String prefix) =>
       _field.setText('$prefix${parsePaletteQuery(_query).text}');
@@ -171,7 +169,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
   void _search() {
     _transcriptGeneration++;
     _transcriptResults = const [];
-    if (_typingValue) {
+    if (_field.typingValue) {
       _messages.clear();
     } else if (_filtering) {
       final parsed = parseSearchQuery(_query, filters: _field.filters);
@@ -398,17 +396,20 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     );
   }
 
-  List<PaletteResultItem> _suggestions(_ResultInputs inputs) =>
-      filterSuggestions(
-        _field.word,
-        offerKeys: _filtering,
-        sources: (
-          members: inputs.members,
-          channels: inputs.channels,
-          today: DateTime.now(),
-        ),
-        actions: (complete: _field.completeKey, add: _field.add),
-      );
+  List<PaletteResultItem> _suggestions(
+    _ResultInputs inputs,
+  ) => filterSuggestions(
+    _field.word,
+    // After a finished word the hits come first, so Enter opens one rather than a key.
+    offerKeys:
+        _filtering && (_field.word.isNotEmpty || _field.text.trim().isEmpty),
+    sources: (
+      members: inputs.members,
+      channels: inputs.channels,
+      today: DateTime.now(),
+    ),
+    actions: (complete: _field.completeKey, add: _field.add),
+  );
 
   List<PaletteSection> _sections(_ResultInputs inputs) {
     final channelsById = {for (final c in inputs.channels) c.id: c};
@@ -416,7 +417,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     return paletteSections((
       query: _query,
       filtering: _filtering,
-      typingValue: _typingValue,
+      typingValue: _field.typingValue,
       suggestions: _suggestions(inputs),
       suggestionsLabel: filterSuggestionsLabel(_field.word),
       messages: _messages,
@@ -480,7 +481,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
       onRun: _run,
       notice: (
         forbidden: asked && _messages.forbidden,
-        failed: _messages.failed && !_typingValue,
+        failed: _messages.failed && !_field.typingValue,
         retry: () => _messages.retry(),
         announcement: paletteAnnouncement(_messages, _filtering, query),
       ),

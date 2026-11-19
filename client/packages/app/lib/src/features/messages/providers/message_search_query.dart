@@ -21,9 +21,12 @@ enum SearchKey {
   final String word;
 
   /// The key spelled [word]; `type:` is read as `has:`, the word other apps use.
-  static SearchKey? named(String word) => word == 'type'
-      ? SearchKey.has
-      : SearchKey.values.where((k) => k.word == word).firstOrNull;
+  static SearchKey? named(String word) {
+    final lower = word.toLowerCase();
+    return lower == 'type'
+        ? SearchKey.has
+        : SearchKey.values.where((k) => k.word == lower).firstOrNull;
+  }
 }
 
 /// What `has:` accepts, in the order suggestions list them.

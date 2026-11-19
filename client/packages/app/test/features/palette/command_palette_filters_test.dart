@@ -207,7 +207,8 @@ void main() {
       tester.element(find.text('conversation')),
     );
 
-    await _type(tester, 'hello');
+    await _type(tester, 'hello ');
+    expect(inPalette('SEARCH OPTIONS'), findsNothing);
     await _enter(tester);
 
     expect(_input, findsNothing);
