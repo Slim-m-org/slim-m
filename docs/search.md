@@ -37,7 +37,7 @@ A name that matches nobody, or a channel the searcher cannot see, gives no resul
 Typing a key offers its values: people for `from:` and `mentions:`, channels for `in:`, the kinds for `has:`, and quick dates (today, yesterday, this month, the last 7 days) for the date keys.
 Picking one, or finishing a filter with a space, turns it into a chip under the field; a chip is its own remove button.
 With any chip the palette searches messages only, 25 at a time with a row that loads more.
-While it does, the field offers the keys themselves as the word being typed could become one.
+While it does, the keys themselves are offered when the field is empty or the word being typed could become one; after a finished word the hits come first, so Enter opens one.
 
 Keys: arrows move, Enter picks, Tab completes a suggestion (and otherwise moves between sections), Backspace in an empty field removes the last chip, Esc closes.
 Below `kCompactWidth` the palette is the pull-down panel with Cancel in place of Esc, chips under the field; see `docs/design/desktop-vs-mobile.md`.
