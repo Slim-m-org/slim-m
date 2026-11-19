@@ -72,9 +72,13 @@ void main() {
         final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
         addTearDown(mouse.removePointer);
         await mouse.addPointer(location: Offset.zero);
-        await mouse.moveTo(tester.getCenter(find.byType(MessageRow)));
+        await mouse.moveTo(
+          tester.getCenter(find.byWidgetPredicate((w) => w is MessageRow)),
+        );
         await tester.pump(const Duration(seconds: 1));
-        await mouse.moveTo(tester.getCenter(find.byType(MessageTimeMark)));
+        await mouse.moveTo(
+          tester.getCenter(find.byWidgetPredicate((w) => w is MessageTimeMark)),
+        );
         await tester.pump(const Duration(seconds: 2));
         await tester.pump(const Duration(milliseconds: 300));
 
@@ -85,7 +89,12 @@ void main() {
         expect(full, findsOneWidget);
         expect(_colourOf(tester, full), tokens.textPrimary);
         final plate = tester.widget<DecoratedBox>(
-          find.ancestor(of: full, matching: find.byType(DecoratedBox)).first,
+          find
+              .ancestor(
+                of: full,
+                matching: find.byWidgetPredicate((w) => w is DecoratedBox),
+              )
+              .first,
         );
         expect((plate.decoration as BoxDecoration).color, tokens.surfaceRaised);
       });
