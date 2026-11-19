@@ -60,11 +60,14 @@ Before that, each version ran from its own `app-<version>` folder, so each updat
 Removing those needs an administrator, so slim-m leaves them alone; they are harmless, and an elevated PowerShell clears them with `Get-NetFirewallApplicationFilter | ? Program -like '*\slim-m\app-*' | Get-NetFirewallRule | Remove-NetFirewallRule`.
 
 The launcher keeps `app` in step with `current`.
+Only a version that ships a `layout-run-folder` file runs from `app`; an older one, such as a rollback to a version from before this change, runs from its own folder, because its app does not know `app` is part of the layout.
 When every file of the version folder is already the same file under `app`, it starts it there.
-Otherwise it builds `app.next` from hard links, renames `app` to `app.old`, renames `app.next` to `app` and deletes `app.old`.
-It only does that when no process runs an exe from `app`, which it checks by the image path of every process it can see.
+Otherwise it builds `app.next-<pid>` from hard links, renames `app` to `app.old-<pid>`, renames the new folder to `app` and deletes the old one; a leftover from an interrupted rebuild is removed when it can be and never blocks the next one.
+It only does that when no process runs an exe from `app`, which it checks by comparing the folder of every visible process's image with `app` by file identity, so a junctioned profile path still matches.
 Neither deleting `app\slimm_app.exe` nor renaming `app` would prove it: Windows allows deleting one hard link of a running exe, and renaming a folder whose running exe holds no other files open.
-A restart into an update waits up to 15 seconds for the old copy to exit; a launch while an older version still runs from `app`, and any failure, start the version folder directly instead, as before.
+A restart into an update waits up to 32 seconds for the old copy to exit, longer than the app's own 30 second wait; a launch while an older version still runs from `app`, and any failure, start the version folder directly instead, as before, and a copy that fails to start from `app` is started once more from its version folder.
+Launchers take turns through an exclusive `.launcher.lock` in the install folder, held from choosing the version to starting it, so two at once (a double-click, setup's Start beside a link) neither count one start twice nor rebuild `app` under each other; one that waits too long starts the current version folder without touching anything.
+The launcher marks the app it starts with `SLIMM_FROM_LAUNCHER`, and a copy started from `app` without it, such as a taskbar pin of the window, hands its start to the launcher, so the start count, rollback and relinking still happen.
 A junction would not do: the firewall records the path a junction resolves to.
 
 To check a build by hand, from an elevated PowerShell:

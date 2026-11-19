@@ -76,6 +76,28 @@ std::wstring LinkHandlerFor(const std::wstring& exe, Exists exists) {
   return launcher;
 }
 
+/// Set by the launcher on the app it starts (prepare.go has the same name).
+constexpr wchar_t kFromLauncherVariable[] = L"SLIMM_FROM_LAUNCHER";
+
+/// The launcher to hand this start to, or empty to carry on: a copy in the run
+/// folder that the launcher did not start (a taskbar pin of its window) would
+/// skip the start count, rollback and relinking that only the launcher does.
+template <typename Exists>
+std::wstring LauncherToHandTo(const std::wstring& exe, bool from_launcher,
+                              Exists exists) {
+  const std::wstring folder = ParentOf(exe);
+  const std::wstring root = ParentOf(folder);
+  if (from_launcher || root.empty() ||
+      !EqualsIgnoringCase(FileName(folder), kRunFolder)) {
+    return std::wstring();
+  }
+  const std::wstring launcher = root + L"\\" + kLauncherName;
+  if (!exists(launcher) || !exists(root + L"\\" + kCurrentPointer)) {
+    return std::wstring();
+  }
+  return launcher;
+}
+
 /// The scheme's open command, quoted as the setup writes it.
 inline std::wstring OpenCommandFor(const std::wstring& handler) {
   return L"\"" + handler + L"\" \"%1\"";

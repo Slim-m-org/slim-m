@@ -7,8 +7,6 @@ package main
 import (
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -25,6 +23,7 @@ const (
 func start(exe, dir string, args []string) (int, error) {
 	cmd := exec.Command(exe, args...)
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), launcherEnv+"=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: detachedProcess | createNewProcessGroup}
 	if err := cmd.Start(); err != nil {
 		return 0, err
@@ -58,31 +57,37 @@ func fail(message string) {
 var queryFullProcessImageName = syscall.NewLazyDLL("kernel32.dll").NewProc("QueryFullProcessImageNameW")
 
 // processRunningFrom reports whether any process this user can see runs an exe
-// inside dir; a failed snapshot counts as yes, so the folder is left alone.
+// directly in dir; a failed snapshot counts as yes, so the folder is left alone.
 func processRunningFrom(dir string) bool {
+	images, ok := processImages()
+	return !ok || runsFrom(dir, images)
+}
+
+// processImages lists the executable path of every process this user may query.
+func processImages() ([]string, bool) {
 	snapshot, err := syscall.CreateToolhelp32Snapshot(syscall.TH32CS_SNAPPROCESS, 0)
 	if err != nil {
-		return true
+		return nil, false
 	}
 	defer syscall.CloseHandle(snapshot)
-	prefix := strings.ToLower(filepath.Clean(dir) + string(filepath.Separator))
+	buf := make([]uint16, syscall.MAX_LONG_PATH)
+	var images []string
 	var entry syscall.ProcessEntry32
 	entry.Size = uint32(unsafe.Sizeof(entry))
 	for err = syscall.Process32First(snapshot, &entry); err == nil; err = syscall.Process32Next(snapshot, &entry) {
-		if path, ok := imagePath(entry.ProcessID); ok && strings.HasPrefix(strings.ToLower(path), prefix) {
-			return true
+		if path, ok := imagePath(entry.ProcessID, buf); ok {
+			images = append(images, path)
 		}
 	}
-	return false
+	return images, true
 }
 
-func imagePath(pid uint32) (string, bool) {
+func imagePath(pid uint32, buf []uint16) (string, bool) {
 	handle, err := syscall.OpenProcess(processQueryLimitedInformation, false, pid)
 	if err != nil {
 		return "", false
 	}
 	defer syscall.CloseHandle(handle)
-	buf := make([]uint16, syscall.MAX_LONG_PATH)
 	size := uint32(len(buf))
 	ok, _, _ := queryFullProcessImageName.Call(uintptr(handle), 0, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&size)))
 	if ok == 0 {

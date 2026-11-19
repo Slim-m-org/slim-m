@@ -145,6 +145,7 @@ begin
     DeleteMatching('failed-version');
     DeleteMatching('.*.new');
     DeleteMatching('running.pid');
+    DeleteMatching('.launcher.lock');
     RemoveLoginStart;
     RemoveDir(ExpandConstant('{app}'));
   end;

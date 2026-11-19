@@ -16,6 +16,7 @@ import (
 func start(exe, dir string, args []string) (int, error) {
 	cmd := exec.Command(exe, args...)
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), launcherEnv+"=1")
 	if err := cmd.Start(); err != nil {
 		return 0, err
 	}

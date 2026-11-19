@@ -20,22 +20,25 @@ func main() {
 	}
 	root := locate(self)
 	restoreLauncher(root, self)
+	unlock, locked := acquireLaunchLock(root, lockWait)
+	if locked {
+		defer unlock()
+	}
 	running := instanceRunning(root)
 	relaunch := isRelaunch(os.Args[1:])
-	dir, err := choose(root, relaunch)
+	dir, fallback, err := pick(root, relaunch, locked)
 	if err != nil {
 		fail(err.Error())
 	}
-	if settled(root) {
+	if locked && settled(root) {
 		_ = realSwapper().swapLauncher(root, filepath.Join(root, launcherName))
 	}
-	dir = runFrom(root, dir, relaunch)
-	pid, err := start(filepath.Join(dir, appExecutable), dir, os.Args[1:])
+	pid, err := startFrom(dir, fallback, os.Args[1:])
 	if err != nil {
 		fail(err.Error())
 	}
 	// Only the first instance is recorded: a second one exits at once and must not hide it.
-	if shouldRecordPid(running, relaunch) {
+	if locked && shouldRecordPid(running, relaunch) {
 		_ = write(root, "running.pid", strconv.Itoa(pid))
 	}
 }

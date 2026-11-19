@@ -177,8 +177,13 @@ Version folders, the pointers, the start count and rollback are unchanged; `app`
   A directory junction would have been simpler, but the firewall records the path a junction resolves to, so it changes nothing (checked in the VM with a listening probe started through a junction and through a hard link).
 - The launcher rebuilds `app` only when no process runs an exe from it, going by each process's image path.
   Deleting `app\slimm_app.exe` would not prove it, because Windows deletes one hard link of a running exe without complaint (seen in the VM: the first build of this deleted it under a running copy and then failed to rename the folder), and neither would renaming the folder, which Windows allows while the exe in it runs.
-  A restart into an update waits up to 15 seconds for the old copy to exit; a launch beside a running older version, and any failure, start the version folder directly, as before.
-- The rebuild links into `app.next` and swaps it in by two renames, so an interrupted rebuild leaves the old folder or none, and the next start repairs it.
+  The comparison is by file identity, not path text, so a junctioned profile still matches.
+  A restart into an update waits up to 32 seconds for the old copy to exit, beyond the runner's own 30; a launch beside a running older version, and any failure, start the version folder directly, as before.
+- The rebuild links into `app.next-<pid>` and swaps it in by two renames, so an interrupted rebuild leaves the old folder or none, and the next start repairs it; leftovers are cleared when they can be and never block a rebuild.
+- Only a version that ships `layout-run-folder` runs from `app`, so a rollback to a version from before this change runs from its own folder, where its app still recognises the layout.
+- Launchers take turns through an exclusive lock file, held from counting the start to starting the app, so two launches at once neither count twice (which could roll back a good version) nor rebuild `app` under each other.
+- A copy started from `app` without the launcher's `SLIMM_FROM_LAUNCHER` marker, such as a taskbar pin of the window, hands its start to the launcher.
+  Setting the window's relaunch command instead would need an explicit AppUserModelID on the window, which splits it from shortcuts that have none.
 - The app, Start on login and the `slimm://` registration treat `app` as part of the layout, and the uninstaller removes it.
 
 This is a second exception to the launcher staying dumb, beside replacing itself.

@@ -10,6 +10,7 @@ add_executable(${BINARY_NAME} WIN32
   "clipboard_image_channel.cpp"
   "flutter_window.cpp"
   "global_hotkeys_channel.cpp"
+  "launcher_handoff.cpp"
   "link_scheme.cpp"
   "main.cpp"
   "now_playing_channel.cpp"
