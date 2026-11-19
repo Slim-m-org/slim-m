@@ -7,7 +7,7 @@ A window on a second monitor is unfocused, not unseen: it has to stay current wi
 |---|---|---|---|
 | Focused | The window has input focus | `resumed` | drawn |
 | Unfocused | On screen behind or beside another app | `inactive` | drawn |
-| Hidden | Closed to the tray or minimised | `hidden` | none |
+| Hidden | Closed to the tray or minimised | `hidden` | none, except on Wayland (below) |
 
 `client/packages/app/lib/src/providers/app_lifecycle.dart` is the one source.
 It starts from what the embedder reports and corrects it with the window's own events, because the two disagree at the edges.
@@ -17,7 +17,7 @@ A phone maps onto the same three: `inactive` is a pulled shade, `hidden` and `pa
 
 ## How the state is decided
 
-The embedder's report is the base, and three corrections sit on top of it.
+The embedder's report is the base, and four corrections sit on top of it.
 
 **The app's own hide wins over everything.**
 Closing to the tray is the app's own call, so the port keeps the fact (`DesktopWindowPort.hiddenByApp`) from its `hide` until the window is shown again, and reports a `hide` event.
@@ -28,7 +28,14 @@ Focus is ignored meanwhile: opening the tray menu on Windows focuses the hidden 
 Focus, show, and a maximise that ends a minimise move the binding's own lifecycle state, one step at a time, not only the provider.
 The scheduler draws no frame while the binding says hidden, so a corrected provider alone would restart the timers and repaint nothing.
 A blur the embedder missed is the one correction that stays in the provider: a pop-out window taking focus blurs the main one, and moving the binding would park the whole app's keyboard focus.
-That is why nothing reads the binding's raw state to decide "focused".
+That is why new code never reads the binding's raw state to decide "focused"; the few old observers that still do are listed under known gaps.
+
+**A focus event alone does not end a minimise.**
+On Windows `window_manager` reports `focus` whenever the window is activated, without checking that it is still minimised.
+So when the window was minimised, or Flutter's own state says hidden, the notifier asks the window (`DesktopWindowPort.isMinimized`) before it believes the focus.
+A window that says it is still minimised, or cannot answer, stays hidden.
+A window already on screen is not asked, so an ordinary click costs nothing.
+A focus that was not believed is remembered until the next blur or minimise, so if the restore event lands a moment later the window comes back focused.
 
 **A minimise is only as reliable as the platform.**
 
@@ -36,16 +43,27 @@ That is why nothing reads the binding's raw state to decide "focused".
 |---|---|---|
 | Windows | hidden | hidden; a maximised window reports `maximize`, not `restore`, when it comes back |
 | Linux on X11 | hidden | hidden |
-| Linux on Wayland | hidden | not reported at all |
+| Linux on Wayland | hidden | hidden when the compositor reports the window suspended (KWin does); otherwise it stays `inactive` |
 
 On Wayland a minimise changes no window state: `xdg_toplevel` has no minimised state, so GTK 3 never sets the iconified bit that both `window_manager` and the Flutter embedder read.
-A minimised window there only loses focus and reads as `inactive`, and so does a window on another virtual desktop or fully behind a fullscreen game.
-What the compositor does do is stop asking for frames.
-So on a Wayland session `AppLifecycleNotifier` checks once a second for a frame that was asked for and is still undrawn; three checks in a row and the window reads as hidden, until a frame is drawn again.
-A window with nothing to draw is never judged this way, and it has nothing to save either.
-The check is off on every other platform and under `flutter test` (`frameStallCheckProvider`).
-It follows from the protocol and from reading GTK and the embedder; it has not been measured on a KDE session.
-Until it trips, a minimised Wayland window is in the frame trap below while the app still calls it visible, which is one more reason background work must not listen through a derived provider.
+A minimised window there only loses focus and reads as `inactive`.
+
+What a compositor can send instead is `xdg_toplevel`'s `suspended` state (xdg-shell version 6): "this surface is not being repainted".
+GTK 3 turns it into a visibility event on the window and into nothing else, so the Linux runner listens for that event (`linux_window_suspended_channel.cc`) and the port keeps the fact (`DesktopWindowPort.suspendedByCompositor`).
+The notifier asks the port each time, as it does for the tray, and reads a suspended window as `hidden`.
+
+What this covers on KDE, from KWin 6.8's `WindowItem::updateVisibility`: a minimised window, one on another virtual desktop or activity, one behind "show desktop", and every window while the screen is locked or switched off.
+A window an effect still shows (the minimise animation, the overview) or that is being rendered off screen is not suspended.
+A window merely covered by another one is not suspended on KWin; other compositors may suspend it, which is still a window nobody can see.
+
+This correction is provider only, like a missed blur: Flutter's own state is left alone and frames stay on.
+A suspended window therefore pauses what the rule below lets a hidden window pause, but it is not in the frame trap, and a wrong report from a compositor cannot freeze a window that is in fact visible.
+
+Measured with GTK 3.24.52 and KWin 6.8.2 (a GTK 3 window under `kwin_wayland --virtual` in a test VM): minimise sends the event, restore lifts it, and the iconified bit never changes.
+A compositor or a GTK build that never sends the state changes nothing: the window stays `inactive`, visible, and keeps updating, which is the safe direction.
+
+An earlier version of this file described a check for frames that were asked for and never drawn.
+It was removed: the Flutter 3.47 Linux embedder has no vsync callback, so its frames run off a timer whether or not the compositor shows them, and the check could never trip.
 
 ## The rule
 
@@ -97,6 +115,8 @@ What goes stale is a side effect that waits to be told: closing a socket, unsubs
 
 Anything that waits for "the next frame" is in the same trap, not only `ref.listen`.
 `addPostFrameCallback` never runs in a hidden window, so `AccountHost` closes a removed account's container on a zero timer when `SchedulerBinding.framesEnabled` is false.
+The one exception is a container whose widgets are still mounted, the account that was on screen: a widget that reads a closed container from a timer throws, so that container waits for the frame that unmounts them.
+Its session is already gone by then, so its socket is too.
 
 A lifecycle change is the commonest case: the state turns `hidden` after frames have already stopped, so "pause this when hidden" written against a derived provider only works if a frame happens to be left over.
 
@@ -132,10 +152,14 @@ None loses data; each is late by however long the window stays hidden.
 - `popout_host.dart` closes the window of a share that stopped on a frame; with the main window hidden the pop-out keeps its last picture until then.
 - A profile banner that changes while the window is unfocused keeps the old image until focus (`profile_banner.dart`, a gapless image under `AnimationGate`).
 - `push_controller.dart` and `spotify_link.dart` still read the binding's raw state. Both ask it on a phone, where there are no window events to disagree with it.
+- These still observe the binding directly, so they miss a blur only the window reported (a pop-out taking focus) and a suspended Wayland window:
+  `video_playback_controls.dart` leaves its bar up, `channel_draft_saver.dart` saves the draft when typing pauses instead of at once, and what `composer_context_menu.dart`, `app_lock_controller.dart` and `web_update_watch.dart` do with it only matters on a phone or in a browser.
+  None of them holds anything open; the push-to-talk hold, which did, now follows `appFocusedProvider`.
 
 Not yet checked on a real desktop:
 
 - Windows: the tray menu on a window closed to the tray, and Win+D twice on a maximised window in a call (the call timer must keep running without a click).
-- KDE Wayland: that a minimised window stops getting frames and trips the stall check, and that it lifts on restore.
+- Windows: whether a minimised window is ever activated at all (closing the foreground window and Win+D are the likely ways). The focus check above is written from `window_manager`'s source, not from a reproduction.
+- KDE Wayland: the suspended state on the owner's own session, in the real app. The measurement above used a bare GTK 3 window under a virtual KWin.
 
 Riverpod 3 refreshes providers on a timer when no frame comes, which closes the whole class; until that upgrade, new background work follows the rule above.

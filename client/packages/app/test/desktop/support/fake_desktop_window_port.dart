@@ -24,6 +24,20 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   bool hiddenByApp = false;
 
   @override
+  bool suspendedByCompositor = false;
+
+  /// What the window itself answers, whatever events were or were not sent.
+  bool minimized = false;
+  int isMinimizedCalls = 0;
+
+  @override
+  Future<bool> isMinimized() async {
+    isMinimizedCalls++;
+    if (!queryable) throw const WindowNotQueryable();
+    return minimized;
+  }
+
+  @override
   bool get windowQueryable => queryable;
   WindowRect bounds = const WindowRect(x: 10, y: 10, width: 1280, height: 720);
 

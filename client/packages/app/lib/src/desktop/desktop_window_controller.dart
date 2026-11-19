@@ -142,6 +142,8 @@ class DesktopWindowController {
       case DesktopWindowEventKind.hide:
       case DesktopWindowEventKind.focus:
       case DesktopWindowEventKind.blur:
+      case DesktopWindowEventKind.suspend:
+      case DesktopWindowEventKind.unsuspend:
         break;
       case DesktopWindowEventKind.show:
         onShow?.call(_lastCloseAction);

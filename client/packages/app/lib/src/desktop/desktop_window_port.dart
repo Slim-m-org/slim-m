@@ -12,6 +12,8 @@ import 'dart:ui' show Offset, Size;
 import 'package:screen_retriever/screen_retriever.dart' as sr;
 import 'package:window_manager/window_manager.dart' as wm;
 
+import 'close_behavior.dart' show DesktopPlatform, currentDesktopPlatform;
+import 'linux_window_suspended.dart';
 import 'relaunch.dart';
 import 'window_geometry.dart';
 
@@ -33,6 +35,11 @@ enum DesktopWindowEventKind {
   show,
   focus,
   blur,
+
+  /// A Wayland compositor stopped painting the window, as it does for a
+  /// minimised one, and then started again.
+  suspend,
+  unsuspend,
 }
 
 /// The eight edges and corners a hand-rolled resize border can grab, named
@@ -70,6 +77,10 @@ abstract interface class DesktopWindowPort {
   /// how a window in the tray differs from one the embedder merely lost track of.
   bool get hiddenByApp;
 
+  /// True while a Wayland compositor says it is not painting the window:
+  /// minimised, on another virtual desktop, or behind a locked screen.
+  bool get suspendedByCompositor;
+
   /// Every event this port ever reports, in arrival order. A real window
   /// manager can fire [DesktopWindowEventKind.resize]/[DesktopWindowEventKind.move]
   /// continuously across one drag - see the decision record's own finding
@@ -101,6 +112,9 @@ abstract interface class DesktopWindowPort {
   /// not the one with focus.
   Future<void> focus();
   Future<bool> isVisible();
+
+  /// Whether the window is minimised right now, asked of the window itself.
+  Future<bool> isMinimized();
   Future<void> minimize();
   Future<void> restore();
   Future<void> setPreventClose(bool value);
@@ -138,6 +152,21 @@ class WindowManagerDesktopWindowPort
   bool _initialized = false;
   bool _hidden = false;
   bool _destroying = false;
+  bool _suspended = false;
+
+  @override
+  bool get suspendedByCompositor => _suspended;
+
+  /// What the Linux runner calls when the compositor's suspended state changes.
+  void onCompositorSuspended(bool suspended) {
+    if (suspended == _suspended) return;
+    _suspended = suspended;
+    _events.add(
+      suspended
+          ? DesktopWindowEventKind.suspend
+          : DesktopWindowEventKind.unsuspend,
+    );
+  }
 
   @override
   bool get windowQueryable => _initialized && !_hidden && !_destroying;
@@ -163,6 +192,9 @@ class WindowManagerDesktopWindowPort
     try {
       await wm.windowManager.ensureInitialized();
       wm.windowManager.addListener(this);
+      if (currentDesktopPlatform() == DesktopPlatform.linux) {
+        unawaited(watchLinuxWindowSuspended(onCompositorSuspended));
+      }
       _initialized = true;
     } catch (_) {
       _initializing = null;
@@ -288,6 +320,12 @@ class WindowManagerDesktopWindowPort
 
   @override
   Future<bool> isVisible() => wm.windowManager.isVisible();
+
+  @override
+  Future<bool> isMinimized() async {
+    if (!windowQueryable) throw const WindowNotQueryable();
+    return wm.windowManager.isMinimized();
+  }
 
   @override
   Future<void> minimize() => wm.windowManager.minimize();

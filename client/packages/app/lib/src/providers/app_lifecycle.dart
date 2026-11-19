@@ -8,16 +8,13 @@
 library;
 
 import 'dart:async';
-import 'dart:io';
 
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
 import '../desktop/desktop_window_port.dart';
 import '../desktop/desktop_window_shell.dart';
-import '../desktop/display_server.dart';
 
 /// Whether this build runs on a phone, where an embedder that has not yet
 /// reported a state means a background launch rather than a window waiting to
@@ -27,21 +24,6 @@ final mobileLifecycleHostProvider = Provider<bool>(
   (ref) => isIOSHost || isAndroidHost,
 );
 
-/// How often to look for a frame that was asked for and never drawn, or null
-/// to not look. Only a Wayland session needs it: a minimised window gets no
-/// state change there, only no frames. See `docs/window-states.md`.
-final frameStallCheckProvider = Provider<Duration?>(
-  (ref) =>
-      isLinuxHost &&
-          isWaylandSession(Platform.environment) &&
-          !Platform.environment.containsKey('FLUTTER_TEST')
-      ? const Duration(seconds: 1)
-      : null,
-);
-
-/// Checks in a row that must find the same frame undrawn before the window counts as hidden.
-const frameStallChecks = 3;
-
 class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
     with WidgetsBindingObserver {
   /// A state the embedder has not reported counts as hidden on a phone, so a
@@ -50,8 +32,11 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
     required bool mobile,
     required Stream<DesktopWindowEventKind> windowEvents,
     bool Function()? inTray,
-    Duration? frameStallCheck,
+    bool Function()? suspended,
+    Future<bool> Function()? stillMinimized,
   }) : _inTray = inTray ?? _never,
+       _suspended = suspended ?? _never,
+       _stillMinimized = stillMinimized,
        _bindingState =
            WidgetsBinding.instance.lifecycleState ??
            (mobile ? AppLifecycleState.hidden : AppLifecycleState.resumed),
@@ -61,10 +46,8 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
        ) {
     WidgetsBinding.instance.addObserver(this);
     _windowEvents = windowEvents.listen(_onWindowEvent);
-    if (frameStallCheck != null) {
-      SchedulerBinding.instance.addPersistentFrameCallback(_onFrameDrawn);
-      _stallCheck = Timer.periodic(frameStallCheck, (_) => _checkFrameStall());
-    }
+    // One made while the window is already in the tray or suspended starts hidden.
+    _publish();
   }
 
   static bool _never() => false;
@@ -72,15 +55,25 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
   /// Asked of the window each time, never remembered: every account has a
   /// notifier of its own, and one made after the hide would not have seen it.
   final bool Function() _inTray;
+
+  /// The compositor's own word that it is not painting the window, asked each
+  /// time for the same reason. The one sign of a minimise on Wayland.
+  final bool Function() _suspended;
+
+  /// Asks the window whether it is minimised; null when nothing can answer.
+  final Future<bool> Function()? _stillMinimized;
   AppLifecycleState _bindingState;
   bool _windowMinimized = false;
   bool _blurred = false;
-  bool _framesStalled = false;
-  int _undrawnChecks = 0;
-  Timer? _stallCheck;
+  bool _focusHeld = false;
   StreamSubscription<DesktopWindowEventKind>? _windowEvents;
 
-  bool get _knownHidden => _windowMinimized || _inTray() || _framesStalled;
+  bool get _knownHidden => _windowMinimized || _inTray() || _suspended();
+
+  /// Whether a focus event could be Windows activating a window it left minimised.
+  bool get _mayBeMinimized =>
+      _stillMinimized != null &&
+      (_windowMinimized || !isWindowVisible(_bindingState));
 
   void _publish() {
     if (!mounted) return;
@@ -111,19 +104,26 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
   /// embedder, except while the app itself holds the window in the tray:
   /// opening the tray menu on Windows focuses the hidden window.
   void _onWindowEvent(DesktopWindowEventKind kind) {
+    if (kind == DesktopWindowEventKind.blur) _focusHeld = false;
     switch (kind) {
-      case DesktopWindowEventKind.hide:
+      case DesktopWindowEventKind.hide ||
+          DesktopWindowEventKind.suspend ||
+          DesktopWindowEventKind.unsuspend:
         break;
       case DesktopWindowEventKind.minimize:
         _windowMinimized = true;
+        _focusHeld = false;
+      // A focus that came just ahead of the restore, while the window still said minimised, counts now.
       case DesktopWindowEventKind.show when !_inTray():
         _windowMinimized = false;
-        _correctBinding(focused: false);
+        _correctBinding(focused: _focusHeld);
       case DesktopWindowEventKind.maximize || DesktopWindowEventKind.unmaximize
           when _windowMinimized && !_inTray():
         _windowMinimized = false;
-        _correctBinding(focused: false);
+        _correctBinding(focused: _focusHeld);
       case DesktopWindowEventKind.focus when !_inTray():
+        _focusHeld = true;
+        if (_mayBeMinimized) return unawaited(_focusIfRestored());
         _windowMinimized = false;
         _correctBinding(focused: true);
       // Provider only: a pop-out window taking focus must not park the whole app's focus.
@@ -132,6 +132,22 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
       default:
         return;
     }
+    _publish();
+  }
+
+  /// A focus event alone does not end a minimise: the window is asked, and a
+  /// blur in the meantime leaves it on screen but unfocused.
+  Future<void> _focusIfRestored() async {
+    final bool minimized;
+    try {
+      minimized = await _stillMinimized!();
+    } on WindowNotQueryable {
+      return;
+    }
+    if (!mounted || minimized || _inTray()) return;
+    _windowMinimized = false;
+    _correctBinding(focused: _focusHeld);
+    if (!_focusHeld) _blurred = true;
     _publish();
   }
 
@@ -168,29 +184,8 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
     _bindingState = target;
   }
 
-  void _onFrameDrawn(Duration _) {
-    if (!mounted) return;
-    _undrawnChecks = 0;
-    if (!_framesStalled) return;
-    _framesStalled = false;
-    Timer.run(_publish);
-  }
-
-  /// A frame asked for and still not drawn several checks later means the
-  /// compositor has stopped showing the window, which is all a Wayland
-  /// minimise ever tells the app.
-  void _checkFrameStall() {
-    final scheduler = SchedulerBinding.instance;
-    final waiting = scheduler.framesEnabled && scheduler.hasScheduledFrame;
-    _undrawnChecks = waiting ? _undrawnChecks + 1 : 0;
-    if (_undrawnChecks < frameStallChecks || _framesStalled) return;
-    _framesStalled = true;
-    _publish();
-  }
-
   @override
   void dispose() {
-    _stallCheck?.cancel();
     unawaited(_windowEvents?.cancel());
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -202,9 +197,10 @@ final appLifecycleProvider =
       final port = ref.read(desktopWindowShellProvider).port;
       return AppLifecycleNotifier(
         mobile: ref.watch(mobileLifecycleHostProvider),
-        frameStallCheck: ref.watch(frameStallCheckProvider),
         windowEvents: port.events,
         inTray: () => port.hiddenByApp,
+        suspended: () => port.suspendedByCompositor,
+        stillMinimized: port.isMinimized,
       );
     });
 
