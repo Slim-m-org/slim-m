@@ -202,7 +202,7 @@ void main() {
 
   test('a drop that is not rejoined owes no share to a later join', () async {
     final (controller, session) = await sharing();
-    await drop(session, reason: VoiceDisconnect.replacedByOtherDevice);
+    await drop(session, reason: VoiceDisconnect.removed);
     final joinsBefore = session.joins;
     await controller.join('channel-1');
     await rejoined(session, joinsBefore);

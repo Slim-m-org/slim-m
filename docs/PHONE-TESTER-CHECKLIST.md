@@ -99,6 +99,28 @@ If your build predates a change, the pull request number is there so you can ski
 
 ### Voice and calls
 
+- **A call survives a change of network (2026-11-19 call audit).**
+  In a call with another person, on Wi-Fi, turn Wi-Fi off so the phone moves to cellular, wait 30 seconds, then turn it back on.
+  Expected: at most a "Reconnecting" line for a few seconds each time, then audio both ways without touching anything.
+  Not expected: "You joined this call from another device" when no other device joined, or a call you have to rejoin by hand.
+- **A call comes back after a drop with the app off screen (Android).**
+  In a call, press home, then turn on airplane mode for a minute and turn it off.
+  Expected: the call notification stays up throughout, and the other person hears you again without you opening the app.
+- **Hang up, then rejoin at once.**
+  In a call, tap Leave call and tap the same voice channel again within a second, five times in a row.
+  Expected: each rejoin connects with audio both ways.
+  Not expected: a call that shows as joined but is silent, or one the other person cannot see you in.
+- **A phone call during a call (iOS and Android).**
+  In a call, receive an ordinary phone call, decline it, then receive another and answer it for ten seconds before hanging up.
+  Expected: after each, the call's audio returns both ways on the route it had (speaker, earpiece or headset).
+- **Joining on a second device.**
+  With the phone in a voice channel, open a different voice channel on a computer signed in to the same account and choose "Join here".
+  Expected: the phone leaves its call within a few seconds and says it is no longer in it.
+- **A phone that comes back does not take the call back.**
+  With the phone in a voice channel, turn on airplane mode, then join a different voice channel on a computer signed in to the same account and keep talking there.
+  After a minute, turn airplane mode off and leave the phone alone for another minute.
+  Expected: the computer stays in its call throughout, and the phone ends up out of its call, saying you are on a call on another device, with "Try again" to move the call back.
+  Not expected: the computer's call ending with "You're no longer in this call."
 - **Land back on the channel after hang-up (#1410).**
   Open a text channel, join a voice channel, then hang up.
   Expected: you land on the last text channel you were reading, not an empty screen or the voice channel.

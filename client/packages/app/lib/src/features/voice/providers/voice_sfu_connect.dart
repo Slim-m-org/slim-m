@@ -13,6 +13,7 @@ import '../../../providers/providers.dart';
 import 'join_timings_provider.dart';
 import 'voice_input_settings.dart';
 import 'voice_join_muted.dart';
+import 'voice_rejoin.dart';
 import 'voice_sfu_security.dart';
 import 'voice_state.dart';
 import 'voice_state_access.dart';
@@ -53,6 +54,7 @@ class VoiceSfuConnect {
     this._access,
     this._joinMuted,
     this._input,
+    this._rejoin,
   );
 
   final VoiceSession _session;
@@ -60,6 +62,7 @@ class VoiceSfuConnect {
   final VoiceStateAccess _access;
   final VoiceJoinMuted _joinMuted;
   final VoiceInputSettings _input;
+  final VoiceRejoin _rejoin;
 
   VoiceState get _current => _access.state;
 
@@ -83,6 +86,9 @@ class VoiceSfuConnect {
       api.reportFailure(api.LogTag.voice, _joinCallTask, error, stack);
       failJoin(superseded, 'You do not have permission to join this channel.');
     } on api.ApiException catch (e, stack) {
+      if (e is api.ConflictException && e.isOnCallElsewhere) {
+        return _yieldComeback(channelId, superseded);
+      }
       api.reportFailure(api.LogTag.voice, _joinCallTask, e, stack);
       failJoin(
         superseded,
@@ -107,6 +113,12 @@ class VoiceSfuConnect {
     }
   }
 
+  /// The server refused a rejoin nobody asked for; moving the call back here stays the person's choice.
+  void _yieldComeback(String channelId, bool Function() superseded) {
+    failJoin(superseded, VoiceRejoin.onCallElsewhere, retryable: true);
+    if (!superseded()) _rejoin.noteOnCallElsewhere(channelId);
+  }
+
   /// Asks for a token and opens the session; every write is dropped once [superseded] says a newer call took over.
   Future<void> connect(
     String channelId,
@@ -115,7 +127,12 @@ class VoiceSfuConnect {
   ) async {
     final timings = _ref.read(joinTimingsProvider)
       ..mark(JoinStage.tokenRequested);
-    final token = await _ref.read(apiProvider).voiceToken(channelId);
+    final token = await _ref
+        .read(apiProvider)
+        .voiceToken(
+          channelId,
+          automatic: _rejoin.autoAttemptChannel == channelId,
+        );
     timings.mark(JoinStage.tokenReceived);
     final mutedByChannel = await _joinMuted.asksFor(_ref, channelId);
     if (superseded()) return;
@@ -156,6 +173,21 @@ class VoiceSfuConnect {
             .trim(),
       );
     }
+  }
+
+  /// Whether a switch failed, ending the call switched from if the session is still in it.
+  ///
+  /// A switch refused before the session is asked (a full room, no permission, the server unreachable)
+  /// leaves the session in the old room, its microphone live, behind a screen that shows no call.
+  /// One that fails at the SFU has left the old room already, and the server was never told.
+  Future<bool> endCallSwitchedFrom(bool Function() superseded) async {
+    // The session's own word too: its failure can still be on its way to the call state.
+    final failed =
+        _current.state == VoiceSessionState.failed ||
+        _session.state == VoiceSessionState.failed;
+    if (superseded() || !failed) return false;
+    if (_session.state == VoiceSessionState.connected) await _session.leave();
+    return true;
   }
 
   void failJoin(

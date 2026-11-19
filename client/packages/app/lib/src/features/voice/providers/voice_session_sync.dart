@@ -34,7 +34,9 @@ class VoiceSessionSync {
     required this.cameras,
     required this.republishDeafened,
     required this.log,
-  });
+  }) {
+    rejoin.onHeldElsewhere = () => heartbeat.stop(disown: true);
+  }
 
   final VoiceSession session;
   final VoiceStateAccess access;
@@ -57,7 +59,6 @@ class VoiceSessionSync {
   /// Applies one session state change to the call state, starting or stopping what depends on a live call.
   void onSessionState(VoiceSessionState s) {
     reportCallLifecycle(callLifecycle, s, channelId: _current.channelId);
-    foreground.sessionState(s);
     final dropped = _classifiedDisconnect();
     if (s == VoiceSessionState.failed && dropped != null) {
       heartbeat.stop();
@@ -68,9 +69,14 @@ class VoiceSessionSync {
             session.droppedWhileSharing && VoiceRejoin.rejoinableDrop(dropped),
       );
       rejoin.endCallForDrop(dropped);
+      // After the rejoin is queued, so the service is never stopped and started again around it.
+      foreground.sessionState(s);
       return;
     }
+    foreground.sessionState(s);
     _syncHeartbeat(s);
+    // A refused join's failure stays on screen when the session goes idle under it.
+    if (s == VoiceSessionState.idle && _showsRefusal) return;
     // The clock starts at the connected transition only; see VoiceCallClock.
     access.state = switch (s) {
       VoiceSessionState.connected when _current.connectedAt == null =>
@@ -89,6 +95,11 @@ class VoiceSessionSync {
       unawaited(shareResume.onConnected());
     }
   }
+
+  bool get _showsRefusal =>
+      _current.state == VoiceSessionState.failed &&
+      _current.error != null &&
+      !_current.joining;
 
   /// livekit rebuilt the connection, which rejoined this client as a participant with no deafened mark.
   void onTransportRestarted() {
@@ -112,6 +123,7 @@ class VoiceSessionSync {
         heartbeat.start(_current.channelId);
         input.watchSpaceNoiseSuppression();
         autoRejoin.connected();
+        rejoin.connected();
         if (_current.rejoining) {
           access.state = _current.copyWith(rejoining: false);
         }

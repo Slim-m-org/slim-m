@@ -289,14 +289,11 @@ void main() {
     final controller = harness.controllerWith(session, voiceApi());
     await controller.join('channel-1');
 
-    session.dropWith(VoiceDisconnect.replacedByOtherDevice);
+    session.dropWith(VoiceDisconnect.removed);
     await Future<void>.delayed(Duration.zero);
 
     expect(controller.state.state, VoiceSessionState.failed);
-    expect(
-      controller.state.error,
-      VoiceDisconnect.replacedByOtherDevice.message,
-    );
+    expect(controller.state.error, VoiceDisconnect.removed.message);
   });
 
   test('a screen share failure carries the cause, not just a shrug', () async {

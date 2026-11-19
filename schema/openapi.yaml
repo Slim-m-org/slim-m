@@ -8107,9 +8107,29 @@ paths:
         A 409 means a temporary room is locked or the channel's `user_limit`
         is reached (decision 0065). Someone already in the call, the room's
         owner and anyone with `MANAGE_CHANNELS` are never refused this way.
+
+
+        A member is on one call. The room this account last asked a token for
+        is the call it keeps: joining it ends the account's older call in any
+        other room, and a connection that walks back into another room on a
+        token the SFU renewed is removed. A client rejoining by itself after a
+        drop sends `automatic=true`, and is refused with a 409 carrying
+        `code: on_call_elsewhere` when the account is on a call in another
+        channel, or in this one on another device, so a call picked up
+        elsewhere is never taken back without anyone asking. Bots are exempt
+        from all of this.
       parameters:
         - $ref: "#/components/parameters/ChannelId"
         - $ref: "#/components/parameters/VoiceTab"
+        - name: automatic
+          in: query
+          required: false
+          description: >
+            `true` when the client is rejoining by itself after losing the
+            call, and not because its person asked. Such a join gives way to a
+            call the account has made since; see the 409 above.
+          schema:
+            type: boolean
       responses:
         "200":
           description: A join token for the channel's room.
@@ -13530,7 +13550,8 @@ components:
             and `left_group` for a group the caller posted in and is no longer
             on. `dm_pins_unavailable` on a 403 from pinning or unpinning in a
             direct message. `not_author` on a 403 from editing a message the
-            caller did not write. A channel the caller cannot see, or one that does
+            caller did not write. `on_call_elsewhere` on a 409 from
+            `mintVoiceToken` asked with `automatic=true`. A channel the caller cannot see, or one that does
             not exist, still answers the bare 403 with no code. Absent on every
             other error; read an unknown value as a refusal for another reason.
         timed_out_until:

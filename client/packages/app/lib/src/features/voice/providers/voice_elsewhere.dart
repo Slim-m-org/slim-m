@@ -55,7 +55,11 @@ bool _justLeft(VoiceFlags voice) {
       DateTime.now().difference(at) < VoiceState.rejoinGuardWindow;
 }
 
-Future<bool> _targetListsSelf(Ref ref, String channelId) async {
+Future<bool> _targetListsSelf(Ref ref, String channelId) async =>
+    await _selfOnAnotherDevice(ref, channelId) ?? false;
+
+/// Whether [channelId]'s room lists this account on another device; null when the room could not be read.
+Future<bool?> _selfOnAnotherDevice(Ref ref, String channelId) async {
   final client = ref.read(apiProvider);
   final selfId = client.session.tokens?.userId;
   if (selfId == null) return false;
@@ -69,9 +73,21 @@ Future<bool> _targetListsSelf(Ref ref, String channelId) async {
       error,
       stack,
     );
-    return false;
+    return null;
   }
 }
+
+/// Whether the room lists this account on a device other than this one; null when it could not be read.
+///
+/// The SFU ends a connection as "joined from another device" for this client's
+/// own reconnect overtaking its old connection too, and only the room can say which it was.
+/// A room that cannot be read says neither, so the caller asks again before rejoining.
+typedef ReplacedCheck = Future<bool?> Function(String channelId);
+
+final voiceReplacedCheckProvider = Provider<ReplacedCheck>(
+  (ref) =>
+      (channelId) => _selfOnAnotherDevice(ref, channelId),
+);
 
 /// A re-click on the open voice channel, for its screen to act on so the
 /// join goes through the same confirmation as an arrival.

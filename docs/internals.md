@@ -319,6 +319,70 @@ The session remembers it and the join opens the microphone accordingly, instead 
 
 A hang-up waits `kLeaveGoodbyeWait` (2 s) for the SFU to acknowledge the leave, then disposes the room whatever it heard.
 
+## Call lifecycle across devices, restarts and stalls
+
+What the 2026-11-19 call audit found by driving two browsers against a real server and SFU, and the rules that came out of it.
+
+A member is on one call.
+Within one room the SFU enforces that itself: a second connection with the same identity ends the first.
+Across rooms nothing did, so "Join here", which says the call moves to this device, left the first device in its own channel with an open microphone.
+The join webhook now ends the member's call in every other room (`http/voice/voice_one_call.rs`), but only a connection the SFU lists as older than the join, so a join reported late cannot end the call the member has since gone back to.
+Bots are exempt, because a program may serve several calls at once.
+
+Which call wins is decided by what the member asked for, not by which connection is newest.
+A device that lost its network comes back on its own, and its join is then the newest one: left alone it would end the call its person has since picked up on another device, while the first device sits in a pocket.
+It comes back two ways, and each has its own guard.
+The SDK reconnects by itself on a token the SFU renewed, without asking this server, so the server remembers the room each member last asked a token for (`voice/asked_calls.rs`) and only a join into that room ends other calls; a join into any other room is itself removed.
+After the SDK gives up, `VoiceAutoRejoin` asks for a new token, so that request carries `automatic=true` and the server refuses it with `code: on_call_elsewhere` when the account is on a call in another channel, or in this one on another device.
+The client then stops trying and says so; "Try again" is a person's own join, which is never refused this way and moves the call back.
+The record of who asked for what is in memory, so after a restart a join with no token on record ends nothing and the member can be on two calls until either hangs up, which is what every join did before this rule.
+An older server ignores `automatic`, and an older client never sends it; the webhook rule covers the SDK's reconnect either way.
+The device that loses its call is told it is no longer in it; it is not told why.
+After the other device hangs up, the first can still be offered "Join here" for a call nobody is in, until its next roster read of that channel drops the sighting (`voiceSelfSeenTtl` bounds it at 90 s).
+
+The SFU's "duplicate identity" does not mean another device.
+A client whose signalling stalls reconnects with the same identity while the SFU still holds the old connection, and the SFU ends one of the two as a duplicate.
+When it ends the one the client is listening on, the client is told it joined from another device, which used to end the call for good.
+Freezing the SFU for 25 s (`docker pause`) did this to both people of a two-person call, and the room kept a silent connection for each of them for another 37 s.
+Only the room can tell the two cases apart, so that drop is queued for a rejoin like a lost connection and the attempt first reads the roster: `this_device` false for this account means another device holds the call, and it stays there (`voice_rejoin.dart`).
+A roster that cannot be read (an SFU the server cannot reach, a rate limit, a network that is still coming back) says neither, so the blame stays and the next attempt asks again instead of joining.
+Reading a failed request as "not listed" was the larger way a blamed drop took a call back from the device its person had just moved to, larger than the stale listing below, because a failing network is exactly when a drop is blamed.
+When the attempts run out with the room never read, the call stays ended with "Try again".
+The roster is cached for 2 s and the first attempt waits 2 s, so a listing from before the other device's join is unlikely but not impossible.
+The rejoin that follows is marked `automatic`, and the server checks the room again, uncached, before it hands out the token, so a stale listing no longer costs the other device its call on a server that knows the parameter.
+
+A heartbeat is keyed by member and channel, not by device.
+A device that lost its call to another device must therefore not send the forget when its person dismisses the ended call, or it ends the other device's place on record until that device's next beat.
+That holds from the moment the SFU blames another device, before the roster has answered, and after a refused automatic rejoin: until something says the call is this device's again, its place on record is not this device's to end.
+The heartbeat lets go of the call at that same moment, because a hang-up is not the only thing that forgets: a switch to another call, failed or not, forgets the call it last proved.
+When the drop was this device's own reconnect after all, the cost is a record that goes stale and is swept 40 s later.
+A switch never passes through a leave, so the heartbeat itself forgets the call it last proved when it starts proving another.
+A switch that fails ends the call switched from and tells the server so, whether the server refused it (a full room, no permission, the server unreachable) with the session still in the old room, or the SFU connect failed after the session had already left it.
+A hang-up in the middle of a switch forgets both the call being joined and the one switched from.
+
+A join waits its turn behind the join before it, and a hang-up asked in between is the newer ask: the queued join opens nothing.
+Before that guard, a tap, a second tap and a hang-up in quick succession left a live call with an open microphone that the app showed as left and sent no heartbeat for.
+
+The server restarting mid-call loses heartbeats, live state, rings and notice windows, and keeps the calls: media never touches the server.
+Measured against a real restart, both clients kept their connections, their next heartbeat (15 s at most) put them back on record, and mute, leave and rejoin all worked afterwards.
+Voice sessions are the exception that needed code: they open on a join webhook that never repeats for someone already in the room, so startup now asks the SFU who is on each call that had a session open and opens one for everyone it lists, under the connection they have now.
+That includes a member who reconnected or joined while the server was down, whose webhook nobody received.
+A call that began entirely during the downtime is not found, because only channels with a session left open are asked about; its members get sessions at their next join.
+If the SFU stops answering part way, the calls not yet asked about keep their sessions closed, and the log says how many.
+
+The SFU restarting is a full reconnect for everyone.
+A quick restart had both clients back in about 2 s with mute state intact.
+Down for 70 s, longer than the SDK's own 44 s of retries, both clients came back through the automatic rejoin about 27 s after the SFU did, which is the 30 s tail of `VoiceAutoRejoin.defaultDelays`.
+
+An SFU token outlives its 120 s: the SFU renews the token of everyone it accepts.
+A client holding a renewed token can rejoin after losing Connect without asking the server, so the join webhook checks View and Connect for every join it reports.
+
+On Android the call foreground service must stay up from a drop until the rejoin settles.
+Android refuses to start it from the background, so a call that dropped and came back off screen had no microphone.
+
+Not verified here, and needing a real phone: a rejoin racing the previous leave on iOS (the #2427 fix), Wi-Fi to cellular handover, a VPN coming up mid-call, CallKit and the audio session across an interruption (a phone call, Siri), Android audio focus loss, and the Android foreground service rule above.
+`docs/PHONE-TESTER-CHECKLIST.md` lists the steps.
+
 ## Sync generations
 
 `SyncController` bumps a generation on every stop, fresh start and dispose.

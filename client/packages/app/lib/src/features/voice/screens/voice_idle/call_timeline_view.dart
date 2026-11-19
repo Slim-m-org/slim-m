@@ -62,12 +62,20 @@ class CallTimelineView extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   for (final at in model.ticks(compact ? 3 : 5))
-                    Text(
-                      formatClock(
-                        DateTime.fromMillisecondsSinceEpoch(at),
-                        use24Hour: use24,
+                    // Shrinks to its share of a narrow pane; larger text or a two-digit hour overflowed it.
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          formatClock(
+                            DateTime.fromMillisecondsSinceEpoch(at),
+                            use24Hour: use24,
+                          ),
+                          style: AppText.code.copyWith(
+                            color: tokens.textSecondary,
+                          ),
+                        ),
                       ),
-                      style: AppText.code.copyWith(color: tokens.textSecondary),
                     ),
                 ],
               ),
