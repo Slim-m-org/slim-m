@@ -48,7 +48,8 @@ Module code never reaches statement text.
 
 Migration checksums did not change: both lines store a SHA-384 of the file, and nothing here sets the 0.9 `sqlx.toml` option to ignore characters.
 Checked 2026-11-18 by seeding a deployment with the 0.8 server (an account, a message, a sealed TOTP factor), reopening it with the 0.9 server, rolling back to 0.8 and forward again: `_sqlx_migrations` was untouched, and the TOTP sign-in and the message worked each time.
-The offline cache (`.sqlx/`) needs `sqlx-cli` 0.9.1 to regenerate; 0.9 also records each column's origin table there.
+The offline cache (`.sqlx/`) is written by the 0.9 macros, which also record each column's origin table there, so the `sqlx-cli` that runs `prepare` does not change it: 0.8.6 and 0.9.1 write the same files (checked 2026-11-19), and CI pins 0.9.1.
+A `.sqlx/` file made on a branch still on 0.8 lacks those origins, merges without a conflict, and then fails `prepare --check`; run `prepare` again after such a merge.
 
 ## crypto_box
 
