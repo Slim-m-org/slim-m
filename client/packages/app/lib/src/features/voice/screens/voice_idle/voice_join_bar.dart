@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The one-row join bar at the top of an idle voice channel (design 13):
 /// what is true right now - who is here, who is online - and a button that
-/// says what it does. Joining always starts muted, so nothing is sent until
-/// you unmute.
+/// says what it does. Join muted is the primary one, so nothing is sent until
+/// you unmute; a plain Join sits beside it unless the channel joins muted.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,11 +10,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../channels/providers/channel_by_id_provider.dart';
 import '../../../members/providers/member_presence.dart';
 import '../../../members/providers/presence_view.dart';
 import '../../../../providers/providers.dart';
 import '../../providers/voice_roster.dart';
 import 'call_history_rows.dart' show callDayLabel;
+
+/// Below this two join buttons beside the names squeeze the names to a sliver.
+const double _twoButtonsWidth = 520;
 
 class VoiceJoinBar extends ConsumerWidget {
   const VoiceJoinBar({
@@ -24,6 +28,7 @@ class VoiceJoinBar extends ConsumerWidget {
     required this.lastCallAt,
     required this.now,
     required this.onJoin,
+    this.onJoinWithMic,
     this.errorMessage,
     this.canRetry = true,
     this.rejoin = false,
@@ -36,7 +41,12 @@ class VoiceJoinBar extends ConsumerWidget {
   final bool compact;
   final int? lastCallAt;
   final int now;
+
+  /// Joins muted.
   final VoidCallback onJoin;
+
+  /// Joins with the mic as the person left it; null offers only [onJoin].
+  final VoidCallback? onJoinWithMic;
   final String? errorMessage;
   final bool canRetry;
 
@@ -47,8 +57,49 @@ class VoiceJoinBar extends ConsumerWidget {
     final here = roster.valueOrNull ?? const [];
     final online = _online(ref, {for (final p in here) p.userId});
     final title = voiceRosterTitle(roster, compact: compact);
-    final subtitle = _subtitle(here, online);
-    final label = _joinLabel(here);
+    final joinsMuted =
+        ref.watch(channelByIdProvider(channelId)).valueOrNull?.joinMuted ??
+        false;
+    final withMic = errorMessage == null && !joinsMuted ? onJoinWithMic : null;
+    final subtitle = _subtitle(here, online, mutedOnly: withMic == null);
+    final buttons = errorMessage == null || canRetry
+        ? _buttons(here, withMic)
+        : null;
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: AppText.body.copyWith(
+            color: tokens.textPrimary,
+            fontWeight: AppWeights.semi,
+          ),
+        ),
+        if (subtitle.isNotEmpty)
+          Text(
+            subtitle,
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, box) => _bar(
+        tokens,
+        text: text,
+        buttons: buttons,
+        // Two buttons beside the names leave a narrow bar's title a few letters, so they take their own row there.
+        stacked:
+            withMic != null && (compact || box.maxWidth < _twoButtonsWidth),
+      ),
+    );
+  }
+
+  Widget _bar(
+    AppTokens tokens, {
+    required Widget text,
+    required Widget? buttons,
+    required bool stacked,
+  }) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.s16),
       decoration: BoxDecoration(
@@ -69,31 +120,17 @@ class VoiceJoinBar extends ConsumerWidget {
             ),
           Row(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: AppText.body.copyWith(
-                        color: tokens.textPrimary,
-                        fontWeight: AppWeights.semi,
-                      ),
-                    ),
-                    if (subtitle.isNotEmpty)
-                      Text(
-                        subtitle,
-                        style: AppText.caption.copyWith(
-                          color: tokens.textSecondary,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.s12),
-              if (errorMessage == null || canRetry) _joinButton(label, here),
+              Expanded(child: text),
+              if (buttons != null && !stacked) ...[
+                const SizedBox(width: AppSpacing.s12),
+                buttons,
+              ],
             ],
           ),
+          if (buttons != null && stacked) ...[
+            const SizedBox(height: AppSpacing.s12),
+            Align(alignment: Alignment.centerRight, child: buttons),
+          ],
           if (errorMessage != null) ...[
             const SizedBox(height: AppSpacing.s12),
             AppErrorState(message: errorMessage!),
@@ -103,12 +140,16 @@ class VoiceJoinBar extends ConsumerWidget {
     );
   }
 
-  String _subtitle(List<api.VoiceRosterParticipant> here, List<String> online) {
+  String _subtitle(
+    List<api.VoiceRosterParticipant> here,
+    List<String> online, {
+    required bool mutedOnly,
+  }) {
     return [
       // An empty room is already said by the title; who is online adds nothing there.
       if (here.isNotEmpty && online.isNotEmpty)
         _joinNames(online, 'is online', 'are online'),
-      if (!compact) 'joining starts you muted',
+      if (!compact && mutedOnly) 'joining starts you muted',
     ].join(' · ');
   }
 
@@ -118,15 +159,44 @@ class VoiceJoinBar extends ConsumerWidget {
     return here.isEmpty ? '$verb muted' : '$verb · ${here.length} here';
   }
 
-  Widget _joinButton(String label, List<api.VoiceRosterParticipant> here) {
-    return AppButton(
-      label: errorMessage == null ? label : 'Try again',
+  /// Join muted alone, or after a plain Join when [withMic] is offered.
+  Widget _buttons(
+    List<api.VoiceRosterParticipant> here,
+    VoidCallback? withMic,
+  ) {
+    final verb = rejoin ? 'Rejoin' : 'Join';
+    final count = [if (here.isNotEmpty) '${here.length} here'];
+    final muted = AppButton(
+      label: errorMessage != null
+          ? 'Try again'
+          : withMic == null
+          ? _joinLabel(here)
+          : '$verb muted',
       semanticLabel: [
         rejoin ? 'Rejoin the call muted' : 'Join the call muted',
-        if (here.isNotEmpty) '${here.length} here',
+        ...count,
       ].join(', '),
+      icon: withMic == null ? null : AppIcons.micOff,
       variant: AppButtonVariant.primary,
       onPressed: onJoin,
+    );
+    if (withMic == null) return muted;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: AppSpacing.s8,
+      children: [
+        AppButton(
+          label: verb,
+          semanticLabel: [
+            rejoin ? 'Rejoin the call' : 'Join the call',
+            ...count,
+          ].join(', '),
+          icon: AppIcons.voice,
+          variant: AppButtonVariant.secondary,
+          onPressed: withMic,
+        ),
+        muted,
+      ],
     );
   }
 

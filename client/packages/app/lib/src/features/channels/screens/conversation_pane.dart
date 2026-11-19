@@ -27,6 +27,8 @@ import 'channel_screen.dart';
 import '../../voice/screens/dm_call_pane.dart';
 import '../../voice/screens/voice_lobby_redirect.dart';
 import '../../voice/screens/voice_screen.dart';
+import '../../voice/providers/voice_flags.dart';
+import '../../voice/screens/call_details_pane.dart' show callDetailsDocks;
 import '../../voice/screens/voice_text_pane.dart';
 import '../../../screens/home_shell.dart';
 
@@ -47,6 +49,7 @@ class ConversationPane extends ConsumerWidget {
   const ConversationPane({
     required this.channelId,
     this.openChat = false,
+    this.openDetails = false,
     super.key,
   });
 
@@ -54,6 +57,9 @@ class ConversationPane extends ConsumerWidget {
 
   /// See [VoiceScreen.openChat]; only a voice channel consults it.
   final bool openChat;
+
+  /// See [VoiceScreen.openDetails]; only a voice channel consults it.
+  final bool openDetails;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -183,7 +189,13 @@ class ConversationPane extends ConsumerWidget {
   }) {
     if (canvasOpen) return _canvas(context, isVoice: isVoice);
     if (isLobby) return VoiceLobbyRedirect(lobbyId: channelId);
-    if (isVoice) return VoiceScreen(channelId: channelId, openChat: openChat);
+    if (isVoice) {
+      return VoiceScreen(
+        channelId: channelId,
+        openChat: openChat,
+        openDetails: openDetails,
+      );
+    }
     if (dmCallOpen) return DmCallPane(channelId: channelId);
     return ChannelScreen(channelId: channelId, autofocusComposer: caretOnOpen);
   }
@@ -202,7 +214,7 @@ class ConversationPane extends ConsumerWidget {
 /// `voice_text_pane.dart`'s chat: docked beside the call where
 /// [LayoutClass.fitsThreadPane] allows it, swapped in over the call below
 /// that, so the toggle is always offered. The chat passes `showHeader: false`,
-/// so this is the only bar.
+/// so this is the only bar. In the call it also toggles the call's details.
 class _VoiceConversationHeader extends ConsumerWidget {
   const _VoiceConversationHeader({
     required this.channelId,
@@ -219,6 +231,10 @@ class _VoiceConversationHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final chatOpen = ref.watch(voiceChatPaneVisibleProvider);
+    final detailsOpen = ref.watch(callDetailsOpenProvider);
+    final inCall = ref.watch(
+      voiceFlagsProvider.select((voice) => voice.inCallStageFor(channelId)),
+    );
     final search = ref.watch(channelSearchProvider(channelId));
     void setChatOpen(bool open) =>
         ref.read(voiceChatPaneVisibleProvider.notifier).state = open;
@@ -236,6 +252,10 @@ class _VoiceConversationHeader extends ConsumerWidget {
       },
       textChatOpen: chatOpen,
       onToggleTextChat: () => setChatOpen(!chatOpen),
+      callDetailsOpen: callDetailsDocks(context) ? detailsOpen : null,
+      onToggleCallDetails: inCall
+          ? () => toggleCallDetails(context, ref, channelId)
+          : null,
     );
   }
 }

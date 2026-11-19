@@ -287,8 +287,8 @@ abstract final class AppIcons {
   static const IconData bringToFront = LucideIcons.bringToFront300;
   static const IconData sendToBack = LucideIcons.sendToBack300;
 
-  /// The canvas's text activity log: the accessibility fallback for a
-  /// surface a screen reader otherwise cannot read at all.
+  /// A record of what happened: the canvas's text activity log, and a voice
+  /// channel's call details (who was in when, what happened, what was said).
   static const IconData activityLog = LucideIcons.history300;
 
   /// Snapping moves to the canvas grid.
