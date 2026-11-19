@@ -328,3 +328,18 @@ Every await that is followed by a write has to re-check it, including the ones i
 The ticket mint and the socket connect are network round trips too.
 A stop landing inside either used to return from start having already assigned a socket the superseding teardown had run too early to see, leaving it live and applying frames with nothing left holding a handle to close it.
 The catch-up, event applier, reconnector and session-end cleanup are separate classes in `sync/providers` that are told whether a given generation is still current.
+
+## Account scopes
+
+`AccountRoot` keeps an `UncontrolledProviderScope` mounted for every container the `AccountHost` tracks, and only the active one has the app under it.
+Never mount a container under a scope that can unmount while the container lives on, unless another scope for it stays mounted.
+
+Riverpod 2.6 queues provider refreshes and `autoDispose` disposals in the container's scheduler.
+With a scope mounted, the scheduler hands the queue to the scope's element, which runs it on its next build.
+If that element unmounts first the queue is dropped, and the scheduler still believes a run is pending, so it never asks for another.
+The container then keeps every `autoDispose` provider it ever built and stops telling listeners about a derived provider that changed.
+
+`ServerIdentityScope` is the other scope in the app.
+It scopes another account's container for a switcher row or the call pill, and is safe only because the root's scope for that container outlives it.
+`test/features/accounts/account_root_scope_test.dart` holds the three cases: disposal after leaving, disposal and refresh after coming back, and refresh while out of view.
+

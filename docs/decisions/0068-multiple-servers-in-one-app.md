@@ -80,6 +80,22 @@ A switch changes which container is mounted.
 The inactive containers stay alive and headless.
 Each keeps its router, so returning to a server lands where the person left it.
 
+### Amended 2026-11-19: every container keeps a scope mounted
+
+The root now keeps one `UncontrolledProviderScope` mounted per tracked container, for as long as the host tracks it.
+The active one has the app under it and the others have nothing, so a switch still unmounts the whole app tree of the account that leaves the screen.
+
+It has to be this way because of how Riverpod 2 schedules work.
+A container with a scope mounted hands its queued refreshes and disposals to that scope, to run on its next build.
+When the scope unmounts with something queued, which a switch always causes because every widget of the leaving account stops watching in that same frame, the queue is never run and the container never queues again.
+From then on nothing `autoDispose` in that account was ever disposed, and a provider derived from another stopped refreshing its listeners, on screen or off, until the app restarted.
+Closing the switcher did the same to an account out of view, because its rows scope that account's container to show its name and icon.
+
+What it costs: a container out of view now runs its queue on a frame, like the one on screen always has, instead of on a timer.
+A hidden window draws no frames, so that queue waits until the window shows again.
+Streams, notifiers and the socket do not go through it and are unaffected.
+See `docs/internals.md`, account scopes.
+
 ## What is global and what is per account
 
 Global, shared by every container because they live in `SharedPreferences` and are re-read when a container is activated: UI scale, motion, rail width, app lock, and voice device preferences.
