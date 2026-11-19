@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM attachment_transcripts WHERE sha256 = ? AND status = 'pending'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "2d8b39295c12c555f8f871a48eb3ae33e38a141134c3b8fb5599a8f5170f2e2d"
+}

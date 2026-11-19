@@ -2,8 +2,8 @@
 //! Voice transcripts when the database refuses the write: nothing is left half
 //! stored, and the clip waits out its backoff instead of going straight back
 //! to the engine. Faults come from triggers, as in `send_retry_repairs`. When
-//! the listener is out, no clip is left shown transcribing, and a restart does
-//! not give a failing clip a fresh set of tries.
+//! the listener is out, no clip is left shown transcribing, and neither that
+//! nor a restart gives a failing clip a fresh set of tries.
 
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -171,6 +171,11 @@ async fn a_clip_that_keeps_failing_is_given_up_on_though_the_server_restarts_bet
     restarted_pass(&world, &broken).await;
     assert_eq!(transcript_of(&world, &message).await["status"], "failed");
     assert_eq!(broken.calls.load(Ordering::SeqCst), MAX_ATTEMPTS as usize);
+    let counted: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM voice_transcript_attempts")
+        .fetch_one(&world.pool)
+        .await
+        .unwrap();
+    assert_eq!(counted, 0, "a settled clip still holds its count");
 }
 
 #[tokio::test]
@@ -184,9 +189,9 @@ async fn a_listener_outage_between_tries_does_not_start_the_count_over() {
     }
     restarted_pass(&world, &Fake::failing(Failure::Unavailable)).await;
     assert_eq!(
-        transcript_of(&world, &message).await["status"],
-        "pending",
-        "it is still waiting for its tries"
+        transcript_of(&world, &message).await,
+        Value::Null,
+        "shown transcribing while the listener is out"
     );
     restarted_pass(&world, &broken).await;
     assert_eq!(transcript_of(&world, &message).await["status"], "failed");

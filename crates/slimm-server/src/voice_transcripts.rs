@@ -8,8 +8,9 @@
 //! old for the route, or refusing the secret) pauses the sweep with the same
 //! growing backoff attachment text uses, and costs no clip an attempt. A clip
 //! the listener takes and keeps failing is marked failed and tried once a day
-//! after; its failures are counted in the database, so a restart does not start
-//! them over. A clip it refuses stays failed. Encrypted messages are never offered.
+//! after; its failures are counted in the database, so neither a restart nor a
+//! listener outage starts them over. A clip it refuses stays failed. Encrypted
+//! messages are never offered.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -304,7 +305,7 @@ impl Default for VoiceTranscriber {
 
 /// Counts a failure by a listener that took the clip; true once the clip has had all its tries.
 async fn out_of_tries(store: &Store, hub: &Hub, candidate: &VoiceCandidate, marked: bool) -> bool {
-    // A probe leaves no mark, and the count lives on one; readers then see it waiting for a retry.
+    // A probe leaves no mark, so readers would not see the clip waiting for its retry.
     if !marked {
         match store.begin_voice_transcript(&candidate.sha256).await {
             Ok(true) => announce(store, hub, candidate, "pending", "").await,

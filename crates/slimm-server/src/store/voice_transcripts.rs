@@ -163,11 +163,10 @@ impl Store {
     }
 
     /// Takes back a `pending` mark the listener never acted on, so the message is not shown
-    /// transcribing; answers whether there was one. A clip it already failed keeps its count.
+    /// transcribing; answers whether there was one. The clip's count of failures stays.
     pub async fn abandon_voice_transcript(&self, sha256: &[u8]) -> anyhow::Result<bool> {
         let removed = sqlx::query!(
-            "DELETE FROM attachment_transcripts
-             WHERE sha256 = ? AND status = 'pending' AND attempts = 0",
+            "DELETE FROM attachment_transcripts WHERE sha256 = ? AND status = 'pending'",
             sha256
         )
         .execute(&self.pool)
@@ -176,18 +175,18 @@ impl Store {
         Ok(removed > 0)
     }
 
-    /// Counts one more failure of a `pending` clip by a listener that took it, and answers how
-    /// many there have been. `None` when the clip has no pending mark.
+    /// Counts one more failure of a clip by a listener that took it, and answers how many there
+    /// have been since it last settled. `None` when the blob is gone.
     pub async fn count_voice_transcript_failure(
         &self,
         sha256: &[u8],
     ) -> anyhow::Result<Option<u32>> {
-        let now = now_ms();
         let attempts = sqlx::query_scalar!(
-            r#"UPDATE attachment_transcripts SET attempts = attempts + 1, updated_at = ?
-               WHERE sha256 = ? AND status = 'pending'
+            r#"INSERT INTO voice_transcript_attempts (sha256, attempts)
+               SELECT ?, 1 WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)
+               ON CONFLICT (sha256) DO UPDATE SET attempts = attempts + 1
                RETURNING attempts AS "attempts!: i64""#,
-            now,
+            sha256,
             sha256
         )
         .fetch_optional(&self.pool)
@@ -195,8 +194,8 @@ impl Store {
         Ok(attempts.map(|n| u32::try_from(n).unwrap_or(u32::MAX)))
     }
 
-    /// Settles a transcript and indexes its words for search, in one write.
-    /// A no-op if the blob was swept meanwhile.
+    /// Settles a transcript, clears its count of failures and indexes its words for search, in
+    /// one write. A no-op if the blob was swept meanwhile.
     pub async fn finish_voice_transcript(
         &self,
         sha256: &[u8],
@@ -233,6 +232,12 @@ impl Store {
         if written == 0 {
             return Ok(None);
         }
+        sqlx::query!(
+            "DELETE FROM voice_transcript_attempts WHERE sha256 = ?",
+            sha256
+        )
+        .execute(&mut *tx)
+        .await?;
         let indexed = (status == TranscriptStatus::Ready && !text.is_empty()).then_some(text);
         Self::record_attachment_text_in(&mut tx, sha256, indexed).await?;
         tx.commit().await?;
