@@ -20,6 +20,8 @@ import path_guard
 AVATARS = "avatars"
 ATTACHMENTS = "attachments"
 ORIGINAL_SUFFIX = ".orig"
+SPACE_BANNER, SPACE_ICON = "space-banner", "space-icon"
+USER_BANNER_PREFIX, LINKED_PICTURE_PREFIX = "banner-", "link-"
 
 # The provider names the server accepts, so a stray value never becomes a file name.
 _PROVIDER = re.compile(r"^[a-z]{1,16}$")
@@ -31,7 +33,7 @@ def _columns(conn, table):
 
 def _space_files(conn):
     have = _columns(conn, "space_settings")
-    for column, name in (("banner_updated_at", "space-banner"), ("icon_updated_at", "space-icon")):
+    for column, name in (("banner_updated_at", SPACE_BANNER), ("icon_updated_at", SPACE_ICON)):
         if column not in have:
             continue
         row = conn.execute(f"SELECT {column} FROM space_settings WHERE id = 1").fetchone()
@@ -46,7 +48,7 @@ def _user_banners(conn):
         "SELECT id FROM users WHERE banner_updated_at IS NOT NULL AND deleted_at IS NULL"
     )
     for (blob,) in rows.fetchall():
-        yield AVATARS, lambda blob=blob: f"banner-{path_guard.avatar_uuid(blob)}", None
+        yield AVATARS, lambda blob=blob: USER_BANNER_PREFIX + path_guard.avatar_uuid(blob), None
 
 
 def _linked_picture_name(provider, blob):
@@ -54,7 +56,7 @@ def _linked_picture_name(provider, blob):
         raise path_guard.PathValidationError(
             f"linked_accounts.provider is not a provider name: {provider!r}"
         )
-    return f"link-{provider}-{path_guard.avatar_uuid(blob)}"
+    return f"{LINKED_PICTURE_PREFIX}{provider}-{path_guard.avatar_uuid(blob)}"
 
 
 def _linked_pictures(conn):

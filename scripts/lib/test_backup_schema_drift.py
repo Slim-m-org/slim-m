@@ -15,8 +15,11 @@ import backup_lib  # noqa: E402
 import restore_drill_lib  # noqa: E402
 
 COLUMNS_READ = {
-    "users": ("id", "username", "avatar_updated_at"),
-    "attachments": ("sha256", "size"),
+    "users": ("id", "username", "avatar_updated_at", "banner_updated_at", "deleted_at"),
+    "attachments": ("sha256", "size", "original_size"),
+    "space_settings": ("id", "banner_updated_at", "icon_updated_at"),
+    "linked_accounts": ("provider", "user_id", "avatar_updated_at"),
+    "installed_modules": ("id", "data_schema", "approved_host_capabilities"),
 }
 
 
