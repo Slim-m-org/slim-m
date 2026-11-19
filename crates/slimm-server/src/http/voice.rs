@@ -32,6 +32,7 @@ pub(super) mod voice_calls;
 pub(super) mod voice_move;
 pub(super) mod voice_notice;
 pub(super) mod voice_notify_prefs;
+pub(super) mod voice_one_call;
 pub(super) mod voice_ring;
 pub(super) mod voice_rooms;
 pub(super) mod voice_self_state;

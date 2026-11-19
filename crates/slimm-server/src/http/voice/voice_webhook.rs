@@ -62,9 +62,10 @@ async fn receive(
     let room_finished = room_finished_channel(&event);
     reconcile_roster(&state, &event).await;
     let published = event.participant.as_ref().is_some_and(|p| p.is_publisher);
+    let joined_at_ms = event.participant_joined_at_ms();
     let presence = apply(&state, event);
     if let Some((channel_id, user_id, true)) = presence {
-        check_access(&state, channel_id, user_id);
+        settle_join(&state, channel_id, user_id, joined_at_ms);
         if !published {
             announce_now(&state, channel_id, user_id);
         }
@@ -83,11 +84,18 @@ async fn foreign_channel(state: &AppState, event: &WebhookEvent) -> Option<Chann
     }
 }
 
-/// Removes a joiner whose access went after their token was minted; detached, so the delivery never waits on it.
-fn check_access(state: &AppState, channel_id: ChannelId, user_id: UserId) {
+/// A join the SFU let in is checked for access, and one that stays ends the member's older call elsewhere.
+fn settle_join(
+    state: &AppState,
+    channel_id: ChannelId,
+    user_id: UserId,
+    joined_at_ms: Option<i64>,
+) {
     let state = state.clone();
     tokio::spawn(async move {
-        super::voice_access::evict_join_without_access(&state, user_id, channel_id).await;
+        if super::voice_access::evict_join_without_access(&state, user_id, channel_id).await {
+            super::voice_one_call::end_older_calls(&state, user_id, channel_id, joined_at_ms).await;
+        }
     });
 }
 

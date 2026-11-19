@@ -41,6 +41,17 @@ impl RecordingRoomService {
             .insert(room.to_owned(), participants(users));
     }
 
+    /// Seats these users in `room` alone, each with the unix millisecond they joined at.
+    pub fn seat_joined_in(&self, room: &str, users: &[(UserId, i64)]) {
+        let seated = users
+            .iter()
+            .map(|(user, at)| {
+                json!({ "identity": user.to_string(), "sid": format!("PA_{user}"), "joined_at_ms": at })
+            })
+            .collect();
+        self.rooms.lock().unwrap().insert(room.to_owned(), seated);
+    }
+
     /// Like [`Self::seat`], with each connection `ACTIVE`: signalling and media both up.
     pub fn seat_active(&self, users: &[UserId]) {
         *self.roster.lock().unwrap() = users

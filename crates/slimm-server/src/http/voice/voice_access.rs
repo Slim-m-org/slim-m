@@ -90,7 +90,7 @@ pub(in crate::http) async fn evict_refused_heartbeat(
     remove_from_room(state, user_id, channel_id).await;
 }
 
-/// Removes someone the SFU just let in who holds no View and Connect in the channel.
+/// Removes someone the SFU just let in who holds no View and Connect in the channel, answering whether they stay.
 ///
 /// The SFU renews every token it accepts, so one minted before the access went
 /// still joins; this is the check a join by that token never otherwise meets.
@@ -98,16 +98,20 @@ pub(in crate::http) async fn evict_join_without_access(
     state: &AppState,
     user_id: UserId,
     channel_id: ChannelId,
-) {
+) -> bool {
     match state
         .store
         .permissions_in_channel(user_id, channel_id)
         .await
     {
-        Ok(held) if held.contains(IN_CALL) => {}
-        Ok(_) => evict_refused_heartbeat(state, user_id, channel_id).await,
+        Ok(held) if held.contains(IN_CALL) => true,
+        Ok(_) => {
+            evict_refused_heartbeat(state, user_id, channel_id).await;
+            false
+        }
         Err(err) => {
-            tracing::warn!(%err, "could not check a voice participant's access as they joined")
+            tracing::warn!(%err, "could not check a voice participant's access as they joined");
+            true
         }
     }
 }
