@@ -164,10 +164,13 @@ def open_on_both(a, b, channel):
 
 
 def arm_tool(client, label):
-    """Arms [label] whatever was armed before: a second press on an armed tool puts it down, so Pan comes first."""
+    """Arms [label] whatever was armed before: a second press on an armed tool puts it down, so Pan comes first.
+
+    Only a node in Pan's row counts, since a board object is named after its kind: a shape is "Shape".
+    """
     if label != L.PAN_TOOL:
         client.click(L.PAN_TOOL)
-    client.click(label)
+    client.click(label, row_of=L.PAN_TOOL)
 
 
 def draw_stroke_and_see_it_live(a, b):
