@@ -27,6 +27,8 @@ class ServerIdentityScope extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => UncontrolledProviderScope(
+    // A scope handed a different container stays registered with the first; keyed, it is replaced.
+    key: ObjectKey(entry.container),
     container: entry.container,
     child: Consumer(
       builder: (context, ref, _) {
