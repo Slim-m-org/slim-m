@@ -241,6 +241,7 @@ Litestream, if you enable it, streams only the database.
 `scripts/restore-drill.py` restores the newest snapshot to a scratch path, runs `PRAGMA integrity_check`, checks every referenced file is in the mirror, attachments by hash, and runs `PRAGMA integrity_check` on every module data file in the mirror.
 It exits non-zero on any problem.
 `scripts/restore.py` puts a backup back: with the server stopped, `docker compose run --rm restore` fills an empty data volume from the newest snapshot, and `--force` replaces an existing database after moving it aside.
+`--list` shows each snapshot with the migration it is at, `--before-migration N` picks the newest one an older server can open, and `--allow-missing-files` restores a backup that lacks some of the files its database references.
 Neither script backs up `.env`, which holds your LiveKit and Litestream secrets, or `slimm-data.key`, the key that opens the stored two-factor secrets (see [The data key](#the-data-key)).
 The commands, the container invocation and the sensitivity of a snapshot are in [deploy/README.md](../deploy/README.md#backups-optional).
 Take a backup immediately before upgrading, because migrations only go forward.

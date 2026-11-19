@@ -305,7 +305,19 @@ The restored server has the same five words as the old one, because its identity
 
 It refuses a volume that already holds a database.
 To roll an existing deployment back, add `--force`, which moves the current database aside as `slimm.db.before-restore-<time>` instead of deleting it; remove that file once you are sure.
-`--db-snapshot /backup/db/<name>` picks a snapshot other than the newest.
+Module data files are replaced the same way, each kept as `modules/<id>.db.before-restore-<time>`.
+An attachment the volume already holds is left alone, so a rollback copies only what differs.
+`--force` refuses while the server still has the database open: run `docker compose down` first.
+`--db-snapshot /backup/db/<name>` picks a snapshot other than the newest, and `--list` prints them all with the migration each is at.
+
+**When the backup lacks a file.**
+The restore stops, names each file, and restores nothing, unless the file is still in the volume you are rolling back, in which case that copy is kept.
+`--allow-missing-files` restores the database and every file the backup does hold, and lists what it skipped; the members or the administrator upload those again.
+A database that fails `integrity_check` is never restored, with or without the flag.
+
+A backup taken by a checkout from before 2026-11-19 has no space banner or icon, profile banners, linked-account pictures or kept originals in it.
+Rolling back in place with `--force` keeps the ones in the volume.
+Restoring such a backup into an empty volume needs `--allow-missing-files`, and those pictures are gone.
 
 The two-factor key is not in the backup, on purpose.
 Copy it out of a running deployment with `docker compose cp server:/data/slimm-data.key ./slimm-data.key` and keep it with your other secrets.
