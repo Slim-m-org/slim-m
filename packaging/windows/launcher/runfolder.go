@@ -30,6 +30,7 @@ const (
 var (
 	runningFrom = processRunningFrom
 	pause       = time.Sleep
+	statFolder  = os.Stat
 	linkFile    = os.Link
 	renamePath  = os.Rename
 )
@@ -122,14 +123,19 @@ func release(run string, tries int) bool {
 }
 
 // runsFrom reports whether any of images sits directly in run, comparing
-// folders by identity so a junctioned profile path still matches.
+// folders by identity so a junctioned profile path still matches. Only folders
+// named like run are looked at, so a stalled network drive is never touched.
 func runsFrom(run string, images []string) bool {
 	want, err := os.Stat(run)
 	if err != nil {
 		return false
 	}
 	for _, image := range images {
-		if have, err := os.Stat(filepath.Dir(image)); err == nil && os.SameFile(want, have) {
+		folder := filepath.Dir(image)
+		if !strings.EqualFold(filepath.Base(folder), runFolder) {
+			continue
+		}
+		if have, err := statFolder(folder); err == nil && os.SameFile(want, have) {
 			return true
 		}
 	}

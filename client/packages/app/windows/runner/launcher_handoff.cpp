@@ -5,6 +5,7 @@
 #include <string>
 
 #include "link_handoff.h"
+#include "single_instance.h"
 #include "utils.h"
 
 namespace {
@@ -21,15 +22,14 @@ bool HandStartToLauncher(const wchar_t* command_line) {
   const bool from_launcher =
       ::GetEnvironmentVariableW(slimm::kFromLauncherVariable, nullptr, 0) != 0;
   ::SetEnvironmentVariableW(slimm::kFromLauncherVariable, nullptr);
-  const std::wstring launcher =
-      slimm::LauncherToHandTo(ExecutablePath(), from_launcher, IsFile);
+  const std::wstring launcher = slimm::LauncherToHandTo(
+      ExecutablePath(), from_launcher, AnotherInstanceRuns(), IsFile);
   if (launcher.empty()) return false;
-  std::wstring line =
-      L"\"" + launcher + L"\" " + slimm::kHandoffArgument;
-  if (command_line != nullptr && *command_line != L'\0') {
-    line += L" ";
-    line += command_line;
-  }
+  std::wstring line = slimm::HandoffCommandLine(
+      launcher, ::GetCurrentProcessId(),
+      command_line != nullptr ? command_line : L"");
+  // The launcher, and the app it starts, may bring their window forward for the click that started this copy.
+  ::AllowSetForegroundWindow(ASFW_ANY);
   STARTUPINFOW startup = {sizeof(startup)};
   PROCESS_INFORMATION process = {};
   if (!::CreateProcessW(launcher.c_str(), line.data(), nullptr, nullptr, FALSE,

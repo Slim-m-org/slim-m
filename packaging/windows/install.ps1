@@ -44,7 +44,13 @@ Copy-Item -Recurse $here $unpack
 Remove-Folder $target
 Move-Item $unpack $target
 
-Copy-Item (Join-Path $here 'slim-m.exe') (Join-Path $root 'slim-m.exe') -Force
+# A launcher still waiting on a restart (up to about 47 s) keeps slim-m.exe in use.
+$launcher = Join-Path $root 'slim-m.exe'
+for ($try = 1; ; $try++) {
+  try { Copy-Item (Join-Path $here 'slim-m.exe') $launcher -Force -ErrorAction Stop; break }
+  catch { if ($try -ge 60) { Stop-Install $closeFirst } }
+  Start-Sleep -Seconds 1
+}
 
 function Set-Pointer($name, $value) {
   $temp = Join-Path $root ".$name.new"

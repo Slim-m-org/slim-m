@@ -10,10 +10,10 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
-  if (HandStartToLauncher(command_line)) {
+  if (ForwardLinkToRunningInstance()) {
     return EXIT_SUCCESS;
   }
-  if (ForwardLinkToRunningInstance()) {
+  if (HandStartToLauncher(command_line)) {
     return EXIT_SUCCESS;
   }
   if (!ClaimSingleInstance(command_line)) {

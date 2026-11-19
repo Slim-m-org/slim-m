@@ -8,6 +8,9 @@
 // of handing focus to an instance that is about to quit. Matches relaunch.dart.
 constexpr wchar_t kRelaunchArgument[] = L"--relaunch";
 
+// Whether a copy already holds this session's single instance.
+bool AnotherInstanceRuns();
+
 // Claims this session's single instance. Returns false when another copy
 // already runs: it has been asked to come forward, and this one should exit.
 bool ClaimSingleInstance(const wchar_t* command_line);

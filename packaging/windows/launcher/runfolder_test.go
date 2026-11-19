@@ -310,3 +310,21 @@ func TestARunningCopyIsFoundThroughAJunctionedPath(t *testing.T) {
 		t.Fatal("a copy in a version folder does not run from the run folder")
 	}
 }
+
+func TestOnlyFoldersNamedLikeTheRunFolderAreLookedAt(t *testing.T) {
+	root := shipped(t, "0.88.0")
+	stubRelease(t, 0)
+	runFrom(root, versionDir(root, "0.88.0"), false)
+	var looked []string
+	statFolder = func(path string) (os.FileInfo, error) {
+		looked = append(looked, path)
+		return os.Stat(path)
+	}
+	t.Cleanup(func() { statFolder = os.Stat })
+	images := []string{`\\\\stalled\\share\\tool.exe`, filepath.Join(versionDir(root, "0.88.0"), appExecutable),
+		filepath.Join(strings.ToUpper(runPath(root)), appExecutable)}
+	runsFrom(runPath(root), images)
+	if len(looked) != 1 || filepath.Base(looked[0]) != strings.ToUpper(runFolder) {
+		t.Fatalf("looked at %v", looked)
+	}
+}

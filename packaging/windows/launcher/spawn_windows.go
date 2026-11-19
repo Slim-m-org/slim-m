@@ -19,8 +19,14 @@ const (
 	stillActive                    = 259
 )
 
+var allowSetForegroundWindow = syscall.NewLazyDLL("user32.dll").NewProc("AllowSetForegroundWindow")
+
+// asfwAny lets whichever process this one starts take the foreground it was given.
+const asfwAny = ^uintptr(0)
+
 // start detaches the app so it outlives this launcher, which exits at once.
 func start(exe, dir string, args []string) (int, error) {
+	_, _, _ = allowSetForegroundWindow.Call(asfwAny)
 	cmd := exec.Command(exe, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), launcherEnv+"=1")

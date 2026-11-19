@@ -63,3 +63,11 @@ func TestInstallScriptStartsTheAppAfterInstalling(t *testing.T) {
 		t.Fatal("the app should start through the launcher once current points at the new version")
 	}
 }
+
+func TestInstallScriptRetriesALauncherThatIsStillRunning(t *testing.T) {
+	script := installScript(t)
+	loop := regexp.MustCompile(`(?s)for \(\$try = 1; ; \$try\+\+\) \{\s*try \{ Copy-Item \(Join-Path \$here 'slim-m\.exe'\) \$launcher -Force -ErrorAction Stop; break \}.*?Start-Sleep`)
+	if !loop.MatchString(script) {
+		t.Fatal("copying slim-m.exe must retry: a launcher waiting on a restart keeps it in use for up to about 47 s")
+	}
+}

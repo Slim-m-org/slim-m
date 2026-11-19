@@ -194,14 +194,29 @@ void TheRunFolderRegistersItsLauncher() {
 
 void APinnedRunFolderCopyGoesThroughTheLauncher() {
   const std::wstring pinned = kRoot + L"\\app\\slimm_app.exe";
-  CHECK(slimm::LauncherToHandTo(pinned, false, InLayout) == kRoot + L"\\slim-m.exe");
-  CHECK(slimm::LauncherToHandTo(pinned, true, InLayout).empty());
-  CHECK(slimm::LauncherToHandTo(pinned, false, Nothing).empty());
+  CHECK(slimm::LauncherToHandTo(pinned, false, false, InLayout) ==
+        kRoot + L"\\slim-m.exe");
+  CHECK(slimm::LauncherToHandTo(pinned, true, false, InLayout).empty());
+  CHECK(slimm::LauncherToHandTo(pinned, false, false, Nothing).empty());
   CHECK(slimm::LauncherToHandTo(kRoot + L"\\app-0.131.0\\slimm_app.exe", false,
+                                false, InLayout)
+            .empty());
+  CHECK(slimm::LauncherToHandTo(L"C:\\zip\\app\\slimm_app.exe", false, false,
                                 InLayout)
             .empty());
-  CHECK(slimm::LauncherToHandTo(L"C:\\zip\\app\\slimm_app.exe", false, InLayout)
+}
+
+void APinBesideARunningCopyOnlyHandsFocusOver() {
+  CHECK(slimm::LauncherToHandTo(kRoot + L"\\app\\slimm_app.exe", false, true,
+                                InLayout)
             .empty());
+}
+
+void TheHandOverNamesTheCopyTheLauncherWaitsFor() {
+  CHECK(slimm::HandoffCommandLine(kRoot + L"\\slim-m.exe", 4321, L"slimm://x") ==
+        L"\"" + kRoot + L"\\slim-m.exe\" --from-run-folder=4321 slimm://x");
+  CHECK(slimm::HandoffCommandLine(L"l.exe", 7, L"") ==
+        L"\"l.exe\" --from-run-folder=7");
 }
 
 void ACopyOutsideTheLayoutRegistersItself() {
@@ -265,6 +280,8 @@ int main() {
   AnInstalledCopyRegistersItsLauncher();
   TheRunFolderRegistersItsLauncher();
   APinnedRunFolderCopyGoesThroughTheLauncher();
+  APinBesideARunningCopyOnlyHandsFocusOver();
+  TheHandOverNamesTheCopyTheLauncherWaitsFor();
   ACopyOutsideTheLayoutRegistersItself();
   TheOpenCommandMatchesTheSetup();
   ALogicalRectScalesToPhysicalPixels();

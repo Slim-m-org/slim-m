@@ -5,7 +5,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 )
 
@@ -20,20 +19,19 @@ func main() {
 	}
 	root := locate(self)
 	restoreLauncher(root, self)
+	args, handingPid := takeHandoff(os.Args[1:])
+	awaitHandoff(handingPid)
 	unlock, locked := acquireLaunchLock(root, lockWait)
 	if locked {
 		defer unlock()
 	}
 	running := instanceRunning(root)
-	args, handoff := takeHandoff(os.Args[1:])
 	relaunch := isRelaunch(args)
-	dir, fallback, err := pick(root, relaunch, relaunch || handoff, locked)
+	dir, fallback, err := pick(root, relaunch, locked)
 	if err != nil {
 		fail(err.Error())
 	}
-	if locked && settled(root) {
-		_ = realSwapper().swapLauncher(root, filepath.Join(root, launcherName))
-	}
+	swapIfHolding(realSwapper(), root, locked)
 	pid, err := startFrom(dir, fallback, args)
 	if err != nil {
 		fail(err.Error())

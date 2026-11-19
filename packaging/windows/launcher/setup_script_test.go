@@ -65,3 +65,17 @@ func TestTheRunnerHandsOverWithTheArgumentTheLauncherTakes(t *testing.T) {
 		t.Fatalf("link_handoff.h does not pass %s, so the launcher would not wait for the copy handing over", handoffArgument)
 	}
 }
+
+func TestTheRunnerForwardsLinksBeforeHandingOverAndHandsOverBeforeClaiming(t *testing.T) {
+	data, err := os.ReadFile("../../../client/packages/app/windows/runner/main.cpp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := regexp.MustCompile(`//[^\n]*`).ReplaceAllString(string(data), "")
+	forward := strings.Index(code, "ForwardLinkToRunningInstance(")
+	handOver := strings.Index(code, "HandStartToLauncher(")
+	claim := strings.Index(code, "ClaimSingleInstance(")
+	if forward < 0 || handOver < forward || claim < handOver {
+		t.Fatal("main.cpp must forward a link to a running copy, then hand a first start to the launcher, then claim the instance")
+	}
+}

@@ -86,12 +86,13 @@ constexpr wchar_t kHandoffArgument[] = L"--from-run-folder";
 /// The launcher to hand this start to, or empty to carry on: a copy in the run
 /// folder that the launcher did not start (a taskbar pin of its window) would
 /// skip the start count, rollback and relinking that only the launcher does.
+/// Beside a running copy it only needs to hand focus over, as any second start does.
 template <typename Exists>
 std::wstring LauncherToHandTo(const std::wstring& exe, bool from_launcher,
-                              Exists exists) {
+                              bool another_instance, Exists exists) {
   const std::wstring folder = ParentOf(exe);
   const std::wstring root = ParentOf(folder);
-  if (from_launcher || root.empty() ||
+  if (from_launcher || another_instance || root.empty() ||
       !EqualsIgnoringCase(FileName(folder), kRunFolder)) {
     return std::wstring();
   }
@@ -100,6 +101,17 @@ std::wstring LauncherToHandTo(const std::wstring& exe, bool from_launcher,
     return std::wstring();
   }
   return launcher;
+}
+
+/// The launcher's command line for a hand-over from process `pid`, which it
+/// waits on, followed by this start's own arguments.
+inline std::wstring HandoffCommandLine(const std::wstring& launcher,
+                                       unsigned long pid,
+                                       const std::wstring& arguments) {
+  std::wstring line = L"\"" + launcher + L"\" " + kHandoffArgument + L"=" +
+                      std::to_wstring(pid);
+  if (!arguments.empty()) line += L" " + arguments;
+  return line;
 }
 
 /// The scheme's open command, quoted as the setup writes it.
