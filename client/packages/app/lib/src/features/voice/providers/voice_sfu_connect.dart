@@ -27,6 +27,25 @@ SignalSocketOpen? callSignalOpen(Ref ref) => kIsWeb
     : (url, headers) =>
           ref.read(apiProvider).connectSiblingDirect(url, headers: headers);
 
+/// How [callSession] makes the session; [VoiceSession.new] outside tests.
+typedef CallSessionBuild =
+    VoiceSession Function({
+      JoinTimings? joinTimings,
+      SignalSocketOpen? signalOpen,
+      void Function(String message, {LogLevel level})? audioLog,
+    });
+
+/// The session a call runs on when the controller is handed none.
+VoiceSession callSession(
+  Ref ref, {
+  CallSessionBuild build = VoiceSession.new,
+}) => build(
+  joinTimings: ref.read(joinTimingsProvider),
+  signalOpen: callSignalOpen(ref),
+  audioLog: (line, {level = LogLevel.info}) =>
+      AppLog.at(level, LogTag.voice, line),
+);
+
 class VoiceSfuConnect {
   VoiceSfuConnect(
     this._session,

@@ -17,10 +17,14 @@ import 'package:livekit_client/src/internal/events.dart' as lk_events;
 import 'package:livekit_client/src/proto/livekit_rtc.pb.dart' as lk_rtc;
 // ignore: implementation_imports
 import 'package:livekit_client/src/support/websocket.dart' as lk_ws;
+import 'package:slimm_rtc/rtc.dart' show InputGateMonitor;
 import 'package:slimm_rtc/src/signal_route.dart';
 import 'package:slimm_rtc/src/start_bitrate_room.dart';
+import 'package:slimm_rtc/src/voice_session_core.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 import 'package:web_socket_channel/io.dart';
+
+import 'support/no_audio_devices.dart';
 
 /// A loopback signalling server: it sends [greeting] on connect and keeps what it hears.
 class _Sfu {
@@ -193,5 +197,36 @@ void main() {
     await signal.sendLeave();
     await pollUntil(() => sfu.heard.isNotEmpty);
     expect(lk_rtc.SignalRequest.fromBuffer(sfu.heard.last).hasLeave(), isTrue);
+  });
+
+  test(
+      'a session given an opener builds its call rooms on it, and its link '
+      'readings say the signalling went direct', () async {
+    sfu.greeting = lk_rtc.SignalResponse(refreshToken: 'tok2').writeToBuffer();
+    final core = VoiceSessionCore(
+      signalOpen: openDirect,
+      audioDevices: const NoAudioDevices(),
+      inputGate: InputGateMonitor.disabled(),
+    );
+    addTearDown(core.flow.dispose);
+    final room = core.createRoom();
+    // The session's teardown disconnects and disposes it.
+    core.flow.room = room;
+    final signal = room.engine.signalClient;
+    final refreshed = signal.events.waitFor<lk_events.SignalTokenUpdatedEvent>(
+      duration: const Duration(seconds: 5),
+    );
+
+    await signal.connect(
+      'wss://livekit.example.com',
+      'tok',
+      connectOptions: const lk.ConnectOptions(),
+      roomOptions: const lk.RoomOptions(),
+    );
+    await refreshed;
+    expect(opened.single.host, 'livekit.example.com');
+
+    await core.healthWatch.localVoiceStats();
+    expect(core.healthWatch.health.link.value?.signalDirect, isTrue);
   });
 }
