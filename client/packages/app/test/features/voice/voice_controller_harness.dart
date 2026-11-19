@@ -48,6 +48,7 @@ const tokens = TokenPair(
 /// `voice_call_heartbeat_test.dart`'s lag tests need: a POST failure with no
 /// change to how `/voice/token` answers.
 /// [listedOnThisDevice] has the room list this account: on this device, or on another when false.
+/// [rosterUnreadable] answers the room's list with a 503 for as long as it says so.
 http.Client voiceApi({
   int status = 200,
   bool canPublish = true,
@@ -55,6 +56,7 @@ http.Client voiceApi({
   bool failHeartbeat = false,
   int? callAgeMs,
   bool? listedOnThisDevice,
+  bool Function()? rosterUnreadable,
   void Function(http.Request request)? onRequest,
 }) {
   final listed = listedOnThisDevice == null
@@ -70,6 +72,7 @@ http.Client voiceApi({
       return http.Response('', 204);
     }
     if (request.url.path.endsWith('/voice/roster')) {
+      if (rosterUnreadable?.call() ?? false) return http.Response('', 503);
       return http.Response(
         '{"participants":[$listed],"call_age_ms":$callAgeMs}',
         200,

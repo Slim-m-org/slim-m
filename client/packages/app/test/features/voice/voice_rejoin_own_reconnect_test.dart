@@ -180,4 +180,82 @@ void main() {
       );
     });
   });
+
+  test('a room that cannot be read is asked again instead of rejoined', () {
+    fakeAsync((async) {
+      var unreadable = true;
+      final call = inCallThenBlamed(
+        async,
+        voiceApi(listedOnThisDevice: false, rosterUnreadable: () => unreadable),
+      );
+
+      async.elapse(delays.first);
+      async.flushMicrotasks();
+
+      expect(
+        call.session.joins,
+        1,
+        reason: 'a failed read is no proof the call is still this device\'s',
+      );
+      expect(call.controller.state.rejoining, isTrue);
+
+      unreadable = false;
+      async.elapse(delays.last);
+      async.flushMicrotasks();
+
+      expect(call.session.joins, 1);
+      expect(call.controller.state.rejoining, isFalse);
+      expect(
+        call.controller.state.error,
+        VoiceDisconnect.replacedByOtherDevice.message,
+      );
+    });
+  });
+
+  test(
+    'a room read on the second ask lets this device\'s own reconnect back',
+    () {
+      fakeAsync((async) {
+        var unreadable = true;
+        final call = inCallThenBlamed(
+          async,
+          voiceApi(
+            listedOnThisDevice: true,
+            rosterUnreadable: () => unreadable,
+          ),
+        );
+        async.elapse(delays.first);
+        async.flushMicrotasks();
+        expect(call.session.joins, 1);
+
+        unreadable = false;
+        async.elapse(delays.last);
+        async.flushMicrotasks();
+
+        expect(call.session.joins, 2);
+        expect(call.controller.state.state, VoiceSessionState.connected);
+      });
+    },
+  );
+
+  test('a room nobody could read stops asking with a way to try by hand', () {
+    fakeAsync((async) {
+      final call = inCallThenBlamed(
+        async,
+        voiceApi(rosterUnreadable: () => true),
+      );
+
+      async.elapse(delays.reduce((a, b) => a + b) * 2);
+      async.flushMicrotasks();
+
+      expect(call.session.joins, 1);
+      expect(call.controller.state.rejoining, isFalse);
+      expect(call.controller.state.state, VoiceSessionState.failed);
+      expect(call.controller.state.retryable, isTrue);
+      expect(
+        call.controller.state.error,
+        VoiceDisconnect.connectionLost.message,
+      );
+    });
+  });
 }

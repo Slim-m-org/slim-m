@@ -104,11 +104,17 @@ class VoiceRejoin {
   static final _checkingMessage = VoiceDisconnect.heartbeatLagEviction.message;
 
   /// Asks the room whether another device took the call in [channelId], and ends the comeback when one did.
+  ///
+  /// A room that could not be read keeps the blame, and the next attempt asks again instead of joining.
   Future<bool> _replaced(String channelId) async {
     if (_blamedOnOtherDevice != channelId) return false;
     final replaced = await _ref.read(voiceReplacedCheckProvider)(channelId);
     // A newer drop while asking queued an attempt of its own.
     if (_blamedOnOtherDevice != channelId) return true;
+    if (replaced == null) {
+      _askAgain(channelId);
+      return true;
+    }
     _blamedOnOtherDevice = null;
     if (!replaced || _current.channelId != channelId) return false;
     _heldElsewhere = channelId;
@@ -118,6 +124,16 @@ class VoiceRejoin {
       rejoining: false,
     );
     return true;
+  }
+
+  void _askAgain(String channelId) {
+    // A hang-up or a join made by hand while the room was asked is the newer word.
+    if (_current.channelId != channelId || _current.joining) return;
+    _scheduleAutoRejoin(channelId);
+    if (_current.rejoining) return;
+    _access.state = _current.copyWith(
+      error: VoiceDisconnect.connectionLost.message,
+    );
   }
 
   /// Queues the next attempt and records whether there was one to queue, so
