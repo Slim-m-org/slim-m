@@ -46,10 +46,16 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
   bool _windowMinimized = false;
   StreamSubscription<DesktopWindowEventKind>? _windowEvents;
 
+  /// The embedder moving from hidden to on screen also ends a minimise: a
+  /// window restored without focus reports only `inactive`, and Windows sends
+  /// no restore event for a maximised one.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final cameBack = !isWindowVisible(_bindingState) && isWindowVisible(state);
     _bindingState = state;
-    if (state == AppLifecycleState.resumed) _windowMinimized = false;
+    if (state == AppLifecycleState.resumed || cameBack) {
+      _windowMinimized = false;
+    }
     this.state = _windowMinimized ? AppLifecycleState.hidden : state;
   }
 
@@ -61,7 +67,10 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
       case DesktopWindowEventKind.minimize:
         _windowMinimized = true;
         state = AppLifecycleState.hidden;
-      case DesktopWindowEventKind.show when _windowMinimized:
+      case DesktopWindowEventKind.show ||
+              DesktopWindowEventKind.maximize ||
+              DesktopWindowEventKind.unmaximize
+          when _windowMinimized:
         _windowMinimized = false;
         state = _bindingState;
       case DesktopWindowEventKind.focus:
@@ -94,8 +103,12 @@ final appLifecycleProvider =
     );
 
 /// Whether the window is focused and visible right now.
-final appFocusedProvider = Provider<bool>(
-  (ref) => ref.watch(appLifecycleProvider) == AppLifecycleState.resumed,
+///
+/// A selection of the notifier rather than a provider of its own, so a
+/// listener hears it at once: a derived provider is only recomputed on a
+/// frame, and a hidden window draws none. See `docs/window-states.md`.
+final appFocusedProvider = appLifecycleProvider.select(
+  (state) => state == AppLifecycleState.resumed,
 );
 
 /// Whether the window is on screen, focused or not: a desktop window behind
@@ -103,9 +116,7 @@ final appFocusedProvider = Provider<bool>(
 bool isWindowVisible(AppLifecycleState state) =>
     state == AppLifecycleState.resumed || state == AppLifecycleState.inactive;
 
-final appVisibleProvider = Provider<bool>(
-  (ref) => isWindowVisible(ref.watch(appLifecycleProvider)),
-);
+final appVisibleProvider = appLifecycleProvider.select(isWindowVisible);
 
 /// Whether a timer-driven refresh of [context] would be seen: the window is on
 /// screen, focused or not, and no route or tab above it has turned tickers off.

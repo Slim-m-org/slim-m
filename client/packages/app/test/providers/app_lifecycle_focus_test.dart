@@ -41,6 +41,34 @@ void main() {
     expect(life.state, AppLifecycleState.inactive);
   });
 
+  test('a window restored without focus is on screen again', () {
+    life.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    events.add(DesktopWindowEventKind.minimize);
+    life.didChangeAppLifecycleState(AppLifecycleState.inactive);
+    life.didChangeAppLifecycleState(AppLifecycleState.hidden);
+    expect(life.state, AppLifecycleState.hidden);
+
+    // Windows sends no restore event for a maximised window, only the embedder's state.
+    life.didChangeAppLifecycleState(AppLifecycleState.inactive);
+    expect(life.state, AppLifecycleState.inactive);
+  });
+
+  test('the focus lost on the way to minimised does not undo it', () {
+    life.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    events.add(DesktopWindowEventKind.minimize);
+    life.didChangeAppLifecycleState(AppLifecycleState.inactive);
+    expect(life.state, AppLifecycleState.hidden);
+  });
+
+  test('a maximise while minimised defers to the embedder again', () {
+    life.didChangeAppLifecycleState(AppLifecycleState.inactive);
+    events.add(DesktopWindowEventKind.minimize);
+    expect(life.state, AppLifecycleState.hidden);
+
+    events.add(DesktopWindowEventKind.maximize);
+    expect(life.state, AppLifecycleState.inactive);
+  });
+
   test('a blur after minimising keeps the window hidden', () {
     events.add(DesktopWindowEventKind.minimize);
     events.add(DesktopWindowEventKind.blur);
