@@ -2,7 +2,7 @@
 #ifndef RUNNER_YOUTUBE_PLAYER_POLICY_H_
 #define RUNNER_YOUTUBE_PLAYER_POLICY_H_
 
-#include <cstring>
+#include <string>
 
 /// What the player's view does with one WebKit policy decision, free of GTK
 /// so scripts/lib/test_linux_runner_logic.py can run it with a plain compiler.
@@ -30,9 +30,10 @@ enum class Verdict { kWebKitDefault, kLoad, kOpenExternally };
 /// Whether [uri] is the host page the view was created on, fragment aside.
 inline bool IsHostPage(const char* uri) {
   if (uri == nullptr) return false;
+  const std::string text(uri);
   constexpr size_t length = sizeof(kHostOrigin) - 1;
-  return std::strncmp(uri, kHostOrigin, length) == 0 &&
-         (uri[length] == '\0' || uri[length] == '#');
+  return text.compare(0, length, kHostOrigin) == 0 &&
+         (text.size() == length || text[length] == '#');
 }
 
 /// A new window or a clicked link off the host page opens in the browser
