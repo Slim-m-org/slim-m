@@ -289,11 +289,13 @@ class IoDirectRoute implements DirectRoute {
     }
   }
 
+  /// dart:io hands a socket upgrade over with port 0 when its URL names none.
   Future<Socket> _public(Uri url, bool secure) async {
+    final port = url.port == 0 ? (secure ? 443 : 80) : url.port;
     final connect = _connectPublic;
     final raw = connect != null
-        ? await connect(url.host, url.port)
-        : await Socket.connect(url.host, url.port);
+        ? await connect(url.host, port)
+        : await Socket.connect(url.host, port);
     if (!secure) return raw;
     return SecureSocket.secure(raw, host: url.host, context: _context);
   }
