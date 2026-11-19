@@ -46,6 +46,18 @@ void main() {
     expect(log.state.map((e) => e.message), ['m4', 'm3', 'm2']);
   });
 
+  test('a space with debug logging on keeps more, and off trims back', () {
+    final log = DebugLog(capacity: 3, detailedCapacity: 6);
+    final space = Object();
+    log.keepDetail(space, on: true);
+    for (var i = 0; i < 8; i++) {
+      log.write(_record('m$i'));
+    }
+    expect(log.state, hasLength(6));
+    log.keepDetail(space, on: false);
+    expect(log.state.map((e) => e.message), ['m7', 'm6', 'm5']);
+  });
+
   test('a record written after dispose is dropped, not thrown', () {
     final log = DebugLog()..write(_record('before'));
     AppLog.install(log);

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Debug logs members sent to the admins, newest first: `GET /debug-logs`.
-/// Requires MANAGE_SERVER, the same bit the pane is gated on.
+/// The server's own logging, then the debug logs members sent to the admins,
+/// newest first: `GET /debug-logs`. Requires MANAGE_SERVER, the same bit the
+/// pane is gated on.
 library;
 
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ import '../settings_screen_scaffold.dart';
 import 'paged_first_load.dart';
 import 'debug_log_row.dart';
 import 'reports_load_more_row.dart';
+import 'server_logging_section.dart';
 
 class DebugLogsScreen extends StatelessWidget {
   const DebugLogsScreen({super.key});
@@ -40,38 +42,45 @@ class DebugLogsPane extends ConsumerWidget {
     final controller = ref.read(debugLogsControllerProvider.notifier);
     final items = logs.items;
 
-    return AppAsyncView<List<api.DebugLogEntry>>(
-      value: pagedFirstLoad(
-        items,
-        loading: logs.loading,
-        failure: logs.failure,
-      ),
-      errorMessage: 'Could not load the debug logs.',
-      onRetry: controller.refresh,
-      data: (context, list) => ListView(
-        children: [
-          SettingsSectionCard(
-            title: 'Received logs',
-            description: 'Sent by members and kept for 30 days.',
+    return ListView(
+      children: [
+        const ServerLoggingSection(),
+        AppAsyncView<List<api.DebugLogEntry>>(
+          value: pagedFirstLoad(
+            items,
+            loading: logs.loading,
+            failure: logs.failure,
+          ),
+          center: false,
+          errorMessage: 'Could not load the debug logs.',
+          onRetry: controller.refresh,
+          data: (context, list) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (list.isEmpty)
-                const SettingsEmptyState(
-                  icon: AppIcons.debugLog,
-                  title: 'No debug logs received',
-                )
-              else
-                for (final entry in list)
-                  DebugLogRow(key: ValueKey(entry.id), entry: entry),
+              SettingsSectionCard(
+                title: 'Received logs',
+                description: 'Sent by members and kept for 30 days.',
+                children: [
+                  if (list.isEmpty)
+                    const SettingsEmptyState(
+                      icon: AppIcons.debugLog,
+                      title: 'No debug logs received',
+                    )
+                  else
+                    for (final entry in list)
+                      DebugLogRow(key: ValueKey(entry.id), entry: entry),
+                ],
+              ),
+              if (list.isNotEmpty && (logs.more || logs.error != null))
+                ReportsLoadMoreRow(
+                  loading: logs.loading,
+                  error: logs.error,
+                  onTap: controller.loadMore,
+                ),
             ],
           ),
-          if (list.isNotEmpty && (logs.more || logs.error != null))
-            ReportsLoadMoreRow(
-              loading: logs.loading,
-              error: logs.error,
-              onTap: controller.loadMore,
-            ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

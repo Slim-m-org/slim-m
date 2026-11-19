@@ -6,8 +6,14 @@ import 'models.dart';
 import 'client.dart';
 import 'client_transport.dart';
 
-/// Debug logs sent to the admins: the `/debug-logs` routes.
+/// Debug logs sent to the admins (`/debug-logs`), and the server's own (`/space/server-logs`).
 extension SlimmApiDebugLogs on SlimmApi {
+  /// The newest server log lines. Requires MANAGE_SERVER.
+  Future<ServerLogs> serverLogs() async {
+    final json = await send('GET', '/space/server-logs');
+    return ServerLogs.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Sends [log] to the admins. Any signed-in member may.
   Future<SubmittedDebugLog> submitDebugLog({
     required String log,
