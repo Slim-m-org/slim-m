@@ -119,7 +119,7 @@ Details, in [ci-details.md](ci-details.md#schema-ci): OpenAPI 3.0 `nullable` in 
 Most of its gates run through `scripts/gates.sh`, the same command to run locally (after `git add`, since gates skip untracked files).
 The PR title check, actionlint and shellcheck are separate steps.
 
-Details, in [ci-details.md](ci-details.md#hygiene): The shell, which nothing checked until 2026-09-11; The e2e harness's own unit tests; iOS purpose strings; The iOS broadcast extension is wired up; Orientation is locked on phones only; No emoji in UI source; SPDX headers on Rust source; The file-size budget; The test-pattern ratchet; The comment cap; The error-surface gate; The MediaQuery scope gate; The native launch screens follow the surface tokens; Commit bodies that crash release-please's parser.
+Details, in [ci-details.md](ci-details.md#hygiene): The shell, which nothing checked until 2026-09-11; The e2e harness's own unit tests; iOS purpose strings; The iOS broadcast extension is wired up; Orientation is locked on phones only; No emoji in UI source; SPDX headers on Rust source; The file-size budget; The test-pattern ratchet; The comment cap; The error-surface gate; The MediaQuery scope gate; The native launch screens follow the splash surface; Commit bodies that crash release-please's parser.
 
 ## licenses
 
