@@ -284,15 +284,19 @@ class AccountHost extends ChangeNotifier {
     if (previous == next) return;
     previous?.container.read(accountActiveProvider.notifier).state = false;
     next.container.read(accountActiveProvider.notifier).state = true;
-    if (previous != null) _holdUntilUnmounted(previous.container);
+    if (previous != null) _stillMounted.add(previous.container);
     _active = next;
-    if (next.slot.restoreFailed) await readSession(next);
-    await onActivate(next);
-    if (next.account != null) {
-      _index = _index.withActive(next.account!.origin);
-      unawaited(_saveIndex());
+    try {
+      if (next.slot.restoreFailed) await readSession(next);
+      await onActivate(next);
+      if (next.account != null) {
+        _index = _index.withActive(next.account!.origin);
+        unawaited(_saveIndex());
+      }
+      _changed();
+    } finally {
+      if (previous != null) _releaseAfterSwap(previous.container);
     }
-    _changed();
   }
 
   /// Mounts an empty container at onboarding; sign-in runs unchanged inside it.
@@ -409,8 +413,9 @@ class AccountHost extends ChangeNotifier {
   /// Containers that were on screen and whose widgets no frame has unmounted yet.
   final Set<ProviderContainer> _stillMounted = {};
 
-  void _holdUntilUnmounted(ProviderContainer container) {
-    _stillMounted.add(container);
+  /// Released by the first frame after the notify that swaps the tree; a
+  /// frame drawn while the activation was still awaiting showed it unchanged.
+  void _releaseAfterSwap(ProviderContainer container) {
     SchedulerBinding.instance.addPostFrameCallback(
       (_) => _stillMounted.remove(container),
     );

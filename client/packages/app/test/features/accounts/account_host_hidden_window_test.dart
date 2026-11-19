@@ -105,6 +105,52 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a frame drawn while the next account starts does not release the one on screen',
+    (tester) async {
+      final h = AccountHarness();
+      await tester.runAsync(() async {
+        await h.seed(_a, user: 'ann', active: true);
+        await h.seed(_b, user: 'bea');
+        await h.boot();
+      });
+      addTearDown(() => tester.runAsync(h.dispose));
+      final removed = h.host.runtimeFor(_a)!.container;
+      await tester.pumpWidget(_AccountRoot(h.host));
+      late Future<void> removal;
+      late Completer<void> finish;
+      // Made outside the test's fake clock, whose microtasks would never run here.
+      await tester.runAsync(() async {
+        final started = Completer<void>();
+        finish = Completer<void>();
+        h.onActivate = (_) {
+          started.complete();
+          return finish.future;
+        };
+        removal = h.host.removeAccount(_a);
+        await started.future;
+      });
+      await tester.pump();
+      expect(h.host.active, h.host.runtimeFor(_b));
+      await hideTestWindow(tester);
+      await tester.runAsync(() async {
+        finish.complete();
+        await removal;
+        await Future<void>.delayed(Duration.zero);
+      });
+      // The tree still shows the removed account, and its widgets read on a timer.
+      await tester.binding.delayed(const Duration(seconds: 2));
+      expect(tester.takeException(), isNull);
+      expect(_Probe.reads, greaterThan(0));
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(() => removed.read(testCallProvider), throwsStateError);
+    },
+  );
+
   testWidgets('an account removed on screen stays open until the next frame', (
     tester,
   ) async {
