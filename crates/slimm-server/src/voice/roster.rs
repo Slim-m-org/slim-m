@@ -41,6 +41,12 @@ pub struct RoomParticipant {
     pub joined_at_ms: Option<i64>,
     /// The device tag the token was minted for, the raw device id on older tokens, `None` on older still.
     pub device_id: Option<String>,
+    /// Whether the SFU reports this connection `ACTIVE`: signalling and media both up.
+    pub is_active: bool,
+    /// No unmuted audio track, the rule a joined client applies to the same participant.
+    pub is_muted: bool,
+    /// Whether the server published this participant's deafened attribute.
+    pub is_deafened: bool,
 }
 
 /// How long a roster read is reused. Webhook events drop it sooner, so this only bounds a missed webhook.
@@ -123,6 +129,8 @@ struct ParticipantInfo {
     joined_at: Option<i64>,
     #[serde(default)]
     attributes: std::collections::HashMap<String, String>,
+    #[serde(default)]
+    state: serde_json::Value,
 }
 
 #[derive(serde::Deserialize)]
@@ -131,6 +139,24 @@ struct TrackInfo {
     source: String,
     #[serde(rename = "type", default)]
     track_type: String,
+    #[serde(default)]
+    muted: bool,
+}
+
+/// LiveKit's `ParticipantInfo.State.ACTIVE`, by name or by number.
+fn is_active_state(state: &serde_json::Value) -> bool {
+    match state {
+        serde_json::Value::String(name) => name == "ACTIVE",
+        serde_json::Value::Number(n) => n.as_u64() == Some(2),
+        _ => false,
+    }
+}
+
+fn has_no_live_audio(tracks: &[TrackInfo]) -> bool {
+    tracks
+        .iter()
+        .filter(|t| t.track_type == "AUDIO")
+        .all(|t| t.muted)
 }
 
 impl VoiceService {
@@ -208,6 +234,13 @@ impl VoiceService {
                     has_video,
                     joined_at_ms: joined_at_from(p.joined_at_ms, p.joined_at),
                     device_id: p.attributes.get(super::DEVICE_ATTRIBUTE).cloned(),
+                    is_active: is_active_state(&p.state),
+                    is_muted: has_no_live_audio(&p.tracks),
+                    is_deafened: p
+                        .attributes
+                        .get(super::DEAFENED_ATTRIBUTE)
+                        .map(String::as_str)
+                        == Some(super::DEAFENED_ATTRIBUTE_ON),
                 })
             })
             .collect())
@@ -215,274 +248,4 @@ impl VoiceService {
 }
 
 #[cfg(test)]
-mod tests {
-    use axum::extract::State;
-    use axum::routing::post;
-    use axum::{Json, Router};
-    use serde_json::{Value, json};
-    use tokio::net::TcpListener;
-
-    use super::*;
-
-    /// Spawns a stand-in LiveKit room service on an ephemeral loopback port,
-    /// answering every `ListParticipants` call with a fixed status and body.
-    async fn spawn_room_service(status: axum::http::StatusCode, body: Value) -> String {
-        #[derive(Clone)]
-        struct Canned {
-            status: axum::http::StatusCode,
-            body: Value,
-        }
-        async fn answer(State(canned): State<Canned>) -> (axum::http::StatusCode, Json<Value>) {
-            (canned.status, Json(canned.body))
-        }
-        let router = Router::new()
-            .route("/twirp/livekit.RoomService/ListParticipants", post(answer))
-            .with_state(Canned { status, body });
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        tokio::spawn(async move {
-            axum::serve(listener, router).await.unwrap();
-        });
-        format!("http://{addr}")
-    }
-
-    fn service_at(url: &str) -> VoiceService {
-        VoiceService::for_test(url, "APIkey", "a-secret-at-least-32-chars-long!")
-    }
-
-    async fn counting_room_service() -> (String, Arc<std::sync::atomic::AtomicUsize>) {
-        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        let counter = calls.clone();
-        let router = Router::new().route(
-            "/twirp/livekit.RoomService/ListParticipants",
-            post(move || {
-                counter.fetch_add(1, Ordering::SeqCst);
-                async {
-                    tokio::time::sleep(Duration::from_millis(50)).await;
-                    Json(json!({ "participants": [] }))
-                }
-            }),
-        );
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        tokio::spawn(async move {
-            axum::serve(listener, router).await.unwrap();
-        });
-        (format!("http://{addr}"), calls)
-    }
-
-    #[tokio::test]
-    async fn polled_roster_reads_share_one_sfu_call_until_the_room_changes() {
-        let (url, calls) = counting_room_service().await;
-        let service = service_at(&url);
-        let channel = ChannelId::generate();
-
-        let reads = (0..5).map(|_| service.list_participants_shared(channel));
-        for read in futures_util::future::join_all(reads).await {
-            read.expect("the mock room service answered");
-        }
-        service.list_participants_shared(channel).await.unwrap();
-        assert_eq!(
-            calls.load(Ordering::SeqCst),
-            1,
-            "concurrent and repeated reads share a call"
-        );
-
-        service.roster_cache().invalidate(channel);
-        service.list_participants_shared(channel).await.unwrap();
-        assert_eq!(
-            calls.load(Ordering::SeqCst),
-            2,
-            "a webhook event forces a fresh read"
-        );
-    }
-
-    #[tokio::test]
-    async fn a_disabled_deployment_reports_unavailable_rather_than_calling_out() {
-        let result = VoiceService::disabled()
-            .list_participants(ChannelId::generate())
-            .await;
-        assert!(matches!(result, Err(VoiceError::Unavailable)));
-    }
-
-    #[tokio::test]
-    async fn participants_are_mapped_back_to_the_user_id_that_joined() {
-        let alice = UserId::generate();
-        let url = spawn_room_service(
-            axum::http::StatusCode::OK,
-            json!({
-                "participants": [
-                    { "identity": alice.to_string(), "name": "Alice" },
-                ]
-            }),
-        )
-        .await;
-
-        let participants = service_at(&url)
-            .list_participants(ChannelId::generate())
-            .await
-            .expect("the mock room service answered");
-        assert_eq!(
-            participants,
-            vec![RoomParticipant {
-                user_id: alice,
-                sid: String::new(),
-                display_name: "Alice".to_owned(),
-                is_sharing_screen: false,
-                has_video: false,
-                joined_at_ms: None,
-                device_id: None,
-            }]
-        );
-    }
-
-    #[tokio::test]
-    async fn the_device_attribute_is_read_back() {
-        let alice = UserId::generate();
-        let url = spawn_room_service(
-            axum::http::StatusCode::OK,
-            json!({
-                "participants": [
-                    {
-                        "identity": alice.to_string(),
-                        "name": "Alice",
-                        "attributes": { (super::super::DEVICE_ATTRIBUTE): "device-7", "deafened": "" },
-                    },
-                ]
-            }),
-        )
-        .await;
-
-        let participants = service_at(&url)
-            .list_participants(ChannelId::generate())
-            .await
-            .expect("the mock room service answered");
-        assert_eq!(participants[0].device_id.as_deref(), Some("device-7"));
-    }
-
-    #[tokio::test]
-    async fn a_screen_share_track_sets_is_sharing_screen_and_has_video() {
-        let alice = UserId::generate();
-        let url = spawn_room_service(
-            axum::http::StatusCode::OK,
-            json!({
-                "participants": [
-                    {
-                        "identity": alice.to_string(),
-                        "name": "Alice",
-                        "tracks": [
-                            { "type": "VIDEO", "source": "SCREEN_SHARE" },
-                            { "type": "AUDIO", "source": "SCREEN_SHARE_AUDIO" },
-                        ],
-                    },
-                ]
-            }),
-        )
-        .await;
-
-        let participants = service_at(&url)
-            .list_participants(ChannelId::generate())
-            .await
-            .expect("the mock room service answered");
-        assert_eq!(
-            participants,
-            vec![RoomParticipant {
-                user_id: alice,
-                sid: String::new(),
-                display_name: "Alice".to_owned(),
-                is_sharing_screen: true,
-                has_video: true,
-                joined_at_ms: None,
-                device_id: None,
-            }]
-        );
-    }
-
-    #[tokio::test]
-    async fn the_join_time_reads_from_milliseconds_or_the_older_seconds_field() {
-        let (alice, bob) = (UserId::generate(), UserId::generate());
-        let url = spawn_room_service(
-            axum::http::StatusCode::OK,
-            json!({
-                "participants": [
-                    { "identity": alice.to_string(), "joinedAtMs": "1700000000123", "joinedAt": "1700000000" },
-                    { "identity": bob.to_string(), "joined_at": 1700000005 },
-                ]
-            }),
-        )
-        .await;
-
-        let participants = service_at(&url)
-            .list_participants(ChannelId::generate())
-            .await
-            .expect("the mock room service answered");
-        assert_eq!(participants[0].joined_at_ms, Some(1_700_000_000_123));
-        assert_eq!(participants[1].joined_at_ms, Some(1_700_000_005_000));
-    }
-
-    #[tokio::test]
-    async fn a_camera_track_sets_has_video_without_screen_sharing() {
-        let alice = UserId::generate();
-        let url = spawn_room_service(
-            axum::http::StatusCode::OK,
-            json!({
-                "participants": [
-                    {
-                        "identity": alice.to_string(),
-                        "name": "Alice",
-                        "tracks": [{ "type": "VIDEO", "source": "CAMERA" }],
-                    },
-                ]
-            }),
-        )
-        .await;
-
-        let participants = service_at(&url)
-            .list_participants(ChannelId::generate())
-            .await
-            .expect("the mock room service answered");
-        assert!(participants[0].has_video);
-        assert!(!participants[0].is_sharing_screen);
-    }
-
-    #[tokio::test]
-    async fn a_room_that_was_never_created_is_empty_not_an_error() {
-        let url = spawn_room_service(axum::http::StatusCode::NOT_FOUND, json!({})).await;
-        let participants = service_at(&url)
-            .list_participants(ChannelId::generate())
-            .await
-            .expect("a missing room is an empty room, not a failure");
-        assert!(participants.is_empty());
-    }
-
-    #[tokio::test]
-    async fn an_identity_that_is_not_a_user_id_is_dropped_not_surfaced() {
-        let url = spawn_room_service(
-            axum::http::StatusCode::OK,
-            json!({
-                "participants": [
-                    { "identity": "not-a-uuid", "name": "Ghost" },
-                ]
-            }),
-        )
-        .await;
-        let participants = service_at(&url)
-            .list_participants(ChannelId::generate())
-            .await
-            .expect("a malformed identity must not fail the whole list");
-        assert!(participants.is_empty());
-    }
-
-    #[tokio::test]
-    async fn an_upstream_failure_is_reported_rather_than_silently_empty() {
-        let url = spawn_room_service(
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            json!({ "error": "boom" }),
-        )
-        .await;
-        let result = service_at(&url)
-            .list_participants(ChannelId::generate())
-            .await;
-        assert!(matches!(result, Err(VoiceError::Internal(_))));
-    }
-}
+mod tests;

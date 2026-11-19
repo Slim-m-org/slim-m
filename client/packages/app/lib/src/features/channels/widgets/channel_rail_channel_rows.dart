@@ -279,17 +279,17 @@ class VoiceChannelRow extends ConsumerWidget {
   }
 }
 
-/// A roster snapshot carries no live speaking or mute signal, so those two
-/// flags are false rather than guessed; `isSharingScreen`/`hasVideo` are
-/// read straight off the roster entry (see
+/// A roster snapshot carries no live speaking signal, so that flag is false
+/// rather than guessed; the rest is read straight off the roster entry (see
 /// docs/decisions/0032-voice-participant-webhooks.md).
 VoiceParticipant _asVoiceParticipant(api.VoiceRosterParticipant p) =>
     VoiceParticipant(
       identity: p.userId,
       name: p.displayName,
       isSpeaking: false,
-      isMuted: false,
+      isMuted: p.isMuted,
       isLocal: false,
       isScreenSharing: p.isSharingScreen,
       isCameraOn: p.hasVideo,
+      isDeafened: p.isDeafened,
     );

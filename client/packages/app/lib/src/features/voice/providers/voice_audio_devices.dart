@@ -6,8 +6,8 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../providers/providers.dart';
-import 'voice_deafen_publish.dart';
 import 'speaker_route_provider.dart';
+import 'voice_self_state_publish.dart';
 import 'voice_settings_controller.dart';
 import 'voice_state_access.dart';
 
@@ -120,6 +120,19 @@ class VoiceAudioDevices {
     onError: (e) => api.AppLog.swallowed(
       api.LogTag.voice,
       'Could not tell the call this client is deafened',
+      e,
+      null,
+    ),
+  );
+
+  /// Tells viewers outside the call this client muted or unmuted.
+  Future<void> publishMutedState(bool muted) => publishMuted(
+    _ref.read(apiProvider),
+    _access.state.channelId,
+    muted: muted,
+    onError: (e) => api.AppLog.swallowed(
+      api.LogTag.voice,
+      'Could not tell the channel this client is muted',
       e,
       null,
     ),

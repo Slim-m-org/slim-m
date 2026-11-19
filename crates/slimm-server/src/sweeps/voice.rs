@@ -56,7 +56,7 @@ pub(crate) fn spawn_room_sweep(store: store::Store, voice: voice::VoiceService, 
 }
 
 /// One pass of the stale-call sweep, evicting every call whose heartbeat has
-/// gone stale as of now.
+/// gone stale as of now and whose media the SFU does not vouch for.
 pub async fn sweep_stale_voice_calls(
     voice: &voice::VoiceService,
     hub: &hub::Hub,
@@ -75,10 +75,9 @@ pub async fn sweep_stale_voice_calls(
 ///
 /// Publishes [`hub::Event::VoiceActivityChanged`] for every evicted
 /// `(user, channel)` pair regardless of whether the best-effort SFU removal
-/// below it succeeds: the heartbeat going stale is already the real
-/// transition, committed by [`voice::VoiceService::sweep_stale_calls_at`]
-/// before this ever runs, so bystanders are told up front rather than behind
-/// the removal round trips.
+/// below it succeeds: the eviction is already the real transition, committed
+/// by [`voice::VoiceService::sweep_stale_calls_at`] before this ever runs, so
+/// bystanders are told up front rather than behind the removal round trips.
 ///
 /// The removals themselves fan out with bounded concurrency. Each is a real
 /// HTTP POST to LiveKit, so a blip that expires many heartbeats in one tick
@@ -90,7 +89,7 @@ pub async fn sweep_stale_voice_calls_at(
     hub: &hub::Hub,
     now: std::time::Instant,
 ) -> Vec<(crate::ids::UserId, crate::ids::ChannelId)> {
-    let stale = voice.sweep_stale_calls_at(now);
+    let stale = voice.sweep_stale_calls_at(now).await;
     for (_, channel_id) in &stale {
         hub.publish(hub::Event::VoiceActivityChanged {
             channel_id: *channel_id,

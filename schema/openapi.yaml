@@ -8762,8 +8762,10 @@ paths:
       summary: Tell the room whether the caller has deafened themselves.
       description: >
         Sets or clears a participant attribute that everyone in the call
-        reads. Needs VIEW_CHANNEL and CONNECT, on a voice channel or a direct
-        message. Idempotent, and a no-op when the caller is not in the room.
+        reads, and has everyone watching the channel re-read its roster
+        (`voice.activity`). Needs VIEW_CHANNEL and CONNECT, on a voice channel
+        or a direct message. Idempotent, and a no-op when the caller is not in
+        the room.
       requestBody:
         required: true
         content:
@@ -8793,6 +8795,53 @@ paths:
                 $ref: "#/components/schemas/Error"
         "503":
           $ref: "#/components/responses/Unavailable"
+
+  /channels/{channelId}/voice/muted:
+    parameters:
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: setVoiceMuted
+      tags: [voice]
+      summary: Tell the channel the caller muted or unmuted.
+      description: >
+        The SFU already carries the mute on the caller's own track, which the
+        roster reads as `is_muted`; this has everyone watching the channel
+        re-read it (`voice.activity`) once the SFU shows the reported state,
+        waiting up to about 2 s for it. Needs VIEW_CHANNEL and CONNECT, on a
+        voice channel or a direct message. Idempotent, and a no-op when the
+        caller has no call on record in the channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [muted]
+              properties:
+                muted:
+                  type: boolean
+      responses:
+        "204":
+          description: The channel has been told.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: This deployment has no voice configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /channels/{channelId}/voice/participants/{userId}/move:
     parameters:
@@ -19660,6 +19709,17 @@ components:
           description: >-
             Whether any of this participant's published tracks is video,
             camera or screen share alike.
+        is_muted:
+          type: boolean
+          description: >-
+            Whether this participant has no unmuted audio track, the rule a
+            client in the call applies to the same person. Push-to-talk reads
+            as muted between presses.
+        is_deafened:
+          type: boolean
+          description: >-
+            Whether this participant has deafened themselves
+            (setVoiceDeafened).
         this_device:
           type: boolean
           description: >-
@@ -22718,7 +22778,8 @@ components:
       description: >
         Someone's presence on a channel's voice call changed: a join (the
         first heartbeat for a user on that call), a clean hangup, or the
-        stale-heartbeat sweep evicting someone. Carries only the channel id,
+        stale-heartbeat sweep evicting someone; also someone on the call
+        muting or deafening, which the roster shows. Carries only the channel id,
         never who: unlike ThreadUpdated's reply count, a voice roster is
         per-viewer (GET .../voice/roster drops a hidden participant from
         every viewer but themselves), so naming a participant here would be a

@@ -10,7 +10,7 @@ use axum::http::StatusCode;
 use axum::http::request::Parts;
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use super::AppState;
 use super::error::ApiError;
@@ -34,6 +34,7 @@ pub(super) mod voice_notice;
 pub(super) mod voice_notify_prefs;
 pub(super) mod voice_ring;
 pub(super) mod voice_rooms;
+pub(super) mod voice_self_state;
 pub(super) mod voice_transcription;
 pub(super) mod voice_transcripts;
 pub(super) mod voice_webhook;
@@ -49,7 +50,14 @@ pub fn routes() -> Router<AppState> {
             "/channels/{channel_id}/voice/heartbeat",
             post(heartbeat).delete(forget_heartbeat),
         )
-        .route("/channels/{channel_id}/voice/deafened", put(set_deafened))
+        .route(
+            "/channels/{channel_id}/voice/deafened",
+            put(voice_self_state::set_deafened),
+        )
+        .route(
+            "/channels/{channel_id}/voice/muted",
+            put(voice_self_state::set_muted),
+        )
         .route(
             "/channels/{channel_id}/voice/participants/{user_id}/kick",
             post(kick),
@@ -202,6 +210,8 @@ async fn heartbeat(
         .voice
         .record_heartbeat_reporting_new(ctx.user_id, channel_id);
     if is_a_real_join {
+        // A report sent before this first beat could not nudge, so the cached read may predate it.
+        state.voice.roster_cache().invalidate(channel_id);
         state
             .hub
             .publish(Event::VoiceActivityChanged { channel_id });
@@ -280,6 +290,8 @@ struct RosterParticipantDto {
     display_name: String,
     is_sharing_screen: bool,
     has_video: bool,
+    is_muted: bool,
+    is_deafened: bool,
     /// Whether this is the caller's own connection from the device asking, so a leftover of it never reads as another device.
     this_device: bool,
 }
@@ -359,6 +371,8 @@ async fn roster(
             display_name: participant.display_name,
             is_sharing_screen: participant.is_sharing_screen,
             has_video: participant.has_video,
+            is_muted: participant.is_muted,
+            is_deafened: participant.is_deafened,
         });
     }
 
@@ -368,50 +382,6 @@ async fn roster(
         participants,
         call_age_ms,
     }))
-}
-
-#[derive(Deserialize)]
-struct DeafenedRequest {
-    deafened: bool,
-}
-
-/// Tells the room whether the caller has deafened themselves. Idempotent, and
-/// a no-op when the caller is not in the room, since the SFU is the authority
-/// on who is connected.
-async fn set_deafened(
-    Authed(ctx): Authed,
-    parts: Parts,
-    Path(channel_id): Path<String>,
-    State(state): State<AppState>,
-    Json(body): Json<DeafenedRequest>,
-) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
-    let channel_id = ChannelId(parse_uuid(&channel_id)?);
-
-    let permissions = state
-        .store
-        .permissions_in_channel(ctx.user_id, channel_id)
-        .await?;
-    let needed = Permissions::VIEW_CHANNEL.union(Permissions::CONNECT);
-    if !permissions.contains(needed) {
-        return Err(ApiError::Forbidden);
-    }
-    callable_channel(&state, channel_id).await?;
-
-    match state
-        .voice
-        .set_participant_deafened(channel_id, ctx.user_id, body.deafened)
-        .await
-    {
-        Ok(()) => Ok(StatusCode::NO_CONTENT),
-        Err(VoiceError::Unavailable) => Err(ApiError::NotConfigured(
-            "this server has no voice configured",
-        )),
-        Err(VoiceError::Internal(err)) => {
-            tracing::warn!(%err, "could not publish a participant's deafened state");
-            Err(ApiError::Unavailable)
-        }
-    }
 }
 
 /// Evicts a participant from a channel's voice room, gated on `KICK_MEMBERS`

@@ -30,8 +30,9 @@
 //! no code and the SFU's own reconnect grace period is not this project's to
 //! set. [`VoiceService::sweep_stale_calls_at`] is what closes that: a live
 //! client refreshes its own entry on an interval, and a refresh that stops
-//! arriving is what the sweep, run from `lib.rs`, treats as gone. See
-//! `voice::heartbeat` for the bound this actually gives.
+//! arriving is what the sweep, run from `lib.rs`, treats as gone unless the
+//! SFU still reports the member's media active. See `voice::heartbeat` for
+//! the bound this actually gives.
 
 use serde::Serialize;
 
@@ -47,11 +48,12 @@ mod ring;
 mod room_admin;
 mod room_lifecycle;
 mod roster;
+mod stale_calls;
 mod token;
 mod watch_viewing;
 mod webhook;
 pub(crate) use call_record::{push_if_heard, record_finished_call};
-use heartbeat::{CallHeartbeats, IN_CALL_WITHIN, STALE_AFTER as HEARTBEAT_STALE_AFTER};
+use heartbeat::{CallHeartbeats, IN_CALL_WITHIN};
 pub use live_state::RoomLiveState;
 pub use notice_windows::{NOTICE_WINDOW_MS, NoticeWindows};
 pub use ring::{CallRingOutcome, CallRings, Canceled, Declined, RING_TIMEOUT, StaleRing};
@@ -445,16 +447,6 @@ impl VoiceService {
         now: std::time::Instant,
     ) {
         self.heartbeats.record_at(user_id, channel_id, now);
-    }
-
-    /// Every `(user, channel)` call whose heartbeat has gone stale as of
-    /// `now`, handed back (and forgotten) for the caller to actually evict at
-    /// the SFU. `lib.rs`'s own sweep uses this, passing the real clock, so a
-    /// test can drive exactly the code that runs in production rather than a
-    /// copy of it that could drift; a test is what wants a clock other than
-    /// the real one.
-    pub fn sweep_stale_calls_at(&self, now: std::time::Instant) -> Vec<(UserId, ChannelId)> {
-        self.heartbeats.sweep_stale_at(HEARTBEAT_STALE_AFTER, now)
     }
 
     /// The shared, cloneable ring tracker (a cheap `Arc` clone), the same

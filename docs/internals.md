@@ -169,6 +169,11 @@ The heartbeat pair is the exception to "the check in front": `heartbeat` is gate
 
 The heartbeat pair is also where [`Event::VoiceActivityChanged`] is published: on the first heartbeat for a `(user, channel)` pair (a join) and on a real forget (a clean hangup), each a single lock-held check-and-write against [`crate::voice::VoiceService::record_heartbeat_reporting_new`] / [`crate::voice::VoiceService::forget_heartbeat_reporting_removed`] so a routine refresh never republishes and two concurrent first heartbeats cannot both publish either.
 The third publish site, the stale-heartbeat sweep, lives in `lib.rs` rather than here.
+The mute and deafen reports (`voice_self_state.rs`) publish it too, for a caller with a call on record, so a roster read from outside the call shows who is muted; the SFU carries the mute itself, on the caller's own track, and `is_muted` in the roster is read from there.
+The first heartbeat and both reports drop the cached roster before they publish, so the re-read they prompt is never answered from before them; a report from a caller with no call on record still drops it, and tells nobody.
+A microphone track's `track_published` or `track_unpublished` webhook publishes it as well, since that flips `is_muted` with no mute report.
+A mute report waits up to 2 s for the SFU to show the reported state before it publishes, because the mute travels the signal websocket and can land after the report.
+The sweep asks the SFU before it evicts: a member whose heartbeat went stale is kept while LiveKit still reports them `ACTIVE`, up to three times the stale threshold, because heartbeats travel the API path and that can break while the call's media is fine.
 
 ## Voice heartbeat and answering a ring
 

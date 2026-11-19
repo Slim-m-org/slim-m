@@ -368,6 +368,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     final want = !state.microphoneEnabled;
     final got = await _session.setMicrophoneEnabled(want);
     if (generation != _callGeneration) return;
+    if (got) unawaited(devices.publishMutedState(!want));
     // Reflects what happened rather than what was asked for, so the button
     // never claims a microphone is open when the SFU refused the track.
     final error = got
