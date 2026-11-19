@@ -8,8 +8,8 @@ use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::Response;
 
-/// Middleware for a route that writes a message: the request runs to its end
-/// even when the connection that made it closes or its timeout fires.
+/// Middleware for a route whose write is announced live: the request runs to
+/// its end even when the connection that made it closes or its timeout fires.
 ///
 /// Either drops the handler wherever it is waiting, which can be between the
 /// commit and the fan-out. The write is then stored, and the caller's retry
