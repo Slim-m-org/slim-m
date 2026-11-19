@@ -39,7 +39,9 @@ The listener still reads Ogg Opus, which costs nothing to keep.
 A recording uses the microphone chosen in Voice settings, wherever a call honours that choice, and the system default once that microphone is unplugged.
 On iPhone and Android a recording is refused during a call ("Leave the call to record a voice message."), because the recorder reconfigures the one audio session the call holds: on iPhone it can move the call to the speaker, and on Android stopping it drops a Bluetooth headset.
 Playing a voice message on iPhone during a call is refused for the same reason.
-Joining a call while a recording runs stops it before the call connects and keeps the clip to send or discard, marked "Stopped for a call" (owner decision, 2026-11-16); a recording already finishing is waited for, so the microphone has closed before the call takes the audio route.
+Joining a call while a recording runs stops it before the call connects and keeps the clip to send or discard, marked "Stopped for a call" (owner decision, 2026-11-16).
+The join waits, up to its 3 second limit, for every microphone the recorder is still closing, from a recording just finished or discarded, even one whose composer has gone, so it has closed before the call takes the audio route.
+A recording still opening is dropped without that wait; its microphone closes once it has opened.
 A voice message playing when a call starts pauses on every platform (owner decision, 2026-11-16), except on iPhone, where it stops before the call connects: `audioplayers` deactivates the shared session whenever its last player stops, so a player left paused would cut the call when it later stopped.
 
 ## Recording off screen

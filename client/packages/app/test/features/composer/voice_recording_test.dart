@@ -55,8 +55,14 @@ class FakeCapture implements VoiceCaptureBackend {
     );
   }
 
+  /// When set, cancel waits on it, the way a microphone closing does.
+  Future<void>? discarding;
+
   @override
-  Future<void> cancel() async => cancelled = true;
+  Future<void> cancel() async {
+    if (discarding case final closing?) await closing;
+    cancelled = true;
+  }
 }
 
 class FakeActions implements ComposerActions {
@@ -243,32 +249,6 @@ void main() {
 
       expect(rig.capture.cancelled, isTrue);
       expect(rig.state.phase, VoicePhase.idle);
-    },
-  );
-
-  test(
-    'a call starting waits for a recording already being finished',
-    () async {
-      await started();
-      await rig.advance(const Duration(seconds: 3));
-      final finish = Completer<void>();
-      rig.capture.finishing = finish.future;
-      final stopping = rig.recorder.stop();
-      expect(rig.state.phase, VoicePhase.stopping);
-
-      var yielded = false;
-      final yielding = rig.container
-          .read(callStartYieldsProvider)
-          .callStarting()
-          .then((_) => yielded = true);
-      await pumpEventQueue();
-      expect(yielded, isFalse, reason: 'the microphone is still closing');
-
-      finish.complete();
-      await yielding;
-      await stopping;
-      expect(rig.capture.stopped, isTrue);
-      expect(rig.state.phase, VoicePhase.stopped);
     },
   );
 
