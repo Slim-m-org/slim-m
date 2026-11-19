@@ -5,6 +5,7 @@ It wires up the slim-m server, Caddy for automatic TLS, and an optional Litestre
 Voice and screen share are a second compose file you add when you want them.
 
 Once it is running, [docs/OPERATING.md](../docs/OPERATING.md) lists every setting and covers two-factor, modules, webhooks and bots, and [docs/TROUBLESHOOTING.md](../docs/TROUBLESHOOTING.md) is organised by symptom.
+[docs/self-host-walkthrough.md](../docs/self-host-walkthrough.md) is a timed run through all of it on a clean machine, from installing Docker to an upgrade across more than 150 migrations.
 
 **Text chat on its own is a complete deployment, not a degraded one.**
 The server treats a missing SFU as a normal configuration and answers 501 for every voice request, so a group who only want to type need no LiveKit keys and no second DNS record.
@@ -39,11 +40,22 @@ If calls work at home and not away, the media ports are the first thing to check
 
 Phones need a little care here, so it is worth reading before you pick plain http.
 
-- **https is still the smoothest path.** A real domain with a DNS-01 certificate (see `deploy/Caddyfile`) works on every client with no exceptions.
+- **https is still the smoothest path, and on a LAN it takes one extra step.**
+  The bundled Caddy gets its Let's Encrypt certificate over ports 80 and 443, so it needs those reachable from the internet at least for the challenge.
+  For a name ending in `.internal`, `.local`, `.home.arpa` or `.localhost`, or a bare IP address, Caddy does not ask Let's Encrypt at all: it signs the certificate with its own local authority, which no device trusts yet.
+  Copy that authority's root out with `docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt .` and install it on each device, or use plain http as below.
+  A DNS-01 certificate for a real domain with no open port needs a Caddy image built with your DNS provider's module, which the pinned image is not.
 - **Plain http to a private address** (`http://192.168.x.x:8080`, `http://box.local`) is accepted by the apps. Public addresses always need https, and the app refuses plain http for them.
 - **iOS** allows it through App Transport Security's local-networking exception, which covers `.local` names, unqualified hosts and private IP literals only.
 - **Android** cannot express IP ranges in its network security config, so the config permits cleartext only for `localhost` and `.local` names. The app's own http and WebSocket traffic does not go through that policy, so a private IP address works in practice, but anything handled by the OS media stack would still refuse cleartext to an IP. Use a `.local` name or https if something like that misbehaves.
-- **Voice and screen share** need the LiveKit server reachable on the LAN. Set `SLIMM_LIVEKIT_URL` to the host's LAN address.
+- **Voice and screen share** need LiveKit to hand out the host's LAN address. By default it discovers and advertises your public address, which devices on the LAN reach only if your router loops traffic back, so a call joins and carries no sound. Set both of these in `.env`, then `docker compose up -d`:
+
+  ```
+  LIVEKIT_USE_EXTERNAL_IP=false
+  LIVEKIT_NODE_IP=192.168.1.20
+  ```
+
+  `LIVEKIT_DOMAIN` must also resolve on the LAN to this host and carry a certificate the devices trust, as above.
 - **The web client** cannot use the microphone or screen capture from a plain `http://` page, because browsers require a secure context. Desktop and phone apps are not affected.
 - **What degrades offline:** push notifications (they go through the push relay to FCM and APNs), link previews and GIF search. Text, DMs, attachments, voice and the canvas do not depend on the internet.
 
@@ -56,6 +68,9 @@ cp deploy/.env.example .env
 # edit .env: SLIMM_API_DOMAIN and ACME_EMAIL. That is all that is required.
 docker compose up -d
 ```
+
+On a machine with the images already pulled this is healthy in about ten seconds; the first pull adds a minute or so.
+If `docker` asks for `sudo`, add yourself to the `docker` group and sign in again.
 
 ## Claim it, before you tell anyone the address
 
@@ -101,7 +116,8 @@ Then create your account. That first registration claims the deployment and make
 
 The join policy defaults to invite-only, so your friends need a code rather than just the address.
 
-In the app, go to **Settings → Invites** and create one.
+In the app, open the Space menu and choose **Invite a friend**, which copies a link good for one person for 24 hours.
+**Space settings → Invites** makes longer-lived ones.
 Send them the invite link, which carries both the server address and the code, so they do not have to type either.
 
 They install a client the same way, open the link, and land on the join screen with both fields filled in.
@@ -217,6 +233,7 @@ Set `COMPOSE_PROFILES=backup` (comma separated with any other profile) and run `
 The `backup` service runs `scripts/backup.py`, then `scripts/restore-drill.py`, at 03:00 UTC (`SLIMM_BACKUP_HOUR_UTC`) and keeps 14 snapshots (`SLIMM_BACKUP_KEEP`).
 It needs the repo's `scripts/` directory beside `docker-compose.yml`.
 Snapshots go to the `slimm_backups` volume; set `SLIMM_BACKUP_DIR` to a host path on another disk to survive losing this one.
+That directory must belong to root (`sudo mkdir -p` it, or `sudo chown root:root`): the service runs as root with no right to write into another user's directory, and says so in its log when it cannot.
 It writes `status.json` into `slimm_backup_status`, which the server mounts read-only and shows in Settings, Storage as "Last verified backup".
 A backup that finishes but finds database rows whose file is gone from the live volume is still drilled, and the drill decides the verdict: it passes while the mirror holds every file the database references.
 Those findings are listed under `warnings` in `status.json`.
@@ -229,22 +246,28 @@ The same volume keeps `slimm-data.key` out: back that up apart, as above.
 These two scripts are the "some other way", and they complement Litestream rather than duplicate it: Litestream is continuous, off-host replication of the database file alone, while these are a periodic snapshot of the database *and* the attachment/avatar bytes together, plus a drill that actually restores and checks one.
 Run both if you can; either alone leaves a gap the other closes.
 
-Both are plain-stdlib Python (no pip install), so run them from a throwaway container against the running server's volume - the server image itself is distroless and has no shell or interpreter to exec into:
+Both are plain-stdlib Python (no pip install).
+The server image is distroless and has no interpreter to exec into, so run them through the `backup` service, which already mounts the data volume read-only, the repo's `scripts/` and the backup directory:
 
 ```bash
-docker run --rm \
-  -v slimm_data:/data:ro \
-  -v "$(pwd)/scripts":/scripts:ro \
-  -v /path/on/host/slim-m-backups:/backup \
-  python:3-slim \
-  python3 /scripts/backup.py --backup-root /backup \
-    --database-path /data/slimm.db --media-dir /data/media
+docker compose run --rm --no-deps backup python3 /scripts/backup.py \
+  --backup-root /backup --database-path /data/slimm.db \
+  --media-dir /data/media --modules-dir /data/modules
 ```
+
+`--no-deps` matters before an upgrade: without it compose first brings the `server` service up to date, which is the upgrade you wanted the backup to come before.
+The backup lands wherever `SLIMM_BACKUP_DIR` points, or in the `slimm_backups` volume.
+
+A plain `docker run` works too, but the volume is not called `slimm_data`.
+Compose prefixes it with the project name, usually the directory, so it is `slim-m_slimm_data`; `docker volume ls` shows yours.
+Given a name that does not exist, Docker creates an empty volume and the script stops with `no database at /data/slimm.db`.
 
 Modules that keep structured data have one small SQLite file each, in `--modules-dir` (default `$SLIMM_MODULES_DIR`, else a `modules` directory beside the database, which is `/data/modules` here), so the command above already finds them.
 Each is copied with `VACUUM INTO` as well, to `/backup/modules/<module id>.db`; that mirror holds the latest copy of each file, taken moments after the database snapshot rather than in the same transaction, and a file that cannot be copied makes the run exit non-zero.
 
 It takes a `VACUUM INTO` snapshot of the database (a consistent point-in-time copy SQLite produces from inside its own read transaction, safe to take while the server keeps writing through WAL - it does not need the server stopped, and the source volume above is mounted read-only on purpose) and mirrors every attachment and avatar file referenced by that snapshot into `/backup`.
+The space banner and icon, profile banners, the pictures of linked accounts and the originals kept beside compressed photos are mirrored the same way.
+Previews are not: the server makes them again on demand.
 Attachments are content-addressed by their own sha256, so a mirrored file whose size and recomputed sha256 still match its name is never re-copied, and one that was truncated or has rotted is replaced from the live copy; avatars are small, mutable, and few, so they are simply re-copied every run.
 Checking the mirror reads every mirrored attachment once per run.
 A run that finishes but finds database rows with no file behind them on the live volume exits 3, where a run that could not back something up exits 1.
@@ -255,23 +278,50 @@ Run it on a schedule (cron, systemd timer) the same way you would Litestream.
 Then actually restore what you just backed up and check it, rather than trusting that a backup that has never been restored is one:
 
 ```bash
-docker run --rm \
-  -v /path/on/host/slim-m-backups:/backup \
-  python:3-slim \
-  python3 /scripts/restore-drill.py --backup-root /backup
+docker compose run --rm --no-deps backup python3 /scripts/restore-drill.py --backup-root /backup
 ```
 
-It copies the newest snapshot to a fresh scratch path, runs `PRAGMA integrity_check` on that standalone copy, then checks that every attachment the database references exists in the mirror *and* that the file's real, recomputed sha256 actually matches its name (not merely that a same-named file exists), and the same existence check for every user's avatar, then runs `PRAGMA integrity_check` on every module data file in the mirror.
+It copies the newest snapshot to a fresh scratch path, runs `PRAGMA integrity_check` on that standalone copy, then checks that every attachment the database references exists in the mirror *and* that the file's real, recomputed sha256 actually matches its name (not merely that a same-named file exists), and the same existence check for every user's avatar, every banner and icon and every kept original, then runs `PRAGMA integrity_check` on every module data file in the mirror.
 A snapshot too damaged to query is reported as a failed integrity check rather than a traceback, and the later checks are skipped.
 The scratch copy is deleted when the run ends; `--keep-scratch` keeps it, and a directory given with `--scratch-dir` is always yours.
 A default copy a killed run left behind is removed by the next run once it is six hours old, unless that run uses `--keep-scratch` or `--scratch-dir`.
 It prints exactly what is missing or corrupt and exits non-zero if anything is, which is the property a restore drill exists for.
 Run it after every backup, or at least on a schedule of its own - a backup nobody has restored is a guess.
 
+### Restoring a backup
+
+Restoring is one command into an empty data volume, with the server stopped:
+
+```bash
+docker compose down
+docker compose run --rm restore
+docker compose up -d
+```
+
+`restore` is a service that only ever runs by hand.
+It checks the backup the way the drill does and restores nothing if that fails, then places the newest snapshot as the database with every file it references, owned by the server's user.
+On a new machine that is the whole procedure after cloning the repo and bringing your `.env` and `SLIMM_BACKUP_DIR` across; on 2026-11-19 it took 36 seconds from `down` to a healthy restored server for a small deployment.
+The restored server has the same five words as the old one, because its identity is in the database, so no client warns.
+
+It refuses a volume that already holds a database.
+To roll an existing deployment back, add `--force`, which moves the current database aside as `slimm.db.before-restore-<time>` instead of deleting it; remove that file once you are sure.
+`--db-snapshot /backup/db/<name>` picks a snapshot other than the newest.
+
+The two-factor key is not in the backup, on purpose.
+Copy it out of a running deployment with `docker compose cp server:/data/slimm-data.key ./slimm-data.key` and keep it with your other secrets.
+Put it back during a restore with:
+
+```bash
+docker compose run --rm -v "$(pwd)/slimm-data.key:/key:ro" restore --data-key-file /key
+```
+
+or set `SLIMM_DATA_KEY` in `.env` instead.
+A restore without the key works for everyone except members with two-factor on; see [The data key](../docs/OPERATING.md#the-data-key).
+
 **The database snapshot is exactly as sensitive as the live database, not merely business data.**
 The server's own Ed25519 identity secret (the key a client's trust-on-first-use fingerprint is derived from) lives in that same database as an ordinary row - there is no separate identity file these scripts have to think about excluding, because there is no separate identity file at all.
 Treat every snapshot `backup.py` writes with the same care as the running deployment: not a public bucket with no access control, not attached to a bug report.
-Neither script touches `deploy/.env` (LiveKit keys, Litestream credentials, ACME email) - those are operator secrets that never reach the database or the media volume, and are yours to back up by whatever means you already use for secrets.
+None of the scripts touches `.env` (LiveKit keys, Litestream credentials, ACME email) - those are operator secrets that never reach the database or the media volume, and are yours to back up by whatever means you already use for secrets.
 
 ## Browser clients (`SLIMM_CORS_ALLOWED_ORIGINS`)
 
@@ -651,6 +701,10 @@ With the bundled Caddy that is one more block in `deploy/Caddyfile`, on the same
 }
 ```
 
+Then `docker compose up -d` and `docker compose restart caddy`: Caddy reads its file only when it starts, and `up` does not restart a container whose mounted file changed.
+`curl https://<SLIMM_API_DOMAIN>/app/version.json` names a build once it is serving.
+An invite link's page offers "Open in browser" only when that address answers.
+
 A web client on the same origin as the API needs no `SLIMM_CORS_ALLOWED_ORIGINS`.
 The service carries the `com.centurylinklabs.watchtower.enable` label, so a host running Watchtower with label filtering follows `latest` for the web client the way it does for the server.
 
@@ -706,15 +760,41 @@ The continuous `main` and `latest` tags of `slim-m-server` are not signed; only 
 ## Files
 
 - `docker-compose.yml` (repository root) - the stack itself.
-- `deploy/Caddyfile` - routes the API domain and LiveKit's signaling domain through Caddy, terminating TLS.
-- `deploy/.env.example` - every variable the compose file reads, with safe defaults and comments.
+- `docker-compose.voice.yml` (repository root) - the voice overlay: LiveKit and its Caddy site.
+- `deploy/Caddyfile` - routes the API domain through Caddy, terminating TLS.
+- `deploy/caddy-voice/livekit.caddy` - LiveKit's signaling domain, mounted only by the voice overlay.
+- `deploy/.env.example` - every variable the compose files read, with safe defaults and comments.
+- `scripts/backup.py`, `scripts/restore-drill.py`, `scripts/restore.py` - backup, the check that it restores, and the restore.
 
 ## Upgrading
 
 The server image is `${SLIMM_VERSION:-latest}` in `docker-compose.yml`, so upgrading or pinning it is bumping `SLIMM_VERSION` in `.env`, never editing `docker-compose.yml` itself (see the note above).
 Caddy, LiveKit, and Litestream are hardcoded tags in `docker-compose.yml`; bump those directly and run `docker compose up -d` again.
 Newer patches are at hub.docker.com for Caddy and Litestream and at github.com/livekit/livekit/releases for LiveKit.
-The named volumes (`slimm_data`, `caddy_data`, `caddy_config`) are untouched by an image swap.
+The named volumes (`slimm_data`, `caddy_data`, `caddy_config`, `slimm_backups` and the rest) are untouched by an image swap.
+
+The whole upgrade, in order:
+
+```bash
+docker compose run --rm --no-deps backup python3 /scripts/backup.py \
+  --backup-root /backup --database-path /data/slimm.db \
+  --media-dir /data/media --modules-dir /data/modules
+git pull
+# set SLIMM_VERSION in .env if you pin
+docker compose up -d --remove-orphans
+```
+
+**The compose files and the image go together.**
+`git pull` brings the compose file that matches the newest image, and settings it passes can stop an older image from starting: a server before 0.100.0 under today's file exits with `SLIMM_PUSH_RELAY_URL is not a valid URL: ""`.
+So when you pin an old `SLIMM_VERSION`, also check out that release's tag (`git checkout server-v0.90.0`).
+
+The server applies every migration it is missing on its first start, however many releases you skipped.
+On 2026-11-19 a 0.30.0 deployment went straight to 0.113.0, 154 migrations, in a few seconds, with its messages, attachments, avatars and signed-in sessions intact.
+
+**Upgrading from before 0.66.0, voice needs one line.**
+Voice moved out of `docker-compose.yml` into the overlay in that release.
+An older `.env` has no `COMPOSE_FILE` line, so after the upgrade the server comes up with voice off and says only `voice is disabled`, while the old `livekit` container keeps running as an orphan.
+Add `COMPOSE_FILE=docker-compose.yml:docker-compose.voice.yml` to `.env` before `docker compose up -d --remove-orphans`.
 
 ### If an upgrade goes wrong
 
@@ -725,9 +805,12 @@ So a newer server has already changed the database by the time you decide you wa
 Restoring a snapshot is the rollback procedure, not a last resort:
 
 1. `docker compose down` - stop writing before you copy anything.
-2. Restore the database from a backup taken *before* the upgrade. See [Backups](#backups-optional); `scripts/backup.py` makes one and `scripts/restore-drill.py` is what proves a backup actually restores.
-3. Put `SLIMM_VERSION` back to the version that made that backup.
+2. Restore the backup taken *before* the upgrade: `docker compose run --rm restore --force`. See [Restoring a backup](#restoring-a-backup).
+3. Put `SLIMM_VERSION` back to the version that made that backup, and check out that release's tag so the compose file matches it.
 4. `docker compose up -d`.
+
+An older image started on the newer database without that restore does not run: it restarts in a loop with `migration N was previously applied but is missing in the resolved migrations` in `docker compose logs server`.
+Nothing is damaged by that; do the restore, or go forward again.
 
 **Two-factor secrets are sealed on the first start of this version.**
 An older server image cannot read them, so rolling the image back breaks two-factor sign-in for every member who has it on, until you either restore a backup taken before the upgrade or clear each factor with `slimm-server clear-totp <username>` so the member enrols again.

@@ -21,12 +21,33 @@ Check:
 
 If LiveKit exits at startup with `could not resolve external IP`, that is the host's DNS, not the firewall; see the same section of the deploy guide.
 
+- If it fails for people on the same network as the server and works for people outside, LiveKit is handing out your public address and your router does not loop it back.
+  On a LAN-only deployment set `LIVEKIT_USE_EXTERNAL_IP=false` and `LIVEKIT_NODE_IP` to the host's LAN address; see [deploy/README.md](../deploy/README.md#running-on-a-lan-only).
+  `docker compose logs livekit | grep nodeIP` shows the address in use.
+
 Related symptoms:
 
+- Voice stopped working after an upgrade from before 0.66.0, and the server log says `voice is disabled`: voice moved into an overlay.
+  Add `COMPOSE_FILE=docker-compose.yml:docker-compose.voice.yml` to `.env` and run `docker compose up -d --remove-orphans`.
 - Every voice route answers 501: `SLIMM_LIVEKIT_URL`, `SLIMM_LIVEKIT_API_KEY` and `SLIMM_LIVEKIT_API_SECRET` are not all set, so the server has no SFU.
   Setting them to empty strings is not the same as leaving them out.
   The voice overlay (`COMPOSE_FILE=docker-compose.yml:docker-compose.voice.yml`) sets all three for you.
 - Clients try to connect to a name that is not reachable: `SLIMM_LIVEKIT_URL` must be the public `wss://` address clients can reach, not the compose service name.
+
+## The server restarts in a loop after a version change
+
+Check `docker compose logs server` for the line starting `Error:`.
+
+- `migration N was previously applied but is missing in the resolved migrations`: the image is older than the database.
+  Migrations only go forward, so going back means restoring the backup from before the upgrade (`docker compose run --rm restore --force`), or going forward again.
+- `SLIMM_PUSH_RELAY_URL is not a valid URL: ""`, or another setting named with an empty value: the image is older than the compose file.
+  Check out the tag of the release you pinned (`git checkout server-v<version>`), so the two match.
+- `SLIMM_LIVEKIT_...` named: the voice overlay is on and one of its three values is missing from `.env`.
+
+## "Open in browser" on an invite page is missing or leads nowhere
+
+The invite page shows that button only when `https://<your domain>/app/version.json` answers, which needs the `web` profile and the `/app` route in `deploy/Caddyfile`, then `docker compose restart caddy`.
+A server from before November 2026 linked the button to an address the web client image does not serve; upgrade, or open `https://<your domain>/app/` and choose "I have an invite".
 
 ## The web client says "Could not load channels"
 
