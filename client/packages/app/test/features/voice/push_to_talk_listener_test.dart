@@ -13,10 +13,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/providers/app_lock_controller.dart';
 import 'package:slimm_app/src/features/composer/providers/composer_focus.dart';
+import 'package:slimm_app/src/features/voice/providers/push_to_talk_gate.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/push_to_talk_listener.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/window_lifecycle.dart';
 import 'voice_controller_harness.dart';
 
 class _AlwaysLocked extends AppLockController {
@@ -154,6 +156,34 @@ void main() {
       await controller.leave();
     },
   );
+
+  testWidgets('a global key opens the mic once the window has lost focus', (
+    tester,
+  ) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final composerNode = FocusNode();
+    addTearDown(composerNode.dispose);
+    // Blurred as the window reports it, with the embedder still saying resumed.
+    final controller = await connect(
+      tester,
+      TextField(focusNode: composerNode, autofocus: true),
+      extraOverrides: [windowLifecycle(windowIn(AppLifecycleState.inactive))],
+    );
+    harness.container.read(composerFocusNodeProvider.notifier).state =
+        composerNode;
+    await tester.pump();
+    await controller.toggleMicrophone();
+    await tester.pump();
+    expect(controller.state.microphoneEnabled, isFalse);
+
+    harness.container.read(pushToTalkGateProvider).press(HoldSource.global);
+    await tester.pump();
+
+    expect(controller.state.microphoneEnabled, isTrue);
+    harness.container.read(pushToTalkGateProvider).release(HoldSource.global);
+    await tester.pump();
+    await controller.leave();
+  });
 
   testWidgets('losing composer focus mid-hold still releases cleanly', (
     tester,

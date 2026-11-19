@@ -23,6 +23,7 @@ import 'package:slimm_app/src/desktop/providers/desktop_message_text_settings.da
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
 import '../support/desktop_message_notifier_harness.dart';
+import '../support/window_lifecycle.dart';
 
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
@@ -116,6 +117,32 @@ void main() {
     expect(setup.notifications.shown, ['Alice in #general: hi']);
     await setup.dispose();
   });
+
+  test(
+    'a blur only the window reported still raises the notification',
+    () async {
+      if (!isDesktopHost) return;
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      final setup = await wireNotifier(
+        extra: [windowLifecycle(windowIn(AppLifecycleState.inactive))],
+      );
+
+      setup.events.add(
+        api.MessageCreated(
+          notifierMessage(
+            id: 'm1',
+            authorId: 'alice',
+            authorDisplayName: 'Alice',
+            channelId: 'group-1',
+          ),
+        ),
+      );
+      await settleNotifier(setup);
+
+      expect(setup.notifications.shown, ['Alice in #general: hi']);
+      await setup.dispose();
+    },
+  );
 
   test('the banner carries the server and channel it was posted for', () async {
     if (!isDesktopHost) return;

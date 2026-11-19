@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../providers/app_lifecycle.dart';
 import '../../../providers/app_lock_controller.dart';
 import '../../composer/providers/composer_focus.dart';
 import 'voice_controller.dart';
@@ -24,20 +25,17 @@ class PushToTalkGate {
     DateTime Function() now = DateTime.now,
     bool Function()? windowFocused,
   }) : _now = now,
-       _windowFocused = windowFocused ?? _bindingWindowFocused;
+       _windowFocused = windowFocused;
 
   final Ref _ref;
   final DateTime Function() _now;
-  final bool Function() _windowFocused;
+  final bool Function()? _windowFocused;
   final _holds = <HoldSource>{};
   (HoldSource, DateTime)? _lastMute;
   (HoldSource, DateTime)? _lastDeafen;
   (HoldSource, DateTime)? _lastOverlay;
 
-  static bool _bindingWindowFocused() {
-    final state = WidgetsBinding.instance.lifecycleState;
-    return state == null || state == AppLifecycleState.resumed;
-  }
+  bool get _focused => _windowFocused?.call() ?? _ref.read(appFocusedProvider);
 
   VoiceController get _voice => _ref.read(voiceControllerProvider.notifier);
 
@@ -53,7 +51,7 @@ class PushToTalkGate {
     if (_ref.read(appLockControllerProvider)) return;
     final composerFocused =
         _ref.read(composerFocusNodeProvider)?.hasFocus ?? false;
-    if ((composerFocused || _editableTextFocused()) && _windowFocused()) return;
+    if ((composerFocused || _editableTextFocused()) && _focused) return;
     final first = _holds.isEmpty;
     _holds.add(source);
     if (first) unawaited(_voice.input.setPushToTalkHeld(true));
