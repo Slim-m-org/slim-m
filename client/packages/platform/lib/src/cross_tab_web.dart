@@ -59,6 +59,9 @@ web.LockManager? get _locks {
 /// Session storage, unlike local storage, is one tab's own and outlives its reloads.
 const _tabIdKey = 'slimm.tab_id';
 
+/// The only shape the server takes, so a stored value in any other is never sent.
+final _tabIdShape = RegExp(r'^[0-9a-f]{1,64}$');
+
 /// Null when session storage is out of reach, so the server falls back to the
 /// device's own tag, which a reload still matches.
 Future<String?> _claimTabId() async {
@@ -66,7 +69,9 @@ Future<String?> _claimTabId() async {
     final storage = web.window.sessionStorage;
     final held = storage.getItem(_tabIdKey);
     // A duplicated tab copies session storage, so the id is ours only if no live tab holds it.
-    if (held != null && held.isNotEmpty && await _holdForTheTab(held)) {
+    if (held != null &&
+        _tabIdShape.hasMatch(held) &&
+        await _holdForTheTab(held)) {
       return held;
     }
     final made = _randomTabId();

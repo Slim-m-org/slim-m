@@ -54,6 +54,13 @@ void main() {
     expect(web.window.sessionStorage.getItem(_key), duplicate);
   });
 
+  test('a stored id the server would refuse is replaced', () async {
+    web.window.sessionStorage.setItem(_key, 'Not Hex');
+    final id = await CrossTab().tabId;
+    expect(id, matches(RegExp(r'^[0-9a-f]{1,64}$')));
+    expect(web.window.sessionStorage.getItem(_key), id);
+  });
+
   test('a tab whose session storage is blocked sends no id at all', () async {
     addTearDown(_blockSessionStorage());
     expect(
