@@ -81,9 +81,11 @@ class VoiceCallHeartbeat {
     _timer = Timer.periodic(interval, (_) => unawaited(_send(channelId)));
   }
 
-  void stop() {
+  /// [disown] also stops counting the call as this device's to forget: another device of the account is on it now.
+  void stop({bool disown = false}) {
     _timer?.cancel();
     _timer = null;
+    if (disown) _toldLive = null;
   }
 
   Future<void> _send(String channelId) async {

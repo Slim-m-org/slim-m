@@ -108,4 +108,55 @@ void main() {
       );
     });
   });
+
+  int forgets(List<http.Request> seen) => seen
+      .where((r) => r.method == 'DELETE' && r.url.path.endsWith('/heartbeat'))
+      .length;
+
+  test('hanging up a call another device took leaves it on record', () {
+    fakeAsync((async) {
+      final seen = <http.Request>[];
+      final call = inCallThenBlamed(
+        async,
+        voiceApi(listedOnThisDevice: false, onRequest: seen.add),
+      );
+      async.elapse(delays.first);
+      async.flushMicrotasks();
+      expect(call.controller.state.rejoining, isFalse);
+
+      unawaited(call.controller.leave());
+      async.flushMicrotasks();
+      unawaited(call.controller.join('channel-2'));
+      async.flushMicrotasks();
+
+      expect(
+        forgets(seen),
+        0,
+        reason: 'the heartbeat on record is the other device\'s by now',
+      );
+    });
+  });
+
+  test(
+    'a call rejoined here after another device took it is left as usual',
+    () {
+      fakeAsync((async) {
+        final seen = <http.Request>[];
+        final call = inCallThenBlamed(
+          async,
+          voiceApi(listedOnThisDevice: false, onRequest: seen.add),
+        );
+        async.elapse(delays.first);
+        async.flushMicrotasks();
+        unawaited(call.controller.join('channel-1'));
+        async.flushMicrotasks();
+        expect(call.controller.state.state, VoiceSessionState.connected);
+
+        unawaited(call.controller.leave());
+        async.flushMicrotasks();
+
+        expect(forgets(seen), 1);
+      });
+    },
+  );
 }
