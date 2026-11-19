@@ -30,7 +30,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'package:slimm_rtc/rtc.dart' show ScreenShareSource, VoiceSessionState;
 
 import 'mic_call_button.dart';
 import 'muted_talk_watcher.dart';
@@ -45,7 +44,7 @@ import '../providers/voice_settings_controller.dart'
 import 'camera_source_sheet.dart';
 import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
-import 'screen_share_start.dart';
+import 'call_share_flow.dart';
 import 'call_availability.dart';
 import 'call_device_options.dart';
 import 'call_dock_hint.dart';
@@ -103,24 +102,16 @@ class CallControls extends ConsumerStatefulWidget {
 }
 
 class _CallControlsState extends ConsumerState<CallControls> {
-  /// Guards a fast double-tap from opening two source-selection sheets: the
-  /// enumeration and its own sheet run entirely inside [_share], before
-  /// `VoiceScreenShare.setScreenShare` is ever called, so nothing further down
-  /// the stack can catch a re-entrant tap.
-  bool _shareRequestInFlight = false;
-  final _shareButtonKey = GlobalKey();
+  late final _share = CallShareFlow(
+    ref: ref,
+    controller: () => widget.controller,
+    voice: () => widget.voice,
+    mounted: () => mounted,
+    changed: setState,
+  );
 
-  /// The same guard as [_shareRequestInFlight], for [_switchCamera].
+  /// The same guard as [CallShareFlow]'s, for [_switchCamera].
   bool _cameraSwitchInFlight = false;
-
-  /// Whichever source [_startShare] last resolved a picker's choice to -
-  /// preselected (never silently reused) the next time the picker opens, so
-  /// report 2's "always goes back to whatever was just chosen" reads as a
-  /// highlighted default instead of nothing worth remembering at all. Reset
-  /// by nothing on purpose: it only ever changes what a fresh sheet opens
-  /// pointing at, never whether one opens.
-  String? _lastSourceId;
-  ScreenShareSource? _lastSource;
 
   StateController<CallShortcutHandlers?>? _shortcutRegistry;
 
@@ -130,10 +121,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
     toggleMute: () => widget.controller.toggleMicrophone(),
     toggleDeafen: () => unawaited(widget.controller.toggleDeafen()),
     toggleCamera: () => unawaited(widget.controller.toggleCamera()),
-    toggleShare: () {
-      if (_shareRequestInFlight) return;
-      unawaited(_share(context));
-    },
+    toggleShare: () => _share.toggle(context),
     leave: () => widget.controller.leave(),
   );
 
@@ -334,7 +322,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
     required bool showCaret,
   }) {
     return CallDockButton(
-      key: _shareButtonKey,
+      key: _share.buttonKey,
       icon: AppIcons.screenShare,
       tooltip: _shareTooltip(voice),
       active: voice.screenSharing,
@@ -342,10 +330,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
       // Pending is its own look, never the active one: the lit
       // button over a share nobody could see was the whole bug.
       pending: voice.awaitingBroadcast,
-      onPressed: () {
-        if (_shareRequestInFlight) return;
-        unawaited(_share(context));
-      },
+      onPressed: () => _share.toggle(context),
     );
   }
 
@@ -369,24 +354,15 @@ class _CallControlsState extends ConsumerState<CallControls> {
         ref,
         voice: widget.voice,
         controller: widget.controller,
-        current: _lastSource,
+        current: _share.lastSource,
         actions: ShareMenuActions(
-          onStop: () {
-            if (_shareRequestInFlight) return;
-            unawaited(_share(context));
-          },
-          onChangeSource: () {
-            if (_shareRequestInFlight) return;
-            unawaited(_changeSource(context));
-          },
-          onPickSource: (source) {
-            if (_shareRequestInFlight) return;
-            unawaited(_startShare(context, stopFirst: true, preset: source));
-          },
+          onStop: () => _share.toggle(context),
+          onChangeSource: () => _share.changeSource(context),
+          onPickSource: (source) => _share.pick(context, source),
           onPicturesOnScreen: _stampsKept
               ? () => unawaited(
                   showScreenStampsReceived(
-                    _shareButtonKey.currentContext ?? context,
+                    _share.buttonKey.currentContext ?? context,
                     above: true,
                   ),
                 )
@@ -394,94 +370,8 @@ class _CallControlsState extends ConsumerState<CallControls> {
         ),
       );
 
-  Future<void> _share(BuildContext context) async {
-    final voice = widget.voice;
-    // Cancelling a request that never became a broadcast goes down the same
-    // path as stopping a live one, which is also what ends the recording.
-    // A live share stops here too - [_changeSource] is the options menu's
-    // route to switching source, so this bare tap never has to guess which
-    // of the two a person meant.
-    if (voice.screenSharing || voice.awaitingBroadcast) {
-      await widget.controller.share.setScreenShare(false);
-      return;
-    }
-    await _startShare(context);
-  }
-
-  /// Report 2 in the backlog channel, in the owner's own words: "after
-  /// choosing a screen share screen there is never an option to choose a
-  /// different one while in the same call" - reached from the share button's
-  /// options caret (or a long press) while it is active, since a bare tap
-  /// there is already spoken for by stop. Stops the running share
-  /// outright before asking for a new source, rather than trusting
-  /// [VoiceSession.setScreenShareEnabled] to hot-swap a capture already in
-  /// flight - the same two-step "stop, then start" a person switching
-  /// sources by hand would do themselves.
-  Future<void> _changeSource(BuildContext context) async {
-    if (!widget.voice.screenSharing) return;
-    if (!widget.controller.video.screenShareSourcePickerUseful) {
-      await widget.controller.share.setScreenShare(false);
-      if (!context.mounted) return;
-      await _startShare(context);
-      return;
-    }
-    await _startShare(context, stopFirst: true);
-  }
-
-  /// A zero-height strip on the share button's top edge, so the picker rests above the dock.
-  Rect? _pickerAnchor() {
-    final box = _shareButtonKey.currentContext?.findRenderObject();
-    if (box is! RenderBox || !box.attached) return null;
-    final top = box.localToGlobal(Offset.zero);
-    return Rect.fromLTWH(top.dx, top.dy - AppSpacing.s8, box.size.width, 0);
-  }
-
-  Future<void> _startShare(
-    BuildContext context, {
-    bool stopFirst = false,
-    ScreenShareSource? preset,
-  }) async {
-    final controller = widget.controller;
-    setState(() => _shareRequestInFlight = true);
-    try {
-      // The saved ceiling and audio choice, applied directly rather than asked again.
-      final settings = ref.read(voiceSettingsControllerProvider);
-      final quality = settings.screenShareQuality;
-
-      final pick = preset != null
-          ? (proceed: true, id: preset.id, source: preset)
-          : await pickShareSource(
-              context,
-              controller,
-              lastSourceId: _lastSourceId,
-              anchorRect: _pickerAnchor(),
-            );
-      if (!pick.proceed) return;
-      final sourceId = pick.id;
-      // The call can end while a picker or the source list is open.
-      final voice = widget.voice;
-      if (!mounted ||
-          !(voice.state == VoiceSessionState.connected || voice.rejoining)) {
-        return;
-      }
-      _lastSourceId = sourceId ?? _lastSourceId;
-      _lastSource = pick.source ?? _lastSource;
-      if (stopFirst) await controller.share.setScreenShare(false);
-      await controller.share.setScreenShare(
-        true,
-        quality: quality,
-        sourceId: sourceId,
-        includeAudio: settings.screenShareIncludeAudio,
-        maxHeight: await screenShareCeiling(ref),
-        source: pick.source,
-      );
-    } finally {
-      if (mounted) setState(() => _shareRequestInFlight = false);
-    }
-  }
-
   /// Flips on mobile with no picker at all, and asks on desktop, mirroring
-  /// [_share]'s own fork between "the OS decides" and "list, then choose".
+  /// `pickShareSource`'s fork between "the OS decides" and "list, then choose".
   Future<void> _switchCamera(BuildContext context) async {
     final controller = widget.controller;
     final settings = ref.read(voiceSettingsControllerProvider.notifier);
@@ -495,7 +385,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
       final devices = await controller.video.cameraDevices();
       if (devices.isEmpty) return;
       if (!context.mounted) return;
-      // A single-entry list has nothing to choose between, mirroring _share.
+      // One device has nothing to choose between, mirroring pickShareSource.
       if (devices.length == 1) {
         await pickCameraDevice(controller.video, settings, devices.first);
         return;

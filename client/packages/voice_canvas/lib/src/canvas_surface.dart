@@ -16,7 +16,6 @@ library;
 
 import 'dart:async' show scheduleMicrotask;
 
-import 'package:flutter/foundation.dart' show listEquals, mapEquals;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -29,10 +28,10 @@ import 'canvas_cursors.dart';
 import 'canvas_document.dart';
 import 'canvas_eraser_ring.dart';
 import 'canvas_painters.dart';
-import 'canvas_resize.dart' show minObjectSize;
+import 'canvas_pending_placement.dart';
 import 'canvas_gesture_controller.dart';
 import 'canvas_stroke_drafts.dart';
-import 'selection_painter.dart';
+import 'canvas_surface_painters.dart';
 
 /// Every pointer and scroll/scale handler `_CanvasSurfaceState.build` wires
 /// up: split out once they pushed this file past the 500-line hard limit,
@@ -44,7 +43,6 @@ import 'selection_painter.dart';
 part 'canvas_surface_camera_input.dart';
 part 'canvas_surface_gestures.dart';
 part 'canvas_surface_types.dart';
-part 'canvas_surface_painters.dart';
 
 /// The canvas itself.
 ///
@@ -219,7 +217,7 @@ class CanvasSurface extends StatefulWidget {
   final bool Function(Offset world, PointerDeviceKind kind)? grabsHandleAt;
 
   /// Fires once while [tool] is [CanvasTool.note]: a tap reports where the pointer went down, a drag the box it sized.
-  /// Resolved on pointer-up so a second pointer (a pinch starting) can still cancel it - see [_resolvePendingPlacement].
+  /// Resolved on pointer-up so a second pointer (a pinch starting) can still cancel it - see [CanvasPendingPlacement].
   final NotePlaced? onNotePlace;
 
   /// Fires like [onNotePlace] while [tool] is [CanvasTool.text]: a tap names where the text box goes.
@@ -291,35 +289,17 @@ class _CanvasSurfaceState extends State<CanvasSurface>
   }
 
   final DraftStroke _draft = DraftStroke();
-  late StrokePainter _strokes = _buildStrokePainter();
-
-  StrokePainter _buildStrokePainter() => StrokePainter(
-        document: widget.document,
-        ink: widget.ink,
-        inkColors: widget.inkColors,
-        noteColor: widget.noteColor,
-        shapeColor: widget.shapeColor,
-        textInk: widget.noteTextInk,
-        textFontFamily: widget.cursorLabelFontFamily,
-        noteSpans: widget.noteSpans,
-        noteSpansRevision: widget.noteSpansRevision,
-        placeholderFill: widget.placeholderFill,
-        placeholderIcon: widget.placeholderIcon,
-        elevationShadow: widget.elevationShadow,
-      );
-  late DraftPainter _draftPainter = _buildDraftPainter();
-
-  DraftPainter _buildDraftPainter() => DraftPainter(
-        draft: _draft,
-        document: widget.document,
-        ink: widget.penInk ?? widget.ink,
-        width: widget.strokeWidth,
-      );
+  late final _painters = CanvasSurfacePainters(
+    widget,
+    draft: _draft,
+    shapeDraft: _placement.shapeDraft,
+    glideTick: _cursorGlideTick,
+  );
 
   @override
   void didUpdateWidget(CanvasSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _refreshPainters(oldWidget);
+    _painters.refresh(oldWidget, widget);
     if (oldWidget.document != widget.document) {
       oldWidget.document.removeListener(_onDocumentChanged);
       widget.document.addListener(_onDocumentChanged);
@@ -339,50 +319,6 @@ class _CanvasSurfaceState extends State<CanvasSurface>
     scheduleMicrotask(_finishGesture);
   }
 
-  final DraftShape _shapeDraft = DraftShape();
-  late DraftShapePainter _shapeDraftPainter = _buildShapeDraftPainter();
-
-  DraftShapePainter _buildShapeDraftPainter() => DraftShapePainter(
-        draft: _shapeDraft,
-        document: widget.document,
-        color: widget.shapeColor ?? widget.ink,
-      );
-  late RemoteDraftPainter? _remoteDraftPainter = _buildRemoteDraftPainter();
-
-  RemoteDraftPainter? _buildRemoteDraftPainter() => widget.remoteDrafts == null
-      ? null
-      : RemoteDraftPainter(
-          drafts: widget.remoteDrafts!,
-          document: widget.document,
-          colors: widget.cursorColors,
-          ink: widget.ink,
-          inkColors: widget.inkColors,
-        );
-  late CursorPainter? _cursorPainter = _buildCursorPainter();
-
-  CursorPainter? _buildCursorPainter() => widget.cursors == null
-      ? null
-      : CursorPainter(
-          cursors: widget.cursors!,
-          document: widget.document,
-          colors: widget.cursorColors,
-          labelFontFamily: widget.cursorLabelFontFamily,
-          glide: widget.cursorGlide,
-          glideTick: _cursorGlideTick,
-        );
-  late SelectionPainter? _selectionPainter = _buildSelectionPainter();
-
-  SelectionPainter? _buildSelectionPainter() => widget.selectionOutline == null
-      ? null
-      : SelectionPainter(
-          document: widget.document,
-          outline: widget.selectionOutline!,
-          handleFill: widget.selectionHandleFill ?? widget.selectionOutline!,
-          handleBorder:
-              widget.selectionHandleBorder ?? widget.selectionOutline!,
-          touchHandles: widget.touchHandles,
-        );
-
   /// The pointers taking part in a gesture; a right-click or a rejected palm never joins.
   final Map<int, PointerDeviceKind> _downPointers = {};
   final Set<int> _stylusPointers = <int>{};
@@ -395,18 +331,15 @@ class _CanvasSurfaceState extends State<CanvasSurface>
   /// slop or a second pointer joins.
   Offset? _selectDownAt;
 
-  /// A note or shape placement [_down] armed, resolved only once every
-  /// pointer has lifted - see [_resolvePendingPlacement]. Needed because
-  /// panning and zooming here are two-pointer-only ([_scaleUpdate]'s own
-  /// guard), so a pinch always starts as one finger down alone.
-  CanvasTool? _pendingPlacementTool;
-  Offset? _pendingPlacementWorld;
-
-  /// Where a stamp drag has reached, in world coordinates.
-  Offset? _stampDragWorld;
+  /// The note, text, shape or stamp placement [_down] armed.
+  late final _placement = CanvasPendingPlacement(
+    surface: () => widget,
+    toWorld: _toWorld,
+    pointers: () => _totalPointers,
+  );
 
   /// The eraser's own pointer-down point, held back for exactly the same
-  /// reason [_pendingPlacementWorld] is: at `_down` time there is no way yet
+  /// reason a [CanvasPendingPlacement] is: at `_down` time there is no way yet
   /// to tell a real one-finger erase from the first touch of a pinch. A
   /// second pointer landing discards it in [_down] itself, immediately,
   /// rather than waiting for `_up` the way a placement does - the eraser
@@ -436,13 +369,12 @@ class _CanvasSurfaceState extends State<CanvasSurface>
     widget.gestureController?.attach(null);
     widget.document.removeListener(_onDocumentChanged);
     widget.cursors?.removeListener(_onCursorsChanged);
-    _cursorPainter?.disposeLabels();
-    _strokes.dispose();
+    _painters.dispose();
     // Before super: the ticker mixin asserts nothing is still ticking.
     _glideTicker.dispose();
     _cursorGlideTick.dispose();
     _draft.dispose();
-    _shapeDraft.dispose();
+    _placement.dispose();
     _panning.dispose();
     super.dispose();
   }
@@ -489,25 +421,26 @@ class _CanvasSurfaceState extends State<CanvasSurface>
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        RepaintBoundary(child: CustomPaint(painter: _strokes)),
-                        if (_remoteDraftPainter case final remoteDraftPainter?)
+                        RepaintBoundary(
+                          child: CustomPaint(painter: _painters.strokes),
+                        ),
+                        if (_painters.remoteDrafts case final remoteDrafts?)
                           RepaintBoundary(
-                            child: CustomPaint(painter: remoteDraftPainter),
+                            child: CustomPaint(painter: remoteDrafts),
                           ),
                         RepaintBoundary(
-                            child: CustomPaint(painter: _draftPainter)),
+                          child: CustomPaint(painter: _painters.draft),
+                        ),
                         RepaintBoundary(
-                          child: CustomPaint(painter: _shapeDraftPainter),
+                          child: CustomPaint(painter: _painters.shapeDraft),
                         ),
                       ],
                     ),
                   ),
-                  if (_selectionPainter case final selectionPainter?)
-                    RepaintBoundary(
-                      child: CustomPaint(painter: selectionPainter),
-                    ),
-                  if (_cursorPainter case final cursorPainter?)
-                    RepaintBoundary(child: CustomPaint(painter: cursorPainter)),
+                  if (_painters.selection case final selection?)
+                    RepaintBoundary(child: CustomPaint(painter: selection)),
+                  if (_painters.cursors case final cursors?)
+                    RepaintBoundary(child: CustomPaint(painter: cursors)),
                 ],
               ),
             ),

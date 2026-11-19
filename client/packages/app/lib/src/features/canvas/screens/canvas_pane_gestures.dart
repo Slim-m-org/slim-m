@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 part of 'canvas_pane.dart';
 
-/// How close a tap must land to someone's cursor to follow them, in screen pixels.
-const double _cursorTapReachPx = 20;
-
-/// The select tool, undo, clear and the camera-bubble roster, split out of
-/// `_CanvasPaneState` for the line budget; they all need its fields.
+/// The tool strip, note editing, undo, clear and ink, split out of
+/// `_CanvasPaneState` for the line budget; they all need its fields. The
+/// Move tool's own gestures are [CanvasSelectGesture].
 extension _CanvasPaneGestures on _CanvasPaneState {
   /// Leaving the select tool deselects, so the outline and its resize
   /// handles do not linger over a selection nothing can act on any more
@@ -198,42 +196,6 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     const SingleActivator(LogicalKeyboardKey.backspace): _onDeleteKey,
   });
 
-  /// How soon a second click on a note makes a double click.
-  static const _doubleClickWindow = Duration(milliseconds: 400);
-
-  /// A finished select gesture that never became a drag: a double click with
-  /// a mouse, or a single tap with a finger or a pen, on the selected note.
-  void _onSelectTap(Offset world, PointerDeviceKind kind) {
-    final id = _document.selectedObjectId.value;
-    if (id == null && _followCursorAt(world)) return;
-    final bounds = id == null ? null : _document.objectBounds(id);
-    final onNote =
-        id != null &&
-        bounds != null &&
-        (_document.kindOf(id) == CanvasObjectKind.note ||
-            _document.kindOf(id) == CanvasObjectKind.text) &&
-        Rect.fromLTWH(bounds.x, bounds.y, bounds.w, bounds.h).contains(world);
-    if (!onNote) {
-      _lastNoteClick = null;
-      return;
-    }
-    if (kind != PointerDeviceKind.mouse) {
-      // The first tap selects the note; only a tap on a note that was already selected edits it.
-      if (id != _selectedBeforeDown) return;
-    } else {
-      final last = _lastNoteClick;
-      final now = clock.now();
-      _lastNoteClick = (id: id, at: now);
-      if (last == null ||
-          last.id != id ||
-          now.difference(last.at) > _doubleClickWindow) {
-        return;
-      }
-      _lastNoteClick = null;
-    }
-    _onEditNote(id);
-  }
-
   /// Opens the in-place editor, unless the note is locked or the canvas is
   /// refusing writes; the select tool and the menu only ever offer notes this
   /// person may edit.
@@ -290,96 +252,6 @@ extension _CanvasPaneGestures on _CanvasPaneState {
 
   void _closeMemberPane() =>
       ref.read(memberPaneVisibleProvider.notifier).state = false;
-
-  /// A tap on someone's cursor follows them instead of selecting under it.
-  bool _followCursorAt(Offset world) {
-    final reach = _cursorTapReachPx / _document.camera.zoom;
-    final hit = _cursors.all
-        .where((c) => (Offset(c.x, c.y) - world).distance <= reach)
-        .firstOrNull;
-    if (hit == null) return false;
-    final relay = _engine.viewRelay;
-    relay.following.value == hit.id
-        ? relay.stopFollowing()
-        : relay.follow(hit.id);
-    return true;
-  }
-
-  bool _grabsHandleAt(Offset world, PointerDeviceKind kind) {
-    final me = ref.read(meProvider).valueOrNull;
-    return _ops.hitsResizeHandle(
-      world,
-      manageCanvas: ref
-          .read(myChannelPermissionsProvider(widget.channelId))
-          .hasPermission(Perm.manageCanvas),
-      selfId: me?.id,
-      touch: AppTouchTargets.of(context) || _fingerReach,
-    );
-  }
-
-  void _onSelectStart(Offset world) {
-    if (_editingNoteId == null && !_boardFocusNode.hasPrimaryFocus) {
-      _boardFocusNode.requestFocus();
-    }
-    // A spectator moves nothing but the camera.
-    if (_spectating) return _dragPan.begin(world);
-    _selectedBeforeDown = _document.selectedObjectId.value;
-    final me = ref.read(meProvider).valueOrNull;
-    // A safe read, not a cold one: build() already watches this same family instance every frame.
-    final manageCanvas = ref
-        .read(myChannelPermissionsProvider(widget.channelId))
-        .hasPermission(Perm.manageCanvas);
-    _ops.beginSelect(
-      world,
-      manageCanvas: manageCanvas,
-      selfId: me?.id,
-      touch: AppTouchTargets.of(context) || _fingerReach,
-    );
-    // Nothing to move or resize under the pointer: the pan tool pans, with one finger too.
-    if (_ops.activeMove == null) _dragPan.begin(world);
-  }
-
-  /// Images keep their aspect and notes or shapes resize freely; Shift flips either, Alt moves freely, touch always snaps.
-  /// Read on every drag point so releasing a key mid-drag takes effect at once.
-  void _onSelectDrag(Offset world) {
-    if (_dragPan.active) {
-      _dragPan.drag(world, _document);
-      // A stroke is selected by a tap; a drag across it is a pan.
-      if (_dragPan.moving) _document.selectedObjectId.value = null;
-      return;
-    }
-    _ops.dragSelect(
-      world,
-      lockAspect: _aspectLocked(
-        flipped: HardwareKeyboard.instance.isShiftPressed,
-      ),
-      snap: !HardwareKeyboard.instance.isAltPressed,
-    );
-    if (_ops.activeMove case final move?) {
-      _objectPreview.reportLocal(move.id, move.box);
-    }
-  }
-
-  bool _aspectLocked({required bool flipped}) {
-    final id = _document.selectedObjectId.value;
-    final isImage =
-        id != null && _document.kindOf(id) == CanvasObjectKind.image;
-    return isImage != flipped;
-  }
-
-  Future<void> _onSelectCancel() async {
-    _dragPan.end();
-    final restored = _ops.cancelSelect();
-    _objectPreview.endLocal(restored?.box);
-    _refresh();
-  }
-
-  Future<void> _onSelectEnd() async {
-    _dragPan.end();
-    _objectPreview.endLocal(_ops.activeMove?.box);
-    await _ops.endSelect();
-    _refresh();
-  }
 
   Future<void> _onBringToFront(String objectId) async {
     await _ops.bringToFront(objectId);

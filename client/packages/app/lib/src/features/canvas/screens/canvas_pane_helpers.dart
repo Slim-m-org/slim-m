@@ -25,7 +25,6 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
   CanvasOpsController get _ops => _engine.ops;
   CanvasCursorRelay get _relay => _engine.cursorRelay;
   CanvasStrokePreviewRelay get _strokePreview => _engine.strokePreviewRelay;
-  CanvasObjectPreviewRelay get _objectPreview => _engine.objectPreviewRelay;
 
   CanvasImagePaste get _imagePaste => _imagePasteHelper ??= CanvasImagePaste(
     client: ref.read(apiProvider),
@@ -72,6 +71,18 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
         if (_mounted) _engine.reportError(message);
     }
   }
+
+  CanvasSelectGesture get _select => _selectHelper ??= CanvasSelectGesture(
+    engine: _engine,
+    ref: ref,
+    channelId: () => widget.channelId,
+    boardFocus: _boardFocusNode,
+    editing: () => _editingNoteId != null,
+    touch: () => AppTouchTargets.of(context) || _fingerReach,
+    spectating: () => _spectating,
+    editNote: _onEditNote,
+    changed: _refresh,
+  );
 
   CanvasStampPlacement get _stampPlacement =>
       _stampPlacementHelper ??= CanvasStampPlacement(
