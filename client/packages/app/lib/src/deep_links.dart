@@ -27,10 +27,10 @@
 /// link with its own session, and the server links only for the account that
 /// started it. See `discord_link_callback.dart`.
 ///
-/// Windows note: the setup installer registers the scheme in the user's
-/// registry and the app forwards a link to a running copy. The zip install
-/// does not, so pasting an invite into the join dialog, or the Discord code
-/// into Settings, remains the way there.
+/// Windows note: the scheme lives in the user's registry. The setup writes
+/// it, and every copy points it at itself (or its launcher) when it starts,
+/// so a zip install gets it too. A link that opens a second copy is handed
+/// to the running one by the runner, which arrives here as [forwarded].
 library;
 
 import 'dart:async';
@@ -139,15 +139,19 @@ class DeepLinkListener {
   DeepLinkListener._(this._host, this._home);
 
   /// Reads the link stream and host once from [container], then outlives it.
-  factory DeepLinkListener.start(ProviderContainer container) {
+  /// [forwarded] are the links a later launch handed to this running copy.
+  factory DeepLinkListener.start(
+    ProviderContainer container, {
+    Stream<Uri> forwarded = const Stream.empty(),
+  }) {
     final listener = DeepLinkListener._(
       container.read(accountHostProvider),
       container,
     );
     WidgetsBinding.instance.addObserver(listener._guard);
-    listener._sub = container
-        .read(deepLinkUrisProvider)
-        .listen(
+    listener._subs = [
+      for (final links in [container.read(deepLinkUrisProvider), forwarded])
+        links.listen(
           listener._deliver,
           onError: (Object error, StackTrace stack) => AppLog.warning(
             LogTag.platform,
@@ -155,7 +159,8 @@ class DeepLinkListener {
             error: error,
             stack: stack,
           ),
-        );
+        ),
+    ];
     return listener;
   }
 
@@ -164,11 +169,13 @@ class DeepLinkListener {
   /// The account on screen when there is no host to ask.
   final ProviderContainer _home;
   final _guard = CallbackRouteGuard();
-  late final StreamSubscription<Uri> _sub;
+  late final List<StreamSubscription<Uri>> _subs;
 
   void dispose() {
     WidgetsBinding.instance.removeObserver(_guard);
-    unawaited(_sub.cancel());
+    for (final sub in _subs) {
+      unawaited(sub.cancel());
+    }
   }
 
   void _deliver(Uri uri) {

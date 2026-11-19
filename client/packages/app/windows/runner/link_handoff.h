@@ -1,0 +1,83 @@
+#ifndef RUNNER_LINK_HANDOFF_H_
+#define RUNNER_LINK_HANDOFF_H_
+
+#include <cstddef>
+#include <cwctype>
+#include <string>
+#include <vector>
+
+namespace slimm {
+
+/// How Windows passes a `slimm://` link (an invite, Spotify's redirect, the
+/// Discord link's hand-back) on a command line.
+constexpr wchar_t kLinkScheme[] = L"slimm:";
+
+/// The per-user layout from decision 0041: `<root>\slim-m.exe` starts the
+/// version that `<root>\current` names, from `<root>\app-<version>\`.
+constexpr wchar_t kLauncherName[] = L"slim-m.exe";
+constexpr wchar_t kVersionFolderPrefix[] = L"app-";
+constexpr wchar_t kCurrentPointer[] = L"current";
+
+inline bool StartsWithIgnoringCase(const std::wstring& text,
+                                   const std::wstring& prefix) {
+  if (text.size() < prefix.size()) return false;
+  for (std::size_t i = 0; i < prefix.size(); ++i) {
+    if (std::towlower(text[i]) != std::towlower(prefix[i])) return false;
+  }
+  return true;
+}
+
+inline bool EqualsIgnoringCase(const std::wstring& a, const std::wstring& b) {
+  return a.size() == b.size() && StartsWithIgnoringCase(a, b);
+}
+
+inline std::wstring FileName(const std::wstring& path) {
+  const std::size_t cut = path.find_last_of(L"\\/");
+  return cut == std::wstring::npos ? path : path.substr(cut + 1);
+}
+
+inline std::wstring ParentOf(const std::wstring& path) {
+  const std::size_t cut = path.find_last_of(L"\\/");
+  return cut == std::wstring::npos ? std::wstring() : path.substr(0, cut);
+}
+
+/// The first of `args` (the program itself left out) that is a slim-m link,
+/// or empty when there is none.
+inline std::wstring FindLinkArgument(const std::vector<std::wstring>& args) {
+  for (const std::wstring& arg : args) {
+    if (StartsWithIgnoringCase(arg, kLinkScheme)) return arg;
+  }
+  return std::wstring();
+}
+
+/// Whether the process running `image` is this app. Only the file name counts:
+/// the launcher may start a newer `app-<version>` folder than the running copy
+/// came from, and a link for that copy must still reach it.
+inline bool IsSameApp(const std::wstring& image, const std::wstring& own) {
+  return !image.empty() && EqualsIgnoringCase(FileName(image), FileName(own));
+}
+
+/// What `slimm://` should open for the copy at `exe`: the per-user launcher
+/// when `exe` runs from one of its version folders, so the registration
+/// survives updates, and `exe` itself for a copy run from an unzipped folder.
+template <typename Exists>
+std::wstring LinkHandlerFor(const std::wstring& exe, Exists exists) {
+  const std::wstring folder = ParentOf(exe);
+  const std::wstring root = ParentOf(folder);
+  if (root.empty() ||
+      !StartsWithIgnoringCase(FileName(folder), kVersionFolderPrefix)) {
+    return exe;
+  }
+  const std::wstring launcher = root + L"\\" + kLauncherName;
+  if (!exists(launcher) || !exists(root + L"\\" + kCurrentPointer)) return exe;
+  return launcher;
+}
+
+/// The scheme's open command, quoted as the setup writes it.
+inline std::wstring OpenCommandFor(const std::wstring& handler) {
+  return L"\"" + handler + L"\" \"%1\"";
+}
+
+}  // namespace slimm
+
+#endif  // RUNNER_LINK_HANDOFF_H_

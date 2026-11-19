@@ -60,7 +60,8 @@ class _SpotifyLinkRow extends ConsumerWidget {
 
   static String _detail(SpotifyLinkStatus status) => switch (status) {
     SpotifyConnected(:final name) => name ?? 'Linked',
-    SpotifyWaiting() => 'Finish signing in, then come back.',
+    SpotifyWaiting() =>
+      'Finish signing in, then choose Open if your browser asks.',
     SpotifyConnecting() => 'Connecting...',
     _ => 'Not linked',
   };

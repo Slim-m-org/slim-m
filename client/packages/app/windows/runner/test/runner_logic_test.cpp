@@ -1,9 +1,13 @@
 // Run by scripts/lib/test_windows_runner_logic.py; no Windows headers needed.
 #include <cstdint>
 #include <cstdio>
+#include <set>
+#include <string>
+#include <vector>
 
 #include "../bounded_retry.h"
 #include "../hotkey_modifiers.h"
+#include "../link_handoff.h"
 #include "../youtube_player_geometry.h"
 
 namespace {
@@ -150,6 +154,50 @@ void ASingleAttemptNeverWaits() {
   CHECK(waits == 0);
 }
 
+const std::wstring kRoot = L"C:\\Users\\Ann\\AppData\\Local\\slim-m";
+
+bool InLayout(const std::wstring& path) {
+  static const std::set<std::wstring> files = {kRoot + L"\\slim-m.exe",
+                                               kRoot + L"\\current"};
+  return files.count(path) != 0;
+}
+
+bool Nothing(const std::wstring&) { return false; }
+
+void ALinkForwardsToACopyFromAnotherVersionFolder() {
+  CHECK(slimm::IsSameApp(kRoot + L"\\app-0.130.95\\slimm_app.exe",
+                         kRoot + L"\\APP-0.131.0\\SLIMM_APP.EXE"));
+  CHECK(slimm::IsSameApp(L"D:/zip/slimm_app.exe", kRoot + L"\\slimm_app.exe"));
+  CHECK(!slimm::IsSameApp(L"C:\\other\\flutter_app.exe",
+                          kRoot + L"\\app-1\\slimm_app.exe"));
+  CHECK(!slimm::IsSameApp(L"", kRoot + L"\\app-1\\slimm_app.exe"));
+}
+
+void OnlyASlimmArgumentIsALink() {
+  CHECK(slimm::FindLinkArgument({L"--relaunch", L"SLIMM://spotify-callback?code=c"}) ==
+        L"SLIMM://spotify-callback?code=c");
+  CHECK(slimm::FindLinkArgument({L"--relaunch"}).empty());
+  CHECK(slimm::FindLinkArgument({L"https://example.com", L"slim"}).empty());
+}
+
+void AnInstalledCopyRegistersItsLauncher() {
+  CHECK(slimm::LinkHandlerFor(kRoot + L"\\app-0.131.0\\slimm_app.exe",
+                              InLayout) == kRoot + L"\\slim-m.exe");
+}
+
+void ACopyOutsideTheLayoutRegistersItself() {
+  const std::wstring unzipped = L"C:\\Users\\Ann\\Downloads\\slim-m\\slimm_app.exe";
+  CHECK(slimm::LinkHandlerFor(unzipped, InLayout) == unzipped);
+  const std::wstring no_launcher = kRoot + L"\\app-0.131.0\\slimm_app.exe";
+  CHECK(slimm::LinkHandlerFor(no_launcher, Nothing) == no_launcher);
+  CHECK(slimm::LinkHandlerFor(L"slimm_app.exe", InLayout) == L"slimm_app.exe");
+}
+
+void TheOpenCommandMatchesTheSetup() {
+  CHECK(slimm::OpenCommandFor(kRoot + L"\\slim-m.exe") ==
+        L"\"" + kRoot + L"\\slim-m.exe\" \"%1\"");
+}
+
 void ALogicalRectScalesToPhysicalPixels() {
   slimm::PixelRect rect = slimm::ToPhysical(10, 20, 360, 202.5, 1.5);
   CHECK(rect.left == 15);
@@ -193,6 +241,11 @@ int main() {
   ARetryThatNeverSucceedsWaitsOneLessThanItTries();
   AFirstTrySuccessNeverWaits();
   ASingleAttemptNeverWaits();
+  ALinkForwardsToACopyFromAnotherVersionFolder();
+  OnlyASlimmArgumentIsALink();
+  AnInstalledCopyRegistersItsLauncher();
+  ACopyOutsideTheLayoutRegistersItself();
+  TheOpenCommandMatchesTheSetup();
   ALogicalRectScalesToPhysicalPixels();
   AnEmptyOrBadRectIsNothing();
   OnlyTheHostPageStaysInThePlayer();

@@ -67,3 +67,11 @@ std::string Utf8FromUtf16(const wchar_t* utf16_string) {
   }
   return utf8_string;
 }
+
+std::wstring ExecutablePath() {
+  std::wstring path(UNICODE_STRING_MAX_CHARS, L'\0');
+  const DWORD length = ::GetModuleFileNameW(
+      nullptr, path.data(), static_cast<DWORD>(path.size()));
+  path.resize(length < path.size() ? length : 0);
+  return path;
+}

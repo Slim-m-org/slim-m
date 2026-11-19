@@ -11,6 +11,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io' show IOException;
 
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
 import 'package:flutter/services.dart' show PlatformException;
@@ -256,6 +257,9 @@ class SpotifyLinker {
       );
       _fail('Spotify took too long to answer. Try again.');
     } on http.ClientException catch (error, stack) {
+      reportFailure(LogTag.ui, _linkSpotifyTask, error, stack);
+      _fail('Could not reach Spotify. Check the connection and retry.');
+    } on IOException catch (error, stack) {
       reportFailure(LogTag.ui, _linkSpotifyTask, error, stack);
       _fail('Could not reach Spotify. Check the connection and retry.');
     } on Object catch (error, stack) {

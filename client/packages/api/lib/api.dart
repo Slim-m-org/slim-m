@@ -103,6 +103,7 @@ export 'src/client.dart'
         SlimmApiWebhooks;
 export 'src/session_store.dart' show SessionStore, SessionSync;
 export 'src/connection_test.dart';
+export 'src/windows_roots.dart';
 export 'src/upload_source.dart';
 export 'src/events_tallies.dart';
 export 'src/events.dart'

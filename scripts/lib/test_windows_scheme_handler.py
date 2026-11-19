@@ -7,10 +7,14 @@ code to be pasted by hand. Each of these fails silently when it is missing:
 
 1. The Inno setup registers the scheme for the user and passes the link
    (`%1`) to the root launcher.
-2. The runner hands a link to the copy that already runs before it claims the
+2. The app registers it too when it starts, because a zip copy, `install.cmd`
+   and an in-app move into the per-user layout never ran the setup, and a
+   browser silently drops a redirect to a scheme nobody registered.
+3. The runner hands a link to the copy that already runs before it claims the
    single-instance mutex; claiming first makes the second launch exit and the
-   link is lost.
-3. The Android manifest lists the host, because a host it does not list never
+   link is lost. The launcher may start a newer version folder than the
+   running copy came from, so the match is by file name, not full path.
+4. The Android manifest lists the host, because a host it does not list never
    reaches the app.
 
 Stdlib only; hygiene installs nothing.
@@ -76,13 +80,37 @@ class RunnerForwardsTheLink(unittest.TestCase):
         self.assertIn("ForwardLinkToRunningInstance(", main)
         self.assertLess(main.index("ForwardLinkToRunningInstance("), main.index("ClaimSingleInstance("))
 
-    def test_forwarding_goes_through_the_app_links_plugin(self):
+    def test_forwarding_matches_the_running_copy_by_file_name(self):
         source = strip_c_comments((RUNNER_DIR / "single_instance.cpp").read_text())
-        self.assertIn("SendAppLinkToInstance()", source)
+        self.assertIn("slimm::IsSameApp(", source)
+        self.assertNotIn("SendAppLinkToInstance", source)
+
+    def test_the_window_takes_a_forwarded_link_before_the_plugins(self):
+        window = strip_c_comments((RUNNER_DIR / "flutter_window.cpp").read_text())
+        self.assertIn("OnForwardedLink(", window)
+        self.assertLess(window.index("OnForwardedLink("), window.index("HandleTopLevelWindowProc("))
 
     def test_only_a_slimm_link_is_forwarded(self):
-        source = strip_c_comments((RUNNER_DIR / "single_instance.cpp").read_text())
+        source = strip_c_comments((RUNNER_DIR / "link_handoff.h").read_text())
         self.assertIn('L"slimm:"', source)
+
+
+class AppRegistersTheScheme(unittest.TestCase):
+    def test_the_instance_that_stays_registers_it(self):
+        main = strip_c_comments((RUNNER_DIR / "main.cpp").read_text())
+        self.assertIn("RegisterLinkScheme();", main)
+        self.assertLess(main.index("ClaimSingleInstance("), main.index("RegisterLinkScheme();"))
+
+    def test_it_writes_the_keys_the_setup_writes(self):
+        source = strip_c_comments((RUNNER_DIR / "link_scheme.cpp").read_text())
+        for subkey in (r"Software\\Classes\\slimm", r"Software\\Classes\\slimm\\shell\\open\\command"):
+            self.assertIn(subkey, source)
+            entry_for(subkey.replace("\\\\", "\\"))
+        self.assertIn('L"URL Protocol"', source)
+
+    def test_it_is_built(self):
+        cmake = (RUNNER_DIR / "CMakeLists.txt").read_text()
+        self.assertIn('"link_scheme.cpp"', cmake)
 
 
 class AndroidListsTheHost(unittest.TestCase):

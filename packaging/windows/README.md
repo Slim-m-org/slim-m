@@ -10,7 +10,9 @@ Closing the window only sends slim-m to the tray, so quit it from the tray icon 
 The uninstaller closes a running slim-m itself once you confirm, so a silent uninstall works with it in the tray, and answering No leaves it running.
 Start on login registers the stable `slim-m.exe` launcher, so a login start follows updates; the app rewrites an older registration that named a versioned folder.
 It also registers the `slimm://` scheme for your user, so an invite link, Spotify's redirect and the Discord link's "Open slim-m" button reach this install, and a running copy is handed the link.
-The zip install does not register it: paste an invite into the join dialog, or the Discord code into Settings, Connections.
+The app registers the scheme as well each time it starts, pointing it at the launcher when it runs from the per-user layout and at its own `slimm_app.exe` otherwise, so a zip install, `install.cmd` and a copy moved in from Settings > About get it too.
+Without it a browser drops the redirect with no prompt, and Spotify's page simply stays on Agree.
+The running copy takes the link even when the launcher starts a newer version folder than the one it came from, because the runner matches it by file name.
 Uninstalling removes the app folders, the launcher, the pointers, the `running.pid` marker, a "Start on login" entry that points into the install, the YouTube player's WebView2 profile, the notification identity the app registered (`AppUserModelId\top.npcserver.slimm`) with the settings Windows kept for it, and the install folder itself once it is empty.
 The app keeps its data (sign-in, local databases, settings and caches) under `%APPDATA%\top.npcserver\slim-m`.
 An interactive uninstall asks whether to remove it too, with No as the default; a silent uninstall always keeps it, so reinstalling picks up where you left off.
