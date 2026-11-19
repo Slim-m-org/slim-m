@@ -504,15 +504,17 @@ Comments and string literals are stripped first (`dart_source`, shared with that
 Each entry is a ceiling on how many unscoped calls the file may hold, the ratchet shape `check-comment-cap.sh` uses, and not a line number, which drifts with every edit above it.
 Listing a file used to exempt the whole of it, so a second unrelated unscoped call in an already-listed file was never flagged.
 
-### The native launch screens follow the dark surface token
+### The native launch screens follow the surface tokens
 
-`scripts/lib/test_launch_screen_color_drift.py` fails when either native launch screen drifts from `AppTokens.dark.surfaceBase` (`#17191C`, in `client/packages/design_system/lib/src/app_tokens.dart`).
-The token is hand-copied into `colors.xml` on Android as a hex string and into `LaunchScreen.storyboard` on iOS as an sRGB float triple, so the native launch screen hands off to the Flutter app without a flash of the wrong colour while the engine starts.
-Neither file is Dart or read by anything else in the repository, so a retune of the token that skips them would bring that flash back on whichever platform was missed, with nothing else able to see it.
+`scripts/lib/test_launch_screen_color_drift.py` fails when a launch screen drifts from `AppTokens.light.surfaceBase` (`#F7F8F9`) or `AppTokens.dark.surfaceBase` (`#17191C`), both in `client/packages/design_system/lib/src/app_tokens.dart`.
+Each launch screen follows the system light or dark setting, as the Flutter splash after it does until the stored theme loads.
+The tokens are hand-copied into Android's `colors.xml` (`values` light, `values-night` dark), iOS's `LaunchBackground` colour set (any and dark appearance, which `LaunchScreen.storyboard` paints by name) and `web/index.html` (the `theme-color` metas and the page background), so the native launch screen hands off to Flutter without a flash of the wrong colour while the engine starts.
+None of those files is Dart or read by anything else in the repository, so a retune of a token that skips them would bring that flash back on whichever platform was missed, with nothing else able to see it.
+The Linux and Windows runners need no copy: both keep the window hidden until Flutter's first frame.
 
-The iOS half has a one-step tolerance because a storyboard stores an 8-bit channel divided by 255.
+The storyboard also stores its own copy of the named colour as an sRGB float triple, and that check has a one-step tolerance because a storyboard stores an 8-bit channel divided by 255.
 `round(x * 255)` recovers every one of the 256 byte values from that exactly (checked, not assumed), so the tolerance is for a hand-typed decimal that only approximates the quotient, such as a truncated `0.090196`.
-The Android half compares the full hex string with no tolerance, so a real drift of any size, down to one channel step, fails that assertion first.
+The Android, colour set and web checks compare the full hex string with no tolerance, so a real drift of any size, down to one channel step, fails there first.
 
 ### Commit bodies that crash release-please's parser
 

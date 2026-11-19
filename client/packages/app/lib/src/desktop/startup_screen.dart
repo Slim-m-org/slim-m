@@ -21,12 +21,8 @@
 /// done, update phases included ("Checking for updates", "Installing ...");
 /// see `main.dart`'s `startupStatusProvider`.
 ///
-/// Dark on desktop and phones, regardless of the stored theme choice: that
-/// choice is itself part of the async sequence this screen exists to mask,
-/// and a phone's native launch screen before it is always dark. Discord's own
-/// splash does the same. Only a browser shows it over a page that already
-/// follows the system (`web/index.html`), so there it follows the system,
-/// then the stored theme once it loads.
+/// Follows the system light or dark setting, as every native launch surface
+/// before it does, then the stored theme once bootstrap restores it.
 library;
 
 import 'package:flutter/material.dart';
@@ -92,14 +88,18 @@ class StartupApp extends StatelessWidget {
     this.windowPort,
     this.leaving = false,
     this.rounded = false,
-    this.themeMode = ThemeMode.dark,
+    this.themeMode = ThemeMode.system,
+    this.lightTokens = AppTokens.light,
+    this.darkTokens = AppTokens.dark,
   });
 
   final String status;
   final StartupPrompt? prompt;
 
-  /// Dark except in a browser (see the library doc).
+  /// The stored theme's mode and palettes once restored (see the library doc).
   final ThemeMode themeMode;
+  final AppTokens lightTokens;
+  final AppTokens darkTokens;
 
   /// Round the window's corners; only where the runner gives it a transparent surface.
   final bool rounded;
@@ -116,8 +116,8 @@ class StartupApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'slim-m',
     debugShowCheckedModeBanner: false,
-    theme: buildTheme(Brightness.light, AppTokens.light),
-    darkTheme: buildTheme(Brightness.dark, AppTokens.dark),
+    theme: buildTheme(Brightness.light, lightTokens),
+    darkTheme: buildTheme(Brightness.dark, darkTokens),
     themeMode: themeMode,
     themeAnimationDuration: Duration.zero,
     builder: (context, _) => Overlay.wrap(

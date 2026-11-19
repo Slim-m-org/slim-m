@@ -4,7 +4,8 @@
 /// own async-bootstrap sequencing, checked without ever calling `main()`.
 library;
 
-import 'package:flutter/material.dart' show Brightness, Router, SizedBox, Theme;
+import 'package:flutter/material.dart'
+    show Brightness, Color, Router, SizedBox, Theme;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -290,26 +291,61 @@ void main() {
     container.dispose();
   });
 
-  for (final (host, desktop, web, expected) in [
-    ('browser', false, true, Brightness.light),
-    ('phone', false, false, Brightness.dark),
-    ('desktop', true, false, Brightness.dark),
+  for (final (host, desktop) in [('phone', false), ('desktop', true)]) {
+    for (final system in Brightness.values) {
+      testWidgets('the splash on a $host paints the ${system.name} tokens '
+          'under a ${system.name} system theme', (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = system;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        final container = _splashing();
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: SlimMApp(isDesktopOverride: desktop),
+          ),
+        );
+        await tester.pump();
+
+        expect(
+          _splashSurface(tester),
+          system == Brightness.light
+              ? AppTokens.light.surfaceRaised
+              : AppTokens.dark.surfaceRaised,
+        );
+      });
+    }
+  }
+
+  for (final (choice, system, expected) in [
+    (AppThemeChoice.light, Brightness.dark, AppTokens.light.surfaceRaised),
+    (AppThemeChoice.dark, Brightness.light, AppTokens.dark.surfaceRaised),
+    (
+      AppThemeChoice.trueBlack,
+      Brightness.light,
+      AppTokens.trueBlack.surfaceRaised,
+    ),
   ]) {
-    testWidgets('the splash on a $host paints $expected under a light '
-        'system theme', (tester) async {
-      tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+    testWidgets('a splash under a ${system.name} system starts there and '
+        'switches to the stored ${choice.name} theme once it loads', (
+      tester,
+    ) async {
+      tester.platformDispatcher.platformBrightnessTestValue = system;
       addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
       final container = _splashing();
-
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: SlimMApp(isDesktopOverride: desktop, isWebOverride: web),
+          child: const SlimMApp(isDesktopOverride: false),
         ),
       );
       await tester.pump();
+      expect(_splashBrightness(tester), system);
 
-      expect(_splashBrightness(tester), expected);
+      await container.read(themeControllerProvider.notifier).select(choice);
+      await tester.pump();
+
+      expect(_splashSurface(tester), expected);
     });
   }
 
@@ -317,29 +353,30 @@ void main() {
     (AppThemeChoice.spaceDefault, spaceDefaultThemeProvider),
     (AppThemeChoice.custom, customThemeProvider),
   ]) {
-    testWidgets('a browser splash under a dark system paints the stored light '
+    testWidgets('a splash under a dark system paints the stored light '
         '${choice.name} theme the app opens in', (tester) async {
       tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
       addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
       final container = _splashing();
       await container.read(themeControllerProvider.notifier).select(choice);
-      await container.read(provider.notifier).set(_lightDocument);
+      await container.read(provider.notifier).set(_paperDocument);
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const SlimMApp(isDesktopOverride: false, isWebOverride: true),
+          child: const SlimMApp(isDesktopOverride: false),
         ),
       );
       await tester.pump();
 
       expect(_splashBrightness(tester), Brightness.light);
+      expect(_splashSurface(tester), _paperDocument.tokens.surfaceRaised);
     });
   }
 }
 
-final _lightDocument = ThemeDocument.of(
-  AppTokens.light,
+final _paperDocument = ThemeDocument.of(
+  AppTokens.light.copyWith(surfaceRaised: const Color(0xFFFFF8E7)),
   name: 'Paper',
   author: '',
   base: 'light',
@@ -355,6 +392,10 @@ ProviderContainer _splashing() {
 
 Brightness _splashBrightness(WidgetTester tester) =>
     Theme.of(tester.element(find.text('Connecting'))).brightness;
+
+Color _splashSurface(WidgetTester tester) => Theme.of(
+  tester.element(find.text('Connecting')),
+).extension<AppTokens>()!.surfaceRaised;
 
 Future<void> _pastFade(WidgetTester tester) async {
   await tester.pump();
