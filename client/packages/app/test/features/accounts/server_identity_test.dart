@@ -124,6 +124,22 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('a row still on screen when its account is removed keeps the '
+      'name it had', (tester) async {
+    final first = _entry('first');
+    await tester.pumpWidget(_app([], _naming(first)));
+    await tester.pump();
+    expect(find.text('first'), findsOneWidget);
+
+    first.container.dispose();
+    await tester.pumpWidget(_app([], _naming(first)));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('first'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
+
   testWidgets("an icon is fetched with its own server's container", (
     tester,
   ) async {
