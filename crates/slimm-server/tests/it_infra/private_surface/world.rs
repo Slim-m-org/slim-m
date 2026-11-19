@@ -2,10 +2,16 @@
 //! The deployment the sweeps run against: everything private in it carries a canary word.
 
 use serde_json::{Value, json};
+use slimm_server::ids::{ChannelId, MessageId};
 use slimm_server::permissions::Permissions;
+use slimm_server::store::{InstallModuleRequest, ModuleRuntimeLimits, NewMessage};
 use uuid::Uuid;
 
 use crate::support::app::{Account, TestApp, register_account};
+use crate::support::wasm_fixtures::{canned_ok_wasm, sha256_hex};
+
+/// The installed module every `{moduleId}` route is asked about.
+pub const MODULE: &str = "sweeper";
 
 /// One word per private thing, each findable by somebody allowed to read it.
 pub const CANARIES: &[&str] = &[
@@ -28,6 +34,61 @@ pub struct Private {
     pub messages: Vec<String>,
     pub category: String,
     pub users: Vec<String>,
+    /// The webhook that posts in the private text channel.
+    pub webhook: String,
+    voice: ChannelId,
+}
+
+impl Private {
+    /// Puts [`MODULE`] back as [`build`] left it: installed, approved to schedule and to hear
+    /// calls, and armed for the private voice channel, whatever a swept route did to it since.
+    pub async fn keep_the_module(&self, app: &TestApp) {
+        let store = &app.store;
+        let wasm = canned_ok_wasm("ok");
+        let approved = ["schedule", "message.post", "call.audio"].map(str::to_owned);
+        if store.installed_module(MODULE).await.unwrap().is_none() {
+            let request = InstallModuleRequest {
+                id: MODULE,
+                name: "Sweeper",
+                version: "0.1.0",
+                artifact_sha256: &sha256_hex(&wasm),
+                approved_capabilities: &approved,
+                runtime_limits: &ModuleRuntimeLimits::default(),
+                permissions: &[],
+                extension_points: &[],
+            };
+            let installed = store.install_module_with_artifact(request, &wasm).await;
+            installed.expect("install the module");
+        }
+        let host = store.set_module_host_capabilities(MODULE, &approved).await;
+        host.expect("approve the module");
+        let bot = store.ensure_module_bot(MODULE, "Sweeper").await.unwrap();
+        let (view, none) = (Permissions::VIEW_CHANNEL, Permissions::NONE);
+        let seen = store
+            .set_member_overwrite(self.voice, bot, view, none)
+            .await;
+        seen.expect("let the module see the voice channel");
+        let hears = [self.voice];
+        let armed = store.set_module_call_audio_channels(MODULE, &hears);
+        armed.await.expect("arm the module");
+    }
+}
+
+/// A file in `channel`, so the storage report has a row for it.
+async fn attach(app: &TestApp, channel: &str) {
+    let channel = ChannelId(channel.parse().expect("a channel id"));
+    let (store, by) = (&app.store, Some(app.admin.id));
+    let stored = store.store_attachment(&[9; 32], 1_000, "image/png", "a.png", by);
+    stored.await.expect("store the file");
+    let message = NewMessage {
+        attachment_ids: &[[9; 32].to_vec()],
+        spoiler_ids: &[],
+        ..NewMessage::plain(channel, app.admin.id, MessageId::generate(), "a file")
+    };
+    app.store
+        .send_message(message)
+        .await
+        .expect("attach the file");
 }
 
 pub async fn ok(app: &TestApp, method: &str, uri: &str, token: &str, body: Value) -> Value {
@@ -87,8 +148,8 @@ async fn leave_traces(app: &TestApp, who: &Account, channel: &str, thread: &str,
 }
 
 /// A private category with a text channel synced to it, a private voice channel, a thread, a
-/// webhook, a direct message and a group, none of them `member`'s. `former` is let into the
-/// text channel and its thread for a while first.
+/// webhook, a file, a direct message and a group, none of them `member`'s, and a module armed
+/// to hear the voice channel. `former` is let into the text channel and its thread for a while first.
 pub async fn build(app: &TestApp, former: Option<&Account>) -> Private {
     let admin = &app.admin.token;
     let carol = register_account(&app.store, "carol").await;
@@ -127,7 +188,9 @@ pub async fn build(app: &TestApp, former: Option<&Account>) -> Private {
     let thread = id_of(&ok(app, "POST", &open, admin, json!({})).await, "id");
     let reply = say(app, admin, &thread, "canaryreply").await;
     let hook = json!({"label": "canaryhook", "channel_id": text});
-    ok(app, "POST", "/webhooks", admin, hook).await;
+    let hook = ok(app, "POST", "/webhooks", admin, hook).await;
+    let webhook = id_of(&hook["webhook"], "id");
+    attach(app, &text).await;
     let spoken = say(app, admin, &voice, "canaryvoice said").await;
     if let Some(former) = former {
         leave_traces(app, former, &text, &thread, &message).await;
@@ -147,16 +210,21 @@ pub async fn build(app: &TestApp, former: Option<&Account>) -> Private {
     );
     let group_message = say(app, admin, &group, "canarygroup said").await;
 
+    let voice_id = ChannelId(voice.parse().expect("a channel id"));
     let channels = vec![text, voice, thread, dm, group];
     let messages = vec![message, spoken, reply, dm_message, group_message];
     let mut ids = channels.clone();
     ids.extend(messages.iter().cloned());
-    ids.push(category.clone());
-    Private {
+    ids.extend([category.clone(), webhook.clone()]);
+    let private = Private {
         ids,
         channels,
         messages,
         category,
         users: vec![app.admin.id.to_string(), carol.id.to_string()],
-    }
+        webhook,
+        voice: voice_id,
+    };
+    private.keep_the_module(app).await;
+    private
 }

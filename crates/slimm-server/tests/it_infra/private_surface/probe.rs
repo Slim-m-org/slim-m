@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::world::{CANARIES, Private};
+use super::world::{CANARIES, MODULE, Private};
 use crate::support::app::{TestApp, builder};
 use crate::support::openapi::{Method, extract_schema_routes};
 
@@ -58,6 +58,10 @@ fn candidates(private: &Private, param: &str) -> Vec<String> {
         vec![private.category.clone()]
     } else if lower.contains("user") || lower.contains("sender") || lower.contains("bot") {
         private.users.clone()
+    } else if lower.contains("module") {
+        vec![MODULE.to_owned()]
+    } else if lower.contains("webhook") {
+        vec![private.webhook.clone()]
     } else {
         // Anything else still gets a private channel and message, in case a route takes one under another name.
         vec![private.channels[0].clone(), private.messages[0].clone()]
@@ -190,29 +194,99 @@ fn with_strangers(private: &Private, text: &str) -> String {
     out
 }
 
-/// A body with a private id under every field name a route might read one from.
-fn loaded_body(private: &Private, channel: &str, message: &str) -> Value {
-    let mut body = json!({
-        "id": Uuid::now_v7().to_string(),
-        "content": "hello", "name": "hello", "label": "hello", "reason": "hello",
-        "kind": "text", "emoji": "\u{1F44D}", "seq": 1, "allow": 0, "deny": 0,
-        "muted": true, "deafened": true, "enabled": true, "preference": "nothing",
-        "joins": "every", "streams": true, "position": 0, "limit": 1, "permissions": 0,
-        "question": "hello", "options": ["one", "two"], "retention_days": 1,
-    });
-    let ids = json!({
-        "user_ids": private.users, "user_id": private.users[0], "target_id": private.users[0],
-        "channel_id": channel, "to_channel_id": channel, "rules_channel_id": channel,
-        "channel_ids": [channel], "order": [channel],
-        "category_id": private.category, "parent_id": private.category,
-        "categories": [private.category], "ids": [channel, message, private.category],
-        "message_id": message, "message_ids": [message], "reply_to_id": message,
-        "forwarded_from_id": message, "before": message, "after": message,
-        "overwrites": [{"kind": "member", "id": private.users[1], "deny": 2}],
-    });
-    let fields = body.as_object_mut().expect("an object");
-    fields.extend(ids.as_object().expect("an object").clone());
-    body
+/// A body with a private id under every field name a route might read one from, and a value
+/// under every other field a route requires, so its body parses and the ids in it are read.
+fn loaded_body(private: &Private, template: &str, channel: &str, message: &str) -> Value {
+    let parts = [
+        json!({
+            "id": Uuid::now_v7().to_string(),
+            "content": "hello", "name": "hello", "label": "hello", "reason": "hello",
+            "kind": "text", "emoji": "\u{1F44D}", "seq": 1, "allow": 0, "deny": 0,
+            "muted": true, "deafened": true, "enabled": true, "preference": "nothing",
+            "joins": "every", "streams": true, "position": 0, "limit": 1, "permissions": 0,
+            "question": "hello", "options": ["one", "two"], "retention_days": 1,
+        }),
+        json!({
+            "rules": "hello", "joins_paused": false, "resolution": "dismissed",
+            "size": 1, "surface": "message_menu", "objects": [], "x": 0, "y": 0, "w": 1, "h": 1,
+            "custom_id": "hello", "title": "hello", "command": "hello", "window_minutes": 1,
+            "module_id": MODULE, "playing": true, "log": "hello", "images": [], "code": "hello",
+            "duration_seconds": 60, "input": "hello", "subject_kind": "message",
+        }),
+        json!({
+            "version": "0.1.0", "package": "hello", "$slim": "hello", "repo": "hello/hello",
+            "scopes": [], "prefix": "!", "groups": [], "components": [], "item_id": "hello",
+            "direct": true, "nickname": "hello", "timezone": "UTC", "until_ms": 0,
+            "state": "hello", "platform": "hello", "include_content": true, "hook": "hello",
+            "values": {}, "body": "hello", "position_ms": 0, "app_version": "1",
+            "manifest": "hello", "days": [], "push_token": "hello", "off_hours_mode": "hello",
+            "entry_id": "hello", "props": {}, "fields": [], "locked": false,
+            "push_public_key": "hello", "sent_to_back": false,
+        }),
+        json!({
+            "user_ids": private.users, "user_id": private.users[0], "target_id": private.users[0],
+            "author_id": private.users[0], "target_user_id": private.users[0],
+            "channel_id": channel, "to_channel_id": channel, "rules_channel_id": channel,
+            "welcome_channel_id": channel, "channel_ids": [channel], "order": [channel],
+            "category_id": private.category, "parent_id": private.category,
+            "categories": [private.category], "ids": [channel, message, private.category],
+        }),
+        json!({
+            "message_id": message, "message_ids": [message], "reply_to_id": message,
+            "subject_id": message, "forwarded_from_id": message, "before": message, "after": message,
+            "overwrites": [{"kind": "member", "id": private.users[1], "deny": 2}],
+        }),
+        its_own_fields(private, template, (channel, message)),
+    ];
+    let fields = parts
+        .iter()
+        .flat_map(|part| part.as_object().expect("an object").clone());
+    Value::Object(fields.collect())
+}
+
+/// The fields one route reads in a shape another route's field of the same name cannot share.
+fn its_own_fields(private: &Private, template: &str, (channel, message): (&str, &str)) -> Value {
+    if template.ends_with("/call-audio/consent") {
+        json!({"allow": true})
+    } else if template.ends_with("/{messageId}/interactions") {
+        json!({"values": []})
+    } else if template.ends_with("/{interactionId}/submit") {
+        json!({"fields": {}})
+    } else if template == "/channels/order" {
+        let group = json!({"category_id": private.category, "channel_ids": [channel]});
+        json!({"order": null, "channel_ids": null, "categories": [group]})
+    } else if template == "/reports" {
+        json!({"channel_id": null, "author_id": null})
+    } else if template.ends_with("/ephemeral-messages") {
+        json!({"in_reply_to_id": message})
+    } else {
+        json!({})
+    }
+}
+
+/// Routes whose body the sweep cannot write, each with why that hides nothing private.
+const UNREAD_BODIES: &[(&str, &str)] = &[
+    // Role ids only, and its refusal lists them in no fixed order.
+    ("PATCH", "/roles/reorder"),
+    // A theme or a package file: tokens, a manifest and an artifact, never a channel or a message.
+    ("POST", "/space/themes"),
+    ("POST", "/space/dock/packages/install"),
+    ("POST", "/space/dock/packages/preview"),
+];
+
+/// Whether a refusal is the body or query failing to parse, before the route read any id in it.
+fn never_read(text: &str) -> bool {
+    const SHAPE: &[&str] = &[
+        "missing field",
+        "invalid type",
+        "invalid value",
+        "invalid length",
+        "unknown variant",
+        "unknown field",
+        "did not match any variant",
+        "expected",
+    ];
+    SHAPE.iter().any(|marker| text.contains(marker))
 }
 
 /// A success may differ by what it made, so only that it succeeded is compared.
@@ -253,22 +327,32 @@ pub async fn ask_twice(
         let per_path = if paths.len() == 1 { pairs.len() } else { 1 };
         for (turn, path) in paths.into_iter().enumerate() {
             for (channel, message) in pairs.iter().cycle().skip(turn).take(per_path) {
-                let body = loaded_body(&private, channel, message).to_string();
+                let body = loaded_body(&private, &template, channel, message).to_string();
                 let category = &private.category;
                 let uri = format!(
-                    "{path}?channel_id={channel}&message_id={message}&category_id={category}&q=hello&ids={channel}&days=0"
+                    "{path}?channel_id={channel}&message_id={message}&category_id={category}&q=hello&ids={channel}&days=0&after_seq=0&min_x=0&min_y=0&max_x=1&max_y=1&url=hello&offset=0&name=hello"
                 );
                 let stranger = (
                     with_strangers(&private, &uri),
                     with_strangers(&private, &body),
                 );
                 let method = method.as_str();
+                // Either ask may uninstall or disarm it, which the next must not mistake for an answer.
+                private.keep_the_module(app).await;
                 let nothing =
                     comparable(&private, asker.ask(method, &stranger.0, &stranger.1).await);
+                private.keep_the_module(app).await;
                 let named = comparable(&private, asker.ask(method, &uri, &body).await);
                 if named != nothing {
                     differences.push(format!(
                         "{method} {template}\n  a private id: {named:?}\n  no such id:   {nothing:?}"
+                    ));
+                }
+                let excused = UNREAD_BODIES.contains(&(method, template.as_str()));
+                if named.0 == StatusCode::BAD_REQUEST && never_read(&named.1) && !excused {
+                    differences.push(format!(
+                        "{method} {template} never read what it was sent: {}",
+                        named.1
                     ));
                 }
             }

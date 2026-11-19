@@ -2,9 +2,10 @@
 //! Nothing private reaches someone outside it, through any documented route.
 //!
 //! One deployment holds a private category and channel, a thread, a private
-//! voice channel, a webhook, a direct message and a group, each with a canary
-//! word ([`world`]). Two sweeps then walk `schema/openapi.yaml`, so a new
-//! route is covered the day it is documented ([`probe`]):
+//! voice channel, a webhook, a file, a direct message and a group, each with a
+//! canary word, and a module armed for the voice channel ([`world`]). Two
+//! sweeps then walk `schema/openapi.yaml`, so a new route is asked the day it
+//! is documented ([`probe`]):
 //!
 //! - every GET, with every private id in its path, may hand back neither a
 //!   canary nor a private id the request did not name;
@@ -15,7 +16,11 @@
 //! They run for a plain member, for one who was in the channel and lost it,
 //! for a bot, and for a manager holding every permission but ADMINISTRATOR:
 //! decision 0011's rule is that a channel's permissions stop at the channel,
-//! whatever the caller holds deployment-wide. See docs/internals.md.
+//! whatever the caller holds deployment-wide.
+//!
+//! Asked is not covered: a path id the sweep has no value for, a refusal the
+//! handler writes before reading an id, and data the world does not hold all
+//! pass unseen. docs/internals.md, "What the sweep cannot see", lists them.
 
 mod probe;
 mod world;
