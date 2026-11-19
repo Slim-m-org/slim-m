@@ -251,7 +251,8 @@ class AccountHost extends ChangeNotifier {
     );
     runtime._cancels.add(unread.close);
 
-    final voice = container.listen<VoiceFlags>(voiceFlagsProvider, (_, next) {
+    // At once: an account out of view under a hidden window gets no frame to refresh on.
+    final voice = container.listen<VoiceFlags>(voiceFlagsAtOnce, (_, next) {
       final live = next.state == VoiceSessionState.connected || next.rejoining;
       if (live == runtime.inCall) return;
       runtime.inCall = live;
