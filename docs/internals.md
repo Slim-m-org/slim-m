@@ -365,5 +365,6 @@ When `sync.rs` changes what a scope answers, change the model with it.
 Known gaps, none of them fixed here:
 
 - Against a server that predates `latest_seq`, a created frame for a message deleted before a reset read its page is still stored.
-- Reactions, pins, poll tallies and thread counts are not sequenced; a reconnect refetches the open channels' pages for them (see `open_channel_rehydrate.dart`).
+- Reactions, poll tallies and thread counts are not sequenced; a reconnect refetches the open channels' pages for them (see `open_channel_rehydrate.dart`).
+  Pins are not sequenced either and are not on a message page, so the same reconnect rereads each open channel's pin list (`sync_live_refresh.dart`).
 - A send that reached the server, whose answer was lost, and which was then deleted elsewhere is answered as sent when it is retried, because the id still matches the deleted row.
