@@ -68,6 +68,11 @@ dependencies:
   # Already resolved transitively; direct so composer_clipboard_image_web.dart can import it.
   web: ^1.1.0
   window_manager: ^0.5.2
+  # The in-app YouTube player on phones; see youtube_webview_player.dart and docs/dependencies.md.
+  webview_flutter: ^4.14.1
+  # Direct, for the referrer base URL, inline playback and fullscreen settings each platform needs.
+  webview_flutter_android: ^4.14.1
+  webview_flutter_wkwebview: ^3.27.2
   app_links: ^7.2.1
   url_launcher: ^6.3.2
   share_plus: ^13.3.0

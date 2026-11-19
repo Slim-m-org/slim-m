@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The phone shell's scaffold: the channel rail as a start drawer, the roster
-/// as an end drawer, both dragged by finger from their own edge.
+/// as an end drawer, both dragged by finger from their own edge. An open
+/// drawer counts as a floating surface, so a docked video's native view
+/// steps aside for it.
 library;
 
 import 'package:flutter/gestures.dart' show DragStartBehavior;
@@ -20,6 +22,7 @@ import '../../voice/screens/voice_text_pane.dart'
 import '../../channels/widgets/channel_rail_drawer.dart';
 import '../../channels/widgets/compact_channel_app_bar.dart';
 import '../../../widgets/drawer_edge_drag.dart';
+import '../../../widgets/native_view_occlusion.dart';
 import '../../members/widgets/member_pane.dart';
 
 class CompactDrawerScaffold extends ConsumerStatefulWidget {
@@ -107,9 +110,11 @@ class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
               : null,
           drawer: showRail
               ? restore(
-                  OpaquePanes(
-                    child: CompactChannelRailDrawer(
-                      selectedChannelId: channelId,
+                  OccludesNativeViews(
+                    child: OpaquePanes(
+                      child: CompactChannelRailDrawer(
+                        selectedChannelId: channelId,
+                      ),
                     ),
                   ),
                 )
@@ -123,11 +128,13 @@ class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
           // The roster slides in from the right: the conversation is the only pane at this width.
           endDrawer: showMembers
               ? restore(
-                  OpaquePanes(
-                    child: Drawer(
-                      width: AppMemberPane.width,
-                      child: SafeArea(
-                        child: AppMemberPane(channelId: channelId),
+                  OccludesNativeViews(
+                    child: OpaquePanes(
+                      child: Drawer(
+                        width: AppMemberPane.width,
+                        child: SafeArea(
+                          child: AppMemberPane(channelId: channelId),
+                        ),
                       ),
                     ),
                   ),

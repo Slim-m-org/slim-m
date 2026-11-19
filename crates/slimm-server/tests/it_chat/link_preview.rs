@@ -74,6 +74,22 @@ async fn a_page_whose_og_video_is_a_youtube_embed_is_flagged_playable() {
     let json = preview_json(store, &token, &upstream).await;
     assert_eq!(json["video_provider"], "youtube");
     assert_eq!(json["video_id"], "dQw4w9WgXcQ");
+    assert_eq!(json["video_start_ms"], Value::Null);
+}
+
+#[tokio::test]
+async fn a_youtube_embed_start_carries_through_as_video_start_ms() {
+    let (store, _guard) = support::new_store("slimm-link-preview-video-test").await;
+    let token = register(&store, "video_seeker").await;
+    let upstream = fake_upstream(
+        "<meta property=\"og:title\" content=\"A talk\">\
+         <meta property=\"og:video\" content=\"https://www.youtube.com/embed/dQw4w9WgXcQ?start=15\">",
+    )
+    .await;
+
+    let json = preview_json(store, &token, &upstream).await;
+    assert_eq!(json["video_id"], "dQw4w9WgXcQ");
+    assert_eq!(json["video_start_ms"], 15_000);
 }
 
 #[tokio::test]

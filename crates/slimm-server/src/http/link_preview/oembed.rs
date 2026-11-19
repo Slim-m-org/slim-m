@@ -145,6 +145,7 @@ mod tests {
             provider: VideoProvider::Youtube,
             id: "dQw4w9WgXcQ".to_string(),
             kind: None,
+            start_s: None,
         }
     }
 

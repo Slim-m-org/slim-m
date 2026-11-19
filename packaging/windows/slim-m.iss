@@ -51,6 +51,10 @@ Root: HKCU; Subkey: "Software\Classes\slimm"; ValueType: string; ValueName: "URL
 Root: HKCU; Subkey: "Software\Classes\slimm\DefaultIcon"; ValueType: string; ValueData: "{app}\slim-m.exe,0"
 Root: HKCU; Subkey: "Software\Classes\slimm\shell\open\command"; ValueType: string; ValueData: """{app}\slim-m.exe"" ""%1"""
 
+[UninstallDelete]
+; The in-app YouTube player's WebView2 profile (decision 0128); nothing else writes there.
+Type: filesandordirs; Name: "{localappdata}\slim-m\WebView2"
+
 [Run]
 Filename: "{app}\slim-m.exe"; Description: "Start slim-m"; Flags: nowait postinstall skipifsilent
 

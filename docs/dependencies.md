@@ -390,6 +390,36 @@ It is used for the camera source only, because `photo_manager` above cannot capt
 Permissions: iOS reuses `NSCameraUsageDescription` (its text now also names profile photos) and Android reuses the `CAMERA` permission already declared for calls, so the two plugins add no new keys.
 Real-camera capture on a phone is untested here and needs a device.
 
+### The in-app YouTube player: `webview_flutter` on phones, hand-written hosts on desktop
+
+Decision 0128 has the design; this records what each platform links and why the obvious plugins were turned down.
+Every host plays YouTube's own embed player from `youtube-nocookie.com`, never a stream extracted with yt-dlp or mpv, which YouTube's terms forbid.
+
+Phones use `webview_flutter` 4.14.1 with direct dependencies on `webview_flutter_android` 4.14.1 and `webview_flutter_wkwebview` 3.27.2, all three from the verified `flutter.dev` publisher under BSD-3-Clause.
+They endorse android, ios and macos only, so nothing reaches the Linux or Windows builds.
+The direct dependencies are for the settings the player needs: the app id as the page's base URL (YouTube refuses an embed with no referrer, errors 152 and 153), inline playback on iPhone, no user gesture on Android, and Android's fullscreen callbacks.
+`webview_flutter_wkwebview` 3.27.2 needs Flutter 3.47.0, the version this repo pins; a downgrade below it breaks resolution.
+Android gains `androidx.webkit` 1.15.0, recorded in `verification-metadata.xml`.
+
+Linux has no pub package.
+Every Linux webview plugin links its engine at build time: `webview_all_linux` and `webview_win_floating` link `webkit2gtk-4.1`, `desktop_webview_window` links WebKitGTK and libsoup, `flutter_inappwebview_linux` links WPE WebKit and fails to configure without it, and `webview_cef` downloads a 250 MB CEF build.
+Flutter's Linux embedder loads every plugin at startup, so a NEEDED entry on WebKit would stop the app from starting wherever WebKit is missing, the same failure `media_kit_video`'s libmpv link caused in the flatpak.
+Instead `linux/runner/webkit_loader.cc` opens `libwebkit2gtk-4.1.so.0` with `dlopen` and binds the handful of calls it uses, the same pattern as gtk-layer-shell in `screen_overlay.cc`.
+It needs WebKitGTK 2.40 or newer and refuses to load when libsoup 2 is already in the process, since libsoup 2 and 3 abort when they meet.
+The rpm carries `Recommends: webkit2gtk4.1`; the tarball and the flatpak run without it and open a video in the browser.
+WebKitGTK is LGPL-2.1 and only loaded, never shipped.
+
+Windows has no pub package either.
+`webview_windows` 0.4.0 was last released in 2024 on a 2022 WebView2 SDK, `flutter_inappwebview` 6.2 adds a Linux implementation that breaks every Linux build, and `webview_win_floating` and `webview_all` both link WebKitGTK on Linux too.
+`windows/runner/youtube_player_win.cpp` hosts WebView2 directly.
+`windows/runner/CMakeLists.txt` downloads the `Microsoft.Web.WebView2` 1.0.4314.35 nupkg (BSD-3-Clause, sha256 `90778deb1b77e36292828b4b5833c9255c27533f40e0ddd55891ae718944edc4`) at configure time and checks its hash, so no `nuget.exe` is needed.
+Only its headers and `WebView2LoaderStatic.lib` are used, so no `WebView2Loader.dll` ships and the exe grows by about 0.2 MB.
+The licenses gate does not see a CMake download, which is why it is recorded here.
+The runtime is the system's Evergreen WebView2, part of Windows 11 and present on most Windows 10 machines; without it the player reports itself unavailable and a video opens in the browser.
+The player's profile lives in `%LOCALAPPDATA%\slim-m\WebView2`, in private mode, and the installer removes it on uninstall.
+
+`scripts/lib/test_webview_plugin_lock.py` fails if `pubspec.lock` ever gains one of the plugins above that would link a webview engine into the Linux build.
+
 ## Photo compression (jpeg-encoder, jpeg-decoder, fast_image_resize, zune-heic, oxipng)
 
 The upload photo compressor (`media/compress`, decision record in `docs/research/media-compression.md`).

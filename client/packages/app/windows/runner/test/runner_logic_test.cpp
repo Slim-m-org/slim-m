@@ -4,6 +4,7 @@
 
 #include "../bounded_retry.h"
 #include "../hotkey_modifiers.h"
+#include "../youtube_player_geometry.h"
 
 namespace {
 
@@ -149,6 +150,34 @@ void ASingleAttemptNeverWaits() {
   CHECK(waits == 0);
 }
 
+void ALogicalRectScalesToPhysicalPixels() {
+  slimm::PixelRect rect = slimm::ToPhysical(10, 20, 360, 202.5, 1.5);
+  CHECK(rect.left == 15);
+  CHECK(rect.top == 30);
+  CHECK(rect.right == 555);
+  CHECK(rect.bottom == 334);
+}
+
+void AnEmptyOrBadRectIsNothing() {
+  slimm::PixelRect empty = slimm::ToPhysical(10, 20, 0, 100, 1);
+  CHECK(empty.right == 0 && empty.bottom == 0);
+  slimm::PixelRect unscaled = slimm::ToPhysical(1, 2, 3, 4, 0);
+  CHECK(unscaled.left == 1 && unscaled.right == 4 && unscaled.bottom == 6);
+}
+
+void OnlyTheHostPageStaysInThePlayer() {
+  CHECK(slimm::IsYoutubeHostUrl(L"https://top.npcserver.slimm/youtube_host.html"));
+  CHECK(!slimm::IsYoutubeHostUrl(L"https://www.youtube.com/watch?v=x"));
+  CHECK(!slimm::IsYoutubeHostUrl(L"https://top.npcserver.slimm.evil.example/"));
+}
+
+void OnlyWebLinksReachTheBrowser() {
+  CHECK(slimm::IsWebUrl(L"https://www.youtube.com/watch?v=x"));
+  CHECK(!slimm::IsWebUrl(L"http://example.com"));
+  CHECK(!slimm::IsWebUrl(L"file:///C:/Windows/system32/calc.exe"));
+  CHECK(!slimm::IsWebUrl(L"ms-settings:"));
+}
+
 }  // namespace
 
 int main() {
@@ -164,6 +193,10 @@ int main() {
   ARetryThatNeverSucceedsWaitsOneLessThanItTries();
   AFirstTrySuccessNeverWaits();
   ASingleAttemptNeverWaits();
+  ALogicalRectScalesToPhysicalPixels();
+  AnEmptyOrBadRectIsNothing();
+  OnlyTheHostPageStaysInThePlayer();
+  OnlyWebLinksReachTheBrowser();
   if (g_failures != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", g_failures);
     return 1;
