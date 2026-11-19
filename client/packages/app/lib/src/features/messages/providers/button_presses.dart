@@ -122,8 +122,8 @@ final buttonPressesProvider =
     );
 
 /// The press state of one message's buttons, by `custom_id`.
-final messageButtonPressesProvider =
-    Provider.family<Map<String, ButtonPress>, String>((ref, messageId) {
+final messageButtonPressesProvider = Provider.autoDispose
+    .family<Map<String, ButtonPress>, String>((ref, messageId) {
       final all = ref.watch(buttonPressesProvider);
       return {
         for (final press in all.values)

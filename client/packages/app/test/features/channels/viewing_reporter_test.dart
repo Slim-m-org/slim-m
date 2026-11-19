@@ -5,14 +5,30 @@
 library;
 
 import 'package:fake_async/fake_async.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
-import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/features/channels/providers/mounted_channels.dart';
+import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/providers/viewing_reporter.dart';
 
-final _focus = StateProvider<bool>((ref) => true);
+import '../../support/fake_sync.dart';
+
+void _setFocused(bool focused) =>
+    TestWidgetsFlutterBinding.instance.handleAppLifecycleStateChanged(
+      focused ? AppLifecycleState.resumed : AppLifecycleState.inactive,
+    );
+
+class _RecordingSync extends NoopSyncController {
+  _RecordingSync(super.ref);
+
+  final viewed = <Set<String>>[];
+
+  @override
+  void notifyViewing(Iterable<String> channelIds, {bool active = false}) =>
+      viewed.add(channelIds.toSet());
+}
 
 void main() {
   late ProviderContainer container;
@@ -21,9 +37,10 @@ void main() {
   late ViewingReporter reporter;
 
   setUp(() {
-    container = ProviderContainer(
-      overrides: [appFocusedProvider.overrideWith((ref) => ref.watch(_focus))],
-    );
+    TestWidgetsFlutterBinding.ensureInitialized();
+    _setFocused(true);
+    addTearDown(() => _setFocused(true));
+    container = ProviderContainer();
     sent = [];
     actives = [];
     reporter = container.read(
@@ -56,7 +73,7 @@ void main() {
 
   test('a window without focus reports nothing even with a channel open', () {
     final mounted = container.read(mountedChannelsProvider)..register('c1');
-    container.read(_focus.notifier).state = false;
+    _setFocused(false);
     reporter.refresh();
     expect(sent.last, isEmpty, reason: 'other devices must still be pushed to');
     mounted.unregister('c1');
@@ -98,7 +115,7 @@ void main() {
   );
 
   test('input in an unfocused window is not activity', () {
-    container.read(_focus.notifier).state = false;
+    _setFocused(false);
     reporter.noteInput();
     expect(actives, isNot(contains(true)));
   });
@@ -171,5 +188,32 @@ void main() {
     );
 
     closing.dispose();
+  });
+
+  testWidgets('a window that loses focus stops reporting before the next '
+      'frame', (tester) async {
+    addTearDown(
+      () => tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      ),
+    );
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final scoped = ProviderContainer(
+      overrides: [syncControllerProvider.overrideWith(_RecordingSync.new)],
+    );
+    addTearDown(scoped.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: scoped, child: const SizedBox()),
+    );
+    scoped.read(viewingReporterProvider);
+    final sync = scoped.read(syncControllerProvider.notifier) as _RecordingSync;
+    scoped.read(mountedChannelsProvider).register('c1');
+    expect(sync.viewed.last, {'c1'});
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+
+    expect(sync.viewed.last, isEmpty, reason: 'a hidden window draws no frame');
+    await tester.pumpWidget(const SizedBox());
   });
 }

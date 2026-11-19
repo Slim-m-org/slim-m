@@ -37,12 +37,13 @@ class ShareServerStep extends ConsumerWidget {
         const SizedBox(height: AppSpacing.s16),
         const AppMenuLabel('Servers'),
         for (final entry in entries)
-          ServerIdentityScope(
+          ServerIdentity(
             entry: entry,
             builder: (context, name, iconUpdatedAt) => AppListRow(
               label: name,
               subtitle: _hostOf(entry.account.serverUrl),
               leading: ServerIconTile(
+                entry: entry,
                 name: name,
                 iconUpdatedAt: iconUpdatedAt,
                 size: AppSizes.icon24,

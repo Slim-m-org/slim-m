@@ -37,6 +37,7 @@ import 'command_palette_items.dart';
 import 'command_palette_rows.dart';
 import 'palette_reveal.dart';
 import 'palette_transcript_items.dart';
+import '../../../widgets/rise_fade_transition.dart';
 import '../../members/providers/mention_names.dart' show mentionNamesProvider;
 
 /// The design's floating card width; not on the spacing grid because it is
@@ -72,24 +73,8 @@ Future<void> openCommandPalette(BuildContext context) async {
       child: _CommandPaletteContent(currentChannelId: channelId),
     ),
     // member_profile.dart's authored entrance: a curved fade with an 8px rise.
-    transitionBuilder: (context, animation, secondaryAnimation, child) {
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: AppMotion.entrance,
-        reverseCurve: AppMotion.exit,
-      );
-      return FadeTransition(
-        opacity: curved,
-        child: AnimatedBuilder(
-          animation: curved,
-          builder: (context, child) => Transform.translate(
-            offset: Offset(0, (1 - curved.value) * 8),
-            child: child,
-          ),
-          child: child,
-        ),
-      );
-    },
+    transitionBuilder: (context, animation, secondaryAnimation, child) =>
+        RiseFadeTransition(animation: animation, rise: 8, child: child),
   );
 
   // The dialog may have outlived whatever held focus before it opened, so only

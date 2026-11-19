@@ -21,7 +21,7 @@ class PollVoteFailureLine extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final failure = ref.watch(pollVoteFailureProvider(messageId));
     if (failure == null) return const SizedBox.shrink();
-    final notifier = ref.read(pollVoteFailureProvider(messageId).notifier);
+    final failures = ref.read(pollVoteFailuresProvider.notifier);
     final ballot = failure.ballot;
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.s8),
@@ -33,7 +33,7 @@ class PollVoteFailureLine extends ConsumerWidget {
             final ranking? => castRanking(ref, messageId, ranking),
             null => castVote(ref, messageId, ballot.option!),
           }),
-          onDismiss: () => notifier.state = null,
+          onDismiss: () => failures.put(messageId, null),
         ),
       ),
     );

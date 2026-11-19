@@ -4,16 +4,17 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/accounts/providers/account_host.dart';
+import 'package:slimm_app/src/features/accounts/widgets/account_root.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'package:slimm_app/src/providers/providers.dart' show storeProvider;
 import 'account_host_harness.dart';
 
-/// Rebuilds around whichever container the host calls active.
+/// The app's own root around [child]: every account's container scoped, the
+/// active one shown, so a switch here does what it does in the app.
 class HostRoot extends StatelessWidget {
   const HostRoot({
     super.key,
@@ -29,25 +30,18 @@ class HostRoot extends StatelessWidget {
   final Key? boundary;
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: host,
-    builder: (context, _) {
-      final container = host.active!.container;
-      return UncontrolledProviderScope(
-        key: ObjectKey(container),
-        container: container,
-        child: RepaintBoundary(
-          key: boundary,
-          child: MaterialApp(
-            debugShowCheckedModeBanner: false,
-            theme: dark
-                ? buildTheme(Brightness.dark, AppTokens.dark)
-                : buildTheme(Brightness.light, AppTokens.light),
-            home: Scaffold(body: child),
-          ),
-        ),
-      );
-    },
+  Widget build(BuildContext context) => AccountRoot(
+    host: host,
+    app: RepaintBoundary(
+      key: boundary,
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: dark
+            ? buildTheme(Brightness.dark, AppTokens.dark)
+            : buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(body: child),
+      ),
+    ),
   );
 }
 

@@ -26,9 +26,9 @@ import 'src/features/settings/providers/stored_theme.dart';
 import 'src/features/settings/providers/theme_store.dart';
 import 'src/deep_links.dart';
 import 'src/features/share/providers/share_intake.dart';
-import 'src/features/accounts/providers/account_host.dart';
 import 'src/features/accounts/providers/account_host_factory.dart';
 import 'src/features/accounts/widgets/account_call_pill.dart';
+import 'src/features/accounts/widgets/account_root.dart';
 import 'src/features/accounts/providers/account_providers.dart';
 import 'src/features/accounts/providers/account_restore.dart';
 import 'src/features/accounts/providers/account_services.dart';
@@ -149,7 +149,7 @@ Future<void> main([List<String> args = const []]) async {
     ),
   );
 
-  runApp(AccountRoot(host: host));
+  runApp(AccountRoot(host: host, app: const SlimMApp()));
   final harnessTarget = kVoiceHarness ? harnessChannel(args) : null;
   if (harnessTarget != null) {
     unawaited(
@@ -166,27 +166,6 @@ Future<void> main([List<String> args = const []]) async {
   await shell.lockSplashChrome();
   // Off the UI thread now, so a join cue never pays GStreamer's first init on it.
   unawaited(warmSoundBackend());
-}
-
-/// Mounts whichever account's container is active, so a switch swaps the
-/// whole graph beneath it and nothing of the previous account stays reachable.
-class AccountRoot extends StatelessWidget {
-  const AccountRoot({super.key, required this.host});
-
-  final AccountHost host;
-
-  @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: host,
-    builder: (context, _) {
-      final container = host.active!.container;
-      return UncontrolledProviderScope(
-        key: ObjectKey(container),
-        container: container,
-        child: const SlimMApp(),
-      );
-    },
-  );
 }
 
 /// The async sequence [StartupApp] masks: session restore (so the router's

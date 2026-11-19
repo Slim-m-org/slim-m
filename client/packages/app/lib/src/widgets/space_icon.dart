@@ -31,7 +31,23 @@ class SpaceIcon extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final at = updatedAt;
     if (at == null) return const SizedBox.shrink();
-    final bytes = ref.watch(spaceIconBytesProvider(at)).valueOrNull;
+    return SpaceIconImage(
+      bytes: ref.watch(spaceIconBytesProvider(at)).valueOrNull,
+      size: size,
+    );
+  }
+}
+
+/// The icon from its [bytes]; the placeholder while they are null.
+class SpaceIconImage extends StatelessWidget {
+  const SpaceIconImage({super.key, required this.bytes, required this.size});
+
+  final Uint8List? bytes;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final bytes = this.bytes;
     final edge = decodeEdge(context, size, minRatio: 2, oversample: 3);
     return SpaceIconFrame(
       size: size,

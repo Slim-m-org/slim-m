@@ -56,8 +56,9 @@ class ViewingReporter implements InputListener {
   DateTime? _lastInput;
   bool _reporting = false;
 
+  /// Read off the notifier: a refresh runs inside a focus listener, before a derived provider has caught up.
   bool get _focused =>
-      _ref.read(appFocusedProvider) && _ref.read(accountActiveProvider);
+      _ref.read(appFocusedAtOnce) && _ref.read(accountActiveProvider);
 
   Set<String> _open() => _focused ? _mounted.openChannelIds : const {};
 
@@ -142,7 +143,8 @@ final viewingReporterProvider = Provider<ViewingReporter>((ref) {
         .read(syncControllerProvider.notifier)
         .notifyViewing(channels, active: active),
   );
-  ref.listen(appFocusedProvider, (_, _) => reporter.refresh());
+  // At once: a window hidden while focused draws no frame to hear it on.
+  ref.listen(appFocusedAtOnce, (_, _) => reporter.refresh());
   ref.listen(accountActiveProvider, (_, _) => reporter.refresh());
   ref.listen(syncControllerProvider, (_, status) {
     if (status == SyncStatus.live) reporter.refresh();

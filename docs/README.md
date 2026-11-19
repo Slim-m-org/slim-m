@@ -29,6 +29,7 @@ Tasks and the backlog live on the Planka board, not here; these files hold the r
 - [DEVELOPING.md](DEVELOPING.md): setup, commands and local gates.
 - [ci.md](ci.md): every workflow, what it gates and when it runs; [CHANGING-CI.md](CHANGING-CI.md) before editing one.
 - [e2e.md](e2e.md): the end-to-end harness (real LiveKit, server and two browsers).
+- [soak-harness.md](soak-harness.md): hours of a desktop session in minutes, and a report of what the app still holds at the end.
 - [RELEASING.md](RELEASING.md): the release runbook; [APP-STORE.md](APP-STORE.md) for the iOS listing and review.
 - [dependencies.md](dependencies.md): why each dependency is there.
 - [internals.md](internals.md): how and why individual modules work, moved out of long doc comments.

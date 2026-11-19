@@ -94,8 +94,12 @@ final appLifecycleProvider =
     );
 
 /// Whether the window is focused and visible right now.
-final appFocusedProvider = Provider<bool>(
-  (ref) => ref.watch(appLifecycleProvider) == AppLifecycleState.resumed,
+final appFocusedProvider = Provider<bool>((ref) => ref.watch(appFocusedAtOnce));
+
+/// [appFocusedProvider] for a listener that must hear focus go with no frame
+/// drawn, as when the window is hidden: a derived provider waits for one.
+final appFocusedAtOnce = appLifecycleProvider.select(
+  (state) => state == AppLifecycleState.resumed,
 );
 
 /// Whether the window is on screen, focused or not: a desktop window behind

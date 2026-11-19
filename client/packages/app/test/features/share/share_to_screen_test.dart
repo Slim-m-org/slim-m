@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/accounts/widgets/account_root.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_drafts.dart';
 import 'package:slimm_app/src/features/messages/providers/forward_targets.dart';
 import 'package:slimm_app/src/features/share/providers/incoming_share.dart';
@@ -241,12 +242,17 @@ void main() {
         IncomingShare(files: [_photo]),
       );
       await tester.pumpWidget(
-        ListenableBuilder(
-          listenable: h.host,
-          builder: (context, _) {
-            final container = h.host.active!.container;
-            return _app(container, routers.putIfAbsent(container, _router));
-          },
+        AccountRoot(
+          host: h.host,
+          app: Builder(
+            builder: (context) {
+              final container = ProviderScope.containerOf(context);
+              return MaterialApp.router(
+                theme: buildTheme(Brightness.light, AppTokens.light),
+                routerConfig: routers.putIfAbsent(container, _router),
+              );
+            },
+          ),
         ),
       );
       await tester.pump();

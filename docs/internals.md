@@ -518,3 +518,33 @@ Known gaps, none of them fixed here:
 - Reactions, poll tallies and thread counts are not sequenced; a reconnect refetches the open channels' pages for them (see `open_channel_rehydrate.dart`).
   Pins are not sequenced either and are not on a message page, so the same reconnect rereads each open channel's pin list (`sync_live_refresh.dart`).
 - A send that reached the server, whose answer was lost, and which was then deleted elsewhere is answered as sent when it is retried, because the id still matches the deleted row.
+
+## Account scopes
+
+`AccountRoot` keeps an `UncontrolledProviderScope` mounted for every container the `AccountHost` tracks, and only the active one has the app under it.
+Never mount a container under a scope that can unmount while the container lives on, unless another scope for it stays mounted.
+
+Riverpod 2.6 queues provider refreshes and `autoDispose` disposals in the container's scheduler.
+With a scope mounted, the scheduler hands the queue to the scope's element, which runs it on its next build.
+If that element unmounts first the queue is dropped, and the scheduler still believes a run is pending, so it never asks for another.
+The container then keeps every `autoDispose` provider it ever built and stops telling listeners about a derived provider that changed.
+
+The root's scope is the only scope a container has.
+A row that names another account, in the switcher, the call pill or the share step, is a `ServerIdentity`: it listens to that account's container with `container.listen` and mounts nothing.
+It used to mount a second scope, and that is not safe.
+Riverpod hands a queued run to every scope of a container and the first one to build runs it.
+A switch unmounts the app tree in the frame it happens, so the second scope never built and kept the run; the next thing the container queued, which the unmount itself causes, found it still held and a debug build stopped with "Only one task can be scheduled at a time".
+Re-pointing a scope at another container fails the same way, since Riverpod registers a scope on mount and unregisters it on unmount only.
+
+A widget that listens to a container it is not under has two things to mind, both in `account_server_label.dart`.
+That container's scope refreshes it while building, and nothing outside the scope may be marked then, so a change heard during a build is taken after the frame.
+And the root lists the active scope first, so a tree torn down in order lets go of the other containers while their scopes still stand; a container with no scope falls back to a timer, which a widget test reports as pending.
+
+A container's queue runs on a frame, and a window hidden to the tray draws none.
+A listener that must act then listens to a select off the notifier (`voiceFlagsAtOnce`, `appFocusedAtOnce`), never to a provider derived from it.
+Inside such a listener the derived provider has not caught up yet, so read the select there too.
+
+`test/features/accounts/account_root_scope_test.dart` holds the cases for the queue: disposal after leaving, disposal and refresh after coming back, refresh while out of view, an account out of view whose name was shown and hidden again, and leaving an account whose own name is on screen.
+`account_root_call_test.dart` holds the call state reaching the host with no frame drawn, and `server_identity_test.dart` the row.
+The multi-account widget tests mount the real root through `HostRoot`.
+The soak harness's smoke run (`docs/soak-harness.md`) fails on the same fault, as live-event listeners that keep climbing.

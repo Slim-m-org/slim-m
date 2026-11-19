@@ -41,7 +41,21 @@ Future<ui.Image> bakeEmojiGlyph(String glyph, {int edge = stampBakeEdge}) {
   ui.Canvas(
     recorder,
   ).drawParagraph(paragraph, ui.Offset(0, (side - paragraph.height) / 2));
-  return recorder.endRecording().toImage(edge, edge);
+  return _imageOf(recorder, edge, edge);
+}
+
+/// The recording as an image; the picture is disposed once the image exists.
+Future<ui.Image> _imageOf(
+  ui.PictureRecorder recorder,
+  int width,
+  int height,
+) async {
+  final picture = recorder.endRecording();
+  try {
+    return await picture.toImage(width, height);
+  } finally {
+    picture.dispose();
+  }
 }
 
 /// [source] scaled so its longest side is [edge], keeping its shape.
@@ -56,7 +70,7 @@ Future<ui.Image> bakeScaled(ui.Image source, {int edge = stampBakeEdge}) {
     ui.Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
     ui.Paint()..filterQuality = ui.FilterQuality.high,
   );
-  return recorder.endRecording().toImage(width, height);
+  return _imageOf(recorder, width, height);
 }
 
 /// [image] as the PNG the overlay runner decodes.
