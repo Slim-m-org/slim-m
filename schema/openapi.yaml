@@ -10244,6 +10244,8 @@ paths:
         Carries no credential. See docs/decisions/0030-incoming-webhooks.md's
         admin-surface addendum for why the list, not the response body, is
         where an operator learns which webhooks exist.
+        A webhook whose channel the caller cannot see is left out, and
+        renaming, rotating or revoking one answers 404.
       responses:
         "200":
           description: The webhooks.
@@ -10268,6 +10270,9 @@ paths:
         legible; it is stored hashed and cannot be read back. Fixed to
         `channel_id` at mint, never editable - see the decision record for
         why re-pointing an already-pasted URL is refused rather than offered.
+        The caller needs VIEW_CHANNEL and SEND_MESSAGES in that channel
+        besides MANAGE_SERVER: 404 when they cannot see it or it is a direct
+        message, 403 when they can see it but not post.
       requestBody:
         required: true
         content:
@@ -10351,6 +10356,7 @@ paths:
         returned here, once, like createWebhook. The webhook keeps its
         principal, so what it already posted stays attributed to it. Audited
         as webhook_rotate.
+        403 when the caller cannot post in the webhook's channel.
       responses:
         "200":
           description: Rotated.
