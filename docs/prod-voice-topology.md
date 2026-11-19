@@ -25,7 +25,9 @@ The source of these facts is [the voice and stream audit](research/voice-stream-
 ## The LAN direct route
 
 Native clients on the home network reach the API through `SLIMM_DIRECT_ADDRESSES=10.0.0.100:443` instead of going out through Cloudflare, which is about 116 MB/s on the LAN against 7.8 MB/s through the proxy.
-This is for the HTTP API only, and the web client and video uploads still go through the public hostname.
+The call's signalling socket takes it too: Traefik on that address also serves `livekit.npc-server.top` with its own certificate, so while the API goes direct a native client opens the LiveKit socket there and connection details show call signalling as "Your local network".
+A host only qualifies when it sits beside the API host (same host, a subdomain, or a sibling under its parent domain) on the same port, and the TLS handshake for that host must succeed at the address; anything else, or a failure, connects the public way and leaves the LAN attempt alone for a minute, doubling up to fifteen.
+The web client and video uploads still go through the public hostname.
 Call media from a LAN client still goes to the public address and comes back through the router (hairpin).
 UDP hairpin works: a LAN client selected a `udp4` host pair against the public address on 2026-11-01.
 Its round trip time and loss are not measured yet.

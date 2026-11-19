@@ -27,6 +27,7 @@ import 'mic_recovery.dart';
 import 'mic_release.dart';
 import 'pulse_audio.dart';
 import 'share_audio_isolation.dart';
+import 'signal_route.dart';
 import 'start_bitrate_room.dart';
 import 'video_quality.dart';
 import 'voice_audio_devices.dart';
@@ -70,7 +71,9 @@ class VoiceSessionCore {
     JoinTimings? joinTimings,
     ShareAudioIsolation? shareAudioIsolation,
     Duration cameraJoinTimeout = kJoinCameraTimeout,
-  }) : joinTimings = joinTimings ?? JoinTimings() {
+    SignalSocketOpen? signalOpen,
+  })  : joinTimings = joinTimings ?? JoinTimings(),
+        signal = signalOpen == null ? null : SignalRoute(signalOpen) {
     createRoom = roomFactory ?? _buildRoom;
     listener = VoiceListenerAudio(
       VoiceListenerAudioHost(
@@ -80,7 +83,11 @@ class VoiceSessionCore {
       ),
     )..audio.log = audioLog;
     healthWatch = VoiceHealthWatch(
-      VoiceHealthWatchHost(room: () => flow.room, diag: diag),
+      VoiceHealthWatchHost(
+        room: () => flow.room,
+        diag: diag,
+        signalDirect: () => signal?.direct ?? false,
+      ),
     );
     // An injected room has no native capture behind it to gate.
     final gate = inputGate ??
@@ -209,6 +216,9 @@ class VoiceSessionCore {
 
   final JoinTimings joinTimings;
 
+  /// How the call's signalling dials, when the app offered a way of its own; null leaves it to LiveKit.
+  final SignalRoute? signal;
+
   /// Why the last attempt failed; see [VoiceSession.lastError].
   Object? lastError;
 
@@ -263,6 +273,7 @@ class VoiceSessionCore {
   /// Settings has chosen; see [VoiceAudioDevices].
   lk.Room _buildRoom() => buildRoomWithStartBitrate(
         devices.switching.roomOptions(receiveRoomOptions()),
+        signal: signal,
       );
 
   void noteError(Object error) => lastError = error;

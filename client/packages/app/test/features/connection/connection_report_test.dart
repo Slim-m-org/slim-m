@@ -104,6 +104,29 @@ void main() {
     },
   );
 
+  test('signalling that went over his own network reads as local, and a '
+      'reconnect that went public reads as Cloudflare again', () async {
+    harness.container.listen(connectionStatusProvider, (_, _) {});
+    session.health.signalUrl = Uri.parse('wss://livekit.example.org');
+    session.health.noteLink(
+      CallLink(
+        mediaRttMs: 4,
+        signalRttMs: 2,
+        signalDirect: true,
+        at: DateTime.now(),
+      ),
+    );
+    await pumpEventQueue();
+    expect(report().signalDirect, isTrue);
+    expect(connectionLegs(report())[1].value, 'Your local network, 2\u00a0ms');
+
+    session.health.noteLink(
+      CallLink(mediaRttMs: 4, signalRttMs: 40, at: DateTime.now()),
+    );
+    await pumpEventQueue();
+    expect(connectionLegs(report())[1].value, 'Cloudflare Newark, 40\u00a0ms');
+  });
+
   test(
     'a host no Cloudflare answers for after a repair reads as none',
     () async {

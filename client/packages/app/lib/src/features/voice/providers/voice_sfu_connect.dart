@@ -2,6 +2,7 @@
 /// Fetching a call token and opening the SFU session for it.
 library;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_api/api.dart';
@@ -17,6 +18,14 @@ import 'voice_state.dart';
 import 'voice_state_access.dart';
 
 const _joinCallTask = 'join the call';
+
+/// On a native build the call's signalling may take the server's own network
+/// as requests do; see [SlimmApiDirectRoute.connectSiblingDirect]. The browser
+/// picks its own route, so the web build leaves it to LiveKit.
+SignalSocketOpen? callSignalOpen(Ref ref) => kIsWeb
+    ? null
+    : (url, headers) =>
+          ref.read(apiProvider).connectSiblingDirect(url, headers: headers);
 
 class VoiceSfuConnect {
   VoiceSfuConnect(

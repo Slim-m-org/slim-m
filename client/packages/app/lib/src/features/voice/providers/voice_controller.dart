@@ -63,6 +63,7 @@ class VoiceController extends StateNotifier<VoiceState> {
            session ??
            VoiceSession(
              joinTimings: _ref.read(joinTimingsProvider),
+             signalOpen: callSignalOpen(_ref),
              audioLog: (line, {level = api.LogLevel.info}) =>
                  api.AppLog.at(level, api.LogTag.voice, line),
            ),

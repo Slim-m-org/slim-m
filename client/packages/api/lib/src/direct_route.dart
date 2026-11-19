@@ -37,6 +37,14 @@ abstract interface class DirectRoute {
   /// Opens the event socket over the same route.
   WebSocketChannel connectWebSocket(Uri url);
 
+  /// Opens a socket to [url] on a host beside the server's, such as a call's
+  /// signalling, over the advertised address while requests take it. Null
+  /// when that is not open to it or the attempt failed: connect normally.
+  Future<WebSocketChannel?> connectSiblingDirect(
+    Uri url, {
+    Map<String, String>? headers,
+  });
+
   /// Forgets a back-off after a failed attempt, so the next request tries the
   /// advertised address again. For work worth a few hundred milliseconds of
   /// probing, such as the start of a large upload.
@@ -77,6 +85,29 @@ List<({String host, int port})> parseDirectAddresses(
             if (_lanHost(entry.substring(0, colon)) case final host?)
               (host: host, port: port),
     ];
+
+/// Whether [host] is one the proxy at an advertised address may also serve:
+/// [server] itself, a subdomain of it, or a sibling under its parent domain,
+/// as `livekit.example.com` is beside `slim.example.com`. The TLS handshake
+/// then proves the proxy does serve it.
+bool siblingHost(String host, String server) {
+  if (host == server) return true;
+  if (_ipLiteral(host) || _ipLiteral(server)) return false;
+  if (host.endsWith('.$server')) return true;
+  final parent = _parentDomain(server);
+  return parent != null && _parentDomain(host) == parent;
+}
+
+/// Everything after the first label, when that is still a domain of two labels or more.
+String? _parentDomain(String host) {
+  final dot = host.indexOf('.');
+  if (dot < 0) return null;
+  final parent = host.substring(dot + 1);
+  return parent.contains('.') ? parent : null;
+}
+
+bool _ipLiteral(String host) =>
+    host.contains(':') || RegExp(r'^[0-9.]+$').hasMatch(host);
 
 /// [host] without IPv6 brackets when it is a private or loopback IP literal.
 String? _lanHost(String host) {

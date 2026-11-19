@@ -74,5 +74,26 @@ void main() {
     expect(link.media, MediaRoute.relayed);
     expect(link.mediaRttMs, 31);
     expect(link.at, at);
+    expect(link.signalDirect, isFalse);
+  });
+
+  test('each reading says which way the signalling socket went', () async {
+    final room = PeopleRoom()..people['ann'] = _Peer('ann');
+    var direct = true;
+    final watch = VoiceHealthWatch(
+      VoiceHealthWatchHost(
+        room: () => room,
+        diag: (_, {level = LogLevel.info}) {},
+        signalDirect: () => direct,
+      ),
+    );
+    addTearDown(watch.health.dispose);
+
+    await watch.localVoiceStats();
+    expect(watch.health.link.value!.signalDirect, isTrue);
+
+    direct = false;
+    await watch.localVoiceStats();
+    expect(watch.health.link.value!.signalDirect, isFalse);
   });
 }

@@ -29,6 +29,7 @@ class CallEngine extends lk_engine.Engine {
   CallEngine({
     required super.roomOptions,
     super.peerConnectionCreate,
+    super.signalClient,
     super.connectOptions = const lk.ConnectOptions(),
     Duration stuckOfferGrace = kStuckOfferGrace,
     @visibleForTesting bool Function()? signalLive,
