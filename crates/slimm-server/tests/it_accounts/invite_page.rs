@@ -45,7 +45,7 @@ async fn usable_code_renders_the_landing_page() {
         "slimm://join?server=https%3A%2F%2Fchat.example&amp;code={code}"
     )));
     assert!(html.contains(&format!(
-        "/app/join?server=https%3A%2F%2Fchat.example&amp;code={code}"
+        "href=\"/app/#/join?server=https%3A%2F%2Fchat.example&amp;code={code}\""
     )));
     assert_eq!(parts.headers()["referrer-policy"], "no-referrer");
     assert!(

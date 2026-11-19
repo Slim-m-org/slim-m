@@ -133,7 +133,7 @@ pub(super) fn handoff_page(provider: &str, label: &str, code: &str) -> String {
          <p class=\"muted\">{label} approved. Open slim-m on the account that started the link.</p>\
          <div class=\"actions\">\
          <a class=\"btn primary\" href=\"slimm://{provider}-link?code={code_param}\">Open slim-m</a>\
-         <a class=\"btn\" id=\"web\" hidden href=\"/app/link/{provider}?code={code_param}\">Open in browser</a>\
+         <a class=\"btn\" id=\"web\" hidden href=\"/app/#/link/{provider}?code={code_param}\">Open in browser</a>\
          </div>\
          <p class=\"muted foot\">Or paste this code in Settings, Connections.</p>\
          <p class=\"code\" id=\"code\">{grouped}</p>\
@@ -156,7 +156,7 @@ mod tests {
     fn the_page_carries_the_code_three_ways() {
         let html = handoff_page("discord", "Discord", "ABCDEFGHJKLMNPQRSTUVWXYZ2");
         assert!(html.contains("slimm://discord-link?code=ABCDEFGHJKLMNPQRSTUVWXYZ2"));
-        assert!(html.contains("/app/link/discord?code=ABCDEFGHJKLMNPQRSTUVWXYZ2"));
+        assert!(html.contains("href=\"/app/#/link/discord?code=ABCDEFGHJKLMNPQRSTUVWXYZ2\""));
         assert!(html.contains("ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ2"));
     }
 
