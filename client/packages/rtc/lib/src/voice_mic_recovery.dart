@@ -437,6 +437,12 @@ class VoiceMicRecovery {
     if (!mic.hasTrack) return _recovery.recoverNow(reason);
     try {
       await mic.restart(switching.captureOptions());
+      // The reopened capture is live, and a mute that landed meanwhile already muted the publication.
+      if (!micWanted) {
+        _log('Muted during a capture restart');
+        await release.releaseReopened();
+        return true;
+      }
       _captureProgress.reset();
       _host.followPreferred();
       _log('Microphone capture restarted ($reason)');

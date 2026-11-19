@@ -7,11 +7,12 @@ import 'dart:async';
 
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart'
-    show AppLog, LogTag, ignoreError, reportFailure;
+    show AppLog, LogLevel, LogTag, ignoreError, reportFailure;
 
 import 'audio_event_scope.dart';
 import 'audio_gain.dart' as rtc_gain;
 import 'join_timings.dart';
+import 'video_orphans.dart';
 import 'voice_disconnect_reason.dart';
 import 'voice_first_audio.dart';
 import 'voice_models.dart';
@@ -26,6 +27,9 @@ import 'voice_session_core.dart';
 /// a hang-up during an outage stayed on screen for those 10 s. The room is
 /// disposed either way, which is what closes the connections.
 const kLeaveGoodbyeWait = Duration(seconds: 2);
+
+/// The longest a join waits for a leave still tearing down; see [VoiceCallFlow.join].
+const kJoinWaitsForLeave = Duration(seconds: 5);
 
 /// Owns the room, the call's state and its generation, and orders the
 /// teardown; every other part of the call is reached through [VoiceSessionCore].
@@ -58,6 +62,9 @@ class VoiceCallFlow {
   /// The in-flight join, so a second call serializes behind it; see [join].
   Future<void>? _joining;
 
+  /// The leave still tearing down, which the next join waits for; see [join].
+  Future<void>? _leaving;
+
   /// Bumped by every join and every leave, so a teardown still unwinding can
   /// tell that a newer call has taken this session over; see [leave].
   int _generation = 0;
@@ -69,6 +76,7 @@ class VoiceCallFlow {
 
   /// Joins a room with a server-minted token; [canPublish] only stops a listen-only join from opening the microphone, and rejoining leaves the old connection first.
   /// Overlapping calls serialize, so a second tap or a channel switch mid-connect waits and the state ends as the last caller asked.
+  /// A join also waits, up to [kJoinWaitsForLeave], for a leave still tearing down: livekit's cleanup of that room stops the platform audio session.
   Future<void> join({
     required String url,
     required String token,
@@ -97,8 +105,17 @@ class VoiceCallFlow {
 
   /// Leaves the call and resets deafen and mutes with it. Safe to call when not in one.
   ///
-  /// A leave a newer join already superseded resets nothing: [_teardown] clears `room` before it awaits.
-  Future<void> leave() => _end(replaced: false);
+  /// A leave a newer join took over, past [kJoinWaitsForLeave], resets nothing: that join made the resets.
+  Future<void> leave() {
+    final ending = _end(replaced: false);
+    final settled = ending.catchError(ignoreError(
+        LogTag.voice, 'A leave failed; whoever asked for it has the error'));
+    _leaving = settled;
+    unawaited(settled.whenComplete(() {
+      if (identical(_leaving, settled)) _leaving = null;
+    }));
+    return ending;
+  }
 
   /// [replaced] is a join taking over a call nobody left, which stays deafened:
   /// a rejoin after a drop, or a switch, must not start playing a call its listener silenced.
@@ -106,6 +123,10 @@ class VoiceCallFlow {
     final generation = ++_generation;
     await _teardown();
     if (generation != _generation) return;
+    _resetForNewCall(replaced: replaced);
+  }
+
+  void _resetForNewCall({required bool replaced}) {
     _core.roster.set(const []);
     _core.listener.resetForNewCall(keepDeafened: replaced);
     // Gain deliberately survives: somebody you turned down stays turned down.
@@ -113,6 +134,21 @@ class VoiceCallFlow {
     droppedWhileSharing = false;
     _core.video.resetForNewCall();
     _setState(VoiceSessionState.idle);
+  }
+
+  /// Waits for a leave still tearing down; one that outlasts the wait is taken
+  /// over, with the resets it would have made on reaching idle.
+  Future<void> _afterLeave() async {
+    final leaving = _leaving;
+    if (leaving == null) return;
+    try {
+      await leaving.timeout(kJoinWaitsForLeave);
+    } on TimeoutException {
+      _core.diag('The last call was still closing; joining anyway',
+          level: LogLevel.warning);
+      if (identical(_leaving, leaving)) _leaving = null;
+      _resetForNewCall(replaced: false);
+    }
   }
 
   Future<void> dispose() async {
@@ -144,6 +180,10 @@ class VoiceCallFlow {
     required bool canPublish,
   }) async {
     if (disposed) return;
+    final asked = _generation;
+    await _afterLeave();
+    // A leave asked while this waited is the newer ask.
+    if (disposed || asked != _generation) return;
     _core.readiness.mayPublish = canPublish;
     if (room != null) await _end(replaced: true);
     // Claims the session past the leave above, whose own guard has run by now.
@@ -178,7 +218,7 @@ class VoiceCallFlow {
       _core.refresh();
       _setState(VoiceSessionState.connected);
       // A slow webcam must not hold "connected" back; see CameraJoin.
-      if (cameraEnabled) {
+      if (_core.camera.wantedAtJoin(cameraEnabled)) {
         unawaited(
           _core.camera.openAfterJoin(
             joining,
@@ -220,6 +260,7 @@ class VoiceCallFlow {
     _cancelEvents = joining.events.listen((event) {
       _noteTransport(event);
       _core.mic.onRoomEvent(event);
+      _core.videoOrphans.onRoomEvent(event);
       final replaced = audioReplacedBy(event);
       if (replaced != null) audio.trackReplaced(replaced);
       if (event is lk.TrackSubscribedEvent &&
@@ -287,10 +328,30 @@ class VoiceCallFlow {
       _core.stall.watchdog.observe(const []);
       return;
     }
-    if (room == null || state != VoiceSessionState.connected) return;
+    final live = room;
+    if (live == null || state != VoiceSessionState.connected) return;
     _core.healthWatch.glitchWatch.start();
     _core.refresh();
+    unawaited(_stopOrphanedVideo(live));
     if (!_restarts.isClosed) _restarts.add(null);
+  }
+
+  /// A restart whose republish failed leaves camera and screen capturing unpublished; see [VideoOrphans].
+  Future<void> _stopOrphanedVideo(lk.Room live) async {
+    final local = live.localParticipant;
+    if (local == null) return;
+    try {
+      final stopped = await _core.videoOrphans.stopUnpublished(local);
+      if (stopped.isEmpty || !identical(room, live)) return;
+      if (stopped.contains(lk.TrackSource.screenShareVideo)) {
+        await _core.share.control.stopActiveBroadcast();
+        await _core.share.control.shareEnded();
+      }
+      _core.refresh();
+    } on Object catch (error, stack) {
+      AppLog.swallowed(LogTag.voice,
+          'Could not stop video left capturing after a restart', error, stack);
+    }
   }
 
   /// A disconnect this client did not ask for: the SFU removed this
@@ -344,6 +405,7 @@ class VoiceCallFlow {
     // Synchronously, and before anything else; see this method's own doc.
     final leaving = room;
     room = null;
+    final videos = _core.videoOrphans.takeAll();
     _core.healthWatch.health.reconnect.ended('left the call');
     _core.camera.cancelJoin();
     _core.stall.stop();
@@ -369,6 +431,7 @@ class VoiceCallFlow {
     }
     // The disconnect stops only published tracks.
     await _step(_core.mic.stopUnpublished);
+    await _step(() => stopCapturing(videos));
   }
 
   void _setState(VoiceSessionState next) {

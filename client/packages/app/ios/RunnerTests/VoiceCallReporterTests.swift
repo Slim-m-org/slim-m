@@ -230,3 +230,18 @@ final class OutgoingCallLifecycleTests: XCTestCase {
     XCTAssertEqual(action.fulfilled, 1)
   }
 }
+
+/// CallKit's own activation and deactivation of the session reach the call
+/// report with the session as it then is, so a report can show the hand-off.
+final class AudioSessionObserverTests: XCTestCase {
+  func testACallKitHandOffCarriesItsDirectionAndTheSession() {
+    let activated = AudioSessionObserver.callKitHandOff(active: true)
+    let deactivated = AudioSessionObserver.callKitHandOff(active: false)
+
+    XCTAssertEqual(activated["kind"] as? String, "callKitAudio")
+    XCTAssertEqual(activated["active"] as? Bool, true)
+    XCTAssertEqual(deactivated["active"] as? Bool, false)
+    XCTAssertNotNil(activated["category"] as? String)
+    XCTAssertNotNil(activated["outputs"] as? [String])
+  }
+}

@@ -78,6 +78,8 @@ pub async fn sweep_stale_voice_calls(
 /// below it succeeds: the eviction is already the real transition, committed
 /// by [`voice::VoiceService::sweep_stale_calls_at`] before this ever runs, so
 /// bystanders are told up front rather than behind the removal round trips.
+/// A member who rejoined before their removal went out is left in the call
+/// and out of the returned list, so their new session is not closed.
 ///
 /// The removals themselves fan out with bounded concurrency. Each is a real
 /// HTTP POST to LiveKit, so a blip that expires many heartbeats in one tick
@@ -95,28 +97,36 @@ pub async fn sweep_stale_voice_calls_at(
             channel_id: *channel_id,
         });
     }
-    futures_util::stream::iter(stale.clone())
-        .for_each_concurrent(
-            STALE_SWEEP_CONCURRENCY,
-            |(user_id, channel_id)| async move {
-                match voice.remove_participant(channel_id, user_id).await {
-                    Ok(()) => tracing::info!(
+    futures_util::stream::iter(stale)
+        .map(|(user_id, channel_id)| async move {
+            match voice.remove_stale_participant(channel_id, user_id).await {
+                Ok(true) => tracing::info!(
+                    %user_id,
+                    %channel_id,
+                    "removed a voice participant with no recent heartbeat"
+                ),
+                Ok(false) => {
+                    tracing::info!(
                         %user_id,
                         %channel_id,
-                        "removed a voice participant with no recent heartbeat"
-                    ),
-                    Err(voice::VoiceError::Unavailable) => {}
-                    Err(voice::VoiceError::Internal(err)) => tracing::warn!(
-                        error = %err,
-                        %user_id,
-                        %channel_id,
-                        "failed to remove a stale voice participant"
-                    ),
+                        "kept a stale voice participant who rejoined before the removal"
+                    );
+                    return None;
                 }
-            },
-        )
-        .await;
-    stale
+                Err(voice::VoiceError::Unavailable) => {}
+                Err(voice::VoiceError::Internal(err)) => tracing::warn!(
+                    error = %err,
+                    %user_id,
+                    %channel_id,
+                    "failed to remove a stale voice participant"
+                ),
+            }
+            Some((user_id, channel_id))
+        })
+        .buffer_unordered(STALE_SWEEP_CONCURRENCY)
+        .filter_map(std::future::ready)
+        .collect()
+        .await
 }
 
 /// How many stale-participant removals the sweep runs at once. A burst that
