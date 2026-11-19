@@ -118,6 +118,9 @@ struct ScopeDelta {
     /// Only on a scope that resets or whose cursor asked; see [`mark_mentions`].
     #[serde(skip_serializing_if = "Option::is_none")]
     mentioned_seq: Option<i64>,
+    /// The highest message seq allocated here, read before `messages`. A client whose page
+    /// is complete moves its cursor to it: nothing at or below it is left to deliver.
+    latest_seq: i64,
 }
 
 // --- Handlers ---
@@ -322,6 +325,7 @@ async fn sync(
             op_latest_seq: ops.op_latest_seq,
             ops_has_more: ops.ops_has_more,
             mentioned_seq: None,
+            latest_seq: latest,
         });
     }
     mark_mentions(&state, ctx.user_id, &mut scopes, &marked).await?;

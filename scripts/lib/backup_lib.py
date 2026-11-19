@@ -15,7 +15,8 @@ recomputed sha256 both match is provably already backed up and is never
 re-copied, while one that has rotted or been truncated is replaced from
 the live copy. Avatars are not content-addressed (one mutable file per
 account), so they are copied every run, which is cheap since they are
-capped and few.
+capped and few. The space banner and icon, profile banners, linked-account
+pictures and kept originals are mirrored by backup_side_files.py.
 Nothing is ever deleted from the media mirror by this script - it grows
 by addition only, which is the safe direction for a backup to err in.
 
@@ -46,12 +47,14 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import quote
 
 import backup_modules
 import backup_report
+import backup_side_files
 import file_digest
 import path_guard
+import sqlite_read_only
+import snapshot_info
 
 EXIT_FAILED = 1
 EXIT_WARNINGS = 3
@@ -101,9 +104,7 @@ def parse_args(argv):
 
 
 def vacuum_into(source_db, dest_db):
-    resolved_source = Path(source_db).resolve()
-    uri = f"file:{quote(str(resolved_source), safe='/')}?mode=ro"
-    conn = sqlite3.connect(uri, uri=True)
+    conn = sqlite_read_only.connect(source_db)
     try:
         conn.execute("VACUUM INTO ?", (str(dest_db),))
     finally:
@@ -225,7 +226,13 @@ def take_backup(args):
 
     backup_root = Path(args.backup_root)
     db_dir = backup_root / "db"
-    db_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        db_dir.mkdir(parents=True, exist_ok=True)
+    except PermissionError:
+        print(f"cannot write to {backup_root}. The compose backup service runs as root "
+              "without the right to write into another user's directory, so give the "
+              "backup directory to root (chown root:root).", file=sys.stderr)
+        return EXIT_FAILED, []
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     dest_db = db_dir / f"slimm-{timestamp}.db"
@@ -242,6 +249,7 @@ def take_backup(args):
 
     attachments = sync_attachments(dest_db, args.media_dir, backup_root)
     avatars = sync_avatars(dest_db, args.media_dir, backup_root)
+    side_files = backup_side_files.sync(dest_db, args.media_dir, backup_root)
     modules_dir = getattr(args, "modules_dir", None) or str(source_db.parent / "modules")
     modules = backup_modules.backup_modules(modules_dir, backup_root)
     removed = prune_snapshots(db_dir, args.keep)
@@ -252,8 +260,10 @@ def take_backup(args):
         "source_media_dir": str(args.media_dir),
         "vacuum_seconds": round(vacuum_seconds, 3),
         "snapshot_bytes": snapshot_bytes,
+        "schema_version": snapshot_info.schema_version(dest_db),
         "attachments": attachments,
         "avatars": avatars,
+        "side_files": side_files,
         "modules": modules,
         "pruned_snapshots": removed,
         "not_covered": [
@@ -263,7 +273,7 @@ def take_backup(args):
     Path(str(dest_db) + ".manifest.json").write_text(json.dumps(manifest, indent=2))
     backup_report.print_report(dest_db, manifest, removed)
 
-    warnings = backup_report.warnings_for(attachments, avatars)
+    warnings = backup_report.warnings_for(attachments, avatars, side_files)
     for warning in warnings:
         print(f"backup completed, but {warning}", file=sys.stderr)
     if modules["failed"]:

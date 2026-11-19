@@ -15,7 +15,7 @@ use super::messages::parse_uuid;
 use super::module_host::call_audio_approved;
 use crate::call_audio::runtime;
 use crate::call_audio::session::EndReason;
-use crate::ids::ChannelId;
+use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::now_ms;
@@ -48,19 +48,39 @@ async fn list(
         .installed_module(&id)
         .await?
         .ok_or(ApiError::NotFound("module not installed"))?;
-    Ok(Json(current(&state, &id).await?))
+    let armed = state.store.module_call_audio_channels(&id).await?;
+    let (seen, _) = split_by_sight(&state, ctx.user_id, armed).await?;
+    Ok(Json(ChannelList::of(seen)))
 }
 
-async fn current(state: &AppState, module_id: &str) -> Result<ChannelList, ApiError> {
-    let mut ids: Vec<String> = state
+impl ChannelList {
+    fn of(mut channels: Vec<ChannelId>) -> Self {
+        channels.sort_by_key(ToString::to_string);
+        let channel_ids = channels.iter().map(ToString::to_string).collect();
+        Self { channel_ids }
+    }
+}
+
+/// `channels` as those `caller` can see and those they cannot. A manager's list is the first
+/// half only: what they cannot see they are neither shown nor able to arm or disarm.
+async fn split_by_sight(
+    state: &AppState,
+    caller: UserId,
+    channels: Vec<ChannelId>,
+) -> Result<(Vec<ChannelId>, Vec<ChannelId>), ApiError> {
+    // An administrator's list is the whole list, a since-deleted channel included.
+    if (state.store.base_permissions(caller).await?).contains(Permissions::ADMINISTRATOR) {
+        return Ok((channels, Vec::new()));
+    }
+    let held = state
         .store
-        .module_call_audio_channels(module_id)
-        .await?
-        .iter()
-        .map(ToString::to_string)
-        .collect();
-    ids.sort();
-    Ok(ChannelList { channel_ids: ids })
+        .permissions_in_channels(caller, &channels)
+        .await?;
+    let sees = |channel: &ChannelId| {
+        held.get(channel)
+            .is_some_and(|p| p.contains(Permissions::VIEW_CHANNEL))
+    };
+    Ok(channels.into_iter().partition(sees))
 }
 
 async fn replace(
@@ -97,12 +117,16 @@ async fn replace(
             .bot_user_id
             .ok_or(ApiError::Conflict("the module has no principal"))?;
         for channel in &wanted {
-            check_channel(&state, bot, *channel).await?;
+            check_channel(&state, (ctx.user_id, bot), *channel).await?;
         }
     }
+    // What the caller cannot see stays armed as it was: their list never named it.
+    let armed = state.store.module_call_audio_channels(&id).await?;
+    let (_, unseen) = split_by_sight(&state, ctx.user_id, armed).await?;
+    let kept: Vec<ChannelId> = wanted.iter().chain(&unseen).copied().collect();
     let dropped = state
         .store
-        .set_module_call_audio_channels(&id, &wanted)
+        .set_module_call_audio_channels(&id, &kept)
         .await?;
     for channel in dropped {
         let session = state.call_audio.view(channel);
@@ -115,23 +139,23 @@ async fn replace(
             runtime::apply(&state, outcome).await;
         }
     }
-    Ok(Json(current(&state, &id).await?))
+    Ok(Json(ChannelList::of(wanted)))
 }
 
+/// A voice channel both the caller and the module can see. One the caller cannot see answers
+/// exactly like one that is not a voice channel at all.
 async fn check_channel(
     state: &AppState,
-    bot: crate::ids::UserId,
+    (caller, bot): (UserId, UserId),
     channel: ChannelId,
 ) -> Result<(), ApiError> {
     let found = state.store.channel(channel).await?;
-    if !found.is_some_and(|c| c.kind == "voice" && c.parent_message_id.is_none()) {
+    let is_voice = found.is_some_and(|c| c.kind == "voice" && c.parent_message_id.is_none());
+    let view = Permissions::VIEW_CHANNEL;
+    if !is_voice || !state.store.has_permission(caller, channel, view).await? {
         return Err(ApiError::BadRequest("channel_ids must be voice channels"));
     }
-    if !state
-        .store
-        .has_permission(bot, channel, Permissions::VIEW_CHANNEL)
-        .await?
-    {
+    if !state.store.has_permission(bot, channel, view).await? {
         return Err(ApiError::BadRequest(
             "the module cannot view one of those channels",
         ));

@@ -44,9 +44,9 @@ use super::messages::{parse_uuid, validate_content};
 use super::module_hooks::{Draft, HookPoint, intercept};
 use super::post_commit::{after_commit, run_to_completion};
 use crate::hub::{Event, MessageEvent};
-use crate::ids::{MessageId, WebhookId};
+use crate::ids::{ChannelId, MessageId, WebhookId};
 use crate::ratelimit::Class;
-use crate::store::NewMessage;
+use crate::store::{DM_CHANNEL_KIND, NewMessage};
 
 /// Same ceiling as an ordinary send's body limit
 /// (`messages::MESSAGE_BODY_LIMIT`); a Discord-shaped payload with an
@@ -114,6 +114,13 @@ struct DeliveredDto {
 /// visual slot.
 const USERNAME_MAX_CHARS: usize = crate::limits::MAX_NAME_CHARS;
 
+/// Whether a webhook's channel still takes its posts: a deleted channel takes none, and a
+/// direct message never did (decision 0030), whatever a row minted before that rule says.
+async fn posts_somewhere(state: &AppState, channel: ChannelId) -> Result<bool, ApiError> {
+    let live = state.store.channel(channel).await?;
+    Ok(live.is_some_and(|channel| channel.kind != DM_CHANNEL_KIND))
+}
+
 /// Delivers one webhook post.
 ///
 /// Rate limiting is two independent charges against [`Class::Webhook`],
@@ -146,6 +153,9 @@ async fn deliver(
 
     let principal_key = format!("u:{}", context.principal_id);
     state.limiter.admit(Class::Webhook, &principal_key)?;
+    if !posts_somewhere(&state, context.channel_id).await? {
+        return Err(ApiError::NotFound("no such webhook"));
+    }
 
     let embeds = embeds::build_embeds(
         body.embeds.into_iter().map(Into::into).collect(),

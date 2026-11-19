@@ -63,6 +63,23 @@ Future<void> removeForwardSnapshot(SlimmDatabase db, String messageId) async {
   );
 }
 
+/// Writes an edit over a held row unless the row's own edit stamp is newer.
+Future<void> writeEdit(
+  SlimmDatabase db,
+  String messageId,
+  String content,
+  int? editedAt,
+) async {
+  final update = db.update(db.messages)..where((m) => m.id.equals(messageId));
+  if (editedAt != null) {
+    update.where((m) =>
+        m.editedAt.isNull() | m.editedAt.isSmallerOrEqualValue(editedAt));
+  }
+  await update.write(
+    MessagesCompanion(content: Value(content), editedAt: Value(editedAt)),
+  );
+}
+
 /// Whether a channel row exists locally.
 Future<bool> hasChannel(SlimmDatabase db, String channelId) async {
   final row = await (db.select(db.channels)

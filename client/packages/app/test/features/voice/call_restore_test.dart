@@ -90,13 +90,14 @@ ProviderContainer _container(
   bool onScreen = true,
   bool noticeDue = false,
   List<CallToRestore>? rejoins,
+  VoiceController Function(Ref ref) voice = FakeVoiceController.new,
 }) {
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
       preferencesProvider.overrideWith((ref) async => prefs),
-      voiceControllerProvider.overrideWith(FakeVoiceController.new),
+      voiceControllerProvider.overrideWith(voice),
       restorableChannelProvider.overrideWithValue((_) async => channelName),
       voiceElsewhereCheckProvider.overrideWithValue((_) async => elsewhere),
       accountActiveProvider.overrideWith((ref) => onScreen),
@@ -257,6 +258,48 @@ void main() {
       expect(_stored(prefs, 'muted'), isTrue);
       _setFlags(container, const VoiceFlags());
       await tester.idle();
+    });
+
+    testWidgets('a restored call is deafened again when it connects with the '
+        'window in the tray', (tester) async {
+      addTearDown(
+        () => tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        ),
+      );
+      late FakeVoiceController voice;
+      final container = _container(
+        await _prefs(),
+        voice: (ref) => voice = FakeVoiceController(
+          ref,
+          recording: true,
+          joinOutcome: const VoiceState(channelId: 'voice-1', joining: true),
+        ),
+      );
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const SizedBox(),
+        ),
+      );
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+
+      final rejoined = container.read(rejoinRestoredCallProvider)(
+        CallToRestore(
+          channelId: 'voice-1',
+          userId: 'user-1',
+          at: now,
+          muted: false,
+          deafened: true,
+        ),
+      );
+      await tester.idle();
+      _setFlags(container, _connected);
+      await tester.idle();
+
+      expect(voice.calls, ['join:voice-1', 'deafen']);
+      await rejoined;
     });
 
     test('a connected call is written, and leaving it forgets it', () async {

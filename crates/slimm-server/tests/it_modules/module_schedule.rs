@@ -211,3 +211,46 @@ async fn only_an_admin_picks_the_channel_and_only_a_text_one() {
     assert_eq!(status, StatusCode::OK);
     assert!(cleared.get("schedule_channel_id").is_none());
 }
+
+/// MANAGE_SERVER alone lets a module into no channel its holder could not post in themselves.
+#[tokio::test]
+async fn a_manager_cannot_send_a_module_into_a_channel_they_cannot_see_or_post_in() {
+    let w = world("slimm-modsched-hidden").await;
+    let role = w
+        .store
+        .create_role("managers", Permissions::MANAGE_SERVER, false);
+    w.store
+        .assign_role(w.user.id, role.await.unwrap())
+        .await
+        .unwrap();
+    let staff = w.store.create_channel("staff", "text").await.unwrap().id;
+    let news = w.store.create_channel("news", "text").await.unwrap().id;
+    let (view, send) = (Permissions::VIEW_CHANNEL, Permissions::SEND_MESSAGES);
+    let none = Permissions::NONE;
+    w.store
+        .set_role_overwrite(staff, w.everyone, none, view)
+        .await
+        .unwrap();
+    w.store
+        .set_role_overwrite(news, w.everyone, none, send)
+        .await
+        .unwrap();
+    ticker(&w, &staff.to_string(), &["schedule", "message.post"]).await;
+    let bot = w.store.ensure_module_bot("ticker", "Ticker").await.unwrap();
+
+    let hidden = set_channel(&w, &w.token, "ticker", Some(staff.to_string())).await;
+    let nowhere = Some(uuid::Uuid::now_v7().to_string());
+    let unknown = set_channel(&w, &w.token, "ticker", nowhere).await;
+    assert_eq!(hidden.0, StatusCode::BAD_REQUEST, "{}", hidden.1);
+    assert_eq!(hidden, unknown, "a hidden channel answers like no channel");
+    let read_only = set_channel(&w, &w.token, "ticker", Some(news.to_string())).await;
+    assert_eq!(read_only.0, StatusCode::FORBIDDEN, "{}", read_only.1);
+
+    for (channel, kept_out_of) in [(staff, view), (news, send)] {
+        let let_in = w.store.has_permission(bot, channel, kept_out_of).await;
+        assert!(!let_in.unwrap(), "the module was let into {channel}");
+    }
+    let module = w.store.installed_module("ticker").await.unwrap().unwrap();
+    assert_eq!(module.schedule_channel_id, None);
+    assert_eq!(run_scheduled_modules(&w.state, 0).await.unwrap(), 0);
+}

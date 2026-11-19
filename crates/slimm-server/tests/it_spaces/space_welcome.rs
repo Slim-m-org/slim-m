@@ -4,6 +4,7 @@
 use axum::Router;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
+use slimm_server::permissions::Permissions;
 
 use crate::support;
 use support::app::call_as as call;
@@ -212,4 +213,67 @@ async fn only_an_admin_can_change_the_welcome() {
     )
     .await;
     assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+/// The welcome carries a manager's words, so it goes only where they could post themselves.
+#[tokio::test]
+async fn a_manager_cannot_point_the_welcome_at_a_channel_they_cannot_see_or_at_a_thread() {
+    let (store, _guard) = new_store("slimm-welcome-hidden").await;
+    let (root, _) = register(&store, "root").await;
+    let general = general_channel_id(&store).await;
+    let router = app(store.clone());
+    let hidden = json!({"name": "staff", "restricted": true});
+    let (_, hidden) = call(&router, "POST", "/channels", &root, Some(hidden)).await;
+    let hidden = hidden["id"].as_str().unwrap();
+    let role = json!({"name": "managers", "permissions": Permissions::MANAGE_SERVER.bits()});
+    let (_, role) = call(&router, "POST", "/roles", &root, Some(role)).await;
+    let (manager, manager_id) = register(&store, "manager").await;
+    let grant = format!(
+        "/members/{manager_id}/roles/{}",
+        role["id"].as_str().unwrap()
+    );
+    let (status, _) = call(&router, "PUT", &grant, &root, None).await;
+    assert!(status.is_success());
+    let id = uuid::Uuid::now_v7().to_string();
+    let said = json!({"id": id, "content": "hello"});
+    let uri = format!("/channels/{general}/messages");
+    call(&router, "POST", &uri, &root, Some(said)).await;
+    let uri = format!("/channels/{general}/messages/{id}/thread");
+    let (_, thread) = call(&router, "POST", &uri, &root, Some(json!({}))).await;
+    let thread = thread["id"].as_str().expect("a thread");
+
+    let welcome = |channel: &str| json!({"welcome_enabled": true, "welcome_channel_id": channel, "welcome_message": "psst {user}"});
+    let nowhere = uuid::Uuid::now_v7().to_string();
+    let unknown = call(
+        &router,
+        "PATCH",
+        "/space/settings",
+        &manager,
+        Some(welcome(&nowhere)),
+    )
+    .await;
+    assert_eq!(unknown.0, StatusCode::BAD_REQUEST, "{}", unknown.1);
+    for (what, channel) in [("a hidden channel", hidden), ("a thread", thread)] {
+        let refused = call(
+            &router,
+            "PATCH",
+            "/space/settings",
+            &manager,
+            Some(welcome(channel)),
+        )
+        .await;
+        assert_eq!(refused, unknown, "{what} answers like no channel");
+    }
+    join(&router, &store, &root, "sam").await;
+    assert!(messages(&router, &root, hidden).await.is_empty());
+
+    let (status, body) = call(
+        &router,
+        "PATCH",
+        "/space/settings",
+        &manager,
+        Some(welcome(&general)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
 }

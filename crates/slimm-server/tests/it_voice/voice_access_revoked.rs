@@ -13,7 +13,11 @@ use slimm_server::voice::VoiceService;
 use crate::support;
 use support::app::{Account, call_as, register_account};
 use support::fake_sfu::{RecordingRoomService, spawn_sfu};
+use support::livekit_webhook::webhook_request;
 use support::wait::wait_until;
+
+const SFU_KEY: &str = "key";
+const SFU_SECRET: &str = "a-secret-at-least-32-chars-long!";
 
 struct Call {
     recorder: RecordingRoomService,
@@ -33,7 +37,7 @@ impl Call {
         let (store, db) = support::new_store("slimm-voice-access-revoked").await;
         let admin = register_account(&store, "admin").await;
         let member = register_account(&store, "member").await;
-        let voice = VoiceService::for_test(&url, "key", "a-secret-at-least-32-chars-long!");
+        let voice = VoiceService::for_test(&url, SFU_KEY, SFU_SECRET);
         let state = support::app::builder(store).voice(voice).build();
         if watch {
             spawn_voice_access_watch(state.clone());
@@ -84,6 +88,19 @@ impl Call {
         let uri = format!("/channels/{}/overwrites/{kind}/{id}", self.channel);
         let body = json!({ "allow": allow.bits(), "deny": deny.bits() });
         self.admin("PUT", &uri, Some(body)).await;
+    }
+
+    /// The SFU reporting that `user` joined the call's room.
+    async fn sfu_reports_join(&self, user: UserId) {
+        use tower::ServiceExt;
+        let body = json!({
+            "event": "participant_joined",
+            "room": { "name": format!("channel-{}", self.channel) },
+            "participant": { "identity": user.to_string(), "sid": "PA_join" },
+        });
+        let request = webhook_request(body, SFU_KEY, SFU_SECRET);
+        let response = self.router.clone().oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
     }
 
     fn removed(&self, user: UserId) -> bool {
@@ -220,4 +237,41 @@ async fn a_refused_first_heartbeat_ends_the_call_too() {
     );
 
     assert!(call.removed(call.member.id));
+}
+
+/// The SFU renews every token it accepts, so one minted before the access went still gets in.
+#[tokio::test]
+async fn a_join_the_sfu_reports_for_someone_without_connect_is_removed() {
+    let call = Call::start(false).await;
+    let channel = ChannelId(call.channel.parse().unwrap());
+    call.state
+        .voice
+        .forget_heartbeat_reporting_removed(call.member.id, channel);
+    call.overwrite(
+        "member",
+        call.member.id,
+        Permissions::NONE,
+        Permissions::CONNECT,
+    )
+    .await;
+
+    call.sfu_reports_join(call.member.id).await;
+
+    wait_until("the member is removed from the room", || {
+        call.removed(call.member.id)
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn a_join_the_sfu_reports_for_someone_with_access_stays() {
+    let call = Call::start(false).await;
+
+    call.sfu_reports_join(call.member.id).await;
+
+    let removed = support::wait::holds_within(std::time::Duration::from_millis(300), || {
+        call.removed(call.member.id)
+    })
+    .await;
+    assert!(!removed, "a member who may be on the call was removed");
 }

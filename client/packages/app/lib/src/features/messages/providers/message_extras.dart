@@ -149,6 +149,9 @@ class MessageExtrasController
     ranges.add(math.min(oldest, top), top);
   }
 
+  /// Forgets which seqs of [channelId] a page covered, once its rows were dropped.
+  void forgetPages(String channelId) => _hydrated.remove(channelId);
+
   /// The highest seq at or above [floor] no page covered; see [HydratedRanges].
   int? highestUnhydrated(String channelId, int floor) =>
       (_hydrated[channelId] ?? HydratedRanges()).highestGap(floor);

@@ -166,7 +166,7 @@ pub async fn run() -> anyhow::Result<()> {
     let limiter = ratelimit::RateLimiter::with_trusted_hops(config.trust_proxy_hops);
     let push = push::PushSender::new(&config)?;
     let voice = voice::VoiceService::new(&config)?;
-    voice_session_sweeps::reconcile_on_startup(&store).await;
+    voice_session_sweeps::reconcile_on_startup(&store, &voice).await;
     sweeps::spawn_call_sweep(store.clone(), voice.clone(), hub.clone());
     voice_session_sweeps::spawn_retention_sweep(store.clone());
     sweeps::spawn_call_history_sweep(store.clone());

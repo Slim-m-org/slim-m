@@ -8107,9 +8107,29 @@ paths:
         A 409 means a temporary room is locked or the channel's `user_limit`
         is reached (decision 0065). Someone already in the call, the room's
         owner and anyone with `MANAGE_CHANNELS` are never refused this way.
+
+
+        A member is on one call. The room this account last asked a token for
+        is the call it keeps: joining it ends the account's older call in any
+        other room, and a connection that walks back into another room on a
+        token the SFU renewed is removed. A client rejoining by itself after a
+        drop sends `automatic=true`, and is refused with a 409 carrying
+        `code: on_call_elsewhere` when the account is on a call in another
+        channel, or in this one on another device, so a call picked up
+        elsewhere is never taken back without anyone asking. Bots are exempt
+        from all of this.
       parameters:
         - $ref: "#/components/parameters/ChannelId"
         - $ref: "#/components/parameters/VoiceTab"
+        - name: automatic
+          in: query
+          required: false
+          description: >
+            `true` when the client is rejoining by itself after losing the
+            call, and not because its person asked. Such a join gives way to a
+            call the account has made since; see the 409 above.
+          schema:
+            type: boolean
       responses:
         "200":
           description: A join token for the channel's room.
@@ -9181,6 +9201,8 @@ paths:
         new registration, invite or not. `rules` is required to turn the gate
         on, at most 4000 characters, and may hold line breaks but no other
         control or invisible character. A refused request changes nothing.
+        A new `rules_channel_id` must be a text channel the caller can see;
+        one they cannot see answers the 400 a missing one does.
       requestBody:
         required: true
         content:
@@ -10244,6 +10266,10 @@ paths:
         Carries no credential. See docs/decisions/0030-incoming-webhooks.md's
         admin-surface addendum for why the list, not the response body, is
         where an operator learns which webhooks exist.
+        A webhook whose channel the caller cannot see is left out, and
+        renaming, rotating or revoking one answers 404. An administrator is
+        listed every webhook and may revoke any, one whose channel was deleted
+        or is a direct message included; such a webhook delivers nothing.
       responses:
         "200":
           description: The webhooks.
@@ -10268,6 +10294,9 @@ paths:
         legible; it is stored hashed and cannot be read back. Fixed to
         `channel_id` at mint, never editable - see the decision record for
         why re-pointing an already-pasted URL is refused rather than offered.
+        The caller needs VIEW_CHANNEL and SEND_MESSAGES in that channel
+        besides MANAGE_SERVER: 404 when they cannot see it or it is a direct
+        message, 403 when they can see it but not post.
       requestBody:
         required: true
         content:
@@ -10351,6 +10380,7 @@ paths:
         returned here, once, like createWebhook. The webhook keeps its
         principal, so what it already posted stays attributed to it. Audited
         as webhook_rotate.
+        403 when the caller cannot post in the webhook's channel.
       responses:
         "200":
           description: Rotated.
@@ -10513,7 +10543,7 @@ paths:
         not a filesystem stat or directory walk. `attachment_bytes` is the
         same total `/space/analytics` reports. `top_channels` excludes DMs
         and threads, the same scope `/space/analytics`'s `channel_count`
-        uses. `sweeps` lists every background sweep that has recorded at
+        uses, and any channel the caller cannot see. `sweeps` lists every background sweep that has recorded at
         least one run; a sweep that has never run is simply absent.
         `backup` is what the nightly backup container last wrote; the server
         only reads it.
@@ -11735,7 +11765,9 @@ paths:
         Gated on MANAGE_SERVER. Needs the module's schedule capability
         approved (409 otherwise). The module's principal is allowed to view
         and post in the chosen text channel, and loses that in the channel it
-        had before. null stops scheduled runs.
+        had before. null stops scheduled runs. The caller must be able to post
+        in the chosen channel themselves: one they cannot see answers the 400
+        a missing one does, one they can see but not post in answers 403.
       requestBody:
         required: true
         content:
@@ -11777,7 +11809,9 @@ paths:
       operationId: getDockModuleCallAudioChannels
       tags: [space]
       summary: The voice channels a module may hear.
-      description: Gated on MANAGE_SERVER. The list starts empty.
+      description: >
+        Gated on MANAGE_SERVER. The list starts empty, and holds only the
+        channels the caller can see.
       responses:
         "200":
           description: The channels.
@@ -11802,7 +11836,9 @@ paths:
         a direct message call; the module's principal must be able to view
         each one; a non-empty list needs the module's call audio approved
         (409 otherwise). Every change writes an audit row, and a channel taken
-        off the list stops a session the module has there.
+        off the list stops a session the module has there. The caller's list
+        is the channels they can see: one they cannot see answers the 400 a
+        missing one does, and stays on or off the list as it was.
       requestBody:
         required: true
         content:
@@ -13514,7 +13550,8 @@ components:
             and `left_group` for a group the caller posted in and is no longer
             on. `dm_pins_unavailable` on a 403 from pinning or unpinning in a
             direct message. `not_author` on a 403 from editing a message the
-            caller did not write. A channel the caller cannot see, or one that does
+            caller did not write. `on_call_elsewhere` on a 409 from
+            `mintVoiceToken` asked with `automatic=true`. A channel the caller cannot see, or one that does
             not exist, still answers the bare 403 with no code. Absent on every
             other error; read an unknown value as a refusal for another reason.
         timed_out_until:
@@ -14575,7 +14612,11 @@ components:
             same request. An empty message posts the default.
         welcome_channel_id:
           type: string
-          description: A text channel's id; an empty string clears it.
+          description: >
+            A text channel's id; an empty string clears it. Changing it needs
+            the caller to be able to post there: a thread, or a channel they
+            cannot see, answers the 400 a missing one does, and one they can
+            see but not post in answers 403.
         welcome_message:
           type: string
           description: >
@@ -20738,6 +20779,15 @@ components:
             mention older than the page it refetches. Present only when `reset`
             is true or the scope's cursor set `check_mention`: the read behind it
             scans every mention of the caller.
+        latest_seq:
+          type: integer
+          format: int64
+          description: >
+            The highest message seq allocated in this channel, 0 when none has
+            been, read before `messages`. A deleted message keeps its seq, so
+            this can sit past the newest message delivered. When `has_more` is
+            false nothing at or below it is left to deliver, and a client moves
+            its cursor to it. Absent on a server that predates it.
 
     MessageOp:
       type: object

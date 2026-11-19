@@ -79,6 +79,9 @@ class AccountHost extends ChangeNotifier {
       if (r.account != null) r,
   ];
 
+  /// Every tracked container's runtime, an add flow's included; the root keeps a scope mounted for each.
+  List<AccountRuntime> get runtimes => List.unmodifiable(_runtimes);
+
   bool get adding => _returnTo != null;
 
   /// The runtime an open add flow is filling in, until it signs in or is left.

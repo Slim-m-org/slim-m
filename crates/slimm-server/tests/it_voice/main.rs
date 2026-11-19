@@ -43,6 +43,7 @@ mod voice_move;
 mod voice_mute_state;
 mod voice_notify;
 mod voice_notify_prefs;
+mod voice_one_call;
 mod voice_rooms;
 mod voice_roster;
 mod voice_roster_tabs;

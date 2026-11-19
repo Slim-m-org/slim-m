@@ -15,12 +15,22 @@ extension SlimmApiVoice on SlimmApi {
   /// Throws [NotConfiguredException] when the deployment has no SFU, which is
   /// a supported way to run text-only rather than a fault, so a caller should
   /// hide voice rather than retry.
-  Future<VoiceToken> voiceToken(String channelId) async {
+  ///
+  /// [automatic] marks a rejoin nobody asked for, which the server refuses with a
+  /// [ConflictException.isOnCallElsewhere] when the account's call is elsewhere by now.
+  Future<VoiceToken> voiceToken(
+    String channelId, {
+    bool automatic = false,
+  }) async {
     final tab = await voiceTab;
+    final query = {
+      if (tab != null) 'tab': tab,
+      if (automatic) 'automatic': 'true',
+    };
     final json = await send(
       'POST',
       '/channels/$channelId/voice/token',
-      query: tab == null ? null : {'tab': tab},
+      query: query.isEmpty ? null : query,
     );
     return VoiceToken.fromJson(json as Map<String, dynamic>);
   }

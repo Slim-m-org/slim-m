@@ -319,6 +319,70 @@ The session remembers it and the join opens the microphone accordingly, instead 
 
 A hang-up waits `kLeaveGoodbyeWait` (2 s) for the SFU to acknowledge the leave, then disposes the room whatever it heard.
 
+## Call lifecycle across devices, restarts and stalls
+
+What the 2026-11-19 call audit found by driving two browsers against a real server and SFU, and the rules that came out of it.
+
+A member is on one call.
+Within one room the SFU enforces that itself: a second connection with the same identity ends the first.
+Across rooms nothing did, so "Join here", which says the call moves to this device, left the first device in its own channel with an open microphone.
+The join webhook now ends the member's call in every other room (`http/voice/voice_one_call.rs`), but only a connection the SFU lists as older than the join, so a join reported late cannot end the call the member has since gone back to.
+Bots are exempt, because a program may serve several calls at once.
+
+Which call wins is decided by what the member asked for, not by which connection is newest.
+A device that lost its network comes back on its own, and its join is then the newest one: left alone it would end the call its person has since picked up on another device, while the first device sits in a pocket.
+It comes back two ways, and each has its own guard.
+The SDK reconnects by itself on a token the SFU renewed, without asking this server, so the server remembers the room each member last asked a token for (`voice/asked_calls.rs`) and only a join into that room ends other calls; a join into any other room is itself removed.
+After the SDK gives up, `VoiceAutoRejoin` asks for a new token, so that request carries `automatic=true` and the server refuses it with `code: on_call_elsewhere` when the account is on a call in another channel, or in this one on another device.
+The client then stops trying and says so; "Try again" is a person's own join, which is never refused this way and moves the call back.
+The record of who asked for what is in memory, so after a restart a join with no token on record ends nothing and the member can be on two calls until either hangs up, which is what every join did before this rule.
+An older server ignores `automatic`, and an older client never sends it; the webhook rule covers the SDK's reconnect either way.
+The device that loses its call is told it is no longer in it; it is not told why.
+After the other device hangs up, the first can still be offered "Join here" for a call nobody is in, until its next roster read of that channel drops the sighting (`voiceSelfSeenTtl` bounds it at 90 s).
+
+The SFU's "duplicate identity" does not mean another device.
+A client whose signalling stalls reconnects with the same identity while the SFU still holds the old connection, and the SFU ends one of the two as a duplicate.
+When it ends the one the client is listening on, the client is told it joined from another device, which used to end the call for good.
+Freezing the SFU for 25 s (`docker pause`) did this to both people of a two-person call, and the room kept a silent connection for each of them for another 37 s.
+Only the room can tell the two cases apart, so that drop is queued for a rejoin like a lost connection and the attempt first reads the roster: `this_device` false for this account means another device holds the call, and it stays there (`voice_rejoin.dart`).
+A roster that cannot be read (an SFU the server cannot reach, a rate limit, a network that is still coming back) says neither, so the blame stays and the next attempt asks again instead of joining.
+Reading a failed request as "not listed" was the larger way a blamed drop took a call back from the device its person had just moved to, larger than the stale listing below, because a failing network is exactly when a drop is blamed.
+When the attempts run out with the room never read, the call stays ended with "Try again".
+The roster is cached for 2 s and the first attempt waits 2 s, so a listing from before the other device's join is unlikely but not impossible.
+The rejoin that follows is marked `automatic`, and the server checks the room again, uncached, before it hands out the token, so a stale listing no longer costs the other device its call on a server that knows the parameter.
+
+A heartbeat is keyed by member and channel, not by device.
+A device that lost its call to another device must therefore not send the forget when its person dismisses the ended call, or it ends the other device's place on record until that device's next beat.
+That holds from the moment the SFU blames another device, before the roster has answered, and after a refused automatic rejoin: until something says the call is this device's again, its place on record is not this device's to end.
+The heartbeat lets go of the call at that same moment, because a hang-up is not the only thing that forgets: a switch to another call, failed or not, forgets the call it last proved.
+When the drop was this device's own reconnect after all, the cost is a record that goes stale and is swept 40 s later.
+A switch never passes through a leave, so the heartbeat itself forgets the call it last proved when it starts proving another.
+A switch that fails ends the call switched from and tells the server so, whether the server refused it (a full room, no permission, the server unreachable) with the session still in the old room, or the SFU connect failed after the session had already left it.
+A hang-up in the middle of a switch forgets both the call being joined and the one switched from.
+
+A join waits its turn behind the join before it, and a hang-up asked in between is the newer ask: the queued join opens nothing.
+Before that guard, a tap, a second tap and a hang-up in quick succession left a live call with an open microphone that the app showed as left and sent no heartbeat for.
+
+The server restarting mid-call loses heartbeats, live state, rings and notice windows, and keeps the calls: media never touches the server.
+Measured against a real restart, both clients kept their connections, their next heartbeat (15 s at most) put them back on record, and mute, leave and rejoin all worked afterwards.
+Voice sessions are the exception that needed code: they open on a join webhook that never repeats for someone already in the room, so startup now asks the SFU who is on each call that had a session open and opens one for everyone it lists, under the connection they have now.
+That includes a member who reconnected or joined while the server was down, whose webhook nobody received.
+A call that began entirely during the downtime is not found, because only channels with a session left open are asked about; its members get sessions at their next join.
+If the SFU stops answering part way, the calls not yet asked about keep their sessions closed, and the log says how many.
+
+The SFU restarting is a full reconnect for everyone.
+A quick restart had both clients back in about 2 s with mute state intact.
+Down for 70 s, longer than the SDK's own 44 s of retries, both clients came back through the automatic rejoin about 27 s after the SFU did, which is the 30 s tail of `VoiceAutoRejoin.defaultDelays`.
+
+An SFU token outlives its 120 s: the SFU renews the token of everyone it accepts.
+A client holding a renewed token can rejoin after losing Connect without asking the server, so the join webhook checks View and Connect for every join it reports.
+
+On Android the call foreground service must stay up from a drop until the rejoin settles.
+Android refuses to start it from the background, so a call that dropped and came back off screen had no microphone.
+
+Not verified here, and needing a real phone: a rejoin racing the previous leave on iOS (the #2427 fix), Wi-Fi to cellular handover, a VPN coming up mid-call, CallKit and the audio session across an interruption (a phone call, Siri), Android audio focus loss, and the Android foreground service rule above.
+`docs/PHONE-TESTER-CHECKLIST.md` lists the steps.
+
 ## Sync generations
 
 `SyncController` bumps a generation on every stop, fresh start and dispose.
@@ -328,3 +392,159 @@ Every await that is followed by a write has to re-check it, including the ones i
 The ticket mint and the socket connect are network round trips too.
 A stop landing inside either used to return from start having already assigned a socket the superseding teardown had run too early to see, leaving it live and applying frames with nothing left holding a handle to close it.
 The catch-up, event applier, reconnector and session-end cleanup are separate classes in `sync/providers` that are told whether a given generation is still current.
+
+## The private surface sweep
+
+`crates/slimm-server/tests/it_infra/private_surface/`
+
+One deployment holds a private category with a synced channel, a private voice channel, a thread, a webhook, a file, a direct message and a group, and everything private in it carries a canary word.
+A module is installed, approved to schedule and to hear calls, and armed for the private voice channel.
+Two sweeps walk `schema/openapi.yaml`, so a route is asked from the day it is documented, with no list to keep up.
+Being asked is not the same as being covered: "What the sweep cannot see" below says where the difference is.
+
+- The read sweep sends every GET with every private id in its path, and the search routes with every canary as the query.
+  An answer may contain neither a canary nor a private id the request did not name.
+- The ask-twice sweep sends every route twice: once naming private ids in its path, query and body, and once naming ids that name nothing.
+  The two answers must match, status and error text alike, with a success compared only as a success.
+  A difference means the route acted on, or admitted to, something its caller cannot see.
+
+They run for a plain member, for a bot with no permissions, and for a manager holding every permission but ADMINISTRATOR; the read sweep also runs for a member who was in the channel and lost it.
+A control run as the admin must meet every canary, so a sweep that stops finding things because the world broke fails too.
+
+What the sweep found on 2026-11-19, each now with its own test beside the route:
+
+- Naming a hidden channel on an upload answered differently from naming none, and a hidden channel's ATTACH_FILES overwrite lent an upload to someone who could not see it.
+- MANAGE_ROLES read and wrote the overwrites of a channel, and of a category, its holder could not see.
+  A deny is not a grant, so the grant ceiling never stopped a manager shutting a private channel's own members out, and on a category the ceiling was the deployment-wide set, so they could let themselves in.
+- MANAGE_CHANNELS renamed and deleted a channel its holder could not see, and the rename answered with its name and topic.
+- MANAGE_SERVER read, counted and pruned a hidden channel's retention, and listed, renamed, rotated and revoked the webhooks of one.
+
+The rule they all broke is decision 0011's: a channel's permissions stop at the channel, whatever the caller holds deployment-wide, and only ADMINISTRATOR sees everything.
+A route that takes a channel, category or message id therefore answers a hidden one exactly as it answers one that does not exist, before any other validation of the request.
+
+Two things a manager is told by design are skipped by name in `mod.rs`: `GET /categories` lists every category to a channel manager (decision 0120), and the audit log names what was changed.
+The sweep does not reach the websocket, push, voice with a live SFU, or call transcripts, which keep their own tests.
+The routes in `NEVER` (`probe.rs`) are not asked, because they end the session the sweep runs with or keep a limit of their own on disk.
+
+### What the sweep cannot see
+
+A review of the first version found five routes it walked past, all settings routes that take a channel id in their body and checked only its kind: a module's schedule channel and call-audio list, the welcome channel, the rules channel, and the storage report's ranked channels.
+Each was a MANAGE_SERVER holder reaching a channel they cannot see; each now needs the caller's own VIEW_CHANNEL there (and SEND_MESSAGES where the setting makes something post), and has a test beside the route.
+The sweep missed them for three reasons, and only the first two are closed.
+
+- A body that does not parse is refused the same way for both asks, so nothing in it is compared.
+  About fifty routes were blind this way, for want of one required field each.
+  `loaded_body` now carries every required field, `its_own_fields` holds the shapes two routes disagree on, and the ask-twice sweep fails on any refusal that reads like a parse error (`never_read`) unless the route is in `UNREAD_BODIES` with its reason.
+  A new route with a new required field therefore fails the sweep until the field is added.
+- A path parameter the sweep had no id for got a channel id and answered 404 before the body was read.
+  `candidates` now gives `{moduleId}` the installed module and `{webhookId}` the private webhook.
+  Role, emoji, clip, theme, report, export, upload, favourite, source and transcript ids still get a channel id, so the body of a route under one of those is not reached.
+- The read sweep finds only what the world holds.
+  The world has no report, no export, no call transcript, no schedule channel and no welcome or rules channel set to a private channel, so a GET that would name one of those is not tested here.
+
+Three more limits are worth knowing before trusting a green run.
+
+- A refusal the handler writes itself, before it looks at the ids, is as blind as a parse error and is not detected: a kind that must be one of two words, a list that needs one to five entries.
+  Listing every 400 the manager's sweep meets (print `named` in `ask_twice`) shows them; on 2026-11-19 they were favourites, a canvas batch, an interaction form, a module hook, a media slot and the push and schedule settings.
+- The sweep changes the deployment as it goes, so a route asked late may meet a public channel or message an earlier route deleted.
+  The module is put back before every ask (`keep_the_module`); nothing else is.
+- A success is compared only as a success, so a route that succeeds for both asks but acts on the private id for one of them passes.
+
+Known and left: an installed module's `schedule_channel_id` is shown to every MANAGE_SERVER holder in the Dock's module list, and moving a schedule takes the module's overwrite off the previous channel without asking whether the caller can see it.
+An administrator who sets the rules channel to a private channel publishes its id to every member through `GET /space/rules`; that is the administrator's choice, not a leak.
+
+## Sync convergence
+
+The local store has two cursors per channel, and each one is a claim.
+The message cursor says every message seq through it is either held or gone.
+The op cursor says every edit and delete through it has been applied.
+A cursor that moves without its claim being true is never corrected, because catch-up only asks for what comes after it.
+The rules below are what keep the claims true; each was a bug found by `sync_convergence_property_test.dart` or by reading, and each is pinned in `sync_convergence_findings_test.dart`.
+
+- A live op is written first and its cursor moves second.
+  A write that fails then leaves the op ahead of the cursor, and the next catch-up delivers it.
+- A channel with no op cursor adopts the server's head only while it holds no messages.
+  One that already holds some (a channel that appeared this session and took its first messages live, or one opened before its first catch-up landed) refetches its newest page instead, since ops before that head may name rows it holds.
+  That refetch rereads every page from the newest down to the oldest row held, not only the newest one, so history the user paged in stays and an op on it from before the head is still caught.
+  It swaps the rows in one write (`MessageStore.replaceHeld`) and moves the op cursor only once the pages are stored, so an open channel is never shown empty.
+  The swap only drops rows inside the span the pages cover, or below it once a short page proved the channel's start.
+  The pages are written without the covered-row rule below: they are the server's own answer for their span, and where a first write started the cursor is known only to the store that made it.
+  A server `reset` still clears first, because its cursor has to rewind.
+  It also restarts the channel's paging state (`channelHistoryProvider` and the extras' hydrated ranges), which would otherwise page on from below rows that are no longer held and leave a hole.
+- A live op starts a missing op cursor only when it is op 1.
+  Any other would start it past ops nobody applied.
+- An edit op in a catch-up page at or below the op cursor is skipped.
+  Its content is the text as the page was read, and live frames applied since may be newer.
+  That check and the write are separate awaits, so `MessageStore.applyEdit` also refuses an edit whose stamp is older than the row's.
+- A delete is final, so it is applied whatever the op cursor says: a live frame the cursor covers and a catch-up op at or below it both still drop the row and are remembered.
+  Only the cursor move is skipped.
+  The op cursor is shared by every tab on the database and the record of recent deletes is not, so a tab that skipped a delete because another tab had applied it would store the message again from a history page read before it.
+- A created frame at or below the message cursor is dropped unless the row is held.
+  The cursor only passes a message that catch-up delivered, so a missing row was deleted since.
+  This is also what stops a second browser tab, which shares the database but not the in-memory record of recent deletes, from storing a message again after the first tab deleted it.
+- A row in a catch-up page at or below the message cursor is written only when it is already held, for the same reason.
+  The cursor can pass a page still in flight: live frames land first, or the other tab applied its own page.
+- Neither of those two rules reaches below where a first write started the cursor.
+  A channel with no cursor takes it from the first rows written, whatever brought them: the newest page when the channel is opened, or the answer to a send.
+  Nothing older than those rows was delivered, so an older row arriving afterwards (the first catch-up page, a frame held during the connect) is stored, not read as deleted.
+  The store remembers that starting point in memory (`cursorStartedAbove`); the property test's model does not exercise it, `channel_screen_day_divider_sync_race_test.dart` and the two tests named for it do.
+- A server delete is remembered whatever the row's state, including a send still waiting for its answer.
+  A catch-up can deliver the delete of a message whose send request has not answered yet, and the answer would otherwise store it again.
+  Only the user dropping an unsent message (`discardUnsent`) is not remembered, because that send may have landed and then belongs in the channel.
+- Catch-up moves the message cursor to `latest_seq`, the server's head, once a scope's page is complete.
+  A deleted message keeps its seq, so the page alone can end short of the head, and a late frame for one of those deleted messages would otherwise look like the next message.
+  The standing seq (what the unread dot reads) does not move with it.
+
+The property test drives a real `SyncController` and store against `test/support/sync_model_server.dart`, a small model of `http/sync.rs` and `http/sync_ops.rs`.
+It loses, repeats and reorders live frames, and holds catch-up answers so they land after frames that are newer than they are.
+After one quiet catch-up the store must agree with the model: nothing missing above the oldest held row, nothing stale, nothing the server deleted.
+A second test runs two controllers over one database, as two browser tabs do, each with its own wire.
+That one is held to what a single socket can do (frames in order, a loss drops everything in flight and is followed by a catch-up), because a tab that applies a delete it never saw created is not something a socket produces.
+`SLIMM_FULL_FUZZ=1` runs the full seed range.
+The two-tab case also runs in a real browser: the e2e scenario in `scripts/lib/e2e_tabs_delete.py` holds one tab's script with the debugger while the other sees a message arrive and go, then lets it replay both frames.
+The lifecycle freeze (`Page.setWebLifecycleState`) looks like the natural tool and is not: a headless tab ignores it, and the scenario passed with the rule switched off.
+When `sync.rs` changes what a scope answers, change the model with it.
+
+Known gaps, none of them fixed here:
+
+- Where a first write started a cursor (`cursorStartedAbove`) is kept per store, so it is lost on a restart and unknown to a second tab.
+  There, a created frame or a row of a `/sync` page still in flight that sits below that start is read as deleted and dropped until the channel is opened, when its newest page fills it.
+- Pages written with `CursorAdvance.whenContiguous` (the page on opening a channel or a thread, scroll-back) are outside the covered-row rule and rely on the record of recent deletes alone.
+  A tab that never sees a delete, because its frame was lost and the other tab moved the shared op cursor past it before this tab's catch-up asked, still stores the message from a page read before the delete.
+- The first-catch-up refetch stops after `channelWindowCeiling` rows.
+  Rows held below that are left as they are, unchecked against ops from before the head; no window shows them and the retention sweep drops them.
+- Two edits with the same `edited_at` stamp are not ordered; the one written last stands.
+- Against a server that predates `latest_seq`, a created frame for a message deleted before a reset read its page is still stored.
+- Reactions, poll tallies and thread counts are not sequenced; a reconnect refetches the open channels' pages for them (see `open_channel_rehydrate.dart`).
+  Pins are not sequenced either and are not on a message page, so the same reconnect rereads each open channel's pin list (`sync_live_refresh.dart`).
+- A send that reached the server, whose answer was lost, and which was then deleted elsewhere is answered as sent when it is retried, because the id still matches the deleted row.
+
+## Account scopes
+
+`AccountRoot` keeps an `UncontrolledProviderScope` mounted for every container the `AccountHost` tracks, and only the active one has the app under it.
+Never mount a container under a scope that can unmount while the container lives on, unless another scope for it stays mounted.
+
+Riverpod 2.6 queues provider refreshes and `autoDispose` disposals in the container's scheduler.
+With a scope mounted, the scheduler hands the queue to the scope's element, which runs it on its next build.
+If that element unmounts first the queue is dropped, and the scheduler still believes a run is pending, so it never asks for another.
+The container then keeps every `autoDispose` provider it ever built and stops telling listeners about a derived provider that changed.
+
+The root's scope is the only scope a container has.
+A row that names another account, in the switcher, the call pill or the share step, is a `ServerIdentity`: it listens to that account's container with `container.listen` and mounts nothing.
+It used to mount a second scope, and that is not safe.
+Riverpod hands a queued run to every scope of a container and the first one to build runs it.
+A switch unmounts the app tree in the frame it happens, so the second scope never built and kept the run; the next thing the container queued, which the unmount itself causes, found it still held and a debug build stopped with "Only one task can be scheduled at a time".
+Re-pointing a scope at another container fails the same way, since Riverpod registers a scope on mount and unregisters it on unmount only.
+
+A widget that listens to a container it is not under has two things to mind, both in `account_server_label.dart`.
+That container's scope refreshes it while building, and nothing outside the scope may be marked then, so a change heard during a build is taken after the frame.
+And the root lists the active scope first, so a tree torn down in order lets go of the other containers while their scopes still stand; a container with no scope falls back to a timer, which a widget test reports as pending.
+
+A container's queue runs on a frame, and a window hidden to the tray draws none.
+A listener that must act then listens to a select off the notifier (`voiceFlagsAtOnce`, `appFocusedAtOnce`), never to a provider derived from it.
+Inside such a listener the derived provider has not caught up yet, so read the select there too.
+
+`test/features/accounts/account_root_scope_test.dart` holds the cases for the queue: disposal after leaving, disposal and refresh after coming back, refresh while out of view, an account out of view whose name was shown and hidden again, and leaving an account whose own name is on screen.
+`account_root_call_test.dart` holds the call state reaching the host with no frame drawn, and `server_identity_test.dart` the row.
+The multi-account widget tests mount the real root through `HostRoot`.
+The soak harness's smoke run (`docs/soak-harness.md`) fails on the same fault, as live-event listeners that keep climbing.

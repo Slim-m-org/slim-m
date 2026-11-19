@@ -27,6 +27,7 @@ class CallForegroundKeeper {
   bool _camera = false;
   bool _sharing = false;
   bool _shareStarting = false;
+  bool _rejoining = false;
   bool _askedNotifications = false;
 
   void sessionState(VoiceSessionState s) {
@@ -37,6 +38,16 @@ class CallForegroundKeeper {
       _shareStarting = false;
     }
     if (_connected) unawaited(_askNotificationsOnce());
+    _push();
+  }
+
+  /// Whether a dropped call is being brought back, through which the service stays up.
+  ///
+  /// Android refuses to start it again from the background, and a call rejoined
+  /// there without it has no microphone.
+  void rejoining(bool pending) {
+    if (_rejoining == pending) return;
+    _rejoining = pending;
     _push();
   }
 
@@ -66,7 +77,7 @@ class CallForegroundKeeper {
   }
 
   CallServiceState get _state => CallServiceState(
-    call: _connected,
+    call: _connected || _rejoining,
     camera: _connected && _camera,
     share: _connected && _sharing,
   );

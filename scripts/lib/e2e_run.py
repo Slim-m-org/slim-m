@@ -83,6 +83,7 @@ import e2e_voice_signal_drop
 import e2e_video_quality
 import e2e_voice_rejoin
 import e2e_tabs
+import e2e_tabs_delete
 import e2e_two_factor
 import e2e_api
 import e2e_browsers
@@ -462,6 +463,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
              server, secret, admin, sign_in)),
         ("account: two tabs share one token refresh and both stay signed in",
          lambda: e2e_tabs.two_tabs_survive_rotations(server, admin, sign_in)),
+        ("sync: a tab that fell behind does not bring back a deleted message",
+         lambda: e2e_tabs_delete.a_held_tab_does_not_bring_back_a_deleted_message(
+             server, admin, sign_in)),
         # After every scenario that reads the channels, since it sends messages and adds members.
         ("client contract: the Dart api package against this server",
          lambda: e2e_client_contract.client_contract_holds(server, admin)),

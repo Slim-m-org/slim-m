@@ -6,6 +6,7 @@
 use axum::Router;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
+use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
 
 use crate::support;
@@ -269,5 +270,68 @@ async fn push_fan_out_and_batch_checks_apply_the_gate_too() {
     assert_eq!(
         store.viewers_among(general, &[bob_id]).await.unwrap(),
         vec![bob_id]
+    );
+}
+
+#[tokio::test]
+async fn a_manager_cannot_name_a_rules_channel_they_cannot_see() {
+    let (app, store, admin, rules, _guard) = gated("slimm-gate-hidden-rules").await;
+    let hidden = json!({"name": "staff", "restricted": true});
+    let (_, hidden) = call(&app, "POST", "/channels", Some(&admin), Some(hidden)).await;
+    let hidden = hidden["id"].as_str().unwrap();
+    let role = json!({"name": "managers", "permissions": Permissions::MANAGE_SERVER.bits()});
+    let (_, role) = call(&app, "POST", "/roles", Some(&admin), Some(role)).await;
+    let (manager, manager_id) = register(&store, "manager").await;
+    let grant = format!(
+        "/members/{manager_id}/roles/{}",
+        role["id"].as_str().unwrap()
+    );
+    let (status, _) = call(&app, "PUT", &grant, Some(&admin), None).await;
+    assert!(status.is_success());
+
+    let gate = |channel: &str| json!({"enabled": true, "rules": "be kind", "rules_channel_id": channel, "joins_paused": false});
+    let nowhere = uuid::Uuid::now_v7().to_string();
+    let refused = call(
+        &app,
+        "PUT",
+        "/space/join-gate",
+        Some(&manager),
+        Some(gate(hidden)),
+    )
+    .await;
+    let unknown = call(
+        &app,
+        "PUT",
+        "/space/join-gate",
+        Some(&manager),
+        Some(gate(&nowhere)),
+    )
+    .await;
+    assert_eq!(refused.0, StatusCode::BAD_REQUEST, "{}", refused.1);
+    assert_eq!(refused, unknown, "a hidden channel answers like no channel");
+    let (_, read) = call(&app, "GET", "/space/rules", Some(&manager), None).await;
+    assert_eq!(read["rules_channel_id"], json!(rules));
+
+    let (status, body) = call(
+        &app,
+        "PUT",
+        "/space/join-gate",
+        Some(&admin),
+        Some(gate(hidden)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let again = call(
+        &app,
+        "PUT",
+        "/space/join-gate",
+        Some(&manager),
+        Some(gate(hidden)),
+    )
+    .await;
+    assert_eq!(
+        again.0,
+        StatusCode::OK,
+        "saving the form again keeps what an admin chose"
     );
 }

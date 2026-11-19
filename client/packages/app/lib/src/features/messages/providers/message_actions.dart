@@ -20,6 +20,7 @@ import '../../../api_failure.dart';
 import '../../../permissions.dart';
 import 'channel_send_queue.dart';
 import 'message_extras.dart';
+import 'message_notes.dart';
 import 'poll_vote_failure.dart';
 import 'message_search.dart' show ProviderReader;
 import '../../../providers/providers.dart';
@@ -88,7 +89,7 @@ Future<void> _vote(
   }
   final send = _VoteSender(
     extras: ref.read(messageExtrasProvider.notifier),
-    failures: ref.read(pollVoteFailureProvider(messageId).notifier),
+    failures: ref.read(pollVoteFailuresProvider.notifier),
     client: ref.read(apiProvider),
     messageId: messageId,
   );
@@ -113,7 +114,7 @@ class _VoteSender {
   });
 
   final MessageExtrasController extras;
-  final StateController<PollVoteFailure?> failures;
+  final MessageNotes<PollVoteFailure> failures;
   final api.SlimmApi client;
   final String messageId;
 
@@ -121,7 +122,7 @@ class _VoteSender {
     final ballot = vote.ballot;
     final ranking = ballot.ranking;
     final before = extras.extrasFor(messageId).poll;
-    failures.state = null;
+    failures.put(messageId, null);
     extras.applyLocalVote(
       messageId,
       ranking?.first ?? ballot.option!,
@@ -138,9 +139,12 @@ class _VoteSender {
       if (before != null && applied != null) {
         extras.revertLocalVote(messageId, before: before, applied: applied);
       }
-      failures.state = PollVoteFailure(
-        reportFailureSentence(api.LogTag.ui, vote.whatFailed, error, stack),
-        ballot,
+      failures.put(
+        messageId,
+        PollVoteFailure(
+          reportFailureSentence(api.LogTag.ui, vote.whatFailed, error, stack),
+          ballot,
+        ),
       );
     }
   }
@@ -224,24 +228,33 @@ bool canRemoveLinkPreviews(
   int myPermissions,
 ) => canDeleteMessage(message, myUserId, myPermissions);
 
-/// Why the last removal of a message's link previews was refused, for the list to show.
-final linkPreviewRemovalErrorProvider = StateProvider.family<String?, String>(
-  (ref, messageId) => null,
-);
+/// Why the last removal of a message's link previews was refused, by message.
+final linkPreviewRemovalErrorsProvider =
+    NotifierProvider<MessageNotes<String>, Map<String, String>>(
+      MessageNotes.new,
+    );
+
+/// One message's refusal, for the list to show; null when nothing was refused.
+final linkPreviewRemovalErrorProvider = Provider.autoDispose
+    .family<String?, String>(
+      (ref, messageId) => ref.watch(
+        linkPreviewRemovalErrorsProvider.select((all) => all[messageId]),
+      ),
+    );
 
 /// Hides [message]'s link-preview cards for everyone. Applied locally first;
 /// a refusal puts them back and leaves the reason in [linkPreviewRemovalErrorProvider].
 Future<void> removeLinkPreviews(WidgetRef ref, Message message) async {
   // The hide below unmounts the caller, so everything the end needs is read before it.
   final extras = ref.read(messageExtrasProvider.notifier);
-  final error = ref.read(linkPreviewRemovalErrorProvider(message.id).notifier);
+  final errors = ref.read(linkPreviewRemovalErrorsProvider.notifier);
   final request = ref
       .read(apiProvider)
       .removeMessageLinkPreviews(
         channelId: message.channelId,
         messageId: message.id,
       );
-  error.state = null;
+  errors.put(message.id, null);
   extras.beginLocalLinkPreviewsRemoval(message.id);
   try {
     await request;
@@ -254,7 +267,7 @@ Future<void> removeLinkPreviews(WidgetRef ref, Message message) async {
       stack,
     );
     if (extras.rollBackLocalLinkPreviewsRemoval(message.id)) {
-      error.state = sentence;
+      errors.put(message.id, sentence);
     }
   }
 }
@@ -494,4 +507,4 @@ Future<void> retryMessage(ProviderReader read, Message message) async {
 
 /// Discards a failed send. Nothing reached the server, so nothing to undo.
 Future<void> discardMessage(ProviderReader read, Message message) async =>
-    (await read(storeProvider.future)).discard(message.id);
+    (await read(storeProvider.future)).discardUnsent(message.id);

@@ -22,7 +22,7 @@ To set one of those you need a compose override file that adds it to the `server
 | `SLIMM_BIND_ADDRESS` | `0.0.0.0` | Address HTTP and WebSocket bind to. Narrow it to `127.0.0.1` for a server only a local process should reach. | no |
 | `SLIMM_DATABASE_PATH` | `data/slimm.db` | The SQLite file. | no, the image sets `/data/slimm.db` |
 | `SLIMM_DATA_KEY_ALLOW_NEW` | unset | Set to `1` to let a server with sealed two-factor secrets and no key start with a fresh one. Only after every factor was cleared; see [The data key](#the-data-key). | yes |
-| `SLIMM_DATA_KEY` | unset | Base64 of 32 random bytes: the key that seals two-factor secrets. Unset, the server keeps the key in `slimm-data.key` beside the database, created on first start with mode 0600. See [The data key](#the-data-key). | no |
+| `SLIMM_DATA_KEY` | unset | Base64 of 32 random bytes: the key that seals two-factor secrets. Unset, the server keeps the key in `slimm-data.key` beside the database, created on first start with mode 0600. See [The data key](#the-data-key). | yes |
 | `SLIMM_ATTACHMENTS_DIR` | `data/media` | Where attachment and avatar bytes live, beside the database. | no, the image sets `/data/media` |
 | `SLIMM_MODULES_DIR` | a `modules` directory beside the database | One small SQLite file per installed module that keeps structured data, named `<module id>.db`. Created on first use, owner-only. Uninstalling keeps a module's file unless you ask to delete its data. | no, the image keeps it in `/data/modules` |
 | `SLIMM_ATTACHMENT_MAX_BYTES` | `1073741824` (1 GiB) | Largest single upload. Over it is a 413. | yes |
@@ -78,7 +78,7 @@ TURN over TLS is not configured.
 LiveKit only ever advertises it on 443, which Caddy holds, so enabling it needs a router on 443 that splits TURN out by name; [deploy/README.md](../deploy/README.md#turntls-needs-443-and-a-router-that-splits-it-by-name) says how.
 Until then a client on a network that allows only outbound 443 cannot use TURN to get out.
 The live slim-m deployment differs from this in a few places; see [prod-voice-topology.md](prod-voice-topology.md).
-The symptom of a missing forward is a call that joins and then carries no media; see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#voice-does-not-connect-off-the-lan).
+The symptom of a missing forward is a call that joins and then carries no media; see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#voice-joins-then-there-is-no-sound-or-video).
 
 ## Two-factor authentication
 
@@ -115,6 +115,7 @@ A database restored without its key cannot open the stored two-factor secrets, s
 The server logs an error at start-up when that is the case.
 Recovery is the same as for a lost authenticator: an administrator or `slimm-server clear-totp <username>` clears the factor and the member enrols again.
 With the compose deployment the file lives in the `slimm_data` volume at `/data/slimm-data.key`; set `SLIMM_DATA_KEY` in `.env` instead if you would rather keep the key with your other secrets.
+Copy the file out with `docker compose cp server:/data/slimm-data.key ./slimm-data.key`.
 Generate one with `openssl rand -base64 32`.
 
 ## Signing in
@@ -234,11 +235,13 @@ A bot cannot create another bot.
 
 ## Backups and restore
 
-Three things need backing up: the SQLite database, the attachment directory and the module data files.
+Three things need backing up: the SQLite database, the media directory and the module data files.
 Litestream, if you enable it, streams only the database.
-`scripts/backup.py` takes a consistent snapshot of the database, mirrors the attachment and avatar files it references, and copies each module data file with `VACUUM INTO`, with `--keep N` to prune old database snapshots.
-`scripts/restore-drill.py` restores the newest snapshot to a scratch path, runs `PRAGMA integrity_check`, checks every referenced file exists with a matching hash, and runs `PRAGMA integrity_check` on every module data file in the mirror.
+`scripts/backup.py` takes a consistent snapshot of the database, mirrors every file it references (attachments, avatars, the space banner and icon, profile banners, linked-account pictures and kept originals), and copies each module data file with `VACUUM INTO`, with `--keep N` to prune old database snapshots.
+`scripts/restore-drill.py` restores the newest snapshot to a scratch path, runs `PRAGMA integrity_check`, checks every referenced file is in the mirror, attachments by hash, and runs `PRAGMA integrity_check` on every module data file in the mirror.
 It exits non-zero on any problem.
+`scripts/restore.py` puts a backup back: with the server stopped, `docker compose run --rm restore` fills an empty data volume from the newest snapshot, and `--force` replaces an existing database after moving it aside.
+`--list` shows each snapshot with the migration it is at, `--before-migration N` picks the newest one an older server can open, and `--allow-missing-files` restores a backup that lacks some of the files its database references.
 Neither script backs up `.env`, which holds your LiveKit and Litestream secrets, or `slimm-data.key`, the key that opens the stored two-factor secrets (see [The data key](#the-data-key)).
 The commands, the container invocation and the sensitivity of a snapshot are in [deploy/README.md](../deploy/README.md#backups-optional).
 Take a backup immediately before upgrading, because migrations only go forward.
@@ -253,7 +256,9 @@ If it fails to load channels, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#the-we
 
 ## Updating
 
-Set `SLIMM_VERSION` in `.env` to the release you want and run `docker compose up -d`.
+Take a backup, `git pull`, set `SLIMM_VERSION` in `.env` to the release you want if you pin, and run `docker compose up -d --remove-orphans`.
+The compose files and the image go together, so a pinned old version also needs that release's tag checked out.
+A deployment from before 0.66.0 needs the `COMPOSE_FILE` line in `.env` to keep voice.
 Leaving it at `latest` follows whatever `main-builds` last published, which can be an unreleased server build.
 Caddy, LiveKit and Litestream are pinned in `docker-compose.yml` and you bump those there.
 Rolling the image back is not enough on its own, because migrations are forward-only; you restore a database from before the upgrade and put `SLIMM_VERSION` back to match.

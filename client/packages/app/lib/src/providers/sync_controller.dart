@@ -28,7 +28,7 @@ import '../sync/providers/sync_session_end.dart';
 import '../sync/providers/sync_status.dart';
 
 export '../sync/providers/sync_catch_up.dart'
-    show syncChunkRetryDelaysProvider, syncScopeChunk;
+    show syncChunkRetryDelaysProvider, syncNewestPageProvider, syncScopeChunk;
 export '../sync/providers/sync_status.dart';
 
 /// Drives synchronisation.

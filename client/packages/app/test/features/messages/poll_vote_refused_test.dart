@@ -241,11 +241,14 @@ void main() {
       child: (ref) => _pollRow(poll),
     );
     container
-        .read(pollVoteFailureProvider('m1').notifier)
-        .state = const PollVoteFailure(
-      'Could not cast your vote: too many requests just now.',
-      PollBallot(option: 1),
-    );
+        .read(pollVoteFailuresProvider.notifier)
+        .put(
+          'm1',
+          const PollVoteFailure(
+            'Could not cast your vote: too many requests just now.',
+            PollBallot(option: 1),
+          ),
+        );
     await tester.pump();
 
     expect(find.textContaining('Could not cast your vote'), findsOneWidget);
@@ -331,11 +334,14 @@ void main() {
       child: (ref) => _pollRow(poll),
     );
     container
-        .read(pollVoteFailureProvider('m1').notifier)
-        .state = const PollVoteFailure(
-      'Could not cast your vote: too many requests just now.',
-      PollBallot(option: 1),
-    );
+        .read(pollVoteFailuresProvider.notifier)
+        .put(
+          'm1',
+          const PollVoteFailure(
+            'Could not cast your vote: too many requests just now.',
+            PollBallot(option: 1),
+          ),
+        );
     await tester.pump();
 
     final card = tester.getSize(find.bySubtype<PollView>());

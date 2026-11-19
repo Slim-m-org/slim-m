@@ -73,6 +73,38 @@ void main() {
     expect(events.last, 'service call=false share=false');
   });
 
+  test('a drop that is being rejoined keeps the service up', () async {
+    final controller = await connected();
+    events.clear();
+
+    session.dropWith(VoiceDisconnect.connectionLost);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.state.rejoining, isTrue);
+    expect(
+      events,
+      isEmpty,
+      reason:
+          'Android refuses to start the service again from the '
+          'background, so a stop here leaves the rejoined call without '
+          'its microphone',
+    );
+
+    await controller.leave();
+    await Future<void>.delayed(Duration.zero);
+    expect(events, ['service call=false share=false']);
+  });
+
+  test('a drop nobody rejoins stops the service', () async {
+    await connected();
+    events.clear();
+
+    session.dropWith(VoiceDisconnect.removed);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(events, ['service call=false share=false']);
+  });
+
   test(
     'a share asks consent, then starts the service, then captures',
     () async {

@@ -16,6 +16,7 @@ use super::super::error::ApiError;
 use super::super::extract::{Authed, Json, enforce, require_manage_server};
 use super::super::messages::parse_uuid;
 use crate::ids::ChannelId;
+use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::MAX_MESSAGE_RETENTION_DAYS;
 
@@ -50,8 +51,8 @@ struct ChannelRetentionPreviewDto {
     messages: i64,
 }
 
-/// The channel, once the caller may manage retention and it is one that can
-/// carry its own window.
+/// The channel, once the caller may manage retention, can see it, and it is
+/// one that can carry its own window.
 async fn retention_channel(
     state: &AppState,
     ctx_user: crate::ids::UserId,
@@ -64,6 +65,14 @@ async fn retention_channel(
         .channel(channel_id)
         .await?
         .ok_or(ApiError::NotFound("channel not found"))?;
+    // Before the kind is read, so a hidden channel, thread or DM answers like a missing one.
+    if !state
+        .store
+        .has_permission(ctx_user, channel_id, Permissions::VIEW_CHANNEL)
+        .await?
+    {
+        return Err(ApiError::NotFound("channel not found"));
+    }
     if channel.kind == "dm" || channel.parent_message_id.is_some() {
         return Err(ApiError::BadRequest(
             "a thread follows its channel and a DM follows the Space",

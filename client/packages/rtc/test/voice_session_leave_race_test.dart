@@ -51,6 +51,24 @@ class _TracedRoom extends lk.Room {
   }
 }
 
+/// A room whose connect waits on [gate], as one does against an SFU that is slow to answer.
+class _SlowConnectRoom extends _TracedRoom {
+  _SlowConnectRoom(super.label, super.log, this.gate);
+  final Future<void> gate;
+
+  @override
+  Future<void> connect(
+    String url,
+    String token, {
+    lk.ConnectOptions? connectOptions,
+    lk.RoomOptions? roomOptions,
+    lk.FastConnectOptions? fastConnectOptions,
+  }) async {
+    log.add('$label connect');
+    await gate;
+  }
+}
+
 /// The first call's disconnect waits on [gate]; every later room is quick.
 VoiceSession _racedSession(Future<void> gate, List<String> log) {
   var built = 0;
@@ -172,6 +190,34 @@ void main() {
     await Future.wait([leaving, joining, leavingAgain]);
 
     expect(log, isNot(contains('new connect')));
+    expect(session.state, VoiceSessionState.idle);
+  });
+
+  test('a leave asked while a join queues behind a slow connect wins',
+      () async {
+    final gate = Completer<void>();
+    final log = <String>[];
+    var built = 0;
+    final session = VoiceSession(
+      audioDevices: const NoAudioDevices(),
+      roomFactory: () => ++built == 1
+          ? _SlowConnectRoom('slow', log, gate.future)
+          : _TracedRoom('queued', log),
+    );
+    addTearDown(session.dispose);
+
+    final slow = session.join(url: 'wss://a.invalid', token: 't1');
+    await pumpEventQueue();
+    expect(log, ['slow connect']);
+    final queued = session.join(url: 'wss://b.invalid', token: 't2');
+    await pumpEventQueue();
+    final leaving = session.leave();
+    gate.complete();
+    await Future.wait([slow, queued, leaving]);
+    await pumpEventQueue();
+
+    expect(log, isNot(contains('queued connect')),
+        reason: 'the hang-up came after both joins, so no call may open');
     expect(session.state, VoiceSessionState.idle);
   });
 

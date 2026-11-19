@@ -42,10 +42,16 @@ Future<Uint8List> renderOverlayAvatar({
   } else {
     _paintInitials(canvas, name, tintKey);
   }
-  final baked = await recorder.endRecording().toImage(
-    callOverlayAvatarEdge,
-    callOverlayAvatarEdge,
-  );
+  final recorded = recorder.endRecording();
+  final ui.Image baked;
+  try {
+    baked = await recorded.toImage(
+      callOverlayAvatarEdge,
+      callOverlayAvatarEdge,
+    );
+  } finally {
+    recorded.dispose();
+  }
   final png = await baked.toByteData(format: ui.ImageByteFormat.png);
   baked.dispose();
   photo?.dispose();

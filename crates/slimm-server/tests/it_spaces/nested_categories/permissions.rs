@@ -96,6 +96,14 @@ async fn a_sub_category_save_unsyncs_it_and_sync_brings_back_the_parents_rows() 
     assert!(!has(&w.channel_names(&w.neither.token).await, "mc-chat"));
 }
 
+/// Puts `neither` in both private categories, since a role manager edits only what they can see.
+async fn see_both(w: &super::world::World) {
+    for role in [&w.gamer_role, &w.cs_role] {
+        let uri = format!("/members/{}/roles/{role}", w.neither.id);
+        w.ok("PUT", &uri, &w.admin, None).await;
+    }
+}
+
 #[tokio::test]
 async fn syncing_a_sub_category_needs_every_bit_its_parent_allows() {
     let w = world("slimm-nested-sync-escalation").await;
@@ -116,6 +124,9 @@ async fn syncing_a_sub_category_needs_every_bit_its_parent_allows() {
         .unwrap();
 
     let uri = format!("/categories/{}/overwrites/sync", w.cs2);
+    let (status, body) = w.call("POST", &uri, &w.neither.token, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "sees neither: {body}");
+    see_both(&w).await;
     let (status, body) = w.call("POST", &uri, &w.neither.token, None).await;
     assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
     assert_eq!(w.overwrites(&w.cs2).await["synced"], json!(false));
@@ -178,6 +189,7 @@ async fn syncing_a_sub_category_cannot_drop_a_deny_the_caller_could_not_lift() {
     let everyone = format!("/roles/{}", w.everyone);
     let view_only = json!({"permissions": VIEW.bits()});
     w.ok("PATCH", &everyone, &w.admin, Some(view_only)).await;
+    see_both(&w).await;
 
     let uri = format!("/categories/{}/overwrites/sync", w.cs2);
     let (status, body) = w.call("POST", &uri, &w.neither.token, None).await;

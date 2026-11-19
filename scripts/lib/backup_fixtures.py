@@ -12,18 +12,39 @@ import sqlite3
 import uuid
 from pathlib import Path
 
+_MIGRATION_GLOB = "*.sql"
+
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "crates" / "slimm-server" / "migrations"
 _images = {}
 
 
+# The table sqlx keeps its applied migrations in, which the server creates on first start.
+_SQLX_MIGRATIONS = """CREATE TABLE _sqlx_migrations (
+    version BIGINT PRIMARY KEY, description TEXT NOT NULL,
+    installed_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, success BOOLEAN NOT NULL,
+    checksum BLOB NOT NULL, execution_time BIGINT NOT NULL)"""
+
+
 def apply_migrations(conn, migrations_dir=MIGRATIONS_DIR):
-    for migration in sorted(Path(migrations_dir).glob("*.sql")):
+    conn.execute(_SQLX_MIGRATIONS)
+    for migration in sorted(Path(migrations_dir).glob(_MIGRATION_GLOB)):
         conn.executescript(migration.read_text())
+        version, _, description = migration.stem.partition("_")
+        conn.execute(
+            "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time) "
+            "VALUES (?, ?, 1, x'00', 0)",
+            (int(version), description),
+        )
+    conn.commit()
+
+
+def latest_migration(migrations_dir=MIGRATIONS_DIR):
+    return max(int(path.stem.partition("_")[0]) for path in Path(migrations_dir).glob(_MIGRATION_GLOB))
 
 
 def _migrations_digest(migrations_dir):
     digest = hashlib.sha256()
-    for migration in sorted(Path(migrations_dir).glob("*.sql")):
+    for migration in sorted(Path(migrations_dir).glob(_MIGRATION_GLOB)):
         digest.update(migration.name.encode() + b"\0" + migration.read_bytes() + b"\0")
     return digest.hexdigest()
 

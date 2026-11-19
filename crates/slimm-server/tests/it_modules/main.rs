@@ -87,3 +87,4 @@ mod webhook_never_authenticates;
 mod webhook_username_label;
 mod webhooks;
 mod webhooks_admin;
+mod webhooks_admin_channel_scope;

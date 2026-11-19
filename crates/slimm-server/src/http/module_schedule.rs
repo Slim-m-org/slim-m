@@ -21,7 +21,7 @@ use super::error::ApiError;
 use super::extract::{Authed, Json, enforce, require_manage_server};
 use super::module_host::{schedule_approved, scheduled_surface};
 use super::module_run::{RunContext, RunKind, RunRequest, run_installed};
-use crate::ids::ChannelId;
+use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{InstalledModule, ModuleSchedule};
@@ -60,7 +60,7 @@ async fn set_schedule_channel(
         .ok_or(ApiError::Conflict("the module's schedule is not approved"))?;
     let channel = match req.channel_id.as_deref() {
         None => None,
-        Some(raw) => Some(text_channel(&state, raw).await?),
+        Some(raw) => Some(text_channel(&state, ctx.user_id, raw).await?),
     };
     let post = Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES);
     if let Some(old) = module
@@ -87,14 +87,24 @@ async fn set_schedule_channel(
     Ok(Json(InstalledModuleDto::from(updated)))
 }
 
-async fn text_channel(state: &AppState, raw: &str) -> Result<ChannelId, ApiError> {
+/// A text channel `caller` could post in themselves: the module is let in on their word, so a
+/// channel they cannot see answers like one that is not there, and one they cannot post in is refused.
+async fn text_channel(state: &AppState, caller: UserId, raw: &str) -> Result<ChannelId, ApiError> {
     let missing = ApiError::BadRequest("channel_id is not a text channel");
     let Ok(id) = Uuid::parse_str(raw).map(ChannelId) else {
         return Err(missing);
     };
+    let held = state.store.permissions_in_channel(caller, id).await?;
+    if !held.contains(Permissions::VIEW_CHANNEL) {
+        return Err(missing);
+    }
     match state.store.channel(id).await? {
-        Some(channel) if channel.kind == "text" && channel.parent_message_id.is_none() => Ok(id),
-        _ => Err(missing),
+        Some(channel) if channel.kind == "text" && channel.parent_message_id.is_none() => {}
+        _ => return Err(missing),
+    }
+    match held.contains(Permissions::SEND_MESSAGES) {
+        true => Ok(id),
+        false => Err(ApiError::Forbidden),
     }
 }
 
@@ -157,7 +167,7 @@ pub async fn run_due(state: &AppState, now: i64) -> anyhow::Result<usize> {
 async fn run_one(
     state: &AppState,
     module: &InstalledModule,
-    bot: crate::ids::UserId,
+    bot: UserId,
     channel: ChannelId,
     command: &str,
 ) {

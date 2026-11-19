@@ -2,7 +2,7 @@
 """Restores a scripts/backup.py snapshot into a scratch location and checks
 it, rather than trusting a backup nobody has ever restored.
 
-Four things are verified, none of them by inference:
+Five things are verified, none of them by inference:
 
 1. The database snapshot file, copied to a fresh path and opened on its
    own with nothing else present, passes `PRAGMA integrity_check`.
@@ -13,7 +13,10 @@ Four things are verified, none of them by inference:
 3. Every user the database marks as having an avatar has a file for it
    in the avatars mirror (existence only: an avatar carries no stored
    hash of its own to compare against).
-4. Every module data file in the modules mirror passes its own
+4. The space banner and icon, every profile banner, every linked-account
+   picture and every kept original the database announces has a file in
+   the mirror (backup_side_files.py).
+5. Every module data file in the modules mirror passes its own
    `PRAGMA integrity_check`.
 
 Exits non-zero, and names every mismatch, if anything referenced by the
@@ -34,8 +37,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import backup_modules
+import backup_side_files
 import file_digest
 import path_guard
+import sqlite_read_only
 
 STALE_SCRATCH_AGE_S = 6 * 60 * 60
 _SCRATCH_NAME = re.compile(r"\d{8}T\d{6}Z")
@@ -81,7 +86,7 @@ def restore_database(snapshot, scratch_dir):
 
 def check_integrity(restored_db):
     """`ok`, or what is wrong, including a file too damaged to be queried."""
-    conn = sqlite3.connect(f"file:{restored_db}?mode=ro", uri=True)
+    conn = sqlite_read_only.connect(restored_db)
     try:
         return conn.execute("PRAGMA integrity_check").fetchone()[0]
     except sqlite3.DatabaseError as error:
@@ -91,7 +96,7 @@ def check_integrity(restored_db):
 
 
 def check_attachments(restored_db, mirror_dir):
-    conn = sqlite3.connect(f"file:{restored_db}?mode=ro", uri=True)
+    conn = sqlite_read_only.connect(restored_db)
     try:
         rows = conn.execute("SELECT sha256, size FROM attachments").fetchall()
     finally:
@@ -124,7 +129,7 @@ def check_attachments(restored_db, mirror_dir):
 
 
 def check_avatars(restored_db, mirror_dir):
-    conn = sqlite3.connect(f"file:{restored_db}?mode=ro", uri=True)
+    conn = sqlite_read_only.connect(restored_db)
     try:
         rows = conn.execute(
             "SELECT id, username FROM users WHERE avatar_updated_at IS NOT NULL AND deleted_at IS NULL"
@@ -186,6 +191,17 @@ def _report_avatars(restored_db, backup_root):
     return not (avatars["missing"] or avatars["malformed"])
 
 
+def _report_side_files(restored_db, backup_root):
+    side_files = backup_side_files.check(restored_db, backup_root)
+    print(f"banners, icons and originals: {side_files['verified']}/{side_files['total']} "
+          f"verified, {len(side_files['missing'])} missing")
+    for name in side_files["missing"]:
+        print(f"  MISSING    {name}", file=sys.stderr)
+    for reason in side_files["malformed"]:
+        print(f"  MALFORMED  {reason}", file=sys.stderr)
+    return not (side_files["missing"] or side_files["malformed"])
+
+
 def _report_modules(restored_db, backup_root):
     modules = backup_modules.check_modules(backup_root, restored_db)
     print(f"modules: {len(modules['verified'])}/"
@@ -211,6 +227,7 @@ def _drill(snapshot, scratch_dir, backup_root):
 
     ok = _report_attachments(restored_db, backup_root)
     ok = _report_avatars(restored_db, backup_root) and ok
+    ok = _report_side_files(restored_db, backup_root) and ok
     ok = _report_modules(restored_db, backup_root) and ok
     print("PASS" if ok else "FAIL")
     return 0 if ok else 1

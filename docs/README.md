@@ -16,6 +16,7 @@ Tasks and the backlog live on the Planka board, not here; these files hold the r
 - [INSTALL.md](INSTALL.md): installing the app on each platform.
 - [OPERATING.md](OPERATING.md): running a server, every setting, two-factor, modules, webhooks, bots, updating.
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md): problems by symptom.
+- [self-host-walkthrough.md](self-host-walkthrough.md): a timed run of the whole self-hosting path on a clean machine, and what it found.
 - [sizing.md](sizing.md): how big a machine a deployment needs.
 - [prod-voice-topology.md](prod-voice-topology.md): how call media reaches the live deployment, where it differs from the shipped compose.
 - [capacity-guidance.md](capacity-guidance.md): how the setup screen turns cores, memory and disk into a range of people.
@@ -28,6 +29,7 @@ Tasks and the backlog live on the Planka board, not here; these files hold the r
 - [DEVELOPING.md](DEVELOPING.md): setup, commands and local gates.
 - [ci.md](ci.md): every workflow, what it gates and when it runs; [CHANGING-CI.md](CHANGING-CI.md) before editing one.
 - [e2e.md](e2e.md): the end-to-end harness (real LiveKit, server and two browsers).
+- [soak-harness.md](soak-harness.md): hours of a desktop session in minutes, and a report of what the app still holds at the end.
 - [RELEASING.md](RELEASING.md): the release runbook; [APP-STORE.md](APP-STORE.md) for the iOS listing and review.
 - [dependencies.md](dependencies.md): why each dependency is there.
 - [internals.md](internals.md): how and why individual modules work, moved out of long doc comments.

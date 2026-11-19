@@ -100,7 +100,7 @@ class VoiceController extends StateNotifier<VoiceState> {
       callGeneration: () => _callGeneration,
     );
     _rejoin = VoiceRejoin(access, _autoRejoin, _callClock, _ref, join);
-    _sfu = VoiceSfuConnect(_session, _ref, access, _joinMuted, input);
+    _sfu = VoiceSfuConnect(_session, _ref, access, _joinMuted, input, _rejoin);
     _sync = VoiceSessionSync(
       session: _session,
       access: access,
@@ -116,6 +116,7 @@ class VoiceController extends StateNotifier<VoiceState> {
       republishDeafened: () => unawaited(devices.publishDeafenedState(true)),
       log: _log,
     );
+    addListener((s) => _foreground.rejoining(s.rejoining));
     _endCallRequests = _callLifecycle.endCallRequests.listen((_) {
       unawaited(leave());
     });
@@ -292,6 +293,9 @@ class VoiceController extends StateNotifier<VoiceState> {
     await _ref.read(soundSessionReleaseProvider)();
     if (superseded()) return;
     await _sfu.run(channelId, muted, superseded);
+    if (switching && await _sfu.endCallSwitchedFrom(superseded)) {
+      unawaited(_heartbeat.forgetLast());
+    }
   }
 
   /// Supersedes any in-flight [join], and is superseded the same way: a leave
@@ -317,6 +321,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     _shareResume.forget();
     final channelId = state.channelId;
     final startedAt = state.connectedAt;
+    final theirs = _rejoin.heldElsewhere(channelId);
     // Read before `_session.leave()`, so nobody still here misreads as having left when we did.
     final recap = channelId != null && startedAt != null
         ? _activity.summary(
@@ -325,7 +330,7 @@ class VoiceController extends StateNotifier<VoiceState> {
             endedAt: _now(),
           )
         : null;
-    _heartbeat.stop();
+    _heartbeat.stop(disown: theirs);
     input.stopWatchingSpaceNoiseSuppression();
     _autoRejoin.reset();
     _callClock.forget();
@@ -345,7 +350,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     await _session.leave();
     if (generation != _callGeneration) return;
     // Best-effort and fire-and-forget: this client already disconnected.
-    if (channelId != null) unawaited(_heartbeat.forget(channelId));
+    if (!theirs) unawaited(_heartbeat.forgetLeft(channelId));
     // Only what the teardown itself could have moved, so a choice made on the left screen meanwhile stays.
     state = state.copyWith(
       state: VoiceSessionState.idle,

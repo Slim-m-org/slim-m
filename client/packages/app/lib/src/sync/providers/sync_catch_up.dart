@@ -6,10 +6,12 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_data/data.dart';
+import 'package:slimm_data/data.dart' hide Message;
 
+import '../../features/channels/providers/channel_history.dart';
 import '../../features/messages/providers/message_extras.dart';
 import '../../features/messages/providers/message_ops_sync.dart';
+import '../../features/messages/providers/retention_policy.dart';
 import '../../providers/rate_limit_retry.dart';
 
 /// Cursors per `/sync` request, under the server's 200-scope ceiling.
@@ -19,6 +21,9 @@ const syncScopeChunk = 150;
 final syncChunkRetryDelaysProvider = Provider<List<Duration>>(
   (ref) => const [Duration(milliseconds: 500), Duration(seconds: 2)],
 );
+
+/// Rows per page when catch-up rereads a channel's messages; a test shrinks it.
+final syncNewestPageProvider = Provider<int>((ref) => 50);
 
 bool _isTransientSyncFailure(Object error) => switch (error) {
   TransportException() || UnavailableException() => true,
@@ -143,6 +148,10 @@ class SyncCatchUp {
       await _resetScope(generation, api, store, delta);
       return isCurrent() ? false : null;
     }
+    if (await _adoptsOverHeldRows(store, delta)) {
+      await _refetchHeld(generation, api, store, delta);
+      return isCurrent() ? false : null;
+    }
     await store.applyMessages(delta.messages, advance: CursorAdvance.always);
     if (!isCurrent()) return null;
     _ref.read(messageExtrasProvider.notifier).applyMessages(delta.messages);
@@ -162,7 +171,86 @@ class SyncCatchUp {
     if (delta.mentionedSeq case final seq?) {
       await store.healMentionCursor(delta.channelId, seq);
     }
+    // A deleted tail leaves the page short of the head, which a late frame for one of them would slip past.
+    if (delta.latestSeq case final head? when !delta.hasMore) {
+      await store.coverCursor(delta.channelId, head);
+    }
     return delta.hasMore || delta.opsHasMore;
+  }
+
+  /// Whether adopting the op head would skip ops on rows already held.
+  ///
+  /// A channel with no op cursor adopts the head, which is only safe while it
+  /// holds nothing: rows that arrived first, live or from a page, may be named
+  /// by ops before that head which no cursor will ever ask for.
+  Future<bool> _adoptsOverHeldRows(MessageStore store, ScopeDelta delta) async {
+    final head = delta.opLatestSeq;
+    if (head == null || head == 0) return false;
+    if (await store.opCursorFor(delta.channelId) != null) return false;
+    return await store.oldestLocalSeq(delta.channelId) != null;
+  }
+
+  /// Rereads the span of rows held before the op cursor existed, and starts
+  /// the op cursor at the head [delta] read before those pages.
+  ///
+  /// Unlike [_resetScope] the rows are swapped in one write, so an open channel
+  /// is never shown empty, and the cursor moves only once the pages are stored:
+  /// a fetch that fails leaves the scope to be refetched by the next catch-up.
+  Future<void> _refetchHeld(
+    int generation,
+    SlimmApi api,
+    MessageStore store,
+    ScopeDelta delta,
+  ) async {
+    final head = delta.latestSeq;
+    // Without the head there is no telling a deleted row from one that arrived since.
+    if (head == null) return _resetScope(generation, api, store, delta);
+    final channelId = delta.channelId;
+    final span = await _pagesOverHeld(generation, api, store, channelId);
+    if (span == null) return;
+    final fresh = span.rows;
+    final through = fresh.fold(head, (seq, m) => max(seq, m.seq));
+    await store.replaceHeld(
+      channelId,
+      fresh,
+      from: span.from,
+      through: through,
+    );
+    await store.setOpCursor(channelId, delta.opLatestSeq);
+    _ref.read(messageExtrasProvider.notifier).applyMessages(fresh);
+    await store.coverCursor(channelId, head);
+  }
+
+  /// The newest page and each older one down to the oldest row held, with the
+  /// seq they cover from: 0 once a short page proved the channel's start.
+  /// Null when the generation moved on.
+  ///
+  /// Every held row is reread, not just the newest page: history the user
+  /// paged in stays, and an op on it from before the head is still caught. It
+  /// stops at [channelWindowCeiling] rows, below which no window shows a row.
+  Future<({List<Message> rows, int from})?> _pagesOverHeld(
+    int generation,
+    SlimmApi api,
+    MessageStore store,
+    String channelId,
+  ) async {
+    final limit = _ref.read(syncNewestPageProvider);
+    final oldestHeld = await store.oldestLocalSeq(channelId) ?? 0;
+    final maxPages = (channelWindowCeiling / limit).ceil() + 1;
+    final rows = <Message>[];
+    int? before;
+    for (var fetched = 0; fetched < maxPages; fetched++) {
+      final page = await retryWhenRateLimited(
+        () => api.listMessages(channelId, before: before, limit: limit),
+        wait: _ref.read(rateLimitWaitProvider),
+      );
+      if (!_isCurrent(generation)) return null;
+      rows.addAll(page);
+      if (page.length < limit) return (rows: rows, from: 0);
+      before = page.map((m) => m.seq).reduce(min);
+      if (before <= oldestHeld) break;
+    }
+    return (rows: rows, from: before ?? 0);
   }
 
   /// Applies a scope's edit ops after its messages, adopting the head on a first sync.
@@ -208,14 +296,21 @@ class SyncCatchUp {
         (await store.channelRow(channelId))?.mentionedSeq ??
         0;
     await store.resetChannel(channelId);
+    // Paging would otherwise go on from below rows that are no longer held.
+    _ref.read(messageExtrasProvider.notifier).forgetPages(channelId);
+    _ref.invalidate(channelHistoryProvider(channelId));
     await store.setOpCursor(channelId, delta.opLatestSeq);
+    final limit = _ref.read(syncNewestPageProvider);
     final fresh = await retryWhenRateLimited(
-      () => api.listMessages(channelId, limit: 50),
+      () => api.listMessages(channelId, limit: limit),
       wait: _ref.read(rateLimitWaitProvider),
     );
     if (!_isCurrent(generation)) return;
     await store.applyMessages(fresh, advance: CursorAdvance.always);
     _ref.read(messageExtrasProvider.notifier).applyMessages(fresh);
+    if (delta.latestSeq case final head?) {
+      await store.coverCursor(channelId, head);
+    }
     // The page holds only the newest messages; an older mention survives by the marker or the kept cursor.
     if (mentioned > 0) await store.advanceMentionCursor(channelId, mentioned);
   }

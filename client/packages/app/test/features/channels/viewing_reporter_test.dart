@@ -9,11 +9,23 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
-import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/features/channels/providers/mounted_channels.dart';
+import 'package:slimm_app/src/providers/app_lifecycle.dart';
+import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/providers/viewing_reporter.dart';
 
+import '../../support/fake_sync.dart';
 import '../../support/window_lifecycle.dart';
+
+class _RecordingSync extends NoopSyncController {
+  _RecordingSync(super.ref);
+
+  final viewed = <Set<String>>[];
+
+  @override
+  void notifyViewing(Iterable<String> channelIds, {bool active = false}) =>
+      viewed.add(channelIds.toSet());
+}
 
 void main() {
   late ProviderContainer container;
@@ -173,5 +185,32 @@ void main() {
     );
 
     closing.dispose();
+  });
+
+  testWidgets('a window that loses focus stops reporting before the next '
+      'frame', (tester) async {
+    addTearDown(
+      () => tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      ),
+    );
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final scoped = ProviderContainer(
+      overrides: [syncControllerProvider.overrideWith(_RecordingSync.new)],
+    );
+    addTearDown(scoped.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: scoped, child: const SizedBox()),
+    );
+    scoped.read(viewingReporterProvider);
+    final sync = scoped.read(syncControllerProvider.notifier) as _RecordingSync;
+    scoped.read(mountedChannelsProvider).register('c1');
+    expect(sync.viewed.last, {'c1'});
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+
+    expect(sync.viewed.last, isEmpty, reason: 'a hidden window draws no frame');
+    await tester.pumpWidget(const SizedBox());
   });
 }

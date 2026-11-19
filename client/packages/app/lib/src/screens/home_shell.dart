@@ -204,10 +204,17 @@ class HomeShell extends ConsumerWidget {
     // Once synced, a channel the store lacks is one the viewer cannot see: ChannelNotFound owns the pane, with no roster or members control.
     final channelRow = selected == null
         ? null
-        : ref.watch(channelByIdProvider(selected));
+        : ref.watch(
+            channelByIdProvider(selected).select(
+              // Only whether the row is there: the row itself changes with every message and read marker.
+              (row) => (
+                loaded: row.hasValue,
+                missing: row is AsyncData<Channel?> && row.value == null,
+              ),
+            ),
+          );
     final synced = ref.watch(initialSyncCompleteProvider);
-    final notFound =
-        channelRow is AsyncData<Channel?> && channelRow.value == null && synced;
+    final notFound = (channelRow?.missing ?? false) && synced;
     final membersWanted =
         membersFit &&
         !notFound &&
@@ -238,7 +245,7 @@ class HomeShell extends ConsumerWidget {
       videoStrip: videoDocked && !videoSide && !canvasFullscreen,
       membersUnderVideo: videoSide && membersWanted,
       notFound: notFound,
-      rosterPending: channelRow != null && !channelRow.hasValue && synced,
+      rosterPending: channelRow != null && !channelRow.loaded && synced,
       railWidth: _railWidth(ref, layout, width, dockedPane),
     );
   }
