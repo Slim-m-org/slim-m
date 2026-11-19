@@ -118,7 +118,10 @@ void main() {
     dials = 0;
   });
 
-  IoDirectRoute route({String base = _base}) {
+  IoDirectRoute route({
+    String base = _base,
+    Duration siblingTimeout = const Duration(seconds: 3),
+  }) {
     final route = IoDirectRoute(
       Uri.parse(base),
       context: _trusting,
@@ -129,6 +132,7 @@ void main() {
         return Socket.connect(InternetAddress.loopbackIPv4, directTarget);
       },
       clock: () => now,
+      siblingTimeout: siblingTimeout,
     );
     addTearDown(route.httpClient.close);
     return route;
@@ -242,13 +246,15 @@ void main() {
       }
     });
     directTarget = hung.port;
-    final r = route()..advertise([_lan]);
+    const deadline = Duration(milliseconds: 500);
+    final r = route(siblingTimeout: deadline)..advertise([_lan]);
     await r.httpClient.get(Uri.parse('$_base/version'));
     expect(r.active, isTrue);
 
     final watch = Stopwatch()..start();
     expect(await open(r, _signal), isNull);
-    expect(watch.elapsed, lessThan(const Duration(seconds: 5)));
+    expect(watch.elapsed, greaterThanOrEqualTo(deadline));
+    expect(watch.elapsed, lessThan(const Duration(milliseconds: 2500)));
     expect(held, hasLength(1));
   });
 

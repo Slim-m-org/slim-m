@@ -28,11 +28,13 @@ class IoDirectRoute implements DirectRoute {
     PublicConnect? connectDirect,
     DateTime Function()? clock,
     String Function(Uri url)? findProxy,
+    Duration siblingTimeout = const Duration(seconds: 3),
   })  : _context = context,
         _connectPublic = connectPublic,
         _connectDirect = connectDirect,
         _clock = clock ?? DateTime.now,
-        _findProxy = findProxy {
+        _findProxy = findProxy,
+        _siblingTimeout = siblingTimeout {
     _client = _freshClient();
   }
 
@@ -59,7 +61,7 @@ class IoDirectRoute implements DirectRoute {
   static const _handshakeTimeout = Duration(seconds: 5);
 
   /// A sibling socket that has not opened by now goes the normal way, well inside LiveKit's 10 s connect deadline.
-  static const _siblingTimeout = Duration(seconds: 3);
+  final Duration _siblingTimeout;
 
   List<({String host, int port})> _addresses = const [];
   int _next = 0;
