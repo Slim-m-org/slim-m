@@ -31,6 +31,7 @@ pub mod hub;
 pub mod identity;
 pub mod ids;
 pub mod limits;
+pub mod logging;
 pub mod media;
 pub mod mentions;
 pub mod module_runtime;
@@ -118,9 +119,10 @@ async fn warn_if_unclaimed(store: &store::Store) -> anyhow::Result<()> {
 /// Loads configuration, opens the embedded database (running migrations), and
 /// serves the HTTP surface until a shutdown signal.
 pub async fn run() -> anyhow::Result<()> {
-    init_tracing();
-    http::panic_guard::install_hook();
     let config = config::Config::from_env()?;
+    let logging = logging::install(&logging::LogSettings::from_config(&config))?;
+    logging.spawn_drop_report();
+    http::panic_guard::install_hook();
     // Before the database is touched, so a misconfigured origin list is a
     // startup error and not a half-initialized deployment.
     let cors = cors::CorsPolicy::new(&config)?;
@@ -140,6 +142,8 @@ pub async fn run() -> anyhow::Result<()> {
         None => store,
     };
     store.seal_totp_secrets().await?;
+    logging.set_mode(store.log_mode().await?);
+    tracing::info!(mode = logging.mode().as_str(), dir = ?logging.dir(), "server logging");
     log_server_identity(&store).await?;
     warn_if_unclaimed(&store).await?;
     if let Err(error) = http::rekey_stored_reactions(&store).await {
@@ -212,9 +216,13 @@ pub async fn run() -> anyhow::Result<()> {
     if let Some(steam) = &steam {
         http::steam_presence::spawn(state.clone(), steam.clone());
     }
-    let mut router = http::router(state).layer(axum::Extension(http::BackupStatusDir(
-        config.backup_status_dir.clone(),
-    )));
+    let mut router = http::router(state)
+        .layer(axum::Extension(http::BackupStatusDir(
+            config.backup_status_dir.clone(),
+        )))
+        .layer(axum::Extension(http::ServerLogsDir(
+            logging.dir().map(std::path::Path::to_path_buf),
+        )));
     if let Some(discord) = http::linked_accounts::DiscordLinks::new(&config)? {
         router = router.layer(axum::Extension(discord));
     }
@@ -321,10 +329,6 @@ pub async fn healthcheck() -> anyhow::Result<()> {
     }
 }
 
-fn init_tracing() {
-    init_tracing_to(false);
-}
-
 /// Sends logs to stderr instead of stdout.
 ///
 /// The import subcommand prints a machine-readable report on stdout, and at a
@@ -332,18 +336,12 @@ fn init_tracing() {
 /// parsing that report reads corrupted input. Serving keeps stdout, which is
 /// what a container's log collector expects.
 fn init_tracing_to_stderr() {
-    init_tracing_to(true);
-}
-
-fn init_tracing_to(stderr: bool) {
     use tracing_subscriber::EnvFilter;
     let filter = EnvFilter::try_from_env("SLIMM_LOG").unwrap_or_else(|_| EnvFilter::new("info"));
-    let builder = tracing_subscriber::fmt().with_env_filter(filter);
-    if stderr {
-        builder.with_writer(std::io::stderr).init();
-    } else {
-        builder.init();
-    }
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_writer(std::io::stderr)
+        .init();
 }
 
 /// Resolves on Ctrl-C or SIGTERM so the container stops cleanly.

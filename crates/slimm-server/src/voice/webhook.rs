@@ -77,6 +77,9 @@ pub struct ParticipantInfo {
     /// Whether the SFU has seen this participant publish a track; protojson leaves a false one out.
     #[serde(default, alias = "isPublisher")]
     pub is_publisher: bool,
+    /// Why the SFU says a participant left, as LiveKit names it; only logged.
+    #[serde(default, alias = "disconnectReason")]
+    pub disconnect_reason: Option<serde_json::Value>,
 }
 
 impl WebhookEvent {

@@ -54,6 +54,9 @@ impl fmt::Debug for Config {
             steam_redirect_uri,
             backup_status_dir,
             alert_min_disk_free_mb,
+            log_dir,
+            log_keep_days,
+            log_max_bytes,
         } = self;
         f.debug_struct("Config")
             .field("port", port)
@@ -89,6 +92,9 @@ impl fmt::Debug for Config {
             .field("steam_redirect_uri", steam_redirect_uri)
             .field("backup_status_dir", backup_status_dir)
             .field("alert_min_disk_free_mb", alert_min_disk_free_mb)
+            .field("log_dir", log_dir)
+            .field("log_keep_days", log_keep_days)
+            .field("log_max_bytes", log_max_bytes)
             .finish()
     }
 }

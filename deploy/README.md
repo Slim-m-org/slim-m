@@ -844,5 +844,6 @@ Moving to 0.5 is a replica-format migration, not a tag bump.
 ## Logging (`SLIMM_LOG`)
 
 The server logs at `info` by default; set `SLIMM_LOG=debug` to see per-request spans while chasing a problem.
+Without a restart, an admin can instead switch Space settings, Debug logs to Compact or Verbose, and every line also lands in rotating files in `/data/logs` that survive a redeploy; see [docs/OPERATING.md](../docs/OPERATING.md#server-logs).
 A debug span is labelled by the matched route template (`/invites/{code}`), never the filled-in path.
 So an invite code, a GIF or link-preview proxy token, or a webhook token is not written to the log at any level, and a pasted debug log does not leak a credential.

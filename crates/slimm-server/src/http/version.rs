@@ -81,6 +81,8 @@ pub(super) struct Version {
     module_profile_sections: bool,
     /// Whether voice messages show their transcripts, so a client hides the ones it already has once they are off.
     transcribe_voice_messages: bool,
+    /// The space's server log mode, so every member's client keeps a longer debug log of its own while it is on.
+    debug_logging: &'static str,
     /// Whether the canvas accepts a `clear_scoped` op. Always true on a build that has this field;
     /// a client reads its absence as an older server and falls back to its version number.
     canvas_scoped_clear: bool,
@@ -199,6 +201,7 @@ pub(super) async fn version(
         module_member_badges: display.member_badges,
         module_profile_sections: display.profile_sections,
         transcribe_voice_messages: state.store.transcribe_voice_messages().await?,
+        debug_logging: state.store.log_mode().await?.as_str(),
         canvas_scoped_clear: true,
         max_attachment_bytes: super::attachments::effective_attachment_max(&state).await?,
         min_client_version: min_client_version(),
