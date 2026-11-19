@@ -161,8 +161,10 @@ pub(super) async fn reach_target(
     }
 }
 
-/// Requires MANAGE_ROLES in this channel and returns the caller's effective
-/// permissions there, reused by [`set`] as the ceiling on what it may grant.
+/// Requires MANAGE_ROLES in a channel the caller can see, and returns their
+/// effective permissions there, reused by [`set`] as the ceiling on what it may
+/// grant. A hidden channel refuses like a missing one: a deny is no grant, so
+/// without this a manager outside it could shut its members out.
 async fn require_manage_roles_here(
     state: &AppState,
     user_id: UserId,
@@ -172,7 +174,7 @@ async fn require_manage_roles_here(
         .store
         .permissions_in_channel(user_id, channel_id)
         .await?;
-    if !permissions.contains(Permissions::MANAGE_ROLES) {
+    if !permissions.contains(Permissions::VIEW_CHANNEL.union(Permissions::MANAGE_ROLES)) {
         return Err(ApiError::Forbidden);
     }
     Ok(permissions)
