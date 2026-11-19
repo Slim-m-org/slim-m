@@ -13,6 +13,7 @@
 #include "linux_idle_channel.h"
 #include "linux_window_mapped_channel.h"
 #include "linux_window_suspended_channel.h"
+#include "youtube_player_channel.h"
 
 struct _MyApplication {
   GtkApplication parent_instance;
@@ -92,7 +93,11 @@ static void my_application_activate(GApplication* application) {
   gdk_rgba_parse(&background_color, transparent ? "#00000000" : "#000000");
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
-  gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
+  // An overlay around the view, so the YouTube panel's webview can float above it; see youtube_player_channel.h.
+  GtkWidget* overlay = gtk_overlay_new();
+  gtk_widget_show(overlay);
+  gtk_container_add(GTK_CONTAINER(overlay), GTK_WIDGET(view));
+  gtk_container_add(GTK_CONTAINER(window), overlay);
 
   // Show the window when Flutter renders.
   // Requires the view to be realized so we can start rendering.
@@ -123,6 +128,7 @@ static void my_application_activate(GApplication* application) {
   // A Wayland minimise changes no window state; see linux_window_suspended_channel.h.
   linux_window_suspended_channel_register(self->messenger, window);
   linux_idle_channel_register(self->messenger);
+  youtube_player_channel_register(self->messenger, GTK_OVERLAY(overlay));
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

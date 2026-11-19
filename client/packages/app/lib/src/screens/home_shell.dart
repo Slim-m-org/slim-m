@@ -55,6 +55,7 @@ import '../features/settings/widgets/rules_gate_banner_host.dart';
 import '../features/voice/widgets/push_to_talk_listener.dart';
 import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/download_failures.dart';
+import '../widgets/native_view_occlusion.dart';
 import '../widgets/shell_focus_anchor.dart';
 import '../widgets/update_banner_host.dart';
 import '../features/voice/providers/shortcut_overrides.dart';
@@ -66,6 +67,7 @@ import '../features/canvas/screens/canvas_fullscreen.dart';
 import '../features/canvas/screens/canvas_pane.dart';
 import '../features/voice/screens/dm_call_pane.dart';
 import '../features/voice/screens/hang_up_recap_toast.dart';
+import '../features/video/providers/docked_video.dart';
 import '../features/background/widgets/app_background_host.dart';
 import '../features/role_preview/providers/role_preview_controller.dart';
 import '../features/role_preview/screens/role_preview_shell.dart';
@@ -206,13 +208,18 @@ class HomeShell extends ConsumerWidget {
     final synced = ref.watch(initialSyncCompleteProvider);
     final notFound =
         channelRow is AsyncData<Channel?> && channelRow.value == null && synced;
-    final showMembers =
+    final membersWanted =
         membersFit &&
         !notFound &&
         !canvasFullscreen &&
         !showThread &&
         memberPaneWanted(ref, size);
-    final dockedPane = switch ((showThread, showMembers)) {
+    // A docked video takes the third pane, with the roster under it; a docked thread there sends it to the strip above the chat.
+    final videoDocked = ref.watch(dockedVideoProvider.select((v) => v != null));
+    final videoSide =
+        videoDocked && threadFits && !showThread && !canvasFullscreen;
+    final showMembers = membersWanted && !videoSide;
+    final dockedPane = switch ((showThread || videoSide, showMembers)) {
       (true, _) => kThreadPaneWidth,
       (_, true) => AppMemberPane.width,
       _ => 0.0,
@@ -227,6 +234,9 @@ class HomeShell extends ConsumerWidget {
       threadFits: threadFits,
       showThread: showThread,
       showMembers: showMembers,
+      videoSide: videoSide,
+      videoStrip: videoDocked && !videoSide && !canvasFullscreen,
+      membersUnderVideo: videoSide && membersWanted,
       notFound: notFound,
       rosterPending: channelRow != null && !channelRow.hasValue && synced,
       railWidth: _railWidth(ref, layout, width, dockedPane),
@@ -288,10 +298,12 @@ class HomeShell extends ConsumerWidget {
       endDrawerEnableOpenDragGesture: !facts.canvasOpen,
       endDrawer: isDm || facts.membersFit || selected == null
           ? null
-          : OpaquePanes(
-              child: Drawer(
-                width: AppMemberPane.width,
-                child: SafeArea(child: AppMemberPane(channelId: selected)),
+          : OccludesNativeViews(
+              child: OpaquePanes(
+                child: Drawer(
+                  width: AppMemberPane.width,
+                  child: SafeArea(child: AppMemberPane(channelId: selected)),
+                ),
               ),
             ),
       body: Row(
@@ -314,10 +326,18 @@ class HomeShell extends ConsumerWidget {
               color: tokens.surfaceBase,
               child: Semantics(
                 container: true,
-                child: CallMiniPlayerHost(child: child),
+                child: videoStripAbove(
+                  CallMiniPlayerHost(child: child),
+                  show: facts.videoStrip,
+                ),
               ),
             ),
           ),
+          if (facts.videoSide)
+            VideoPaneSlot(
+              channelId: facts.rosterPending ? null : selected,
+              withMembers: facts.membersUnderVideo,
+            ),
           // Between the transcript and the roster (the Discord/Slack order); it and the roster never both take width, so the transcript loses at most one third pane.
           if (facts.threadFits)
             ThreadPaneSlot(
@@ -388,9 +408,9 @@ class HomeShell extends ConsumerWidget {
               Expanded(
                 child: Semantics(
                   container: true,
-                  child: CallMiniPlayerHost(
-                    keyboardUp: keyboardUp,
-                    child: child,
+                  child: videoStripAbove(
+                    CallMiniPlayerHost(keyboardUp: keyboardUp, child: child),
+                    show: facts.videoStrip,
                   ),
                 ),
               ),
@@ -439,6 +459,9 @@ class _ShellFacts {
     required this.threadFits,
     required this.showThread,
     required this.showMembers,
+    required this.videoSide,
+    required this.videoStrip,
+    required this.membersUnderVideo,
     required this.notFound,
     required this.rosterPending,
     required this.railWidth,
@@ -453,6 +476,9 @@ class _ShellFacts {
   final bool threadFits;
   final bool showThread;
   final bool showMembers;
+  final bool videoSide;
+  final bool videoStrip;
+  final bool membersUnderVideo;
   final bool notFound;
   final bool rosterPending;
   final double railWidth;

@@ -20,6 +20,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'native_view_occlusion.dart';
+
 /// An [OverlayPortalController] whose `hide()` exits before it unmounts.
 ///
 /// Drop-in for the raw controller: `show`/`hide`/`toggle`/`isShowing` keep
@@ -144,14 +146,16 @@ class AnimatedMenuSurfaceState extends State<AnimatedMenuSurface>
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _curved,
-      child: IgnorePointer(
-        ignoring: _exiting,
-        child: ScaleTransition(
-          scale: _curved.drive(Tween(begin: 0.96, end: 1)),
-          alignment: widget.alignment,
-          child: widget.child,
+    return OccludesNativeViews(
+      child: FadeTransition(
+        opacity: _curved,
+        child: IgnorePointer(
+          ignoring: _exiting,
+          child: ScaleTransition(
+            scale: _curved.drive(Tween(begin: 0.96, end: 1)),
+            alignment: widget.alignment,
+            child: widget.child,
+          ),
         ),
       ),
     );

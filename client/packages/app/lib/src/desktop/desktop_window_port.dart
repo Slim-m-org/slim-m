@@ -327,8 +327,13 @@ class WindowManagerDesktopWindowPort
     return wm.windowManager.isMinimized();
   }
 
+  /// Reported here too, since GTK on Wayland never hears that its window was
+  /// minimised, and a playing video must still pause.
   @override
-  Future<void> minimize() => wm.windowManager.minimize();
+  Future<void> minimize() {
+    _events.add(DesktopWindowEventKind.minimize);
+    return wm.windowManager.minimize();
+  }
 
   @override
   Future<void> restore() => wm.windowManager.restore();

@@ -193,7 +193,8 @@ struct PreviewParams {
 /// a YouTube video's channel today, from the same oembed request that fills
 /// in the video's title and thumbnail (see [`oembed`]). `media_kind` says
 /// what a Spotify `video_id` names, and `duration_ms` is the page's own
-/// `music:duration`.
+/// `music:duration`. `video_start_ms` is where a YouTube link's `t=` asked
+/// playback to begin.
 #[derive(Serialize)]
 struct LinkPreviewDto {
     url: String,
@@ -204,6 +205,7 @@ struct LinkPreviewDto {
     video_provider: Option<video::VideoProvider>,
     video_id: Option<String>,
     media_kind: Option<spotify::SpotifyKind>,
+    video_start_ms: Option<u32>,
     duration_ms: Option<u32>,
     author_name: Option<String>,
     author_url: Option<String>,
@@ -212,6 +214,11 @@ struct LinkPreviewDto {
 fn to_dto(url: &str, cached: CachedPreview) -> LinkPreviewDto {
     let video_provider = cached.video.as_ref().map(|v| v.provider);
     let media_kind = cached.video.as_ref().and_then(|v| v.kind);
+    let video_start_ms = cached
+        .video
+        .as_ref()
+        .and_then(|v| v.start_s)
+        .map(|s| s * 1000);
     let video_id = cached.video.map(|v| v.id);
     LinkPreviewDto {
         url: url.to_owned(),
@@ -222,6 +229,7 @@ fn to_dto(url: &str, cached: CachedPreview) -> LinkPreviewDto {
         video_provider,
         video_id,
         media_kind,
+        video_start_ms,
         duration_ms: cached.duration_s.map(|s| s * 1000),
         author_name: cached.author_name,
         author_url: cached.author_url,

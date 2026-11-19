@@ -17,6 +17,7 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_drawer.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_drag_handle.dart';
+import 'package:slimm_app/src/widgets/native_view_occlusion.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -312,13 +313,17 @@ void main() {
 
       // Off-screen until dragged (#301's own suite covers the drag itself).
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
-      // The drawer is kept opaque over a background picture, so it arrives wrapped.
+      // Opaque over a background picture, and a floating surface to a docked video, so it arrives wrapped.
       expect(
         scaffold.drawer,
-        isA<OpaquePanes>().having(
+        isA<OccludesNativeViews>().having(
           (w) => w.child,
           'child',
-          isA<CompactChannelRailDrawer>(),
+          isA<OpaquePanes>().having(
+            (w) => w.child,
+            'child',
+            isA<CompactChannelRailDrawer>(),
+          ),
         ),
       );
 

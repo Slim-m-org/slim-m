@@ -98,6 +98,7 @@ Every desktop affordance must state its compact equivalent, or it is not done.
 | drag to reorder (click and hold lifts, a line shows the landing place) | a still hold opens the options, a hold then a move lifts, same drop rules | a permanent grip, or reorder hidden behind an edit mode |
 | full-focus overlay (floating card) | full-screen takeover, same two actions | a desktop-only accept/decline pair |
 | search bar under the channel header, hits in place of the transcript | a search page in the palette's shape in place of the app bar: field with Cancel, a section header naming the channel, palette rows; the composer steps aside and back closes it | a second bar stacked under the app bar |
+| a docked video panel beside the chat (decision 0128) | a strip above the conversation; a phone plays the video in its message instead | a native player over a menu or sheet |
 | a sub-page inside a settings pane | the same sub-page under the pane's app bar, back returns to the pane | a route that drops the nav |
 
 ## The review question
