@@ -8,7 +8,8 @@ use serde_json::{Value, json};
 use slimm_server::permissions::Permissions;
 
 use crate::support;
-use support::app::TestApp;
+use slimm_server::ids::ChannelId;
+use support::app::{TestApp, register_account};
 
 /// A deployment whose `member` holds MANAGE_CHANNELS, and a private channel they cannot see.
 async fn with_a_hidden_channel(prefix: &str) -> (TestApp, String) {
@@ -120,4 +121,38 @@ async fn a_manager_still_renames_and_deletes_what_they_can_see() {
             "an administrator's {attempt}"
         );
     }
+}
+
+#[tokio::test]
+async fn nobody_manages_a_direct_message_as_a_channel() {
+    let (app, _) = with_a_hidden_channel("slimm-channel-manage-hidden-dm").await;
+    let carol = register_account(&app.store, "carol").await;
+    let open = format!("/dms/{}", carol.id);
+    let (_, dm) = app.call("POST", &open, &app.member.token, None).await;
+    let dm = dm["channel_id"].as_str().expect("a direct message");
+    let uri = format!("/channels/{dm}");
+    let nowhere = format!("/channels/{}", uuid::Uuid::now_v7());
+
+    // The store refuses a direct message's row; the voice-only patch used to answer for it first.
+    let patches = [
+        json!({"name": "ours now", "topic": "read", "slow_mode_seconds": 60}),
+        json!({"join_muted": true}),
+    ];
+    for (who, account) in [("an outside admin", &app.admin), ("a party", &app.member)] {
+        for patch in &patches {
+            let token = &account.token;
+            let refused = app.call("PATCH", &uri, token, Some(patch.clone())).await;
+            let unknown = app
+                .call("PATCH", &nowhere, token, Some(patch.clone()))
+                .await;
+            assert_eq!(refused.0, StatusCode::NOT_FOUND, "{who}: {}", refused.1);
+            assert_eq!(refused, unknown, "{who}");
+        }
+    }
+    let id = ChannelId(dm.parse().unwrap());
+    let kept = app.store.channel(id).await.unwrap().expect("the dm");
+    assert_eq!(
+        (kept.name.as_str(), kept.topic, kept.slow_mode_seconds),
+        ("", None, 0)
+    );
 }

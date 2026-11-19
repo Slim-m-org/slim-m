@@ -249,7 +249,8 @@ async fn create(
 /// MANAGE_CHANNELS at the deployment level, and sight of the channel itself: a
 /// manager shut out of a private channel gets the 404 a missing one gets, so
 /// they can neither change it nor read its name and topic back. Judged on the
-/// row as it was before a delete, so a retry still succeeds.
+/// row as it was before a delete, so a retry still succeeds. A direct message
+/// is never managed here, by a party or by an administrator: it answers 404 too.
 async fn require_manager_who_sees(
     state: &AppState,
     user_id: UserId,
@@ -259,7 +260,12 @@ async fn require_manager_who_sees(
     if !base.contains(Permissions::MANAGE_CHANNELS) {
         return Err(ApiError::Forbidden);
     }
-    // An administrator sees every channel, one whose thread parent is gone included.
+    let missing = ApiError::NotFound("channel not found");
+    let row = state.store.channel_including_deleted(channel_id).await?;
+    if row.is_none_or(|channel| channel.kind == DM_CHANNEL_KIND) {
+        return Err(missing);
+    }
+    // An administrator sees every other channel, one whose thread parent is gone included.
     let sees = base.contains(Permissions::ADMINISTRATOR)
         || state
             .store
@@ -267,7 +273,7 @@ async fn require_manager_who_sees(
             .await?;
     match sees {
         true => Ok(()),
-        false => Err(ApiError::NotFound("channel not found")),
+        false => Err(missing),
     }
 }
 
@@ -362,15 +368,10 @@ async fn update(
 /// this API's delete verbs; a channel id that was never real is a plain 404,
 /// same as it would be for any other resource a manager is allowed to see.
 ///
-/// The row is fetched regardless of `deleted_at`, because telling "already
-/// gone" apart from "never existed" is what makes that retry succeed.
-///
-/// A DM is a channel of kind `dm` in the same table, and it is not a
-/// manageable channel: its only access rule is membership of the pair, which
-/// this deployment-wide check knows nothing about. The store refuses it too,
-/// but it can only answer "no rows matched", which this handler would report
-/// as the last-channel conflict. Answering 404 here keeps the status honest
-/// and matches how a DM is invisible to `GET /channels`.
+/// The gate reads the row regardless of `deleted_at`, because telling "already
+/// gone" apart from "never existed" is what makes that retry succeed, and it
+/// answers 404 for a DM: the store refuses one too, but only as "no rows
+/// matched", which this handler would report as the last-channel conflict.
 async fn delete(
     Authed(ctx): Authed,
     parts: Parts,
@@ -380,19 +381,6 @@ async fn delete(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     require_manager_who_sees(&state, ctx.user_id, channel_id).await?;
-
-    // Includes soft-deleted rows so a retry succeeds; see the note above.
-    let channel = state
-        .store
-        .channel_including_deleted(channel_id)
-        .await?
-        .ok_or(ApiError::NotFound("channel not found"))?;
-
-    // 404 rather than letting the store's "no rows" surface as a conflict;
-    // see the note above.
-    if channel.kind == DM_CHANNEL_KIND {
-        return Err(ApiError::NotFound("channel not found"));
-    }
 
     match state.store.delete_channel(channel_id).await {
         Ok(deleted) => {
