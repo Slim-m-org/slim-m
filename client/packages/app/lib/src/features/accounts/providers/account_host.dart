@@ -387,12 +387,21 @@ class AccountHost extends ChangeNotifier {
       cancel();
     }
     runtime._cancels.clear();
-    // After the frame that stops showing it, so no widget reads a closed container.
-    SchedulerBinding.instance.addPostFrameCallback(
-      (_) => runtime.container.dispose(),
-    );
-    SchedulerBinding.instance.ensureVisualUpdate();
+    _closeWhenUnshown(runtime.container);
     _changed();
+  }
+
+  /// Closes after the frame that stops showing it, so no widget builds from a
+  /// closed container. A hidden window draws no frame, and waiting for one
+  /// would keep a removed account's socket and timers alive until it is shown.
+  void _closeWhenUnshown(ProviderContainer container) {
+    final scheduler = SchedulerBinding.instance;
+    if (!scheduler.framesEnabled) {
+      Timer.run(container.dispose);
+      return;
+    }
+    scheduler.addPostFrameCallback((_) => container.dispose());
+    scheduler.ensureVisualUpdate();
   }
 
   Future<void> _saveIndex() async {
