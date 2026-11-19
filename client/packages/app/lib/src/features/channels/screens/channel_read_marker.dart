@@ -77,14 +77,30 @@ class ReadMarker {
     unawaited(_write(channelId, seq, previous));
   }
 
-  Future<void> _write(String channelId, int seq, int? previous) async {
+  /// Tells the server of [seq], which the store already marked read as the
+  /// message arrived (`ArrivalReader`), so only the server call is left.
+  void readOnArrival(String channelId, int seq) {
+    if ((_sent[channelId] ?? 0) >= seq) return;
+    final previous = _sent[channelId];
+    _sent[channelId] = seq;
+    unawaited(_write(channelId, seq, previous, local: false));
+  }
+
+  Future<void> _write(
+    String channelId,
+    int seq,
+    int? previous, {
+    bool local = true,
+  }) async {
     // Read before the first await: the widget can be disposed while this runs.
     final storeFuture = _ref.read(storeProvider.future);
     final client = _ref.read(apiProvider);
     try {
       final store = await storeFuture;
       // Reading clears the manual mark here too, so the dot goes out at once.
-      await store.setReadMarker(channelId, seq, manuallyUnread: false);
+      if (local) {
+        await store.setReadMarker(channelId, seq, manuallyUnread: false);
+      }
       await client.markRead(channelId: channelId, seq: seq);
       if ((_owed[channelId]?.seq ?? 0) <= seq) _owed.remove(channelId);
     } on api.ApiException catch (e, stack) {

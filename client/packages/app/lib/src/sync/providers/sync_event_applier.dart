@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
 
+import '../../features/channels/providers/arrival_readers.dart';
 import '../../features/channels/providers/channel_notification_overrides_controller.dart';
 import '../../features/channels/providers/channel_refresher.dart';
 import '../../features/channels/providers/last_text_channel.dart';
@@ -157,7 +158,11 @@ class SyncEventApplier {
     if (await _cannotPlace(message.channelId, placed, store, isCurrent)) {
       return;
     }
-    await store.applyMessage(message);
+    final reader = _ref
+        .read(arrivalReadersProvider)
+        .readerFor(message.channelId);
+    await store.applyMessage(message, markRead: reader != null);
+    reader?.readOnArrival(message.channelId, message.seq);
   }
 
   /// Whether [categoryId], or the parent it sits under, is missing locally.

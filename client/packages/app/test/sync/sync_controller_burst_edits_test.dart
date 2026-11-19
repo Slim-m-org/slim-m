@@ -58,9 +58,10 @@ class _FailingStore extends MessageStore {
   Future<void> applyMessage(
     api.Message message, {
     CursorAdvance advance = CursorAdvance.whenContiguous,
+    bool markRead = false,
   }) async {
     if (message.content == 'boom') throw StateError('disk full');
-    return super.applyMessage(message, advance: advance);
+    return super.applyMessage(message, advance: advance, markRead: markRead);
   }
 }
 

@@ -19,6 +19,7 @@ import '../../../ids.dart';
 import '../../../providers/app_lifecycle.dart';
 import '../../accounts/providers/account_slot.dart';
 import '../../members/providers/blocks_controller.dart';
+import '../providers/arrival_readers.dart';
 import '../providers/channel_drafts.dart';
 import '../providers/channel_history.dart';
 import '../providers/channel_search_controller.dart';
@@ -95,7 +96,8 @@ class ChannelScreen extends ConsumerStatefulWidget {
   ConsumerState<ChannelScreen> createState() => _ChannelScreenState();
 }
 
-class _ChannelScreenState extends ConsumerState<ChannelScreen> {
+class _ChannelScreenState extends ConsumerState<ChannelScreen>
+    implements ArrivalReader {
   final _composer = ComposerTextController();
 
   /// The query text only; the search itself (open, hits, failure) lives in
@@ -137,6 +139,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     mountedChannelsProvider,
   );
 
+  /// Captured once for [dispose], like [_mountedChannels].
+  late final ArrivalReaders _arrivalReaders = ref.read(arrivalReadersProvider);
+
   /// See `channel_screen_streams.dart`: recreates a channel's drift streams
   /// only when the store, channel id, or window actually change, rather than
   /// on every build the way an inline `store.watchChannel(...)` call did.
@@ -146,6 +151,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   void initState() {
     super.initState();
     _mountedChannels.register(widget.channelId);
+    _arrivalReaders.add(this);
     // A context window from an earlier visit must not greet this one; deferred because providers cannot change while the tree builds.
     final channelId = widget.channelId;
     Future.microtask(
@@ -203,6 +209,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   @override
   void dispose() {
     _mountedChannels.unregister(widget.channelId);
+    _arrivalReaders.remove(this);
     // Last chance to save unsent text before a torn-down State (voice, a DM call, canvas) loses it.
     _drafts.save(widget.channelId, _composer.text);
     _draftSaver.dispose();
@@ -288,6 +295,22 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       manuallyUnread: manuallyUnread,
     );
   }
+
+  /// The read gate `ChannelTranscriptPane` applies on a rebuild, asked before the message lands.
+  @override
+  bool readsOnArrival(String channelId) {
+    if (!mounted || channelId != widget.channelId || !_watched) return false;
+    final search = ref.read(channelSearchProvider(channelId));
+    final searchPage = !LayoutClass.of(context).showsBothPanes && search.open;
+    return search.query == null &&
+        !searchPage &&
+        ref.read(messageContextWindowProvider(channelId)) == null &&
+        _scrollTracker.atLatest;
+  }
+
+  @override
+  void readOnArrival(String channelId, int seq) =>
+      _readMarker.readOnArrival(channelId, seq);
 
   void _readWhatArrivedUnwatched() {
     if (_watched) _scrollTracker.markReadIfAtLatest();

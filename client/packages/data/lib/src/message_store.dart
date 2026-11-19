@@ -279,11 +279,19 @@ class MessageStore {
   ///
   /// The sync cursor moves as [advance] says; by default only when the message
   /// follows it directly, so a REST answer cannot skip a gap catch-up still owes.
+  /// [markRead] also moves the read marker to it in the same write, for a reader
+  /// already at the newest message, so the channel never flickers unread.
   Future<void> applyMessage(
     api.Message message, {
     CursorAdvance advance = CursorAdvance.whenContiguous,
+    bool markRead = false,
   }) =>
-      batch_impl.applyMessagesBatched(this, [message], advance);
+      batch_impl.applyMessagesBatched(
+        this,
+        [message],
+        advance,
+        markRead: markRead,
+      );
 
   /// Applies a batch, for catch-up and scroll-back, in one transaction and with
   /// far fewer round trips than a call to [applyMessage] per message. The body
