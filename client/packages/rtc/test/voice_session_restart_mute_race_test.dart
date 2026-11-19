@@ -61,43 +61,92 @@ class _SlowRestartMic implements MicPort {
   Future<void> stopUnpublished() async {}
 }
 
+Future<VoiceSession> _joined(
+  _SlowRestartMic mic, {
+  bool mobile = false,
+  Duration grace = kMicReleaseGrace,
+}) async {
+  final session = VoiceSession(
+    roomFactory: ConnectlessRoom.new,
+    micPort: mic,
+    audioDevices: NoDevices(),
+    inputGate: InputGateMonitor.disabled(),
+    mobile: mobile,
+    micReleaseGrace: grace,
+  );
+  addTearDown(session.dispose);
+  await session.join(url: 'wss://a.invalid', token: 't');
+  return session;
+}
+
+/// Restarts the capture and mutes while the restart is still opening it.
+Future<void> _muteDuringRestart(
+    VoiceSession session, _SlowRestartMic mic) async {
+  mic.restartGate = Completer<void>();
+  final restarting = session.resetMicrophone();
+  await pumpEventQueue();
+  expect(await session.setMicrophoneEnabled(false), isTrue);
+  await pumpEventQueue();
+  mic.restartGate!.complete();
+  await restarting;
+  await pumpEventQueue();
+}
+
 void main() {
   test('a mute that lands during a capture restart lets the new capture go',
       () async {
     final mic = _SlowRestartMic();
-    final session = VoiceSession(
-      roomFactory: ConnectlessRoom.new,
-      micPort: mic,
-      audioDevices: NoDevices(),
-      inputGate: InputGateMonitor.disabled(),
-    );
-    addTearDown(session.dispose);
-    await session.join(url: 'wss://a.invalid', token: 't');
+    final session = await _joined(mic);
     expect(mic.capturing, isTrue);
 
-    mic.restartGate = Completer<void>();
-    final restarting = session.resetMicrophone();
-    await pumpEventQueue();
-    expect(await session.setMicrophoneEnabled(false), isTrue);
-    mic.restartGate!.complete();
-    await restarting;
-    await pumpEventQueue();
+    await _muteDuringRestart(session, mic);
 
     expect(mic.muted, isTrue);
     expect(mic.capturing, isFalse,
         reason: 'a muted publication must not be left with a live capture');
   });
 
+  test(
+      'a phone muted in the background during a capture restart lets the '
+      'new capture go', () async {
+    final mic = _SlowRestartMic();
+    final session = await _joined(mic, mobile: true);
+    session.setAppBackgrounded(true);
+
+    await _muteDuringRestart(session, mic);
+
+    expect(mic.releases, 2, reason: "the mute's own release ran first");
+    expect(mic.capturing, isFalse,
+        reason: 'the restart reopened the mic after the mute released it');
+  });
+
+  test('a restart that outlasts the release grace lets the new capture go',
+      () async {
+    final mic = _SlowRestartMic();
+    final session = await _joined(mic, grace: Duration.zero);
+
+    await _muteDuringRestart(session, mic);
+
+    expect(mic.capturing, isFalse);
+  });
+
+  test('push to talk keeps the capture a restart reopened under a key up',
+      () async {
+    final mic = _SlowRestartMic();
+    final session = await _joined(mic);
+    await session.setKeepMicReady(true);
+
+    await _muteDuringRestart(session, mic);
+
+    expect(mic.muted, isTrue);
+    expect(mic.capturing, isTrue,
+        reason: 'push to talk keeps the device open for an instant key down');
+    expect(mic.releases, 0);
+  });
+
   test('a restart nobody muted keeps its capture', () async {
     final mic = _SlowRestartMic();
-    final session = VoiceSession(
-      roomFactory: ConnectlessRoom.new,
-      micPort: mic,
-      audioDevices: NoDevices(),
-      inputGate: InputGateMonitor.disabled(),
-    );
-    addTearDown(session.dispose);
-    await session.join(url: 'wss://a.invalid', token: 't');
+    final session = await _joined(mic);
 
     expect(await session.resetMicrophone(), isTrue);
 

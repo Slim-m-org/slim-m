@@ -439,8 +439,8 @@ class VoiceMicRecovery {
       await mic.restart(switching.captureOptions());
       // The reopened capture is live, and a mute that landed meanwhile already muted the publication.
       if (!micWanted) {
-        _log('Muted during a capture restart; letting the new capture go');
-        await release.releaseNow();
+        _log('Muted during a capture restart');
+        await release.releaseReopened();
         return true;
       }
       _captureProgress.reset();
