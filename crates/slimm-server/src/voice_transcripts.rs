@@ -185,11 +185,12 @@ impl VoiceTranscriber {
             return 0;
         }
         let (mut attempted, mut done) = (0, 0);
+        // A clip whose backoff ran out during this pass waits for the next one, so a pass is one try each.
+        let mut tried: Vec<Vec<u8>> = Vec::new();
         while attempted < MAX_PER_PASS {
-            let batch = match store
-                .voice_awaiting_transcript(BATCH, &self.retries.waiting())
-                .await
-            {
+            let mut skip = self.retries.waiting();
+            skip.extend(tried.iter().cloned());
+            let batch = match store.voice_awaiting_transcript(BATCH, &skip).await {
                 Ok(batch) if !batch.is_empty() => batch,
                 Ok(_) => break,
                 Err(err) => {
@@ -199,6 +200,7 @@ impl VoiceTranscriber {
             };
             for candidate in batch {
                 attempted += 1;
+                tried.push(candidate.sha256.clone());
                 match self.process(store, media, hub, engine, &candidate).await {
                     Step::Settled => done += 1,
                     Step::Later => {}
