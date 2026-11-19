@@ -1009,6 +1009,7 @@ A signing failure downstream is otherwise reported only as "no valid code signin
 The upload is tried up to three times, a minute apart.
 On 2026-11-17 main-builds' upload of 0.130.0 failed with altool's "Cannot determine the Apple ID from Bundle ID" (error 19), an App Store Connect lookup that fails before anything is sent, and the next build uploaded cleanly with nothing changed.
 A retry after an upload that did land fails as a duplicate build, so it cannot put two builds up.
+`scripts/lib/test_testflight_upload_retries.py` runs the step's own text, under the shell the action names, against a fake `xcrun` that fails until a chosen try: it fails when a first-try success uploads again, a third-try success fails the step, or three failures pass it.
 
 ### Build numbers and build names, on both mobile jobs
 
