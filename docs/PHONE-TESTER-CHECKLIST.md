@@ -116,6 +116,11 @@ If your build predates a change, the pull request number is there so you can ski
 - **Joining on a second device.**
   With the phone in a voice channel, open a different voice channel on a computer signed in to the same account and choose "Join here".
   Expected: the phone leaves its call within a few seconds and says it is no longer in it.
+- **A phone that comes back does not take the call back.**
+  With the phone in a voice channel, turn on airplane mode, then join a different voice channel on a computer signed in to the same account and keep talking there.
+  After a minute, turn airplane mode off and leave the phone alone for another minute.
+  Expected: the computer stays in its call throughout, and the phone ends up out of its call, saying you are on a call on another device, with "Try again" to move the call back.
+  Not expected: the computer's call ending with "You're no longer in this call."
 - **Land back on the channel after hang-up (#1410).**
   Open a text channel, join a voice channel, then hang up.
   Expected: you land on the last text channel you were reading, not an empty screen or the voice channel.
