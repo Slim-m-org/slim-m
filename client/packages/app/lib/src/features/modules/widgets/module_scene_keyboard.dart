@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../voice/providers/push_to_talk_key.dart';
 import 'last_input_kind.dart';
 import 'module_scene.dart';
 import 'module_scene_painter.dart';
@@ -121,6 +122,10 @@ class _SceneKeyboardGridState extends State<SceneKeyboardGrid> {
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     // A key from a field inside the scene bubbles here; only the grid's own focus is ours.
     if (_grid == null || event is! KeyDownEvent || !node.hasPrimaryFocus) {
+      return KeyEventResult.ignored;
+    }
+    // Held to talk, so Space or an arrow bound to push-to-talk reveals and moves nothing.
+    if (event.logicalKey == PushToTalkKey.inWindow) {
       return KeyEventResult.ignored;
     }
     switch (event.logicalKey) {
