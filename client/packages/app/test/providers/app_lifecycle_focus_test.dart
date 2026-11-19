@@ -35,10 +35,27 @@ void main() {
 
   late StreamController<DesktopWindowEventKind> events;
   late AppLifecycleNotifier life;
+  late bool inTray;
+
+  /// What the port does: the flag is up before the event goes out.
+  void hideToTray() {
+    inTray = true;
+    events.add(DesktopWindowEventKind.hide);
+  }
+
+  void showFromTray() {
+    inTray = false;
+    events.add(DesktopWindowEventKind.show);
+  }
 
   setUp(() {
+    inTray = false;
     events = StreamController<DesktopWindowEventKind>.broadcast(sync: true);
-    life = AppLifecycleNotifier(mobile: false, windowEvents: events.stream);
+    life = AppLifecycleNotifier(
+      mobile: false,
+      windowEvents: events.stream,
+      inTray: () => inTray,
+    );
   });
 
   tearDown(() async {
@@ -101,7 +118,7 @@ void main() {
   group('a window the app put in the tray', () {
     test('stays hidden when the tray menu focuses it', () {
       _embedderSays(AppLifecycleState.hidden);
-      events.add(DesktopWindowEventKind.hide);
+      hideToTray();
       expect(life.state, AppLifecycleState.hidden);
 
       // Windows focuses the hidden window to open the tray menu, then blurs it.
@@ -113,21 +130,36 @@ void main() {
     });
 
     test('stays hidden through a maximise event', () {
-      events.add(DesktopWindowEventKind.hide);
+      hideToTray();
       events.add(DesktopWindowEventKind.maximize);
       expect(life.state, AppLifecycleState.hidden);
     });
 
     test('is hidden even if the embedder never says so', () {
-      events.add(DesktopWindowEventKind.hide);
+      hideToTray();
+      expect(life.state, AppLifecycleState.hidden);
+    });
+
+    test('is known to a notifier made after the hide', () {
+      _embedderSays(AppLifecycleState.hidden);
+      hideToTray();
+      final late = AppLifecycleNotifier(
+        mobile: false,
+        windowEvents: events.stream,
+        inTray: () => inTray,
+      );
+      addTearDown(late.dispose);
+
+      events.add(DesktopWindowEventKind.focus);
+      expect(late.state, AppLifecycleState.hidden);
       expect(life.state, AppLifecycleState.hidden);
     });
 
     test('comes back on show, and focus counts again', () {
       _embedderSays(AppLifecycleState.hidden);
-      events.add(DesktopWindowEventKind.hide);
+      hideToTray();
 
-      events.add(DesktopWindowEventKind.show);
+      showFromTray();
       expect(life.state, AppLifecycleState.inactive);
       events.add(DesktopWindowEventKind.focus);
       expect(life.state, AppLifecycleState.resumed);
@@ -135,8 +167,9 @@ void main() {
 
     test('comes back when the embedder reports it on screen', () {
       _embedderSays(AppLifecycleState.hidden);
-      events.add(DesktopWindowEventKind.hide);
+      hideToTray();
 
+      inTray = false;
       _embedderSays(AppLifecycleState.inactive);
       expect(life.state, AppLifecycleState.inactive);
     });
@@ -186,13 +219,17 @@ void main() {
       expect(seen, [AppLifecycleState.inactive, AppLifecycleState.resumed]);
     });
 
-    test('a blur the embedder missed reaches the binding too', () {
+    test('a blur the embedder missed changes the provider only', () {
       events.add(DesktopWindowEventKind.blur);
       expect(life.state, AppLifecycleState.inactive);
-      expect(
-        WidgetsBinding.instance.lifecycleState,
-        AppLifecycleState.inactive,
-      );
+      // A pop-out window taking focus must not park the whole app's focus.
+      expect(WidgetsBinding.instance.lifecycleState, AppLifecycleState.resumed);
+
+      events.add(DesktopWindowEventKind.minimize);
+      events.add(DesktopWindowEventKind.show);
+      expect(life.state, AppLifecycleState.inactive, reason: 'still blurred');
+      events.add(DesktopWindowEventKind.focus);
+      expect(life.state, AppLifecycleState.resumed);
     });
   });
 

@@ -21,6 +21,9 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   int nativeQueryCalls = 0;
 
   @override
+  bool hiddenByApp = false;
+
+  @override
   bool get windowQueryable => queryable;
   WindowRect bounds = const WindowRect(x: 10, y: 10, width: 1280, height: 720);
 
@@ -66,7 +69,11 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   }
 
   @override
-  Future<void> hide() async => hideCalls++;
+  Future<void> hide() async {
+    hideCalls++;
+    hiddenByApp = true;
+  }
+
   @override
   Future<void> minimize() async => minimizeCalls++;
   @override
@@ -115,7 +122,11 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   @override
   Future<void> setFullScreen(bool value) async => fullScreen = value;
   @override
-  Future<void> show() async => showCalls++;
+  Future<void> show() async {
+    showCalls++;
+    hiddenByApp = false;
+  }
+
   @override
   Future<void> focus() async => focusCalls++;
   @override

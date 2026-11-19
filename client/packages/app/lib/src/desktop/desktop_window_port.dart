@@ -66,6 +66,10 @@ abstract interface class DesktopWindowPort {
   /// The Linux plugin dereferences its GtkWindow unchecked, so a query then segfaults.
   bool get windowQueryable;
 
+  /// True from the app's own [hide] until the window is shown again, which is
+  /// how a window in the tray differs from one the embedder merely lost track of.
+  bool get hiddenByApp;
+
   /// Every event this port ever reports, in arrival order. A real window
   /// manager can fire [DesktopWindowEventKind.resize]/[DesktopWindowEventKind.move]
   /// continuously across one drag - see the decision record's own finding
@@ -137,6 +141,9 @@ class WindowManagerDesktopWindowPort
 
   @override
   bool get windowQueryable => _initialized && !_hidden && !_destroying;
+
+  @override
+  bool get hiddenByApp => _hidden;
 
   @override
   Stream<DesktopWindowEventKind> get events => _events.stream;

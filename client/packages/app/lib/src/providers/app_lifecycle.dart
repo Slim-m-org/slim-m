@@ -49,8 +49,10 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
   AppLifecycleNotifier({
     required bool mobile,
     required Stream<DesktopWindowEventKind> windowEvents,
+    bool Function()? inTray,
     Duration? frameStallCheck,
-  }) : _bindingState =
+  }) : _inTray = inTray ?? _never,
+       _bindingState =
            WidgetsBinding.instance.lifecycleState ??
            (mobile ? AppLifecycleState.hidden : AppLifecycleState.resumed),
        super(
@@ -65,31 +67,42 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
     }
   }
 
+  static bool _never() => false;
+
+  /// Asked of the window each time, never remembered: every account has a
+  /// notifier of its own, and one made after the hide would not have seen it.
+  final bool Function() _inTray;
   AppLifecycleState _bindingState;
   bool _windowMinimized = false;
-  bool _inTray = false;
+  bool _blurred = false;
   bool _framesStalled = false;
   int _undrawnChecks = 0;
   Timer? _stallCheck;
   StreamSubscription<DesktopWindowEventKind>? _windowEvents;
 
-  bool get _knownHidden => _windowMinimized || _inTray || _framesStalled;
+  bool get _knownHidden => _windowMinimized || _inTray() || _framesStalled;
 
   void _publish() {
     if (!mounted) return;
-    state = _knownHidden ? AppLifecycleState.hidden : _bindingState;
+    if (_knownHidden) {
+      state = AppLifecycleState.hidden;
+    } else if (_blurred && _bindingState == AppLifecycleState.resumed) {
+      state = AppLifecycleState.inactive;
+    } else {
+      state = _bindingState;
+    }
   }
 
-  /// The embedder moving from hidden to on screen also ends a minimise or a
-  /// stay in the tray: a window restored without focus reports only
-  /// `inactive`, and Windows sends no restore event for a maximised one.
+  /// The embedder moving from hidden to on screen also ends a minimise: a
+  /// window restored without focus reports only `inactive`, and Windows sends
+  /// no restore event for a maximised one.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final cameBack = !isWindowVisible(_bindingState) && isWindowVisible(state);
     _bindingState = state;
+    _blurred = false;
     if (state == AppLifecycleState.resumed || cameBack) {
       _windowMinimized = false;
-      _inTray = false;
     }
     _publish();
   }
@@ -100,24 +113,22 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
   void _onWindowEvent(DesktopWindowEventKind kind) {
     switch (kind) {
       case DesktopWindowEventKind.hide:
-        _inTray = true;
+        break;
       case DesktopWindowEventKind.minimize:
         _windowMinimized = true;
-      case DesktopWindowEventKind.show:
-        _inTray = false;
+      case DesktopWindowEventKind.show when !_inTray():
         _windowMinimized = false;
         _correctBinding(focused: false);
       case DesktopWindowEventKind.maximize || DesktopWindowEventKind.unmaximize
-          when _windowMinimized && !_inTray:
+          when _windowMinimized && !_inTray():
         _windowMinimized = false;
         _correctBinding(focused: false);
-      case DesktopWindowEventKind.focus when !_inTray:
+      case DesktopWindowEventKind.focus when !_inTray():
         _windowMinimized = false;
         _correctBinding(focused: true);
+      // Provider only: a pop-out window taking focus must not park the whole app's focus.
       case DesktopWindowEventKind.blur when !_knownHidden:
-        if (_bindingState == AppLifecycleState.resumed) {
-          _moveBinding(AppLifecycleState.inactive);
-        }
+        _blurred = true;
       default:
         return;
     }
@@ -128,7 +139,10 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
   /// provider alone is not enough: the scheduler draws no frame while the
   /// binding still says hidden, so nothing would repaint.
   void _correctBinding({required bool focused}) {
-    if (focused) return _moveBinding(AppLifecycleState.resumed);
+    if (focused) {
+      _blurred = false;
+      return _moveBinding(AppLifecycleState.resumed);
+    }
     if (!isWindowVisible(_bindingState)) {
       _moveBinding(AppLifecycleState.inactive);
     }
@@ -184,13 +198,15 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
 }
 
 final appLifecycleProvider =
-    StateNotifierProvider<AppLifecycleNotifier, AppLifecycleState>(
-      (ref) => AppLifecycleNotifier(
+    StateNotifierProvider<AppLifecycleNotifier, AppLifecycleState>((ref) {
+      final port = ref.read(desktopWindowShellProvider).port;
+      return AppLifecycleNotifier(
         mobile: ref.watch(mobileLifecycleHostProvider),
         frameStallCheck: ref.watch(frameStallCheckProvider),
-        windowEvents: ref.read(desktopWindowShellProvider).port.events,
-      ),
-    );
+        windowEvents: port.events,
+        inTray: () => port.hiddenByApp,
+      );
+    });
 
 /// Whether the window is focused and visible right now.
 ///
