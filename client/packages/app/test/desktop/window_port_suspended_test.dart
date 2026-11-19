@@ -3,6 +3,8 @@
 /// state, which the Linux runner forwards over its own channel.
 library;
 
+import 'dart:io' show Platform;
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart';
@@ -72,6 +74,25 @@ void main() {
 
     expect(port.suspendedByCompositor, isFalse);
   });
+
+  test(
+    'a Linux window starts listening to the runner when it initializes',
+    () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      const plugin = MethodChannel('window_manager');
+      messenger.setMockMethodCallHandler(plugin, (_) async => null);
+      addTearDown(() => messenger.setMockMethodCallHandler(plugin, null));
+      _runnerStartsWith(suspended: false);
+      final port = WindowManagerDesktopWindowPort();
+
+      await port.ensureInitialized();
+      await _runnerSays(true);
+
+      expect(port.suspendedByCompositor, isTrue);
+    },
+    skip: Platform.isLinux ? false : 'the runner channel exists only on Linux',
+  );
 
   test('a minimised window is never asked while it cannot answer', () {
     final port = WindowManagerDesktopWindowPort();

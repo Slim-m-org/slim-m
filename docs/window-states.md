@@ -33,7 +33,8 @@ That is why new code never reads the binding's raw state to decide "focused"; th
 **A focus event alone does not end a minimise.**
 On Windows `window_manager` reports `focus` whenever the window is activated, without checking that it is still minimised.
 So when the window was minimised, or Flutter's own state says hidden, the notifier asks the window (`DesktopWindowPort.isMinimized`) before it believes the focus.
-A window that says it is still minimised, or cannot answer, stays hidden.
+A window that says it is still minimised, or cannot answer yet (in the tray, not initialized), stays hidden.
+Any other failure of the query believes the focus, so a broken plugin call can only keep the window updating, never pause it.
 A window already on screen is not asked, so an ordinary click costs nothing.
 A focus that was not believed is remembered until the next blur or minimise, so if the restore event lands a moment later the window comes back focused.
 

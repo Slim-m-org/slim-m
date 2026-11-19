@@ -30,10 +30,14 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   bool minimized = false;
   int isMinimizedCalls = 0;
 
+  /// What the plugin throws instead of answering, as a broken channel would.
+  Object? minimizedQueryError;
+
   @override
   Future<bool> isMinimized() async {
     isMinimizedCalls++;
     if (!queryable) throw const WindowNotQueryable();
+    if (minimizedQueryError case final error?) throw error;
     return minimized;
   }
 

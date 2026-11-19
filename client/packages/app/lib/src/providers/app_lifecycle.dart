@@ -11,6 +11,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_platform/platform.dart';
 
 import '../desktop/desktop_window_port.dart';
@@ -138,17 +139,30 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
   /// A focus event alone does not end a minimise: the window is asked, and a
   /// blur in the meantime leaves it on screen but unfocused.
   Future<void> _focusIfRestored() async {
-    final bool minimized;
-    try {
-      minimized = await _stillMinimized!();
-    } on WindowNotQueryable {
-      return;
-    }
-    if (!mounted || minimized || _inTray()) return;
+    final minimized = await _askMinimized();
+    if (!mounted || minimized != false || _inTray()) return;
     _windowMinimized = false;
     _correctBinding(focused: _focusHeld);
     if (!_focusHeld) _blurred = true;
     _publish();
+  }
+
+  /// Null while the window cannot answer. Any other failure believes the
+  /// focus, so a broken query never leaves a focused window paused.
+  Future<bool?> _askMinimized() async {
+    try {
+      return await _stillMinimized!();
+    } on WindowNotQueryable {
+      return null;
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'Could not ask the window whether it is minimised; trusting the focus',
+        error,
+        stack,
+      );
+      return false;
+    }
   }
 
   /// Brings Flutter's own state up to what the window just proved. The
