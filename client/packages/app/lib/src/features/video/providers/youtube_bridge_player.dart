@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:clock/clock.dart';
+import 'package:flutter/foundation.dart' show protected;
 
 import 'embedded_video_player.dart';
 
@@ -25,9 +26,17 @@ abstract class YoutubeBridgePlayer implements EmbeddedVideoPlayer {
     try {
       await _pageLoaded.future.timeout(_pageLoadLimit);
     } on TimeoutException {
+      reportHostFailure();
       return;
     }
     if (!_disposed) await runScript(script);
+  }
+
+  /// The host or its page never came up, so the panel shows why instead of
+  /// an empty box.
+  @protected
+  void reportHostFailure() {
+    if (!_disposed) _events.add(const VideoFailed(-1));
   }
 
   /// Tears down whatever hosts the page.

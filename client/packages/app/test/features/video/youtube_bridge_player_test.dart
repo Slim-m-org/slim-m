@@ -47,6 +47,22 @@ void main() {
       messenger.setMockMethodCallHandler(channel, (_) async => true);
       expect(await NativeVideoHost().probe(), isTrue);
     });
+
+    test('a view that cannot be built reports a failed player', () async {
+      messenger.setMockMethodCallHandler(
+        channel,
+        (call) async => call.method == 'create' ? false : null,
+      );
+      final player = NativeDockedPlayer(NativeVideoHost());
+      final events = <VideoPlayerEvent>[];
+      player.events.listen(events.add);
+
+      await player.setBounds((x: 0, y: 0, width: 360, height: 202.5));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(events.single, isA<VideoFailed>());
+      expect((events.single as VideoFailed).code, -1);
+    });
   });
 
   test('commands wait for the page, then run in order', () async {
@@ -63,6 +79,21 @@ void main() {
       'window.slimm.load("dQw4w9WgXcQ", 90.0)',
       'window.slimm.play()',
     ]);
+  });
+
+  test('a page that never says it is up reports a failed player', () {
+    fakeAsync((async) {
+      final player = _ScriptPlayer();
+      final events = <VideoPlayerEvent>[];
+      player.events.listen(events.add);
+      unawaited(player.load('dQw4w9WgXcQ'));
+
+      async.elapse(const Duration(seconds: 29));
+      expect(events, isEmpty);
+      async.elapse(const Duration(seconds: 2));
+      expect(events.single, isA<VideoFailed>());
+      expect(player.scripts, isEmpty);
+    });
   });
 
   test('pause, seek and fullscreen exit become their page calls', () async {

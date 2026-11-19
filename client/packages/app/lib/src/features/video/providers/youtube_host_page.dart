@@ -80,7 +80,12 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000;
         start: Math.floor(start), origin: origin, widget_referrer: origin
       },
       events: {
-        onReady: function () { ready = true; send({ event: 'ready' }); player.playVideo(); },
+        onReady: function () {
+          ready = true;
+          send({ event: 'ready' });
+          if (pending) { var p = pending; pending = null; player.loadVideoById({ videoId: p[0], startSeconds: p[1] }); }
+          else player.playVideo();
+        },
         onStateChange: onState,
         onError: function (e) { send({ event: 'error', code: e.data }); }
       }
@@ -90,10 +95,12 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000;
   window.slimm = {
     load: function (id, start) {
       if (!window.YT || !window.YT.Player) { pending = [id, start]; return; }
-      if (player && ready) {
-        player.loadVideoById({ videoId: id, startSeconds: start });
-      } else if (!player) {
+      if (!player) {
         create(id, start);
+      } else if (ready) {
+        player.loadVideoById({ videoId: id, startSeconds: start });
+      } else {
+        pending = [id, start];
       }
     },
     play: function () { if (player && ready) player.playVideo(); },

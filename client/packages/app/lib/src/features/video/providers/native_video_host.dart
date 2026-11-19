@@ -94,7 +94,13 @@ class NativeDockedPlayer extends YoutubeBridgePlayer
   Future<bool>? _created;
 
   /// Creates the native view on first use; every command waits for it.
-  Future<bool> _ensureCreated() => _created ??= host.create(handleMessage);
+  Future<bool> _ensureCreated() => _created ??= _create();
+
+  Future<bool> _create() async {
+    final created = await host.create(handleMessage);
+    if (!created) reportHostFailure();
+    return created;
+  }
 
   @override
   Future<void> runScript(String script) async {
