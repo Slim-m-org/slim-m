@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# Points every Gradle build on the runner at Google's mirror of Maven Central
+# first, and lets Gradle retry a refused download for longer.
+#
+# Maven Central and the Gradle plugin portal answer GitHub's shared runner
+# addresses with 429 Too Many Requests often enough that android builds failed
+# three times in a day on dependency downloads, before any of our code built.
+# The setup-java Gradle cache cannot break that loop on its own: it is saved
+# only after a job succeeds. The failing resolution is in Flutter's own
+# included build (flutter_tools/gradle), whose repositories this repo cannot
+# edit, so the mirror goes in as an init script, which every build on the
+# runner applies, included builds too. The original repositories stay after
+# the mirror, so anything only they carry still resolves.
+
+name: gradle mirror
+description: Prefer Google's Maven Central mirror and retry refused downloads in every Gradle build on this runner.
+
+runs:
+  using: composite
+  steps:
+    - name: point gradle at the maven central mirror
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "$HOME/.gradle/init.d"
+        cp "$GITHUB_ACTION_PATH/maven-mirror.init.gradle.kts" "$HOME/.gradle/init.d/"
+        {
+          echo "systemProp.org.gradle.internal.repository.max.retries=8"
+          echo "systemProp.org.gradle.internal.repository.initial.backoff=2000"
+        } >> "$HOME/.gradle/gradle.properties"

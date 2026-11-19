@@ -31,6 +31,7 @@ on:
       - ".github/actions/linux-tarball/**"
       - ".github/actions/native-hooks-cache/**"
       - ".github/actions/native-hooks-diagnose/**"
+      - ".github/actions/gradle-mirror/**"
       - ".github/actions/release-ios-testflight/**"
       - ".github/actions/select-xcode/**"
       - "scripts/select-xcode.sh"
@@ -109,6 +110,7 @@ jobs:
               - '.github/actions/linux-tarball/**'
               - '.github/actions/native-hooks-cache/**'
               - '.github/actions/native-hooks-diagnose/**'
+              - '.github/actions/gradle-mirror/**'
               - '.github/actions/release-ios-testflight/**'
               - '.github/actions/select-xcode/**'
               - 'scripts/select-xcode.sh'
@@ -248,6 +250,9 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: gradle
+
+      - uses: ./.github/actions/gradle-mirror
+        if: steps.gate.outputs.ready == 'true'
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         if: steps.gate.outputs.ready == 'true'
