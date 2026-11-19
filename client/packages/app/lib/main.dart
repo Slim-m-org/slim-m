@@ -281,13 +281,10 @@ bool get _splashIsFrameless =>
 /// was, without any screen checking for itself. How it looks follows the
 /// stored appearance choice, which is restored before the first frame.
 class SlimMApp extends ConsumerStatefulWidget {
-  const SlimMApp({super.key, this.isDesktopOverride, this.isWebOverride});
+  const SlimMApp({super.key, this.isDesktopOverride});
 
   /// Lets a widget test take the phone branch; `flutter test` on Linux is a desktop host.
   final bool? isDesktopOverride;
-
-  /// Lets a widget test take the browser branch; only a browser's splash follows the theme.
-  final bool? isWebOverride;
 
   @override
   ConsumerState<SlimMApp> createState() => _SlimMAppState();
@@ -298,8 +295,6 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
   bool _coldLaunchCover = true;
 
   bool get _onDesktop => widget.isDesktopOverride ?? isDesktopHost;
-
-  bool get _onWeb => widget.isWebOverride ?? kIsWeb;
 
   void _spendCover() {
     _stall.cancel();
@@ -362,12 +357,15 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
           synced: ref.watch(initialSyncCompleteProvider),
           hasFailedSinceLive: ref.watch(hasFailedSinceLiveProvider),
         );
+    final theme = _theme();
     final splash = StartupApp(
       status: ref.watch(startupStatusProvider),
       prompt: ref.watch(startupPromptProvider),
       leaving: ref.watch(startupLeavingProvider),
       rounded: currentDesktopPlatform() == DesktopPlatform.linux,
-      themeMode: _onWeb ? _theme().mode : ThemeMode.dark,
+      themeMode: theme.mode,
+      lightTokens: theme.light,
+      darkTokens: theme.dark,
       windowPort: _splashIsFrameless
           ? ref.read(desktopWindowShellProvider).port
           : null,
@@ -382,22 +380,23 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
     );
   }
 
-  ResolvedTheme _theme() => resolveTheme(
-    ref.watch(themeControllerProvider),
-    custom: ref.watch(customThemeProvider),
-    spaceDefault: ref.watch(spaceDefaultThemeProvider),
-  );
+  ResolvedTheme _theme() {
+    final theme = resolveTheme(
+      ref.watch(themeControllerProvider),
+      custom: ref.watch(customThemeProvider),
+      spaceDefault: ref.watch(spaceDefaultThemeProvider),
+    );
+    if (!ref.watch(highContrastControllerProvider)) return theme;
+    return ResolvedTheme(
+      applyHighContrast(theme.light),
+      applyHighContrast(theme.dark),
+      theme.mode,
+    );
+  }
 
   Widget _app() {
-    final highContrast = ref.watch(highContrastControllerProvider);
     final theme = _theme();
     ref.watch(spaceThemeSyncProvider);
-    final lightTokens = highContrast
-        ? applyHighContrast(theme.light)
-        : theme.light;
-    final darkTokens = highContrast
-        ? applyHighContrast(theme.dark)
-        : theme.dark;
 
     // Watched rather than read: this is what mounts the tap listener, and a
     // notification tap has to reach the router from outside the widget tree.
@@ -406,8 +405,8 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
     return MaterialApp.router(
       title: 'slim-m',
       debugShowCheckedModeBanner: false,
-      theme: buildTheme(Brightness.light, lightTokens),
-      darkTheme: buildTheme(Brightness.dark, darkTokens),
+      theme: buildTheme(Brightness.light, theme.light),
+      darkTheme: buildTheme(Brightness.dark, theme.dark),
       // Without this line MaterialApp's own ThemeMode.system default applies,
       // and no choice the user makes can reach the theme; that is what shipped.
       themeMode: theme.mode,

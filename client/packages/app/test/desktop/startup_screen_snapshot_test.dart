@@ -43,11 +43,11 @@ void main() {
   for (final at in const [250, 550, 1100]) {
     testWidgets('startup screen at ${at}ms with real phases', (tester) async {
       await sized(tester);
-      await frame(tester, const StartupApp(status: 'Restoring session'));
+      await frame(tester, const _Dark(status: 'Restoring session'));
       await tester.pump(Duration(milliseconds: at ~/ 3));
-      await frame(tester, const StartupApp(status: 'Loading preferences'));
+      await frame(tester, const _Dark(status: 'Loading preferences'));
       await tester.pump(Duration(milliseconds: at ~/ 3));
-      await frame(tester, const StartupApp(status: 'Connecting'));
+      await frame(tester, const _Dark(status: 'Connecting'));
       await tester.pump(Duration(milliseconds: at - 2 * (at ~/ 3)));
 
       await writeSnapshot(tester, 'startup-screen-splash-${at}ms');
@@ -55,11 +55,25 @@ void main() {
     });
   }
 
+  testWidgets('startup screen settled under a light system theme', (
+    tester,
+  ) async {
+    await sized(tester);
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    await frame(tester, const StartupApp(status: 'Connecting'));
+    await tester.pump(const Duration(milliseconds: 1100));
+
+    await writeSnapshot(tester, 'startup-screen-splash-light');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('startup screen with an update prompt', (tester) async {
     await sized(tester);
     await frame(
       tester,
       StartupApp(
+        themeMode: ThemeMode.dark,
         prompt: StartupPrompt(
           title: 'Version 0.106.0 is available',
           detail:
@@ -76,4 +90,15 @@ void main() {
     await writeSnapshot(tester, 'startup-screen-splash-prompt');
     expect(tester.takeException(), isNull);
   });
+}
+
+/// The splash as a dark system theme shows it, which these frames have always been.
+class _Dark extends StatelessWidget {
+  const _Dark({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) =>
+      StartupApp(status: status, themeMode: ThemeMode.dark);
 }
