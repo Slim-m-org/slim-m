@@ -76,6 +76,24 @@ Future<void> advanceCursorHelper(
       .write(ChannelsCompanion(cursor: Value(newest)));
 }
 
+/// Raises a channel's cursor to [seq] without a row at it; see [MessageStore.coverCursor].
+///
+/// The standing seq is pinned first where it was still read off the cursor,
+/// so covering deleted messages does not light the channel as unread.
+Future<void> coverCursorHelper(
+    MessageStore store, String channelId, int seq) async {
+  final db = store.db;
+  await db.transaction(() async {
+    final row = await channelRow(store, channelId);
+    if (row == null || row.cursor >= seq) return;
+    await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
+        .write(ChannelsCompanion(
+      cursor: Value(seq),
+      liveSeq: Value(row.liveSeq ?? row.cursor),
+    ));
+  });
+}
+
 /// Drops one message row, walking the channel's standing seq and mention cursor back to the newest row left of each.
 /// A delivered or unheld message is remembered as deleted, so a late copy of it is not stored again.
 Future<void> discardRowHelper(MessageStore store, String id) async {

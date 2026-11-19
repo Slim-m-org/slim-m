@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart' show CursorAdvance, MessageStore;
 
+import '../support/sync_model_server.dart';
 import '../support/sync_model_world.dart';
 
 Future<SyncModelWorld> _world() async {
@@ -100,6 +101,46 @@ void main() {
       expect(await world.disagreement(), isNull);
     });
   });
+
+  group(
+    'a created frame for a message deleted before a reset read its page',
+    () {
+      Future<SyncModelWorld> afterReset({required bool reportsHead}) async {
+        final world = SyncModelWorld(
+          server: SyncModelServer(reportsHead: reportsHead),
+        );
+        await world.open();
+        addTearDown(world.close);
+        final server = world.server;
+        world.wire.add(server.send('kept'));
+        await world.deliver();
+        final late = server.send('gone');
+        server.delete(server.messages.last);
+        await world.controller.reconcile();
+        world.wire.add(late);
+        return world;
+      }
+
+      test('is dropped: the cursor covers the deleted tail', () async {
+        final world = await afterReset(reportsHead: true);
+        expect(await world.store.cursorFor('c1'), 2);
+
+        await world.deliver();
+
+        expect(await world.contentOf('m2'), isNull);
+        expect(await world.disagreement(), isNull);
+      });
+
+      test('still lands against a server that reports no head', () async {
+        final world = await afterReset(reportsHead: false);
+        expect(await world.store.cursorFor('c1'), 1);
+
+        await world.deliver();
+
+        expect(await world.contentOf('m2'), 'gone');
+      });
+    },
+  );
 
   group('a live op for a channel with no op cursor', () {
     test('does not start the cursor past ops nobody applied', () async {

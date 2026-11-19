@@ -498,6 +498,11 @@ class MessageStore {
   ) =>
       cursors_impl.advanceCursorHelper(this, channelId, seqs, advance);
 
+  /// Raises a channel's cursor to [seq], the server's head once a catch-up
+  /// page is complete: every seq through it is delivered or deleted.
+  Future<void> coverCursor(String channelId, int seq) =>
+      cursors_impl.coverCursorHelper(this, channelId, seq);
+
   /// [advanceCursor]'s own shape for `mentionedSeq`, only ever called for a
   /// message whose `mentionsMe` is true.
   Future<void> advanceMentionCursor(String channelId, int seq) =>

@@ -47,6 +47,7 @@ class SyncModelServer {
     this.opsPerScopeLimit = 100,
     this.opSnapshotGap = 2000,
     this.newestPage = 50,
+    this.reportsHead = true,
   });
 
   final String channelId;
@@ -55,6 +56,9 @@ class SyncModelServer {
   final int opsPerScopeLimit;
   final int opSnapshotGap;
   final int newestPage;
+
+  /// False for a server that predates `latest_seq`.
+  final bool reportsHead;
 
   final messages = <ModelMessage>[];
   final _ops = <_ModelOp>[];
@@ -137,6 +141,7 @@ class SyncModelServer {
       'op_latest_seq': opHead,
       'ops_has_more': ops.hasMore,
       'mentioned_seq': ?(reset ? 0 : null),
+      'latest_seq': ?(reportsHead ? head : null),
     };
   }
 

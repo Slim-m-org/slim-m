@@ -162,6 +162,10 @@ class SyncCatchUp {
     if (delta.mentionedSeq case final seq?) {
       await store.healMentionCursor(delta.channelId, seq);
     }
+    // A deleted tail leaves the page short of the head, which a late frame for one of them would slip past.
+    if (delta.latestSeq case final head? when !delta.hasMore) {
+      await store.coverCursor(delta.channelId, head);
+    }
     return delta.hasMore || delta.opsHasMore;
   }
 
@@ -228,6 +232,9 @@ class SyncCatchUp {
     if (!_isCurrent(generation)) return;
     await store.applyMessages(fresh, advance: CursorAdvance.always);
     _ref.read(messageExtrasProvider.notifier).applyMessages(fresh);
+    if (delta.latestSeq case final head?) {
+      await store.coverCursor(channelId, head);
+    }
     // The page holds only the newest messages; an older mention survives by the marker or the kept cursor.
     if (mentioned > 0) await store.advanceMentionCursor(channelId, mentioned);
   }
