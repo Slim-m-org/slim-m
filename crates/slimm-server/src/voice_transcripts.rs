@@ -8,7 +8,9 @@
 //! old for the route, or refusing the secret) pauses the sweep with the same
 //! growing backoff attachment text uses, and costs no clip an attempt. A clip
 //! the listener takes and keeps failing is marked failed and tried once a day
-//! after; a clip it refuses stays failed. Encrypted messages are never offered.
+//! after; its failures are counted in the database, so neither a restart nor a
+//! listener outage starts them over. A clip it refuses stays failed. Encrypted
+//! messages are never offered.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -260,11 +262,8 @@ impl VoiceTranscriber {
             Err(Failure::Permanent) => TranscriptOutcome::Refused,
             Err(_) => {
                 self.retries.failed(&candidate.sha256);
-                if !candidate.given_up && self.retries.attempts(&candidate.sha256) < MAX_ATTEMPTS {
+                if !candidate.given_up && !out_of_tries(store, hub, candidate, marked).await {
                     return Step::Later;
-                }
-                if !candidate.given_up {
-                    tracing::warn!(attachment = %candidate.hex, "gave up transcribing a voice message after {MAX_ATTEMPTS} tries");
                 }
                 TranscriptOutcome::GaveUp {
                     retry_at: crate::store::now_ms() + GIVEN_UP_RETRY.as_millis() as i64,
@@ -301,6 +300,34 @@ enum Step {
 impl Default for VoiceTranscriber {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Counts a failure by a listener that took the clip; true once the clip has had all its tries.
+async fn out_of_tries(store: &Store, hub: &Hub, candidate: &VoiceCandidate, marked: bool) -> bool {
+    // A probe leaves no mark, so readers would not see the clip waiting for its retry.
+    if !marked {
+        match store.begin_voice_transcript(&candidate.sha256).await {
+            Ok(true) => announce(store, hub, candidate, "pending", "").await,
+            Ok(false) => {}
+            Err(err) => {
+                tracing::warn!(error = %err, attachment = %candidate.hex, "could not mark a voice message pending");
+            }
+        }
+    }
+    match store
+        .count_voice_transcript_failure(&candidate.sha256)
+        .await
+    {
+        Ok(Some(failures)) if failures >= MAX_ATTEMPTS => {
+            tracing::warn!(attachment = %candidate.hex, "gave up transcribing a voice message after {MAX_ATTEMPTS} tries");
+            true
+        }
+        Ok(_) => false,
+        Err(err) => {
+            tracing::warn!(error = %err, attachment = %candidate.hex, "could not count a failed voice transcript");
+            false
+        }
     }
 }
 

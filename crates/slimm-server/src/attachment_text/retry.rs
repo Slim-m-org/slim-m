@@ -57,11 +57,6 @@ impl Retries {
         seen.insert(sha256.to_vec(), (attempts, Instant::now() + wait));
     }
 
-    /// How many times `sha256` has failed since it last settled.
-    pub fn attempts(&self, sha256: &[u8]) -> u32 {
-        self.seen().get(sha256).map_or(0, |(n, _)| *n)
-    }
-
     pub fn settled(&self, sha256: &[u8]) {
         self.seen().remove(sha256);
     }
