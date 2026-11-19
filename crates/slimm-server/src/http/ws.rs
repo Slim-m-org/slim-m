@@ -53,6 +53,7 @@ mod authorization_bits;
 mod canvas_frames;
 mod canvas_gate;
 mod canvas_watch;
+mod channel_frames;
 mod channel_scope;
 mod client_frames;
 mod deployment_frames;

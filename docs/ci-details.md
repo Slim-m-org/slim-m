@@ -386,9 +386,9 @@ The schema is the wire contract, already guarded by the router contract test and
 Markdown is excluded too, deliberately: the budget is a code-review budget, and prose is not reviewed by the line.
 Including it would put this file, `CLAUDE.md` and most of `docs/` over the hard limit on day one, which would make the gate noise rather than a gate.
 
-The 14 files already past 500 are listed in `scripts/file-budget-allow.txt` with the line count they were listed at and a one-line reason.
+The files already past 500 are listed in `scripts/file-budget-allow.txt` with the line count they were listed at and a one-line reason.
 That number is the point.
-The three exhaustive-match files (`hub/event.rs`, `ws/authorization.rs`, `hub.rs`) keep their ceiling in steps of 50 so two PRs that each add one variant do not both rewrite the same number.
+The exhaustive-match file `ws/frames.rs` keeps its ceiling in steps of 50 so two PRs that each add one variant do not both rewrite the same number.
 The gate treats it as that file's own ceiling, so a listed file may shrink and may not grow, and raising a number is a visible line in a diff somebody has to justify.
 An entry whose file has dropped back under 500, or which no longer names a checked file, is an error rather than a silent no-op, so the list cannot rot the way a plain exemption list would.
 
