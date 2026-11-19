@@ -28,6 +28,23 @@ void main() {
     expect(participant.hasVideo, isFalse);
   });
 
+  test('is_muted and is_deafened decode, and default to false', () {
+    final participant = VoiceRosterParticipant.fromJson({
+      'user_id': 'u1',
+      'display_name': 'Alice',
+      'is_muted': true,
+      'is_deafened': true,
+    });
+    expect(participant.isMuted, isTrue);
+    expect(participant.isDeafened, isTrue);
+    final older = VoiceRosterParticipant.fromJson({
+      'user_id': 'u1',
+      'display_name': 'Alice',
+    });
+    expect(older.isMuted, isFalse);
+    expect(older.isDeafened, isFalse);
+  });
+
   test('call_age_ms decodes to a Duration, and absence is null', () {
     final withAge = VoiceRoster.fromJson({
       'participants': <dynamic>[],

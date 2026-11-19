@@ -43,6 +43,15 @@ extension SlimmApiVoice on SlimmApi {
         expectNoContent: true,
       );
 
+  /// Tells everyone watching [channelId] that this client muted or unmuted,
+  /// so a roster outside the call shows it; the SFU carries the mute itself.
+  Future<void> setVoiceMuted(String channelId, {required bool muted}) => send(
+        'PUT',
+        '/channels/$channelId/voice/muted',
+        body: {'muted': muted},
+        expectNoContent: true,
+      );
+
   /// Moves a participant from [channelId]'s call to [toChannelId]'s.
   ///
   /// Needs MOVE_MEMBERS in both channels. The server tells the moved account

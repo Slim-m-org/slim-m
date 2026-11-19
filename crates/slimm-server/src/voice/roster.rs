@@ -43,6 +43,10 @@ pub struct RoomParticipant {
     pub device_id: Option<String>,
     /// Whether the SFU reports this connection `ACTIVE`: signalling and media both up.
     pub is_active: bool,
+    /// No unmuted audio track, the rule a joined client applies to the same participant.
+    pub is_muted: bool,
+    /// Whether the server published this participant's deafened attribute.
+    pub is_deafened: bool,
 }
 
 /// How long a roster read is reused. Webhook events drop it sooner, so this only bounds a missed webhook.
@@ -135,6 +139,8 @@ struct TrackInfo {
     source: String,
     #[serde(rename = "type", default)]
     track_type: String,
+    #[serde(default)]
+    muted: bool,
 }
 
 /// LiveKit's `ParticipantInfo.State.ACTIVE`, by name or by number.
@@ -144,6 +150,13 @@ fn is_active_state(state: &serde_json::Value) -> bool {
         serde_json::Value::Number(n) => n.as_u64() == Some(2),
         _ => false,
     }
+}
+
+fn has_no_live_audio(tracks: &[TrackInfo]) -> bool {
+    tracks
+        .iter()
+        .filter(|t| t.track_type == "AUDIO")
+        .all(|t| t.muted)
 }
 
 impl VoiceService {
@@ -222,6 +235,12 @@ impl VoiceService {
                     joined_at_ms: joined_at_from(p.joined_at_ms, p.joined_at),
                     device_id: p.attributes.get(super::DEVICE_ATTRIBUTE).cloned(),
                     is_active: is_active_state(&p.state),
+                    is_muted: has_no_live_audio(&p.tracks),
+                    is_deafened: p
+                        .attributes
+                        .get(super::DEAFENED_ATTRIBUTE)
+                        .map(String::as_str)
+                        == Some(super::DEAFENED_ATTRIBUTE_ON),
                 })
             })
             .collect())

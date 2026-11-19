@@ -51,6 +51,11 @@ impl RecordingRoomService {
             .collect();
     }
 
+    /// Answers `ListParticipants` with exactly these participant entries, tracks and attributes included.
+    pub fn seat_listing(&self, participants: Vec<Value>) {
+        *self.roster.lock().unwrap() = participants;
+    }
+
     /// Makes every later `ListParticipants` answer only after `delay`, as a slow SFU would.
     pub fn delay_listing(&self, delay: Duration) {
         *self.listing_delay.lock().unwrap() = delay;

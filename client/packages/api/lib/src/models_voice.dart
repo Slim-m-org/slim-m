@@ -56,6 +56,8 @@ class VoiceRosterParticipant {
     required this.displayName,
     this.isSharingScreen = false,
     this.hasVideo = false,
+    this.isMuted = false,
+    this.isDeafened = false,
     this.thisDevice = false,
   });
 
@@ -63,6 +65,11 @@ class VoiceRosterParticipant {
   final String displayName;
   final bool isSharingScreen;
   final bool hasVideo;
+
+  /// No unmuted audio track at the SFU; false from a server that predates the field.
+  final bool isMuted;
+
+  final bool isDeafened;
 
   /// The caller's own connection from this device, which a reload or crash can leave behind; never another device's call.
   final bool thisDevice;
@@ -73,6 +80,8 @@ class VoiceRosterParticipant {
         displayName: capCombiningMarks(json['display_name'] as String),
         isSharingScreen: json['is_sharing_screen'] as bool? ?? false,
         hasVideo: json['has_video'] as bool? ?? false,
+        isMuted: json['is_muted'] as bool? ?? false,
+        isDeafened: json['is_deafened'] as bool? ?? false,
         thisDevice: json['this_device'] as bool? ?? false,
       );
 }

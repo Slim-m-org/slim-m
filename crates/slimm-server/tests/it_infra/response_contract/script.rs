@@ -44,6 +44,7 @@ mod steam_link;
 mod threads;
 mod totp_calls;
 mod upload_sessions;
+mod voice_session_calls;
 mod webhooks;
 
 use content::{channel_calls, message_calls};
@@ -68,6 +69,7 @@ use space_themes::space_theme_calls;
 use steam_link::steam_link_calls;
 use threads::thread_calls;
 use upload_sessions::upload_session_calls;
+use voice_session_calls::voice_session_calls;
 
 const PASSWORD: &str = "a-long-enough-password";
 /// A 16x16 PNG's signature and header chunks, which is all the server reads of an upload.
@@ -469,27 +471,7 @@ pub async fn run(c: &mut Contract) {
         root,
     )
     .await;
-    c.bare(
-        "mintVoiceToken",
-        "POST",
-        &format!("/channels/{}/voice/token", call_audio_channel.id),
-        root,
-    )
-    .await;
-    c.bare(
-        "sendVoiceHeartbeat",
-        "POST",
-        &format!("/channels/{}/voice/heartbeat", call_audio_channel.id),
-        root,
-    )
-    .await;
-    c.bare(
-        "forgetVoiceHeartbeat",
-        "DELETE",
-        &format!("/channels/{}/voice/heartbeat", call_audio_channel.id),
-        root,
-    )
-    .await;
+    voice_session_calls(c, root, call_audio_channel.id).await;
 
     push_calls(c, root, &channel, &bob_id).await;
     invite_calls(c, root, bob_token).await;

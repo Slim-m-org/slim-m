@@ -134,6 +134,45 @@ void main() {
     },
   );
 
+  testWidgets('an unjoined channel shows who is muted and who is deafened', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        httpClient: MockClient((request) async {
+          if (request.url.path == _rosterPath) {
+            return http.Response(
+              jsonEncode({
+                'participants': [
+                  {
+                    'user_id': 'u-alice',
+                    'display_name': 'Alice',
+                    'is_muted': true,
+                  },
+                  {
+                    'user_id': 'u-bob',
+                    'display_name': 'Bob',
+                    'is_muted': true,
+                    'is_deafened': true,
+                  },
+                  {'user_id': 'u-carol', 'display_name': 'Carol'},
+                ],
+              }),
+              200,
+            );
+          }
+          return http.Response('', 404);
+        }),
+        voice: const VoiceState(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byIcon(AppIcons.micOff), findsNWidgets(2));
+    expect(find.byIcon(AppIcons.headphonesOff), findsOneWidget);
+  });
+
   testWidgets(
     'a fresh relaunch does not render this device as already in the call '
     'it was just killed out of',

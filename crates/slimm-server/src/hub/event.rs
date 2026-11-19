@@ -197,7 +197,8 @@ pub enum Event {
     /// Someone's presence on a channel's voice call changed: a first
     /// heartbeat for a `(user, channel)` pair (a join), a clean hangup's
     /// forgotten heartbeat, or the stale-heartbeat sweep evicting someone.
-    /// Carries only the channel id, never who.
+    /// Also published when someone on the call mutes or deafens, which the
+    /// roster shows. Carries only the channel id, never who.
     ///
     /// This is a deliberate departure from [`MessageEvent::ThreadUpdated`], which
     /// carries its whole current answer: a thread's reply count is the same

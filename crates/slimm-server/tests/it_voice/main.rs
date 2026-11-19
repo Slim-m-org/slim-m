@@ -40,6 +40,7 @@ mod voice_join_announce;
 mod voice_kick_escalation;
 mod voice_kick_ladder;
 mod voice_move;
+mod voice_mute_state;
 mod voice_notify;
 mod voice_notify_prefs;
 mod voice_rooms;

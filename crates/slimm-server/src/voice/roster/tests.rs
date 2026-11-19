@@ -118,6 +118,8 @@ async fn participants_are_mapped_back_to_the_user_id_that_joined() {
             joined_at_ms: None,
             device_id: None,
             is_active: false,
+            is_muted: true,
+            is_deafened: false,
         }]
     );
 }
@@ -181,6 +183,9 @@ async fn a_screen_share_track_sets_is_sharing_screen_and_has_video() {
             joined_at_ms: None,
             device_id: None,
             is_active: false,
+            // An unmuted screen-share audio track counts, as it does for a client in the call.
+            is_muted: false,
+            is_deafened: false,
         }]
     );
 }
@@ -294,4 +299,40 @@ async fn an_active_state_is_read_by_name_or_number() {
         .expect("the mock room service answered");
     let active: Vec<bool> = participants.iter().map(|p| p.is_active).collect();
     assert_eq!(active, [true, true, false]);
+}
+
+#[tokio::test]
+async fn muted_means_no_unmuted_audio_track_and_deafened_reads_the_attribute() {
+    let (talking, muted, silent) = (UserId::generate(), UserId::generate(), UserId::generate());
+    let url = spawn_room_service(
+        axum::http::StatusCode::OK,
+        json!({
+            "participants": [
+                {
+                    "identity": talking.to_string(),
+                    "tracks": [{ "type": "AUDIO", "source": "MICROPHONE", "muted": false }],
+                },
+                {
+                    "identity": muted.to_string(),
+                    "tracks": [
+                        { "type": "AUDIO", "source": "MICROPHONE", "muted": true },
+                        { "type": "VIDEO", "source": "CAMERA" },
+                    ],
+                    "attributes": { (super::super::DEAFENED_ATTRIBUTE): "true" },
+                },
+                { "identity": silent.to_string(), "tracks": [{ "type": "VIDEO", "source": "CAMERA" }] },
+            ]
+        }),
+    )
+    .await;
+
+    let participants = service_at(&url)
+        .list_participants(ChannelId::generate())
+        .await
+        .expect("the mock room service answered");
+    let flags: Vec<(bool, bool)> = participants
+        .iter()
+        .map(|p| (p.is_muted, p.is_deafened))
+        .collect();
+    assert_eq!(flags, [(false, false), (true, true), (true, false)]);
 }
