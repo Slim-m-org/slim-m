@@ -6,10 +6,29 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart';
 import 'package:slimm_app/src/providers/app_lifecycle.dart';
+
+/// Moves Flutter's own state one step at a time, as the embedder does.
+void _embedderSays(AppLifecycleState target) {
+  const order = [
+    AppLifecycleState.resumed,
+    AppLifecycleState.inactive,
+    AppLifecycleState.hidden,
+  ];
+  final binding = WidgetsBinding.instance;
+  var at = order.indexOf(binding.lifecycleState ?? AppLifecycleState.resumed);
+  if (binding.lifecycleState == null) {
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+  }
+  while (at != order.indexOf(target)) {
+    at += at < order.indexOf(target) ? 1 : -1;
+    binding.handleAppLifecycleStateChanged(order[at]);
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +44,7 @@ void main() {
   tearDown(() async {
     life.dispose();
     await events.close();
+    _embedderSays(AppLifecycleState.resumed);
   });
 
   test('focus lifts a stale hidden state', () {
@@ -76,5 +96,155 @@ void main() {
 
     events.add(DesktopWindowEventKind.focus);
     expect(life.state, AppLifecycleState.resumed);
+  });
+
+  group('a window the app put in the tray', () {
+    test('stays hidden when the tray menu focuses it', () {
+      _embedderSays(AppLifecycleState.hidden);
+      events.add(DesktopWindowEventKind.hide);
+      expect(life.state, AppLifecycleState.hidden);
+
+      // Windows focuses the hidden window to open the tray menu, then blurs it.
+      events.add(DesktopWindowEventKind.focus);
+      expect(life.state, AppLifecycleState.hidden);
+      expect(WidgetsBinding.instance.lifecycleState, AppLifecycleState.hidden);
+      events.add(DesktopWindowEventKind.blur);
+      expect(life.state, AppLifecycleState.hidden);
+    });
+
+    test('stays hidden through a maximise event', () {
+      events.add(DesktopWindowEventKind.hide);
+      events.add(DesktopWindowEventKind.maximize);
+      expect(life.state, AppLifecycleState.hidden);
+    });
+
+    test('is hidden even if the embedder never says so', () {
+      events.add(DesktopWindowEventKind.hide);
+      expect(life.state, AppLifecycleState.hidden);
+    });
+
+    test('comes back on show, and focus counts again', () {
+      _embedderSays(AppLifecycleState.hidden);
+      events.add(DesktopWindowEventKind.hide);
+
+      events.add(DesktopWindowEventKind.show);
+      expect(life.state, AppLifecycleState.inactive);
+      events.add(DesktopWindowEventKind.focus);
+      expect(life.state, AppLifecycleState.resumed);
+    });
+
+    test('comes back when the embedder reports it on screen', () {
+      _embedderSays(AppLifecycleState.hidden);
+      events.add(DesktopWindowEventKind.hide);
+
+      _embedderSays(AppLifecycleState.inactive);
+      expect(life.state, AppLifecycleState.inactive);
+    });
+  });
+
+  group('a stale embedder is corrected, not only the provider', () {
+    testWidgets('focus turns frames back on', (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      _embedderSays(AppLifecycleState.hidden);
+      expect(SchedulerBinding.instance.framesEnabled, isFalse);
+
+      events.add(DesktopWindowEventKind.focus);
+      expect(life.state, AppLifecycleState.resumed);
+      expect(WidgetsBinding.instance.lifecycleState, AppLifecycleState.resumed);
+      expect(SchedulerBinding.instance.framesEnabled, isTrue);
+    });
+
+    testWidgets('a window shown without focus draws again', (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      _embedderSays(AppLifecycleState.hidden);
+
+      events.add(DesktopWindowEventKind.show);
+      expect(life.state, AppLifecycleState.inactive);
+      expect(SchedulerBinding.instance.framesEnabled, isTrue);
+    });
+
+    testWidgets('a maximised window un-minimised without focus draws again', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const SizedBox());
+      events.add(DesktopWindowEventKind.minimize);
+      _embedderSays(AppLifecycleState.hidden);
+
+      events.add(DesktopWindowEventKind.maximize);
+      expect(life.state, AppLifecycleState.inactive);
+      expect(SchedulerBinding.instance.framesEnabled, isTrue);
+    });
+
+    test('the binding is walked one step at a time', () {
+      final seen = <AppLifecycleState>[];
+      final listener = AppLifecycleListener(onStateChange: seen.add);
+      addTearDown(listener.dispose);
+      _embedderSays(AppLifecycleState.hidden);
+      seen.clear();
+
+      events.add(DesktopWindowEventKind.focus);
+      expect(seen, [AppLifecycleState.inactive, AppLifecycleState.resumed]);
+    });
+
+    test('a blur the embedder missed reaches the binding too', () {
+      events.add(DesktopWindowEventKind.blur);
+      expect(life.state, AppLifecycleState.inactive);
+      expect(
+        WidgetsBinding.instance.lifecycleState,
+        AppLifecycleState.inactive,
+      );
+    });
+  });
+
+  group('a frame asked for and never drawn', () {
+    AppLifecycleNotifier watch() {
+      return AppLifecycleNotifier(
+        mobile: false,
+        windowEvents: events.stream,
+        frameStallCheck: const Duration(seconds: 1),
+      );
+    }
+
+    testWidgets('reads as hidden until a frame is drawn again', (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      _embedderSays(AppLifecycleState.inactive);
+      final watched = watch();
+      await tester.pump();
+      tester.binding.scheduleFrame();
+      await tester.binding.delayed(const Duration(seconds: 2));
+      expect(watched.state, AppLifecycleState.inactive);
+
+      await tester.binding.delayed(const Duration(seconds: 1));
+      expect(watched.state, AppLifecycleState.hidden);
+
+      await tester.pump();
+      await tester.binding.delayed(Duration.zero);
+      expect(watched.state, AppLifecycleState.inactive);
+      watched.dispose();
+    });
+
+    testWidgets('an idle window with nothing to draw stays on screen', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const SizedBox());
+      final watched = watch();
+      expect(tester.binding.hasScheduledFrame, isFalse);
+      await tester.binding.delayed(const Duration(seconds: 10));
+      expect(watched.state, AppLifecycleState.resumed);
+      watched.dispose();
+    });
+
+    testWidgets('frames that keep arriving never count as a stall', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const SizedBox());
+      final watched = watch();
+      for (var i = 0; i < 6; i++) {
+        tester.binding.scheduleFrame();
+        await tester.pump(const Duration(milliseconds: 900));
+      }
+      expect(watched.state, AppLifecycleState.resumed);
+      watched.dispose();
+    });
   });
 }

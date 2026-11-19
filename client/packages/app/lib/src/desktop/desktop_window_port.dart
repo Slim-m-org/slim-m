@@ -25,6 +25,9 @@ enum DesktopWindowEventKind {
   maximize,
   unmaximize,
   minimize,
+
+  /// The app took its own window off screen, into the tray.
+  hide,
   fullScreen,
   leaveFullScreen,
   show,
@@ -263,7 +266,7 @@ class WindowManagerDesktopWindowPort
   @override
   Future<void> hide() {
     _hidden = true;
-    _events.add(DesktopWindowEventKind.minimize);
+    _events.add(DesktopWindowEventKind.hide);
     return wm.windowManager.hide();
   }
 
