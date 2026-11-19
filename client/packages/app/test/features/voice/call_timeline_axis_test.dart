@@ -77,20 +77,20 @@ void main() {
     testWidgets('a call from 10 to 12 o\'clock keeps its times on the axis '
         '(compact: $compact, text x$textScale)', (tester) async {
       final start = DateTime(2026, 11, 19, 10, 15).millisecondsSinceEpoch;
+      final width = compact ? kThreadPaneWidth : 640.0;
       await _pump(
         tester,
         _call(start, start + 115 * _min),
         compact: compact,
-        width: compact ? kThreadPaneWidth : 640,
+        width: width,
         textScale: textScale,
       );
       expect(tester.takeException(), isNull, reason: 'no overflow');
       expect(_times, findsAtLeastNWidgets(2), reason: 'start and end');
-      final view = tester.getRect(find.byType(CallTimelineView));
       for (final time in tester.widgetList<Text>(_times)) {
         final rect = tester.getRect(find.byWidget(time));
-        expect(rect.left, greaterThanOrEqualTo(view.left - 0.5));
-        expect(rect.right, lessThanOrEqualTo(view.right + 0.5));
+        expect(rect.left, greaterThanOrEqualTo(AppSpacing.s16 - 0.5));
+        expect(rect.right, lessThanOrEqualTo(width - AppSpacing.s16 + 0.5));
       }
     });
   }
