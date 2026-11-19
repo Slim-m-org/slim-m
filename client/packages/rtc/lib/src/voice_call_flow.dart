@@ -12,6 +12,7 @@ import 'package:slimm_api/api.dart'
 import 'audio_event_scope.dart';
 import 'audio_gain.dart' as rtc_gain;
 import 'join_timings.dart';
+import 'video_orphans.dart';
 import 'voice_disconnect_reason.dart';
 import 'voice_first_audio.dart';
 import 'voice_models.dart';
@@ -337,9 +338,10 @@ class VoiceCallFlow {
 
   /// A restart whose republish failed leaves camera and screen capturing unpublished; see [VideoOrphans].
   Future<void> _stopOrphanedVideo(lk.Room live) async {
+    final local = live.localParticipant;
+    if (local == null) return;
     try {
-      final stopped =
-          await _core.videoOrphans.stopUnpublished(live.localParticipant);
+      final stopped = await _core.videoOrphans.stopUnpublished(local);
       if (stopped.isEmpty || !identical(room, live)) return;
       if (stopped.contains(lk.TrackSource.screenShareVideo)) {
         await _core.share.control.stopActiveBroadcast();
@@ -403,6 +405,7 @@ class VoiceCallFlow {
     // Synchronously, and before anything else; see this method's own doc.
     final leaving = room;
     room = null;
+    final videos = _core.videoOrphans.takeAll();
     _core.healthWatch.health.reconnect.ended('left the call');
     _core.camera.cancelJoin();
     _core.stall.stop();
@@ -428,7 +431,7 @@ class VoiceCallFlow {
     }
     // The disconnect stops only published tracks.
     await _step(_core.mic.stopUnpublished);
-    await _step(() => _core.videoOrphans.stopUnpublished(null));
+    await _step(() => stopCapturing(videos));
   }
 
   void _setState(VoiceSessionState next) {

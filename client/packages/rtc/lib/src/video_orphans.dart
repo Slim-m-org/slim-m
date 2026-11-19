@@ -29,29 +29,38 @@ class VideoOrphans {
     }
   }
 
-  /// Stops each remembered track [local] no longer publishes, all of them for
-  /// a room already gone; returns the sources of those that were capturing.
-  Future<Set<lk.TrackSource>> stopUnpublished(
-      lk.LocalParticipant? local) async {
+  /// Stops each remembered track [local] no longer publishes; returns the
+  /// sources of those that were capturing.
+  Future<Set<lk.TrackSource>> stopUnpublished(lk.LocalParticipant local) {
     final live = <lk.Track?>{
-      for (final p in local?.videoTrackPublications ??
-          const <lk.LocalTrackPublication>[])
-        p.track,
-      for (final p in local?.audioTrackPublications ??
-          const <lk.LocalTrackPublication>[])
-        p.track,
+      for (final p in local.videoTrackPublications) p.track,
+      for (final p in local.audioTrackPublications) p.track,
     };
-    final stopped = <lk.TrackSource>{};
-    for (final track in _published.where((t) => !live.contains(t)).toList()) {
-      _published.remove(track);
-      if (!track.isActive) continue;
-      stopped.add(track.source);
-      await track.stop();
-    }
-    if (stopped.isNotEmpty) {
-      AppLog.at(LogLevel.warning, LogTag.voice,
-          'Stopped ${stopped.map((s) => s.name).join(', ')} left capturing with no publication');
-    }
-    return stopped;
+    final orphans = _published.where((t) => !live.contains(t)).toList();
+    _published.removeAll(orphans);
+    return stopCapturing(orphans);
   }
+
+  /// Forgets every remembered track and hands them to the call that is ending,
+  /// so its teardown, however late, never reaches a newer call's tracks.
+  List<lk.LocalTrack> takeAll() {
+    final all = _published.toList();
+    _published.clear();
+    return all;
+  }
+}
+
+/// Stops each of [tracks] still capturing; returns their sources.
+Future<Set<lk.TrackSource>> stopCapturing(List<lk.LocalTrack> tracks) async {
+  final stopped = <lk.TrackSource>{};
+  for (final track in tracks) {
+    if (!track.isActive) continue;
+    stopped.add(track.source);
+    await track.stop();
+  }
+  if (stopped.isNotEmpty) {
+    AppLog.at(LogLevel.warning, LogTag.voice,
+        'Stopped ${stopped.map((s) => s.name).join(', ')} left capturing with no publication');
+  }
+  return stopped;
 }
