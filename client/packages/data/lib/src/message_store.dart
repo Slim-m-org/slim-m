@@ -502,4 +502,8 @@ class MessageStore {
   /// message whose `mentionsMe` is true.
   Future<void> advanceMentionCursor(String channelId, int seq) =>
       cursors_impl.advanceMentionCursorHelper(this, channelId, seq);
+
+  /// Lowers `mentionedSeq` to the server's [seq] when the row it names is not held.
+  Future<void> healMentionCursor(String channelId, int seq) =>
+      cursors_impl.healMentionCursorHelper(this, channelId, seq);
 }

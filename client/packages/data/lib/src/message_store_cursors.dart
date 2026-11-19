@@ -131,15 +131,47 @@ Future<void> advanceMentionCursorHelper(
       .write(ChannelsCompanion(mentionedSeq: Value(seq)));
 }
 
+/// Lowers the mention cursor to the server's [seq] when the message it names is
+/// not held, since then nothing local can walk it back once that message goes.
+Future<void> healMentionCursorHelper(
+    MessageStore store, String channelId, int seq) async {
+  final db = store.db;
+  await db.transaction(() async {
+    final row = await channelRow(store, channelId);
+    if (row == null || row.mentionedSeq <= seq) return;
+    final held = await (db.select(db.messages)
+          ..where((m) =>
+              m.channelId.equals(channelId) & m.seq.equals(row.mentionedSeq))
+          ..limit(1))
+        .getSingleOrNull();
+    if (held != null) return;
+    await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
+        .write(ChannelsCompanion(mentionedSeq: Value(seq)));
+  });
+}
+
 Future<List<api.ScopeCursor>> allCursors(MessageStore store) async {
   final rows = await store.db.select(store.db.channels).get();
+  final unheld = await _unheldMentionChannels(store.db);
   return rows
       .map((c) => api.ScopeCursor(
             channelId: c.id,
             afterSeq: c.cursor,
             afterOpSeq: c.opCursor,
+            checkMention: unheld.contains(c.id),
           ))
       .toList(growable: false);
+}
+
+/// Channels lit by a mention cursor naming a message not held, which a reset's marker leaves.
+Future<Set<String>> _unheldMentionChannels(SlimmDatabase db) async {
+  final rows = await db.customSelect(
+    'SELECT c.id AS id FROM channels c WHERE c.mentioned_seq > c.last_read_seq '
+    'AND NOT EXISTS (SELECT 1 FROM messages m '
+    'WHERE m.channel_id = c.id AND m.seq = c.mentioned_seq)',
+    readsFrom: {db.channels, db.messages},
+  ).get();
+  return {for (final row in rows) row.read<String>('id')};
 }
 
 Future<void> setReadMarker(

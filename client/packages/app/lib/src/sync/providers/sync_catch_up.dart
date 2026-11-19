@@ -158,6 +158,10 @@ class SyncCatchUp {
           break;
       }
     }
+    // Only a cursor that asked gets a marker here: it names a message this client never held.
+    if (delta.mentionedSeq case final seq?) {
+      await store.healMentionCursor(delta.channelId, seq);
+    }
     return delta.hasMore || delta.opsHasMore;
   }
 
@@ -185,7 +189,8 @@ class SyncCatchUp {
   }
 
   /// Drops a scope's cached messages and both its cursors, then refetches the
-  /// newest page and restores the mention cursor from [delta]'s marker.
+  /// newest page and restores the mention cursor from [delta]'s marker, or
+  /// keeps its own when a reset this client started carries none.
   ///
   /// The op cursor restarts at the head [delta] reported, which was read
   /// before the page is: an op landing after the page was read is then still
@@ -198,6 +203,10 @@ class SyncCatchUp {
     ScopeDelta delta,
   ) async {
     final channelId = delta.channelId;
+    final mentioned =
+        delta.mentionedSeq ??
+        (await store.channelRow(channelId))?.mentionedSeq ??
+        0;
     await store.resetChannel(channelId);
     await store.setOpCursor(channelId, delta.opLatestSeq);
     final fresh = await retryWhenRateLimited(
@@ -207,10 +216,8 @@ class SyncCatchUp {
     if (!_isCurrent(generation)) return;
     await store.applyMessages(fresh, advance: CursorAdvance.always);
     _ref.read(messageExtrasProvider.notifier).applyMessages(fresh);
-    // The page holds only the newest messages; an older unread mention is known by the server's marker alone.
-    if (delta.mentionedSeq case final seq? when seq > 0) {
-      await store.advanceMentionCursor(channelId, seq);
-    }
+    // The page holds only the newest messages; an older mention survives by the marker or the kept cursor.
+    if (mentioned > 0) await store.advanceMentionCursor(channelId, mentioned);
   }
 }
 
