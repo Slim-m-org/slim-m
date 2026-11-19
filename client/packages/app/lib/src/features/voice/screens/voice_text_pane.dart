@@ -208,12 +208,12 @@ class CallDetailsAction extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final open =
-        callDetailsDocks(context) && ref.watch(callDetailsOpenProvider);
+    final open = ref.watch(callDetailsOpenProvider);
     return HeaderIconAction(
       icon: AppIcons.activityLog,
       label: 'Call details',
-      active: open,
+      // A sheet opens rather than switching anything on, so it is a plain button there.
+      active: callDetailsDocks(context) ? open : null,
       touch: true,
       onPressed: () => toggleCallDetails(context, ref, channelId),
     );

@@ -13,9 +13,12 @@ import '../../channels/providers/channel_by_id_provider.dart';
 /// asks first rather than silently moving them, the one place a voice
 /// channel arrival still needs an explicit decision.
 class VoiceSwitchPrompt extends StatelessWidget {
-  const VoiceSwitchPrompt({super.key, required this.onSwitch});
+  const VoiceSwitchPrompt({super.key, required this.onSwitch, this.onCancel});
 
   final VoidCallback onSwitch;
+
+  /// Offers Cancel, for a switch asked from a page that stays useful without it.
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) => _VoicePrompt(
@@ -25,6 +28,8 @@ class VoiceSwitchPrompt extends StatelessWidget {
         'joins this one instead.',
     confirmLabel: 'Switch to this call',
     onConfirm: onSwitch,
+    cancelLabel: onCancel == null ? null : 'Cancel',
+    onCancel: onCancel,
   );
 }
 

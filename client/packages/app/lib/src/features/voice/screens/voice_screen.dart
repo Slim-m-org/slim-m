@@ -13,6 +13,8 @@
 /// The one case that still needs an explicit decision is switching calls:
 /// arriving at a different voice channel while already connected elsewhere
 /// shows `VoiceSwitchPrompt` instead of silently hanging up the first call.
+/// An arrival to read or look shows the channel instead, and asks only when
+/// its Join is pressed.
 library;
 
 import 'dart:async';
@@ -27,6 +29,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/call_recap.dart';
 import '../../channels/providers/last_text_channel.dart';
 import '../providers/dm_call_ring_controller.dart';
+import '../providers/voice_call_history.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_elsewhere.dart';
 import '../providers/voice_flags.dart';
@@ -117,6 +120,9 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   VoidCallback? _confirmedJoin;
   bool _checking = false;
 
+  /// The join a press on the page asked for while in another call, waiting on the switch prompt.
+  Future<void> Function()? _switchJoin;
+
   /// Bumped by each pre-join check, a Cancel and an arrival, so a check that answers late knows it was dropped.
   int _check = 0;
 
@@ -152,6 +158,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     _checking = false;
     _elsewhere = null;
     _confirmedJoin = null;
+    _switchJoin = null;
     final channelId = widget.channelId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -236,20 +243,26 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   /// rather than looping back into another switch prompt.
   void _switchNow(VoiceController controller) {
     _autoJoinedFor = widget.channelId;
-    controller.join(widget.channelId);
+    final join = _switchJoin ?? () => controller.join(widget.channelId);
+    _switchJoin = null;
+    unawaited(join());
   }
 
-  /// The idle pane's join: muted unless [withMic], marked as attempted like a rejoin.
+  /// Back to the page a press on its Join came from, still in the other call.
+  void _cancelSwitch() => setState(() => _switchJoin = null);
+
+  /// The idle pane's join: muted unless [withMic], marked as attempted like a
+  /// rejoin. In another call it asks first, since joining leaves that call.
   void _joinMuted(VoiceController controller, {bool withMic = false}) {
     _autoJoinedFor = widget.channelId;
     final channelId = widget.channelId;
-    unawaited(
-      _joinConfirmed(
-        () => withMic
-            ? controller.join(channelId)
-            : controller.joinMuted(channelId),
-      ),
-    );
+    Future<void> join() =>
+        withMic ? controller.join(channelId) : controller.joinMuted(channelId);
+    if (_busyElsewhere(ref.read(voiceFlagsProvider), channelId)) {
+      setState(() => _switchJoin = join);
+      return;
+    }
+    unawaited(_joinConfirmed(join));
   }
 
   /// A DM's first ring is spent once it was declined or timed out, so a rejoin
@@ -302,7 +315,9 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   }) {
     if (_elsewhere != null) return 'elsewhere';
     if (connecting || (_checking && !busyElsewhere)) return 'connecting';
-    if (busyElsewhere) return 'switch';
+    // Arriving to read or look shows the page; only a press on its Join asks to switch.
+    final looking = widget.openChat || widget.openDetails;
+    if (busyElsewhere && (!looking || _switchJoin != null)) return 'switch';
     return attempted ? 'left' : 'joining';
   }
 
@@ -331,7 +346,10 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
           onJoin: _joinHere,
           onCancel: _cancelJoinHere,
         ),
-        'switch' => VoiceSwitchPrompt(onSwitch: () => _switchNow(controller)),
+        'switch' => VoiceSwitchPrompt(
+          onSwitch: () => _switchNow(controller),
+          onCancel: _switchJoin == null ? null : _cancelSwitch,
+        ),
         _ when !widget.isDm => VoiceChannelIdle(
           channelId: channelId,
           errorMessage: errorMessage,
@@ -371,6 +389,12 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
       if (request?.channelId != widget.channelId) return;
       final controller = ref.read(voiceControllerProvider.notifier);
       unawaited(_joinConfirmed(() => controller.join(widget.channelId)));
+    });
+    ref.listen(callDetailsRequestProvider, (_, request) {
+      if (request?.channelId != widget.channelId) return;
+      if (ref.read(voiceFlagsProvider).inCallStageFor(widget.channelId)) {
+        _showDetails();
+      }
     });
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final voice = ref.watch(voiceFlagsProvider);

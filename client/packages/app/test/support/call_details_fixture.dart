@@ -30,6 +30,9 @@ import '../ui_snapshot_support.dart' show snapshotBoundary;
 import 'async_wait.dart';
 
 const detailsVoiceId = 'c-voice';
+
+/// A second voice channel, for being in a call other than [detailsVoiceId]'s.
+const otherVoiceId = 'c-other';
 const detailsTranscriptId = 't-1';
 const _min = 60000;
 
@@ -133,13 +136,14 @@ class CallDetailsShell {
   };
 }
 
-/// The real shell at [width] on [location], in [detailsVoiceId]'s call when
-/// [inCall], with Bob's call going since a few minutes ago.
+/// The real shell at [width] on [location], in [callId]'s call when [inCall],
+/// with Bob's call going in [detailsVoiceId] since a few minutes ago.
 Future<CallDetailsShell> pumpCallDetailsShell(
   WidgetTester tester, {
   required double width,
   double height = 900,
   bool inCall = true,
+  String callId = detailsVoiceId,
   bool dark = false,
   String location = '/channels/$detailsVoiceId',
   List<VoiceParticipant> participants = const [],
@@ -172,9 +176,8 @@ Future<CallDetailsShell> pumpCallDetailsShell(
     httpClient: client,
     extraOverrides: [
       liveEventsProvider.overrideWithValue(events.stream),
-      voiceRosterProvider(
-        detailsVoiceId,
-      ).overrideWith((ref) => const Stream.empty()),
+      for (final id in [detailsVoiceId, otherVoiceId])
+        voiceRosterProvider(id).overrideWith((ref) => const Stream.empty()),
       userProfileProvider.overrideWith(
         (ref, id) async => api.UserProfile(
           id: id,
@@ -189,7 +192,7 @@ Future<CallDetailsShell> pumpCallDetailsShell(
                 ref,
                 VoiceState(
                   state: VoiceSessionState.connected,
-                  channelId: detailsVoiceId,
+                  channelId: callId,
                   participants: participants,
                 ),
               )
@@ -206,6 +209,13 @@ Future<CallDetailsShell> pumpCallDetailsShell(
         kind: 'voice',
         createdAt: 0,
         position: 0,
+      ),
+      const api.Channel(
+        id: otherVoiceId,
+        name: 'lounge',
+        kind: 'voice',
+        createdAt: 0,
+        position: 1,
       ),
     ]),
   );

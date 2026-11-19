@@ -17,6 +17,9 @@ import '../../../../providers/providers.dart';
 import '../../providers/voice_roster.dart';
 import 'call_history_rows.dart' show callDayLabel;
 
+/// Below this two join buttons beside the names squeeze the names to a sliver.
+const double _twoButtonsWidth = 520;
+
 class VoiceJoinBar extends ConsumerWidget {
   const VoiceJoinBar({
     super.key,
@@ -79,8 +82,24 @@ class VoiceJoinBar extends ConsumerWidget {
           ),
       ],
     );
-    // Two buttons beside the names leave a phone's title a few letters, so they take their own row there.
-    final stacked = compact && withMic != null;
+    return LayoutBuilder(
+      builder: (context, box) => _bar(
+        tokens,
+        text: text,
+        buttons: buttons,
+        // Two buttons beside the names leave a narrow bar's title a few letters, so they take their own row there.
+        stacked:
+            withMic != null && (compact || box.maxWidth < _twoButtonsWidth),
+      ),
+    );
+  }
+
+  Widget _bar(
+    AppTokens tokens, {
+    required Widget text,
+    required Widget? buttons,
+    required bool stacked,
+  }) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.s16),
       decoration: BoxDecoration(

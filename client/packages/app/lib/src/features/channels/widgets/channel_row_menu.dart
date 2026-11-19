@@ -33,6 +33,8 @@ import '../providers/channel_notification_overrides_controller.dart';
 import 'channel_rail.dart' show selectedChannelId;
 import 'channel_settings_danger_zone.dart';
 import 'row_menu_notifications.dart';
+import '../../voice/providers/voice_call_history.dart';
+import '../../voice/providers/voice_flags.dart';
 import '../../voice/widgets/voice_room_settings_sheet.dart';
 import 'channel_notifications_menu.dart';
 
@@ -171,7 +173,8 @@ AppMenuItem _openChatItem(
   },
 );
 
-/// Looks over a voice channel's calls without joining, at every width.
+/// Looks over a voice channel's calls without joining, at every width; in
+/// its call, with it already on screen, asks the call to open its details.
 AppMenuItem _viewDetailsItem(
   BuildContext context,
   Channel channel,
@@ -180,7 +183,13 @@ AppMenuItem _viewDetailsItem(
   label: 'View details',
   leading: AppIcons.activityLog,
   onTap: () {
+    final container = ProviderScope.containerOf(context, listen: false);
+    final onScreen = selectedChannelId(context) == channel.id;
     close();
+    final inCall = container
+        .read(voiceFlagsProvider)
+        .inCallStageFor(channel.id);
+    if (onScreen && inCall) return requestCallDetails(container, channel.id);
     context.go(Routes.channel(channel.id, openDetails: true));
   },
 );

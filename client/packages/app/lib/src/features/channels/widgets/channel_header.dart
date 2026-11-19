@@ -52,7 +52,7 @@ class ChannelHeader extends ConsumerWidget {
     required this.onToggleSearch,
     this.textChatOpen = false,
     this.onToggleTextChat,
-    this.callDetailsOpen = false,
+    this.callDetailsOpen,
     this.onToggleCallDetails,
   });
 
@@ -99,7 +99,8 @@ class ChannelHeader extends ConsumerWidget {
   final VoidCallback? onToggleTextChat;
 
   /// The voice shell's toggle for the call's details; null outside the call.
-  final bool callDetailsOpen;
+  /// [callDetailsOpen] is null where they open as a sheet, so it is no toggle.
+  final bool? callDetailsOpen;
   final VoidCallback? onToggleCallDetails;
   final VoidCallback onToggleSearch;
 

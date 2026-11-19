@@ -161,4 +161,28 @@ void main() {
     expect(s.tokenRequests, isEmpty);
     await s.dispose(tester);
   });
+
+  for (final width in [390.0, 700.0]) {
+    testWidgets('where the details only sheet, the control is a plain button '
+        'at $width', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final s = await pumpCallDetailsShell(
+        tester,
+        width: width,
+        height: width < 600 ? 844 : 900,
+      );
+      final control = find.bySemanticsLabel('Call details');
+      expect(
+        tester.getSemantics(control),
+        isSemantics(hasToggledState: false, isButton: true),
+      );
+
+      await tester.tap(control);
+      await pumpFrames(tester, frames: 30);
+      expect(_sheet, findsOneWidget, reason: 'no room to dock at $width');
+
+      semantics.dispose();
+      await s.dispose(tester);
+    });
+  }
 }

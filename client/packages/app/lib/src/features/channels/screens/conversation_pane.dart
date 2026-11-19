@@ -231,8 +231,7 @@ class _VoiceConversationHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final chatOpen = ref.watch(voiceChatPaneVisibleProvider);
-    final detailsOpen =
-        callDetailsDocks(context) && ref.watch(callDetailsOpenProvider);
+    final detailsOpen = ref.watch(callDetailsOpenProvider);
     final inCall = ref.watch(
       voiceFlagsProvider.select((voice) => voice.inCallStageFor(channelId)),
     );
@@ -253,7 +252,7 @@ class _VoiceConversationHeader extends ConsumerWidget {
       },
       textChatOpen: chatOpen,
       onToggleTextChat: () => setChatOpen(!chatOpen),
-      callDetailsOpen: detailsOpen,
+      callDetailsOpen: callDetailsDocks(context) ? detailsOpen : null,
       onToggleCallDetails: inCall
           ? () => toggleCallDetails(context, ref, channelId)
           : null,

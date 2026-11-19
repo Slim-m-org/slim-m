@@ -24,7 +24,8 @@ class CallHistoryRows extends StatelessWidget {
     this.compact = false,
   });
 
-  /// Drops the clock range, which a phone-wide row has no room for.
+  /// Drops the clock range, which a phone-wide row has no room for; a row
+  /// narrower than [_clockRangeWidth] drops it too.
   final bool compact;
   final List<api.VoiceCall> calls;
   final int? selectedStartedAt;
@@ -32,21 +33,30 @@ class CallHistoryRows extends StatelessWidget {
   final int now;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      for (final call in calls)
-        _HistoryRow(
-          key: ValueKey('call-history-row-${call.startedAt}'),
-          model: CallTimelineModel.from(call, now: now),
-          selected: call.startedAt == selectedStartedAt,
-          onTap: () => onSelect(call.startedAt),
-          now: now,
-          compact: compact,
-        ),
-    ],
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      // The page shares the window with a docked chat, so its own width decides.
+      final compact = this.compact || box.maxWidth < _clockRangeWidth;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final call in calls)
+            _HistoryRow(
+              key: ValueKey('call-history-row-${call.startedAt}'),
+              model: CallTimelineModel.from(call, now: now),
+              selected: call.startedAt == selectedStartedAt,
+              onTap: () => onSelect(call.startedAt),
+              now: now,
+              compact: compact,
+            ),
+        ],
+      );
+    },
   );
 }
+
+/// Below this a row's clock range crowds out its note and overflows.
+const double _clockRangeWidth = 520;
 
 class _HistoryRow extends ConsumerStatefulWidget {
   const _HistoryRow({
