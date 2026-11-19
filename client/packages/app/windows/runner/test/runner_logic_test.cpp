@@ -173,7 +173,7 @@ void OnlyTheHostPageStaysInThePlayer() {
 
 void OnlyWebLinksReachTheBrowser() {
   CHECK(slimm::IsWebUrl(L"https://www.youtube.com/watch?v=x"));
-  CHECK(slimm::IsWebUrl(L"http://example.com"));
+  CHECK(!slimm::IsWebUrl(L"http://example.com"));
   CHECK(!slimm::IsWebUrl(L"file:///C:/Windows/system32/calc.exe"));
   CHECK(!slimm::IsWebUrl(L"ms-settings:"));
 }

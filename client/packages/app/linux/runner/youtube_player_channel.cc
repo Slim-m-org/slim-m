@@ -91,9 +91,8 @@ void OnScriptMessage(void* manager, void* result, gpointer user_data) {
 
 void OpenExternally(const char* uri) {
   if (uri == nullptr) return;
-  if (std::strncmp(uri, "https://", 8) != 0 && std::strncmp(uri, "http://", 7) != 0) {
-    return;
-  }
+  // Only a secure web link goes to the browser, never plain http, a file or a custom scheme.
+  if (std::strncmp(uri, "https://", 8) != 0) return;
   g_app_info_launch_default_for_uri(uri, nullptr, nullptr);
 }
 

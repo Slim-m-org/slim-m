@@ -40,9 +40,9 @@ inline bool IsYoutubeHostUrl(const std::wstring& url) {
   return StartsWith(url, kYoutubeHostOrigin);
 }
 
-// Only a web link is handed to the browser, never a file or custom scheme.
+// Only a secure web link is handed to the browser, never plain http, a file or a custom scheme.
 inline bool IsWebUrl(const std::wstring& url) {
-  return StartsWith(url, L"https://") || StartsWith(url, L"http://");
+  return StartsWith(url, L"https://");
 }
 
 }  // namespace slimm
