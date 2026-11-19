@@ -2774,11 +2774,14 @@ paths:
       tags: [channels]
       summary: List the channel categories the caller can see.
       description: >
-        Every category at both levels for a caller with MANAGE_CHANNELS at the
-        deployment level, empty ones included; for anyone else each category
-        holding a channel they can view, plus the parent of each such
-        sub-category (decision 0120), so a private category's name does not
-        reach members kept out of all of it. The closure runs upward only: a
+        Every category at both levels for an administrator. For anyone else
+        each category holding a channel they can view, plus, for a caller with
+        MANAGE_CHANNELS at the deployment level, each one whose own overwrites
+        let them view it, empty ones included; and the parent of each such
+        sub-category (decisions 0120 and 0011), so a private category's name
+        does not reach members or managers kept out of all of it. Every other
+        category route answers a category missing from this list exactly as
+        one that does not exist. The closure runs upward only: a
         parent listed for a visible sub-category is a heading with none of its
         own channels, and a visible parent never lists a sub-category the
         caller cannot view into. Every listed `parent_id` names a category in
@@ -2843,12 +2846,14 @@ paths:
       summary: Set the whole category arrangement, levels included.
       description: >
         Requires MANAGE_CHANNELS at the deployment level. What a drag in the
-        rail sends (decision 0120): every live category named exactly once,
-        grouped by parent, with the top level as the group whose `parent_id`
-        is null. Position `i` within a group goes to the category at index
-        `i`. Applied in one transaction. A list that is not exactly the live
-        categories is a 400 naming the missing and extra ids, as
-        `reorderChannels` does; two groups naming the same parent, or a
+        rail sends (decision 0120): every live category the caller is listed
+        by `listCategories` named exactly once, grouped by parent, with the
+        top level as the group whose `parent_id` is null. A category the
+        caller is not listed keeps its parent and its index among its
+        siblings, and naming one is refused as naming no category. Position
+        `i` within a group goes to the category at index `i`. Applied in one
+        transaction. A list that is not exactly those categories is a 400
+        naming the missing and extra ids, as `reorderChannels` does; two groups naming the same parent, or a
         parent that is not a live category, is a 400; a parent that is not
         in the top-level group is a 409, since categories nest two levels at
         most. A category whose parent changes keeps its overwrites and stops
@@ -2862,7 +2867,7 @@ paths:
               $ref: "#/components/schemas/ReorderCategoriesRequest"
       responses:
         "200":
-          description: Every live category, in tree order.
+          description: Every live category the caller is listed, in tree order.
           content:
             application/json:
               schema:

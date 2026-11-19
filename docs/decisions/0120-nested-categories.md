@@ -190,6 +190,7 @@ One store query lists "the synced channels beneath this category", the direct on
 `GET /categories` lists one of two things.
 
 - A caller whose deployment-level permissions hold `MANAGE_CHANNELS` gets every live category at both levels, empty ones included, since an empty one is where they file the next channel or sub-category.
+  Since 2026-11-19 that is every category whose own rows let them view it, and only ADMINISTRATOR gets every one (decision 0011, "third pass").
 - Anyone else gets each category holding a channel they can view, plus the parent of each such sub-category, and nothing more.
 
 The closure runs upward only.

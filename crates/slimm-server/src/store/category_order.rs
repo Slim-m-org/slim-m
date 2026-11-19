@@ -61,8 +61,26 @@ impl Store {
         &self,
         groups: &[CategoryOrderGroup],
     ) -> Result<CategoryReorderOutcome, ReorderCategoriesError> {
+        self.reorder_categories_around(groups, &HashSet::new())
+            .await
+    }
+
+    /// [`Self::reorder_categories`] for a caller kept from the `hidden` categories: `groups`
+    /// names only the rest, and each hidden one keeps its parent and its index among its siblings.
+    pub async fn reorder_categories_around(
+        &self,
+        groups: &[CategoryOrderGroup],
+        hidden: &HashSet<ChannelCategoryId>,
+    ) -> Result<CategoryReorderOutcome, ReorderCategoriesError> {
         let mut tx = self.begin_write().await?;
         let before = live_placements(&mut tx).await?;
+        let shown: HashMap<ChannelCategoryId, Placement> = before
+            .iter()
+            .filter(|(id, _)| !hidden.contains(id))
+            .map(|(id, placement)| (*id, *placement))
+            .collect();
+        validate(groups, &shown)?;
+        let groups = &with_hidden(groups, &before, hidden);
         validate(groups, &before)?;
 
         let target: Vec<(ChannelCategoryId, Placement)> = groups
@@ -137,6 +155,42 @@ async fn live_placements(
         .into_iter()
         .map(|r| (r.id, (r.parent_id, r.position)))
         .collect())
+}
+
+/// `groups` with each `hidden` category put back under its current parent at the index it holds
+/// among its siblings there, adding a group for a parent the caller named nothing under.
+fn with_hidden(
+    groups: &[CategoryOrderGroup],
+    live: &HashMap<ChannelCategoryId, Placement>,
+    hidden: &HashSet<ChannelCategoryId>,
+) -> Vec<CategoryOrderGroup> {
+    let mut full = groups.to_vec();
+    for id in hidden {
+        let Some((parent, _)) = live.get(id) else {
+            continue;
+        };
+        if !full.iter().any(|group| group.parent_id == *parent) {
+            full.push(CategoryOrderGroup {
+                parent_id: *parent,
+                category_ids: Vec::new(),
+            });
+        }
+    }
+    for group in &mut full {
+        let mut siblings: Vec<(i64, ChannelCategoryId)> = live
+            .iter()
+            .filter(|(_, (parent, _))| *parent == group.parent_id)
+            .map(|(id, (_, position))| (*position, *id))
+            .collect();
+        siblings.sort();
+        for (index, (_, id)) in siblings.into_iter().enumerate() {
+            if hidden.contains(&id) {
+                let index = index.min(group.category_ids.len());
+                group.category_ids.insert(index, id);
+            }
+        }
+    }
+    full
 }
 
 /// Every refusal, checked before anything is written; see [`ReorderCategoriesError`].

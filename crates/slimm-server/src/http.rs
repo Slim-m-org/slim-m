@@ -45,6 +45,7 @@ mod categories;
 mod category_mutes;
 mod category_order;
 mod category_overwrites;
+mod category_sight;
 mod channels;
 use channels::{
     channel_notification_prefs, channel_order, channel_permissions, channel_retention,

@@ -10,6 +10,7 @@ use serde::Deserialize;
 
 use super::AppState;
 use super::categories::{CategoryDto, require_manage_channels};
+use super::category_sight::CategorySight;
 use super::error::ApiError;
 use super::extract::{Authed, Json, enforce};
 use super::messages::parse_uuid;
@@ -39,8 +40,8 @@ struct ReorderCategoriesRequest {
     groups: Vec<OrderGroupRequest>,
 }
 
-/// Applies the arrangement in one transaction and answers every category in
-/// tree order. Publishes one `CategoryChanged` only when something moved.
+/// Applies the arrangement in one transaction and answers every category the caller is listed,
+/// in tree order; the rest keep their places. Publishes one `CategoryChanged` only when something moved.
 async fn reorder(
     Authed(ctx): Authed,
     parts: Parts,
@@ -50,8 +51,14 @@ async fn reorder(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_channels(&state, ctx.user_id).await?;
     let groups = parse_groups(&req.groups)?;
+    let sight = CategorySight::of(&state, ctx.user_id).await?;
+    let hidden = sight.hidden();
 
-    match state.store.reorder_categories(&groups).await {
+    match state
+        .store
+        .reorder_categories_around(&groups, &hidden)
+        .await
+    {
         Ok(outcome) => {
             if !outcome.moved.is_empty() {
                 state.hub.publish(Event::CategoryChanged);
@@ -60,6 +67,7 @@ async fn reorder(
                 outcome
                     .categories
                     .into_iter()
+                    .filter(|category| sight.listed.contains(&category.id))
                     .map(CategoryDto::from)
                     .collect(),
             ))

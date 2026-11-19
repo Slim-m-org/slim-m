@@ -30,6 +30,7 @@ use self::channel_validation::{
     validate_default_notification, validate_user_limit,
 };
 use super::AppState;
+use super::category_sight::CategorySight;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::messages::parse_uuid;
@@ -37,7 +38,9 @@ use crate::hub::Event;
 use crate::ids::{ChannelCategoryId, ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{ChannelDefaults, ChannelPatch, DM_CHANNEL_KIND, DeleteChannelError};
+use crate::store::{
+    ChannelDefaults, ChannelPatch, CreateChannelError, DM_CHANNEL_KIND, DeleteChannelError,
+};
 use crate::voice::VoiceError;
 
 pub(super) mod channel_dto;
@@ -219,6 +222,13 @@ async fn create(
         return Err(ApiError::Forbidden);
     }
     let private_to = restricted.then_some(ctx.user_id);
+    if let Some(category) = category_id
+        && CategorySight::of(&state, ctx.user_id)
+            .await?
+            .hides(category)
+    {
+        return Err(CreateChannelError::UnknownCategory.into());
+    }
 
     let created = state
         .store

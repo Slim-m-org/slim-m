@@ -254,3 +254,12 @@ A MANAGE_SERVER holder choosing a channel for something that then acts there nee
 
 The value already stored is accepted again for the welcome and rules channels, so saving a settings form an administrator filled in does not need sight of what they chose.
 `PATCH /channels/{id}` answers 404 for a direct message before any other check; the store already refused the write, but a voice-only field used to answer 400 for one.
+
+### The same day, third pass: categories a manager cannot view
+
+The owner then approved closing the category half of what the first pass left open.
+`GET /categories` lists a channel manager what it lists anyone else, plus each category whose own rows let them view it, so the empty ones they may file into stay listed, and the parent of each listed sub-category as its heading.
+Only ADMINISTRATOR is listed every category.
+Every category route judges a category by that one list and answers one missing from it as one that does not exist: rename and re-parent (404, or 400 for a hidden parent), delete (204 with nothing deleted), create under it or retry its id, file a channel under it on create or in `PUT /channels/order`, and naming it in `PUT /categories/order`.
+`PUT /categories/order` takes only the categories the caller is listed; each hidden one keeps its parent and its index among its siblings, and the answer lists only what the caller sees.
+A role preview of a MANAGE_CHANNELS role is listed the same way, by that role's view of each category's rows.

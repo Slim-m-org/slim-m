@@ -10,7 +10,7 @@ use axum::routing::{get, put};
 use serde::Serialize;
 
 use super::AppState;
-use super::categories::categories_visible_to;
+use super::category_sight::CategorySight;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::messages::parse_uuid;
@@ -62,8 +62,8 @@ async fn mute(
 ) -> Result<Json<CategoryMuteDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let category_id = ChannelCategoryId(parse_uuid(&category_id)?);
-    let (_, visible) = categories_visible_to(&state, ctx.user_id).await?;
-    if !visible.contains(&category_id) {
+    let sight = CategorySight::of(&state, ctx.user_id).await?;
+    if !sight.listed.contains(&category_id) {
         return Err(ApiError::NotFound("category not found"));
     }
     if state.store.mute_category(ctx.user_id, category_id).await? {

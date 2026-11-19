@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Channel category routes (decisions 0006 and 0120). Every mutation needs
-//! deployment-level MANAGE_CHANNELS, checked before any id in the body is read.
-
-use std::collections::HashSet;
+//! deployment-level MANAGE_CHANNELS, checked before any id in the body is read,
+//! and answers a category the caller is not listed as one that does not exist.
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
@@ -12,12 +11,13 @@ use axum::routing::{get, patch};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
+use super::category_sight::CategorySight;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::hidden_chars::is_hidden_char;
 use super::messages::parse_uuid;
 use crate::hub::Event;
-use crate::ids::{ChannelCategoryId, UserId};
+use crate::ids::ChannelCategoryId;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{CategoryUpdate, CategoryWriteError, ChannelCategory};
@@ -56,13 +56,14 @@ impl From<ChannelCategory> for CategoryDto {
     }
 }
 
+const CATEGORY_NOT_FOUND: ApiError = ApiError::NotFound("category not found");
+const UNKNOWN_PARENT: ApiError = ApiError::BadRequest("parent_id must name a category that exists");
+
 impl From<CategoryWriteError> for ApiError {
     fn from(err: CategoryWriteError) -> Self {
         match err {
-            CategoryWriteError::NotFound => ApiError::NotFound("category not found"),
-            CategoryWriteError::UnknownParent => {
-                ApiError::BadRequest("parent_id must name a category that exists")
-            }
+            CategoryWriteError::NotFound => CATEGORY_NOT_FOUND,
+            CategoryWriteError::UnknownParent => UNKNOWN_PARENT,
             CategoryWriteError::SelfParent => {
                 ApiError::BadRequest("a category cannot be its own parent")
             }
@@ -101,61 +102,32 @@ struct UpdateCategoryRequest {
     parent_id: Option<Option<String>>,
 }
 
-/// The categories the caller can see, in tree order: all for a channel manager, else those holding
-/// a channel they can view plus each such one's parent, never a sub-category below (decision 0120).
+/// The categories the caller can see, in tree order ([`CategorySight`]).
 async fn list(
     AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<CategoryDto>>, ApiError> {
-    let (categories, visible) = categories_visible_to(&state, ctx.user_id).await?;
+    let sight = CategorySight::of(&state, ctx.user_id).await?;
     Ok(Json(
-        categories
+        sight
+            .categories
             .into_iter()
-            .filter(|c| visible.contains(&c.id))
+            .filter(|c| sight.listed.contains(&c.id))
             .map(CategoryDto::from)
             .collect(),
     ))
 }
 
-/// Every live category, and the ids of those `user_id` can see ([`visible_categories`]).
-pub(super) async fn categories_visible_to(
-    state: &AppState,
-    user_id: UserId,
-) -> Result<(Vec<ChannelCategory>, HashSet<ChannelCategoryId>), ApiError> {
-    let categories = state.store.list_categories().await?;
-    let manages = state
-        .store
-        .base_permissions(user_id)
-        .await?
-        .contains(Permissions::MANAGE_CHANNELS);
-    let holding = match manages {
-        true => HashSet::new(),
-        false => state
-            .store
-            .visible_channels(user_id)
-            .await?
-            .into_iter()
-            .filter_map(|channel| channel.category_id)
-            .collect(),
-    };
-    let visible = visible_categories(&categories, manages, &holding);
-    Ok((categories, visible))
-}
-
-/// The category closure: every category for a channel manager, else those in `holding` plus their parents.
-pub(super) fn visible_categories(
-    categories: &[ChannelCategory],
-    manages: bool,
-    holding: &HashSet<ChannelCategoryId>,
-) -> HashSet<ChannelCategoryId> {
-    if manages {
-        return categories.iter().map(|c| c.id).collect();
+/// `id` unless the caller is kept from it, which answers `missing`, what an id naming nothing gets.
+fn unless_hidden(
+    sight: &CategorySight,
+    id: Option<ChannelCategoryId>,
+    missing: ApiError,
+) -> Result<Option<ChannelCategoryId>, ApiError> {
+    match id {
+        Some(id) if sight.hides(id) => Err(missing),
+        id => Ok(id),
     }
-    let parents = categories
-        .iter()
-        .filter(|c| holding.contains(&c.id))
-        .filter_map(|c| c.parent_id);
-    parents.chain(holding.iter().copied()).collect()
 }
 
 async fn create(
@@ -170,6 +142,14 @@ async fn create(
     let name = validate_category_name(&req.name)?;
     let id = parse_category_id(req.id.as_deref())?.unwrap_or_else(ChannelCategoryId::generate);
     let parent = parse_category_id(req.parent_id.as_deref())?;
+    // A retry answers the stored row, which must not hand a hidden category's name to someone else.
+    let sight = CategorySight::of(&state, ctx.user_id).await?;
+    unless_hidden(
+        &sight,
+        Some(id),
+        ApiError::Conflict("that category id is already in use"),
+    )?;
+    let parent = unless_hidden(&sight, parent, UNKNOWN_PARENT)?;
 
     let created = state
         .store
@@ -206,6 +186,12 @@ async fn update(
     if name.is_none() && req.position.is_none() && parent.is_none() {
         return Err(ApiError::BadRequest("nothing to update"));
     }
+    // Where the store would refuse a missing category, then a missing parent, in that order.
+    let sight = CategorySight::of(&state, ctx.user_id).await?;
+    unless_hidden(&sight, Some(category_id), CATEGORY_NOT_FOUND)?;
+    let parent = parent
+        .map(|parent| unless_hidden(&sight, parent, UNKNOWN_PARENT))
+        .transpose()?;
 
     let update = CategoryUpdate {
         name,
@@ -228,8 +214,11 @@ async fn delete(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_channels(&state, ctx.user_id).await?;
     let category_id = ChannelCategoryId(parse_uuid(&category_id)?);
-
-    if state.store.delete_category(category_id).await? {
+    // One the caller is kept from answers as one already gone does.
+    let hidden = CategorySight::of(&state, ctx.user_id)
+        .await?
+        .hides(category_id);
+    if !hidden && state.store.delete_category(category_id).await? {
         state.hub.publish(Event::CategoryChanged);
     }
     Ok(StatusCode::NO_CONTENT)

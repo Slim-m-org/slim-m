@@ -284,16 +284,19 @@ impl Store {
         &self,
         groups: &[ChannelOrderGroup],
     ) -> Result<ReorderOutcome, ReorderChannelsError> {
-        self.reorder_channels_around(groups, &HashSet::new()).await
+        self.reorder_channels_around(groups, &HashSet::new(), &HashSet::new())
+            .await
     }
 
     /// [`Self::reorder_channels`] for a caller who cannot see the `hidden`
     /// channels: `groups` names only the rest, and each hidden channel stays
-    /// in its own section at the index it already holds there.
+    /// in its own section at the index it already holds there. A group naming
+    /// one of the `hidden_categories` is refused as naming no live category.
     pub async fn reorder_channels_around(
         &self,
         groups: &[ChannelOrderGroup],
         hidden: &HashSet<ChannelId>,
+        hidden_categories: &HashSet<ChannelCategoryId>,
     ) -> Result<ReorderOutcome, ReorderChannelsError> {
         let mut tx = self.begin_write().await?;
         let live = live_channels(&mut tx).await?;
@@ -331,6 +334,7 @@ impl Store {
             .fetch_all(&mut *tx)
             .await?
             .into_iter()
+            .filter(|id| !hidden_categories.contains(id))
             .collect();
             let unknown: Vec<ChannelCategoryId> = named_categories
                 .difference(&live_categories)

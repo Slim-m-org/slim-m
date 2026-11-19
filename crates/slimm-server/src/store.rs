@@ -40,6 +40,7 @@ mod category_delete;
 mod category_mutes;
 mod category_order;
 mod category_overwrites;
+mod category_sight;
 mod channels;
 pub(crate) use channels::channel_slow_mode;
 use channels::{channel_create, channel_notification_prefs, channel_order, channel_settings};

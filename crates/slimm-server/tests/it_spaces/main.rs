@@ -11,6 +11,7 @@ mod blocking_reach;
 mod categories;
 mod categories_visibility;
 mod category_create_idempotency;
+mod category_manage_hidden;
 mod category_overwrite_cleanup;
 mod category_overwrites_hidden;
 mod category_permissions;

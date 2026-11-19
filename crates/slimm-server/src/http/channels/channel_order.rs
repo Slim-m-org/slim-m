@@ -19,6 +19,7 @@ use axum::routing::put;
 use serde::Deserialize;
 
 use super::super::AppState;
+use super::super::category_sight::CategorySight;
 use super::super::error::ApiError;
 use super::super::extract::{Authed, Json, enforce};
 use super::super::messages::parse_uuid;
@@ -121,7 +122,11 @@ async fn reorder(
         }
         (None, Some(categories)) => {
             let groups = parse_groups(&categories)?;
-            state.store.reorder_channels_around(&groups, &hidden).await
+            let hidden_categories = CategorySight::of(&state, ctx.user_id).await?.hidden();
+            state
+                .store
+                .reorder_channels_around(&groups, &hidden, &hidden_categories)
+                .await
         }
     };
 

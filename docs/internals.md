@@ -418,11 +418,12 @@ What the sweep found on 2026-11-19, each now with its own test beside the route:
   A deny is not a grant, so the grant ceiling never stopped a manager shutting a private channel's own members out, and on a category the ceiling was the deployment-wide set, so they could let themselves in.
 - MANAGE_CHANNELS renamed and deleted a channel its holder could not see, and the rename answered with its name and topic.
 - MANAGE_SERVER read, counted and pruned a hidden channel's retention, and listed, renamed, rotated and revoked the webhooks of one.
+- MANAGE_CHANNELS was listed every category, private ones included, and renamed, deleted, reordered and filed channels under ones its holder could not see (decision 0011's third pass).
 
 The rule they all broke is decision 0011's: a channel's permissions stop at the channel, whatever the caller holds deployment-wide, and only ADMINISTRATOR sees everything.
 A route that takes a channel, category or message id therefore answers a hidden one exactly as it answers one that does not exist, before any other validation of the request.
 
-Two things a manager is told by design are skipped by name in `mod.rs`: `GET /categories` lists every category to a channel manager (decision 0120), and the audit log names what was changed.
+One thing a manager is told by design is skipped by name in `mod.rs`: the audit log names what was changed.
 The sweep does not reach the websocket, push, voice with a live SFU, or call transcripts, which keep their own tests.
 The routes in `NEVER` (`probe.rs`) are not asked, because they end the session the sweep runs with or keep a limit of their own on disk.
 
