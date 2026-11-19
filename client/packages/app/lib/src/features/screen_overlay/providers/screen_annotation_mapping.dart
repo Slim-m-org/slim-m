@@ -41,36 +41,35 @@ Offset fromNormalised(Offset normalised, Rect content) => Offset(
   content.top + normalised.dy * content.height,
 );
 
-/// The monitors a share may cover, as indexes into [monitors].
-///
-/// [sourceId] and [screenNumber] are the capturer's own id and 1-based "Screen N",
-/// trusted only on Windows. The id is the display device index and the number
-/// the capture position, which the runner reports per monitor because libwebrtc's
-/// DXGI order differs from the order monitors are enumerated in. [portalOrigin] is where the
-/// Linux portal says the picked monitor sits, which KDE reports and GNOME does
-/// not. Otherwise every monitor whose shape matches the captured size is a
-/// candidate, and every monitor is one when the size is unknown: guessing one
-/// would draw on the wrong screen.
-/// [chosen] when it is one of several equally likely screens; a share that
-/// named its screen is never overridden.
+/// Narrows [candidates] to [chosen] when it is one of several equally likely
+/// screens; a share that named its screen is never overridden.
 List<int> preferChosenScreen(List<int> candidates, int? chosen) =>
     candidates.length > 1 && chosen != null && candidates.contains(chosen)
     ? [chosen]
     : candidates;
 
+/// The monitors a share may cover, as indexes into [monitors].
+///
+/// [sourceId] and [screenNumber] are the capturer's own id and 1-based "Screen N",
+/// trusted only on Windows. The id is the display device index and the number
+/// the capture position, which the runner reports per monitor because libwebrtc's
+/// DXGI order differs from the order monitors are enumerated in. [portalIndex]
+/// is the monitor the Linux portal share covers, as `PortalScreen` finds it,
+/// which KDE reports and GNOME does not. Otherwise every monitor whose shape
+/// matches the captured size is a candidate, and every monitor is one when the
+/// size is unknown: guessing one would draw on the wrong screen.
 List<int> pickSharedMonitors(
   List<OverlayMonitor> monitors, {
   String? sourceId,
   int? screenNumber,
   Size? capturedSize,
-  ({int x, int y})? portalOrigin,
+  int? portalIndex,
 }) {
   if (monitors.isEmpty) return const [0];
-  if (portalOrigin != null) {
-    final at = monitors.indexWhere(
-      (m) => m.x == portalOrigin.x && m.y == portalOrigin.y,
-    );
-    if (at >= 0) return [at];
+  if (portalIndex != null &&
+      portalIndex >= 0 &&
+      portalIndex < monitors.length) {
+    return [portalIndex];
   }
   final named = _monitorNamedByCapturer(monitors, sourceId, screenNumber);
   if (named != null) return [named];

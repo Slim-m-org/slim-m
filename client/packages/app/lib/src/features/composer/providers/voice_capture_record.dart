@@ -3,9 +3,12 @@
 ///
 /// 16 kHz mono WAV on every platform, because every client plays voice
 /// messages through audioplayers, which cannot decode Ogg on Windows or iPhone.
+/// On Linux the plugin writes files only through ffmpeg, so there the WAV is
+/// built here from its raw samples, which need parecord alone.
 library;
 
 import 'dart:io' show File;
+import 'dart:typed_data' show BytesBuilder;
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -18,6 +21,7 @@ import 'package:slimm_rtc/rtc.dart' show AudioDevice, pulseDevicePrefix;
 import 'voice_recording.dart';
 
 const _sampleRate = 16000;
+const _channels = 1;
 
 /// Quietest level shown, in dBFS; anything below reads as silence.
 const _floorDb = 60.0;
@@ -34,6 +38,34 @@ InputDevice? _matchInput(AudioDevice chosen, List<InputDevice> devices) {
           .firstOrNull;
 }
 
+bool get _streamsPcm =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.linux;
+
+/// [pcm] as a 16-bit PCM WAV file, cut to whole frames.
+Uint8List _wav(Uint8List pcm) {
+  const frame = 2 * _channels;
+  final length = pcm.length - pcm.length % frame;
+  final out = Uint8List(44 + length);
+  final view = ByteData.sublistView(out);
+  void tag(int at, String text) => out.setRange(at, at + 4, text.codeUnits);
+  tag(0, 'RIFF');
+  view.setUint32(4, 36 + length, Endian.little);
+  tag(8, 'WAVE');
+  tag(12, 'fmt ');
+  view
+    ..setUint32(16, 16, Endian.little)
+    ..setUint16(20, 1, Endian.little)
+    ..setUint16(22, _channels, Endian.little)
+    ..setUint32(24, _sampleRate, Endian.little)
+    ..setUint32(28, _sampleRate * frame, Endian.little)
+    ..setUint16(32, frame, Endian.little)
+    ..setUint16(34, 16, Endian.little);
+  tag(36, 'data');
+  view.setUint32(40, length, Endian.little);
+  out.setRange(44, 44 + length, pcm);
+  return out;
+}
+
 class RecordVoiceCapture implements VoiceCaptureBackend {
   RecordVoiceCapture({this.chosenInput = _systemDefault});
 
@@ -45,20 +77,43 @@ class RecordVoiceCapture implements VoiceCaptureBackend {
   AudioRecorder? _created;
   AudioRecorder get _recorder => _created ??= AudioRecorder();
 
+  /// The raw samples so far, on Linux only.
+  BytesBuilder? _pcm;
+
   @override
   Future<bool> start() async {
     if (!await _recorder.hasPermission()) return false;
+    final device = await _device();
+    if (_streamsPcm) {
+      final samples = await _recorder.startStream(
+        _config(AudioEncoder.pcm16bits, device),
+      );
+      final pcm = _pcm = BytesBuilder(copy: false);
+      samples.listen(
+        pcm.add,
+        onError: (Object error, StackTrace stack) => AppLog.swallowed(
+          LogTag.voice,
+          'The microphone stream reported an error',
+          error,
+          stack,
+        ),
+      );
+      return true;
+    }
     await _recorder.start(
-      RecordConfig(
-        encoder: AudioEncoder.wav,
-        sampleRate: _sampleRate,
-        numChannels: 1,
-        device: await _device(),
-      ),
+      _config(AudioEncoder.wav, device),
       path: await _newPath(),
     );
     return true;
   }
+
+  RecordConfig _config(AudioEncoder encoder, InputDevice? device) =>
+      RecordConfig(
+        encoder: encoder,
+        sampleRate: _sampleRate,
+        numChannels: _channels,
+        device: device,
+      );
 
   Future<InputDevice?> _device() async {
     try {
@@ -97,6 +152,13 @@ class RecordVoiceCapture implements VoiceCaptureBackend {
     } finally {
       await _recorder.dispose();
     }
+    if (_pcm case final pcm?) {
+      _pcm = null;
+      return VoiceCapture(
+        bytes: _wav(pcm.takeBytes()),
+        filename: 'voice-message.wav',
+      );
+    }
     if (path == null || path.isEmpty) return null;
     final bytes = await _read(path);
     return VoiceCapture(bytes: bytes, filename: 'voice-message.wav');
@@ -112,6 +174,7 @@ class RecordVoiceCapture implements VoiceCaptureBackend {
 
   @override
   Future<void> cancel() async {
+    _pcm = null;
     await _created?.cancel();
     await _created?.dispose();
   }

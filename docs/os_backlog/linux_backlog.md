@@ -45,6 +45,21 @@ Proved on a private PipeWire with two tones: the mix held only the other app, an
 Not tested on the owner's desktop session or with the real libwebrtc playout stream.
 Per-app choice like Discord's picker would reuse the same linking with an include list.
 
+**A share with audio ending paused Spotify (2026-11-18): the mix is now emptied before it goes.**
+WirePlumber 0.5 (`linking/mpris-pause.lua`, setting `linking.pause-playback`, on by default) pauses, over MPRIS, every media player whose stream was linked into a sink that is removed.
+Our mix is a sink every other app's playback is linked into, so destroying it at the end of each share paused Spotify, a YouTube tab, and any other MPRIS player.
+`ShareAudioIsolation` now unlinks everything feeding the mix, checks with `pw-dump` that the links are gone, and only then removes it.
+Reproduced on a private PipeWire (alsa and bluez monitors off, its own D-Bus) with a stand-in MPRIS player: before, WirePlumber logged "node removed: pausing linked media player" and the player got `Pause`; after, nine shares in a row paused nothing.
+Quitting or restarting mid-share (tray Quit, Ctrl+Q, the window menu, closing with close-to-tray off, Restart) used to skip that: the window went, `pw-cli` saw its input close, and PipeWire removed the mix with every link in place.
+`DesktopWindowShell.quit` and `relaunch` now call `endShareAudioBeforeExit` first, bounded at 2 s.
+A crash, a kill, or the desktop session ending under the app still removes the mix with its links in place, so those can still pause a player.
+Still open: the owner's words were "not sure if its when i screensahre or share audio or join call alone", and only the end of a share with audio is explained.
+Nothing slim-m does on a plain join adds or removes a sink, and the repro rig was a bare PipeWire, while the owner's session runs the `sink` router (Main, Music, Game and Voice sinks, their meter and filter streams) and NoiseTorch.
+The hook fires on any sink that goes, so any of those torn down while a call opens the mic would pause players the same way.
+One lead, from `music-pause-watch.log` (2026-11-03 to 2026-11-10): at 2026-11-10 12:16:37 four virtual sinks and their filter streams were removed together, which looks like the router's sinks going away, and within 15 ms of that `:1.6` sent Firefox `Pause`.
+`:1.6` is WirePlumber in the owner's 2026-11-16 login, and `:1.41`, which sent every other `Pause` in that log along with `Play` and `Next`, is kded6 there, the media keys; bus names are handed out per login, so that mapping is likely but not proven.
+To name the trigger next time: `wpctl set-log-level 3` (info, until WirePlumber restarts), then after a pause `journalctl --user -u wireplumber | grep 'pausing linked media player'` gives the removed node's id, and `pw-mon` running alongside names it.
+
 **`Helper.setVolume` (per-participant call volume) throws on Linux, and the client already guards against calling it there.**
 Confirmed from the pre-trim `CLAUDE.md`'s "Moderating a member" section, quoted in full because the mechanism matters: "Linux and Windows throw. They share `common/cpp`, whose lookup scans only a `remote_streams_` map filled by the Plan B `OnAddStream` callback; LiveKit uses Unified Plan, where that never fires, so the map is always empty and the call returns 'Unable to find provided track'. flutter_webrtc's wrapper does not catch it, unlike every sibling in that file."
 `audio_gain.dart`'s `supportsParticipantVolume` already excludes Linux (confirmed by reading the file: only Android, iOS, macOS are allowed), so the slider is correctly absent on this project's own primary desktop dev target.

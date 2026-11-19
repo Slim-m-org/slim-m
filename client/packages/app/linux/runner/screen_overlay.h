@@ -16,6 +16,8 @@ struct Monitor {
   int width = 0;
   int height = 0;
   bool primary = false;
+  // The connector (DP-1), else make and model: what finds this monitor again once the layout moves it.
+  std::string name;
 };
 
 struct Shape {

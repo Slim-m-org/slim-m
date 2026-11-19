@@ -20,6 +20,7 @@ class OverlayMonitor {
     required this.width,
     required this.height,
     required this.primary,
+    this.name,
     this.deviceIndex,
     this.capturePosition,
   });
@@ -29,6 +30,9 @@ class OverlayMonitor {
   final int width;
   final int height;
   final bool primary;
+
+  /// Linux: the connector (DP-1) GDK names the screen by, else its make and model; it survives the layout changing.
+  final String? name;
 
   /// Windows: the display device index libwebrtc uses as this screen's source id.
   final int? deviceIndex;
@@ -50,6 +54,10 @@ class OverlayMonitor {
       width: w,
       height: h,
       primary: reply['primary'] == true,
+      name: switch (reply['name']) {
+        final String name when name.isNotEmpty => name,
+        _ => null,
+      },
       deviceIndex: _nonNegative(reply['deviceIndex']),
       capturePosition: _nonNegative(reply['capturePosition']),
     );

@@ -25,6 +25,9 @@ abstract class ShareAudioGraph {
   /// Links output port [out] to input port [input]; true when it took.
   Future<bool> link(int out, int input);
 
+  /// Removes the link from output port [out] to input port [input]; true when it went.
+  Future<bool> unlink(int out, int input);
+
   /// Points the share capture at the source named [source], or back to the default when null.
   void exportCaptureSource(String? source);
 

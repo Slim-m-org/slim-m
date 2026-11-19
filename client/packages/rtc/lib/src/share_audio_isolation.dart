@@ -14,6 +14,27 @@ export 'share_audio_graph_parse.dart' show shareMixNode;
 /// What the share capture records instead of the default output's monitor.
 const shareMixSource = '$shareMixNode.monitor';
 
+/// Bounds the unlink-and-check rounds before the mix goes regardless.
+const _emptyPasses = 5;
+
+/// Every isolation from the start of its [ShareAudioIsolation.begin] to its end.
+final _live = <ShareAudioIsolation>{};
+
+/// Ends every share's mix still up, for an app about to quit or restart; gives up after [within].
+/// The mix goes with the process otherwise, links and all, and WirePlumber pauses each player still feeding it.
+Future<void> endShareAudioBeforeExit({
+  Duration within = const Duration(seconds: 2),
+}) async {
+  final ending = [for (final isolation in _live.toList()) isolation.end()];
+  if (ending.isEmpty) return;
+  try {
+    await Future.wait(ending).timeout(within);
+  } on Object catch (error, stack) {
+    AppLog.swallowed(
+        LogTag.voice, 'Could not end share audio before exit', error, stack);
+  }
+}
+
 /// Builds, for the length of a share, a private mix of every app's audio but this app's own.
 /// Like venmic it only adds a node and links; the default output and every stream's routing stay as they were.
 ///
@@ -23,13 +44,17 @@ class ShareAudioIsolation {
   ShareAudioIsolation({
     ShareAudioGraph? graph,
     this.followEvery = const Duration(seconds: 1),
+    this.emptyWithin = const Duration(milliseconds: 1500),
   }) : _graph = graph ?? PipewireShareGraph();
 
   final ShareAudioGraph _graph;
   final Duration followEvery;
+
+  /// How long ending a share waits for the mix to empty before removing it anyway, so a wedged sound server cannot hold up stopping the share or leaving the call.
+  final Duration emptyWithin;
   int? _mixNode;
   Timer? _follow;
-  bool _following = false;
+  Future<void>? _linking;
   // Null while idle, so no future is made in whichever zone built this object.
   Future<void>? _queue;
   int _ends = 0;
@@ -60,6 +85,13 @@ class ShareAudioIsolation {
   Future<bool> _begin() async {
     if (active) return true;
     if (!_graph.supported) return false;
+    _live.add(this);
+    final up = await _bringUp();
+    if (!up) _live.remove(this);
+    return up;
+  }
+
+  Future<bool> _bringUp() async {
     final ends = _ends;
     bool ended() => ends != _ends;
     if (!await _graph.createMix(shareMixNode)) {
@@ -80,12 +112,39 @@ class ShareAudioIsolation {
   }
 
   Future<void> _end() async {
+    _live.remove(this);
     _follow?.cancel();
     _follow = null;
-    if (!active) return;
+    final mix = _mixNode;
+    if (mix == null) return;
     _graph.exportCaptureSource(null);
     _mixNode = null;
-    await _graph.destroy();
+    try {
+      await _unhook(mix).timeout(emptyWithin, onTimeout: () {
+        AppLog.warning(LogTag.voice,
+            'The share mix did not empty in time; media players feeding it may pause');
+      });
+    } finally {
+      await _graph.destroy();
+    }
+  }
+
+  Future<void> _unhook(int mix) async {
+    await _linking;
+    await _empty(mix);
+  }
+
+  /// WirePlumber pauses every media player still feeding a sink that goes away, Spotify included.
+  Future<void> _empty(int mix) async {
+    for (var pass = 0; pass < _emptyPasses; pass++) {
+      final dump = await _graph.dump();
+      if (dump == null) return;
+      final links = ShareGraphSnapshot.parse(dump).mixState(mix).links;
+      if (links.isEmpty) return;
+      await Future.wait([
+        for (final link in links) _graph.unlink(link.out, link.input),
+      ]);
+    }
   }
 
   void _notIsolated(String why) => AppLog.warning(
@@ -105,34 +164,35 @@ class ShareAudioIsolation {
   }
 
   /// Links every other app's playback into the mix; ones already linked are skipped, ones that left drop their own links.
-  Future<void> _link() async {
+  Future<void> _link() {
     final mix = _mixNode;
-    if (mix == null || _following) return;
-    _following = true;
-    try {
-      final dump = await _graph.dump();
-      if (dump == null || !active) return;
-      final snapshot = ShareGraphSnapshot.parse(dump);
-      final state = snapshot.mixState(mix);
-      final channels = snapshot.portChannels();
-      final foreign = snapshot.foreignPlayback(
-        _graph.processId,
-        binary: _graph.executableName,
-      );
-      for (final stream in foreign) {
-        for (final out in stream.outPorts) {
-          if (state.linkedOutPorts.contains(out)) continue;
-          final wanted = mixChannelsFor(
-            channels[out],
-            onlyPort: stream.outPorts.length == 1,
-          );
-          for (final input in state.inPorts) {
-            if (wanted.contains(channels[input])) await _graph.link(out, input);
-          }
+    if (mix == null) return Future.value();
+    return _linking ??= _linkInto(mix).whenComplete(() => _linking = null);
+  }
+
+  Future<void> _linkInto(int mix) async {
+    final dump = await _graph.dump();
+    if (dump == null || !active) return;
+    final snapshot = ShareGraphSnapshot.parse(dump);
+    final state = snapshot.mixState(mix);
+    final linked = {for (final link in state.links) link.out};
+    final channels = snapshot.portChannels();
+    final foreign = snapshot.foreignPlayback(
+      _graph.processId,
+      binary: _graph.executableName,
+    );
+    for (final stream in foreign) {
+      for (final out in stream.outPorts) {
+        if (linked.contains(out)) continue;
+        final wanted = mixChannelsFor(
+          channels[out],
+          onlyPort: stream.outPorts.length == 1,
+        );
+        for (final input in state.inPorts) {
+          if (!active) return;
+          if (wanted.contains(channels[input])) await _graph.link(out, input);
         }
       }
-    } finally {
-      _following = false;
     }
   }
 }

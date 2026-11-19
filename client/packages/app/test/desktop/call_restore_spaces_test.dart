@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A call keeps running in a Space that is not on screen, so quitting forgets
-/// that Space's call and restarting brings that Space's call back.
+/// that Space's call and restarting brings that Space's call back. Either one
+/// first ends a share's audio mix, which would pause media players if it went
+/// with the process.
 library;
 
 import 'package:flutter/material.dart';
@@ -8,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 import 'package:slimm_app/src/desktop/self_update/self_update_controller.dart';
 import 'package:slimm_app/src/desktop/update_check.dart';
 import 'package:slimm_app/src/desktop/update_watch.dart';
@@ -137,6 +140,40 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     expect(_recordOf(prefs, _inCall), isNull);
     expect(port.destroyCalls, 1);
+  });
+
+  test('quitting ends a share\'s audio mix before the window goes', () async {
+    final port = FakeDesktopWindowPort();
+    int? destroyedBefore;
+    final shell = shellFor(
+      port,
+      beforeExit: () async => destroyedBefore = port.destroyCalls,
+    );
+
+    await shell.quit(port);
+
+    expect(destroyedBefore, 0);
+    expect(port.destroyCalls, 1);
+  });
+
+  testWidgets('Restart slim-m ends a share\'s audio mix before the new copy '
+      'starts', (tester) async {
+    late FakeDesktopWindowPort menuPort;
+    int? relaunchedBefore;
+    final shell = shellFor(
+      null,
+      beforeExit: () async => relaunchedBefore = menuPort.relaunchCalls,
+    );
+    final (_, port) = await _menu(
+      tester,
+      overrides: [desktopWindowShellProvider.overrideWithValue(shell)],
+    );
+    menuPort = port;
+
+    await _choose(tester, 'Restart slim-m');
+
+    expect(relaunchedBefore, 0);
+    expect(port.relaunchCalls, 1);
   });
 
   testWidgets('Restart slim-m brings back the call in another Space', (

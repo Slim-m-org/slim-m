@@ -20,6 +20,7 @@ DesktopWindowShell shellFor(
   Future<Duration?> Function()? probe,
   bool active = false,
   bool frameless = false,
+  Future<void> Function()? beforeExit,
 }) => DesktopWindowShell(
   port: port ?? FakeDesktopWindowPort(),
   chromePlatform: chrome,
@@ -27,4 +28,5 @@ DesktopWindowShell shellFor(
   splashMappedProbe: probe ?? longMapped,
   active: active,
   frameless: frameless,
+  beforeExit: beforeExit ?? () async {},
 );
