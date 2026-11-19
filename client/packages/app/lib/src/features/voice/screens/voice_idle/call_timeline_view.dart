@@ -61,13 +61,22 @@ class CallTimelineView extends ConsumerWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // A narrow pane or a large text size shrinks the times rather than overflowing the row.
                   for (final at in model.ticks(compact ? 3 : 5))
-                    Text(
-                      formatClock(
-                        DateTime.fromMillisecondsSinceEpoch(at),
-                        use24Hour: use24,
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          formatClock(
+                            DateTime.fromMillisecondsSinceEpoch(at),
+                            use24Hour: use24,
+                          ),
+                          maxLines: 1,
+                          style: AppText.code.copyWith(
+                            color: tokens.textSecondary,
+                          ),
+                        ),
                       ),
-                      style: AppText.code.copyWith(color: tokens.textSecondary),
                     ),
                 ],
               ),

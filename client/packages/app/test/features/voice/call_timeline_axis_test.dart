@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The call record's time axis starts exactly where the lanes start, so the
-/// first time sits under the first minute of the call.
+/// first time sits under the first minute of the call, and its times stay
+/// inside the row in a narrow pane.
 library;
 
 import 'package:flutter/material.dart';
@@ -14,7 +15,66 @@ import 'package:slimm_design_system/design_system.dart';
 
 const _min = 60000;
 
+api.VoiceCall _call(int startedAt) => api.VoiceCall(
+  startedAt: startedAt,
+  endedAt: startedAt + 120 * _min,
+  canvas: const [],
+  events: [
+    api.VoiceCallEvent(
+      at: startedAt,
+      userId: 'nick',
+      kind: api.VoiceCallEventKind.joined,
+    ),
+    api.VoiceCallEvent(
+      at: startedAt + 120 * _min,
+      userId: 'nick',
+      kind: api.VoiceCallEventKind.left,
+    ),
+  ],
+);
+
+Future<void> _pumpTimeline(
+  WidgetTester tester,
+  CallTimelineModel model, {
+  required bool compact,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [userProfileProvider.overrideWith((ref, id) async => null)],
+      child: MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.all(AppSpacing.s16),
+            child: CallTimelineView(model: model, compact: compact),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+}
+
 void main() {
+  testWidgets('the longest clock times stay inside a third-pane-wide row', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final tenAm = DateTime(2026, 1, 1, 10).millisecondsSinceEpoch;
+    final model = CallTimelineModel.from(_call(tenAm), now: tenAm);
+    await _pumpTimeline(tester, model, compact: true);
+    expect(tester.takeException(), isNull);
+    final times = find.textContaining(RegExp(r'^\d+:\d\d'));
+    expect(times, findsNWidgets(3));
+    for (var i = 0; i < 3; i++) {
+      final rect = tester.getRect(times.at(i));
+      expect(rect.left, greaterThanOrEqualTo(AppSpacing.s16));
+      expect(rect.right, lessThanOrEqualTo(360 - AppSpacing.s16 + 0.5));
+    }
+  });
+
   for (final compact in [true, false]) {
     testWidgets(
       'the first axis time aligns with the lanes (compact: $compact)',
