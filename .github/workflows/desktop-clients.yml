@@ -149,7 +149,7 @@ jobs:
     name: macos tester build (ad-hoc signed)
     needs: [verify-client-ci]
     runs-on: xcode-27
-    timeout-minutes: 30
+    timeout-minutes: 45
     # Named for the same reason release.yml's publish jobs are: this is tag-triggered, so a reviewer gate on `release` should hold it too.
     environment: release
     # write, not read: the last step attaches the zip and setup to the github release.

@@ -425,7 +425,7 @@ jobs:
     needs: [release-please, verify-client-ci]
     if: needs.verify-client-ci.result == 'success'
     runs-on: xcode-27
-    timeout-minutes: 30
+    timeout-minutes: 60
     environment: testflight
     permissions:
       contents: read

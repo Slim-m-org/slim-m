@@ -29,6 +29,8 @@ SCRIPT = ROOT / "scripts" / "select-xcode.sh"
 SELECT = "uses: ./.github/actions/select-xcode"
 APPLE_RUNNER = re.compile(r"^    runs-on:\s*(\S*(?:macos|xcode)\S*)", re.M)
 NEEDS_XCODE = re.compile(r"\bflutter\b|xcodebuild|xcrun|release-ios-testflight")
+JOB_TIMEOUT = re.compile(r"^    timeout-minutes:\s*(\d+)", re.M)
+MIN_TIMEOUT = 45
 
 
 def pinned() -> tuple[str, str]:
@@ -65,6 +67,18 @@ def problems(text: str, version: str) -> list[str]:
     return bad
 
 
+def short_timeouts(text: str) -> list[str]:
+    """macOS jobs allowed under [MIN_TIMEOUT] minutes; docs/ci-details.md has why."""
+    bad = []
+    for name, body in jobs(strip_comments(text)).items():
+        if not APPLE_RUNNER.search(body):
+            continue
+        match = JOB_TIMEOUT.search(body)
+        if not match or int(match.group(1)) < MIN_TIMEOUT:
+            bad.append(f"{name} has {match.group(1) if match else 'no'} timeout-minutes")
+    return bad
+
+
 class AppleJobsUseThePinnedXcodeTest(unittest.TestCase):
     def test_every_macos_job_selects_the_pin_on_its_label(self):
         version, _ = pinned()
@@ -75,6 +89,17 @@ class AppleJobsUseThePinnedXcodeTest(unittest.TestCase):
             with self.subTest(workflow=path.name):
                 self.assertEqual(problems(text, version), [])
         self.assertGreaterEqual(seen, 5, "found fewer macOS jobs than the five that build")
+
+    def test_every_macos_job_has_room_for_a_slow_runner(self):
+        for path in sorted(WORKFLOWS.glob("*.yml")):
+            with self.subTest(workflow=path.name):
+                self.assertEqual(short_timeouts(path.read_text()), [])
+
+    def test_a_thirty_minute_macos_job_is_seen(self):
+        text = ("jobs:\n  mac:\n    runs-on: xcode-27\n    timeout-minutes: 30\n    steps:\n"
+                "      - run: flutter build macos\n        timeout-minutes: 90\n"
+                "  linux:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 10\n")
+        self.assertEqual(short_timeouts(text), ["mac has 30 timeout-minutes"])
 
     def test_the_pin_ships_an_sdk_the_store_accepts(self):
         version, min_sdk = pinned()

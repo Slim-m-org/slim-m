@@ -236,6 +236,10 @@ The pin is 27.2 (27B52), the newest release on the image; the image also carries
 A newer Xcode is a deliberate PR: change the version in the action, and the label with it when the major moves; `scripts/lib/test_xcode_is_pinned.py` fails when a macOS job is on another label, never selects the pin, or builds before selecting it.
 Xcode 27 refuses a deployment target below iOS 15 or macOS 12.
 The iOS targets were already at 15.0; the macOS project moved from 10.15 to 12.0, the same edit Flutter 3.47's own migration had been making to the working copy at every `flutter build macos`.
+Every macOS job gets at least 45 minutes and the two TestFlight jobs 60, two to three times the slowest recent successful run as [ci.md](ci.md#job-timeouts) sizes them; four of the five had been at 30.
+On macos-26 the slowest recent successful runs were 10 minutes for the nightly debug build, 12.6 for `desktop-clients`' macOS tester build and 20.8 for a TestFlight build, and the upload's two retries can add about two minutes of waiting.
+The first xcode-27 runs fell inside the macos-26 spread (the debug build 11.5 minutes against 4 to 10, the iOS release device build 6.4 minutes against 4.4 to 6.6), but that is one run each on an image that swings about 2.5x, and the tester build runs only on a release, so it has no xcode-27 run yet.
+`scripts/lib/test_xcode_is_pinned.py` fails on a macOS job allowed under 45 minutes.
 
 ### Goldens are not a separate job
 
