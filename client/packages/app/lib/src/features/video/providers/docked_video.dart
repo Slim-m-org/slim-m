@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The video playing in the desktop panel, if any. It belongs to the shell,
 /// not to a message, so it plays on while the reader scrolls away or
-/// switches channel, until they close it.
+/// switches channel, until they close it. Its fullscreen hold lives here too,
+/// so a panel moving between layouts never drops the window out of it.
 library;
 
 import 'dart:async';
@@ -9,7 +10,12 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show LinkPreview;
 
+import '../../../desktop/desktop_window_port.dart';
+import '../../../desktop/desktop_window_shell.dart';
+import '../../../desktop/window_fullscreen_hold.dart';
+import '../../voice/providers/fullscreen_video.dart';
 import 'docked_video_player.dart';
+import 'embedded_video_player.dart';
 import 'native_video_host.dart';
 import 'video_host_capability.dart';
 import 'video_playback_coordinator.dart';
@@ -41,6 +47,9 @@ class DockedVideoController extends Notifier<DockedVideo?> {
 
   /// Held from the attach on, since the release can run while the container is disposing.
   VideoPlaybackCoordinator? _coordinator;
+  WindowFullscreenHold? _fullscreen;
+  StreamSubscription<VideoPlayerEvent>? _events;
+  StreamSubscription<DesktopWindowEventKind>? _windowLeaves;
 
   /// The panel's player while a video is docked.
   DockedVideoPlayer? get player => _player;
@@ -78,6 +87,20 @@ class DockedVideoController extends Notifier<DockedVideo?> {
         _coordinator ?? ref.read(videoPlaybackCoordinatorProvider);
     _coordinator = coordinator;
     coordinator.attach(player);
+    final shell = ref.read(desktopWindowShellProvider);
+    final fullscreen = _fullscreen ??= WindowFullscreenHold(
+      ref.read(fullscreenVideoActiveProvider.notifier),
+      shell,
+    );
+    _events = player.events.listen((event) {
+      if (event is VideoFullscreenChanged) {
+        event.on ? unawaited(fullscreen.enter()) : fullscreen.release();
+      }
+    });
+    // Leaving window fullscreen first (Esc, the window manager) takes the page out too.
+    _windowLeaves = shell.port.events
+        .where((kind) => kind == DesktopWindowEventKind.leaveFullScreen)
+        .listen((_) => unawaited(player.exitFullscreen()));
     return player;
   }
 
@@ -85,6 +108,11 @@ class DockedVideoController extends Notifier<DockedVideo?> {
     final player = _player;
     _player = null;
     if (player == null) return;
+    unawaited(_events?.cancel());
+    unawaited(_windowLeaves?.cancel());
+    _events = null;
+    _windowLeaves = null;
+    _fullscreen?.release();
     _coordinator?.detach(player);
     await player.dispose();
   }

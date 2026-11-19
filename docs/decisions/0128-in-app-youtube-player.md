@@ -31,8 +31,10 @@ Until now only the web build played a video in place (a `youtube-nocookie.com` i
 - The embed identifies itself with a referrer: each host serves its page from `https://top.npcserver.slimm`, the app id, since a webview with no referrer gets errors 152 and 153.
 - One player plays at a time, app-wide.
 - Nothing plays in the background: every player pauses when the app or window leaves the screen (minimised, hidden to the tray, a phone backgrounded).
+  The desktop panel also pauses when it leaves the shell (the compact channel list, a fullscreen canvas) or a page or dialog covers it.
 - The viewport is never smaller than 200 by 200: the panel's player is full-bleed, and every player keeps a 200 high floor.
-- Nothing Flutter draws sits over a native player: it hides while a menu, dialog or page is over it.
+- Nothing Flutter draws sits over a native player: it hides while a menu, drawer, dialog or page is over it.
+- The player's top-level page never leaves the host page: a link, new window, redirect or script navigation off it opens the browser instead.
 
 ## Not done
 

@@ -13,11 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../desktop/desktop_window_port.dart';
-import '../../../desktop/desktop_window_shell.dart';
-import '../../../desktop/window_fullscreen_hold.dart';
 import '../../../external_link.dart';
-import '../../voice/providers/fullscreen_video.dart';
 import '../providers/docked_video.dart';
 import '../providers/docked_video_player.dart';
 import '../providers/embedded_video_player.dart';
@@ -172,10 +168,8 @@ class _VideoHeader extends StatelessWidget {
   }
 }
 
-/// The player box, or why it cannot play, for one video. When the page goes
-/// fullscreen the window follows, and leaving window fullscreen first takes
-/// the page out too.
-class _PlayerBody extends ConsumerStatefulWidget {
+/// The player box, or why it cannot play, for one video.
+class _PlayerBody extends StatefulWidget {
   const _PlayerBody({
     super.key,
     required this.video,
@@ -188,26 +182,16 @@ class _PlayerBody extends ConsumerStatefulWidget {
   final bool strip;
 
   @override
-  ConsumerState<_PlayerBody> createState() => _PlayerBodyState();
+  State<_PlayerBody> createState() => _PlayerBodyState();
 }
 
-class _PlayerBodyState extends ConsumerState<_PlayerBody> {
+class _PlayerBodyState extends State<_PlayerBody> {
   StreamSubscription<VideoPlayerEvent>? _events;
-  StreamSubscription<DesktopWindowEventKind>? _windowEvents;
-  late final WindowFullscreenHold _fullscreen;
   VideoFailed? _failure;
 
   @override
   void initState() {
     super.initState();
-    final shell = ref.read(desktopWindowShellProvider);
-    _fullscreen = WindowFullscreenHold(
-      ref.read(fullscreenVideoActiveProvider.notifier),
-      shell,
-    );
-    _windowEvents = shell.port.events
-        .where((kind) => kind == DesktopWindowEventKind.leaveFullScreen)
-        .listen((_) => unawaited(widget.player.exitFullscreen()));
     _listen();
   }
 
@@ -220,24 +204,13 @@ class _PlayerBodyState extends ConsumerState<_PlayerBody> {
   void _listen() {
     unawaited(_events?.cancel());
     _events = widget.player.events.listen((event) {
-      switch (event) {
-        case VideoFailed():
-          setState(() => _failure = event);
-        case VideoFullscreenChanged(on: true):
-          unawaited(_fullscreen.enter());
-        case VideoFullscreenChanged(on: false):
-          _fullscreen.release();
-        default:
-          break;
-      }
+      if (event is VideoFailed) setState(() => _failure = event);
     });
   }
 
   @override
   void dispose() {
     unawaited(_events?.cancel());
-    unawaited(_windowEvents?.cancel());
-    _fullscreen.release();
     super.dispose();
   }
 

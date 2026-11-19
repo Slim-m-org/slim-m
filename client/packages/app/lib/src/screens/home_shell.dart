@@ -55,6 +55,7 @@ import '../features/settings/widgets/rules_gate_banner_host.dart';
 import '../features/voice/widgets/push_to_talk_listener.dart';
 import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/download_failures.dart';
+import '../widgets/native_view_occlusion.dart';
 import '../widgets/shell_focus_anchor.dart';
 import '../widgets/update_banner_host.dart';
 import '../features/voice/providers/shortcut_overrides.dart';
@@ -234,7 +235,7 @@ class HomeShell extends ConsumerWidget {
       showThread: showThread,
       showMembers: showMembers,
       videoSide: videoSide,
-      videoStrip: videoDocked && !videoSide,
+      videoStrip: videoDocked && !videoSide && !canvasFullscreen,
       membersUnderVideo: videoSide && membersWanted,
       notFound: notFound,
       rosterPending: channelRow != null && !channelRow.hasValue && synced,
@@ -297,10 +298,12 @@ class HomeShell extends ConsumerWidget {
       endDrawerEnableOpenDragGesture: !facts.canvasOpen,
       endDrawer: isDm || facts.membersFit || selected == null
           ? null
-          : OpaquePanes(
-              child: Drawer(
-                width: AppMemberPane.width,
-                child: SafeArea(child: AppMemberPane(channelId: selected)),
+          : OccludesNativeViews(
+              child: OpaquePanes(
+                child: Drawer(
+                  width: AppMemberPane.width,
+                  child: SafeArea(child: AppMemberPane(channelId: selected)),
+                ),
               ),
             ),
       body: Row(

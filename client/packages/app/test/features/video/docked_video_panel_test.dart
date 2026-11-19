@@ -8,12 +8,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/desktop/desktop_window_port.dart';
+import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 import 'package:slimm_app/src/features/video/providers/docked_video.dart';
 import 'package:slimm_app/src/features/video/providers/embedded_video_player.dart';
 import 'package:slimm_app/src/features/video/widgets/docked_video_panel.dart';
 import 'package:slimm_app/src/widgets/native_view_occlusion.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../desktop/support/desktop_shell_fixture.dart';
+import '../../desktop/support/fake_desktop_window_port.dart';
 import 'fake_video_player.dart';
 
 const _url = 'https://youtu.be/dQw4w9WgXcQ?t=42';
@@ -26,11 +30,17 @@ const _preview = LinkPreview(
   videoStartMs: 42000,
 );
 
-({ProviderContainer container, FakeVideoPlayer player}) _open() {
+({ProviderContainer container, FakeVideoPlayer player}) _open({
+  FakeDesktopWindowPort? window,
+}) {
   final player = FakeVideoPlayer();
   final container = ProviderContainer(
     overrides: [
       dockedVideoPlayerFactoryProvider.overrideWithValue(() => player),
+      if (window != null)
+        desktopWindowShellProvider.overrideWith(
+          (ref) => shellFor(window, active: true, frameless: true),
+        ),
     ],
   );
   addTearDown(container.dispose);
@@ -171,6 +181,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(s.player.visible, isFalse);
+    expect(s.player.pauses, 1, reason: 'nothing plays out of sight');
 
     navigator.pop();
     await tester.pump();
@@ -228,5 +239,28 @@ void main() {
     expect(s.player.loads.map((l) => l.id), ['dQw4w9WgXcQ', 'abcdefghijk']);
     expect(s.player.disposed, isFalse);
     expect(find.text('Another'), findsOneWidget);
+  });
+
+  testWidgets('the window follows the page into fullscreen and out of it', (
+    tester,
+  ) async {
+    final window = FakeDesktopWindowPort();
+    final s = _open(window: window);
+    await _pump(tester, s.container);
+
+    s.player.emit(const VideoFullscreenChanged(on: true));
+    await tester.pump();
+    expect(window.fullScreen, isTrue);
+
+    window.emit(DesktopWindowEventKind.leaveFullScreen);
+    await tester.pump();
+    expect(s.player.fullscreenExits, 1, reason: 'Esc on the window');
+
+    s.player.emit(const VideoFullscreenChanged(on: true));
+    await tester.pump();
+    s.container.read(dockedVideoProvider.notifier).close();
+    await tester.pump();
+    await tester.pump();
+    expect(window.fullScreen, isFalse, reason: 'closing lets the window go');
   });
 }

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The box a docked player's native view floats over. Flutter cannot clip or
 /// stack a native view, so this reports where the box landed after each
-/// paint and hides the view whenever Flutter draws something over it.
+/// paint and hides the view whenever Flutter draws something over it. With
+/// no slot left on screen, or a page over it, the video also pauses: nothing
+/// plays where it cannot be seen.
 library;
 
 import 'dart:async';
@@ -45,7 +47,9 @@ class _NativeViewSlotState extends State<NativeViewSlot> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _routeCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+    final current = ModalRoute.of(context)?.isCurrent ?? true;
+    if (_routeCurrent && !current) unawaited(widget.player.pause());
+    _routeCurrent = current;
     _scheduleSync();
   }
 
@@ -66,7 +70,9 @@ class _NativeViewSlotState extends State<NativeViewSlot> {
       _mounted[player] = left;
     }
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!_mounted.containsKey(player)) unawaited(player.setVisible(false));
+      if (_mounted.containsKey(player)) return;
+      unawaited(player.setVisible(false));
+      unawaited(player.pause());
     });
     super.dispose();
   }

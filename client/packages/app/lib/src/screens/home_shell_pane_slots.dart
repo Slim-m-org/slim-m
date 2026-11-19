@@ -157,12 +157,14 @@ class VideoPaneSlot extends StatelessWidget {
   }
 }
 
-/// The docked video above the conversation, where no third pane fits.
+/// The docked video above the conversation, where no third pane fits. The
+/// conversation is its own semantics container, since the modal barrier in
+/// its navigator drops everything painted before it in the same one.
 Widget videoStripAbove(Widget conversation, {required bool show}) => show
     ? Column(
         children: [
           const DockedVideoPanel(layout: DockedVideoLayout.strip),
-          Expanded(child: conversation),
+          Expanded(child: Semantics(container: true, child: conversation)),
         ],
       )
     : conversation;
