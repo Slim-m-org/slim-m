@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Category permissions (decisions 0064 and 0120): a category's overwrites, and syncing a channel
-//! or sub-category back to its parent's, with the caller's deployment-wide permissions as the
-//! ceiling and the role ladder on every target a write changes.
+//! or sub-category back to its parent's. The ceiling is what the caller holds under the category's
+//! own rows ([`manager_in`]), as a channel's is, with the role ladder on every target a write changes.
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
@@ -48,6 +48,24 @@ async fn live_category(state: &AppState, raw: &str) -> Result<ChannelCategory, A
         .ok_or(ApiError::NotFound("category not found"))
 }
 
+/// MANAGE_ROLES deployment-wide, then what the caller holds under `category`'s own rows: the
+/// most they may grant there. One they cannot see answers like a missing one, so a private
+/// category keeps a role manager out exactly as a private channel does.
+async fn manager_in(
+    state: &AppState,
+    user_id: UserId,
+    category: ChannelCategoryId,
+) -> Result<Permissions, ApiError> {
+    let held = state
+        .store
+        .permissions_in_category(user_id, category)
+        .await?;
+    if !held.contains(Permissions::VIEW_CHANNEL) {
+        return Err(ApiError::NotFound("category not found"));
+    }
+    Ok(held)
+}
+
 /// The category's overwrites; `synced` says whether a sub-category follows its parent.
 async fn category_dto(state: &AppState, id: ChannelCategoryId) -> Result<OverwritesDto, ApiError> {
     let overwrites = state.store.category_overwrites(id).await?;
@@ -64,6 +82,7 @@ async fn list(
 ) -> Result<Json<OverwritesDto>, ApiError> {
     require_manage_roles(&state, ctx.user_id).await?;
     let id = live_category(&state, &category_id).await?.id;
+    manager_in(&state, ctx.user_id, id).await?;
     Ok(Json(category_dto(&state, id).await?))
 }
 
@@ -77,8 +96,9 @@ async fn batch_set(
     Json(req): Json<BatchSetRequest>,
 ) -> Result<Json<OverwritesDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
-    let caller = require_manage_roles(&state, ctx.user_id).await?;
+    require_manage_roles(&state, ctx.user_id).await?;
     let id = live_category(&state, &category_id).await?.id;
+    let caller = manager_in(&state, ctx.user_id, id).await?;
     if req.overwrites.len() > MAX_BATCH_ENTRIES {
         return Err(ApiError::BadRequest("too many overwrites in one batch"));
     }
@@ -165,11 +185,15 @@ async fn sync_category(
     State(state): State<AppState>,
 ) -> Result<Json<OverwritesDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
-    let caller = require_manage_roles(&state, ctx.user_id).await?;
+    require_manage_roles(&state, ctx.user_id).await?;
     let category = live_category(&state, &category_id).await?;
+    let own_reach = manager_in(&state, ctx.user_id, category.id).await?;
     let parent_id = category.parent_id.ok_or(ApiError::Conflict(
         "a top-level category has no parent to follow",
     ))?;
+    // Adopting the parent's rows is a write under both, so the ceiling is what holds in each.
+    let parent_reach = manager_in(&state, ctx.user_id, parent_id).await?;
+    let caller = Permissions::from_bits(own_reach.bits() & parent_reach.bits());
     let parent = state.store.category_overwrites(parent_id).await?;
     let own = state.store.category_overwrites(category.id).await?;
     let targets = refuse_sync_escalation(caller, &parent, &own)?;

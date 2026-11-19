@@ -305,6 +305,22 @@ impl Store {
         Ok(roles.evaluate_for(user_id, &overwrites).permissions)
     }
 
+    /// What `user_id` would hold in a channel synced with `category`: its
+    /// rows over their roles, less a timeout or the join gate. The ceiling
+    /// for editing the category, as a channel's permissions are for its own rows.
+    pub async fn permissions_in_category(
+        &self,
+        user_id: UserId,
+        category: crate::ids::ChannelCategoryId,
+    ) -> anyhow::Result<Permissions> {
+        let roles = self.load_roles(user_id).await?;
+        let overwrites = self.category_overwrites(category).await?;
+        Ok(roles
+            .evaluate_for(user_id, &overwrites)
+            .permissions
+            .remove(self.member_deny(user_id, None).await?))
+    }
+
     /// Whether the user holds every bit in `needed` in this channel.
     pub async fn has_permission(
         &self,
