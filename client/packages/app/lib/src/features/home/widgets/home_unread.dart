@@ -68,7 +68,7 @@ class _UnreadRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final count = entry.unread > 99 ? '99+' : '${entry.unread}';
     return InkWell(
-      onTap: () => context.go(Routes.channel(entry.channel.id)),
+      onTap: () => context.go(Routes.channel(entry.channel.id, openChat: true)),
       child: ConstrainedBox(
         constraints: BoxConstraints(minHeight: height),
         child: Padding(
