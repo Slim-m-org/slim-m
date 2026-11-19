@@ -138,7 +138,7 @@ class SyncCatchUp {
     ScopeDelta delta,
   ) async {
     bool isCurrent() => _isCurrent(generation);
-    if (delta.reset) {
+    if (delta.reset || await _adoptsOverHeldRows(store, delta)) {
       // Either cursor is too far behind to stream: local state is untrusted.
       await _resetScope(generation, api, store, delta);
       return isCurrent() ? false : null;
@@ -163,6 +163,18 @@ class SyncCatchUp {
       await store.healMentionCursor(delta.channelId, seq);
     }
     return delta.hasMore || delta.opsHasMore;
+  }
+
+  /// Whether adopting the op head would skip ops on rows already held.
+  ///
+  /// A channel with no op cursor adopts the head, which is only safe while it
+  /// holds nothing: rows that arrived first, live or from a page, may be named
+  /// by ops before that head which no cursor will ever ask for.
+  Future<bool> _adoptsOverHeldRows(MessageStore store, ScopeDelta delta) async {
+    final head = delta.opLatestSeq;
+    if (head == null || head == 0) return false;
+    if (await store.opCursorFor(delta.channelId) != null) return false;
+    return await store.oldestLocalSeq(delta.channelId) != null;
   }
 
   /// Applies a scope's edit ops after its messages, adopting the head on a first sync.
