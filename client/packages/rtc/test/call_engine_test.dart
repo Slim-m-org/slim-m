@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What the call's engine does about a publish answer or an offer lost with the signal socket.
+/// What the call's engine does about a publish answer or an offer lost with the signal socket, and a leave mid-restart.
 library;
 
 // ignore_for_file: invalid_use_of_internal_member
+
+import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
@@ -77,6 +79,24 @@ class _Publisher implements rtc.RTCPeerConnection {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// A full reconnect whose new signal connection has not answered yet, until [release].
+class _RestartThatHangs extends CallEngine {
+  _RestartThatHangs() : super(roomOptions: const lk.RoomOptions());
+
+  final restarting = Completer<void>();
+  final release = Completer<void>();
+
+  @override
+  Future<void> restartConnection({String? regionUrl}) async {
+    restarting.complete();
+    await release.future;
+    throw lk.ConnectException(
+      'Timed out waiting for SignalJoinResponseEvent',
+      reason: lk.ConnectionErrorReason.Timeout,
+    );
+  }
 }
 
 Future<CallEngine> _engineOn(_Publisher pc) async {
@@ -173,6 +193,48 @@ void main() {
     expect(attempts, isNotEmpty);
     expect(
         engine.fullReconnectOnNext || engine.isFullReconnectInProgress, isTrue);
+  });
+
+  test(
+      'a leave that closes the engine during a full reconnect still ends the '
+      'call, instead of leaving it on screen with no connection', () async {
+    final engine = _RestartThatHangs();
+    final room = lk.Room(roomOptions: const lk.RoomOptions(), engine: engine);
+    final ended = <lk.RoomDisconnectedEvent>[];
+    final cancel = room.events.on<lk.RoomDisconnectedEvent>(ended.add);
+    addTearDown(cancel);
+
+    engine.fullReconnectOnNext = true;
+    final attempt = engine.attemptReconnect(
+      lk_internal.ClientDisconnectReason.signal,
+    );
+    await engine.restarting.future;
+    await engine.disconnect(reason: lk.DisconnectReason.duplicateIdentity);
+    await pumpEventQueue();
+
+    expect(ended.map((e) => e.reason), [lk.DisconnectReason.duplicateIdentity]);
+    engine.release.complete();
+    await attempt;
+  });
+
+  test(
+      'a leave that closes the engine while a full reconnect waits to start '
+      'still ends the call', () async {
+    final engine = CallEngine(roomOptions: const lk.RoomOptions());
+    final room = lk.Room(roomOptions: const lk.RoomOptions(), engine: engine);
+    final ended = <lk.RoomDisconnectedEvent>[];
+    final cancel = room.events.on<lk.RoomDisconnectedEvent>(ended.add);
+    addTearDown(cancel);
+
+    unawaited(engine.handleReconnect(
+      lk_internal.ClientDisconnectReason.peerConnectionFailed,
+    ));
+    expect(engine.isPendingReconnect, isTrue);
+    expect(engine.fullReconnectOnNext, isTrue);
+    await engine.disconnect(reason: lk.DisconnectReason.duplicateIdentity);
+    await pumpEventQueue();
+
+    expect(ended.map((e) => e.reason), [lk.DisconnectReason.duplicateIdentity]);
   });
 
   test('an offer answered after a resume leaves the connection alone',
