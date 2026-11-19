@@ -6,7 +6,7 @@ description: Import the signing assets, build the ipa and upload it to TestFligh
 
 inputs:
   version:
-    description: client version, from release-please's client_version output
+    description: client version, release-please's client_version or, on a main build, pubspec's
     required: true
   spotify_client_id:
     description: Spotify app id for rich presence; empty keeps the feature off
@@ -93,7 +93,7 @@ runs:
       run: |
         # --enforce-lockfile: resolve exactly what pubspec.lock pins.
         flutter pub get --enforce-lockfile
-        # Build number from the run number and build name from the tag, never from pubspec. Both stores reject a reuse; see docs/ci.md.
+        # Build number from the run number and build name from the caller's version input: the release tag's in release.yml, pubspec's tracked version in main-builds. Both stores reject a reuse; see docs/ci.md.
         flutter build ipa --release --export-options-plist=ios/ExportOptions.plist --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
           --build-name=${{ inputs.version }} \
           --build-number=${{ github.run_number }}
@@ -103,7 +103,12 @@ runs:
       working-directory: client/packages/app
       run: |
         ipa=(build/ios/ipa/*.ipa)
-        xcrun altool --upload-app --type ios \
-          --file "${ipa[0]}" \
-          --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-          --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+        # App Store Connect's app lookup fails now and then before anything uploads (altool error 19); a retry of an upload that did land fails as a duplicate.
+        for attempt in 1 2 3; do
+          xcrun altool --upload-app --type ios \
+            --file "${ipa[0]}" \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" && exit 0
+          [ "$attempt" -eq 3 ] || { echo "upload attempt $attempt failed; retrying in 60s"; sleep 60; }
+        done
+        exit 1

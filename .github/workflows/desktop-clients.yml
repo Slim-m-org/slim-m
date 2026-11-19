@@ -148,8 +148,8 @@ jobs:
   macos-client:
     name: macos tester build (ad-hoc signed)
     needs: [verify-client-ci]
-    runs-on: macos-latest
-    timeout-minutes: 30
+    runs-on: xcode-27
+    timeout-minutes: 45
     # Named for the same reason release.yml's publish jobs are: this is tag-triggered, so a reviewer gate on `release` should hold it too.
     environment: release
     # write, not read: the last step attaches the zip and setup to the github release.
@@ -159,6 +159,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.tag || github.ref }}
+      - uses: ./.github/actions/select-xcode
 
       - name: set up flutter (stable channel)
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2

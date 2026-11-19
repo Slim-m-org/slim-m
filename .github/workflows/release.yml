@@ -424,8 +424,8 @@ jobs:
   ios-testflight:
     needs: [release-please, verify-client-ci]
     if: needs.verify-client-ci.result == 'success'
-    runs-on: macos-latest
-    timeout-minutes: 30
+    runs-on: xcode-27
+    timeout-minutes: 60
     environment: testflight
     permissions:
       contents: read
@@ -456,6 +456,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.release-please.outputs.client_ref }}
+        if: steps.gate.outputs.ready == 'true'
+      - uses: ./.github/actions/select-xcode
         if: steps.gate.outputs.ready == 'true'
 
       - uses: ./.github/actions/release-ios-testflight
