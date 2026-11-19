@@ -42,6 +42,7 @@ import 'screen_share.dart';
 import 'screen_share_audio.dart' as rtc_share_audio;
 import 'screen_share_local.dart';
 import 'share_audio_isolation.dart';
+import 'signal_route.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
@@ -80,6 +81,7 @@ class VoiceSession {
     JoinTimings? joinTimings,
     ShareAudioIsolation? shareAudioIsolation,
     Duration cameraJoinTimeout = kJoinCameraTimeout,
+    SignalSocketOpen? signalOpen,
   }) : _core = VoiceSessionCore(
           roomFactory: roomFactory,
           broadcast: broadcast,
@@ -99,6 +101,7 @@ class VoiceSession {
           joinTimings: joinTimings,
           shareAudioIsolation: shareAudioIsolation,
           cameraJoinTimeout: cameraJoinTimeout,
+          signalOpen: signalOpen,
         );
 
   final VoiceSessionCore _core;

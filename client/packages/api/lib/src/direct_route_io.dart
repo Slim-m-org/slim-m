@@ -14,7 +14,6 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'direct_route.dart';
 import 'logging/app_log.dart';
-import 'logging/failure.dart';
 
 DirectRoute createDirectRoute(Uri baseUrl) => IoDirectRoute(baseUrl);
 
@@ -29,11 +28,13 @@ class IoDirectRoute implements DirectRoute {
     PublicConnect? connectDirect,
     DateTime Function()? clock,
     String Function(Uri url)? findProxy,
+    Duration siblingTimeout = const Duration(seconds: 3),
   })  : _context = context,
         _connectPublic = connectPublic,
         _connectDirect = connectDirect,
         _clock = clock ?? DateTime.now,
-        _findProxy = findProxy {
+        _findProxy = findProxy,
+        _siblingTimeout = siblingTimeout {
     _client = _freshClient();
   }
 
@@ -58,13 +59,16 @@ class IoDirectRoute implements DirectRoute {
   /// this the address is not reachable from wherever the device is now.
   static const _directConnectTimeout = Duration(milliseconds: 700);
   static const _handshakeTimeout = Duration(seconds: 5);
-  static const _firstPenalty = Duration(minutes: 1);
-  static const _maxPenalty = Duration(minutes: 15);
+
+  /// A sibling socket that has not opened by now goes the normal way, well inside LiveKit's 10 s connect deadline.
+  final Duration _siblingTimeout;
 
   List<({String host, int port})> _addresses = const [];
   int _next = 0;
-  DateTime? _skipUntil;
-  Duration _penalty = _firstPenalty;
+  final _backoff = _Backoff();
+
+  /// Kept apart, so a host the proxy does not serve never holds requests back.
+  final _siblingBackoff = _Backoff();
   bool _active = false;
   int _renewals = 0;
   final _activeChanges = StreamController<bool>.broadcast();
@@ -90,8 +94,8 @@ class IoDirectRoute implements DirectRoute {
     if (_same(parsed, _addresses)) return;
     _addresses = parsed;
     _next = 0;
-    _skipUntil = null;
-    _penalty = _firstPenalty;
+    _backoff.reset();
+    _siblingBackoff.reset();
     if (parsed.isEmpty) _isActive = false;
     _renewPool();
   }
@@ -111,11 +115,10 @@ class IoDirectRoute implements DirectRoute {
   /// The pool to use now, renewed when a direct attempt is due and the
   /// current pool would otherwise keep reusing a public connection.
   HttpClient _currentClient() {
-    final skip = _skipUntil;
     final due = _addresses.isNotEmpty &&
         !_active &&
         !_probing &&
-        (skip == null || !_clock().isBefore(skip));
+        !_backoff.holds(_clock());
     if (due) _renewPool();
     return _client;
   }
@@ -153,9 +156,56 @@ class IoDirectRoute implements DirectRoute {
   /// Only the server's own hostname, only over TLS, only while not backing off.
   ({String host, int port})? _candidate(Uri url, bool secure) {
     if (!secure || _addresses.isEmpty || url.host != _base.host) return null;
-    final skip = _skipUntil;
-    if (skip != null && _clock().isBefore(skip)) return null;
+    if (_backoff.holds(_clock())) return null;
     return _addresses[_next % _addresses.length];
+  }
+
+  /// A socket to a host beside the server's, over TLS on its port, only while
+  /// requests already take the advertised address: that is the proof this
+  /// device is on the server's network now, so nothing is probed from elsewhere.
+  ({String host, int port})? _siblingCandidate(Uri url) {
+    final port = url.hasPort ? url.port : 443;
+    if (!url.isScheme('wss') || !_active || _addresses.isEmpty) return null;
+    if (port != _base.port || !siblingHost(url.host, _base.host)) return null;
+    if (_siblingBackoff.holds(_clock())) return null;
+    return _addresses[_next % _addresses.length];
+  }
+
+  @override
+  Future<WebSocketChannel?> connectSiblingDirect(
+    Uri url, {
+    Map<String, String>? headers,
+  }) async {
+    final to = _siblingCandidate(url);
+    if (to == null) return null;
+    final client = HttpClient(context: _context);
+    client.connectionFactory = (target, proxyHost, proxyPort) async =>
+        ConnectionTask.fromSocket(_dial(to, target), () {});
+    // A LAN address is dialled itself, so no proxy can stand in for it.
+    client.findProxy = (_) => 'DIRECT';
+    Future<WebSocket>? opening;
+    try {
+      opening = WebSocket.connect(
+        url.toString(),
+        headers: headers,
+        customClient: client,
+      );
+      final socket = await opening.timeout(_siblingTimeout);
+      _siblingBackoff.reset();
+      return IOWebSocketChannel(socket);
+    } on Object catch (error) {
+      _noteDirectFailure(
+        'connect to ${url.host} over the direct route; using the normal route',
+        error,
+      );
+      _siblingBackoff.fail(_clock());
+      client.close(force: true);
+      // A socket that opens past the deadline has nobody else to close it.
+      unawaited(opening?.then<void>((late) => late.close(), onError: (_) {}));
+      return null;
+    } finally {
+      client.close();
+    }
   }
 
   Future<SecureSocket> _dial(({String host, int port}) to, Uri url) async {
@@ -183,16 +233,15 @@ class IoDirectRoute implements DirectRoute {
   @override
   void retryNow() {
     if (_active) return;
-    _skipUntil = null;
-    _penalty = _firstPenalty;
+    _backoff.reset();
   }
 
   @override
   void invalidate() {
     if (!_active) return;
     _isActive = false;
-    _skipUntil = null;
-    _penalty = _firstPenalty;
+    _backoff.reset();
+    _siblingBackoff.reset();
   }
 
   @override
@@ -227,34 +276,28 @@ class IoDirectRoute implements DirectRoute {
       final socket = await _dial(to, url);
       _isActive = true;
       _probing = false;
-      _penalty = _firstPenalty;
-      _skipUntil = null;
+      _backoff.reset();
       return socket;
-    } on Object catch (error, stack) {
-      reportFailure(
-          LogTag.net,
-          'connect over the direct route; using the normal route',
-          error,
-          stack);
+    } on Object catch (error) {
+      _noteDirectFailure(
+        'connect over the direct route; using the normal route',
+        error,
+      );
       _isActive = false;
       _probing = false;
       _next++;
-      _skipUntil = _clock().add(_penalty);
-      _penalty = Duration(
-        milliseconds: math.min(
-          _penalty.inMilliseconds * 2,
-          _maxPenalty.inMilliseconds,
-        ),
-      );
+      _backoff.fail(_clock());
       return _public(url, true);
     }
   }
 
+  /// dart:io hands a socket upgrade over with port 0 when its URL names none.
   Future<Socket> _public(Uri url, bool secure) async {
+    final port = url.port == 0 ? (secure ? 443 : 80) : url.port;
     final connect = _connectPublic;
     final raw = connect != null
-        ? await connect(url.host, url.port)
-        : await Socket.connect(url.host, url.port);
+        ? await connect(url.host, port)
+        : await Socket.connect(url.host, port);
     if (!secure) return raw;
     return SecureSocket.secure(raw, host: url.host, context: _context);
   }
@@ -268,6 +311,40 @@ class IoDirectRoute implements DirectRoute {
       if (a[i] != b[i]) return false;
     }
     return true;
+  }
+}
+
+/// Logs a failed direct attempt by the error's type alone: its text names the
+/// advertised address, and a debug log is something people share.
+void _noteDirectFailure(String what, Object error) => AppLog.warning(
+      LogTag.net,
+      'Could not $what',
+      context: {'failure': '${error.runtimeType}'},
+    );
+
+/// Waits a minute after a failed attempt, doubling up to fifteen while it keeps failing.
+class _Backoff {
+  static const _first = Duration(minutes: 1);
+  static const _max = Duration(minutes: 15);
+
+  DateTime? _until;
+  Duration _penalty = _first;
+
+  bool holds(DateTime now) {
+    final until = _until;
+    return until != null && now.isBefore(until);
+  }
+
+  void fail(DateTime now) {
+    _until = now.add(_penalty);
+    _penalty = Duration(
+      milliseconds: math.min(_penalty.inMilliseconds * 2, _max.inMilliseconds),
+    );
+  }
+
+  void reset() {
+    _until = null;
+    _penalty = _first;
   }
 }
 

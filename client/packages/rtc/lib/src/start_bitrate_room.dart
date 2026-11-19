@@ -7,16 +7,23 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 
 import 'call_peer_configuration.dart';
+import 'signal_route.dart';
 import 'start_bitrate_peer_connection.dart';
 import 'call_engine.dart';
 
 /// Native libwebrtc already seeds its estimator from the offer's hint, so only the browser needs the mirror.
 /// Windows peers drop TCP candidates when a TCP relay is offered (see `callPeerConfiguration`).
-lk.Room buildRoomWithStartBitrate(lk.RoomOptions roomOptions) => lk.Room(
+/// The signalling dials through [signal] when given; see [SignalRoute].
+lk.Room buildRoomWithStartBitrate(
+  lk.RoomOptions roomOptions, {
+  SignalRoute? signal,
+}) =>
+    lk.Room(
       roomOptions: roomOptions,
       engine: CallEngine(
         roomOptions: roomOptions,
         peerConnectionCreate: callPeerFactory(),
+        signalClient: signal?.client(),
       ),
     );
 

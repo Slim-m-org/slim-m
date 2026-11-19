@@ -17,10 +17,19 @@ import 'voice_models.dart';
 
 /// What [VoiceHealthWatch] needs from the session that owns it.
 class VoiceHealthWatchHost {
-  const VoiceHealthWatchHost({required this.room, required this.diag});
+  const VoiceHealthWatchHost({
+    required this.room,
+    required this.diag,
+    this.signalDirect = _never,
+  });
 
   final lk.Room? Function() room;
   final void Function(String line, {LogLevel level}) diag;
+
+  /// Whether the call's signalling socket went over the server's own network; see `SignalRoute`.
+  final bool Function() signalDirect;
+
+  static bool _never() => false;
 }
 
 /// Samples the call's audio stats into [health] and [diagnostics].
@@ -168,6 +177,7 @@ class VoiceHealthWatch {
       signalRttMs: signal.rttMs,
       signalSilence: signal.silence,
       signalAt: signal.heardAt,
+      signalDirect: _host.signalDirect(),
       at: _clock(),
     ));
   }

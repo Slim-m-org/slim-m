@@ -40,4 +40,11 @@ class _BrowserRoute implements DirectRoute {
 
   @override
   WebSocketChannel connectWebSocket(Uri url) => WebSocketChannel.connect(url);
+
+  @override
+  Future<WebSocketChannel?> connectSiblingDirect(
+    Uri url, {
+    Map<String, String>? headers,
+  }) async =>
+      null;
 }

@@ -45,6 +45,13 @@ class _RecordingRoute implements DirectRoute {
 
   @override
   WebSocketChannel connectWebSocket(Uri url) => throw UnimplementedError();
+
+  @override
+  Future<WebSocketChannel?> connectSiblingDirect(
+    Uri url, {
+    Map<String, String>? headers,
+  }) async =>
+      null;
 }
 
 http.Response _json(Object body) => http.Response(

@@ -59,13 +59,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     Duration voiceHeartbeatInterval = const Duration(seconds: 15),
     List<Duration> autoRejoinDelays = VoiceAutoRejoin.defaultDelays,
     DateTime Function()? now,
-  }) : _session =
-           session ??
-           VoiceSession(
-             joinTimings: _ref.read(joinTimingsProvider),
-             audioLog: (line, {level = api.LogLevel.info}) =>
-                 api.AppLog.at(level, api.LogTag.voice, line),
-           ),
+  }) : _session = session ?? callSession(_ref),
        _callLifecycle = callLifecycle ?? CallLifecycleChannel(),
        _foreground =
            foreground ??

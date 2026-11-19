@@ -45,6 +45,7 @@ class ConnectionReport {
     this.signalRttMs,
     this.signalAt,
     this.signalSilent = false,
+    this.signalDirect = false,
     this.media,
     this.mediaRttMs,
     this.checkedAt,
@@ -64,6 +65,9 @@ class ConnectionReport {
   /// When the signalling round trip was last renewed; a new value is a new measurement.
   final DateTime? signalAt;
   final bool signalSilent;
+
+  /// The signalling socket goes over the server's own network, so no Cloudflare data centre is on its way.
+  final bool signalDirect;
   final MediaRoute? media;
   final int? mediaRttMs;
 
@@ -85,16 +89,19 @@ ConnectionReport connectionReportOf({
       ? ServerRoute.localNetwork
       : ServerRoute.internet;
   final times = [server?.at, call?.at].whereType<DateTime>().toList()..sort();
+  final signalDirect = call?.signalDirect ?? false;
   return ConnectionReport(
     server: route,
     serverColo: server?.colo,
     serverRttMs: server?.roundTrip.inMilliseconds,
     serverAt: server?.at,
     inCall: call != null,
-    signalColo: call == null ? null : signalTrace?.colo,
+    // The trace goes the public way, so it names a data centre the direct socket never passes.
+    signalColo: call == null || signalDirect ? null : signalTrace?.colo,
     signalRttMs: call?.signalRttMs,
     signalAt: call?.signalAt,
     signalSilent: call?.signalSilent ?? false,
+    signalDirect: signalDirect,
     media: call?.media,
     mediaRttMs: call?.mediaRttMs,
     checkedAt: times.firstOrNull,
@@ -219,7 +226,9 @@ List<ConnectionLeg> connectionLegs(ConnectionReport r) {
       : r.signalSilent
       ? 'Not answering'
       : _withRtt(
-          r.signalColo == null
+          r.signalDirect
+              ? 'Your local network'
+              : r.signalColo == null
               ? 'Internet'
               : 'Cloudflare ${coloCity(r.signalColo!)}',
           r.signalRttMs,
