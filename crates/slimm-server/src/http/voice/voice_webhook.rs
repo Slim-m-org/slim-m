@@ -63,10 +63,11 @@ async fn receive(
     reconcile_roster(&state, &event).await;
     let published = event.participant.as_ref().is_some_and(|p| p.is_publisher);
     let presence = apply(&state, event);
-    if let Some((channel_id, user_id, true)) = presence
-        && !published
-    {
-        announce_now(&state, channel_id, user_id);
+    if let Some((channel_id, user_id, true)) = presence {
+        check_access(&state, channel_id, user_id);
+        if !published {
+            announce_now(&state, channel_id, user_id);
+        }
     }
     track_call_audio(&state, room_finished, presence).await;
     StatusCode::NO_CONTENT
@@ -80,6 +81,14 @@ async fn foreign_channel(state: &AppState, event: &WebhookEvent) -> Option<Chann
         Ok(None) => Some(channel_id),
         Ok(Some(_)) | Err(_) => None,
     }
+}
+
+/// Removes a joiner whose access went after their token was minted; detached, so the delivery never waits on it.
+fn check_access(state: &AppState, channel_id: ChannelId, user_id: UserId) {
+    let state = state.clone();
+    tokio::spawn(async move {
+        super::voice_access::evict_join_without_access(&state, user_id, channel_id).await;
+    });
 }
 
 /// Has the SFU announce a join that published nothing, which it would otherwise batch for up to
