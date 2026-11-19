@@ -79,9 +79,12 @@ struct AppendParams {
     offset: u64,
 }
 
+/// What an upload headed for a named channel needs there.
+const IN_A_CHANNEL: Permissions = Permissions::VIEW_CHANNEL.union(Permissions::ATTACH_FILES);
+
 /// ATTACH_FILES in `channel` when the client names where the file is headed,
-/// so a channel overwrite granting it counts; deployment-wide otherwise. The
-/// send re-checks the channel the id is finally attached in either way.
+/// so a channel overwrite granting it counts; deployment-wide otherwise. A named
+/// channel must be one the caller can see, so a hidden one answers like none at all.
 pub(super) async fn may_attach(
     state: &AppState,
     user_id: UserId,
@@ -92,7 +95,7 @@ pub(super) async fn may_attach(
             let channel_id = ChannelId(parse_uuid(raw)?);
             state
                 .store
-                .has_permission(user_id, channel_id, Permissions::ATTACH_FILES)
+                .has_permission(user_id, channel_id, IN_A_CHANNEL)
                 .await?
         }
         None => state

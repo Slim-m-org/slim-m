@@ -21,7 +21,8 @@ use super::extract::{Authed, Json, enforce};
 use super::hidden_chars::is_hidden_char;
 use super::messages::parse_uuid;
 use crate::hub::Event;
-use crate::ids::ChannelId;
+use crate::ids::{ChannelId, UserId};
+use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{
     DEFAULT_WELCOME_MESSAGE, JoinPolicy, MAX_SPACE_DESCRIPTION_CHARS, MAX_SPACE_NAME_CHARS,
@@ -208,6 +209,7 @@ fn validate_name(raw: &str) -> Result<&str, ApiError> {
 /// Turning it on needs a text channel; an empty message posts the default.
 async fn merged_welcome(
     state: &AppState,
+    caller: UserId,
     body: &UpdateSpaceSettingsDto,
 ) -> Result<Option<SpaceWelcome>, ApiError> {
     if body.welcome_enabled.is_none()
@@ -225,11 +227,8 @@ async fn merged_welcome(
             "" => None,
             raw => {
                 let id = ChannelId(parse_uuid(raw)?);
-                let channel = state.store.channel(id).await?;
-                if channel.is_none_or(|c| c.kind != "text") {
-                    return Err(ApiError::BadRequest(
-                        "welcome_channel_id must be a text channel",
-                    ));
+                if welcome.channel_id != Some(id) {
+                    welcome_channel(state, caller, id).await?;
                 }
                 Some(id)
             }
@@ -244,6 +243,23 @@ async fn merged_welcome(
         ));
     }
     Ok(Some(welcome))
+}
+
+/// Refuses a newly chosen welcome channel unless it is a text channel, not a thread, that
+/// `caller` could post in: the welcome carries their words, so one they cannot see answers as missing.
+async fn welcome_channel(state: &AppState, caller: UserId, id: ChannelId) -> Result<(), ApiError> {
+    let held = state.store.permissions_in_channel(caller, id).await?;
+    let channel = state.store.channel(id).await?;
+    let is_text = channel.is_some_and(|c| c.kind == "text" && c.parent_message_id.is_none());
+    if !is_text || !held.contains(Permissions::VIEW_CHANNEL) {
+        return Err(ApiError::BadRequest(
+            "welcome_channel_id must be a text channel",
+        ));
+    }
+    match held.contains(Permissions::SEND_MESSAGES) {
+        true => Ok(()),
+        false => Err(ApiError::Forbidden),
+    }
 }
 
 fn validate_welcome_message(raw: &str) -> Result<&str, ApiError> {
@@ -343,7 +359,7 @@ async fn update(
             "voice message transcripts need the speech listener, which this server does not have",
         ));
     }
-    let welcome = merged_welcome(&state, &body).await?;
+    let welcome = merged_welcome(&state, ctx.user_id, &body).await?;
     let (transcription, retention) = transcript_settings(&state, &body)?;
     let name = body.name.as_deref().map(validate_name).transpose()?;
     let changes_version = name.is_some()

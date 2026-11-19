@@ -3,6 +3,11 @@
 //! `docs/decisions/0030-incoming-webhooks.md`, and its "admin surface"
 //! addendum for what this file's routes had to decide beyond delivery.
 //!
+//! `MANAGE_SERVER` is the gate, and every route also follows the webhook's
+//! channel ([`Reach`]): one the caller cannot see is as good as missing, and a
+//! credential that posts is only handed to someone who may post there. An
+//! administrator lists and revokes every webhook, so none outlives its off switch.
+//!
 //! Gated on `MANAGE_SERVER` exactly like `bots.rs`, and deliberately not
 //! reusing any of its handlers: a webhook has no permissions to grant and no
 //! session to revoke, so the shapes that make up most of that file (the
@@ -21,11 +26,12 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::auth::validate_label;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce, require_manage_server};
+use super::extract::{Authed, Json, enforce, require_base_permission, require_manage_server};
 use super::messages::parse_uuid;
-use crate::ids::{ChannelId, WebhookId};
+use crate::ids::{ChannelId, UserId, WebhookId};
+use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::Webhook;
+use crate::store::{DM_CHANNEL_KIND, Webhook};
 
 /// A create or rename body is a channel id and a short label; nowhere near
 /// the delivery route's own, much larger, body limit.
@@ -97,9 +103,67 @@ async fn list(
     Authed(ctx): Authed,
 ) -> Result<Json<Vec<WebhookDto>>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
-    require_manage_server(&state, ctx.user_id).await?;
     let webhooks = state.store.list_webhooks().await?;
-    Ok(Json(webhooks.into_iter().map(WebhookDto::from).collect()))
+    if is_administrator(&state, ctx.user_id).await? {
+        return Ok(Json(webhooks.into_iter().map(WebhookDto::from).collect()));
+    }
+    let channels: Vec<ChannelId> = webhooks.iter().map(|w| w.channel_id).collect();
+    let held = state
+        .store
+        .permissions_in_channels(ctx.user_id, &channels)
+        .await?;
+    let visible = webhooks.into_iter().filter(|webhook| {
+        held.get(&webhook.channel_id)
+            .is_some_and(|p| p.contains(Permissions::VIEW_CHANNEL))
+    });
+    Ok(Json(visible.map(WebhookDto::from).collect()))
+}
+
+/// Refuses a caller without `MANAGE_SERVER`, and says whether they are an administrator:
+/// the one caller a webhook in a direct message or a deleted channel is still listed for.
+async fn is_administrator(state: &AppState, user: UserId) -> Result<bool, ApiError> {
+    let held = require_base_permission(state, user, Permissions::MANAGE_SERVER).await?;
+    Ok(held.contains(Permissions::ADMINISTRATOR))
+}
+
+/// What a caller may do with the webhooks of one channel.
+enum Reach {
+    /// They cannot see the channel, so its webhooks do not exist for them.
+    Hidden,
+    /// They can see it but not post in it: enough to rename or revoke.
+    Visible,
+    /// They could post there themselves, so they may hold a credential that does.
+    Posting,
+}
+
+impl Reach {
+    async fn of(state: &AppState, user: UserId, channel: ChannelId) -> Result<Self, ApiError> {
+        let held = state.store.permissions_in_channel(user, channel).await?;
+        Ok(if !held.contains(Permissions::VIEW_CHANNEL) {
+            Self::Hidden
+        } else if held.contains(Permissions::SEND_MESSAGES) {
+            Self::Posting
+        } else {
+            Self::Visible
+        })
+    }
+}
+
+/// The webhook and the caller's reach over it, or the 404 a hidden one shares with a missing one.
+async fn reachable(
+    state: &AppState,
+    user: UserId,
+    webhook_id: WebhookId,
+) -> Result<(Webhook, Reach), ApiError> {
+    let missing = ApiError::NotFound("no such webhook");
+    let listed = state.store.list_webhooks().await?;
+    let Some(webhook) = listed.into_iter().find(|w| w.id == webhook_id) else {
+        return Err(missing);
+    };
+    match Reach::of(state, user, webhook.channel_id).await? {
+        Reach::Hidden => Err(missing),
+        reach => Ok((webhook, reach)),
+    }
 }
 
 /// Labels follow the same rule a display name does: `validate_label`, not a
@@ -116,8 +180,15 @@ async fn create(
     let label = body.label.trim();
     validate_label(label, "label must be 1 to 64 characters")?;
     let channel_id = ChannelId(parse_uuid(&body.channel_id)?);
-    if state.store.channel(channel_id).await?.is_none() {
+    // A direct message is its parties' alone: no webhook posts into one, whoever asks.
+    let channel = state.store.channel(channel_id).await?;
+    if !channel.is_some_and(|channel| channel.kind != DM_CHANNEL_KIND) {
         return Err(ApiError::NotFound("no such channel"));
+    }
+    match Reach::of(&state, ctx.user_id, channel_id).await? {
+        Reach::Hidden => return Err(ApiError::NotFound("no such channel")),
+        Reach::Visible => return Err(ApiError::Forbidden),
+        Reach::Posting => {}
     }
 
     let minted = state
@@ -150,6 +221,7 @@ async fn rename(
 
     let label = body.label.trim();
     validate_label(label, "label must be 1 to 64 characters")?;
+    reachable(&state, ctx.user_id, webhook_id).await?;
 
     match state.store.rename_webhook(webhook_id, label).await? {
         Some(webhook) => Ok(Json(webhook.into())),
@@ -168,6 +240,12 @@ async fn rotate(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let webhook_id = WebhookId(parse_uuid(&webhook_id)?);
+    if !matches!(
+        reachable(&state, ctx.user_id, webhook_id).await?,
+        (_, Reach::Posting)
+    ) {
+        return Err(ApiError::Forbidden);
+    }
     let Some((webhook, token)) = state.store.rotate_webhook(webhook_id, ctx.user_id).await? else {
         return Err(ApiError::NotFound("no such webhook"));
     };
@@ -187,8 +265,11 @@ async fn revoke(
     Path(webhook_id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
-    require_manage_server(&state, ctx.user_id).await?;
     let webhook_id = WebhookId(parse_uuid(&webhook_id)?);
+    // Revoking hands out nothing, so an administrator may do it wherever the webhook points.
+    if !is_administrator(&state, ctx.user_id).await? {
+        reachable(&state, ctx.user_id, webhook_id).await?;
+    }
     if !state.store.revoke_webhook(webhook_id, ctx.user_id).await? {
         return Err(ApiError::NotFound("no such webhook"));
     }

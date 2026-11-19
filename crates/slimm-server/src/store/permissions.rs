@@ -237,8 +237,8 @@ impl Store {
     /// it was soft-deleted. [`Self::channel`] excludes a deleted row, so the
     /// ordinary check always answers "no channel" once this fires; a delete
     /// leaves roles and overwrites untouched, so evaluating them against the
-    /// pre-delete row is exact, not a snapshot. Never called for a DM:
-    /// `http::channels::delete` refuses to delete one.
+    /// pre-delete row is exact, not a snapshot. A DM answers from its pair,
+    /// and `http::channels::delete` refuses to delete one either way.
     pub async fn viewed_channel_before_delete(
         &self,
         user_id: UserId,
@@ -303,6 +303,22 @@ impl Store {
         let roles = self.load_roles(user_id).await?;
         let overwrites = self.channel_overwrites(channel_id).await?;
         Ok(roles.evaluate_for(user_id, &overwrites).permissions)
+    }
+
+    /// What `user_id` would hold in a channel synced with `category`: its
+    /// rows over their roles, less a timeout or the join gate. The ceiling
+    /// for editing the category, as a channel's permissions are for its own rows.
+    pub async fn permissions_in_category(
+        &self,
+        user_id: UserId,
+        category: crate::ids::ChannelCategoryId,
+    ) -> anyhow::Result<Permissions> {
+        let roles = self.load_roles(user_id).await?;
+        let overwrites = self.category_overwrites(category).await?;
+        Ok(roles
+            .evaluate_for(user_id, &overwrites)
+            .permissions
+            .remove(self.member_deny(user_id, None).await?))
     }
 
     /// Whether the user holds every bit in `needed` in this channel.

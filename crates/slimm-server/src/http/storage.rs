@@ -21,6 +21,8 @@ use super::error::ApiError;
 use super::extract::require_manage_server;
 use super::extract::{Authed, Json, enforce};
 use crate::admin_alerts::backup_status::{BackupReport, BackupState};
+use crate::ids::ChannelId;
+use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{ChannelStorage, DatabaseBytes, MAX_STORAGE_CHANNEL_ROWS, SweepStatus};
 
@@ -130,6 +132,17 @@ async fn read(
         .store
         .attachment_bytes_by_channel(MAX_STORAGE_CHANNEL_ROWS)
         .await?;
+    // A channel the caller cannot see keeps its name and size; its bytes stay in the total.
+    let ids: Vec<ChannelId> = top_channels.iter().map(|c| c.channel_id).collect();
+    let held = state
+        .store
+        .permissions_in_channels(ctx.user_id, &ids)
+        .await?;
+    let sees = |channel: &ChannelStorage| {
+        held.get(&channel.channel_id)
+            .is_some_and(|p| p.contains(Permissions::VIEW_CHANNEL))
+    };
+    let top_channels: Vec<ChannelStorage> = top_channels.into_iter().filter(sees).collect();
     let sweeps = state.store.sweep_statuses().await?;
 
     let dir = backup_dir.and_then(|Extension(dir)| dir.0);

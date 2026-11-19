@@ -390,3 +390,26 @@ The webhook route now reads its embeds through its own tolerant type (`http/embe
 A string that does not parse, or any other type, drops the timestamp and the delivery still posts, the way an unreadable colour or a refused image already does.
 A null `embeds` or a null embed `fields` reads as empty.
 The send and ephemeral routes keep the strict integer type: their callers are this repo's own code, where a wrong type is a bug that should be loud.
+
+## Addendum, 2026-11-19: managing a webhook follows its channel
+
+`MANAGE_SERVER` stays the gate, and a second rule now sits under it: a webhook is managed only as far as its channel reaches the caller.
+The security sweep (`docs/internals.md`, "The private surface sweep") found the admin routes read the deployment-wide bit alone, so a manager shut out of a private channel could list its webhooks, rotate one and post into the channel with the new path.
+
+- A webhook whose channel the caller cannot see is not listed, and renaming, rotating or revoking it answers the 404 a missing one does.
+- Minting or rotating hands out a credential that posts, so it also needs `SEND_MESSAGES` in that channel: a manager may not mint a way around a deny they are under.
+  Renaming and revoking need only sight of the channel.
+- No webhook points at a direct message or a group, whoever asks: those belong to their parties, and a webhook is not one.
+
+An administrator sees and may post in every channel, so nothing changes for one.
+
+### The same day, second pass: no webhook without an off switch
+
+Following the channel alone stranded two kinds of webhook: one minted at a direct message before that was refused, and one whose channel was since deleted (deleting a channel leaves its webhooks).
+Nobody holds VIEW_CHANNEL in either, an administrator included, so nobody could list or revoke them while the credential stayed valid.
+
+- An administrator is listed every webhook and may revoke any, wherever it points.
+  Revoking hands out nothing, so it needs no reach into the channel; renaming and rotating still do.
+- Delivery answers the 404 an unknown webhook gets when the channel is deleted or is a direct message, so such a row posts nothing even before someone revokes it.
+
+Not done, and worth a card: deleting a channel could delete its webhooks in the same transaction, which would make the second case impossible instead of harmless.

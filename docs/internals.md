@@ -328,3 +328,63 @@ Every await that is followed by a write has to re-check it, including the ones i
 The ticket mint and the socket connect are network round trips too.
 A stop landing inside either used to return from start having already assigned a socket the superseding teardown had run too early to see, leaving it live and applying frames with nothing left holding a handle to close it.
 The catch-up, event applier, reconnector and session-end cleanup are separate classes in `sync/providers` that are told whether a given generation is still current.
+
+## The private surface sweep
+
+`crates/slimm-server/tests/it_infra/private_surface/`
+
+One deployment holds a private category with a synced channel, a private voice channel, a thread, a webhook, a file, a direct message and a group, and everything private in it carries a canary word.
+A module is installed, approved to schedule and to hear calls, and armed for the private voice channel.
+Two sweeps walk `schema/openapi.yaml`, so a route is asked from the day it is documented, with no list to keep up.
+Being asked is not the same as being covered: "What the sweep cannot see" below says where the difference is.
+
+- The read sweep sends every GET with every private id in its path, and the search routes with every canary as the query.
+  An answer may contain neither a canary nor a private id the request did not name.
+- The ask-twice sweep sends every route twice: once naming private ids in its path, query and body, and once naming ids that name nothing.
+  The two answers must match, status and error text alike, with a success compared only as a success.
+  A difference means the route acted on, or admitted to, something its caller cannot see.
+
+They run for a plain member, for a bot with no permissions, and for a manager holding every permission but ADMINISTRATOR; the read sweep also runs for a member who was in the channel and lost it.
+A control run as the admin must meet every canary, so a sweep that stops finding things because the world broke fails too.
+
+What the sweep found on 2026-11-19, each now with its own test beside the route:
+
+- Naming a hidden channel on an upload answered differently from naming none, and a hidden channel's ATTACH_FILES overwrite lent an upload to someone who could not see it.
+- MANAGE_ROLES read and wrote the overwrites of a channel, and of a category, its holder could not see.
+  A deny is not a grant, so the grant ceiling never stopped a manager shutting a private channel's own members out, and on a category the ceiling was the deployment-wide set, so they could let themselves in.
+- MANAGE_CHANNELS renamed and deleted a channel its holder could not see, and the rename answered with its name and topic.
+- MANAGE_SERVER read, counted and pruned a hidden channel's retention, and listed, renamed, rotated and revoked the webhooks of one.
+
+The rule they all broke is decision 0011's: a channel's permissions stop at the channel, whatever the caller holds deployment-wide, and only ADMINISTRATOR sees everything.
+A route that takes a channel, category or message id therefore answers a hidden one exactly as it answers one that does not exist, before any other validation of the request.
+
+Two things a manager is told by design are skipped by name in `mod.rs`: `GET /categories` lists every category to a channel manager (decision 0120), and the audit log names what was changed.
+The sweep does not reach the websocket, push, voice with a live SFU, or call transcripts, which keep their own tests.
+The routes in `NEVER` (`probe.rs`) are not asked, because they end the session the sweep runs with or keep a limit of their own on disk.
+
+### What the sweep cannot see
+
+A review of the first version found five routes it walked past, all settings routes that take a channel id in their body and checked only its kind: a module's schedule channel and call-audio list, the welcome channel, the rules channel, and the storage report's ranked channels.
+Each was a MANAGE_SERVER holder reaching a channel they cannot see; each now needs the caller's own VIEW_CHANNEL there (and SEND_MESSAGES where the setting makes something post), and has a test beside the route.
+The sweep missed them for three reasons, and only the first two are closed.
+
+- A body that does not parse is refused the same way for both asks, so nothing in it is compared.
+  About fifty routes were blind this way, for want of one required field each.
+  `loaded_body` now carries every required field, `its_own_fields` holds the shapes two routes disagree on, and the ask-twice sweep fails on any refusal that reads like a parse error (`never_read`) unless the route is in `UNREAD_BODIES` with its reason.
+  A new route with a new required field therefore fails the sweep until the field is added.
+- A path parameter the sweep had no id for got a channel id and answered 404 before the body was read.
+  `candidates` now gives `{moduleId}` the installed module and `{webhookId}` the private webhook.
+  Role, emoji, clip, theme, report, export, upload, favourite, source and transcript ids still get a channel id, so the body of a route under one of those is not reached.
+- The read sweep finds only what the world holds.
+  The world has no report, no export, no call transcript, no schedule channel and no welcome or rules channel set to a private channel, so a GET that would name one of those is not tested here.
+
+Three more limits are worth knowing before trusting a green run.
+
+- A refusal the handler writes itself, before it looks at the ids, is as blind as a parse error and is not detected: a kind that must be one of two words, a list that needs one to five entries.
+  Listing every 400 the manager's sweep meets (print `named` in `ask_twice`) shows them; on 2026-11-19 they were favourites, a canvas batch, an interaction form, a module hook, a media slot and the push and schedule settings.
+- The sweep changes the deployment as it goes, so a route asked late may meet a public channel or message an earlier route deleted.
+  The module is put back before every ask (`keep_the_module`); nothing else is.
+- A success is compared only as a success, so a route that succeeds for both asks but acts on the private id for one of them passes.
+
+Known and left: an installed module's `schedule_channel_id` is shown to every MANAGE_SERVER holder in the Dock's module list, and moving a schedule takes the module's overwrite off the previous channel without asking whether the caller can see it.
+An administrator who sets the rules channel to a private channel publishes its id to every member through `GET /space/rules`; that is the administrator's choice, not a leak.

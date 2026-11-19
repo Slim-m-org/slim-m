@@ -15,7 +15,8 @@ use super::extract::{Authed, Json, enforce, require_manage_server};
 use super::message_validation::parse_uuid;
 use crate::hidden_chars::is_hidden_char;
 use crate::hub::Event;
-use crate::ids::ChannelId;
+use crate::ids::{ChannelId, UserId};
+use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{JoinGate, MAX_RULES_CHARS, MemberGate};
 
@@ -72,17 +73,27 @@ fn validate_rules(raw: &str) -> Result<String, ApiError> {
     Ok(trimmed.to_owned())
 }
 
+/// The rules channel named in a write: a text channel `caller` can see, since every member is
+/// then handed its id. The one already set passes, so saving the form again never needs sight of it.
 async fn validate_channel(
     state: &AppState,
+    caller: UserId,
     raw: Option<&str>,
 ) -> Result<Option<ChannelId>, ApiError> {
     let Some(raw) = raw else {
         return Ok(None);
     };
     let id = ChannelId(parse_uuid(raw)?);
+    if state.store.join_gate().await?.rules_channel_id == Some(id) {
+        return Ok(Some(id));
+    }
     let channel = state.store.channel(id).await?;
+    let sees = state
+        .store
+        .has_permission(caller, id, Permissions::VIEW_CHANNEL)
+        .await?;
     match channel {
-        Some(c) if c.kind == "text" && c.parent_message_id.is_none() => Ok(Some(id)),
+        Some(c) if sees && c.kind == "text" && c.parent_message_id.is_none() => Ok(Some(id)),
         _ => Err(ApiError::BadRequest(
             "rules_channel_id must be a text channel",
         )),
@@ -118,7 +129,8 @@ async fn write_gate(
     let gate = JoinGate {
         enabled: body.enabled,
         rules,
-        rules_channel_id: validate_channel(&state, body.rules_channel_id.as_deref()).await?,
+        rules_channel_id: validate_channel(&state, ctx.user_id, body.rules_channel_id.as_deref())
+            .await?,
         joins_paused: body.joins_paused,
     };
     state.store.set_join_gate(&gate).await?;
