@@ -4,8 +4,8 @@
 
 use std::path::Path;
 
-use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
+use sqlx::{AssertSqlSafe, SqlitePool};
 
 use crate::support;
 const VERSION: i64 = 184;
@@ -37,7 +37,7 @@ fn id(n: u8) -> Vec<u8> {
 }
 
 async fn exec(pool: &SqlitePool, sql: &str, binds: &[Vec<u8>]) {
-    let mut query = sqlx::query(sql);
+    let mut query = sqlx::query(AssertSqlSafe(sql));
     for bind in binds {
         query = query.bind(bind.clone());
     }

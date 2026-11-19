@@ -6,32 +6,68 @@
       {
         "name": "seq",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "call_transcript_lines",
+            "name": "seq"
+          }
+        }
       },
       {
         "name": "speaker_id!: UserId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "call_transcript_lines",
+            "name": "speaker_id"
+          }
+        }
       },
       {
         "name": "at",
         "ordinal": 2,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "call_transcript_lines",
+            "name": "at"
+          }
+        }
       },
       {
         "name": "end_at",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "call_transcript_lines",
+            "name": "end_at"
+          }
+        }
       },
       {
         "name": "language",
         "ordinal": 4,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "call_transcript_lines",
+            "name": "language"
+          }
+        }
       },
       {
         "name": "text",
         "ordinal": 5,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "call_transcript_lines",
+            "name": "text"
+          }
+        }
       }
     ],
     "parameters": {

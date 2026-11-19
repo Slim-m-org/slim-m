@@ -276,7 +276,7 @@ def scenarios(a, b, admin, member, room_id, server, secret):
              member.me()["id"])),
         ("reconcile: an edit and a delete while a client is away",
          lambda: e2e_reconcile.survives_an_absence(
-             b, a, L.TEXT_CHANNEL, admin)),
+             b, a, L.TEXT_CHANNEL, member)),
         ("canvas: opening it from the channel header",
          lambda: e2e_canvas.open_on_both(a, b, L.VOICE_CHANNEL)),
         ("canvas: a stroke arrives on the other client live",
@@ -310,9 +310,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("canvas: erase, undo, clear, and undo again",
          lambda: e2e_canvas.erase_undo_clear_and_restore(
              a, b, admin, admin.channel_named(L.VOICE_CHANNEL)["id"])),
-        ("canvas: placing a shape selects it, and a drag right after moves "
-         "it rather than placing a second one",
-         lambda: e2e_canvas_shapes.place_then_move_without_switching_tools(
+        ("canvas: placing a shape keeps the Shape tool armed, a drag on its "
+         "corner resizes it and a tap elsewhere places the next",
+         lambda: e2e_canvas_shapes.place_shape_and_keep_the_tool(
              a, admin, admin.channel_named(L.VOICE_CHANNEL)["id"])),
         ("canvas: a reload proves it actually persisted",
          lambda: e2e_canvas.reload_persists(

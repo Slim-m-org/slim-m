@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "display_watch.h"
 #include "screen_overlay.h"
 #include "screen_overlay_stamps.h"
 
@@ -141,6 +142,7 @@ FlValue* SupportReply() {
     fl_value_set_string_take(entry, "width", fl_value_new_int(m.width));
     fl_value_set_string_take(entry, "height", fl_value_new_int(m.height));
     fl_value_set_string_take(entry, "primary", fl_value_new_bool(m.primary));
+    fl_value_set_string_take(entry, "name", fl_value_new_string(m.name.c_str()));
     fl_value_append_take(list, entry);
   }
   fl_value_set_string_take(reply, "monitors", list);
@@ -200,6 +202,12 @@ void OnMethodCall(FlMethodChannel*, FlMethodCall* call, gpointer) {
   fl_method_call_respond(call, response, nullptr);
 }
 
+// Dart puts the panel and the drawing overlay back on the monitors they now belong to.
+void OnDisplaysSettled(gpointer) {
+  fl_method_channel_invoke_method(g_channel, "displaysChanged", nullptr, nullptr,
+                                  nullptr, nullptr);
+}
+
 }  // namespace
 
 void linux_screen_overlay_channel_register(FlBinaryMessenger* messenger) {
@@ -208,4 +216,6 @@ void linux_screen_overlay_channel_register(FlBinaryMessenger* messenger) {
       fl_method_channel_new(messenger, kChannelName, FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(g_channel, OnMethodCall, nullptr,
                                             nullptr);
+  GdkDisplay* display = gdk_display_get_default();
+  if (display != nullptr) display_watch_start(display, OnDisplaysSettled, nullptr);
 }

@@ -10,7 +10,7 @@
 use std::path::Path;
 
 use sqlx::migrate::Migrator;
-use sqlx::{Row, SqlitePool};
+use sqlx::{AssertSqlSafe, Row, SqlitePool};
 
 use crate::support;
 const VERSION: i64 = 95;
@@ -59,7 +59,10 @@ async fn seed(pool: &SqlitePool) {
         ),
     ];
     for statement in statements {
-        sqlx::query(&statement).execute(pool).await.unwrap();
+        sqlx::query(AssertSqlSafe(statement))
+            .execute(pool)
+            .await
+            .unwrap();
     }
 }
 
@@ -165,12 +168,12 @@ async fn a_database_with_colliding_usernames_migrates_and_keeps_every_row() {
 #[tokio::test]
 async fn a_database_without_collisions_migrates_unchanged() {
     let (pool, full, _guard) = pool_at_0094().await;
-    sqlx::query(&format!(
+    sqlx::query(AssertSqlSafe(format!(
         "INSERT INTO users (id, username, display_name, password_hash, created_at)
          VALUES ({}, 'alice', 'Alice', 'h', 1), ({}, 'bob', 'Bob', 'h', 2)",
         id(1),
         id(2)
-    ))
+    )))
     .execute(&pool)
     .await
     .unwrap();
@@ -185,10 +188,13 @@ async fn a_database_without_collisions_migrates_unchanged() {
 }
 
 async fn username_of(pool: &SqlitePool, n: u8) -> String {
-    sqlx::query_scalar(&format!("SELECT username FROM users WHERE id = {}", id(n)))
-        .fetch_one(pool)
-        .await
-        .unwrap()
+    sqlx::query_scalar(AssertSqlSafe(format!(
+        "SELECT username FROM users WHERE id = {}",
+        id(n)
+    )))
+    .fetch_one(pool)
+    .await
+    .unwrap()
 }
 
 /// The name stays with the account in use, not the oldest one: the live
@@ -235,7 +241,10 @@ async fn the_name_stays_with_the_account_that_was_active_most_recently() {
         ),
     ];
     for statement in statements {
-        sqlx::query(&statement).execute(&pool).await.unwrap();
+        sqlx::query(AssertSqlSafe(statement))
+            .execute(&pool)
+            .await
+            .unwrap();
     }
 
     full.run(&pool).await.unwrap();

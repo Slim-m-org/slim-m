@@ -66,6 +66,7 @@ Amended 2026-11-15, after dropping a client's signal socket around a microphone 
 The session adds one repair of its own: a microphone the person wants on that has no publication, with no publish or recovery running, is published again.
 A full restart clears the publications before it republishes them, and a republish that fails there leaves none and emits nothing.
 While a full restart is under way the session first gives livekit 10 s to republish the microphone itself; if both publish, `LiveKitMicPort` removes whichever lands second.
+Camera and screen tracks get no republish of ours: one the failed republish left capturing with no publication is stopped once the restart is over, and at a leave, so the camera light matches what the call shows (`video_orphans.dart`, amended 2026-11-18).
 
 `serverShutdown` and `stateMismatch` now map to `connectionLost` like the other drops, so the automatic rejoin covers them.
 `mapDisconnectReason` has a test row for every `DisconnectReason` value, so a value an upgrade adds is decided there.

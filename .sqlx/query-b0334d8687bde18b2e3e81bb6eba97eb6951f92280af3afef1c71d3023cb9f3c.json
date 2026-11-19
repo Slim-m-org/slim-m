@@ -6,22 +6,46 @@
       {
         "name": "session_id!: SessionId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "refresh_tokens",
+            "name": "session_id"
+          }
+        }
       },
       {
         "name": "family_id!: FamilyId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "refresh_tokens",
+            "name": "family_id"
+          }
+        }
       },
       {
         "name": "retired_at",
         "ordinal": 2,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "refresh_tokens",
+            "name": "retired_at"
+          }
+        }
       },
       {
         "name": "revoked_at",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "refresh_tokens",
+            "name": "revoked_at"
+          }
+        }
       }
     ],
     "parameters": {

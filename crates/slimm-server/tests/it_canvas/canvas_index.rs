@@ -14,7 +14,7 @@ use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::ids::{CanvasObjectId, CanvasOpId, ChannelId, UserId};
 use slimm_server::store::{CanvasOpRequest, PlaceRequest, Rect, Store, ViewportQuery};
-use sqlx::{Row, SqlitePool};
+use sqlx::{AssertSqlSafe, Row, SqlitePool};
 
 use crate::support;
 use support::canvas::{CanvasReads, remove_via_op};
@@ -129,7 +129,7 @@ fn the_viewport_snapshot_reads_only_through_one_transaction() {
 async fn the_viewport_read_drives_from_the_rtree() {
     let (pool, _guard) = new_pool("canvas-plan").await;
     let sql = viewport_sql();
-    let rows = sqlx::query(&format!("EXPLAIN QUERY PLAN {sql}"))
+    let rows = sqlx::query(AssertSqlSafe(format!("EXPLAIN QUERY PLAN {sql}")))
         .fetch_all(&pool)
         .await
         .expect("the viewport query plans");

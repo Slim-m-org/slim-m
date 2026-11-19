@@ -18,7 +18,7 @@ use std::path::Path;
 
 use slimm_server::ids::UserId;
 use slimm_server::store::{NewMessage, Store};
-use sqlx::{Row, SqlitePool};
+use sqlx::{AssertSqlSafe, Row, SqlitePool};
 
 async fn new_store(name: &str) -> (Store, SqlitePool, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(name);
@@ -70,7 +70,7 @@ async fn newest_in(pool: &SqlitePool, channel: slimm_server::ids::ChannelId) -> 
 
 async fn pin_created_at(pool: &SqlitePool, table: &str, id: &[u8], at: i64) {
     let sql = format!("UPDATE {table} SET created_at = ? WHERE id = ?");
-    sqlx::query(&sql)
+    sqlx::query(AssertSqlSafe(sql))
         .bind(at)
         .bind(id)
         .execute(pool)
@@ -197,7 +197,7 @@ async fn the_activity_subquery_seeks_the_live_index_rather_than_scanning() {
 
     let explain = format!("EXPLAIN QUERY PLAN {sql}");
     let zero = vec![0u8; 16];
-    let rows = sqlx::query(&explain)
+    let rows = sqlx::query(AssertSqlSafe(explain))
         .bind(&zero)
         .bind(&zero)
         .bind(&zero)

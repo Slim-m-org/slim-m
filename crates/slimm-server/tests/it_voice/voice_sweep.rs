@@ -73,7 +73,7 @@ async fn a_swept_entry_is_forgotten_so_a_later_sweep_does_not_re_evict_it() {
     assert_eq!(
         recorder.removed.lock().unwrap().len(),
         1,
-        "remove_participant forgetting its own entry is what stops a second \
+        "the sweep forgetting the entry it evicts is what stops a second \
          sweep rediscovering, and re-evicting, somebody already gone"
     );
 }
@@ -333,4 +333,77 @@ async fn an_sfu_that_cannot_answer_still_evicts() {
         slimm_server::sweep_stale_voice_calls_at(&voice, &hub, start + Duration::from_secs(41))
             .await;
     assert_eq!(evicted, [(user, channel)]);
+}
+
+/// A room service whose removals wait for [`HeldRemovals::release`], so a test
+/// can act while the sweep's fan-out is full and later removals are queued.
+#[derive(Clone)]
+struct HeldRemovals {
+    arrived: Arc<AtomicUsize>,
+    gate: Arc<tokio::sync::Semaphore>,
+}
+
+impl HeldRemovals {
+    fn new() -> Self {
+        Self {
+            arrived: Arc::default(),
+            gate: Arc::new(tokio::sync::Semaphore::new(0)),
+        }
+    }
+}
+
+async fn held_remove(State(held): State<HeldRemovals>) -> StatusCode {
+    held.arrived.fetch_add(1, Ordering::SeqCst);
+    held.gate.acquire().await.unwrap().forget();
+    StatusCode::OK
+}
+
+/// A member swept stale who rejoins before their removal is sent keeps the
+/// new call: the sweep already forgot the stale heartbeat, so one on record
+/// now is the rejoin's, and evicting would kick the fresh connection.
+#[tokio::test]
+async fn a_member_who_rejoins_before_their_queued_removal_keeps_the_call() {
+    let held = HeldRemovals::new();
+    let router = Router::new()
+        .route(
+            "/twirp/livekit.RoomService/RemoveParticipant",
+            post(held_remove),
+        )
+        .with_state(held.clone());
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let voice = voice_at(&format!("http://{addr}"));
+    let hub = Hub::new();
+
+    let start = Instant::now();
+    let calls: Vec<_> = (0..17)
+        .map(|_| (UserId::generate(), ChannelId::generate()))
+        .collect();
+    for (user, channel) in &calls {
+        voice.record_heartbeat_at_for_test(*user, *channel, start);
+    }
+    let past = start + Duration::from_secs(41);
+    let sweeping = tokio::spawn({
+        let (voice, hub) = (voice.clone(), hub.clone());
+        async move { slimm_server::sweep_stale_voice_calls_at(&voice, &hub, past).await }
+    });
+    while held.arrived.load(Ordering::SeqCst) < 16 {
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    for (user, channel) in &calls {
+        voice.record_heartbeat_at_for_test(*user, *channel, past);
+    }
+    held.gate.add_permits(64);
+    let evicted = sweeping.await.unwrap();
+
+    assert_eq!(
+        held.arrived.load(Ordering::SeqCst),
+        16,
+        "the queued removal is not sent for a member who rejoined"
+    );
+    assert_eq!(evicted.len(), 16, "nor is their new session closed");
+    for (user, channel) in &calls {
+        assert!(voice.has_heartbeat(*user, *channel));
+    }
 }

@@ -6,37 +6,74 @@
       {
         "name": "id!: DeviceId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "devices",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "name!",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "devices",
+            "name": "name"
+          }
+        }
       },
       {
         "name": "created_at!",
         "ordinal": 2,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "devices",
+            "name": "created_at"
+          }
+        }
       },
       {
         "name": "last_seen_at",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "devices",
+            "name": "last_seen_at"
+          }
+        }
       },
       {
         "name": "client_kind",
         "ordinal": 4,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "devices",
+            "name": "client_kind"
+          }
+        }
       },
       {
         "name": "client_version",
         "ordinal": 5,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "devices",
+            "name": "client_version"
+          }
+        }
       },
       {
         "name": "signed_in_at!: i64",
         "ordinal": 6,
-        "type_info": "Null"
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -49,7 +86,7 @@
       true,
       true,
       true,
-      null
+      true
     ]
   },
   "hash": "c0e8d393fdf3c2f9fdd149656a9172011b9ad120a12dc7c5054f23a228a2c74d"

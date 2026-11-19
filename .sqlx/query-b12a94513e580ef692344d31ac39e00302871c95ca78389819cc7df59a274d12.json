@@ -6,7 +6,13 @@
       {
         "name": "locked!: bool",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_media_slots",
+            "name": "locked"
+          }
+        }
       }
     ],
     "parameters": {

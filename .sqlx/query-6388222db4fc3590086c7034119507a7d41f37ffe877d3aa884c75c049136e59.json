@@ -6,7 +6,13 @@
       {
         "name": "flag!: i64",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "read_states",
+            "name": "manually_unread"
+          }
+        }
       }
     ],
     "parameters": {

@@ -28,8 +28,7 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
       if (_focusedTileKey != null) _announce('Exited full screen');
       notifier.state = null;
       ref.read(canvasFocusedTileProvider.notifier).state = null;
-      _windowHold.release();
-      _landscapeHold.release();
+      _holds.release();
       ref.read(canvasFullscreenFromFocusProvider.notifier).state = null;
       ref.read(canvasFocusFromFollowProvider.notifier).state = null;
       // A tool picked while fullscreen stays; the pan the entry set gives way to whatever was armed before, or the default if this pane opened straight into fullscreen.
@@ -71,8 +70,7 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
     if (tileKey != null) {
       if (focus.state?.tileKey != tileKey) _announceTile(tileKey);
       focus.state = (channelId: widget.channelId, tileKey: tileKey);
-      unawaited(_windowHold.enter());
-      unawaited(_landscapeHold.enter());
+      _holds.enter();
       if (ref.read(canvasFullscreenProvider) != widget.channelId) {
         ref.read(canvasFullscreenFromFocusProvider.notifier).state =
             widget.channelId;
@@ -82,8 +80,7 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
     }
     if (focus.state?.channelId != widget.channelId) return;
     ref.read(canvasFocusFromFollowProvider.notifier).state = null;
-    _windowHold.release();
-    _landscapeHold.release();
+    _holds.release();
     if (ref.read(canvasFullscreenFromFocusProvider) == widget.channelId) {
       _toggleFullscreen();
       return;
@@ -159,8 +156,7 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
         final focusedStill =
             ref.read(canvasFocusedTileProvider)?.channelId == widget.channelId;
         if (!_mounted || !focusedStill) return;
-        unawaited(_windowHold.enter());
-        unawaited(_landscapeHold.enter());
+        _holds.enter();
       });
     }
     if (ref.read(canvasFullscreenProvider) != widget.channelId) return;
@@ -172,8 +168,7 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
   /// channel reopened later would come back with its chrome already dropped
   /// and no memory of why.
   void _closeCanvas() {
-    _windowHold.release();
-    _landscapeHold.release();
+    _holds.release();
     ref.read(canvasFullscreenFromFocusProvider.notifier).state = null;
     ref.read(canvasFocusFromFollowProvider.notifier).state = null;
     ref.read(canvasFocusedTileProvider.notifier).state = null;

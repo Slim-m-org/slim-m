@@ -6,14 +6,20 @@
       {
         "name": "id!: i64",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "voice_sessions",
+            "name": "id"
+          }
+        }
       }
     ],
     "parameters": {
       "Right": 2
     },
     "nullable": [
-      true
+      false
     ]
   },
   "hash": "70bd39c609b7371161217332ac37d68326ef5fb38a81ee9f60b264e172a29552"

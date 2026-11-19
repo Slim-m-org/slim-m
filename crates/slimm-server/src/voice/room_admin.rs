@@ -28,6 +28,28 @@ impl VoiceService {
     ) -> Result<(), VoiceError> {
         // Ended on purpose, so a later sweep must not rediscover and re-call it.
         self.heartbeats.forget(user_id, channel_id);
+        self.remove_from_room(channel_id, user_id).await
+    }
+
+    /// [`Self::remove_participant`] for the stale-heartbeat sweep, which already forgot the
+    /// heartbeat: one on record again is a rejoin since, which stays. Returns whether it removed.
+    pub async fn remove_stale_participant(
+        &self,
+        channel_id: ChannelId,
+        user_id: UserId,
+    ) -> Result<bool, VoiceError> {
+        if self.heartbeats.contains(user_id, channel_id) {
+            return Ok(false);
+        }
+        self.remove_from_room(channel_id, user_id).await?;
+        Ok(true)
+    }
+
+    async fn remove_from_room(
+        &self,
+        channel_id: ChannelId,
+        user_id: UserId,
+    ) -> Result<(), VoiceError> {
         self.roster_cache.invalidate(channel_id);
         let Some(enabled) = self.inner.as_ref() else {
             return Err(VoiceError::Unavailable);

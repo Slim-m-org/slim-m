@@ -20,7 +20,7 @@ use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::ids::ChannelId;
 use slimm_server::store::{Rect, Store, ViewportQuery};
-use sqlx::SqlitePool;
+use sqlx::{AssertSqlSafe, SqlitePool};
 
 use crate::support;
 use support::canvas::CanvasReads;
@@ -159,7 +159,7 @@ async fn measure(
 ) -> (Duration, usize) {
     let key = channel_key(channel);
     let run = || async {
-        sqlx::query(sql)
+        sqlx::query(AssertSqlSafe(sql))
             .bind(key)
             .bind(viewport.min_x)
             .bind(viewport.min_y)

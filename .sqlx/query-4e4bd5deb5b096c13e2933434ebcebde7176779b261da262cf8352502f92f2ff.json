@@ -6,7 +6,13 @@
       {
         "name": "command",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "module_run_stats",
+            "name": "command"
+          }
+        }
       }
     ],
     "parameters": {

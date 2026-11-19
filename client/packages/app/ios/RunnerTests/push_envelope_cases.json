@@ -3,60 +3,60 @@
     {
       "name": "empty",
       "plaintext": "",
-      "sealed_base64": "AQ75YZq9x6gjniGuGka/G4ijmpv8wHBUnVtslez5RDTh757REUAJK7cT6n3ZHKY6"
+      "sealed_base64": "+5tHbqEc9Mrwh9Q69Th9x2E6edcSVrtMhowa63JgBS25PMYRPdjTwplVSVjo4zqM"
     },
     {
       "name": "one byte",
       "plaintext": "a",
-      "sealed_base64": "St66/PtYWa/Mv5oX/8QVTAxoQHnba5WC2cjexAmYUGPYxtAoz/wiIlRSYSWaWxEoaA=="
+      "sealed_base64": "cU3jsyg35c1DEJaYrHujMiQ+FclazWhBnZwGpvKrayyja1J4CB39B9mUecOcgB7I4w=="
     },
     {
       "name": "31 bytes, one short of a block",
       "plaintext": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "sealed_base64": "2mLObcTp3aQ3cZzoVWIqrbmOn40MYSolf5FEj2CilFeJdDa+yrCgkb+L12Q4Wx9o85yRNQJSfQpKUye4q98t43iQJk6UEuwt1aRTz8m0VQ=="
+      "sealed_base64": "CkFMSOiKIndH15nzUvgp+5rfJASuLJMBSkev+GTVRn38HA2YjORVTCE9A5KaZgcBWUTuI6ty8R/D4KvzbvG8Fdibc7xQ5U4kZqNOjJ0gSA=="
     },
     {
       "name": "32 bytes, exactly the first block's remainder",
       "plaintext": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "sealed_base64": "QzyKgAWzHH1i8MSVpDJtupEZd4Ys0q8oWJmY4oozyAhSEETOV4te6HJx1qn947bPnb0YXWU3hR4eHyOpnQv8SjcTCO3GcIn5hO54vgB3DEY="
+      "sealed_base64": "UzYwmBAwOmU+keu47iRag1CzPwj80e2JcLiWXRNJEHMDQepmB7Bm3kF83dliFr1BYM2KhFL0iPxbx6blo0NdUDDMRqz9kcvFn7wxWjYPylc="
     },
     {
       "name": "33 bytes, one into the second block",
       "plaintext": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "sealed_base64": "IQ7YV/y82yAl/Mq4QGHxBeDtVwr7cxXITwJqQJ6mwQiOG0B+kpgDo/IqpVKT3RHEMFlsVsHjdhcelrO1r+zEmah989CpR2Zfq6a9PbCwtToa"
+      "sealed_base64": "jxNMUT6+1nek/wBja9QbDznDR5qVsSD+F8OQYw916EwTm9OVYhznn3qzLDL8t6dtd6kRi9EwhJ8g3iaeClTiUcRpXVDUkHq3ibCy/ogLiLit"
     },
     {
       "name": "64 bytes",
       "plaintext": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "sealed_base64": "cWJUo/BN8HBJN0f3kddYa6eWIsOdBjb1ZmSQw5c0sjmXYlGJ18gdULxMWs4IhIFwDytmwau4pEHVyhfS1mLY5piwnoD0FGKvrK5nAZbnGXDAMj79pFg0+gUakwEvm8VXaUkKTplsJGViBIIDxlT8uA=="
+      "sealed_base64": "0QLFdtBVRHMFTCCbmpOh5CbI1CCwIlkg1RmCNvERKXbPRvZLWYv4dBg7nsVKd9kSsBhVlRbrwVz+SZnmZgOTWjgdlwtnEPmvrHZvvG9muM3fUxs7e1U64mp/AmIEdztDIBiyy0OwSmz+eNRDdvqj3Q=="
     },
     {
       "name": "96 bytes, exactly two blocks",
       "plaintext": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "sealed_base64": "JYXxedUNWZuWVCpqYIaB9ugDhnxbC1OAXQmqYFoHFnaIoWsUUFe6FK11PVaR28fGYXN+9ydHORrN4HAExe+XW3RS8kZ+NPT8yQfaWJGi6N072NY9FHXbvmhnU6xaXzZAeDbXtfehP7Q2AwRuxwg7OgmE0U34zslgqJCR6bXUMF8K4s8CwY0GYD0bcIGleOKf"
+      "sealed_base64": "Nbgtgry/QBc349TrHKRG4nC5gsctdkx5c9APGsOLpTbnbWvQdJ5kB619roXCEgTiRYjCvvN+2cWSa0vGTG3UKx1NAGRwDfLaIz/9DTeo53C8aPK2kzb8xOPdFTsKD4ZskcCNJYpN4YFn734wqxUMYXqTiU0ADosjEFKB7E4fX5/CmC423+yp9D3QBZsOeByU"
     },
     {
       "name": "a message envelope with a preview",
       "plaintext": "{\"body\":\"the analytical engine has no pretensions to originate anything\",\"channel\":\"general\",\"channel_id\":\"019fbd32-f633-7a63-a6a8-497513c44e6b\",\"domain\":\"slim-m.push.v1\",\"kind\":\"message\",\"message_id\":\"019fbd41-2c8a-7d10-9f31-6b1e4a2f80c7\",\"sender\":\"Ada Lovelace\",\"sent_at\":1754985600000,\"seq\":4291,\"version\":1}",
-      "sealed_base64": "sQjO7+jarQHzas5NhIHeCgRiW6ZLeotYoxnhs5V4A2sIYXlA9tqzExc1XTlvz1A+rIAjRtOKNucMkKqCNhnqfFJ9WrzT28l5LduYpnGOjx5D2asEzm+Nt8jwD8sPVeHjWjkUtGkvWPmurJB6ekRCwXQ0yRuen8Daegr94/2d6KA4KvfvwwAU5FH1nTqThHy/JOzQtHrDqKnGNJaSJPYQN881S7zr1syBEXGcQpJjb7jQ48EwH4GrM10Gk6JbokqRwb0MGEZTfhk/hgbrO0PZwiStyUsrgIQliL0dWdWuW6Ak6OoWzBG1uGguEGQl2GAh+Hb8gJaqDJFgTfuyoRZy2rnHVJ3pd4kWpqPXZw7e4tZUDIw6EmHzbZy3ohrrb5cq2LJK3cx6eqEiwcn2h5X4QzgatC8sVwThvMTltg2OMIYXK+8GjiahZtztOntU5Ism2hi/kaPdu0HdKbQm/C9RS3NDgrtwal4="
+      "sealed_base64": "1r+OZ5WCv0ogPCnccYgjoN7K2jYI86h24Pv27E40Y3Ad9mBOvd4LzgL8kwgoC/54TtzS9fx5RamQN1BRmchE8VTEswl+TFk9d4ubDK7K8383FW2elVGN7J2yGDzoflJ9TCYd78/fDY/o1jwqboUNKbuQBzCw8OzoQoLNIYGHbpwVzhvIvfl4L78yqjIai9xxI7rDcojldFG+zmxACEB+6uAyUR+v/v1jcNoBNfMK6J0aalWeODTnfIrT4E1LLAiNnyaLiri4aV+TRdJvVh7Fd6GtQ+S3mcM0fK+KrncD3CqgIqq/fErfvFtIPsr6jp/MZY9ntuKyipM/xPquKO7j8TsKoNZuuByTy1qPpJUbpgdr3cvHsdI2Kkx1gBR/f1tiXOf6XgbHiBMaid4XTKJqE5m4ganZoSavsS/3ZruKq1ImymYvPDuZrxoaMM0mJJ/aCl2Z94aD8RsqVPC4c61E8qk98vzMLgM="
     },
     {
       "name": "a content-free envelope",
       "plaintext": "{\"channel_id\":\"019fbd32-f633-7a63-a6a8-497513c44e6b\",\"domain\":\"slim-m.push.v1\",\"kind\":\"message\",\"message_id\":\"019fbd41-2c8a-7d10-9f31-6b1e4a2f80c7\",\"sent_at\":1754985600000,\"seq\":4291,\"version\":1}",
-      "sealed_base64": "5GPS+8qg8SgVvvbblxslocJ0DFU1TVUW2mNOHsIdjjSPOWKmsvrUsSDWLrxSbg2dUJ9D80G/ZclT2am2mR+F5J9AzT6KyzVd+Y2eyG3S6I+fK6hz3DlNkaxpg/4NDV8aagtHgZrUmMuJwOhA03oScI8nff8+LcXToUsX/l+cXyxiPsTSIya/Fqwe9H9ubiLy6++0TLV4hKK9uMi5UXBvORncQA0b+LvRp1KBo0OyDqAiP8pRMihzCFAoptJzVjO4Ix2Xl3PKqciUantoVrxRoT8o5Q2vhP8reahAkz4J03+odZaJ/h774bqJcUckgCRUTO7v"
+      "sealed_base64": "wKOFttc1XRfbLz2GVnkLjL36mkW2bqU2tXMMqiGN32awa7zJeoBURHdonn/0XhUeI6/4rKs+yIKIUl8olbr64XFFh5XV7a3BtmcE7Zrnr4hP/LAhciwCxH4AwZPmq3EiaRZtFuVBOTU4kX3zjqH0Csj4pwwo+//jchVg8iNoCxqd9u8/E+vuBFG+Amg8+rJtGtNlVi2iA4D5m/YXEOPZEZ/WAivSXJya1xyClAHzXXmsEinA/NMigpzY/z2+ADPS/kMj4Tyjyu5aM9GNkP33dWqztmw2UCGxWVMLYvN5E6nAG2eLb/boD8+LRuQcfq9byoZX"
     },
     {
       "name": "a dm envelope, multi-byte throughout",
       "plaintext": "{\"body\":\"こんばんは、元気ですか\",\"channel_id\":\"019fbd32-f633-7a63-a6a8-497513c44e6b\",\"domain\":\"slim-m.push.v1\",\"kind\":\"message\",\"message_id\":\"019fbd41-2c8a-7d10-9f31-6b1e4a2f80c7\",\"sender\":\"アダ・ラブレス\",\"sent_at\":1754985600000,\"seq\":7,\"version\":1}",
-      "sealed_base64": "Ew5rmvlNS+qQjERBSiIWAvNU/LuHv2a9GSTZz3ESrmQnTEbcxWbNsdAyQX3JUsVJQQ5OsueYwnEW4Ei8uqh/a8ZfVVX1rgYYZQG3YPH8rSB6g3j8dySwz7J+/psWoCWDhVfHQRyad/slN31C2LFH9LQwTqx0X8xzGWfLy9qYxC1QnsA+eAXhZYzOffurmZ9pKtcZ+Ce6cwJlQsH+vitcsNSAJcGb/NlITeZs/F7JLXB1K5C2hjdts+/p0uOVW7y5OwZUtGvcgT4PsCABp96fEPAOBf1AH/PF+LxZP9pvWpPjYBDCGpwt/xmYlroGaHfSMT6QBN2QqhstgobO+eNtZtCwgnyyzBZeZN4/UYdz0CgLa1nuYOeK4Dlk8epcH1s9ea0RqAgrtUB4MAqnBWC2EYJHPhX/p2Gyb+Iikg=="
+      "sealed_base64": "ZWpbv+WmrYag67PfIUIxkJArhps4ZMLbGuYgWJWJMC1u0tMZevLgBzmeVsq/27OVVFsK7dYYpxs0a7Giuxs9Iir2ZXNvBeRjv4wVK9jwQk+sIP4KE092gfb0ulJfaTREO6bzxFVG02iW/jsTfjyEkwiweU/skUeT1/Liu9BFydYRyfXwh0pMbhIJNQ0OOfdoNPaOmVAAfDmoua2KXPryV2WwVtoSJewsv+YgazzEXbpsZIo37/+L9fUioCtu7+TRVIvKTv2fW6FiLUAPhD8l7vt2veQj5osdTdMBh1sBUAe/q9qZtGK/DVxQVf2HvnyY30LoOz50pnRXkbQriG/hZ2N9UL56K8EjYG2Mh9309VVu8kqxsZOkCngw2X2b8hheNhhX0lJi6g4WIJbXxiAziOxrqOebRZ5ZccY1NA=="
     },
     {
       "name": "a pre-sent_at envelope from an older server",
       "plaintext": "{\"body\":\"sealed before sent_at existed on the wire\",\"channel_id\":\"019fbd32-f633-7a63-a6a8-497513c44e6b\",\"domain\":\"slim-m.push.v1\",\"kind\":\"message\",\"message_id\":\"019fbd41-2c8a-7d10-9f31-6b1e4a2f80c7\",\"sender\":\"Grace Hopper\",\"seq\":12,\"version\":1}",
-      "sealed_base64": "5ml6/n/tJo8UyStzgfpWKOMl/K2xcOOcLEiyD2gKm34MV8Kxdi3N5uSEXmGLpUzXXb9nRqZEkCfQpqLRSB2MiEpFOxi7YEClttw4TANou5SA2PRY3QZUoSFpHTFVmFK5FZoSuvdgAfPOIhnGOmELtIvgjpiJPOa+9LbA+UXe/84G/GuHq1zPz2IzMtzSmG+G6BAn+NQo7NWF61Csfc4O6O8rVOPffyID4b6b3CyrmNTE/8F+3qPpqsYoBnvBCZ7pnM1gVrhd6B/wAUIMUJ7JaHMoXoD62CcTo9y0tlbmMxOB86ElIAcUrx7mpaJb59u4jM/koQjariMv+yoM9SOzlxeZgNlvtCpxSpg5NGWyFgSJ97u39wOCaRBsWIyo1K2uj05olQ=="
+      "sealed_base64": "Irr4yX20ZpfE8n3YP6CmTCoHklO9WuniTUWpfj4vKT56rFsRUC4Ryychh0P4okvL9PwYbrbxeqD9JReJGDZxPQx6IBhqTUPiu9JhYpqoV0Qq/7lgo/iashKAwsAX796pONtmGjt5FodcJeqL+WwAtTpgKAVqCyGWib3nMpb1i+M23rNB731pQy797MoolepoO4/LNiBUAUDnLcP2aTk/cmErD+rThz8x88Ah7C0Lho7jGa4lklDIpgSfnRNOmVJjz+9kCpjsh2x0xlcWEozdY621Q5BL88DTRtj+5rBB0sEPkxi+SqzHyuxDK2wphtHqYHW+HK4MYctYtns0p1GgmMQq/gD4GGu3bI/SeWQ1BOD+764Le6dxktHqYHeTH5+N2uCjog=="
     }
   ],
   "note": "Generated by crates/slimm-server/tests/it_notify/push_envelope_fixture.rs. Read by that file and by RunnerTests/PushSealedBoxTests.swift. Do not hand-edit: the ciphertext is real crypto_box output and nothing here would still verify.",
-  "recipient_public_key_base64": "/TJypltN+pw5W1bvzGfKmghIhFV4Sp/4ZErLNAkUkB4=",
-  "recipient_secret_key_base64": "abkUOOEwb68odods14SxwHt/wRBsgKLy+47gcHYnetY="
+  "recipient_public_key_base64": "F+x1CG9DobSfb09nMriBvjuEeMv6QvJAey8qaQJrmi4=",
+  "recipient_secret_key_base64": "wf3U7zagq1LJHPfHobMQCyEzlOumSG553oYL8Rp/6co="
 }

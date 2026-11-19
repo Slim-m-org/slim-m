@@ -11,7 +11,7 @@
 use std::fs;
 use std::path::Path;
 
-use sqlx::{Row, SqlitePool};
+use sqlx::{AssertSqlSafe, Row, SqlitePool};
 
 async fn new_pool(name: &str) -> (SqlitePool, crate::support::TestDbGuard) {
     let (path, guard) = crate::support::TestDbGuard::new(&format!("slimm-{name}"));
@@ -66,7 +66,7 @@ fn extract_containing(source: &str, anchor: &str, raw: bool) -> String {
 
 async fn plan_of(pool: &SqlitePool, sql: &str, binds: &[i64]) -> Vec<String> {
     let explain = format!("EXPLAIN QUERY PLAN {sql}");
-    let mut query = sqlx::query(&explain);
+    let mut query = sqlx::query(AssertSqlSafe(explain));
     for bind in binds {
         query = query.bind(*bind);
     }

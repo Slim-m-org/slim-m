@@ -6,12 +6,24 @@
       {
         "name": "user_id!: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "user_id"
+          }
+        }
       },
       {
         "name": "channel_id!: ChannelId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "channel_id"
+          }
+        }
       }
     ],
     "parameters": {

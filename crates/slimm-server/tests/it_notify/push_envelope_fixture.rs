@@ -39,7 +39,7 @@ use std::path::PathBuf;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use crypto_box::SecretKey;
-use crypto_box::aead::rand_core::{OsRng, TryRngCore};
+use crypto_box::aead::OsRng;
 use serde_json::{Value, json};
 
 /// Walks from this crate to the Xcode test target that reads the same file.
@@ -136,14 +136,14 @@ fn regenerate_the_fixture_when_asked() {
         return;
     }
 
-    let secret = SecretKey::generate(&mut OsRng.unwrap_err());
+    let secret = SecretKey::generate(&mut OsRng);
     let public = secret.public_key();
 
     let cases: Vec<Value> = plaintexts()
         .into_iter()
         .map(|(name, plaintext)| {
             let sealed = public
-                .seal(&mut OsRng.unwrap_err(), plaintext.as_bytes())
+                .seal(&mut OsRng, plaintext.as_bytes())
                 .expect("seals");
             json!({
                 "name": name,

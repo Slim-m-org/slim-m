@@ -36,7 +36,7 @@ class FakeCapture implements VoiceCaptureBackend {
   @override
   Future<bool> start() async {
     await opening;
-    if (failsToStart) throw StateError('ffmpeg: not found');
+    if (failsToStart) throw StateError('parecord: not found');
     return started = allowed;
   }
 
@@ -47,7 +47,7 @@ class FakeCapture implements VoiceCaptureBackend {
   Future<VoiceCapture?> stop() async {
     stops++;
     await finishing;
-    if (failsToStop) throw StateError('ffmpeg exited with 1');
+    if (failsToStop) throw StateError('parecord exited with 1');
     stopped = true;
     return VoiceCapture(
       bytes: Uint8List.fromList([1, 2, 3]),
@@ -268,13 +268,13 @@ void main() {
     expect(rig.state.clip, isNull);
   });
 
-  test('a Linux start that fails names the programs it needs', () async {
+  test('a Linux start that fails names the program it needs', () async {
     for (final onLinux in [true, false]) {
       final rig = Rig(onLinux: onLinux)..listen();
       rig.capture.failsToStart = true;
       await rig.recorder.start();
       expect(rig.state.phase, VoicePhase.failed);
-      expect(rig.state.error!.contains('ffmpeg'), onLinux);
+      expect(rig.state.error!.contains('parecord'), onLinux);
       rig.container.dispose();
     }
   });

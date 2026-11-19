@@ -13,7 +13,7 @@ use std::path::Path;
 use slimm_server::ids::ChannelId;
 use slimm_server::store::Store;
 use sqlx::migrate::Migrator;
-use sqlx::{Row, SqlitePool};
+use sqlx::{AssertSqlSafe, Row, SqlitePool};
 use uuid::Uuid;
 
 use crate::support;
@@ -78,7 +78,7 @@ async fn seed(pool: &SqlitePool) {
 }
 
 async fn count(pool: &SqlitePool, table: &str) -> i64 {
-    sqlx::query_scalar(&format!("SELECT count(*) FROM {table}"))
+    sqlx::query_scalar(AssertSqlSafe(format!("SELECT count(*) FROM {table}")))
         .fetch_one(pool)
         .await
         .unwrap_or_else(|e| panic!("counting {table}: {e}"))

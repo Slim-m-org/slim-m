@@ -6,12 +6,24 @@
       {
         "name": "id!: ChannelId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "channels",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "home!: ChannelCategoryId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "channels",
+            "name": "category_id"
+          }
+        }
       }
     ],
     "parameters": {

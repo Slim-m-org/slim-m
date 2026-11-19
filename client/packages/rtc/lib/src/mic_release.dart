@@ -79,6 +79,14 @@ class MicRelease {
     _timer = Timer(grace, () => unawaited(_run()));
   }
 
+  /// A capture restart reopened the device under a mute that may have already
+  /// released it; gives it back now, unless push to talk keeps it ready.
+  Future<void> releaseReopened() async {
+    _released = false;
+    if (_keepReady && !(mobile && _backgrounded)) return;
+    await releaseNow();
+  }
+
   /// Gives the device back now, so the next unmute opens it with fresh options.
   Future<void> releaseNow() async {
     _timer?.cancel();

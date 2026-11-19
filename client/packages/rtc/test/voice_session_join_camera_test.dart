@@ -18,6 +18,31 @@ class _OneCamera implements CameraDevices {
       ];
 }
 
+/// An [InstantRoom] whose connect waits on [connected], and which, like a real
+/// room, has no local participant until it has connected.
+class _SlowRoom extends InstantRoom {
+  _SlowRoom(this.connected, {super.camera});
+
+  final Future<void> connected;
+  bool _up = false;
+
+  @override
+  Future<void> connect(
+    String url,
+    String token, {
+    lk.ConnectOptions? connectOptions,
+    lk.RoomOptions? roomOptions,
+    lk.FastConnectOptions? fastConnectOptions,
+  }) async {
+    await connected;
+    _up = true;
+  }
+
+  @override
+  lk.LocalParticipant? get localParticipant =>
+      _up ? super.localParticipant : null;
+}
+
 Future<void> waitFor(bool Function() done) async {
   for (var i = 0; i < 200 && !done(); i++) {
     await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -188,5 +213,52 @@ void main() {
     await pumpEventQueue();
 
     expect(cameraDeviceIds, [null]);
+  });
+
+  group('a camera toggled while the call is connecting', () {
+    late Completer<void> connected;
+
+    VoiceSession slowSession() {
+      connected = Completer<void>();
+      final built = VoiceSession(
+        roomFactory: () => _SlowRoom(
+          connected.future,
+          camera: (enabled, options) async => cameraAsks.add(enabled),
+        ),
+        micPort: CountingMic(),
+        audioDevices: NoDevices(),
+        cameraDevices: _OneCamera(),
+        liveOutput: (room, device) async {},
+        inputGate: InputGateMonitor.disabled(),
+      );
+      addTearDown(built.dispose);
+      return built;
+    }
+
+    Future<void> joinThenToggle(
+        {required bool camera, required bool to}) async {
+      session = slowSession();
+      final joining = join(camera: camera);
+      await pumpEventQueue();
+      expect(session.state, VoiceSessionState.connecting);
+      await session.setCameraEnabled(to);
+      connected.complete();
+      await joining;
+      await pumpEventQueue();
+      expect(session.state, VoiceSessionState.connected);
+    }
+
+    test('turned off stays off once connected', () async {
+      await joinThenToggle(camera: true, to: false);
+
+      expect(cameraAsks.where((on) => on), isEmpty,
+          reason: 'the person turned it off before the call came up');
+    });
+
+    test('turned on opens once connected', () async {
+      await joinThenToggle(camera: false, to: true);
+
+      expect(cameraAsks.last, isTrue);
+    });
   });
 }

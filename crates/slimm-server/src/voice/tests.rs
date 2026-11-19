@@ -8,6 +8,7 @@ use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
 use super::*;
+use crate::ids::DeviceId;
 
 fn decode_payload(token: &str) -> serde_json::Value {
     let payload = token.split('.').nth(1).expect("a jwt has three parts");
@@ -426,6 +427,24 @@ fn a_join_token_tags_the_device_it_was_minted_for_per_channel() {
         VoiceService::disabled()
             .device_tag(channel, device)
             .is_none()
+    );
+}
+
+#[test]
+fn each_tab_of_one_device_carries_its_own_tag() {
+    let channel = ChannelId::generate();
+    let device = DeviceId::generate();
+    let tab = |tab: &str| VoiceDevice {
+        device_id: device,
+        tab: Some(tab.to_owned()),
+    };
+    let tag = |device: VoiceDevice| service().device_tag(channel, device).unwrap();
+    assert_ne!(tag(tab("a")), tag(tab("b")), "two tabs of one session");
+    assert_eq!(tag(tab("a")), tag(tab("a")), "one tab across a reload");
+    assert_ne!(
+        tag(tab("a")),
+        tag(device.into()),
+        "a tab is not the bare device"
     );
 }
 

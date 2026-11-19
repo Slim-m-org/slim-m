@@ -27,7 +27,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 envy = "0.4"
 uuid = { version = "1", features = ["v7", "v5"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "uuid"] }
+sqlx = { version = "0.9.1", features = ["runtime-tokio", "sqlite", "migrate", "uuid"] }
 anyhow = "1"
 # Auth primitives: Argon2id hashing, SHA-256 token hashing, URL-safe base64.
 # All long-established audited crates, not fresh single-maintainer projects.
@@ -40,21 +40,21 @@ base64 = "0.22"
 # `getrandom` turns on rand_core's OsRng, the entropy behind both the Argon2
 # salt and the opaque token secrets, unifying onto argon2's own rand_core.
 rand_core = { version = "0.6", features = ["getrandom"] }
-# RFC 6238 TOTP (decision 0047). The 5.x hold and the feature cuts are both load-bearing; see docs/dependencies.md.
+# RFC 6238 TOTP (decision 0048). The feature cuts are load-bearing; 5.x is only the current line. See docs/dependencies.md.
 totp-rs = { version = "5.7", default-features = false, features = ["otpauth"] }
-# Anonymous sealed boxes for the content-free push envelope. Exact-pinned
-# because the `seal` API is still pre-release; see docs/dependencies.md.
-crypto_box = { version = "=0.10.0-pre.0", features = ["seal"] }
+# Anonymous sealed boxes for the content-free push envelope. The stable line,
+# not the 0.10 pre-release; see docs/dependencies.md.
+crypto_box = { version = "0.9.1", features = ["seal"] }
 # Already pulled in by crypto_box; named here for the symmetric box that seals TOTP secrets.
-crypto_secretbox = "=0.2.0-pre.0"
+crypto_secretbox = "0.1.1"
 # The push relay HTTP client. `rustls-tls` so the static musl binary and the
 # distroless image never need OpenSSL; see docs/dependencies.md.
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 # Transitive through reqwest; named so the relay URL's scheme and host can be
 # validated at startup without hand-rolled parsing.
 url = "2"
-# The server's trust-on-first-use identity keypair. Feature cuts and the 2.x
-# version hold are both load-bearing; see docs/dependencies.md.
+# The server's trust-on-first-use identity keypair. The feature cuts are
+# load-bearing; 2.x is only the current line. See docs/dependencies.md.
 ed25519-dalek = { version = "2.2", default-features = false, features = ["zeroize"] }
 # Pure-Rust WASM interpreter for the module runtime host (decision 0021,
 # Phase 3): no JIT, small binary footprint, and fuel metering for CPU limits.

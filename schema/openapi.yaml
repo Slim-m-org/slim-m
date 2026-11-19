@@ -8109,6 +8109,7 @@ paths:
         owner and anyone with `MANAGE_CHANNELS` are never refused this way.
       parameters:
         - $ref: "#/components/parameters/ChannelId"
+        - $ref: "#/components/parameters/VoiceTab"
       responses:
         "200":
           description: A join token for the channel's room.
@@ -8674,6 +8675,7 @@ paths:
         a 200 with an empty list, which means the room is genuinely empty.
       parameters:
         - $ref: "#/components/parameters/ChannelId"
+        - $ref: "#/components/parameters/VoiceTab"
       responses:
         "200":
           description: Who the SFU reports as connected, visible to this caller.
@@ -13156,6 +13158,20 @@ components:
       schema:
         type: string
         format: uuid
+    VoiceTab:
+      name: tab
+      in: query
+      required: false
+      description: >
+        An id a browser tab keeps for itself across reloads, since every tab of
+        one profile shares one session. A join token carries it in the device
+        tag, and the roster compares it, so `this_device` tells two tabs apart.
+        A native client sends none. Anything but 1 to 64 lowercase hex
+        characters answers 400.
+      schema:
+        type: string
+        pattern: "^[0-9a-f]{1,64}$"
+        maxLength: 64
     DockSourceQuery:
       name: source
       in: query
@@ -19724,9 +19740,10 @@ components:
           type: boolean
           description: >-
             True only on the caller's own entry when that connection was
-            joined from the device asking, so a connection this device left
-            behind (after a reload or a crash) is not mistaken for the call
-            running on another device. Always false for anyone else.
+            joined from the device asking, and from the same `tab` when one is
+            sent, so a connection this device left behind (after a reload or a
+            crash) is not mistaken for the call running on another device.
+            Always false for anyone else.
 
     ReactionSummary:
       type: object
@@ -20647,6 +20664,14 @@ components:
             sends and what a newer one sends before adopting a head. A scope
             that omits this receives no `ops` and is never told to `reset`
             because of an op gap.
+        check_mention:
+          type: boolean
+          default: false
+          description: >
+            Asks for this scope's `mentioned_seq`. A client sends it when its
+            mention cursor names no message it holds that still mentions the
+            caller, as a reset's marker or an edit can leave it, so the marker
+            can lower it once that mention is deleted or edited away.
 
     SyncResponse:
       type: object
@@ -20697,6 +20722,15 @@ components:
         ops_has_more:
           type: boolean
           description: More ops remain past what this response carried.
+        mentioned_seq:
+          type: integer
+          format: int64
+          description: >
+            The seq of the newest live message in this channel that mentions the
+            caller, 0 when none does, so a client that resets the scope keeps a
+            mention older than the page it refetches. Present only when `reset`
+            is true or the scope's cursor set `check_mention`: the read behind it
+            scans every mention of the caller.
 
     MessageOp:
       type: object

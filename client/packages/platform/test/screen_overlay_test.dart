@@ -26,6 +26,31 @@ void main() {
       expect(support.monitors.last.aspect, closeTo(1.6, 1e-9));
     });
 
+    test('keeps the name a screen is found by again, and no empty one', () {
+      final support = OverlaySupport.fromReply({
+        'supported': true,
+        'monitors': [
+          {
+            'x': 0,
+            'y': 0,
+            'width': 1920,
+            'height': 1080,
+            'primary': false,
+            'name': 'DP-5',
+          },
+          {
+            'x': 1920,
+            'y': 0,
+            'width': 1920,
+            'height': 1080,
+            'primary': false,
+            'name': '',
+          },
+        ],
+      });
+      expect(support.monitors.map((m) => m.name), ['DP-5', null]);
+    });
+
     test('a desktop that cannot host it is unsupported', () {
       expect(
         OverlaySupport.fromReply({'supported': false, 'monitors': <Object>[]})

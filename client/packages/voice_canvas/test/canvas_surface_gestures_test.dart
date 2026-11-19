@@ -125,7 +125,7 @@ void main() {
     expect(erased, [const Offset(20, 20)]);
   });
 
-  /// The same collision `_pendingPlacementWorld` already dodges for note and
+  /// The same collision `CanvasPendingPlacement` already dodges for note and
   /// shape (see the pinch-cancellation test below): the eraser's own
   /// pointer-down point is deferred the same way, so a pinch's bare first
   /// finger cancels rather than erasing whatever it happened to land on.

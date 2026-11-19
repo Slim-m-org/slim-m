@@ -29,7 +29,9 @@ Apple also writes Opus only in a CAF container nothing else plays, and Windows a
 A five minute WAV is about 9.6 MB.
 That is far under the default attachment limit (1 GiB), the listener's 24 MiB body limit and the server's 24 MiB cap on what it sends for a transcript.
 An admin who lowers the per-attachment limit below about 10 MB refuses the longest voice messages, the same as any other file that size.
-On Linux the `record` package captures with parecord and writes the file with ffmpeg, WAV included, so both programs must be installed.
+On Linux the `record` package captures with parecord and writes any file through ffmpeg, WAV included, so the client takes its raw 16-bit samples instead and writes the WAV header itself (2026-11-18).
+Only parecord must be installed; a tarball install with no ffmpeg recorded a clean two-second clip that way.
+The flatpak's runtime (`org.freedesktop.Platform` 25.08) carries both programs, and the shipped 0.131.0 flatpak recorded through its sandbox with the old ffmpeg path too.
 
 A smaller format such as AAC in m4a would need a playback check on Linux (GStreamer), Windows and iPhone first, and the web has no AAC encoder.
 The listener still reads Ogg Opus, which costs nothing to keep.

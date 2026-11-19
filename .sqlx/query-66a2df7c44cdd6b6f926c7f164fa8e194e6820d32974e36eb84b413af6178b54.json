@@ -6,7 +6,13 @@
       {
         "name": "object_id!: CanvasObjectId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_op_targets",
+            "name": "object_id"
+          }
+        }
       }
     ],
     "parameters": {

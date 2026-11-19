@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteRow};
-use sqlx::{ConnectOptions, Connection, Row, SqlitePool};
+use sqlx::{AssertSqlSafe, ConnectOptions, Connection, Row, SqlitePool};
 use tokio::runtime::Handle;
 
 use super::data::{DataBackend, DataError, Outcome};
@@ -341,7 +341,9 @@ async fn run_ddl(path: &Path, ddl: &[String], schema: &DataSchema) -> Result<(),
     .execute(&mut *tx)
     .await?;
     for statement in ddl {
-        sqlx::query(statement).execute(&mut *tx).await?;
+        sqlx::query(AssertSqlSafe(statement.as_str()))
+            .execute(&mut *tx)
+            .await?;
     }
     let json = serde_json::to_string(schema).unwrap_or_default();
     sqlx::query("INSERT INTO _slim_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
@@ -364,7 +366,10 @@ async fn refuse_duplicates(path: &Path, columns: &[(String, String)]) -> Result<
         let sql = format!(
             "SELECT 1 FROM \"{table}\" WHERE \"{column}\" IS NOT NULL GROUP BY \"{column}\" HAVING COUNT(*) > 1 LIMIT 1"
         );
-        match sqlx::query(&sql).fetch_optional(&mut conn).await {
+        match sqlx::query(AssertSqlSafe(sql))
+            .fetch_optional(&mut conn)
+            .await
+        {
             Ok(None) => {}
             Ok(Some(_)) => {
                 result = Err(format!(
@@ -396,7 +401,7 @@ fn classify(err: &sqlx::Error) -> DataError {
 }
 
 async fn run(pool: &SqlitePool, statement: &Statement) -> Result<Outcome, DataError> {
-    let mut query = sqlx::query(&statement.sql);
+    let mut query = sqlx::query(AssertSqlSafe(statement.sql.as_str()));
     for bind in &statement.binds {
         query = match bind {
             Bind::Int(n) => query.bind(*n),

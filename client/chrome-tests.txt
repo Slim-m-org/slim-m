@@ -192,6 +192,7 @@ app/test/whats_new/whats_new_content_test.dart
 app/test/whats_new/whats_new_controller_test.dart
 design_system/test/app_icons_pan_test.dart
 design_system/test/initials_test.dart
+platform/test/cross_tab_web_test.dart
 platform/test/device_push_keys_test.dart
 platform/test/fcm_token_channel_test.dart
 platform/test/install_format_test.dart

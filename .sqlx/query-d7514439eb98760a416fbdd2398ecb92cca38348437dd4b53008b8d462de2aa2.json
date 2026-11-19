@@ -6,7 +6,13 @@
       {
         "name": "id!: CallTranscriptId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "call_transcripts",
+            "name": "id"
+          }
+        }
       }
     ],
     "parameters": {

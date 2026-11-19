@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Voice transcripts when the database refuses the write: nothing is left half
 //! stored, and the clip waits out its backoff instead of going straight back
-//! to the engine. Faults come from triggers, as in `send_retry_repairs`. And when
-//! the listener is out, no clip is left shown transcribing.
+//! to the engine. Faults come from triggers, as in `send_retry_repairs`. When
+//! the listener is out, no clip is left shown transcribing, and neither that
+//! nor a restart gives a failing clip a fresh set of tries.
 
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use serde_json::Value;
 use slimm_server::hub::{Event, Hub, MessageEvent};
-use slimm_server::voice_transcripts::{Failure, VoiceTranscriber};
+use slimm_server::voice_transcripts::{Failure, MAX_ATTEMPTS, VoiceTranscriber};
 
 use crate::attachments::text_search::{World, world};
 use crate::attachments::voice_transcripts::{Fake, send_voice, transcript_of};
 
-async fn exec(world: &World, sql: &str) {
+async fn exec(world: &World, sql: &'static str) {
     sqlx::query(sql).execute(&world.pool).await.unwrap();
 }
 
@@ -146,4 +147,76 @@ async fn a_pending_mark_nothing_will_finish_is_cleared_while_the_listener_is_out
 
     assert_eq!(announced(&mut events), ["none"]);
     assert_eq!(transcript_of(&world, &message).await, Value::Null);
+}
+
+/// Each pass runs on a new worker, as after a deploy, so only the database remembers the tries.
+async fn restarted_pass(world: &World, engine: &Fake) {
+    pass(world, &VoiceTranscriber::new(), engine).await;
+}
+
+#[tokio::test]
+async fn a_clip_that_keeps_failing_is_given_up_on_though_the_server_restarts_between_tries() {
+    let world = world().await;
+    transcribing_on(&world).await;
+    let (message, _) = send_voice(&world, 25).await;
+    let broken = Fake::failing(Failure::Transient);
+    for attempt in 1..MAX_ATTEMPTS {
+        restarted_pass(&world, &broken).await;
+        assert_eq!(
+            transcript_of(&world, &message).await["status"],
+            "pending",
+            "still trying after {attempt}"
+        );
+    }
+    restarted_pass(&world, &broken).await;
+    assert_eq!(transcript_of(&world, &message).await["status"], "failed");
+    assert_eq!(broken.calls.load(Ordering::SeqCst), MAX_ATTEMPTS as usize);
+    let counted: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM voice_transcript_attempts")
+        .fetch_one(&world.pool)
+        .await
+        .unwrap();
+    assert_eq!(counted, 0, "a settled clip still holds its count");
+}
+
+#[tokio::test]
+async fn a_listener_outage_between_tries_does_not_start_the_count_over() {
+    let world = world().await;
+    transcribing_on(&world).await;
+    let (message, _) = send_voice(&world, 26).await;
+    let broken = Fake::failing(Failure::Transient);
+    for _ in 1..MAX_ATTEMPTS {
+        restarted_pass(&world, &broken).await;
+    }
+    restarted_pass(&world, &Fake::failing(Failure::Unavailable)).await;
+    assert_eq!(
+        transcript_of(&world, &message).await,
+        Value::Null,
+        "shown transcribing while the listener is out"
+    );
+    restarted_pass(&world, &broken).await;
+    assert_eq!(transcript_of(&world, &message).await["status"], "failed");
+}
+
+#[tokio::test]
+async fn a_clip_first_failed_right_after_an_outage_is_shown_transcribing() {
+    let world = world().await;
+    transcribing_on(&world).await;
+    let (message, _) = send_voice(&world, 27).await;
+    let transcriber = VoiceTranscriber::with_backoff(Duration::from_millis(1));
+    let hub = Hub::new();
+    let mut events = hub.subscribe_ephemeral();
+    let down = Fake::failing(Failure::Unavailable);
+    transcriber
+        .run_pass(&world.store, &world.media, &hub, &down)
+        .await;
+    tokio::time::sleep(Duration::from_millis(5)).await;
+
+    let broken = Fake::failing(Failure::Transient);
+    transcriber
+        .run_pass(&world.store, &world.media, &hub, &broken)
+        .await;
+
+    assert_eq!(broken.calls.load(Ordering::SeqCst), 1, "the probe");
+    assert_eq!(announced(&mut events), ["pending", "none", "pending"]);
+    assert_eq!(transcript_of(&world, &message).await["status"], "pending");
 }

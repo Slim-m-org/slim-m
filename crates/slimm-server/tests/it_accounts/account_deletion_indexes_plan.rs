@@ -9,7 +9,7 @@ use crate::support;
 use std::fs;
 use std::path::Path;
 
-use sqlx::{Row, SqlitePool};
+use sqlx::{AssertSqlSafe, Row, SqlitePool};
 
 async fn new_pool(name: &str) -> (SqlitePool, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(name);
@@ -42,7 +42,7 @@ fn deletion_source() -> String {
 /// every query here binds; `0i64` plans the same but claims the wrong type.
 async fn plan_of(pool: &SqlitePool, sql: &str, binds: usize) -> Vec<String> {
     let explain = format!("EXPLAIN QUERY PLAN {sql}");
-    let mut query = sqlx::query(&explain);
+    let mut query = sqlx::query(AssertSqlSafe(explain));
     for _ in 0..binds {
         query = query.bind(vec![0u8; 16]);
     }

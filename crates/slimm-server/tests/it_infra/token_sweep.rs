@@ -14,7 +14,7 @@
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::store::{RefreshOutcome, Store};
-use sqlx::SqlitePool;
+use sqlx::{AssertSqlSafe, SqlitePool};
 
 use crate::support;
 async fn pool() -> (SqlitePool, support::TestDbGuard) {
@@ -35,7 +35,7 @@ async fn pool() -> (SqlitePool, support::TestDbGuard) {
 /// that long ago without making the test wait.
 async fn age_rows(pool: &SqlitePool, table: &str, age_ms: i64) {
     let sql = format!("UPDATE {table} SET expires_at = expires_at - ?");
-    sqlx::query(&sql)
+    sqlx::query(AssertSqlSafe(sql))
         .bind(age_ms)
         .execute(pool)
         .await
@@ -44,7 +44,7 @@ async fn age_rows(pool: &SqlitePool, table: &str, age_ms: i64) {
 
 async fn count(pool: &SqlitePool, table: &str) -> i64 {
     let sql = format!("SELECT COUNT(*) FROM {table}");
-    sqlx::query_scalar(&sql)
+    sqlx::query_scalar(AssertSqlSafe(sql))
         .fetch_one(pool)
         .await
         .expect("count rows")

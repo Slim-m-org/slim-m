@@ -6,7 +6,13 @@
       {
         "name": "created_by!: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "invites",
+            "name": "created_by"
+          }
+        }
       }
     ],
     "parameters": {

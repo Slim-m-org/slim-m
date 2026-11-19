@@ -6,12 +6,24 @@
       {
         "name": "failures",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "login_throttle",
+            "name": "failures"
+          }
+        }
       },
       {
         "name": "last_failure_at",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "login_throttle",
+            "name": "last_failure_at"
+          }
+        }
       }
     ],
     "parameters": {

@@ -267,6 +267,24 @@ async fn the_retry_time_comes(world: &World) {
 }
 
 #[tokio::test]
+async fn a_pass_tries_each_clip_once_even_when_its_backoff_is_already_over() {
+    let world = world().await;
+    world
+        .store
+        .set_transcribe_voice_messages(true)
+        .await
+        .unwrap();
+    let (message, _) = send_voice(&world, 7).await;
+    let transcriber = VoiceTranscriber::with_backoff(std::time::Duration::ZERO);
+    let broken = Fake::failing(Failure::Transient);
+    transcriber
+        .run_pass(&world.store, &world.media, &Hub::new(), &broken)
+        .await;
+    assert_eq!(broken.calls.load(Ordering::SeqCst), 1, "one try per pass");
+    assert_eq!(transcript_of(&world, &message).await["status"], "pending");
+}
+
+#[tokio::test]
 async fn a_clip_the_listener_keeps_failing_ends_failed_then_is_tried_again() {
     let world = world().await;
     world

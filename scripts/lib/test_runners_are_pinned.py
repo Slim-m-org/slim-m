@@ -6,7 +6,8 @@ glibc floor of the Linux tarball and rpm built on the runner and splits the
 amd64 legs from the arm64 ones pinned to `ubuntu-24.04-arm`. The label is
 checked in `runs-on:` and in the `runner:` matrix values that feed it, so a
 publishing workflow can never pick up a new image without a deliberate PR.
-`macos-latest` is not covered: see `docs/ci.md`.
+`macos-latest` is refused too: the iOS and macOS jobs run on the `xcode-<major>`
+label of the Xcode select-xcode pins (`test_xcode_is_pinned.py`).
 """
 import re
 import unittest
@@ -15,17 +16,17 @@ from pathlib import Path
 WORKFLOWS = Path(__file__).resolve().parents[2] / ".github" / "workflows"
 
 FLOATING = re.compile(
-    r"^\s*(?:-\s+)?(?:runs-on|runner):\s*\[?\s*[\"']?(?:ubuntu|windows)-latest\b", re.M
+    r"^\s*(?:-\s+)?(?:runs-on|runner):\s*\[?\s*[\"']?(?:ubuntu|windows|macos)-latest\b", re.M
 )
 
 
 def floating_labels(text: str) -> list[str]:
-    """Each `runs-on` or `runner` line that names `ubuntu-latest`."""
+    """Each `runs-on` or `runner` line that names a floating `-latest` label."""
     return [m.group(0).strip() for m in FLOATING.finditer(text)]
 
 
 class RunnersArePinnedTest(unittest.TestCase):
-    def test_no_workflow_names_ubuntu_latest(self):
+    def test_no_workflow_names_a_latest_label(self):
         paths = sorted(WORKFLOWS.glob("*.yml"))
         self.assertTrue(paths)
         for path in paths:
@@ -50,6 +51,10 @@ class RunnersArePinnedTest(unittest.TestCase):
         bad = "    runs-on: windows-latest\n"
         self.assertEqual(len(floating_labels(bad)), 1)
 
+    def test_a_floating_macos_runner_is_seen(self):
+        bad = "    runs-on: macos-latest\n"
+        self.assertEqual(len(floating_labels(bad)), 1)
+
     def test_a_list_form_is_seen(self):
         bad = "    runs-on: [ubuntu-latest]\n"
         self.assertEqual(len(floating_labels(bad)), 1)
@@ -59,6 +64,7 @@ class RunnersArePinnedTest(unittest.TestCase):
             "    runs-on: ubuntu-24.04\n"
             "    runs-on: ubuntu-24.04-arm\n"
             "    runs-on: windows-2025\n"
+            "    runs-on: xcode-27\n"
             "    runs-on: ${{ matrix.runner }}\n"
             "    # ubuntu-latest is mentioned only in a comment\n"
         )

@@ -6,7 +6,13 @@
       {
         "name": "avatar_updated_at",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "linked_accounts",
+            "name": "avatar_updated_at"
+          }
+        }
       }
     ],
     "parameters": {

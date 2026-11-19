@@ -4,7 +4,7 @@
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use crypto_box::PublicKey;
-use crypto_box::aead::rand_core::{OsRng, TryRngCore};
+use crypto_box::aead::OsRng;
 
 use super::envelope::{PUBLIC_KEY_BYTES, PushKind, SealedMessage};
 use crate::store::PushTarget;
@@ -41,8 +41,7 @@ pub(super) fn seal_to(
         );
         return None;
     };
-    let Ok(ciphertext) = PublicKey::from_bytes(key_bytes).seal(&mut OsRng.unwrap_err(), plaintext)
-    else {
+    let Ok(ciphertext) = PublicKey::from_bytes(key_bytes).seal(&mut OsRng, plaintext) else {
         tracing::warn!(device_id = %target.device_id, "push: sealing failed, skipping this device");
         return None;
     };

@@ -6,12 +6,24 @@
       {
         "name": "claimed_by: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "space_settings",
+            "name": "setup_claimed_by"
+          }
+        }
       },
       {
         "name": "setup_done_at",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "space_settings",
+            "name": "setup_done_at"
+          }
+        }
       }
     ],
     "parameters": {

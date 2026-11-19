@@ -14,7 +14,7 @@ use crate::support;
 use slimm_server::ids::MessageId;
 use slimm_server::notifications::NotificationPreference;
 use slimm_server::store::{Ballot, NewMessage, Store};
-use sqlx::Row;
+use sqlx::{AssertSqlSafe, Row};
 
 async fn new_store() -> (Store, sqlx::SqlitePool, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new("slimm-purge");
@@ -31,7 +31,7 @@ async fn new_store() -> (Store, sqlx::SqlitePool, support::TestDbGuard) {
 }
 
 async fn count(pool: &sqlx::SqlitePool, sql: &str, user: slimm_server::ids::UserId) -> i64 {
-    sqlx::query(sql)
+    sqlx::query(AssertSqlSafe(sql))
         .bind(user)
         .fetch_one(pool)
         .await

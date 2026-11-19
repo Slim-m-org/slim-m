@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM voice_transcript_attempts WHERE sha256 = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "eddccd195edf40543f17d58ea93a444fe8c0bbf911cb4c820edb4f39112b3c38"
+}

@@ -6,7 +6,13 @@
       {
         "name": "channel_id!: ChannelId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "screen_stamps",
+            "name": "channel_id"
+          }
+        }
       }
     ],
     "parameters": {

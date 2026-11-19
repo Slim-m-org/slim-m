@@ -6,22 +6,46 @@
       {
         "name": "secret",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_totp_factors",
+            "name": "secret"
+          }
+        }
       },
       {
         "name": "last_step",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "user_totp_factors",
+            "name": "last_step"
+          }
+        }
       },
       {
         "name": "failed_attempts",
         "ordinal": 2,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "user_totp_factors",
+            "name": "failed_attempts"
+          }
+        }
       },
       {
         "name": "locked_until",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "user_totp_factors",
+            "name": "locked_until"
+          }
+        }
       }
     ],
     "parameters": {

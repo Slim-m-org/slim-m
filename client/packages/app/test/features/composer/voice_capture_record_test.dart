@@ -3,6 +3,8 @@
 /// every client can play, from the microphone picked in Voice settings.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,6 +57,18 @@ class FakeRecordPlatform extends RecordPlatform {
   }) async {
     this.config = config;
     this.path = path;
+  }
+
+  /// The raw samples a stream take hands out, while one runs.
+  StreamController<Uint8List>? samples;
+
+  @override
+  Future<Stream<Uint8List>> startStream(
+    String recorderId,
+    RecordConfig config,
+  ) async {
+    this.config = config;
+    return (samples = StreamController<Uint8List>()).stream;
   }
 
   @override
@@ -163,20 +177,61 @@ void main() {
     return platform;
   }
 
-  test(
-    'every platform records 16 kHz mono WAV, which every client plays',
-    () async {
-      addTearDown(() => debugDefaultTargetPlatformOverride = null);
-      for (final target in TargetPlatform.values) {
-        debugDefaultTargetPlatformOverride = target;
-        final platform = await startWith();
-        expect(platform.config!.encoder, AudioEncoder.wav, reason: '$target');
-        expect(platform.config!.sampleRate, 16000, reason: '$target');
-        expect(platform.config!.numChannels, 1, reason: '$target');
-        expect(platform.path, endsWith('.wav'), reason: '$target');
-      }
-    },
-  );
+  test('every platform but Linux has the plugin record 16 kHz mono WAV, which '
+      'every client plays', () async {
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    for (final target in TargetPlatform.values) {
+      if (target == TargetPlatform.linux) continue;
+      debugDefaultTargetPlatformOverride = target;
+      final platform = await startWith();
+      expect(platform.config!.encoder, AudioEncoder.wav, reason: '$target');
+      expect(platform.config!.sampleRate, 16000, reason: '$target');
+      expect(platform.config!.numChannels, 1, reason: '$target');
+      expect(platform.path, endsWith('.wav'), reason: '$target');
+    }
+  });
+
+  group('on Linux, where the plugin writes files only through ffmpeg', () {
+    setUp(() => debugDefaultTargetPlatformOverride = TargetPlatform.linux);
+    tearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    test('takes raw 16 kHz mono samples instead of a file', () async {
+      final platform = await startWith();
+      expect(platform.config!.encoder, AudioEncoder.pcm16bits);
+      expect(platform.config!.sampleRate, 16000);
+      expect(platform.config!.numChannels, 1);
+      expect(platform.path, isNull);
+    });
+
+    test('stops with those samples as a WAV every client plays', () async {
+      final platform = FakeRecordPlatform();
+      RecordPlatform.instance = platform;
+      final capture = RecordVoiceCapture();
+      await capture.start();
+      platform.samples!
+        ..add(Uint8List.fromList([1, 2, 3]))
+        ..add(Uint8List.fromList([4, 5, 6, 7]));
+      await Future<void>.delayed(Duration.zero);
+
+      final clip = (await capture.stop())!;
+
+      final wav = ByteData.sublistView(clip.bytes);
+      expect(clip.filename, 'voice-message.wav');
+      expect(String.fromCharCodes(clip.bytes.sublist(0, 4)), 'RIFF');
+      expect(wav.getUint32(4, Endian.little), clip.bytes.length - 8);
+      expect(String.fromCharCodes(clip.bytes.sublist(8, 16)), 'WAVEfmt ');
+      expect(wav.getUint16(20, Endian.little), 1, reason: 'PCM');
+      expect(wav.getUint16(22, Endian.little), 1, reason: 'mono');
+      expect(wav.getUint32(24, Endian.little), 16000);
+      expect(wav.getUint32(28, Endian.little), 32000, reason: 'bytes/s');
+      expect(wav.getUint16(32, Endian.little), 2, reason: 'block align');
+      expect(wav.getUint16(34, Endian.little), 16, reason: 'bits');
+      expect(String.fromCharCodes(clip.bytes.sublist(36, 40)), 'data');
+      expect(wav.getUint32(40, Endian.little), 6, reason: 'whole frames');
+      expect(clip.bytes.sublist(44), [1, 2, 3, 4, 5, 6]);
+      expect(platform.disposals, 1);
+    });
+  });
 
   test('records from the sound server node picked in Voice settings', () async {
     final platform = await startWith(

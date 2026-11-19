@@ -4,7 +4,7 @@
 
 use axum::http::StatusCode;
 use serde_json::json;
-use sqlx::{Connection, Executor};
+use sqlx::{AssertSqlSafe, Connection, Executor};
 use tower::ServiceExt;
 
 use crate::support;
@@ -29,7 +29,7 @@ async fn break_updates(db_path: &str, trigger: &str) {
     let mut conn = sqlx::SqliteConnection::connect(&format!("sqlite://{db_path}"))
         .await
         .unwrap();
-    conn.execute(trigger).await.unwrap();
+    conn.execute(AssertSqlSafe(trigger)).await.unwrap();
 }
 
 #[tokio::test]

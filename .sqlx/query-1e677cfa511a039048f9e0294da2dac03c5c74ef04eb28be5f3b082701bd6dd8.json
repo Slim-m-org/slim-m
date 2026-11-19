@@ -6,12 +6,24 @@
       {
         "name": "close_at",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "polls",
+            "name": "close_at"
+          }
+        }
       },
       {
         "name": "ranked: bool",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "polls",
+            "name": "ranked"
+          }
+        }
       }
     ],
     "parameters": {

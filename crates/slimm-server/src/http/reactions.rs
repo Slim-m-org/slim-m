@@ -16,13 +16,15 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use axum::routing::put;
+use axum::middleware::from_fn;
+use axum::routing::{get, put};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
 use super::messages::parse_uuid;
+use super::post_commit::run_to_completion;
 use super::reaction_emoji::canonical;
 use super::viewable_message::viewable_message;
 use crate::hub::{Event, MessageEvent, ReactionMoved};
@@ -38,7 +40,7 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route(
             "/messages/{message_id}/reactions/{emoji}",
-            put(add).delete(remove).get(list_reactors),
+            get(list_reactors).merge(put(add).delete(remove).layer(from_fn(run_to_completion))),
         )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }

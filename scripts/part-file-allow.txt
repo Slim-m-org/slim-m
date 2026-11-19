@@ -17,4 +17,4 @@ client/packages/app/lib/src/features/canvas/screens/canvas_pane.dart 4 # canvas 
 client/packages/app/lib/src/features/canvas/screens/canvas_pane_body.dart 1 # canvas pane body, pre-dates the gate
 client/packages/app/test/features/canvas/canvas_gesture_fuzz_driver.dart 2 # fuzz driver, pre-dates the gate
 client/packages/voice_canvas/lib/src/canvas_document.dart 5 # canvas document, pre-dates the gate
-client/packages/voice_canvas/lib/src/canvas_surface.dart 4 # canvas surface, pre-dates the gate
+client/packages/voice_canvas/lib/src/canvas_surface.dart 3 # canvas surface, pre-dates the gate

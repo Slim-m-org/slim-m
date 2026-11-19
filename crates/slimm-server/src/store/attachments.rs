@@ -16,7 +16,7 @@
 //! [`Store::sweep_orphaned_attachments`] reclaims, on the same periodic-sweep
 //! model as `Store::sweep_expired_tokens`.
 
-use sqlx::QueryBuilder;
+use sqlx::{AssertSqlSafe, QueryBuilder};
 
 pub(super) mod refs;
 
@@ -339,7 +339,7 @@ impl Store {
              ) RETURNING sha256",
             held_sql("a.sha256")
         );
-        let rows: Vec<Vec<u8>> = sqlx::query_scalar(&sql)
+        let rows: Vec<Vec<u8>> = sqlx::query_scalar(AssertSqlSafe(sql))
             .bind(cutoff)
             .bind(ORPHAN_SWEEP_BATCH)
             .fetch_all(&self.pool)

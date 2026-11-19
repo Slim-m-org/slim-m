@@ -83,6 +83,20 @@ void main() {
       );
     });
 
+    test('CallKit taking and handing back the audio session reads as such', () {
+      expect(
+        describeCallSystemEvent(
+            {..._session, 'kind': 'callKitAudio', 'active': true}),
+        'CallKit activated the audio session: session playAndRecord/voiceChat, '
+        'in MicrophoneBuiltIn, out Receiver',
+      );
+      expect(
+        describeCallSystemEvent(
+            {..._session, 'kind': 'callKitAudio', 'active': false}),
+        startsWith('CallKit deactivated the audio session: '),
+      );
+    });
+
     test('an end from the system call screen says where it came from', () {
       expect(
         describeCallSystemEvent(

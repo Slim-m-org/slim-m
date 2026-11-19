@@ -8,24 +8,17 @@ export '../features/channels/screens/conversation_pane.dart'
     show ConversationPane;
 export 'home_shell_empty_state.dart' show NoChannelSelected;
 
-import 'dart:async';
-
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
 
-import 'package:go_router/go_router.dart';
-
-import '../features/accounts/widgets/account_shortcuts.dart';
 import '../features/admin_setup/screens/admin_setup_gate.dart';
 import '../features/first_run/widgets/first_run_gate.dart';
 import '../features/members/providers/activity_publisher.dart';
 import '../features/screen_overlay/providers/screen_overlay_controller.dart';
-import '../features/screen_overlay/widgets/call_overlay_shortcut.dart';
 import '../features/voice/providers/live_quality_restart.dart';
 import '../features/voice/providers/voice_move_follower.dart';
 import '../features/voice/providers/voice_server_presence.dart';
@@ -34,11 +27,9 @@ import '../features/voice/widgets/call_restore_gate.dart';
 import '../features/voice/widgets/voice_notice_banner_host.dart';
 import '../providers/admin_providers.dart';
 import '../features/members/providers/blocks_controller.dart';
-import '../features/voice/providers/call_shortcut_registry.dart';
 import '../features/voice/providers/hold_music_controller.dart';
 import '../features/channels/providers/channel_notification_overrides_controller.dart';
 import '../features/channels/providers/channel_by_id_provider.dart';
-import '../features/composer/providers/composer_focus.dart';
 import '../features/composer/widgets/voice_recording_marker.dart';
 import '../features/auth/providers/database_key_store.dart';
 import '../features/members/providers/member_presence.dart'
@@ -47,31 +38,25 @@ import '../features/members/providers/member_selection.dart';
 import '../features/modules/providers/module_sound_settings.dart';
 import '../features/settings/providers/notification_schedule_controller.dart';
 import '../features/settings/providers/notification_sound_controller.dart';
-import '../providers/providers.dart';
 import '../features/channels/providers/rail_width_preference.dart';
 import '../features/messages/providers/retention_sweep.dart';
 import '../providers/sync_controller.dart' show initialSyncCompleteProvider;
 import '../features/channels/providers/threads.dart';
 import '../features/voice/providers/voice_controller.dart';
 import '../routing/breakpoints.dart';
-import '../routing/routes.dart';
-import '../features/channels/widgets/channel_grouping.dart';
 import '../features/voice/widgets/call_mini_player.dart';
 import '../features/channels/widgets/channel_rail.dart';
 import '../features/channels/widgets/channel_rail_frame.dart';
-import '../features/palette/widgets/command_palette.dart';
 import '../features/home/widgets/compact_drawer_scaffold.dart';
 import '../features/members/widgets/member_pane.dart';
 import '../features/admin_alerts/widgets/admin_alert_banner_host.dart';
 import '../features/auth/widgets/new_device_banner_host.dart';
 import '../features/settings/widgets/rules_gate_banner_host.dart';
 import '../features/voice/widgets/push_to_talk_listener.dart';
-import '../features/channels/widgets/rail_notes_button.dart';
 import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/download_failures.dart';
 import '../widgets/shell_focus_anchor.dart';
 import '../widgets/update_banner_host.dart';
-import '../features/voice/providers/push_to_talk_gate.dart';
 import '../features/voice/providers/shortcut_overrides.dart';
 import '../features/voice/widgets/call_keyboard_pill.dart' show ShellKeyboard;
 import '../features/voice/widgets/voice_strip_indicator.dart';
@@ -81,11 +66,11 @@ import '../features/canvas/screens/canvas_fullscreen.dart';
 import '../features/canvas/screens/canvas_pane.dart';
 import '../features/voice/screens/dm_call_pane.dart';
 import '../features/voice/screens/hang_up_recap_toast.dart';
-import '../features/messages/widgets/inbox_sheet.dart';
 import '../features/background/widgets/app_background_host.dart';
 import '../features/role_preview/providers/role_preview_controller.dart';
 import '../features/role_preview/screens/role_preview_shell.dart';
 import 'home_shell_pane_slots.dart';
+import 'home_shell_shortcuts.dart';
 
 /// The shell. One widget handles every width: at compact widths it shows one
 /// pane at a time, and above that both at once. The panes themselves are the
@@ -123,7 +108,7 @@ class HomeShell extends ConsumerWidget {
         child: BotFormGate(
           child: PushToTalkListener(
             child: CallbackShortcuts(
-              bindings: _shortcutBindings(
+              bindings: shellShortcutBindings(
                 context,
                 ref,
                 previewing: preview != null,
@@ -417,87 +402,6 @@ class HomeShell extends ConsumerWidget {
         ),
       );
     });
-  }
-
-  // Binds the shared shortcut table's own keys, so a future remap reaches every one of these.
-  /// While [previewing] a role, nothing that navigates or shows the caller's own content is bound.
-  Map<ShortcutActivator, VoidCallback> _shortcutBindings(
-    BuildContext context,
-    WidgetRef ref, {
-    required bool previewing,
-  }) {
-    final quickSwitch = activatorFor(AppAction.quickSwitch);
-    final focusComposer = activatorFor(AppAction.focusComposer);
-    final openSettings = activatorFor(AppAction.openSettings);
-    final openInbox = activatorFor(AppAction.openInbox);
-    final notes = activatorFor(AppAction.openNotes);
-    final nextChannel = activatorFor(AppAction.nextChannel);
-    final previousChannel = activatorFor(AppAction.previousChannel);
-    final muteCall = activatorFor(AppAction.toggleMuteCall);
-    final deafenCall = activatorFor(AppAction.toggleDeafenCall);
-    final cameraCall = activatorFor(AppAction.toggleCameraCall);
-    final shareCall = activatorFor(AppAction.toggleShareCall);
-    final leaveCall = activatorFor(AppAction.leaveCall);
-    // Reads the row's handlers when a key arrives, so these are live only while a call row is on screen.
-    CallShortcutHandlers? call() => ref.read(callShortcutHandlersProvider);
-    return {
-      if (!previewing) ...{
-        if (quickSwitch != null) quickSwitch: () => openCommandPalette(context),
-        if (focusComposer != null)
-          focusComposer: () =>
-              ref.read(composerFocusNodeProvider)?.requestFocus(),
-        if (openInbox != null) openInbox: () => showInboxSheet(context),
-        if (notes != null)
-          notes: () => unawaited(
-            openNotes(
-              ProviderScope.containerOf(context, listen: false),
-              GoRouter.of(context),
-            ),
-          ),
-        if (nextChannel != null)
-          nextChannel: () => unawaited(_cycleChannel(context, ref, 1)),
-        if (previousChannel != null)
-          previousChannel: () => unawaited(_cycleChannel(context, ref, -1)),
-      },
-      if (openSettings != null)
-        openSettings: () => context.push(Routes.personalSettings),
-      if (muteCall != null)
-        muteCall: () => ref
-            .read(pushToTalkGateProvider)
-            .toggleMute(HoldSource.inWindow, () => call()?.toggleMute()),
-      if (deafenCall != null)
-        deafenCall: () => ref
-            .read(pushToTalkGateProvider)
-            .toggleDeafen(HoldSource.inWindow, () => call()?.toggleDeafen()),
-      if (cameraCall != null) cameraCall: () => call()?.toggleCamera(),
-      if (shareCall != null) shareCall: () => call()?.toggleShare(),
-      if (leaveCall != null) leaveCall: () => call()?.leave(),
-      ...serverSwitchBindings(ref),
-      ...callOverlayShortcutBindings(ref),
-    };
-  }
-
-  /// Moves selection to the channel [direction] (1 or -1) away from the one
-  /// currently open, in [orderedChannels]' order, wrapping at either end.
-  Future<void> _cycleChannel(
-    BuildContext context,
-    WidgetRef ref,
-    int direction,
-  ) async {
-    final store = ref.read(storeProvider).valueOrNull;
-    if (store == null) return;
-    final ordered = orderedChannels(
-      await store.allChannels(),
-      await store.allCategories(),
-    );
-    if (ordered.isEmpty || !context.mounted) return;
-    final current = selectedChannelId(context);
-    final index = ordered.indexWhere((c) => c.id == current);
-    // From a channel the rail does not list (Notes), next starts at the top and previous at the bottom.
-    final target = index == -1
-        ? (direction > 0 ? ordered.first : ordered.last)
-        : ordered[(index + direction) % ordered.length];
-    context.go(Routes.channel(target.id));
   }
 }
 

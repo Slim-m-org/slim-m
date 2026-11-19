@@ -10,8 +10,11 @@ const shareMixNode = 'slimm-share-mix';
 /// An app's playback stream and the output ports to link from.
 typedef PlaybackStream = ({int nodeId, List<int> outPorts});
 
-/// The share mix as it stands: its input ports and what already feeds it.
-typedef MixState = ({List<int> inPorts, Set<int> linkedOutPorts});
+/// A link from an app's output port [out] into the mix's input port [input].
+typedef MixLink = ({int out, int input});
+
+/// The share mix as it stands: its input ports and the links that already feed it.
+typedef MixState = ({List<int> inPorts, List<MixLink> links});
 
 Map<dynamic, dynamic> _props(Map<dynamic, dynamic> object) =>
     ((object['info'] as Map?)?['props'] as Map?) ?? const {};
@@ -81,7 +84,7 @@ class ShareGraphSnapshot {
     return [for (final e in ports.entries) (nodeId: e.key, outPorts: e.value)];
   }
 
-  /// The mix node's input ports and the output ports already linked to it.
+  /// The mix node's input ports and the links into them.
   MixState mixState(int mixNode) {
     final inPorts = [
       for (final o in _objects)
@@ -90,13 +93,17 @@ class ShareGraphSnapshot {
             _props(o)['port.direction'] == 'in')
           o['id'] as int,
     ];
-    final linked = <int>{
+    final links = <MixLink>[
       for (final o in _objects)
-        if (_props(o)['link.input.node'] == mixNode &&
-            _props(o)['link.output.port'] is int)
-          _props(o)['link.output.port'] as int,
-    };
-    return (inPorts: inPorts, linkedOutPorts: linked);
+        if (_props(o)
+            case {
+              'link.input.node': final int node,
+              'link.output.port': final int out,
+              'link.input.port': final int input,
+            } when node == mixNode)
+          (out: out, input: input),
+    ];
+    return (inPorts: inPorts, links: links);
   }
 
   /// Each port's `audio.channel`.

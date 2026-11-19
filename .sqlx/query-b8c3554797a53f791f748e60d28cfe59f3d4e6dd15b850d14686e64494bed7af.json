@@ -6,27 +6,57 @@
       {
         "name": "name",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bot_commands",
+            "name": "name"
+          }
+        }
       },
       {
         "name": "description",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bot_commands",
+            "name": "description"
+          }
+        }
       },
       {
         "name": "usage",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bot_commands",
+            "name": "usage"
+          }
+        }
       },
       {
         "name": "permission",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "bot_commands",
+            "name": "permission"
+          }
+        }
       },
       {
         "name": "options",
         "ordinal": 4,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bot_commands",
+            "name": "options"
+          }
+        }
       }
     ],
     "parameters": {

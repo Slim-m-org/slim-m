@@ -6,12 +6,24 @@
       {
         "name": "command!",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "module_schedule_runs",
+            "name": "command"
+          }
+        }
       },
       {
         "name": "last_run_at!",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "module_schedule_runs",
+            "name": "last_run_at"
+          }
+        }
       }
     ],
     "parameters": {

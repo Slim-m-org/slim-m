@@ -6,7 +6,13 @@
       {
         "name": "user_id!: UserId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "group_dm_members",
+            "name": "user_id"
+          }
+        }
       }
     ],
     "parameters": {

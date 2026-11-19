@@ -18,6 +18,8 @@ class PipewireShareGraph implements ShareAudioGraph {
   @override
   Future<bool> link(int out, int input) async => false;
   @override
+  Future<bool> unlink(int out, int input) async => false;
+  @override
   void exportCaptureSource(String? source) {}
   @override
   Future<void> destroy() async {}

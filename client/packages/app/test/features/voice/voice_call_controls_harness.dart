@@ -267,7 +267,7 @@ class InertSession extends DeadVoiceSession {
 /// A fake `SlimmApi` whose only wired route is `GET /version`, answering
 /// with [screenShareMaxHeight] (or nothing for that field, at all, when it is
 /// `null` - a server too old to report one, not one reporting no ceiling).
-/// `_share`'s own fetch of it is what [pumpControls] wires this into.
+/// `CallShareFlow`'s own fetch of it is what [pumpControls] wires this to.
 api.SlimmApi _fakeVersionApi(int? screenShareMaxHeight) {
   final client = MockClient((request) async {
     final body = <String, Object?>{
@@ -292,8 +292,8 @@ api.SlimmApi _fakeVersionApi(int? screenShareMaxHeight) {
 /// Pumps [CallControls] over a fresh, disposed-on-teardown provider
 /// container, wired to [session] (a fresh [InertSession] if none is given).
 ///
-/// [screenShareMaxHeight] feeds [_fakeVersionApi]: the ceiling `_share` reads
-/// over `GET /version` before starting a share. Defaults to a value no
+/// [screenShareMaxHeight] feeds [_fakeVersionApi]: the ceiling `CallShareFlow`
+/// reads over `GET /version` before starting a share. Defaults to a value no
 /// `ScreenShareQuality` tier exceeds, so a test not about the ceiling itself
 /// sees it pass through unchanged.
 Future<ProviderContainer> pumpControls(

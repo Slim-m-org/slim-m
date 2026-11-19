@@ -1,17 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 part of 'canvas_surface.dart';
 
-/// Below this screen-space distance on both axes, a shape placement reads
-/// as a tap rather than a drag - see [_CanvasSurfaceGestures._resolveShapeDrag].
-const double _shapeDragThreshold = 4.0;
-
-/// The narrowest note drag, in screen pixels, that sizes the note: well past a finger's
-/// jitter, and wide enough that the text a note's width sets still paints.
-const double _noteDragMinWidth = 48.0;
-
-/// How far, in screen pixels, a select gesture may travel and still be a tap.
-const double _selectTapSlop = 6.0;
-
 /// The one tool gesture a surface runs at a time: it belongs to the first accepted pointer under the tool and camera current at its down, and ends on lift, cancel or a second pointer turning it into a pinch.
 class _Gesture {
   _Gesture(this.pointer, this.tool, this.camera, this.downAt);
@@ -155,20 +144,10 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         _selectDownAt = screen;
         _ownCamera(() => widget.onSelectStart?.call(world));
       case CanvasTool.text:
-        _pendingPlacementTool = tool;
-        _pendingPlacementWorld = world;
       case CanvasTool.note:
-        _pendingPlacementTool = tool;
-        _pendingPlacementWorld = world;
-        _shapeDraft.begin(screen, CanvasShapeKind.rectangle);
       case CanvasTool.shape:
-        _pendingPlacementTool = CanvasTool.shape;
-        _pendingPlacementWorld = world;
-        _shapeDraft.begin(screen, widget.shapeKind);
       case CanvasTool.stamp:
-        _pendingPlacementTool = CanvasTool.stamp;
-        _pendingPlacementWorld = world;
-        _stampDragWorld = null;
+        _placement.arm(tool, world, screen);
       case CanvasTool.pen:
         _draft.begin(screen);
         widget.onDraftPoint?.call(world);
@@ -244,9 +223,9 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         break;
       case CanvasTool.note:
       case CanvasTool.shape:
-        _shapeDraft.update(screen);
+        _placement.dragShape(screen);
       case CanvasTool.stamp:
-        _dragStamp(world);
+        _placement.dragStamp(world);
       case CanvasTool.pen:
         _draft.extend(screen);
         widget.onDraftPoint?.call(world);
@@ -254,7 +233,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
   }
 
   bool _movedPastTap(Offset down, PointerEvent event) =>
-      (event.localPosition - down).distance > _selectTapSlop;
+      (event.localPosition - down).distance > surfaceTapSlop;
 
   /// A touch or pen has no hover, so lifting it is leaving the canvas.
   void _reportLeftIfTouch(PointerEvent event) {
@@ -328,9 +307,9 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       case CanvasTool.shape:
       case CanvasTool.stamp:
         if (lift == null) {
-          _dropPlacement();
+          _placement.drop();
         } else {
-          _resolvePendingPlacement();
+          _placement.resolve();
         }
       case CanvasTool.pen:
         _commitDraft(gesture.camera, single: lift != null && wasAlone);
@@ -343,7 +322,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     final gesture = _gesture;
     if (gesture == null) return;
     _gesture = null;
-    _dropPlacement();
+    _placement.drop();
     switch (gesture.tool) {
       case CanvasTool.eraser:
         _pendingErasePoint = null;
@@ -367,7 +346,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     final gesture = _gesture;
     if (gesture == null) return;
     _gesture = null;
-    _dropPlacement();
+    _placement.drop();
     _pendingErasePoint = null;
     switch (gesture.tool) {
       case CanvasTool.eraser:
@@ -404,25 +383,6 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     }
   }
 
-  void _dropPlacement() {
-    if (_stampDragWorld != null) widget.onStampDrag?.call(Offset.zero, null);
-    _pendingPlacementTool = null;
-    _pendingPlacementWorld = null;
-    _stampDragWorld = null;
-    _shapeDraft.cancel();
-  }
-
-  /// A stamp drag past a tap's slop sizes the stamp around where it went down.
-  void _dragStamp(Offset world) {
-    final centre = _pendingPlacementWorld;
-    if (centre == null) return;
-    final zoom = widget.document.camera.zoom;
-    final moved = (world - centre).distance * zoom;
-    if (_stampDragWorld == null && moved <= _selectTapSlop) return;
-    _stampDragWorld = world;
-    widget.onStampDrag?.call(centre, (world - centre).distance * 2);
-  }
-
   void _dropDraft() {
     if (_draft.isEmpty) return;
     _draft.cancel();
@@ -445,76 +405,6 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
           .map((p) => widget.document.clampToBoard(_toWorld(p, under)))
           .toList(growable: false),
     );
-  }
-
-  /// Fires whichever placement [_startGesture] armed, at the point it was
-  /// armed with, on the lift of the pointer that armed it. A pointer a
-  /// presence tile absorbed still holds the placement back.
-  void _resolvePendingPlacement() {
-    final tool = _pendingPlacementTool;
-    final world = _pendingPlacementWorld;
-    if (tool == null || world == null) return;
-    if (_totalPointers != 0) {
-      _dropPlacement();
-      return;
-    }
-    _pendingPlacementTool = null;
-    _pendingPlacementWorld = null;
-    switch (tool) {
-      case CanvasTool.note:
-        final (center, size) = _resolveShapeDrag(
-          world,
-          minWidth: _noteDragMinWidth,
-        );
-        widget.onNotePlace?.call(center, size);
-      case CanvasTool.text:
-        widget.onTextPlace?.call(world);
-      case CanvasTool.shape:
-        final (center, size) = _resolveShapeDrag(world);
-        // Read after take(): the draft keeps its direction until the next drag begins.
-        final flip = _shapeDraft.flip;
-        widget.onShapePlace?.call(
-          center,
-          size,
-          flipX: size != null && flip.x,
-          flipY: size != null && flip.y,
-        );
-      case CanvasTool.stamp:
-        final reach = _stampDragWorld;
-        _stampDragWorld = null;
-        if (reach != null) widget.onStampDrag?.call(world, null);
-        widget.onStampPlace?.call(
-          world,
-          reach == null ? null : (reach - world).distance * 2,
-        );
-      case CanvasTool.pen:
-      case CanvasTool.eraser:
-      case CanvasTool.pan:
-        break;
-    }
-  }
-
-  /// [world] unchanged and a null size for a plain tap; otherwise the dragged box's centre and size, clipped to the board and clamped to [minObjectSize]..`maxObjectExtent` like a resize handle, so a placement drag can never commit a box a resize could not.
-  /// A drag narrower than [minWidth] also counts as a tap.
-  (Offset, Size?) _resolveShapeDrag(Offset world, {double minWidth = 0}) {
-    final screen = _shapeDraft.take();
-    if (screen == null ||
-        screen.width < minWidth ||
-        (screen.width < _shapeDragThreshold &&
-            screen.height < _shapeDragThreshold)) {
-      return (world, null);
-    }
-    var bounds = Rect.fromPoints(
-      _toWorld(screen.topLeft),
-      _toWorld(screen.bottomRight),
-    );
-    final board = widget.document.board;
-    if (board != null && bounds.overlaps(board)) {
-      bounds = bounds.intersect(board);
-    }
-    final width = bounds.width.clamp(minObjectSize, maxObjectExtent);
-    final height = bounds.height.clamp(minObjectSize, maxObjectExtent);
-    return (bounds.center, Size(width, height));
   }
 
   /// Starts a grab-pan from [screen], the anchor every later [_updatePan] measures against, owned by [pointer] alone.

@@ -23,7 +23,8 @@ def survives_an_absence(away, watcher, channel, api):
 
     Asserts the returning client shows the new text and no longer shows the
     deleted message, without anyone telling it to refresh: the only thing that
-    can produce that is catch-up applying the op stream.
+    can produce that is catch-up applying the op stream. `api` is the away
+    member's own session on another device, since only an author may edit.
     """
     edited_before = "before the edit"
     edited_after = "after the edit"
@@ -48,16 +49,16 @@ def survives_an_absence(away, watcher, channel, api):
 
     home = away.go_away()
     print(f"  {away.name} is away; its cache still holds the old text")
-
-    # Over the API: this is about reaching an absent client, not about who wrote.
-    api.edit_message(channel_id, stored_edit["id"], edited_after)
-    api.delete_message(channel_id, stored_delete["id"])
-    assert api.message_with(channel_id, edited_after)["id"] == stored_edit["id"], \
-        "the server did not take the edit the away client must catch up on"
-    assert all(m["id"] != stored_delete["id"] for m in api.messages(channel_id)), \
-        "the server still lists the message the away client must drop"
-
-    away.come_back(home)
+    try:
+        api.edit_message(channel_id, stored_edit["id"], edited_after)
+        api.delete_message(channel_id, stored_delete["id"])
+        assert api.message_with(channel_id, edited_after)["id"] == stored_edit["id"], \
+            "the server did not take the edit the away client must catch up on"
+        assert all(m["id"] != stored_delete["id"] for m in api.messages(channel_id)), \
+            "the server still lists the message the away client must drop"
+    finally:
+        # Left on a blank page, every later scenario would fail on this client too.
+        away.come_back(home)
     away.click(channel)
     away.wait_for(L.COMPOSER)
 

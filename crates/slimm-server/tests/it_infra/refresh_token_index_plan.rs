@@ -14,7 +14,7 @@ use crate::support;
 use std::fs;
 use std::path::Path;
 
-use sqlx::{Row, SqlitePool};
+use sqlx::{AssertSqlSafe, Row, SqlitePool};
 
 async fn new_pool(name: &str) -> (SqlitePool, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(name);
@@ -39,7 +39,7 @@ fn read_source(relative: &str) -> String {
 
 async fn plan_of(pool: &SqlitePool, sql: &str, bind_count: usize) -> String {
     let explain = format!("EXPLAIN QUERY PLAN {sql}");
-    let mut query = sqlx::query(&explain);
+    let mut query = sqlx::query(AssertSqlSafe(explain));
     for _ in 0..bind_count {
         query = query.bind(0i64);
     }

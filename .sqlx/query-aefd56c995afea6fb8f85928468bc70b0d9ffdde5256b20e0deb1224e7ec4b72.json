@@ -6,12 +6,24 @@
       {
         "name": "id!: CanvasObjectId",
         "ordinal": 0,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "channel_id!: ChannelId",
         "ordinal": 1,
-        "type_info": "Blob"
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "channel_id"
+          }
+        }
       }
     ],
     "parameters": {

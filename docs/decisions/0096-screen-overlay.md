@@ -80,8 +80,11 @@ A window share would need the window's rectangle and to follow it as it moves an
 Which monitor is shared:
 
 - Windows: the capturer's own "Screen N" label, taken as the Nth monitor in enumeration order, because the app's own source picker chose it.
-- Linux Wayland: the portal's picker makes the choice and never says which monitor.
-  The size of the first captured frame narrows the choice to the monitors whose shape matches.
+- Linux Wayland: the portal's picker makes the choice.
+  KDE's portal reports the chosen monitor's position with the stream, which the flutter_webrtc fork passes on (`portalSharedMonitor`); GNOME's does not.
+  That position holds only in the layout it was reported in: KWin and X11 keep the top-left monitor at 0,0, so plugging one in on the left, rearranging, or rescaling a neighbour moves the shared one (2026-11-19).
+  So the monitor at that position is pinned by name (GDK's connector, like DP-1, else make and model), and after a layout change the name finds it (`portal_screen.dart`); a name the new layout lacks, or has twice, falls through to the shape rule.
+  Without a usable position, the size of the first captured frame narrows the choice to the monitors whose shape matches.
   Wayland reports no primary monitor, so a tie cannot be broken honestly: the overlay opens on every monitor that matches, and on every monitor when the size is unknown.
   This replaced a primary-monitor tie-break that always chose the first monitor, so on two identical monitors a share of the second one drew on the first (2026-11-02, nested KWin with two outputs).
   A mark may therefore also appear on a monitor that is not shared; that is shown rather than silently missing.
@@ -171,6 +174,9 @@ Owner, 2026-11-04: "validate the overlay setup, maybe it would be nice to do lik
 - On Windows the panel has its own window, so it stays on its chosen monitor while the drawing overlay covers the shared one.
 - Monitor: the one the app window is on when the runner can tell (GDK `monitor_at_window` on Linux, `MonitorFromWindow` on Windows), otherwise the primary.
   It is chosen when the panel opens and does not follow the window to another monitor mid-call.
+- Monitor layout changes (2026-11-18): a monitor plugged in or removed, moved, resized, rescaled or made primary makes the runner send `displaysChanged` 250 ms after the burst of changes ends, and the controller reopens the panel and any drawing overlay on the new layout.
+  Windows hears it from `WM_DISPLAYCHANGE` and `WM_DPICHANGED` on an open overlay window; Linux from GDK's monitor signals (`display_watch.cc`), always.
+  Checked on Linux with a harness on headless sway (each change one notice, a burst of three one notice) and on Xvfb, where GDK sees a resize but not RandR virtual monitors.
 - Overlay screen (2026-11-06): with two or more screens the setting offers Automatic (the rule above) or a named screen.
   Owner, 2026-11-06: "on the call overlay can we have it pick a monitor to display on? might help with the canvas drawing also".
   The pick is stored as the screen's position and size, so a reorder does not move it, and an unplugged pick falls back to Automatic.

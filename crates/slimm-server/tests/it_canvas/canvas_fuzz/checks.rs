@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use slimm_server::ids::CanvasObjectId;
 use slimm_server::store::{Rect, ViewportQuery};
-use sqlx::Row;
+use sqlx::{AssertSqlSafe, Row};
 
 use crate::canvas_fuzz::oracle::valid;
 use crate::canvas_fuzz::replay::{Client, Held, first_diff, whole_world};
@@ -63,7 +63,7 @@ impl World {
     }
 
     async fn scalar(&self, sql: &str) -> Result<i64, String> {
-        sqlx::query_scalar(sql)
+        sqlx::query_scalar(AssertSqlSafe(sql))
             .bind(self.channel)
             .fetch_one(&self.pool)
             .await
@@ -376,7 +376,7 @@ impl World {
             self.rng.range(1, latest.max(1))
         };
         let dead_stamps = "SELECT created_at FROM canvas_ops WHERE channel_id = ? AND seq <= ? AND kind IN ('remove', 'clear')";
-        sqlx::query(&format!("UPDATE canvas_objects SET deleted_at = deleted_at - ? WHERE deleted_at IN ({dead_stamps})")).bind(delta).bind(self.channel).bind(cut).execute(&self.pool).await.map_err(|e| v("sweep:age", i, e.to_string()))?;
+        sqlx::query(AssertSqlSafe(format!("UPDATE canvas_objects SET deleted_at = deleted_at - ? WHERE deleted_at IN ({dead_stamps})"))).bind(delta).bind(self.channel).bind(cut).execute(&self.pool).await.map_err(|e| v("sweep:age", i, e.to_string()))?;
         sqlx::query(
             "UPDATE canvas_ops SET created_at = created_at - ? WHERE channel_id = ? AND seq <= ?",
         )

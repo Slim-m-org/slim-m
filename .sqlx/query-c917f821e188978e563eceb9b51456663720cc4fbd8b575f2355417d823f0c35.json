@@ -6,7 +6,13 @@
       {
         "name": "until",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "member_timeouts",
+            "name": "until"
+          }
+        }
       }
     ],
     "parameters": {

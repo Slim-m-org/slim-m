@@ -48,7 +48,7 @@ if grep -q 'Landscape' <<<"$phone"; then
   fi
   holders=$(grep -rlE '^[^/]*PhoneLandscapeHold\(' client/packages/app/lib |
             grep -v 'providers/phone_landscape.dart' | sort | tr '\n' ' ' || true)
-  if [ "$holders" != "client/packages/app/lib/src/features/canvas/screens/canvas_pane.dart client/packages/app/lib/src/features/voice/widgets/fullscreen_video_overlay.dart " ]; then
+  if [ "$holders" != "client/packages/app/lib/src/features/canvas/screens/canvas_pane_holds.dart client/packages/app/lib/src/features/voice/widgets/fullscreen_video_overlay.dart " ]; then
     echo "::error::only fullscreen video and a fullscreen canvas tile may hold landscape; found: ${holders:-none}"
     fail=1
   fi

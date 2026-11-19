@@ -16,6 +16,7 @@ add_executable(${BINARY_NAME}
   "linux_idle_channel.cc"
   "ext-idle-notify-v1-protocol.c"
   "linux_screen_overlay_channel.cc"
+  "display_watch.cc"
   "screen_overlay.cc"
   "screen_overlay_panel.cc"
   "screen_overlay_png.cc"
