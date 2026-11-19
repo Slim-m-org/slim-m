@@ -70,7 +70,7 @@ final loungeCanvasGlowProvider = FutureProvider.autoDispose
     });
 
 /// Paints [document]'s board through a blur, so the call view never blurs per frame.
-Future<ui.Image> paintLoungeGlow(CanvasDocument document) {
+Future<ui.Image> paintLoungeGlow(CanvasDocument document) async {
   document.setViewport(loungeGlowSize);
   document.fitBoard();
   final recorder = ui.PictureRecorder();
@@ -87,8 +87,13 @@ Future<ui.Image> paintLoungeGlow(CanvasDocument document) {
     shapeColor: AppCanvasColors.shape,
   ).paint(canvas, loungeGlowSize);
   canvas.restore();
-  return recorder.endRecording().toImage(
-    loungeGlowSize.width.toInt(),
-    loungeGlowSize.height.toInt(),
-  );
+  final picture = recorder.endRecording();
+  try {
+    return await picture.toImage(
+      loungeGlowSize.width.toInt(),
+      loungeGlowSize.height.toInt(),
+    );
+  } finally {
+    picture.dispose();
+  }
 }

@@ -51,7 +51,17 @@ ui.Image _bake(ui.Image source, int edge, double radiusFraction) {
     Rect.fromLTWH(0, 0, side, side),
     Paint()..filterQuality = FilterQuality.medium,
   );
-  return recorder.endRecording().toImageSync(edge, edge);
+  return _imageOf(recorder, edge);
+}
+
+/// The recording as an image; the picture is disposed, since the image keeps what it needs of it.
+ui.Image _imageOf(ui.PictureRecorder recorder, int edge) {
+  final picture = recorder.endRecording();
+  try {
+    return picture.toImageSync(edge, edge);
+  } finally {
+    picture.dispose();
+  }
 }
 
 final Map<(int, int), ui.Image> _discMasks = {};
@@ -69,7 +79,7 @@ ui.Image _discMask(int edge, double radiusFraction) {
       ),
       Paint()..color = const Color(0xFFFFFFFF),
     );
-    return recorder.endRecording().toImageSync(edge, edge);
+    return _imageOf(recorder, edge);
   });
 }
 
