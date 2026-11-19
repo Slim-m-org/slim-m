@@ -85,8 +85,8 @@ Future<void> advanceCursorHelper(
 ///
 /// False at or below where a first write started the cursor: a page or a send's
 /// answer landing in a channel with no cursor starts it at its own rows, and
-/// nothing older was ever delivered. Kept in memory, since what can still
-/// arrive from before that start does not outlive the process.
+/// nothing older was ever delivered. Kept in memory, so a restart or a second
+/// tab does not know it; `replaceHeld` therefore never asks.
 bool cursorCovers(MessageStore store, String channelId, int cursor, int seq) =>
     seq <= cursor && seq > (store.cursorStartedAbove[channelId] ?? 0);
 

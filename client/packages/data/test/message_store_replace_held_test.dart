@@ -74,4 +74,19 @@ void main() {
 
     expect((await store.channelRow('c1'))!.standingSeq, 1);
   });
+
+  test(
+      'rows below a cursor that another store on this database started are '
+      'stored, not read as deleted', () async {
+    await store.applyMessage(_message(1000));
+    final restarted = MessageStore(db);
+
+    await restarted.replaceHeld(
+      'c1',
+      [_message(998), _message(999), _message(1000)],
+      through: 1000,
+    );
+
+    expect(await held(), ['m1000', 'm998', 'm999']);
+  });
 }

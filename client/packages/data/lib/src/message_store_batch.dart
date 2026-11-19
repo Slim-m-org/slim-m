@@ -20,8 +20,9 @@ import 'message_store_rows.dart' as rows_impl;
 Future<void> applyMessagesBatched(
   MessageStore store,
   Iterable<api.Message> messages,
-  CursorAdvance advance,
-) async {
+  CursorAdvance advance, {
+  bool skipCovered = true,
+}) async {
   final db = store.db;
   final recent = store.recentOps;
   final incoming =
@@ -35,7 +36,7 @@ Future<void> applyMessagesBatched(
         row.id: row,
     };
     final winners = batchWinners(
-      advance == CursorAdvance.always
+      advance == CursorAdvance.always && skipCovered
           ? await _notAlreadyCovered(store, incoming, stored)
           : incoming,
       stored,
@@ -68,6 +69,10 @@ Future<void> applyMessagesBatched(
 }
 
 /// See [MessageStore.replaceHeld].
+///
+/// The page is written without the covered-row rule: it is the server's own
+/// answer for its span, and where a first write started the cursor is known
+/// only to the store that made it (see `cursorCovers`).
 Future<void> replaceHeldBatched(
   MessageStore store,
   String channelId,
@@ -84,7 +89,12 @@ Future<void> replaceHeldBatched(
               m.seq.isSmallerOrEqualValue(through) &
               m.id.isNotIn(kept)))
         .go();
-    await applyMessagesBatched(store, page, CursorAdvance.always);
+    await applyMessagesBatched(
+      store,
+      page,
+      CursorAdvance.always,
+      skipCovered: false,
+    );
     await cursors_impl.restandHelper(store, channelId);
   });
 }
