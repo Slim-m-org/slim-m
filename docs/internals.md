@@ -328,3 +328,42 @@ Every await that is followed by a write has to re-check it, including the ones i
 The ticket mint and the socket connect are network round trips too.
 A stop landing inside either used to return from start having already assigned a socket the superseding teardown had run too early to see, leaving it live and applying frames with nothing left holding a handle to close it.
 The catch-up, event applier, reconnector and session-end cleanup are separate classes in `sync/providers` that are told whether a given generation is still current.
+
+## Sync convergence
+
+The local store has two cursors per channel, and each one is a claim.
+The message cursor says every message seq through it is either held or gone.
+The op cursor says every edit and delete through it has been applied.
+A cursor that moves without its claim being true is never corrected, because catch-up only asks for what comes after it.
+The rules below are what keep the claims true; each was a bug found by `sync_convergence_property_test.dart` or by reading, and each is pinned in `sync_convergence_findings_test.dart`.
+
+- A live op is written first and its cursor moves second.
+  A write that fails then leaves the op ahead of the cursor, and the next catch-up delivers it.
+- A channel with no op cursor adopts the server's head only while it holds no messages.
+  One that already holds some (a channel that appeared this session and took its first messages live) refetches its newest page instead, since ops before that head may name rows it holds.
+- A live op starts a missing op cursor only when it is op 1.
+  Any other would start it past ops nobody applied.
+- An op in a catch-up page at or below the op cursor is skipped.
+  Its content is the text as the page was read, and live frames applied since may be newer.
+- A created frame at or below the message cursor is dropped unless the row is held.
+  The cursor only passes a message that catch-up delivered, so a missing row was deleted since.
+  This is also what stops a second browser tab, which shares the database but not the in-memory record of recent deletes, from storing a message again after the first tab deleted it.
+- A row in a catch-up page at or below the message cursor is written only when it is already held, for the same reason.
+  The cursor can pass a page still in flight: live frames land first, or the other tab applied its own page.
+- Catch-up moves the message cursor to `latest_seq`, the server's head, once a scope's page is complete.
+  A deleted message keeps its seq, so the page alone can end short of the head, and a late frame for one of those deleted messages would otherwise look like the next message.
+  The standing seq (what the unread dot reads) does not move with it.
+
+The property test drives a real `SyncController` and store against `test/support/sync_model_server.dart`, a small model of `http/sync.rs` and `http/sync_ops.rs`.
+It loses, repeats and reorders live frames, and holds catch-up answers so they land after frames that are newer than they are.
+After one quiet catch-up the store must agree with the model: nothing missing above the oldest held row, nothing stale, nothing the server deleted.
+A second test runs two controllers over one database, as two browser tabs do, each with its own wire.
+That one is held to what a single socket can do (frames in order, a loss drops everything in flight and is followed by a catch-up), because a tab that applies a delete it never saw created is not something a socket produces.
+`SLIMM_FULL_FUZZ=1` runs the full seed range.
+When `sync.rs` changes what a scope answers, change the model with it.
+
+Known gaps, none of them fixed here:
+
+- Against a server that predates `latest_seq`, a created frame for a message deleted before a reset read its page is still stored.
+- Reactions, pins, poll tallies and thread counts are not sequenced; a reconnect refetches the open channels' pages for them (see `open_channel_rehydrate.dart`).
+- A send that reached the server, whose answer was lost, and which was then deleted elsewhere is answered as sent when it is retried, because the id still matches the deleted row.
