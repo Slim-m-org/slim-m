@@ -27,15 +27,16 @@ final badgesAllowedProvider = FutureProvider.autoDispose<bool>(
 int appBadgeCount(Iterable<AccountUnread> accounts) =>
     accounts.fold(0, (sum, unread) => sum + unread.channels);
 
-/// Mounted once on the app-level container; the host snapshot rebuilds it on
-/// every unread change.
+/// Mounted once on the app-level container; runs on every unread change, also
+/// while a minimised window draws no frames.
 final appBadgeSyncProvider = Provider<void>((ref) {
-  final entries = ref.watch(accountsSnapshotProvider).entries;
-  final read = <String>{
-    for (final e in entries)
-      ...?e.container.read(readChannelIdsProvider).valueOrNull,
-  };
-  final count = appBadgeCount(entries.map((e) => e.unread));
-  ref.read(appBadgeChannelProvider).sync(count: count, readChannelIds: read);
-  ref.read(taskbarAttentionProvider).setBadge(count);
+  onAccountsChanged(ref, (accounts) {
+    final read = <String>{
+      for (final a in accounts)
+        ...?a.container.read(readChannelIdsProvider).valueOrNull,
+    };
+    final count = appBadgeCount(accounts.map((a) => a.unread));
+    ref.read(appBadgeChannelProvider).sync(count: count, readChannelIds: read);
+    ref.read(taskbarAttentionProvider).setBadge(count);
+  });
 });

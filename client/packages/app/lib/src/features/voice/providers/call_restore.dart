@@ -285,14 +285,14 @@ final rejoinRestoredCallProvider =
             : voice.join(call.channelId));
         if (!call.deafened) return;
         if (!await _connects(ref, call.channelId)) return;
-        if (!ref.read(voiceFlagsProvider).deafened) await voice.toggleDeafen();
+        if (!ref.read(voiceFlagsAtOnce).deafened) await voice.toggleDeafen();
       },
     );
 
 /// Whether the call in [channelId] reaches connected, which can be after a retry; false once it ends instead.
 Future<bool> _connects(Ref ref, String channelId) async {
   final outcome = Completer<bool>();
-  final flags = ref.listen<VoiceFlags>(voiceFlagsProvider, (_, now) {
+  final flags = ref.listen<VoiceFlags>(voiceFlagsAtOnce, (_, now) {
     if (outcome.isCompleted) return;
     if (now.channelId != channelId) {
       outcome.complete(false);

@@ -15,7 +15,7 @@ import '../../../providers/app_lifecycle.dart';
 import 'picture_in_picture.dart';
 import 'popout_window.dart';
 import 'video_interest_relay.dart';
-import 'voice_flags.dart';
+import 'voice_controller.dart';
 import 'voice_settings_controller.dart';
 
 /// Whether this is a desktop window, where minimising is a choice the user can opt out of pausing for.
@@ -59,40 +59,63 @@ bool shouldPauseRemoteVideo({
       pictureInPicture: pictureInPicture,
     );
 
-bool _pausedNow(Ref ref, {required bool local}) =>
+typedef _Read = T Function<T>(ProviderListenable<T> provider);
+
+bool _pausedNow(_Read read, {required bool local}) =>
     (local ? shouldPauseLocalPreview : shouldPauseRemoteVideo)(
-      lifecycle: ref.watch(appLifecycleProvider),
-      pauseWhenMinimised: ref.watch(
-        voiceSettingsControllerProvider.select(
-          (s) => s.pauseVideoWhenMinimised,
-        ),
-      ),
-      desktop: ref.watch(pauseOnUnfocusedAppliesProvider),
-      pictureInPicture: ref.watch(inPictureInPictureProvider),
+      lifecycle: read(appLifecycleProvider),
+      pauseWhenMinimised: read(_pauseWhenMinimised),
+      desktop: read(pauseOnUnfocusedAppliesProvider),
+      pictureInPicture: read(inPictureInPictureProvider),
     );
 
+final _pauseWhenMinimised = voiceSettingsControllerProvider.select(
+  (s) => s.pauseVideoWhenMinimised,
+);
+
 final localPreviewPausedProvider = Provider<bool>(
-  (ref) => _pausedNow(ref, local: true),
+  (ref) => _pausedNow(ref.watch, local: true),
 );
 
 /// Whether a person can see the window, so remote video is worth receiving.
 final remoteVideoSeenProvider = Provider<bool>(
-  (ref) => !_pausedNow(ref, local: false),
+  (ref) => !_pausedNow(ref.watch, local: false),
 );
+
+/// Runs [onChange] with whether video is paused, now and at once on every
+/// change of what decides it.
+///
+/// The two providers above are derived, so a listener on them waits for a
+/// frame, and a window that was just hidden may never draw one.
+void onVideoPauseChanged(
+  Ref ref, {
+  required bool local,
+  required void Function(bool paused) onChange,
+}) {
+  void sync() => onChange(_pausedNow(ref.read, local: local));
+  ref.listen(appLifecycleProvider, (_, _) => sync());
+  ref.listen(_pauseWhenMinimised, (_, _) => sync());
+  ref.listen(inPictureInPictureProvider, (_, _) => sync());
+  sync();
+}
 
 /// Mounted from the app chrome: feeds window visibility and a fresh connection into the video interest.
 final videoInterestHostProvider = Provider<void>((ref) {
   final relay = ref.watch(videoInterestRelayProvider);
-  ref.listen<bool>(remoteVideoSeenProvider, (_, seen) {
-    relay.setSeen(seen);
-  }, fireImmediately: true);
-  ref.listen(popOutLiveFeedsProvider, (_, feeds) {
+  onVideoPauseChanged(
+    ref,
+    local: false,
+    onChange: (paused) => relay.setSeen(!paused),
+  );
+  onPopOutLiveFeedsChanged(ref, (feeds) {
     relay.setPoppedOut({
       for (final feed in feeds) pictureInPictureTileKey(feed),
     });
-  }, fireImmediately: true);
+  });
   ref.listen<bool>(
-    voiceFlagsProvider.select((f) => f.state == VoiceSessionState.connected),
+    voiceControllerProvider.select(
+      (s) => s.state == VoiceSessionState.connected,
+    ),
     (_, connected) {
       if (connected) relay.refresh();
     },

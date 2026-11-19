@@ -148,11 +148,29 @@ final presenceVisibilityDisplayProvider =
 /// appear offline, so without the stored value a fresh launch told a hidden
 /// member they were visible. It is not persisted on the device: a stale copy
 /// would say hidden after another device had made them visible.
-final ownVisibilityProvider = Provider<api.PresenceVisibility?>((ref) {
-  final chosen = ref.watch(presenceVisibilityDisplayProvider);
+final ownVisibilityProvider = Provider<api.PresenceVisibility?>(
+  (ref) => _ownVisibility(ref.watch),
+);
+
+final _storedVisibility = effectiveMeProvider.select(
+  (me) => me?.presenceVisibility,
+);
+
+api.PresenceVisibility? _ownVisibility(
+  T Function<T>(ProviderListenable<T> provider) read,
+) {
+  final chosen = read(presenceVisibilityDisplayProvider);
   if (chosen != null) return chosen;
-  final stored = ref.watch(
-    effectiveMeProvider.select((me) => me?.presenceVisibility),
-  );
+  final stored = read(_storedVisibility);
   return stored == null ? null : api.PresenceVisibility.parse(stored);
-});
+}
+
+/// [ownVisibilityProvider] read from its sources, for code that runs with no
+/// frame drawn: the tray sets "appear offline" on a window that draws none.
+api.PresenceVisibility? ownVisibilityNow(Ref ref) => _ownVisibility(ref.read);
+
+/// Runs [onChange] at once when the caller's own visibility may have changed.
+void onOwnVisibilityChanged(Ref ref, void Function() onChange) {
+  ref.listen(presenceVisibilityDisplayProvider, (_, _) => onChange());
+  ref.listen(_storedVisibility, (_, _) => onChange());
+}

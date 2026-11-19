@@ -5,6 +5,7 @@
 library;
 
 import 'package:fake_async/fake_async.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
@@ -12,18 +13,19 @@ import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/features/channels/providers/mounted_channels.dart';
 import 'package:slimm_app/src/providers/viewing_reporter.dart';
 
-final _focus = StateProvider<bool>((ref) => true);
+import '../../support/window_lifecycle.dart';
 
 void main() {
   late ProviderContainer container;
   late List<Set<String>> sent;
   late List<bool> actives;
   late ViewingReporter reporter;
+  late AppLifecycleNotifier window;
 
   setUp(() {
-    container = ProviderContainer(
-      overrides: [appFocusedProvider.overrideWith((ref) => ref.watch(_focus))],
-    );
+    TestWidgetsFlutterBinding.ensureInitialized();
+    window = windowIn(AppLifecycleState.resumed);
+    container = ProviderContainer(overrides: [windowLifecycle(window)]);
     sent = [];
     actives = [];
     reporter = container.read(
@@ -56,7 +58,7 @@ void main() {
 
   test('a window without focus reports nothing even with a channel open', () {
     final mounted = container.read(mountedChannelsProvider)..register('c1');
-    container.read(_focus.notifier).state = false;
+    window.setFocused(false);
     reporter.refresh();
     expect(sent.last, isEmpty, reason: 'other devices must still be pushed to');
     mounted.unregister('c1');
@@ -98,7 +100,7 @@ void main() {
   );
 
   test('input in an unfocused window is not activity', () {
-    container.read(_focus.notifier).state = false;
+    window.setFocused(false);
     reporter.noteInput();
     expect(actives, isNot(contains(true)));
   });

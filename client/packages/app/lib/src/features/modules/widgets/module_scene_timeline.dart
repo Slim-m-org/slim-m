@@ -10,8 +10,10 @@ library;
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../providers/app_lifecycle.dart';
 import 'module_scene.dart';
 import 'module_scene_painter.dart';
 import 'module_scene_sweep.dart';
@@ -39,15 +41,20 @@ class SceneTimeline extends StatefulWidget {
 }
 
 class _SceneTimelineState extends State<SceneTimeline>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(vsync: this);
+  ProviderSubscription<bool>? _window;
   double _seconds = 0;
   bool _reduceMotion = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    // A tick that survives an unfocused window would replay the whole scene on return.
+    _window = windowScopeOf(context)?.listen(appFocusedProvider, (_, focused) {
+      if (!focused) _controller.stop();
+      setState(() {});
+    });
   }
 
   @override
@@ -61,13 +68,6 @@ class _SceneTimelineState extends State<SceneTimeline>
   void didUpdateWidget(SceneTimeline old) {
     super.didUpdateWidget(old);
     if (!identical(old.scene, widget.scene)) _restart();
-  }
-
-  // A tick that survives a paused app would replay the whole scene on return.
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) _controller.stop();
-    setState(() {});
   }
 
   void _restart() {
@@ -84,7 +84,7 @@ class _SceneTimelineState extends State<SceneTimeline>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    _window?.close();
     _controller.dispose();
     super.dispose();
   }

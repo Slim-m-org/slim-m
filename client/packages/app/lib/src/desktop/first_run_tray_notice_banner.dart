@@ -23,10 +23,14 @@ class FirstRunTrayNoticeBanner extends ConsumerWidget {
     final action = ref.watch(firstRunTrayNoticeCloseActionProvider);
     if (action == null) return const SizedBox.shrink();
 
-    return StatusBanner(
-      message: _copyFor(action),
-      margin: const EdgeInsets.all(AppSpacing.s8),
-      onDismiss: () => unawaited(_dismiss(ref, action)),
+    // The chrome above the app is transparent, so the margin needs a surface of its own.
+    return ColoredBox(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: StatusBanner(
+        message: _copyFor(action),
+        margin: const EdgeInsets.all(AppSpacing.s8),
+        onDismiss: () => unawaited(_dismiss(ref, action)),
+      ),
     );
   }
 

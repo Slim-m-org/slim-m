@@ -5,8 +5,12 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/widgets/shell_focus_anchor.dart';
+
+import '../support/window_lifecycle.dart';
 
 Future<void> _ctrlK(WidgetTester tester) async {
   await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -16,44 +20,53 @@ Future<void> _ctrlK(WidgetTester tester) async {
 }
 
 class _Rig extends StatelessWidget {
-  const _Rig({required this.setupOpen, required this.onOpen, this.field});
+  const _Rig({
+    required this.setupOpen,
+    required this.onOpen,
+    this.field,
+    this.window,
+  });
 
   final bool setupOpen;
   final VoidCallback onOpen;
   final FocusNode? field;
+  final AppLifecycleNotifier? window;
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    home: Scaffold(
-      body: Stack(
-        children: [
-          ExcludeFocus(
-            excluding: setupOpen,
-            child: CallbackShortcuts(
-              bindings: {
-                const SingleActivator(LogicalKeyboardKey.keyK, control: true):
-                    onOpen,
-              },
-              child: ShellFocusAnchor(
-                child: Center(
-                  child: SizedBox(
-                    width: 200,
-                    child: TextField(focusNode: field),
+  Widget build(BuildContext context) => ProviderScope(
+    overrides: [if (window case final window?) windowLifecycle(window)],
+    child: MaterialApp(
+      home: Scaffold(
+        body: Stack(
+          children: [
+            ExcludeFocus(
+              excluding: setupOpen,
+              child: CallbackShortcuts(
+                bindings: {
+                  const SingleActivator(LogicalKeyboardKey.keyK, control: true):
+                      onOpen,
+                },
+                child: ShellFocusAnchor(
+                  child: Center(
+                    child: SizedBox(
+                      width: 200,
+                      child: TextField(focusNode: field),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          if (setupOpen)
-            Align(
-              alignment: Alignment.topLeft,
-              child: TextButton(
-                onPressed: () {},
-                autofocus: true,
-                child: const Text('Continue'),
+            if (setupOpen)
+              Align(
+                alignment: Alignment.topLeft,
+                child: TextButton(
+                  onPressed: () {},
+                  autofocus: true,
+                  child: const Text('Continue'),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     ),
   );
@@ -101,6 +114,25 @@ void main() {
     field.requestFocus();
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    expect(FocusManager.instance.primaryFocus?.debugLabel, isNot('shell'));
+  });
+
+  testWidgets('a window that lost focus keeps its focus parked', (
+    tester,
+  ) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final field = FocusNode();
+    addTearDown(field.dispose);
+    // Blurred as the window reports it, with the embedder still saying resumed.
+    final window = windowIn(AppLifecycleState.inactive);
+    await tester.pumpWidget(
+      _Rig(setupOpen: false, onOpen: () {}, field: field, window: window),
+    );
+    field.requestFocus();
+    await tester.pump();
+    field.unfocus();
     await tester.pump();
 
     expect(FocusManager.instance.primaryFocus?.debugLabel, isNot('shell'));

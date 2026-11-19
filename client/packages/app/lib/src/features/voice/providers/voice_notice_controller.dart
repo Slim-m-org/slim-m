@@ -8,7 +8,6 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
@@ -16,6 +15,7 @@ import 'package:slimm_platform/platform.dart';
 import '../../accounts/providers/account_slot.dart';
 import '../../accounts/providers/notification_target.dart';
 import '../../members/providers/member_presence.dart';
+import '../../../providers/app_lifecycle.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 import '../../../push/providers/push_controller.dart';
@@ -64,8 +64,7 @@ class VoiceNoticeController extends Notifier<VoiceNoticeItem?> {
     final text = await _textFor(notice);
     if (_disposed) return;
     final foreground =
-        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed &&
-        ref.read(accountActiveProvider);
+        ref.read(appFocusedProvider) && ref.read(accountActiveProvider);
     if (foreground) {
       _timer?.cancel();
       state = VoiceNoticeItem(channelId: notice.channelId, text: text);

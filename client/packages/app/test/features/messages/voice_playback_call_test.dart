@@ -7,17 +7,18 @@ library;
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/audio/call_start_yields.dart';
 import 'package:slimm_app/src/audio/sound_session_release.dart';
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
 import 'package:slimm_app/src/features/messages/providers/voice_playback.dart';
-import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 
+import '../../support/fake_voice.dart';
+import '../../support/window_lifecycle.dart';
 import 'voice_player_fakes.dart';
-
-final _call = StateProvider<VoiceFlags>((ref) => const VoiceFlags());
 
 /// Holds each play until told, like a real engine still opening its source.
 class _SlowPlayer extends FakePlayer {
@@ -44,18 +45,20 @@ void main() {
         attachmentBytesProvider.overrideWith(
           (ref, id) async => Uint8List.fromList([1, 2, 3, 4]),
         ),
-        voiceFlagsProvider.overrideWith((ref) => ref.watch(_call)),
+        voiceControllerProvider.overrideWith(FakeVoiceController.new),
       ],
     );
     addTearDown(c.dispose);
     return c;
   }
 
-  void joinCall(ProviderContainer c) =>
-      c.read(_call.notifier).state = const VoiceFlags(channelId: 'lounge');
+  FakeVoiceController call(ProviderContainer c) =>
+      c.read(voiceControllerProvider.notifier) as FakeVoiceController;
 
-  void leaveCall(ProviderContainer c) =>
-      c.read(_call.notifier).state = const VoiceFlags();
+  void joinCall(ProviderContainer c) =>
+      call(c).set(const VoiceState(channelId: 'lounge'));
+
+  void leaveCall(ProviderContainer c) => call(c).set(const VoiceState());
 
   for (final ios in [false, true]) {
     test('a call starting pauses a message where it is, iOS $ios', () async {
@@ -194,6 +197,27 @@ void main() {
       expect(c.read(voicePlaybackProvider).error, isNull);
     },
   );
+
+  testWidgets('the note goes at once when the call ends in a hidden window', (
+    tester,
+  ) async {
+    final c = container(ios: true);
+    final errors = <VoicePlaybackError?>[];
+    c.listen(voicePlaybackProvider, (_, now) => errors.add(now.error));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: c, child: const SizedBox()),
+    );
+    joinCall(c);
+    await c.read(voicePlaybackProvider.notifier).toggle(voiceMessage('a'));
+    await tester.pump(Duration.zero);
+    expect(errors.last, VoicePlaybackError.inCall);
+
+    await hideTestWindow(tester);
+    leaveCall(c);
+    await tester.idle();
+
+    expect(errors.last, isNull);
+  });
 
   test('elsewhere a message already paused stays as it is', () async {
     final c = container(ios: false);
