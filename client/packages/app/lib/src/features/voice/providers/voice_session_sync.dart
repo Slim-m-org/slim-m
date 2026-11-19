@@ -57,7 +57,6 @@ class VoiceSessionSync {
   /// Applies one session state change to the call state, starting or stopping what depends on a live call.
   void onSessionState(VoiceSessionState s) {
     reportCallLifecycle(callLifecycle, s, channelId: _current.channelId);
-    foreground.sessionState(s);
     final dropped = _classifiedDisconnect();
     if (s == VoiceSessionState.failed && dropped != null) {
       heartbeat.stop();
@@ -68,8 +67,11 @@ class VoiceSessionSync {
             session.droppedWhileSharing && VoiceRejoin.rejoinableDrop(dropped),
       );
       rejoin.endCallForDrop(dropped);
+      // After the rejoin is queued, so the service is never stopped and started again around it.
+      foreground.sessionState(s);
       return;
     }
+    foreground.sessionState(s);
     _syncHeartbeat(s);
     // A refused join's failure stays on screen when the session goes idle under it.
     if (s == VoiceSessionState.idle && _showsRefusal) return;

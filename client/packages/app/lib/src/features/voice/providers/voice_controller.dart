@@ -116,6 +116,7 @@ class VoiceController extends StateNotifier<VoiceState> {
       republishDeafened: () => unawaited(devices.publishDeafenedState(true)),
       log: _log,
     );
+    addListener((s) => _foreground.rejoining(s.rejoining));
     _endCallRequests = _callLifecycle.endCallRequests.listen((_) {
       unawaited(leave());
     });
