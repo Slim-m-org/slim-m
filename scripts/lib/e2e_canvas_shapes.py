@@ -32,7 +32,8 @@ from e2e_canvas import (
 # A fraction of the surface's own live size, not a fixed pixel offset - see this module's own doc for why.
 _NOTE_POINT = (0.15, 0.5)
 _SHAPE_POINT = (0.55, 0.5)
-_MOVE_TEST_POINT = (0.85, 0.15)
+_FIRST_SHAPE_POINT = (0.85, 0.15)
+_SECOND_SHAPE_POINT = (0.55, 0.15)
 _DOCK_TOP_MARGIN = 40  # half the tools row plus the card's padding and a gap
 
 
@@ -101,71 +102,48 @@ def newest_of_kind(api, channel_id, kind):
                key=lambda o: o["created_at"])
 
 
-def place_then_move_without_switching_tools(a, admin_api, channel_id):
-    """Placing a shape leaves the surface on Move with the new shape already
-    selected (#456's own fix for "no way to resize what you just placed
-    without switching tools first"), so a drag right where it was just
-    placed, with no click on the Move tool in between, moves it rather than
-    placing a second shape - `CanvasSurface.onShapePlace` fires again on
-    pointer-down while the shape tool stays armed, which is exactly what a
-    regression here would produce instead.
+def _shape_count(api, channel_id):
+    return sum(1 for o in api.canvas_objects(channel_id) if o["kind"] == "shape")
 
-    Checked at the server only, not through the accessibility tree, and
-    that was not the first draft. `CanvasSelectionSemantics`' own "Selected
-    shape" node is real and its isolated widget test
-    (`canvas_selection_semantics_test.dart`) passes for this exact case, but
-    live, through this pane, it never reached the DOM at all: the selection
-    outline and resize handles paint correctly (`SelectionPainter` reads the
-    identical `document.selectedObjectId`), yet no node anywhere in the tree
-    - checked by raw `aria-label` attribute, not only rendered text - ever
-    named the shape. That gap is real and worth a look on its own, but
-    tracking it down is past what this pass can responsibly claim to have
-    fixed; asserting the label here would be exactly the "passes whether or
-    not it works" shape this harness's own doc already warns against, so
-    the object's server-side position is what this checks instead. Runs
-    after `erase_undo_clear_and_restore` and leaves its extra shape in place
-    rather than deleting it, so it does not need to touch that scenario's
-    own hardcoded object count; `reload_persists` reads the server's count
-    fresh and absorbs it without any change there either.
-    """
-    before = sum(1 for o in admin_api.canvas_objects(channel_id)
-                 if o["kind"] == "shape")
-    point = at_frac(a, *_MOVE_TEST_POINT)
-    arm_tool(a, L.SHAPE_TOOL)
+
+def _tap_shape(a, admin_api, channel_id, frac, count, failure):
+    point = at_frac(a, *frac)
+    assert_clear_of_dock(a, point)
     a.gestures(True)
     a.drag([point])
     a.gestures(False)
+    wait_until(lambda: _shape_count(admin_api, channel_id),
+               lambda n: n == count, failure)
 
-    def _shape_count():
-        return sum(1 for o in admin_api.canvas_objects(channel_id)
-                    if o["kind"] == "shape")
 
-    wait_until(_shape_count, lambda count: count == before + 1,
-                "the newly placed shape never reached the server")
+def place_shape_and_keep_the_tool(a, admin_api, channel_id):
+    """Placing a shape selects it with live handles and keeps the Shape tool armed (owner decision 2026-11-17).
+
+    A drag on its corner resizes it rather than drawing a second shape, and a tap elsewhere places the next one.
+    """
+    before = _shape_count(admin_api, channel_id)
+    arm_tool(a, L.SHAPE_TOOL)
+    _tap_shape(a, admin_api, channel_id, _FIRST_SHAPE_POINT, before + 1,
+               "the newly placed shape never reached the server")
     placed = newest_of_kind(admin_api, channel_id, "shape")
     print("  placing a shape reached the server")
 
-    # A shape is hit on its outline only, so the grab is the top edge's middle.
     left, top, _ = board_frame(a)
-    grab = (left + placed["x"] + placed["w"] / 2, top + placed["y"])
+    corner = (left + placed["x"] + placed["w"], top + placed["y"] + placed["h"])
     a.gestures(True)
-    a.drag([grab, (grab[0] + 40, grab[1] + 30)])
+    a.drag([corner, (corner[0] + 25, corner[1] + 20), (corner[0] + 50, corner[1] + 40)])
     a.gestures(False)
-
-    moved = wait_until(
+    resized = wait_until(
         lambda: admin_api.canvas_object(channel_id, placed["id"]),
-        lambda obj: obj["x"] != placed["x"] or obj["y"] != placed["y"],
-        "dragging right after placing, with no tool switch, never moved "
-        "the object - Move was never armed by the placement")
-    print(f"  dragging it immediately moved it to "
-          f"({moved['x']:.0f}, {moved['y']:.0f}) rather than placing a "
-          f"second shape")
+        lambda obj: obj["w"] > placed["w"] and obj["h"] > placed["h"],
+        "a drag on the new shape's corner never resized it: its handles were not live")
+    assert _shape_count(admin_api, channel_id) == before + 1, \
+        "the corner drag drew a second shape instead of resizing the first"
+    print(f"  a drag on its corner resized it to {resized['w']:.0f}x{resized['h']:.0f}")
 
-    after = sum(1 for o in admin_api.canvas_objects(channel_id)
-                if o["kind"] == "shape")
-    assert after == before + 1, (
-        f"expected the drag to move the placed shape rather than add a "
-        f"third: {before} shape(s) before, {after} now")
+    _tap_shape(a, admin_api, channel_id, _SECOND_SHAPE_POINT, before + 2,
+               "a tap after placing drew nothing: the Shape tool did not stay armed")
+    print("  a tap elsewhere placed the next shape with no tool switch")
 
 
 def _others_z(api, channel_id, object_id):

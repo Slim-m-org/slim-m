@@ -68,7 +68,7 @@ tile is not a published track.
 | calling in a DM | the UI | the SFU's participant and track list, keyed by the DM's own channel id |
 | edit, delete, search, pins, polls, invites, DMs, channel admin, devices, read state, sync | the API | the effect of each, not its status code |
 | the Voice Canvas: draw, paste an image, place a note and a shape, move, resize, reorder, erase, clear, undo, reload | the UI (`e2e_canvas.py`, `e2e_canvas_shapes.py`; see below) | `GET /channels/{id}/canvas/objects`, `z_index` for the reorder, and the second client's own `performance` resource log for the pasted image's bytes |
-| placing a shape selects it and arms Move, with no manual tool switch | the UI | a drag right after placing moves the object rather than adding a second one |
+| placing a shape selects it and keeps the Shape tool armed (owner decision 2026-11-17) | the UI | a drag on its corner resizes it rather than adding a second one, and a tap elsewhere adds the next |
 
 The run ends by reporting how many documented API paths it actually touched,
 counted from what the harness and both browsers requested rather than from a
