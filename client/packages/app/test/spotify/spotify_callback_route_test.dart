@@ -54,6 +54,7 @@ GoRouter _lightRouter() {
 Future<(ProviderContainer, StreamController<Uri>, SlimmDatabase)> _pump(
   WidgetTester tester, {
   bool light = true,
+  Stream<Uri> forwarded = const Stream.empty(),
 }) async {
   final links = StreamController<Uri>.broadcast(sync: true);
   final db = SlimmDatabase(NativeDatabase.memory());
@@ -80,7 +81,7 @@ Future<(ProviderContainer, StreamController<Uri>, SlimmDatabase)> _pump(
       .read(chosenServerProvider.notifier)
       .restore(Uri.parse('https://chat.example'));
   container.read(sessionProvider).set(_tokens);
-  addTearDown(DeepLinkListener.start(container).dispose);
+  addTearDown(DeepLinkListener.start(container, forwarded: forwarded).dispose);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
@@ -151,6 +152,24 @@ void main() {
     await _settle(tester);
 
     links.add(Uri.parse(_callback));
+    await _settle(tester);
+
+    expect(_location(container), Routes.personalSettingsPane('profile'));
+    await _teardown(tester, container, links, db);
+  });
+
+  testWidgets('a redirect a later launch handed to this copy lands like one '
+      'from the OS', (tester) async {
+    final forwarded = StreamController<Uri>.broadcast(sync: true);
+    addTearDown(forwarded.close);
+    final (container, links, db) = await _pump(
+      tester,
+      forwarded: forwarded.stream,
+    );
+    container.read(routerProvider).go(Routes.channels);
+    await _settle(tester);
+
+    forwarded.add(Uri.parse(_callback));
     await _settle(tester);
 
     expect(_location(container), Routes.personalSettingsPane('profile'));

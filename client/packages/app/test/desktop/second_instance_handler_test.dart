@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// [DesktopWindowShell]'s receiving end of `linux_second_instance_channel.cc`
-/// - proves it reuses [DesktopWindowPort.show]/[DesktopWindowPort.restore]
-/// rather than a second implementation of "make the window visible again",
-/// and that an unrelated method on the same channel is ignored.
+/// and the Windows runner's `single_instance.cpp` - proves it reuses
+/// [DesktopWindowPort.show]/[DesktopWindowPort.restore] rather than a second
+/// implementation of "make the window visible again", that a forwarded link
+/// is passed on, and that an unrelated method on the same channel is ignored.
 library;
 
 import 'dart:async';
@@ -71,6 +72,37 @@ void main() {
 
     expect(port.showCalls, 0);
     expect(port.restoreCalls, 0);
+  });
+
+  test('a link call hands the link on and leaves raising the window to the '
+      'focus call the runner sends after it', () async {
+    final port = FakeDesktopWindowPort();
+    shell = shellFor(port);
+    shell.registerSecondInstanceHandler();
+    final links = <Uri>[];
+    final sub = shell.forwardedLinks.listen(links.add);
+    addTearDown(sub.cancel);
+
+    await _send(
+      const MethodCall('link', 'slimm://spotify-callback?code=c&state=s'),
+    );
+
+    expect(links, [Uri.parse('slimm://spotify-callback?code=c&state=s')]);
+    expect(port.showCalls, 0);
+    expect(port.restoreCalls, 0);
+  });
+
+  test('a link call with another scheme or no text is dropped', () async {
+    shell = shellFor(FakeDesktopWindowPort());
+    shell.registerSecondInstanceHandler();
+    final links = <Uri>[];
+    final sub = shell.forwardedLinks.listen(links.add);
+    addTearDown(sub.cancel);
+
+    await _send(const MethodCall('link', 'https://example.com/x'));
+    await _send(const MethodCall('link'));
+
+    expect(links, isEmpty);
   });
 
   test('a port that throws leaves nothing uncaught', () async {

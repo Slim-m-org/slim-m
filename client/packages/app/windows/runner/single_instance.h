@@ -12,8 +12,13 @@ constexpr wchar_t kRelaunchArgument[] = L"--relaunch";
 // already runs: it has been asked to come forward, and this one should exit.
 bool ClaimSingleInstance(const wchar_t* command_line);
 
-// Forwards a slimm:// link in `command_line` to the running copy; false when there is none to hand it to.
-bool ForwardLinkToRunningInstance(const wchar_t* command_line);
+/// Forwards this launch's slimm:// link to the running copy, whichever version
+/// folder it runs from; false when there is no link or no copy that took it.
+bool ForwardLinkToRunningInstance();
+
+/// Takes a link ForwardLinkToRunningInstance sent, for a WM_COPYDATA, and hands
+/// it to Dart as the channel's `link` call. False when the message is not one.
+bool OnForwardedLink(LPARAM lparam);
 
 // The window message a second launch broadcasts to the running copy.
 UINT SecondInstanceMessage();

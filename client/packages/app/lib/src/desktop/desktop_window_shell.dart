@@ -306,6 +306,9 @@ class DesktopWindowShell {
   /// Fires each time another launch hands over to this running instance.
   Stream<void> get secondLaunches => _secondInstances.launches;
 
+  /// The `slimm://` links later launches handed to this instance.
+  Stream<Uri> get forwardedLinks => _secondInstances.links;
+
   /// Brings the window forward for a notification click or a second launch.
   ///
   /// show() un-hides a tray-hidden window; restore() raises a minimised one.
