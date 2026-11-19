@@ -28,11 +28,14 @@ const _tokens = api.TokenPair(
 );
 
 class SyncModelWorld {
-  SyncModelWorld({SyncModelServer? server, this.makeStore})
+  SyncModelWorld({SyncModelServer? server, this.makeStore, this.sharing})
     : server = server ?? SyncModelServer();
 
   final SyncModelServer server;
   final MessageStore Function(SlimmDatabase db)? makeStore;
+
+  /// Another world whose database this one opens too, as a second browser tab does.
+  final SyncModelWorld? sharing;
 
   /// Frames the server sent that the client has not been handed yet.
   final wire = <api.ServerEvent>[];
@@ -51,7 +54,7 @@ class SyncModelWorld {
   late final SyncController controller;
 
   Future<void> open() async {
-    db = SlimmDatabase(NativeDatabase.memory());
+    db = sharing?.db ?? SlimmDatabase(NativeDatabase.memory());
     store = makeStore?.call(db) ?? MessageStore(db);
     container = ProviderContainer(
       overrides: [
@@ -82,7 +85,7 @@ class SyncModelWorld {
 
   Future<void> close() async {
     container.dispose();
-    await db.close();
+    if (sharing == null) await db.close();
   }
 
   Future<http.Response> _answer(http.Request request) async {

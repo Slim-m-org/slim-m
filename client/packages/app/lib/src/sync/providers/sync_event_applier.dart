@@ -144,7 +144,8 @@ class SyncEventApplier {
     final message = event.message;
     await _materialise(message.channelId, api, store, isCurrent);
     if (!isCurrent()) return;
-    if (await _skipsOver(message.channelId, message.seq, store, isCurrent)) {
+    final placed = (id: message.id, seq: message.seq);
+    if (await _cannotPlace(message.channelId, placed, store, isCurrent)) {
       return;
     }
     await store.applyMessage(message);
@@ -206,23 +207,33 @@ class SyncEventApplier {
     }
   }
 
-  /// Whether a message numbered [seq] sits more than one past its channel's cursor, so a
-  /// message in between was never seen. Messages are dense per channel, so
-  /// that is a real gap, not a guess.
+  /// Whether a created [message] in [channelId] must not be applied: it sits more than one
+  /// past its channel's cursor, or at or below it without being held.
   ///
-  /// Applying it would move the cursor past what was lost for good, so it is
-  /// left to the reconcile it schedules, whose page carries the same message
-  /// in order. Answers true when the caller must not apply it, which includes
-  /// a run superseded while the cursor was being read.
-  Future<bool> _skipsOver(
+  /// Messages are dense per channel, so one further ahead means a message in
+  /// between was never seen. Applying it would move the cursor past what was
+  /// lost for good, so it is left to the reconcile it schedules, whose page
+  /// carries the same message in order.
+  ///
+  /// One the cursor already covers was caught up past, so a row that is not
+  /// here was deleted since or is deliberately not held. Storing it brings a
+  /// deleted message back: its delete is behind the op cursor by then, which a
+  /// second tab on the same database reaches without ever applying it.
+  ///
+  /// Also true for a run superseded while the cursor was being read.
+  Future<bool> _cannotPlace(
     String channelId,
-    int seq,
+    ({String id, int seq}) message,
     MessageStore store,
     bool Function() isCurrent,
   ) async {
     final cursor = await store.cursorFor(channelId);
     if (!isCurrent()) return true;
-    if (cursor == null || seq <= cursor + 1) return false;
+    if (cursor == null) return false;
+    if (message.seq <= cursor) {
+      return !await store.hasMessage(channelId, message.id);
+    }
+    if (message.seq == cursor + 1) return false;
     unawaited(
       _reconcile().catchError(
         ignoreError(LogTag.sync, 're-check state after the connection dropped'),

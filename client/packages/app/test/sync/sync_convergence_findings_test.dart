@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_data/data.dart' show CursorAdvance;
 
 import '../support/sync_model_world.dart';
 
@@ -15,6 +16,67 @@ Future<SyncModelWorld> _world() async {
 }
 
 void main() {
+  group(
+    'a created frame the cursor already covers, for a message not held',
+    () {
+      test('does not bring back a message deleted meanwhile', () async {
+        final world = await _world();
+        final created = world.server.send('hello');
+        world.server.delete(world.server.messages.single);
+        world.wire.add(world.server.send('still here'));
+        await world.controller.reconcile();
+
+        world.wire.insert(0, created);
+        await world.deliver();
+
+        expect(await world.contentOf('m1'), isNull);
+        expect(await world.disagreement(), isNull);
+      });
+
+      test('is not stored by a second tab that is behind the first', () async {
+        final first = await _world();
+        final second = SyncModelWorld(server: first.server, sharing: first);
+        await second.open();
+        addTearDown(second.close);
+        await first.controller.reconcile();
+        final frames = [
+          first.server.send('hello'),
+          first.server.delete(first.server.messages.single),
+        ];
+
+        for (final world in [first, second]) {
+          world.wire.addAll(frames);
+          await world.deliver();
+          await world.deliver();
+        }
+
+        expect(await first.contentOf('m1'), isNull);
+      });
+
+      test(
+        'still lands when it is the sender\'s own pending message',
+        () async {
+          final world = await _world();
+          await world.controller.reconcile();
+          final created = world.server.send('hello');
+          await world.store.addPending(
+            id: 'm1',
+            channelId: 'c1',
+            authorId: 'alice',
+            content: 'hello',
+          );
+          await world.store.advanceCursor('c1', [1], CursorAdvance.always);
+
+          world.wire.add(created);
+          await world.deliver();
+
+          expect(await world.disagreement(), isNull);
+          expect(await world.contentOf('m1'), 'hello');
+        },
+      );
+    },
+  );
+
   group('a channel first caught up while it already holds messages', () {
     test('drops a message deleted before its op cursor existed', () async {
       final world = await _world();
