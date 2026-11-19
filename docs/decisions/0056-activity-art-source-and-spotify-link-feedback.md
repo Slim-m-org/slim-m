@@ -74,3 +74,24 @@ MPRIS `mpris:artUrl` is passed through only when it satisfies the same rule, whi
 Windows SMTC and the macOS source are unchanged; their art and player name are not read.
 
 Everything stays off by default, and appear-offline still stops both feeds from opening and the server from announcing.
+
+## Addendum, 2026-11-19: Windows
+
+A Windows user reported that linking was "stuck on the agree page".
+Reproduced in the win11 VM on the 0.131.0 setup install, three separate causes:
+
+- Only the setup registered `slimm://`.
+  A zip copy, `install.cmd` and a copy moved in from Settings > About had no handler, and Edge drops a redirect to an unregistered scheme with no prompt, so the page stays on Agree.
+  Every copy now registers the scheme when it starts (`link_scheme.cpp`), pointing at the launcher from the per-user layout and at itself otherwise.
+- A second launch handed its link over through app_links, which only accepts a running copy at the same exe path.
+  When the launcher started a newer `app-<version>` folder than the running copy, the link was lost.
+  The runner now matches the running copy by file name and sends the link on its own channel.
+- With the scheme working, the token exchange failed with `CERTIFICATE_VERIFY_FAILED` and Settings said Spotify sent a reply the app could not read.
+  `accounts.spotify.com` chains to Starfield Root G2, which a fresh Windows does not store: Windows downloads such roots the first time its own TLS stack needs one.
+  Dart reads only the roots already stored, and Edge verifies with its own root store, so signing in there never installs it.
+  Any server behind a less common CA meets the same gap, so the fix sits under every dart:io connection: on Windows, `main` installs `RootFetchingHttpOverrides` (api package) before anything connects.
+  A connection with the default trust that fails this way makes one WinHTTP request to that host, which lets Windows fetch the root, then adds the roots Windows now stores to `SecurityContext.defaultContext` and opens the connection once more.
+  The shared default context also covers sockets secured by hand with it, such as the direct route's.
+  Each host is tried once per process; a client given its own context is left alone.
+
+Edge's "This site is trying to open slim-m" prompt has Cancel as its default button, so the waiting line under the Spotify row says to choose Open if the browser asks.

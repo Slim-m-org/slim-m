@@ -66,9 +66,19 @@ use_fallback_mirror() {
   return 0
 }
 
+# A dpkg killed mid-install leaves "dpkg was interrupted", which every later apt-get refuses until it is configured; a dpkg still running keeps the lock, so this retries until it lets go.
+finish_interrupted_dpkg() {
+  local deadline=$((SECONDS + 180))
+  until timeout "$INSTALL_LIMIT" sudo DEBIAN_FRONTEND=noninteractive dpkg --configure -a; do
+    ((SECONDS < deadline)) || return 0
+    sleep 5
+  done
+}
+
 if attempt "$@"; then
   exit 0
 fi
 echo "::warning::apt from the default mirror failed or stalled; retrying from ${FALLBACK}"
+finish_interrupted_dpkg
 use_fallback_mirror
 attempt "$@"

@@ -46,6 +46,16 @@ ORPHANED_DPKG_APT_GET = (
     'echo "installed after the lock was freed" >> "$CALLS"\n'
 )
 
+# The first install is killed mid-dpkg, and apt refuses every later install until `dpkg --configure -a` finishes it.
+INTERRUPTED_DPKG_APT_GET = (
+    'echo "apt-get $*" >> "$CALLS"\n'
+    '[[ " $* " == *" install "* ]] || exit 0\n'
+    'if [[ ! -e "$STARTED" ]]; then touch "$STARTED" "$INTERRUPTED"; exit 124; fi\n'
+    'if [[ -e "$INTERRUPTED" ]]; then echo "E: dpkg was interrupted" >> "$CALLS"; exit 100; fi\n'
+    'echo "installed after dpkg was configured" >> "$CALLS"\n'
+)
+CONFIGURING_DPKG = 'echo "dpkg $*" >> "$CALLS"\n[[ "$*" != "--configure -a" ]] || rm -f "$INTERRUPTED"\n'
+
 
 def write_fakes(bin_dir, fakes):
     bin_dir.mkdir()
@@ -160,6 +170,30 @@ class AptInstallOrphanedDpkg(unittest.TestCase):
             result = subprocess.run(["bash", str(SCRIPT), "libmpv2"], env=env, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, calls.read_text())
             self.assertIn("installed after the lock was freed", calls.read_text())
+
+    def test_the_retry_finishes_a_dpkg_the_stalled_attempt_interrupted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bin_dir = root / "bin"
+            write_fakes(bin_dir, {**FAKES, "apt-get": INTERRUPTED_DPKG_APT_GET, "dpkg": CONFIGURING_DPKG})
+            etc = root / "etc-apt"
+            (etc / "sources.list.d").mkdir(parents=True)
+            calls = root / "calls"
+            calls.write_text("")
+            env = dict(
+                os.environ,
+                PATH=f"{bin_dir}:{os.environ['PATH']}",
+                APT_ETC=str(etc),
+                CALLS=str(calls),
+                STARTED=str(root / "started"),
+                INTERRUPTED=str(root / "interrupted"),
+            )
+            env.pop("APT_DEB_CACHE", None)
+            result = subprocess.run(["bash", str(SCRIPT), "libmpv2"], env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, calls.read_text())
+            log = calls.read_text()
+            self.assertIn("installed after dpkg was configured", log)
+            self.assertLess(log.index("dpkg --configure -a"), log.index("installed after dpkg was configured"))
 
 
 class AptInstallActionShape(unittest.TestCase):

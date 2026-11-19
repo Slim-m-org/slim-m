@@ -135,7 +135,12 @@ void main() {
 
         await tester.tap(_spotifyButton('Link'));
         await _settle(tester);
-        expect(find.textContaining('Finish signing in'), findsOne);
+        expect(
+          find.text(
+            'Finish signing in, then choose Open if your browser asks.',
+          ),
+          findsOne,
+        );
         expect(find.text('Cancel'), findsOne);
         expect(find.byType(AppToggle), findsNothing);
         await _shot(tester, 'spotify-row-waiting-$suffix');
@@ -175,7 +180,12 @@ void main() {
         await _settle(tester);
         expect(rig.launched, hasLength(2));
         expect(find.byType(AppErrorState), findsNothing);
-        expect(find.textContaining('Finish signing in'), findsOne);
+        expect(
+          find.text(
+            'Finish signing in, then choose Open if your browser asks.',
+          ),
+          findsOne,
+        );
 
         await tester.tap(find.text('Cancel'));
         await _settle(tester);
