@@ -41,6 +41,16 @@ impl RecordingRoomService {
             .insert(room.to_owned(), participants(users));
     }
 
+    /// Like [`Self::seat`], with each connection `ACTIVE`: signalling and media both up.
+    pub fn seat_active(&self, users: &[UserId]) {
+        *self.roster.lock().unwrap() = users
+            .iter()
+            .map(|user| {
+                json!({ "identity": user.to_string(), "sid": format!("PA_{user}"), "state": "ACTIVE" })
+            })
+            .collect();
+    }
+
     /// Makes every later `ListParticipants` answer only after `delay`, as a slow SFU would.
     pub fn delay_listing(&self, delay: Duration) {
         *self.listing_delay.lock().unwrap() = delay;

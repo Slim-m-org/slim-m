@@ -9,7 +9,7 @@
 //! owned, tested backstop: a client still on a call keeps refreshing its
 //! entry (`POST .../voice/heartbeat`, on a plain interval, independent of
 //! app-foreground state so a backgrounded call is never mistaken for a dead
-//! one), and [`CallHeartbeats::sweep_stale_at`] hands back everyone whose
+//! one), and [`CallHeartbeats::stale_at`] hands back everyone whose
 //! refresh has gone quiet for longer than a real client, even a briefly
 //! reconnecting one, plausibly would.
 //!
@@ -32,11 +32,15 @@ use crate::ids::{ChannelId, UserId};
 /// [`STALE_AFTER`] from it is what makes that the only number to change.
 const CLIENT_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
 
-/// How long a heartbeat may go unrefreshed before [`CallHeartbeats::sweep_stale_at`]
+/// How long a heartbeat may go unrefreshed before [`CallHeartbeats::stale_at`]
 /// gives it up. 8/3 of [`CLIENT_HEARTBEAT_INTERVAL`] (40s at the current
 /// 15s), so one dropped request under a flaky connection does not evict
 /// somebody still genuinely on the call.
 pub const STALE_AFTER: Duration = Duration::from_secs(CLIENT_HEARTBEAT_INTERVAL.as_secs() * 8 / 3);
+
+/// How long a stale heartbeat is forgiven while the SFU still reports the member's media active:
+/// heartbeats travel the API path, which can break while the call itself is fine.
+pub const STALE_WHILE_ACTIVE_CAP: Duration = Duration::from_secs(STALE_AFTER.as_secs() * 3);
 
 /// How recent a heartbeat must be to count as being in the call when deciding
 /// who to ring: one late beat, well short of the eviction sweep's [`STALE_AFTER`].
@@ -133,19 +137,44 @@ impl CallHeartbeats {
         lock(&self.state).remove(&(user_id, channel_id)).is_some()
     }
 
-    /// Removes and returns every session whose last heartbeat is at least
-    /// `threshold` old as of `now`.
-    pub fn sweep_stale_at(&self, threshold: Duration, now: Instant) -> Vec<(UserId, ChannelId)> {
-        let mut state = lock(&self.state);
-        let stale: Vec<_> = state
+    /// Every session whose last heartbeat is at least `threshold` old as of `now`, left in place.
+    pub fn stale_at(&self, threshold: Duration, now: Instant) -> Vec<StaleCall> {
+        lock(&self.state)
             .iter()
-            .filter(|&(_, &last)| now.duration_since(last) >= threshold)
-            .map(|(&key, _)| key)
-            .collect();
-        for key in &stale {
-            state.remove(key);
+            .filter(|&(_, &last)| now.saturating_duration_since(last) >= threshold)
+            .map(|(&(user_id, channel_id), &last)| StaleCall {
+                user_id,
+                channel_id,
+                last,
+            })
+            .collect()
+    }
+
+    /// Drops `call`'s session unless a heartbeat refreshed it after [`Self::stale_at`] saw it,
+    /// reporting whether it did.
+    pub fn forget_if_unrefreshed(&self, call: &StaleCall) -> bool {
+        let mut state = lock(&self.state);
+        let key = (call.user_id, call.channel_id);
+        if state.get(&key) != Some(&call.last) {
+            return false;
         }
-        stale
+        state.remove(&key);
+        true
+    }
+}
+
+/// A session [`CallHeartbeats::stale_at`] found, and the heartbeat it last saw.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StaleCall {
+    pub user_id: UserId,
+    pub channel_id: ChannelId,
+    pub last: Instant,
+}
+
+impl StaleCall {
+    /// How long before `now` this session last beat.
+    pub fn age_at(&self, now: Instant) -> Duration {
+        now.saturating_duration_since(self.last)
     }
 }
 
@@ -181,7 +210,7 @@ mod tests {
         let now = Instant::now();
         heartbeats.record_at(user, channel, now);
 
-        assert!(heartbeats.sweep_stale_at(STALE_AFTER, now).is_empty());
+        assert!(heartbeats.stale_at(STALE_AFTER, now).is_empty());
     }
 
     #[test]
@@ -193,8 +222,12 @@ mod tests {
 
         let past = start + STALE_AFTER + Duration::from_secs(1);
         assert_eq!(
-            heartbeats.sweep_stale_at(STALE_AFTER, past),
-            [(user, channel)]
+            heartbeats.stale_at(STALE_AFTER, past),
+            [StaleCall {
+                user_id: user,
+                channel_id: channel,
+                last: start,
+            }]
         );
     }
 
@@ -212,22 +245,46 @@ mod tests {
         let past_old_deadline = start + STALE_AFTER + Duration::from_secs(1);
         assert!(
             heartbeats
-                .sweep_stale_at(STALE_AFTER, past_old_deadline)
+                .stale_at(STALE_AFTER, past_old_deadline)
                 .is_empty(),
             "the refresh must count from its own timestamp, not the first one"
         );
     }
 
     #[test]
-    fn a_swept_entry_is_removed_so_it_is_not_reported_twice() {
+    fn a_stale_entry_stays_until_it_is_forgotten() {
         let heartbeats = CallHeartbeats::new();
         let (user, channel) = (uid(), cid());
         let start = Instant::now();
         heartbeats.record_at(user, channel, start);
 
         let past = start + STALE_AFTER + Duration::from_secs(1);
-        assert_eq!(heartbeats.sweep_stale_at(STALE_AFTER, past).len(), 1);
-        assert!(heartbeats.sweep_stale_at(STALE_AFTER, past).is_empty());
+        let stale = heartbeats.stale_at(STALE_AFTER, past);
+        assert_eq!(heartbeats.stale_at(STALE_AFTER, past), stale);
+        assert!(heartbeats.forget_if_unrefreshed(&stale[0]));
+        assert!(heartbeats.stale_at(STALE_AFTER, past).is_empty());
+        assert!(!heartbeats.forget_if_unrefreshed(&stale[0]));
+    }
+
+    /// The sweep asks the SFU between reading a stale entry and forgetting it, so a beat can land in between.
+    #[test]
+    fn a_heartbeat_landing_after_the_stale_read_is_not_forgotten() {
+        let heartbeats = CallHeartbeats::new();
+        let (user, channel) = (uid(), cid());
+        let start = Instant::now();
+        heartbeats.record_at(user, channel, start);
+
+        let past = start + STALE_AFTER + Duration::from_secs(1);
+        let stale = heartbeats.stale_at(STALE_AFTER, past);
+        heartbeats.record_at(user, channel, past);
+
+        assert!(!heartbeats.forget_if_unrefreshed(&stale[0]));
+        assert!(heartbeats.contains(user, channel));
+    }
+
+    #[test]
+    fn the_active_cap_outlasts_the_stale_threshold() {
+        assert!(STALE_WHILE_ACTIVE_CAP > STALE_AFTER * 2);
     }
 
     /// The derivation ties the two constants together, but not to any
@@ -247,7 +304,7 @@ mod tests {
         heartbeats.forget(user, channel);
 
         let past = start + STALE_AFTER + Duration::from_secs(1);
-        assert!(heartbeats.sweep_stale_at(STALE_AFTER, past).is_empty());
+        assert!(heartbeats.stale_at(STALE_AFTER, past).is_empty());
     }
 
     #[test]

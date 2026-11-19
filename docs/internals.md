@@ -169,6 +169,7 @@ The heartbeat pair is the exception to "the check in front": `heartbeat` is gate
 
 The heartbeat pair is also where [`Event::VoiceActivityChanged`] is published: on the first heartbeat for a `(user, channel)` pair (a join) and on a real forget (a clean hangup), each a single lock-held check-and-write against [`crate::voice::VoiceService::record_heartbeat_reporting_new`] / [`crate::voice::VoiceService::forget_heartbeat_reporting_removed`] so a routine refresh never republishes and two concurrent first heartbeats cannot both publish either.
 The third publish site, the stale-heartbeat sweep, lives in `lib.rs` rather than here.
+The sweep asks the SFU before it evicts: a member whose heartbeat went stale is kept while LiveKit still reports them `ACTIVE`, up to three times the stale threshold, because heartbeats travel the API path and that can break while the call's media is fine.
 
 ## Voice heartbeat and answering a ring
 
