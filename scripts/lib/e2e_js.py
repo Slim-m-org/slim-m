@@ -54,7 +54,7 @@ SIGNATURE = """
 })()"""
 
 
-def click(label_json, exact=False):
+def click(label_json, exact=False, row_json="null"):
     """Activate a widget the way a screen reader would.
 
     With `exact` only a name that starts with the label as a whole word
@@ -73,14 +73,23 @@ def click(label_json, exact=False):
     which used to make "shorter wins" favour the row over the quote it
     contains. A tappable node nested inside another tappable match is always
     the more specific one, so containment is checked before length.
+
+    With `row_json` (a label) only tappable nodes level with that one count,
+    for a name the page gives two things: a canvas board's shape and the
+    dock's Shape tool are both named "Shape".
     """
     return """
     (function(){
       var want=%s;
       var exact=%s;
+      var row=%s;
       var hits=[];
       function name(e){
         return (e.getAttribute('aria-label')||e.textContent||'').trim();
+      }
+      function isTappable(e){
+        return e.hasAttribute('flt-tappable') ||
+               e.getAttribute('role')==='button';
       }
       function wholeWord(e){
         var n=name(e).toLowerCase();
@@ -91,10 +100,20 @@ def click(label_json, exact=False):
                (e.textContent||'')).toLowerCase();
         if (exact ? wholeWord(e) : t.indexOf(want)>=0) hits.push(e);
       });
-      var tappable=hits.filter(function(e){
-        return e.hasAttribute('flt-tappable') ||
-               e.getAttribute('role')==='button';
-      });
+      var tappable=hits.filter(isTappable);
+      if (row!==null) {
+        var anchor=Array.prototype.find.call(
+          document.querySelectorAll('flt-semantics'), function(e){
+            return isTappable(e) && name(e).toLowerCase()===row;
+          });
+        if (!anchor) return false;
+        var band=anchor.getBoundingClientRect();
+        tappable=tappable.filter(function(e){
+          var r=e.getBoundingClientRect(), mid=r.top+r.height/2;
+          return mid>=band.top && mid<=band.bottom;
+        });
+        if (!tappable.length) return false;
+      }
       tappable.sort(function(x,y){
         var nx=name(x), ny=name(y);
         if ((nx.toLowerCase()===want)!==(ny.toLowerCase()===want)) {
@@ -116,7 +135,7 @@ def click(label_json, exact=False):
       if (!target) return false;
       target.click();
       return true;
-    })()""" % (label_json, "true" if exact else "false")
+    })()""" % (label_json, "true" if exact else "false", row_json)
 
 
 def focus_field(label_json):

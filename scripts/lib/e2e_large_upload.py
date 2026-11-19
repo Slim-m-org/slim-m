@@ -4,9 +4,11 @@
 It runs in a channel of its own, so a 40 MB message never lengthens #general
 under the scenarios after it.
 
-Alice's upload is throttled so it is still going while she switches to her
-Notes and comes back, and while her network drops for a few seconds; the session
-has to resume where it stopped rather than start over or give up. The file
+Alice's second part is held in her browser, so the upload is still going
+while she switches to her Notes and comes back; her network then drops and
+fails that part, and the session has to resume where it stopped rather than
+start over or give up. Holding a part, rather than throttling the network,
+keeps the upload going however fast the runner's network or slow its page. The file
 is made in her page from a fixed pattern and hashed there, and an
 attachment's id is the sha256 of the bytes the server stored, so a part sent
 twice, dropped or out of order shows up as a different id. Bob then
@@ -22,9 +24,10 @@ import e2e_client
 import e2e_labels as L
 
 SIZE = 40 * 1024 * 1024
-UPLOAD_BYTES_PER_SECOND = 3_000_000
 NAME = "e2e-large-upload.bin"
 SEND_TIMEOUT = 120
+DROP_SECONDS = 4
+_UPLOAD_REQUESTS = "*/attachments/uploads/*"
 
 # Each byte is the top byte of i * 2654435761 (Knuth's multiplier), so any shifted or repeated part changes the hash.
 _MAKE_FILE = """
@@ -46,20 +49,14 @@ _MAKE_FILE = """
   return 'ok';
 })(%d, %s)"""
 
-# Flutter names a button by its text rather than aria-label, and a disabled one is neither tappable nor enabled.
+# Flutter names a button by its text, one line per label and joined tooltip; a disabled one is neither tappable nor enabled.
 _SEND_STATE = """(function(){
   var e=[].slice.call(document.querySelectorAll('flt-semantics')).find(function(e){
-    return (e.getAttribute('aria-label') || e.textContent || '').trim() === %s; });
+    return (e.getAttribute('aria-label') || e.textContent || '').split('\\n').some(function(line){
+      return line.trim() === %s; }); });
   if (!e) return 'missing';
   return e.hasAttribute('flt-tappable') && e.getAttribute('aria-disabled') !== 'true' ? 'ready' : 'disabled';
 })()""" % json.dumps(L.SEND)
-
-
-def _throttle(client, upload):
-    # Emulation is ignored until the Network domain is on, which only an earlier go_offline used to do.
-    client.send("Network.enable")
-    client.send("Network.emulateNetworkConditions", {
-        "offline": False, "latency": 0, "downloadThroughput": -1, "uploadThroughput": upload})
 
 
 def _send_state(client):
@@ -67,6 +64,45 @@ def _send_state(client):
 
 
 _PART = re.compile(r"/attachments/uploads/([^/?]+)\?(?:.*&)?offset=(\d+)")
+
+
+def is_later_part(request):
+    """Whether a paused request sends a part past the file's first byte."""
+    found = _PART.search(request["url"])
+    return request["method"] == "PUT" and found is not None and int(found.group(2)) > 0
+
+
+def _take_paused(client):
+    paused, client.paused_requests = client.paused_requests, []
+    return paused
+
+
+def _hold_a_later_part(client):
+    """Lets the upload's requests through until it sends a part past byte 0, and holds that one.
+
+    Fetch has to be on before the file is staged: unthrottled, the whole upload can finish in the time it takes to see the chip.
+    """
+    deadline = time.time() + SEND_TIMEOUT
+    let_through = []
+    while time.time() < deadline:
+        for paused in _take_paused(client):
+            if is_later_part(paused["request"]):
+                return paused["requestId"]
+            client.send("Fetch.continueRequest", {"requestId": paused["requestId"]})
+            let_through.append(f"{paused['request']['method']} {paused['request']['url']}")
+        # Paused requests arrive as events, which only a round trip reads.
+        client.ev("0")
+        time.sleep(0.25)
+    raise AssertionError(f"the upload never sent a part past its first; let through: {let_through}")
+
+
+def _drop_network_under(client, held):
+    """Cuts the network and fails the held part the way the cut does, then stops holding requests."""
+    client.go_offline()
+    client.send("Fetch.failRequest", {"requestId": held, "errorReason": "InternetDisconnected"})
+    for paused in _take_paused(client):
+        client.send("Fetch.continueRequest", {"requestId": paused["requestId"]})
+    client.send("Fetch.disable")
 
 
 def upload_parts(urls):
@@ -112,7 +148,7 @@ def large_file_survives_a_switch_and_a_dropped_network(a, b, admin, member):
     b.wait_for(name)
     b.click(name)
     try:
-        _throttle(a, UPLOAD_BYTES_PER_SECOND)
+        a.send("Fetch.enable", {"patterns": [{"urlPattern": _UPLOAD_REQUESTS}]})
         a.watch_for_file_input()
         a.click(L.ATTACH, settle=2)
         made = a.send("Runtime.evaluate", {
@@ -121,32 +157,27 @@ def large_file_survives_a_switch_and_a_dropped_network(a, b, admin, member):
         assert made.get("result", {}).get("result", {}).get("value") == "ok", made
         sha = a.ev("window.__e2eMadeSha")
         a.wait_for(NAME)
-        time.sleep(3)
-        mid_switch = _send_state(a) == "disabled"
+        held = _hold_a_later_part(a)
+        state = _send_state(a)
+        assert state == "disabled", f"Send read {state!r} with a part of the upload still to go"
         a.click(L.NOTES, settle=2)
         a.click(name, settle=2)
         assert a.find(NAME), "switching channels dropped the staged upload"
-        mid_drop = _send_state(a) == "disabled"
+        state = _send_state(a)
+        assert state == "disabled", f"Send read {state!r} after the switch, with a part still to go"
         before_drop = set(e2e_client.REQUEST_URLS)
-        a.go_offline()
-        time.sleep(4)
-        _throttle(a, UPLOAD_BYTES_PER_SECOND)
+        _drop_network_under(a, held)
+        time.sleep(DROP_SECONDS)
+        a.go_online()
 
         deadline = time.time() + SEND_TIMEOUT
         while _send_state(a) != "ready":
             assert time.time() < deadline, "the upload never finished after the network came back"
             time.sleep(0.5)
-        a.go_online()
-        if mid_switch and mid_drop:
-            why = resume_problem(before_drop, set(e2e_client.REQUEST_URLS) - before_drop)
-            assert why is None, f"the upload did not resume after the drop: {why}"
-            print("  a channel switch and a four-second network drop mid-upload, "
-                  "and the one session resumed where it stopped")
-        else:
-            # CI's Chrome does not always honour the throttle; the bytes are still checked below.
-            a.shot("large-upload-not-uploading")
-            print("  SKIPPED the mid-upload half: the throttle did not hold, so the upload "
-                  f"had finished before the {'switch' if not mid_switch else 'drop'}")
+        why = resume_problem(before_drop, set(e2e_client.REQUEST_URLS) - before_drop)
+        assert why is None, f"the upload did not resume after the drop: {why}"
+        print("  a channel switch and a four-second network drop mid-upload, "
+              "and the one session resumed where it stopped")
         a.click(L.SEND, settle=3)
 
         deadline = time.time() + 30
@@ -165,6 +196,7 @@ def large_file_survives_a_switch_and_a_dropped_network(a, b, admin, member):
         b.shot("large-upload-received")
         print(f"  the 40 MB file arrived whole (sha256 {sha[:12]}), and bob downloads the same bytes")
     finally:
+        a.send("Fetch.disable")
         a.go_online()
         for c in (a, b):
             c.click(L.TEXT_CHANNEL)

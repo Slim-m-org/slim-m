@@ -79,24 +79,34 @@ _EDGE_DELTA = 3
 _EDGE_STRIP_X = 2
 
 
+def letterbox_rows(column):
+    """How many of [column]'s pixels, listed top to bottom, lie below the board's foot.
+
+    Below the board is the letterbox: one flat colour, or a smooth gradient
+    where a dock spanning a narrow pane casts its shadow over it. The board's
+    edge is the first sharp step met walking up from the bottom, so the
+    shadow never ends the letterbox early.
+    """
+    up = column[::-1]
+    for offset in range(1, len(up)):
+        if max(abs(a - b) for a, b in zip(up[offset], up[offset - 1])) > _EDGE_DELTA:
+            return offset
+    return 0
+
+
 def _letterbox_at_foot(client, rect):
     """How many pixels below the board's foot are letterbox, read up a strip at the surface's edge.
 
     The board is centred on the view above the dock and the view never leaves
     the board, so in a window tall enough that the board's height sets the
-    zoom, the board ends exactly where the dock's share begins; the strip
-    below that edge is the flat letterbox colour. The dock is centred and in a
-    narrow pane reaches within a few percent of the edge, so only the edge
-    itself is sure to be clear of it.
+    zoom, the board ends exactly where the dock's share begins. The dock card
+    keeps a margin from the pane's sides, so the strip at the edge never
+    crosses the card itself, only its shadow; see [letterbox_rows].
     """
     strip = {"x": rect["x"] + _EDGE_STRIP_X, "y": rect["y"],
              "width": 1, "height": rect["height"]}
     _, height, rows, _ = e2e_png.decode(client.region_png(strip))
-    pixels = [tuple(rows[y][:3]) for y in range(height)][::-1]
-    for offset, pixel in enumerate(pixels):
-        if max(abs(a - b) for a, b in zip(pixel, pixels[0])) > _EDGE_DELTA:
-            return offset
-    return 0
+    return letterbox_rows([tuple(rows[y][:3]) for y in range(height)])
 
 
 def _window_size(client):
