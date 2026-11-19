@@ -158,15 +158,18 @@ class VoiceSfuConnect {
     }
   }
 
-  /// Ends the call a refused switch left open, answering whether it did.
+  /// Whether a switch failed, ending the call switched from if the session is still in it.
   ///
   /// A switch refused before the session is asked (a full room, no permission, the server unreachable)
   /// leaves the session in the old room, its microphone live, behind a screen that shows no call.
+  /// One that fails at the SFU has left the old room already, and the server was never told.
   Future<bool> endCallSwitchedFrom(bool Function() superseded) async {
-    final refused = _current.state == VoiceSessionState.failed;
-    final stillInOldCall = _session.state == VoiceSessionState.connected;
-    if (superseded() || !refused || !stillInOldCall) return false;
-    await _session.leave();
+    // The session's own word too: its failure can still be on its way to the call state.
+    final failed =
+        _current.state == VoiceSessionState.failed ||
+        _session.state == VoiceSessionState.failed;
+    if (superseded() || !failed) return false;
+    if (_session.state == VoiceSessionState.connected) await _session.leave();
     return true;
   }
 

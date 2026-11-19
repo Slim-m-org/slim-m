@@ -350,7 +350,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     await _session.leave();
     if (generation != _callGeneration) return;
     // Best-effort and fire-and-forget: this client already disconnected.
-    if (channelId != null && !theirs) unawaited(_heartbeat.forget(channelId));
+    if (!theirs) unawaited(_heartbeat.forgetLeft(channelId));
     // Only what the teardown itself could have moved, so a choice made on the left screen meanwhile stays.
     state = state.copyWith(
       state: VoiceSessionState.idle,

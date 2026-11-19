@@ -110,6 +110,16 @@ class VoiceCallHeartbeat {
     }
   }
 
+  /// [forget] for the call being left, and for one switched from that the server was never told was left.
+  Future<void> forgetLeft(String? channelId) async {
+    final switchedFrom = _toldLive;
+    await Future.wait([
+      if (channelId != null) forget(channelId),
+      if (switchedFrom != null && switchedFrom != channelId)
+        forget(switchedFrom),
+    ]);
+  }
+
   /// [forget] for whichever call the server still counts as live, if any.
   Future<void> forgetLast() async {
     final channelId = _toldLive;

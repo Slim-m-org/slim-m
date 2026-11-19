@@ -44,6 +44,24 @@ http.Client _api(List<http.Request> requests) => MockClient((request) async {
   );
 });
 
+/// Connects its first call and fails to connect any later one, having left the room it was in.
+class _SecondJoinFails extends FakeSession {
+  int _joins = 0;
+
+  @override
+  Future<void> join({
+    required String url,
+    required String token,
+    bool microphoneEnabled = true,
+    bool cameraEnabled = false,
+    bool canPublish = true,
+  }) async {
+    if (_joins++ == 0) return emitState(VoiceSessionState.connected);
+    emitState(VoiceSessionState.connecting);
+    emitState(VoiceSessionState.failed);
+  }
+}
+
 Iterable<String> _forgotten(List<http.Request> requests) => requests
     .where(
       (r) => r.method == 'DELETE' && r.url.path.endsWith('/voice/heartbeat'),
@@ -118,6 +136,50 @@ void main() {
             'left unsaid, the server counts this member in the lounge '
             'until its sweep, and a ring started there keeps ringing',
       );
+    });
+  });
+
+  test(
+    'a switch that cannot connect tells the server the old call was left',
+    () {
+      fakeAsync((async) {
+        final requests = <http.Request>[];
+        final controller = harness.controllerWith(
+          _SecondJoinFails(),
+          _api(requests),
+        );
+        unawaited(controller.join('lounge'));
+        async.flushMicrotasks();
+        expect(controller.state.state, VoiceSessionState.connected);
+
+        unawaited(controller.join('games'));
+        async.flushMicrotasks();
+
+        expect(controller.state.channelId, 'games');
+        expect(controller.state.state, VoiceSessionState.failed);
+        expect(_forgotten(requests), [
+          'lounge',
+        ], reason: 'the session left the lounge to try the call that failed');
+      });
+    },
+  );
+
+  test('a hang-up during a switch tells the server the old call was left', () {
+    fakeAsync((async) {
+      final requests = <http.Request>[];
+      final session = FakeSession();
+      final controller = harness.controllerWith(session, _api(requests));
+      unawaited(controller.join('lounge'));
+      async.flushMicrotasks();
+      session.emitState(VoiceSessionState.connected);
+      async.flushMicrotasks();
+
+      unawaited(controller.join('games'));
+      unawaited(controller.leave());
+      async.flushMicrotasks();
+
+      expect(controller.state.channelId, isNull);
+      expect(_forgotten(requests), contains('lounge'));
     });
   });
 }
