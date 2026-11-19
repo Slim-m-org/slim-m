@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/messages/providers/message_ops_sync.dart';
 import 'package:slimm_data/data.dart' show CursorAdvance, MessageStore;
 
 import '../support/sync_model_server.dart';
@@ -41,6 +42,25 @@ class _FailsOnce extends MessageStore {
     return super.applyEdited(message);
   }
 }
+
+/// A store where a newer live edit lands between an op's cursor read and its write.
+class _EditLandsMidOp extends MessageStore {
+  _EditLandsMidOp(super.db);
+
+  api.Message? landing;
+
+  @override
+  Future<int?> opCursorFor(String channelId) async {
+    final cursor = await super.opCursorFor(channelId);
+    final live = landing;
+    landing = null;
+    if (live != null) await applyEdited(live);
+    return cursor;
+  }
+}
+
+api.Message _copyOf(ModelMessage message) =>
+    api.Message.fromJson(message.toJson('c1'));
 
 void main() {
   group('a live op whose write fails', () {
@@ -164,6 +184,36 @@ void main() {
       await pumpEventQueue(times: 20);
 
       expect(await first.contentOf('m1'), isNull);
+    });
+  });
+
+  group('a catch-up edit op whose write a newer live edit beat', () {
+    test('does not put the older text back', () async {
+      final world = SyncModelWorld(makeStore: _EditLandsMidOp.new);
+      await world.open();
+      addTearDown(world.close);
+      final server = world.server;
+      await world.controller.reconcile();
+      world.wire.add(server.send('zero'));
+      await world.deliver();
+      server.edit(server.messages.single, 'one');
+      final older = server.messages.single.editedAt;
+      server.edit(server.messages.single, 'two');
+      (world.store as _EditLandsMidOp).landing = _copyOf(
+        server.messages.single,
+      );
+
+      await applyOps(world.store, 'c1', [
+        api.MessageEditOp(
+          seq: 1,
+          messageId: 'm1',
+          createdAt: 0,
+          content: 'one',
+          editedAt: older,
+        ),
+      ]);
+
+      expect(await world.contentOf('m1'), 'two');
     });
   });
 

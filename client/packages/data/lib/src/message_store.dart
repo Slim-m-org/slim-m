@@ -453,14 +453,13 @@ class MessageStore {
   /// materialised as a row with no `seq`; it never writes `seq`, which
   /// belongs to the message stream and not to this one; and it never advances
   /// the message cursor, which would skip whatever sits between.
+  ///
+  /// An edit older than the one the row already holds is dropped: a catch-up
+  /// op can be written after a newer live edit landed.
   Future<void> applyEdit(
       String messageId, String content, int? editedAt) async {
     recentOps.edited(messageId, content, editedAt);
-    await (db.update(db.messages)..where((m) => m.id.equals(messageId)))
-        .write(MessagesCompanion(
-      content: Value(content),
-      editedAt: Value(editedAt),
-    ));
+    await rows_impl.writeEdit(db, messageId, content, editedAt);
   }
 
   /// Applies a live edit: written over a row already held, and only remembered
