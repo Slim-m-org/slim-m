@@ -11,6 +11,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io' show IOException;
 
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
 import 'package:flutter/services.dart' show PlatformException;
@@ -23,6 +24,7 @@ import '../providers/background_key_store.dart';
 import '../providers/providers.dart';
 import 'spotify_client.dart';
 import 'spotify_config.dart';
+import 'spotify_http_stub.dart' if (dart.library.io) 'spotify_http_io.dart';
 import 'spotify_launch.dart';
 import 'spotify_link_status.dart';
 import 'spotify_pkce.dart';
@@ -43,7 +45,7 @@ final spotifyTokenStoreProvider = Provider<SpotifyTokenStore>(
 );
 
 final spotifyClientProvider = Provider<SpotifyClient>((ref) {
-  final client = http.Client();
+  final client = spotifyHttpClient();
   ref.onDispose(client.close);
   return SpotifyClient(
     client: client,
@@ -256,6 +258,9 @@ class SpotifyLinker {
       );
       _fail('Spotify took too long to answer. Try again.');
     } on http.ClientException catch (error, stack) {
+      reportFailure(LogTag.ui, _linkSpotifyTask, error, stack);
+      _fail('Could not reach Spotify. Check the connection and retry.');
+    } on IOException catch (error, stack) {
       reportFailure(LogTag.ui, _linkSpotifyTask, error, stack);
       _fail('Could not reach Spotify. Check the connection and retry.');
     } on Object catch (error, stack) {

@@ -7,6 +7,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:io' show HandshakeException;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -226,6 +227,16 @@ void main() {
     test('the network failing', () async {
       final rig = await waiting();
       rig.token = () => throw http.ClientException('offline');
+      await rig.linker.handleCallback(rig.redirect());
+      expect(_failure(rig), contains('Could not reach Spotify'));
+      await expectNothingLinked(rig);
+    });
+
+    test('a certificate this device cannot check is a connection failure, '
+        'not an unreadable reply', () async {
+      final rig = await waiting();
+      rig.token = () =>
+          throw const HandshakeException('CERTIFICATE_VERIFY_FAILED');
       await rig.linker.handleCallback(rig.redirect());
       expect(_failure(rig), contains('Could not reach Spotify'));
       await expectNothingLinked(rig);
