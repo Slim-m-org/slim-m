@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The text of voice messages, written by the background worker in
-//! `crate::voice_transcripts`. See migrations 0188, 0189 and 0191. One per blob, since the same
+//! `crate::voice_transcripts`. See migrations 0188, 0189, 0191 and 0201. One per blob, since the same
 //! bytes say the same words, but only a link that is a voice message shows it (0194).
 
 use anyhow::Context;
@@ -163,16 +163,36 @@ impl Store {
     }
 
     /// Takes back a `pending` mark the listener never acted on, so the message is not shown
-    /// transcribing; answers whether there was one.
+    /// transcribing; answers whether there was one. A clip it already failed keeps its count.
     pub async fn abandon_voice_transcript(&self, sha256: &[u8]) -> anyhow::Result<bool> {
         let removed = sqlx::query!(
-            "DELETE FROM attachment_transcripts WHERE sha256 = ? AND status = 'pending'",
+            "DELETE FROM attachment_transcripts
+             WHERE sha256 = ? AND status = 'pending' AND attempts = 0",
             sha256
         )
         .execute(&self.pool)
         .await?
         .rows_affected();
         Ok(removed > 0)
+    }
+
+    /// Counts one more failure of a `pending` clip by a listener that took it, and answers how
+    /// many there have been. `None` when the clip has no pending mark.
+    pub async fn count_voice_transcript_failure(
+        &self,
+        sha256: &[u8],
+    ) -> anyhow::Result<Option<u32>> {
+        let now = now_ms();
+        let attempts = sqlx::query_scalar!(
+            r#"UPDATE attachment_transcripts SET attempts = attempts + 1, updated_at = ?
+               WHERE sha256 = ? AND status = 'pending'
+               RETURNING attempts AS "attempts!: i64""#,
+            now,
+            sha256
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(attempts.map(|n| u32::try_from(n).unwrap_or(u32::MAX)))
     }
 
     /// Settles a transcript and indexes its words for search, in one write.
