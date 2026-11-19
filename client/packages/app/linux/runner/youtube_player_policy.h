@@ -9,7 +9,7 @@
 namespace slimm_youtube {
 
 /// The base URI the host page loads at; see youtube_host_page.dart.
-constexpr const char* kHostOrigin = "https://top.npcserver.slimm/";
+constexpr char kHostOrigin[] = "https://top.npcserver.slimm/";
 
 // WebKitPolicyDecisionType and WebKitNavigationType values from the 4.1 API.
 constexpr int kNavigationAction = 0;
@@ -30,7 +30,7 @@ enum class Verdict { kWebKitDefault, kLoad, kOpenExternally };
 /// Whether [uri] is the host page the view was created on, fragment aside.
 inline bool IsHostPage(const char* uri) {
   if (uri == nullptr) return false;
-  size_t length = std::strlen(kHostOrigin);
+  constexpr size_t length = sizeof(kHostOrigin) - 1;
   return std::strncmp(uri, kHostOrigin, length) == 0 &&
          (uri[length] == '\0' || uri[length] == '#');
 }

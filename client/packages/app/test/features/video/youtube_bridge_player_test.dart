@@ -147,6 +147,15 @@ void main() {
     expect(const VideoFailed(100).embeddingRefused, isFalse);
   });
 
+  test('a malformed error from a frame reports an unknown error', () async {
+    final player = _ScriptPlayer();
+    final events = <VideoPlayerEvent>[];
+    player.events.listen(events.add);
+    player.handleMessage('{"event":"error","code":"150"}');
+    await Future<void>.delayed(Duration.zero);
+    expect((events.single as VideoFailed).code, -1);
+  });
+
   test('position follows the clock between reports while playing', () {
     fakeAsync((async) {
       withClock(async.getClock(DateTime(2026)), () {

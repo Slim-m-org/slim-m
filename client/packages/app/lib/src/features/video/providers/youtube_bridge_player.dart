@@ -94,7 +94,10 @@ abstract class YoutubeBridgePlayer implements EmbeddedVideoPlayer {
     final event = switch (decoded['event']) {
       'ready' => const VideoReady(),
       'state' => _stateEvent(decoded['s']),
-      'error' => VideoFailed((decoded['code'] as num?)?.toInt() ?? -1),
+      'error' => VideoFailed(switch (decoded['code']) {
+        final num code => code.toInt(),
+        _ => -1,
+      }),
       'time' => _time(decoded['t']),
       'fullscreen' => VideoFullscreenChanged(on: decoded['on'] == true),
       _ => null,

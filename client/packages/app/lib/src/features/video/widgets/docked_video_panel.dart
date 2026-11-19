@@ -27,6 +27,8 @@ const double kMinPlayerHeight = 200;
 /// The widest a strip's player grows, so a wide conversation keeps its room.
 const double kStripPlayerMaxWidth = 640;
 
+const _openOnYoutube = 'Open on YouTube';
+
 /// A strip leaves most of a short window to the conversation it sits above.
 double _stripMaxHeight(double windowHeight) =>
     math.max(kMinPlayerHeight, windowHeight * 0.4);
@@ -150,8 +152,8 @@ class _VideoHeader extends StatelessWidget {
           ),
           AppIconButton(
             icon: AppIcons.externalLink,
-            semanticLabel: 'Open on YouTube',
-            tooltip: 'Open on YouTube',
+            semanticLabel: _openOnYoutube,
+            tooltip: _openOnYoutube,
             iconSize: AppSizes.icon16,
             onPressed: () => unawaited(openExternalHttpUrl(video.url)),
           ),
@@ -231,7 +233,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
                     message: failure.embeddingRefused
                         ? 'This video can only be watched on YouTube.'
                         : 'This video could not be played here.',
-                    retryLabel: 'Open on YouTube',
+                    retryLabel: _openOnYoutube,
                     onRetry: () =>
                         unawaited(openExternalHttpUrl(widget.video.url)),
                   ),
