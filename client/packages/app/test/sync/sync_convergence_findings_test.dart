@@ -304,6 +304,43 @@ void main() {
       expect(await world.disagreement(), isNull);
     });
 
+    test(
+      'stands at the newest message left once the newest was deleted',
+      () async {
+        final world = await _world();
+        world.wire.addAll([world.server.send('one'), world.server.send('two')]);
+        await world.deliver();
+        await world.deliver();
+        world.server.delete(world.server.messages.last);
+
+        await world.controller.reconcile();
+
+        expect(await world.contentOf('m2'), isNull);
+        final row = (await world.store.channelRow('c1'))!;
+        expect(row.liveSeq ?? row.cursor, 1);
+      },
+    );
+
+    test('never leaves the channel empty while it refetches', () async {
+      final world = await _world();
+      world.wire.addAll([world.server.send('one'), world.server.send('two')]);
+      await world.deliver();
+      await world.deliver();
+      world.server.edit(world.server.messages.first, 'one, edited');
+      final counts = <int>[];
+      final watching = world.store
+          .watchChannel('c1')
+          .listen((rows) => counts.add(rows.length));
+      addTearDown(watching.cancel);
+      await pumpEventQueue();
+
+      await world.controller.reconcile();
+      await pumpEventQueue();
+
+      expect(await world.contentOf('m1'), 'one, edited');
+      expect(counts, everyElement(2));
+    });
+
     test('adopts the head without refetching when nothing is held', () async {
       final world = await _world();
       final first = world.server.send('hello');

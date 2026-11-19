@@ -139,6 +139,17 @@ Future<void> discardRowHelper(
   });
 }
 
+/// Walks the standing seq back to the newest row held, after rows were dropped without [discardRowHelper].
+Future<void> restandHelper(MessageStore store, String channelId) async {
+  final db = store.db;
+  final row = await channelRow(store, channelId);
+  if (row == null) return;
+  final newest = await _newestHeldSeq(db, channelId);
+  if ((row.liveSeq ?? row.cursor) <= newest) return;
+  await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
+      .write(ChannelsCompanion(liveSeq: Value(newest)));
+}
+
 Future<int> _newestHeldSeq(
   SlimmDatabase db,
   String channelId, {

@@ -138,9 +138,13 @@ class SyncCatchUp {
     ScopeDelta delta,
   ) async {
     bool isCurrent() => _isCurrent(generation);
-    if (delta.reset || await _adoptsOverHeldRows(store, delta)) {
+    if (delta.reset) {
       // Either cursor is too far behind to stream: local state is untrusted.
       await _resetScope(generation, api, store, delta);
+      return isCurrent() ? false : null;
+    }
+    if (await _adoptsOverHeldRows(store, delta)) {
+      await _refetchHeld(generation, api, store, delta);
       return isCurrent() ? false : null;
     }
     await store.applyMessages(delta.messages, advance: CursorAdvance.always);
@@ -179,6 +183,34 @@ class SyncCatchUp {
     if (head == null || head == 0) return false;
     if (await store.opCursorFor(delta.channelId) != null) return false;
     return await store.oldestLocalSeq(delta.channelId) != null;
+  }
+
+  /// Rereads the newest page over rows held before the op cursor existed, and
+  /// starts the op cursor at the head [delta] read before that page.
+  ///
+  /// Unlike [_resetScope] the rows are swapped in one write, so an open channel
+  /// is never shown empty, and the cursor moves only once the page is stored: a
+  /// fetch that fails leaves the scope to be refetched by the next catch-up.
+  Future<void> _refetchHeld(
+    int generation,
+    SlimmApi api,
+    MessageStore store,
+    ScopeDelta delta,
+  ) async {
+    final head = delta.latestSeq;
+    // Without the head there is no telling a deleted row from one that arrived since.
+    if (head == null) return _resetScope(generation, api, store, delta);
+    final channelId = delta.channelId;
+    final fresh = await retryWhenRateLimited(
+      () => api.listMessages(channelId, limit: 50),
+      wait: _ref.read(rateLimitWaitProvider),
+    );
+    if (!_isCurrent(generation)) return;
+    final through = fresh.fold(head, (seq, m) => max(seq, m.seq));
+    await store.replaceHeld(channelId, fresh, through: through);
+    await store.setOpCursor(channelId, delta.opLatestSeq);
+    _ref.read(messageExtrasProvider.notifier).applyMessages(fresh);
+    await store.coverCursor(channelId, head);
   }
 
   /// Applies a scope's edit ops after its messages, adopting the head on a first sync.

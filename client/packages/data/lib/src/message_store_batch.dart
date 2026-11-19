@@ -67,6 +67,28 @@ Future<void> applyMessagesBatched(
   });
 }
 
+/// See [MessageStore.replaceHeld].
+Future<void> replaceHeldBatched(
+  MessageStore store,
+  String channelId,
+  List<api.Message> page,
+  int through,
+) async {
+  final db = store.db;
+  final kept = [for (final message in page) message.id];
+  await db.transaction(() async {
+    await (db.delete(db.messages)
+          ..where((m) =>
+              m.channelId.equals(channelId) &
+              m.seq.isBiggerThanValue(0) &
+              m.seq.isSmallerOrEqualValue(through) &
+              m.id.isNotIn(kept)))
+        .go();
+    await applyMessagesBatched(store, page, CursorAdvance.always);
+    await cursors_impl.restandHelper(store, channelId);
+  });
+}
+
 /// The sync stream's rows, less those at or below their channel's cursor that
 /// are not held: the cursor passed them, so a missing one was deleted since.
 ///
