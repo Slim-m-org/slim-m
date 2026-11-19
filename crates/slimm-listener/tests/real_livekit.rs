@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The listener against a real `livekit-server --dev`, with the tiny English
 //! model: two people publish a generated voice and only the included one is
-//! heard, and a speaker who publishes after the listener joined is transcribed.
+//! heard, a speaker who publishes after the listener joined is transcribed,
+//! and a speaker's mute and unmute reach the listener.
 //!
 //! Opt in with `LISTENER_REAL_LIVEKIT=ws://127.0.0.1:7880` and
 //! `LISTENER_TEST_MODEL` (a ggml model file), plus `LISTENER_TEST_WAV_SCRIPT`
@@ -262,4 +263,70 @@ async fn a_speaker_who_publishes_after_the_listener_joined_is_transcribed() {
         text.to_lowercase().contains("listener"),
         "the speech comes back as words: {text:?}"
     );
+}
+
+/// The next event about `who`'s tracks that is not audio, within ten seconds.
+async fn next_about(room: &mut LiveKitRoom, who: &str) -> Seen {
+    let wait = async {
+        loop {
+            match room.next_event().await.expect("the room stays open") {
+                Seen::Published { track, .. } | Seen::Muted { track, .. }
+                    if track.identity != who => {}
+                event @ (Seen::Published { .. } | Seen::Muted { .. }) => return event,
+                _ => {}
+            }
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(10), wait)
+        .await
+        .expect("an event in time")
+}
+
+/// A muted microphone stays published and sends silence, so the listener is told, or a muted speaker reads as a silent one.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_speakers_mute_and_unmute_reach_the_listener() {
+    let Ok(url) = std::env::var("LISTENER_REAL_LIVEKIT") else {
+        eprintln!("skipped: LISTENER_REAL_LIVEKIT is not set");
+        return;
+    };
+    let (dave, dave_task) = speaker(&url, "dave", vec![0; RATE / 100]).await;
+    let mic = dave
+        .local_participant()
+        .track_publications()
+        .into_values()
+        .next()
+        .expect("dave's microphone");
+    mic.mute();
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let mut room = LiveKitRoom::connect(&url, &token("listener-mute", false, true))
+        .await
+        .expect("the listener joins hidden");
+
+    let joined = next_about(&mut room, "dave").await;
+    assert!(
+        matches!(
+            joined,
+            Seen::Published {
+                microphone: true,
+                muted: true,
+                ..
+            }
+        ),
+        "a microphone muted before the listener joined says so: {joined:?}"
+    );
+    mic.unmute();
+    let unmuted = next_about(&mut room, "dave").await;
+    assert!(
+        matches!(unmuted, Seen::Muted { muted: false, .. }),
+        "{unmuted:?}"
+    );
+    mic.mute();
+    let muted = next_about(&mut room, "dave").await;
+    assert!(
+        matches!(muted, Seen::Muted { muted: true, .. }),
+        "{muted:?}"
+    );
+
+    room.leave().await;
+    dave_task.abort();
 }

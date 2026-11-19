@@ -21,6 +21,12 @@ pub enum RoomEvent {
     Published {
         track: TrackRef,
         microphone: bool,
+        muted: bool,
+    },
+    /// The owner muted or unmuted a published track; a muted microphone stays published and is heard as silence.
+    Muted {
+        track: TrackRef,
+        muted: bool,
     },
     Unpublished {
         track: TrackRef,
@@ -119,8 +125,13 @@ mod real {
                 sid: publication.sid().to_string(),
             };
             let microphone = publication.source() == TrackSource::Microphone;
+            let muted = publication.is_muted();
             self.publications.insert(track.clone(), publication);
-            RoomEvent::Published { track, microphone }
+            RoomEvent::Published {
+                track,
+                microphone,
+                muted,
+            }
         }
 
         fn translate(&mut self, event: Lk) -> Option<RoomEvent> {
@@ -164,6 +175,26 @@ mod real {
                     self.streams.insert(sid, task);
                     None
                 }
+                Lk::TrackMuted {
+                    publication,
+                    participant,
+                } => Some(RoomEvent::Muted {
+                    track: TrackRef {
+                        identity: participant.identity().to_string(),
+                        sid: publication.sid().to_string(),
+                    },
+                    muted: true,
+                }),
+                Lk::TrackUnmuted {
+                    publication,
+                    participant,
+                } => Some(RoomEvent::Muted {
+                    track: TrackRef {
+                        identity: participant.identity().to_string(),
+                        sid: publication.sid().to_string(),
+                    },
+                    muted: false,
+                }),
                 Lk::TrackUnsubscribed { publication, .. } => {
                     self.stop_stream(&publication.sid().to_string());
                     None
