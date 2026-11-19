@@ -89,8 +89,9 @@ Reproduced in the win11 VM on the 0.131.0 setup install, three separate causes:
 - With the scheme working, the token exchange failed with `CERTIFICATE_VERIFY_FAILED` and Settings said Spotify sent a reply the app could not read.
   `accounts.spotify.com` chains to Starfield Root G2, which a fresh Windows does not store: Windows downloads such roots the first time its own TLS stack needs one.
   Dart reads only the roots already stored, and Edge verifies with its own root store, so signing in there never installs it.
-  On Windows the Spotify client now opens the host once through WinHTTP when that happens, which lets Windows fetch the root, then retries over a fresh `SecurityContext`.
-  Other hosts the app reaches from Dart can meet the same gap; `RootFetchingClient` is the tool if one does.
+  Any server behind a less common CA meets the same gap, so the fix sits under every dart:io connection: on Windows, `main` installs `RootFetchingHttpOverrides` (api package) before anything connects.
+  A connection with the default trust that fails this way makes one WinHTTP request to that host, which lets Windows fetch the root, then adds the roots Windows now stores to `SecurityContext.defaultContext` and opens the connection once more.
+  The shared default context also covers sockets secured by hand with it, such as the direct route's.
+  Each host is tried once per process; a client given its own context is left alone.
 
-Edge's "This site is trying to open slim-m" prompt has Cancel as its default button.
-Settings does not mention the prompt yet.
+Edge's "This site is trying to open slim-m" prompt has Cancel as its default button, so the waiting line under the Spotify row says to choose Open if the browser asks.
