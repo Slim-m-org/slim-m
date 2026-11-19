@@ -22,11 +22,18 @@ from pathlib import Path
 import restore_drill_lib
 import restore_plan
 
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+
 # The uid and gid the server image runs as.
 SERVER_OWNER = "65532:65532"
 KEY_FILE = "slimm-data.key"
 # The server's own leftover sweep removes this prefix, should a restore be cut off mid-copy.
 PARTIAL_PREFIX = ".tmp-restore-"
+# Where SQLite keeps its pending, reserved and shared locks: one byte each, then 510 shared.
+SQLITE_LOCK_START, SQLITE_LOCK_LENGTH = 0x40000000, 512
 
 
 def _owner(raw):
@@ -114,6 +121,27 @@ def _give_to(owner, data_dir):
     return True
 
 
+def _open_elsewhere(database):
+    """Whether another process has the database open, which a running server always does.
+
+    Every connection in WAL mode keeps a shared lock on the file, and a server that crashed
+    keeps none, so a WAL left by an unclean stop does not look like a running server.
+    """
+    if fcntl is None:
+        return False
+    try:
+        handle = os.open(database, os.O_RDWR)
+    except OSError:
+        return False
+    try:
+        fcntl.lockf(handle, fcntl.LOCK_EX | fcntl.LOCK_NB, SQLITE_LOCK_LENGTH, SQLITE_LOCK_START)
+    except OSError:
+        return True
+    finally:
+        os.close(handle)
+    return False
+
+
 def _refusal(args, snapshot, database):
     if snapshot is None or not snapshot.is_file():
         return f"no database snapshot found under {args.backup_root}/db/"
@@ -122,6 +150,10 @@ def _refusal(args, snapshot, database):
     if database.exists() and not args.force:
         return (f"{database} already exists. Stop the server and restore into an empty data "
                 "directory, or pass --force to move this database aside and replace it.")
+    if database.exists() and _open_elsewhere(database):
+        return (f"{database} is open in another process, so the server is still running and "
+                "would keep writing to the database this moves aside. Run `docker compose down` "
+                "first.")
     return None
 
 

@@ -5,6 +5,7 @@ import io
 import os
 import shutil
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -17,6 +18,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import backup_fixtures as fixtures  # noqa: E402
 import backup_lib  # noqa: E402
 import restore_lib  # noqa: E402
+
+_HOLD_OPEN = """
+import sqlite3, sys
+conn = sqlite3.connect(sys.argv[1])
+conn.execute("PRAGMA journal_mode=WAL")
+conn.execute("SELECT count(*) FROM users").fetchall()
+print("open", flush=True)
+sys.stdin.read()
+"""
 
 
 def _quiet(call, *args):
@@ -316,6 +326,40 @@ class RestoreInPlaceTest(RestoreTestCase):
         self.assertIn((f".tmp-restore-{self.sha.hex()}", self.sha.hex()), seen)
         leftovers = [p.name for p in self.data_dir.rglob(".tmp-restore-*")]
         self.assertEqual(leftovers, [])
+
+
+class RestoreUnderARunningServerTest(RestoreTestCase):
+    def _server_holding(self, database):
+        server = subprocess.Popen([sys.executable, "-c", _HOLD_OPEN, str(database)],
+                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        self.addCleanup(server.wait)
+        self.addCleanup(server.stdout.close)
+        self.addCleanup(server.stdin.close)
+        server.stdout.readline()
+        return server
+
+    def test_force_is_refused_while_another_process_has_the_database_open(self):
+        self._back_up()
+        shutil.copytree(self.live, self.data_dir)
+        self._server_holding(self.data_dir / "slimm.db")
+
+        code, output = self._restore("--force")
+
+        self.assertEqual(code, 1)
+        self.assertIn("docker compose down", output)
+        self.assertEqual(list(self.data_dir.glob("slimm.db.before-restore-*")), [])
+
+    def test_a_wal_left_by_a_server_that_was_killed_does_not_block_the_rollback(self):
+        self._back_up()
+        shutil.copytree(self.live, self.data_dir)
+        server = self._server_holding(self.data_dir / "slimm.db")
+        server.kill()
+        server.wait()
+        self.assertTrue((self.data_dir / "slimm.db-wal").exists())
+
+        code, output = self._restore("--force")
+
+        self.assertEqual(code, 0, output)
 
 
 if __name__ == "__main__":
