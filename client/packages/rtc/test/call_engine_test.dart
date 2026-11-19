@@ -217,6 +217,26 @@ void main() {
     await attempt;
   });
 
+  test(
+      'a leave that closes the engine while a full reconnect waits to start '
+      'still ends the call', () async {
+    final engine = CallEngine(roomOptions: const lk.RoomOptions());
+    final room = lk.Room(roomOptions: const lk.RoomOptions(), engine: engine);
+    final ended = <lk.RoomDisconnectedEvent>[];
+    final cancel = room.events.on<lk.RoomDisconnectedEvent>(ended.add);
+    addTearDown(cancel);
+
+    unawaited(engine.handleReconnect(
+      lk_internal.ClientDisconnectReason.peerConnectionFailed,
+    ));
+    expect(engine.isPendingReconnect, isTrue);
+    expect(engine.fullReconnectOnNext, isTrue);
+    await engine.disconnect(reason: lk.DisconnectReason.duplicateIdentity);
+    await pumpEventQueue();
+
+    expect(ended.map((e) => e.reason), [lk.DisconnectReason.duplicateIdentity]);
+  });
+
   test('an offer answered after a resume leaves the connection alone',
       () async {
     final pc = _Publisher();
