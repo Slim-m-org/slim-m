@@ -20664,6 +20664,14 @@ components:
             sends and what a newer one sends before adopting a head. A scope
             that omits this receives no `ops` and is never told to `reset`
             because of an op gap.
+        check_mention:
+          type: boolean
+          default: false
+          description: >
+            Asks for this scope's `mentioned_seq`. A client sends it when its
+            mention cursor names a message it does not hold, which a reset's
+            marker can leave, so the marker can lower it once that message is
+            deleted or edited away.
 
     SyncResponse:
       type: object
@@ -20676,7 +20684,7 @@ components:
 
     ScopeDelta:
       type: object
-      required: [channel_id, messages, has_more, reset, ops, op_latest_seq, ops_has_more, mentioned_seq]
+      required: [channel_id, messages, has_more, reset, ops, op_latest_seq, ops_has_more]
       properties:
         channel_id:
           type: string
@@ -20720,7 +20728,9 @@ components:
           description: >
             The seq of the newest live message in this channel that mentions the
             caller, 0 when none does, so a client that resets the scope keeps a
-            mention older than the page it refetches.
+            mention older than the page it refetches. Present only when `reset`
+            is true or the scope's cursor set `check_mention`: the read behind it
+            scans every mention of the caller.
 
     MessageOp:
       type: object
