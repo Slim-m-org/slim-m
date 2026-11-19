@@ -21,6 +21,7 @@ from test_xcode_ci_steps import EXPRESSION, run_script  # noqa: E402
 ACTION = Path(__file__).resolve().parents[2] / ".github" / "actions" / "release-ios-testflight" / "action.yml"
 STEP_START = re.compile(r"^    - ")
 ATTEMPTS = 3
+SHELL_NAMES = {"bash": "bash --noprofile --norc -eo pipefail {0}", "sh": "sh -e {0}"}
 
 FAKES = {
     "xcrun": """\
@@ -51,10 +52,11 @@ def upload_step() -> str:
 
 
 def shell_command(step: str, script: Path) -> list[str]:
-    """The step's `shell:` with the script path in place of `{0}`."""
+    """The step's `shell:` with the script path in place of `{0}`, as GitHub runs it."""
     match = re.search(r"^\s*shell:\s*\"?([^\"\n]+)\"?\s*$", step, re.M)
     assert match, "the upload step names no shell"
-    return [part.replace("{0}", str(script)) for part in shlex.split(match.group(1))]
+    shell = SHELL_NAMES.get(match.group(1).strip(), match.group(1))
+    return [part.replace("{0}", str(script)) for part in shlex.split(shell)]
 
 
 def run_upload(pass_on: int) -> tuple[subprocess.CompletedProcess, list[str], list[str]]:
