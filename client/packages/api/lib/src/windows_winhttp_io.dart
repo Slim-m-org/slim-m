@@ -1,94 +1,70 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// One HEAD request through WinHTTP, for [RootFetchingClient]: Windows checks
-/// the server's chain with its own engine, which downloads a trusted root it
-/// has not stored yet. The answer itself is ignored.
+/// One HEAD request through WinHTTP. Windows checks the server's chain with
+/// its own engine, which downloads a trusted root it has not stored yet; the
+/// answer itself is ignored.
 library;
 
 import 'dart:ffi';
-import 'dart:isolate';
-
-import 'package:slimm_api/api.dart' show AppLog, LogTag;
-
-/// Runs off the UI isolate, since WinHTTP blocks for the whole round trip.
-Future<void> fetchWindowsRootsFor(String host) async {
-  try {
-    await Isolate.run(() => _headRequest(host));
-  } on Object catch (error, stack) {
-    AppLog.swallowed(
-      LogTag.platform,
-      'Windows could not check $host',
-      error,
-      stack,
-    );
-  }
-}
 
 const _automaticProxy = 4;
 const _secure = 0x00800000;
-const _httpsPort = 443;
 const _timeoutMs = 10000;
 const _zeroInit = 0x40;
 
-typedef _OpenC =
-    Pointer<Void> Function(
-      Pointer<Uint16>,
-      Uint32,
-      Pointer<Uint16>,
-      Pointer<Uint16>,
-      Uint32,
-    );
-typedef _Open =
-    Pointer<Void> Function(
-      Pointer<Uint16>,
-      int,
-      Pointer<Uint16>,
-      Pointer<Uint16>,
-      int,
-    );
-typedef _ConnectC =
-    Pointer<Void> Function(Pointer<Void>, Pointer<Uint16>, Uint16, Uint32);
-typedef _Connect =
-    Pointer<Void> Function(Pointer<Void>, Pointer<Uint16>, int, int);
-typedef _OpenRequestC =
-    Pointer<Void> Function(
-      Pointer<Void>,
-      Pointer<Uint16>,
-      Pointer<Uint16>,
-      Pointer<Uint16>,
-      Pointer<Uint16>,
-      Pointer<Pointer<Uint16>>,
-      Uint32,
-    );
-typedef _OpenRequest =
-    Pointer<Void> Function(
-      Pointer<Void>,
-      Pointer<Uint16>,
-      Pointer<Uint16>,
-      Pointer<Uint16>,
-      Pointer<Uint16>,
-      Pointer<Pointer<Uint16>>,
-      int,
-    );
-typedef _SendC =
-    Int32 Function(
-      Pointer<Void>,
-      Pointer<Uint16>,
-      Uint32,
-      Pointer<Void>,
-      Uint32,
-      Uint32,
-      IntPtr,
-    );
-typedef _Send =
-    int Function(
-      Pointer<Void>,
-      Pointer<Uint16>,
-      int,
-      Pointer<Void>,
-      int,
-      int,
-      int,
-    );
+typedef _OpenC = Pointer<Void> Function(
+  Pointer<Uint16>,
+  Uint32,
+  Pointer<Uint16>,
+  Pointer<Uint16>,
+  Uint32,
+);
+typedef _Open = Pointer<Void> Function(
+  Pointer<Uint16>,
+  int,
+  Pointer<Uint16>,
+  Pointer<Uint16>,
+  int,
+);
+typedef _ConnectC = Pointer<Void> Function(
+    Pointer<Void>, Pointer<Uint16>, Uint16, Uint32);
+typedef _Connect = Pointer<Void> Function(
+    Pointer<Void>, Pointer<Uint16>, int, int);
+typedef _OpenRequestC = Pointer<Void> Function(
+  Pointer<Void>,
+  Pointer<Uint16>,
+  Pointer<Uint16>,
+  Pointer<Uint16>,
+  Pointer<Uint16>,
+  Pointer<Pointer<Uint16>>,
+  Uint32,
+);
+typedef _OpenRequest = Pointer<Void> Function(
+  Pointer<Void>,
+  Pointer<Uint16>,
+  Pointer<Uint16>,
+  Pointer<Uint16>,
+  Pointer<Uint16>,
+  Pointer<Pointer<Uint16>>,
+  int,
+);
+typedef _SendC = Int32 Function(
+  Pointer<Void>,
+  Pointer<Uint16>,
+  Uint32,
+  Pointer<Void>,
+  Uint32,
+  Uint32,
+  IntPtr,
+);
+typedef _Send = int Function(
+  Pointer<Void>,
+  Pointer<Uint16>,
+  int,
+  Pointer<Void>,
+  int,
+  int,
+  int,
+);
 typedef _ReceiveC = Int32 Function(Pointer<Void>, Pointer<Void>);
 typedef _Receive = int Function(Pointer<Void>, Pointer<Void>);
 typedef _TimeoutsC = Int32 Function(Pointer<Void>, Int32, Int32, Int32, Int32);
@@ -96,19 +72,15 @@ typedef _Timeouts = int Function(Pointer<Void>, int, int, int, int);
 typedef _CloseC = Int32 Function(Pointer<Void>);
 typedef _Close = int Function(Pointer<Void>);
 
-void _headRequest(String host) {
+/// Blocks for the whole round trip; run it off the UI isolate.
+void winHttpHead(String host, int port) {
   final winhttp = DynamicLibrary.open('winhttp.dll');
   final kernel32 = DynamicLibrary.open('kernel32.dll');
-  final alloc = kernel32
-      .lookupFunction<
-        Pointer<Uint16> Function(Uint32, IntPtr),
-        Pointer<Uint16> Function(int, int)
-      >('LocalAlloc');
-  final free = kernel32
-      .lookupFunction<
-        Pointer<Void> Function(Pointer<Uint16>),
-        Pointer<Void> Function(Pointer<Uint16>)
-      >('LocalFree');
+  final alloc = kernel32.lookupFunction<
+      Pointer<Uint16> Function(Uint32, IntPtr),
+      Pointer<Uint16> Function(int, int)>('LocalAlloc');
+  final free = kernel32.lookupFunction<Pointer<Void> Function(Pointer<Uint16>),
+      Pointer<Void> Function(Pointer<Uint16>)>('LocalFree');
   final close = winhttp.lookupFunction<_CloseC, _Close>('WinHttpCloseHandle');
   final strings = <Pointer<Uint16>>[];
   Pointer<Uint16> wide(String text) {
@@ -140,7 +112,7 @@ void _headRequest(String host) {
     );
     final connection = winhttp.lookupFunction<_ConnectC, _Connect>(
       'WinHttpConnect',
-    )(session, wide(host), _httpsPort, 0);
+    )(session, wide(host), port, 0);
     if (connection == nullptr) return;
     handles.add(connection);
     final request = winhttp.lookupFunction<_OpenRequestC, _OpenRequest>(

@@ -24,7 +24,6 @@ import '../providers/background_key_store.dart';
 import '../providers/providers.dart';
 import 'spotify_client.dart';
 import 'spotify_config.dart';
-import 'spotify_http_stub.dart' if (dart.library.io) 'spotify_http_io.dart';
 import 'spotify_launch.dart';
 import 'spotify_link_status.dart';
 import 'spotify_pkce.dart';
@@ -45,7 +44,7 @@ final spotifyTokenStoreProvider = Provider<SpotifyTokenStore>(
 );
 
 final spotifyClientProvider = Provider<SpotifyClient>((ref) {
-  final client = spotifyHttpClient();
+  final client = http.Client();
   ref.onDispose(client.close);
   return SpotifyClient(
     client: client,
