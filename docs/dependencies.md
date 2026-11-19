@@ -29,17 +29,24 @@ The RFC 6238 arithmetic for the optional second factor (decision 0048), rather t
 Default features are empty and only `otpauth` is turned on, for the `otpauth://` provisioning URI an authenticator app scans.
 `gen_secret` is deliberately left off: it would pull a second `rand` into the tree, and the secret is minted from the `rand_core` `OsRng` that already backs every other secret here.
 
-It is held at the 5.x line, and that hold is load-bearing rather than staleness.
-6.0 moved onto `hmac` 0.13 and `crypto-common` 0.2.x, which cannot co-exist with the `crypto-common` 0.2.0-rc.4 that `crypto_box`'s exact pin requires, for the same pre-release reason recorded under `ed25519-dalek` below: a pre-release satisfies nothing outside its own pre-release line.
-Cargo cannot resolve the two at all, so this is a hard conflict rather than a preference.
-5.x rides the `hmac`, `sha1` and `sha2` versions already in the tree and adds only `base32` and `constant_time_eq`.
-Revisit when `crypto_box` reaches a stable 0.10.
+It is on the 5.x line, which rides the `hmac`, `sha1` and `sha2` versions already in the tree and adds only `base32` and `constant_time_eq`.
+6.0 moves onto `hmac` 0.13 and `crypto-common` 0.2, which could not resolve beside the old `crypto_box` pre-release pin (see below).
+That pin is gone and 6.0 now resolves, so moving to it is an ordinary upgrade rather than a blocked one.
 
 ## crypto_box
 
 Anonymous sealed boxes (libsodium `crypto_box_seal`, X25519 plus XSalsa20Poly1305) for the content-free push envelope.
-It is a pre-release because the `seal` API this needs has not had a 0.10 stable cut yet.
-It is pinned to an exact version rather than a range, so a new pre-release cannot silently change behaviour underfoot.
+`crypto_secretbox`, which it already pulls in, is the XSalsa20Poly1305 that seals TOTP and module secrets (`data_key.rs`).
+
+Both are on their stable lines, 0.9.1 and 0.1.1, which already have the `seal` API.
+Until 2026-11-18 they were exact-pinned to the 0.10.0-pre.0 and 0.2.0-pre.0 pre-releases, which require `crypto-common` 0.2.0-rc.4 and `curve25519-dalek` 5.0.0-pre.1.
+A pre-release satisfies nothing outside its own pre-release line, so that pin blocked every crate that moved to the stable `crypto-common` 0.2 or `curve25519-dalek` 5: `totp-rs` 6, `ed25519-dalek` 3, and `sqlx` 0.9 (whose migrations hash with `sha2` 0.11).
+The stable lines sit on `crypto-common` 0.1 and `curve25519-dalek` 4, which cargo keeps beside the newer ones.
+
+The swap changes no bytes.
+Checked 2026-11-18 with a throwaway crate holding both versions: secretbox output was identical for sixteen lengths from 0 to 4096 bytes, across the keystream block boundaries, sealed boxes were identical given the same random stream, and each version opened the other's output.
+`data_key.rs` keeps a value sealed by the pre-release as a test, so secrets already in a database still open.
+The push fixture that the iOS extension's XCTest reads was regenerated with 0.9.1 (`push_envelope_fixture.rs`), and the system libsodium opened every case in it.
 
 ## reqwest
 
@@ -57,8 +64,8 @@ The server's long-lived identity keypair, behind the trust-on-first-use fingerpr
 Features are cut to `zeroize` only: no `std`, no `rand_core`, no `fast` (precomputed tables).
 Nothing here signs anything yet, and deriving the keypair then storing the public half at boot is the only operation this crate performs.
 
-It is held at 2.x rather than the freshly cut 3.0.0.
-3.0.0 depends on curve25519-dalek's stable 5.0.0, which cargo cannot resolve alongside `crypto_box`'s pinned 5.0.0-pre.1 in the same tree, because a pre-release satisfies nothing outside its own pre-release line.
+It is on 2.x.
+3.0.0 depends on curve25519-dalek's stable 5.0.0, which could not resolve beside the old `crypto_box` pre-release pin; that pin is gone and 3.0.0 now resolves, so moving to it is an ordinary upgrade.
 
 ## jiff
 

@@ -42,11 +42,11 @@ base64 = "0.22"
 rand_core = { version = "0.6", features = ["getrandom"] }
 # RFC 6238 TOTP (decision 0047). The 5.x hold and the feature cuts are both load-bearing; see docs/dependencies.md.
 totp-rs = { version = "5.7", default-features = false, features = ["otpauth"] }
-# Anonymous sealed boxes for the content-free push envelope. Exact-pinned
-# because the `seal` API is still pre-release; see docs/dependencies.md.
-crypto_box = { version = "=0.10.0-pre.0", features = ["seal"] }
+# Anonymous sealed boxes for the content-free push envelope. The stable line,
+# not the 0.10 pre-release; see docs/dependencies.md.
+crypto_box = { version = "0.9.1", features = ["seal"] }
 # Already pulled in by crypto_box; named here for the symmetric box that seals TOTP secrets.
-crypto_secretbox = "=0.2.0-pre.0"
+crypto_secretbox = "0.1.1"
 # The push relay HTTP client. `rustls-tls` so the static musl binary and the
 # distroless image never need OpenSSL; see docs/dependencies.md.
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }

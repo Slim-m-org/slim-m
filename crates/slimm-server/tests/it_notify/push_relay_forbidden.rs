@@ -9,7 +9,7 @@ use axum::{Json, Router};
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use crypto_box::SecretKey;
-use crypto_box::aead::rand_core::{OsRng, TryRngCore};
+use crypto_box::aead::OsRng;
 use serde_json::{Value, json};
 use slimm_server::config::Config;
 use slimm_server::hub::Hub;
@@ -88,7 +88,7 @@ async fn register_user(store: &Store, username: &str) -> String {
 /// accepts nothing else - so the caller picks which of the relay's two
 /// platforms this device's real, later-captured entry will exercise.
 async fn register_push(app: &Router, token: &str, platform: &str, push_token: &str) -> SecretKey {
-    let secret = SecretKey::generate(&mut OsRng.unwrap_err());
+    let secret = SecretKey::generate(&mut OsRng);
     let public = secret.public_key();
     let response = app
         .clone()
