@@ -62,6 +62,7 @@ class Client:
         self._id = 0
         self._log = []
         self._null_check_kept = False
+        self.paused_requests = []
 
     def _connect(self):
         from websocket import create_connection
@@ -100,6 +101,9 @@ class Client:
         """
         method = msg.get("method")
         params = msg.get("params") or {}
+        if method == "Fetch.requestPaused":
+            self.paused_requests.append(params)
+            return
         if method == "Network.requestWillBeSent":
             url = (params.get("request") or {}).get("url") or ""
             if url.startswith(("http://", "https://")):
