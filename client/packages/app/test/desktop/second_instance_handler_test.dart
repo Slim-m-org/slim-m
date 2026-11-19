@@ -10,6 +10,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/desktop/close_behavior.dart';
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 
 import 'support/fake_desktop_window_port.dart';
@@ -47,6 +48,21 @@ void main() {
     await _send(const MethodCall('focus'));
 
     expect(port.showCalls, 1);
+    expect(port.restoreCalls, 1);
+  });
+
+  test('on Windows a focus notification leaves a maximized window maximized, '
+      'restoring only a minimized one', () async {
+    final port = FakeDesktopWindowPort();
+    shell = shellFor(port, chrome: DesktopPlatform.windows);
+    shell.registerSecondInstanceHandler();
+
+    await _send(const MethodCall('focus'));
+    expect(port.showCalls, 1);
+    expect(port.restoreCalls, 0);
+
+    port.minimized = true;
+    await _send(const MethodCall('focus'));
     expect(port.restoreCalls, 1);
   });
 

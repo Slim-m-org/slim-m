@@ -312,11 +312,16 @@ class DesktopWindowShell {
   /// Brings the window forward for a notification click or a second launch.
   ///
   /// show() un-hides a tray-hidden window; restore() raises a minimised one.
+  /// On Windows restore() also un-maximizes, and show() already brings the
+  /// window forward there, so only a minimised window is restored.
   Future<void> raise() async {
+    final platform = _chromePlatform ?? currentDesktopPlatform();
     if (currentDesktopPlatform() == null) return;
     try {
       await port.show();
-      await port.restore();
+      if (platform != DesktopPlatform.windows || await port.isMinimized()) {
+        await port.restore();
+      }
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
