@@ -13,10 +13,15 @@ use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
 use tokio::sync::broadcast::Receiver;
+use tower::ServiceExt;
 
 use crate::support;
 use support::app::{Account, call_as, register_account};
 use support::fake_sfu::{RecordingRoomService, spawn_sfu};
+use support::livekit_webhook::webhook_request;
+
+const API_KEY: &str = "key";
+const API_SECRET: &str = "a-secret-at-least-32-chars-long!";
 
 struct World {
     store: Store,
@@ -37,7 +42,7 @@ async fn world(prefix: &str) -> World {
     let alice = register_account(&store, "alice").await;
     let bob = register_account(&store, "bob").await;
     let channel = store.create_channel("lounge", "voice").await.unwrap().id;
-    let voice = VoiceService::for_test(&url, "key", "a-secret-at-least-32-chars-long!");
+    let voice = VoiceService::for_test(&url, API_KEY, API_SECRET);
     let hub = Hub::new();
     let app = support::app::builder(store.clone())
         .voice(voice.clone())
@@ -98,6 +103,11 @@ impl World {
     async fn beat(&self, who: &Account) -> StatusCode {
         let uri = format!("/channels/{}/voice/heartbeat", self.channel);
         call_as(&self.app, "POST", &uri, &who.token, None).await.0
+    }
+
+    async fn deliver(&self, body: Value) -> StatusCode {
+        let request = webhook_request(body, API_KEY, API_SECRET);
+        self.app.clone().oneshot(request).await.unwrap().status()
     }
 }
 
@@ -231,4 +241,24 @@ async fn a_first_heartbeat_nudge_is_never_answered_from_before_it() {
 
     assert!(nudged(&mut rx, w.channel), "a first heartbeat is a join");
     assert_eq!(w.shown(w.bob.id).await, (json!(true), json!(true)));
+}
+
+#[tokio::test]
+async fn a_microphone_published_after_the_join_has_viewers_read_again() {
+    let w = world("slimm-mic-published").await;
+    w.recorder.seat_active(&[w.bob.id]);
+    assert_eq!(w.shown(w.bob.id).await.0, json!(true), "no track yet");
+
+    w.recorder.seat_listing(vec![entry(w.bob.id, false, false)]);
+    let mut rx = w.hub.subscribe();
+    let published = json!({
+        "event": "track_published",
+        "room": { "name": slimm_server::voice::room_for_channel(w.channel) },
+        "participant": { "identity": w.bob.id.to_string(), "sid": format!("PA_{}", w.bob.id) },
+        "track": { "sid": "TR_mic", "source": "MICROPHONE" },
+    });
+    assert_eq!(w.deliver(published).await, StatusCode::NO_CONTENT);
+
+    assert!(nudged(&mut rx, w.channel), "viewers are told to re-read");
+    assert_eq!(w.shown(w.bob.id).await.0, json!(false));
 }

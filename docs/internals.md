@@ -171,6 +171,7 @@ The heartbeat pair is also where [`Event::VoiceActivityChanged`] is published: o
 The third publish site, the stale-heartbeat sweep, lives in `lib.rs` rather than here.
 The mute and deafen reports (`voice_self_state.rs`) publish it too, for a caller with a call on record, so a roster read from outside the call shows who is muted; the SFU carries the mute itself, on the caller's own track, and `is_muted` in the roster is read from there.
 The first heartbeat and both reports drop the cached roster before they publish, so the re-read they prompt is never answered from before them; a report from a caller with no call on record still drops it, and tells nobody.
+A microphone track's `track_published` or `track_unpublished` webhook publishes it as well, since that flips `is_muted` with no mute report.
 The sweep asks the SFU before it evicts: a member whose heartbeat went stale is kept while LiveKit still reports them `ACTIVE`, up to three times the stale threshold, because heartbeats travel the API path and that can break while the call's media is fine.
 
 ## Voice heartbeat and answering a ring
