@@ -21,6 +21,8 @@ add_executable(${BINARY_NAME}
   "screen_overlay_panel.cc"
   "screen_overlay_png.cc"
   "screen_overlay_stamps.cc"
+  "webkit_loader.cc"
+  "youtube_player_channel.cc"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
 )
 
@@ -34,7 +36,7 @@ add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
 # Add dependency libraries. Add any application-specific dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK PkgConfig::PANGOCAIRO PkgConfig::WAYLAND_CLIENT)
-# dlopen of the optional gtk-layer-shell, see screen_overlay.cc.
+# dlopen of the optional gtk-layer-shell (screen_overlay.cc) and WebKitGTK (webkit_loader.cc).
 target_link_libraries(${BINARY_NAME} PRIVATE ${CMAKE_DL_LIBS})
 
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")

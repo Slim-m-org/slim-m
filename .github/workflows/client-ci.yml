@@ -391,6 +391,20 @@ jobs:
         working-directory: client/packages/app
         run: flutter build linux --release
 
+      # The YouTube player dlopens WebKitGTK (decision 0128); a NEEDED entry on it would stop the app starting where it is missing.
+      - name: no bundled ELF links a webview engine
+        working-directory: client/packages/app/build/linux/x64/release/bundle
+        run: |
+          set -euo pipefail
+          bad=0
+          while IFS= read -r -d '' elf; do
+            if readelf -d "$elf" 2>/dev/null | grep -E 'NEEDED.*(webkit|javascriptcore|wpe|soup)'; then
+              echo "::error file=$elf::links a webview engine; load it with dlopen instead"
+              bad=1
+            fi
+          done < <(find . -type f \( -name 'slimm_app' -o -name '*.so*' \) -print0)
+          exit "$bad"
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: linux-desktop-shell-smoke-bundle
