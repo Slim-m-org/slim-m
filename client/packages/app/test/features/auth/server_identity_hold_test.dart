@@ -7,6 +7,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -130,6 +131,15 @@ class _Server {
   }
 }
 
+class _NoJitter implements Random {
+  @override
+  int nextInt(int max) => 0;
+  @override
+  double nextDouble() => 0;
+  @override
+  bool nextBool() => false;
+}
+
 class _Rig {
   _Rig(this.server, this.container);
 
@@ -179,6 +189,14 @@ Future<_Rig> _rig({String? pinned = _keyA}) async {
       sessionProvider.overrideWithValue(session),
       serverUrlProvider.overrideWith((ref) => server.url),
       storeProvider.overrideWith((ref) async => store),
+      // A loaded CI runner can stack a few failed connects into a backoff past the wait budget.
+      syncControllerProvider.overrideWith(
+        (ref) => SyncController(
+          ref,
+          random: _NoJitter(),
+          backoffStep: const Duration(milliseconds: 20),
+        ),
+      ),
     ],
   );
   addTearDown(container.dispose);
