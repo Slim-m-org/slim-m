@@ -16,23 +16,19 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// The compact search row: the field beside an on-screen Cancel, over a
-/// hairline. Shared by the palette and a conversation's own search page, so
-/// both read as one gesture.
-class PaletteCompactSearchRow extends StatelessWidget {
-  const PaletteCompactSearchRow({
+/// hairline.
+class _CompactSearchRow extends StatelessWidget {
+  const _CompactSearchRow({
     super.key,
     required this.searchField,
     required this.onCancel,
-    this.cancelKey = const Key('command-palette-cancel'),
     this.divider = true,
   });
 
   final Widget searchField;
   final VoidCallback onCancel;
-  final Key cancelKey;
 
-  /// Whether the row draws its own inset hairline; a page that edges the row
-  /// with a full-width border leaves it out.
+  /// Whether the row draws its own inset hairline; chips below take its place.
   final bool divider;
 
   @override
@@ -51,7 +47,7 @@ class PaletteCompactSearchRow extends StatelessWidget {
             Expanded(child: searchField),
             const SizedBox(width: AppSpacing.s8),
             AppButton(
-              key: cancelKey,
+              key: const Key('command-palette-cancel'),
               label: 'Cancel',
               variant: AppButtonVariant.ghost,
               touch: true,
@@ -103,7 +99,7 @@ class CommandPaletteCompactShell extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                PaletteCompactSearchRow(
+                _CompactSearchRow(
                   searchField: searchField,
                   onCancel: onCancel,
                   divider: chips == null,
