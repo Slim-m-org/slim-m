@@ -75,4 +75,36 @@ void main() {
       expect(thrown, isA<TransportException>());
     });
   });
+
+  test('a byte fetch it gives up on is aborted, not left downloading', () {
+    fakeAsync((async) {
+      final client = _Hangs();
+      final api = SlimmApi(
+        baseUrl: Uri.parse('http://localhost:8080'),
+        session: SessionStore(tokens: _tokens),
+        httpClient: client,
+      );
+      var aborted = false;
+      unawaited(
+        api.serverLogs().then((_) {}, onError: (Object _) {}),
+      );
+      async.flushMicrotasks();
+      unawaited(client.abortTrigger!.then((_) => aborted = true));
+
+      async.elapse(const Duration(minutes: 2));
+      expect(aborted, isFalse);
+      async.elapse(const Duration(minutes: 2));
+      expect(aborted, isTrue);
+    });
+  });
+}
+
+class _Hangs extends http.BaseClient {
+  Future<void>? abortTrigger;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    if (request is http.Abortable) abortTrigger = request.abortTrigger;
+    return Completer<http.StreamedResponse>().future;
+  }
 }

@@ -140,6 +140,39 @@ async fn a_second_download_waits_its_turn() {
     assert_eq!(download(&app, &admin).await.0, StatusCode::OK);
 }
 
+#[tokio::test]
+async fn files_pruned_during_a_download_still_arrive_whole() {
+    let (store, _guard) = support::new_store("slimm-log-pruned-mid-download").await;
+    let (_, admin) = register_id_token(&store, "root").await;
+    let (dir, _dir_guard) = support::TestDirGuard::new("slimm-log-pruned-mid-download-files");
+    let limits = FileLimits {
+        keep_days: 14,
+        max_total_bytes: 1 << 20,
+        max_file_bytes: 8,
+    };
+    let mut files = RollingFiles::open(&dir, limits).unwrap();
+    for line in ["first 1\n", "second 2\n", "third 3\n"] {
+        files
+            .append(line.as_bytes(), jiff::Timestamp::now())
+            .unwrap();
+    }
+    files.flush().unwrap();
+    let app = router(store).layer(Extension(ServerLogsDir(Some(dir.clone()))));
+
+    let response = app
+        .oneshot(request_bare("GET", "/space/server-logs", Some(&admin)))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    for entry in std::fs::read_dir(&dir).unwrap() {
+        std::fs::remove_file(entry.unwrap().path()).unwrap();
+    }
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert_eq!(&bytes[..], b"first 1\nsecond 2\nthird 3\n");
+}
+
 const PASSWORD: &str = "correct-horse-battery-7731";
 const CONTENT: &str = "the private words 9f3e2a";
 

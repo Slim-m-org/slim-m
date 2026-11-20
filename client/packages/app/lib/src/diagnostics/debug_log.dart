@@ -123,7 +123,8 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
 
   /// Keeps up to [detailedCapacity] entries while any [source] has [on], as a
   /// space with server debug logging does (decision 0129). Turning it off
-  /// trims nothing at once; later records shrink the log one at a time.
+  /// trims nothing at once; each later record drops two until the log is
+  /// back within [capacity].
   void keepDetail(Object source, {required bool on}) {
     if (on) {
       _detailSources.add(source);
@@ -182,10 +183,11 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
   List<DiagnosticEvent> _bounded(List<DiagnosticEvent> events) {
     if (events.length <= _limit) return events;
     final trimmed = List.of(events);
-    do {
+    var drop = trimmed.length - _limit > 1 ? 2 : 1;
+    while (drop-- > 0 || trimmed.length > detailedCapacity) {
       final victim = trimmed.lastIndexWhere((e) => e.level == LogLevel.debug);
       trimmed.removeAt(victim == -1 ? trimmed.length - 1 : victim);
-    } while (trimmed.length > detailedCapacity);
+    }
     return trimmed;
   }
 

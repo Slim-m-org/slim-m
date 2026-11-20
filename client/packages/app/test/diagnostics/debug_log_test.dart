@@ -46,22 +46,23 @@ void main() {
     expect(log.state.map((e) => e.message), ['m4', 'm3', 'm2']);
   });
 
-  test(
-    'a space with debug logging on keeps more, and off shrinks it gently',
-    () {
-      final log = DebugLog(capacity: 3, detailedCapacity: 6);
-      final space = Object();
-      log.keepDetail(space, on: true);
-      for (var i = 0; i < 8; i++) {
-        log.write(_record('m$i'));
-      }
-      expect(log.state, hasLength(6));
-      log.keepDetail(space, on: false);
-      expect(log.state, hasLength(6), reason: 'switching off trims nothing');
-      log.write(_record('m8'));
-      expect(log.state, hasLength(6), reason: 'each record drops one');
-    },
-  );
+  test('a space with debug logging on keeps more, and off shrinks it back', () {
+    final log = DebugLog(capacity: 3, detailedCapacity: 6);
+    final space = Object();
+    log.keepDetail(space, on: true);
+    for (var i = 0; i < 8; i++) {
+      log.write(_record('m$i'));
+    }
+    expect(log.state, hasLength(6));
+    log.keepDetail(space, on: false);
+    expect(log.state, hasLength(6), reason: 'switching off trims nothing');
+    final lengths = <int>[];
+    for (var i = 8; i < 13; i++) {
+      log.write(_record('m$i'));
+      lengths.add(log.state.length);
+    }
+    expect(lengths, [5, 4, 3, 3, 3], reason: 'two dropped per record');
+  });
 
   test(
     'a restart restores the long log before the space mode is known',
