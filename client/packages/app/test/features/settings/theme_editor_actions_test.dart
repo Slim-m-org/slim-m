@@ -32,6 +32,15 @@ class _SlowStore extends InMemorySharedPreferencesStore {
   }
 }
 
+/// Preferences that refuse every write, as a full or locked disk does.
+class _FailingStore extends InMemorySharedPreferencesStore {
+  _FailingStore() : super.empty();
+
+  @override
+  Future<bool> setValue(String valueType, String key, Object value) =>
+      Future.error(StateError('disk full'));
+}
+
 Future<void> _rename(WidgetTester tester, String name) async {
   await tester.enterText(byKey('theme-editor-name'), name);
   await settle(tester);
@@ -259,6 +268,23 @@ void main() {
 
     expect(rig.container.read(myThemesProvider), isEmpty);
     _expectThemes();
+  });
+
+  testWidgets('a delete that cannot be written says so and stays open', (
+    tester,
+  ) async {
+    final rig = EditorRig();
+    await rig.open(tester);
+    await _rename(tester, 'Stuck');
+    await tapIn(tester, byKey('theme-editor-save'));
+    SharedPreferencesStorePlatform.instance = _FailingStore();
+
+    await pickFromMenu(tester, 'Delete');
+    await tapIn(tester, find.text('Delete'));
+    await settle(tester);
+
+    expect(byKey('theme-editor-error'), findsOneWidget);
+    expect(byKey('theme-editor-preview'), findsOneWidget);
   });
 
   testWidgets('Delete names the theme as saved, not the edited name', (

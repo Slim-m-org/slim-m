@@ -46,11 +46,13 @@ class DraftLeaveGuard extends ChangeNotifier implements SettingsLeaveGuard {
 }
 
 /// The question every settings draft asks before its edits are thrown away.
-Future<bool> confirmDiscardChanges(BuildContext context) => confirmChoice(
-  context,
-  title: 'Discard your changes?',
-  message: 'What you changed since the last save is lost.',
-  confirmLabel: 'Discard',
-  cancelLabel: 'Keep editing',
-  confirmVariant: AppButtonVariant.danger,
-);
+Future<bool> confirmDiscardChanges(BuildContext context, {Key? confirmKey}) =>
+    confirmChoice(
+      context,
+      title: 'Discard your changes?',
+      message: 'What you changed since the last save is lost.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing',
+      confirmVariant: AppButtonVariant.danger,
+      confirmKey: confirmKey,
+    );
