@@ -11,6 +11,7 @@ use slimm_server::store::TranscriptionMode;
 
 use crate::support;
 use support::call_audio_world::Rig;
+use support::fake_sfu::{RecordingRoomService, spawn_sfu};
 use support::wait::wait_for;
 
 fn transcript_id(rig: &Rig) -> CallTranscriptId {
@@ -200,6 +201,44 @@ async fn on_request_needs_everyones_yes_before_anything_is_kept() {
     wait_lines(&rig, id, 1).await;
     assert_eq!(rig.stop(b).await, StatusCode::NO_CONTENT);
     wait_ended(&rig, id).await;
+}
+
+/// LiveKit's webhooks are optional (decision 0032), so the people in the call may be known only to the SFU.
+#[tokio::test]
+async fn lines_go_live_to_the_call_when_no_webhook_ever_said_who_is_in_it() {
+    let sfu = RecordingRoomService::default();
+    let sfu_url = spawn_sfu(sfu.clone()).await;
+    let rig = Rig::start_with_sfu("transcript-no-webhooks", 2, &sfu_url).await;
+    let (a, b) = (&rig.people[0], &rig.people[1]);
+    sfu.seat(&[a.id, b.id]);
+    rig.store
+        .set_call_transcription(TranscriptionMode::OnRequest)
+        .await
+        .unwrap();
+    let uri = format!("/channels/{}/voice/transcript", rig.channel);
+    assert_eq!(rig.call(a, "POST", &uri, None).await.0, StatusCode::OK);
+    rig.answer(b, true).await;
+    rig.wait_session(Some("on")).await;
+    wait_start_frames(&rig, 1).await;
+    let mut events = rig.state.hub.subscribe();
+
+    rig.listener
+        .segment(&rig.session_id(), &a.id.to_string(), "can you hear me");
+    wait_lines(&rig, transcript_id(&rig), 1).await;
+
+    let audience = wait_for("the line to go live", || {
+        let found = std::iter::from_fn(|| events.try_recv().ok()).find_map(|event| match event {
+            Event::CallTranscriptLine { audience, .. } => Some(audience.to_vec()),
+            _ => None,
+        });
+        async move { found }
+    })
+    .await;
+    let mut in_call = vec![a.id, b.id];
+    in_call.sort_by_key(ToString::to_string);
+    let mut audience = audience;
+    audience.sort_by_key(ToString::to_string);
+    assert_eq!(audience, in_call);
 }
 
 #[tokio::test]

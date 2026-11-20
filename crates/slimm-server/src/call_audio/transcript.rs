@@ -87,14 +87,18 @@ pub async fn write_line(state: &AppState, segment: &AcceptedSegment) {
         text: &segment.text,
     };
     match state.store.append_call_transcript_line(id, &line).await {
-        Ok(stored) => on_line(state, (segment.channel, id), stored),
+        Ok(stored) => on_line(state, (segment.channel, id), stored).await,
         Err(err) => tracing::warn!(%err, "could not write a call transcript line"),
     }
 }
 
 /// Runs once for each line as it is kept: today it sends the line to the people in the call.
-fn on_line(state: &AppState, (channel, id): (ChannelId, CallTranscriptId), line: TranscriptLine) {
-    let audience: Arc<[UserId]> = state.voice.live_state().present(channel).into();
+async fn on_line(
+    state: &AppState,
+    (channel, id): (ChannelId, CallTranscriptId),
+    line: TranscriptLine,
+) {
+    let audience: Arc<[UserId]> = in_call(state, channel).await.into();
     if audience.is_empty() {
         return;
     }
@@ -104,4 +108,17 @@ fn on_line(state: &AppState, (channel, id): (ChannelId, CallTranscriptId), line:
         audience,
         line: Arc::new(line),
     });
+}
+
+/// The webhook roster, or the SFU's own list when the roster is empty or predates a restart.
+async fn in_call(state: &AppState, channel: ChannelId) -> Vec<UserId> {
+    let live = state.voice.live_state();
+    let present = live.present(channel);
+    if !present.is_empty() && live.is_reconciled(channel) {
+        return present;
+    }
+    match state.voice.list_participants_shared(channel).await {
+        Ok(listed) => listed.into_iter().map(|p| p.user_id).collect(),
+        Err(_) => present,
+    }
 }
