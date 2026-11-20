@@ -155,14 +155,12 @@ class _BodyState extends ConsumerState<_Body> {
 
     final failure = _state.failure;
     if (failure != null) {
-      return Center(
-        child: AppErrorState(
-          message: failure.embeddingRefused
-              ? 'This video can only be watched on YouTube.'
-              : 'This video could not be played here.',
-          retryLabel: 'Open on YouTube',
-          onRetry: openOnYoutube,
-        ),
+      return _Note(
+        text: failure.embeddingRefused
+            ? 'This video can only be watched on YouTube.'
+            : 'This video could not be played here.',
+        action: 'Open on YouTube',
+        onAction: openOnYoutube,
       );
     }
     final handle = _handle;
@@ -238,6 +236,7 @@ class _Note extends StatelessWidget {
             if (action != null)
               AppButton(
                 label: action,
+                variant: AppButtonVariant.primary,
                 size: AppButtonSize.sm,
                 onPressed: onAction,
               ),
@@ -276,6 +275,7 @@ class _LocalBand extends StatelessWidget {
           ),
           AppButton(
             label: 'Rejoin the room',
+            variant: AppButtonVariant.primary,
             size: AppButtonSize.sm,
             onPressed: onRejoin,
           ),

@@ -148,6 +148,23 @@ void main() {
     );
   });
 
+  testWidgets('the progress fill covers the played share of the track', (
+    tester,
+  ) async {
+    await _pump(tester, session: _session(playing: false));
+    final fill = tester.getSize(find.byKey(WatchSessionBar.progressFillKey));
+    final track = tester.getSize(
+      find.ancestor(
+        of: find.byKey(WatchSessionBar.progressFillKey),
+        matching: find.byWidgetPredicate((w) => w is ClipRRect),
+      ),
+    );
+    // 1:23:45 of 2:00:00 is 69.8% of the track, at the track's full height.
+    expect(fill.width, closeTo(track.width * 5025 / 7200, 0.5));
+    expect(fill.height, track.height);
+    expect(fill.height, greaterThan(0));
+  });
+
   testWidgets('a paused room holds its position and says so', (tester) async {
     await _pump(tester, session: _session(playing: false));
     expect(find.text('1:23:45 / 2:00:00'), findsOneWidget);
