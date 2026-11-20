@@ -98,8 +98,8 @@ class UpdateWatcher {
   DateTime? _lastCheck;
 
   /// Starts the timer, unless it is running already or [shouldRun] (a
-  /// desktop host with the check not switched off) says this session should
-  /// never poll at all.
+  /// desktop or Android host with the check not switched off) says this
+  /// session should never poll at all.
   void start() {
     if (_timer != null || !_shouldRun()) return;
     _timer = Timer.periodic(interval, (_) => unawaited(_poll()));
