@@ -108,7 +108,7 @@ client/packages/data/test/message_store_test.dart 3
 client/packages/data/test/migration_test.dart 2
 client/packages/design_system/brand/generate.sh 6
 client/packages/design_system/lib/src/app_icons.dart 1
-client/packages/design_system/lib/src/app_theme.dart 3
+client/packages/design_system/lib/src/app_theme.dart 2
 client/packages/design_system/lib/src/app_tokens.dart 3
 client/packages/design_system/lib/src/components/core/avatar.dart 1
 client/packages/design_system/lib/src/components/core/badge.dart 3

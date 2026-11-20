@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 name: slimm_test_support
-description: Shared test fakes for the client packages - a fake slim-m API server and canned sessions. Dev dependency only.
+description: Shared test helpers for the client packages - a handler-backed api, canned sessions, pollUntil and source-gate scrubbers. Dev dependency only.
 publish_to: none
 resolution: workspace
 environment:

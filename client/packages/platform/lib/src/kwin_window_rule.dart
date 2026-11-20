@@ -3,7 +3,8 @@
 ///
 /// It lives in the user's `kwinrulesrc` only while a pop-out is open: it is
 /// written once per pop-out, left alone when it is already right, and removed
-/// when the window closes. Nothing is touched where KWin is not running.
+/// when the window closes, or at the next start when a crash or kill skipped
+/// that. Nothing is touched where KWin is not running.
 library;
 
 import 'dart:async';
@@ -157,6 +158,17 @@ Future<bool> kwinRemoveAboveFullScreen({
   ConfigRunner run = Process.run,
 }) =>
     _serially(() => _withRules(client, run, (rules) => rules.remove()));
+
+/// Takes out a rule an earlier run left when it ended with a pop-out open.
+/// Run once at startup, before any pop-out; [linux] defaults to the host's.
+Future<bool> kwinClearLeftoverAboveFullScreen({
+  bool? linux,
+  DBusClient? client,
+  ConfigRunner run = Process.run,
+}) async {
+  if (!(linux ?? Platform.isLinux)) return false;
+  return kwinRemoveAboveFullScreen(client: client, run: run);
+}
 
 Future<bool> _withRules(
   DBusClient? client,

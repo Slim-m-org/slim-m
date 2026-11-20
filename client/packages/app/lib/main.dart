@@ -31,6 +31,7 @@ import 'src/features/accounts/widgets/account_root.dart';
 import 'src/features/accounts/providers/account_providers.dart';
 import 'src/features/accounts/providers/account_restore.dart';
 import 'src/features/accounts/providers/account_services.dart';
+import 'src/providers/active_account_mount.dart';
 import 'src/providers/app_badge_sync.dart';
 import 'src/providers/notification_read_sync.dart';
 import 'src/widgets/enter_activates_buttons.dart';
@@ -166,6 +167,8 @@ Future<void> main([List<String> args = const []]) async {
   await shell.lockSplashChrome();
   // Off the UI thread now, so a join cue never pays GStreamer's first init on it.
   unawaited(warmSoundBackend());
+  // Only closing the last pop-out removes its KWin rule, so a crash with one open leaves it behind.
+  unawaited(kwinClearLeftoverAboveFullScreen());
 }
 
 /// The async sequence [StartupApp] masks: session restore (so the router's
@@ -264,8 +267,10 @@ Future<void> _runBootstrapSequence(
 
   container.read(startupStatusProvider.notifier).state = 'Connecting';
   startAccountServices(container);
-  container.listen(appBadgeSyncProvider, (_, _) {});
-  container.listen(notificationReadSyncProvider, (_, _) {});
+  ActiveAccountMount.start(container.read(accountHostProvider), container, [
+    appBadgeSyncProvider,
+    notificationReadSyncProvider,
+  ]);
   DeepLinkListener.start(container, forwarded: shell.forwardedLinks);
   ShareIntake.start(container);
   await shell.registerListenersAndTray(container);
