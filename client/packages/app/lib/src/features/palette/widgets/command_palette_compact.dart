@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The command palette's compact-width shell: pattern pair 3 in
+/// The command palette's frames: [CommandPaletteFrame] picks the floating card
+/// or, below `kCompactWidth`, the compact-width shell, pattern pair 3 in
 /// `docs/design/desktop-vs-mobile.md` ("Command palette -> pull-down").
 ///
 /// Below `kCompactWidth` the floating card `command_palette.dart` draws for
@@ -123,6 +124,71 @@ class CommandPaletteCompactShell extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The design's floating card width; not on the spacing grid because it is
+/// the palette's own measured size, like the rail widths beside it. Only
+/// reached at or above `kCompactWidth`, where the window is always wider.
+const double _paletteWidth = 600;
+
+/// The palette framed for the window's width: the floating card at or above
+/// `kCompactWidth`, [CommandPaletteCompactShell] below it, the same field,
+/// chips and results in both.
+class CommandPaletteFrame extends StatelessWidget {
+  const CommandPaletteFrame({
+    super.key,
+    required this.compact,
+    required this.input,
+    required this.results,
+    required this.footer,
+    required this.onCancel,
+    this.chips,
+  });
+
+  final bool compact;
+  final Widget input;
+  final Widget? chips;
+  final Widget results;
+
+  /// The keyboard hints, which only the card shows: a touch screen has no keys.
+  final Widget footer;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    if (compact) {
+      return CommandPaletteCompactShell(
+        searchField: input,
+        chips: chips,
+        results: results,
+        onCancel: onCancel,
+      );
+    }
+    return Align(
+      alignment: const Alignment(0, -0.5),
+      child: Material(
+        type: MaterialType.transparency,
+        child: AppMenu(
+          width: _paletteWidth,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.s8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                spacing: AppSpacing.s8,
+                children: [input, ?chips],
+              ),
+            ),
+            const AppMenuDivider(),
+            results,
+            const AppMenuDivider(),
+            footer,
+          ],
         ),
       ),
     );

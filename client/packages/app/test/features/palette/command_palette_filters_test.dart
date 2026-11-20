@@ -177,6 +177,24 @@ void main() {
     await _close(tester, opened);
   });
 
+  testWidgets('fast typing sends one search, for the words it settled on', (
+    tester,
+  ) async {
+    final opened = await _openInGeneral(tester);
+    final searches = opened.searches;
+
+    for (final text in ['l', 'la', 'lau', 'laun', 'launch']) {
+      await tester.enterText(_input, text);
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+    await _frames(tester);
+
+    expect(searches, hasLength(1));
+    expect(searches.single.queryParameters['q'], 'launch');
+
+    await _close(tester, opened);
+  });
+
   testWidgets('a full page offers more, fetched after the last hit shown', (
     tester,
   ) async {

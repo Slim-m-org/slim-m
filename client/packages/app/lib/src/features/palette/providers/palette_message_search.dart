@@ -4,6 +4,8 @@
 /// flight, so a slow answer never lands under the wrong query.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:slimm_api/api.dart' as api;
 
@@ -17,6 +19,7 @@ class PaletteMessageSearch extends ChangeNotifier {
   ParsedSearchQuery? _query;
   int _limit = 0;
   String? _cursor;
+  Timer? _debounce;
   int _generation = 0;
   bool _disposed = false;
 
@@ -36,16 +39,29 @@ class PaletteMessageSearch extends ChangeNotifier {
 
   /// Drops every hit and any request in flight.
   void clear() {
+    _debounce?.cancel();
     _generation++;
     _query = null;
     _set(results: const [], loading: false, more: false);
   }
 
-  /// Searches [query] afresh, [limit] hits to a page.
-  Future<void> run(ParsedSearchQuery query, {required int limit}) {
+  /// Searches [query] afresh, [limit] hits to a page, once [debounce] has
+  /// passed with no newer query, so fast typing sends one request, not one a key.
+  Future<void> run(
+    ParsedSearchQuery query, {
+    required int limit,
+    Duration debounce = Duration.zero,
+  }) {
     _query = query;
     _limit = limit;
-    return _page(query, after: null);
+    _debounce?.cancel();
+    if (debounce == Duration.zero) return _page(query, after: null);
+    _generation++;
+    loading = true;
+    _notify();
+    final done = Completer<void>();
+    _debounce = Timer(debounce, () => done.complete(_page(query, after: null)));
+    return done.future;
   }
 
   /// The next page after the hits already shown.
@@ -109,6 +125,7 @@ class PaletteMessageSearch extends ChangeNotifier {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _disposed = true;
     super.dispose();
   }

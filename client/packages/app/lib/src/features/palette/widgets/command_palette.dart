@@ -51,17 +51,13 @@ import 'palette_transcript_items.dart';
 import '../../../widgets/rise_fade_transition.dart';
 import '../../members/providers/mention_names.dart' show mentionNamesProvider;
 
-/// The design's floating card width; not on the spacing grid because it is
-/// the palette's own measured size, like the rail widths beside it. Never
-/// clamped against the viewport: [_CommandPaletteContentState.build] only
-/// reaches this width at or above `kCompactWidth` (600), where `width - 48`
-/// is always past it, and below that width the compact shell replaces the
-/// card outright rather than shrinking it.
-const double _paletteWidth = 600;
 const double _resultsMaxHeight = 420;
 
 /// How many message hits a filtered search fetches at a time.
 const int paletteMessagePage = 25;
+
+/// How long a filtered search waits for typing to pause, well inside the read limit.
+const paletteSearchDebounce = Duration(milliseconds: 250);
 
 /// Opens the palette over whatever is on screen and restores focus to
 /// wherever it was once the palette closes. Message search covers every
@@ -179,7 +175,13 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
       if (scopeOnly) {
         _messages.clear();
       } else {
-        unawaited(_messages.run(parsed, limit: paletteMessagePage));
+        unawaited(
+          _messages.run(
+            parsed,
+            limit: paletteMessagePage,
+            debounce: paletteSearchDebounce,
+          ),
+        );
       }
     } else {
       final text = parsePaletteQuery(_query);
@@ -343,37 +345,14 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
       ],
     );
 
-    final shell = compact
-        ? CommandPaletteCompactShell(
-            searchField: input,
-            chips: chips,
-            results: results,
-            onCancel: _close,
-          )
-        : Align(
-            alignment: const Alignment(0, -0.5),
-            child: Material(
-              type: MaterialType.transparency,
-              child: AppMenu(
-                width: _paletteWidth,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.s8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      spacing: AppSpacing.s8,
-                      children: [input, ?chips],
-                    ),
-                  ),
-                  const AppMenuDivider(),
-                  results,
-                  const AppMenuDivider(),
-                  PaletteFooter(filtering: _filtering),
-                ],
-              ),
-            ),
-          );
+    final shell = CommandPaletteFrame(
+      compact: compact,
+      input: input,
+      chips: chips,
+      results: results,
+      footer: PaletteFooter(filtering: _filtering),
+      onCancel: _close,
+    );
 
     return CallbackShortcuts(bindings: _bindings(), child: shell);
   }
