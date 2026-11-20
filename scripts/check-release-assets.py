@@ -50,6 +50,9 @@ MANIFEST_PLATFORMS = {
     "linux-x64": r"slim-m-client-{v}-linux-amd64\.tar\.gz",
     "windows-x64": r"slim-m-client-{v}-windows-x64\.zip",
     "macos": r"slim-m-client-{v}-macos\.zip",
+    "android-arm64-v8a": r"slim-m-client-android-arm64-v8a\.apk",
+    "android-armeabi-v7a": r"slim-m-client-android-armeabi-v7a\.apk",
+    "android-x86_64": r"slim-m-client-android-x86_64\.apk",
 }
 
 

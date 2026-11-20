@@ -184,6 +184,7 @@ begin
     DeleteMatching('rolled-back');
     DeleteMatching('failed-version');
     DeleteMatching('.*.new');
+    DeleteMatching('.*.launcher');
     DeleteMatching('running.pid');
     DeleteMatching('.launcher.lock');
     RemoveLoginStart;

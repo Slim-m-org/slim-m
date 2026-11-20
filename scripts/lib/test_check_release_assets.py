@@ -98,6 +98,15 @@ class CheckReleaseAssetsTest(unittest.TestCase):
         listed = {"macos", "windows-x64", "linux-x64"}
         self.assertEqual(judge("client-v0.89.0", CLIENT, manifest=listed), ("ok", []))
 
+    def test_a_manifest_missing_an_attached_android_apk_is_incomplete(self):
+        names = [n for n in CLIENT if n != "slim-m-client-android.apk"] + ["slim-m-client-android-arm64-v8a.apk"]
+        listed = {"macos", "windows-x64", "linux-x64"}
+        self.assertEqual(
+            judge("client-v0.89.0", names, manifest=listed),
+            ("incomplete", ["manifest.json listing android-arm64-v8a"]),
+        )
+        self.assertEqual(judge("client-v0.89.0", names, manifest=listed | {"android-arm64-v8a"}), ("ok", []))
+
     def test_an_unattached_platform_is_not_blamed_on_the_manifest(self):
         names = [n for n in CLIENT if "windows" not in n]
         self.assertEqual(

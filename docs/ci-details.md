@@ -295,7 +295,7 @@ A GitHub workflow cannot path-filter one job, so the split is what lets it be ga
 A push to `main` uses that filter, since it gates nothing except a release, and the release commit always matches it: release-please bumps `client/packages/app/pubspec.yaml`, which is in the filter.
 Since 2026-11-18 a pull request uses a narrower one, only what reaches Xcode natively: any package's `ios/`, `darwin/` or `hook/`, every pubspec, the lockfile, the workflow and its actions.
 A Dart-only change in `rtc/`, `platform/` or `data/` compiles on every other platform's job first, and still runs this on `main` and on its release commit before anything publishes; what moved is only when it runs, never whether.
-CocoaPods is cached on the lockfiles, so a restore never mixes pods resolved from a different lockfile.
+There is no CocoaPods cache: the plugin tree is SPM-only and a measured `pod install` took 2.2 s.
 
 `flutter build ios --simulator --no-codesign --config-only` runs first because xcodebuild needs the generated Flutter config and the plugin registrant to exist before the project will open.
 `--config-only` writes them and runs pod install without compiling anything, so `xcodebuild build-for-testing` is the only simulator build.
