@@ -81,14 +81,19 @@ Future<void> _rejoinOrAsk(ProviderContainer container, String channelId) async {
 /// Takes [VoiceFlags], not the full state: every field this reads
 /// (`channelId`, `state`, `joining`) already lives there, and the roster has
 /// nothing to say about whether a re-click should rejoin.
+///
+/// A call live in another channel is left to `VoiceScreen`'s switch prompt,
+/// since joining here would hang it up without asking.
 bool voiceChannelTapShouldRejoin({
   required VoiceFlags voice,
   required String channelId,
   required bool alreadySelected,
 }) {
   if (!alreadySelected) return false;
-  if (voice.channelId != channelId) return true;
-  return voice.state != VoiceSessionState.connected &&
-      voice.state != VoiceSessionState.connecting &&
-      !voice.joining;
+  final live =
+      voice.state == VoiceSessionState.connected ||
+      voice.state == VoiceSessionState.connecting ||
+      voice.joining;
+  if (voice.channelId != channelId) return voice.channelId == null || !live;
+  return !live;
 }

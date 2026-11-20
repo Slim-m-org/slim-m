@@ -197,6 +197,26 @@ void main() {
     await s.dispose(tester);
   });
 
+  testWidgets('in another call, a second tap on the row still asks first', (
+    tester,
+  ) async {
+    final s = await pumpCallDetailsShell(
+      tester,
+      width: 1280,
+      callId: otherVoiceId,
+      location: '/channels',
+    );
+
+    for (var tap = 0; tap < 2; tap++) {
+      await tester.tap(find.text('hangout').first);
+      await pumpFrames(tester, frames: 20);
+      expect(_switchPrompt, findsOneWidget, reason: 'tap ${tap + 1}');
+    }
+    expect(s.tokenRequests, isEmpty, reason: 'nothing leaves until confirmed');
+    expect(s.container.read(voiceFlagsProvider).channelId, otherVoiceId);
+    await s.dispose(tester);
+  });
+
   testWidgets('View details again in the call reopens the closed details', (
     tester,
   ) async {
