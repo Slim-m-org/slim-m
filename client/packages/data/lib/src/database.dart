@@ -279,6 +279,10 @@ class Messages extends Table {
   /// Lets a deleted mention walk the channel's `mentionedSeq` back to the one before it.
   BoolColumn get mentionsMe => boolean().withDefault(const Constant(false))();
 
+  /// A catch-up edit op hit a held mention and carried no flag, so only the server's mention marker can say whether it survived.
+  BoolColumn get mentionUnsure =>
+      boolean().withDefault(const Constant(false))();
+
   /// True while the send is in flight. The UI shows these differently and they
   /// are replaced in place by the server's copy on acknowledgement.
   BoolColumn get pending => boolean().withDefault(const Constant(false))();
@@ -346,7 +350,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 33;
+  int get schemaVersion => 34;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -479,6 +483,8 @@ class SlimmDatabase extends _$SlimmDatabase {
           await _addColumnOnce(
               m, channelCategories, channelCategories.fileable);
         }),
+        _UpgradeStep(
+            34, () => _addColumnOnce(m, messages, messages.mentionUnsure)),
       ];
 
   /// How each schema version is reached. Most add a column in place that the
