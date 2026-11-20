@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The background sweeps [`crate::run`] spawns: expired tokens, orphaned
 //! attachments, canvas op compaction, stale voice calls and rings, and
-//! message retention. Split out of `lib.rs` to keep that file under the
+//! message and call transcript retention. Split out of `lib.rs` to keep that file under the
 //! review budget; every sweep here follows the same detached, best-effort,
 //! wait-first model [`spawn_token_sweep`] documents once.
 //!
@@ -26,12 +26,13 @@ use crate::{hub, media, store};
 ///
 /// Lives beside the intervals so the admin alerts, which read a missed run as a failing sweep,
 /// cannot drift from the schedule.
-pub(crate) const RECORDED_SWEEPS: [(&str, std::time::Duration); 5] = [
+pub(crate) const RECORDED_SWEEPS: [(&str, std::time::Duration); 6] = [
     ("token", TOKEN_SWEEP_INTERVAL),
     ("attachments", ATTACHMENT_SWEEP_INTERVAL),
     ("screen_stamps", ATTACHMENT_SWEEP_INTERVAL),
     ("canvas_ops", CANVAS_OP_SWEEP_INTERVAL),
     ("message_retention", MESSAGE_RETENTION_SWEEP_INTERVAL),
+    ("call_transcripts", MESSAGE_RETENTION_SWEEP_INTERVAL),
 ];
 
 /// Records that a sweep just ran, for the operator-visible storage view at
@@ -273,6 +274,7 @@ pub async fn run_transcript_retention_sweep_pass(store: &store::Store) -> u64 {
                     "deleted call transcripts past the retention window"
                 );
             }
+            record_sweep_run(store, "call_transcripts", removed as i64).await;
             removed
         }
         Err(err) => {

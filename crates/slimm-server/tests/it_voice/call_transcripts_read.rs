@@ -260,6 +260,13 @@ async fn the_sweep_removes_finished_transcripts_past_the_window_and_nothing_else
         slimm_server::run_transcript_retention_sweep_pass(&rig.store).await,
         1
     );
+    let recorded = rig.store.sweep_statuses().await.unwrap();
+    let run = recorded.iter().find(|s| s.name == "call_transcripts");
+    assert_eq!(
+        run.map(|s| s.last_reclaimed),
+        Some(1),
+        "the pass records its run"
+    );
     assert!(rig.store.call_transcript(old).await.unwrap().is_none());
     assert!(rig.store.call_transcript(fresh).await.unwrap().is_some());
     assert!(rig.store.call_transcript(running).await.unwrap().is_some());

@@ -182,6 +182,7 @@ String sweepLabel(String name) => switch (name) {
   'attachments' => 'Orphaned attachments',
   'canvas_ops' => 'Canvas history',
   'message_retention' => 'Message retention',
+  'call_transcripts' => 'Call transcript retention',
   _ => name,
 };
 
@@ -198,6 +199,7 @@ String sweepSummary(api.SweepStatus sweep) {
     'token' => 'row(s) removed',
     'canvas_ops' => 'row(s) compacted',
     'message_retention' => 'message(s) pruned',
+    'call_transcripts' => 'transcript(s) removed',
     _ => 'reclaimed',
   };
   return '$ago, ${sweep.lastReclaimed} $unit';

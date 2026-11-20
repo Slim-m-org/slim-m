@@ -14920,7 +14920,8 @@ components:
           type: string
           description: >
             Stable snake_case identifier, for example `token`, `attachments`,
-            `screen_stamps`, `canvas_ops`, `message_retention`.
+            `screen_stamps`, `canvas_ops`, `message_retention`,
+            `call_transcripts`.
         last_run_at:
           type: integer
           description: Unix milliseconds of the sweep's most recent pass.
