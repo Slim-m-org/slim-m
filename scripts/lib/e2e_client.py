@@ -18,6 +18,7 @@ import time
 
 import e2e_api
 import e2e_js
+import e2e_labels as L
 
 TIMEOUT = 90
 # How long the tree must hold still, and the least wait before looking, in [Client.settle].
@@ -233,13 +234,16 @@ class Client:
         return json.loads(raw or "[]")
 
     def find(self, label, field=None, exact=False):
-        """The first node whose label holds `label`, or with `exact` starts with it as a whole word (a short label like "Pan" sits inside "Expand")."""
-        wanted = label.lower()
+        """The first node whose label holds `label` (a string, or a compiled pattern it matches),
+        or with `exact` starts with the string as a whole word (a short label like "Pan" sits inside "Expand")."""
         for n in self.nodes():
             if field is not None and n.get("field") != field:
                 continue
             text = n["t"].lower()
-            if (re.match(rf"{re.escape(wanted)}(?![a-z])", text) if exact else (wanted in text)):
+            if exact:
+                if re.match(rf"{re.escape(label.lower())}(?![a-z])", text):
+                    return n
+            elif L.holds(text, label):
                 return n
         return None
 
@@ -250,17 +254,19 @@ class Client:
             if n:
                 return n
             time.sleep(POLL_SECONDS)
-        self.shot(f"missing-{label[:20].replace(' ', '-')}")
-        print(f"  {self.name}: elements holding {label!r}: {self.ev(e2e_js.holders(label))}")
-        raise AssertionError(f"{self.name}: never saw {label!r}")
+        named = L.shown(label)
+        self.shot(f"missing-{re.sub(r'[^A-Za-z0-9]+', '-', named[:20])}")
+        print(f"  {self.name}: elements holding {named!r}: {self.ev(e2e_js.holders(named))}")
+        raise AssertionError(f"{self.name}: never saw {named!r}")
 
     def never_shows(self, label, seconds):
         """Fails if `label` shows at any sample over `seconds`: one look passes what appears a moment late."""
         deadline = time.time() + seconds
         while time.time() < deadline:
             if self.find(label):
-                self.shot(f"unwanted-{label[:20].replace(' ', '-')}")
-                raise AssertionError(f"{self.name}: {label!r} showed")
+                named = L.shown(label)
+                self.shot(f"unwanted-{re.sub(r'[^A-Za-z0-9]+', '-', named[:20])}")
+                raise AssertionError(f"{self.name}: {named!r} showed")
             time.sleep(POLL_SECONDS)
 
     def wheel_until(self, anchor, target, step=300, tries=8):

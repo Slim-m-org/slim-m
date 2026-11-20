@@ -96,6 +96,17 @@ def wait_for_videos(probe, sids, count, timeout=45):
         f"{len(seen)} of {probe.videos()}")
 
 
+def _own_preview_and_the_other(probe, sids, own_id):
+    """The sharer's local capture plus the other's share from the SFU, never their own sent back."""
+    seen = wait_for_videos(probe, list(sids.values()), 2)
+    local = [v for v in seen if v.get("display")]
+    remote = [v for v in seen if not v.get("display")]
+    other = next(sid for who, sid in sids.items() if who != own_id)
+    assert len(local) == 1, f"{probe.client.name}: {len(local)} local previews in {seen}"
+    assert len(remote) == 1 and other in remote[0]["sfu"], \
+        f"{probe.client.name}: the remote tile is not the other's share: {seen}"
+
+
 def _area(video):
     return video["boxW"] * video["boxH"]
 
@@ -145,10 +156,11 @@ def _three_way(a, b, c, server, secret, sign_in, room_id, bob_id):
                           for v in seen))
         c.wait_for(ALICE_SCREEN)
         c.wait_for("Bob's screen")
-        # Decision 0114: your own share is a Stop sharing tile, never a live copy of your screen.
-        wait_for_videos(pa, every, 1)
-        wait_for_videos(pb, every, 1)
-        print("  alice and bob each decode the other's share, and not their own")
+        # Decision 0114, amended 2026-11-18: your own share shows its live local preview.
+        alice_id = next(who for who in sids if who != bob_id)
+        _own_preview_and_the_other(pa, sids, alice_id)
+        _own_preview_and_the_other(pb, sids, bob_id)
+        print("  alice and bob each decode their own preview and the other's share")
 
         # The newest share already takes the big slot (decision 0114), so measure the focused share itself.
         alice_sid = next(sid for who, sid in sids.items() if who != bob_id)

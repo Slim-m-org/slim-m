@@ -18,6 +18,10 @@ import 'voice_controller.dart';
 void startDmCall(T Function<T>(ProviderListenable<T>) read, String channelId) {
   final startingFresh = read(voiceControllerProvider).channelId != channelId;
   final callIsLive = read(dmCallActivityProvider)[channelId] ?? false;
+  // A press on Call is never the stale rejoin VoiceState.rejoinGuardWindow holds back.
+  if (startingFresh) {
+    read(voiceControllerProvider.notifier).forgetJustLeft(channelId);
+  }
   read(dmCallOpenProvider.notifier).state = channelId;
   if (startingFresh && !callIsLive) {
     unawaited(

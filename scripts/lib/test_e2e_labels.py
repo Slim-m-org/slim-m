@@ -84,5 +84,22 @@ class LabelsStillExistTest(unittest.TestCase):
             "renamed or removed and the harness needs updating to match")
 
 
+class InCallIsTheHeaderCountTest(unittest.TestCase):
+    """`L.IN_CALL` once matched the idle page's timeline legend, so a join that never happened passed."""
+
+    def test_the_call_header_count_matches(self):
+        for text in ("2 in call", "1 in call \u00b7 00:03 \u00b7 4 ms", "lounge\n3 in call"):
+            self.assertTrue(L.holds(text, L.IN_CALL), text)
+
+    def test_the_legend_and_settings_prose_do_not(self):
+        for text in ("in call", "in call\nsharing\nleft", "Your mic indicator stays on in calls.",
+                     "Calling\u2026", "in this call with you"):
+            self.assertFalse(L.holds(text, L.IN_CALL), text)
+
+    def test_a_plain_label_is_still_a_case_blind_substring(self):
+        self.assertTrue(L.holds("Leave call", "leave CALL"))
+        self.assertFalse(L.holds("Leave", "Leave call"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -11,6 +11,7 @@
 #ifndef SourceDir
   #error SourceDir is required: pass /DSourceDir=<release folder with slim-m.exe>
 #endif
+#define AppMutexName "Local\top.npcserver.slimm.instance"
 
 [Setup]
 AppId={{6F1D2B5E-3C0A-4E7B-9A52-5D8E1C4B7A30}
@@ -18,7 +19,7 @@ AppName=slim-m
 AppVersion={#AppVersion}
 AppPublisher=slim-m
 SetupIconFile=..\..\client\packages\app\windows\runner\resources\app_icon.ico
-AppMutex=Local\top.npcserver.slimm.instance
+AppMutex={#AppMutexName}
 DefaultDirName={localappdata}\slim-m
 DisableDirPage=yes
 DisableProgramGroupPage=yes
@@ -51,6 +52,9 @@ Root: HKCU; Subkey: "Software\Classes\slimm"; ValueType: string; ValueData: "URL
 Root: HKCU; Subkey: "Software\Classes\slimm"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
 Root: HKCU; Subkey: "Software\Classes\slimm\DefaultIcon"; ValueType: string; ValueData: "{app}\slim-m.exe,0"
 Root: HKCU; Subkey: "Software\Classes\slimm\shell\open\command"; ValueType: string; ValueData: """{app}\slim-m.exe"" ""%1"""
+; The app registers its notification identity when it first shows a toast, and Windows keeps that id's notification settings; neither is created here, both go on uninstall.
+Root: HKCU; Subkey: "Software\Classes\AppUserModelId\top.npcserver.slimm"; Flags: uninsdeletekey dontcreatekey
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\top.npcserver.slimm"; Flags: uninsdeletekey dontcreatekey
 
 [UninstallDelete]
 ; The in-app YouTube player's WebView2 profile (decision 0128); nothing else writes there.
@@ -127,9 +131,45 @@ begin
       RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'slim-m');
 end;
 
-// The app's own data lives under %APPDATA%, outside this folder, and stays.
+// A copy in the tray holds the instance mutex, and closing its window only hides it; a forced stop is safe for its WAL database.
+// Called at usAppMutexCheck, after the person confirmed and before the mutex check, so answering No leaves slim-m running.
+procedure CloseRunningApp;
+var
+  Code, Waited: Integer;
+begin
+  if CheckForMutexes('{#AppMutexName}') then
+  begin
+    Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /T /IM slimm_app.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+    Waited := 0;
+    while CheckForMutexes('{#AppMutexName}') and (Waited < 10000) do
+    begin
+      Sleep(250);
+      Waited := Waited + 250;
+    end;
+  end;
+end;
+
+// The app's data (sign-in, local databases, settings, caches) lives under %APPDATA%; only an interactive uninstall that says yes removes it.
+procedure OfferToRemoveData;
+var
+  Data: String;
+begin
+  Data := ExpandConstant('{userappdata}\top.npcserver\slim-m');
+  if UninstallSilent or not DirExists(Data) then
+    exit;
+  if SuppressibleMsgBox('Also remove your slim-m data on this PC?' + #13#10#13#10 +
+      'This signs you out here and deletes cached messages and settings. Your account and messages on the server are not affected.',
+      mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES then
+  begin
+    DelTree(Data, True, True, True);
+    RemoveDir(ExpandConstant('{userappdata}\top.npcserver'));
+  end;
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
+  if CurUninstallStep = usAppMutexCheck then
+    CloseRunningApp;
   if CurUninstallStep = usPostUninstall then
   begin
     DeleteMatching('app-*');
@@ -148,5 +188,6 @@ begin
     DeleteMatching('.launcher.lock');
     RemoveLoginStart;
     RemoveDir(ExpandConstant('{app}'));
+    OfferToRemoveData;
   end;
 end;

@@ -49,7 +49,7 @@ class TimedJoin(unittest.TestCase):
     ROWS = [{"t": "Manage lounge", "x": 1, "y": 1}, {"t": "lounge\n1", "x": 50, "y": 60}]
 
     def test_the_row_not_the_manage_kebab_is_tapped_after_the_watch_and_the_click_log(self):
-        events = [_label(L.IN_CALL), {"n": "first-packet", "t": 2.0}, {"n": "first-energy", "t": 3.0}]
+        events = [_label(L.IN_CALL.pattern), {"n": "first-packet", "t": 2.0}, {"n": "first-energy", "t": 3.0}]
         client = StubClient(events, self.ROWS)
         got = xp.timed_join(client, timeout=1)
         self.assertEqual(got, events)
@@ -63,9 +63,9 @@ class TimedJoin(unittest.TestCase):
                 xp.timed_join(client, timeout=0.05)
 
     def test_a_call_that_shows_without_audio_still_returns_its_events(self):
-        client = StubClient([_label(L.IN_CALL)], self.ROWS)
+        client = StubClient([_label(L.IN_CALL.pattern)], self.ROWS)
         got = xp.timed_join(client, timeout=0.05)
-        self.assertEqual(got, [_label(L.IN_CALL)])
+        self.assertEqual(got, [_label(L.IN_CALL.pattern)])
 
 
 if __name__ == "__main__":

@@ -44,6 +44,21 @@ import e2e_labels as L
 from e2e_voice import participants_with_mics, sfu_participants, tracks_of
 
 
+def _press_call(client, timeout=30):
+    """The header's Call button: the topmost node named just "Call", since a call record in the transcript is one too."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        named = [n for n in client.nodes() if n["t"] == L.DM_CALL]
+        if named:
+            header = min(named, key=lambda n: n["y"])
+            client.tap(header["x"], header["y"])
+            client.settle(2)
+            return
+        time.sleep(0.25)
+    client.shot("no-call-button")
+    raise AssertionError(f"{client.name}: no {L.DM_CALL!r} button in the DM header")
+
+
 def start_dm_and_call(a, b, admin_api, member_api):
     """Alice starts a DM with Bob, then both hold and leave a call in it."""
     existing = next(
@@ -82,9 +97,11 @@ def start_dm_and_call(a, b, admin_api, member_api):
     print("  and the message alice sent is live in it")
 
     room_id = f'channel-{channel_id}'
-    for c in (a, b):
-        c.click(L.DM_CALL, settle=2)
-        c.wait_for(L.IN_CALL)
+    # The caller is connected and ringing, which her header says instead of a count.
+    _press_call(a)
+    a.wait_for(L.CALLING)
+    _press_call(b)
+    b.wait_for(L.IN_CALL)
     for c in (a, b):
         c.wait_for('2 in call')
     a.shot('dm-in-call')
@@ -118,13 +135,12 @@ def a_missed_call_shows_up_in_the_dm(a, b, admin_api, member_api):
     with no request behind it and the one a person actually hits. That is what
     the long wait below buys.
 
-    Alice rings through the API rather than by clicking her own call button.
-    Two earlier drafts failed on her UI state rather than on the product:
-    leaving a call leaves you on that call's recap pane, and a second click on
-    the call button while that pane is open closes the pane instead of ringing
-    (`dm_call_button.dart`'s `_toggle`). Her ringing is setup here; what is
-    under test is what Bob's transcript says afterwards, so the setup should
-    be the part that cannot wobble.
+    Alice rings by pressing her own call button, since a ring only goes out
+    once its caller is in the call (`voice/ring/mod.rs`): a ring started
+    through the API with nobody in the room is canceled, not missed. She goes
+    back to the messages first, because leaving a call leaves you on its recap
+    pane, and a click on the call button while that pane is open closes the
+    pane instead of ringing (`dm_call_button.dart`'s `_toggle`).
 
     Bob is asserted in the UI because Bob is the one who missed the call.
     Alice's own "No answer" wording is `call_record_view_test.dart`'s job,
@@ -147,10 +163,12 @@ def a_missed_call_shows_up_in_the_dm(a, b, admin_api, member_api):
     print('  bob is out of the call and back on the transcript')
     before = len(call_records())
 
-    ring = admin_api.call('POST', f'/channels/{channel_id}/voice/ring')
-    assert ring and ring.get('ring_id'), f'alice never got a ring started: {ring}'
-    print(f"  alice is ringing bob, who is not going to answer "
-          f"({ring['timeout_ms']}ms to go)")
+    if a.find(L.DM_CALL_BACK):
+        a.click(L.DM_CALL_BACK, settle=2)
+    a.wait_for(L.COMPOSER)
+    _press_call(a)
+    a.wait_for(L.CALLING)
+    print("  alice is in the call ringing bob, who is not going to answer")
 
     # RING_TIMEOUT is 30s and the sweep ticks every 2s; the rest is slack.
     b.wait_for(L.MISSED_CALL, timeout=75)
