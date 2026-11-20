@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
+import 'package:slimm_app/src/features/voice/providers/video_pause.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -25,14 +26,31 @@ const _ada = VoiceParticipant(
 const _feed = Key('feed');
 final _avatar = find.byWidgetPredicate((w) => w is UserAvatar);
 
-Widget _tile(FirstFrameTracker? tracker) => ProviderScope(
-  overrides: [userProfileProvider('u-ada').overrideWith((ref) async => null)],
+const _me = VoiceParticipant(
+  identity: 'u-ada',
+  name: 'Ada',
+  isSpeaking: false,
+  isMuted: false,
+  isLocal: true,
+  isScreenSharing: false,
+  isCameraOn: true,
+);
+
+Widget _tile(
+  FirstFrameTracker? tracker, {
+  VoiceParticipant participant = _ada,
+  bool previewPaused = false,
+}) => ProviderScope(
+  overrides: [
+    userProfileProvider('u-ada').overrideWith((ref) async => null),
+    localPreviewPausedProvider.overrideWithValue(previewPaused),
+  ],
   child: MaterialApp(
     theme: buildTheme(Brightness.dark, AppTokens.dark),
     home: Scaffold(
       body: Center(
         child: CallParticipantTile(
-          participant: _ada,
+          participant: participant,
           cameraView: CameraFrameReporter(
             tracker: tracker,
             child: const SizedBox.expand(key: _feed),
@@ -84,5 +102,24 @@ void main() {
     await tester.pump();
 
     expect(tester.element(find.byKey(_feed)), same(before));
+  });
+
+  testWidgets('your own paused preview says paused, not starting', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_tile(null, participant: _me, previewPaused: true));
+    await tester.pump();
+
+    expect(find.byKey(cameraStartingKey), findsNothing);
+    expect(find.text('Preview paused in the background'), findsOneWidget);
+    expect(_avatar, findsOneWidget);
+  });
+
+  testWidgets('someone else\'s camera still says starting while yours is '
+      'paused', (tester) async {
+    await tester.pumpWidget(_tile(null, previewPaused: true));
+    await tester.pump();
+
+    expect(find.byKey(cameraStartingKey), findsOneWidget);
   });
 }
