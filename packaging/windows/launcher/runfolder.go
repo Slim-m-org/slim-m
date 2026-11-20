@@ -24,8 +24,8 @@ const (
 	// releaseTries spaced by releasePoll outlasts the runner's own 30 s wait for the copy a relaunch replaces.
 	releaseTries = 160
 	releasePoll  = 200 * time.Millisecond
-	// renameTries spaced by releasePoll covers a scanner briefly holding a file before the slower swap file by file.
-	renameTries = 5
+	// renameTries spaced by releasePoll gives a scanner or Explorer a few seconds to let go of a file in the run folder.
+	renameTries = 20
 )
 
 // The steps tests replace: they cannot run an exe from a folder or make a link or rename fail.
@@ -78,8 +78,37 @@ func linked(rel string, entry fs.DirEntry) (bool, error) {
 	return !strings.EqualFold(rel, launcherName), nil
 }
 
-// mirrors reports whether every file of src is the very same file under run.
+// mirrors reports whether run holds exactly src's files: each one the very
+// same file, and nothing else, since the exe's folder is searched first for DLLs.
 func mirrors(src, run string) bool {
+	return linksAll(src, run) && holdsOnly(run, src)
+}
+
+// holdsOnly reports whether every file under run is the same file as src's copy; empty folders do not count.
+func holdsOnly(run, src string) bool {
+	err := filepath.WalkDir(run, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return err
+		}
+		rel, err := filepath.Rel(run, path)
+		if err != nil {
+			return err
+		}
+		have, err := os.Lstat(path)
+		if err != nil {
+			return err
+		}
+		want, err := os.Lstat(filepath.Join(src, rel))
+		if err != nil || strings.EqualFold(rel, launcherName) || !os.SameFile(want, have) {
+			return errors.New(rel + " is not the version's file")
+		}
+		return nil
+	})
+	return err == nil
+}
+
+// linksAll reports whether every file of src is the very same file under run.
+func linksAll(src, run string) bool {
 	found := false
 	err := filepath.WalkDir(src, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
