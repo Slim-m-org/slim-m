@@ -103,7 +103,9 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       _reconcile();
       _rosterHold.recheck();
     });
-    _ref.listen(screenOverlaySupportProvider, (_, _) => _reconcile());
+    _ref.listen(screenOverlaySupportProvider, (_, _) {
+      if (!_refreshingSupport) _reconcile();
+    });
     localShareCapturedSize.addListener(_onCapturedSize);
     _ref.listen(voiceParticipantsAtOnce, (_, _) {
       _panel.sync();
@@ -139,6 +141,8 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   Timer? _heartbeat;
   bool _busy = false;
   bool _again = false;
+  // The pass that refreshed support reads the answer itself; rerunning on it would retry a failed show forever.
+  bool _refreshingSupport = false;
   String? _channelId;
   String? _selfId;
   double? _overlayAspect;
@@ -377,6 +381,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
 
   /// Asks the desktop again: a monitor plugged in, woken or resized since the app started would otherwise be covered by the old layout.
   Future<OverlaySupport> _freshSupport() async {
+    _refreshingSupport = true;
     _ref.invalidate(screenOverlaySupportProvider);
     try {
       return await _ref.read(screenOverlaySupportProvider.future);
@@ -388,6 +393,8 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
         stack,
       );
       return _support;
+    } finally {
+      _refreshingSupport = false;
     }
   }
 

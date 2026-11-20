@@ -35,6 +35,16 @@ void main() {
     });
   });
 
+  test('an overlay that fails to open is not asked again and again', () {
+    fakeAsync((async) {
+      final rig = OverlayRig()..overlay.showWorks = false;
+      async.flushMicrotasks();
+      expect(_state(rig).consenting, isTrue);
+      expect(rig.active, isFalse);
+      expect(rig.overlay.shown, hasLength(lessThanOrEqualTo(2)));
+    });
+  });
+
   test('a desktop that cannot host the overlay still allows drawing', () {
     fakeAsync((async) {
       final rig = OverlayRig(supported: false);
