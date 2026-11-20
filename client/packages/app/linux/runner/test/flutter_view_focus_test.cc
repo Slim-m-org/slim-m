@@ -120,6 +120,44 @@ void HidingAnUnfocusedWebviewLeavesFocusAlone() {
   gtk_widget_destroy(w.window);
 }
 
+void ARefusedWebviewCannotTakeTheKeyboard() {
+  Window w = Build();
+  gtk_widget_grab_focus(w.view);
+  flutter_view_focus_refuse(w.view, w.webview);
+  gtk_widget_grab_focus(w.webview);
+  CHECK(Focus(w) == w.view);
+  gtk_widget_destroy(w.window);
+}
+
+void ARefusedWebviewThatForcesFocusLosesItAtOnce() {
+  Window w = Build();
+  flutter_view_focus_refuse(w.view, w.webview);
+  gtk_widget_set_can_focus(w.webview, TRUE);
+  gtk_widget_grab_focus(w.webview);
+  CHECK(Focus(w) == w.view);
+  gtk_widget_destroy(w.window);
+}
+
+void RefusingTheFocusedWebviewHandsTheKeyboardBack() {
+  Window w = Build();
+  gtk_widget_grab_focus(w.webview);
+  flutter_view_focus_refuse(w.view, w.webview);
+  CHECK(Focus(w) == w.view);
+  gtk_widget_destroy(w.window);
+}
+
+void ARefusedWebviewLeavesOtherWidgetsTheirFocus() {
+  Window w = Build();
+  GtkWidget* other = gtk_entry_new();
+  gtk_overlay_add_overlay(GTK_OVERLAY(gtk_widget_get_parent(w.view)), other);
+  gtk_widget_show(other);
+  Settle();
+  flutter_view_focus_refuse(w.view, w.webview);
+  gtk_widget_grab_focus(other);
+  CHECK(Focus(w) == other);
+  gtk_widget_destroy(w.window);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -128,6 +166,10 @@ int main(int argc, char** argv) {
   APressInTheWebviewLeavesItTheKeyboard();
   HidingTheFocusedWebviewHandsTheKeyboardBack();
   HidingAnUnfocusedWebviewLeavesFocusAlone();
+  ARefusedWebviewCannotTakeTheKeyboard();
+  ARefusedWebviewThatForcesFocusLosesItAtOnce();
+  RefusingTheFocusedWebviewHandsTheKeyboardBack();
+  ARefusedWebviewLeavesOtherWidgetsTheirFocus();
   if (g_failures == 0) std::printf("flutter_view_focus_test: ok\n");
   return g_failures == 0 ? 0 : 1;
 }

@@ -15,6 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../external_link.dart';
 import '../../../routing/modal_page.dart' show kScrimColor;
 import '../../../widgets/text_link.dart';
+import '../../video/widgets/desktop_inline_video.dart';
 import '../../video/widgets/inline_video_player.dart';
 import '../providers/media_preferences.dart';
 import 'attachment_reveal.dart';
@@ -31,6 +32,7 @@ class LinkPreviewBody extends StatelessWidget {
     required this.onReveal,
     required this.playing,
     required this.onPlay,
+    this.playingOnDesktop = false,
     this.playingInPanel = false,
   });
 
@@ -45,6 +47,9 @@ class LinkPreviewBody extends StatelessWidget {
   /// Whether the inline player has replaced a video's thumbnail.
   final bool playing;
   final VoidCallback onPlay;
+
+  /// Whether the desktop's shared player shows this video here.
+  final bool playingOnDesktop;
 
   /// Whether this video is the one playing in the desktop panel.
   final bool playingInPanel;
@@ -108,6 +113,7 @@ class LinkPreviewBody extends StatelessWidget {
               revealed: revealed,
               onReveal: onReveal,
               playing: playing,
+              playingOnDesktop: playingOnDesktop,
               playingInPanel: playingInPanel,
               onPlay: onPlay,
             ),
@@ -160,8 +166,9 @@ const _youtubeAllow =
 
 /// The preview's media area: a static thumbnail for an ordinary link, or,
 /// for a recognized video, the same thumbnail under a play glyph (tap calls
-/// [onPlay]) that becomes the inline player once [playing], or says the
-/// video is in the desktop panel while [playingInPanel]. The
+/// [onPlay]) that becomes the inline player once [playing] or
+/// [playingOnDesktop], or says the video is in the desktop panel while
+/// [playingInPanel], where a tap brings it back here. The
 /// auto-download reveal gate below applies to the thumbnail exactly as it
 /// always has - the click-to-play affordance is a second, separate action on
 /// top of it, never a way around it.
@@ -172,6 +179,7 @@ class _LinkPreviewMedia extends ConsumerWidget {
     required this.revealed,
     required this.onReveal,
     required this.playing,
+    required this.playingOnDesktop,
     required this.playingInPanel,
     required this.onPlay,
   });
@@ -181,11 +189,15 @@ class _LinkPreviewMedia extends ConsumerWidget {
   final bool revealed;
   final VoidCallback onReveal;
   final bool playing;
+  final bool playingOnDesktop;
   final bool playingInPanel;
   final VoidCallback onPlay;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (playingOnDesktop) {
+      return DesktopInlineVideo(url: url, maxWidth: kInlineImageMax);
+    }
     final videoId = preview.videoId;
     if (playing && !kIsWeb && preview.isPlayableVideo && videoId != null) {
       return InlineVideoPlayer(
@@ -229,19 +241,16 @@ class _LinkPreviewMedia extends ConsumerWidget {
         : LinkPreviewThumbnail(token: token, url: url);
     if (!preview.isPlayableVideo) return thumbnail;
 
-    if (playingInPanel) {
-      return Stack(
-        alignment: Alignment.center,
-        children: [thumbnail, const _InPanelBadge()],
-      );
-    }
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: onPlay,
         child: Stack(
           alignment: Alignment.center,
-          children: [thumbnail, const _PlayGlyph()],
+          children: [
+            thumbnail,
+            if (playingInPanel) const _InPanelBadge() else const _PlayGlyph(),
+          ],
         ),
       ),
     );
@@ -300,7 +309,8 @@ class _PlayGlyph extends StatelessWidget {
 }
 
 /// Stands where the play glyph was while the video plays in the desktop
-/// panel, so the reader can see which message is on screen beside them.
+/// panel, so the reader can see which message is on screen beside them; a
+/// tap brings the video back into this message.
 class _InPanelBadge extends StatelessWidget {
   const _InPanelBadge();
 

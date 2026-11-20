@@ -2,31 +2,27 @@
 #ifndef RUNNER_YOUTUBE_PLAYER_GEOMETRY_H_
 #define RUNNER_YOUTUBE_PLAYER_GEOMETRY_H_
 
-#include <cmath>
+#include <cstdlib>
 #include <string>
 
-/// The YouTube panel's pure rules, kept free of Windows headers so
+/// The YouTube player's pure rules, kept free of Windows headers so
 /// test/runner_logic_test.cpp can run them anywhere.
 namespace slimm {
 
-struct PixelRect {
-  long left = 0;
-  long top = 0;
-  long right = 0;
-  long bottom = 0;
+/// One press of the primary button: when, and where in physical pixels.
+struct Click {
+  unsigned long long time_ms = 0;
+  long x = 0;
+  long y = 0;
 };
 
-// Flutter sends logical pixels; WebView2 bounds are physical, at the view's DPI.
-inline PixelRect ToPhysical(double x, double y, double width, double height,
-                            double scale) {
-  if (!(scale > 0)) scale = 1;
-  if (!(width > 0) || !(height > 0)) return PixelRect{};
-  PixelRect rect;
-  rect.left = std::lround(x * scale);
-  rect.top = std::lround(y * scale);
-  rect.right = std::lround((x + width) * scale);
-  rect.bottom = std::lround((y + height) * scale);
-  return rect;
+// Two presses make a double click within the system's time and distance; a cleared [previous] never does.
+inline bool IsDoubleClick(const Click& previous, const Click& now,
+                          unsigned long long max_ms, long max_dx, long max_dy) {
+  if (previous.time_ms == 0 || now.time_ms < previous.time_ms) return false;
+  return now.time_ms - previous.time_ms <= max_ms &&
+         std::labs(now.x - previous.x) <= max_dx / 2 &&
+         std::labs(now.y - previous.y) <= max_dy / 2;
 }
 
 constexpr const wchar_t* kYoutubeHostOrigin = L"https://top.npcserver.slimm/";

@@ -136,5 +136,5 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0125](0125-private-categories.md) | A category is made private with a switch, and says who can see it | accepted |
 | [0126](0126-only-the-author-edits.md) | Only a message's author can edit it; moderators delete instead | accepted |
 | [0127](0127-canvas-spectators.md) | A member who cannot draw spectates the canvas | accepted |
-| [0128](0128-in-app-youtube-player.md) | YouTube links play in the app: in place on phones, in a docked panel on desktop | accepted |
+| [0128](0128-in-app-youtube-player.md) | YouTube links play in the app, in place in the message; on desktop a playing video moves to a panel when its message leaves | accepted |
 | [0129](0129-server-logging-modes.md) | One server logging component, three modes an admin switches live, and log files that survive a redeploy | accepted |

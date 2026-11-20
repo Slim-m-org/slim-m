@@ -81,14 +81,19 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|arm64|aarch64")
 else()
   set(WEBVIEW2_ARCH "x64")
 endif()
-add_library(youtube_player_win STATIC "youtube_player_win.cpp")
+# The visual capture is C++/WinRT and throws, so it shares this library's exceptions-on build.
+add_library(youtube_player_win STATIC "youtube_player_win.cpp" "youtube_player_capture.cpp")
 target_compile_features(youtube_player_win PUBLIC cxx_std_17)
 target_compile_definitions(youtube_player_win PRIVATE "NOMINMAX" "UNICODE" "_UNICODE")
 target_include_directories(youtube_player_win PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(youtube_player_win PRIVATE "${WEBVIEW2_DIR}/build/native/include")
+if(CPPWINRT_DIRS)
+  target_include_directories(youtube_player_win PRIVATE "${CPPWINRT_LATEST}")
+endif()
 target_link_libraries(youtube_player_win PUBLIC
   "${WEBVIEW2_DIR}/build/native/${WEBVIEW2_ARCH}/WebView2LoaderStatic.lib"
-  "shlwapi" "shell32" "ole32" "advapi32" "version")
+  "shlwapi" "shell32" "ole32" "advapi32" "version"
+  "windowsapp" "d3d11" "dxgi" "CoreMessaging")
 
 # Apply the standard set of build settings. This can be removed for applications
 # that need different build settings.

@@ -9,9 +9,12 @@
 #include <WebView2.h>
 #include <WebView2EnvironmentOptions.h>
 
+#include <algorithm>
+#include <cmath>
 #include <memory>
 #include <utility>
 
+#include "youtube_player_capture.h"
 #include "youtube_player_geometry.h"
 
 namespace slimm_youtube {
@@ -30,13 +33,20 @@ constexpr const wchar_t* kBrowserArguments =
 
 struct State {
   HWND parent = nullptr;
+  ComPtr<IDXGIAdapter> adapter;
   ComPtr<ICoreWebView2Environment> environment;
+  ComPtr<ICoreWebView2CompositionController> composition;
   ComPtr<ICoreWebView2Controller> controller;
   ComPtr<ICoreWebView2> webview;
+  std::shared_ptr<VisualCapture> capture;
   std::string html;
   MessageHandler on_message;
-  RECT bounds = {0, 0, 0, 0};
-  bool visible = false;
+  std::function<void()> on_frame;
+  UINT width = 0;
+  UINT height = 0;
+  double scale = 1;
+  bool left_down = false;
+  slimm::Click last_click;
   bool fullscreen = false;
   // Bumped on every Create and Destroy, so a late callback for an old view does nothing.
   int generation = 0;
@@ -86,14 +96,17 @@ void Send(const std::string& json) {
   if (g.on_message) g.on_message(json);
 }
 
+// The page renders at Dart's size and scale into the captured visual, never onto the window.
 void Apply() {
   if (!g.controller) return;
-  RECT rect = g.bounds;
-  if (g.fullscreen) GetClientRect(g.parent, &rect);
+  ComPtr<ICoreWebView2Controller3> controller3;
+  if (SUCCEEDED(g.controller.As(&controller3))) {
+    controller3->put_RasterizationScale(g.scale);
+  }
+  RECT rect = {0, 0, static_cast<LONG>(g.width), static_cast<LONG>(g.height)};
   g.controller->put_Bounds(rect);
-  bool show = g.fullscreen ||
-              (g.visible && rect.right > rect.left && rect.bottom > rect.top);
-  g.controller->put_IsVisible(show ? TRUE : FALSE);
+  if (g.capture) g.capture->Resize(g.width, g.height);
+  g.controller->put_IsVisible(g.width > 0 && g.height > 0 ? TRUE : FALSE);
 }
 
 void ServeHostPage(ICoreWebView2WebResourceRequestedEventArgs* args) {
@@ -214,19 +227,44 @@ void Configure(ICoreWebView2* webview) {
   }
 }
 
-void OnController(int generation, ICoreWebView2Controller* controller,
+void Close(ICoreWebView2CompositionController* composition) {
+  ComPtr<ICoreWebView2Controller> controller;
+  if (composition != nullptr &&
+      SUCCEEDED(composition->QueryInterface(IID_PPV_ARGS(&controller)))) {
+    controller->Close();
+  }
+}
+
+void OnController(int generation, ICoreWebView2CompositionController* composition,
                   const std::function<void(bool)>& done) {
-  if (generation != g.generation || controller == nullptr) {
-    if (controller != nullptr) controller->Close();
+  if (generation != g.generation || composition == nullptr) {
+    Close(composition);
     done(false);
     return;
   }
-  g.controller = controller;
+  // Flutter's raster thread reads it through Latest, so it is swapped atomically.
+  std::atomic_store(&g.capture,
+                    VisualCapture::Create(g.adapter.Get(), g.on_frame));
+  if (!g.capture ||
+      FAILED(composition->put_RootVisualTarget(g.capture->RootVisual())) ||
+      FAILED(composition->QueryInterface(IID_PPV_ARGS(&g.controller)))) {
+    std::atomic_store(&g.capture, std::shared_ptr<VisualCapture>());
+    Close(composition);
+    done(false);
+    return;
+  }
+  g.composition = composition;
   g.controller->get_CoreWebView2(&g.webview);
   ComPtr<ICoreWebView2Controller2> controller2;
   if (SUCCEEDED(g.controller.As(&controller2))) {
     COREWEBVIEW2_COLOR black = {255, 0, 0, 0};
     controller2->put_DefaultBackgroundColor(black);
+  }
+  // Dart says the scale with each size, since the visual never sits on a monitor.
+  ComPtr<ICoreWebView2Controller3> controller3;
+  if (SUCCEEDED(g.controller.As(&controller3))) {
+    controller3->put_ShouldDetectMonitorScaleChanges(FALSE);
+    controller3->put_BoundsMode(COREWEBVIEW2_BOUNDS_MODE_USE_RAW_PIXELS);
   }
   Configure(g.webview.Get());
   Wire(g.webview.Get());
@@ -236,27 +274,29 @@ void OnController(int generation, ICoreWebView2Controller* controller,
 }
 
 void CreateController(int generation, std::function<void(bool)> done) {
-  auto completed =
-      Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
-          [generation, done](HRESULT result,
-                             ICoreWebView2Controller* controller) {
-            OnController(generation, SUCCEEDED(result) ? controller : nullptr,
-                         done);
-            return S_OK;
-          });
+  auto completed = Callback<
+      ICoreWebView2CreateCoreWebView2CompositionControllerCompletedHandler>(
+      [generation, done](HRESULT result,
+                         ICoreWebView2CompositionController* composition) {
+        OnController(generation, SUCCEEDED(result) ? composition : nullptr,
+                     done);
+        return S_OK;
+      });
   ComPtr<ICoreWebView2Environment10> environment10;
   ComPtr<ICoreWebView2ControllerOptions> options;
   if (SUCCEEDED(g.environment.As(&environment10)) &&
       SUCCEEDED(environment10->CreateCoreWebView2ControllerOptions(&options))) {
     // Nothing the player stores outlives it, in keeping with youtube-nocookie.
     options->put_IsInPrivateModeEnabled(TRUE);
-    if (SUCCEEDED(environment10->CreateCoreWebView2ControllerWithOptions(
+    if (SUCCEEDED(environment10->CreateCoreWebView2CompositionControllerWithOptions(
             g.parent, options.Get(), completed.Get()))) {
       return;
     }
   }
-  if (FAILED(g.environment->CreateCoreWebView2Controller(g.parent,
-                                                         completed.Get()))) {
+  ComPtr<ICoreWebView2Environment3> environment3;
+  if (FAILED(g.environment.As(&environment3)) ||
+      FAILED(environment3->CreateCoreWebView2CompositionController(
+          g.parent, completed.Get()))) {
     done(false);
   }
 }
@@ -268,15 +308,18 @@ bool RuntimeAvailable() {
   HRESULT result = GetAvailableCoreWebView2BrowserVersionString(nullptr, &version);
   bool available = SUCCEEDED(result) && version != nullptr;
   CoTaskMemFree(version);
-  return available;
+  return available && VisualCapture::Supported();
 }
 
-void Create(HWND parent, const std::string& html, MessageHandler on_message,
+void Create(HWND parent, IDXGIAdapter* adapter, const std::string& html,
+            MessageHandler on_message, std::function<void()> on_frame,
             std::function<void(bool)> done) {
   Destroy();
   g.parent = parent;
+  g.adapter = adapter;
   g.html = html;
   g.on_message = std::move(on_message);
+  g.on_frame = std::move(on_frame);
   int generation = g.generation;
   if (g.environment) {
     CreateController(generation, std::move(done));
@@ -303,14 +346,50 @@ void Create(HWND parent, const std::string& html, MessageHandler on_message,
   if (FAILED(result)) done(false);
 }
 
-void SetBounds(RECT physical) {
-  g.bounds = physical;
+void Resize(double width, double height, double scale) {
+  g.scale = scale > 0 ? scale : 1;
+  g.width = static_cast<UINT>(std::lround(std::max(width, 0.0) * g.scale));
+  g.height = static_cast<UINT>(std::lround(std::max(height, 0.0) * g.scale));
   Apply();
 }
 
-void SetVisible(bool visible) {
-  g.visible = visible;
-  Apply();
+void Pointer(PointerKind kind, double x, double y) {
+  if (!g.composition) return;
+  POINT point = {std::lround(x * g.scale), std::lround(y * g.scale)};
+  COREWEBVIEW2_MOUSE_EVENT_KIND event = COREWEBVIEW2_MOUSE_EVENT_KIND_MOVE;
+  switch (kind) {
+    case PointerKind::kEnter:
+    case PointerKind::kMove:
+      break;
+    case PointerKind::kLeave:
+      event = COREWEBVIEW2_MOUSE_EVENT_KIND_LEAVE;
+      break;
+    case PointerKind::kDown: {
+      // A hosted view gets no double click from Windows, so it is told one; YouTube fullscreens on it.
+      slimm::Click click = {GetTickCount64(), point.x, point.y};
+      bool twice = slimm::IsDoubleClick(
+          g.last_click, click, GetDoubleClickTime(),
+          GetSystemMetrics(SM_CXDOUBLECLK), GetSystemMetrics(SM_CYDOUBLECLK));
+      g.last_click = twice ? slimm::Click{} : click;
+      event = twice ? COREWEBVIEW2_MOUSE_EVENT_KIND_LEFT_BUTTON_DOUBLE_CLICK
+                    : COREWEBVIEW2_MOUSE_EVENT_KIND_LEFT_BUTTON_DOWN;
+      g.left_down = true;
+      break;
+    }
+    case PointerKind::kUp:
+      event = COREWEBVIEW2_MOUSE_EVENT_KIND_LEFT_BUTTON_UP;
+      g.left_down = false;
+      break;
+  }
+  COREWEBVIEW2_MOUSE_EVENT_VIRTUAL_KEYS keys =
+      g.left_down ? COREWEBVIEW2_MOUSE_EVENT_VIRTUAL_KEYS_LEFT_BUTTON
+                  : COREWEBVIEW2_MOUSE_EVENT_VIRTUAL_KEYS_NONE;
+  g.composition->SendMouseInput(event, keys, 0, point);
+}
+
+SharedFrame Latest() {
+  std::shared_ptr<VisualCapture> capture = std::atomic_load(&g.capture);
+  return capture ? capture->Latest() : SharedFrame{};
 }
 
 void Run(const std::string& script) {
@@ -320,12 +399,14 @@ void Run(const std::string& script) {
 void Destroy() {
   g.generation++;
   g.fullscreen = false;
-  g.visible = false;
+  g.left_down = false;
   g.webview.Reset();
+  g.composition.Reset();
   if (g.controller) {
     g.controller->Close();
     g.controller.Reset();
   }
+  std::atomic_store(&g.capture, std::shared_ptr<VisualCapture>());
 }
 
 }  // namespace slimm_youtube
