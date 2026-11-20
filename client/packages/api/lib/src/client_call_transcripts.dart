@@ -31,9 +31,11 @@ extension SlimmApiCallTranscripts on SlimmApi {
       send('DELETE', '/voice/transcripts/$id', expectNoContent: true);
 
   /// Lines matching [q] across every channel the reader may read, newest first.
+  /// Pass the last hit as [after] for the next page.
   Future<List<TranscriptHit>> searchTranscripts({
     required String q,
     int? before,
+    TranscriptHit? after,
     int? limit,
   }) async {
     final json = await send(
@@ -41,7 +43,12 @@ extension SlimmApiCallTranscripts on SlimmApi {
       '/search/transcripts',
       query: {
         'q': q,
-        if (before != null) 'before': '$before',
+        if (after != null) ...{
+          'before': '${after.at}',
+          'before_transcript_id': after.transcriptId,
+          'before_seq': '${after.seq}',
+        } else if (before != null)
+          'before': '$before',
         if (limit != null) 'limit': '$limit',
       },
     );
