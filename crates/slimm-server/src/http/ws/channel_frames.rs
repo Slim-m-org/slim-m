@@ -28,7 +28,7 @@ pub(super) fn to_frame(
             message_id: message_id.to_string(),
             op_seq,
         },
-        // No per-viewer derivation: the output is the same for everyone past the VIEW_CHANNEL gate above, so it is delivered as-is.
+        // No per-viewer derivation: the output is the same for everyone past `authorization::authorize_unstamped`'s VIEW_CHANNEL gate, so it is delivered as-is.
         Event::Message(MessageEvent::CodeRunChanged {
             channel_id,
             message_id,
@@ -279,7 +279,7 @@ pub(super) fn to_frame(
         | Event::Canvas(CanvasEvent::ObjectLockChanged { .. }) => {
             unreachable!("canvas_frames::to_frame")
         }
-        // The deployment-wide and channel-deletion cases already returned in `authorize_unstamped`.
+        // The deployment-wide and channel-deletion cases already answered by `deployment_frames::authorize`.
         Event::SessionRevoked(_)
         | Event::PresenceChanged(_)
         | Event::MemberTimeoutChanged { .. }

@@ -420,20 +420,11 @@ async fn unassign(
 
 // --- Shared checks ---
 
-/// Requires MANAGE_ROLES at the deployment level and returns the caller's
-/// full base permission set, so `grantable` can reuse it without a second
-/// lookup.
-///
-/// This is the *effective* set, which is what a verb gate wants: a moderator
-/// under a subtraction should not be managing roles while it is in force.
-/// The level comparison is a different question and reads
-/// [`caller_granted`] instead - the same split
-/// [`super::members::authorize`] makes, and for the same reason.
 /// The caller's granted (unmasked) permissions, for
 /// [`escalation_guard`]'s side of the comparison only.
 ///
-/// Separate from [`require_manage_roles`] deliberately, so the two questions
-/// stay two questions: whether the caller may act at all is effective, and
+/// Unlike [`require_manage_roles`], which reads the effective set, this keeps
+/// the two questions apart: whether the caller may act at all is effective, and
 /// whether they may act on *this* is granted. Reading the effective set here
 /// would be identical today, since nothing in `TIMEOUT_DENY` touches a
 /// role-management bit - and would silently become a hole the moment something

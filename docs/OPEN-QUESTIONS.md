@@ -400,7 +400,7 @@ The browser that comes back from Discord has no slim session, so only the app ca
 `GET /links/discord/callback` now links nothing.
 It trades the code, reads the Discord account and holds it as a pending link under a fresh one-time handoff code, whose hash is all the server keeps (`link_handoffs`, migration 0180).
 The starter never sees that code, which is what the state they hold could not give.
-The page it answers hands back to the app with an "Open slim-m" button on `slimm://discord-link?code=`, an "Open in browser" button on the web client's `/app/link/discord?code=` (shown only when `/app/version.json` answers), and the code itself to paste in Settings, Connections.
+The page it answers hands back to the app with an "Open slim-m" button on `slimm://discord-link?code=`, an "Open in browser" button on the web client's `/app/#/link/discord?code=` (shown only when `/app/version.json` answers), and the code itself to paste in Settings, Connections.
 `POST /me/links/discord/complete` finishes it with the app's own bearer.
 It links only when that bearer is the account that started the link, and any other caller gets a 404 that reads like a wrong or expired code and spends the pending link.
 A code works once and lives ten minutes, like the state.

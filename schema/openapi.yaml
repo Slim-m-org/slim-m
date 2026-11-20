@@ -1247,7 +1247,7 @@ paths:
       description: >
         The callback holds the Discord account it read under a one-time
         handoff code and shows it on a page that opens the app
-        (`slimm://discord-link?code=`, or `/app/link/discord?code=` in the web
+        (`slimm://discord-link?code=`, or `/app/#/link/discord?code=` in the web
         client) beside the code to paste. This links that account, and only
         when the caller is the member who started the link: any other caller
         gets 404 and the code is spent, as does a code that is wrong, expired
@@ -1376,7 +1376,7 @@ paths:
       description: >
         The same handoff as `completeDiscordLink`, for the SteamID the
         callback verified (`slimm://steam-link?code=`, or
-        `/app/link/steam?code=` in the web client). The new link starts with
+        `/app/#/link/steam?code=` in the web client). The new link starts with
         sharing off. 404 for a code that is wrong, expired, used or another
         member's; 409 when that Steam account is linked to someone else here.
       requestBody:
@@ -14014,7 +14014,6 @@ components:
             `@everyone` / `@here` mentions and refused with 400.
         display_name:
           type: string
-          minLength: 1
           maxLength: 64
           description: >
             Optional: absent or blank defaults to the username.
