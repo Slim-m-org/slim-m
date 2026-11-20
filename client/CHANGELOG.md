@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.132.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.131.0...client-v0.132.0) (2026-11-20)
+
+
+### Features
+
+* batch 34 - calls keep members LiveKit still has, mute icons for unjoined calls, lan signalling, follow-ups ([#2424](https://github.com/Slim-m-org/slim-m/issues/2424)) ([3132eb8](https://github.com/Slim-m-org/slim-m/commit/3132eb8c30b5fc808703ed4ec579c597106f380a))
+* batch 35 - xcode 27, sqlx 0.9, call and sync bug fixes, flaky e2e fixes ([#2427](https://github.com/Slim-m-org/slim-m/issues/2427)) ([889000b](https://github.com/Slim-m-org/slim-m/commit/889000b26c28da272facec18ff0ee55592caac86))
+* batch 37 - call rejoin and moved-call fixes, one search with filters, space debug logging, one firewall prompt on Windows ([#2435](https://github.com/Slim-m-org/slim-m/issues/2435)) ([9042a5e](https://github.com/Slim-m-org/slim-m/commit/9042a5e3ab3dd8630ed05258d528294a78c21cb0))
+* **client:** call details beside the call, and view a voice channel's details without joining ([#2429](https://github.com/Slim-m-org/slim-m/issues/2429)) ([3d09c76](https://github.com/Slim-m-org/slim-m/commit/3d09c765476462bd3ecac48c0e3c22e52329323f))
+* **client:** play youtube embeds in the app, inline on phones and web, in a docked panel on desktop ([#2430](https://github.com/Slim-m-org/slim-m/issues/2430)) ([68d7343](https://github.com/Slim-m-org/slim-m/commit/68d73437325efd1304d8f552c9cdd1d4f5cdf31a))
+* owner feedback after 0.131.0 - one-sided calls and connection details, screen review reworks, break-it fixes ([#2423](https://github.com/Slim-m-org/slim-m/issues/2423)) ([afd9ce6](https://github.com/Slim-m-org/slim-m/commit/afd9ce67c9d1fcde7685870a75afb3f05317a928))
+
+
+### Bug Fixes
+
+* **client:** keep relaying up to date information while the window is unfocused or hidden ([#2431](https://github.com/Slim-m-org/slim-m/issues/2431)) ([efb0360](https://github.com/Slim-m-org/slim-m/commit/efb03605136294bf95e0eb09c6e391f5985bdb63))
+* what the call, sync, permission, long-session and self-hosting audits found ([#2432](https://github.com/Slim-m-org/slim-m/issues/2432)) ([6cb59a2](https://github.com/Slim-m-org/slim-m/commit/6cb59a2f5f611b3bc8842cd9ba11e5c399440f61))
+* **windows:** spotify linking finishes on a fresh install, from any install type and after an update ([#2433](https://github.com/Slim-m-org/slim-m/issues/2433)) ([a709e96](https://github.com/Slim-m-org/slim-m/commit/a709e96816d63125325eda8d1c09c9dd20bd6006))
+
+
+### Performance Improvements
+
+* **ci:** faster ios and dart2js jobs ([#2422](https://github.com/Slim-m-org/slim-m/issues/2422)) ([18f6232](https://github.com/Slim-m-org/slim-m/commit/18f62326252825d76000d285c60a38830912a62c))
+* **ci:** faster tests and CI - argon2 at opt-level 3 in tests, cheap backup fixtures, bundled flutter tests, split server-ci ([#2419](https://github.com/Slim-m-org/slim-m/issues/2419)) ([37855b6](https://github.com/Slim-m-org/slim-m/commit/37855b6d6d95ce4797cad8dfaa727e63c2ca32cc))
+
 ## [0.131.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.130.0...client-v0.131.0) (2026-11-18)
 
 
