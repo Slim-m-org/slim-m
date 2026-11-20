@@ -34,7 +34,10 @@ final replyParentProvider = FutureProvider.autoDispose
         final parent = await ref
             .watch(apiProvider)
             .getMessage(channelId: key.channelId, messageId: key.messageId);
-        ref.read(messageExtrasProvider.notifier).applyMessages([parent]);
+        final extras = ref.read(messageExtrasProvider.notifier)
+          ..applyMessages([parent])
+          ..pin([parent.id]);
+        ref.onDispose(() => extras.unpin([parent.id]));
         return localMessageOf(parent);
       } on api.NotFoundException {
         return null;
