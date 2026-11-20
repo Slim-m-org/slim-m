@@ -2,7 +2,7 @@
 name: server-ci
 
 # Path-gated: a client-only change never triggers a server build. openapi.yaml is
-# in the filter because tests/openapi_contract.rs gates it; see docs/ci.md.
+# in the filter because tests/it_infra/openapi_contract.rs gates it; see docs/ci.md.
 on:
   merge_group:
   push:
