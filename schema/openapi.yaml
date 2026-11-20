@@ -21357,6 +21357,7 @@ components:
         - $ref: "#/components/schemas/InteractionForm"
         - $ref: "#/components/schemas/NewDeviceSignIn"
         - $ref: "#/components/schemas/VoiceMoved"
+        - $ref: "#/components/schemas/VoiceRemoved"
         - $ref: "#/components/schemas/VoiceNotice"
         - $ref: "#/components/schemas/SoundboardPlayed"
         - $ref: "#/components/schemas/ServerPong"
@@ -22871,6 +22872,25 @@ components:
           format: uuid
         moved_by_name:
           type: string
+
+    VoiceRemoved:
+      type: object
+      required: [type, channel_id, reason]
+      description: >
+        The server ended this account's call in `channel_id`. Delivered only to that account's
+        connections, after the SFU was told to remove it, so the device that was in the call can
+        say why it ended. `other_device` means the account joined a call on another device. A
+        client shows an unknown `reason` as a plain removal.
+      properties:
+        type:
+          type: string
+          enum: [voice.removed]
+        channel_id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          description: Why, open-ended so later reasons stay additive; `other_device` today.
 
     VoiceNotice:
       type: object

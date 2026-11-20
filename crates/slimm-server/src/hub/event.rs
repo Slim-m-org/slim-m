@@ -412,6 +412,13 @@ pub enum Event {
         moved_by_id: UserId,
         moved_by_name: String,
     },
+    /// The server ended `user_id`'s call in `channel_id`, for `reason`. Private to that account,
+    /// so the device that was in the call can say why it is not any more.
+    VoiceRemoved {
+        user_id: UserId,
+        channel_id: ChannelId,
+        reason: VoiceRemovalReason,
+    },
     /// Someone started a call, joined one or went live in a channel `user_id` asked to hear
     /// about. Private to `user_id`; the audience and the time limit are settled before this
     /// is published (decision 0107).
@@ -444,4 +451,19 @@ pub enum Event {
     /// A moderation event with its number, added by [`crate::hub::Hub::publish`]
     /// and never built by a handler. See `hub::moderation_seq`.
     Stamped { seq: u64, event: Box<Event> },
+}
+
+/// Why the server ended a member's call, as [`Event::VoiceRemoved`] carries it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VoiceRemovalReason {
+    /// The member joined a call on another device.
+    OtherDevice,
+}
+
+impl VoiceRemovalReason {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::OtherDevice => "other_device",
+        }
+    }
 }

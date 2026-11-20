@@ -91,6 +91,7 @@ pub(crate) fn moves_permissions(event: &Event) -> bool {
         | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
+        | Event::VoiceRemoved { .. }
         | Event::VoiceNotice { .. }
         | Event::SoundboardPlayed { .. }
         // Internal to the module event consumer; it moves no permission.
@@ -202,6 +203,7 @@ pub(super) fn is_ephemeral(event: &Event) -> bool {
         | Event::CategoryMuteChanged { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
+        | Event::VoiceRemoved { .. }
         | Event::VoiceNotice { .. }
         | Event::VoiceSessionClosed { .. } => false,
         Event::Stamped { event, .. } => is_ephemeral(event),

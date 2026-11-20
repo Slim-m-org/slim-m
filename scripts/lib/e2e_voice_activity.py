@@ -24,7 +24,7 @@ import e2e_voice_ui as ui
 import make_fake_voice
 import make_noisy_voice
 from e2e_api import Api
-from e2e_voice import _tap_label
+from e2e_voice import _click_channel_row, _tap_label
 
 SENDER = "quiet"
 # Gain on the captured voice in dB, before the sender's own auto gain: a normal voice down to a soft one.
@@ -122,6 +122,15 @@ def _write_noise(path, seconds=6):
         out.writeframes(b"".join(struct.pack("<h", int(v * 32767)) for v in hiss))
 
 
+def _join(client):
+    """Joins by the row itself, since "lounge 1" sends a plain click to its Manage kebab.
+
+    Waits for Leave call: the idle page's timeline legend also reads "in call".
+    """
+    _click_channel_row(client, L.VOICE_CHANNEL)
+    client.wait_for(L.LEAVE_CALL)
+
+
 def _round(listener, server, secret, sign_in, room_id, sender_id, path):
     probe = e2e_audio.AudioProbe(listener)
     before = set(probe.stream_ids())
@@ -129,8 +138,7 @@ def _round(listener, server, secret, sign_in, room_id, sender_id, path):
         sign_in(sender, server, SENDER, secret)
         e2e_browsers.dismiss_welcome(sender)
         try:
-            sender.click(L.VOICE_CHANNEL)
-            sender.wait_for(L.IN_CALL)
+            _join(sender)
             stream = _new_stream(probe, before, room_id, sender_id)
             time.sleep(SETTLE_SECONDS)
             start = probe.now()
@@ -154,8 +162,7 @@ def ring_follows_a_soft_voice(listener, server, secret, admin_api, sign_in, room
     rounds = []
     with e2e_audio.installed(listener):
         try:
-            listener.click(L.VOICE_CHANNEL)
-            listener.wait_for(L.IN_CALL)
+            _join(listener)
             listener.ev(RING_JS % json.dumps(f"{SENDER}{L.SPEAKING}".lower()))
             for level in LEVELS_DB:
                 path = os.path.join(e2e_browsers.work_dir(), f"quiet-voice{level}.wav")
