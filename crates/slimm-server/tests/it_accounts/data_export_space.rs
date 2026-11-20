@@ -9,7 +9,7 @@ use slimm_server::store::NewMessage;
 
 use crate::support;
 use support::app::general_channel_id;
-use support::exports::{account, world};
+use support::exports::{account, upload_png, world};
 
 const DM_SECRET: &str = "ALICE-TO-BOB-DM-SECRET";
 
@@ -152,4 +152,34 @@ async fn a_long_channel_streams_through_and_progress_reaches_the_total() {
     let lines = archive.lines(&format!("channels/{general}/messages.jsonl"));
     assert_eq!(lines.len(), 600);
     assert_eq!(lines[599]["content"], "message 599");
+}
+
+#[tokio::test]
+async fn a_space_export_holds_its_soundboard_clips_and_their_bytes() {
+    let (store, _guard) = support::new_store("slimm-export-space-soundboard").await;
+    let w = world(store.clone());
+    let (alice, alice_id) = account(&store, "alice").await;
+    let sha = upload_png(&w, &alice).await;
+    let bytes: Vec<u8> = (0..sha.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&sha[i..i + 2], 16).unwrap())
+        .collect();
+    let clip = slimm_server::ids::SoundClipId(uuid::Uuid::now_v7());
+    store
+        .create_sound_clip(clip, "airhorn", None, &bytes, 1200, user_id(&alice_id))
+        .await
+        .unwrap()
+        .unwrap();
+
+    let archive = w.archive(&alice, "space").await;
+
+    let clips = archive.lines("soundboard.jsonl");
+    assert_eq!(clips.len(), 1);
+    assert_eq!(clips[0]["id"], clip.to_string());
+    assert_eq!(clips[0]["name"], "airhorn");
+    assert_eq!(clips[0]["sha256"], sha.as_str());
+    assert_eq!(clips[0]["duration_ms"], 1200);
+    let index = archive.lines("attachments.jsonl");
+    assert!(index.iter().any(|a| a["sha256"] == sha.as_str()));
+    assert!(archive.entries.contains_key(&format!("attachments/{sha}")));
 }

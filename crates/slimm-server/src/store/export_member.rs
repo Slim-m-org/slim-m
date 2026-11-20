@@ -39,7 +39,8 @@ const SETTINGS: &str = "SELECT presence_visibility, notification_preference,
            FROM notification_schedules s WHERE s.user_id = ?1) AS notification_schedule_json
      FROM users WHERE id = ?1";
 
-const LINKED: &str = "SELECT provider, external_id, username, display_name, linked_at
+const LINKED: &str = "SELECT provider, external_id, username, display_name, linked_at,
+        CASE share_activity WHEN 1 THEN 'true' ELSE 'false' END AS share_activity_json
      FROM linked_accounts WHERE user_id = ?1 ORDER BY provider";
 
 // A thread under a direct message reports the direct message's kind and no name.

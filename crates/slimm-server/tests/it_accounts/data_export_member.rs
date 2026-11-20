@@ -226,3 +226,33 @@ async fn deleting_the_account_removes_its_exports() {
             .is_none()
     );
 }
+
+#[tokio::test]
+async fn a_linked_account_carries_the_members_sharing_choice() {
+    let (store, _guard) = support::new_store("slimm-export-member-linked").await;
+    let w = world(store.clone());
+    let (alice, alice_id) = account(&store, "alice").await;
+    let alice_id = slimm_server::ids::UserId(alice_id.parse().unwrap());
+    let steam = slimm_server::store::LinkedAccount {
+        provider: "steam".into(),
+        external_id: "76561197960287930".into(),
+        username: "alice-steam".into(),
+        display_name: None,
+        linked_at: 1,
+        avatar_updated_at: None,
+        share_activity: false,
+    };
+    store.save_linked_account(alice_id, &steam).await.unwrap();
+    assert!(
+        store
+            .set_link_sharing(alice_id, "steam", true)
+            .await
+            .unwrap()
+    );
+
+    let archive = w.archive(&alice, "member").await;
+
+    let linked = archive.lines("linked_accounts.jsonl");
+    assert_eq!(linked[0]["provider"], "steam");
+    assert_eq!(linked[0]["share_activity"], true);
+}
