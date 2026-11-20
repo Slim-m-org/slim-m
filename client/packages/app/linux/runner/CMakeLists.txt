@@ -18,6 +18,7 @@ add_executable(${BINARY_NAME}
   "ext-idle-notify-v1-protocol.c"
   "linux_screen_overlay_channel.cc"
   "display_watch.cc"
+  "flutter_view_focus.cc"
   "screen_overlay.cc"
   "screen_overlay_panel.cc"
   "screen_overlay_png.cc"

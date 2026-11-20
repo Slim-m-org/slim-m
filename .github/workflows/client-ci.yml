@@ -391,6 +391,17 @@ jobs:
         working-directory: client/packages/app
         run: flutter build linux --release
 
+      - name: xvfb for the runner's GTK focus test
+        uses: ./.github/actions/apt-install
+        with:
+          packages: xvfb
+
+      # The runner's keyboard focus rules against real GTK; the hygiene job's scripts/lib run skips it without GTK headers.
+      - name: runner keyboard focus test
+        env:
+          SLIMM_REQUIRE_GTK_TESTS: "1"
+        run: python3 -m unittest discover -s scripts/lib -p test_linux_runner_focus.py
+
       # The YouTube player dlopens WebKitGTK (decision 0128); a NEEDED entry on it would stop the app starting where it is missing.
       - name: no bundled ELF links a webview engine
         working-directory: client/packages/app/build/linux/x64/release/bundle
