@@ -248,8 +248,6 @@ client/packages/app/test/features/channels/channel_screen_attachment_send_test.d
 client/packages/app/test/features/channels/channel_screen_dm_permission_menu_test.dart 1 1
 client/packages/app/test/features/channels/channel_screen_read_marker_scroll_test.dart 1 0
 client/packages/app/test/features/channels/channel_screen_send_failure_reason_test.dart 1 0
-client/packages/app/test/features/channels/channel_search_jump_test.dart 1 0
-client/packages/app/test/features/channels/channel_search_test.dart 3 0
 client/packages/app/test/features/channels/channel_settings_compact_test.dart 1 1
 client/packages/app/test/features/channels/channel_settings_failed_save_test.dart 7 6
 client/packages/app/test/features/channels/channel_settings_general_char_count_test.dart 2 1

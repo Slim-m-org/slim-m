@@ -152,10 +152,11 @@ void main() {
     expect(seen.whereType<MessageJumpArrived>(), isEmpty);
     expect(seen.whereType<MessageJumpFailed>(), hasLength(1));
     expect(harness.container.read(channelHistoryProvider('c1')).window, 200);
-    expect(toastMessages(tester), [
-      'Could not load older messages to find it. Try again.',
-    ]);
-    await expireToasts(tester);
+    expect(
+      find.text('Could not load older messages to find it. Try again.'),
+      findsOneWidget,
+    );
+    expect(toastMessages(tester), isEmpty);
     await _unmount(tester);
   });
 

@@ -47,13 +47,6 @@ extension MessageDensityGeometry on AppDensity {
     AppDensity.spacious => AppSpacing.s16,
   };
 
-  /// Vertical padding inside a search hit.
-  double get hitInset => switch (this) {
-    AppDensity.compact => 0,
-    AppDensity.normal => AppSpacing.s4,
-    AppDensity.spacious => AppSpacing.s8,
-  };
-
   /// Taller or shorter sheet tiles; Default keeps Material's own height.
   VisualDensity get tileVisualDensity => this == AppDensity.spacious
       ? const VisualDensity(vertical: 1)

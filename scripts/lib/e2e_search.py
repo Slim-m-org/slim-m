@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Searching a channel from its header finds what the server's index holds.
 
-The search is typed into the header's own field, so the result rows are what
-the person sees. A row must follow the index, not the screen: after the
+The header's search opens the palette scoped to the channel by an in: chip,
+and the query is typed into its field, so the result rows are what the
+person sees. A row must follow the index, not the screen: after the
 message is edited away from the word, the same search must find nothing, and
 the server's search must agree on both sides. Another channel's message with
 the same word must never turn up in this channel's results.
@@ -15,7 +16,7 @@ import e2e_labels as L
 
 TIMEOUT = 20
 SEARCH_BUTTON = "Search messages"
-SEARCH_FIELD = "Search this channel"
+SEARCH_FIELD = "Search messages"
 NO_MATCHES = "No matches."
 
 
@@ -65,7 +66,7 @@ def search_follows_the_index(a, admin):
         _wait_hits(a, word, 1)
         a.shot("search-found")
         _wait_server_hits(admin, channel_id, word, [mine["id"]])
-        print("  the header search lists this channel's one message, matching the server")
+        print("  the header search lists this channel's one message, not the other channel's, matching the server")
 
         admin.edit_message(channel_id, mine["id"], f"now it says {other}")
         a.type_into(SEARCH_FIELD, "")
@@ -78,7 +79,7 @@ def search_follows_the_index(a, admin):
         _wait_server_hits(admin, channel_id, word, [])
         print("  after the message is edited away from the word, nothing is found")
 
-        a.click(SEARCH_BUTTON, settle=1)
+        a.dismiss_overlay()
         assert not a.find(SEARCH_FIELD, field=True), "the search field stayed after closing"
         print("  closing the search removes the field")
     finally:

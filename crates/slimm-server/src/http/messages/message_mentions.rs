@@ -52,9 +52,11 @@ pub(crate) async fn resolve_and_store_under(
     {
         mentioned.push(pinged);
     }
+    let named = crate::push::recipients::directly_named(content);
+    let direct = state.store.user_ids_for_usernames(&named).await?;
     state
         .store
-        .set_message_mentions(message_id, &mentioned, reply_ping)
+        .set_message_mentions(message_id, &mentioned, reply_ping, &direct)
         .await
 }
 

@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT m.id AS \"id!: MessageId\", m.content AS \"content!\"\n               FROM messages m\n               WHERE m.id IN (SELECT DISTINCT message_id FROM message_mentions\n                              WHERE direct IS NULL LIMIT ?)",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: MessageId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "content!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "content"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "e0aed5c2b053367f5f151deeabda6694899f3fff68a4ef4e7beba741bdd19a55"
+}

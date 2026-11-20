@@ -150,6 +150,7 @@ mod safety;
 mod saved_messages;
 mod scene_limits;
 mod search;
+mod search_dates;
 mod server_logs;
 mod sign_in_alert;
 mod space;

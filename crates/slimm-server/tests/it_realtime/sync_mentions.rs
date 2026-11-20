@@ -52,7 +52,7 @@ async fn send(store: &Store, channel: ChannelId, author: UserId, mentions: &[Use
         .await
         .unwrap();
     store
-        .set_message_mentions(id, mentions, None)
+        .set_message_mentions(id, mentions, None, &[])
         .await
         .unwrap();
     id

@@ -253,9 +253,10 @@ There is no service-account or API-key concept in this server, so an admin's own
 
 `crates/slimm-server/src/http/search.rs`
 
-Full-text search over messages, backed by the FTS5 index kept current by the triggers in migration 0002, plus a Slack-style operator layer over it: `from:`, `in:`, `has:`, `before:`/`after:`.
+Full-text search over messages, backed by the FTS5 index kept current by the triggers in migration 0002, plus an operator layer over it: `from:`, `in:`, `has:`, `mentions:`, `pinned:` and the dates.
+The grammar users type is [search.md](search.md); the predicates are `store/messages/message_search_filters.rs`, each probing a table by its message key, so none needs an index of its own.
 
-Two routes share every bit of this file beyond their own permission scoping: `GET /channels/{channelId}/messages/search` (the channel header's search panel) searches one channel, named in the path or by `in:`, and requires `VIEW_CHANNEL` on the path channel up front; `GET /search/messages` (the command palette's cross-channel scope) has no path channel to check and instead searches every channel [`crate::store::Store::visible_channels`] says the caller can view, or the subset of those named by `in:` when given.
+Two routes share every bit of this file beyond their own permission scoping: `GET /channels/{channelId}/messages/search` (a conversation's search, an `in:` chip picked from a list) searches one channel, named in the path or by `in:`, and requires `VIEW_CHANNEL` on the path channel up front; `GET /search/messages` (the palette's search with no picked `in:`) has no path channel to check and instead searches every channel [`crate::store::Store::visible_channels`] says the caller can view, or the subset of those named by `in:` when given.
 Neither ever reaches a channel the caller cannot view: [`resolve_scope`] is the one place `in:` is resolved and permission-filtered for both, and the cross-channel route's default scope is `visible_channels` itself, which only ever returns channels `VIEW_CHANNEL` already grants.
 `visible_channels` also excludes DMs and threads (see its own doc comment), so cross-channel search never reaches a DM the caller was not searching directly.
 
@@ -265,7 +266,7 @@ A `q` that uses FTS5's mini query language (`AND`/`OR`/`NOT`, `"phrase"`, `NEAR(
 That is safe against leaking another channel: the index has exactly one column (`content`), so a query string has no other column to pivot to, and the channel restriction is an ordinary SQL predicate the query text can never reach, never part of the `MATCH` expression itself.
 See [`crate::store::Store::search_messages`] for the rest of that reasoning and for how a malformed query surfaces as [`SearchError::InvalidQuery`] rather than a 500: SQLite only validates FTS5 syntax once the statement runs.
 
-The operators are parsed client-side (`message_search_query.dart`), which is why this file only ever sees them as already-split query parameters - `q` never carries `from:nick` as literal text a caller could exploit to widen a channel restriction the way `q` itself cannot.
+The operators are parsed client-side (`message_search_query.dart`, folded into parameters by `message_search_request.dart`), which is why this file only ever sees them as already-split query parameters - `q` never carries `from:nick` as literal text a caller could exploit to widen a channel restriction the way `q` itself cannot.
 
 Channel and member search need no route here at all: both are already answered from data the client already holds permission-correctly.
 `GET /channels` only ever lists what [`crate::store::Store::visible_channels`] grants, so the client's local channel list is never wider than that; the member list (`GET /members`) is deployment-wide by design (see `http::users`'s own doc comment), not scoped to a channel, so there is no per-channel visibility question to get wrong there.
@@ -404,7 +405,7 @@ A module is installed, approved to schedule and to hear calls, and armed for the
 Two sweeps walk `schema/openapi.yaml`, so a route is asked from the day it is documented, with no list to keep up.
 Being asked is not the same as being covered: "What the sweep cannot see" below says where the difference is.
 
-- The read sweep sends every GET with every private id in its path, and the search routes with every canary as the query.
+- The read sweep sends every GET with every private id in its path, the search routes with every canary as the query, and the message search routes filter-only queries (`pinned`, `mentions`, `has`, `from`) that match the private channel's own message.
   An answer may contain neither a canary nor a private id the request did not name.
 - The ask-twice sweep sends every route twice: once naming private ids in its path, query and body, and once naming ids that name nothing.
   The two answers must match, status and error text alike, with a success compared only as a success.

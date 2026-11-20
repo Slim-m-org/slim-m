@@ -134,14 +134,16 @@ ThemeData buildTheme(Brightness brightness, AppTokens tokens) {
     fontFamilyFallback: AppFonts.emoji,
     extensions: [tokens],
     dividerTheme: DividerThemeData(color: tokens.borderSubtle, space: 1),
-    // Opaque, so a tip over text never lets that text show through it.
+    // A raised plate, opaque so text under it never shows through; the strong edge keeps it apart from a raised surface it sits on.
     tooltipTheme: TooltipThemeData(
       decoration: BoxDecoration(
-        color: tokens.textPrimary,
+        color: tokens.surfaceRaised,
+        border: Border.all(color: tokens.borderStrong),
         borderRadius: BorderRadius.circular(AppRadii.control),
+        boxShadow: AppShadows.canvasTile,
       ),
       textStyle: AppText.caption.copyWith(
-        color: tokens.surfaceBase,
+        color: tokens.textPrimary,
         fontFamily: AppFonts.sans,
         fontFamilyFallback: AppFonts.emoji,
       ),

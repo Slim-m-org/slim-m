@@ -17,8 +17,8 @@ import 'package:slimm_data/data.dart';
 import '../../command_palette_harness.dart';
 
 void main() {
-  /// The palette runs its own message search, separate from
-  /// `channelSearchProvider`, and renders both the body and the author's name.
+  /// The palette runs the app's one message search, and renders both the body
+  /// and the author's name.
   /// It went unfiltered when blocking was wired up everywhere else, so pressing
   /// Ctrl+K and typing a word a blocked person had used showed it in full.
   testWidgets('a blocked author is absent from the palette message results', (
@@ -107,8 +107,8 @@ void main() {
   });
 
   /// The palette used to collapse every message-search failure to an empty
-  /// result; it now gains the 403 distinction `channelSearchProvider` already
-  /// had, through the shared `searchChannelMessages` helper.
+  /// result; it now tells a 403 apart, through the shared `searchMessages`
+  /// helper.
   testWidgets('a 403 on message search explains the denial, not "no matches"', (
     tester,
   ) async {

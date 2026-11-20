@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Decision 0062 follow-up: search hits, the thread parent card and the pinned,
-/// saved and threads sheet rows follow the message density, asserted as the
+/// Decision 0062 follow-up: the thread parent card and the pinned, saved and
+/// threads sheet rows follow the message density, asserted as the
 /// measured size of each row rather than that a widget is present.
 library;
 
@@ -12,7 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/providers/display_density.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/features/channels/widgets/channel_search.dart';
 import 'package:slimm_app/src/features/messages/widgets/pinned_messages_sheet.dart';
 import 'package:slimm_app/src/features/messages/widgets/saved_messages_sheet.dart';
 import 'package:slimm_app/src/features/messages/widgets/thread_parent_card.dart';
@@ -36,15 +35,6 @@ final _router = GoRouter(routes: const []);
 typedef _Surface = Widget Function();
 
 final _surfaces = <String, ({_Surface build, bool hasAvatar})>{
-  'search hit': (
-    build: () => SearchResultRow(
-      message: _message,
-      knownUsernames: const {},
-      customEmoji: const {},
-      onSelect: (_) {},
-    ),
-    hasAvatar: false,
-  ),
   'thread parent card': (
     build: () => const ThreadParentCard(
       parent: api.ThreadParent(

@@ -2,8 +2,8 @@
 /// The same measurement `message_row_unrelated_profile_rebuild_test.dart`
 /// applies to `MessageRowHeader`/`MessageRowLeading`, extended to the four
 /// list rows that were later split out of their parent `itemBuilder`s for the
-/// same reason: `SearchResultRow`, `ThreadRow`, `PinnedMessageRow` and
-/// `PaletteMessageAuthor` each select only their own author's slice of
+/// same reason: `ThreadRow`, `PinnedMessageRow` and `PaletteMessageAuthor`
+/// each select only their own author's slice of
 /// `batchProfilesControllerProvider`, so an unrelated author resolving must
 /// rebuild none of them.
 library;
@@ -13,7 +13,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
-import 'package:slimm_app/src/features/channels/widgets/channel_search.dart';
 import 'package:slimm_app/src/features/palette/widgets/command_palette_items.dart';
 import 'package:slimm_app/src/features/messages/widgets/pinned_messages_sheet.dart';
 import 'package:slimm_app/src/features/messages/widgets/threads_sheet.dart';
@@ -70,42 +69,6 @@ Future<void> _resolveUnrelatedAuthor(
 }
 
 void main() {
-  testWidgets(
-    "an unrelated author resolving does not rebuild a search hit's row",
-    (tester) async {
-      late BatchProfilesController controller;
-      await tester.pumpWidget(
-        harness(
-          SearchResultRow(
-            message: _apiMessage(),
-            knownUsernames: const {},
-            customEmoji: const {},
-            onSelect: (_) {},
-          ),
-          overrides: [
-            batchProfilesControllerProvider.overrideWith((ref) {
-              controller = BatchProfilesController(ref);
-              return controller;
-            }),
-          ],
-        ),
-      );
-      await tester.pump();
-
-      final rebuilds = await _rebuildsOf<SearchResultRow>(
-        () => _resolveUnrelatedAuthor(tester, controller),
-      );
-
-      expect(
-        rebuilds,
-        0,
-        reason:
-            "a row must only rebuild when its own author's entry "
-            'changes, never when an unrelated id resolves',
-      );
-    },
-  );
-
   testWidgets(
     "an unrelated author resolving does not rebuild a thread sheet's row",
     (tester) async {

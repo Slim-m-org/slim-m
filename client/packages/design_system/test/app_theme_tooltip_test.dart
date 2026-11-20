@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A tooltip is opaque in both themes, so text under it never shows through.
+/// A tooltip is a raised plate in the current theme: opaque, so text under it
+/// never shows through, edged strongly enough to stand apart from a raised
+/// surface it sits on, and never the other theme's colours.
 library;
 
 import 'package:flutter/material.dart';
@@ -8,7 +10,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 void main() {
   for (final brightness in Brightness.values) {
-    testWidgets('tooltip is opaque in ${brightness.name}', (tester) async {
+    testWidgets('tooltip follows the ${brightness.name} theme', (tester) async {
       final tokens =
           brightness == Brightness.dark ? AppTokens.dark : AppTokens.light;
       await tester.pumpWidget(
@@ -37,9 +39,15 @@ void main() {
             )
             .first,
       );
-      final color = (box.decoration as BoxDecoration).color!;
-      expect(color.a, 1.0);
-      expect(color, tokens.textPrimary);
+      final plate = box.decoration as BoxDecoration;
+      expect(plate.color!.a, 1.0);
+      expect(plate.color, tokens.surfaceRaised);
+      expect((plate.border! as Border).top.color, tokens.borderStrong);
+      final text = tester.widget<Text>(find.text('A tip'));
+      final style = DefaultTextStyle.of(
+        tester.element(find.text('A tip')),
+      ).style.merge(text.style);
+      expect(style.color, tokens.textPrimary);
     });
   }
 }

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The five list-row surfaces `extracted_row_rebuild_scope_test.dart` names,
-/// plus `SavedMessageRow` alongside them: each draws a message author's name
-/// and, before this, drew no `AuthorNameLine` and so no badge at all - a
-/// search hit, a thread-list row, a pinned entry, a saved entry, and a
-/// command-palette hit.
+/// The list-row surfaces `extracted_row_rebuild_scope_test.dart` names, plus
+/// `SavedMessageRow` alongside them: each draws a message author's name and,
+/// before this, drew no `AuthorNameLine` and so no badge at all - a thread-list
+/// row, a pinned entry, a saved entry, and a search hit in the palette.
 ///
 /// `docs/decisions/0030-incoming-webhooks.md` calls the badge the entire
 /// mitigation for a webhook's caller-chosen `username`, so each case here
@@ -20,7 +19,6 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/channel_by_id_provider.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
-import 'package:slimm_app/src/features/channels/widgets/channel_search.dart';
 import 'package:slimm_app/src/features/palette/widgets/command_palette_items.dart';
 import 'package:slimm_app/src/features/messages/widgets/pinned_messages_sheet.dart';
 import 'package:slimm_app/src/features/messages/widgets/saved_messages_sheet.dart';
@@ -85,20 +83,6 @@ void _expectFullSizeBadge(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('a webhook search hit is badged', (tester) async {
-    await _pumpResolved(
-      tester,
-      SearchResultRow(
-        message: _apiMessage(),
-        knownUsernames: const {},
-        customEmoji: const {},
-        onSelect: (_) {},
-      ),
-    );
-
-    _expectFullSizeBadge(tester);
-  });
-
   testWidgets('a webhook thread-list row is badged', (tester) async {
     final router = GoRouter(
       routes: [GoRoute(path: '/', builder: (_, _) => const SizedBox())],

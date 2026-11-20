@@ -140,12 +140,25 @@ impl<'a> Asker<'a> {
     }
 }
 
-/// The query strings a path is read with: none, and a search for each canary.
+/// Message searches with no text, each matching something the private channel holds.
+const FILTER_ONLY_SEARCHES: &[&str] = &[
+    "?pinned=true",
+    "?mentions=member",
+    "?has=image",
+    "?has=attachment,link",
+    "?from=admin&after_date=2000-01-01",
+    "?in=canarychan&pinned=true",
+];
+
+/// The query strings a path is read with: none, a search for each canary, and filter-only searches.
 fn searches(template: &str) -> Vec<String> {
     let mut out = vec![String::new()];
     if template.contains("search") || template == "/users" || template == "/members" {
         out.extend(CANARIES.iter().map(|word| format!("?q={word}")));
         out.push("?q=canary*".to_owned());
+    }
+    if template.ends_with("messages/search") || template == "/search/messages" {
+        out.extend(FILTER_ONLY_SEARCHES.iter().map(|query| (*query).to_owned()));
     }
     out
 }

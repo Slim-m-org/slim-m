@@ -107,21 +107,26 @@ void main() {
       await harness.container
           .read(messageJumpProvider.notifier)
           .jumpTo('c1', 'does-not-exist');
-      // Short of the toast's own auto-dismiss so it is still up.
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(
-        toastMessages(tester),
-        [contains('Could not find that message')],
+        find.textContaining('Could not find that message'),
+        findsOneWidget,
         reason:
             'a message that cannot be reached must say so plainly, never '
             'scroll to nothing and stay silent about it',
       );
+      expect(toastMessages(tester), isEmpty, reason: 'never as a toast');
+
+      await tester.tap(find.text('Dismiss'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.textContaining('Could not find that message'), findsNothing);
       expect(
         harness.container.read(messageJumpProvider),
         isA<MessageJumpIdle>(),
-        reason: 'the notice, once shown, is not repeated on a later rebuild',
+        reason: 'a dismissed notice is not shown again on a later rebuild',
       );
 
       await _unmount(tester);

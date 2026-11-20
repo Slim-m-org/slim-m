@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO message_mentions (user_id, message_id, via_reply, direct) VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "a5956a0c4fb04b161c490a35f19955e2925baf4d2817cfd23a96d675cfecb6f7"
+}
