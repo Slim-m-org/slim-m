@@ -76,6 +76,18 @@ const voiceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'voice',
+    'Soundboard sounds',
+    description: 'Hear clips people play in a call.',
+    keywords: ['soundboard', 'clips', 'sfx', 'mute'],
+  ),
+  SettingsEntry(
+    'voice',
+    'Soundboard volume',
+    description: 'How loud clips play for you.',
+    keywords: ['soundboard', 'clips', 'sfx', 'loudness'],
+  ),
+  SettingsEntry(
+    'voice',
     'Join with camera on',
     description: 'Calls still connect without a camera.',
     keywords: ['video', 'webcam'],

@@ -15,7 +15,6 @@ import 'package:slimm_platform/platform.dart' show isDesktopHost, isLinuxHost;
 
 import '../../../desktop/providers/desktop_message_text_settings.dart';
 import '../../modules/providers/module_sound_settings.dart';
-import '../../voice/providers/soundboard_settings.dart';
 import '../providers/notification_sound_settings.dart';
 import '../../../providers/app_badge_sync.dart';
 import '../../../push/providers/push_controller.dart';
@@ -51,7 +50,6 @@ class NotificationsSection extends ConsumerWidget {
     final status = ref.watch(pushControllerProvider);
     final soundsEnabled = ref.watch(messageSoundSettingsProvider);
     final moduleSoundsEnabled = ref.watch(moduleSoundSettingsProvider);
-    final soundboardSoundsEnabled = ref.watch(soundboardSoundsProvider);
     final uiSoundsEnabled = ref.watch(uiSoundSettingsProvider);
     final hapticsEnabled = ref.watch(hapticsSettingsProvider);
     final style = notificationBannerStyle(status);
@@ -123,14 +121,6 @@ class NotificationsSection extends ConsumerWidget {
                   .read(moduleSoundSettingsProvider.notifier)
                   .setEnabled(value),
               semanticLabel: 'Let modules play sound effects',
-            ),
-            SettingsToggleRow(
-              label: 'Soundboard sounds',
-              description: 'Hear clips people play in a call.',
-              value: soundboardSoundsEnabled,
-              onChanged: (value) =>
-                  ref.read(soundboardSoundsProvider.notifier).setEnabled(value),
-              semanticLabel: 'Hear soundboard clips played in a call',
             ),
           ],
         ),

@@ -156,7 +156,7 @@ void main() {
   });
 
   testWidgets(
-    '12 clips fill four rows of three in a popover about 219 px tall',
+    '12 clips fill four rows of three in a popover about 262 px tall with the volume row',
     (tester) async {
       await _pump(tester, _Wire(clips: _numbered(12)));
       await _open(tester);
@@ -176,7 +176,7 @@ void main() {
       }
       final menu = tester.getRect(_menu);
       expect(menu.width, soundboardMenuWidth);
-      expect(menu.height, moreOrLessEquals(218.8, epsilon: 1));
+      expect(menu.height, moreOrLessEquals(262, epsilon: 1));
       expect(
         menu.bottom,
         lessThan(tester.getRect(find.byTooltip('Soundboard')).top),

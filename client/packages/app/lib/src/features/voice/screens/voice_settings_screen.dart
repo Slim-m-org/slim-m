@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Voice call preferences: microphone level, camera-on-join, screen share
-/// quality and input/output device choice. Call sounds live under Notifications, shortcuts under Desktop.
+/// quality and input/output device choice. Call sounds live under Notifications, soundboard sounds under Speaker, shortcuts under Desktop.
 ///
 /// The state these widgets read and write lives in
 /// `providers/voice_settings_controller.dart`, split out once the
@@ -15,11 +15,14 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/mic_preview.dart';
 import '../providers/voice_controller.dart';
+import '../providers/soundboard_settings.dart';
 import '../providers/voice_settings_controller.dart';
 import '../widgets/audio_device_section.dart';
 import '../widgets/mic_trouble_notice.dart';
 import '../widgets/input_sensitivity_section.dart';
 import '../../settings/widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_slider_row.dart';
+import '../../settings/widgets/settings_toggle_row.dart';
 import '../widgets/video_quality_sections.dart';
 import '../widgets/noise_suppression_section.dart';
 import '../widgets/voice_processing_section.dart';
@@ -170,16 +173,41 @@ class _MicrophoneSection extends ConsumerWidget {
   }
 }
 
-class _SpeakerSection extends StatelessWidget {
+class _SpeakerSection extends ConsumerWidget {
   const _SpeakerSection();
 
   @override
-  Widget build(BuildContext context) {
-    return const SettingsSectionCard(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sounds = ref.watch(soundboardSoundsProvider);
+    final volume = ref.watch(soundboardVolumeProvider);
+    return SettingsSectionCard(
       title: 'Speaker',
       children: [
-        AudioDeviceSection(embedded: true, part: AudioDevicePart.speaker),
+        const AudioDeviceSection(embedded: true, part: AudioDevicePart.speaker),
+        SettingsToggleRow(
+          label: 'Soundboard sounds',
+          description: 'Hear clips people play in a call.',
+          value: sounds,
+          onChanged: (value) =>
+              ref.read(soundboardSoundsProvider.notifier).setEnabled(value),
+          semanticLabel: 'Hear soundboard clips played in a call',
+        ),
+        if (sounds)
+          SettingsSliderRow(
+            sliderKey: soundboardVolumeSliderKey,
+            label: 'Soundboard volume',
+            valueLabel: '${(volume * 100).round()}%',
+            value: volume * 100,
+            min: 0,
+            max: 100,
+            minLabel: '0%',
+            maxLabel: '100%',
+            onChanged: (v) =>
+                ref.read(soundboardVolumeProvider.notifier).setVolume(v / 100),
+          ),
       ],
     );
   }
 }
+
+const soundboardVolumeSliderKey = Key('settings-soundboard-volume');
