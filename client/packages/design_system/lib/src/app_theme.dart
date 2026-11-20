@@ -277,27 +277,6 @@ ThemeData buildTheme(Brightness brightness, AppTokens tokens) {
         AppText.caption.copyWith(color: tokens.textSecondary),
       ),
     ),
-    // Rendered and found stock: a plain light-grey bar full-bleed across a
-    // wide desktop window, in a dark app whose every other surface is
-    // border-first. `AppCard`'s own fill/border/radius and `floating`; the
-    // width cap (`kSheetMaxWidth`) comes from showAppSnackbar's margins, since
-    // a theme width wider than a phone left it no room for its sides.
-    // `SnackBar` builds its content under a bare `DefaultTextStyle`, never a
-    // `.merge`, the same trap `_familyNamed`'s own doc comment already names
-    // for `ListTileThemeData` - so this needs it too or the family is lost.
-    snackBarTheme: SnackBarThemeData(
-      backgroundColor: tokens.surfaceRaised,
-      contentTextStyle: _familyNamed(
-        AppText.body.copyWith(color: tokens.textPrimary),
-      ),
-      actionTextColor: tokens.accentFill,
-      elevation: 0,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        side: BorderSide(color: tokens.borderSubtle),
-      ),
-    ),
   );
 }
 
