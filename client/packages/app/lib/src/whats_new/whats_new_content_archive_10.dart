@@ -232,4 +232,41 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.132.0',
+    headline: 'One search with filters, call details, and steadier calls',
+    points: [
+      WhatsNewPoint(
+        'Search from any channel, DM or thread opens one search with that '
+        'conversation filled in. Narrow it with from:, mentions:, has:image, '
+        'pinned: and dates like during:2026-11.',
+      ),
+      WhatsNewPoint(
+        'In a call, Call details shows the call so far, what happened and the '
+        'live transcript beside it. A voice channel\'s details and chat open '
+        'without joining.',
+      ),
+      WhatsNewPoint('YouTube links play right inside the app.'),
+      WhatsNewPoint(
+        'Calls recover from a stalled connection on their own instead of '
+        'going silent, and a call you move to another device says so.',
+      ),
+      WhatsNewPoint(
+        'Messages, the call timer and who is in a call keep updating while '
+        'slim-m is on another screen or behind other windows.',
+      ),
+      WhatsNewPoint(
+        'On Windows, Spotify linking finishes, the firewall asks once '
+        'instead of after every update, and uninstalling asks whether to '
+        'remove your data.',
+      ),
+      WhatsNewPoint(
+        'Admins can turn on detailed server logging under Debug logs, and '
+        'server logs now survive restarts.',
+      ),
+      WhatsNewPoint(
+        'The launch screen and tooltips follow your light or dark theme.',
+      ),
+    ],
+  ),
 ];
