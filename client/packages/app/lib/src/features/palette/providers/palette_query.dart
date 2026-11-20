@@ -82,9 +82,16 @@ int _caret(TextEditingValue value) {
 class PaletteField {
   PaletteField({
     List<SearchFilter> filters = const [],
+    String text = '',
     required this.onEdited,
     this.onLeftAtStart,
-  }) : filters = [...filters];
+  }) : filters = [...filters],
+       controller = TextEditingController.fromValue(
+         TextEditingValue(
+           text: text,
+           selection: TextSelection.collapsed(offset: text.length),
+         ),
+       );
 
   final List<SearchFilter> filters;
 
@@ -94,7 +101,7 @@ class PaletteField {
   /// Left arrow at the very start of the field, for focus to step onto the chips.
   final VoidCallback? onLeftAtStart;
 
-  final controller = TextEditingController();
+  final TextEditingController controller;
   late final focusNode = FocusNode(onKeyEvent: _onKey);
 
   String get text => controller.text;

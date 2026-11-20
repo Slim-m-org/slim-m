@@ -38,6 +38,7 @@ import '../../../providers/store_stream.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../channels/widgets/channel_rail.dart' show selectedChannelId;
 import '../../channels/widgets/category_tree.dart' show categoryPaths;
+import '../providers/conversation_search_memory.dart';
 import '../providers/palette_message_search.dart';
 import '../providers/palette_query.dart';
 import 'command_palette_compact.dart';
@@ -110,8 +111,13 @@ class _CommandPaletteContent extends ConsumerStatefulWidget {
 
 class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     with GuardedActionState<_CommandPaletteContent> {
+  late final _remembered = switch (widget.scope?.channelId) {
+    final id? => ref.read(conversationSearchMemoryProvider).recall(id),
+    null => null,
+  };
   late final _field = PaletteField(
-    filters: [?widget.scope],
+    filters: _remembered?.filters ?? [?widget.scope],
+    text: _remembered?.text ?? '',
     onEdited: _onEdited,
     onLeftAtStart: () => _chips.currentState?.focusLast(),
   );
@@ -121,7 +127,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     (s) => s.watchCategories(),
   );
   late final _messages = PaletteMessageSearch(ref.read)
-    ..addListener(_onMessages);
+    ..addListener(() => setState(() {}));
   String _query = '';
   int _highlighted = 0;
   List<api.TranscriptHit> _transcriptResults = const [];
@@ -129,8 +135,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
   /// Retires a transcript search still in flight when the query moves on.
   int _transcriptGeneration = 0;
 
-  /// The last frame's flat result list, so a key handler (which runs outside
-  /// build) can act on exactly what the user is looking at right now.
+  /// The last frame's flat result list, for key handlers, which run outside build.
   List<PaletteResultItem> _visible = const [];
 
   /// Where each section begins in [_visible], for Tab to jump between them.
@@ -146,8 +151,6 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     super.dispose();
   }
 
-  void _onMessages() => setState(() {});
-
   /// With chips the palette is a message search, and nothing else.
   bool get _filtering => _field.filters.isNotEmpty;
 
@@ -155,11 +158,25 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
   void _scopeTo(String prefix) =>
       _field.setText('$prefix${parsePaletteQuery(_query).text}');
 
+  @override
+  void initState() {
+    super.initState();
+    if (_remembered != null) {
+      _query = _field.text;
+      _search();
+    }
+  }
+
   void _onEdited() {
     setState(() {
       _query = _field.text;
       _highlighted = 0;
     });
+    if (widget.scope case final scope?) {
+      ref
+          .read(conversationSearchMemoryProvider)
+          .remember(scope, _field.text, _field.filters);
+    }
     clearActionError();
     _search();
   }

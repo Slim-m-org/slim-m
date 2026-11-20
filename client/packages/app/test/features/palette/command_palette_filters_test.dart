@@ -225,6 +225,41 @@ void main() {
     await _close(tester, opened);
   });
 
+  testWidgets('a conversation\'s search comes back as it was left, and '
+      'another conversation\'s starts clean', (tester) async {
+    final opened = await _openInGeneral(tester, hits: [_hit(3)]);
+    await _type(tester, 'pinned:true launch');
+    await _key(tester, LogicalKeyboardKey.escape);
+    expect(_input, findsNothing);
+
+    Future<void> reopen(String channelId, String label) async {
+      unawaited(
+        openConversationSearch(
+          tester.element(find.text('conversation')),
+          channelId: channelId,
+          label: label,
+        ),
+      );
+      await _frames(tester);
+    }
+
+    final before = opened.searches.length;
+    await reopen('c1', '#general');
+    expect(_chip('in: #general'), findsOneWidget);
+    expect(_chip('pinned: true'), findsOneWidget);
+    expect(_fieldText(tester), 'launch');
+    expect(opened.searches.length, before + 1, reason: 'its hits come back');
+    expect(inPalette('MESSAGES'), findsOneWidget);
+    await _key(tester, LogicalKeyboardKey.escape);
+
+    await reopen('c2', '#random');
+    expect(_chip('in: #random'), findsOneWidget);
+    expect(_chip('pinned: true'), findsNothing);
+    expect(_fieldText(tester), '');
+
+    await _close(tester, opened);
+  });
+
   testWidgets('a full page offers more, fetched after the last hit shown', (
     tester,
   ) async {
