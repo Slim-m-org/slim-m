@@ -80,6 +80,7 @@ impl LogMode {
 }
 
 /// Calls and voice, sync and the socket, sign-in, push and media, plus one line per HTTP request.
+/// A target matches by string prefix, so `voice` also takes `voice_transcripts` and `voice_notify`.
 const COMPACT_DIRECTIVES: &[&str] = &[
     "slimm_server::voice=debug",
     "slimm_server::http::voice=debug",
@@ -89,7 +90,8 @@ const COMPACT_DIRECTIVES: &[&str] = &[
     "slimm_server::hub=debug",
     "slimm_server::presence=debug",
     "slimm_server::http::sync=debug",
-    "slimm_server::http::read_s=debug",
+    "slimm_server::http::read_states=debug",
+    "slimm_server::http::read_sync=debug",
     "slimm_server::auth=debug",
     "slimm_server::http::auth=debug",
     "slimm_server::http::totp=debug",
