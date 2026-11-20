@@ -295,10 +295,10 @@ A GitHub workflow cannot path-filter one job, so the split is what lets it be ga
 A push to `main` uses that filter, since it gates nothing except a release, and the release commit always matches it: release-please bumps `client/packages/app/pubspec.yaml`, which is in the filter.
 Since 2026-11-18 a pull request uses a narrower one, only what reaches Xcode natively: any package's `ios/`, `darwin/` or `hook/`, every pubspec, the lockfile, the workflow and its actions.
 A Dart-only change in `rtc/`, `platform/` or `data/` compiles on every other platform's job first, and still runs this on `main` and on its release commit before anything publishes; what moved is only when it runs, never whether.
-There is no CocoaPods cache: the plugin tree is SPM-only and a measured `pod install` took 2.2 s.
+There is no CocoaPods cache: the plugin tree is SPM-only and the app tracks no Podfile.
 
 `flutter build ios --simulator --no-codesign --config-only` runs first because xcodebuild needs the generated Flutter config and the plugin registrant to exist before the project will open.
-`--config-only` writes them and runs pod install without compiling anything, so `xcodebuild build-for-testing` is the only simulator build.
+`--config-only` writes them and resolves the Swift packages without compiling anything, so `xcodebuild build-for-testing` is the only simulator build.
 Until 2026-11-17 this step was a full `flutter build ios --simulator`, which built the app into `build/ios`, and `xcodebuild test` then built it again in its own DerivedData, about 3.8 minutes more.
 The broadcast extension check reads `BroadcastExtension.appex` from that DerivedData once the build is done; it checks every copy it finds, the embedded one included.
 

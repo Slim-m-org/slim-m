@@ -193,7 +193,7 @@ jobs:
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
           xcrun simctl list devices available | grep "$udid" || true
 
-      # Config only: build-for-testing below is the one simulator build, so this writes the Flutter config, resolves the Swift packages and runs pod install if a plugin needs it.
+      # Config only: build-for-testing below is the one simulator build, so this writes the Flutter config and resolves the Swift packages.
       - name: generate the ios project
         working-directory: client/packages/app
         run: flutter build ios --simulator --no-codesign --config-only

@@ -266,6 +266,33 @@ Future<void> remove(WidgetRef ref, BuildContext context) async {
 """)
         self._assert_flagged("bad_guarded.dart", 8)
 
+    def test_a_runguarded_sentence_through_the_outcome_helper_is_caught(self):
+        self._write("bad_outcome.dart", """
+Future<void> toggle(BuildContext context) async {
+  final failure = await runGuarded(
+    whatFailed: 'change it',
+    action: () => api.thing(),
+  );
+  if (!context.mounted) return;
+  showMenuOutcome(context, failure: failure, succeeded: 'Changed.');
+}
+""")
+        self._assert_flagged("bad_outcome.dart", 8)
+
+    def test_a_caught_failure_through_the_outcome_helper_is_caught(self):
+        self._write("bad_outcome_catch.dart", """
+class Foo {
+  Future<void> go() async {
+    try {
+      await api.thing();
+    } on ApiException catch (e) {
+      showMenuOutcome(context, failure: e.toString(), succeeded: 'x');
+    }
+  }
+}
+""")
+        self._assert_flagged("bad_outcome_catch.dart", 6)
+
     def test_a_then_bound_runguarded_sentence_is_caught(self):
         self._write("bad_then.dart", """
 Future<void> remove(BuildContext host, ProviderContainer container) async {
