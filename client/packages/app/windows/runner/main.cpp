@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include "flutter_window.h"
+#include "launcher_handoff.h"
 #include "link_scheme.h"
 #include "single_instance.h"
 #include "utils.h"
@@ -10,6 +11,9 @@
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
   if (ForwardLinkToRunningInstance()) {
+    return EXIT_SUCCESS;
+  }
+  if (HandStartToLauncher(command_line)) {
     return EXIT_SUCCESS;
   }
   if (!ClaimSingleInstance(command_line)) {

@@ -185,6 +185,40 @@ void AnInstalledCopyRegistersItsLauncher() {
                               InLayout) == kRoot + L"\\slim-m.exe");
 }
 
+void TheRunFolderRegistersItsLauncher() {
+  CHECK(slimm::LinkHandlerFor(kRoot + L"\\app\\slimm_app.exe", InLayout) ==
+        kRoot + L"\\slim-m.exe");
+  const std::wstring lookalike = kRoot + L"\\apps\\slimm_app.exe";
+  CHECK(slimm::LinkHandlerFor(lookalike, InLayout) == lookalike);
+}
+
+void APinnedRunFolderCopyGoesThroughTheLauncher() {
+  const std::wstring pinned = kRoot + L"\\app\\slimm_app.exe";
+  CHECK(slimm::LauncherToHandTo(pinned, false, false, InLayout) ==
+        kRoot + L"\\slim-m.exe");
+  CHECK(slimm::LauncherToHandTo(pinned, true, false, InLayout).empty());
+  CHECK(slimm::LauncherToHandTo(pinned, false, false, Nothing).empty());
+  CHECK(slimm::LauncherToHandTo(kRoot + L"\\app-0.131.0\\slimm_app.exe", false,
+                                false, InLayout)
+            .empty());
+  CHECK(slimm::LauncherToHandTo(L"C:\\zip\\app\\slimm_app.exe", false, false,
+                                InLayout)
+            .empty());
+}
+
+void APinBesideARunningCopyOnlyHandsFocusOver() {
+  CHECK(slimm::LauncherToHandTo(kRoot + L"\\app\\slimm_app.exe", false, true,
+                                InLayout)
+            .empty());
+}
+
+void TheHandOverNamesTheCopyTheLauncherWaitsFor() {
+  CHECK(slimm::HandoffCommandLine(kRoot + L"\\slim-m.exe", 4321, L"slimm://x") ==
+        L"\"" + kRoot + L"\\slim-m.exe\" --from-run-folder=4321 slimm://x");
+  CHECK(slimm::HandoffCommandLine(L"l.exe", 7, L"") ==
+        L"\"l.exe\" --from-run-folder=7");
+}
+
 void ACopyOutsideTheLayoutRegistersItself() {
   const std::wstring unzipped = L"C:\\Users\\Ann\\Downloads\\slim-m\\slimm_app.exe";
   CHECK(slimm::LinkHandlerFor(unzipped, InLayout) == unzipped);
@@ -244,6 +278,10 @@ int main() {
   ALinkForwardsToACopyFromAnotherVersionFolder();
   OnlyASlimmArgumentIsALink();
   AnInstalledCopyRegistersItsLauncher();
+  TheRunFolderRegistersItsLauncher();
+  APinnedRunFolderCopyGoesThroughTheLauncher();
+  APinBesideARunningCopyOnlyHandsFocusOver();
+  TheHandOverNamesTheCopyTheLauncherWaitsFor();
   ACopyOutsideTheLayoutRegistersItself();
   TheOpenCommandMatchesTheSetup();
   ALogicalRectScalesToPhysicalPixels();

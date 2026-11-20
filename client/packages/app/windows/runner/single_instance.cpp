@@ -84,6 +84,13 @@ UINT SecondInstanceMessage() {
   return message;
 }
 
+bool AnotherInstanceRuns() {
+  HANDLE mutex = ::OpenMutexW(SYNCHRONIZE, FALSE, kMutexName);
+  if (mutex == nullptr) return false;
+  ::CloseHandle(mutex);
+  return true;
+}
+
 bool ClaimSingleInstance(const wchar_t* command_line) {
   // Held until the process exits; the OS releases it, even on a crash.
   HANDLE mutex = ::CreateMutexW(nullptr, TRUE, kMutexName);

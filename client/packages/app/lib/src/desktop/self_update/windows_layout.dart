@@ -18,6 +18,10 @@ abstract final class WindowsNames {
   static const launcher = 'slim-m.exe';
   static const appExecutable = 'slimm_app.exe';
   static const versionPrefix = 'app-';
+
+  /// The launcher's hard-linked copy of the current version, which every
+  /// version runs from so the firewall sees one path across updates.
+  static const runFolder = 'app';
 }
 
 class WindowsInstallLayout {
@@ -91,11 +95,13 @@ bool isSystemInstallPath(String executable) {
 /// a `flutter run` build all lack the launcher and the `current` pointer.
 WindowsInstallLayout? detectWindowsLayout(String resolvedExecutable) {
   if (isSystemInstallPath(resolvedExecutable)) return null;
-  final versionDir = p.dirname(resolvedExecutable);
-  if (WindowsInstallLayout.versionOfFolder(p.basename(versionDir)) == null) {
+  final folder = p.dirname(resolvedExecutable);
+  final name = p.basename(folder);
+  if (name != WindowsNames.runFolder &&
+      WindowsInstallLayout.versionOfFolder(name) == null) {
     return null;
   }
-  final layout = WindowsInstallLayout(Directory(p.dirname(versionDir)));
+  final layout = WindowsInstallLayout(Directory(p.dirname(folder)));
   final hasPointer = File(layout.path(LayoutNames.current)).existsSync();
   return hasPointer && layout.launcher.existsSync() ? layout : null;
 }

@@ -16,6 +16,7 @@ import (
 func start(exe, dir string, args []string) (int, error) {
 	cmd := exec.Command(exe, args...)
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), launcherEnv+"=1")
 	if err := cmd.Start(); err != nil {
 		return 0, err
 	}
@@ -26,6 +27,8 @@ func osProcessAlive(pid int) bool {
 	process, err := os.FindProcess(pid)
 	return err == nil && process.Signal(syscall.Signal(0)) == nil
 }
+
+func processRunningFrom(string) bool { return false }
 
 func fail(message string) {
 	fmt.Fprintln(os.Stderr, message)

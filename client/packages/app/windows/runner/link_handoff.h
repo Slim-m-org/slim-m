@@ -13,9 +13,11 @@ namespace slimm {
 constexpr wchar_t kLinkScheme[] = L"slimm:";
 
 /// The per-user layout from decision 0041: `<root>\slim-m.exe` starts the
-/// version that `<root>\current` names, from `<root>\app-<version>\`.
+/// version that `<root>\current` names, from `<root>\app\`, its hard-linked
+/// copy of `<root>\app-<version>\`, or from that version folder itself.
 constexpr wchar_t kLauncherName[] = L"slim-m.exe";
 constexpr wchar_t kVersionFolderPrefix[] = L"app-";
+constexpr wchar_t kRunFolder[] = L"app";
 constexpr wchar_t kCurrentPointer[] = L"current";
 
 inline bool StartsWithIgnoringCase(const std::wstring& text,
@@ -58,19 +60,58 @@ inline bool IsSameApp(const std::wstring& image, const std::wstring& own) {
 }
 
 /// What `slimm://` should open for the copy at `exe`: the per-user launcher
-/// when `exe` runs from one of its version folders, so the registration
-/// survives updates, and `exe` itself for a copy run from an unzipped folder.
+/// when `exe` runs from the layout, so the registration survives updates, and
+/// `exe` itself for a copy run from an unzipped folder.
 template <typename Exists>
 std::wstring LinkHandlerFor(const std::wstring& exe, Exists exists) {
   const std::wstring folder = ParentOf(exe);
   const std::wstring root = ParentOf(folder);
-  if (root.empty() ||
-      !StartsWithIgnoringCase(FileName(folder), kVersionFolderPrefix)) {
+  const std::wstring name = FileName(folder);
+  if (root.empty() || !(EqualsIgnoringCase(name, kRunFolder) ||
+                        StartsWithIgnoringCase(name, kVersionFolderPrefix))) {
     return exe;
   }
   const std::wstring launcher = root + L"\\" + kLauncherName;
   if (!exists(launcher) || !exists(root + L"\\" + kCurrentPointer)) return exe;
   return launcher;
+}
+
+/// Set by the launcher on the app it starts (prepare.go has the same name).
+constexpr wchar_t kFromLauncherVariable[] = L"SLIMM_FROM_LAUNCHER";
+
+/// Passed to the launcher on a hand-over, so it waits for this copy to exit
+/// before it relinks the run folder (prepare.go has the same text).
+constexpr wchar_t kHandoffArgument[] = L"--from-run-folder";
+
+/// The launcher to hand this start to, or empty to carry on: a copy in the run
+/// folder that the launcher did not start (a taskbar pin of its window) would
+/// skip the start count, rollback and relinking that only the launcher does.
+/// Beside a running copy it only needs to hand focus over, as any second start does.
+template <typename Exists>
+std::wstring LauncherToHandTo(const std::wstring& exe, bool from_launcher,
+                              bool another_instance, Exists exists) {
+  const std::wstring folder = ParentOf(exe);
+  const std::wstring root = ParentOf(folder);
+  if (from_launcher || another_instance || root.empty() ||
+      !EqualsIgnoringCase(FileName(folder), kRunFolder)) {
+    return std::wstring();
+  }
+  const std::wstring launcher = root + L"\\" + kLauncherName;
+  if (!exists(launcher) || !exists(root + L"\\" + kCurrentPointer)) {
+    return std::wstring();
+  }
+  return launcher;
+}
+
+/// The launcher's command line for a hand-over from process `pid`, which it
+/// waits on, followed by this start's own arguments.
+inline std::wstring HandoffCommandLine(const std::wstring& launcher,
+                                       unsigned long pid,
+                                       const std::wstring& arguments) {
+  std::wstring line = L"\"" + launcher + L"\" " + kHandoffArgument + L"=" +
+                      std::to_wstring(pid);
+  if (!arguments.empty()) line += L" " + arguments;
+  return line;
 }
 
 /// The scheme's open command, quoted as the setup writes it.
