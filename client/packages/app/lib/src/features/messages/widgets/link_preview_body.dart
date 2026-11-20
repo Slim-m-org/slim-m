@@ -16,6 +16,7 @@ import '../../../external_link.dart';
 import '../../../routing/modal_page.dart' show kScrimColor;
 import '../../../widgets/text_link.dart';
 import '../../video/widgets/desktop_inline_video.dart';
+import '../../video/widgets/inline_video_box.dart';
 import '../../video/widgets/inline_video_player.dart';
 import '../providers/media_preferences.dart';
 import 'attachment_reveal.dart';
@@ -210,15 +211,16 @@ class _LinkPreviewMedia extends ConsumerWidget {
     if (playing) {
       final embedUrl = preview.embedUrl;
       if (embedUrl == null) return const SizedBox.shrink();
+      final frame = ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.control),
+        child: buildInlineEmbedFrame(embedUrl, allow: _youtubeAllow),
+      );
+      if (preview.isPlayableVideo) {
+        return InlineVideoBox(maxWidth: kInlineImageMax, child: frame);
+      }
       return ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: kInlineImageMax),
-        child: AspectRatio(
-          aspectRatio: 16 / 9,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadii.control),
-            child: buildInlineEmbedFrame(embedUrl, allow: _youtubeAllow),
-          ),
-        ),
+        child: AspectRatio(aspectRatio: 16 / 9, child: frame),
       );
     }
 
@@ -236,21 +238,32 @@ class _LinkPreviewMedia extends ConsumerWidget {
       );
     }
 
-    final thumbnail = token == null
-        ? const _LinkPreviewVideoPlaceholder()
-        : LinkPreviewThumbnail(token: token, url: url);
-    if (!preview.isPlayableVideo) return thumbnail;
+    if (!preview.isPlayableVideo) {
+      return token == null
+          ? const _LinkPreviewVideoPlaceholder()
+          : LinkPreviewThumbnail(token: token, url: url);
+    }
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: onPlay,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            thumbnail,
-            if (playingInPanel) const _InPanelBadge() else const _PlayGlyph(),
-          ],
+        child: InlineVideoBox(
+          maxWidth: kInlineImageMax,
+          child: Stack(
+            alignment: Alignment.center,
+            fit: StackFit.expand,
+            children: [
+              token == null
+                  ? const _LinkPreviewVideoPlaceholder()
+                  : LinkPreviewThumbnail(token: token, url: url, fill: true),
+              Center(
+                child: playingInPanel
+                    ? const _InPanelBadge()
+                    : const _PlayGlyph(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -265,17 +278,11 @@ class _LinkPreviewVideoPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: kInlineImageMax),
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: tokens.stripe,
-            border: Border.all(color: tokens.borderSubtle),
-            borderRadius: BorderRadius.circular(AppRadii.control),
-          ),
-        ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: tokens.stripe,
+        border: Border.all(color: tokens.borderSubtle),
+        borderRadius: BorderRadius.circular(AppRadii.control),
       ),
     );
   }

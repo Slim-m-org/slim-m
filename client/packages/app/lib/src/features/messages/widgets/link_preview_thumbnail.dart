@@ -3,6 +3,8 @@
 /// [AttachmentView] applies to an inline attachment image.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -20,6 +22,7 @@ class LinkPreviewThumbnail extends ConsumerWidget {
     required this.url,
     this.bounds,
     this.radius = AppRadii.control,
+    this.fill = false,
   });
 
   final String token;
@@ -33,6 +36,11 @@ class LinkPreviewThumbnail extends ConsumerWidget {
   final Size? bounds;
 
   final double radius;
+
+  /// Cover-crops the image into whatever box the parent gives, a sunken fill
+  /// until it decodes. A video's 4:3 thumbnail carries black bars that its
+  /// 16:9 box crops away.
+  final bool fill;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -50,6 +58,13 @@ class LinkPreviewThumbnail extends ConsumerWidget {
     final bytes = ref.watch(linkPreviewImageBytesProvider(token)).valueOrNull;
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final box = bounds;
+    if (fill) {
+      return _CoverFill(
+        bytes: bytes,
+        radius: radius,
+        decodeScale: previewScale,
+      );
+    }
     if (box != null) {
       final placeholder = _ArtPlaceholder(
         edge: box.shortestSide,
@@ -120,6 +135,45 @@ class _ArtPlaceholder extends StatelessWidget {
         decoration: BoxDecoration(
           color: tokens.surfaceSunken,
           borderRadius: BorderRadius.circular(radius),
+        ),
+      ),
+    );
+  }
+}
+
+class _CoverFill extends StatelessWidget {
+  const _CoverFill({
+    required this.bytes,
+    required this.radius,
+    required this.decodeScale,
+  });
+
+  final Uint8List? bytes;
+  final double radius;
+  final double decodeScale;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final sunken = DecoratedBox(
+      decoration: BoxDecoration(
+        color: tokens.surfaceSunken,
+        border: Border.all(color: tokens.borderSubtle),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+    final data = bytes;
+    if (data == null) return sunken;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: AnimationGate(
+        child: Image.memory(
+          data,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          cacheWidth: decodeEdge(context, kInlineImageMax, scale: decodeScale),
+          errorBuilder: (context, error, stackTrace) => sunken,
         ),
       ),
     );

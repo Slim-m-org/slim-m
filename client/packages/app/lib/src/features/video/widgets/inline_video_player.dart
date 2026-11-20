@@ -5,7 +5,6 @@
 library;
 
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,8 +14,8 @@ import '../../../external_link.dart';
 import '../providers/embedded_video_player.dart';
 import '../providers/inline_video_player.dart';
 import '../providers/video_playback_coordinator.dart';
-import 'docked_video_panel.dart' show kMinPlayerHeight;
 import 'video_fullscreen.dart';
+import 'inline_video_box.dart';
 
 class InlineVideoPlayer extends ConsumerStatefulWidget {
   const InlineVideoPlayer({
@@ -73,29 +72,23 @@ class _InlineVideoPlayerState extends ConsumerState<InlineVideoPlayer> {
   @override
   Widget build(BuildContext context) {
     final failure = _failure;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = math.min(constraints.maxWidth, widget.maxWidth);
-        final height = math.max(width * 9 / 16, kMinPlayerHeight);
-        return SizedBox(
-          width: width,
-          height: height,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadii.control),
-            child: failure == null
-                ? _handle.view
-                : Center(
-                    child: AppErrorState(
-                      message: failure.embeddingRefused
-                          ? 'This video can only be watched on YouTube.'
-                          : 'This video could not be played here.',
-                      retryLabel: 'Open on YouTube',
-                      onRetry: () => unawaited(openExternalHttpUrl(widget.url)),
-                    ),
-                  ),
-          ),
-        );
-      },
+    return InlineVideoBox(
+      maxWidth: widget.maxWidth,
+      claimsClicks: failure == null,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.control),
+        child: failure == null
+            ? _handle.view
+            : Center(
+                child: AppErrorState(
+                  message: failure.embeddingRefused
+                      ? 'This video can only be watched on YouTube.'
+                      : 'This video could not be played here.',
+                  retryLabel: 'Open on YouTube',
+                  onRetry: () => unawaited(openExternalHttpUrl(widget.url)),
+                ),
+              ),
+      ),
     );
   }
 }
