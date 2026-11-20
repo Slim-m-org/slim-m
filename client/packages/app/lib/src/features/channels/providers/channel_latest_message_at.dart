@@ -16,21 +16,21 @@ final markUnreadClockProvider = Provider<DateTime Function()>(
   (_) => DateTime.now,
 );
 
-/// Every channel's newest held seq from one watch on the small channels table, so a transcript write never re-runs a query per visible row.
+/// Every channel's standing seq (the newest message still there) from one watch on the small channels table, so a transcript write never re-runs a query per visible row.
 /// Not autoDispose: rows remount constantly and share this one watch.
-final channelCursorsProvider = StreamProvider<Map<String, int>>((ref) {
+final channelStandingSeqsProvider = StreamProvider<Map<String, int>>((ref) {
   // Watched rather than awaited: an async gap here deadlocks a widget test's teardown, see channelByIdProvider.
   final store = ref.watch(storeProvider).valueOrNull;
   if (store == null) return const Stream.empty();
-  return store.watchChannelCursors();
+  return store.watchStandingSeqs();
 });
 
-/// One channel's newest held seq, notifying only when that channel's own
-/// cursor moves. The rail's channel list drops cursor-only changes, so its
+/// One channel's standing seq, notifying only when that channel's own
+/// seq moves. The rail's channel list drops cursor-only changes, so its
 /// rows' `cursor` goes stale while a channel stays unread.
-final channelNewestSeqProvider = Provider.autoDispose.family<int, String>(
+final channelStandingSeqProvider = Provider.autoDispose.family<int, String>(
   (ref, channelId) => ref.watch(
-    channelCursorsProvider.select((a) => a.valueOrNull?[channelId] ?? 0),
+    channelStandingSeqsProvider.select((a) => a.valueOrNull?[channelId] ?? 0),
   ),
 );
 
@@ -38,7 +38,7 @@ final channelNewestSeqProvider = Provider.autoDispose.family<int, String>(
 /// when this client holds none.
 final channelLatestMessageAtProvider = FutureProvider.autoDispose
     .family<int?, String>((ref, channelId) async {
-      final seq = ref.watch(channelNewestSeqProvider(channelId));
+      final seq = ref.watch(channelStandingSeqProvider(channelId));
       if (seq <= 0) return null;
       final store = await ref.watch(storeProvider.future);
       return (await store.messageAtSeq(channelId, seq))?.createdAt;

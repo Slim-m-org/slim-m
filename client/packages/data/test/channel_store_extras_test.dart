@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A removed channel takes its personal canvas layout with it, and the cursor
-/// watch emits only when a cursor moves.
+/// A removed channel takes its personal canvas layout with it, and the standing-seq
+/// watch emits only when one moves.
 library;
 
 import 'package:drift/native.dart';
@@ -60,7 +60,7 @@ void main() {
         api.Channel(id: id, name: id, kind: 'text', createdAt: 1),
     ]);
     final seen = <Map<String, int>>[];
-    final sub = store.watchChannelCursors().listen(seen.add);
+    final sub = store.watchStandingSeqs().listen(seen.add);
     addTearDown(sub.cancel);
     await pumpEventQueue();
     expect(seen.last, {'c1': 0, 'c2': 0});
@@ -75,5 +75,26 @@ void main() {
     await store.setOpCursor('c1', 5);
     await pumpEventQueue();
     expect(seen, hasLength(emitted), reason: 'no cursor moved');
+  });
+
+  test(
+      'the standing seq falls back to the newest message left when the '
+      'newest is discarded', () async {
+    await store.upsertChannels([
+      const api.Channel(id: 'c1', name: 'c1', kind: 'text', createdAt: 1),
+    ]);
+    final seen = <Map<String, int>>[];
+    final sub = store.watchStandingSeqs().listen(seen.add);
+    addTearDown(sub.cancel);
+    for (var seq = 1; seq <= 3; seq++) {
+      await store.applyMessage(_message('m$seq', seq, 100 * seq));
+    }
+    await pumpEventQueue();
+    expect(seen.last, {'c1': 3});
+
+    await store.discard('m3');
+    await pumpEventQueue();
+
+    expect(seen.last, {'c1': 2});
   });
 }

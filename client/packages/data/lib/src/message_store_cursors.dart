@@ -8,6 +8,7 @@ import 'dart:math' as math;
 
 import 'package:drift/drift.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'channel_standing.dart';
 import 'database.dart';
 import 'message_store.dart';
 
@@ -63,7 +64,7 @@ Future<void> advanceCursorHelper(
   final newest = seqs.reduce(math.max);
   if (row == null) return;
   // A row stands once it is stored, whether or not the cursor may move over it.
-  if ((row.liveSeq ?? row.cursor) < newest) {
+  if (row.standingSeq < newest) {
     await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
         .write(ChannelsCompanion(liveSeq: Value(newest)));
   }
@@ -103,7 +104,7 @@ Future<void> coverCursorHelper(
     await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
         .write(ChannelsCompanion(
       cursor: Value(seq),
-      liveSeq: Value(row.liveSeq ?? row.cursor),
+      liveSeq: Value(row.standingSeq),
     ));
   });
 }
@@ -125,7 +126,7 @@ Future<void> discardRowHelper(
     if (gone == null || gone.seq <= 0) return;
     final row = await channelRow(store, gone.channelId);
     if (row == null) return;
-    final standing = row.liveSeq ?? row.cursor;
+    final standing = row.standingSeq;
     final newest = standing > gone.seq
         ? standing
         : await _newestHeldSeq(db, gone.channelId);
@@ -145,7 +146,7 @@ Future<void> restandHelper(MessageStore store, String channelId) async {
   final row = await channelRow(store, channelId);
   if (row == null) return;
   final newest = await _newestHeldSeq(db, channelId);
-  if ((row.liveSeq ?? row.cursor) <= newest) return;
+  if (row.standingSeq <= newest) return;
   await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
       .write(ChannelsCompanion(liveSeq: Value(newest)));
 }

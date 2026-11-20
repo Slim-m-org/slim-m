@@ -3,6 +3,7 @@ library;
 
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart' show mapEquals;
+import 'channel_standing.dart';
 import 'database.dart';
 import 'message_dto.dart';
 import 'message_store.dart';
@@ -18,19 +19,18 @@ extension MessageStoreInbox on MessageStore {
     return row?.toDto();
   }
 
-  /// Every channel's newest held seq, by id, read off the small channels table
-  /// so a consumer never queries the transcript per channel. Emits only when a
-  /// cursor actually moves, not on every other write to a channel row.
-  Stream<Map<String, int>> watchChannelCursors() {
+  /// Every channel's standing seq (see [StandingChannel]), by id, read off the
+  /// small channels table so a consumer never queries the transcript per
+  /// channel. Emits only when one moves, not on every other write to a row.
+  Stream<Map<String, int>> watchStandingSeqs() {
     final channels = db.channels;
-    final query = db.selectOnly(channels)
-      ..addColumns([channels.id, channels.cursor]);
+    final standing = coalesce([channels.liveSeq, channels.cursor]);
+    final query = db.selectOnly(channels)..addColumns([channels.id, standing]);
     return query
         .watch()
         .map(
           (rows) => {
-            for (final row in rows)
-              row.read(channels.id)!: row.read(channels.cursor)!,
+            for (final row in rows) row.read(channels.id)!: row.read(standing)!,
           },
         )
         .distinct(mapEquals);

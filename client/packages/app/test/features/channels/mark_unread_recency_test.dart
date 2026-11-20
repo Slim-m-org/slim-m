@@ -114,7 +114,7 @@ void main() {
           notified.update(label, (n) => n + 1, ifAbsent: () => 1);
       for (final id in ['c1', 'c2']) {
         await store.applyMessage(_message(id, 1, 1000));
-        container.listen(channelNewestSeqProvider(id), (_, _) => count(id));
+        container.listen(channelStandingSeqProvider(id), (_, _) => count(id));
         container.listen(
           channelLatestMessageAtProvider(id),
           (_, _) => count(id),
