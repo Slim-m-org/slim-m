@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The dock's real, composed height - `DockHeightReporter`'s own measured
-/// value, the one `app_snackbar.dart` reads to clear the leave-call button -
+/// value, the one `ToastOverlay` reads to clear the leave-call button -
 /// before and after the owner's "the dock can be made way more compact"
 /// report: 70dp to 52dp at desktop-1400 (one row), 131dp to 115dp at
 /// phone-390 (two rows). Both numbers were read off this exact fixture on
 /// `main` before the compaction, not estimated. At phone-390 the dock then
 /// became 176dp of three stacked rows, and the owner's 2026-10-02 report of
 /// "dock ui on mobile a mess in canvas" made it two one-row cards, 124dp.
-///
-/// Split out of `home_shell_snackbar_dock_test.dart`, which already builds
-/// the identical call-plus-canvas fixture for a different assertion (a
-/// snackbar clearing the dock), rather than duplicating it a third time.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
