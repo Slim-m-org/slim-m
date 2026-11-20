@@ -74,6 +74,14 @@ class RunningCopyIsClosedAfterConfirming(unittest.TestCase):
         self.assertRegex(close, r"while CheckForMutexes\('\{#AppMutexName\}'\)")
 
 
+class TempFilesDoNotKeepTheFolder(unittest.TestCase):
+    def test_both_temp_patterns_are_deleted_before_the_folder_is_removed(self):
+        steps = routine("CurUninstallStepChanged")
+        for pattern in ("'.*.new'", "'.*.launcher'"):
+            self.assertIn(f"DeleteMatching({pattern})", steps)
+            self.assertLess(steps.index(pattern), steps.index("RemoveDir(ExpandConstant('{app}'))"))
+
+
 class DataStaysUnlessAsked(unittest.TestCase):
     def test_a_silent_uninstall_keeps_the_data(self):
         self.assertRegex(routine("OfferToRemoveData"), r"if UninstallSilent or not DirExists\(Data\) then\s+exit;")

@@ -19,4 +19,7 @@ std::vector<std::string> GetCommandLineArguments();
 // The full path of this process's executable, or empty on failure.
 std::wstring ExecutablePath();
 
+// True when the path exists and is not a directory.
+bool IsFile(const std::wstring& path);
+
 #endif  // RUNNER_UTILS_H_

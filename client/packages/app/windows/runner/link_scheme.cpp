@@ -14,12 +14,6 @@ constexpr wchar_t kSchemeKey[] = L"Software\\Classes\\slimm";
 constexpr wchar_t kCommandKey[] = L"Software\\Classes\\slimm\\shell\\open\\command";
 constexpr wchar_t kIconKey[] = L"Software\\Classes\\slimm\\DefaultIcon";
 
-bool IsFile(const std::wstring& path) {
-  const DWORD attributes = ::GetFileAttributesW(path.c_str());
-  return attributes != INVALID_FILE_ATTRIBUTES &&
-         (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
-}
-
 std::wstring ReadDefault(const wchar_t* subkey) {
   DWORD size = 0;
   if (::RegGetValueW(HKEY_CURRENT_USER, subkey, nullptr, RRF_RT_REG_SZ, nullptr,
