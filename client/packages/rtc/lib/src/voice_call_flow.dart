@@ -173,6 +173,7 @@ class VoiceCallFlow {
     await _core.camera.dispose();
     await _core.micGate.dispose();
     await _core.micRecovery.dispose();
+    _core.readiness.release.dispose();
     await _core.micGate.gate.dispose();
     await _core.roster.dispose();
     await _states.close();
@@ -418,6 +419,7 @@ class VoiceCallFlow {
     _core.stall.stop();
     _core.stats.release();
     _core.micRecovery.stopWatch();
+    _core.readiness.release.reset();
     _core.healthWatch.stop();
     _core.setupLog.stop();
     _core.micGate.strong.reset();
