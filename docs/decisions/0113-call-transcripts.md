@@ -100,3 +100,9 @@ The event is durable, so a reader who falls behind resyncs; a client applies lin
 Nothing else changes about who can read.
 Anyone with the two permissions can still read the transcript route at any time, in the call or not, as before.
 No screen shows lines live in the call yet; captions, summaries and the rest of "Not in this phase" are still to come.
+
+## Amendment 2026-11-12: a mark in the call header, not a banner, in `always`
+
+Since #2405 the call header shows a transcript mark whenever the server is transcribing the call, in both modes, with "This call is being transcribed" on hover.
+In `always` there is no in-call banner any more: nothing in it could be answered or stopped, so the mark replaces the passive banner described above.
+In `on_request` the banner with Stop stays, beside the mark.

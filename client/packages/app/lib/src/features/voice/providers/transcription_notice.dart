@@ -14,7 +14,7 @@ class TranscriptionNoticeActions {
   final api.SlimmApi _api;
 
   /// Whether the member still owes the notice. A notice that cannot be read
-  /// lets the join through; the in-call banner still says the call is transcribed.
+  /// lets the join through; the call header's transcript mark still says the call is transcribed.
   Future<bool> isDue() async {
     try {
       return (await _api.transcriptionNotice()).due;

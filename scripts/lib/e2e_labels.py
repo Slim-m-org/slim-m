@@ -125,7 +125,7 @@ INVITE_CODE = "Invite code"
 ACCEPT_TERMS = "I accept the terms of use for this Space."
 INVITE_CONTINUE = "Continue"
 
-# Video quality (call_quality_options.dart, video_quality_sections.dart)
+# Video quality (voice_call_controls.dart, share_options_menu.dart, video_quality_sections.dart, video_quality_labels.dart)
 SHARE_OPTIONS = "Screen share options"
 SHARE_RESOLUTION_HEADING = "Resolution"
 SHARE_RESOLUTION_ROW = "Resolution"
