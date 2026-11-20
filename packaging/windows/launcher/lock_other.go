@@ -16,9 +16,9 @@ import (
 // lockLaunchers is flock on the same lock file, so the tests exercise a real exclusive lock.
 func lockLaunchers(root string, wait time.Duration) (func(), bool) {
 	path := filepath.Join(root, lockFile)
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
-	if errors.Is(err, fs.ErrPermission) && os.Chmod(path, 0o644) == nil {
-		file, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
+	if errors.Is(err, fs.ErrPermission) && os.Chmod(path, 0o600) == nil {
+		file, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
 	}
 	if err != nil {
 		return nil, false
