@@ -185,11 +185,26 @@ class DeepLinkListener {
       return;
     }
     if (isDiscordLinkDelivery(uri)) {
-      unawaited(_finishDiscordLink(onScreen, uri));
+      unawaited(
+        _finishLink(
+          onScreen,
+          uri,
+          (code) => onScreen
+              .read(discordLinkFinisherProvider)
+              .completeDelivered(code),
+        ),
+      );
       return;
     }
     if (isSteamLinkDelivery(uri)) {
-      unawaited(_finishSteamLink(onScreen, uri));
+      unawaited(
+        _finishLink(
+          onScreen,
+          uri,
+          (code) =>
+              onScreen.read(steamLinkFinisherProvider).completeDelivered(code),
+        ),
+      );
       return;
     }
     final host = _host;
@@ -198,26 +213,19 @@ class DeepLinkListener {
   }
 }
 
-/// Completes a Discord link in the account on screen, with Settings showing the outcome.
-Future<void> _finishDiscordLink(ProviderContainer container, Uri uri) async {
+/// Completes a Discord or Steam link in the account on screen, with Settings showing the outcome.
+Future<void> _finishLink(
+  ProviderContainer container,
+  Uri uri,
+  Future<void> Function(String code) complete,
+) async {
   final code = uri.queryParameters[discordLinkCodeQuery];
   if (code == null || !container.read(sessionProvider).isSignedIn) return;
   final router = container.read(routerProvider);
   if (router.state.uri.path != Routes.personalSettings) {
     unawaited(router.push<void>(Routes.personalSettingsPane('profile')));
   }
-  await container.read(discordLinkFinisherProvider).completeDelivered(code);
-}
-
-/// Completes a Steam link in the account on screen, like [_finishDiscordLink].
-Future<void> _finishSteamLink(ProviderContainer container, Uri uri) async {
-  final code = uri.queryParameters[discordLinkCodeQuery];
-  if (code == null || !container.read(sessionProvider).isSignedIn) return;
-  final router = container.read(routerProvider);
-  if (router.state.uri.path != Routes.personalSettings) {
-    unawaited(router.push<void>(Routes.personalSettingsPane('profile')));
-  }
-  await container.read(steamLinkFinisherProvider).completeDelivered(code);
+  await complete(code);
 }
 
 /// Follows a link in one account's own session, when it names that session.
