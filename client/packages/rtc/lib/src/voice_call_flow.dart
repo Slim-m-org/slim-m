@@ -124,7 +124,7 @@ class VoiceCallFlow {
     return ending;
   }
 
-  /// [replaced] is a join taking over a call nobody left, which stays deafened:
+  /// [replaced] is a join taking over a call nobody left, which keeps deafen and local mutes:
   /// a rejoin after a drop, or a switch, must not start playing a call its listener silenced.
   Future<void> _end({required bool replaced}) async {
     final generation = ++_generation;
@@ -135,7 +135,7 @@ class VoiceCallFlow {
 
   void _resetForNewCall({required bool replaced}) {
     _core.roster.set(const []);
-    _core.listener.resetForNewCall(keepDeafened: replaced);
+    _core.listener.resetForNewCall(replaced: replaced);
     // Gain deliberately survives: somebody you turned down stays turned down.
     lastDisconnect = null;
     droppedWhileSharing = false;

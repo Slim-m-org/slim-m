@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Deafen belongs to the listener, not to one connection: a call that comes
-/// back, or a switch to another one, does not start playing again by itself.
+/// Deafen and local mutes belong to the listener, not to one connection: a call
+/// that comes back, or a switch to another one, does not start playing again by itself.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -44,6 +44,24 @@ void main() {
     expect(session.deafened, isTrue);
   });
 
+  test('a call the SFU dropped comes back with its local mutes', () async {
+    final rooms = <PeopleRoom>[];
+    final session = _session(rooms);
+    addTearDown(session.dispose);
+    await _join(session);
+    await session.setLocallyMuted('loud', true);
+    await session.setScreenAudioMuted('sharer', true);
+
+    rooms.single.emit(lk.RoomDisconnectedEvent(
+      reason: lk.DisconnectReason.reconnectAttemptsExceeded,
+    ));
+    await pumpEventQueue();
+    await _join(session);
+
+    expect(session.isLocallyMuted('loud'), isTrue);
+    expect(session.isScreenAudioMuted('sharer'), isTrue);
+  });
+
   test('joining another call straight from one keeps the listener deafened',
       () async {
     final session = _session([]);
@@ -66,5 +84,19 @@ void main() {
     await _join(session);
 
     expect(session.deafened, isFalse);
+  });
+
+  test('leaving forgets the local mutes too', () async {
+    final session = _session([]);
+    addTearDown(session.dispose);
+    await _join(session);
+    await session.setLocallyMuted('loud', true);
+    await session.setScreenAudioMuted('sharer', true);
+
+    await session.leave();
+    await _join(session);
+
+    expect(session.isLocallyMuted('loud'), isFalse);
+    expect(session.isScreenAudioMuted('sharer'), isFalse);
   });
 }
