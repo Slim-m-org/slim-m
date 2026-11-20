@@ -20,6 +20,7 @@ mod emoji_refusal;
 mod ephemeral_messages;
 mod forward_backfill;
 mod gif_picker;
+mod gif_stamp;
 mod group_dms;
 mod hidden_message_404_text;
 mod link_preview;

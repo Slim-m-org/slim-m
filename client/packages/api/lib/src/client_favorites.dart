@@ -64,12 +64,20 @@ extension SlimmApiFavorites on SlimmApi {
   /// Turns a favorite into an attachment a message can carry.
   ///
   /// An attachment favorite whose source is gone answers 409
-  /// ([ConflictException]) rather than serving the file.
-  Future<Attachment> selectFavorite(String id, {String? channelId}) async {
+  /// ([ConflictException]) rather than serving the file. [forStamp] asks for
+  /// a rendition small enough for a screen stamp to animate.
+  Future<Attachment> selectFavorite(
+    String id, {
+    String? channelId,
+    bool forStamp = false,
+  }) async {
     final json = await send(
       'POST',
       '/favorites/$id/select',
-      body: {if (channelId != null) 'channel_id': channelId},
+      body: {
+        if (channelId != null) 'channel_id': channelId,
+        if (forStamp) 'for_stamp': true,
+      },
     );
     return Attachment.fromJson(json as Map<String, dynamic>);
   }

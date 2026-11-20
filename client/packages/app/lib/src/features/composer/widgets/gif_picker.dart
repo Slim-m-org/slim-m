@@ -144,6 +144,7 @@ class GifPickerBody extends ConsumerStatefulWidget {
     this.initialQuery = '',
     this.focusSearch = true,
     this.fill = false,
+    this.forStamp = false,
   });
 
   static const favoritesToggleKey = Key('gif-picker-favorites');
@@ -161,6 +162,9 @@ class GifPickerBody extends ConsumerStatefulWidget {
 
   /// The grid takes all the height its parent gives, for a picker that keeps one size across its tabs.
   final bool fill;
+
+  /// For a screen stamp, which takes a rendition small enough to animate (decision 0121).
+  final bool forStamp;
 
   @override
   ConsumerState<GifPickerBody> createState() => _GifPickerBodyState();
@@ -268,7 +272,11 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
     try {
       final attachment = await ref
           .read(composerActionsProvider)
-          .selectGif(result.id, channelId: widget.channelId);
+          .selectGif(
+            result.id,
+            channelId: widget.channelId,
+            forStamp: widget.forStamp,
+          );
       if (!mounted) return;
       widget.onPicked(attachment);
     } on api.NotFoundException catch (error, stack) {
@@ -380,6 +388,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
             _grid(
               FavoritesGrid(
                 channelId: widget.channelId,
+                forStamp: widget.forStamp,
                 onPicked: widget.onPicked,
               ),
             )

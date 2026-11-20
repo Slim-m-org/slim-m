@@ -70,12 +70,21 @@ extension SlimmApiGifs on SlimmApi {
   /// Downloads the full-resolution image through this server and stores it
   /// as an ordinary attachment; the returned [Attachment.id] may be
   /// referenced in `attachment_ids` on [SlimmApiMessages.sendMessage] exactly
-  /// like one from [SlimmApiAttachments.uploadAttachment].
-  Future<Attachment> selectGif(String gifId, {String? channelId}) async {
+  /// like one from [SlimmApiAttachments.uploadAttachment]. [forStamp] stores
+  /// a rendition small enough for a screen stamp to animate instead.
+  Future<Attachment> selectGif(
+    String gifId, {
+    String? channelId,
+    bool forStamp = false,
+  }) async {
     final json = await send(
       'POST',
       '/gifs/select',
-      body: {'id': gifId, if (channelId != null) 'channel_id': channelId},
+      body: {
+        'id': gifId,
+        if (channelId != null) 'channel_id': channelId,
+        if (forStamp) 'for_stamp': true,
+      },
     );
     return Attachment.fromJson(json as Map<String, dynamic>);
   }

@@ -64,11 +64,17 @@ class ComposerActions {
     String? channelId,
   }) => _api.searchGifs(query, limit: limit, channelId: channelId);
 
-  Future<Attachment> selectGif(String gifId, {String? channelId}) =>
-      _api.selectGif(gifId, channelId: channelId);
+  Future<Attachment> selectGif(
+    String gifId, {
+    String? channelId,
+    bool forStamp = false,
+  }) => _api.selectGif(gifId, channelId: channelId, forStamp: forStamp);
 
-  Future<Attachment> selectFavorite(String id, {String? channelId}) =>
-      _api.selectFavorite(id, channelId: channelId);
+  Future<Attachment> selectFavorite(
+    String id, {
+    String? channelId,
+    bool forStamp = false,
+  }) => _api.selectFavorite(id, channelId: channelId, forStamp: forStamp);
 
   Future<Message> sendPollMessage({
     required String channelId,

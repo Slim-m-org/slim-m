@@ -134,6 +134,7 @@ class _StampPickerState extends ConsumerState<StampPicker> {
                 channelId: widget.channelId,
                 focusSearch: !widget.sheet,
                 fill: _bodyHeight != null,
+                forStamp: true,
                 onPicked: _pickGif,
               ),
               _StampTab.picture => StampPictureTab(

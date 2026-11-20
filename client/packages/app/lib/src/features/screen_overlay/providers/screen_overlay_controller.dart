@@ -360,7 +360,14 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     // On Linux showing replaces the panel window, which is why the panel is forgotten rather than hidden.
     if (!_windows) _panel.forget();
     _marks.reset();
-    if (!await _window.show(covered)) return false;
+    final shown = await _window.show(covered);
+    api.AppLog.info(
+      api.LogTag.platform,
+      'Drawing overlay over monitor $covered of ${monitors.length} '
+      '(share "${controller.share.lastShareSource?.name}", id ${controller.share.lastShareSourceId}): '
+      '${shown ? 'shown' : 'refused by the desktop'}',
+    );
+    if (!shown) return false;
     _overlayAspect = sharedAspect(monitors, covered);
     return mounted;
   }

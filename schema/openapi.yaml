@@ -5527,6 +5527,15 @@ paths:
                     The channel the GIF is headed for. When given, ATTACH_FILES
                     is checked in that channel, so a channel overwrite granting
                     it counts; without it the deployment-wide permission decides.
+                for_stamp:
+                  type: boolean
+                  default: false
+                  description: >
+                    The GIF is for a screen stamp (decision 0121). The server
+                    stores the largest rendition the provider offers that a
+                    tile still animates (at most 4 MiB and 1024 pixels a side),
+                    or the smallest when none does, rather than the full file,
+                    which can be past the 8 MiB a stamp takes.
       responses:
         "201":
           description: The stored attachment's metadata.
@@ -5949,6 +5958,13 @@ paths:
                   type: string
                   format: uuid
                   description: The channel the media is headed for, as in `selectGif`.
+                for_stamp:
+                  type: boolean
+                  default: false
+                  description: >
+                    The media is for a screen stamp, as in `selectGif`. A `gif`
+                    favorite keeps only its full and preview renditions, so the
+                    preview is stored when the full file is past 4 MiB.
       responses:
         "200":
           description: The existing attachment.

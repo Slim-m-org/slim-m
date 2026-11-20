@@ -4,7 +4,7 @@
 
 use serde::Deserialize;
 
-use super::ProviderGif;
+use super::{ProviderGif, Rendition, stamp_rendition};
 
 pub(super) const BASE_URL: &str = "https://tenor.googleapis.com";
 
@@ -23,6 +23,8 @@ struct SearchResult {
 #[derive(Deserialize)]
 struct MediaFormats {
     tinygif: Option<Media>,
+    #[serde(default)]
+    mediumgif: Option<Media>,
     gif: Option<Media>,
 }
 
@@ -30,6 +32,19 @@ struct MediaFormats {
 struct Media {
     url: String,
     dims: [u32; 2],
+    #[serde(default)]
+    size: Option<u64>,
+}
+
+impl Media {
+    fn rendition(&self) -> Rendition<'_> {
+        Rendition {
+            url: &self.url,
+            width: self.dims[0],
+            height: self.dims[1],
+            size: self.size,
+        }
+    }
 }
 
 /// One result needs `tinygif` for a preview and `gif` for the eventual
@@ -47,12 +62,19 @@ fn result_into_gif(result: SearchResult) -> Option<ProviderGif> {
         .gif
         .as_ref()
         .or(result.media_formats.tinygif.as_ref())?;
+    let formats = &result.media_formats;
+    let renditions: Vec<Rendition<'_>> = [&formats.gif, &formats.mediumgif, &formats.tinygif]
+        .into_iter()
+        .filter_map(|media| media.as_ref().map(Media::rendition))
+        .collect();
+    let stamp_url = stamp_rendition(&renditions)?.to_owned();
     Some(ProviderGif {
         title: result.content_description,
         preview_url: preview.url.clone(),
         full_url: full.url.clone(),
         width: full.dims[0],
         height: full.dims[1],
+        stamp_url,
     })
 }
 
@@ -68,7 +90,7 @@ async fn request(
         ("key", api_key),
         ("client_key", "slim-m"),
         ("limit", &limit_str),
-        ("media_filter", "tinygif,gif"),
+        ("media_filter", "tinygif,mediumgif,gif"),
         ("contentfilter", "medium"),
     ];
     if let Some(query) = query {
@@ -147,6 +169,31 @@ mod tests {
         assert_eq!(gifs[0].preview_url, "https://tenor.example/preview.gif");
         assert_eq!(gifs[0].full_url, "https://tenor.example/full.gif");
         assert_eq!((gifs[0].width, gifs[0].height), (498, 373));
+    }
+
+    /// Tenor's `gif` can be past the stamp route's 8 MiB, so a stamp takes `mediumgif`.
+    #[test]
+    fn a_stamp_takes_mediumgif_when_the_full_gif_is_too_heavy_to_animate() {
+        let raw = r#"{
+            "next": "",
+            "results": [{
+                "id": "1",
+                "content_description": "a heavy one",
+                "media_formats": {
+                    "tinygif": {"url": "https://tenor.example/tiny.gif", "dims": [220, 165], "size": 45000},
+                    "mediumgif": {"url": "https://tenor.example/medium.gif", "dims": [480, 360], "size": 1200000},
+                    "gif": {"url": "https://tenor.example/full.gif", "dims": [498, 373], "size": 9500000}
+                }
+            }]
+        }"#;
+        let parsed: Response = serde_json::from_str(raw).unwrap();
+        let gif = parsed
+            .results
+            .into_iter()
+            .find_map(result_into_gif)
+            .unwrap();
+        assert_eq!(gif.full_url, "https://tenor.example/full.gif");
+        assert_eq!(gif.stamp_url, "https://tenor.example/medium.gif");
     }
 
     /// A result missing both usable formats (a media type this deployment
