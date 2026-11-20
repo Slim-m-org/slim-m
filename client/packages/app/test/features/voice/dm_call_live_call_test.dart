@@ -132,6 +132,25 @@ void main() {
   });
 
   test(
+    'calling again just after hanging up is a fresh call, not the left page',
+    () async {
+      final rig = _rig(
+        activity: {'dm-1': false},
+        initial: VoiceState(
+          justLeftChannelId: 'dm-1',
+          justLeftAt: DateTime.now(),
+        ),
+      );
+
+      startDmCall(rig.container.read, 'dm-1');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(rig.voice.state.justLeftChannelId, isNull);
+      expect(rig.rings, ['/channels/dm-1/voice/ring']);
+    },
+  );
+
+  test(
     'a ring that times out while someone is in the call hangs nobody up',
     () async {
       final rig = _rig(initial: _inCallWithJuno);
