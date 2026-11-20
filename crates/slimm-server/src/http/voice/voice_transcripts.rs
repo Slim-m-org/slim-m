@@ -161,6 +161,12 @@ async fn remove(
     if !held.contains(Permissions::MANAGE_MESSAGES) {
         return Err(ApiError::Forbidden);
     }
+    // Its session is still writing lines, which would all fail against a deleted row.
+    if transcript.ended_at.is_none() {
+        return Err(ApiError::Conflict(
+            "stop transcribing the call before deleting its transcript",
+        ));
+    }
     state.store.delete_call_transcript(transcript.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

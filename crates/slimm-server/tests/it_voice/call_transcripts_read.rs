@@ -181,6 +181,27 @@ async fn deleting_needs_manage_messages_and_takes_the_search_entries_with_it() {
     assert_eq!(hits, json!([]));
 }
 
+/// Its session would keep writing lines that every insert refuses once the row is gone.
+#[tokio::test]
+async fn a_transcript_still_being_written_cannot_be_deleted() {
+    let rig = Rig::start("transcript-delete-live", 1).await;
+    let a = &rig.people[0];
+    let id = keep(
+        &rig.store,
+        rig.channel,
+        now_ms() - HOUR,
+        None,
+        &[(a.id, "still talking")],
+    )
+    .await;
+
+    let uri = format!("/voice/transcripts/{id}");
+    let (status, _) = rig.call(&rig.admin, "DELETE", &uri, None).await;
+
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert!(rig.store.call_transcript(id).await.unwrap().is_some());
+}
+
 #[tokio::test]
 async fn the_calls_list_names_the_transcript_that_started_inside_each_call() {
     let rig = Rig::start("transcript-calls", 2).await;

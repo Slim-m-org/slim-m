@@ -8402,7 +8402,8 @@ paths:
       summary: Delete a call's transcript, its lines and their search entries.
       description: >
         Needs `MANAGE_MESSAGES` on the transcript's channel. 404 when the
-        caller cannot view the channel or there is no such transcript.
+        caller cannot view the channel or there is no such transcript. 409
+        while the call is still being transcribed.
       responses:
         "204":
           description: Deleted.
@@ -8414,6 +8415,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
