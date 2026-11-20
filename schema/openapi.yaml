@@ -8443,7 +8443,10 @@ paths:
             maxLength: 200
         - name: before
           in: query
-          description: Return only lines whose `at` is strictly below this.
+          description: >
+            The last hit's `at`. Alone, it returns lines strictly older than
+            this. With `before_transcript_id` and `before_seq`, it returns the
+            hits after that line in result order.
           schema:
             type: integer
             format: int64
