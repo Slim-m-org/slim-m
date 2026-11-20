@@ -64,7 +64,7 @@ def _scroll_to(client, target, step=300, tries=10):
 def _open_grid(client, name):
     client.click(f"{L.MANAGE_CHANNEL}{name}", settle=1)
     client.click(L.CHANNEL_SETTINGS, settle=2)
-    _scroll_to(client, L.ADD_ROLE_OR_MEMBER)
+    _scroll_to(client, L.ADD_TO_GRID)
 
 
 def private_channel_follows_who_was_added(a, b, admin, member):
@@ -89,7 +89,7 @@ def private_channel_follows_who_was_added(a, b, admin, member):
         print("  made private in the create sheet; bob neither sees it nor can read it from the server")
 
         _open_grid(a, name)
-        a.click(L.ADD_ROLE_OR_MEMBER, settle=1)
+        a.click(L.ADD_TO_GRID, settle=1)
         a.click("Bob", settle=1)
         _scroll_to(a, f"{L.VIEW_CHANNELS}, Bob")
         a.click(f"{L.VIEW_CHANNELS}, Bob", settle=1)

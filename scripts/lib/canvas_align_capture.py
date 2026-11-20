@@ -60,9 +60,8 @@ class Browser:
         return self.ev(e2e_js.NODES) or []
 
     def find(self, label, field=False):
-        wanted = label.lower()
         for node in self.nodes():
-            if wanted in node["t"].lower() and node["field"] == field:
+            if L.holds(node["t"], label) and node["field"] == field:
                 return node
         return None
 

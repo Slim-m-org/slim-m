@@ -44,7 +44,7 @@ export const L = {
   "CREATE_CHANNEL": "Create channel",
   "MANAGE_CHANNEL": "Manage ",
   "CHANNEL_SETTINGS": "Channel settings",
-  "ADD_ROLE_OR_MEMBER": "Add role or member",
+  "ADD_TO_GRID": "Add a role or member to this grid",
   "VIEW_CHANNELS": "View channels",
   "FROM_THIS_GRID": " from this grid",
   "DISCARD": "Discard",
@@ -94,8 +94,11 @@ export const L = {
   "TROUBLESHOOTING_PANE": "Troubleshooting",
   "LAST_CALL_AUDIO": "Last call audio",
   "COPY_CALL_DIAGNOSTICS": "Copy call diagnostics",
-  "IN_CALL": "in call",
   "SHARE_SCREEN": "Share a screen",
+  "IN_CALL": {
+    "re": "\\b\\d+ in call\\b"
+  },
+  "CALLING": "Calling…",
   "SHARING_NOTICE": "You are sharing your screen",
   "STOP_SHARING": "Stop sharing",
   "MUTE": "Mute",
