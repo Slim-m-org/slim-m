@@ -134,7 +134,8 @@ class _CallTranscriptSectionState extends ConsumerState<CallTranscriptSection> {
                   ),
                 ),
               ),
-              if (canDelete && model.loaded)
+              // The server refuses to delete a transcript the call is still writing.
+              if (canDelete && model.loaded && !model.ongoing)
                 AppButton(
                   key: transcriptDeleteKey,
                   label: 'Delete',
