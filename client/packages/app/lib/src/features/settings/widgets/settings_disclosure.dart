@@ -64,9 +64,11 @@ class _SettingsDisclosureState extends State<SettingsDisclosure> {
       textScaler: MediaQuery.textScalerOf(context),
       maxLines: 1,
     )..layout();
+    final titleWidth = title.width;
+    title.dispose();
     const chrome =
         2 * AppCardRowScope.inset + AppSizes.icon16 + 2 * AppSpacing.s8;
-    return math.max(0, width - title.width - chrome);
+    return math.max(0, width - titleWidth - chrome);
   }
 
   Widget _group(BuildContext context, AppTokens tokens, double summaryRoom) {

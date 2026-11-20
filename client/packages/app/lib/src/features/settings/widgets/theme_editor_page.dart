@@ -15,7 +15,6 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/toasts.dart';
 import '../../../routing/breakpoints.dart';
-import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/my_themes.dart';
 import '../providers/stored_theme.dart';
@@ -24,6 +23,7 @@ import '../providers/theme_file_io.dart';
 import '../providers/theme_links.dart';
 import '../providers/theme_source.dart';
 import '../providers/theme_store_actions.dart';
+import 'settings_draft_guard.dart';
 import 'settings_sub_pages.dart';
 import 'theme_colour_panel.dart';
 import 'theme_contrast_panel.dart';
@@ -113,6 +113,7 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
 
   /// Shows [error] under the preview, scrolling back to it.
   void _fail(String error) {
+    if (!mounted) return;
     setState(() => _error = error);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scroll.hasClients) return;
@@ -223,19 +224,20 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
     if (id == null) return;
     final sure = await confirmDeleteMyTheme(context, _draft.savedName);
     if (!sure || !mounted) return;
-    await ref.read(myThemesProvider.notifier).remove(id);
+    try {
+      await ref.read(myThemesProvider.notifier).remove(id);
+    } on Object catch (error, trace) {
+      api.reportFailure(api.LogTag.data, 'delete the theme', error, trace);
+      _fail('Could not delete the theme.');
+      return;
+    }
     if (!mounted) return;
     final stack = SettingsSubPages.of(context)..setGuard(null);
     await stack.pop();
   }
 
-  Future<bool> _confirmDiscard() => confirmChoice(
+  Future<bool> _confirmDiscard() => confirmDiscardChanges(
     context,
-    title: 'Discard your changes?',
-    message: 'What you changed since the last save is lost.',
-    confirmLabel: 'Discard',
-    cancelLabel: 'Keep editing',
-    confirmVariant: AppButtonVariant.danger,
     confirmKey: const Key('theme-editor-confirm'),
   );
 

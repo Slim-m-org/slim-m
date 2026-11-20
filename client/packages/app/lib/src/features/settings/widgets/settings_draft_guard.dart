@@ -3,6 +3,8 @@
 /// drops an unsaved edit without a word.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -46,11 +48,65 @@ class DraftLeaveGuard extends ChangeNotifier implements SettingsLeaveGuard {
 }
 
 /// The question every settings draft asks before its edits are thrown away.
-Future<bool> confirmDiscardChanges(BuildContext context) => confirmChoice(
-  context,
-  title: 'Discard your changes?',
-  message: 'What you changed since the last save is lost.',
-  confirmLabel: 'Discard',
-  cancelLabel: 'Keep editing',
-  confirmVariant: AppButtonVariant.danger,
-);
+Future<bool> confirmDiscardChanges(BuildContext context, {Key? confirmKey}) =>
+    confirmChoice(
+      context,
+      title: 'Discard your changes?',
+      message: 'What you changed since the last save is lost.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing',
+      confirmVariant: AppButtonVariant.danger,
+      confirmKey: confirmKey,
+    );
+
+/// Guards a draft behind a Save bar: in a settings pane it is the pane's guard,
+/// anywhere else a back or dismiss asks first while [dirty].
+class DraftLeaveScope extends StatefulWidget {
+  const DraftLeaveScope({super.key, required this.dirty, required this.child});
+
+  final bool dirty;
+  final Widget child;
+
+  @override
+  State<DraftLeaveScope> createState() => _DraftLeaveScopeState();
+}
+
+class _DraftLeaveScopeState extends State<DraftLeaveScope> {
+  late final _draft = DraftLeaveGuard(() => confirmDiscardChanges(context));
+  late final SettingsSubPageStack? _pane = SettingsSubPages.maybeOf(context);
+
+  @override
+  void initState() {
+    super.initState();
+    _pane?.setPaneGuard(_draft);
+  }
+
+  @override
+  void dispose() {
+    _pane?.releasePaneGuard(_draft);
+    _draft.dispose();
+    super.dispose();
+  }
+
+  Future<void> _popUnlessKept(bool didPop) async {
+    if (didPop || !await _draft.allowLeave() || !mounted) return;
+    _draft.dirty = false;
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _draft.reportAfterFrame(() => widget.dirty);
+    if (_pane != null) return widget.child;
+    return ListenableBuilder(
+      listenable: _draft,
+      builder: (context, child) => PopScope(
+        canPop: !_draft.blocking,
+        onPopInvokedWithResult: (didPop, _) =>
+            unawaited(_popUnlessKept(didPop)),
+        child: child!,
+      ),
+      child: widget.child,
+    );
+  }
+}

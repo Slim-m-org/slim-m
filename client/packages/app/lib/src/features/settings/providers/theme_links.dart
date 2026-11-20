@@ -7,6 +7,8 @@ library;
 import 'package:flutter/painting.dart';
 import 'package:slimm_design_system/design_system.dart' show themeTokenLabels;
 
+import '../../../permissions.dart' show joinLabels;
+
 /// Each main colour and the colours that follow it.
 const themeLinkedColours = <String, List<String>>{
   'accent': ['accentFill', 'accentRing', 'focusRing'],
@@ -100,13 +102,9 @@ String? themeLinkNote(ThemeLinks links, String token) {
     if (followers.isEmpty) return null;
     final names = [for (final f in followers) themeTokenLabels[f]!];
     final them = followers.length == 1 ? 'it' : 'them';
-    return 'Also sets ${_listed(names)} until you change $them.';
+    return 'Also sets ${joinLabels(names)} until you change $them.';
   }
   final parent = themeLinkParentOf(token);
   if (parent == null || !links.isLinked(token)) return null;
   return 'Follows ${themeMainColourLabels[parent]} until you change it.';
 }
-
-String _listed(List<String> names) => names.length == 1
-    ? names.single
-    : '${names.sublist(0, names.length - 1).join(', ')} and ${names.last}';

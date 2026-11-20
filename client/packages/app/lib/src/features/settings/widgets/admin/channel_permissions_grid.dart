@@ -19,6 +19,7 @@ import '../../../members/providers/member_presence.dart'
     show channelMembersProvider, membersProvider;
 import '../../../../widgets/run_guarded.dart';
 import '../save_footer_scope.dart';
+import '../settings_draft_guard.dart';
 import '../settings_save_bar.dart';
 import 'category_sync_banner.dart';
 import 'channel_permissions_body.dart';
@@ -348,11 +349,14 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
     );
 
     // Unbounded height means a scrolling pane hosts us: lay out at full height so that pane is the only vertical scroller.
-    return LayoutBuilder(
-      builder: (context, outer) => _buildGrid(
-        columns,
-        myPermissions,
-        shrinkWrap: !outer.hasBoundedHeight,
+    return DraftLeaveScope(
+      dirty: _isDirty,
+      child: LayoutBuilder(
+        builder: (context, outer) => _buildGrid(
+          columns,
+          myPermissions,
+          shrinkWrap: !outer.hasBoundedHeight,
+        ),
       ),
     );
   }

@@ -48,11 +48,28 @@ class SoundboardScreen extends StatelessWidget {
   );
 }
 
-class SoundboardPane extends ConsumerWidget {
+class SoundboardPane extends ConsumerStatefulWidget {
   const SoundboardPane({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SoundboardPane> createState() => _SoundboardPaneState();
+}
+
+class _SoundboardPaneState extends ConsumerState<SoundboardPane> {
+  @override
+  void initState() {
+    super.initState();
+    // Deferred: a provider cannot change while the tree is being built.
+    unawaited(
+      Future.microtask(() {
+        if (!mounted) return;
+        ref.read(soundClipIntakeErrorProvider.notifier).state = null;
+      }),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final clips = ref.watch(soundClipsProvider);
     final count = clips.valueOrNull?.length;
     final profiles = ref.watch(batchProfilesControllerProvider);

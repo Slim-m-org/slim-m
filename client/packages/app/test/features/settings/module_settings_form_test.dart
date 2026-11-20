@@ -9,6 +9,8 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/widgets/admin/module_settings_form.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
+
 api.ModuleSettingsDoc _doc({bool secretSet = true}) =>
     api.ModuleSettingsDoc.fromJson({
       'settings': [
@@ -246,6 +248,44 @@ void main() {
     await tester.enterText(_input('Display name'), 'Bob');
     await tester.pump();
     expect(find.text('Could not save the settings'), findsOneWidget);
+    expect(find.text('Save changes'), findsOneWidget);
+  });
+
+  testWidgets('back with an unsaved edit asks before it is dropped', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => Scaffold(
+                  body: ModuleSettingsForm(doc: _doc(), onSave: (_) async {}),
+                ),
+              ),
+            ),
+            child: const Text('open form'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open form'));
+    await pumpFrames(tester);
+    await tester.tap(find.byWidgetPredicate((w) => w is AppToggle));
+    await pumpFrames(tester);
+    expect(find.text('Save changes'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await pumpFrames(tester);
+    expect(find.text('Discard your changes?'), findsOneWidget);
+
+    await tester.tap(find.text('Keep editing'));
+    await pumpFrames(tester);
     expect(find.text('Save changes'), findsOneWidget);
   });
 }

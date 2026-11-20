@@ -36,7 +36,7 @@ Six sites carried a success-or-neutral message with no failure branch, and moved
 - `debug_log_screen.dart` - a debug log copied to the clipboard.
 - `admin/channel_overwrites_screen.dart` - an overwrite set, and an overwrite cleared (two call sites).
 - `admin/invites_screen.dart` - an invite code copied, and an invite revoked (two call sites).
-- `personal_space_menu.dart` - a personal space removed from the list.
+- `personal_space_menu.dart` - a personal space removed from the list (removed since, see the update below).
 
 Seven sites carried a failure sentence, including the ones that pick between a failure and a success string with one call, and stayed on `showAppSnackbar`:
 
@@ -56,7 +56,9 @@ The mixed sites were not split into a toast half and a SnackBar half.
 Routing only the failure branch through `showAppSnackbar` while its sibling success branch went through a toast would leave one call site with two different confirmation mechanisms for the same action, chosen by which string happened to be non-null - worse than the single mechanism it replaced.
 A site only moves once its success path has no failure branch to keep it tied to the SnackBar.
 
-`showResolvedSnackbar` was removed in the same change: its one caller (`personal_space_menu.dart`) now reads the toasts provider directly through the container it already captures before its own await, so the helper had no remaining reason to exist.
+`showResolvedSnackbar` was removed in the same change: its one caller (`personal_space_menu.dart`) then read the toasts provider directly through the container it captured before its own await, so the helper had no remaining reason to exist.
+
+**Update, personal space row removed:** `personal_space_menu.dart` and `personal_space_row.dart` were deleted in 0.130.0 (#2412), so the personal space toast above no longer exists.
 
 ## Reading this against the surface taxonomy
 
