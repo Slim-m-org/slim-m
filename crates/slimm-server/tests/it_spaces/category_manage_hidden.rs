@@ -331,3 +331,43 @@ async fn a_deleted_categorys_id_is_never_handed_back_on_create() {
         assert!(!body.to_string().contains("Old secrets"), "{body}");
     }
 }
+
+#[tokio::test]
+async fn a_category_over_a_hidden_sub_category_is_renamed_without_a_word_of_it() {
+    let world = World::start("slimm-category-manage-hidden-rename").await;
+    let manager = &world.app.member.token;
+    let uri = format!("/categories/{}", world.open);
+    let mut answers = Vec::new();
+
+    let rename = json!({"name": "Lobby"});
+    let (status, body) = world.app.call("PATCH", &uri, manager, Some(rename)).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "a rename carries nothing along: {body}"
+    );
+    assert_eq!(body["name"], "Lobby");
+    answers.push(body);
+    let moved = json!({"name": "Lobby", "position": 0});
+    let (status, body) = world.app.call("PATCH", &uri, manager, Some(moved)).await;
+    assert_eq!(
+        status,
+        StatusCode::NOT_FOUND,
+        "a move still is not theirs: {body}"
+    );
+    answers.push(body);
+    answers.push(Value::Array(world.categories(manager).await));
+    let (_, channels) = world.app.call("GET", "/channels", manager, None).await;
+    answers.push(channels);
+
+    for answer in answers {
+        let text = answer.to_string();
+        assert!(!text.contains(&world.secret_sub), "{text}");
+        assert!(!text.contains("Secret"), "{text}");
+    }
+    assert_eq!(world.admin_sees(&world.open).await["name"], "Lobby");
+    assert_eq!(
+        world.admin_sees(&world.secret_sub).await["parent_id"],
+        world.open.as_str()
+    );
+}

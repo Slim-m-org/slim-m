@@ -3021,7 +3021,9 @@ paths:
         parent that is itself a sub-category, or moving a category that holds
         sub-categories under another, is a 409. A category whose own
         overwrites keep a non-administrator from viewing it answers 404, as
-        one that does not exist, even when it is listed as a heading.
+        one that does not exist, even when it is listed as a heading. One
+        listed with `manageable` false still renames, but a `parent_id` or
+        `position` for it answers the same 404.
       requestBody:
         required: true
         content:
@@ -18060,12 +18062,12 @@ components:
           type: boolean
           description: >
             On `listCategories` and `reorderCategories`: whether the caller may
-            rename, delete or move this category, which takes an
-            administrator or MANAGE_CHANNELS with sight of it under its own
-            overwrites. False for one listed only as the heading over a
-            sub-category they can view, or for one holding a sub-category
-            they are not listed. Absent elsewhere and on older servers, which
-            a client reads as true.
+            move or delete this category, which takes an administrator or
+            MANAGE_CHANNELS with sight of it under its own overwrites. False
+            for one listed only as the heading over a sub-category they can
+            view, or for one holding a sub-category they are not listed; the
+            latter still renames, as `fileable` says. Absent elsewhere and on
+            older servers, which a client reads as true.
         fileable:
           type: boolean
           description: >

@@ -134,6 +134,38 @@ void main() {
     expect(jsonDecode(post.body), containsPair('category_id', 'dev'));
   });
 
+  testWidgets('a category nothing may be filed under is neither offered nor '
+      'sent', (tester) async {
+    final requests = await _open(
+      tester,
+      categoryId: 'fun',
+      categories: const [
+        api.ChannelCategory(id: 'dev', name: 'dev', position: 0, createdAt: 0),
+        api.ChannelCategory(
+          id: 'fun',
+          name: 'fun',
+          position: 1,
+          createdAt: 0,
+          fileable: false,
+        ),
+      ],
+    );
+
+    expect(_shown('No category'), isTrue, reason: 'it fell back');
+    await tester.tap(find.text('No category'));
+    await pumpFrames(tester);
+    expect(_shown('fun'), isFalse, reason: 'never offered');
+    await tester.tap(find.text('No category').last);
+    await pumpFrames(tester);
+    await tester.enterText(_name, 'ideas');
+    await tester.pump();
+    await tester.tap(find.text('Create channel'));
+    await pumpFrames(tester);
+
+    final post = requests.singleWhere((r) => r.method == 'POST');
+    expect(jsonDecode(post.body), isNot(contains('category_id')));
+  });
+
   testWidgets('a deployment with no categories is offered no picker', (
     tester,
   ) async {

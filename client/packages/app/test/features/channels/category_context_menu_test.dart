@@ -29,12 +29,14 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-ChannelCategoryRow _category({bool? manageable}) => ChannelCategoryRow(
-  id: 'cat1',
-  name: 'Lounge',
-  position: 0,
-  manageable: manageable,
-);
+ChannelCategoryRow _category({bool? manageable, bool? fileable}) =>
+    ChannelCategoryRow(
+      id: 'cat1',
+      name: 'Lounge',
+      position: 0,
+      manageable: manageable,
+      fileable: fileable,
+    );
 
 /// One channel in the category, so the section renders for a non-manager too:
 /// an empty category is drawn only for somebody who could drop a channel into
@@ -59,6 +61,7 @@ Future<void> _pump(
   WidgetTester tester, {
   required bool canManage,
   bool? manageable,
+  bool? fileable,
 }) async {
   final container = ProviderContainer(
     overrides: [
@@ -75,7 +78,7 @@ Future<void> _pump(
         home: Scaffold(
           body: ChannelCategorySections(
             channels: [_channel()],
-            categories: [_category(manageable: manageable)],
+            categories: [_category(manageable: manageable, fileable: fileable)],
             selectedId: null,
             canManage: canManage,
             onReorder: (_) {},
@@ -138,11 +141,20 @@ void main() {
   testWidgets('a category listed only as a heading offers neither verb', (
     tester,
   ) async {
-    await _pump(tester, canManage: true, manageable: false);
+    await _pump(tester, canManage: true, manageable: false, fileable: false);
     await _openMenu(tester);
 
     expect(find.text('Mark all as read'), findsOneWidget);
     expect(find.text('Rename category...'), findsNothing);
+    expect(find.text('Delete category...'), findsNothing);
+  });
+
+  testWidgets('a category over a hidden sub-category renames but never '
+      'deletes', (tester) async {
+    await _pump(tester, canManage: true, manageable: false, fileable: true);
+    await _openMenu(tester);
+
+    expect(find.text('Rename category...'), findsOneWidget);
     expect(find.text('Delete category...'), findsNothing);
   });
 

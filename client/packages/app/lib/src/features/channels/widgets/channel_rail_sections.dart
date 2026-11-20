@@ -357,6 +357,7 @@ class _ChannelCategorySectionsState
       label: label,
       channels: view.channelsBeneath(category),
       canManage: widget.canManage && category.canManage,
+      canRename: widget.canManage && category.canFile,
       menuKey: menuKey,
     );
     final indented = depth == 0

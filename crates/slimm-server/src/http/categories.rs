@@ -200,7 +200,9 @@ async fn update(
     }
     // Where the store would refuse a missing category, then a missing parent, in that order.
     let sight = CategorySight::of(&state, ctx.user_id).await?;
-    if sight.closes(category_id) {
+    // A rename carries nothing along, so only a move needs the category to be theirs to move.
+    let moves = parent.is_some() || req.position.is_some();
+    if sight.shuts(category_id) || moves && sight.closes(category_id) {
         return Err(CATEGORY_NOT_FOUND);
     }
     let parent = parent
