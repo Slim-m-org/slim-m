@@ -53,3 +53,4 @@ mod voice_visibility_cache;
 mod watch_direct_play;
 mod watch_session;
 mod watch_session_call;
+mod watch_youtube;

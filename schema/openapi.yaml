@@ -10023,7 +10023,7 @@ paths:
         Decision 0050-watch-party-sync-authority-and-direct-play. Refused for a
         caller that is not a bot, for a channel that is not a voice channel
         the bot can view, and for a bot that is not on the call (403). The
-        epoch changes when `item_id` changes or `seeked` is true, and is a
+        epoch changes when `item_id` or `provider` changes or `seeked` is true, and is a
         millisecond timestamp so it never repeats across an end and a new
         session. `controller_user_id` must be a user who can view the
         channel, and is advisory. Fans out as a `watch.tick` so viewers hear
@@ -23381,7 +23381,7 @@ components:
 
     WatchSession:
       type: object
-      required: [channel_id, bot_user_id, item_id, title, playing, position_ms, sampled_at_ms, epoch, ttl_ms, server_time_ms]
+      required: [channel_id, bot_user_id, provider, item_id, title, playing, position_ms, sampled_at_ms, epoch, ttl_ms, server_time_ms]
       properties:
         channel_id:
           type: string
@@ -23389,8 +23389,11 @@ components:
         bot_user_id:
           type: string
           format: uuid
+        provider:
+          $ref: "#/components/schemas/WatchProvider"
         item_id:
           type: string
+          description: A Jellyfin item id, or a YouTube video id when `provider` is `youtube`.
         title:
           type: string
         duration_ms:
@@ -23452,12 +23455,26 @@ components:
             format: uuid
           description: Members linked to a media server account by a claimed name only, at most 500.
 
+    WatchProvider:
+      type: string
+      enum: [jellyfin, youtube]
+      description: >
+        Whose player the item belongs to. `youtube` means each viewer plays
+        the video id in YouTube's own embed (decision 0128), and the session
+        offers no `direct_play`.
+
     SetWatchSessionRequest:
       type: object
       required: [item_id, title, playing, position_ms]
       properties:
+        provider:
+          $ref: "#/components/schemas/WatchProvider"
+          description: Defaults to `jellyfin`.
         item_id:
           type: string
+          description: >
+            For `youtube`, 1 to 32 letters, digits, `-` or `_`, the id the
+            link preview recognizes.
         title:
           type: string
         duration_ms:

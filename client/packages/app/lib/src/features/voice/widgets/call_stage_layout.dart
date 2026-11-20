@@ -29,6 +29,7 @@ import 'poor_connection_banner.dart';
 import 'voice_reconnect_banner.dart';
 import 'direct_play_stage.dart';
 import 'watch_session_bar.dart';
+import 'youtube_watch_stage.dart';
 
 export 'participant_tile_builder.dart' show participantTile;
 
@@ -92,12 +93,15 @@ class CallStageLayout extends ConsumerWidget {
       focusedIdentity: watch.focused,
     );
     final channelId = voice.channelId;
-    final playingDirect =
+    final partyOnCall =
         !isDm &&
         channelId != null &&
-        botIsOnCall(ref, [for (final p in participants) p.identity]) &&
-        ref.watch(directPlayProvider(channelId).select((d) => d.active));
-    final directStage = playingDirect
+        botIsOnCall(ref, [for (final p in participants) p.identity]);
+    final directStage = !partyOnCall
+        ? null
+        : watchingYoutube(ref, channelId)
+        ? YoutubeWatchStage(channelId: channelId)
+        : ref.watch(directPlayProvider(channelId).select((d) => d.active))
         ? DirectPlayStage(channelId: channelId)
         : null;
     return Padding(

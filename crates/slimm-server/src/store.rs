@@ -304,7 +304,8 @@ pub use voice_call_events::{
 pub use voice_sessions::{SessionScope, VOICE_SESSION_RETENTION_DAYS, VoiceSession};
 pub use voice_transcripts::{TranscriptOutcome, TranscriptStatus, VoiceCandidate, VoiceTranscript};
 pub use watch_sessions::{
-    WATCH_SESSION_TTL_MS, WatchSample, WatchSession, WatchSessionWrite, WatchWriteOutcome,
+    WATCH_SESSION_TTL_MS, WatchProvider, WatchSample, WatchSession, WatchSessionWrite,
+    WatchWriteOutcome,
 };
 pub use webhooks::{NewWebhook, Webhook, WebhookContext};
 

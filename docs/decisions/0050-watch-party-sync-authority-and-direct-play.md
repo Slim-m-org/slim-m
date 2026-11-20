@@ -222,6 +222,18 @@ The transcode cost may move rather than disappear.
 `media_kit` on desktop and mobile usually can, and a browser usually cannot, so a web viewer will normally pull a Jellyfin transcode of their own, and N such viewers are N transcode sessions on the Jellyfin box at source resolution.
 That is a cost the original framing does not mention, and the first measurement should be exactly this, per platform, before stage 4 is trusted.
 
+### 10. A YouTube party is the same session with another provider
+
+Added 2026-11-20, when the owner asked for a YouTube bot like the Jellyfin one.
+The session gains a `provider` field, `jellyfin` (the default, so a bot that predates it keeps working) or `youtube`.
+A YouTube session's `item_id` is the video id, it never offers `direct_play`, and the bot publishes no screen share: there is no floor, because every viewer plays the video in YouTube's own embed (decision 0128), and nothing restreams or extracts it.
+The bot still joins the call, since a session lives only while its bot is on the call.
+
+The client mounts its own player in the stage slot the shared track would use: the web build's iframe (driven over the embed's own postMessage channel, since the page's content security policy admits YouTube only as a frame), a phone's webview, or on desktop the video panel, which the slot points to.
+Drift past 2 seconds seeks, and drift under it is left alone, since the embed has no fine playback rate to steer with.
+A pause, play or seek the viewer makes in YouTube's controls, or a pause the app makes because the window left the screen, is local, and the slot offers "Rejoin the room" exactly as section 7 says.
+A client that predates the field still shows the position bar, and the bot posts the link in the chat so it can be opened there.
+
 ## Recommendation
 
 **Do it, in the reduced form above.**

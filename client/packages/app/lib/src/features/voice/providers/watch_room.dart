@@ -35,9 +35,13 @@ class WatchRoom {
     required this.clockOffset,
     this.duration,
     this.directPlay,
+    this.provider = api.WatchProvider.jellyfin,
   });
 
   final String botUserId;
+
+  /// Whose player [itemId] belongs to; a YouTube room plays on every viewer's device.
+  final api.WatchProvider provider;
   final String itemId;
   final String title;
   final bool playing;
@@ -61,6 +65,7 @@ class WatchRoom {
 
   factory WatchRoom.fromSession(api.WatchSession s, DateTime now) => WatchRoom(
     botUserId: s.botUserId,
+    provider: s.provider,
     itemId: s.itemId,
     title: s.title,
     playing: s.playing,
@@ -85,6 +90,7 @@ class WatchRoom {
 
   WatchRoom afterTick(api.WatchTick tick) => WatchRoom(
     botUserId: botUserId,
+    provider: provider,
     itemId: itemId,
     title: title,
     playing: tick.playing,

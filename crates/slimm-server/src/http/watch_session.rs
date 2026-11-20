@@ -28,7 +28,8 @@ use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{
-    WATCH_SESSION_TTL_MS, WatchSample, WatchSession, WatchSessionWrite, WatchWriteOutcome, now_ms,
+    WATCH_SESSION_TTL_MS, WatchProvider, WatchSample, WatchSession, WatchSessionWrite,
+    WatchWriteOutcome, now_ms,
 };
 
 const BODY_LIMIT: usize = 4 * 1024;
@@ -56,6 +57,8 @@ pub fn routes() -> Router<AppState> {
 struct WatchSessionDto {
     channel_id: String,
     bot_user_id: String,
+    /// Whose player `item_id` belongs to: `jellyfin` or `youtube`.
+    provider: &'static str,
     item_id: String,
     title: String,
     duration_ms: Option<i64>,
@@ -121,6 +124,7 @@ impl WatchSessionDto {
         Self {
             channel_id: s.channel_id.to_string(),
             bot_user_id: s.bot_user_id.to_string(),
+            provider: s.provider.as_str(),
             item_id: s.item_id,
             title: s.title,
             duration_ms: s.duration_ms,
@@ -171,6 +175,9 @@ async fn get_session(
 
 #[derive(Deserialize)]
 struct SetSessionRequest {
+    /// `jellyfin` when absent, so a bot that predates the field keeps working.
+    #[serde(default)]
+    provider: Option<String>,
     item_id: String,
     title: String,
     #[serde(default)]
@@ -191,6 +198,14 @@ fn plain_text(value: &str, max_chars: usize) -> bool {
     !trimmed.is_empty() && value.chars().count() <= max_chars && !value.chars().any(is_hidden_char)
 }
 
+/// The link preview's own rule for a YouTube id, so any video it plays a party can too.
+fn is_youtube_video_id(id: &str) -> bool {
+    (1..=32).contains(&id.len())
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+}
+
 fn in_range(ms: i64) -> bool {
     (0..=MAX_MS).contains(&ms)
 }
@@ -198,8 +213,23 @@ fn in_range(ms: i64) -> bool {
 impl SetSessionRequest {
     /// `controller` is already parsed and checked against the channel.
     fn validate(self, controller: Option<UserId>) -> Result<WatchSessionWrite, ApiError> {
+        let provider = match self.provider.as_deref() {
+            None => WatchProvider::Jellyfin,
+            Some(raw) => WatchProvider::parse(raw)
+                .ok_or(ApiError::BadRequest("provider is not jellyfin or youtube"))?,
+        };
         if !plain_text(&self.item_id, MAX_ITEM_ID_CHARS) {
             return Err(ApiError::BadRequest("item_id is empty, too long or hidden"));
+        }
+        if provider == WatchProvider::Youtube {
+            if !is_youtube_video_id(&self.item_id) {
+                return Err(ApiError::BadRequest("item_id is not a YouTube video id"));
+            }
+            if self.direct_play.is_some() {
+                return Err(ApiError::BadRequest(
+                    "a YouTube session offers no direct_play",
+                ));
+            }
         }
         if !plain_text(&self.title, MAX_TITLE_CHARS) {
             return Err(ApiError::BadRequest("title is empty, too long or hidden"));
@@ -216,6 +246,7 @@ impl SetSessionRequest {
             .transpose()
             .map_err(|_| ApiError::BadRequest("direct_play cannot be stored"))?;
         Ok(WatchSessionWrite {
+            provider,
             direct_play,
             item_id: self.item_id,
             title: self.title,

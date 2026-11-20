@@ -26,6 +26,33 @@ pub struct WatchSession {
     pub controller_user_id: Option<UserId>,
     /// The JSON object the bot states about direct play, or `None` when it offers none.
     pub direct_play: Option<String>,
+    pub provider: WatchProvider,
+}
+
+/// Whose player an item id belongs to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WatchProvider {
+    #[default]
+    Jellyfin,
+    /// A YouTube video id, which every viewer plays in YouTube's own embed.
+    Youtube,
+}
+
+impl WatchProvider {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Jellyfin => "jellyfin",
+            Self::Youtube => "youtube",
+        }
+    }
+
+    pub fn parse(raw: &str) -> Option<Self> {
+        match raw {
+            "jellyfin" => Some(Self::Jellyfin),
+            "youtube" => Some(Self::Youtube),
+            _ => None,
+        }
+    }
 }
 
 /// What a bot states when it sets the session.
@@ -39,6 +66,7 @@ pub struct WatchSessionWrite {
     pub seeked: bool,
     pub controller_user_id: Option<UserId>,
     pub direct_play: Option<String>,
+    pub provider: WatchProvider,
 }
 
 /// Whether a write landed.
@@ -72,6 +100,7 @@ fn from_row(row: &SqliteRow) -> WatchSession {
         epoch: row.get("epoch"),
         controller_user_id: row.get("controller_user_id"),
         direct_play: row.get("direct_play"),
+        provider: WatchProvider::parse(row.get::<&str, _>("provider")).unwrap_or_default(),
     }
 }
 
@@ -123,6 +152,7 @@ impl Store {
             Some(s)
                 if s.bot_user_id == bot
                     && s.item_id == write.item_id
+                    && s.provider == write.provider
                     && !write.seeked
                     && now - s.sampled_at <= WATCH_SESSION_TTL_MS =>
             {
@@ -134,15 +164,17 @@ impl Store {
         sqlx::query(
             "INSERT INTO watch_sessions
                 (channel_id, bot_user_id, item_id, title, duration_ms, playing,
-                 position_ms, sampled_at, epoch, controller_user_id, direct_play)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 position_ms, sampled_at, epoch, controller_user_id, direct_play,
+                 provider)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(channel_id) DO UPDATE SET
                 bot_user_id = excluded.bot_user_id, item_id = excluded.item_id,
                 title = excluded.title, duration_ms = excluded.duration_ms,
                 playing = excluded.playing, position_ms = excluded.position_ms,
                 sampled_at = excluded.sampled_at, epoch = excluded.epoch,
                 controller_user_id = excluded.controller_user_id,
-                direct_play = excluded.direct_play",
+                direct_play = excluded.direct_play,
+                provider = excluded.provider",
         )
         .bind(channel)
         .bind(bot)
@@ -155,6 +187,7 @@ impl Store {
         .bind(epoch)
         .bind(write.controller_user_id)
         .bind(&write.direct_play)
+        .bind(write.provider.as_str())
         .execute(&mut *tx)
         .await?;
         tx.commit().await?;
