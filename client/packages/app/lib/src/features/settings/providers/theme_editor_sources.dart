@@ -9,6 +9,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import 'my_themes.dart';
+import 'theme_labels.dart';
 import 'theme_store.dart';
 
 class ThemeEditorSource {
@@ -27,10 +28,10 @@ List<ThemeEditorSource> themeEditorSources({
   for (final entry in themeBases.entries)
     ThemeEditorSource(
       'base:${entry.key}',
-      themeBaseLabels[entry.key]!,
+      themeBaseLabel(entry.key),
       ThemeDocument.of(
         entry.value,
-        name: themeBaseLabels[entry.key]!,
+        name: themeBaseLabel(entry.key),
         author: '',
         base: entry.key,
         brightness: entry.key == 'light' ? Brightness.light : Brightness.dark,
@@ -50,14 +51,3 @@ final themeEditorSourcesProvider =
         space: ref.watch(spaceThemesProvider).valueOrNull?.themes ?? const [],
       ),
     );
-
-/// How a built-in preset is named where a person picks one.
-const themeBaseLabels = {
-  'dark': 'Dark',
-  'light': 'Light',
-  'trueBlack': 'True black',
-  'catppuccin': 'Catppuccin',
-  'softDark': 'Soft dark',
-  'forest': 'Forest',
-  'halloween': 'Halloween',
-};

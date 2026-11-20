@@ -33,6 +33,11 @@ String? themeBaseOf(AppThemeChoice choice) => switch (choice) {
   AppThemeChoice.custom => null,
 };
 
+/// How a built-in preset is named where a person picks one.
+String themeBaseLabel(String base) => themeLabel(
+  AppThemeChoice.values.firstWhere((choice) => themeBaseOf(choice) == base),
+);
+
 /// The name a copy of [name] starts with, kept inside the 40 character limit.
 String themeCopyName(String name) {
   const suffix = ' copy';
