@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/messages/providers/message_search_query.dart';
 import 'package:slimm_app/src/features/palette/providers/palette_query.dart';
+import 'package:slimm_app/src/features/palette/widgets/palette_filter_suggestions.dart';
 
 TextEditingValue _at(String text, [int? caret]) => TextEditingValue(
   text: text,
@@ -60,6 +61,25 @@ void main() {
     final next = replaceWordBeforeCaret(_at('hi fr there', 5), 'from:');
     expect(next.text, 'hi from: there');
     expect(next.selection.baseOffset, 8);
+  });
+
+  test('quick dates are the searcher\'s own days, counted on the calendar', () {
+    final added = <SearchFilter>[];
+    final picks = filterSuggestions(
+      'during:',
+      offerKeys: false,
+      sources: (
+        members: const [],
+        channels: const [],
+        today: DateTime(2026, 3, 9, 0, 30),
+      ),
+      actions: (complete: (_) {}, add: added.add),
+    );
+    expect([for (final p in picks) p.label].take(3), [
+      '2026-03-09',
+      '2026-03-08',
+      '2026-03',
+    ]);
   });
 
   group('PaletteField', () {

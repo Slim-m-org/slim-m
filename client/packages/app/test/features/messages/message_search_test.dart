@@ -76,8 +76,8 @@ void main() {
       'in': 'general',
       'has': 'image,link',
       'pinned': 'true',
-      'after_date': '2026-11-05',
-      'before_date': '2026-12-01',
+      'after_ms': '${DateTime(2026, 11, 5).millisecondsSinceEpoch}',
+      'before_ms': '${DateTime(2026, 12).millisecondsSinceEpoch}',
       'before_id': 'm9',
       'include_threads': 'true',
     });

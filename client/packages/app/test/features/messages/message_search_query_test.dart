@@ -7,6 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/messages/providers/message_search_query.dart';
 import 'package:slimm_app/src/features/messages/providers/message_search_request.dart';
 
+/// Epoch milliseconds of a local midnight: the searcher's own day, not a UTC one.
+int _local(int year, int month, int day) =>
+    DateTime(year, month, day).millisecondsSinceEpoch;
+
 List<String> _typed(String raw) => [
   for (final filter in parseSearchQuery(raw).filters) filter.typed,
 ];
@@ -119,28 +123,28 @@ void main() {
       'before: is exclusive and after: inclusive, as the server reads them',
       () {
         final r = request('after:2026-11-01 before:2026-11-19');
-        expect(r.afterDate, '2026-11-01');
-        expect(r.beforeDate, '2026-11-19');
+        expect(r.afterMs, _local(2026, 11, 1));
+        expect(r.beforeMs, _local(2026, 11, 19));
       },
     );
 
     test('during: covers its whole day, month or year', () {
-      expect(request('during:2026-11-19').beforeDate, '2026-11-20');
-      expect(request('during:2026-12').afterDate, '2026-12-01');
-      expect(request('during:2026-12').beforeDate, '2027-01-01');
-      expect(request('during:2026').beforeDate, '2027-01-01');
+      expect(request('during:2026-11-19').beforeMs, _local(2026, 11, 20));
+      expect(request('during:2026-12').afterMs, _local(2026, 12, 1));
+      expect(request('during:2026-12').beforeMs, _local(2027, 1, 1));
+      expect(request('during:2026').beforeMs, _local(2027, 1, 1));
     });
 
     test('between: includes both of its days', () {
       final r = request('between:2026-02-27..2026-02-28');
-      expect(r.afterDate, '2026-02-27');
-      expect(r.beforeDate, '2026-03-01');
+      expect(r.afterMs, _local(2026, 2, 27));
+      expect(r.beforeMs, _local(2026, 3, 1));
     });
 
     test('several dates narrow to the window they all allow', () {
       final r = request('during:2026-11 after:2026-11-10 before:2026-12-25');
-      expect(r.afterDate, '2026-11-10');
-      expect(r.beforeDate, '2026-12-01');
+      expect(r.afterMs, _local(2026, 11, 10));
+      expect(r.beforeMs, _local(2026, 12, 1));
     });
 
     test('an in: typed by name is sent by name, one picked by its id', () {
@@ -156,6 +160,13 @@ void main() {
       expect(picked.channelId, 'c1');
       expect(picked.inChannel, isNull);
       expect(picked.isEmpty, isFalse);
+    });
+
+    test('a bound past the year 9999 is still an instant the server takes', () {
+      final r = request('during:9999');
+      expect(r.afterMs, _local(9999, 1, 1));
+      expect(r.beforeMs, DateTime(10000).millisecondsSinceEpoch);
+      expect(request('between:9999-12-30..9999-12-31').beforeMs, isNotNull);
     });
 
     test('nothing to search by is empty', () {

@@ -182,36 +182,35 @@ String? canonicalSearchValue(SearchKey key, String value) {
 String _strip(String value, String sigil) =>
     value.startsWith(sigil) ? value.substring(1) : value;
 
-/// A `YYYY-MM-DD` that names a real calendar day, as UTC midnight.
+/// A `YYYY-MM-DD` that names a real calendar day, as the searcher's own
+/// local midnight: "today" is the day they are living, wherever they are.
 DateTime? searchDay(String text) {
   final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(text);
   if (match == null) return null;
   final [year, month, day] = [
     for (var i = 1; i <= 3; i++) int.parse(match.group(i)!),
   ];
-  final date = DateTime.utc(year, month, day);
+  final date = DateTime(year, month, day);
   final real = date.year == year && date.month == month && date.day == day;
   return real ? date : null;
 }
 
-/// A whole day, month (`YYYY-MM`) or year (`YYYY`): its first day, and the first day after it.
+/// A whole day, month (`YYYY-MM`) or year (`YYYY`): its first local midnight,
+/// and the one after it, so a day across a DST change is its true length.
 ({DateTime from, DateTime until})? searchPeriod(String text) {
   if (searchDay(text) case final day?) {
-    return (from: day, until: DateTime.utc(day.year, day.month, day.day + 1));
+    return (from: day, until: DateTime(day.year, day.month, day.day + 1));
   }
   final month = RegExp(r'^(\d{4})-(\d{2})$').firstMatch(text);
   if (month != null) {
     final year = int.parse(month.group(1)!);
     final number = int.parse(month.group(2)!);
     if (number < 1 || number > 12) return null;
-    return (
-      from: DateTime.utc(year, number),
-      until: DateTime.utc(year, number + 1),
-    );
+    return (from: DateTime(year, number), until: DateTime(year, number + 1));
   }
   if (RegExp(r'^\d{4}$').hasMatch(text)) {
     final year = int.parse(text);
-    return (from: DateTime.utc(year), until: DateTime.utc(year + 1));
+    return (from: DateTime(year), until: DateTime(year + 1));
   }
   return null;
 }
@@ -223,8 +222,5 @@ DateTime? searchDay(String text) {
   final first = searchDay(ends[0]);
   final last = searchDay(ends[1]);
   if (first == null || last == null || last.isBefore(first)) return null;
-  return (
-    from: first,
-    until: DateTime.utc(last.year, last.month, last.day + 1),
-  );
+  return (from: first, until: DateTime(last.year, last.month, last.day + 1));
 }

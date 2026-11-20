@@ -14,7 +14,7 @@ A value with spaces is quoted too: `in:"team chat"`.
 | Filter | Value | Matches |
 |--------|-------|---------|
 | `from:` | `@username` or `username` | messages that person wrote |
-| `mentions:` | `@username` or `username` | messages with a direct `@username` that pinged them; an `@everyone`, `@here` or role mention does not count |
+| `mentions:` | `@username` or `username` | messages with a direct `@username` outside code that pinged them; an `@everyone`, `@here`, role or reply ping does not count |
 | `in:` | `#channel`, or a conversation picked from the list | that channel, DM, group or thread |
 | `has:` | `image`, `video`, `file`, `link`, `voice`, `poll`, `embed`, `attachment` | messages carrying that; `file` is any attachment that is not an image, video or voice message, `attachment` is any at all, `embed` is a bot or webhook embed |
 | `pinned:` | `true` or `false` (`yes`, `no`) | pinned, or not pinned |
@@ -27,7 +27,7 @@ A value with spaces is quoted too: `in:"team chat"`.
 `has:` filters add up: `has:image has:link` wants both.
 For `from:`, `mentions:`, `in:` and `pinned:` the last one given wins.
 The date filters narrow each other to the window they all allow, so `after:` with `before:` is a range.
-Days are UTC calendar days, the same on every device.
+Days are the searcher's own local days: the client turns each into its local midnights and sends them as instants (`after_ms`, `before_ms`), so "today" is the day they are living and a day across a clock change is its true length.
 A filter whose value does not fit its key (`has:sticker`, `before:2026-02-30`) stays plain text.
 
 A name that matches nobody, or a channel the searcher cannot see, gives no results rather than an error, so search can never tell anyone a hidden channel or an account exists.

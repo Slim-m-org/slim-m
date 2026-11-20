@@ -177,8 +177,9 @@ extension SlimmApiMessages on SlimmApi {
   /// all required. [mentions] keeps direct `@username` mentions of one
   /// person, and [pinned] pinned (or unpinned) messages. [afterDate]/
   /// [beforeDate] are `YYYY-MM-DD`: `afterDate` is inclusive of the named
-  /// day, `beforeDate` excludes it. [beforeId] is the last hit of the
-  /// previous page.
+  /// day, `beforeDate` excludes it, both UTC days; [afterMs]/[beforeMs] are
+  /// the same bounds as instants, for the searcher's own local days.
+  /// [beforeId] is the last hit of the previous page.
   Future<List<Message>> searchMessages(
     String channelId, {
     String? q,
@@ -191,6 +192,8 @@ extension SlimmApiMessages on SlimmApi {
     bool? pinned,
     String? afterDate,
     String? beforeDate,
+    int? afterMs,
+    int? beforeMs,
     String? beforeId,
   }) async {
     final query = _searchQuery(
@@ -204,6 +207,8 @@ extension SlimmApiMessages on SlimmApi {
       pinned: pinned,
       afterDate: afterDate,
       beforeDate: beforeDate,
+      afterMs: afterMs,
+      beforeMs: beforeMs,
       beforeId: beforeId,
     );
     final json = await send(
@@ -235,6 +240,8 @@ extension SlimmApiMessages on SlimmApi {
     bool? pinned,
     String? afterDate,
     String? beforeDate,
+    int? afterMs,
+    int? beforeMs,
     String? beforeId,
   }) async {
     final query = _searchQuery(
@@ -248,6 +255,8 @@ extension SlimmApiMessages on SlimmApi {
       pinned: pinned,
       afterDate: afterDate,
       beforeDate: beforeDate,
+      afterMs: afterMs,
+      beforeMs: beforeMs,
       beforeId: beforeId,
     );
     final json = await send('GET', '/search/messages', query: query);
@@ -511,6 +520,8 @@ Map<String, String> _searchQuery({
   bool? pinned,
   String? afterDate,
   String? beforeDate,
+  int? afterMs,
+  int? beforeMs,
   String? beforeId,
 }) =>
     {
@@ -524,6 +535,8 @@ Map<String, String> _searchQuery({
       if (pinned != null) 'pinned': '$pinned',
       if (afterDate != null) 'after_date': afterDate,
       if (beforeDate != null) 'before_date': beforeDate,
+      if (afterMs != null) 'after_ms': '$afterMs',
+      if (beforeMs != null) 'before_ms': '$beforeMs',
       if (beforeId != null) 'before_id': beforeId,
       'include_threads': 'true',
     };

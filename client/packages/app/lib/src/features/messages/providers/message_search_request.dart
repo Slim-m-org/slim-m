@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A parsed query as the search routes take it: one value per parameter,
-/// the dates folded into the tightest `after_date`/`before_date` window.
+/// the dates folded into the tightest window and sent as instants
+/// (`after_ms`/`before_ms`), so a day is the searcher's local day.
 library;
 
 import 'message_search_query.dart';
@@ -14,8 +15,8 @@ class MessageSearchRequest {
     this.mentions,
     this.has,
     this.pinned,
-    this.afterDate,
-    this.beforeDate,
+    this.afterMs,
+    this.beforeMs,
   });
 
   final String? q;
@@ -32,11 +33,11 @@ class MessageSearchRequest {
   final String? has;
   final bool? pinned;
 
-  /// Inclusive, `YYYY-MM-DD`.
-  final String? afterDate;
+  /// Inclusive, epoch milliseconds of a local midnight.
+  final int? afterMs;
 
-  /// Exclusive, `YYYY-MM-DD`.
-  final String? beforeDate;
+  /// Exclusive, epoch milliseconds of a local midnight.
+  final int? beforeMs;
 
   /// Whether the server would refuse it for naming nothing to search by.
   bool get isEmpty =>
@@ -47,8 +48,8 @@ class MessageSearchRequest {
       mentions == null &&
       has == null &&
       pinned == null &&
-      afterDate == null &&
-      beforeDate == null;
+      afterMs == null &&
+      beforeMs == null;
 }
 
 MessageSearchRequest messageSearchRequest(ParsedSearchQuery parsed) {
@@ -66,8 +67,8 @@ MessageSearchRequest messageSearchRequest(ParsedSearchQuery parsed) {
       null => null,
       final value => value == 'true',
     },
-    afterDate: window.after == null ? null : searchDayText(window.after!),
-    beforeDate: window.before == null ? null : searchDayText(window.before!),
+    afterMs: window.after?.millisecondsSinceEpoch,
+    beforeMs: window.before?.millisecondsSinceEpoch,
   );
 }
 

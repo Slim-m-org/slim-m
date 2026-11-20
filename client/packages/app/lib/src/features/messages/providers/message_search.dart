@@ -77,8 +77,8 @@ Future<MessageSearchResult> searchMessages(
         has: request.has,
         mentions: request.mentions,
         pinned: request.pinned,
-        afterDate: request.afterDate,
-        beforeDate: request.beforeDate,
+        afterMs: request.afterMs,
+        beforeMs: request.beforeMs,
         beforeId: beforeId,
       ),
       null => client.searchAllMessages(
@@ -89,8 +89,8 @@ Future<MessageSearchResult> searchMessages(
         has: request.has,
         mentions: request.mentions,
         pinned: request.pinned,
-        afterDate: request.afterDate,
-        beforeDate: request.beforeDate,
+        afterMs: request.afterMs,
+        beforeMs: request.beforeMs,
         beforeId: beforeId,
       ),
     };

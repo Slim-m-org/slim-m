@@ -217,8 +217,9 @@ Iterable<Channel> _channels(List<Channel> channels, String typed) {
 
 /// Quick picks for a date key, counted back from [today].
 List<(String, String)> _dates(SearchKey key, DateTime today) {
-  final day = DateTime.utc(today.year, today.month, today.day);
-  String ago(int days) => searchDayText(day.subtract(Duration(days: days)));
+  String ago(int days) =>
+      searchDayText(DateTime(today.year, today.month, today.day - days));
+  final day = DateTime(today.year, today.month, today.day);
   String month(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}';
   return switch (key) {
@@ -226,7 +227,7 @@ List<(String, String)> _dates(SearchKey key, DateTime today) {
       (ago(0), 'Today'),
       (ago(1), 'Yesterday'),
       (month(day), 'This month'),
-      (month(DateTime.utc(day.year, day.month - 1)), 'Last month'),
+      (month(DateTime(day.year, day.month - 1)), 'Last month'),
       ('${day.year}', 'This year'),
     ],
     SearchKey.between => [

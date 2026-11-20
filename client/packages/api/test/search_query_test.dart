@@ -26,6 +26,8 @@ const _every = {
   'pinned': 'true',
   'after_date': '2026-01-01',
   'before_date': '2026-02-01',
+  'after_ms': '10',
+  'before_ms': '20',
   'before_id': 'm1',
   'include_threads': 'true',
 };
@@ -61,6 +63,8 @@ void main() {
         pinned: true,
         afterDate: '2026-01-01',
         beforeDate: '2026-02-01',
+        afterMs: 10,
+        beforeMs: 20,
         beforeId: 'm1',
       ),
     );
@@ -81,6 +85,8 @@ void main() {
         pinned: true,
         afterDate: '2026-01-01',
         beforeDate: '2026-02-01',
+        afterMs: 10,
+        beforeMs: 20,
         beforeId: 'm1',
       ),
     );
