@@ -12,6 +12,7 @@ use crate::http::AppState;
 use crate::hub::Event;
 use crate::ids::{CallTranscriptId, ChannelId, UserId};
 use crate::store::{NewTranscript, NewTranscriptLine, TranscriptLine, TranscriptionMode, now_ms};
+use crate::voice::Listing;
 
 /// What a person is shown about the server's own transcript.
 pub fn subject() -> Subject {
@@ -87,38 +88,38 @@ pub async fn write_line(state: &AppState, segment: &AcceptedSegment) {
         text: &segment.text,
     };
     match state.store.append_call_transcript_line(id, &line).await {
-        Ok(stored) => on_line(state, (segment.channel, id), stored).await,
+        Ok(stored) => on_line(state, (segment.channel, id), stored),
         Err(err) => tracing::warn!(%err, "could not write a call transcript line"),
     }
 }
 
 /// Runs once for each line as it is kept: today it sends the line to the people in the call.
-async fn on_line(
+fn on_line(state: &AppState, (channel, id): (ChannelId, CallTranscriptId), line: TranscriptLine) {
+    if let Some(audience) = state.voice.trusted_roster(channel) {
+        publish_line(state, (channel, id), audience, line);
+        return;
+    }
+    // Asking the SFU must not stall the call-audio loop every other session shares.
+    let state = state.clone();
+    tokio::spawn(async move {
+        let audience = state.voice.in_call(channel, Listing::Shared).await;
+        publish_line(&state, (channel, id), audience, line);
+    });
+}
+
+fn publish_line(
     state: &AppState,
     (channel, id): (ChannelId, CallTranscriptId),
+    audience: Vec<UserId>,
     line: TranscriptLine,
 ) {
-    let audience: Arc<[UserId]> = in_call(state, channel).await.into();
     if audience.is_empty() {
         return;
     }
     state.hub.publish(Event::CallTranscriptLine {
         channel_id: channel,
         transcript_id: id,
-        audience,
+        audience: audience.into(),
         line: Arc::new(line),
     });
-}
-
-/// The webhook roster, or the SFU's own list when the roster is empty or predates a restart.
-async fn in_call(state: &AppState, channel: ChannelId) -> Vec<UserId> {
-    let live = state.voice.live_state();
-    let present = live.present(channel);
-    if !present.is_empty() && live.is_reconciled(channel) {
-        return present;
-    }
-    match state.voice.list_participants_shared(channel).await {
-        Ok(listed) => listed.into_iter().map(|p| p.user_id).collect(),
-        Err(_) => present,
-    }
 }
