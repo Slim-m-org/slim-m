@@ -60,6 +60,11 @@ android {
         }
     }
 
+    // An appbundle only ever goes to Google Play, so it drops what the sideloaded apk alone needs (decision 0025).
+    if (gradle.startParameter.taskNames.any { it.substringAfterLast(':').startsWith("bundle") }) {
+        sourceSets.getByName("release").manifest.srcFile("src/play/AndroidManifest.xml")
+    }
+
     buildTypes {
         release {
             signingConfig = if (keystorePropertiesFile.exists()) {

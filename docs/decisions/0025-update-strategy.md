@@ -111,6 +111,8 @@ Two things are missing from every row: the client never learns from the server t
 
 - Automate the Play upload in `release.yml` (internal track) once the owner creates a Play Developer API service account; today the aab is on the GitHub release and Play is loaded by hand.
 - In the app, use Play's in-app update API (`in_app_update`) for the flexible flow, so a Play-installed build updates without leaving the app; a sideloaded apk falls back to the notifier opening the release page.
+- Amended 2026-11-20: a sideloaded apk now updates itself (#2355): it downloads the verified apk and hands it to the system installer, which needs `REQUEST_INSTALL_PACKAGES`.
+  Play restricts that permission and a Play install never needs it, so the appbundle drops it: `android/app/build.gradle.kts` merges `src/play/AndroidManifest.xml` (a `tools:node="remove"`) whenever Gradle builds a bundle task, and the apk keeps it.
 
 ### iOS
 
