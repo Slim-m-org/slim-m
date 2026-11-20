@@ -80,7 +80,7 @@ Future<void> writeEdit(
     MessagesCompanion(
       content: Value(content),
       editedAt: Value(editedAt),
-      mentionsMe: Value(false),
+      mentionsMe: const Value(false),
     ),
   );
 }
