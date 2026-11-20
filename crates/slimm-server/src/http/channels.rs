@@ -225,7 +225,7 @@ async fn create(
     if let Some(category) = category_id
         && CategorySight::of(&state, ctx.user_id)
             .await?
-            .hides(category)
+            .shuts(category)
     {
         return Err(CreateChannelError::UnknownCategory.into());
     }

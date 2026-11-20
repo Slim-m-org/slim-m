@@ -45,12 +45,16 @@ pub(super) struct CategoryDto {
     /// Whether the caller may rename, delete or move it; absent where no caller's view is meant.
     #[serde(skip_serializing_if = "Option::is_none")]
     manageable: Option<bool>,
+    /// Whether the caller may file a channel or sub-category under it; absent like `manageable`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fileable: Option<bool>,
 }
 
 impl CategoryDto {
-    pub(super) fn with_manageable(self, manageable: bool) -> Self {
+    pub(super) fn with_reach(self, manageable: bool, fileable: bool) -> Self {
         Self {
             manageable: Some(manageable),
+            fileable: Some(fileable),
             ..self
         }
     }
@@ -65,12 +69,14 @@ impl From<ChannelCategory> for CategoryDto {
             created_at: category.created_at,
             parent_id: category.parent_id.map(|id| id.to_string()),
             manageable: None,
+            fileable: None,
         }
     }
 }
 
 const CATEGORY_NOT_FOUND: ApiError = ApiError::NotFound("category not found");
 const UNKNOWN_PARENT: ApiError = ApiError::BadRequest("parent_id must name a category that exists");
+const ID_IN_USE: ApiError = ApiError::Conflict("that category id is already in use");
 
 impl From<CategoryWriteError> for ApiError {
     fn from(err: CategoryWriteError) -> Self {
@@ -83,6 +89,7 @@ impl From<CategoryWriteError> for ApiError {
             CategoryWriteError::ParentIsNested => {
                 ApiError::Conflict("a sub-category cannot hold sub-categories of its own")
             }
+            CategoryWriteError::Deleted => ID_IN_USE,
             CategoryWriteError::HasChildren => {
                 ApiError::Conflict("a category that holds sub-categories cannot move under another")
             }
@@ -124,14 +131,15 @@ async fn list(
     Ok(Json(sight.listed_dtos()))
 }
 
-/// `id` unless the caller is not listed it, which answers `missing`, what an id naming nothing gets.
-fn unless_hidden(
+/// `id` unless the caller may not file anything under it, which answers `missing`, what an id
+/// naming nothing gets: what is filed there copies its rows and would vanish from them.
+fn unless_unfileable(
     sight: &CategorySight,
     id: Option<ChannelCategoryId>,
     missing: ApiError,
 ) -> Result<Option<ChannelCategoryId>, ApiError> {
     match id {
-        Some(id) if sight.hides(id) => Err(missing),
+        Some(id) if sight.shuts(id) => Err(missing),
         id => Ok(id),
     }
 }
@@ -151,9 +159,9 @@ async fn create(
     // A retry answers the stored row, which must not hand a hidden category's name to someone else.
     let sight = CategorySight::of(&state, ctx.user_id).await?;
     if sight.closes(id) {
-        return Err(ApiError::Conflict("that category id is already in use"));
+        return Err(ID_IN_USE);
     }
-    let parent = unless_hidden(&sight, parent, UNKNOWN_PARENT)?;
+    let parent = unless_unfileable(&sight, parent, UNKNOWN_PARENT)?;
 
     let created = state
         .store
@@ -196,7 +204,7 @@ async fn update(
         return Err(CATEGORY_NOT_FOUND);
     }
     let parent = parent
-        .map(|parent| unless_hidden(&sight, parent, UNKNOWN_PARENT))
+        .map(|parent| unless_unfileable(&sight, parent, UNKNOWN_PARENT))
         .transpose()?;
 
     let update = CategoryUpdate {

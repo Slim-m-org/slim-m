@@ -184,10 +184,12 @@ pub use canvas_ops_write::{
 };
 pub use canvas_purge::PurgeError;
 pub use categories::{CategoryUpdate, CategoryWriteError, CreatedCategory};
-pub use category_order::{CategoryOrderGroup, CategoryReorderOutcome, ReorderCategoriesError};
+pub use category_order::{
+    CategoryOrderGroup, CategoryOrderReach, CategoryReorderOutcome, ReorderCategoriesError,
+};
 pub use channel_create::{ChannelDefaults, CreateChannelError, CreatedChannel};
 pub use channel_notification_prefs::NotificationChoice;
-pub use channel_order::{ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
+pub use channel_order::{CategoryReach, ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
 pub use channel_settings::ChannelPatch;
 pub use channels::DeleteChannelError;
 pub use code_runs::{CodeRunRecord, CodeRunSummary, MAX_SHARED_OUTPUT_BYTES, clamp_output};

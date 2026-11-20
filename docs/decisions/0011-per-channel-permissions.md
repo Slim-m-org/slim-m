@@ -265,5 +265,7 @@ Every category route judges a category by that one list and answers one missing 
 A role preview of a MANAGE_CHANNELS role is listed the same way, by that role's view of each category's rows.
 A category listed to a manager only as the heading over a sub-category they can view is not theirs to manage: renaming, re-parenting or deleting it needs sight of it under its own overwrites, as its overwrite routes already did, and answers as for a missing category without it.
 A reorder keeps such a heading where it is, the way it keeps a hidden one, though the caller may still name it.
-`GET /categories` says which is which with an additive `manageable` flag, so the client offers no rename, delete or drag for a heading.
-Filing a channel or a sub-category under a heading stays open: it changes nothing about the heading itself.
+`GET /categories` says which is which with additive `manageable` and `fileable` flags, which the client stores with each category so a cold start offers nothing the server would refuse.
+Filing a channel or a sub-category under a category needs the same sight of its own overwrites: whatever is filed there copies them, so under a heading it would vanish from its maker at once. Creating under one, moving a channel or a category into one, and re-parenting under one all answer as for a missing category.
+A category holding a sub-category the caller is not listed is not theirs to rename, move or delete either, though they may still file under it: moving it would carry the hidden one along or answer about it, and deleting it would promote it.
+A create naming the id of a deleted category answers 409 to everyone rather than handing back the stored row.

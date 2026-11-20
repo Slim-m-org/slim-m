@@ -87,6 +87,30 @@ impl World {
             (unknown.0, unknown.1.to_string().replace(&nowhere, "ID")),
         ]
     }
+
+    /// The manager's answer with `PARENT` in `body` as `gamers`, and as a fresh id.
+    async fn ask_twice_in_body(
+        &self,
+        method: &str,
+        uri: &str,
+        body: Value,
+    ) -> [(StatusCode, String); 2] {
+        let nowhere = uuid::Uuid::now_v7().to_string();
+        let manager = &self.app.member.token;
+        let with = |id: &str| -> Value {
+            serde_json::from_str(&body.to_string().replace("PARENT", id)).unwrap()
+        };
+        let named = self
+            .app
+            .call(method, uri, manager, Some(with(&self.gamers)));
+        let named = named.await;
+        let unknown = self.app.call(method, uri, manager, Some(with(&nowhere)));
+        let unknown = unknown.await;
+        [
+            (named.0, named.1.to_string().replace(&self.gamers, "ID")),
+            (unknown.0, unknown.1.to_string().replace(&nowhere, "ID")),
+        ]
+    }
 }
 
 async fn create(app: &TestApp, body: Value) -> String {
@@ -101,17 +125,16 @@ async fn create(app: &TestApp, body: Value) -> String {
 async fn a_heading_is_listed_as_one_the_manager_may_not_manage() {
     let world = World::start("slimm-category-heading-list").await;
     let listed = world.categories(&world.app.member.token).await;
-    let flag = |id: &str| {
-        listed
-            .iter()
-            .find(|c| c["id"] == id)
-            .map(|c| c["manageable"].clone())
+    let flags = |id: &str| {
+        let c = listed.iter().find(|c| c["id"] == id).unwrap();
+        (c["manageable"].clone(), c["fileable"].clone())
     };
-    assert_eq!(flag(&world.gamers), Some(json!(false)));
-    assert_eq!(flag(&world.cs), Some(json!(true)));
-    assert_eq!(flag(&world.open), Some(json!(true)));
+    assert_eq!(flags(&world.gamers), (json!(false), json!(false)));
+    assert_eq!(flags(&world.cs), (json!(true), json!(true)));
+    assert_eq!(flags(&world.open), (json!(true), json!(true)));
     let all = world.categories(&world.app.admin.token).await;
-    assert!(all.iter().all(|c| c["manageable"] == true), "{all:?}");
+    let full = |c: &Value| c["manageable"] == true && c["fileable"] == true;
+    assert!(all.iter().all(full), "{all:?}");
 }
 
 #[tokio::test]
@@ -187,4 +210,79 @@ fn top_names(categories: &[Value]) -> Vec<String> {
         .filter(|c| c["parent_id"].is_null())
         .map(|c| c["name"].as_str().unwrap().to_owned())
         .collect()
+}
+
+#[tokio::test]
+async fn nothing_is_filed_under_a_heading_the_manager_would_lose_it_in() {
+    let world = World::start("slimm-category-heading-file").await;
+    let manager = &world.app.member.token;
+    world.app.create_channel("lounge").await;
+    let (_, seen) = world.app.call("GET", "/channels", manager, None).await;
+    let seen: Vec<Value> = seen
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["id"].clone())
+        .collect();
+    let listed = world.categories(manager).await;
+    let top: Vec<Value> = listed
+        .iter()
+        .filter(|c| c["parent_id"].is_null() && c["id"] != world.open.as_str())
+        .map(|c| c["id"].clone())
+        .collect();
+    let asks = [
+        (
+            "POST",
+            "/channels".to_owned(),
+            json!({"name": "mine", "category_id": "PARENT"}),
+        ),
+        (
+            "POST",
+            "/categories".to_owned(),
+            json!({"name": "mine", "parent_id": "PARENT"}),
+        ),
+        (
+            "PUT",
+            "/channels/order".to_owned(),
+            json!({"categories": [{"category_id": "PARENT", "channel_ids": seen}]}),
+        ),
+        (
+            "PUT",
+            "/categories/order".to_owned(),
+            json!({"groups": [
+                {"parent_id": null, "category_ids": top},
+                {"parent_id": "PARENT", "category_ids": [world.cs, world.open]},
+            ]}),
+        ),
+    ];
+    for (method, uri, body) in asks {
+        let [named, unknown] = world.ask_twice_in_body(method, &uri, body).await;
+        assert_eq!(
+            named.0,
+            StatusCode::BAD_REQUEST,
+            "{method} {uri}: {}",
+            named.1
+        );
+        assert_eq!(named, unknown, "{method} {uri}");
+    }
+    let admin = &world.app.admin.token;
+    let (_, channels) = world.app.call("GET", "/channels", admin, None).await;
+    let filed = channels
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|c| c["category_id"] == world.gamers.as_str());
+    assert_eq!(filed.count(), 0, "nothing landed in Gamers");
+    assert!(world.admin_sees(&world.open).await["parent_id"].is_null());
+
+    let inside = json!({"name": "smokes", "category_id": world.cs});
+    let (status, body) = world
+        .app
+        .call("POST", "/channels", manager, Some(inside))
+        .await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "their own sub-category takes a channel: {body}"
+    );
 }

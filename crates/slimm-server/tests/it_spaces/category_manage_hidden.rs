@@ -207,15 +207,16 @@ async fn a_manager_reorders_what_they_see_around_the_categories_they_cannot() {
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
+    // Open holds the hidden Secret, so it keeps its place like Staff does.
     assert_eq!(
         names(body.as_array().unwrap()),
-        ["Other", "Open", "Voice", "Text"]
+        ["Other", "Voice", "Open", "Text"]
     );
 
     let all = world.categories(&world.app.admin.token).await;
     assert_eq!(
         names(&all),
-        ["Other", "Open", "Secret", "Staff", "Voice", "Text"]
+        ["Other", "Voice", "Staff", "Open", "Secret", "Text"]
     );
     assert_eq!(
         world.admin_sees(&world.secret_sub).await["parent_id"],
@@ -252,4 +253,81 @@ async fn an_administrator_still_manages_every_category() {
     let (status, _) = world.app.call("DELETE", &uri, admin, None).await;
     assert_eq!(status, StatusCode::NO_CONTENT);
     assert!(world.admin_sees(&world.staff).await.is_null());
+}
+
+#[tokio::test]
+async fn a_category_over_a_hidden_sub_category_is_not_the_managers_to_move_or_delete() {
+    let world = World::start("slimm-category-manage-hidden-over").await;
+    let listed = world.categories(&world.app.member.token).await;
+    let open = listed.iter().find(|c| c["id"] == world.open.as_str());
+    let flags = open.map(|c| (c["manageable"].clone(), c["fileable"].clone()));
+    assert_eq!(
+        flags,
+        Some((json!(false), json!(true))),
+        "still theirs to file under"
+    );
+    let other = listed.iter().find(|c| c["name"] == "Other").unwrap()["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    let uri = format!("/categories/{}", world.open);
+    let under = json!({"parent_id": other});
+    let [named, unknown] = world.ask_twice("PATCH", &uri, under, &world.open).await;
+    assert_eq!(named.0, StatusCode::NOT_FOUND, "{}", named.1);
+    assert_eq!(named, unknown, "a move answers as for no category");
+    let [named, unknown] = world
+        .ask_twice("DELETE", &uri, json!({}), &world.open)
+        .await;
+    assert_eq!(named, unknown);
+    assert_eq!(
+        world.admin_sees(&world.secret_sub).await["parent_id"],
+        world.open.as_str()
+    );
+
+    let top: Vec<&Value> = listed
+        .iter()
+        .filter(|c| c["parent_id"].is_null() && c["id"] != world.open.as_str())
+        .map(|c| &c["id"])
+        .collect();
+    let nest = json!({"groups": [
+        {"parent_id": null, "category_ids": top},
+        {"parent_id": other, "category_ids": [world.open]},
+    ]});
+    let (status, body) = world
+        .app
+        .call(
+            "PUT",
+            "/categories/order",
+            &world.app.member.token,
+            Some(nest),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(!body.to_string().contains(&world.secret_sub));
+    assert!(
+        world.admin_sees(&world.open).await["parent_id"].is_null(),
+        "Open stayed put"
+    );
+}
+
+#[tokio::test]
+async fn a_deleted_categorys_id_is_never_handed_back_on_create() {
+    let world = World::start("slimm-category-manage-hidden-deleted").await;
+    let admin = &world.app.admin.token;
+    let gone = create(&world.app, json!({"name": "Old secrets"})).await;
+    let (status, _) = world
+        .app
+        .call("DELETE", &format!("/categories/{gone}"), admin, None)
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    for token in [admin, &world.app.member.token] {
+        let again = json!({"id": gone, "name": "anything"});
+        let (status, body) = world
+            .app
+            .call("POST", "/categories", token, Some(again))
+            .await;
+        assert_eq!(status, StatusCode::CONFLICT, "{body}");
+        assert!(!body.to_string().contains("Old secrets"), "{body}");
+    }
 }

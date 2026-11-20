@@ -2812,9 +2812,11 @@ paths:
         `createChannel` uses. Appended after its live siblings: the top-level
         categories, or the sub-categories of `parent_id`. A sub-category
         starts following its parent's permissions with a copy of its
-        overwrites (decision 0120). A `parent_id` that is not a live category
-        is a 400; one that is itself a sub-category is a 409, since categories
-        nest two levels at most.
+        overwrites (decision 0120). A `parent_id` that is not a live category,
+        or one the caller may not file under (`fileable` false), is a 400;
+        an `id` that named a category since deleted is a 409; a parent that
+        is itself a sub-category is a 409, since categories nest two levels
+        at most.
       requestBody:
         required: true
         content:
@@ -18061,8 +18063,16 @@ components:
             rename, delete or move this category, which takes an
             administrator or MANAGE_CHANNELS with sight of it under its own
             overwrites. False for one listed only as the heading over a
-            sub-category they can view. Absent elsewhere and on older
-            servers, which a client reads as true.
+            sub-category they can view, or for one holding a sub-category
+            they are not listed. Absent elsewhere and on older servers, which
+            a client reads as true.
+        fileable:
+          type: boolean
+          description: >
+            Beside `manageable`: whether the caller may create or move a
+            channel or sub-category under this category, which takes sight of
+            it under its own overwrites. False for one listed only as a
+            heading. Absent where `manageable` is, read as true.
 
     CreateCategoryRequest:
       type: object
