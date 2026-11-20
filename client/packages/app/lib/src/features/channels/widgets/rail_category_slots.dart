@@ -11,6 +11,7 @@
 library;
 
 import 'package:slimm_api/api.dart' show CategoryOrderGroup;
+import 'package:slimm_data/data.dart' show CategoryReach;
 
 import 'category_tree.dart';
 import 'channel_rail_reorder.dart' show ChannelSection;
@@ -179,16 +180,54 @@ List<CategoryOrderGroup>? categoryGroupsAfterDrop(
   source.removeAt(at);
   final place = same && slot.index > at ? slot.index - 1 : slot.index;
   target.insert(place.clamp(0, target.length), movedId);
-  return [
+  final after = keepFixedInPlace(tree, [
     CategoryOrderGroup(parentId: null, categoryIds: lists[null]!),
     for (final MapEntry(:key, :value) in lists.entries)
       if (key != null && value.isNotEmpty)
         CategoryOrderGroup(parentId: key, categoryIds: value),
-  ];
+  ]);
+  final unchanged = after.every(
+    (g) => _sameIds(g.categoryIds, _currentIds(tree, g.parentId)),
+  );
+  return unchanged ? null : after;
 }
 
-/// The arrangement after moving [categoryId] one place among its siblings by
-/// [delta], or null at that end.
+List<String> _currentIds(CategoryTree tree, String? parentId) => [
+  for (final c in parentId == null ? tree.topLevel : tree.childrenOf(parentId))
+    c.id,
+];
+
+bool _sameIds(List<String> a, List<String> b) =>
+    a.length == b.length && a.indexed.every((e) => b[e.$1] == e.$2);
+
+/// [groups] with every category this account may not move put back at the
+/// index it holds among its siblings now, as the server will put it.
+List<CategoryOrderGroup> keepFixedInPlace(
+  CategoryTree tree,
+  List<CategoryOrderGroup> groups,
+) => [
+  for (final group in groups)
+    CategoryOrderGroup(
+      parentId: group.parentId,
+      categoryIds: _withFixed(tree, group),
+    ),
+];
+
+List<String> _withFixed(CategoryTree tree, CategoryOrderGroup group) {
+  bool fixed(String id) => !(tree.byId[id]?.canManage ?? true);
+  final ids = [
+    for (final id in group.categoryIds)
+      if (!fixed(id)) id,
+  ];
+  for (final (i, id) in _currentIds(tree, group.parentId).indexed) {
+    if (fixed(id)) ids.insert(i.clamp(0, ids.length), id);
+  }
+  return ids;
+}
+
+/// The arrangement after moving [categoryId] past its next sibling this
+/// account may move in the direction of [delta], each one it may not move
+/// staying where it is; null when there is none.
 List<CategoryOrderGroup>? groupsAfterSiblingStep(
   CategoryTree tree,
   String categoryId,
@@ -199,9 +238,16 @@ List<CategoryOrderGroup>? groupsAfterSiblingStep(
   final parentId = tree.parentOf(category)?.id;
   final siblings = [for (final c in tree.siblingsOf(category)) c.id];
   final at = siblings.indexOf(categoryId);
-  final to = at + delta;
-  if (at < 0 || to < 0 || to >= siblings.length) return null;
-  siblings.insert(to, siblings.removeAt(at));
+  if (at < 0) return null;
+  var to = at + delta.sign;
+  while (to >= 0 &&
+      to < siblings.length &&
+      !(tree.byId[siblings[to]]?.canManage ?? true)) {
+    to += delta.sign;
+  }
+  if (to < 0 || to >= siblings.length) return null;
+  siblings[at] = siblings[to];
+  siblings[to] = categoryId;
   return [
     for (final group in tree.groups)
       group.parentId == parentId

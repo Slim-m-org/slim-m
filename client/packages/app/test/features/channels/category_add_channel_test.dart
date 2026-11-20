@@ -30,8 +30,12 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-ChannelCategoryRow _category() =>
-    const ChannelCategoryRow(id: 'cat1', name: 'Lounge', position: 0);
+ChannelCategoryRow _category({bool? fileable}) => ChannelCategoryRow(
+  id: 'cat1',
+  name: 'Lounge',
+  position: 0,
+  fileable: fileable,
+);
 
 Channel _channel() => const Channel(
   id: 'c1',
@@ -48,7 +52,11 @@ Channel _channel() => const Channel(
   categoryId: 'cat1',
 );
 
-Future<void> _pump(WidgetTester tester, {required bool canManage}) async {
+Future<void> _pump(
+  WidgetTester tester, {
+  required bool canManage,
+  bool? fileable,
+}) async {
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -64,7 +72,7 @@ Future<void> _pump(WidgetTester tester, {required bool canManage}) async {
         home: Scaffold(
           body: ChannelCategorySections(
             channels: [_channel()],
-            categories: [_category()],
+            categories: [_category(fileable: fileable)],
             selectedId: null,
             canManage: canManage,
             onReorder: (_) {},
@@ -81,6 +89,14 @@ void main() {
     await _pump(tester, canManage: true);
 
     expect(find.bySemanticsLabel('Create a channel in Lounge'), findsOneWidget);
+  });
+
+  testWidgets('a category nothing may be filed under gets no +', (
+    tester,
+  ) async {
+    await _pump(tester, canManage: true, fileable: false);
+
+    expect(find.bySemanticsLabel('Create a channel in Lounge'), findsNothing);
   });
 
   testWidgets('somebody without MANAGE_CHANNELS gets no +', (tester) async {

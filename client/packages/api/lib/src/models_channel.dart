@@ -178,10 +178,19 @@ class ChannelCategory {
     required this.createdAt,
     this.parentId,
     this.serverNests = false,
+    this.manageable = true,
+    this.fileable = true,
   });
 
   final String id;
   final String name;
+
+  /// False when the caller is listed it only as the heading over a
+  /// sub-category, so it is not theirs to rename, move or delete.
+  final bool manageable;
+
+  /// False when the caller may not file a channel or sub-category under it.
+  final bool fileable;
 
   /// Sort key among its siblings, lower first: the top-level categories, or
   /// one parent's sub-categories.
@@ -203,6 +212,8 @@ class ChannelCategory {
         createdAt: json['created_at'] as int,
         parentId: json['parent_id'] as String?,
         serverNests: json.containsKey('parent_id'),
+        manageable: json['manageable'] as bool? ?? true,
+        fileable: json['fileable'] as bool? ?? true,
       );
 }
 

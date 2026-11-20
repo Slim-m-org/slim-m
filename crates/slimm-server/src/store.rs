@@ -40,6 +40,7 @@ mod category_delete;
 mod category_mutes;
 mod category_order;
 mod category_overwrites;
+mod category_sight;
 mod channels;
 pub(crate) use channels::channel_slow_mode;
 use channels::{channel_create, channel_notification_prefs, channel_order, channel_settings};
@@ -184,10 +185,12 @@ pub use canvas_ops_write::{
 };
 pub use canvas_purge::PurgeError;
 pub use categories::{CategoryUpdate, CategoryWriteError, CreatedCategory};
-pub use category_order::{CategoryOrderGroup, CategoryReorderOutcome, ReorderCategoriesError};
+pub use category_order::{
+    CategoryOrderGroup, CategoryOrderReach, CategoryReorderOutcome, ReorderCategoriesError,
+};
 pub use channel_create::{ChannelDefaults, CreateChannelError, CreatedChannel};
 pub use channel_notification_prefs::NotificationChoice;
-pub use channel_order::{ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
+pub use channel_order::{CategoryReach, ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
 pub use channel_settings::ChannelPatch;
 pub use channels::DeleteChannelError;
 pub use code_runs::{CodeRunRecord, CodeRunSummary, MAX_SHARED_OUTPUT_BYTES, clamp_output};

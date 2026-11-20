@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
 
+import '../../features/channels/providers/arrival_readers.dart';
 import '../../features/channels/providers/channel_notification_overrides_controller.dart';
 import '../../features/channels/providers/channel_refresher.dart';
 import '../../features/channels/providers/last_text_channel.dart';
@@ -157,7 +158,25 @@ class SyncEventApplier {
     if (await _cannotPlace(message.channelId, placed, store, isCurrent)) {
       return;
     }
-    await store.applyMessage(message);
+    final reader = _ref
+        .read(arrivalReadersProvider)
+        .readerFor(message.channelId);
+    await store.applyMessage(message, markRead: reader != null);
+    if (reader == null ||
+        reader.readOnArrival(message.channelId, message.seq)) {
+      return;
+    }
+    // The screen closed during the write, so the server hears it from here.
+    unawaited(_markRead(api, message.channelId, message.seq));
+  }
+
+  /// A failure leaves the local marker ahead, which the next refresh sends.
+  Future<void> _markRead(SlimmApi api, String channelId, int seq) async {
+    try {
+      await api.markRead(channelId: channelId, seq: seq);
+    } on ApiException catch (error, stack) {
+      reportFailure(LogTag.ui, 'save the read position', error, stack);
+    }
   }
 
   /// Whether [categoryId], or the parent it sits under, is missing locally.

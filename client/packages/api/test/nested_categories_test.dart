@@ -69,6 +69,17 @@ void main() {
       expect(category.parentId, isNull);
       expect(category.serverNests, isFalse);
     });
+
+    test('a heading is not the caller\'s to manage; no flag means it is', () {
+      final heading = ChannelCategory.fromJson({
+        ..._category('c', parent: null),
+        'manageable': false,
+      });
+      expect(heading.manageable, isFalse);
+      expect(heading.fileable, isTrue);
+      final old = ChannelCategory.fromJson(_category('c'));
+      expect((old.manageable, old.fileable), (true, true));
+    });
   });
 
   test('createCategory names the parent only when given one', () async {

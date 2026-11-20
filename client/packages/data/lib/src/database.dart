@@ -157,6 +157,13 @@ class ChannelCategories extends Table {
   /// The top-level category this one sits in, or null for a top-level one.
   TextColumn get parentId => text().nullable()();
 
+  /// Whether this account may rename, move or delete it; false for a heading
+  /// only, null before a listing said, read through `CategoryReach`.
+  BoolColumn get manageable => boolean().nullable()();
+
+  /// Whether this account may file a channel or sub-category under it; null as above.
+  BoolColumn get fileable => boolean().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -339,7 +346,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 32;
+  int get schemaVersion => 33;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -466,6 +473,12 @@ class SlimmDatabase extends _$SlimmDatabase {
                 m, channelCategories, channelCategories.parentId)),
         _UpgradeStep(
             32, () => _addColumnOnce(m, channels, channels.roomLobbyId)),
+        _UpgradeStep(33, () async {
+          await _addColumnOnce(
+              m, channelCategories, channelCategories.manageable);
+          await _addColumnOnce(
+              m, channelCategories, channelCategories.fileable);
+        }),
       ];
 
   /// How each schema version is reached. Most add a column in place that the

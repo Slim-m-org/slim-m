@@ -48,6 +48,8 @@ extension CategoryStore on MessageStore {
                 name: Variable(category.name),
                 position: Variable(category.position),
                 parentId: Variable(category.parentId),
+                manageable: Variable(category.manageable),
+                fileable: Variable(category.fileable),
               ),
             ),
           );
@@ -76,6 +78,8 @@ extension CategoryStore on MessageStore {
         name: category.name,
         position: Value(category.position),
         parentId: Value(category.parentId),
+        manageable: Value(category.manageable),
+        fileable: Value(category.fileable),
       );
 
   /// Removes one category locally, the immediate-feedback counterpart to

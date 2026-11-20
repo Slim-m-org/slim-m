@@ -26,13 +26,26 @@ Channel _channel(String id, String categoryId) => Channel(
   categoryId: categoryId,
 );
 
-ChannelCategoryRow _cat(String id, {int position = 0, String? parentId}) =>
-    ChannelCategoryRow(
-      id: id,
-      name: id,
-      position: position,
-      parentId: parentId,
-    );
+ChannelCategoryRow _cat(
+  String id, {
+  int position = 0,
+  String? parentId,
+  bool? manageable,
+}) => ChannelCategoryRow(
+  id: id,
+  name: id,
+  position: position,
+  parentId: parentId,
+  manageable: manageable,
+);
+
+/// Top level a, b, c, d; b and c are this account's to see but not to move.
+final _fixed = CategoryTree([
+  _cat('a'),
+  _cat('b', position: 1, manageable: false),
+  _cat('c', position: 2, manageable: false),
+  _cat('d', position: 3),
+]);
 
 final _tree = CategoryTree([
   _cat('gamers'),
@@ -186,6 +199,37 @@ void main() {
         'null:music,gamers',
         'gamers:minecraft,cs2',
       ]);
+    });
+
+    test('steps past the siblings it may not move, which stay put', () {
+      expect(_shape(groupsAfterSiblingStep(_fixed, 'a', 1)), ['null:d,b,c,a']);
+      expect(_shape(groupsAfterSiblingStep(_fixed, 'd', -1)), ['null:d,b,c,a']);
+    });
+
+    test('offers no step when only fixed siblings lie that way', () {
+      final tree = CategoryTree([
+        _cat('a'),
+        _cat('b', position: 1, manageable: false),
+      ]);
+      expect(groupsAfterSiblingStep(tree, 'a', 1), isNull);
+    });
+  });
+
+  group('a drop around categories that may not move', () {
+    test('keeps each where it is', () {
+      final after = categoryGroupsAfterDrop(
+        _fixed,
+        'a',
+        const DropSlot(0, 4, 0),
+      );
+      expect(_shape(after), ['null:d,b,c,a']);
+    });
+
+    test('is no move at all when it only crosses them', () {
+      expect(
+        categoryGroupsAfterDrop(_fixed, 'a', const DropSlot(0, 2, 0)),
+        isNull,
+      );
     });
   });
 }

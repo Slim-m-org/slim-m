@@ -19,6 +19,7 @@ use axum::routing::put;
 use serde::Deserialize;
 
 use super::super::AppState;
+use super::super::category_sight::CategorySight;
 use super::super::error::ApiError;
 use super::super::extract::{Authed, Json, enforce};
 use super::super::messages::parse_uuid;
@@ -27,7 +28,7 @@ use crate::hub::Event;
 use crate::ids::{ChannelCategoryId, ChannelId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
+use crate::store::{CategoryReach, ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
 
 /// Every body here is a small JSON document; refused well before axum's 2 MB default.
 const BODY_LIMIT: usize = 64 * 1024;
@@ -121,7 +122,15 @@ async fn reorder(
         }
         (None, Some(categories)) => {
             let groups = parse_groups(&categories)?;
-            state.store.reorder_channels_around(&groups, &hidden).await
+            let sight = CategorySight::of(&state, ctx.user_id).await?;
+            let categories = CategoryReach {
+                hidden: sight.hidden(),
+                unfileable: sight.unfileable(),
+            };
+            state
+                .store
+                .reorder_channels_around(&groups, &hidden, &categories)
+                .await
         }
     };
 

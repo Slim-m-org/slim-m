@@ -59,26 +59,36 @@ class _CreateCategorySheetState extends ConsumerState<_CreateCategorySheet> {
     if (store == null) return _sheet(const []);
     return StreamBuilder<List<ChannelCategoryRow>>(
       stream: _categories.of(store),
-      builder: (context, snapshot) => _sheet([
-        for (final c in CategoryTree(snapshot.data ?? const []).topLevel)
-          if (c.parentId == null) c,
-      ]),
+      builder: (context, snapshot) {
+        final all = snapshot.data;
+        return _sheet(
+          [
+            for (final c in CategoryTree(all ?? const []).topLevel)
+              if (c.parentId == null && c.canFile) c,
+          ],
+          shut: {
+            for (final c in all ?? const <ChannelCategoryRow>[])
+              if (!c.canFile) c.id,
+          },
+        );
+      },
     );
   }
 
-  Widget _sheet(List<ChannelCategoryRow> parents) {
-    final sub = _parent != _topLevel;
+  Widget _sheet(
+    List<ChannelCategoryRow> parents, {
+    Set<String> shut = const {},
+  }) {
+    // A parent this account may not file under falls back to the top level.
+    final parent = shut.contains(_parent) ? _topLevel : _parent;
+    final sub = parent != _topLevel;
     return NameEntrySheet(
       noun: 'category',
       title: sub ? 'Create a sub-category' : 'Create a category',
       onCreate: (name) async {
         await ref
             .read(channelActionsProvider)
-            .createCategory(
-              name,
-              id: widget.id,
-              parentId: sub ? _parent : null,
-            );
+            .createCategory(name, id: widget.id, parentId: sub ? parent : null);
         return null;
       },
       extraFields: [
@@ -86,7 +96,7 @@ class _CreateCategorySheetState extends ConsumerState<_CreateCategorySheet> {
           const SizedBox(height: AppSpacing.s8),
           SettingsSelectRow<String>(
             label: 'Parent category',
-            value: _parent,
+            value: parent,
             choices: [
               const SettingsChoice(value: _topLevel, label: 'None'),
               for (final parent in parents)

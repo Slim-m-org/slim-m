@@ -49,15 +49,9 @@ async fn make_a_manager(app: &TestApp) {
     ok(app, "PUT", &grant, &app.admin.token, json!({})).await;
 }
 
-/// Decision 0120 lists every category to a channel manager, private ones included, so they may
-/// name one anywhere but in its overwrites; a `/members/` route acts on a person, never on anything private.
-fn a_manager_may(method: Method, template: &str) -> bool {
-    let files_under_a_category = method == Method::Post && template == "/channels";
-    let names_a_category = template.contains("/categories");
-    let its_overwrites = template.starts_with("/categories/{categoryId}/overwrites");
-    files_under_a_category
-        || names_a_category && !its_overwrites
-        || template.starts_with("/members/")
+/// A `/members/` route acts on a person, never on anything private.
+fn a_manager_may(_: Method, template: &str) -> bool {
+    template.starts_with("/members/")
 }
 
 #[tokio::test]
@@ -123,10 +117,8 @@ async fn no_get_hands_a_manager_what_is_in_a_channel_they_cannot_see() {
     let private = build(&app, None).await;
     make_a_manager(&app).await;
     let found = read_everything(&app, &private, &app.member.token).await;
-    // The audit log names what was changed by id, and 0120 lists a manager every category.
-    let by_design = |line: &&String| {
-        !line.starts_with("GET /categories ->") && !line.starts_with("GET /space/audit-log ->")
-    };
+    // The audit log names what was changed by id.
+    let by_design = |line: &&String| !line.starts_with("GET /space/audit-log ->");
     let found: Vec<_> = found.iter().filter(by_design).collect();
     assert!(found.is_empty(), "{found:#?}");
 }
