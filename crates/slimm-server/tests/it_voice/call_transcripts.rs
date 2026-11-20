@@ -3,6 +3,8 @@
 //! `on_request` modes end to end through webhooks, routes and a fake listener,
 //! and a module session that still writes nothing.
 
+use std::time::Duration;
+
 use axum::http::StatusCode;
 use serde_json::json;
 use slimm_server::hub::Event;
@@ -12,7 +14,7 @@ use slimm_server::store::TranscriptionMode;
 use crate::support;
 use support::call_audio_world::Rig;
 use support::fake_sfu::{RecordingRoomService, spawn_sfu};
-use support::wait::wait_for;
+use support::wait::{poll, wait_for};
 
 fn transcript_id(rig: &Rig) -> CallTranscriptId {
     CallTranscriptId(rig.session_id().parse().unwrap())
@@ -239,6 +241,41 @@ async fn lines_go_live_to_the_call_when_no_webhook_ever_said_who_is_in_it() {
     let mut audience = audience;
     audience.sort_by_key(ToString::to_string);
     assert_eq!(audience, in_call);
+}
+
+/// One slow `ListParticipants` must not hold up the next line, nor anything else the loop does.
+#[tokio::test]
+async fn a_slow_sfu_does_not_stall_the_next_line() {
+    let sfu = RecordingRoomService::default();
+    let sfu_url = spawn_sfu(sfu.clone()).await;
+    let rig = Rig::start_with_sfu("transcript-slow-sfu", 2, &sfu_url).await;
+    let (a, b) = (&rig.people[0], &rig.people[1]);
+    sfu.seat(&[a.id, b.id]);
+    rig.store
+        .set_call_transcription(TranscriptionMode::OnRequest)
+        .await
+        .unwrap();
+    let uri = format!("/channels/{}/voice/transcript", rig.channel);
+    assert_eq!(rig.call(a, "POST", &uri, None).await.0, StatusCode::OK);
+    rig.answer(b, true).await;
+    rig.wait_session(Some("on")).await;
+    wait_start_frames(&rig, 1).await;
+    sfu.delay_listing(Duration::from_secs(3));
+
+    let id = transcript_id(&rig);
+    let session = rig.session_id();
+    rig.listener.segment(&session, &a.id.to_string(), "first");
+    rig.listener.segment(&session, &b.id.to_string(), "second");
+    let store = rig.store.clone();
+    let kept = poll(Duration::from_millis(1500), || {
+        let store = store.clone();
+        async move {
+            let lines = store.call_transcript_lines(id, 0, 100).await.unwrap();
+            (lines.len() >= 2).then_some(())
+        }
+    })
+    .await;
+    assert!(kept.is_some(), "the second line waited on the SFU");
 }
 
 #[tokio::test]
