@@ -256,9 +256,12 @@ class _AppSliderState extends State<AppSlider> {
                 child: FractionalTranslation(
                   translation: const Offset(-0.5, -1),
                   child: DecoratedBox(
+                    // The tooltip's raised plate, so a bubble beside a tooltip reads as the same kind of label.
                     decoration: BoxDecoration(
-                      color: tokens.textPrimary,
+                      color: tokens.surfaceRaised,
+                      border: Border.all(color: tokens.borderStrong),
                       borderRadius: BorderRadius.circular(AppRadii.control),
+                      boxShadow: AppShadows.canvasTile,
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -269,7 +272,7 @@ class _AppSliderState extends State<AppSlider> {
                         text,
                         style: AppText.caption.copyWith(
                           fontFamily: AppFonts.mono,
-                          color: tokens.surfaceBase,
+                          color: tokens.textPrimary,
                         ),
                       ),
                     ),
