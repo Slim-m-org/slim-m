@@ -30,12 +30,14 @@ use axum::Router;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
+use axum::middleware::from_fn;
 use axum::routing::post;
 use serde::Deserialize;
 
 use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{Authed, Json, enforce};
+use super::super::post_commit::run_to_completion;
 use super::parse_uuid;
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
@@ -66,7 +68,7 @@ struct BulkDeleteRequest {
 pub fn router() -> Router<AppState> {
     Router::new().route(
         "/channels/{channel_id}/messages/bulk-delete",
-        post(bulk_delete),
+        post(bulk_delete).layer(from_fn(run_to_completion)),
     )
 }
 

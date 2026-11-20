@@ -40,12 +40,14 @@ use axum::Router;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
+use axum::middleware::from_fn;
 use axum::routing::post;
 use serde::Deserialize;
 
 use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{Authed, Json, enforce};
+use super::super::post_commit::run_to_completion;
 use super::messages_bulk::{MAX_BULK_DELETE_IDS, delete_and_publish};
 use super::parse_uuid;
 use crate::ids::{ChannelId, UserId};
@@ -72,7 +74,7 @@ struct BulkDeleteWindowRequest {
 pub fn router() -> Router<AppState> {
     Router::new().route(
         "/channels/{channel_id}/messages/bulk-delete-by-author",
-        post(bulk_delete_by_author),
+        post(bulk_delete_by_author).layer(from_fn(run_to_completion)),
     )
 }
 
