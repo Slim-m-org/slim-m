@@ -230,6 +230,12 @@ class VoiceController extends StateNotifier<VoiceState> {
   /// the idle pane's "Join muted".
   Future<void> joinMuted(String channelId) => join(channelId, muted: true);
 
+  /// Makes the next arrival on [channelId] a fresh one, for a press that asks for a new call.
+  void forgetJustLeft(String channelId) {
+    if (state.justLeftChannelId != channelId) return;
+    state = state.copyWith(clearJustLeft: true);
+  }
+
   /// Whether the latest [join] was a [joinMuted], so retrying it repeats that.
   bool get lastJoinMuted => _lastJoinMuted;
   bool _lastJoinMuted = false;
@@ -241,6 +247,9 @@ class VoiceController extends StateNotifier<VoiceState> {
   }
 
   bool _keepMicNextJoin = false;
+
+  /// The server ended this device's call in [channelId] for one on another device.
+  void noteMovedAway(String channelId) => _rejoin.noteMovedAway(channelId);
 
   /// A channel switch (or a [leave]) mid-join starts or ends a newer call on
   /// this same instance, so every write below is guarded by [superseded]:

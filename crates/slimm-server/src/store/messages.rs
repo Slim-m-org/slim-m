@@ -31,6 +31,7 @@ use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderati
 use super::{Message, Store, now_ms};
 use crate::ids::{ChannelId, MessageId, UserId};
 
+mod mention_directness;
 pub(super) mod message_components;
 pub(super) mod message_embeds;
 pub(super) mod message_forwards;
@@ -42,6 +43,7 @@ pub(super) mod message_ops;
 pub(super) mod message_reads;
 pub(super) mod message_retention;
 pub(super) mod message_search;
+pub(super) mod message_search_filters;
 pub(super) mod messages_bulk;
 pub(super) mod messages_bulk_window;
 mod retention_candidates;

@@ -216,34 +216,29 @@ void main() {
     await teardown(tester, s.container, s.db);
   });
 
-  testWidgets('search opens from the compact app bar as a page, and Cancel '
-      'brings the app bar back', (tester) async {
+  testWidgets('search opens from the compact app bar as the palette\'s '
+      'pull-down scoped to the channel, and Cancel closes it', (tester) async {
     final s = await _pumpCompactChannel(tester);
-    final cancel = find.byKey(const Key('channel-search-cancel'));
-    final appBarBack = find.byTooltip('Back to channels');
+    final cancel = find.byKey(const Key('command-palette-cancel'));
 
     expect(cancel, findsNothing);
     await tester.tap(find.bySemanticsLabel('Search messages'));
     await tester.pump(const Duration(milliseconds: 400));
     expect(cancel, findsOneWidget);
-    expect(
-      appBarBack,
-      findsNothing,
-      reason: 'the search page stands in for the app bar, not under it',
-    );
+    expect(find.text('in: #general', findRichText: true), findsOneWidget);
 
     await tester.tap(cancel);
     await tester.pump(const Duration(milliseconds: 400));
     expect(cancel, findsNothing);
-    expect(appBarBack, findsOneWidget);
+    expect(find.byTooltip('Back to channels'), findsOneWidget);
 
     await teardown(tester, s.container, s.db);
   });
 
-  testWidgets('the system back gesture closes the search page and stays in '
+  testWidgets('the system back gesture closes the search and stays in '
       'the channel', (tester) async {
     final s = await _pumpCompactChannel(tester);
-    final cancel = find.byKey(const Key('channel-search-cancel'));
+    final cancel = find.byKey(const Key('command-palette-cancel'));
 
     await tester.tap(find.bySemanticsLabel('Search messages'));
     await tester.pump(const Duration(milliseconds: 400));

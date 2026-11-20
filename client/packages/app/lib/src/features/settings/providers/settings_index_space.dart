@@ -303,8 +303,15 @@ const spaceSettingsIndex = <SettingsEntry>[
   SettingsEntry(
     'debug-logs',
     'Debug logs',
-    description: 'Logs members sent to the admins.',
+    description: 'Server logging, and logs members sent to the admins.',
     keywords: ['diagnostics', 'bug report', 'support', 'logs'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    'debug-logs',
+    'Server logging',
+    description: 'How much the server records, for finding bugs.',
+    keywords: ['debug mode', 'verbose', 'compact', 'server logs', 'download'],
     conditional: true,
   ),
   SettingsEntry('debug-logs', 'Received logs', conditional: true),

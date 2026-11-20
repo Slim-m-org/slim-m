@@ -455,6 +455,19 @@ pub(super) async fn message_calls(c: &mut Contract, root: &str, channel: &str) -
         root,
     )
     .await;
+    // Filter-only searches answer with the pinned message and the poll, so a hit's full shape is checked.
+    c.get(
+        "searchMessages",
+        &format!("{messages}/search?pinned=true"),
+        root,
+    )
+    .await;
+    c.get(
+        "searchMessagesAll",
+        "/search/messages?has=poll&after_ms=0&limit=10",
+        root,
+    )
+    .await;
     read_state(c, root, channel, seq).await;
 
     // Saved before the list, so listSavedMessages validates a populated answer rather than an empty array.

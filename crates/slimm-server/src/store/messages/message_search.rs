@@ -8,16 +8,15 @@
 //! only once the statement runs, and telling that apart from a genuinely
 //! empty result is what [`SearchError`] exists for.
 //!
-//! [`MessageSearchFilters`] is the Slack-style operator layer
-//! (`http::search` parses `from:`/`in:`/`has:`/`before:`/`after:` out of the
-//! raw query text): every field here is already resolved to what SQL needs,
-//! so this file never re-derives a username or a channel name from a caller
-//! - that ambiguity lives entirely in `http::search`.
+//! [`MessageSearchFilters`] is the operator layer, in its own file
+//! (`message_search_filters.rs`): every field is already resolved to what SQL
+//! needs, so this file never re-derives a username or a channel name.
 
 use sqlx::{QueryBuilder, Row};
 
 use super::super::voice_transcripts::TRANSCRIPT_TEXT_SHOWN;
 use super::super::{Message, Store};
+use super::message_search_filters::MessageSearchFilters;
 use crate::ids::{ChannelId, MessageId, Seq, UserId};
 
 /// Why a full-text search failed.
@@ -54,35 +53,6 @@ const FTS5_PARSE_ERRORS: [&str; 4] = [
     "no such column",
     "unknown special query",
 ];
-
-/// The structured half of an advanced search, already resolved to SQL-ready
-/// values by `http::search`: a username to compare case-insensitively (live
-/// usernames are unique that way since migration 0095), and two cheap
-/// content/existence predicates. `channel_ids` is not here - it is
-/// [`Store::search_messages`]'s own parameter, since which channels are in
-/// scope is answered once, before this struct is built, and an `in:` that
-/// resolved to nothing is handled by the caller returning empty without
-/// reaching this file at all.
-#[derive(Debug, Default)]
-pub struct MessageSearchFilters {
-    pub author_username: Option<String>,
-    pub has_attachment: bool,
-    /// A message whose content contains what looks like a URL. This is a
-    /// plain, case-sensitive `LIKE` over `content` rather than a real link
-    /// extractor - cheap, no index needed, and precise enough for a filter
-    /// rather than a validator.
-    pub has_link: bool,
-    /// Inclusive: `created_at >= after_ms`.
-    pub after_ms: Option<i64>,
-    /// Exclusive: `created_at < before_ms`, so a whole calendar day named by
-    /// `before:` is excluded rather than half-included at its own midnight.
-    pub before_ms: Option<i64>,
-    /// The page cursor for a search across channels: only messages ordered
-    /// after this one by `(created_at, seq, id)`, the result order. A
-    /// per-channel `seq` alone cannot page across channels, whose seqs are
-    /// unrelated.
-    pub before_id: Option<MessageId>,
-}
 
 /// An FTS5 expression [`Store::fts_query_for`] parsed or built from plain
 /// words, so [`Store::search_messages_prepared`] runs it without probing again.
@@ -298,34 +268,7 @@ impl Store {
             before_seq
         };
         builder.push_bind(seq_ceiling.unwrap_or(i64::MAX));
-        if let Some(username) = &filters.author_username {
-            builder.push(" AND m.author_id = (SELECT id FROM users WHERE lower(username) = lower(");
-            builder.push_bind(username.to_owned());
-            builder.push(") AND deleted_at IS NULL)");
-        }
-        if filters.has_attachment {
-            builder.push(
-                " AND EXISTS (SELECT 1 FROM message_attachments ma WHERE ma.message_id = m.id)",
-            );
-        }
-        if filters.has_link {
-            builder.push(" AND (m.content LIKE '%http://%' OR m.content LIKE '%https://%')");
-        }
-        if let Some(after_ms) = filters.after_ms {
-            builder.push(" AND m.created_at >= ");
-            builder.push_bind(after_ms);
-        }
-        if let Some(before_ms) = filters.before_ms {
-            builder.push(" AND m.created_at < ");
-            builder.push_bind(before_ms);
-        }
-        if let Some(before_id) = filters.before_id {
-            builder.push(
-                " AND (m.created_at, m.seq, m.id) < (SELECT created_at, seq, id FROM messages WHERE id = ",
-            );
-            builder.push_bind(before_id);
-            builder.push(")");
-        }
+        filters.push_predicates(&mut builder);
         builder.push(" ORDER BY m.created_at DESC, m.seq DESC, m.id DESC LIMIT ");
         builder.push_bind(limit);
 

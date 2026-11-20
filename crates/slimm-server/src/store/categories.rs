@@ -34,6 +34,8 @@ pub enum CategoryWriteError {
     ParentIsNested,
     /// The category still holds sub-categories, so it cannot go under another.
     HasChildren,
+    /// A create named the id of a category since deleted, whose row is not handed back.
+    Deleted,
     Internal(anyhow::Error),
 }
 
@@ -104,8 +106,11 @@ impl Store {
         let mut tx = self.begin_write().await?;
 
         // Probes including a deleted row; see `create_channel_with_id`'s doc.
-        if let Some((existing, _)) = fetch_category_by_id(&mut *tx, id).await? {
+        if let Some((existing, live)) = fetch_category_by_id(&mut *tx, id).await? {
             tx.commit().await?;
+            if !live {
+                return Err(CategoryWriteError::Deleted);
+            }
             return Ok(CreatedCategory {
                 category: existing,
                 fresh: false,

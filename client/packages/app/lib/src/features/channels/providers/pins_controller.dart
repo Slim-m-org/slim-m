@@ -80,8 +80,7 @@ class PinsController extends StateNotifier<PinsState> {
     // Guarded after every await, because this is an autoDispose family fired
     // unawaited from the constructor and the live-event listener: switching
     // channels mid-fetch disposes this instance, and assigning or even reading
-    // `state` afterwards throws an unhandled StateError. Matches
-    // channel_search_controller, which guards the identical pattern.
+    // `state` afterwards throws an unhandled StateError.
     try {
       final all = await _ref.read(apiProvider).listPinnedMessages(_channelId);
       if (!mounted || generation != _generation) return;

@@ -7,7 +7,6 @@ features/canvas/screens/canvas_engine.dart 1
 features/channels/providers/channel_history.dart 1
 features/channels/providers/channel_notification_overrides_controller.dart 1
 features/channels/providers/channel_order_controller.dart 2
-features/channels/providers/channel_search_controller.dart 1
 features/channels/providers/collapsed_categories_preference.dart 1
 features/channels/providers/pins_controller.dart 1
 features/channels/providers/rail_width_preference.dart 1

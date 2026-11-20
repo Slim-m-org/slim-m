@@ -72,6 +72,16 @@ void main() {
     expect(snapshots, isEmpty);
   });
 
+  test('a message applied already read does not re-emit: nothing lit',
+      () async {
+    await store.applyMessage(_message('m1', 'chan-1', 1), markRead: true);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    expect(snapshots, isEmpty);
+    final row = await store.channelRow('chan-1');
+    expect((row!.lastReadSeq, row.cursor), (1, 1));
+  });
+
   test('a message into a caught-up channel does re-emit: the badge lights',
       () async {
     await store.setReadMarker('chan-1', 5);

@@ -321,9 +321,11 @@ async fn login(
         return Err(ApiError::Unauthorized);
     };
     if throttled {
+        tracing::debug!(%user_id, "auth: sign-in refused, throttled");
         return Err(ApiError::Unauthorized);
     }
     if !verified {
+        tracing::debug!(%user_id, "auth: sign-in refused, wrong password");
         state.store.record_login_failure(user_id, &source).await?;
         return Err(ApiError::Unauthorized);
     }
@@ -356,6 +358,7 @@ async fn login(
             install_id.as_deref(),
         )
         .await?;
+    tracing::debug!(user_id = %tokens.user_id, device_id = %tokens.device_id, client = ?client_kind, "auth: signed in");
     super::sign_in_alert::announce(&state, &tokens, &req.device_name, client_kind.as_deref()).await;
     Ok(LoginOutcome::Tokens(token_response(&tokens)))
 }
@@ -372,7 +375,10 @@ async fn refresh(
         .rotate_refresh_reporting(&req.refresh_token, kind.as_deref(), version.as_deref())
         .await?;
     match outcome {
-        RefreshOutcome::Rotated(tokens) => Ok(Json(token_response(&tokens))),
+        RefreshOutcome::Rotated(tokens) => {
+            tracing::debug!(user_id = %tokens.user_id, device_id = %tokens.device_id, "auth: session refreshed");
+            Ok(Json(token_response(&tokens)))
+        }
         // A benign miss and a detected replay look identical to the client: the
         // only move either way is to log in again.
         RefreshOutcome::Denied(_) | RefreshOutcome::Reused => Err(ApiError::Unauthorized),

@@ -161,3 +161,36 @@ That counter only sees starts that reach Dart: a bundle the kernel kills for a b
 After the app has stayed up for twenty seconds the pending marker and every leftover are cleared, and one previous bundle is kept, as on Linux and Windows, so a subtly broken update can still be reverted by hand; the next update replaces it.
 The release zip is ad-hoc signed, not Developer ID signed or notarized.
 An ad-hoc bundle that the updater itself downloaded runs because it carries no quarantine flag, but a first install the user downloaded in a browser is still subject to Gatekeeper, and a bundle that loses its signature is refused.
+
+## Addendum, 2026-11-19: one run folder for the firewall
+
+The owner, on seeing a firewall rule pair for each old `app-<version>` folder in the Windows VM: "lets fix it, that doesnt sound optimal for windows users".
+
+Windows Firewall asks to allow an app the first time its exe listens for inbound connections, and keys the rule it writes on that exe's full path.
+slim-m listens only through libwebrtc's passive TCP candidates, which a Windows call gathers when the server offers no TURN over TLS or TCP and UDP does not connect first (see `packaging/windows/README.md`).
+With one folder per version, every update gave the app a new path, so the first such call after each update asked again and the old rule pair stayed behind for a folder the prune had deleted.
+
+The launcher now starts every version from `%LOCALAPPDATA%\slim-m\app`, a folder of hard links to the files of the version `current` names, so the path the firewall sees never changes and the question comes once per install.
+Version folders, the pointers, the start count and rollback are unchanged; `app` is derived from `current` on every start and is never a source of truth.
+
+- Hard links need no elevation and no developer mode, unlike a symlink.
+  A directory junction would have been simpler, but the firewall records the path a junction resolves to, so it changes nothing (checked in the VM with a listening probe started through a junction and through a hard link).
+- The launcher rebuilds `app` only when no process runs an exe from it, going by each process's image path.
+  Deleting `app\slimm_app.exe` would not prove it, because Windows deletes one hard link of a running exe without complaint (seen in the VM: the first build of this deleted it under a running copy and then failed to rename the folder), and neither would renaming the folder, which Windows allows while the exe in it runs.
+  The comparison is by file identity, not path text, so a junctioned profile still matches.
+  A restart into an update waits up to 32 seconds for the old copy to exit, beyond the runner's own 30; a launch beside a running older version, and any failure, start the version folder directly, as before.
+- The rebuild links into `app.next-<pid>` and swaps it in by two renames, so an interrupted rebuild leaves the old folder or none, and the next start repairs it; leftovers are cleared when they can be and never block a rebuild.
+  Explorer keeps the exe of a copy it started (a pin, the Run box) open for a while after that copy exits, which blocks the folder rename.
+  The launcher retries for a few seconds, then leaves `app` whole and starts the version folder this once; a later start relinks.
+  There is deliberately no file-by-file swap: an interrupted or failed one leaves the old exe beside new DLLs, which fails on every pin click before any code of ours runs, and a file that turns into a folder between versions would block it.
+- `app` matches a version only when it holds exactly that version's files, each the very same file, and nothing else: the exe's folder is searched first for DLLs, so a stray file left from an older version would be loaded.
+- Only a version that ships `layout-run-folder` runs from `app`, so a rollback to a version from before this change runs from its own folder, where its app still recognises the layout.
+- Launchers take turns through an exclusive lock file, held from counting the start to starting the app, so two launches at once neither count twice (which could roll back a good version) nor rebuild `app` under each other.
+- A copy started from `app` without the launcher's `SLIMM_FROM_LAUNCHER` marker, such as a taskbar pin of the window, hands its start to the launcher.
+  Setting the window's relaunch command instead would need an explicit AppUserModelID on the window, which splits it from shortcuts that have none.
+- The app, Start on login and the `slimm://` registration treat `app` as part of the layout, and the uninstaller removes it.
+
+This is a second exception to the launcher staying dumb, beside replacing itself.
+The alternative that avoids the prompt entirely is to keep TCP candidates while never listening, which libwebrtc supports (`PortAllocator::set_allow_tcp_listen(false)`, what Chrome does) but the prebuilt `libwebrtc.dll` does not expose; it needs a libwebrtc build of our own.
+Turning TCP candidates off on Windows whenever there is no TCP relay was rejected on 2026-11-16, because it drops the only fallback on a network that blocks UDP.
+Rule pairs left by versions from before this change stay until an administrator removes them; the app cannot without elevation.

@@ -32,15 +32,23 @@ def _rail_edge(nodes):
     return next((n["x"] for n in nodes if n["t"] == RAIL_HANDLE), 0)
 
 
+def _channel_row_y(nodes, edge):
+    """The y of the voice channel's own rail row, or None while the rail has not drawn it."""
+    wanted = L.VOICE_CHANNEL.lower()
+    return next((n["y"] for n in nodes if n["x"] < edge and n["t"].lower().startswith(wanted)), None)
+
+
 def _named(client, name, rail):
-    """Whether `name` has a rail row (rail True) or a call tile (rail False)."""
+    """Whether `name` has a rail row under the voice channel (rail True) or a call tile (rail False)."""
     wanted = name.lower()
     nodes = client.nodes()
     edge = _rail_edge(nodes)
+    # Below the channel's row only: a DM with the same person is a rail row named "Bob" too, above it.
+    below = _channel_row_y(nodes, edge)
     for n in nodes:
         # A rail row reads "Bob\nBob" (avatar, then name); a tile "Bob, microphone on".
         for line in n["t"].lower().split("\n"):
-            if rail and line == wanted and n["x"] < edge:
+            if rail and line == wanted and n["x"] < edge and below is not None and n["y"] > below:
                 return True
             if not rail and line.startswith(wanted + ", ") and TILE_WORDS.search(line):
                 return True
@@ -108,6 +116,20 @@ def a_join_shows_everywhere_at_once(a, b, server, secret, admin_api, sign_in,
             admin_api.call("PATCH", channel, {"join_muted": False})
 
 
+def _join_after_return(b):
+    """Back within VoiceState.rejoinGuardWindow of leaving, the page offers Rejoin; later, it joins on arrival."""
+    deadline = time.time() + GIVE_UP_SECONDS
+    while time.time() < deadline:
+        if b.find(L.IN_CALL):
+            return
+        if b.find(JOIN_MUTED):
+            _tap_label(b, JOIN_MUTED, settle=0)
+            return
+        time.sleep(SAMPLE_SECONDS)
+    b.shot("never-joined-muted")
+    raise AssertionError(f"bob neither joined nor saw {JOIN_MUTED!r}")
+
+
 def _measure(a, b, c, room_id, bob_id, join_muted):
     _click_channel_row(a, L.VOICE_CHANNEL)
     a.wait_for(L.IN_CALL)
@@ -125,9 +147,7 @@ def _measure(a, b, c, room_id, bob_id, join_muted):
         b.click(L.TEXT_CHANNEL, settle=1)
         b.tap(*channel_row_point(b, L.VOICE_CHANNEL))
         if muted:
-            # A join-muted channel opens on its join bar rather than joining.
-            b.settle(1.5)
-            _tap_label(b, JOIN_MUTED, settle=0)
+            _join_after_return(b)
         late += _report(f"join {how}", _watch(room_id, bob_id, True, probes))
         b.wait_for(L.IN_CALL)
         _tap_label(b, L.LEAVE_CALL, settle=0)

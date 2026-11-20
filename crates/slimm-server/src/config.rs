@@ -234,6 +234,24 @@ pub struct Config {
     /// Free space on the data volume, in MiB, under which admins are alerted. 0 turns the alert off.
     #[serde(default = "default_alert_min_disk_free_mb")]
     pub alert_min_disk_free_mb: u64,
+
+    /// Where server log files go; unset is a `logs` directory beside the database (decision 0129).
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub log_dir: Option<String>,
+    /// A log file this many days old is deleted.
+    #[serde(default = "default_log_keep_days")]
+    pub log_keep_days: u32,
+    /// Most bytes the log files hold together; 0 keeps logs on stdout only.
+    #[serde(default = "default_log_max_bytes")]
+    pub log_max_bytes: u64,
+}
+
+fn default_log_keep_days() -> u32 {
+    14
+}
+
+fn default_log_max_bytes() -> u64 {
+    256 * 1024 * 1024
 }
 
 fn default_alert_min_disk_free_mb() -> u64 {
@@ -318,6 +336,9 @@ impl Default for Config {
             steam_redirect_uri: None,
             backup_status_dir: None,
             alert_min_disk_free_mb: default_alert_min_disk_free_mb(),
+            log_dir: None,
+            log_keep_days: default_log_keep_days(),
+            log_max_bytes: default_log_max_bytes(),
         }
     }
 }

@@ -1,7 +1,8 @@
 ; SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 ; Per-user setup that lays out exactly what install.ps1 does (decision 0041):
 ; %LOCALAPPDATA%\slim-m\app-<version>\, the slim-m.exe launcher at the root, and
-; the `current` and `previous` pointer files. Compile with
+; the `current` and `previous` pointer files. The launcher links the current
+; version into app\ and starts it from there. Compile with
 ;   iscc /DAppVersion=<version> /DSourceDir=<extracted release folder> /O<out dir> slim-m.iss
 
 #ifndef AppVersion
@@ -172,6 +173,8 @@ begin
   if CurUninstallStep = usPostUninstall then
   begin
     DeleteMatching('app-*');
+    DeleteMatching('app');
+    DeleteMatching('app.*');
     DeleteMatching('.unpack-*');
     DeleteMatching('.staging');
     DeleteMatching('slim-m*.exe*');
@@ -182,6 +185,7 @@ begin
     DeleteMatching('failed-version');
     DeleteMatching('.*.new');
     DeleteMatching('running.pid');
+    DeleteMatching('.launcher.lock');
     RemoveLoginStart;
     RemoveDir(ExpandConstant('{app}'));
     OfferToRemoveData;

@@ -40,6 +40,7 @@ mod category_delete;
 mod category_mutes;
 mod category_order;
 mod category_overwrites;
+mod category_sight;
 mod channels;
 pub(crate) use channels::channel_slow_mode;
 use channels::{channel_create, channel_notification_prefs, channel_order, channel_settings};
@@ -62,7 +63,7 @@ mod messages;
 mod soundboard;
 use messages::{
     message_embeds, message_forwards, message_history, message_module_origins, message_ops,
-    message_retention, message_search, messages_bulk,
+    message_retention, message_search, message_search_filters, messages_bulk,
 };
 mod models;
 mod moderation_audit;
@@ -115,6 +116,7 @@ mod sign_in_alert;
 mod space;
 mod space_landing;
 mod space_link_previews;
+mod space_log_mode;
 mod space_module_display;
 mod space_owner;
 mod space_setup;
@@ -183,10 +185,12 @@ pub use canvas_ops_write::{
 };
 pub use canvas_purge::PurgeError;
 pub use categories::{CategoryUpdate, CategoryWriteError, CreatedCategory};
-pub use category_order::{CategoryOrderGroup, CategoryReorderOutcome, ReorderCategoriesError};
+pub use category_order::{
+    CategoryOrderGroup, CategoryOrderReach, CategoryReorderOutcome, ReorderCategoriesError,
+};
 pub use channel_create::{ChannelDefaults, CreateChannelError, CreatedChannel};
 pub use channel_notification_prefs::NotificationChoice;
-pub use channel_order::{ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
+pub use channel_order::{CategoryReach, ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
 pub use channel_settings::ChannelPatch;
 pub use channels::DeleteChannelError;
 pub use code_runs::{CodeRunRecord, CodeRunSummary, MAX_SHARED_OUTPUT_BYTES, clamp_output};
@@ -222,7 +226,8 @@ pub use message_history::{MAX_EDIT_REVISIONS, MessageRevision};
 pub use message_module_origins::{ModuleOrigin, ModuleStamp};
 pub use message_ops::{MessageOpEntry, MessageOpKind, MessageOpsPage};
 pub use message_retention::{MAX_MESSAGE_RETENTION_DAYS, PrunedMessage, SweptMessageRetention};
-pub use message_search::{FtsQuery, MessageSearchFilters, SearchError};
+pub use message_search::{FtsQuery, SearchError};
+pub use message_search_filters::{HasKind, MessageSearchFilters};
 pub use messages::{Edited, MessageDeletion, NewMessage, SendError, Sent};
 pub use messages_bulk::{BulkDeleteError, BulkDeletion, DeletedMessage};
 pub use models::{Channel, ChannelCategory, ChannelRoom, Message, User};

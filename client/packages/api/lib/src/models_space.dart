@@ -3,6 +3,7 @@
 library;
 
 import 'models_call_transcript.dart';
+import 'models_server_logs.dart';
 import 'models_totp.dart';
 
 /// Who may create an account on this deployment.
@@ -49,6 +50,7 @@ class SpaceSettings {
     this.callTranscriptionAvailable = true,
     this.transcribeVoiceMessages = false,
     this.transcribeVoiceMessagesAvailable = true,
+    this.debugLogging = ServerLogMode.off,
   });
 
   /// The Space's name, shown in the channel list header and on invites.
@@ -108,6 +110,9 @@ class SpaceSettings {
   /// False when the server has no speech listener, so it cannot be turned on.
   final bool transcribeVoiceMessagesAvailable;
 
+  /// How much the server logs (decision 0129).
+  final ServerLogMode debugLogging;
+
   /// `totp_policy` is absent from a server older than decision 0048, which
   /// reads as [TotpPolicy.optional] rather than failing the whole settings load
   /// over a field the rest of the screen does not need.
@@ -144,6 +149,7 @@ class SpaceSettings {
             json['transcribe_voice_messages'] as bool? ?? false,
         transcribeVoiceMessagesAvailable:
             json['transcribe_voice_messages_available'] as bool? ?? true,
+        debugLogging: ServerLogMode.parse(json['debug_logging'] as String?),
       );
 }
 
@@ -166,6 +172,7 @@ class SpaceSettingsUpdate {
     this.callTranscription,
     this.callTranscriptRetentionDays,
     this.transcribeVoiceMessages,
+    this.debugLogging,
   });
 
   final String? name;
@@ -185,4 +192,5 @@ class SpaceSettingsUpdate {
   /// Days to keep finished transcripts; `0` keeps them forever.
   final int? callTranscriptRetentionDays;
   final bool? transcribeVoiceMessages;
+  final ServerLogMode? debugLogging;
 }

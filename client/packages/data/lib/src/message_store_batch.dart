@@ -24,6 +24,7 @@ Future<void> applyMessagesBatched(
   Iterable<api.Message> messages,
   CursorAdvance advance, {
   bool skipCovered = true,
+  bool markRead = false,
 }) async {
   final db = store.db;
   final recent = store.recentOps;
@@ -66,6 +67,11 @@ Future<void> applyMessagesBatched(
     }
     for (final entry in furthestMention.entries) {
       await store.advanceMentionCursor(entry.key, entry.value);
+    }
+    if (!markRead) return;
+    for (final entry in seqsByChannel(winners.values).entries) {
+      final newest = entry.value.reduce(math.max);
+      await store.setReadMarker(entry.key, newest, manuallyUnread: false);
     }
   });
 }

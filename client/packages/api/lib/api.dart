@@ -182,6 +182,8 @@ export 'src/events.dart'
         VoiceActivity,
         VoiceMoved,
         VoiceNotice,
+        VoiceRemoved,
+        VoiceRemovalReason,
         SoundboardPlayed,
         VoiceParticipantJoined,
         VoiceParticipantLeft,

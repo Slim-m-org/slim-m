@@ -6,6 +6,7 @@ strings: when a label changes, exactly one line here changes with it, and a
 scenario that no longer matches says so rather than timing out on a name
 nobody remembered was duplicated across three files.
 """
+import re
 
 # Not the hint text: it vanishes once typed, and goes bare for a thread/DM, once colliding with "Pinned/Search messages".
 COMPOSER = "Message composer"
@@ -68,7 +69,8 @@ MAKE_PRIVATE = "Make this channel private"
 CREATE_CHANNEL = "Create channel"
 MANAGE_CHANNEL = "Manage "
 CHANNEL_SETTINGS = "Channel settings"
-ADD_ROLE_OR_MEMBER = "Add role or member"
+# The grid's own add; "Who can see this" has an "Add role or member" that grants View at once (decision 0125).
+ADD_TO_GRID = "Add a role or member to this grid"
 VIEW_CHANNELS = "View channels"
 FROM_THIS_GRID = " from this grid"
 DISCARD = "Discard"
@@ -136,8 +138,11 @@ LAST_CALL_AUDIO = "Last call audio"
 COPY_CALL_DIAGNOSTICS = "Copy call diagnostics"
 
 # Voice
-IN_CALL = "in call"
 SHARE_SCREEN = "Share a screen"
+# The call header's "2 in call", never the idle page's timeline legend, which says "in call" alone.
+IN_CALL = re.compile(r"\b\d+ in call\b")
+# What the DM caller's header says while the ring is out, in place of the count.
+CALLING = "Calling\u2026"
 SHARING_NOTICE = "You are sharing your screen"
 STOP_SHARING = "Stop sharing"
 MUTE = "Mute"
@@ -228,3 +233,15 @@ VOICE_CHANNEL = "lounge"
 # Messages the run sends, referred to again when reacting to or reporting them
 FIRST_MESSAGE = "first message from alice"
 REPLY_MESSAGE = "and a reply from bob"
+
+
+def holds(text, label):
+    """Whether a node's `text` holds `label`: as a substring, or a match of a compiled pattern."""
+    if isinstance(label, re.Pattern):
+        return label.search(text.lower()) is not None
+    return label.lower() in text.lower()
+
+
+def shown(label):
+    """`label` as a person reads it, for a message or a file name."""
+    return label.pattern if isinstance(label, re.Pattern) else label

@@ -25,7 +25,7 @@ import '../../settings/screens/space_settings_section.dart';
 import '../../messages/widgets/message_inline.dart' show rewriteMentions;
 
 /// Which row layout a [PaletteResultItem] draws with.
-enum PaletteKind { channel, person, message, transcript, action }
+enum PaletteKind { channel, person, message, transcript, action, filter }
 
 /// Which sections a query asks for: a leading `#` narrows to channels and a
 /// leading `@` to people, so a type-ahead habit from other chat apps works.
@@ -64,6 +64,8 @@ class PaletteResultItem {
     this.messageChannelLabel,
     this.transcript,
     this.showsAllOf,
+    this.hint,
+    this.keepsOpen = false,
   });
 
   final String label;
@@ -83,6 +85,12 @@ class PaletteResultItem {
 
   /// Set on the row that lists a capped section whole: how many matched. It keeps the palette open.
   final int? showsAllOf;
+
+  /// A filter suggestion's quieter second label, such as a username.
+  final String? hint;
+
+  /// Running it changes the search rather than leaving it, so the palette stays.
+  final bool keepsOpen;
   final Future<void> Function(BuildContext context, WidgetRef ref) onSelect;
 }
 
@@ -305,6 +313,7 @@ List<PaletteResultItem> buildMessageItems(
     messageResultItem(
       message,
       channelLabel: paletteHitChannelLabel(message, channelsById),
+      authorName: message.authorDisplayName,
       mentionNames: mentionNames,
       onSelect: (context, ref) async => jumpToMessage(
         GoRouter.of(context),

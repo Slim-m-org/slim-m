@@ -15,7 +15,6 @@ import '../../../providers/toasts.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/sync_controller.dart'
     show initialSyncCompleteProvider;
-import '../providers/channel_search_controller.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
 import '../widgets/compact_channel_app_bar.dart';
@@ -252,7 +251,6 @@ class _VoiceConversationHeader extends ConsumerWidget {
     final inCall = ref.watch(
       voiceFlagsProvider.select((voice) => voice.inCallStageFor(channelId)),
     );
-    final search = ref.watch(channelSearchProvider(channelId));
     void setChatOpen(bool open) =>
         ref.read(voiceChatPaneVisibleProvider.notifier).state = open;
     return ChannelHeader(
@@ -261,11 +259,9 @@ class _VoiceConversationHeader extends ConsumerWidget {
       topic: topic,
       isVoice: true,
       restricted: restricted,
-      searchOpen: search.open,
-      // Search lives in the docked chat, so opening it opens the pane it searches.
-      onToggleSearch: () {
+      // Search lands in the docked chat, so opening it opens the pane it searches.
+      onSearch: () {
         if (!chatOpen) setChatOpen(true);
-        ref.read(channelSearchProvider(channelId).notifier).toggle();
       },
       textChatOpen: chatOpen,
       onToggleTextChat: () => setChatOpen(!chatOpen),

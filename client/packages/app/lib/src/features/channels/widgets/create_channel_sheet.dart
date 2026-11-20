@@ -77,6 +77,12 @@ class _CreateChannelSheet extends ConsumerStatefulWidget {
 class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
   late String _kind = widget.initialKind;
   late String _category = widget.categoryId ?? noCategory;
+
+  /// Categories this account may not file under, as the last listing said.
+  Set<String> _shut = const {};
+
+  /// [_category], or none when it names one this account may not file under.
+  String get _chosen => _shut.contains(_category) ? noCategory : _category;
   final _categories = StoreStream<List<ChannelCategoryRow>>(
     (s) => s.watchCategories(),
   );
@@ -91,7 +97,7 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
         .createChannel(
           name: name,
           kind: _kind,
-          categoryId: _category == noCategory ? null : _category,
+          categoryId: _chosen == noCategory ? null : _chosen,
           restricted: _restricted,
           createsRooms: _kind == 'voice' && _lobby,
           id: _createId,
@@ -138,8 +144,16 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
     );
   }
 
-  Widget _sheet(BuildContext context, List<ChannelCategoryRow> categories) {
+  Widget _sheet(BuildContext context, List<ChannelCategoryRow> all) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    _shut = {
+      for (final c in all)
+        if (!c.canFile) c.id,
+    };
+    final categories = [
+      for (final c in all)
+        if (c.canFile) c,
+    ];
     // Absent, not disabled, for a caller without MANAGE_ROLES - see this class's own doc.
     final canRestrict = ref
         .watch(myPermissionsProvider)
@@ -154,7 +168,7 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
         if (categories.isNotEmpty) ...[
           CategoryChoiceRow(
             categories: categories,
-            value: _category,
+            value: _chosen,
             onChanged: (id) => setState(() => _category = id),
           ),
           const SizedBox(height: AppSpacing.s8),

@@ -254,3 +254,20 @@ A MANAGE_SERVER holder choosing a channel for something that then acts there nee
 
 The value already stored is accepted again for the welcome and rules channels, so saving a settings form an administrator filled in does not need sight of what they chose.
 `PATCH /channels/{id}` answers 404 for a direct message before any other check; the store already refused the write, but a voice-only field used to answer 400 for one.
+
+### The same day, third pass: categories a manager cannot view
+
+The owner then approved closing the category half of what the first pass left open.
+`GET /categories` lists a channel manager what it lists anyone else, plus each category whose own rows let them view it, so the empty ones they may file into stay listed, and the parent of each listed sub-category as its heading.
+Only ADMINISTRATOR is listed every category.
+Every category route judges a category by that one list and answers one missing from it as one that does not exist: rename and re-parent (404, or 400 for a hidden parent), delete (204 with nothing deleted), create under it or retry its id, file a channel under it on create or in `PUT /channels/order`, and naming it in `PUT /categories/order`.
+`PUT /categories/order` takes only the categories the caller is listed; each hidden one keeps its parent and its index among its siblings, and the answer lists only what the caller sees.
+A role preview of a MANAGE_CHANNELS role is listed the same way, by that role's view of each category's rows.
+A category listed to a manager only as the heading over a sub-category they can view is not theirs to manage: renaming, re-parenting or deleting it needs sight of it under its own overwrites, as its overwrite routes already did, and answers as for a missing category without it.
+A reorder keeps such a heading where it is, the way it keeps a hidden one, though the caller may still name it.
+`GET /categories` says which is which with additive `manageable` and `fileable` flags, which the client stores with each category so a cold start offers nothing the server would refuse.
+Filing a channel or a sub-category under a category needs the same sight of its own overwrites: whatever is filed there copies them, so under a heading it would vanish from its maker at once. Creating under one, moving a channel or a category into one, and re-parenting under one all answer as for a missing category.
+A category holding a sub-category the caller is not listed is not theirs to move or delete either, though they may still rename it and file under it: moving it would carry the hidden one along or answer about it, and deleting it would promote it.
+That is the one existence leak accepted on purpose: such a category is listed with `fileable` true and `manageable` false, which says it holds at least one sub-category the caller cannot see, and a move of it answers 404 where a rename succeeds. It cannot be closed without letting the move take the hidden sub-category along. No answer names the hidden sub-category or its id.
+Deleting a category the caller manages still moves the channels in it they cannot see to where its own go (uncategorised, or its parent), and deleting a sub-category moves its channels into its parent even when that parent is only a heading to them. Accepted: the answer is 204 either way, nothing about the hidden channels is said, and every moved channel keeps its own overwrites, so nobody's view changes.
+A create naming the id of a deleted category answers 409 to everyone rather than handing back the stored row.

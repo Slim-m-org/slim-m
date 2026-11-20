@@ -3,7 +3,7 @@
     "short_name": "slim-m",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#17191C",
+    "background_color": "#1F2226",
     "theme_color": "#17191C",
     "description": "A lightweight, self-hostable messaging client.",
     "prefer_related_applications": false,

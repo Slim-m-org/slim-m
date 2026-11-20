@@ -52,6 +52,9 @@ services:
     restart: unless-stopped
     environment:
       SLIMM_LOG: ${SLIMM_LOG:-info}
+      # Log files go to /data/logs on the volume below, so they outlive a redeploy; docs/OPERATING.md, Server logs.
+      SLIMM_LOG_KEEP_DAYS: ${SLIMM_LOG_KEEP_DAYS:-14}
+      SLIMM_LOG_MAX_BYTES: ${SLIMM_LOG_MAX_BYTES:-268435456}
       # Empty means no CORS layer at all and every cross-origin browser request
       # refused. Only a web build on another origin needs it; deploy/README.md.
       SLIMM_CORS_ALLOWED_ORIGINS: ${SLIMM_CORS_ALLOWED_ORIGINS:-}

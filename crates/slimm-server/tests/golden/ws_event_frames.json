@@ -36,6 +36,7 @@
   "{\"channel_id\":\"CHANNEL\",\"object_ids\":[\"01900000-0000-7000-8000-000000000002\"],\"op_id\":\"01900000-0000-7000-8000-000000000003\",\"seq\":7,\"type\":\"canvas.objects.restored\"}",
   "{\"channel_id\":\"CHANNEL\",\"outcome\":\"declined\",\"ring_id\":\"01900000-0000-7000-8000-00000000000b\",\"type\":\"call.ring_ended\"}",
   "{\"channel_id\":\"CHANNEL\",\"preference\":\"everything\",\"type\":\"notification_override.changed\"}",
+  "{\"channel_id\":\"CHANNEL\",\"reason\":\"other_device\",\"type\":\"voice.removed\"}",
   "{\"channel_id\":\"CHANNEL\",\"state\":{\"asked_by\":\"ALICE\",\"expires_at_ms\":1700000000006,\"full\":false,\"included\":[\"ALICE\"],\"keeps\":\"The text, for 30 days.\",\"module_id\":\"hearer\",\"module_name\":\"Hearer\",\"pending\":[\"BOB\"],\"purpose\":\"Writes down what is said.\",\"status\":\"asking\"},\"type\":\"voice.call_audio\"}",
   "{\"channel_id\":\"CHANNEL\",\"type\":\"canvas.cursor.moved\",\"user_id\":\"BOB\",\"x\":1.5,\"y\":2.5}",
   "{\"channel_id\":\"CHANNEL\",\"type\":\"dm.changed\"}",

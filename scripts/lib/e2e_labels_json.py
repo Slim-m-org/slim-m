@@ -23,8 +23,13 @@ def labels():
             if name.isupper() and not name.startswith("_")}
 
 
+def _pattern(value):
+    """A compiled label as {"re": source}, the shape the harness's own page watchers take."""
+    return {"re": value.pattern}
+
+
 def as_typescript():
-    body = json.dumps(labels(), indent=2, ensure_ascii=False)
+    body = json.dumps(labels(), indent=2, ensure_ascii=False, default=_pattern)
     return f"{HEADER}export const L = {body} as const;\n"
 
 
@@ -32,7 +37,7 @@ def main(argv):
     if "--ts" in argv:
         sys.stdout.write(as_typescript())
     else:
-        print(json.dumps(labels(), indent=2, ensure_ascii=False))
+        print(json.dumps(labels(), indent=2, ensure_ascii=False, default=_pattern))
 
 
 if __name__ == "__main__":

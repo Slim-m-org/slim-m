@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The channel's main body below the header: either the live search-results
-/// list or the live transcript stream plus its jump-to-latest control,
-/// whichever `channelSearchProvider` says is current for this channel.
+/// The channel's main body below the header: the live transcript stream, its
+/// jump-to-latest control, and how a jump to one of its messages is going.
 ///
 /// Split out of `channel_screen.dart`, which had no line budget left to grow
-/// into and already carries the header, search bar and composer wiring.
+/// into and already carries the header and composer wiring.
 /// Every provider this reads (history, sync status, permissions, pins, the
 /// member/emoji lookups, the jump arrival) was only ever used here, so this
 /// watches them itself rather than being handed them by a screen `build()`
@@ -29,7 +28,6 @@ import '../../members/providers/blocks_controller.dart';
 import '../../members/providers/bot_ui_uses.dart';
 import '../providers/channel_history.dart';
 import '../providers/channel_permissions.dart';
-import '../providers/channel_search_controller.dart';
 import '../../emoji/providers/emoji_catalog_provider.dart';
 import '../../messages/providers/ephemeral_messages.dart';
 import '../../members/providers/member_presence.dart';
@@ -41,13 +39,12 @@ import '../providers/pins_controller.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/sync_controller.dart';
 import '../../members/providers/user_profiles.dart';
-import '../widgets/channel_search.dart';
-import '../widgets/compact_channel_search.dart' show channelSearchScope;
 import '../../../widgets/dismiss_keyboard_on_drag.dart';
 import '../../messages/widgets/context_window_bar.dart';
 import '../../messages/widgets/ephemeral_report.dart';
 import '../../messages/widgets/jump_to_latest_button.dart';
 import '../../messages/widgets/message_jump.dart';
+import '../../messages/widgets/message_jump_status.dart';
 import '../../messages/widgets/message_transcript.dart';
 import '../../messages/widgets/message_transcript_widgets.dart';
 import '../../messages/widgets/thread_parent_card.dart';
@@ -84,7 +81,6 @@ class ChannelTranscriptPane extends ConsumerWidget {
     required this.isThread,
     this.isVoice = false,
     this.dmAudience = DmAudience.pair,
-    this.searchPage = false,
     required this.lastReadSeq,
     required this.syncedSeq,
     required this.manuallyUnread,
@@ -112,9 +108,6 @@ class ChannelTranscriptPane extends ConsumerWidget {
   /// Who a DM is between, whose empty state speaks to a pair, a group or only you.
   final DmAudience dmAudience;
 
-  /// The phone's search page is up: it shows in place of the transcript even
-  /// before a query, and a jump arriving from elsewhere closes it.
-  final bool searchPage;
   final int lastReadSeq;
 
   /// The highest seq synced into this channel, deleted messages included; a
@@ -153,69 +146,8 @@ class ChannelTranscriptPane extends ConsumerWidget {
     unawaited(discardMessage(ref.read, message));
   }
 
-  /// A hit in another channel (an `in:` search) leaves this one, so its search clears.
-  void _openHit(BuildContext context, WidgetRef ref, api.Message hit) {
-    if (hit.channelId != channelId) {
-      ref.read(channelSearchProvider(channelId).notifier).toggle();
-    }
-    jumpToMessage(
-      GoRouter.of(context),
-      ref.read,
-      currentChannelId: channelId,
-      channelId: hit.channelId,
-      messageId: hit.id,
-      inThread: hit.threadParentChannelId != null,
-    );
-  }
-
-  /// Results stay up while the hit is found, then give way to its row; a new query drops the jump.
-  void _closeSearchOnArrival(WidgetRef ref) {
-    ref.listen(messageJumpProvider, (_, next) {
-      final resultsShowing =
-          searchPage ||
-          ref.read(channelSearchProvider(channelId)).query != null;
-      if (next is MessageJumpArrived &&
-          next.channelId == channelId &&
-          resultsShowing) {
-        ref.read(channelSearchProvider(channelId).notifier).toggle();
-      }
-    });
-    ref.listen(channelSearchProvider(channelId).select((s) => s.query), (
-      _,
-      query,
-    ) {
-      if (query != null) {
-        ref.read(messageJumpProvider.notifier).cancelFor(channelId);
-      }
-    });
-    // A refusal belongs to the search it came from, so a reopened one starts clean.
-    ref.listen(channelSearchProvider(channelId).select((s) => s.open), (
-      _,
-      open,
-    ) {
-      if (!open) {
-        ref.read(messageJumpProvider.notifier).clearNoticeFor(channelId);
-      }
-    });
-  }
-
-  Widget? _jumpBanner(WidgetRef ref, JumpNotice? notice) {
-    if (notice == null) return null;
-    final jump = ref.read(messageJumpProvider.notifier);
-    return AppErrorState(
-      message: notice.text,
-      onRetry: notice.retryable
-          ? () => unawaited(jump.jumpTo(channelId, notice.messageId))
-          : null,
-      onDismiss: notice.retryable
-          ? null
-          : () => jump.dismissNotice(notice.token),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final search = ref.watch(channelSearchProvider(channelId));
     final knownUsernames = ref.watch(
       membersProvider.select(knownUsernamesFrom),
     );
@@ -241,20 +173,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
     final privateAnswers = ref.watch(
       channelEphemeralMessagesProvider(channelId),
     );
-    final searchShowing = search.query != null || searchPage;
-    final jumpArrival = watchMessageJump(
-      ref,
-      context,
-      channelId,
-      inlineNotice: searchShowing,
-    );
-    final jumpSeeking = ref.watch(
-      messageJumpProvider.select((s) => jumpSeekingIn(s, channelId)),
-    );
-    final jumpNotice = ref.watch(
-      messageJumpProvider.select((s) => jumpNoticeFor(s, channelId)),
-    );
-    _closeSearchOnArrival(ref);
+    final jumpArrival = watchMessageJump(ref, channelId);
     final contextWindow = ref.watch(messageContextWindowProvider(channelId));
 
     final transcript = StreamBuilder<List<Message>>(
@@ -286,8 +205,8 @@ class ChannelTranscriptPane extends ConsumerWidget {
           manuallyUnread: manuallyUnread,
         );
         final atLatest = scrollTracker.atLatest;
-        // Gated on the viewport and on the search being closed: scrolled into history, this rebuild is a message arriving somewhere unread.
-        if (atLatest && !searchShowing && contextWindow == null) {
+        // Gated on the viewport: scrolled into history, this rebuild is a message arriving somewhere unread.
+        if (atLatest && contextWindow == null) {
           onMarkRead(readUpTo, lastReadSeq, manuallyUnread);
         }
         return MessageTranscript(
@@ -383,83 +302,53 @@ class ChannelTranscriptPane extends ConsumerWidget {
           child: Stack(
             fit: fitContent ? StackFit.loose : StackFit.expand,
             children: [
-              // Kept mounted under the results, so closing the search returns the reader to where they were.
-              Visibility(
-                visible: !searchShowing,
-                maintainState: true,
-                child: Column(
-                  mainAxisSize: fitContent
-                      ? MainAxisSize.min
-                      : MainAxisSize.max,
-                  children: [
-                    Flexible(
-                      fit: fit,
-                      child: Stack(
-                        children: [
-                          transcript,
-                          if (contextWindow == null)
-                            Positioned(
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              child: Center(
-                                child: ValueListenableBuilder<bool>(
-                                  valueListenable: scrollTracker.scrolledAway,
-                                  builder: (context, scrolledAway, _) =>
-                                      JumpToLatestButton(
-                                        visible: scrolledAway,
-                                        onTap: () =>
-                                            scrollTracker.scrollToLatest(
-                                              duration: AppMotion.reduced(
-                                                context,
-                                                AppMotion.slow,
-                                              ),
-                                            ),
+              Column(
+                mainAxisSize: fitContent ? MainAxisSize.min : MainAxisSize.max,
+                children: [
+                  MessageJumpStatus(channelId: channelId),
+                  Flexible(
+                    fit: fit,
+                    child: Stack(
+                      children: [
+                        transcript,
+                        if (contextWindow == null)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: Center(
+                              child: ValueListenableBuilder<bool>(
+                                valueListenable: scrollTracker.scrolledAway,
+                                builder: (context, scrolledAway, _) =>
+                                    JumpToLatestButton(
+                                      visible: scrolledAway,
+                                      onTap: () => scrollTracker.scrollToLatest(
+                                        duration: AppMotion.reduced(
+                                          context,
+                                          AppMotion.slow,
+                                        ),
                                       ),
-                                ),
+                                    ),
                               ),
                             ),
-                        ],
-                      ),
+                          ),
+                      ],
                     ),
-                    // In flow, not over the list: a reversed list cannot scroll its newest row out from under a bar.
-                    AppRevealBand(
-                      child: contextWindow == null
-                          ? null
-                          : ContextWindowBar(
-                              onJumpToPresent: () => leaveContextWindow(
-                                ref,
-                                channelId,
-                                scrollTracker,
-                              ),
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-              if (searchShowing)
-                ChannelSearchResults(
-                  results: search.results,
-                  knownUsernames: knownUsernames,
-                  knownRoleNames: knownRoleNames,
-                  customEmoji: customEmoji,
-                  loading: search.loading,
-                  failed: search.failed,
-                  forbidden: search.forbidden,
-                  onRetry: () => ref
-                      .read(channelSearchProvider(channelId).notifier)
-                      .run(search.query!),
-                  onSelect: (m) => _openHit(context, ref, m),
-                  seeking: jumpSeeking,
-                  banner: _jumpBanner(ref, jumpNotice),
-                  compact: searchPage,
-                  query: search.query,
-                  scope: channelSearchScope(
-                    name: hashChannelName,
-                    isVoice: isVoice,
-                    isThread: isThread,
                   ),
-                ),
+                  // In flow, not over the list: a reversed list cannot scroll its newest row out from under a bar.
+                  AppRevealBand(
+                    child: contextWindow == null
+                        ? null
+                        : ContextWindowBar(
+                            onJumpToPresent: () => leaveContextWindow(
+                              ref,
+                              channelId,
+                              scrollTracker,
+                            ),
+                          ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

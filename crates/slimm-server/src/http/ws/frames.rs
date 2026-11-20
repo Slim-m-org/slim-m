@@ -560,6 +560,13 @@ pub(super) enum ServerFrame {
         moved_by_id: String,
         moved_by_name: String,
     },
+    /// The server ended this account's call in `channel_id`; see
+    /// [`crate::hub::Event::VoiceRemoved`]. Delivered only to that account.
+    #[serde(rename = "voice.removed")]
+    VoiceRemoved {
+        channel_id: String,
+        reason: &'static str,
+    },
     /// Someone started a call, joined one or went live in a channel this account asked to
     /// hear about; see [`crate::hub::Event::VoiceNotice`]. Delivered only to that account.
     #[serde(rename = "voice.notice")]

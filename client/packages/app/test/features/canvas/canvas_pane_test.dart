@@ -329,8 +329,6 @@ void main() {
               channelId: 'c1',
               name: 'general',
               isVoice: true,
-              searchOpen: false,
-              onToggleSearch: _noop,
             ),
           ),
         ),
@@ -388,5 +386,3 @@ void main() {
     },
   );
 }
-
-void _noop() {}

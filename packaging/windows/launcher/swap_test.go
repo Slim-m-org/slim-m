@@ -34,11 +34,6 @@ func contents(t *testing.T, path string) string {
 	return string(data)
 }
 
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
 func TestAStagedLauncherReplacesTheOldOneOnNextStart(t *testing.T) {
 	root, self := installed(t, newLauncher)
 	if err := passing().swapLauncher(root, self); err != nil {

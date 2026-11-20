@@ -22,6 +22,7 @@ use super::hidden_chars::is_hidden_char;
 use super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
+use crate::logging::LogMode;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{
@@ -82,6 +83,8 @@ struct SpaceSettingsDto {
     transcribe_voice_messages: bool,
     /// False when the speech listener is not configured, so voice transcripts cannot be turned on.
     transcribe_voice_messages_available: bool,
+    /// How much the server logs: `off`, `compact` or `verbose` (decision 0129).
+    debug_logging: &'static str,
 }
 
 /// The PATCH body: only the fields present are written.
@@ -105,6 +108,7 @@ struct UpdateSpaceSettingsDto {
     #[serde(default, deserialize_with = "present")]
     call_transcript_retention_days: Option<Option<i64>>,
     transcribe_voice_messages: Option<bool>,
+    debug_logging: Option<String>,
 }
 
 /// Tells a null field from an absent one, which `#[serde(default)]` leaves as `None`.
@@ -171,6 +175,7 @@ async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
         call_transcription_available: state.call_audio.is_enabled(),
         transcribe_voice_messages: state.store.transcribe_voice_messages().await?,
         transcribe_voice_messages_available: state.call_audio.is_enabled(),
+        debug_logging: state.store.log_mode().await?.as_str(),
     })
 }
 
@@ -349,9 +354,10 @@ async fn update(
         && body.call_transcription.is_none()
         && body.call_transcript_retention_days.is_none()
         && body.transcribe_voice_messages.is_none()
+        && body.debug_logging.is_none()
     {
         return Err(ApiError::BadRequest(
-            "send name, join_policy, totp_policy, description, strong_noise_suppression, members_can_invite, hide_bots_in_member_list, a module display switch, a welcome field, a call transcript setting or transcribe_voice_messages",
+            "send name, join_policy, totp_policy, description, strong_noise_suppression, members_can_invite, hide_bots_in_member_list, a module display switch, a welcome field, a call transcript setting, transcribe_voice_messages or debug_logging",
         ));
     }
     if body.transcribe_voice_messages == Some(true) && !state.call_audio.is_enabled() {
@@ -359,6 +365,12 @@ async fn update(
             "voice message transcripts need the speech listener, which this server does not have",
         ));
     }
+    let log_mode = match body.debug_logging.as_deref() {
+        Some(raw) => Some(LogMode::parse(raw).ok_or(ApiError::BadRequest(
+            "debug_logging must be off, compact or verbose",
+        ))?),
+        None => None,
+    };
     let welcome = merged_welcome(&state, ctx.user_id, &body).await?;
     let (transcription, retention) = transcript_settings(&state, &body)?;
     let name = body.name.as_deref().map(validate_name).transpose()?;
@@ -370,7 +382,8 @@ async fn update(
         || body.module_member_badges.is_some()
         || body.module_profile_sections.is_some()
         || body.transcribe_voice_messages.is_some()
-        || transcription.is_some();
+        || transcription.is_some()
+        || log_mode.is_some();
     let description = body
         .description
         .as_deref()
@@ -430,6 +443,11 @@ async fn update(
     }
     if let Some(days) = retention {
         state.store.set_call_transcript_retention_days(days).await?;
+    }
+    if let Some(mode) = log_mode {
+        let _changing = crate::logging::mode_change().await;
+        state.store.set_log_mode(mode).await?;
+        crate::logging::apply_mode(mode);
     }
     // Everything above that `/version` shows, so every member's client re-reads it.
     if changes_version {

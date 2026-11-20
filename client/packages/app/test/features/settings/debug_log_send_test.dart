@@ -13,6 +13,7 @@ import 'package:slimm_app/src/diagnostics/debug_log.dart';
 import 'package:slimm_app/src/features/settings/providers/debug_log_send.dart';
 import 'package:slimm_app/src/features/settings/widgets/debug_log_send_sheet.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/server_info.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../../support/async_wait.dart';
@@ -28,14 +29,24 @@ const _tokens = TokenPair(
 
 Future<List<http.Request>> _open(
   WidgetTester tester,
-  http.Response Function(http.Request) answer,
-) async {
+  http.Response Function(http.Request) answer, {
+  ServerLogMode? spaceLogging,
+}) async {
   final sent = <http.Request>[];
   final container = await pumpInApp(
     tester,
     const DebugLogSendSheet(),
     settle: false,
     overrides: [
+      if (spaceLogging != null)
+        serverInfoProvider.overrideWith(
+          (ref) async => Version(
+            name: 'slim-m',
+            version: '0.1.0',
+            protocol: 1,
+            debugLogging: spaceLogging,
+          ),
+        ),
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
       mockApiOverride((request) async {
@@ -44,6 +55,7 @@ Future<List<http.Request>> _open(
       }),
     ],
   );
+  if (spaceLogging != null) container.listen(serverInfoProvider, (_, _) {});
   container.read(debugLogProvider.notifier)
     ..record('sync', 'refresh failed', detail: 'Bearer topsecret')
     ..record('ui', 'overflowed');
@@ -88,6 +100,22 @@ void main() {
     expect(body['log'], contains('refresh failed'));
     expect(body['log'], isNot(contains('topsecret')));
     expect(find.text('Sent. The admins can now read it.'), findsOneWidget);
+  });
+
+  testWidgets('says which server logging mode the space was in', (
+    tester,
+  ) async {
+    final sent = await _open(
+      tester,
+      _created,
+      spaceLogging: ServerLogMode.verbose,
+    );
+    await tester.tap(find.text('Send'));
+    await pumpFrames(tester);
+
+    final body = jsonDecode(sent.single.body) as Map<String, dynamic>;
+    expect(body['log'], startsWith('Space server logging: verbose\n'));
+    expect(body['log'], contains('refresh failed'));
   });
 
   testWidgets('a refusal shows inline, stays, and can be retried', (

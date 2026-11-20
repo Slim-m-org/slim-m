@@ -10,14 +10,15 @@ use axum::routing::get;
 use serde::Serialize;
 
 use super::super::AppState;
-use super::super::categories::{CategoryDto, visible_categories};
+use super::super::categories::CategoryDto;
+use super::super::category_sight::{CategorySight, with_parents};
 use super::super::error::ApiError;
 use super::super::extract::{AUTHED_READ, AuthedLimited, Json, require_manage_roles};
 use super::super::messages::parse_uuid;
 use super::super::role_ladder::Ladder;
 use crate::ids::{ChannelCategoryId, ChannelId, RoleId, UserId};
 use crate::permissions::Permissions;
-use crate::store::{Channel, ChannelCategory};
+use crate::store::Channel;
 
 /// Opening the preview again within this window does not add a second audit row.
 const SAME_PREVIEW_WINDOW_MS: i64 = 10 * 60 * 1000;
@@ -68,7 +69,7 @@ async fn preview(
     Path(role_id): Path<String>,
     State(state): State<AppState>,
 ) -> Result<Json<RolePreviewDto>, ApiError> {
-    let caller_base = require_manage_roles(&state, ctx.user_id).await?;
+    require_manage_roles(&state, ctx.user_id).await?;
     let role_id = RoleId(parse_uuid(&role_id)?);
     let role = state
         .store
@@ -79,7 +80,7 @@ async fn preview(
 
     let preview = state.store.preview_role(&role).await?;
     let categories = state.store.list_categories().await?;
-    let caller_sees = CallerView::load(&state, ctx.user_id, caller_base, &categories).await?;
+    let caller_sees = CallerView::load(&state, ctx.user_id).await?;
 
     let channels: Vec<(Channel, Permissions, bool)> = preview
         .channels
@@ -88,12 +89,14 @@ async fn preview(
             perms.contains(Permissions::VIEW_CHANNEL) && caller_sees.channels.contains(&channel.id)
         })
         .collect();
-    let holding: HashSet<ChannelCategoryId> = channels
+    let mut holding: HashSet<ChannelCategoryId> = channels
         .iter()
         .filter_map(|(channel, _, _)| channel.category_id)
         .collect();
-    let manages = preview.base.contains(Permissions::MANAGE_CHANNELS);
-    let role_sees = visible_categories(&categories, manages, &holding);
+    if preview.base.contains(Permissions::MANAGE_CHANNELS) {
+        holding.extend(preview.categories);
+    }
+    let role_sees = with_parents(&categories, &holding);
 
     state
         .store
@@ -127,18 +130,11 @@ struct CallerView {
 }
 
 impl CallerView {
-    async fn load(
-        state: &AppState,
-        caller: UserId,
-        caller_base: Permissions,
-        categories: &[ChannelCategory],
-    ) -> Result<Self, ApiError> {
+    async fn load(state: &AppState, caller: UserId) -> Result<Self, ApiError> {
         let visible = state.store.visible_channels(caller).await?;
-        let holding = visible.iter().filter_map(|c| c.category_id).collect();
-        let manages = caller_base.contains(Permissions::MANAGE_CHANNELS);
         Ok(Self {
             channels: visible.into_iter().map(|c| c.id).collect(),
-            categories: visible_categories(categories, manages, &holding),
+            categories: CategorySight::of(state, caller).await?.listed,
         })
     }
 }

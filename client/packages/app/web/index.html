@@ -18,8 +18,8 @@
        instead of honouring alpha, which would square off the rounded tile. -->
   <link rel="apple-touch-icon" sizes="180x180" href="icons/Icon-apple-touch-180.png">
 
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F7F8F9">
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#17191C">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFFFFF">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1F2226">
 
   <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
 
@@ -31,16 +31,16 @@
       The canvas is transparent until Flutter paints its first frame, so
       without this the browser's default white shows through and a dark-theme
       user gets a full-page white flash on every load. Both values track
-      AppTokens.surfaceBase.
+      AppTokens.surfaceRaised, the surface the startup splash paints.
     */
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
-      background-color: #F7F8F9;
+      background-color: #FFFFFF;
     }
     @media (prefers-color-scheme: dark) {
-      html, body { background-color: #17191C; }
+      html, body { background-color: #1F2226; }
     }
   </style>
 </head>

@@ -47,6 +47,13 @@ class CallEngine extends lk_engine.Engine {
   bool _signalLive() =>
       !isClosed && signalClient.connectionState == lk.ConnectionState.connected;
 
+  /// A closed engine reconnects no further, so the room must hear the disconnect that closed it.
+  ///
+  /// `Room` drops an engine disconnect while a full reconnect runs, so a leave closing the engine mid-restart left a dead call on screen.
+  @override
+  bool get isFullReconnectInProgress =>
+      !isClosed && super.isFullReconnectInProgress;
+
   late final StuckOfferWatch _stuckOffer;
 
   /// A publish whose answer never comes may already be sending: its sender is

@@ -9,11 +9,13 @@ import 'package:path/path.dart' as p;
 
 final _versionName = RegExp(r'^\d+\.\d+\.\d+');
 const _windowsFolderPrefix = 'app-';
+const _windowsRunFolder = 'app';
 const _windowsLauncher = 'slim-m.exe';
 const _linuxLauncher = 'slim-m';
 
-/// The root launcher beside the `app-<version>` folder holding [resolvedExecutable],
-/// or [resolvedExecutable] itself for a bare copy, `Program Files` or MSIX.
+/// The root launcher beside the `app` or `app-<version>` folder holding
+/// [resolvedExecutable], or [resolvedExecutable] itself for a bare copy,
+/// `Program Files` or MSIX.
 String windowsAutostartExecutable(String resolvedExecutable) {
   final normal = resolvedExecutable.replaceAll(r'\', '/').toLowerCase();
   final systemOwned = normal.contains('/windowsapps/') ||
@@ -21,9 +23,9 @@ String windowsAutostartExecutable(String resolvedExecutable) {
       normal.contains('/program files (x86)/');
   final folder = p.dirname(resolvedExecutable);
   final name = p.basename(folder);
-  if (systemOwned ||
-      !name.startsWith(_windowsFolderPrefix) ||
-      !_versionName.hasMatch(name.substring(_windowsFolderPrefix.length))) {
+  final versionFolder = name.startsWith(_windowsFolderPrefix) &&
+      _versionName.hasMatch(name.substring(_windowsFolderPrefix.length));
+  if (systemOwned || !(versionFolder || name == _windowsRunFolder)) {
     return resolvedExecutable;
   }
   final root = p.dirname(folder);

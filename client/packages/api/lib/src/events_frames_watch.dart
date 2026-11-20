@@ -70,3 +70,20 @@ class CallTranscriptLineAdded extends ServerEvent {
   final String transcriptId;
   final TranscriptLine line;
 }
+
+/// The server ended this account's call in [channelId]. Delivered only to the
+/// account's own sockets, so the device that was in it can say why.
+class VoiceRemoved extends ServerEvent {
+  const VoiceRemoved({required this.channelId, required this.reason});
+
+  final String channelId;
+  final VoiceRemovalReason reason;
+}
+
+enum VoiceRemovalReason {
+  /// The account joined a call on another device.
+  otherDevice,
+
+  /// A reason newer than this client.
+  unknown,
+}

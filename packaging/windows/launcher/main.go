@@ -5,7 +5,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 )
 
@@ -20,21 +19,25 @@ func main() {
 	}
 	root := locate(self)
 	restoreLauncher(root, self)
+	args, handingPid := takeHandoff(os.Args[1:])
+	awaitHandoff(handingPid)
+	unlock, locked := acquireLaunchLock(root, lockWait)
+	if locked {
+		defer unlock()
+	}
 	running := instanceRunning(root)
-	relaunch := isRelaunch(os.Args[1:])
-	dir, err := choose(root, relaunch)
+	relaunch := isRelaunch(args)
+	dir, fallback, err := pick(root, relaunch, locked)
 	if err != nil {
 		fail(err.Error())
 	}
-	if settled(root) {
-		_ = realSwapper().swapLauncher(root, filepath.Join(root, launcherName))
-	}
-	pid, err := start(filepath.Join(dir, appExecutable), dir, os.Args[1:])
+	swapIfHolding(realSwapper(), root, locked)
+	pid, err := startFrom(dir, fallback, args)
 	if err != nil {
 		fail(err.Error())
 	}
 	// Only the first instance is recorded: a second one exits at once and must not hide it.
-	if shouldRecordPid(running, relaunch) {
+	if locked && shouldRecordPid(running, relaunch) {
 		_ = write(root, "running.pid", strconv.Itoa(pid))
 	}
 }

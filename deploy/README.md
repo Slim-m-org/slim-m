@@ -409,7 +409,7 @@ Caddy already owns 443 here, and stock Caddy cannot route a non-HTTP TLS connect
 A `tls_port` that is reachable but not on 443 does nothing: clients never try it, gather no relay candidate, and a relay-only join times out.
 
 It also matters on Windows.
-Without a TCP or TLS relay, the Windows app keeps its TCP candidates so the `LIVEKIT_TCP_PORT` fallback still works, and those listen on the machine, so Windows may ask once whether to allow slim-m through its firewall.
+Without a TCP or TLS relay, the Windows app keeps its TCP candidates so the `LIVEKIT_TCP_PORT` fallback still works, and those listen on the machine, so Windows may ask once, the first time a call does not connect over UDP straight away, whether to allow slim-m through its firewall; every version runs from the same path, so updates keep the answer.
 With TURN/TLS configured, the app drops its TCP candidates and that prompt should not appear.
 
 With an SNI router, the simplest setup lets the router terminate TLS and pass plain TCP to LiveKit.
@@ -844,5 +844,6 @@ Moving to 0.5 is a replica-format migration, not a tag bump.
 ## Logging (`SLIMM_LOG`)
 
 The server logs at `info` by default; set `SLIMM_LOG=debug` to see per-request spans while chasing a problem.
+Without a restart, an admin can instead switch Space settings, Debug logs to Compact or Verbose, and every line also lands in rotating files in `/data/logs` that survive a redeploy; see [docs/OPERATING.md](../docs/OPERATING.md#server-logs).
 A debug span is labelled by the matched route template (`/invites/{code}`), never the filled-in path.
 So an invite code, a GIF or link-preview proxy token, or a webhook token is not written to the log at any level, and a pasted debug log does not leak a credential.

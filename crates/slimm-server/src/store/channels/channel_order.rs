@@ -24,6 +24,14 @@ pub struct ChannelOrderGroup {
     pub channel_ids: Vec<ChannelId>,
 }
 
+/// The categories a reorder's caller may not name at all (`hidden`), and those they may not
+/// move a channel into (`unfileable`), which covers the hidden ones too.
+#[derive(Debug, Default)]
+pub struct CategoryReach {
+    pub hidden: HashSet<ChannelCategoryId>,
+    pub unfileable: HashSet<ChannelCategoryId>,
+}
+
 /// Why setting the channel order failed.
 #[derive(Debug)]
 pub enum ReorderChannelsError {
@@ -284,16 +292,20 @@ impl Store {
         &self,
         groups: &[ChannelOrderGroup],
     ) -> Result<ReorderOutcome, ReorderChannelsError> {
-        self.reorder_channels_around(groups, &HashSet::new()).await
+        self.reorder_channels_around(groups, &HashSet::new(), &CategoryReach::default())
+            .await
     }
 
     /// [`Self::reorder_channels`] for a caller who cannot see the `hidden`
     /// channels: `groups` names only the rest, and each hidden channel stays
-    /// in its own section at the index it already holds there.
+    /// in its own section at the index it already holds there. A group naming
+    /// a category `reach` hides, or moving a channel into one it may not file
+    /// under, is refused as naming no live category.
     pub async fn reorder_channels_around(
         &self,
         groups: &[ChannelOrderGroup],
         hidden: &HashSet<ChannelId>,
+        reach: &CategoryReach,
     ) -> Result<ReorderOutcome, ReorderChannelsError> {
         let mut tx = self.begin_write().await?;
         let live = live_channels(&mut tx).await?;
@@ -331,6 +343,7 @@ impl Store {
             .fetch_all(&mut *tx)
             .await?
             .into_iter()
+            .filter(|id| !reach.hidden.contains(id))
             .collect();
             let unknown: Vec<ChannelCategoryId> = named_categories
                 .difference(&live_categories)
@@ -345,6 +358,23 @@ impl Store {
             .into_iter()
             .map(|(id, category_id, position)| (id, (category_id, position)))
             .collect();
+        let mut shut: Vec<ChannelCategoryId> = groups
+            .iter()
+            .filter_map(|group| group.category_id.map(|category| (group, category)))
+            .filter(|(group, category)| {
+                reach.unfileable.contains(category)
+                    && group
+                        .channel_ids
+                        .iter()
+                        .any(|id| before.get(id).map(|(was, _)| *was) != Some(Some(*category)))
+            })
+            .map(|(_, category)| category)
+            .collect();
+        if !shut.is_empty() {
+            shut.sort();
+            shut.dedup();
+            return Err(ReorderChannelsError::UnknownCategory(shut));
+        }
 
         let mut moved = Vec::new();
         for group in &groups {

@@ -23,6 +23,12 @@ const kRailRowInset = AppSpacing.s16;
 /// section, which always renders first.
 typedef ChannelSection = (ChannelCategoryRow? category, List<Channel> channels);
 
+/// The sections a channel may not be dropped into: a category this account may not file under.
+Set<int> shutSections(List<ChannelSection> sections) => {
+  for (final (i, (category, _)) in sections.indexed)
+    if (category != null && !category.canFile) i,
+};
+
 /// Exposed (not library-private) only so `groupsFromRailItems` can be driven
 /// directly from a test without a real drag gesture; nothing outside this
 /// file and its test builds these by hand otherwise.
@@ -198,7 +204,16 @@ class _ReorderableChannelRowsState extends State<ReorderableChannelRows> {
     final rearranged = [...items]
       ..removeAt(oldIndex)
       ..insert(newIndex, moved);
-    widget.onReorder(groupsFromRailItems(rearranged, widget.sections));
+    final groups = groupsFromRailItems(rearranged, widget.sections);
+    final landed = groups.firstWhere(
+      (g) => g.channelIds.contains(moved.channel.id),
+    );
+    final into = widget.sections
+        .map((section) => section.$1)
+        .firstWhere((c) => c?.id == landed.categoryId, orElse: () => null);
+    final filingElsewhere = landed.categoryId != moved.channel.categoryId;
+    if (filingElsewhere && !(into?.canFile ?? true)) return;
+    widget.onReorder(groups);
   }
 
   Widget _item(List<RailItem> items, int i) => switch (items[i]) {

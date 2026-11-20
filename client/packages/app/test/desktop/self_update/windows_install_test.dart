@@ -194,10 +194,12 @@ void main() {
       _pointer(root, 'pending.tries', '1');
       Directory('${root.path}/.unpack-0.90.0').createSync();
       Directory('${root.path}/.staging').createSync();
+      Directory('${root.path}/app').createSync();
 
       confirmWindowsCleanStart(layout);
 
       expect(_names(root), [
+        'app',
         'app-0.88.0',
         'app-0.89.0',
         'current',
@@ -224,6 +226,13 @@ void main() {
         expect(detectWindowsLayout(exe), isNull);
       },
     );
+
+    test('the launcher\'s run folder belongs to the layout too', () {
+      final exe = '${root.path}/app/slimm_app.exe';
+      expect(detectWindowsLayout(exe)?.root.path, root.path);
+      File('${root.path}/current').deleteSync();
+      expect(detectWindowsLayout(exe), isNull);
+    });
 
     test('a machine-wide or MSIX install is never the per-user layout', () {
       for (final base in [

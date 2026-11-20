@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT c.id AS \"category_id!: ChannelCategoryId\",\n                      o.target_type AS \"target_type?\",\n                      o.target_id AS \"target_id?: Uuid\",\n                      o.allow AS \"allow?: Permissions\",\n                      o.deny AS \"deny?: Permissions\"\n               FROM channel_categories c\n               LEFT JOIN category_overwrites o ON o.category_id = c.id\n               WHERE c.deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "category_id!: ChannelCategoryId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "channel_categories",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "target_type?",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "category_overwrites",
+            "name": "target_type"
+          }
+        }
+      },
+      {
+        "name": "target_id?: Uuid",
+        "ordinal": 2,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "category_overwrites",
+            "name": "target_id"
+          }
+        }
+      },
+      {
+        "name": "allow?: Permissions",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "category_overwrites",
+            "name": "allow"
+          }
+        }
+      },
+      {
+        "name": "deny?: Permissions",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "category_overwrites",
+            "name": "deny"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "111f6f0f8050251ef57dc1f2d314e9f67ea3d7f72025a0f0c1913b4d52ef7fd0"
+}

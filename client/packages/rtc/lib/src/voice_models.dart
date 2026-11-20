@@ -48,6 +48,10 @@ enum VoiceDisconnect {
   /// the same way [connectionLost] is.
   heartbeatLagEviction,
 
+  /// The server said it took this account out of the call because the account joined one
+  /// on another device; the app layer reclassifies the SFU's own reason into this.
+  movedToOtherDevice,
+
   /// The connection dropped and reconnecting did not recover it.
   connectionLost,
 
@@ -59,6 +63,7 @@ enum VoiceDisconnect {
         replacedByOtherDevice =>
           'You joined this call from another device, so this one left it.',
         removed => "You're no longer in this call.",
+        movedToOtherDevice => 'Your call moved to another device.',
         heartbeatLagEviction =>
           'The call dropped for a moment. Reconnecting...',
         connectionLost => 'The call disconnected and could not reconnect.',

@@ -184,6 +184,13 @@ void main() {
       expect(windowsAutostartExecutable(exe), launcher);
     });
 
+    test('windows registers the launcher from the launcher\'s run folder', () {
+      final exe = touch('app/slimm_app.exe');
+      touch('current');
+      final launcher = touch('slim-m.exe');
+      expect(windowsAutostartExecutable(exe), launcher);
+    });
+
     test('windows keeps the exe for a bare copy or a missing pointer', () {
       final exe = touch('app-0.111.0/slimm_app.exe');
       touch('slim-m.exe');

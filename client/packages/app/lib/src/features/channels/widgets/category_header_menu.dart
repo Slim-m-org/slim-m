@@ -35,6 +35,7 @@ class CategoryHeaderMenu extends ConsumerStatefulWidget {
     required this.label,
     this.channels = const [],
     this.canManage = true,
+    this.canRename = false,
     this.menuKey,
   });
 
@@ -56,6 +57,11 @@ class CategoryHeaderMenu extends ConsumerStatefulWidget {
   /// Whether the caller may rename, move, collapse and delete; without it
   /// the menu offers only "Mark all as read" and the mute.
   final bool canManage;
+
+  /// Without [canManage], whether the caller may still rename it and work
+  /// inside it, as over a sub-category they cannot see: everything but moving
+  /// or deleting it.
+  final bool canRename;
 
   @override
   ConsumerState<CategoryHeaderMenu> createState() => _CategoryHeaderMenuState();
@@ -96,7 +102,7 @@ class _CategoryHeaderMenuState extends ConsumerState<CategoryHeaderMenu> {
             CategoryTree(categories).parentOf(category),
             close,
           ),
-          if (canManage) ...[
+          if (canManage || widget.canRename) ...[
             const AppMenuDivider(),
             ..._manageItems(context, ref, close),
           ],
@@ -120,7 +126,8 @@ class _CategoryHeaderMenuState extends ConsumerState<CategoryHeaderMenu> {
       for (final top in tree.topLevel)
         if (top.id != category.id &&
             top.id != parent?.id &&
-            top.parentId == null)
+            top.parentId == null &&
+            top.canFile)
           top,
     ];
     final isCollapsed =
@@ -146,11 +153,11 @@ class _CategoryHeaderMenuState extends ConsumerState<CategoryHeaderMenu> {
             ),
           ),
         ),
-      if (groupsAfterSiblingStep(tree, category.id, -1) != null)
+      if (canManage && groupsAfterSiblingStep(tree, category.id, -1) != null)
         _moveItem(context, close, up: true),
-      if (groupsAfterSiblingStep(tree, category.id, 1) != null)
+      if (canManage && groupsAfterSiblingStep(tree, category.id, 1) != null)
         _moveItem(context, close, up: false),
-      if (nests && subs.isEmpty && targets.isNotEmpty)
+      if (canManage && nests && subs.isEmpty && targets.isNotEmpty)
         AppMenuItem(
           label: 'Move into...',
           leading: AppIcons.moveIntoCategory,
@@ -164,7 +171,7 @@ class _CategoryHeaderMenuState extends ConsumerState<CategoryHeaderMenu> {
             ),
           ),
         ),
-      if (nests && parent != null)
+      if (canManage && nests && parent != null)
         AppMenuItem(
           label: 'Move out of ${parent.name}',
           leading: AppIcons.moveOutOfCategory,
@@ -205,22 +212,23 @@ class _CategoryHeaderMenuState extends ConsumerState<CategoryHeaderMenu> {
             ),
           ),
         ),
-      AppMenuItem(
-        label: 'Delete category...',
-        leading: AppIcons.delete,
-        tone: AppMenuItemTone.danger,
-        onTap: () => then(
-          () => unawaited(
-            confirmAndDeleteCategory(
-              context,
-              ref,
-              category,
-              parentName: parent?.name,
-              hasSubCategories: subs.isNotEmpty,
+      if (canManage)
+        AppMenuItem(
+          label: 'Delete category...',
+          leading: AppIcons.delete,
+          tone: AppMenuItemTone.danger,
+          onTap: () => then(
+            () => unawaited(
+              confirmAndDeleteCategory(
+                context,
+                ref,
+                category,
+                parentName: parent?.name,
+                hasSubCategories: subs.isNotEmpty,
+              ),
             ),
           ),
         ),
-      ),
     ];
   }
 

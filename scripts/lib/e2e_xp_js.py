@@ -72,7 +72,7 @@ EVENTS = r"""
 })();
 """
 
-# Logs when a semantics label containing each text appears or goes away.
+# Logs when a semantics label containing each text, or matching each {re: source}, appears or goes away.
 LABELS = r"""
 (function(){
   var xp = window.__xp, lit = {};
@@ -84,8 +84,9 @@ LABELS = r"""
         if (!named && e.querySelector('flt-semantics')) return;
         all.push((named || e.textContent || '').toLowerCase());
       });
-      texts.forEach(function(text){
-        var on = all.some(function(l){ return l.indexOf(text.toLowerCase()) >= 0; });
+      texts.forEach(function(want){
+        var re = want.re ? new RegExp(want.re) : null, text = re ? want.re : want;
+        var on = all.some(function(l){ return re ? re.test(l) : l.indexOf(text.toLowerCase()) >= 0; });
         if (on !== !!lit[text]) { lit[text] = on; xp.log('label', {text: text, on: on}); }
       });
     }

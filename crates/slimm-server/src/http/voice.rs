@@ -197,6 +197,7 @@ async fn token(
         .mint(channel_id, ctx.user_id, permissions, display_name, device)
     {
         Ok(token) => {
+            tracing::debug!(%channel_id, user_id = %ctx.user_id, automatic = params.automatic, "voice: join token issued");
             state.voice.asked_calls().note(ctx.user_id, channel_id);
             Ok(Json(token.into()))
         }

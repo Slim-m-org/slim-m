@@ -51,7 +51,9 @@ mod moderation_seq;
 mod screen_annotation;
 mod screen_consent;
 pub use created_lookups::{CreatedFacts, CreatedLookups};
-pub use event::{CanvasEvent, Event, MessageEvent, PresenceChange, RoleChange, RoleLook};
+pub use event::{
+    CanvasEvent, Event, MessageEvent, PresenceChange, RoleChange, RoleLook, VoiceRemovalReason,
+};
 use event_class::is_ephemeral;
 pub(crate) use event_class::moves_permissions;
 pub use event_util::ReactionMoved;

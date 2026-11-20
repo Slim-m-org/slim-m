@@ -17,6 +17,7 @@ import 'package:slimm_data/data.dart';
 import '../../channels/widgets/channel_kind_icon.dart';
 import '../../channels/widgets/group_avatar_stack.dart';
 import 'command_palette_items.dart';
+import 'palette_filter_suggestions.dart' show PaletteFilterRowBody;
 import 'palette_highlight.dart';
 import 'palette_message_text.dart';
 import 'palette_person_body.dart';
@@ -209,6 +210,7 @@ class PaletteResultRow extends StatelessWidget {
         lines: touch ? 2 : 1,
       ),
       PaletteKind.action => _action(tokens),
+      PaletteKind.filter => PaletteFilterRowBody(item: item),
     };
     return PaletteRowShell(
       highlighted: highlighted,
@@ -429,7 +431,10 @@ class PaletteEscKeycap extends StatelessWidget {
 /// The floating card's footer: the keys that move through results, and the
 /// prefixes that narrow them. Desktop only, since a phone has no such keys.
 class PaletteFooter extends StatelessWidget {
-  const PaletteFooter({super.key});
+  const PaletteFooter({super.key, this.filtering = false});
+
+  /// A message search names its own keys: Tab completes, Backspace takes a filter off.
+  final bool filtering;
 
   @override
   Widget build(BuildContext context) {
@@ -467,14 +472,18 @@ class PaletteFooter extends StatelessWidget {
               children: [
                 hint(const ['↑', '↓'], 'Move'),
                 hint(const ['Enter'], 'Open'),
-                hint(const ['Tab'], 'Next section'),
+                hint(const ['Tab'], filtering ? 'Complete' : 'Next section'),
               ],
             ),
           ),
           const SizedBox(width: AppSpacing.s12),
-          prefixHint('#', 'channels'),
-          const SizedBox(width: AppSpacing.s12),
-          prefixHint('@', 'people'),
+          if (filtering)
+            hint(const ['Backspace'], 'Remove filter')
+          else ...[
+            prefixHint('#', 'channels'),
+            const SizedBox(width: AppSpacing.s12),
+            prefixHint('@', 'people'),
+          ],
         ],
       ),
     );

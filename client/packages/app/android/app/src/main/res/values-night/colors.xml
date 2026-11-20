@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AppTokens.dark.surfaceRaised, the splash's own surface under the system dark theme. -->
+    <color name="launch_background">#1F2226</color>
+</resources>

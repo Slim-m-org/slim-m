@@ -29,8 +29,14 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-ChannelCategoryRow _category() =>
-    const ChannelCategoryRow(id: 'cat1', name: 'Lounge', position: 0);
+ChannelCategoryRow _category({bool? manageable, bool? fileable}) =>
+    ChannelCategoryRow(
+      id: 'cat1',
+      name: 'Lounge',
+      position: 0,
+      manageable: manageable,
+      fileable: fileable,
+    );
 
 /// One channel in the category, so the section renders for a non-manager too:
 /// an empty category is drawn only for somebody who could drop a channel into
@@ -51,7 +57,12 @@ Channel _channel() => const Channel(
   categoryId: 'cat1',
 );
 
-Future<void> _pump(WidgetTester tester, {required bool canManage}) async {
+Future<void> _pump(
+  WidgetTester tester, {
+  required bool canManage,
+  bool? manageable,
+  bool? fileable,
+}) async {
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -67,7 +78,7 @@ Future<void> _pump(WidgetTester tester, {required bool canManage}) async {
         home: Scaffold(
           body: ChannelCategorySections(
             channels: [_channel()],
-            categories: [_category()],
+            categories: [_category(manageable: manageable, fileable: fileable)],
             selectedId: null,
             canManage: canManage,
             onReorder: (_) {},
@@ -125,6 +136,26 @@ void main() {
 
     expect(find.text('Rename category'), findsOneWidget);
     expect(find.byType(AppInput), findsOneWidget);
+  });
+
+  testWidgets('a category listed only as a heading offers neither verb', (
+    tester,
+  ) async {
+    await _pump(tester, canManage: true, manageable: false, fileable: false);
+    await _openMenu(tester);
+
+    expect(find.text('Mark all as read'), findsOneWidget);
+    expect(find.text('Rename category...'), findsNothing);
+    expect(find.text('Delete category...'), findsNothing);
+  });
+
+  testWidgets('a category over a hidden sub-category renames but never '
+      'deletes', (tester) async {
+    await _pump(tester, canManage: true, manageable: false, fileable: true);
+    await _openMenu(tester);
+
+    expect(find.text('Rename category...'), findsOneWidget);
+    expect(find.text('Delete category...'), findsNothing);
   });
 
   testWidgets('without MANAGE_CHANNELS the header has no menu', (tester) async {

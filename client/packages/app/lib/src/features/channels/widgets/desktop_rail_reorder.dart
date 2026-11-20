@@ -21,7 +21,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'category_tree.dart';
-import 'channel_rail_reorder.dart' show ChannelSection;
+import 'channel_rail_reorder.dart' show ChannelSection, shutSections;
 import 'rail_autoscroll.dart';
 import 'rail_category_slots.dart';
 import 'rail_drop_slots.dart';
@@ -192,7 +192,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
           _RailItem(
             id: 'h:${category?.id}',
             dimmed: lifted,
-            liftable: category != null,
+            liftable: category?.canManage ?? false,
             isCategory: true,
             liftId: category?.id ?? '',
             inset: _headerInset(s),
@@ -375,7 +375,10 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     if (carry == null || stack == null || !mounted) return;
     final y = stack.globalToLocal(_pointer.value).dy;
     final boxes = _measure(stack);
-    final closed = closedSections(widget.sections, _tree, widget.collapsed);
+    final closed = {
+      ...closedSections(widget.sections, _tree, widget.collapsed),
+      ...shutSections(widget.sections),
+    };
     final slot = carry.isCategory
         ? categorySlotAt(
             boxes,

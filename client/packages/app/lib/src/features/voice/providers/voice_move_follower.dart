@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Follows a moderator's move: when the server says this account was moved
-/// out of the call this device is in, join the destination and say who did it.
+/// Follows the server's word that this account's call moved: a moderator's
+/// move joins the destination and says who did it, and a call taken over by
+/// another device of the account says so instead of a bare removal.
 library;
 
 import 'dart:async';
@@ -21,6 +22,12 @@ class VoiceMoveFollower {
   final Ref _ref;
 
   void _onEvent(api.ServerEvent event) {
+    if (event is api.VoiceRemoved &&
+        event.reason == api.VoiceRemovalReason.otherDevice) {
+      _ref
+          .read(voiceControllerProvider.notifier)
+          .noteMovedAway(event.channelId);
+    }
     if (event is! api.VoiceMoved) return;
     final controller = _ref.read(voiceControllerProvider.notifier);
     // Another device of this account may be the one in that call.

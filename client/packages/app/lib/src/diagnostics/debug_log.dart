@@ -91,6 +91,7 @@ class DiagnosticEvent {
 class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
   DebugLog({
     this.capacity = 200,
+    this.detailedCapacity = 2000,
     this.persistence,
     this.echo = false,
     this.saveDelay = const Duration(minutes: 1),
@@ -100,6 +101,9 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
   }
 
   final int capacity;
+
+  /// The bound while any source asks for detail through [keepDetail].
+  final int detailedCapacity;
   final DebugLogPersistence? persistence;
 
   /// Mirrors every record to the console, for a debug run with a terminal.
@@ -113,12 +117,30 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
   static const _dedupeDepth = 20;
   Timer? _saveTimer;
   bool _dirty = false;
+  final Set<Object> _detailSources = {};
+
+  int get _limit => _detailSources.isEmpty ? capacity : detailedCapacity;
+
+  /// Keeps up to [detailedCapacity] entries while any [source] has [on], as a
+  /// space with server debug logging does (decision 0129). Turning it off
+  /// trims nothing at once; each later record drops two until the log is
+  /// back within [capacity].
+  void keepDetail(Object source, {required bool on}) {
+    if (on) {
+      _detailSources.add(source);
+    } else {
+      _detailSources.remove(source);
+    }
+  }
 
   Future<void> _restore() async {
     final saved = await persistence?.load() ?? const [];
     if (!mounted || saved.isEmpty) return;
     final merged = [...state, ...saved];
-    state = merged.length > capacity ? merged.sublist(0, capacity) : merged;
+    // Up to the detailed bound: the space's mode is not known yet this early.
+    state = merged.length > detailedCapacity
+        ? merged.sublist(0, detailedCapacity)
+        : merged;
   }
 
   @override
@@ -159,10 +181,13 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
 
   /// Drops the oldest debug record first, so a chatty source cannot push an error out.
   List<DiagnosticEvent> _bounded(List<DiagnosticEvent> events) {
-    if (events.length <= capacity) return events;
+    if (events.length <= _limit) return events;
     final trimmed = List.of(events);
-    final victim = trimmed.lastIndexWhere((e) => e.level == LogLevel.debug);
-    trimmed.removeAt(victim == -1 ? trimmed.length - 1 : victim);
+    var drop = trimmed.length - _limit > 1 ? 2 : 1;
+    while (drop-- > 0 || trimmed.length > detailedCapacity) {
+      final victim = trimmed.lastIndexWhere((e) => e.level == LogLevel.debug);
+      trimmed.removeAt(victim == -1 ? trimmed.length - 1 : victim);
+    }
     return trimmed;
   }
 

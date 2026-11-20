@@ -87,6 +87,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
+        | Event::VoiceRemoved { .. }
         | Event::VoiceNotice { .. }
         | Event::SoundboardPlayed { .. }
         | Event::VoiceSessionClosed { .. }

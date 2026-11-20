@@ -18,6 +18,9 @@ use support::app::{Account, call_as, register_account};
 use support::fake_sfu::{RecordingRoomService, spawn_sfu};
 use support::livekit_webhook::webhook_request;
 use support::wait::{holds_within, wait_until};
+use support::ws::{
+    Client, assert_no_frame_of_type, connect, read_frame_of_type, serve, user_ticket,
+};
 
 const SFU_KEY: &str = "key";
 const SFU_SECRET: &str = "a-secret-at-least-32-chars-long!";
@@ -134,6 +137,17 @@ impl World {
             .has_heartbeat(user, ChannelId(channel.parse().unwrap()))
     }
 
+    /// A live socket of the admin's, as each of their devices holds one.
+    async fn admin_socket(&self) -> Client {
+        let ctx = self.state.store.authenticate(&self.admin.token).await;
+        let ticket = self
+            .state
+            .store
+            .mint_ws_ticket(&ctx.unwrap().unwrap())
+            .await;
+        connect(serve(self.state.clone()).await, &ticket.unwrap().0).await
+    }
+
     async fn nobody_removed(&self, channel: &str, user: UserId) -> bool {
         !holds_within(Duration::from_millis(300), || self.removed(channel, user)).await
     }
@@ -160,6 +174,25 @@ async fn joining_another_room_ends_the_older_call() {
     );
 }
 
+/// The device whose call ended is told why, and nobody else is told anything.
+#[tokio::test]
+async fn the_ended_call_hears_it_moved_to_another_device() {
+    let world = World::start().await;
+    let (me, token) = (world.admin.id, world.admin.token.clone());
+    let mut mine = world.admin_socket().await;
+    let (_, ticket, _) = user_ticket(&world.state.store, "bystander").await;
+    let mut theirs = connect(serve(world.state.clone()).await, &ticket).await;
+    world.joins(&world.lounge, me, &token, EARLIER).await;
+    world.joins(&world.den, me, &token, LATER).await;
+
+    world.sfu_reports_join(&world.den, me, LATER).await;
+
+    let frame = read_frame_of_type(&mut mine, "voice.removed").await;
+    assert_eq!(frame["channel_id"], world.lounge.as_str());
+    assert_eq!(frame["reason"], "other_device");
+    assert_no_frame_of_type(&mut theirs, "voice.removed").await;
+}
+
 /// A join reported late, after the member is already back in the first room, ends nothing.
 #[tokio::test]
 async fn a_call_joined_after_the_reported_one_is_kept() {
@@ -167,10 +200,13 @@ async fn a_call_joined_after_the_reported_one_is_kept() {
     let (me, token) = (world.admin.id, world.admin.token.clone());
     world.on_call(&world.lounge, me, &token, LATER).await;
 
+    let mut mine = world.admin_socket().await;
+
     world.sfu_reports_join(&world.den, me, EARLIER).await;
 
     assert!(world.nobody_removed(&world.lounge, me).await);
     assert!(world.in_call(&world.lounge, me));
+    assert_no_frame_of_type(&mut mine, "voice.removed").await;
 }
 
 /// A heartbeat can outlive the connection it was for; without a seat there is nothing to end.

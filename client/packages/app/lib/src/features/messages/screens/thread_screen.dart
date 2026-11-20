@@ -17,10 +17,10 @@ import '../../../providers/providers.dart';
 import '../../channels/providers/threads.dart';
 import '../../../routing/close_screen.dart';
 import '../../../routing/routes.dart';
-import '../../../routing/breakpoints.dart';
-import '../../channels/providers/channel_search_controller.dart';
 import '../../channels/widgets/compact_channel_app_bar.dart'
     show ChannelSearchAction;
+import '../../palette/widgets/conversation_search.dart'
+    show conversationSearchLabel;
 import '../../channels/screens/channel_screen.dart';
 
 class ThreadScreen extends ConsumerStatefulWidget {
@@ -94,43 +94,34 @@ class _ThreadScreenState extends ConsumerState<ThreadScreen> {
     // Docked beside the chat: its own raised surface, so the pane is not lost against the transcript it sits next to.
     final docked = widget.onClose != null;
     final surface = docked ? tokens.surfaceRaised : null;
-    // The phone's search page has its own bar, so it stands in for this one.
-    final searching =
-        LayoutClass.of(context) == LayoutClass.compact &&
-        ref.watch(
-          channelSearchProvider(widget.channelId).select((s) => s.open),
-        );
     return Scaffold(
       backgroundColor: surface,
-      appBar: searching
-          ? null
-          : AppBar(
-              backgroundColor: surface,
-              // Docked: a close, since the parent sits beside it, not behind. Routed: the automatic back button is a Material glyph; BackToButton's is the Lucide one every other screen uses.
-              leading: widget.onClose != null
-                  ? IconButton(
-                      icon: const Icon(AppIcons.dismiss),
-                      tooltip: 'Close thread',
-                      onPressed: widget.onClose,
-                    )
-                  : const BackToButton(
-                      tooltip: 'Back to the conversation',
-                      fallback: Routes.channels,
-                    ),
-              // container: true gives the title its own semantics node; see the doc comment above.
-              title: Semantics(
-                header: true,
-                container: true,
-                child: Text(title),
+      appBar: AppBar(
+        backgroundColor: surface,
+        // Docked: a close, since the parent sits beside it, not behind. Routed: the automatic back button is a Material glyph; BackToButton's is the Lucide one every other screen uses.
+        leading: widget.onClose != null
+            ? IconButton(
+                icon: const Icon(AppIcons.dismiss),
+                tooltip: 'Close thread',
+                onPressed: widget.onClose,
+              )
+            : const BackToButton(
+                tooltip: 'Back to the conversation',
+                fallback: Routes.channels,
               ),
-              shape: Border(bottom: BorderSide(color: tokens.borderSubtle)),
-              actions: [
-                ChannelSearchAction(channelId: widget.channelId),
-                const SizedBox(width: AppSpacing.s8),
-              ],
-            ),
+        // container: true gives the title its own semantics node; see the doc comment above.
+        title: Semantics(header: true, container: true, child: Text(title)),
+        shape: Border(bottom: BorderSide(color: tokens.borderSubtle)),
+        actions: [
+          ChannelSearchAction(
+            channelId: widget.channelId,
+            label: conversationSearchLabel(name: '', isThread: true),
+          ),
+          const SizedBox(width: AppSpacing.s8),
+        ],
+      ),
       body: SafeArea(
-        top: searching,
+        top: false,
         bottom: false,
         child: ChannelScreen(
           channelId: widget.channelId,

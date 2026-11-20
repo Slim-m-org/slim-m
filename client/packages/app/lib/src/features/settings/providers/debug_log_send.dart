@@ -10,6 +10,7 @@ import '../../../api_failure.dart';
 import '../../../diagnostics/debug_log.dart';
 import '../../../diagnostics/debug_log_submission.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/server_info.dart';
 
 /// The most a note may say; the server refuses more.
 const int debugLogNoteMaxChars = 500;
@@ -51,11 +52,20 @@ class DebugLogSender {
   /// Sends the scrubbed log with [note]; null on success, else the sentence to show.
   Future<String?> send(DebugLogContents contents, String note) async {
     final report = _ref.read(debugLogProvider.notifier).asReport();
+    final mode = _ref.exists(serverInfoProvider)
+        ? _ref.read(serverInfoProvider).valueOrNull?.debugLogging
+        : null;
+    final header = mode == null ? '' : 'Space server logging: ${mode.wire}\n';
     try {
       await _ref
           .read(apiProvider)
           .submitDebugLog(
-            log: debugLogSubmission(report),
+            log:
+                header +
+                debugLogSubmission(
+                  report,
+                  maxBytes: debugLogSubmissionMaxBytes - header.length,
+                ),
             note: note.trim(),
             appVersion: contents.appVersion,
             platform: contents.platform,

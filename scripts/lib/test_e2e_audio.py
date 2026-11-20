@@ -267,5 +267,51 @@ class MergedReadoutTest(unittest.TestCase):
         self.assertIsNone(ui.merged_readout(self.MERGED, "Screen audio"))
 
 
+class ReloadingPage(FakePage):
+    """A page whose localStorage and CDP commands are recorded in the order they happen."""
+
+    def __init__(self):
+        super().__init__({"!!window.__e2eAudio": lambda: self.probe})
+        self.probe = "false"
+        self.storage = {"flutter.space-1.slimm.voice.call_in_progress": "{}", "flutter.theme": "dark"}
+        self.steps = []
+
+    def ev(self, script):
+        if "removeItem" in script and "call_in_progress" in script:
+            self.steps.append("cleared")
+            self.storage = {k: v for k, v in self.storage.items()
+                            if not k.endswith("slimm.voice.call_in_progress")}
+            return None
+        return super().ev(script)
+
+    def send(self, method, params=None):
+        self.steps.append(method)
+        if method == "Page.addScriptToEvaluateOnNewDocument":
+            return {"result": {"identifier": "1"}}
+        if method == "Page.reload":
+            self.probe = "true" if self.probe == "false" else "false"
+        return {}
+
+    def enable_semantics(self):
+        pass
+
+
+class ProbeReloadTest(unittest.TestCase):
+    def test_installing_mid_call_clears_the_rejoin_offer_before_the_reload(self):
+        page = ReloadingPage()
+        e2e_audio.install(page)
+        self.assertLess(page.steps.index("cleared"), page.steps.index("Page.reload"))
+        self.assertEqual(page.storage, {"flutter.theme": "dark"})
+
+    def test_removing_it_clears_the_offer_too(self):
+        page = ReloadingPage()
+        identifier = e2e_audio.install(page)
+        page.storage["flutter.slimm.voice.call_in_progress"] = "{}"
+        page.steps.clear()
+        e2e_audio.uninstall(page, identifier)
+        self.assertEqual(page.steps[:2], ["Page.removeScriptToEvaluateOnNewDocument", "cleared"])
+        self.assertEqual(page.storage, {"flutter.theme": "dark"})
+
+
 if __name__ == "__main__":
     unittest.main()

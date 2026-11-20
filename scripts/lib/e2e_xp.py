@@ -80,7 +80,7 @@ def join(client):
 def watch_in_call(client):
     """Logs the "in call" label on this page from now on; once per page, so a second call adds no observer."""
     client.ev("window.__xp.inCallWatched || (window.__xp.inCallWatched = true, "
-              f"window.__xp.watchLabels([{json.dumps(L.IN_CALL)}]));")
+              f"window.__xp.watchLabels([{json.dumps({'re': L.IN_CALL.pattern})}]));")
 
 
 def timed_join(client, timeout=30):
@@ -104,13 +104,13 @@ def timed_join(client, timeout=30):
             return events
         time.sleep(0.2)
     if not _in_call_shown(events):
-        raise AssertionError(f"{client.name}: {L.IN_CALL!r} never showed after tapping "
+        raise AssertionError(f"{client.name}: {L.shown(L.IN_CALL)!r} never showed after tapping "
                              f"{L.VOICE_CHANNEL!r}: {events}")
     return events
 
 
 def _in_call_shown(events):
-    return any(e["n"] == "label" and e["on"] and e["text"] == L.IN_CALL for e in events)
+    return any(e["n"] == "label" and e["on"] and e["text"] == L.IN_CALL.pattern for e in events)
 
 
 def wait_remote_audio(client, timeout=60):

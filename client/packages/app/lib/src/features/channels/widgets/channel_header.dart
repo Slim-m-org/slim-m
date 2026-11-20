@@ -30,6 +30,7 @@ import 'channel_topic_text.dart';
 import '../../members/widgets/member_list_toggle.dart';
 import '../../messages/widgets/pinned_messages_sheet.dart';
 import '../../messages/widgets/threads_sheet.dart';
+import '../../palette/widgets/conversation_search.dart';
 
 /// How much of the header a channel name may take before it has to elide, so
 /// a long one cannot crowd the topic out entirely. Only applies when there is
@@ -48,8 +49,7 @@ class ChannelHeader extends ConsumerWidget {
     this.isPersonalSpace = false,
     this.topic,
     this.restricted = false,
-    required this.searchOpen,
-    required this.onToggleSearch,
+    this.onSearch,
     this.textChatOpen = false,
     this.onToggleTextChat,
     this.callDetailsOpen,
@@ -89,7 +89,6 @@ class ChannelHeader extends ConsumerWidget {
   /// alongside [isDm] or [isPersonalSpace]: neither carries `@everyone`
   /// overwrites, so the icon they already show wins.
   final bool restricted;
-  final bool searchOpen;
 
   /// The voice shell's toggle for `voice_text_pane.dart`'s docked chat, so a
   /// voice channel has one header rather than a slim bar stacked above this
@@ -102,7 +101,9 @@ class ChannelHeader extends ConsumerWidget {
   /// [callDetailsOpen] is null where they open as a sheet, so it is no toggle.
   final bool? callDetailsOpen;
   final VoidCallback? onToggleCallDetails;
-  final VoidCallback onToggleSearch;
+
+  /// Runs before the search opens, for a voice channel to show the chat it searches.
+  final VoidCallback? onSearch;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -247,8 +248,14 @@ class ChannelHeader extends ConsumerWidget {
               HeaderIconAction(
                 icon: AppIcons.search,
                 label: 'Search messages',
-                active: searchOpen,
-                onPressed: onToggleSearch,
+                onPressed: () {
+                  onSearch?.call();
+                  openConversationSearch(
+                    context,
+                    channelId: channelId,
+                    label: conversationSearchLabel(name: name, isDm: isDm),
+                  );
+                },
               ),
               if (opensMemberDrawer)
                 HeaderIconAction(

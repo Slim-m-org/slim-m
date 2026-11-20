@@ -10,6 +10,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -28,6 +29,7 @@ import 'rail_room_glyphs.dart';
 import 'rail_call_length.dart';
 import 'rail_voice_participants.dart';
 import '../../voice/widgets/voice_channel_tap.dart';
+import '../../../routing/routes.dart';
 
 /// Pairs a channel row with its kebab, handed to
 /// [AppListRow.trailingExtra] (via [row]'s own builder) rather than composed
@@ -183,13 +185,19 @@ class VoiceChannelRow extends ConsumerWidget {
   /// own press/hover highlight rather than beside it.
   final Widget? trailingExtra;
 
-  Widget? _trailing(int present, {required bool inCall}) {
+  Widget? _trailing(
+    int present, {
+    required bool inCall,
+    required UnreadIndicator indicator,
+  }) {
     final limit = channel.userLimit ?? 0;
     final marks = [
       if (present > 0) RailCallLength(channelId: channel.id, inCall: inCall),
       if (channel.roomLocked == true) const RailRoomLockedGlyph(),
       if (limit > 0) RailUserLimit(present: present, limit: limit),
       if (channel.joinMuted) const RailJoinMutedGlyph(),
+      if (indicator.unread || indicator.mentioned)
+        _ReadChatButton(channel: channel, mentioned: indicator.mentioned),
     ];
     if (marks.isEmpty) return null;
     if (marks.length == 1) return marks.single;
@@ -258,7 +266,11 @@ class VoiceChannelRow extends ConsumerWidget {
                     restricted: channel.restricted ?? false,
                     color: iconColor,
                   ),
-            trailing: _trailing(participants.length, inCall: inCall),
+            trailing: _trailing(
+              participants.length,
+              inCall: inCall,
+              indicator: indicator,
+            ),
             trailingExtra: trailingExtra,
             revealTrailingExtraOnHover: true,
             onTap: () => openVoiceChannel(
@@ -274,6 +286,56 @@ class VoiceChannelRow extends ConsumerWidget {
             participants: participants,
             channelId: channel.id,
           ),
+      ],
+    );
+  }
+}
+
+const _readChatGlyph = AppSizes.icon16;
+const _markSize = 6.0;
+
+/// The unread mark of a voice row, as a button that opens the channel's chat
+/// without joining its call: the row itself joins, so the mark is the way in.
+class _ReadChatButton extends StatelessWidget {
+  const _ReadChatButton({required this.channel, required this.mentioned});
+
+  final Channel channel;
+  final bool mentioned;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final touch = AppTouchTargets.of(context);
+    final hit = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
+    // Centres the mark on the glyph's top-right corner, whatever the hit area pads around it.
+    final inset = (hit - _readChatGlyph - _markSize) / 2;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        AppIconButton(
+          icon: AppIcons.chat,
+          size: AppIconButtonSize.sm,
+          iconSize: _readChatGlyph,
+          semanticLabel: mentioned
+              ? 'Read the chat in ${channel.name}, you were mentioned'
+              : 'Read the chat in ${channel.name}, new messages',
+          tooltip: touch ? null : 'Read chat',
+          excludeTooltipFromSemantics: true,
+          // The row's own tint already covers this button, as it does the kebab.
+          suppressOwnHoverFill: true,
+          onPressed: () =>
+              context.go(Routes.channel(channel.id, openChat: true)),
+        ),
+        Positioned(
+          top: inset,
+          right: inset,
+          child: IgnorePointer(
+            child: AppListRow.indicatorDot(
+              mentioned: mentioned,
+              color: mentioned ? tokens.accentFill : tokens.textPrimary,
+            ),
+          ),
+        ),
       ],
     );
   }

@@ -253,9 +253,10 @@ There is no service-account or API-key concept in this server, so an admin's own
 
 `crates/slimm-server/src/http/search.rs`
 
-Full-text search over messages, backed by the FTS5 index kept current by the triggers in migration 0002, plus a Slack-style operator layer over it: `from:`, `in:`, `has:`, `before:`/`after:`.
+Full-text search over messages, backed by the FTS5 index kept current by the triggers in migration 0002, plus an operator layer over it: `from:`, `in:`, `has:`, `mentions:`, `pinned:` and the dates.
+The grammar users type is [search.md](search.md); the predicates are `store/messages/message_search_filters.rs`, each probing a table by its message key, so none needs an index of its own.
 
-Two routes share every bit of this file beyond their own permission scoping: `GET /channels/{channelId}/messages/search` (the channel header's search panel) searches one channel, named in the path or by `in:`, and requires `VIEW_CHANNEL` on the path channel up front; `GET /search/messages` (the command palette's cross-channel scope) has no path channel to check and instead searches every channel [`crate::store::Store::visible_channels`] says the caller can view, or the subset of those named by `in:` when given.
+Two routes share every bit of this file beyond their own permission scoping: `GET /channels/{channelId}/messages/search` (a conversation's search, an `in:` chip picked from a list) searches one channel, named in the path or by `in:`, and requires `VIEW_CHANNEL` on the path channel up front; `GET /search/messages` (the palette's search with no picked `in:`) has no path channel to check and instead searches every channel [`crate::store::Store::visible_channels`] says the caller can view, or the subset of those named by `in:` when given.
 Neither ever reaches a channel the caller cannot view: [`resolve_scope`] is the one place `in:` is resolved and permission-filtered for both, and the cross-channel route's default scope is `visible_channels` itself, which only ever returns channels `VIEW_CHANNEL` already grants.
 `visible_channels` also excludes DMs and threads (see its own doc comment), so cross-channel search never reaches a DM the caller was not searching directly.
 
@@ -265,7 +266,7 @@ A `q` that uses FTS5's mini query language (`AND`/`OR`/`NOT`, `"phrase"`, `NEAR(
 That is safe against leaking another channel: the index has exactly one column (`content`), so a query string has no other column to pivot to, and the channel restriction is an ordinary SQL predicate the query text can never reach, never part of the `MATCH` expression itself.
 See [`crate::store::Store::search_messages`] for the rest of that reasoning and for how a malformed query surfaces as [`SearchError::InvalidQuery`] rather than a 500: SQLite only validates FTS5 syntax once the statement runs.
 
-The operators are parsed client-side (`message_search_query.dart`), which is why this file only ever sees them as already-split query parameters - `q` never carries `from:nick` as literal text a caller could exploit to widen a channel restriction the way `q` itself cannot.
+The operators are parsed client-side (`message_search_query.dart`, folded into parameters by `message_search_request.dart`), which is why this file only ever sees them as already-split query parameters - `q` never carries `from:nick` as literal text a caller could exploit to widen a channel restriction the way `q` itself cannot.
 
 Channel and member search need no route here at all: both are already answered from data the client already holds permission-correctly.
 `GET /channels` only ever lists what [`crate::store::Store::visible_channels`] grants, so the client's local channel list is never wider than that; the member list (`GET /members`) is deployment-wide by design (see `http::users`'s own doc comment), not scoped to a channel, so there is no per-channel visibility question to get wrong there.
@@ -337,7 +338,9 @@ After the SDK gives up, `VoiceAutoRejoin` asks for a new token, so that request 
 The client then stops trying and says so; "Try again" is a person's own join, which is never refused this way and moves the call back.
 The record of who asked for what is in memory, so after a restart a join with no token on record ends nothing and the member can be on two calls until either hangs up, which is what every join did before this rule.
 An older server ignores `automatic`, and an older client never sends it; the webhook rule covers the SDK's reconnect either way.
-The device that loses its call is told it is no longer in it; it is not told why.
+The device that loses its call is told why: after the SFU accepts the removal the server sends that account a `voice.removed` frame with `reason: other_device`, and the client says "Your call moved to another device." instead of "You're no longer in this call."
+The frame and the SFU's drop race, so the client takes either order: a frame first marks the call, and the drop that follows reads as moved; a drop first is shown as a removal until the frame replaces its text and cancels any comeback queued for it.
+Within one room the SFU's own duplicate-identity drop already names the other device once the roster confirms it.
 After the other device hangs up, the first can still be offered "Join here" for a call nobody is in, until its next roster read of that channel drops the sighting (`voiceSelfSeenTtl` bounds it at 90 s).
 
 The SFU's "duplicate identity" does not mean another device.
@@ -402,7 +405,7 @@ A module is installed, approved to schedule and to hear calls, and armed for the
 Two sweeps walk `schema/openapi.yaml`, so a route is asked from the day it is documented, with no list to keep up.
 Being asked is not the same as being covered: "What the sweep cannot see" below says where the difference is.
 
-- The read sweep sends every GET with every private id in its path, and the search routes with every canary as the query.
+- The read sweep sends every GET with every private id in its path, the search routes with every canary as the query, and the message search routes filter-only queries (`pinned`, `mentions`, `has`, `from`) that match the private channel's own message.
   An answer may contain neither a canary nor a private id the request did not name.
 - The ask-twice sweep sends every route twice: once naming private ids in its path, query and body, and once naming ids that name nothing.
   The two answers must match, status and error text alike, with a success compared only as a success.
@@ -418,11 +421,14 @@ What the sweep found on 2026-11-19, each now with its own test beside the route:
   A deny is not a grant, so the grant ceiling never stopped a manager shutting a private channel's own members out, and on a category the ceiling was the deployment-wide set, so they could let themselves in.
 - MANAGE_CHANNELS renamed and deleted a channel its holder could not see, and the rename answered with its name and topic.
 - MANAGE_SERVER read, counted and pruned a hidden channel's retention, and listed, renamed, rotated and revoked the webhooks of one.
+- MANAGE_CHANNELS was listed every category, private ones included, and renamed, deleted, reordered and filed channels under ones its holder could not see (decision 0011's third pass).
+  A category such a holder is listed only as a heading answers rename, move, delete and filing under it as a missing one too, and one holding a hidden sub-category is not theirs to move or delete; both have their own tests beside the sweep (`it_spaces/category_heading_only.rs`, `it_spaces/category_manage_hidden.rs`), since the sweep's world has neither.
+  The one existence leak accepted on purpose: a category over a hidden sub-category is listed `manageable: false, fileable: true` and renames where a move answers 404, which says a hidden sub-category is there without naming it (decision 0011's third pass).
 
 The rule they all broke is decision 0011's: a channel's permissions stop at the channel, whatever the caller holds deployment-wide, and only ADMINISTRATOR sees everything.
 A route that takes a channel, category or message id therefore answers a hidden one exactly as it answers one that does not exist, before any other validation of the request.
 
-Two things a manager is told by design are skipped by name in `mod.rs`: `GET /categories` lists every category to a channel manager (decision 0120), and the audit log names what was changed.
+One thing a manager is told by design is skipped by name in `mod.rs`: the audit log names what was changed.
 The sweep does not reach the websocket, push, voice with a live SFU, or call transcripts, which keep their own tests.
 The routes in `NEVER` (`probe.rs`) are not asked, because they end the session the sweep runs with or keep a limit of their own on disk.
 
