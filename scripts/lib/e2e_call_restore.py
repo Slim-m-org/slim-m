@@ -6,13 +6,10 @@ case as a crash on desktop, so it asks before rejoining. The rejoin is checked
 at the SFU.
 """
 import e2e_labels as L
+from e2e_audio import RESTORE_KEYS
 from e2e_voice import _tap_label, participants_with_mics
 
 PROMPT = "Rejoin the call?"
-
-# The call record's key in shared_preferences' localStorage, whatever Space prefix it carries.
-RESTORE_KEYS = ("Object.keys(localStorage)"
-                ".filter(k => k.endsWith('slimm.voice.call_in_progress'))")
 
 
 def _reload(client):

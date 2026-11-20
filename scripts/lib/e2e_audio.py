@@ -16,6 +16,20 @@ import e2e_audio_js
 SAMPLE_SECONDS = 0.05
 
 
+# The call-restore record's keys in shared_preferences' localStorage, whatever Space prefix they carry.
+RESTORE_KEYS = ("Object.keys(localStorage)"
+                ".filter(k => k.endsWith('slimm.voice.call_in_progress'))")
+
+
+def _reload(client):
+    """Reloads for the probe, which ends any call the page is in: the harness's reload, so nothing offers it back.
+
+    Left in place, "Rejoin the call?" covered the page and took the scenario's next click.
+    """
+    client.ev(RESTORE_KEYS + ".forEach(k => localStorage.removeItem(k))")
+    client.send("Page.reload")
+
+
 def _wait_for_document(client, probe_present, timeout=60):
     """Wait for the reloaded document to have (or not have) the probe in it."""
     deadline = time.time() + timeout
@@ -40,7 +54,7 @@ def install(client, extra=""):
     client.send("Page.enable")
     added = client.send("Page.addScriptToEvaluateOnNewDocument",
                         {"source": e2e_audio_js.PROBE + extra})
-    client.send("Page.reload")
+    _reload(client)
     _wait_for_document(client, True)
     client.enable_semantics()
     return added["result"]["identifier"]
@@ -50,7 +64,7 @@ def uninstall(client, identifier):
     """Take the probe out again and reload, so later scenarios run unwrapped."""
     client.send("Page.removeScriptToEvaluateOnNewDocument",
                 {"identifier": identifier})
-    client.send("Page.reload")
+    _reload(client)
     _wait_for_document(client, False)
     client.enable_semantics()
 
