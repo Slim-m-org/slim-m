@@ -278,11 +278,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen>
   @override
   bool readsOnArrival(String channelId) {
     if (!mounted || channelId != widget.channelId || !_watched) return false;
-    final search = ref.read(channelSearchProvider(channelId));
-    final searchPage = !LayoutClass.of(context).showsBothPanes && search.open;
-    return search.query == null &&
-        !searchPage &&
-        ref.read(messageContextWindowProvider(channelId)) == null &&
+    return ref.read(messageContextWindowProvider(channelId)) == null &&
         _scrollTracker.atLatest;
   }
 
