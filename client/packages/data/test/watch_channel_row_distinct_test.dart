@@ -9,6 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 
+import 'support/wait_for.dart';
+
 api.Message _message(String id, String channelId, int seq) => api.Message(
       id: id,
       channelId: channelId,
@@ -19,9 +21,6 @@ api.Message _message(String id, String channelId, int seq) => api.Message(
       createdAt: seq * 1000,
       editedAt: null,
     );
-
-Future<void> _settle() =>
-    Future<void>.delayed(const Duration(milliseconds: 50));
 
 void main() {
   late SlimmDatabase db;
@@ -38,7 +37,7 @@ void main() {
     emissions = [];
     final sub = store.watchChannelRow('open').listen(emissions.add);
     addTearDown(sub.cancel);
-    await _settle();
+    await waitFor(() => emissions.isNotEmpty);
     emissions.clear();
   });
 
@@ -50,14 +49,19 @@ void main() {
     }
     await store.setReadMarker('other', 3);
     await store.setOpCursor('other', 9);
-    await _settle();
+    await pumpEventQueue();
+    await store.upsertChannels([
+      const api.Channel(
+          id: 'open', name: 'sentinel', kind: 'text', createdAt: 1),
+    ]);
+    await waitFor(() => emissions.isNotEmpty);
 
-    expect(emissions, isEmpty);
+    expect(emissions.map((c) => c!.name), ['sentinel']);
   });
 
   test('a message in the watched channel emits its advanced cursor', () async {
     await store.applyMessage(_message('m1', 'open', 1));
-    await _settle();
+    await waitFor(() => emissions.isNotEmpty);
 
     expect(emissions, hasLength(1));
     expect(emissions.single!.cursor, 1);
@@ -68,7 +72,7 @@ void main() {
       const api.Channel(
           id: 'open', name: 'renamed', kind: 'text', createdAt: 1),
     ]);
-    await _settle();
+    await waitFor(() => emissions.isNotEmpty);
 
     expect(emissions.single!.name, 'renamed');
   });

@@ -64,6 +64,7 @@ Future<void> removeForwardSnapshot(SlimmDatabase db, String messageId) async {
 }
 
 /// Writes an edit over a held row unless the row's own edit stamp is newer.
+/// An op carries no mention flag, so the row stops claiming one until the server's answer re-flags it.
 Future<void> writeEdit(
   SlimmDatabase db,
   String messageId,
@@ -76,7 +77,11 @@ Future<void> writeEdit(
         m.editedAt.isNull() | m.editedAt.isSmallerOrEqualValue(editedAt));
   }
   await update.write(
-    MessagesCompanion(content: Value(content), editedAt: Value(editedAt)),
+    MessagesCompanion(
+      content: Value(content),
+      editedAt: Value(editedAt),
+      mentionsMe: const Value(false),
+    ),
   );
 }
 

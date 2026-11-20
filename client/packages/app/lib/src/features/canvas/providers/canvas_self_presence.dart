@@ -49,11 +49,6 @@ class CanvasSelfPresenceController
 
   final Ref _ref;
 
-  /// Bumped by every explicit [setHidden] call, so a load still in flight
-  /// when the very first one of those lands does not clobber it back to
-  /// whatever was on disk before that write finished.
-  int _generation = 0;
-
   /// Resolves once the persisted state, if any, has been read. Exposed so a
   /// caller modelling a relaunch can wait for exactly that, rather than
   /// guessing how many event-loop turns a `SharedPreferences` round trip
@@ -61,10 +56,9 @@ class CanvasSelfPresenceController
   late final Future<void> ready;
 
   Future<void> _load() async {
-    final generation = _generation;
     try {
       final prefs = await _ref.read(preferencesProvider.future);
-      if (!mounted || generation != _generation) return;
+      if (!mounted) return;
       state = CanvasSelfPresenceState(
         hidden: prefs.getBool(canvasSelfBubbleHiddenKey) ?? false,
       );
@@ -82,8 +76,8 @@ class CanvasSelfPresenceController
   /// exactly what the canvas overflow menu's own toggle item does - there is
   /// no separate "show" method to keep in step with it.
   Future<void> setHidden(bool hidden) async {
+    // Awaiting the load orders this write after it, so the load never clobbers it.
     await ready;
-    _generation++;
     state = state.copyWith(hidden: hidden);
     try {
       final prefs = await _ref.read(preferencesProvider.future);

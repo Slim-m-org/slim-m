@@ -64,6 +64,10 @@ String capCombiningMarks(String text, {int max = kMaxMarksPerBase}) {
   return out?.toString() ?? text;
 }
 
+/// [capCombiningMarks] for a name the server may leave out.
+String? capOptionalMarks(String? text) =>
+    text == null ? null : capCombiningMarks(text);
+
 /// [text] lower-cased with every [isStackingMark] mark removed, for matching
 /// a name by its plain letters.
 String foldMarks(String text) {

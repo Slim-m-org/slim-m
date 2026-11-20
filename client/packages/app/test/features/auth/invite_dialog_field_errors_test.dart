@@ -116,6 +116,19 @@ void main() {
     expect(_banner(), findsNothing);
   });
 
+  testWidgets('an empty code is refused under the code field, unasked', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await _continueWith(tester, server: 'https://chat.example', code: '  ');
+
+    expect(
+      _errorUnder(tester, 'Invite code'),
+      'Enter the invite code you were sent.',
+    );
+    expect(_errorUnder(tester, 'Server'), isNull);
+  });
+
   testWidgets('an unusable code sits under the code field', (tester) async {
     await _pump(tester);
     await _continueWith(

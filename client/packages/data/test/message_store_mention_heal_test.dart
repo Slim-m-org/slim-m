@@ -62,6 +62,16 @@ void main() {
     expect(await _mentioned(store), 0);
   });
 
+  test('a mention edited away in a catch-up op asks too', () async {
+    final store = await _readTo80();
+    await store.applyMessages([_message(95, mentionsMe: true)]);
+    expect(await _asks(store), isFalse);
+
+    await store.applyEdit('m95', 'no mention now', 2000);
+
+    expect(await _asks(store), isTrue);
+  });
+
   test('a held mention neither asks nor gives way to an older marker',
       () async {
     final store = await _readTo80();

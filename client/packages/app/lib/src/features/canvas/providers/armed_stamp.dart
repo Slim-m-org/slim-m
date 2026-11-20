@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../providers/providers.dart';
 import '../../../providers/server_info.dart';
 import '../../screen_overlay/providers/stamp_content.dart';
 
@@ -22,8 +23,14 @@ class ArmedStamp {
 }
 
 class ArmedStampController extends Notifier<ArmedStamp> {
+  /// Dropped when the account signs out, signs in as someone else or changes server.
   @override
-  ArmedStamp build() => const ArmedStamp();
+  ArmedStamp build() {
+    ref
+      ..watch(sessionProvider)
+      ..watch(serverUrlProvider);
+    return const ArmedStamp();
+  }
 
   void arm(StampContent content) => state = ArmedStamp(
     content: content,

@@ -27,12 +27,18 @@ String inviteCheckFailure(ApiException e) => e is TransportException
     ? 'Could not reach that server.'
     : 'The server refused that. ${sentenceCase(e.message)}';
 
+/// What is wrong with [code] before any server is asked, or null.
+String? localInviteCodeProblem(String code) {
+  if (code.trim().isEmpty) return 'Enter the invite code you were sent.';
+  if (looksLikeWebAddress(code)) return inviteLooksLikeWebAddress;
+  return null;
+}
+
 /// Checks [code] on [client]'s server: null when it can be used, otherwise
 /// what to say under the code. Closes [client].
 Future<String?> inviteCodeProblem(SlimmApi client, String code) async {
   try {
-    if (code.isEmpty) return 'Enter the invite code you were sent.';
-    if (looksLikeWebAddress(code)) return inviteLooksLikeWebAddress;
+    if (localInviteCodeProblem(code) case final problem?) return problem;
     final check = await client.checkInvite(code);
     return check is InviteUsable ? null : inviteUnusable;
   } on ApiException catch (error, stack) {

@@ -70,15 +70,17 @@ void main() {
       expect(category.serverNests, isFalse);
     });
 
-    test('a heading is not the caller\'s to manage; no flag means it is', () {
+    test(
+        'a heading is not the caller\'s to manage; no flag is null, not allowed',
+        () {
       final heading = ChannelCategory.fromJson({
         ..._category('c', parent: null),
         'manageable': false,
       });
       expect(heading.manageable, isFalse);
-      expect(heading.fileable, isTrue);
+      expect(heading.fileable, isNull);
       final old = ChannelCategory.fromJson(_category('c'));
-      expect((old.manageable, old.fileable), (true, true));
+      expect((old.manageable, old.fileable), (null, null));
     });
   });
 

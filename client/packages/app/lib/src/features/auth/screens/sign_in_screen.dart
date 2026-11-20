@@ -337,7 +337,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       if (e is TransportException) _reprobe(keepError: true);
     } catch (error, stack) {
       reportFailure(LogTag.auth, 'sign in', error, stack);
-      ref.read(justRegisteredProvider.notifier).state = false;
+      justRegistered.state = false;
       if (mounted) setState(() => _error = unexpectedSignInError);
     } finally {
       if (mounted) setState(() => _busy = false);

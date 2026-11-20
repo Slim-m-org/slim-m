@@ -3,6 +3,8 @@
 /// line budget and re-exported there, as every `models_*` file is.
 library;
 
+import 'text_marks.dart';
+
 /// What a message was forwarded from.
 ///
 /// A snapshot the server took when the forward was sent, not a live read, so
@@ -55,7 +57,8 @@ class ForwardedMessage {
         messageId: json['message_id'] as String,
         channelId: json['channel_id'] as String,
         authorId: json['author_id'] as String?,
-        authorDisplayName: json['author_display_name'] as String?,
+        authorDisplayName:
+            capOptionalMarks(json['author_display_name'] as String?),
         authorAvatarUpdatedAt: json['author_avatar_updated_at'] as int?,
         createdAt: json['created_at'] as int,
         content: json['content'] as String,

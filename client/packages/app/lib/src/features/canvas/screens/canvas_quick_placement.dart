@@ -33,9 +33,6 @@ import 'canvas_sync.dart';
 const double defaultNoteWidth = noteReferenceWidth;
 const double defaultNoteHeight = noteReferenceHeight;
 
-/// The text size a new note is stored with, in world units: legible at the zoom a board fits at, where the old 12 read as 2 to 7 px.
-const double defaultNoteFontSize = noteReferenceFontSize;
-
 /// A shape's default box, centered on the tapped point. Not square, so a
 /// freshly placed rectangle or ellipse reads as a shape rather than a dot,
 /// and a line or an arrow (the box's own diagonal) is visibly diagonal.
