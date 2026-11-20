@@ -78,8 +78,8 @@ extension CategoryStore on MessageStore {
         name: category.name,
         position: Value(category.position),
         parentId: Value(category.parentId),
-        manageable: Value(category.manageable),
-        fileable: Value(category.fileable),
+        manageable: Value.absentIfNull(category.manageable),
+        fileable: Value.absentIfNull(category.fileable),
       );
 
   /// Removes one category locally, the immediate-feedback counterpart to
