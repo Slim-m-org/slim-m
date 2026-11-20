@@ -23,8 +23,12 @@
 /// Only paging a channel's own history (`channel_history.dart`,
 /// `channel_screen.dart`) and acting in the open channel's composer
 /// (`message_actions.dart`, `forward_message.dart`,
-/// `poll_composer_sheet.dart`) ever call `applyMessage(s)`, and both only
-/// ever do that for the channel presently open. That is what makes dropping
+/// `poll_composer_sheet.dart`) apply extras for rows the store holds, and
+/// both only ever do that for the channel presently open. The two callers
+/// that apply extras for rows outside the store, a fetched reply parent
+/// (`reply_parent.dart`) and a context window (`message_context_window.dart`),
+/// pin those ids so [MessageExtrasController.retain] keeps them. That is what
+/// makes dropping
 /// every extras entry outside the open channels' rows safe, not merely
 /// convenient.
 ///

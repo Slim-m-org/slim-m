@@ -87,6 +87,24 @@ void main() {
     },
   );
 
+  testWidgets('fast typing sends one message and one transcript search', (
+    tester,
+  ) async {
+    final paths = <String>[];
+    final setup = await _open(tester, _server(paths: paths));
+
+    for (final text in ['s', 'sh', 'shi', 'ship']) {
+      await tester.enterText(find.byKey(_input), text);
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+    await _frames(tester);
+
+    expect(paths.where((p) => p == '/search/messages'), hasLength(1));
+    expect(paths.where((p) => p == '/search/transcripts'), hasLength(1));
+
+    await teardown(tester, setup.container, setup.db);
+  });
+
   testWidgets('a hit opens the voice channel to read and queues its line', (
     tester,
   ) async {

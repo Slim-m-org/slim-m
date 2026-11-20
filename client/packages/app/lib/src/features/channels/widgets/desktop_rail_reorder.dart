@@ -369,6 +369,21 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     _retarget();
   }
 
+  /// The shut section the carried item already sits in, where the server still allows a move.
+  int? _homeSection(_Carry carry) {
+    final home = carry.isCategory
+        ? _tree.parentOf(_tree.byId[carry.id])?.id
+        : widget.sections
+              .firstWhere(
+                (s) => s.$2.any((c) => c.id == carry.id),
+                orElse: () => (null, const []),
+              )
+              .$1
+              ?.id;
+    final at = widget.sections.indexWhere((s) => s.$1?.id == home);
+    return home == null || at < 0 ? null : at;
+  }
+
   void _retarget([Object? _]) {
     final carry = _carry;
     final stack = _boxOf(_stackKey);
@@ -377,7 +392,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     final boxes = _measure(stack);
     final closed = {
       ...closedSections(widget.sections, _tree, widget.collapsed),
-      ...shutSections(widget.sections),
+      ...shutSections(widget.sections).difference({?_homeSection(carry)}),
     };
     final slot = carry.isCategory
         ? categorySlotAt(

@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/messages/providers/message_search_query.dart';
 import 'package:slimm_app/src/features/palette/providers/palette_query.dart';
 import 'package:slimm_app/src/features/palette/widgets/palette_filter_suggestions.dart';
+import 'package:slimm_data/data.dart' show Channel;
 
 TextEditingValue _at(String text, [int? caret]) => TextEditingValue(
   text: text,
@@ -80,6 +81,32 @@ void main() {
       '2026-03-08',
       '2026-03',
     ]);
+  });
+
+  test('a quoted channel name still being typed offers the channel', () {
+    final added = <SearchFilter>[];
+    const team = Channel(
+      id: 'c1',
+      name: 'team chat',
+      kind: 'text',
+      createdAt: 0,
+      position: 0,
+      cursor: 0,
+      lastReadSeq: 0,
+      mentionedSeq: 0,
+      slowModeSeconds: 0,
+      joinMuted: false,
+      isPersonalSpace: false,
+    );
+    for (final word in ['in:"team', 'in:"team chat"', 'in:"team chat']) {
+      final picks = filterSuggestions(
+        word,
+        offerKeys: false,
+        sources: (members: const [], channels: [team], today: DateTime(2026)),
+        actions: (complete: (_) {}, add: added.add),
+      );
+      expect([for (final p in picks) p.label], ['#team chat'], reason: word);
+    }
   });
 
   group('PaletteField', () {

@@ -94,6 +94,42 @@ void main() {
     });
   });
 
+  group('groupsAfterStep', () {
+    const shut = ChannelCategoryRow(
+      id: 'shut',
+      name: 'shut',
+      position: 1,
+      fileable: false,
+    );
+
+    test('steps over a category the manager may not file under', () {
+      final sections = <ChannelSection>[
+        (null, [_channel('general')]),
+        (shut, [_channel('s', categoryId: 'shut')]),
+        (_dev, [_channel('a', categoryId: 'dev')]),
+      ];
+
+      final down = groupsAfterStep(sections, 'general', 1)!;
+      expect(_byCategory(down), {
+        null: <String>[],
+        'shut': ['s'],
+        'dev': ['general', 'a'],
+      });
+      final up = groupsAfterStep(sections, 'a', -1)!;
+      expect(_byCategory(up)['shut'], ['s']);
+      expect(_byCategory(up)[null], ['general', 'a']);
+    });
+
+    test('a shut category at the end is no step at all', () {
+      final sections = <ChannelSection>[
+        (null, [_channel('general')]),
+        (shut, const []),
+      ];
+
+      expect(groupsAfterStep(sections, 'general', 1), isNull);
+    });
+  });
+
   testWidgets('the channel menu offers it and files the channel', (
     tester,
   ) async {

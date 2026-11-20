@@ -9,6 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../composer/widgets/composer_extras.dart'
     show MessageLengthCounter, messageLengthOverage;
+import '../../composer/widgets/composer_text_controller.dart';
 
 /// Pre-filled with [initialContent]. Enter saves, Shift+Enter inserts a
 /// newline, and Escape cancels on a hardware keyboard, with no hint row.
@@ -41,7 +42,7 @@ class MessageEditField extends StatefulWidget {
 }
 
 class _MessageEditFieldState extends State<MessageEditField> {
-  late final _controller = TextEditingController(text: widget.initialContent)
+  late final _controller = ComposerTextController(text: widget.initialContent)
     ..selection = TextSelection.collapsed(offset: widget.initialContent.length);
   final _focusNode = FocusNode();
 

@@ -3,6 +3,7 @@
 /// the next time a quote asks, instead of reading as gone all session.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,14 +18,14 @@ import '../../support/fake_api.dart';
 
 const _key = (channelId: 'c1', messageId: 'm1');
 
-http.Response _parent() => http.Response(
+http.Response _parent({String content = 'the parent'}) => http.Response(
   jsonEncode({
     'id': 'm1',
     'channel_id': 'c1',
     'author_id': 'priya',
     'author_display_name': 'priya',
     'seq': 1,
-    'content': 'the parent',
+    'content': content,
     'created_at': 1000,
   }),
   200,
@@ -69,4 +70,58 @@ void main() {
     final parent = await container.read(replyParentProvider(_key).future);
     expect(parent?.content, 'the parent');
   });
+
+  test(
+    'a live edit of the parent is read again, so the quote shows it',
+    () async {
+      final live = StreamController<api.ServerEvent>.broadcast();
+      addTearDown(live.close);
+      var content = 'the parent';
+      final container = ProviderContainer(
+        overrides: [
+          sessionProvider.overrideWithValue(
+            api.SessionStore(
+              tokens: const api.TokenPair(
+                userId: 'me',
+                accessToken: 'access',
+                refreshToken: 'refresh',
+                accessExpiresAt: 0,
+              ),
+            ),
+          ),
+          liveEventsProvider.overrideWithValue(live.stream),
+          mockApiOverride((request) async => _parent(content: content)),
+        ],
+      );
+      addTearDown(container.dispose);
+      final held = container.listen(replyParentProvider(_key), (_, _) {});
+      addTearDown(held.close);
+      expect(
+        (await container.read(replyParentProvider(_key).future))?.content,
+        'the parent',
+      );
+
+      content = 'the edited parent';
+      live.add(
+        api.MessageEdited(
+          api.Message(
+            id: 'm1',
+            channelId: 'c1',
+            authorId: 'priya',
+            authorDisplayName: 'priya',
+            seq: 1,
+            content: content,
+            editedAt: 2000,
+            createdAt: 1000,
+          ),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        (await container.read(replyParentProvider(_key).future))?.content,
+        'the edited parent',
+      );
+    },
+  );
 }

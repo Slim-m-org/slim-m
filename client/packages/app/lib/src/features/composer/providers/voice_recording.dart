@@ -231,6 +231,7 @@ class VoiceRecorder
                   '(pulseaudio-utils) installed.'
             : 'The microphone could not be opened.',
       );
+      _track(backend.cancel());
       return;
     }
     if (_superseded(attempt, backend)) return;
@@ -241,6 +242,7 @@ class VoiceRecorder
             'Microphone access is off. Allow it in your device settings '
             'to record a voice message.',
       );
+      _track(backend.cancel());
       return;
     }
     _backend = backend;

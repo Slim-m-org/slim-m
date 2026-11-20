@@ -311,6 +311,21 @@ void main() {
     },
   );
 
+  testWidgets('a channel is reordered inside a category it may not be filed '
+      'under', (tester) async {
+    final shut = _c1.copyWith(fileable: const Value(false));
+    final rail = await _pump(tester, sections: _sections(c1: shut));
+    final from = tester.getCenter(find.text('b'));
+    final gesture = await _press(tester, from);
+    final c = _rect(tester, 'c');
+    await _carryTo(tester, gesture, from, Offset(from.dx, c.bottom));
+    await gesture.up();
+    await tester.pump(_hold);
+
+    expect(rail.channelReports, hasLength(1));
+    expect(_ids(rail.channelReports.single, 'c1'), ['c', 'b']);
+  });
+
   testWidgets('a category can land at the very start and the very end', (
     tester,
   ) async {

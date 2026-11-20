@@ -111,6 +111,30 @@ ProviderContainer _containerWith({
 }
 
 void main() {
+  test('a lobby, whose chat is never shown, is not offered', () async {
+    final container = _containerWith(
+      channels: [
+        _channelJson(id: 'c1', name: 'general', permissions: Perm.sendMessages),
+        {
+          ..._channelJson(
+            id: 'c2',
+            name: 'lobby',
+            permissions: Perm.sendMessages,
+          ),
+          'kind': 'voice',
+          'creates_rooms': true,
+        },
+      ],
+      dms: const [],
+    );
+
+    final targets = await container.read(
+      forwardTargetsProvider((hasAttachments: false)).future,
+    );
+
+    expect(targets.map((t) => t.channelId), ['c1']);
+  });
+
   test('offers a channel the caller may send in, and excludes one they '
       'may not', () async {
     final container = _containerWith(

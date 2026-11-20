@@ -11,6 +11,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_text_controller.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_edit_field.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_hover_toolbar.dart';
@@ -62,6 +63,25 @@ Color? _fill(WidgetTester tester) {
 }
 
 void main() {
+  testWidgets('spaces typed at the end of an edit wrap like the composer', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_row());
+    await tester.pump();
+
+    final field = find.byWidgetPredicate((w) => w is EditableText);
+    await tester.enterText(field, 'a    b');
+    await tester.pump();
+
+    final controller = tester.widget<EditableText>(field).controller;
+    expect(controller.text, 'a    b');
+    final shown = controller
+        .buildTextSpan(context: tester.element(field), withComposing: false)
+        .toPlainText();
+    expect(shown, wrappingSpaces('a    b'));
+    expect(shown, contains('\u00A0'));
+  });
+
   testWidgets('the whole row takes the raised fill while editing', (
     tester,
   ) async {
