@@ -59,9 +59,15 @@ void main() {
           .jumpTo('c1', 'm100');
       await flush(tester);
 
-      expect(toastMessages(tester), [
-        'Could not load older messages to find it. Try again.',
-      ]);
+      expect(
+        find.text('Could not load older messages to find it. Try again.'),
+        findsOneWidget,
+        reason: 'said above the transcript, where the jump was going',
+      );
+      expect(toastMessages(tester), isEmpty);
+
+      await tester.tap(find.text('Dismiss'));
+      await flush(tester);
       expect(
         harness.container.read(messageJumpProvider),
         isA<MessageJumpIdle>(),
