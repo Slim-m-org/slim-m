@@ -105,7 +105,8 @@ final forwardTargetsProvider = FutureProvider.autoDispose
 
       return [
         for (final channel in channels)
-          if ((channel.permissions ?? 0).hasPermission(Perm.sendMessages) &&
+          if (!channel.createsRooms &&
+              (channel.permissions ?? 0).hasPermission(Perm.sendMessages) &&
               (!query.hasAttachments ||
                   (channel.permissions ?? 0).hasPermission(Perm.attachFiles)))
             ForwardTarget(
