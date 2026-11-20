@@ -66,7 +66,7 @@ async fn a_last_disconnect_reads_the_users_visibility_once_for_everyone() {
     tracing::subscriber::set_global_default(
         Registry::default().with(CountVisibilityReads(Arc::clone(&reads))),
     )
-    .expect("no other subscriber in this binary");
+    .expect("a global subscriber needs nextest's one process per test");
 
     let (store, _guard) = support::new_store("slimm-presence-departure").await;
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();

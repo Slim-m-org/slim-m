@@ -71,7 +71,7 @@ async fn live_canvas_frames_cost_no_permission_queries_per_frame() {
     tracing::subscriber::set_global_default(
         Registry::default().with(CountQueries(Arc::clone(&counted))),
     )
-    .expect("no other subscriber in this binary");
+    .expect("a global subscriber needs nextest's one process per test");
 
     let (store, _guard) = support::new_store("slimm-canvas-gate-cost").await;
     let alice = store.create_user("alice", "alice").await.unwrap();

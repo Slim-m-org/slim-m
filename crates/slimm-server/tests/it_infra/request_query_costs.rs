@@ -141,7 +141,7 @@ async fn hot_reads_and_writes_cost_a_flat_number_of_statements() {
     tracing::subscriber::set_global_default(
         Registry::default().with(RecordStatements(log.clone())),
     )
-    .unwrap();
+    .expect("a global subscriber needs nextest's one process per test");
     let (store, _guard) = support::new_store("slimm-request-costs").await;
     let admin = support::app::register_account(&store, "admin").await;
     let general = support::app::general_channel_id(&store).await;
