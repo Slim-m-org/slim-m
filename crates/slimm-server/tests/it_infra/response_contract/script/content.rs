@@ -464,7 +464,7 @@ pub(super) async fn message_calls(c: &mut Contract, root: &str, channel: &str) -
     .await;
     c.get(
         "searchMessagesAll",
-        "/search/messages?has=poll&limit=10",
+        "/search/messages?has=poll&after_ms=0&limit=10",
         root,
     )
     .await;

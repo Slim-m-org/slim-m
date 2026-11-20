@@ -32,6 +32,7 @@ pub mod identity;
 pub mod ids;
 pub mod limits;
 pub mod media;
+mod mention_directness_backfill;
 pub mod mentions;
 pub mod module_runtime;
 mod net_guard;
@@ -155,6 +156,7 @@ pub async fn run() -> anyhow::Result<()> {
     export::spawn_export_sweep(store.clone(), media.clone());
     sweeps::spawn_canvas_op_sweep(store.clone());
     forward_backfill::spawn_forward_backfill(store.clone(), media.clone());
+    mention_directness_backfill::spawn_mention_directness_backfill(store.clone());
     soundboard::starter::spawn_seed(store.clone(), media.clone());
     attachment_text::spawn_attachment_text_sweep(store.clone(), media.clone());
     let auth = auth::Auth::new(config.hash_concurrency)?;

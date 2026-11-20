@@ -6182,7 +6182,7 @@ paths:
         so `w` finds a lone `w` and not `Windows`. A `q` written in FTS5 syntax (`AND`/`OR`/`NOT`,
         `"phrase"`, `NEAR(...)`, an explicit `*`) keeps its exact meaning.
         `q` is optional: a search made entirely of `from`/`in`/`has`/
-        `mentions`/`pinned`/`after_date`/`before_date` needs no free text at
+        `mentions`/`pinned` or the date bounds needs no free text at
         all, though at least one of `q` and those filters is required. The
         query grammar a client builds these from is docs/search.md. Results are
         permission-filtered exactly like listing and keyset paginated on
@@ -6265,9 +6265,9 @@ paths:
           in: query
           description: >
             Only messages that directly mention this username, ignoring case
-            (`mentions:username`): an `@username` in the text that pinged
-            them, never an `@everyone`, `@here` or role mention that reached
-            them. A username matching no live account answers with no
+            (`mentions:username`): an `@username` outside code that pinged
+            them, never an `@everyone`, `@here`, role or reply ping that
+            reached them. A username matching no live account answers with no
             results, never an error, the same rule `from` follows.
           schema:
             type: string
@@ -6294,6 +6294,23 @@ paths:
           schema:
             type: string
             format: date
+        - name: after_ms
+          in: query
+          description: >
+            Inclusive start as an instant, epoch milliseconds. The same bound
+            as `after_date` for a client that means the searcher's own local
+            day, which a UTC date cannot say; given both, the later start holds.
+          schema:
+            type: integer
+            format: int64
+        - name: before_ms
+          in: query
+          description: >
+            Exclusive end as an instant, epoch milliseconds, the counterpart of
+            `before_date`; given both, the earlier end holds.
+          schema:
+            type: integer
+            format: int64
         - name: include_threads
           in: query
           description: >
@@ -6408,9 +6425,9 @@ paths:
           in: query
           description: >
             Only messages that directly mention this username, ignoring case
-            (`mentions:username`): an `@username` in the text that pinged
-            them, never an `@everyone`, `@here` or role mention that reached
-            them. A username matching no live account answers with no
+            (`mentions:username`): an `@username` outside code that pinged
+            them, never an `@everyone`, `@here`, role or reply ping that
+            reached them. A username matching no live account answers with no
             results, never an error, the same rule `from` follows.
           schema:
             type: string
@@ -6437,6 +6454,23 @@ paths:
           schema:
             type: string
             format: date
+        - name: after_ms
+          in: query
+          description: >
+            Inclusive start as an instant, epoch milliseconds. The same bound
+            as `after_date` for a client that means the searcher's own local
+            day, which a UTC date cannot say; given both, the later start holds.
+          schema:
+            type: integer
+            format: int64
+        - name: before_ms
+          in: query
+          description: >
+            Exclusive end as an instant, epoch milliseconds, the counterpart of
+            `before_date`; given both, the earlier end holds.
+          schema:
+            type: integer
+            format: int64
         - name: include_threads
           in: query
           description: >

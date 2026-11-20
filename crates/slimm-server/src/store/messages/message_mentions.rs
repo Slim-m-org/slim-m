@@ -15,12 +15,14 @@ impl Store {
     /// Replaces `message_id`'s whole mention set. Delete-then-insert rather
     /// than a diff: the set is small (at most a channel's viewer count) and
     /// this is called at most once per send and once per content-changing
-    /// edit, never per read.
+    /// edit, never per read. `direct` are the ones named by a plain `@username`
+    /// outside code (see `push::recipients::directly_named`), for search's `mentions:`.
     pub async fn set_message_mentions(
         &self,
         message_id: MessageId,
         mentioned: &[UserId],
         reply_ping: Option<UserId>,
+        direct: &[UserId],
     ) -> anyhow::Result<()> {
         // Nothing to clear or write is the ordinary send; skip the write gate's turn.
         if mentioned.is_empty() && !self.has_stored_mentions(message_id).await? {
@@ -35,11 +37,14 @@ impl Store {
         .await?;
         for user_id in mentioned {
             let via_reply = reply_ping == Some(*user_id);
+            let is_direct = direct.contains(user_id);
             sqlx::query!(
-                "INSERT INTO message_mentions (user_id, message_id, via_reply) VALUES (?, ?, ?)",
+                "INSERT INTO message_mentions (user_id, message_id, via_reply, direct) \
+                 VALUES (?, ?, ?, ?)",
                 user_id,
                 message_id,
-                via_reply
+                via_reply,
+                is_direct
             )
             .execute(&mut *tx)
             .await?;

@@ -194,18 +194,19 @@ async fn hot_reads_and_writes_cost_a_flat_number_of_statements() {
         .unwrap()
         .message
         .id;
-    let (ran, result) = statements_of(&log, store.set_message_mentions(message, &[], None)).await;
+    let (ran, result) =
+        statements_of(&log, store.set_message_mentions(message, &[], None, &[])).await;
     result.unwrap();
     assert!(
         ran.iter().all(|sql| !sql.starts_with("DELETE")),
         "an empty mention set for a fresh message ran {ran:?}"
     );
     store
-        .set_message_mentions(message, &[admin.id], None)
+        .set_message_mentions(message, &[admin.id], None, &[])
         .await
         .unwrap();
     store
-        .set_message_mentions(message, &[], None)
+        .set_message_mentions(message, &[], None, &[])
         .await
         .unwrap();
     let still = store

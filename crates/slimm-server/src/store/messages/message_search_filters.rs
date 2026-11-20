@@ -61,48 +61,37 @@ impl HasKind {
         HasKind::ALL.into_iter().find(|kind| kind.as_str() == value)
     }
 
+    /// Each is an `IN` over the table that holds the kind, so the planner can start from the
+    /// few messages carrying it rather than test every message in scope one by one.
     fn predicate(self) -> &'static str {
         match self {
-            HasKind::Attachment => {
-                " AND EXISTS (SELECT 1 FROM message_attachments ma WHERE ma.message_id = m.id)"
-            }
+            HasKind::Attachment => " AND m.id IN (SELECT message_id FROM message_attachments)",
             HasKind::Image => ATTACHMENT_IMAGE,
             HasKind::Video => ATTACHMENT_VIDEO,
             HasKind::Voice => {
-                " AND EXISTS (SELECT 1 FROM message_attachments ma \
-                 WHERE ma.message_id = m.id AND ma.voice_duration_ms IS NOT NULL)"
+                " AND m.id IN (SELECT message_id FROM message_attachments \
+                 WHERE voice_duration_ms IS NOT NULL)"
             }
             HasKind::File => ATTACHMENT_FILE,
             HasKind::Link => " AND (m.content LIKE '%http://%' OR m.content LIKE '%https://%')",
-            HasKind::Embed => {
-                " AND EXISTS (SELECT 1 FROM message_embeds me WHERE me.message_id = m.id)"
-            }
-            HasKind::Poll => " AND EXISTS (SELECT 1 FROM polls p WHERE p.message_id = m.id)",
+            HasKind::Embed => " AND m.id IN (SELECT message_id FROM message_embeds)",
+            HasKind::Poll => " AND m.id IN (SELECT message_id FROM polls)",
         }
     }
 }
 
-const ATTACHMENT_IMAGE: &str = " AND EXISTS (SELECT 1 FROM message_attachments ma \
+const ATTACHMENT_IMAGE: &str = " AND m.id IN (SELECT ma.message_id FROM message_attachments ma \
      JOIN attachments a ON a.sha256 = ma.sha256 \
-     WHERE ma.message_id = m.id AND ma.voice_duration_ms IS NULL \
-     AND a.content_type LIKE 'image/%')";
+     WHERE ma.voice_duration_ms IS NULL AND a.content_type LIKE 'image/%')";
 
-const ATTACHMENT_VIDEO: &str = " AND EXISTS (SELECT 1 FROM message_attachments ma \
+const ATTACHMENT_VIDEO: &str = " AND m.id IN (SELECT ma.message_id FROM message_attachments ma \
      JOIN attachments a ON a.sha256 = ma.sha256 \
-     WHERE ma.message_id = m.id AND ma.voice_duration_ms IS NULL \
-     AND a.content_type LIKE 'video/%')";
+     WHERE ma.voice_duration_ms IS NULL AND a.content_type LIKE 'video/%')";
 
-const ATTACHMENT_FILE: &str = " AND EXISTS (SELECT 1 FROM message_attachments ma \
+const ATTACHMENT_FILE: &str = " AND m.id IN (SELECT ma.message_id FROM message_attachments ma \
      JOIN attachments a ON a.sha256 = ma.sha256 \
-     WHERE ma.message_id = m.id AND ma.voice_duration_ms IS NULL \
+     WHERE ma.voice_duration_ms IS NULL \
      AND a.content_type NOT LIKE 'image/%' AND a.content_type NOT LIKE 'video/%')";
-
-/// The person `mentions:` names, resolved by `http::search` to a live account.
-#[derive(Debug, Clone)]
-pub struct MentionedUser {
-    pub id: UserId,
-    pub username: String,
-}
 
 /// The operators of an advanced search, already resolved to what SQL needs.
 /// The channel scope is not here: [`crate::store::Store::search_messages`]
@@ -112,8 +101,9 @@ pub struct MessageSearchFilters {
     /// `from:`, compared case-insensitively; live usernames are unique that way since migration 0095.
     pub author_username: Option<String>,
     pub has: Vec<HasKind>,
-    /// `mentions:`: a direct `@username` that pinged them, never an `@everyone` or role reach.
-    pub mentions: Option<MentionedUser>,
+    /// `mentions:`, resolved to a live account: a direct `@username` outside code that
+    /// pinged them (`message_mentions.direct`), never an `@everyone`, `@here`, role or reply ping.
+    pub mentions: Option<UserId>,
     /// `pinned:true` keeps only pinned messages, `pinned:false` only unpinned ones.
     pub pinned: Option<bool>,
     /// Inclusive: `created_at >= after_ms`.
@@ -127,7 +117,7 @@ pub struct MessageSearchFilters {
 
 impl MessageSearchFilters {
     /// Appends every operator's predicate to `builder`, each starting with ` AND `.
-    pub(super) fn push_predicates(&self, builder: &mut QueryBuilder<Sqlite>) {
+    pub fn push_predicates(&self, builder: &mut QueryBuilder<Sqlite>) {
         if let Some(username) = &self.author_username {
             builder.push(" AND m.author_id = (SELECT id FROM users WHERE lower(username) = lower(");
             builder.push_bind(username.to_owned());
@@ -136,20 +126,21 @@ impl MessageSearchFilters {
         for kind in &self.has {
             builder.push(kind.predicate());
         }
-        if let Some(mentioned) = &self.mentions {
+        if let Some(mentioned) = self.mentions {
             builder.push(" AND m.id IN (SELECT message_id FROM message_mentions WHERE user_id = ");
-            builder.push_bind(mentioned.id);
-            builder.push(") AND instr(lower(m.content), ");
-            builder.push_bind(format!("@{}", mentioned.username.to_lowercase()));
-            builder.push(") > 0");
+            builder.push_bind(mentioned);
+            builder.push(" AND direct = 1)");
         }
-        if let Some(pinned) = self.pinned {
-            builder.push(if pinned {
-                " AND EXISTS"
-            } else {
-                " AND NOT EXISTS"
-            });
-            builder.push(PINNED_ROW);
+        match self.pinned {
+            Some(true) => {
+                builder.push(" AND m.id IN (SELECT message_id FROM pinned_messages)");
+            }
+            Some(false) => {
+                builder.push(
+                    " AND NOT EXISTS (SELECT 1 FROM pinned_messages pm WHERE pm.message_id = m.id)",
+                );
+            }
+            None => {}
         }
         if let Some(after_ms) = self.after_ms {
             builder.push(" AND m.created_at >= ");
@@ -168,8 +159,6 @@ impl MessageSearchFilters {
         }
     }
 }
-
-const PINNED_ROW: &str = " (SELECT 1 FROM pinned_messages pm WHERE pm.message_id = m.id)";
 
 #[cfg(test)]
 mod tests {

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE message_mentions SET direct = 1 WHERE message_id = ? AND user_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "fadcd368f1cf8fbb12fc76d4a2dbee7aaec0bbd0f4b72b0f331dd79b2f420c66"
+}

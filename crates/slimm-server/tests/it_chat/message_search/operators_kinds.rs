@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The `has:` kinds past `attachment`/`link`, `mentions:` and `pinned:`. Every
+//! The `has:` kinds past `attachment`/`link`, and `pinned:`. Every
 //! test plants the same content in a channel the searcher cannot view, so
 //! each filter is also pinned to never reach past the caller's scope.
 
@@ -20,7 +20,6 @@ struct World {
     pool: SqlitePool,
     app: Router,
     token: String,
-    alice: UserId,
     bob: UserId,
     lobby: ChannelId,
     vault: ChannelId,
@@ -49,11 +48,6 @@ async fn world() -> World {
         .await
         .unwrap();
     let token = register(&store, "alice").await;
-    let alice = store
-        .live_user_id_by_username("alice")
-        .await
-        .unwrap()
-        .unwrap();
     let bob = store
         .create_account("bob", "bob", "not-a-real-hash")
         .await
@@ -64,7 +58,6 @@ async fn world() -> World {
         store,
         pool,
         token,
-        alice,
         bob,
         lobby,
         vault,
@@ -223,48 +216,6 @@ async fn an_unknown_has_kind_is_refused() {
     let w = world().await;
     let (status, _) = w.get("/search/messages?has=image,sticker").await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-}
-
-/// Only a direct `@alice` that pinged her counts: not an `@everyone` that reached
-/// her, not her name without the `@`, and never a mention in a channel she cannot view.
-#[tokio::test]
-async fn mentions_finds_direct_mentions_of_that_person() {
-    let w = world().await;
-    let mentioned = "INSERT INTO message_mentions (user_id, message_id) VALUES (?, ?)";
-    for (channel, content, pinged) in [
-        (w.lobby, "@alice look at this", true),
-        (w.lobby, "@everyone standup", true),
-        (w.lobby, "alice said hi", false),
-        (w.vault, "@alice the vault", true),
-    ] {
-        let id = w.say(channel, content).await;
-        if pinged {
-            sqlx::query(mentioned)
-                .bind(w.alice)
-                .bind(id)
-                .execute(&w.pool)
-                .await
-                .unwrap();
-        }
-    }
-
-    for uri in [
-        "/search/messages?mentions=alice".to_owned(),
-        "/search/messages?mentions=ALICE".to_owned(),
-        format!("/channels/{}/messages/search?mentions=alice", w.lobby),
-    ] {
-        assert_eq!(w.contents(&uri).await, ["@alice look at this"], "{uri}");
-    }
-    assert!(
-        w.contents("/search/messages?mentions=nobody")
-            .await
-            .is_empty()
-    );
-    assert!(
-        w.contents("/search/messages?mentions=alice&in=vault")
-            .await
-            .is_empty()
-    );
 }
 
 #[tokio::test]

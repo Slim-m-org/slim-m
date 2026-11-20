@@ -19,7 +19,7 @@ use super::messages::{MessageDto, parse_uuid};
 use super::search_dates::parse_date_start;
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
-use crate::store::{HasKind, MentionedUser, MessageSearchFilters, SearchError};
+use crate::store::{HasKind, MessageSearchFilters, SearchError};
 
 /// Longest a search query may be.
 use crate::limits::MAX_QUERY_CHARS;
@@ -69,6 +69,10 @@ struct SearchParams {
     /// `before:YYYY-MM-DD`. Named `before_date` on the wire for the same
     /// reason, and because `before` already means "seq cursor" here.
     before_date: Option<String>,
+    /// The same bounds as instants, epoch milliseconds: inclusive `after_ms`, exclusive
+    /// `before_ms`. A client sends the searcher's own local midnights here, which a UTC date cannot say.
+    after_ms: Option<i64>,
+    before_ms: Option<i64>,
     /// Also search the live threads of the channels in scope. Opt-in because a
     /// client from before thread hits opens one as if the thread were a channel.
     include_threads: Option<bool>,
@@ -199,16 +203,19 @@ fn parse_request(
 ) -> Result<(Option<&str>, MessageSearchFilters, i64), ApiError> {
     let query = validate_query(params.q.as_deref())?;
     let has = parse_has(params.has.as_deref())?;
-    let after_ms = params
+    let after_day = params
         .after_date
         .as_deref()
         .map(parse_date_start)
         .transpose()?;
-    let before_ms = params
+    let before_day = params
         .before_date
         .as_deref()
         .map(parse_date_start)
         .transpose()?;
+    // Given both ways, the tighter bound of each kind holds.
+    let after_ms = after_day.into_iter().chain(params.after_ms).max();
+    let before_ms = before_day.into_iter().chain(params.before_ms).min();
 
     if query.is_none()
         && params.from.is_none()
@@ -403,10 +410,7 @@ async fn with_mentioned(
     let Some(id) = state.store.live_user_id_by_username(username).await? else {
         return Ok(None);
     };
-    filters.mentions = Some(MentionedUser {
-        id,
-        username: username.to_owned(),
-    });
+    filters.mentions = Some(id);
     Ok(Some(filters))
 }
 

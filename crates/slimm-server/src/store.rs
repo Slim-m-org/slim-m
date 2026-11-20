@@ -223,7 +223,7 @@ pub use message_module_origins::{ModuleOrigin, ModuleStamp};
 pub use message_ops::{MessageOpEntry, MessageOpKind, MessageOpsPage};
 pub use message_retention::{MAX_MESSAGE_RETENTION_DAYS, PrunedMessage, SweptMessageRetention};
 pub use message_search::{FtsQuery, SearchError};
-pub use message_search_filters::{HasKind, MentionedUser, MessageSearchFilters};
+pub use message_search_filters::{HasKind, MessageSearchFilters};
 pub use messages::{Edited, MessageDeletion, NewMessage, SendError, Sent};
 pub use messages_bulk::{BulkDeleteError, BulkDeletion, DeletedMessage};
 pub use models::{Channel, ChannelCategory, ChannelRoom, Message, User};

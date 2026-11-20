@@ -182,6 +182,15 @@ pub(crate) struct MentionKinds {
     pub mass_or_role: bool,
 }
 
+/// The usernames `content` names with a plain `@name` outside code, the mass words excluded:
+/// who it mentions directly rather than through `@everyone`, `@here` or a role.
+pub(crate) fn directly_named(content: &str) -> Vec<String> {
+    let mut names = mentioned_usernames(&prose_outside_code(content));
+    names.remove(EVERYONE_MENTION);
+    names.remove(HERE_MENTION);
+    names.into_iter().collect()
+}
+
 pub(crate) fn mention_kinds(content: &str) -> MentionKinds {
     let prose = prose_outside_code(content);
     let mut names = mentioned_usernames(&prose);
