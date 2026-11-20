@@ -20,16 +20,13 @@ import '../../../providers/rate_limit_retry.dart';
 /// their read markers, deduplicating a concurrent caller into the refresh
 /// already running rather than starting a second.
 class ChannelRefresher {
-  ChannelRefresher({this.onLost, this.onCategoriesNest, this.onHeadingOnly});
+  ChannelRefresher({this.onLost, this.onCategoriesNest});
 
   /// Told the channels a refresh dropped because the server stopped listing them, by id with their name.
   final void Function(Map<String, String> lost)? onLost;
 
   /// Told whether a non-empty category listing came from a server that nests them.
   final void Function(bool nests)? onCategoriesNest;
-
-  /// Told the ids of the categories the listing marked not the caller's to manage.
-  final void Function(Set<String> ids)? onHeadingOnly;
 
   Future<void>? _inFlight;
   Completer<void>? _trailing;
@@ -106,10 +103,6 @@ class ChannelRefresher {
     if (categories.isNotEmpty) {
       onCategoriesNest?.call(categories.first.serverNests);
     }
-    onHeadingOnly?.call({
-      for (final c in categories)
-        if (!c.manageable) c.id,
-    });
 
     await _hydrateReadMarkers(api, store, isCurrent: isCurrent, wait: wait);
   }

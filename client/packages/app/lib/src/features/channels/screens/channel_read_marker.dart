@@ -92,10 +92,10 @@ class ReadMarker {
     int? previous, {
     bool local = true,
   }) async {
-    // Read before the first await: the widget can be disposed while this runs.
-    final storeFuture = _ref.read(storeProvider.future);
-    final client = _ref.read(apiProvider);
     try {
+      // Read before the first await, and inside the try: the widget can be disposed while this runs.
+      final storeFuture = _ref.read(storeProvider.future);
+      final client = _ref.read(apiProvider);
       final store = await storeFuture;
       // Reading clears the manual mark here too, so the dot goes out at once.
       if (local) {

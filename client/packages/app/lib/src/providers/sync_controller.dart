@@ -127,8 +127,6 @@ class SyncController extends StateNotifier<SyncStatus> {
     },
     onCategoriesNest: (nests) =>
         _ref.read(categoriesNestProvider.notifier).state = nests,
-    onHeadingOnly: (ids) =>
-        _ref.read(headingOnlyCategoriesProvider.notifier).state = ids,
   );
 
   /// Whether this controller has been live before, which tells a reconnect from

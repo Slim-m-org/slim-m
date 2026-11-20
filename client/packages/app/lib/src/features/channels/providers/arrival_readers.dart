@@ -11,8 +11,9 @@ abstract interface class ArrivalReader {
   /// Whether a message arriving in [channelId] now would be read on sight.
   bool readsOnArrival(String channelId);
 
-  /// Tells the server, after the store marked [seq] read with the message.
-  void readOnArrival(String channelId, int seq);
+  /// Tells the server, after the store marked [seq] read with the message;
+  /// false when this reader has gone since it was asked, so the caller tells it.
+  bool readOnArrival(String channelId, int seq);
 }
 
 /// The readers mounted in this account.

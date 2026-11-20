@@ -5,6 +5,7 @@
 /// and 3). Real mouse gestures, and the line is asserted by its geometry.
 library;
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -45,9 +46,9 @@ final _c1 = _cat('c1');
 final _c2 = _cat('c2');
 final _c3 = _cat('c3');
 
-List<ChannelSection> _sections() => [
+List<ChannelSection> _sections({ChannelCategoryRow? c1}) => [
   (null, [_channel('a')]),
-  (_c1, [_channel('b'), _channel('c')]),
+  (c1 ?? _c1, [_channel('b'), _channel('c')]),
   (_c2, [_channel('d')]),
   (_c3, <Channel>[]),
 ];
@@ -64,7 +65,6 @@ Future<_Rail> _pump(
   List<ChannelSection>? sections,
   double height = 900,
   bool hideEmptyUncategorised = false,
-  Set<String> headingOnly = const {},
 }) async {
   tester.view.physicalSize = Size(1280, height);
   tester.view.devicePixelRatio = 1;
@@ -81,7 +81,6 @@ Future<_Rail> _pump(
           child: ReorderableChannelRows(
             sections: sections ?? _sections(),
             canManage: true,
-            headingOnly: headingOnly,
             onReorder: rail.channelReports.add,
             onReorderCategories: (groups) =>
                 rail.categoryReports.add(_topLevel(groups)),
@@ -283,7 +282,8 @@ void main() {
   testWidgets('a category listed only as a heading never lifts', (
     tester,
   ) async {
-    final rail = await _pump(tester, headingOnly: {'c1'});
+    final heading = _c1.copyWith(manageable: const Value(false));
+    final rail = await _pump(tester, sections: _sections(c1: heading));
     final from = tester.getCenter(find.text('header:c1'));
     final gesture = await _press(tester, from);
 
@@ -293,6 +293,23 @@ void main() {
     await tester.pump(_hold);
     expect(rail.categoryReports, isEmpty);
   });
+
+  testWidgets(
+    'a channel is never dropped into a category it may not be filed under',
+    (tester) async {
+      final shut = _c1.copyWith(fileable: const Value(false));
+      final rail = await _pump(tester, sections: _sections(c1: shut));
+      final from = tester.getCenter(find.text('a'));
+      final gesture = await _press(tester, from);
+      final b = _rect(tester, 'b');
+      await _carryTo(tester, gesture, from, Offset(from.dx, b.bottom));
+      await gesture.up();
+      await tester.pump(_hold);
+      for (final report in rail.channelReports) {
+        expect(_ids(report, 'c1'), isNot(contains('a')));
+      }
+    },
+  );
 
   testWidgets('a category can land at the very start and the very end', (
     tester,

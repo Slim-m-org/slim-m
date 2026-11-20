@@ -2474,8 +2474,27 @@ class $ChannelCategoriesTable extends ChannelCategories
   late final GeneratedColumn<String> parentId = GeneratedColumn<String>(
       'parent_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _manageableMeta =
+      const VerificationMeta('manageable');
   @override
-  List<GeneratedColumn> get $columns => [id, name, position, parentId];
+  late final GeneratedColumn<bool> manageable = GeneratedColumn<bool>(
+      'manageable', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("manageable" IN (0, 1))'));
+  static const VerificationMeta _fileableMeta =
+      const VerificationMeta('fileable');
+  @override
+  late final GeneratedColumn<bool> fileable = GeneratedColumn<bool>(
+      'fileable', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("fileable" IN (0, 1))'));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, name, position, parentId, manageable, fileable];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2505,6 +2524,16 @@ class $ChannelCategoriesTable extends ChannelCategories
       context.handle(_parentIdMeta,
           parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta));
     }
+    if (data.containsKey('manageable')) {
+      context.handle(
+          _manageableMeta,
+          manageable.isAcceptableOrUnknown(
+              data['manageable']!, _manageableMeta));
+    }
+    if (data.containsKey('fileable')) {
+      context.handle(_fileableMeta,
+          fileable.isAcceptableOrUnknown(data['fileable']!, _fileableMeta));
+    }
     return context;
   }
 
@@ -2522,6 +2551,10 @@ class $ChannelCategoriesTable extends ChannelCategories
           .read(DriftSqlType.int, data['${effectivePrefix}position'])!,
       parentId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}parent_id']),
+      manageable: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}manageable']),
+      fileable: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}fileable']),
     );
   }
 
@@ -2542,11 +2575,20 @@ class ChannelCategoryRow extends DataClass
 
   /// The top-level category this one sits in, or null for a top-level one.
   final String? parentId;
+
+  /// Whether this account may rename, move or delete it; false for a heading
+  /// only, null before a listing said, read through `CategoryReach`.
+  final bool? manageable;
+
+  /// Whether this account may file a channel or sub-category under it; null as above.
+  final bool? fileable;
   const ChannelCategoryRow(
       {required this.id,
       required this.name,
       required this.position,
-      this.parentId});
+      this.parentId,
+      this.manageable,
+      this.fileable});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2555,6 +2597,12 @@ class ChannelCategoryRow extends DataClass
     map['position'] = Variable<int>(position);
     if (!nullToAbsent || parentId != null) {
       map['parent_id'] = Variable<String>(parentId);
+    }
+    if (!nullToAbsent || manageable != null) {
+      map['manageable'] = Variable<bool>(manageable);
+    }
+    if (!nullToAbsent || fileable != null) {
+      map['fileable'] = Variable<bool>(fileable);
     }
     return map;
   }
@@ -2567,6 +2615,12 @@ class ChannelCategoryRow extends DataClass
       parentId: parentId == null && nullToAbsent
           ? const Value.absent()
           : Value(parentId),
+      manageable: manageable == null && nullToAbsent
+          ? const Value.absent()
+          : Value(manageable),
+      fileable: fileable == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fileable),
     );
   }
 
@@ -2578,6 +2632,8 @@ class ChannelCategoryRow extends DataClass
       name: serializer.fromJson<String>(json['name']),
       position: serializer.fromJson<int>(json['position']),
       parentId: serializer.fromJson<String?>(json['parentId']),
+      manageable: serializer.fromJson<bool?>(json['manageable']),
+      fileable: serializer.fromJson<bool?>(json['fileable']),
     );
   }
   @override
@@ -2588,6 +2644,8 @@ class ChannelCategoryRow extends DataClass
       'name': serializer.toJson<String>(name),
       'position': serializer.toJson<int>(position),
       'parentId': serializer.toJson<String?>(parentId),
+      'manageable': serializer.toJson<bool?>(manageable),
+      'fileable': serializer.toJson<bool?>(fileable),
     };
   }
 
@@ -2595,12 +2653,16 @@ class ChannelCategoryRow extends DataClass
           {String? id,
           String? name,
           int? position,
-          Value<String?> parentId = const Value.absent()}) =>
+          Value<String?> parentId = const Value.absent(),
+          Value<bool?> manageable = const Value.absent(),
+          Value<bool?> fileable = const Value.absent()}) =>
       ChannelCategoryRow(
         id: id ?? this.id,
         name: name ?? this.name,
         position: position ?? this.position,
         parentId: parentId.present ? parentId.value : this.parentId,
+        manageable: manageable.present ? manageable.value : this.manageable,
+        fileable: fileable.present ? fileable.value : this.fileable,
       );
   ChannelCategoryRow copyWithCompanion(ChannelCategoriesCompanion data) {
     return ChannelCategoryRow(
@@ -2608,6 +2670,9 @@ class ChannelCategoryRow extends DataClass
       name: data.name.present ? data.name.value : this.name,
       position: data.position.present ? data.position.value : this.position,
       parentId: data.parentId.present ? data.parentId.value : this.parentId,
+      manageable:
+          data.manageable.present ? data.manageable.value : this.manageable,
+      fileable: data.fileable.present ? data.fileable.value : this.fileable,
     );
   }
 
@@ -2617,13 +2682,16 @@ class ChannelCategoryRow extends DataClass
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('position: $position, ')
-          ..write('parentId: $parentId')
+          ..write('parentId: $parentId, ')
+          ..write('manageable: $manageable, ')
+          ..write('fileable: $fileable')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, position, parentId);
+  int get hashCode =>
+      Object.hash(id, name, position, parentId, manageable, fileable);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2631,7 +2699,9 @@ class ChannelCategoryRow extends DataClass
           other.id == this.id &&
           other.name == this.name &&
           other.position == this.position &&
-          other.parentId == this.parentId);
+          other.parentId == this.parentId &&
+          other.manageable == this.manageable &&
+          other.fileable == this.fileable);
 }
 
 class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
@@ -2639,12 +2709,16 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
   final Value<String> name;
   final Value<int> position;
   final Value<String?> parentId;
+  final Value<bool?> manageable;
+  final Value<bool?> fileable;
   final Value<int> rowid;
   const ChannelCategoriesCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.position = const Value.absent(),
     this.parentId = const Value.absent(),
+    this.manageable = const Value.absent(),
+    this.fileable = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ChannelCategoriesCompanion.insert({
@@ -2652,6 +2726,8 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
     required String name,
     this.position = const Value.absent(),
     this.parentId = const Value.absent(),
+    this.manageable = const Value.absent(),
+    this.fileable = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         name = Value(name);
@@ -2660,6 +2736,8 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
     Expression<String>? name,
     Expression<int>? position,
     Expression<String>? parentId,
+    Expression<bool>? manageable,
+    Expression<bool>? fileable,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2667,6 +2745,8 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
       if (name != null) 'name': name,
       if (position != null) 'position': position,
       if (parentId != null) 'parent_id': parentId,
+      if (manageable != null) 'manageable': manageable,
+      if (fileable != null) 'fileable': fileable,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2676,12 +2756,16 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
       Value<String>? name,
       Value<int>? position,
       Value<String?>? parentId,
+      Value<bool?>? manageable,
+      Value<bool?>? fileable,
       Value<int>? rowid}) {
     return ChannelCategoriesCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
       position: position ?? this.position,
       parentId: parentId ?? this.parentId,
+      manageable: manageable ?? this.manageable,
+      fileable: fileable ?? this.fileable,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2701,6 +2785,12 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
     if (parentId.present) {
       map['parent_id'] = Variable<String>(parentId.value);
     }
+    if (manageable.present) {
+      map['manageable'] = Variable<bool>(manageable.value);
+    }
+    if (fileable.present) {
+      map['fileable'] = Variable<bool>(fileable.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2714,6 +2804,8 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
           ..write('name: $name, ')
           ..write('position: $position, ')
           ..write('parentId: $parentId, ')
+          ..write('manageable: $manageable, ')
+          ..write('fileable: $fileable, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4449,6 +4541,8 @@ typedef $$ChannelCategoriesTableCreateCompanionBuilder
   required String name,
   Value<int> position,
   Value<String?> parentId,
+  Value<bool?> manageable,
+  Value<bool?> fileable,
   Value<int> rowid,
 });
 typedef $$ChannelCategoriesTableUpdateCompanionBuilder
@@ -4457,6 +4551,8 @@ typedef $$ChannelCategoriesTableUpdateCompanionBuilder
   Value<String> name,
   Value<int> position,
   Value<String?> parentId,
+  Value<bool?> manageable,
+  Value<bool?> fileable,
   Value<int> rowid,
 });
 
@@ -4480,6 +4576,12 @@ class $$ChannelCategoriesTableFilterComposer
 
   ColumnFilters<String> get parentId => $composableBuilder(
       column: $table.parentId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get manageable => $composableBuilder(
+      column: $table.manageable, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get fileable => $composableBuilder(
+      column: $table.fileable, builder: (column) => ColumnFilters(column));
 }
 
 class $$ChannelCategoriesTableOrderingComposer
@@ -4502,6 +4604,12 @@ class $$ChannelCategoriesTableOrderingComposer
 
   ColumnOrderings<String> get parentId => $composableBuilder(
       column: $table.parentId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get manageable => $composableBuilder(
+      column: $table.manageable, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get fileable => $composableBuilder(
+      column: $table.fileable, builder: (column) => ColumnOrderings(column));
 }
 
 class $$ChannelCategoriesTableAnnotationComposer
@@ -4524,6 +4632,12 @@ class $$ChannelCategoriesTableAnnotationComposer
 
   GeneratedColumn<String> get parentId =>
       $composableBuilder(column: $table.parentId, builder: (column) => column);
+
+  GeneratedColumn<bool> get manageable => $composableBuilder(
+      column: $table.manageable, builder: (column) => column);
+
+  GeneratedColumn<bool> get fileable =>
+      $composableBuilder(column: $table.fileable, builder: (column) => column);
 }
 
 class $$ChannelCategoriesTableTableManager extends RootTableManager<
@@ -4559,6 +4673,8 @@ class $$ChannelCategoriesTableTableManager extends RootTableManager<
             Value<String> name = const Value.absent(),
             Value<int> position = const Value.absent(),
             Value<String?> parentId = const Value.absent(),
+            Value<bool?> manageable = const Value.absent(),
+            Value<bool?> fileable = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ChannelCategoriesCompanion(
@@ -4566,6 +4682,8 @@ class $$ChannelCategoriesTableTableManager extends RootTableManager<
             name: name,
             position: position,
             parentId: parentId,
+            manageable: manageable,
+            fileable: fileable,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -4573,6 +4691,8 @@ class $$ChannelCategoriesTableTableManager extends RootTableManager<
             required String name,
             Value<int> position = const Value.absent(),
             Value<String?> parentId = const Value.absent(),
+            Value<bool?> manageable = const Value.absent(),
+            Value<bool?> fileable = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ChannelCategoriesCompanion.insert(
@@ -4580,6 +4700,8 @@ class $$ChannelCategoriesTableTableManager extends RootTableManager<
             name: name,
             position: position,
             parentId: parentId,
+            manageable: manageable,
+            fileable: fileable,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

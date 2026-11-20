@@ -23,6 +23,12 @@ const kRailRowInset = AppSpacing.s16;
 /// section, which always renders first.
 typedef ChannelSection = (ChannelCategoryRow? category, List<Channel> channels);
 
+/// The sections a channel may not be dropped into: a category this account may not file under.
+Set<int> shutSections(List<ChannelSection> sections) => {
+  for (final (i, (category, _)) in sections.indexed)
+    if (category != null && !category.canFile) i,
+};
+
 /// Exposed (not library-private) only so `groupsFromRailItems` can be driven
 /// directly from a test without a real drag gesture; nothing outside this
 /// file and its test builds these by hand otherwise.
@@ -65,7 +71,6 @@ class ReorderableChannelRows extends StatefulWidget {
     this.carriedRowInset = 0,
     this.collapsed = const {},
     this.categoriesNest = false,
-    this.headingOnly = const {},
   });
 
   final List<ChannelSection> sections;
@@ -97,9 +102,6 @@ class ReorderableChannelRows extends StatefulWidget {
 
   /// Whether a lifted header may be filed under another (decision 0120).
   final bool categoriesNest;
-
-  /// See [DesktopRailReorder.headingOnly].
-  final Set<String> headingOnly;
 
   /// Builds one channel's row, told whether *this render* actually wraps it
   /// in a drag listener - false in the plain-[Column] branch, true in the
@@ -138,7 +140,6 @@ class _ReorderableChannelRowsState extends State<ReorderableChannelRows> {
         carriedRowBuilder: widget.carriedRowBuilder,
         carriedRowInset: widget.carriedRowInset,
         categoriesNest: widget.categoriesNest,
-        headingOnly: widget.headingOnly,
         carriedHeaderBuilder: widget.carriedHeaderBuilder,
         headerBuilder: widget.headerBuilder,
         onReorder: widget.onReorder,
@@ -203,7 +204,16 @@ class _ReorderableChannelRowsState extends State<ReorderableChannelRows> {
     final rearranged = [...items]
       ..removeAt(oldIndex)
       ..insert(newIndex, moved);
-    widget.onReorder(groupsFromRailItems(rearranged, widget.sections));
+    final groups = groupsFromRailItems(rearranged, widget.sections);
+    final landed = groups.firstWhere(
+      (g) => g.channelIds.contains(moved.channel.id),
+    );
+    final into = widget.sections
+        .map((section) => section.$1)
+        .firstWhere((c) => c?.id == landed.categoryId, orElse: () => null);
+    final filingElsewhere = landed.categoryId != moved.channel.categoryId;
+    if (filingElsewhere && !(into?.canFile ?? true)) return;
+    widget.onReorder(groups);
   }
 
   Widget _item(List<RailItem> items, int i) => switch (items[i]) {

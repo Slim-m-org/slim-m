@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/channels/providers/arrival_readers.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_refresher.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/sync/providers/sync_event_applier.dart';
@@ -79,10 +80,20 @@ class _World {
   ))!.firstWhere((c) => c.id == 'c1');
 }
 
+/// A screen that would have read the message but closed while it was being stored.
+class _GoneReader implements ArrivalReader {
+  @override
+  bool readsOnArrival(String channelId) => channelId == 'c1';
+
+  @override
+  bool readOnArrival(String channelId, int seq) => false;
+}
+
 Future<_World> _open(
   WidgetTester tester, {
   int messages = 1,
   List<Override> overrides = const [],
+  String location = '/channels/c1',
 }) async {
   final marked = <int>[];
   final quiet = quietClient();
@@ -109,7 +120,7 @@ Future<_World> _open(
       for (var seq = 1; seq <= messages; seq++) _message(seq),
     ]);
   });
-  await pumpAtWidth(tester, s.container, 1400, location: '/channels/c1');
+  await pumpAtWidth(tester, s.container, 1400, location: location);
   await world.settle();
   return world;
 }
@@ -137,6 +148,18 @@ void main() {
     expect(w.marked.last, 2, reason: 'the server is told it was read');
 
     debugOnRebuildDirtyWidget = null;
+    await teardown(tester, w.container, w.db);
+  });
+
+  testWidgets('a screen that closed while the message was stored still gets '
+      'the server told', (tester) async {
+    final w = await _open(tester, location: '/channels/c2');
+    w.container.read(arrivalReadersProvider).add(_GoneReader());
+
+    await w.deliver(2);
+
+    expect((await w.c1()).lastReadSeq, 2);
+    expect(w.marked, contains(2), reason: 'the applier sent it itself');
     await teardown(tester, w.container, w.db);
   });
 

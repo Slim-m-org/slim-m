@@ -162,7 +162,21 @@ class SyncEventApplier {
         .read(arrivalReadersProvider)
         .readerFor(message.channelId);
     await store.applyMessage(message, markRead: reader != null);
-    reader?.readOnArrival(message.channelId, message.seq);
+    if (reader == null ||
+        reader.readOnArrival(message.channelId, message.seq)) {
+      return;
+    }
+    // The screen closed during the write, so the server hears it from here.
+    unawaited(_markRead(api, message.channelId, message.seq));
+  }
+
+  /// A failure leaves the local marker ahead, which the next refresh sends.
+  Future<void> _markRead(SlimmApi api, String channelId, int seq) async {
+    try {
+      await api.markRead(channelId: channelId, seq: seq);
+    } on ApiException catch (error, stack) {
+      reportFailure(LogTag.ui, 'save the read position', error, stack);
+    }
   }
 
   /// Whether [categoryId], or the parent it sits under, is missing locally.

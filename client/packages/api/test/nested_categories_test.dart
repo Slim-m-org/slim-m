@@ -76,7 +76,9 @@ void main() {
         'manageable': false,
       });
       expect(heading.manageable, isFalse);
-      expect(ChannelCategory.fromJson(_category('c')).manageable, isTrue);
+      expect(heading.fileable, isTrue);
+      final old = ChannelCategory.fromJson(_category('c'));
+      expect((old.manageable, old.fileable), (true, true));
     });
   });
 

@@ -202,7 +202,6 @@ class _ChannelCategorySectionsState
           _header(view, category, carried: true),
       collapsed: view.collapsed,
       categoriesNest: ref.watch(categoriesNestProvider),
-      headingOnly: ref.watch(headingOnlyCategoriesProvider),
       onReorderCategories: (groups) => unawaited(
         ref.read(categoryOrderControllerProvider.notifier).arrange(groups),
       ),
@@ -270,7 +269,10 @@ class _ChannelCategorySectionsState
       showMoveChannelSheet(
         context,
         channel: channel,
-        categories: widget.categories,
+        categories: [
+          for (final c in widget.categories)
+            if (c.canFile) c,
+        ],
         onPick: (id) {
           final groups = groupsAfterMoveTo(view.sections, channel.id, id);
           if (groups != null) widget.onReorder(groups);
@@ -324,7 +326,7 @@ class _ChannelCategorySectionsState
           : (revealed, onFocusChange) => Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (widget.canManage)
+                if (widget.canManage && (category?.canFile ?? true))
                   AddChannelGlyph(
                     categoryId: category?.id,
                     categoryName: place,
@@ -354,9 +356,7 @@ class _ChannelCategorySectionsState
       collapsed: view.collapsed,
       label: label,
       channels: view.channelsBeneath(category),
-      canManage:
-          widget.canManage &&
-          !ref.watch(headingOnlyCategoriesProvider).contains(category.id),
+      canManage: widget.canManage && category.canManage,
       menuKey: menuKey,
     );
     final indented = depth == 0

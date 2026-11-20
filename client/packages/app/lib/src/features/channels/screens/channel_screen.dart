@@ -309,8 +309,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen>
   }
 
   @override
-  void readOnArrival(String channelId, int seq) =>
-      _readMarker.readOnArrival(channelId, seq);
+  bool readOnArrival(String channelId, int seq) {
+    if (!mounted) return false;
+    _readMarker.readOnArrival(channelId, seq);
+    return true;
+  }
 
   void _readWhatArrivedUnwatched() {
     if (_watched) _scrollTracker.markReadIfAtLatest();

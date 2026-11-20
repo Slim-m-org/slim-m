@@ -120,7 +120,8 @@ class _CategoryHeaderMenuState extends ConsumerState<CategoryHeaderMenu> {
       for (final top in tree.topLevel)
         if (top.id != category.id &&
             top.id != parent?.id &&
-            top.parentId == null)
+            top.parentId == null &&
+            top.canFile)
           top,
     ];
     final isCollapsed =

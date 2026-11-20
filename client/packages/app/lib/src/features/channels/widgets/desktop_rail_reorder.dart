@@ -21,7 +21,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'category_tree.dart';
-import 'channel_rail_reorder.dart' show ChannelSection;
+import 'channel_rail_reorder.dart' show ChannelSection, shutSections;
 import 'rail_autoscroll.dart';
 import 'rail_category_slots.dart';
 import 'rail_drop_slots.dart';
@@ -42,7 +42,6 @@ class DesktopRailReorder extends StatefulWidget {
     this.carriedHeaderBuilder,
     this.carriedRowInset = 0,
     this.categoriesNest = false,
-    this.headingOnly = const {},
     required this.onReorder,
     required this.onReorderCategories,
   });
@@ -59,9 +58,6 @@ class DesktopRailReorder extends StatefulWidget {
 
   /// Whether a carried category may be filed under another (decision 0120).
   final bool categoriesNest;
-
-  /// Categories listed only as a heading, which never lift.
-  final Set<String> headingOnly;
   final Widget Function(ChannelCategoryRow? category)? carriedHeaderBuilder;
   final Widget Function(ChannelCategoryRow? category) headerBuilder;
   final ValueChanged<List<ChannelOrderGroup>> onReorder;
@@ -196,8 +192,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
           _RailItem(
             id: 'h:${category?.id}',
             dimmed: lifted,
-            liftable:
-                category != null && !widget.headingOnly.contains(category.id),
+            liftable: category?.canManage ?? false,
             isCategory: true,
             liftId: category?.id ?? '',
             inset: _headerInset(s),
@@ -380,7 +375,10 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     if (carry == null || stack == null || !mounted) return;
     final y = stack.globalToLocal(_pointer.value).dy;
     final boxes = _measure(stack);
-    final closed = closedSections(widget.sections, _tree, widget.collapsed);
+    final closed = {
+      ...closedSections(widget.sections, _tree, widget.collapsed),
+      ...shutSections(widget.sections),
+    };
     final slot = carry.isCategory
         ? categorySlotAt(
             boxes,
