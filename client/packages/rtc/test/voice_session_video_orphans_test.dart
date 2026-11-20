@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_rtc/src/video_orphans.dart';
 import 'package:slimm_rtc/src/voice_call_flow.dart' show kJoinWaitsForLeave;
 
 import 'support/reconnect_fakes.dart';
@@ -133,6 +134,24 @@ void main() {
 
     expect(camera.capturing, isFalse, reason: 'the camera light stayed on');
     expect(screen.capturing, isFalse);
+  });
+
+  test('a camera turned off and on is not remembered once stopped', () {
+    final room = PeopleRoom();
+    final orphans = VideoOrphans();
+    void publish(_Track track) => orphans.onRoomEvent(
+          lk.LocalTrackPublishedEvent(
+            participant: room.localParticipant!,
+            publication: _Published(track),
+          ),
+        );
+    final first = _Track(lk.TrackSource.camera);
+    publish(first);
+    first.capturing = false;
+    final second = _Track(lk.TrackSource.camera);
+    publish(second);
+
+    expect(orphans.takeAll(), [second]);
   });
 
   test('a camera the restart republished keeps capturing', () async {

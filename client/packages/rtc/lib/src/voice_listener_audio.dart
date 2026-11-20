@@ -117,10 +117,11 @@ class VoiceListenerAudio {
   }
 
   /// Forgets what a call set on this listener, keeping every gain: somebody
-  /// you turned down stays turned down. [keepDeafened] is for a call that was
-  /// replaced rather than left.
-  void resetForNewCall({bool keepDeafened = false}) {
-    if (!keepDeafened) audio.deafened = false;
+  /// you turned down stays turned down. A call [replaced] rather than left
+  /// keeps its deafen and local mutes too.
+  void resetForNewCall({bool replaced = false}) {
+    if (replaced) return;
+    audio.deafened = false;
     audio.muted.clear();
     audio.screenMuted.clear();
   }

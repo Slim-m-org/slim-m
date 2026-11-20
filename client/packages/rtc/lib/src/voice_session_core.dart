@@ -138,6 +138,7 @@ class VoiceSessionCore {
     micRecovery = VoiceMicRecovery(
       VoiceMicRecoveryHost(
         room: () => flow.room,
+        roomConnected: () => flow.roomConnected,
         state: () => flow.state,
         noteError: noteError,
         refresh: refresh,
