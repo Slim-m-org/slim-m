@@ -127,10 +127,11 @@ typedef _Option = ({SearchFilter filter, String label, String? hint});
 
 List<PaletteResultItem> _values(
   SearchKey key,
-  String typed,
+  String rawValue,
   FilterSuggestionSources sources,
   FilterSuggestionActions actions,
 ) {
+  final typed = _openUnquoted(rawValue);
   final lower = typed.toLowerCase();
   final List<_Option> options = switch (key) {
     SearchKey.from || SearchKey.mentions => [
@@ -195,6 +196,13 @@ List<PaletteResultItem> _values(
     return shown.isEmpty ? [?typedOption] : shown;
   }
   return [?typedOption, ...shown];
+}
+
+/// A quoted value as typed so far: the opening quote goes, and the closing one when it is there.
+String _openUnquoted(String value) {
+  if (!value.startsWith('"')) return value;
+  final inner = value.substring(1);
+  return inner.endsWith('"') ? inner.substring(0, inner.length - 1) : inner;
 }
 
 const _namesSomeone = {SearchKey.from, SearchKey.mentions, SearchKey.inChannel};
