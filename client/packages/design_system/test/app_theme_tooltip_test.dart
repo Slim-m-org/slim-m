@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A tooltip is the hover toolbar's raised plate in the current theme: opaque,
-/// so text under it never shows through, and never the other theme's colours.
+/// A tooltip is a raised plate in the current theme: opaque, so text under it
+/// never shows through, edged strongly enough to stand apart from a raised
+/// surface it sits on, and never the other theme's colours.
 library;
 
 import 'package:flutter/material.dart';
@@ -41,7 +42,7 @@ void main() {
       final plate = box.decoration as BoxDecoration;
       expect(plate.color!.a, 1.0);
       expect(plate.color, tokens.surfaceRaised);
-      expect((plate.border! as Border).top.color, tokens.borderSubtle);
+      expect((plate.border! as Border).top.color, tokens.borderStrong);
       final text = tester.widget<Text>(find.text('A tip'));
       final style = DefaultTextStyle.of(
         tester.element(find.text('A tip')),
