@@ -408,15 +408,17 @@ async fn announce(
 }
 
 pub(crate) fn spawn_voice_transcript_sweep(state: AppState) {
+    // The listener is configured once at startup, so one client keeps its connections across passes.
+    let Some(engine) = ListenerEngine::of(&state.call_audio) else {
+        return;
+    };
+    let engine = Arc::new(engine);
     let transcriber = Arc::new(VoiceTranscriber::new());
     crate::sweeps::spawn_sweep(SWEEP_INTERVAL, move || {
-        let (state, transcriber) = (state.clone(), transcriber.clone());
+        let (state, transcriber, engine) = (state.clone(), transcriber.clone(), engine.clone());
         async move {
-            let Some(engine) = ListenerEngine::of(&state.call_audio) else {
-                return;
-            };
             transcriber
-                .run_pass(&state.store, &state.media, &state.hub, &engine)
+                .run_pass(&state.store, &state.media, &state.hub, engine.as_ref())
                 .await;
         }
     });
