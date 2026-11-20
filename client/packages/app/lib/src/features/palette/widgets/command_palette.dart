@@ -113,7 +113,9 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
   late final _field = PaletteField(
     filters: [?widget.scope],
     onEdited: _onEdited,
+    onLeftAtStart: () => _chips.currentState?.focusLast(),
   );
+  final _chips = GlobalKey<PaletteFilterChipsState>();
   final _channels = StoreStream<List<Channel>>((s) => s.watchChannels());
   final _categories = StoreStream<List<ChannelCategoryRow>>(
     (s) => s.watchCategories(),
@@ -303,8 +305,10 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     final chips = !_filtering
         ? null
         : PaletteFilterChips(
+            key: _chips,
             filters: _field.filters,
             onRemove: _field.remove,
+            onExit: _field.focusNode.requestFocus,
             touch: compact,
           );
 

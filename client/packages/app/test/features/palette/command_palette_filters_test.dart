@@ -159,6 +159,36 @@ void main() {
     await _close(tester, opened);
   });
 
+  testWidgets('Left from the field steps onto the chips, so a middle one can '
+      'be removed by keyboard, and Right comes back', (tester) async {
+    final opened = await _openInGeneral(tester);
+    await _type(tester, 'pinned:true has:image ');
+    expect(_chip('pinned: true'), findsOneWidget);
+    expect(_fieldText(tester), '');
+
+    String? focused() => FocusManager.instance.primaryFocus?.debugLabel;
+    await _key(tester, LogicalKeyboardKey.arrowLeft);
+    expect(focused(), 'palette-filter-2');
+    await _key(tester, LogicalKeyboardKey.arrowLeft);
+    expect(focused(), 'palette-filter-1');
+
+    await _key(tester, LogicalKeyboardKey.delete);
+    expect(_chip('pinned: true'), findsNothing);
+    expect(_chip('has: image'), findsOneWidget);
+    expect(_chip('in: #general'), findsOneWidget);
+    expect(focused(), 'palette-filter-0', reason: 'the chip before it');
+
+    await _key(tester, LogicalKeyboardKey.arrowRight);
+    await _key(tester, LogicalKeyboardKey.arrowRight);
+    expect(
+      tester.widget<AppInput>(_input).focusNode!.hasFocus,
+      isTrue,
+      reason: 'right past the last chip is the field again',
+    );
+
+    await _close(tester, opened);
+  });
+
   testWidgets('a finished filter typed by hand becomes a chip, and tapping a '
       'chip removes it', (tester) async {
     final opened = await _openInGeneral(tester);

@@ -80,13 +80,19 @@ int _caret(TextEditingValue value) {
 /// word becomes a chip, a picked suggestion replaces the word that asked for
 /// it, and Backspace at the very start takes the last chip back off.
 class PaletteField {
-  PaletteField({List<SearchFilter> filters = const [], required this.onEdited})
-    : filters = [...filters];
+  PaletteField({
+    List<SearchFilter> filters = const [],
+    required this.onEdited,
+    this.onLeftAtStart,
+  }) : filters = [...filters];
 
   final List<SearchFilter> filters;
 
   /// Runs after every edit, typed or picked.
   final VoidCallback onEdited;
+
+  /// Left arrow at the very start of the field, for focus to step onto the chips.
+  final VoidCallback? onLeftAtStart;
 
   final controller = TextEditingController();
   late final focusNode = FocusNode(onKeyEvent: _onKey);
@@ -147,11 +153,16 @@ class PaletteField {
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     final selection = controller.selection;
     final atStart = selection.isCollapsed && selection.baseOffset <= 0;
-    if (event is KeyDownEvent &&
-        event.logicalKey == LogicalKeyboardKey.backspace &&
-        atStart &&
-        filters.isNotEmpty) {
+    if (event is! KeyDownEvent || !atStart || filters.isEmpty) {
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.backspace) {
       remove(filters.last);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+        onLeftAtStart != null) {
+      onLeftAtStart!();
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
