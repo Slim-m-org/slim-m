@@ -28,6 +28,7 @@ import 'package:slimm_platform/testing.dart';
 import '../../support/async_wait.dart';
 import '../../support/fake_sync.dart';
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',
@@ -324,7 +325,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(AppErrorState), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     // The picker never popped: the target row is still there to retry.
     expect(find.text('general'), findsOneWidget);
   });

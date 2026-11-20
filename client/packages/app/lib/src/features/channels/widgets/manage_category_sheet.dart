@@ -18,7 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../entity_name.dart';
 import '../providers/channel_order_controller.dart';
-import '../../../widgets/app_snackbar.dart';
+import '../../../widgets/menu_outcome.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/name_sheet.dart';
 import '../../../widgets/run_guarded.dart';
@@ -98,7 +98,7 @@ Future<void> confirmAndDeleteCategory(
     whatFailed: _deleteCategoryAction,
     action: () => deleteCategoryAndForget(ref, category),
   );
-  if (failure != null && context.mounted) showAppSnackbar(context, failure);
+  if (failure != null && context.mounted) showMenuFailure(context, failure);
 }
 
 /// Moves [category] one place among its siblings by [delta] (-1 up, 1 down),

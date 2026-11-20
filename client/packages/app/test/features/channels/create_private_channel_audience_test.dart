@@ -22,6 +22,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 
 import '../../support/async_wait.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -231,7 +232,7 @@ void main() {
 
     expect(find.textContaining('The channel was created'), findsOneWidget);
     expect(find.text('Create channel'), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     await _unmount(tester);
   });
 }

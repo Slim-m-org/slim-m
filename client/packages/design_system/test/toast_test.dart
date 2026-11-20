@@ -19,6 +19,7 @@ void main() {
       (AppToastSeverity.success, AppIcons.check),
       (AppToastSeverity.info, AppIcons.info),
       (AppToastSeverity.warning, AppIcons.warning),
+      (AppToastSeverity.error, AppIcons.failed),
     ]) {
       await tester.pumpWidget(
         _wrap(AppToast(message: 'Done', severity: severity)),

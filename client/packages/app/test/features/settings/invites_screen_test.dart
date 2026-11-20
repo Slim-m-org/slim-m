@@ -22,6 +22,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_app/src/action_labels.dart';
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -317,7 +318,7 @@ void main() {
       await tester.tap(find.text(ActionLabels.createInvite));
       await tester.pumpAndSettle();
 
-      expect(find.byType(SnackBar), findsNothing);
+      expect(errorToasts(tester), isEmpty);
       expect(find.byType(AppErrorState), findsOneWidget);
       expect(find.textContaining('SocketException'), findsNothing);
       expect(

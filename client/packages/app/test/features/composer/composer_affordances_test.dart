@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'composer_harness.dart';
+import '../../support/toast_host.dart';
 
 /// The staged-attachment tile's remove control, found by its accessibility
 /// label rather than a widget type, since [Semantics] is a proxy the tree
@@ -189,7 +190,7 @@ void main() {
         reason: 'a pick that never opened has to say so, not fail silently',
       );
       // Stays on screen, not a SnackBar that floats away with no record.
-      expect(find.byType(SnackBar), findsNothing);
+      expect(errorToasts(tester), isEmpty);
       expect(find.byType(AppErrorState), findsOneWidget);
       expect(
         fieldHasFocus(tester),
@@ -257,7 +258,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull);
-        expect(find.byType(SnackBar), findsNothing);
+        expect(errorToasts(tester), isEmpty);
         expect(find.byType(AppErrorState), findsOneWidget);
       },
     );

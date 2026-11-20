@@ -60,6 +60,12 @@ A site only moves once its success path has no failure branch to keep it tied to
 
 **Update, personal space row removed:** `personal_space_menu.dart` and `personal_space_row.dart` were deleted in 0.130.0 (#2412), so the personal space toast above no longer exists.
 
+**Update 2026-11-20, a failure from a closed surface is a toast that stays.**
+#2415 (0.131.0, "one toast style everywhere") turned `showAppSnackbar` into a wrapper over `toastsProvider`, so the closed-menu failures above started leaving after 4 seconds, the exact shape this record rules out.
+The owner chose a sticky error toast over a timed one: `AppToastSeverity` gained `error`, and `widgets/menu_outcome.dart` replaced `app_snackbar.dart` with `showMenuFailure` (error tone, no timer, dismissed by hand) and `showMenuOutcome` (that, or a success confirmation).
+A failure on a toast is still only for a surface that has gone by the time the request answers: `check-error-surface.py` flags both helpers like it flagged `showAppSnackbar`, and `GUARDED_EXCEPTIONS` still names every allowed site.
+The app tests that asserted "no SnackBar" now assert that no error toast was raised, which a misrouted failure would actually fail.
+
 ## Reading this against the surface taxonomy
 
 `docs/design/desktop-vs-mobile.md` rule 6 puts "confirmations" and "toasts" in the same bucket as the transient, unrequested-status surface, and says plainly: "Snackbars/toasts are for confirmations only, never for errors."

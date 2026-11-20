@@ -453,15 +453,15 @@ A later copy pass found three of them back: the channel overwrites screen, avata
 Nothing gated that, and [decision 0018](decisions/0018-confirmation-toasts-and-why-errors-never-are.md) records the rule.
 
 The distinction is not "is there a SnackBar", which `run_guarded.dart`'s own doc comment already draws.
-A surface that has already closed by the time its request answers, such as a popover dismissed on tap, has nowhere to put an inline state, and a SnackBar is the only option left.
+A surface that has already closed by the time its request answers, such as a popover dismissed on tap, has nowhere to put an inline state, so it reports through `showMenuFailure` or `showMenuOutcome` (`widgets/menu_outcome.dart`): an error toast that stays until dismissed.
 Every such call site reaches it through `runGuarded`'s returned sentence and never catches `ApiException` itself.
-So the gate looks for the narrower shape: a widget that catches an API exception directly and hands the message to `ScaffoldMessenger`, `SnackBar(` or `showAppSnackbar(` instead of `GuardedActionState` or `AppErrorState`.
+So the gate looks for the narrower shape: a widget that catches an API exception directly and hands the message to `ScaffoldMessenger`, `SnackBar(`, `showMenuFailure(` or `showMenuOutcome(` instead of `GuardedActionState` or `AppErrorState`.
 
 It reads the catch blocks straight out of each tracked `.dart` file under `client/packages/app/lib/` rather than keeping a list of what to check, so there is nothing to fall out of date.
 Each of these shapes was added after a real file or a planted violation showed the gate reporting zero offenders:
 
 - An `on (api.)?<Something>Exception` block, with `catch (e)` optional, because `on api.ApiException { ... }` is valid Dart and an earlier pattern that required the word `catch` never saw it.
-  The prefix is optional too, since roughly a fifth of the package imports the api library unaliased, and a planted `on ApiException catch (e) { showAppSnackbar(...); }` passed silently.
+  The prefix is optional too, since roughly a fifth of the package imports the api library unaliased, and a planted `on ApiException catch (e) { showAppSnackbar(...); }` (the helper's name then) passed silently.
   The exception names are read from the sealed hierarchy in `exceptions.dart`, so a subtype added there is covered with nothing to update here.
   The scope stays that hierarchy: `PlatformException`, `MissingPluginException` and `ClipboardImageReadException` are out, because the gate is about a failure caught from the server.
 - A bare `catch (e) { ... }`, added when three file-picker-open failures (the emoji upload card, the avatar section, the composer) carried this shape.
@@ -469,11 +469,11 @@ Each of these shapes was added after a real file or a planted violation showed t
 - A Future's own `.catchError((e) { ... })`, which this codebase already uses for the swallow-and-log case (`sync_controller.dart`, `providers.dart`).
   It carried no pattern until an adversarial review planted one in a tracked file.
   A callback that is a named function reference rather than an inline literal is accepted, for the reason given under the blind spots below.
-- A `runGuarded` result handed to `showAppSnackbar` in the same function (`guarded_snackbars`).
-  `runGuarded` does the catching itself, so `final failure = await runGuarded(...); showAppSnackbar(context, failure)` has no `catch` in the caller, and the member pane's bulk timeout and bulk remove, the row menu's remove and the profile's eject all shipped that way.
+- A `runGuarded` result handed to `showMenuFailure` or `showMenuOutcome` in the same function (`guarded_snackbars`).
+  `runGuarded` does the catching itself, so `final failure = await runGuarded(...); showMenuFailure(context, failure)` has no `catch` in the caller, and the member pane's bulk timeout and bulk remove, the row menu's remove and the profile's eject all shipped that way.
 
-`SHOWS_SNACKBAR` matches `showAppSnackbar(` as well as the raw `ScaffoldMessenger` and `SnackBar(`.
-At first it matched none of the real calls, because every site calls `showAppSnackbar`, so the gate reported zero offenders whether or not one existed (confirmed by mutating a fixed site back to its old shape).
+`SHOWS_SNACKBAR` matches the two closed-menu helpers as well as the raw `ScaffoldMessenger` and `SnackBar(`.
+At first it matched none of the real calls, because every site called the shared helper (`showAppSnackbar` then), so the gate reported zero offenders whether or not one existed (confirmed by mutating a fixed site back to its old shape).
 
 A `/* ... */` block comment is blanked out before any of this runs, string-aware so a quoted `'/*'` such as the `blockComment` tuple in `message_code_langs.dart` is left alone.
 The scan that finds where a catch block ends reads "the next line starting with `}` at or above this indent", and a block comment can contain a stray `}` at column zero.
@@ -485,7 +485,7 @@ Add an entry only for a surface that has gone by the time the request answers, n
 
 Two blind spots are accepted rather than chased:
 
-- The composer's picker failure runs through `attachment_picker.dart`'s shared `runAttachmentPick`, whose catch block calls back a plain `onPickerFailed()` instead of naming `showAppSnackbar`.
+- The composer's picker failure runs through `attachment_picker.dart`'s shared `runAttachmentPick`, whose catch block calls back a plain `onPickerFailed()` instead of naming a toast helper.
   A regex reading one function at a time cannot see across that, so `composer_affordances_test.dart` guards the site, mutation-tested.
 - A multi-line string literal (`'''...'''`) whose own content has a bare `}` at column zero defeats the same body-boundary scan.
   Closing it needs a real Dart string tokenizer, for a shape nothing writes inside a catch block today.

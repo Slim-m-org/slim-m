@@ -33,7 +33,7 @@ import '../../../providers/toasts.dart';
 import '../providers/threads.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
-import '../../../widgets/app_snackbar.dart';
+import '../../../widgets/menu_outcome.dart';
 import '../../members/providers/bot_ui_uses.dart';
 import '../../members/widgets/bot_menu_sections.dart';
 import '../../../widgets/confirm_dialog.dart';
@@ -54,7 +54,7 @@ Future<void> _reporting(
   Future<void> Function() action,
 ) async {
   final failure = await runGuarded(whatFailed: whatFailed, action: action);
-  if (failure != null && context.mounted) showAppSnackbar(context, failure);
+  if (failure != null && context.mounted) showMenuFailure(context, failure);
 }
 
 /// Saves an inline edit and closes it once it lands. Unchanged text is not a
@@ -174,7 +174,7 @@ Future<void> saveMessageForLater(
   );
   if (!context.mounted) return;
   if (failure != null) {
-    showAppSnackbar(context, failure);
+    showMenuFailure(context, failure);
     return;
   }
   ref

@@ -18,6 +18,7 @@ import 'package:slimm_app/src/widgets/banner_host_layout.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../downloads_harness.dart';
+import '../support/toast_host.dart';
 
 const _iso = api.Attachment(
   id: 'iso1',
@@ -118,7 +119,7 @@ void main() {
     server.body.add([1]);
     await settle(tester);
 
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     expect(find.text('Could not save Win11.iso.'), findsOneWidget);
     expect(tester.getTopLeft(find.byKey(contentKey)), before);
 

@@ -1970,7 +1970,7 @@
 "test/shared/app_lock_isolation_test.dart": 2.0,
 "test/shared/app_lock_transient_error_test.dart": 0.7,
 "test/shared/app_panel_reveal_test.dart": 0.7,
-"test/shared/app_snackbar_test.dart": 0.7,
+"test/shared/menu_outcome_test.dart": 0.7,
 "test/shared/bake_pictures_disposed_test.dart": 0.4,
 "test/shared/boot_stall_watch_test.dart": 0.5,
 "test/shared/bounded_image_decode_test.dart": 0.7,

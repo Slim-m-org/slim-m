@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/settings/widgets/personal_account_section
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -134,7 +135,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(AppErrorState), findsNothing);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     expect(
       find.widgetWithText(AppButton, 'Delete permanently'),
       findsOneWidget,

@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A transient confirmation that floats in, says one thing, and leaves.
+/// A short message that floats over the screen and says one thing.
 ///
-/// Deliberately not for failures. This app's error grammar holds that a failure
-/// is a state, not an event: it belongs at the point of the action and stays
-/// until something changes it (`AppErrorState`), never on a timer that carries
-/// it away. A toast is the opposite shape on purpose - it is for the things
-/// that genuinely are events and are fine to miss: "Copied", "Saved", an
-/// invite put on the clipboard. So the severities here stop at success, info
-/// and a non-failure warning; there is no error variant, and routing a caught
-/// API error through one would both contradict the grammar and trip
-/// `scripts/check-error-surface.py`.
+/// Mostly for events that are fine to miss: "Copied", "Saved", an invite put on
+/// the clipboard; those leave on a timer. A failure belongs at the point of the
+/// action as an `AppErrorState`, never on a timer that carries it away. The one
+/// exception is a failure whose surface has already closed (a context menu, a
+/// member card) before the request answers: it gets the [AppToastSeverity.error]
+/// tone and stays until dismissed, which keeps it a state rather than an event
+/// (decision 0018, 2026-11-20 update).
 ///
 /// Outlined, never filled, following `AppErrorState`: the severity shows as a
 /// hairline and a leading glyph over the ordinary raised surface, so a toast is
@@ -27,9 +25,9 @@ import '../../app_typography.dart';
 /// window.
 const double kToastMaxWidth = 380;
 
-/// The tone a toast carries. No error member: failures use `AppErrorState`; see
-/// this file's doc comment.
-enum AppToastSeverity { success, info, warning }
+/// The tone a toast carries. [error] is only for a failure whose surface has
+/// closed, and never times out; see this file's doc comment.
+enum AppToastSeverity { success, info, warning, error }
 
 /// One transient confirmation. [onDismiss], when given, draws a close affordance
 /// and is also what a tap on the toast calls, so a reader never has to wait out
@@ -111,5 +109,6 @@ class AppToast extends StatelessWidget {
         AppToastSeverity.success => (AppIcons.check, tokens.accent),
         AppToastSeverity.info => (AppIcons.info, tokens.borderStrong),
         AppToastSeverity.warning => (AppIcons.warning, tokens.warnText),
+        AppToastSeverity.error => (AppIcons.failed, tokens.dangerText),
       };
 }

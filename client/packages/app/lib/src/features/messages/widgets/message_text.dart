@@ -33,7 +33,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../external_link.dart';
 import '../../../message_link.dart';
 import '../../../providers/providers.dart';
-import '../../../widgets/app_snackbar.dart';
+import '../../../providers/toasts.dart';
 import '../../channels/widgets/channel_rail.dart' show selectedChannelId;
 import '../../emoji/widgets/emoji_name_tip.dart';
 import 'message_jump.dart' show jumpToMessage;
@@ -363,7 +363,9 @@ class _MessageTextRunState extends ConsumerState<_MessageTextRun> {
     if (link == null) return;
     if (!messageLinkIsHere(link, ref.read(serverUrlProvider))) {
       // A server switch is not a tapped link's call; see _openMessage's doc.
-      showAppSnackbar(context, 'That link is for a different server.');
+      ref
+          .read(toastsProvider.notifier)
+          .show('That link is for a different server.');
       return;
     }
     jumpToMessage(

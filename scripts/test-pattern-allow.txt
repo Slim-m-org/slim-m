@@ -885,7 +885,7 @@ client/packages/app/test/shared/animated_menu_portal_test.dart 1 5
 client/packages/app/test/shared/app_drop_zone_test.dart 1 0
 client/packages/app/test/shared/app_lock_isolation_test.dart 5 13
 client/packages/app/test/shared/app_panel_reveal_test.dart 4 3
-client/packages/app/test/shared/app_snackbar_test.dart 0 2
+client/packages/app/test/shared/menu_outcome_test.dart 0 0
 client/packages/app/test/shared/app_snackbar_width_test.dart 2 1
 client/packages/app/test/shared/context_menu_region_dispose_test.dart 0 3
 client/packages/app/test/shared/context_menu_region_item_context_test.dart 0 3

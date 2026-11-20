@@ -22,7 +22,7 @@ import 'package:slimm_api/api.dart' as api;
 import '../../../ids.dart';
 import '../providers/blocks_controller.dart';
 import '../providers/filed_reports.dart';
-import '../../../widgets/app_snackbar.dart';
+import '../../../widgets/menu_outcome.dart';
 import 'report_dialog.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/member_actions.dart';
@@ -37,7 +37,7 @@ Future<void> _tell(
 ) async {
   final failure = await runGuarded(whatFailed: whatFailed, action: action);
   if (!context.mounted) return;
-  showAppSnackbar(context, failure ?? succeeded);
+  showMenuOutcome(context, failure: failure, succeeded: succeeded);
 }
 
 /// Files a report about [subjectId], once the reporter has given a reason.

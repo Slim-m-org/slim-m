@@ -3,9 +3,9 @@
 ///
 /// Anything in the app can fire a confirmation with
 /// `ref.read(toastsProvider.notifier).show(...)`; [ToastOverlay] renders the
-/// live list. Only for events that are fine to miss (a copy, a save) - a
-/// failure is a persistent state, not a toast, and there is no error severity
-/// to pass here. See `design_system/.../surfaces/toast.dart` for that rule.
+/// live list. Mostly for events that are fine to miss (a copy, a save); a
+/// failure is a persistent state, and only one from a closed surface comes here,
+/// through `widgets/menu_outcome.dart`. See `design_system/.../surfaces/toast.dart`.
 library;
 
 import 'dart:async';

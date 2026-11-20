@@ -135,7 +135,7 @@ class Foo {
     try {
       await api.thing();
     } on ApiException catch (e) {
-      showAppSnackbar(context, e.toString());
+      showMenuFailure(context, e.toString());
     }
   }
 }
@@ -163,7 +163,7 @@ class Foo {
     try {
       await api.thing();
     } on ForbiddenException catch (e) {
-      showAppSnackbar(context, e.toString());
+      showMenuFailure(context, e.toString());
     }
   }
 }
@@ -185,7 +185,7 @@ class Foo {
     try {
       await plugin.thing();
     } on PlatformException catch (e) {
-      showAppSnackbar(context, e.toString());
+      showMenuFailure(context, e.toString());
     }
   }
 
@@ -210,7 +210,7 @@ class Foo {
 class Foo {
   void go() {
     api.thing().catchError((e) {
-      showAppSnackbar(context, e.toString());
+      showMenuFailure(context, e.toString());
     });
   }
 }
@@ -259,7 +259,7 @@ Future<void> remove(WidgetRef ref, BuildContext context) async {
     action: () => ref.read(apiProvider).removeMember(),
   );
   if (failure != null) {
-    if (context.mounted) showAppSnackbar(context, failure);
+    if (context.mounted) showMenuFailure(context, failure);
     return;
   }
 }
@@ -274,7 +274,7 @@ Future<void> remove(BuildContext host, ProviderContainer container) async {
     action: () => container.read(apiProvider).removeMember(),
   ).then((failure) {
     if (failure != null) {
-      showAppSnackbar(host, failure);
+      showMenuFailure(host, failure);
     }
   });
 }
@@ -290,7 +290,7 @@ class Foo {
       action: () => api.kick(),
     );
     if (failure != null && host.mounted) {
-      showAppSnackbar(host, failure);
+      showMenuFailure(host, failure);
     }
   }
 }
@@ -329,7 +329,7 @@ Future<void> remove(WidgetRef ref) async {
 
 void copy(BuildContext context) {
   final failure = 'copied';
-  showAppSnackbar(context, failure);
+  showMenuFailure(context, failure);
 }
 """)
         result = self._run()
@@ -343,7 +343,7 @@ Future<void> save(WidgetRef ref, BuildContext context) async {
     action: () => ref.read(apiProvider).save(),
   );
   if (failure != null) return;
-  showAppSnackbar(context, 'Saved.');
+  showMenuFailure(context, 'Saved.');
 }
 """)
         result = self._run()
@@ -356,7 +356,7 @@ Future<void> remove(WidgetRef ref, BuildContext context) async {
     whatFailed: 'remove',
     action: () => ref.read(apiProvider).removeMember(),
   );
-  // showAppSnackbar(context, failure);
+  // showMenuFailure(context, failure);
   if (failure != null) ref.read(errorProvider.notifier).state = failure;
 }
 """)

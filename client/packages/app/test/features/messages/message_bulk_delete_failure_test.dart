@@ -18,6 +18,7 @@ import 'package:slimm_app/src/features/channels/screens/channel_composer_area.da
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
+import '../../support/toast_host.dart';
 
 const _channel = 'c1';
 
@@ -88,7 +89,7 @@ void main() {
     await tester.tap(find.widgetWithText(AppButton, 'Delete').last);
     await tester.pumpAndSettle();
 
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     expect(find.byType(AppErrorState), findsOneWidget);
     expect(find.textContaining('delete the message'), findsOneWidget);
     expect(

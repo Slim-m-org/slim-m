@@ -26,6 +26,7 @@ import 'package:slimm_test_support/slimm_test_support.dart';
 
 import '../composer/composer_harness.dart' show usePicker;
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -236,7 +237,7 @@ void main() {
       await tester.tap(find.text('Remove photo'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(SnackBar), findsNothing);
+      expect(errorToasts(tester), isEmpty);
       expect(find.byType(AppErrorState), findsOneWidget);
     },
   );
@@ -283,7 +284,7 @@ void main() {
     await tester.tap(find.text('Choose photo'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     expect(find.byType(AppErrorState), findsOneWidget);
     expect(
       find.textContaining('Could not open the file picker'),

@@ -17,6 +17,7 @@ import 'package:slimm_data/data.dart' show MessageStore, SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -254,7 +255,7 @@ void main() {
     await tester.tap(find.widgetWithText(AppButton, 'Revoke').last);
     await tester.pumpAndSettle();
     expect(find.textContaining('revoke sonarr'), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
   });
 
   testWidgets('with no webhooks the list says so', (tester) async {

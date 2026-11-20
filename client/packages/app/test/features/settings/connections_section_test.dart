@@ -18,6 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:url_launcher/url_launcher.dart' show LaunchMode;
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -180,7 +181,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AppErrorState), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     expect(find.text('Connections'), findsOneWidget);
     await _unmount(tester);
   });

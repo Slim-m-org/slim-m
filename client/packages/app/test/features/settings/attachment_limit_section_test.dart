@@ -17,6 +17,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/attachment_limit_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/toast_host.dart';
 
 const _mib = 1024 * 1024;
 const _tokens = api.TokenPair(
@@ -134,7 +135,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AppErrorState), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
   });
 
   testWidgets('fits a phone width without overflowing', (tester) async {

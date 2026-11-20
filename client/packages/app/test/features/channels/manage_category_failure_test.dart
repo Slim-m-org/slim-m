@@ -20,6 +20,7 @@ import 'package:slimm_app/src/features/channels/widgets/manage_category_sheet.da
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _general = ChannelCategoryRow(id: 'cat-a', name: 'General', position: 0);
 const _voice = ChannelCategoryRow(id: 'cat-b', name: 'Voice', position: 1);
@@ -150,7 +151,7 @@ void main() {
     await tester.tap(find.text('move'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     expect(
       r.container.read(categoryOrderControllerProvider).error,
       contains('Could not reorder categories'),

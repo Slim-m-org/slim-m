@@ -27,6 +27,7 @@ import 'package:slimm_platform/testing.dart';
 
 import 'report_card_harness.dart';
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 void main() {
   testWidgets('a message report names its reporter, not the raw id', (
@@ -187,7 +188,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(SnackBar), findsNothing);
+      expect(errorToasts(tester), isEmpty);
       expect(find.byType(AppErrorState), findsOneWidget);
       expect(find.textContaining('SocketException'), findsNothing);
       expect(

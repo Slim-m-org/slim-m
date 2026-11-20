@@ -22,14 +22,11 @@
 /// and drift from the grammar it parses.
 ///
 /// The `ScaffoldMessenger.showSnackBar` rule closes the same gap for a
-/// SnackBar, one layer later: `app_snackbar.dart`'s own `showAppSnackbar` is
-/// the one place fourteen call sites used to reach `ScaffoldMessenger`
-/// directly, each dropping the override on its own. This rule does not by
-/// itself force a caller through that one function - a raw call anywhere
-/// carrying `snackBarAnimationStyle:` still passes - but it does mean a
-/// future call site cannot reintroduce the original bug (no override at
-/// all) without either using `showAppSnackbar` or writing the override out
-/// by hand and losing the whole point of a shared helper.
+/// SnackBar, one layer later: fourteen call sites once reached
+/// `ScaffoldMessenger` directly, each dropping the override on its own. The app
+/// no longer builds a SnackBar at all (every message is a toast), so this rule
+/// only keeps a future raw call from reintroducing the original bug (no
+/// override at all); a raw call carrying `snackBarAnimationStyle:` still passes.
 ///
 /// Counts run over `codeOnly`'s (`slimm_test_support`) comment/string-stripped text,
 /// not the raw file: a per-file count comparison is exactly the shape a

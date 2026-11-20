@@ -20,6 +20,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',
@@ -245,7 +246,7 @@ void main() {
       await tester.tap(find.text('Add source'));
       await tester.pumpAndSettle();
       expect(find.byType(AppErrorState), findsOneWidget);
-      expect(find.byType(SnackBar), findsNothing);
+      expect(errorToasts(tester), isEmpty);
       expect(find.text('Add source'), findsOneWidget);
     },
   );
