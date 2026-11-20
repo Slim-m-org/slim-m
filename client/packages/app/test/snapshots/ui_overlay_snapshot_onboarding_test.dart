@@ -14,7 +14,7 @@
 /// 600px the manual dialog is a bottom sheet and the invite one a full-screen
 /// page (`onboarding_screen_phone_test.dart`), both with the same fields, and
 /// the identity screens carry no responsive branch at all
-/// (see `server_fingerprint_test.dart`).
+/// (see `server_fingerprint_derivation_test.dart`).
 library;
 
 import 'dart:convert';
