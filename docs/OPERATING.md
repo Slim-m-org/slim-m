@@ -28,7 +28,10 @@ To set one of those you need a compose override file that adds it to the `server
 | `SLIMM_ATTACHMENT_MAX_BYTES` | `1073741824` (1 GiB) | Largest single upload. Over it is a 413. | yes |
 | `SLIMM_MAX_TOTAL_ATTACHMENT_BYTES` | unset, no ceiling | Most bytes held in attachments and custom emoji together. Over it is a 507. Avatars are outside it. | yes, example sets 2 GiB |
 | `SLIMM_HASH_CONCURRENCY` | `4` | How many Argon2id password hashes run at once, about 19 MiB each while running. | yes |
-| `SLIMM_LOG` | `info` | Log filter in tracing `EnvFilter` syntax. | yes |
+| `SLIMM_LOG` | `info` | Log filter in tracing `EnvFilter` syntax: the floor every [server logging](#server-logs) mode adds to. | yes |
+| `SLIMM_LOG_DIR` | a `logs` directory beside the database | Where the rotating log files go. | no, the image keeps them in `/data/logs` |
+| `SLIMM_LOG_KEEP_DAYS` | `14` | A log file this many days old is deleted. | yes |
+| `SLIMM_LOG_MAX_BYTES` | `268435456` (256 MiB) | Most bytes all log files hold together; the oldest goes first. `0` writes no files, stdout only. | yes |
 | `SLIMM_TRUST_PROXY_HOPS` | `0` | How many reverse proxies in front of the server may be believed about a caller's address, for rate limiting. | yes, defaults to 1 for Caddy |
 | `SLIMM_CORS_ALLOWED_ORIGINS` | unset, no CORS | Comma-separated browser origins allowed cross-origin. `*` and malformed entries stop startup. | yes |
 | `SLIMM_MIN_CLIENT_VERSION` | unset, no floor | Oldest client version still served, as `X.Y.Z`. Older clients are stopped and offered an update. Empty is read as unset. | yes |
@@ -53,6 +56,29 @@ To set one of those you need a compose override file that adds it to the `server
 A few things follow from the "no" entries.
 The compose file passes the push relay pair and the other tunables, blank or at the server's own default.
 The port, database path, attachments directory and modules directory stay with the image.
+
+## Server logs
+
+The server writes every log line twice: to stdout, which `docker compose logs server` shows, and to rotating files in `/data/logs` (decision 0129).
+`docker logs` is lost each time the container is recreated, which every update and Watchtower redeploy does; the files are on the data volume, so they outlive a redeploy, a restart and a host reboot.
+
+- Files are named `slimm-server.YYYY-MM-DD.NNN.log`, a new one each UTC day and whenever one reaches an eighth of `SLIMM_LOG_MAX_BYTES` (at most 32 MiB).
+  A restart appends to today's newest file.
+- They are kept for `SLIMM_LOG_KEEP_DAYS` days and at most `SLIMM_LOG_MAX_BYTES` in total, oldest deleted first.
+- The backup container does not copy them.
+- Read them with `docker compose exec server ls /data/logs`, or on the host under the `slimm_data` volume (`docker volume inspect slim-m_slimm_data` gives the path).
+  An admin can also download the newest 16 MiB from Space settings, Debug logs.
+
+How much is logged is a Space setting, under Space settings, Debug logs, and changes at once without a restart:
+
+| Mode | Adds to `SLIMM_LOG` |
+| --- | --- |
+| Off | nothing: warnings, errors and lifecycle events at the default `info` |
+| Compact | one debug line per event from calls and voice, sync and the socket, sign-in, push and media, and one per HTTP request |
+| Verbose | every slim-m debug and trace line, with source locations, at most 50 lines a second from any one place |
+
+Turn on Compact before reproducing a bug, and Verbose when Compact does not show enough; Verbose fills the size budget fastest, so the files then reach back less far.
+No mode writes passwords, tokens or message text.
 
 ## Admin alerts
 

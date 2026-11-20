@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../desktop/providers/desktop_call_notifier.dart';
+import '../../../diagnostics/debug_log_detail.dart';
 import '../../../desktop/providers/desktop_message_notifier.dart';
 import '../../../providers/direct_route_controller.dart';
 import '../../../providers/media_disk_caches.dart';
@@ -64,6 +65,7 @@ void startAccountServices(ProviderContainer container) {
   container.listen(notificationScheduleProvider, (_, _) {});
   container.listen(retentionSweepControllerProvider, (_, _) {});
   container.listen(callRestoreWatchProvider, (_, _) {});
+  container.listen(debugLogDetailProvider, (_, _) {});
   unawaited(container.read(offScreenCallRestoreProvider)());
 }
 

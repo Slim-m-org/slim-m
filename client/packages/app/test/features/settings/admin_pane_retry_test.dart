@@ -53,6 +53,13 @@ Future<List<Uri>> _pump(
       liveEventsProvider.overrideWithValue(const Stream.empty()),
       adminAuditNamesProvider.overrideWith((ref) => const AuditNames()),
       mockApiOverride((request) async {
+        if (request.url.path == '/space/settings') {
+          return http.Response(
+            '{"join_policy":"invite"}',
+            200,
+            headers: _jsonType,
+          );
+        }
         if (request.url.path != path) {
           return http.Response('[]', 200, headers: _jsonType);
         }

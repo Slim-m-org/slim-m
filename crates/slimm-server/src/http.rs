@@ -115,6 +115,7 @@ pub use module_schedule::run_due as run_scheduled_modules;
 pub use module_timers::run_due as run_module_timers;
 pub use reactions::rekey_stored_reactions;
 pub use scene_refresh::run_due as run_scene_refreshes;
+pub use server_logs::ServerLogsDir;
 pub use storage::BackupStatusDir;
 pub use voice::voice_access::{evict_who_lost_access, spawn_voice_access_watch};
 mod link_preview_removal;
@@ -148,6 +149,7 @@ mod safety;
 mod saved_messages;
 mod scene_limits;
 mod search;
+mod server_logs;
 mod sign_in_alert;
 mod space;
 mod space_banner;
@@ -335,6 +337,7 @@ pub fn router(state: AppState) -> Router {
         .merge(invites::routes())
         .merge(invite_page::routes())
         .merge(space_link_previews::routes())
+        .merge(server_logs::routes())
         .merge(space_setup::routes())
         .merge(members::routes())
         .merge(member_permissions::routes())

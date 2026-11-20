@@ -220,3 +220,14 @@ async fn a_client_cannot_forge_steam_or_replace_a_running_game() {
     assert_eq!(put(track).await, StatusCode::NO_CONTENT);
     assert_eq!(rig.activity().unwrap().steam_app_id, Some(730));
 }
+
+#[tokio::test]
+async fn a_steam_outage_never_writes_the_api_key_into_its_error() {
+    let dead = "http://127.0.0.1:9";
+    let api = SteamApi::with_bases("the-secret-steam-key", dead, dead).unwrap();
+    let Err(error) = api.players(&[steam::STEAM_ID.to_owned()]).await else {
+        panic!("nothing listens on the discard port");
+    };
+    assert!(!error.0.contains("the-secret-steam-key"), "{}", error.0);
+    assert!(!error.0.is_empty());
+}

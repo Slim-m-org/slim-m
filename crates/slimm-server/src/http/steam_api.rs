@@ -31,6 +31,13 @@ pub struct Player {
 #[derive(Debug)]
 pub struct SteamError(pub String);
 
+/// A transport error prints the request URL, and the URL carries the API key.
+impl From<reqwest::Error> for SteamError {
+    fn from(error: reqwest::Error) -> Self {
+        Self(error.without_url().to_string())
+    }
+}
+
 #[derive(Clone)]
 pub struct SteamApi {
     inner: Arc<Inner>,
@@ -103,15 +110,12 @@ impl SteamApi {
             ])
             .send()
             .await
-            .map_err(|e| SteamError(e.to_string()))?;
+            .map_err(SteamError::from)?;
         let status = response.status();
         if !status.is_success() {
             return Err(SteamError(format!("steam answered {status}")));
         }
-        let body: Summaries = response
-            .json()
-            .await
-            .map_err(|e| SteamError(e.to_string()))?;
+        let body: Summaries = response.json().await.map_err(SteamError::from)?;
         Ok(body
             .response
             .players

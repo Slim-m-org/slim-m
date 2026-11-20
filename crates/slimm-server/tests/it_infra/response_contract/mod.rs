@@ -181,6 +181,10 @@ const UNCOVERED: &[(&str, &str)] = &[
          listener instead.",
     ),
     (
+        "getServerLogs",
+        "streams plain text, not JSON; tests/it_infra/space_logging.rs drives the text, the gate, the audit row, the 501 and the 429.",
+    ),
+    (
         "diagnosticsDownload",
         "answers raw filler bytes, not JSON; tests/it_infra/diagnostics.rs drives the size, the cap and the 400.",
     ),

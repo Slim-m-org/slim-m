@@ -143,6 +143,7 @@ class _Describer {
     'space.canvas_cap' => 'changed the canvas limit',
     'space.screen_share' => 'changed the screen share limit',
     'space.link_previews' => 'changed link previews',
+    'space.server_logs_download' => 'downloaded the server logs',
     'space.attachment_limit' => 'changed the attachment size limit',
     'space.media_compression' => 'changed photo compression',
     'space.setup_complete' => 'finished the first-run setup',

@@ -47,6 +47,7 @@ void main() {
     (_change('space.canvas_cap'), 'changed the canvas limit'),
     (_change('space.screen_share'), 'changed the screen share limit'),
     (_change('space.link_previews'), 'changed link previews'),
+    (_change('space.server_logs_download'), 'downloaded the server logs'),
     (_change('space.attachment_limit'), 'changed the attachment size limit'),
     (_change('space.setup_complete'), 'finished the first-run setup'),
     (_change('space.icon_set'), 'set the space icon'),

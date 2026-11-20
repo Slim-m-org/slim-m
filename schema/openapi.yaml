@@ -11189,6 +11189,35 @@ paths:
           $ref: "#/components/responses/TooManyRequests"
         "503":
           $ref: "#/components/responses/Unavailable"
+  /space/server-logs:
+    get:
+      operationId: getServerLogs
+      tags: [space]
+      summary: Download the newest server log lines.
+      description: >
+        Gated on MANAGE_SERVER and audited. Streams the newest 16 MiB of the
+        rotating log files on the data volume (decision 0129) as plain text,
+        oldest line first, so lines from before the last restart are
+        included. When older lines exist the text starts with a line saying
+        so; they stay in the files for an operator to read directly. One
+        download runs at a time: another answers 429 until it finishes.
+      responses:
+        "200":
+          description: The newest lines.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: >
+            This server writes no log files (`SLIMM_LOG_MAX_BYTES` is 0 or
+            the directory could not be opened).
   /space/link-previews:
     get:
       operationId: getSpaceLinkPreviews
@@ -13701,6 +13730,13 @@ components:
             ones it already has while this is false. Absent on older servers,
             which strip hidden transcripts themselves, so a client reads it as
             true.
+        debug_logging:
+          type: string
+          enum: [off, compact, verbose]
+          description: >
+            The space's server log mode, so a member's client keeps a longer
+            debug log of its own while it is not `off`. Absent on older
+            servers, read as `off`.
         canvas_scoped_clear:
           type: boolean
           description: >
@@ -14543,6 +14579,16 @@ components:
         transcribe_voice_messages_available:
           type: boolean
           description: False when the speech listener is not configured, so voice transcripts cannot be turned on.
+        debug_logging:
+          type: string
+          enum: [off, compact, verbose]
+          description: >
+            How much the server logs (decision 0129). `off` is the operator's
+            `SLIMM_LOG` filter, `info` unless set. `compact` adds one debug
+            line per event from calls, sync and the socket, sign-in, push and
+            media, and one per HTTP request. `verbose` adds every slim-m debug
+            and trace line. Passwords, tokens and message text are never
+            logged in any mode.
         join_policy:
           type: string
           enum: [invite, open]
@@ -14648,6 +14694,12 @@ components:
           type: boolean
           readOnly: true
           description: Read-only; ignored when sent. See `SpaceSettings`.
+        debug_logging:
+          type: string
+          enum: [off, compact, verbose]
+          description: >
+            Switches the server log mode at once, with no restart. Any other
+            value is a 400.
       description: >
         Only the fields present are written, so a client changing one setting
         cannot overwrite another from a stale copy. An empty body is refused.

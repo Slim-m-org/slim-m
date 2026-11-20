@@ -34,6 +34,12 @@ Related symptoms:
   The voice overlay (`COMPOSE_FILE=docker-compose.yml:docker-compose.voice.yml`) sets all three for you.
 - Clients try to connect to a name that is not reachable: `SLIMM_LIVEKIT_URL` must be the public `wss://` address clients can reach, not the compose service name.
 
+## The server's logs from before an update or reboot are gone
+
+`docker compose logs server` only reaches back to when the container was last created, and every update recreates it.
+The same lines are in `/data/logs`, kept for 14 days; see [OPERATING.md](OPERATING.md#server-logs).
+Before reproducing a bug, set Space settings, Debug logs to Compact so the files hold the detail, and download them from the same pane afterwards.
+
 ## The server restarts in a loop after a version change
 
 Check `docker compose logs server` for the line starting `Error:`.

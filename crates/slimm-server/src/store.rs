@@ -115,6 +115,7 @@ mod sign_in_alert;
 mod space;
 mod space_landing;
 mod space_link_previews;
+mod space_log_mode;
 mod space_module_display;
 mod space_owner;
 mod space_setup;

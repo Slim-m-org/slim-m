@@ -198,14 +198,16 @@ extension SlimmApiTransport on SlimmApi {
       throw const UnauthorizedException('not signed in');
     }
     final uri = requestUri(path, query);
-    final response = await replayingDroppedSocket(
-      'GET',
-      () => _perform(
-        http.Request('GET', uri)..headers['authorization'] = 'Bearer $token',
+    final response = await replayingDroppedSocket('GET', () {
+      final abort = Completer<void>();
+      return _perform(
+        http.AbortableRequest('GET', uri, abortTrigger: abort.future)
+          ..headers['authorization'] = 'Bearer $token',
         'GET $path',
         deadline: transferDeadline,
-      ),
-    );
+        abort: abort,
+      );
+    });
 
     if (response.statusCode == 401 && !isRetry && session.tokens != null) {
       await refreshUnlessRotated(token);
@@ -249,6 +251,7 @@ extension SlimmApiTransport on SlimmApi {
     String label, {
     required Duration deadline,
     http.Client? over,
+    Completer<void>? abort,
   }) async {
     try {
       // Chained, never `Future(() async { ... })`; see the note on this method.
@@ -257,6 +260,8 @@ extension SlimmApiTransport on SlimmApi {
           .then(http.Response.fromStream)
           .timeout(deadline);
     } on TimeoutException {
+      // Closes the connection too, so the server stops sending a transfer nobody reads.
+      if (abort != null && !abort.isCompleted) abort.complete();
       throw TransportException(
         '$label got no answer within ${deadline.inSeconds} seconds',
       );

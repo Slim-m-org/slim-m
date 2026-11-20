@@ -4,6 +4,7 @@
 library;
 
 import 'models_identity.dart';
+import 'models_server_logs.dart';
 
 /// What a server says about the safety tools slim-m's model depends on.
 ///
@@ -40,6 +41,7 @@ class Version {
     this.moduleMemberBadges = false,
     this.moduleProfileSections = true,
     this.transcribeVoiceMessages = true,
+    this.debugLogging = ServerLogMode.off,
     this.canvasScopedClear,
     this.maxAttachmentBytes,
     this.capabilities,
@@ -127,6 +129,9 @@ class Version {
 
   /// Whether voice messages show their transcripts; true on an older server, which strips hidden ones itself.
   final bool transcribeVoiceMessages;
+
+  /// The space's server log mode; the app keeps a longer debug log of its own while it is not off.
+  final ServerLogMode debugLogging;
 
   /// Whether the canvas accepts a scoped clear. Null on a server older than this field, which [supportsPartialClear] answers from the version number.
   final bool? canvasScopedClear;
@@ -217,6 +222,7 @@ class Version {
         moduleProfileSections: json['module_profile_sections'] as bool? ?? true,
         transcribeVoiceMessages:
             json['transcribe_voice_messages'] as bool? ?? true,
+        debugLogging: ServerLogMode.parse(json['debug_logging'] as String?),
         canvasScopedClear: json['canvas_scoped_clear'] as bool?,
         // A non-list here is a foreign or broken server, which is unknown
         // rather than a reason to crash sign-in.

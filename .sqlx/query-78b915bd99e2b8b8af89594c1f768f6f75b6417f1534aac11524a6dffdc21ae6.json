@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT log_mode FROM space_settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "log_mode",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "space_settings",
+            "name": "log_mode"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "78b915bd99e2b8b8af89594c1f768f6f75b6417f1534aac11524a6dffdc21ae6"
+}

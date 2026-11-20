@@ -50,6 +50,13 @@ async fn receive(
         }
     };
 
+    tracing::debug!(
+        event = %event.event,
+        room = event.room.as_ref().map(|r| r.name.as_str()),
+        participant = event.participant.as_ref().map(|p| p.identity.as_str()),
+        reason = ?event.participant.as_ref().and_then(|p| p.disconnect_reason.as_ref()),
+        "voice: livekit webhook"
+    );
     if let Some(channel_id) = foreign_channel(&state, &event).await {
         tracing::debug!(
             %channel_id,

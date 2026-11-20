@@ -169,6 +169,8 @@ async fn serve(
     {
         return;
     }
+    let opened = Instant::now();
+    tracing::debug!(user_id = %ctx.user_id, device_id = %ctx.device_id, "ws: connected");
 
     // A client that sends `active` frames reports real use; its keepalives then prove nothing.
     let mut reports_activity = reported_active.is_some();
@@ -178,7 +180,7 @@ async fn serve(
     let liveness = state.hub.liveness_deadline();
     let silence = tokio::time::sleep(liveness);
     tokio::pin!(silence);
-    loop {
+    let reason = loop {
         tokio::select! {
             incoming = stream.next() => {
                 silence.as_mut().reset(tokio::time::Instant::now() + liveness);
@@ -186,7 +188,7 @@ async fn serve(
                     match budget.take(Instant::now()) {
                         Verdict::Allow => {}
                         Verdict::Refuse => continue,
-                        Verdict::Close => break,
+                        Verdict::Close => break "frame budget",
                     }
                 }
                 match incoming {
@@ -202,7 +204,7 @@ async fn serve(
                                     state.hub.presence().touch(ctx.user_id);
                                 }
                                 if send_frame(&mut sink, &ServerFrame::Pong).await.is_err() {
-                                    break;
+                                    break "send failed";
                                 }
                             }
                             Ok(ClientFrame::Viewing { channel_ids, active }) => {
@@ -384,8 +386,8 @@ async fn serve(
                             Ok(ClientFrame::Hello { .. }) | Err(_) => {}
                         }
                     }
-                    Some(Ok(Message::Close(_))) | None => break,
-                    Some(Err(_)) => break,
+                    Some(Ok(Message::Close(_))) | None => break "client closed",
+                    Some(Err(_)) => break "read error",
                     // Other frames (binary, ping, pong): axum answers a
                     // protocol-level ping itself; activity only without `active`.
                     Some(Ok(_)) => {
@@ -395,20 +397,20 @@ async fn serve(
                     }
                 }
             }
-            () = &mut silence => break,
+            () = &mut silence => break "silent too long",
             event = events.recv() => {
                 match event {
                     // Our own session was revoked: close the socket at once.
                     Ok(Event::SessionRevoked(session_id)) => {
                         if session_id == ctx.session_id {
-                            break;
+                            break "session revoked";
                         }
                     }
                     Ok(event) => {
                         match authorize(&state.store, &state.hub, &state.link_previews, &ctx, &mut cache, event).await {
                             Authorization::Deliver(frame) => {
                                 if send_frame(&mut sink, &frame).await.is_err() {
-                                    break;
+                                    break "send failed";
                                 }
                             }
                             Authorization::Withhold => {}
@@ -419,7 +421,7 @@ async fn serve(
                                     &ServerFrame::Error { message: "resync".to_owned() },
                                 )
                                 .await;
-                                break;
+                                break "resync: undecidable event";
                             }
                         }
                     }
@@ -429,9 +431,9 @@ async fn serve(
                             &ServerFrame::Error { message: "resync".to_owned() },
                         )
                         .await;
-                        break;
+                        break "resync: fell behind";
                     }
-                    Err(RecvError::Closed) => break,
+                    Err(RecvError::Closed) => break "hub closed",
                 }
             }
             ephemeral_event = ephemeral_events.recv() => {
@@ -443,7 +445,7 @@ async fn serve(
                         match authorize(&state.store, &state.hub, &state.link_previews, &ctx, &mut cache, event).await {
                             Authorization::Deliver(frame) => {
                                 if send_frame(&mut sink, &frame).await.is_err() {
-                                    break;
+                                    break "send failed";
                                 }
                             }
                             // Withheld or undecidable: a lost cursor/preview costs nothing either way.
@@ -452,11 +454,13 @@ async fn serve(
                     }
                     // The whole point: falling behind here never closes the connection or resyncs.
                     Err(RecvError::Lagged(_)) => {}
-                    Err(RecvError::Closed) => break,
+                    Err(RecvError::Closed) => break "hub closed",
                 }
             }
         }
-    }
+    };
+    let seconds = opened.elapsed().as_secs();
+    tracing::debug!(user_id = %ctx.user_id, device_id = %ctx.device_id, reason, seconds, "ws: closed");
 }
 
 /// Reads and validates the opening `hello`, returning the session it authorizes.

@@ -70,6 +70,12 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         None,
     ),
     route(
+        Method::GET,
+        "/space/server-logs",
+        "space.server_logs_download",
+        None,
+    ),
+    route(
         Method::POST,
         "/space/setup/complete",
         "space.setup_complete",
