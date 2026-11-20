@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../settings_draft_guard.dart';
 import '../settings_info_line.dart';
 import '../settings_save_bar.dart';
 import '../settings_section_header.dart';
@@ -204,32 +205,35 @@ class _ModuleSettingsFormState extends State<ModuleSettingsForm> {
   Widget build(BuildContext context) {
     final count = _changes().length;
     final message = _invalid ?? widget.error;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SettingsSectionCard(
-          title: 'Settings',
-          children: [for (final e in widget.doc.settings) _row(e)],
-        ),
-        if (message != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(
-            message: message,
-            onDismiss: _invalid != null
-                ? () => setState(() => _invalid = null)
-                : widget.onDismissError,
+    return DraftLeaveScope(
+      dirty: count > 0,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SettingsSectionCard(
+            title: 'Settings',
+            children: [for (final e in widget.doc.settings) _row(e)],
           ),
+          if (message != null) ...[
+            const SizedBox(height: AppSpacing.s8),
+            AppErrorState(
+              message: message,
+              onDismiss: _invalid != null
+                  ? () => setState(() => _invalid = null)
+                  : widget.onDismissError,
+            ),
+          ],
+          if (count > 0) ...[
+            const SizedBox(height: AppSpacing.s8),
+            SettingsSaveBar(
+              changeCount: count,
+              saving: widget.saving,
+              onDiscard: _discard,
+              onSave: _save,
+            ),
+          ],
         ],
-        if (count > 0) ...[
-          const SizedBox(height: AppSpacing.s8),
-          SettingsSaveBar(
-            changeCount: count,
-            saving: widget.saving,
-            onDiscard: _discard,
-            onSave: _save,
-          ),
-        ],
-      ],
+      ),
     );
   }
 
