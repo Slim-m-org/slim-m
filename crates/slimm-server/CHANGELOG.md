@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.114.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.113.0...server-v0.114.0) (2026-11-20)
+
+
+### Features
+
+* batch 34 - calls keep members LiveKit still has, mute icons for unjoined calls, lan signalling, follow-ups ([#2424](https://github.com/Slim-m-org/slim-m/issues/2424)) ([3132eb8](https://github.com/Slim-m-org/slim-m/commit/3132eb8c30b5fc808703ed4ec579c597106f380a))
+* batch 35 - xcode 27, sqlx 0.9, call and sync bug fixes, flaky e2e fixes ([#2427](https://github.com/Slim-m-org/slim-m/issues/2427)) ([889000b](https://github.com/Slim-m-org/slim-m/commit/889000b26c28da272facec18ff0ee55592caac86))
+* batch 37 - call rejoin and moved-call fixes, one search with filters, space debug logging, one firewall prompt on Windows ([#2435](https://github.com/Slim-m-org/slim-m/issues/2435)) ([9042a5e](https://github.com/Slim-m-org/slim-m/commit/9042a5e3ab3dd8630ed05258d528294a78c21cb0))
+* **client:** play youtube embeds in the app, inline on phones and web, in a docked panel on desktop ([#2430](https://github.com/Slim-m-org/slim-m/issues/2430)) ([68d7343](https://github.com/Slim-m-org/slim-m/commit/68d73437325efd1304d8f552c9cdd1d4f5cdf31a))
+* owner feedback after 0.131.0 - one-sided calls and connection details, screen review reworks, break-it fixes ([#2423](https://github.com/Slim-m-org/slim-m/issues/2423)) ([afd9ce6](https://github.com/Slim-m-org/slim-m/commit/afd9ce67c9d1fcde7685870a75afb3f05317a928))
+
+
+### Bug Fixes
+
+* what the call, sync, permission, long-session and self-hosting audits found ([#2432](https://github.com/Slim-m-org/slim-m/issues/2432)) ([6cb59a2](https://github.com/Slim-m-org/slim-m/commit/6cb59a2f5f611b3bc8842cd9ba11e5c399440f61))
+
+
+### Performance Improvements
+
+* **ci:** faster tests and CI - argon2 at opt-level 3 in tests, cheap backup fixtures, bundled flutter tests, split server-ci ([#2419](https://github.com/Slim-m-org/slim-m/issues/2419)) ([37855b6](https://github.com/Slim-m-org/slim-m/commit/37855b6d6d95ce4797cad8dfaa727e63c2ca32cc))
+
 ## [0.113.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.112.0...server-v0.113.0) (2026-11-18)
 
 
