@@ -301,6 +301,16 @@ void CreateController(int generation, std::function<void(bool)> done) {
   }
 }
 
+// WebView2 grants fullscreen only to a focused page, and a press on a hosted visual focuses nothing; the keyboard stays with Flutter.
+void FocusPage() {
+  if (!g.webview) return;
+  g.webview->CallDevToolsProtocolMethod(
+      L"Page.bringToFront", L"{}",
+      Callback<ICoreWebView2CallDevToolsProtocolMethodCompletedHandler>(
+          [](HRESULT, LPCWSTR) { return S_OK; })
+          .Get());
+}
+
 }  // namespace
 
 bool RuntimeAvailable() {
@@ -384,6 +394,8 @@ void Pointer(PointerKind kind, double x, double y) {
   COREWEBVIEW2_MOUSE_EVENT_VIRTUAL_KEYS keys =
       g.left_down ? COREWEBVIEW2_MOUSE_EVENT_VIRTUAL_KEYS_LEFT_BUTTON
                   : COREWEBVIEW2_MOUSE_EVENT_VIRTUAL_KEYS_NONE;
+  // A press blurs the page, so it is focused again before the release that clicks.
+  if (kind == PointerKind::kUp) FocusPage();
   g.composition->SendMouseInput(event, keys, 0, point);
 }
 

@@ -61,14 +61,7 @@ class Capture final : public VisualCapture,
   explicit Capture(std::function<void()> on_frame)
       : on_frame_(std::move(on_frame)) {}
 
-  ~Capture() override {
-    try {
-      if (pool_) pool_.FrameArrived(arrived_);
-      if (session_) session_.Close();
-      if (pool_) pool_.Close();
-    } catch (winrt::hresult_error const&) {
-    }
-  }
+  ~Capture() override { Stop(); }
 
   void Init(IDXGIAdapter* adapter) {
     D3D_FEATURE_LEVEL levels[] = {D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0,
@@ -90,11 +83,37 @@ class Capture final : public VisualCapture,
     EnsureDispatcherQueue();
     compositor_ = wuc::Compositor();
     root_ = compositor_.CreateContainerVisual();
-    root_.Size({16, 16});
+    Start(1, 1);
+  }
+
+  IUnknown* RootVisual() override {
+    return static_cast<IUnknown*>(winrt::get_abi(root_));
+  }
+
+  void Resize(UINT width, UINT height) override {
+    width = std::max<UINT>(width, 1);
+    height = std::max<UINT>(height, 1);
+    if (width == size_.Width && height == size_.Height) return;
+    try {
+      Start(width, height);
+    } catch (winrt::hresult_error const&) {
+    }
+  }
+
+  SharedFrame Latest() override {
+    std::lock_guard<std::mutex> guard(lock_);
+    return frame_;
+  }
+
+ private:
+  // A visual's capture item keeps the visual's size from when it was made, so each new size needs a new item.
+  void Start(UINT width, UINT height) {
+    Stop();
+    root_.Size({static_cast<float>(width), static_cast<float>(height)});
+    size_ = {static_cast<int32_t>(width), static_cast<int32_t>(height)};
     item_ = wgc::GraphicsCaptureItem::CreateFromVisual(root_);
-    pool_size_ = item_.Size();
     pool_ = wgc::Direct3D11CaptureFramePool::CreateFreeThreaded(
-        winrt_device_, kFormat, 2, pool_size_);
+        winrt_device_, kFormat, 2, item_.Size());
     session_ = pool_.CreateCaptureSession(item_);
     try {
       session_.IsCursorCaptureEnabled(false);
@@ -109,21 +128,18 @@ class Capture final : public VisualCapture,
     session_.StartCapture();
   }
 
-  IUnknown* RootVisual() override {
-    return static_cast<IUnknown*>(winrt::get_abi(root_));
+  void Stop() {
+    try {
+      if (pool_) pool_.FrameArrived(arrived_);
+      if (session_) session_.Close();
+      if (pool_) pool_.Close();
+    } catch (winrt::hresult_error const&) {
+    }
+    session_ = nullptr;
+    pool_ = nullptr;
+    item_ = nullptr;
   }
 
-  void Resize(UINT width, UINT height) override {
-    root_.Size({static_cast<float>(std::max<UINT>(width, 1)),
-                static_cast<float>(std::max<UINT>(height, 1))});
-  }
-
-  SharedFrame Latest() override {
-    std::lock_guard<std::mutex> guard(lock_);
-    return frame_;
-  }
-
- private:
   void OnFrame(wgc::Direct3D11CaptureFramePool const& pool) {
     try {
       auto frame = pool.TryGetNextFrame();
@@ -139,11 +155,6 @@ class Capture final : public VisualCapture,
       const UINT width = std::min<UINT>(size.Width, desc.Width);
       const UINT height = std::min<UINT>(size.Height, desc.Height);
       if (width > 0 && height > 0) Copy(source.get(), width, height);
-      // The visual changed size: frames from now on come at the new one.
-      if (size.Width != pool_size_.Width || size.Height != pool_size_.Height) {
-        pool_size_ = size;
-        pool.Recreate(winrt_device_, kFormat, 2, size);
-      }
     } catch (winrt::hresult_error const&) {
       return;
     }
@@ -172,7 +183,7 @@ class Capture final : public VisualCapture,
   wgc::Direct3D11CaptureFramePool pool_{nullptr};
   wgc::GraphicsCaptureSession session_{nullptr};
   winrt::event_token arrived_{};
-  winrt::Windows::Graphics::SizeInt32 pool_size_{};
+  winrt::Windows::Graphics::SizeInt32 size_{};
   std::mutex lock_;
   winrt::com_ptr<ID3D11Texture2D> shared_;
   SharedFrame frame_;

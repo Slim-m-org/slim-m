@@ -56,6 +56,9 @@ What changed:
     Measured in Xvfb with no GPU (software decode and llvmpipe): 720p60 captured at about 57 frames a second, with the copy costing about 1 ms a frame; the UI thread spent about 16% of a core, Flutter's raster thread about 7% and WebKit's web process about 13%.
     A 360p30 video in the message captured 30 frames a second at about 12%, 8% and 9%.
   - Windows hosts WebView2 through a composition controller whose root visual is never shown; Windows.Graphics.Capture copies each frame of that visual into a shared D3D11 texture on Flutter's own adapter, which Flutter draws as a GPU surface texture.
+    A visual's capture item keeps the size the visual had when the item was made, so each new size starts a new item; one made once at startup captured every frame at 16 by 16 pixels.
+    WebView2 refuses fullscreen to a page that is not focused, and a press sent to a hosted visual blurs it, so the runner focuses the page through the DevTools protocol (`Page.bringToFront`) before each release; Win32 focus, and so the keyboard, stays with Flutter.
+    Measured in the win11 VM (8 vCPUs, no GPU, WARP): 720p60 fullscreen took about 5 to 9% of one core in the app, about 4.5% in WebView2's processes and about 12% in dwm; the same video in the message took about 2% and 5%.
     Visual capture needs Windows 10 1903 or newer; without it, as without the WebView2 runtime, the probe says no and a video opens in the browser.
     `flutter_inappwebview_windows` was not used: the app-facing package still breaks Linux builds, and the runner's own host already carries the referrer, navigation and permission rules above.
 - The pointer is forwarded from Flutter to the page (enter, move, primary press and release, leave), so YouTube's own controls, seek bar and double click work.
@@ -70,4 +73,5 @@ What changed:
 - Nothing Flutter draws needs to hide the player any more, so menus, drawers and dialogs no longer blank it; a page that covers it (TickerMode off) still counts as out of sight, and with no view showing it the video pauses.
 - The browser fallback is unchanged: no WebKitGTK 2.40 at run time, the flatpak, or no WebView2 runtime opens the link in the browser.
 
-Not verified on this change: the Windows build on real hardware (the code compiles in CI and runs in the win11 VM only where noted in the pull request), and the Linux path on a GPU-backed WebKit, where WebKit's DMA-BUF renderer paints through `gdk_cairo_draw_from_gl` into the same image surface.
+Verified on Windows in the win11 VM only: playing in the message, YouTube's own controls (pause, seek, settings), scroll clipping, the move to the panel and back, fullscreen from YouTube's button and Escape out of it, typing in the composer and search after a click in the player, and the pause when the window is minimised.
+Not verified on this change: the Windows build on real hardware with a GPU, and the Linux path on a GPU-backed WebKit, where WebKit's DMA-BUF renderer paints through `gdk_cairo_draw_from_gl` into the same image surface.
