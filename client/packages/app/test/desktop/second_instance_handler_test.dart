@@ -108,6 +108,19 @@ void main() {
     expect(port.restoreCalls, 0);
   });
 
+  test('a link sent before the listener starts is still delivered', () async {
+    shell = shellFor(FakeDesktopWindowPort());
+    shell.registerSecondInstanceHandler();
+
+    await _send(const MethodCall('link', 'slimm://steam-link?code=c'));
+    final links = <Uri>[];
+    final sub = shell.forwardedLinks.listen(links.add);
+    addTearDown(sub.cancel);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(links, [Uri.parse('slimm://steam-link?code=c')]);
+  });
+
   test('a link call with another scheme or no text is dropped', () async {
     shell = shellFor(FakeDesktopWindowPort());
     shell.registerSecondInstanceHandler();
