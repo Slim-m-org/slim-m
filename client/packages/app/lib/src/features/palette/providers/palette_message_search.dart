@@ -20,6 +20,8 @@ class PaletteMessageSearch extends ChangeNotifier {
   int _limit = 0;
   String? _cursor;
   Timer? _debounce;
+  Completer<void>? _debounced;
+  Future<void>? _firstPage;
   int _generation = 0;
   bool _disposed = false;
 
@@ -37,11 +39,15 @@ class PaletteMessageSearch extends ChangeNotifier {
   /// The last page came back full, so there may be more.
   bool more = false;
 
+  /// Whether [results] answer the latest query, rather than one typed before it.
+  bool current = true;
+
   /// Drops every hit and any request in flight.
   void clear() {
     _debounce?.cancel();
     _generation++;
     _query = null;
+    current = true;
     _set(results: const [], loading: false, more: false);
   }
 
@@ -54,14 +60,32 @@ class PaletteMessageSearch extends ChangeNotifier {
   }) {
     _query = query;
     _limit = limit;
+    current = false;
     _debounce?.cancel();
-    if (debounce == Duration.zero) return _page(query, after: null);
+    if (debounce == Duration.zero) {
+      return _firstPage = _page(query, after: null);
+    }
     _generation++;
     loading = true;
     _notify();
-    final done = Completer<void>();
-    _debounce = Timer(debounce, () => done.complete(_page(query, after: null)));
+    final done = _debounced = Completer<void>();
+    _debounce = Timer(debounce, () => done.complete(_send(query)));
     return done.future;
+  }
+
+  Future<void> _send(ParsedSearchQuery query) =>
+      _firstPage = _page(query, after: null);
+
+  /// Sends a query still waiting out its pause at once, and completes when the
+  /// latest query's first page has landed, for Enter to act on its hits.
+  Future<void> flush() {
+    final query = _query;
+    if (query == null || current) return Future.value();
+    if (_debounce?.isActive ?? false) {
+      _debounce!.cancel();
+      _debounced?.complete(_send(query));
+    }
+    return _firstPage ?? Future.value();
   }
 
   /// The next page after the hits already shown.
@@ -74,7 +98,7 @@ class PaletteMessageSearch extends ChangeNotifier {
   /// Runs the last query again, from its first page.
   Future<void> retry() async {
     final query = _query;
-    if (query != null) await _page(query, after: null);
+    if (query != null) await (_firstPage = _page(query, after: null));
   }
 
   Future<void> _page(ParsedSearchQuery query, {required String? after}) async {
@@ -88,6 +112,7 @@ class PaletteMessageSearch extends ChangeNotifier {
       beforeId: after,
     );
     if (_disposed || generation != _generation) return;
+    if (after == null) current = true;
     final earlier = after == null ? const <api.Message>[] : results;
     switch (result) {
       case MessageSearchHits(:final messages, :final fetched, :final lastId):

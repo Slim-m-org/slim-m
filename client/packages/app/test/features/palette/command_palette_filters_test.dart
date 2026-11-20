@@ -18,6 +18,21 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../command_palette_harness.dart';
 
+/// Hits that answer their own query: `q=word` finds the message numbered by its length.
+List<Map<String, dynamic>> _hitsForWord(Uri url) {
+  final q = url.queryParameters['q'] ?? '';
+  return q.isEmpty ? const [] : [_hit(q.length)];
+}
+
+/// Which message a jump was asked for, or null with none under way.
+String? _jumpedTo(MessageJumpState state) => switch (state) {
+  MessageJumpSeeking(:final messageId) ||
+  MessageJumpArrived(:final messageId) ||
+  MessageJumpUnreachable(:final messageId) ||
+  MessageJumpFailed(:final messageId) => messageId,
+  _ => null,
+};
+
 Map<String, dynamic> _hit(int seq) => {
   'id': 'm$seq',
   'channel_id': 'c1',
@@ -41,9 +56,14 @@ typedef _Opened = ({
 Future<_Opened> _openInGeneral(
   WidgetTester tester, {
   List<Map<String, dynamic>> hits = const [],
+  List<Map<String, dynamic>> Function(Uri url)? hitsFor,
 }) async {
   final searches = <Uri>[];
-  final setup = setupPalette(hits: hits, onSearch: searches.add);
+  final setup = setupPalette(
+    hits: hits,
+    hitsFor: hitsFor,
+    onSearch: searches.add,
+  );
   await MessageStore(setup.db).upsertChannels(const [
     api.Channel(id: 'c1', name: 'general', kind: 'text', createdAt: 0),
     api.Channel(id: 'c2', name: 'random', kind: 'text', createdAt: 0),
@@ -297,6 +317,49 @@ void main() {
     expect(_input, findsNothing);
     final jump = container.read(messageJumpProvider);
     expect(jump, isNot(isA<MessageJumpIdle>()));
+
+    await _close(tester, opened);
+  });
+
+  testWidgets('Enter straight after typing opens a hit of what was typed, '
+      'never one still shown for the query before it', (tester) async {
+    final opened = await _openInGeneral(tester, hitsFor: _hitsForWord);
+    final container = ProviderScope.containerOf(
+      tester.element(find.text('conversation')),
+    );
+    await _type(tester, 'abc');
+    expect(inPalette('hello number 3'), findsOneWidget);
+
+    await tester.enterText(_input, 'abcdefg');
+    await _enter(tester);
+
+    expect(_input, findsNothing);
+    expect(_jumpedTo(container.read(messageJumpProvider)), 'm7');
+
+    await _close(tester, opened);
+  });
+
+  testWidgets('Enter on a reopened conversation search opens a hit of its '
+      'restored query', (tester) async {
+    final opened = await _openInGeneral(tester, hitsFor: _hitsForWord);
+    final container = ProviderScope.containerOf(
+      tester.element(find.text('conversation')),
+    );
+    await _type(tester, 'abcd');
+    await _key(tester, LogicalKeyboardKey.escape);
+
+    unawaited(
+      openConversationSearch(
+        tester.element(find.text('conversation')),
+        channelId: 'c1',
+        label: '#general',
+      ),
+    );
+    await tester.pump();
+    await _enter(tester);
+
+    expect(_input, findsNothing);
+    expect(_jumpedTo(container.read(messageJumpProvider)), 'm4');
 
     await _close(tester, opened);
   });

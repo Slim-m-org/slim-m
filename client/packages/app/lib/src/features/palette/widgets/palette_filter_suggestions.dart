@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../messages/providers/message_search_query.dart';
 import '../../messages/providers/message_search_request.dart';
+import '../providers/palette_query.dart';
 import 'command_palette_items.dart';
 
 /// What picking a suggestion does: [complete] puts `key:` in the field,
@@ -79,6 +80,21 @@ List<PaletteResultItem> filterSuggestions(
         ),
   ];
 }
+
+/// The suggestions for the word [field] is typing, picked straight into it.
+/// Keys are offered while [filtering] only as a word is typed or with the field
+/// empty: after a finished word the hits come first, so Enter opens one.
+List<PaletteResultItem> fieldSuggestions(
+  PaletteField field, {
+  required bool filtering,
+  required List<api.UserProfile> members,
+  required List<Channel> channels,
+}) => filterSuggestions(
+  field.word,
+  offerKeys: filtering && (field.word.isNotEmpty || field.text.trim().isEmpty),
+  sources: (members: members, channels: channels, today: DateTime.now()),
+  actions: (complete: field.completeKey, add: field.add),
+);
 
 /// What the suggestions for [word] are headed: what the key being typed takes.
 String filterSuggestionsLabel(String word) {

@@ -254,9 +254,19 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     );
   }
 
+  /// Enter acts on the list for what was typed last, never a hit of an older query.
   Future<void> _runHighlighted() async {
-    if (_visible.isEmpty) return;
-    await _run(_visible[_highlighted]);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    var item = _visible.elementAtOrNull(_highlighted);
+    final hit = item == null || item.kind == PaletteKind.message;
+    if (hit && !_messages.current) {
+      await _messages.flush();
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      item = _visible.where((i) => i.kind == PaletteKind.message).firstOrNull;
+    }
+    if (item != null) await _run(item);
   }
 
   Future<void> _run(PaletteResultItem item) async {
@@ -396,21 +406,6 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     );
   }
 
-  List<PaletteResultItem> _suggestions(
-    _ResultInputs inputs,
-  ) => filterSuggestions(
-    _field.word,
-    // After a finished word the hits come first, so Enter opens one rather than a key.
-    offerKeys:
-        _filtering && (_field.word.isNotEmpty || _field.text.trim().isEmpty),
-    sources: (
-      members: inputs.members,
-      channels: inputs.channels,
-      today: DateTime.now(),
-    ),
-    actions: (complete: _field.completeKey, add: _field.add),
-  );
-
   List<PaletteSection> _sections(_ResultInputs inputs) {
     final channelsById = {for (final c in inputs.channels) c.id: c};
     final query = parsePaletteQuery(_query).text;
@@ -418,7 +413,12 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
       query: _query,
       filtering: _filtering,
       typingValue: _field.typingValue,
-      suggestions: _suggestions(inputs),
+      suggestions: fieldSuggestions(
+        _field,
+        filtering: _filtering,
+        members: inputs.members,
+        channels: inputs.channels,
+      ),
       suggestionsLabel: filterSuggestionsLabel(_field.word),
       messages: _messages,
       messageItems: buildMessageItems(
