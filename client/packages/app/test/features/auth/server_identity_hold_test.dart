@@ -159,6 +159,18 @@ class _Rig {
   Future<void> untilLive() =>
       until(() => status == SyncStatus.live, 'went live');
 
+  /// Live and done re-asking the identity, so a key changed after this is seen only by the next live edge.
+  Future<void> untilLiveAndRechecked() async {
+    await untilLive();
+    await until(
+      () =>
+          server.versionReads >= 2 &&
+          server.versionsAnswered == server.versionReads,
+      'rechecked on going live',
+    );
+    await container.read(serverIdentityChangeProvider.future);
+  }
+
   /// Long enough that a request which was going to be sent would have been.
   Future<void> quiet() =>
       Future<void>.delayed(const Duration(milliseconds: 400));
@@ -353,7 +365,7 @@ void main() {
     await tester.runAsync(() async {
       rig = await _rig();
       rig.container.read(syncControllerProvider.notifier);
-      await rig.untilLive();
+      await rig.untilLiveAndRechecked();
     });
     await tester.pumpWidget(
       UncontrolledProviderScope(
