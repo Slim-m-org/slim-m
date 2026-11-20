@@ -135,17 +135,15 @@ async fn guard_over_bot(
     state: &AppState,
     caller: UserId,
     bot_id: UserId,
-) -> Result<Option<Role>, ApiError> {
+) -> Result<(Ladder, Option<Role>), ApiError> {
     if !state.store.is_bot_account(bot_id).await? {
         return Err(ApiError::NotFound("no such bot"));
     }
     let held = state.store.granted_base_permissions(bot_id).await?;
     escalation_guard(caller_granted(state, caller).await?, held)?;
-    Ladder::of(state, caller)
-        .await?
-        .reach_member(state, bot_id)
-        .await?;
-    Ok(state.store.role_for_bot(bot_id).await?)
+    let ladder = Ladder::of(state, caller).await?;
+    ladder.reach_member(state, bot_id).await?;
+    Ok((ladder, state.store.role_for_bot(bot_id).await?))
 }
 
 async fn list(
@@ -318,11 +316,9 @@ async fn set_permissions(
     require_human(&state, ctx.user_id).await?;
     let bot_id = UserId(parse_uuid(&bot_id)?);
 
-    let current = guard_over_bot(&state, ctx.user_id, bot_id).await?;
+    let (ladder, current) = guard_over_bot(&state, ctx.user_id, bot_id).await?;
     // The same reach `PATCH /roles` needs; a role this creates starts at the bottom.
-    Ladder::of(&state, ctx.user_id)
-        .await?
-        .reach_role(current.as_ref().map_or(0, |role| role.position))?;
+    ladder.reach_role(current.as_ref().map_or(0, |role| role.position))?;
 
     let caller_effective = state.store.base_permissions(ctx.user_id).await?;
     let permissions = grantable(caller_effective, req.permissions)?;

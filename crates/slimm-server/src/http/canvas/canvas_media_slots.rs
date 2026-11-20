@@ -23,7 +23,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
-use super::canvas_write::{canvas_access, canvas_read_access};
+use super::canvas_write::{canvas_read_access, ensure_may_draw};
 use crate::hub::{CanvasEvent, Event};
 use crate::ids::ChannelId;
 use crate::store::{CanvasMediaSlot, MediaSlotError, MediaSlotKind};
@@ -130,10 +130,7 @@ async fn upsert(
     let kind =
         MediaSlotKind::parse(&kind).ok_or(ApiError::BadRequest("unknown media slot kind"))?;
 
-    canvas_access(&state, ctx.user_id, channel_id).await?;
-    if state.store.timed_out_until(ctx.user_id).await?.is_some() {
-        return Err(ApiError::Forbidden);
-    }
+    ensure_may_draw(&state, ctx.user_id, channel_id).await?;
     if state.store.user_profile(user_id).await?.is_none() {
         return Err(ApiError::NotFound("user not found"));
     }

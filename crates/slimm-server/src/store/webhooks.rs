@@ -209,7 +209,7 @@ impl Store {
     }
 
     /// A single webhook by id, in the shape [`Store::list_webhooks`] returns.
-    async fn webhook_by_id(&self, webhook_id: WebhookId) -> anyhow::Result<Option<Webhook>> {
+    pub async fn webhook_by_id(&self, webhook_id: WebhookId) -> anyhow::Result<Option<Webhook>> {
         let row = sqlx::query!(
             r#"SELECT w.id AS "id!: WebhookId", w.user_id AS "user_id!: UserId",
                       w.channel_id AS "channel_id!: ChannelId", w.label,
