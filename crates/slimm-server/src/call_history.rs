@@ -30,11 +30,46 @@ impl Call {
     }
 }
 
+/// A leave followed by the same person's join within this long is a
+/// connection coming back (a new LiveKit session), not someone leaving.
+pub const RECONNECT_GRACE_MS: i64 = 10_000;
+
+/// `events` without each quick leave-and-rejoin pair by one person.
+fn without_reconnects(events: &[VoiceEvent]) -> Vec<VoiceEvent> {
+    let mut dropped = vec![false; events.len()];
+    for (i, left) in events.iter().enumerate() {
+        if left.kind != VoiceEventKind::Left || dropped[i] {
+            continue;
+        }
+        let back = events[i + 1..]
+            .iter()
+            .take_while(|e| e.at - left.at <= RECONNECT_GRACE_MS)
+            .position(|e| {
+                e.user_id == left.user_id
+                    && matches!(e.kind, VoiceEventKind::Joined | VoiceEventKind::Left)
+            });
+        if let Some(offset) = back {
+            let j = i + 1 + offset;
+            if events[j].kind == VoiceEventKind::Joined {
+                dropped[i] = true;
+                dropped[j] = true;
+            }
+        }
+    }
+    let mut keep = dropped.into_iter();
+    events
+        .iter()
+        .filter(|_| !keep.next().unwrap_or(false))
+        .copied()
+        .collect()
+}
+
 /// The calls in `events` (oldest first), newest call first. `present` is
 /// who LiveKit says is in the room now: a call still open at the end is
 /// ongoing only if one of them is still in it, and otherwise ended at its
 /// last event, which is what closes a call a missed leave left open.
 pub fn segment(events: &[VoiceEvent], present: &HashSet<UserId>) -> Vec<Call> {
+    let events = &without_reconnects(events);
     let mut calls = Vec::new();
     let mut inside: HashSet<UserId> = HashSet::new();
     let mut sharing: HashSet<UserId> = HashSet::new();
@@ -95,21 +130,60 @@ mod tests {
 
     use VoiceEventKind::*;
 
+    const M: i64 = 60_000;
+
     #[test]
     fn a_call_runs_from_the_first_join_to_the_last_leave() {
         let events = [
-            ev(10, 1, Joined),
-            ev(20, 2, Joined),
-            ev(30, 1, Left),
-            ev(40, 2, Left),
-            ev(100, 1, Joined),
-            ev(110, 1, Left),
+            ev(10 * M, 1, Joined),
+            ev(20 * M, 2, Joined),
+            ev(30 * M, 1, Left),
+            ev(40 * M, 2, Left),
+            ev(100 * M, 1, Joined),
+            ev(110 * M, 1, Left),
         ];
         let calls = segment(&events, &HashSet::new());
         assert_eq!(calls.len(), 2);
-        assert_eq!((calls[0].started_at, calls[0].ended_at), (100, Some(110)));
-        assert_eq!((calls[1].started_at, calls[1].ended_at), (10, Some(40)));
+        assert_eq!(
+            (calls[0].started_at, calls[0].ended_at),
+            (100 * M, Some(110 * M))
+        );
+        assert_eq!(
+            (calls[1].started_at, calls[1].ended_at),
+            (10 * M, Some(40 * M))
+        );
         assert_eq!(calls[1].events.len(), 4);
+    }
+
+    #[test]
+    fn a_leave_and_rejoin_within_seconds_is_a_reconnect_not_two_events() {
+        let events = [
+            ev(0, 1, Joined),
+            ev(60_000, 1, Left),
+            ev(61_000, 1, Joined),
+            ev(120_000, 1, ShareStarted),
+            ev(130_000, 1, Left),
+            ev(131_000, 1, Joined),
+            ev(200_000, 1, Left),
+        ];
+        let calls = segment(&events, &HashSet::new());
+        assert_eq!(calls.len(), 1, "a reconnect does not split the call");
+        let kinds: Vec<_> = calls[0].events.iter().map(|e| e.kind).collect();
+        assert_eq!(kinds, [Joined, ShareStarted, Left]);
+    }
+
+    #[test]
+    fn a_rejoin_after_a_real_gap_still_counts() {
+        let gap = RECONNECT_GRACE_MS + 1;
+        let events = [
+            ev(0, 1, Joined),
+            ev(1000, 2, Joined),
+            ev(2000, 1, Left),
+            ev(2000 + gap, 1, Joined),
+        ];
+        let calls = segment(&events, &HashSet::from([user(1)]));
+        let kinds: Vec<_> = calls[0].events.iter().map(|e| e.kind).collect();
+        assert_eq!(kinds, [Joined, Joined, Left, Joined]);
     }
 
     #[test]

@@ -11,6 +11,7 @@ import '../../../../format.dart';
 import '../../../settings/providers/display_preferences.dart';
 import '../../../members/providers/user_profiles.dart';
 import 'call_fold_link.dart';
+import 'call_moment_runs.dart';
 import 'call_timeline_model.dart';
 
 class CallMomentsView extends ConsumerStatefulWidget {
@@ -40,16 +41,15 @@ class _CallMomentsViewState extends ConsumerState<CallMomentsView> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final limit = widget.collapsedTo;
-    final shown = limit == null || _expanded
-        ? widget.moments
-        : widget.moments.take(limit).toList();
-    final hidden = widget.moments.length - shown.length;
+    final runs = foldMomentRuns(widget.moments);
+    final shown = limit == null || _expanded ? runs : runs.take(limit).toList();
+    final hidden = runs.length - shown.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final moment in shown)
+        for (final run in shown)
           _MomentRow(
-            moment: moment,
+            run: run,
             canvasObjectCount: widget.canvasObjectCount,
             onOpenCanvas: widget.onOpenCanvas,
           ),
@@ -73,27 +73,32 @@ class _CallMomentsViewState extends ConsumerState<CallMomentsView> {
 
 class _MomentRow extends ConsumerWidget {
   const _MomentRow({
-    required this.moment,
+    required this.run,
     required this.canvasObjectCount,
     required this.onOpenCanvas,
   });
 
-  final CallMoment moment;
+  final CallMomentRun run;
   final int canvasObjectCount;
   final VoidCallback onOpenCanvas;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final moment = run.first;
+    final use24Hour = watchUse24Hour(ref, context);
     final names = [
       for (final id in moment.userIds)
         ref.watch(userProfileProvider(id)).valueOrNull?.displayName ??
             'Someone',
     ];
-    final time = formatClock(
-      DateTime.fromMillisecondsSinceEpoch(moment.at),
-      use24Hour: watchUse24Hour(ref, context),
+    String clock(int at) => formatClock(
+      DateTime.fromMillisecondsSinceEpoch(at),
+      use24Hour: use24Hour,
     );
+    final time = clock(moment.at);
+    final sentence = momentSentence(moment, names, canvasObjectCount);
+    final repeated = run.count > 1;
     final opensCanvas =
         moment.kind == CallMomentKind.ended && canvasObjectCount > 0;
     return ConstrainedBox(
@@ -110,7 +115,12 @@ class _MomentRow extends ConsumerWidget {
           ),
           Expanded(
             child: Text(
-              momentSentence(moment, names, canvasObjectCount),
+              repeated
+                  ? '$sentence \u00D7${run.count} \u00B7 last at ${clock(run.lastAt)}'
+                  : sentence,
+              semanticsLabel: repeated
+                  ? '$sentence ${run.count} times, last at ${clock(run.lastAt)}'
+                  : null,
               style: AppText.ui.copyWith(color: tokens.textPrimary),
             ),
           ),

@@ -56,3 +56,5 @@ Where `fitsThreadPane` has room they dock beside the stage in the slot the chat 
 Clicking a voice channel still joins it.
 Its right-click and long-press menu gains "View details", which opens the page without joining.
 The page's join bar now offers a plain Join beside Join muted, which stays the primary action, as the empty state already did; a channel that joins muted still offers only Join muted.
+
+A leave followed by the same person's join within 10 seconds is a reconnect (a new LiveKit session), and reading a call drops both; the "What happened" list folds longer rejoin runs into one row ("joined x6, last at ...").

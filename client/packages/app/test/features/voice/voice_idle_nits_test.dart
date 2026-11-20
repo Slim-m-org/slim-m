@@ -30,8 +30,8 @@ Widget _app(Widget child, {List<Override> overrides = const []}) =>
       ),
     );
 
-CallMoment _moment(CallMomentKind kind, int at) =>
-    CallMoment(at: at, kind: kind);
+CallMoment _moment(CallMomentKind kind, int at, [String? who]) =>
+    CallMoment(at: at, kind: kind, userIds: [?who]);
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -44,8 +44,8 @@ void main() {
             key: _viewKey,
             moments: [
               _moment(CallMomentKind.started, 1),
-              _moment(CallMomentKind.joined, 2),
-              _moment(CallMomentKind.joined, 3),
+              _moment(CallMomentKind.joined, 2, 'a'),
+              _moment(CallMomentKind.joined, 3, 'b'),
               _moment(CallMomentKind.ended, 4),
             ],
             canvasObjectCount: canvasObjects,
