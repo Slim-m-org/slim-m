@@ -180,6 +180,7 @@ Version folders, the pointers, the start count and rollback are unchanged; `app`
   The comparison is by file identity, not path text, so a junctioned profile still matches.
   A restart into an update waits up to 32 seconds for the old copy to exit, beyond the runner's own 30; a launch beside a running older version, and any failure, start the version folder directly, as before.
 - The rebuild links into `app.next-<pid>` and swaps it in by two renames, so an interrupted rebuild leaves the old folder or none, and the next start repairs it; leftovers are cleared when they can be and never block a rebuild.
+  Explorer keeps the exe of a copy it started (a pin, the Run box) open after that copy exits, which blocks the folder rename, so the swap then falls back to moving the files one by one, the exe last.
 - Only a version that ships `layout-run-folder` runs from `app`, so a rollback to a version from before this change runs from its own folder, where its app still recognises the layout.
 - Launchers take turns through an exclusive lock file, held from counting the start to starting the app, so two launches at once neither count twice (which could roll back a good version) nor rebuild `app` under each other.
 - A copy started from `app` without the launcher's `SLIMM_FROM_LAUNCHER` marker, such as a taskbar pin of the window, hands its start to the launcher.

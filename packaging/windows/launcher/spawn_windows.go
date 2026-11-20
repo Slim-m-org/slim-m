@@ -88,12 +88,18 @@ func processImages() ([]string, bool) {
 	return images, true
 }
 
+// imagePath skips a process that has exited but is still listed because another
+// holds its handle, as Explorer does for a copy it started from Run or a pin.
 func imagePath(pid uint32, buf []uint16) (string, bool) {
 	handle, err := syscall.OpenProcess(processQueryLimitedInformation, false, pid)
 	if err != nil {
 		return "", false
 	}
 	defer syscall.CloseHandle(handle)
+	var code uint32
+	if syscall.GetExitCodeProcess(handle, &code) != nil || code != stillActive {
+		return "", false
+	}
 	size := uint32(len(buf))
 	ok, _, _ := queryFullProcessImageName.Call(uintptr(handle), 0, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&size)))
 	if ok == 0 {

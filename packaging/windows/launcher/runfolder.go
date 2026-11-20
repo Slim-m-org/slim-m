@@ -24,6 +24,8 @@ const (
 	// releaseTries spaced by releasePoll outlasts the runner's own 30 s wait for the copy a relaunch replaces.
 	releaseTries = 160
 	releasePoll  = 200 * time.Millisecond
+	// renameTries spaced by releasePoll covers a scanner briefly holding a file before the slower swap file by file.
+	renameTries = 5
 )
 
 // The steps tests replace: they cannot run an exe from a folder or make a link or rename fail.
@@ -142,8 +144,7 @@ func runsFrom(run string, images []string) bool {
 	return false
 }
 
-// rebuild links src into a fresh folder and renames it over run, so a failure
-// part way leaves the old run folder or none, never a mix of two versions.
+// rebuild links src into a fresh folder and swaps it in for run (runswap.go).
 // The names carry this launcher's pid, so a stuck leftover never blocks a rebuild.
 func rebuild(src, run string) error {
 	clearLeftovers(run)
@@ -153,17 +154,10 @@ func rebuild(src, run string) error {
 		_ = os.RemoveAll(next)
 		return err
 	}
-	if err := renamePath(run, old); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		_ = os.RemoveAll(next)
-		return err
-	}
-	if err := renamePath(next, run); err != nil {
-		_ = renamePath(old, run)
-		_ = os.RemoveAll(next)
-		return err
-	}
+	err := swapIn(next, run, old)
+	_ = os.RemoveAll(next)
 	_ = os.RemoveAll(old)
-	return nil
+	return err
 }
 
 // clearLeftovers removes what interrupted rebuilds left; one that cannot go yet is retried next time.

@@ -242,7 +242,9 @@ func TestAFailedRebuildStartsTheVersionFolder(t *testing.T) {
 	root := shipped(t, "0.88.0", "0.89.0")
 	stubRelease(t, 0)
 	runFrom(root, versionDir(root, "0.88.0"), false)
-	failRename(t, func(from, _ string) bool { return from == runPath(root) })
+	failRename(t, func(from, _ string) bool {
+		return from == runPath(root) || strings.HasPrefix(from, runPath(root)+string(filepath.Separator))
+	})
 	if got := runFrom(root, versionDir(root, "0.89.0"), false); got != versionDir(root, "0.89.0") {
 		t.Fatalf("started from %q after the rebuild failed", got)
 	}
@@ -326,5 +328,26 @@ func TestOnlyFoldersNamedLikeTheRunFolderAreLookedAt(t *testing.T) {
 	runsFrom(runPath(root), images)
 	if len(looked) != 1 || filepath.Base(looked[0]) != strings.ToUpper(runFolder) {
 		t.Fatalf("looked at %v", looked)
+	}
+}
+
+func TestAFolderHeldOpenBrieflyAfterItsCopyExitedIsStillReplaced(t *testing.T) {
+	root := shipped(t, "0.88.0", "0.89.0")
+	stubRelease(t, 0)
+	runFrom(root, versionDir(root, "0.88.0"), false)
+	paused := stubRelease(t, 0)
+	held := 4
+	failRename(t, func(from, _ string) bool {
+		if from == runPath(root) && held > 0 {
+			held--
+			return true
+		}
+		return false
+	})
+	if got := runFrom(root, versionDir(root, "0.89.0"), false); got != runPath(root) || *paused != 4 {
+		t.Fatalf("started from %q after %d waits", got, *paused)
+	}
+	if engineIn(t, runPath(root)) != "engine 0.89.0" {
+		t.Fatal("the run folder still holds the old version")
 	}
 }
