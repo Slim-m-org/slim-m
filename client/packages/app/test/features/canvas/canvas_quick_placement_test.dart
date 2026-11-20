@@ -69,11 +69,14 @@ void main() {
         longText,
         width: defaultNoteWidth,
         minHeight: defaultNoteHeight,
-        fontSize: defaultNoteFontSize,
+        fontSize: noteFontSizeForWidth(defaultNoteWidth),
       );
       expect(requests.single['w'], expected.width);
       expect(requests.single['h'], expected.height);
-      expect(requests.single['props']['font_size'], defaultNoteFontSize);
+      expect(
+        requests.single['props']['font_size'],
+        noteFontSizeForWidth(defaultNoteWidth),
+      );
       expect(
         requests.single['h'],
         greaterThan(defaultNoteHeight),
@@ -134,7 +137,10 @@ void main() {
     expect(body['y'], 190);
     expect(body['w'], 660);
     expect(body['h'], 420);
-    expect(body['props']['font_size'], defaultNoteFontSize * 2);
+    expect(
+      body['props']['font_size'],
+      noteFontSizeForWidth(defaultNoteWidth) * 2,
+    );
   });
 
   testWidgets(
