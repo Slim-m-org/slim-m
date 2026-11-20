@@ -81,7 +81,39 @@ class _DraftedPaneState extends State<_DraftedPane> {
   }
 
   @override
-  Widget build(BuildContext context) => const Text('drafted pane');
+  Widget build(BuildContext context) => Column(
+    children: [
+      const Text('drafted pane'),
+      TextButton(
+        onPressed: () => _stack.push(_page('d')),
+        child: const Text('open draft page'),
+      ),
+    ],
+  );
+}
+
+/// Counts how often it is built from scratch, so a pane that is rebuilt shows.
+class _CountedPane extends StatefulWidget {
+  const _CountedPane(this.builds);
+
+  final List<int> builds;
+
+  @override
+  State<_CountedPane> createState() => _CountedPaneState();
+}
+
+class _CountedPaneState extends State<_CountedPane> {
+  @override
+  void initState() {
+    super.initState();
+    widget.builds.add(widget.builds.length);
+  }
+
+  @override
+  Widget build(BuildContext context) => TextButton(
+    onPressed: () => SettingsSubPages.of(context).push(_page('one')),
+    child: const Text('open counted page'),
+  );
 }
 
 SettingsSubPage _page(
@@ -99,6 +131,7 @@ SettingsSubPage _page(
 );
 
 class _Rig {
+  final paneBuilds = <int>[];
   final told = <String>[];
   final panesTold = <String?>[];
   SettingsSubPage pushed = _page('one', urlId: 'one');
@@ -133,6 +166,11 @@ class _Rig {
                     _page('g', builder: (_) => _GuardedPage(guard)),
                   ],
                 },
+              ),
+              SettingsPane(
+                id: 'counted',
+                label: 'Counted',
+                builder: (_) => _CountedPane(paneBuilds),
               ),
               SettingsPane(
                 id: 'other',
@@ -204,6 +242,19 @@ void main() {
     await _tap(tester, find.byTooltip('Back to Appearance'));
     expect(navBack.hitTestable(), findsOneWidget);
     expect(tester.getTopLeft(find.text('Settings')), title);
+  });
+
+  testWidgets('going back from a page finds the pane as it was left', (
+    tester,
+  ) async {
+    final rig = _Rig();
+    await rig.pump(tester, _wide, pane: 'counted');
+
+    await _tap(tester, find.text('open counted page'));
+    await _tap(tester, find.byTooltip('Back to Appearance'));
+
+    expect(find.text('open counted page'), findsOneWidget);
+    expect(rig.paneBuilds, hasLength(1));
   });
 
   testWidgets('beside the nav a page takes the heading row and keeps close', (
@@ -321,6 +372,18 @@ void main() {
     rig.guard.answer = true;
     await _tap(tester, find.text('Other'));
     expect(find.text('other pane'), findsOneWidget);
+  });
+
+  testWidgets('leaving a page that holds nothing does not ask for the '
+      'pane draft under it', (tester) async {
+    final rig = _Rig();
+    await rig.pump(tester, _wide, pane: 'drafted');
+
+    await _tap(tester, find.text('open draft page'));
+    await _tap(tester, find.byTooltip('Back to Appearance'));
+
+    expect(rig.guard.asked, 0);
+    expect(find.text('drafted pane'), findsOneWidget);
   });
 
   testWidgets('a pane draft asks before the location moves to another pane', (

@@ -73,7 +73,9 @@ class SettingsSubPageStack extends ChangeNotifier {
 
   /// Leaves the top page once its guard allows it; false when it did not.
   Future<bool> pop() async {
-    if (_pages.isEmpty || !await canLeave()) return false;
+    final top = guard;
+    if (_pages.isEmpty) return false;
+    if (top != null && top.blocking && !await top.confirmLeave()) return false;
     _release(_pages.length - 1);
     _pages.removeLast();
     _changed();

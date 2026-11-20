@@ -232,7 +232,6 @@ class _ThemeGalleryPageState extends ConsumerState<ThemeGalleryPage> {
               label: 'Import',
               icon: AppIcons.upload,
               size: size,
-              disabled: !enabled,
               onPressed: () => unawaited(_actions.importFile()),
             ),
             AppButton(
