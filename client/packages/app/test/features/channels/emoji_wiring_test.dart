@@ -241,6 +241,8 @@ void main() {
       find.byKey(const Key('command-palette-input')),
       'shipped',
     );
+    // Past the palette's typing pause, then the hits' frames.
+    await tester.pump(paletteSearchDebounce);
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 20));
     }
