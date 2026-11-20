@@ -56,6 +56,9 @@ bool botIsOnCall(WidgetRef ref, Iterable<String> participantIds) {
 class WatchSessionBar extends ConsumerStatefulWidget {
   const WatchSessionBar({super.key, required this.channelId});
 
+  /// The played part of the progress track.
+  static const progressFillKey = Key('watch-progress-fill');
+
   final String channelId;
 
   @override
@@ -168,7 +171,9 @@ class _Progress extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: FractionallySizedBox(
+              key: WatchSessionBar.progressFillKey,
               widthFactor: fraction.clamp(0.0, 1.0),
+              heightFactor: 1,
               child: ColoredBox(color: tokens.accentFill),
             ),
           ),

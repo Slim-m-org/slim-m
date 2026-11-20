@@ -126,6 +126,7 @@ class _PausedBand extends StatelessWidget {
           ),
           AppButton(
             label: 'Rejoin the room',
+            variant: AppButtonVariant.primary,
             size: AppButtonSize.sm,
             onPressed: onRejoin,
           ),

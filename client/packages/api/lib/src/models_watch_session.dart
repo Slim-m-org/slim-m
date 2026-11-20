@@ -34,6 +34,24 @@ class WatchDirectPlay {
       );
 }
 
+/// Whose player a session's item belongs to.
+enum WatchProvider {
+  jellyfin,
+
+  /// A YouTube video id that every viewer plays in YouTube's own embed.
+  youtube,
+
+  /// A provider this build does not know; the room's position still shows.
+  other;
+
+  /// A server that predates the field only ran Jellyfin parties.
+  static WatchProvider parse(Object? raw) => switch (raw) {
+        null || 'jellyfin' => jellyfin,
+        'youtube' => youtube,
+        _ => other,
+      };
+}
+
 class WatchSession {
   const WatchSession({
     required this.channelId,
@@ -50,10 +68,12 @@ class WatchSession {
     this.controllerUserId,
     this.directPlay,
     this.directViewerIds = const [],
+    this.provider = WatchProvider.jellyfin,
   });
 
   final String channelId;
   final String botUserId;
+  final WatchProvider provider;
   final String itemId;
   final String title;
   final int? durationMs;
@@ -86,6 +106,7 @@ class WatchSession {
   factory WatchSession.fromJson(Map<String, dynamic> json) => WatchSession(
         channelId: json['channel_id'] as String,
         botUserId: json['bot_user_id'] as String,
+        provider: WatchProvider.parse(json['provider']),
         itemId: json['item_id'] as String,
         title: json['title'] as String,
         durationMs: json['duration_ms'] as int?,

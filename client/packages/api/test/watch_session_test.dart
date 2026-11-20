@@ -57,6 +57,26 @@ void main() {
     expect(session.ttlMs, 30000);
   });
 
+  test('reads the provider, and a server without one as jellyfin', () async {
+    Future<WatchSession> read(Map<String, Object?> body) async =>
+        (await _client(
+          (request) => http.Response(
+            jsonEncode(body),
+            200,
+            headers: {'content-type': 'application/json'},
+          ),
+        ).getWatchSession('c1'))!;
+    expect((await read(_session)).provider, WatchProvider.jellyfin);
+    expect(
+      (await read({..._session, 'provider': 'youtube'})).provider,
+      WatchProvider.youtube,
+    );
+    expect(
+      (await read({..._session, 'provider': 'vimeo'})).provider,
+      WatchProvider.other,
+    );
+  });
+
   test('reads what the bot offers for direct play and who is direct', () async {
     final client = _client(
       (request) => http.Response(

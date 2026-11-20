@@ -8,18 +8,15 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../external_link.dart';
-import '../../../providers/phone_landscape.dart';
-import '../../../widgets/system_bars.dart';
 import '../providers/embedded_video_player.dart';
 import '../providers/inline_video_player.dart';
 import '../providers/video_playback_coordinator.dart';
 import 'docked_video_panel.dart' show kMinPlayerHeight;
+import 'video_fullscreen.dart';
 
 class InlineVideoPlayer extends ConsumerStatefulWidget {
   const InlineVideoPlayer({
@@ -43,18 +40,18 @@ class InlineVideoPlayer extends ConsumerStatefulWidget {
 class _InlineVideoPlayerState extends ConsumerState<InlineVideoPlayer> {
   late final InlineVideoHandle _handle;
   late final VideoPlaybackCoordinator _coordinator;
+  final _fullscreen = VideoFullscreenRoute();
   StreamSubscription<VideoPlayerEvent>? _events;
   VideoFailed? _failure;
-  NavigatorState? _fullscreenNavigator;
-  bool _fullscreen = false;
 
   @override
   void initState() {
     super.initState();
     _coordinator = ref.read(videoPlaybackCoordinatorProvider);
     _handle = ref.read(inlineVideoFactoryProvider)(
-      onShowFullscreen: _showFullscreen,
-      onHideFullscreen: _hideFullscreen,
+      onShowFullscreen: (view, onExit) =>
+          _fullscreen.show(context, view, onExit),
+      onHideFullscreen: _fullscreen.hide,
     );
     final player = _handle.player;
     _coordinator.attach(player);
@@ -64,44 +61,9 @@ class _InlineVideoPlayerState extends ConsumerState<InlineVideoPlayer> {
     unawaited(player.load(widget.videoId, start: widget.start));
   }
 
-  void _showFullscreen(Widget view, void Function() onExit) {
-    if (_fullscreen) return;
-    _fullscreen = true;
-    final navigator = _fullscreenNavigator = Navigator.of(
-      context,
-      rootNavigator: true,
-    );
-    unawaited(
-      navigator
-          .push(
-            PageRouteBuilder<void>(
-              opaque: true,
-              pageBuilder: (_, _, _) => _VideoFullscreen(view: view),
-            ),
-          )
-          .then((_) {
-            if (_fullscreen) {
-              _fullscreen = false;
-              onExit();
-            }
-          }),
-    );
-  }
-
-  void _hideFullscreen() {
-    if (!_fullscreen) return;
-    _fullscreen = false;
-    _fullscreenNavigator?.pop();
-  }
-
   @override
   void dispose() {
-    if (_fullscreen) {
-      _fullscreen = false;
-      final navigator = _fullscreenNavigator;
-      // The tree is locked while this disposes, so the route leaves after the frame.
-      SchedulerBinding.instance.addPostFrameCallback((_) => navigator?.pop());
-    }
+    _fullscreen.dispose();
     unawaited(_events?.cancel());
     _coordinator.detach(_handle.player);
     unawaited(_handle.player.dispose());
@@ -136,42 +98,4 @@ class _InlineVideoPlayerState extends ConsumerState<InlineVideoPlayer> {
       },
     );
   }
-}
-
-/// The player's own fullscreen view, which a phone may turn landscape for.
-class _VideoFullscreen extends ConsumerStatefulWidget {
-  const _VideoFullscreen({required this.view});
-
-  final Widget view;
-
-  @override
-  ConsumerState<_VideoFullscreen> createState() => _VideoFullscreenState();
-}
-
-class _VideoFullscreenState extends ConsumerState<_VideoFullscreen> {
-  late final PhoneLandscapeHold _landscape;
-
-  @override
-  void initState() {
-    super.initState();
-    _landscape = PhoneLandscapeHold(
-      ref.read(orientationChannelProvider),
-      ref.read(portraitLockedPhoneProvider.notifier),
-    );
-    unawaited(_landscape.enter());
-    unawaited(
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
-    );
-  }
-
-  @override
-  void dispose() {
-    _landscape.release();
-    unawaited(drawUnderSystemBars());
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      ColoredBox(color: const Color(0xFF000000), child: widget.view);
 }
