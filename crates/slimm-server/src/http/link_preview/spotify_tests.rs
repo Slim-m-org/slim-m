@@ -184,11 +184,11 @@ async fn a_page_that_redirects_somewhere_refused_refuses_the_card() {
 }
 
 #[tokio::test]
-async fn a_short_link_that_lands_on_no_item_previews_nothing_and_asks_oembed_nothing() {
+async fn a_short_link_that_lands_on_no_item_previews_the_page_and_asks_oembed_nothing() {
     let fake = fake_spotify(true, Some(album_oembed())).await;
     let short = format!("{}/album", fake.base);
     let oembed = format!("{}/oembed", fake.base);
     let preview = short_link_preview(&build_client(true), &short, &oembed, true).await;
-    assert!(matches!(preview, Ok(None)));
+    assert!(matches!(preview, Ok(Some(_))), "{preview:?}");
     assert_eq!(fake.oembed_hits.load(Ordering::Relaxed), 0);
 }
