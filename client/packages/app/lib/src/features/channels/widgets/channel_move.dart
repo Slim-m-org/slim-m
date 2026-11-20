@@ -6,13 +6,14 @@
 /// channel of a category steps up into the end of the category above, and the
 /// last steps down into the start of the one below. A collapsed category, and
 /// every sub-category of a collapsed parent, is stepped over, since its rows
-/// are hidden and a channel dropped into it would vanish from the rail.
+/// are hidden and a channel dropped into it would vanish from the rail. A
+/// category the account may not file under is stepped over too.
 library;
 
 import 'package:slimm_api/api.dart' show ChannelOrderGroup;
 
 import 'category_tree.dart';
-import 'channel_rail_reorder.dart' show ChannelSection;
+import 'channel_rail_reorder.dart' show ChannelSection, shutSections;
 
 /// The whole rail's arrangement after moving [channelId] one step by [delta],
 /// or null when it is already at that end. [collapsed] holds category ids.
@@ -35,7 +36,10 @@ List<ChannelOrderGroup>? groupsAfterStep(
       ..insert(within, channelId);
     return _groups(sections, lists);
   }
-  final closed = closedSections(sections, treeOfSections(sections), collapsed);
+  final closed = {
+    ...closedSections(sections, treeOfSections(sections), collapsed),
+    ...shutSections(sections),
+  };
   var to = from + delta;
   while (to >= 0 && to < sections.length && closed.contains(to)) {
     to += delta;
