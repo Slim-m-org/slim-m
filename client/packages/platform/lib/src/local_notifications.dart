@@ -41,6 +41,7 @@ const voiceChannelId = 'voice_v1';
 const voiceChannelName = 'Voice activity';
 
 /// What Windows files a toast under; the plugin registers it for the user.
+/// The runner gives the process and its shortcuts the same id (shortcut_identity.h).
 const windowsAppUserModelId = 'top.npcserver.slimm';
 
 /// The runner channel that removes a toast this app posted.

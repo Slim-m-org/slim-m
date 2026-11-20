@@ -2,6 +2,7 @@
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
+#include "app_identity.h"
 #include "flutter_window.h"
 #include "launcher_handoff.h"
 #include "link_scheme.h"
@@ -10,6 +11,7 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+  ClaimAppIdentity();
   if (ForwardLinkToRunningInstance()) {
     return EXIT_SUCCESS;
   }
@@ -30,6 +32,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+  RepairShortcuts();
 
   flutter::DartProject project(L"data");
 

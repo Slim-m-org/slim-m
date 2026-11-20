@@ -12,6 +12,8 @@
   #error SourceDir is required: pass /DSourceDir=<release folder with slim-m.exe>
 #endif
 #define AppMutexName "Local\top.npcserver.slimm.instance"
+; The runner's process identity (shortcut_identity.h); a shortcut without it splits a taskbar pin from the window.
+#define AppUserModelId "top.npcserver.slimm"
 
 [Setup]
 AppId={{6F1D2B5E-3C0A-4E7B-9A52-5D8E1C4B7A30}
@@ -43,8 +45,8 @@ Source: "{#SourceDir}\*"; DestDir: "{app}\app-{#AppVersion}"; Excludes: "install
 Source: "{#SourceDir}\slim-m.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\slim-m"; Filename: "{app}\slim-m.exe"
-Name: "{autodesktop}\slim-m"; Filename: "{app}\slim-m.exe"; Tasks: desktopicon
+Name: "{autoprograms}\slim-m"; Filename: "{app}\slim-m.exe"; AppUserModelID: "{#AppUserModelId}"
+Name: "{autodesktop}\slim-m"; Filename: "{app}\slim-m.exe"; AppUserModelID: "{#AppUserModelId}"; Tasks: desktopicon
 
 [Registry]
 ; slimm:// links (an invite, Spotify's redirect, the Discord link's hand-back) open the launcher, which starts the current version with the link.

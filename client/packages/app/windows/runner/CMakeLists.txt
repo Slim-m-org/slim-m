@@ -7,6 +7,7 @@ project(runner LANGUAGES CXX)
 #
 # Any new source files that you add to the application should be added here.
 add_executable(${BINARY_NAME} WIN32
+  "app_identity.cpp"
   "clipboard_image_channel.cpp"
   "flutter_window.cpp"
   "global_hotkeys_channel.cpp"
@@ -109,7 +110,7 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "windowscodecs.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "wtsapi32.lib")
-target_link_libraries(${BINARY_NAME} PRIVATE "ole32.lib" "gdi32.lib" "user32.lib")
+target_link_libraries(${BINARY_NAME} PRIVATE "ole32.lib" "gdi32.lib" "user32.lib" "propsys.lib" "shell32.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE now_playing_smtc)
 target_link_libraries(${BINARY_NAME} PRIVATE toast_history_win)
 target_link_libraries(${BINARY_NAME} PRIVATE screen_overlay_win)
