@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.114.1](https://github.com/Slim-m-org/slim-m/compare/server-v0.114.0...server-v0.114.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* what a review of the last two weeks found - closed-menu failures stay up, mention flags survive catch-up edits, transcript and bulk-delete gaps, cleanup ([#2437](https://github.com/Slim-m-org/slim-m/issues/2437)) ([34a557a](https://github.com/Slim-m-org/slim-m/commit/34a557af0dab44af52a65d5714d2581cd9d8e2fd))
+
 ## [0.114.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.113.0...server-v0.114.0) (2026-11-20)
 
 
