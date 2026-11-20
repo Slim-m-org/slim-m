@@ -85,7 +85,7 @@ void main() {
 
   test('a quoted channel name still being typed offers the channel', () {
     final added = <SearchFilter>[];
-    final team = Channel(
+    const team = Channel(
       id: 'c1',
       name: 'team chat',
       kind: 'text',

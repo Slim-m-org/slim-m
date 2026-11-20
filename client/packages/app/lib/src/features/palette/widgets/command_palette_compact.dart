@@ -19,7 +19,6 @@ import 'package:slimm_design_system/design_system.dart';
 /// hairline.
 class _CompactSearchRow extends StatelessWidget {
   const _CompactSearchRow({
-    super.key,
     required this.searchField,
     required this.onCancel,
     this.divider = true,
