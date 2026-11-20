@@ -27,7 +27,7 @@ final badgesAllowedProvider = FutureProvider.autoDispose<bool>(
 int appBadgeCount(Iterable<AccountUnread> accounts) =>
     accounts.fold(0, (sum, unread) => sum + unread.channels);
 
-/// Mounted once on the app-level container; runs on every unread change, also
+/// Kept mounted by [ActiveAccountMount]; runs on every unread change, also
 /// while a minimised window draws no frames.
 final appBadgeSyncProvider = Provider<void>((ref) {
   onAccountsChanged(ref, (accounts) {
