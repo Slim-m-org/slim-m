@@ -167,6 +167,8 @@ Future<void> main([List<String> args = const []]) async {
   await shell.lockSplashChrome();
   // Off the UI thread now, so a join cue never pays GStreamer's first init on it.
   unawaited(warmSoundBackend());
+  // Only closing the last pop-out removes its KWin rule, so a crash with one open leaves it behind.
+  unawaited(kwinClearLeftoverAboveFullScreen());
 }
 
 /// The async sequence [StartupApp] masks: session restore (so the router's

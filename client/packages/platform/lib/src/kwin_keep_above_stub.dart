@@ -15,3 +15,5 @@ Future<bool> kwinAboveFullScreen(String caption) async => false;
 String withoutRule(String list, String id) => list;
 
 Future<bool> kwinRemoveAboveFullScreen() async => false;
+
+Future<bool> kwinClearLeftoverAboveFullScreen() async => false;
