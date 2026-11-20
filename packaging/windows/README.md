@@ -29,6 +29,12 @@ Windows cannot replace a running exe, so each version lives in its own folder.
 An update unpacks the next version into a new folder, rewrites `current` through a temp file and a replacing rename, and restarts through the launcher, which then relinks `app`.
 
 The previous version is kept until the new one has stayed up for 20 seconds, then older folders are removed.
+
+The taskbar groups a window by its AppUserModelID, and without one by its exe path, which changes whenever a start runs from a version folder instead of `app`.
+So the app claims `top.npcserver.slimm` before it opens a window, the setup gives its shortcuts the same id, and pinning the window pins the launcher shortcut rather than a version folder's exe.
+The toasts use the same id.
+At each start the app also gives that id to any Start menu, desktop or taskbar shortcut into the install that lacks it, because an in-app update never runs the setup and `install.cmd` and "Install for automatic updates" cannot set it.
+A pin made by 0.132.0 or earlier points at `app-<version>\slimm_app.exe` or `app\slimm_app.exe`, and the same repair points it at `slim-m.exe`.
 If the new version fails to start three times in a row, the launcher moves `current` back to `previous` and the app says so in a banner.
 
 A copy run straight from the extracted folder, a machine-wide copy under `Program Files` and a packaged MSIX are never modified by the updater.

@@ -59,21 +59,34 @@ inline bool IsSameApp(const std::wstring& image, const std::wstring& own) {
   return !image.empty() && EqualsIgnoringCase(FileName(image), FileName(own));
 }
 
+/// Whether `folder` is named like the run folder or a version folder.
+inline bool IsLayoutFolderName(const std::wstring& folder) {
+  const std::wstring name = FileName(folder);
+  return EqualsIgnoringCase(name, kRunFolder) ||
+         StartsWithIgnoringCase(name, kVersionFolderPrefix);
+}
+
+/// The per-user layout's root when `exe` runs from it, or empty for a copy
+/// run from anywhere else, such as an unzipped folder.
+template <typename Exists>
+std::wstring LayoutRootFor(const std::wstring& exe, Exists exists) {
+  const std::wstring folder = ParentOf(exe);
+  const std::wstring root = ParentOf(folder);
+  if (root.empty() || !IsLayoutFolderName(folder)) return std::wstring();
+  if (!exists(root + L"\\" + kLauncherName) ||
+      !exists(root + L"\\" + kCurrentPointer)) {
+    return std::wstring();
+  }
+  return root;
+}
+
 /// What `slimm://` should open for the copy at `exe`: the per-user launcher
 /// when `exe` runs from the layout, so the registration survives updates, and
 /// `exe` itself for a copy run from an unzipped folder.
 template <typename Exists>
 std::wstring LinkHandlerFor(const std::wstring& exe, Exists exists) {
-  const std::wstring folder = ParentOf(exe);
-  const std::wstring root = ParentOf(folder);
-  const std::wstring name = FileName(folder);
-  if (root.empty() || !(EqualsIgnoringCase(name, kRunFolder) ||
-                        StartsWithIgnoringCase(name, kVersionFolderPrefix))) {
-    return exe;
-  }
-  const std::wstring launcher = root + L"\\" + kLauncherName;
-  if (!exists(launcher) || !exists(root + L"\\" + kCurrentPointer)) return exe;
-  return launcher;
+  const std::wstring root = LayoutRootFor(exe, exists);
+  return root.empty() ? exe : root + L"\\" + kLauncherName;
 }
 
 /// Set by the launcher on the app it starts (prepare.go has the same name).
