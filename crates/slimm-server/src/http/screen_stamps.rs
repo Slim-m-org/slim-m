@@ -40,10 +40,10 @@ const BODY_LIMIT: usize = 2 * 1024;
 const MAX_STAMP_PICTURE_BYTES: i64 = 8 * 1024 * 1024;
 
 /// The largest GIF an in-app tile animates; a bigger one shows its still frame.
-const MAX_ANIMATED_BYTES: i64 = 4 * 1024 * 1024;
+pub(in crate::http) const STAMP_ANIMATED_BYTES: i64 = 4 * 1024 * 1024;
 
 /// The longest GIF canvas side a tile animates, since every frame decodes at the full canvas.
-const MAX_ANIMATED_SIDE: u32 = 1024;
+pub(in crate::http) const STAMP_ANIMATED_SIDE: u32 = 1024;
 
 const NOT_A_PICTURE: &str = "a stamp must be a PNG, JPEG, GIF or WebP picture";
 
@@ -150,8 +150,8 @@ async fn usable_picture(state: &AppState, sender: UserId, sha256: &[u8]) -> Resu
     }
     let header = stillable_header(state, sha256).await?;
     Ok(meta.content_type == "image/gif"
-        && meta.size <= MAX_ANIMATED_BYTES
-        && header.width.max(header.height) <= MAX_ANIMATED_SIDE)
+        && meta.size <= STAMP_ANIMATED_BYTES
+        && header.width.max(header.height) <= STAMP_ANIMATED_SIDE)
 }
 
 /// The picture's header, read the way its still is planned, so every stamp has a still the

@@ -160,6 +160,18 @@ class StampImageCache {
         });
   }
 
+  /// The GIF a tile plays for [content]: an animated picture's original, or a custom emoji that is a small enough GIF; null for a still.
+  Future<Uint8List?> animation(StampContent content) async => switch (content) {
+    PictureStamp(animated: true, :final attachmentId) => original(attachmentId),
+    PictureStamp() => null,
+    EmojiStamp() => switch (content.customId(_customIndex())) {
+      final id? => _animating(await _customEmojiBytes(id)),
+      null => null,
+    },
+  };
+
+  Uint8List? _animating(Uint8List bytes) => _gifAnimates(bytes) ? bytes : null;
+
   /// Forgets the baked standard emoji, which a font that loaded late would draw differently.
   void dropGlyphs() {
     _glyphEpoch++;

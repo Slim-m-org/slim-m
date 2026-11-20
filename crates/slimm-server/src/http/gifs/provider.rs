@@ -18,6 +18,8 @@
 mod klipy;
 mod tenor;
 
+use crate::http::screen_stamps::{STAMP_ANIMATED_BYTES, STAMP_ANIMATED_SIDE};
+
 /// One search result, provider-shape already stripped away: a title and the
 /// two upstream CDN URLs a caller may later fetch through, never handed to a
 /// client directly (see the parent module's doc comment for why).
@@ -32,6 +34,38 @@ pub(super) struct ProviderGif {
     /// fixed aspect ratio for those rather than treating zero as a real answer.
     pub(super) width: u32,
     pub(super) height: u32,
+    /// The rendition a screen stamp takes; see [`stamp_rendition`].
+    pub(super) stamp_url: String,
+}
+
+/// One rendition a provider offers of a result, as much as choosing a stamp's needs.
+pub(super) struct Rendition<'a> {
+    pub(super) url: &'a str,
+    pub(super) width: u32,
+    pub(super) height: u32,
+    /// Bytes, as the provider reports them; `None` when it does not.
+    pub(super) size: Option<u64>,
+}
+
+impl Rendition<'_> {
+    fn animates_as_a_stamp(&self) -> bool {
+        self.size
+            .is_some_and(|size| size <= STAMP_ANIMATED_BYTES as u64)
+            && self.width.max(self.height) <= STAMP_ANIMATED_SIDE
+    }
+}
+
+/// What a screen stamp of a search result shows (decision 0121): of `largest_first`, the
+/// largest that a tile still animates, else the smallest there is.
+///
+/// A provider's full rendition is often past the stamp route's 8 MiB cap, which refused
+/// every such pick, and past 4 MiB it shows as a still; a stamp is a few hundred pixels at most.
+pub(super) fn stamp_rendition<'a>(largest_first: &[Rendition<'a>]) -> Option<&'a str> {
+    largest_first
+        .iter()
+        .find(|rendition| rendition.animates_as_a_stamp())
+        .or(largest_first.last())
+        .map(|rendition| rendition.url)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

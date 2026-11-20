@@ -3,7 +3,10 @@
 /// the person: one sentence each, never the server's own wording.
 library;
 
+import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -27,6 +30,36 @@ api.SlimmApi _client(http.Response Function(http.Request) answer) =>
       httpClient: MockClient((request) async => answer(request)),
     );
 
+/// A picture of noise, which PNG cannot squeeze: a screenshot of a busy screen is as heavy.
+Future<Uint8List> _noisyPng(int width, int height) async {
+  final random = math.Random(7);
+  final pixels = Uint8List(width * height * 4);
+  for (var i = 0; i < pixels.length; i++) {
+    pixels[i] = i % 4 == 3 ? 255 : random.nextInt(256);
+  }
+  final decoded = Completer<ui.Image>();
+  ui.decodeImageFromPixels(
+    pixels,
+    width,
+    height,
+    ui.PixelFormat.rgba8888,
+    decoded.complete,
+  );
+  final image = await decoded.future;
+  final png = await image.toByteData(format: ui.ImageByteFormat.png);
+  image.dispose();
+  return png!.buffer.asUint8List();
+}
+
+Future<(int, int)> _sizeOf(Uint8List png) async {
+  final codec = await ui.instantiateImageCodec(png);
+  final image = (await codec.getNextFrame()).image;
+  final size = (image.width, image.height);
+  image.dispose();
+  codec.dispose();
+  return size;
+}
+
 StampImageCache _cache() => StampImageCache(
   fetchStill: (_) => throw UnimplementedError(),
   fetchOriginal: (_) => throw UnimplementedError(),
@@ -35,7 +68,36 @@ StampImageCache _cache() => StampImageCache(
 );
 
 void main() {
-  test('a picture over 8 MiB is refused before anything is uploaded', () async {
+  test(
+    'a screenshot past 8 MiB goes up shrunk to a PNG rather than refused',
+    () async {
+      final screenshot = await _noisyPng(2400, 1500);
+      expect(screenshot.length, greaterThan(stampPictureMaxBytes));
+      http.Request? upload;
+      final client = _client((request) {
+        upload = request;
+        return http.Response(
+          '{"id":"att","filename":"shot.png","content_type":"image/png",'
+          '"size":${request.bodyBytes.length},"created_at":0}',
+          201,
+          headers: const {'content-type': 'application/json'},
+        );
+      });
+      final stamp = await uploadStampPicture(
+        client,
+        _cache(),
+        screenshot,
+        filename: 'Screenshot_20261120.jpeg',
+      );
+      expect(stamp.attachmentId, 'att');
+      final sent = upload!;
+      expect(sent.url.queryParameters['filename'], 'Screenshot_20261120.png');
+      expect(sent.bodyBytes.length, lessThanOrEqualTo(stampPictureMaxBytes));
+      expect(await _sizeOf(sent.bodyBytes), (stampShrinkEdge, 640));
+    },
+  );
+
+  test('a file past 8 MiB that is no picture is refused unsent', () async {
     var uploads = 0;
     final client = _client((_) {
       uploads++;
@@ -52,7 +114,7 @@ void main() {
         isA<StampPictureRefused>().having(
           (r) => r.message,
           'message',
-          'That picture is too large to stamp.',
+          'That picture could not be read.',
         ),
       ),
     );

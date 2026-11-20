@@ -6,7 +6,7 @@
 
 use serde::Deserialize;
 
-use super::ProviderGif;
+use super::{ProviderGif, Rendition, stamp_rendition};
 
 pub(super) const BASE_URL: &str = "https://api.klipy.com";
 
@@ -53,6 +53,8 @@ struct Format {
     url: String,
     width: u32,
     height: u32,
+    #[serde(default)]
+    size: Option<u64>,
 }
 
 /// The `gif` format over `webp` within one tier, matching Tenor's own
@@ -77,16 +79,28 @@ fn item_into_gif(item: Item) -> Option<ProviderGif> {
         .or_else(|| pick_format(item.file.md.as_ref()))
         .or_else(|| pick_format(item.file.hd.as_ref()))?;
     let preview_url = preview.url.clone();
-    let full = pick_format(item.file.hd.as_ref())
-        .or_else(|| pick_format(item.file.md.as_ref()))
-        .or_else(|| pick_format(item.file.sm.as_ref()))
-        .or_else(|| pick_format(item.file.xs.as_ref()))?;
+    let largest_first: Vec<&Format> = [&item.file.hd, &item.file.md, &item.file.sm, &item.file.xs]
+        .into_iter()
+        .filter_map(|tier| pick_format(tier.as_ref()))
+        .collect();
+    let full = *largest_first.first()?;
+    let renditions: Vec<Rendition<'_>> = largest_first
+        .iter()
+        .map(|format| Rendition {
+            url: &format.url,
+            width: format.width,
+            height: format.height,
+            size: format.size,
+        })
+        .collect();
+    let stamp_url = stamp_rendition(&renditions)?.to_owned();
     Some(ProviderGif {
         title: item.title,
         preview_url,
         full_url: full.url.clone(),
         width: full.width,
         height: full.height,
+        stamp_url,
     })
 }
 
@@ -168,6 +182,7 @@ pub(super) async fn trending(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::{Value, json};
 
     /// Shaped exactly like a real captured Klipy `/gifs/search` response:
     /// `{"data": {"data": [{"title", "file": {"hd": {"gif": {"url", "width",
@@ -209,6 +224,50 @@ mod tests {
         assert_eq!(gifs[0].preview_url, "https://klipy.example/xs.gif");
         assert_eq!(gifs[0].full_url, "https://klipy.example/hd.gif");
         assert_eq!((gifs[0].width, gifs[0].height), (220, 229));
+    }
+
+    fn stamp_of(tiers: Value) -> String {
+        let raw =
+            json!({"result": true, "data": {"data": [{"id": 1, "title": "t", "file": tiers}]}});
+        let parsed: Response = serde_json::from_value(raw).unwrap();
+        let gif = parsed
+            .data
+            .data
+            .into_iter()
+            .find_map(item_into_gif)
+            .unwrap();
+        gif.stamp_url
+    }
+
+    fn tier(name: &str, side: u32, size: u64) -> Value {
+        json!({"gif": {"url": format!("https://klipy.example/{name}.gif"), "width": side, "height": side, "size": size}})
+    }
+
+    /// The owner's pick: `hd` was 10.8 MB, past the stamp route's 8 MiB.
+    #[test]
+    fn a_stamp_takes_the_largest_tier_a_tile_animates() {
+        let tiers = json!({
+            "hd": tier("hd", 498, 10_854_357),
+            "md": tier("md", 320, 900_000),
+            "xs": tier("xs", 90, 40_000),
+        });
+        assert_eq!(stamp_of(tiers), "https://klipy.example/md.gif");
+    }
+
+    #[test]
+    fn a_stamp_takes_the_full_file_when_it_animates() {
+        let tiers = json!({"hd": tier("hd", 220, 273_268), "xs": tier("xs", 87, 100_000)});
+        assert_eq!(stamp_of(tiers), "https://klipy.example/hd.gif");
+    }
+
+    #[test]
+    fn a_stamp_takes_the_smallest_tier_when_none_animates() {
+        let tiers = json!({
+            "hd": tier("hd", 2000, 30_000_000),
+            "sm": tier("sm", 1600, 9_000_000),
+            "xs": tier("xs", 1200, 5_000_000),
+        });
+        assert_eq!(stamp_of(tiers), "https://klipy.example/xs.gif");
     }
 
     /// A tier missing its `gif` format falls back to `webp`, which this

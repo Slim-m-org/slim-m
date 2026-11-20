@@ -14,7 +14,8 @@ import '../../screen_overlay/providers/stamp_content.dart';
 import '../../screen_overlay/providers/stamp_images.dart';
 
 /// [content] fitted into its box; nothing until its bitmap is in. An animated
-/// GIF plays from its original, unless the system asks for reduced motion.
+/// GIF, a picture or a custom emoji, plays from its original unless the
+/// system asks for reduced motion.
 class StampView extends ConsumerStatefulWidget {
   const StampView({super.key, required this.content, this.semanticLabel});
 
@@ -74,11 +75,20 @@ class _StampViewState extends ConsumerState<StampView> {
       return;
     }
     setState(() => _image = image);
-    if (content is PictureStamp && content.animated) {
-      final bytes = await cache.original(content.attachmentId);
-      if (mounted && content == widget.content) {
-        setState(() => _original = bytes);
-      }
+    final Uint8List? bytes;
+    try {
+      bytes = await cache.animation(content);
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.media,
+        'A stamp would not animate; it shows its still frame',
+        error,
+        stack,
+      );
+      return;
+    }
+    if (bytes != null && mounted && content == widget.content) {
+      setState(() => _original = bytes);
     }
   }
 
