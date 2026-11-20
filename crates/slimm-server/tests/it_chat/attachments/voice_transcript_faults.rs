@@ -220,3 +220,38 @@ async fn a_clip_first_failed_right_after_an_outage_is_shown_transcribing() {
     assert_eq!(announced(&mut events), ["pending", "none", "pending"]);
     assert_eq!(transcript_of(&world, &message).await["status"], "pending");
 }
+
+#[tokio::test]
+async fn a_clip_too_large_to_send_is_refused_rather_than_offered_forever() {
+    let world = world().await;
+    transcribing_on(&world).await;
+    let (message, attachment) = send_voice(&world, 28).await;
+    sqlx::query("UPDATE attachments SET size = ?1 WHERE lower(hex(sha256)) = ?2")
+        .bind(64_i64 * 1024 * 1024)
+        .bind(&attachment)
+        .execute(&world.pool)
+        .await
+        .unwrap();
+    let engine = Fake::saying("never heard");
+
+    restarted_pass(&world, &engine).await;
+
+    assert_eq!(transcript_of(&world, &message).await["status"], "failed");
+    assert_eq!(engine.calls.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn a_clip_whose_file_is_gone_is_given_up_on_after_its_tries() {
+    let world = world().await;
+    transcribing_on(&world).await;
+    let (message, attachment) = send_voice(&world, 29).await;
+    world.media.delete_attachment(&attachment).await.unwrap();
+    let engine = Fake::saying("never heard");
+
+    for _ in 0..MAX_ATTEMPTS {
+        restarted_pass(&world, &engine).await;
+    }
+
+    assert_eq!(transcript_of(&world, &message).await["status"], "failed");
+    assert_eq!(engine.calls.load(Ordering::SeqCst), 0);
+}

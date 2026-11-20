@@ -413,6 +413,7 @@ Being asked is not the same as being covered: "What the sweep cannot see" below 
 
 They run for a plain member, for a bot with no permissions, and for a manager holding every permission but ADMINISTRATOR; the read sweep also runs for a member who was in the channel and lost it.
 A control run as the admin must meet every canary, so a sweep that stops finding things because the world broke fails too.
+A second control asks every GET twice as the admin, who sees everything, and must find a channel's own routes answering a real id differently from a missing one, so an ask-twice sweep that goes blind fails as well.
 
 What the sweep found on 2026-11-19, each now with its own test beside the route:
 

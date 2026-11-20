@@ -13,7 +13,7 @@ exist there.
 
 This is a shape a passing test cannot see by running anything - GitHub
 Actions triggers and `if:` conditions are configuration, not code - so it is
-checked the way `route_reachability_test.dart` and `tests/canvas_index.rs`
+checked the way `route_reachability_test.dart` and `tests/it_canvas/canvas_index.rs`
 check their own structural properties: by reading the real workflow files
 rather than a copy of their intent.
 

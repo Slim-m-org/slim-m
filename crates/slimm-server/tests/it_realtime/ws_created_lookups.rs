@@ -81,7 +81,7 @@ async fn mentions_and_the_webhook_label_are_read_once_for_every_subscriber() {
     tracing::subscriber::set_global_default(
         Registry::default().with(CountQueries(Arc::clone(&counts))),
     )
-    .expect("no other subscriber in this binary");
+    .expect("a global subscriber needs nextest's one process per test");
 
     let (path, _guard) = support::TestDbGuard::new("slimm-ws-created-lookups");
     let config = Config {

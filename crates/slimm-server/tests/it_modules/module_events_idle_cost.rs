@@ -56,7 +56,7 @@ async fn an_event_nobody_subscribes_to_reads_the_modules_table_once() {
     tracing::subscriber::set_global_default(
         Registry::default().with(CountModuleReads(Arc::clone(&reads))),
     )
-    .expect("no other subscriber in this binary");
+    .expect("a global subscriber needs nextest's one process per test");
 
     let w = world("slimm-modevents-idle-cost").await;
     let _consumer = spawn_module_events(w.state.clone());

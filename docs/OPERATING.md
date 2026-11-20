@@ -40,6 +40,11 @@ To set one of those you need a compose override file that adds it to the `server
 | `SLIMM_LINK_PREVIEWS` | `false` | Unfurl pasted links into preview cards. Makes the server fetch member-supplied URLs behind an SSRF guard (decision 0019). | yes |
 | `SLIMM_GIF_PROVIDER` | unset | `tenor` or `klipy`. Set it with the key or neither. An unrecognised value stops startup. | yes |
 | `SLIMM_GIF_API_KEY` | unset | Your key for that provider. | yes |
+| `SLIMM_DISCORD_CLIENT_ID` | unset | The Discord application members link their accounts through. Set all three Discord variables or none; with none, there is no Discord link. | yes |
+| `SLIMM_DISCORD_CLIENT_SECRET` | unset | That application's client secret. | yes |
+| `SLIMM_DISCORD_REDIRECT_URI` | unset | The redirect registered with Discord: this server's public `/links/discord/callback`. | yes |
+| `SLIMM_STEAM_API_KEY` | unset | Your Steam Web API key, from steamcommunity.com/dev/apikey. Set it with the redirect URI or neither; with neither, members cannot link Steam or show what they play (decision 0115). | yes |
+| `SLIMM_STEAM_REDIRECT_URI` | unset | This server's public Steam callback, for example `https://chat.example.com/links/steam/callback`. | yes |
 | `SLIMM_LIVEKIT_URL` | unset | The address clients can reach LiveKit on, for example `wss://livekit.example.com`. | voice overlay only |
 | `SLIMM_LIVEKIT_API_KEY` | unset | The key LiveKit knows this deployment by. | voice overlay only |
 | `SLIMM_LIVEKIT_API_SECRET` | unset | The matching secret. Set all three LiveKit variables or none; with none, every voice route answers 501. | voice overlay only |

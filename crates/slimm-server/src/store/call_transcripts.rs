@@ -85,6 +85,13 @@ pub struct TranscriptHit {
     pub highlight: String,
 }
 
+/// Where a page of transcript search hits ends: the last hit's time, and its line when known.
+#[derive(Debug, Clone, Copy)]
+pub struct TranscriptCursor {
+    pub at: i64,
+    pub line: Option<(CallTranscriptId, i64)>,
+}
+
 /// What opens a transcript row.
 pub struct NewTranscript {
     pub id: CallTranscriptId,
@@ -368,12 +375,12 @@ impl Store {
         }
     }
 
-    /// Lines matching `query` in `channels`, newest first; `before_at` is an exclusive cursor.
+    /// Lines matching `query` in `channels`, newest first, strictly after `before` in that order.
     pub async fn search_call_transcripts(
         &self,
         channels: &[ChannelId],
         query: &FtsQuery,
-        before_at: Option<i64>,
+        before: Option<TranscriptCursor>,
         limit: i64,
     ) -> Result<Vec<TranscriptHit>, SearchError> {
         if channels.is_empty() {
@@ -401,9 +408,24 @@ impl Store {
             ids.push_bind(*channel);
         }
         builder.push(")");
-        if let Some(before) = before_at {
-            builder.push(" AND l.at < ");
-            builder.push_bind(before);
+        match before {
+            Some(TranscriptCursor {
+                at,
+                line: Some((transcript, seq)),
+            }) => {
+                builder.push(" AND (l.at, l.transcript_id, l.seq) < (");
+                builder.push_bind(at);
+                builder.push(", ");
+                builder.push_bind(transcript);
+                builder.push(", ");
+                builder.push_bind(seq);
+                builder.push(")");
+            }
+            Some(TranscriptCursor { at, line: None }) => {
+                builder.push(" AND l.at < ");
+                builder.push_bind(at);
+            }
+            None => {}
         }
         builder.push(" ORDER BY l.at DESC, l.transcript_id DESC, l.seq DESC LIMIT ");
         builder.push_bind(limit);

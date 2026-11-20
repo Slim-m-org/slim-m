@@ -94,6 +94,10 @@ const PINS: &str = concat!(
 const EMOJI: &str = "SELECT id, name, lower(hex(sha256)) AS sha256, uploader_id, created_at
      FROM custom_emoji WHERE ?1 IS NOT NULL ORDER BY id";
 
+const SOUNDBOARD: &str = "SELECT id, name, lower(hex(sha256)) AS sha256, duration_ms, emoji,
+        uploader_id, created_at
+     FROM soundboard_clips WHERE ?1 IS NOT NULL ORDER BY id";
+
 const ATTACHMENTS: &str = concat!(
     "SELECT lower(hex(a.sha256)) AS sha256, a.size, a.content_type,
         a.filename, a.created_at
@@ -106,7 +110,8 @@ const ATTACHMENTS: &str = concat!(
     " WHERE ma.sha256 = a.sha256 AND m.deleted_at IS NULL AND ",
     community_channel!(),
     ")
-            OR EXISTS (SELECT 1 FROM custom_emoji e WHERE e.sha256 = a.sha256))
+            OR EXISTS (SELECT 1 FROM custom_emoji e WHERE e.sha256 = a.sha256)
+            OR EXISTS (SELECT 1 FROM soundboard_clips sc WHERE sc.sha256 = a.sha256))
      ORDER BY a.sha256"
 );
 
@@ -120,7 +125,8 @@ const ATTACHMENTS_COUNT: &str = concat!(
     " WHERE ma.sha256 = a.sha256 AND m.deleted_at IS NULL AND ",
     community_channel!(),
     ")
-            OR EXISTS (SELECT 1 FROM custom_emoji e WHERE e.sha256 = a.sha256))"
+            OR EXISTS (SELECT 1 FROM custom_emoji e WHERE e.sha256 = a.sha256)
+            OR EXISTS (SELECT 1 FROM soundboard_clips sc WHERE sc.sha256 = a.sha256))"
 );
 
 /// Every read takes `?1` so one helper binds them all; the value is unused unless noted.
@@ -155,6 +161,10 @@ impl Store {
 
     pub fn export_space_emoji(&self) -> RowStream {
         self.stream_rows(EMOJI, Uuid::nil())
+    }
+
+    pub fn export_space_soundboard(&self) -> RowStream {
+        self.stream_rows(SOUNDBOARD, Uuid::nil())
     }
 
     pub fn export_space_attachments(&self) -> RowStream {

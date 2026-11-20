@@ -72,6 +72,13 @@ services:
       # it; deploy/README.md.
       SLIMM_GIF_PROVIDER: ${SLIMM_GIF_PROVIDER:-}
       SLIMM_GIF_API_KEY: ${SLIMM_GIF_API_KEY:-}
+      # All three blank means no Discord link; the server reads blank as unset.
+      SLIMM_DISCORD_CLIENT_ID: ${SLIMM_DISCORD_CLIENT_ID:-}
+      SLIMM_DISCORD_CLIENT_SECRET: ${SLIMM_DISCORD_CLIENT_SECRET:-}
+      SLIMM_DISCORD_REDIRECT_URI: ${SLIMM_DISCORD_REDIRECT_URI:-}
+      # Both blank means no Steam link (decision 0115); the server reads blank as unset.
+      SLIMM_STEAM_API_KEY: ${SLIMM_STEAM_API_KEY:-}
+      SLIMM_STEAM_REDIRECT_URI: ${SLIMM_STEAM_REDIRECT_URI:-}
       # Off by default: unfurling makes the server fetch member-supplied URLs
       # (behind the SSRF guard, decision 0019). Set true to show link previews.
       SLIMM_LINK_PREVIEWS: ${SLIMM_LINK_PREVIEWS:-false}

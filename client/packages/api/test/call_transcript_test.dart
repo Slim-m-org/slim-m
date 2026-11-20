@@ -109,6 +109,31 @@ void main() {
     expect(hits.single.highlight, '<mark>ship</mark> it');
   });
 
+  test('the next search page names the last hit, so tied times are kept',
+      () async {
+    late http.Request seen;
+    final api = _api((request) async {
+      seen = request;
+      return _json([]);
+    });
+    final last = TranscriptHit.fromJson({
+      'transcript_id': 't1',
+      'channel_id': 'c1',
+      'seq': 4,
+      'speaker_id': 'u2',
+      'at': 500,
+      'text': 'ship it',
+      'highlight': 'ship it',
+    });
+    await api.searchTranscripts(q: 'ship', after: last);
+    expect(seen.url.queryParameters, {
+      'q': 'ship',
+      'before': '500',
+      'before_transcript_id': 't1',
+      'before_seq': '4',
+    });
+  });
+
   test('a call carries its transcript id when it has one', () {
     VoiceCall call(Map<String, dynamic> extra) => VoiceCall.fromJson({
           'started_at': 1,

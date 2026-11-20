@@ -8402,7 +8402,8 @@ paths:
       summary: Delete a call's transcript, its lines and their search entries.
       description: >
         Needs `MANAGE_MESSAGES` on the transcript's channel. 404 when the
-        caller cannot view the channel or there is no such transcript.
+        caller cannot view the channel or there is no such transcript. 409
+        while the call is still being transcribed.
       responses:
         "204":
           description: Deleted.
@@ -8414,6 +8415,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -8425,8 +8428,11 @@ paths:
       description: >
         Searches only channels where the caller holds `VIEW_CHANNEL` and
         `VIEW_TRANSCRIPTS` (decision 0113). The query language is the one
-        `GET /search/messages` uses. `before` pages by line time: pass the `at`
-        of the last hit to get the hits strictly older than it.
+        `GET /search/messages` uses. To page, pass the last hit's `at` as
+        `before`, with its `transcript_id` and `seq` as `before_transcript_id`
+        and `before_seq`, to get the hits after it in result order. `before`
+        alone returns the lines strictly older than it, which skips any hit
+        sharing that time.
       parameters:
         - name: q
           in: query
@@ -8438,6 +8444,20 @@ paths:
         - name: before
           in: query
           description: Return only lines whose `at` is strictly below this.
+          schema:
+            type: integer
+            format: int64
+        - name: before_transcript_id
+          in: query
+          description: >
+            The last hit's `transcript_id`. Given with `before_seq` and
+            `before`, or not at all; otherwise 400.
+          schema:
+            type: string
+            format: uuid
+        - name: before_seq
+          in: query
+          description: The last hit's `seq`, given with `before_transcript_id`.
           schema:
             type: integer
             format: int64
@@ -14919,7 +14939,8 @@ components:
           type: string
           description: >
             Stable snake_case identifier, for example `token`, `attachments`,
-            `screen_stamps`, `canvas_ops`, `message_retention`.
+            `screen_stamps`, `canvas_ops`, `message_retention`,
+            `call_transcripts`.
         last_run_at:
           type: integer
           description: Unix milliseconds of the sweep's most recent pass.

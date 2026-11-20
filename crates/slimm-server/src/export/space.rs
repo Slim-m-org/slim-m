@@ -79,6 +79,13 @@ pub(super) async fn collect(b: &mut Builder<'_>) -> anyhow::Result<()> {
         PLAIN,
     )
     .await?;
+    b.jsonl(
+        "soundboard.jsonl",
+        "Soundboard clips",
+        store.export_space_soundboard(),
+        PLAIN,
+    )
+    .await?;
     for channel in channels {
         let path = format!("channels/{channel}/messages.jsonl");
         b.jsonl(
@@ -91,7 +98,7 @@ pub(super) async fn collect(b: &mut Builder<'_>) -> anyhow::Result<()> {
     }
     b.jsonl(
         "attachments.jsonl",
-        "Index of the files on messages and emoji",
+        "Index of the files on messages, emoji and soundboard clips",
         store.export_space_attachments(),
         PLAIN,
     )

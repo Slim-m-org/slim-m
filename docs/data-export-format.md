@@ -60,7 +60,7 @@ Deleted messages are never exported.
 | --- | --- |
 | `profile.json` | `id`, `username`, `display_name`, `pronouns`, `about`, `status_text`, `profile_color_rgb`, `created_at`, `avatar_updated_at`, `banner_updated_at`, `nickname`, `roles` (`id`, `name`). |
 | `settings.json` | `presence_visibility`, `notification_preference`, `has_push_content`, `channel_preferences`, `category_mutes`, `voice_notifications`, `notification_schedule` (timezone, off-hours mode, snooze, days, allowed members and channels). |
-| `linked_accounts.jsonl` | `provider`, `external_id`, `username`, `display_name`, `linked_at`. |
+| `linked_accounts.jsonl` | `provider`, `external_id`, `username`, `display_name`, `linked_at`, `share_activity` (boolean: whether the member shows what they play there). |
 | `messages.jsonl` | The member's own messages, with `channel_id`, `channel_kind` (`text`, `voice` or `dm`), `channel_name` (null for a direct message), `thread_of_message_id`, and `forwarded_from` (ids and time only, no text). |
 | `reactions.jsonl` | `message_id`, `channel_id`, `emoji`, `created_at`. |
 | `saved.jsonl` | `message_id`, `channel_id`, `saved_at`, `is_own`, and `content` only when `is_own`. |
@@ -69,7 +69,7 @@ Deleted messages are never exported.
 | `blocks.jsonl` | `blocked_id`, `blocked_username`, `created_at`. |
 | `poll_votes.jsonl` | `message_id`, `channel_id`, `position`, `voted_at`. |
 | `call_events.jsonl` | `channel_id`, `at`, `kind` (`joined`, `left`, `share_started`, `share_stopped`). |
-| `transcript_lines.jsonl` | What the member said on transcribed calls: `transcript_id`, `channel_id`, `seq`, `at`, `text`. |
+| `transcript_lines.jsonl` | What the member said on transcribed calls: `transcript_id`, `channel_id`, `seq`, `at`, `end_at`, `language`, `text`. `end_at` and `language` are null on lines from before they were recorded. |
 | `profile/avatar`, `profile/banner` | The member's own images, when set. |
 
 Never in a member export: other people's messages (including the other side of a direct message), the text of saved messages somebody else wrote, deleted messages, anything in a deleted channel, credentials, sessions, devices, reports, canvas content and anything a moderator did.
@@ -80,12 +80,13 @@ Never in a member export: other people's messages (including the other side of a
 | --- | --- |
 | `space.json` | `name`, `description`, `join_policy`, `message_retention_days`, `rules_text`, `welcome_message`, `has_welcome`, `icon_updated_at`, `banner_updated_at`. |
 | `roles.jsonl` | `id`, `name`, `permissions` (bitmask), `position`, `is_everyone`, `mentionable`, `hoist`, `color`, `created_at`. |
-| `categories.jsonl` | `id`, `name`, `position`, `created_at`. |
+| `categories.jsonl` | `id`, `name`, `position`, `created_at`, `parent_id` (null for a top-level category). Rows are in tree order, so a parent comes before its children. |
 | `channels.jsonl` | `id`, `name`, `kind`, `topic`, `position`, `category_id`, `thread_of_message_id`, `slow_mode_seconds`, `default_notification`, `overwrites` (`target_type` `role` or `member`, `target_id`, `allow`, `deny`). |
 | `members.jsonl` | `id`, `username`, `display_name`, `is_bot`, `is_webhook`, `created_at`, `nickname`, `role_ids`. |
 | `channels/<channel id>/messages.jsonl` | The channel's or thread's messages, oldest first, with `author_id` (null once the author deleted their account), `reactions` (`emoji`, `count`) and `forwarded_from`. Channels with no messages have no file. |
 | `pins.jsonl` | `channel_id`, `message_id`, `pinned_by`, `pinned_at`. |
 | `emoji.jsonl` | `id`, `name`, `sha256`, `uploader_id`, `created_at`. |
+| `soundboard.jsonl` | `id`, `name`, `sha256`, `duration_ms`, `emoji` (a standard emoji or a custom emoji's id, null if none), `uploader_id`, `created_at`. |
 | `space/icon`, `space/banner` | The space images, when set. |
 
 Never in a space export: direct messages, deleted messages or channels, temporary voice rooms, password hashes, sessions, access or bot tokens, two-factor secrets, push endpoints, invites, reports, moderation history, the admin audit log, canvas boards, polls and module data.
