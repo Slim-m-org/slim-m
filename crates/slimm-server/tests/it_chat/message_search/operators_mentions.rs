@@ -189,3 +189,41 @@ async fn the_startup_sweep_decides_older_mentions_by_their_text() {
     );
     assert_eq!(w.store.backfill_mention_directness().await.unwrap(), 0);
 }
+
+/// The sweep reads a batch's text, then decides it; an edit landing in between
+/// already decided its own rows, and the stale text must not undo that.
+#[tokio::test]
+async fn the_sweep_never_undoes_an_edit_made_while_it_ran() {
+    let w = world().await;
+    let id = w.say("@everyone hi").await;
+    sqlx::query("UPDATE message_mentions SET direct = NULL")
+        .execute(&w.pool)
+        .await
+        .unwrap();
+    let batch = w.store.undecided_mention_messages(200).await.unwrap();
+    assert_eq!(batch.len(), 1);
+
+    let response = w
+        .app
+        .clone()
+        .oneshot(request(
+            "PATCH",
+            &format!("/channels/{}/messages/{id}", w.lobby),
+            Some(&w.bob),
+            Some(json!({ "content": "@everyone hi @alice" })),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let (message_id, stale_text) = &batch[0];
+    assert_eq!(stale_text, "@everyone hi");
+    w.store
+        .decide_mention_directness(*message_id, &[])
+        .await
+        .unwrap();
+
+    assert_eq!(
+        w.found("/search/messages?mentions=alice").await,
+        ["@everyone hi @alice"]
+    );
+}

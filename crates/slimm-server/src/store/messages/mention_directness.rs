@@ -23,28 +23,31 @@ impl Store {
         Ok(rows.into_iter().map(|r| (r.id, r.content)).collect())
     }
 
-    /// Decides every mention row of `message_id`: direct for the accounts in `direct`, not for the rest.
+    /// Decides `message_id`'s undecided mention rows: direct for the accounts in `direct`, not for
+    /// the rest. A row an edit wrote since the sweep read the text is already decided and left alone.
     pub async fn decide_mention_directness(
         &self,
         message_id: MessageId,
         direct: &[UserId],
     ) -> anyhow::Result<()> {
         let mut tx = self.begin_write().await?;
-        sqlx::query!(
-            "UPDATE message_mentions SET direct = 0 WHERE message_id = ?",
-            message_id
-        )
-        .execute(&mut *tx)
-        .await?;
+        // Direct ones first: both statements only touch undecided rows, so the rest fall to 0 after.
         for user_id in direct {
             sqlx::query!(
-                "UPDATE message_mentions SET direct = 1 WHERE message_id = ? AND user_id = ?",
+                "UPDATE message_mentions SET direct = 1 \
+                 WHERE message_id = ? AND user_id = ? AND direct IS NULL",
                 message_id,
                 user_id
             )
             .execute(&mut *tx)
             .await?;
         }
+        sqlx::query!(
+            "UPDATE message_mentions SET direct = 0 WHERE message_id = ? AND direct IS NULL",
+            message_id
+        )
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
         Ok(())
     }
