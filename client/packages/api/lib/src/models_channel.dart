@@ -261,7 +261,9 @@ class ThreadParent {
         parentContent: json['parent_content'] as String?,
         parentDeleted: json['parent_deleted'] as bool? ?? false,
         parentAuthorId: json['parent_author_id'] as String?,
-        parentAuthorDisplayName: json['parent_author_display_name'] as String?,
+        parentAuthorDisplayName: capOptionalMarks(
+          json['parent_author_display_name'] as String?,
+        ),
         parentAttachments: [
           for (final raw in json['parent_attachments'] as List<dynamic>? ?? [])
             Attachment.fromJson(raw as Map<String, dynamic>),
@@ -317,7 +319,9 @@ class ThreadListItem {
         parentMessageId: json['parent_message_id'] as String,
         parentContent: json['parent_content'] as String,
         parentAuthorId: json['parent_author_id'] as String?,
-        parentAuthorDisplayName: json['parent_author_display_name'] as String?,
+        parentAuthorDisplayName: capOptionalMarks(
+          json['parent_author_display_name'] as String?,
+        ),
         createdAt: json['created_at'] as int,
         replyCount: json['reply_count'] as int,
         lastReplyAt: json['last_reply_at'] as int?,

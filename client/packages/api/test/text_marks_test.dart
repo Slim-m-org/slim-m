@@ -78,4 +78,37 @@ void main() {
       isNull,
     );
   });
+
+  test('forwarded and thread-parent author names arrive capped', () {
+    final forwarded = ForwardedMessage.fromJson({
+      'message_id': 'm1',
+      'channel_id': 'c1',
+      'author_display_name': 'Ava$_zalgoE',
+      'created_at': 0,
+      'content': 'hi',
+    });
+    final parent = ThreadParent.fromJson({
+      'parent_author_display_name': 'Ava$_zalgoE',
+    });
+    final item = ThreadListItem.fromJson({
+      'id': 't1',
+      'parent_message_id': 'm1',
+      'parent_content': 'hi',
+      'parent_author_display_name': 'Ava$_zalgoE',
+      'created_at': 0,
+      'reply_count': 0,
+      'unread_count': 0,
+    });
+    expect(_longestStack(forwarded.authorDisplayName!), kMaxMarksPerBase);
+    expect(_longestStack(parent.parentAuthorDisplayName!), kMaxMarksPerBase);
+    expect(_longestStack(item.parentAuthorDisplayName!), kMaxMarksPerBase);
+    expect(
+        ForwardedMessage.fromJson({
+          'message_id': 'm1',
+          'channel_id': 'c1',
+          'created_at': 0,
+          'content': 'hi',
+        }).authorDisplayName,
+        isNull);
+  });
 }
