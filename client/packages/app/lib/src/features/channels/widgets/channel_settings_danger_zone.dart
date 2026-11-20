@@ -15,7 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../api_failure.dart';
 import '../../../routing/close_screen.dart';
 import '../../../routing/routes.dart';
-import '../../../widgets/app_snackbar.dart';
+import '../../../widgets/menu_outcome.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_danger_card.dart';
@@ -53,7 +53,7 @@ Future<void> confirmAndDeleteChannel(
     // The view behind the menu may still show a channel that no longer exists.
     if (wasOpen) router.go(Routes.channels);
   } else if (context.mounted) {
-    showAppSnackbar(context, failure);
+    showMenuFailure(context, failure);
   }
 }
 

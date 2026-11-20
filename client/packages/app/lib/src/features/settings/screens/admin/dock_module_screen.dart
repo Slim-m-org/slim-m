@@ -31,7 +31,7 @@ import '../../../modules/providers/app_launch.dart';
 import '../../../modules/providers/code_block_runner.dart';
 import '../../../composer/providers/slash_command.dart';
 import '../../../../providers/providers.dart';
-import '../../../../widgets/app_snackbar.dart';
+import '../../../../providers/toasts.dart';
 import '../../../../widgets/confirm_dialog.dart';
 import '../../../../routing/routes.dart';
 import '../../../../widgets/run_guarded.dart';
@@ -223,12 +223,14 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     api.DockManifest manifest,
     bool wasInstalled,
   ) async {
-    showAppSnackbar(
-      context,
-      wasInstalled
-          ? '${manifest.name} updated to v${manifest.version}'
-          : '${manifest.name} installed',
-    );
+    ref
+        .read(toastsProvider.notifier)
+        .show(
+          wasInstalled
+              ? '${manifest.name} updated to v${manifest.version}'
+              : '${manifest.name} installed',
+          severity: AppToastSeverity.success,
+        );
     ref.invalidate(dockCatalogProvider);
     ref.invalidate(modulePermissionsProvider);
     // A new version can declare different extension points; see this doc.

@@ -36,6 +36,27 @@ void main() {
     expect(find.text('40%'), findsOneWidget);
   });
 
+  testWidgets('the bubble is drawn on the tooltip\'s raised plate', (
+    tester,
+  ) async {
+    await _pump(tester, bubble: true);
+    await tester.pump();
+    const tokens = AppTokens.light;
+    final plate = tester.widget<DecoratedBox>(
+      find
+          .ancestor(
+            of: find.text('40%'),
+            matching: find.byWidgetPredicate((w) => w is DecoratedBox),
+          )
+          .first,
+    );
+    final decoration = plate.decoration as BoxDecoration;
+    expect(decoration.color, tokens.surfaceRaised);
+    expect(decoration.border, Border.all(color: tokens.borderStrong));
+    expect(
+        tester.widget<Text>(find.text('40%')).style?.color, tokens.textPrimary);
+  });
+
   testWidgets(
       'valueBubble false draws no bubble but still tells a screen reader', (
     tester,

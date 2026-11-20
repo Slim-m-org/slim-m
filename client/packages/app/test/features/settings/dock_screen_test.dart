@@ -336,7 +336,7 @@ void main() {
 
       expect(find.byType(AppErrorState), findsOneWidget);
       expect(find.textContaining('not allowed'), findsOneWidget);
-      expect(find.byType(SnackBar), findsNothing);
+      expect(errorToasts(tester), isEmpty);
     },
   );
 
@@ -398,7 +398,7 @@ void main() {
         find.text('Could not reach the module marketplace.'),
         findsOneWidget,
       );
-      expect(find.byType(SnackBar), findsNothing);
+      expect(errorToasts(tester), isEmpty);
     },
   );
 }

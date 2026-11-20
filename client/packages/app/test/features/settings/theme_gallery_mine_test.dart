@@ -164,6 +164,17 @@ void main() {
     expect(rig.container.read(myThemesProvider), isEmpty);
   });
 
+  testWidgets('New is off while an action runs', (tester) async {
+    final rig = EditorRig()..pickGate = Completer<void>();
+    await _page(tester, rig: rig);
+    await _tap(tester, _key('theme-import'));
+
+    expect(tester.widget<AppButton>(_key('theme-new')).disabled, isTrue);
+    rig.pickGate!.complete();
+    await settle(tester);
+    expect(tester.widget<AppButton>(_key('theme-new')).disabled, isFalse);
+  });
+
   testWidgets('a cancelled import does nothing', (tester) async {
     final rig = EditorRig();
     await _page(tester, rig: rig);

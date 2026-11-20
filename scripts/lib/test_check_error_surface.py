@@ -135,7 +135,7 @@ class Foo {
     try {
       await api.thing();
     } on ApiException catch (e) {
-      showAppSnackbar(context, e.toString());
+      showMenuFailure(context, e.toString());
     }
   }
 }
@@ -163,7 +163,7 @@ class Foo {
     try {
       await api.thing();
     } on ForbiddenException catch (e) {
-      showAppSnackbar(context, e.toString());
+      showMenuFailure(context, e.toString());
     }
   }
 }
@@ -185,7 +185,7 @@ class Foo {
     try {
       await plugin.thing();
     } on PlatformException catch (e) {
-      showAppSnackbar(context, e.toString());
+      showMenuFailure(context, e.toString());
     }
   }
 
@@ -210,7 +210,7 @@ class Foo {
 class Foo {
   void go() {
     api.thing().catchError((e) {
-      showAppSnackbar(context, e.toString());
+      showMenuFailure(context, e.toString());
     });
   }
 }
@@ -259,12 +259,39 @@ Future<void> remove(WidgetRef ref, BuildContext context) async {
     action: () => ref.read(apiProvider).removeMember(),
   );
   if (failure != null) {
-    if (context.mounted) showAppSnackbar(context, failure);
+    if (context.mounted) showMenuFailure(context, failure);
     return;
   }
 }
 """)
         self._assert_flagged("bad_guarded.dart", 8)
+
+    def test_a_runguarded_sentence_through_the_outcome_helper_is_caught(self):
+        self._write("bad_outcome.dart", """
+Future<void> toggle(BuildContext context) async {
+  final failure = await runGuarded(
+    whatFailed: 'change it',
+    action: () => api.thing(),
+  );
+  if (!context.mounted) return;
+  showMenuOutcome(context, failure: failure, succeeded: 'Changed.');
+}
+""")
+        self._assert_flagged("bad_outcome.dart", 8)
+
+    def test_a_caught_failure_through_the_outcome_helper_is_caught(self):
+        self._write("bad_outcome_catch.dart", """
+class Foo {
+  Future<void> go() async {
+    try {
+      await api.thing();
+    } on ApiException catch (e) {
+      showMenuOutcome(context, failure: e.toString(), succeeded: 'x');
+    }
+  }
+}
+""")
+        self._assert_flagged("bad_outcome_catch.dart", 6)
 
     def test_a_then_bound_runguarded_sentence_is_caught(self):
         self._write("bad_then.dart", """
@@ -274,7 +301,7 @@ Future<void> remove(BuildContext host, ProviderContainer container) async {
     action: () => container.read(apiProvider).removeMember(),
   ).then((failure) {
     if (failure != null) {
-      showAppSnackbar(host, failure);
+      showMenuFailure(host, failure);
     }
   });
 }
@@ -290,7 +317,7 @@ class Foo {
       action: () => api.kick(),
     );
     if (failure != null && host.mounted) {
-      showAppSnackbar(host, failure);
+      showMenuFailure(host, failure);
     }
   }
 }
@@ -329,7 +356,7 @@ Future<void> remove(WidgetRef ref) async {
 
 void copy(BuildContext context) {
   final failure = 'copied';
-  showAppSnackbar(context, failure);
+  showMenuFailure(context, failure);
 }
 """)
         result = self._run()
@@ -343,7 +370,7 @@ Future<void> save(WidgetRef ref, BuildContext context) async {
     action: () => ref.read(apiProvider).save(),
   );
   if (failure != null) return;
-  showAppSnackbar(context, 'Saved.');
+  showMenuFailure(context, 'Saved.');
 }
 """)
         result = self._run()
@@ -356,7 +383,7 @@ Future<void> remove(WidgetRef ref, BuildContext context) async {
     whatFailed: 'remove',
     action: () => ref.read(apiProvider).removeMember(),
   );
-  // showAppSnackbar(context, failure);
+  // showMenuFailure(context, failure);
   if (failure != null) ref.read(errorProvider.notifier).state = failure;
 }
 """)

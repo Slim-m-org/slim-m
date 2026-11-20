@@ -95,8 +95,8 @@ void main() {
     );
   });
 
-  test('selected but connected to a different channel still asks to join '
-      'this one', () {
+  test('selected while connected to a different channel leaves it to the '
+      'switch prompt', () {
     expect(
       voiceChannelTapShouldRejoin(
         voice: const VoiceFlags(
@@ -106,7 +106,24 @@ void main() {
         channelId: 'ch-1',
         alreadySelected: true,
       ),
-      isTrue,
+      isFalse,
     );
   });
+
+  test(
+    'selected after another channel\'s call ended asks to join this one',
+    () {
+      expect(
+        voiceChannelTapShouldRejoin(
+          voice: const VoiceFlags(
+            channelId: 'ch-2',
+            state: VoiceSessionState.failed,
+          ),
+          channelId: 'ch-1',
+          alreadySelected: true,
+        ),
+        isTrue,
+      );
+    },
+  );
 }

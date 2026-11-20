@@ -27,6 +27,7 @@ import 'package:slimm_platform/testing.dart';
 
 import 'message_row_harness.dart' as row;
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _thumb = '\u{1F44D}';
 
@@ -287,7 +288,7 @@ void main() {
 
     expect(find.text('Could not load who reacted.'), findsOneWidget);
     expect(find.byType(AppErrorState), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
 
     server.status = 200;
     await tester.tap(find.text('Retry'));

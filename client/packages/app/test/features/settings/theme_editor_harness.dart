@@ -45,6 +45,9 @@ class EditorRig {
   final saved = <(String, List<int>)>[];
   ThemeFilePick? pick;
 
+  /// Holds every file pick until a test completes it.
+  Completer<void>? pickGate;
+
   /// Holds every publish until a test completes it.
   Completer<void>? publishGate;
 
@@ -92,7 +95,10 @@ class EditorRig {
         saved.add((name, bytes));
         return true;
       }),
-      themeFilePickerProvider.overrideWithValue(() async => pick),
+      themeFilePickerProvider.overrideWithValue(() async {
+        await pickGate?.future;
+        return pick;
+      }),
       toastsProvider.overrideWith((ref) => _HeldToasts()),
     ],
   );

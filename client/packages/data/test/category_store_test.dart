@@ -124,6 +124,26 @@ void main() {
     expect(rows.single.name, 'Alpha 2');
   });
 
+  test('upsertCategory from a write response keeps what the listing stored',
+      () async {
+    await store.replaceCategories(const [
+      api.ChannelCategory(
+        id: 'cat-a',
+        name: 'Alpha',
+        position: 0,
+        createdAt: 1,
+        manageable: false,
+        fileable: false,
+      ),
+    ]);
+
+    await store.upsertCategory(_category(id: 'cat-a', name: 'Renamed'));
+
+    final row = (await store.allCategories()).single;
+    expect(row.name, 'Renamed');
+    expect((row.manageable, row.fileable), (false, false));
+  });
+
   test('removeCategory deletes exactly the named category', () async {
     await store.replaceCategories([
       _category(id: 'cat-a', name: 'Alpha', position: 0),

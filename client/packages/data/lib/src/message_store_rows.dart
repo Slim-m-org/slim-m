@@ -32,6 +32,7 @@ MessagesCompanion rowFor(api.Message message) {
     failed: const Value(false),
     replyToId: Value(message.replyToId),
     mentionsMe: Value(message.mentionsMe),
+    mentionUnsure: const Value(false),
   );
   final withPreviews = message.linkPreviewsRemoved
       ? row.copyWith(linkPreviewsRemoved: const Value(true))
@@ -64,6 +65,7 @@ Future<void> removeForwardSnapshot(SlimmDatabase db, String messageId) async {
 }
 
 /// Writes an edit over a held row unless the row's own edit stamp is newer.
+/// An op carries no mention flag, so a held mention becomes unsure until the server's mention marker settles it.
 Future<void> writeEdit(
   SlimmDatabase db,
   String messageId,
@@ -76,7 +78,12 @@ Future<void> writeEdit(
         m.editedAt.isNull() | m.editedAt.isSmallerOrEqualValue(editedAt));
   }
   await update.write(
-    MessagesCompanion(content: Value(content), editedAt: Value(editedAt)),
+    MessagesCompanion.custom(
+      content: Variable(content),
+      editedAt: Variable(editedAt),
+      mentionsMe: const Constant(false),
+      mentionUnsure: db.messages.mentionsMe | db.messages.mentionUnsure,
+    ),
   );
 }
 

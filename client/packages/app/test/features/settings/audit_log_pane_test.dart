@@ -23,6 +23,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = TokenPair(
   userId: 'admin-1',
@@ -106,7 +107,7 @@ void main() {
   ) async {
     await _pump(tester, (_) => _json({'error': 'nope'}, 500));
     expect(find.byType(AppErrorState), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
   });
 
   testWidgets('a full page offers Load more, which pages with before', (

@@ -181,6 +181,72 @@ async fn deleting_needs_manage_messages_and_takes_the_search_entries_with_it() {
     assert_eq!(hits, json!([]));
 }
 
+/// Lines from two speakers or two channels can share a millisecond; a page must not skip the rest.
+#[tokio::test]
+async fn search_pages_past_hits_that_share_a_time() {
+    let rig = Rig::start("transcript-search-ties", 1).await;
+    let a = &rig.people[0];
+    let at = now_ms() - HOUR;
+    for _ in 0..3 {
+        keep(
+            &rig.store,
+            rig.channel,
+            at,
+            Some(at + 1),
+            &[(a.id, "tied budget")],
+        )
+        .await;
+    }
+
+    let (_, first) = get(&rig, a, "/search/transcripts?q=budget&limit=2").await;
+    let first = first.as_array().unwrap().clone();
+    let last = &first[1];
+    let uri = format!(
+        "/search/transcripts?q=budget&limit=2&before={}&before_transcript_id={}&before_seq={}",
+        last["at"],
+        last["transcript_id"].as_str().unwrap(),
+        last["seq"]
+    );
+    let (status, rest) = get(&rig, a, &uri).await;
+
+    assert_eq!(status, StatusCode::OK, "{rest}");
+    let mut seen: Vec<&str> = first
+        .iter()
+        .chain(rest.as_array().unwrap())
+        .map(|hit| hit["transcript_id"].as_str().unwrap())
+        .collect();
+    seen.sort_unstable();
+    seen.dedup();
+    assert_eq!(
+        seen.len(),
+        3,
+        "every tied hit appears once across the pages"
+    );
+    let (status, _) = get(&rig, a, "/search/transcripts?q=budget&before_seq=1").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "half a cursor is refused");
+}
+
+/// Its session would keep writing lines that every insert refuses once the row is gone.
+#[tokio::test]
+async fn a_transcript_still_being_written_cannot_be_deleted() {
+    let rig = Rig::start("transcript-delete-live", 1).await;
+    let a = &rig.people[0];
+    let id = keep(
+        &rig.store,
+        rig.channel,
+        now_ms() - HOUR,
+        None,
+        &[(a.id, "still talking")],
+    )
+    .await;
+
+    let uri = format!("/voice/transcripts/{id}");
+    let (status, _) = rig.call(&rig.admin, "DELETE", &uri, None).await;
+
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert!(rig.store.call_transcript(id).await.unwrap().is_some());
+}
+
 #[tokio::test]
 async fn the_calls_list_names_the_transcript_that_started_inside_each_call() {
     let rig = Rig::start("transcript-calls", 2).await;
@@ -259,6 +325,13 @@ async fn the_sweep_removes_finished_transcripts_past_the_window_and_nothing_else
     assert_eq!(
         slimm_server::run_transcript_retention_sweep_pass(&rig.store).await,
         1
+    );
+    let recorded = rig.store.sweep_statuses().await.unwrap();
+    let run = recorded.iter().find(|s| s.name == "call_transcripts");
+    assert_eq!(
+        run.map(|s| s.last_reclaimed),
+        Some(1),
+        "the pass records its run"
     );
     assert!(rig.store.call_transcript(old).await.unwrap().is_none());
     assert!(rig.store.call_transcript(fresh).await.unwrap().is_some());

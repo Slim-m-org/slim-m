@@ -135,6 +135,9 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
   /// Retires a transcript search still in flight when the query moves on.
   int _transcriptGeneration = 0;
 
+  /// Waits out the same pause as the message search, so one pause sends both.
+  Timer? _transcriptTimer;
+
   /// The last frame's flat result list, for key handlers, which run outside build.
   List<PaletteResultItem> _visible = const [];
 
@@ -146,6 +149,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
 
   @override
   void dispose() {
+    _transcriptTimer?.cancel();
     _messages.dispose();
     _field.dispose();
     super.dispose();
@@ -182,6 +186,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
   }
 
   void _search() {
+    _transcriptTimer?.cancel();
     _transcriptGeneration++;
     _transcriptResults = const [];
     if (_field.typingValue) {
@@ -208,10 +213,24 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
         _messages.clear();
       } else {
         unawaited(
-          _messages.run(parseSearchQuery(text.text), limit: paletteResultLimit),
+          _messages.run(
+            parseSearchQuery(text.text),
+            limit: paletteResultLimit,
+            debounce: paletteSearchDebounce,
+          ),
         );
-        unawaited(_searchTranscripts(text.text));
+        _transcriptTimer = Timer(
+          paletteSearchDebounce,
+          () => unawaited(_searchTranscripts(text.text)),
+        );
       }
+    }
+  }
+
+  void _flushTranscripts() {
+    if (_transcriptTimer?.isActive ?? false) {
+      _transcriptTimer!.cancel();
+      unawaited(_searchTranscripts(parsePaletteQuery(_query).text));
     }
   }
 
@@ -261,6 +280,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     var item = _visible.elementAtOrNull(_highlighted);
     final hit = item == null || item.kind == PaletteKind.message;
     if (hit && !_messages.current) {
+      _flushTranscripts();
       await _messages.flush();
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;

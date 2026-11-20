@@ -24,6 +24,7 @@ import 'package:slimm_platform/testing.dart';
 import '../../support/reduced_motion_harness.dart';
 import '../voice/voice_controller_harness.dart' show tokens;
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _channelId = 'channel-secret';
 
@@ -325,6 +326,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AppErrorState), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
   });
 }

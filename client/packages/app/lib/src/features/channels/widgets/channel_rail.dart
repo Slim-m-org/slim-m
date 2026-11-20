@@ -20,6 +20,7 @@ import '../../../providers/store_stream.dart';
 import '../../../providers/sync_controller.dart';
 import '../../../sync/providers/sync_failure.dart';
 import '../../../routing/routes.dart';
+import '../../accounts/widgets/sign_out_confirm.dart';
 import 'channel_rail_failure.dart';
 import 'channel_rail_frame.dart';
 import 'channel_rail_selection_marker.dart';
@@ -275,6 +276,11 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
     );
   }
 
+  Future<void> _signInAgain() async {
+    if (!await confirmSignOutLosingUnsent(context, ref.read)) return;
+    await SignOutRow.signOut(ref);
+  }
+
   Widget _railBody({
     required AsyncValue<MessageStore> storeAsync,
     required ChannelOrderState orderState,
@@ -287,7 +293,7 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
       error: (e, _) => RailFailureNotice(
         failure: localStoreRailFailure(e),
         onRetry: () => ref.invalidate(storeProvider),
-        onSignInAgain: () => unawaited(SignOutRow.signOut(ref)),
+        onSignInAgain: () => unawaited(_signInAgain()),
       ),
       data: (store) => StreamBuilder<List<Channel>>(
         // Deduped to what the rail draws; see MessageStore.watchRailChannels.
@@ -338,7 +344,7 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
       failure: failure,
       onRetry: () =>
           unawaited(ref.read(syncControllerProvider.notifier).start()),
-      onSignInAgain: () => unawaited(SignOutRow.signOut(ref)),
+      onSignInAgain: () => unawaited(_signInAgain()),
     );
   }
 

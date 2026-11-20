@@ -19,6 +19,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../support/mid_flight_capture.dart';
 import '../ui_snapshot_support.dart';
 import 'spotify_rig.dart';
+import '../support/toast_host.dart';
 
 Future<void> _settle(WidgetTester tester) async {
   await tester.runAsync(
@@ -173,7 +174,7 @@ void main() {
 
         expect(find.byType(AppErrorState), findsOne);
         expect(find.textContaining('declined'), findsOne);
-        expect(find.byType(SnackBar), findsNothing);
+        expect(errorToasts(tester), isEmpty);
         await _shot(tester, 'spotify-row-error-$suffix');
 
         await tester.tap(find.text('Retry'));

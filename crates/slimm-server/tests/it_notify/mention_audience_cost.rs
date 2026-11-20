@@ -33,7 +33,7 @@ impl<S: Subscriber> Layer<S> for CountQueries {
 async fn a_message_mentioning_nobody_runs_no_query() {
     let count = Arc::new(AtomicUsize::new(0));
     tracing::subscriber::set_global_default(Registry::default().with(CountQueries(count.clone())))
-        .unwrap();
+        .expect("a global subscriber needs nextest's one process per test");
     let (path, _guard) = support::TestDbGuard::new("slimm-mention-cost");
     let config = Config {
         port: 0,

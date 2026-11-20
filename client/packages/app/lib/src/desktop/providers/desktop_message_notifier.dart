@@ -5,8 +5,8 @@
 /// The desktop has no remote push - nothing wakes a closed app the way FCM or
 /// APNs wakes a phone - so the only notifications it can show are for messages
 /// that arrive over the live socket while the app is running. This turns those
-/// into `org.freedesktop.Notifications` alerts through
-/// [LocalNotifications.show]; on Android and iOS the platform push already
+/// into OS notifications through [LocalNotifications.show]; on Android and
+/// iOS the platform push already
 /// does this, so this stays inert there.
 ///
 /// Also flashes the Windows taskbar button until the window is focused.

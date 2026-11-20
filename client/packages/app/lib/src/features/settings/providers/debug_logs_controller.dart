@@ -67,6 +67,7 @@ class DebugLogsController extends AutoDisposeNotifier<DebugLogsState> {
       loading: false,
       more: state.more,
     );
+    if (state.items.isEmpty && state.more) await refresh();
   }
 
   Future<void> loadMore() async {

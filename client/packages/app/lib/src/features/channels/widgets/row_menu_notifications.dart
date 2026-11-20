@@ -18,7 +18,7 @@ import '../../voice/providers/voice_notification_controller.dart';
 import '../../settings/providers/notification_schedule_controller.dart';
 import '../providers/dms.dart' show dmChannelKind;
 import '../../../providers/providers.dart';
-import '../../../widgets/app_snackbar.dart';
+import '../../../widgets/menu_outcome.dart';
 import '../../messages/widgets/mark_read_action.dart';
 import '../../messages/widgets/mark_unread_action.dart';
 import '../../../widgets/run_guarded.dart';
@@ -31,7 +31,7 @@ Future<void> _say(
   Future<void> Function() action,
 ) async {
   final failure = await runGuarded(whatFailed: whatFailed, action: action);
-  if (failure != null && context.mounted) showAppSnackbar(context, failure);
+  if (failure != null && context.mounted) showMenuFailure(context, failure);
 }
 
 /// "Mark as read" while [channel] shows a badge, otherwise "Mark as unread" (only when the newest message is under an hour old); never both.

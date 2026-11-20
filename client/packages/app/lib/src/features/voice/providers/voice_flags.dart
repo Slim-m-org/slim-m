@@ -17,7 +17,7 @@
 /// thread the roster through by accident.
 library;
 
-import 'package:flutter/foundation.dart' show listEquals, setEquals;
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -211,20 +211,6 @@ final participantSpeakingProvider = Provider.family<bool, String>(
   ),
 );
 
-/// Who is talking right now, as a set that only changes when someone starts or stops.
-final speakingIdentitiesProvider = Provider<Set<String>>(
-  (ref) => ref
-      .watch(
-        voiceControllerProvider.select(
-          (s) => _SpeakingIds({
-            for (final p in s.participants)
-              if (p.isSpeaking) p.identity,
-          }),
-        ),
-      )
-      .ids,
-);
-
 class _SilentRoster {
   _SilentRoster(List<VoiceParticipant> all)
     : participants = [
@@ -239,19 +225,6 @@ class _SilentRoster {
 
   @override
   int get hashCode => Object.hashAll(participants);
-}
-
-class _SpeakingIds {
-  _SpeakingIds(this.ids);
-
-  final Set<String> ids;
-
-  @override
-  bool operator ==(Object other) =>
-      other is _SpeakingIds && setEquals(other.ids, ids);
-
-  @override
-  int get hashCode => Object.hashAllUnordered(ids);
 }
 
 /// Your microphone as the native input gate reads it, about 20 times a

@@ -67,27 +67,28 @@ class SettingsPaneBody extends StatelessWidget {
       stack: stack,
       bottomInset: padding.bottom,
       onClose: onClose,
-      child: pages.isEmpty
-          ? AppFadeIn(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          _KeptPage(
+            shown: pages.isEmpty,
+            child: AppFadeIn(
               key: ValueKey(pane.id),
               duration: AppMotion.fast,
               offset: 0,
               child: _column(_body(context, padding)),
-            )
-          : Stack(
-              fit: StackFit.expand,
-              children: [
-                for (final (i, page) in pages.indexed)
-                  _KeptPage(
-                    shown: i == pages.length - 1,
-                    pane: pane.id,
-                    page: page,
-                    child: page.ownsHeader
-                        ? _page(context, page, padding)
-                        : _column(_page(context, page, padding)),
-                  ),
-              ],
             ),
+          ),
+          for (final (i, page) in pages.indexed)
+            _KeptPage(
+              shown: i == pages.length - 1,
+              fadeKey: ValueKey('${pane.id}/${page.id}'),
+              child: page.ownsHeader
+                  ? _page(context, page, padding)
+                  : _column(_page(context, page, padding)),
+            ),
+        ],
+      ),
     );
   }
 
@@ -167,19 +168,15 @@ class SettingsPaneBody extends StatelessWidget {
   }
 }
 
-/// A page under the one on top stays built but hidden, so going back finds
-/// it scrolled and filtered as it was left.
+/// A layer under the one on top stays built but hidden, so going back finds
+/// the pane or page scrolled and filtered as it was left.
 class _KeptPage extends StatelessWidget {
-  const _KeptPage({
-    required this.shown,
-    required this.pane,
-    required this.page,
-    required this.child,
-  });
+  const _KeptPage({required this.shown, required this.child, this.fadeKey});
 
   final bool shown;
-  final String pane;
-  final SettingsSubPage page;
+
+  /// Fades [child] in when shown; null for a layer that fades itself.
+  final Key? fadeKey;
   final Widget child;
 
   @override
@@ -191,12 +188,8 @@ class _KeptPage extends StatelessWidget {
         excluding: !shown,
         child: Offstage(
           offstage: !shown,
-          child: shown
-              ? AppFadeIn(
-                  key: ValueKey('$pane/${page.id}'),
-                  offset: AppSpacing.s16,
-                  child: child,
-                )
+          child: fadeKey != null && shown
+              ? AppFadeIn(key: fadeKey, offset: AppSpacing.s16, child: child)
               : child,
         ),
       ),

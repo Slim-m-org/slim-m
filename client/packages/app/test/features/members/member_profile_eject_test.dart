@@ -31,6 +31,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../support/reduced_motion_harness.dart';
 import '../voice/voice_controller_harness.dart' show FakeSession, tokens;
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _channelId = 'channel-shared';
 
@@ -281,7 +282,7 @@ void main() {
     await tester.tap(find.text('Eject'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     expect(
       wired.container.read(memberModerationErrorProvider),
       contains('eject maya from the call'),

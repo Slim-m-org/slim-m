@@ -30,6 +30,7 @@ class MessageContextController
     extends FamilyNotifier<MessageContextWindow?, String> {
   /// Bumped by every open and close, so a fetch that a close or a newer open overtook never shows.
   int _ticket = 0;
+  List<String> _pinned = const [];
 
   @override
   MessageContextWindow? build(String channelId) => null;
@@ -49,7 +50,11 @@ class MessageContextController
       limit: contextWindowRows,
     );
     if (ticket != _ticket) return;
-    ref.read(messageExtrasProvider.notifier).applyMessages(page);
+    final extras = ref.read(messageExtrasProvider.notifier)
+      ..unpin(_pinned)
+      ..applyMessages(page);
+    _pinned = [target.id, for (final m in page) m.id];
+    extras.pin(_pinned);
     final rows = [for (final m in page.reversed) localMessageOf(m)];
     if (!rows.any((m) => m.id == messageId)) rows.add(localMessageOf(target));
     rows.sort((a, b) => a.seq.compareTo(b.seq));
@@ -58,6 +63,8 @@ class MessageContextController
 
   void close() {
     _ticket++;
+    ref.read(messageExtrasProvider.notifier).unpin(_pinned);
+    _pinned = const [];
     if (state != null) state = null;
   }
 }

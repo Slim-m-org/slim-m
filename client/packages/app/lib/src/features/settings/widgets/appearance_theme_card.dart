@@ -100,6 +100,9 @@ class _AppearanceThemeCardState extends ConsumerState<AppearanceThemeCard> {
     final applied = ref.watch(appliedThemeProvider);
     final gallery = ref.watch(themeGalleryProvider);
     final status = ref.watch(themeGalleryStatusProvider);
+    ref.listen(themeGalleryStatusProvider, (_, next) {
+      if (!SettingsSubPages.of(context).isEmpty) _inherited = next.error;
+    });
     final summary = summariseTheme(applied, ref.watch(myThemesProvider));
     final recents = ref.watch(shownRecentThemesProvider);
     final followable = followableSpaceDefault(gallery);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Every background task the crate can spawn is spawned by `run`.
+//! Every background task the crate can spawn is spawned by `run` (through `serve`).
 //!
 //! A sweep nobody starts compiles clean, passes its own pass-level tests and
 //! simply never runs: the storage it reclaims grows until someone notices. The
@@ -65,7 +65,13 @@ fn run_starts_every_background_task_the_crate_defines() {
     );
 
     let lib = std::fs::read_to_string(src.join("lib.rs")).expect("read lib.rs");
-    let run = support::function_body(&lib, "pub async fn run()");
+    // `run` hands the whole startup to `serve` so it can flush the log files whatever happens.
+    assert_eq!(
+        calls_of(&support::function_body(&lib, "pub async fn run()"), "serve"),
+        1,
+        "`run` must start the server through `serve`"
+    );
+    let run = support::function_body(&lib, "async fn serve(");
     let missing: Vec<String> = defined
         .iter()
         .filter(|(name, files)| calls_of(&run, name) < **files)

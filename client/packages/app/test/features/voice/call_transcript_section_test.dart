@@ -63,6 +63,7 @@ Future<_Rig> _pump(
   int deleteStatus = 204,
   bool withTranscript = true,
   bool newerCall = false,
+  bool transcriptOngoing = false,
   double width = 1100,
 }) async {
   tester.view.physicalSize = Size(width, 1100);
@@ -135,7 +136,7 @@ Future<_Rig> _pump(
               'id': 't1',
               'channel_id': 'voice-1',
               'started_at': _start,
-              'ended_at': _start + 600000,
+              'ended_at': transcriptOngoing ? null : _start + 600000,
               'mode': 'always',
               'lines': [for (final seq in page) _wireLine(seq)],
               'next_after_seq': index < pages.length - 1 ? page.last : null,
@@ -276,6 +277,22 @@ void main() {
 
     expect(rig.requests, contains('DELETE /voice/transcripts/t1'));
     expect(find.text('line number 1'), findsNothing);
+  });
+
+  testWidgets('a transcript still being written offers no Delete', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      pages: [
+        [1, 2],
+      ],
+      canManage: true,
+      transcriptOngoing: true,
+    );
+
+    expect(find.text('line number 1'), findsOneWidget);
+    expect(find.byKey(transcriptDeleteKey), findsNothing);
   });
 
   testWidgets('a failed Delete stays on screen as an error, not a snackbar', (

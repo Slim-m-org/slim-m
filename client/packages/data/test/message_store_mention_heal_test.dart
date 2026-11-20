@@ -62,6 +62,59 @@ void main() {
     expect(await _mentioned(store), 0);
   });
 
+  test('a mention edited away in a catch-up op asks too', () async {
+    final store = await _readTo80();
+    await store.applyMessages([_message(95, mentionsMe: true)]);
+    expect(await _asks(store), isFalse);
+
+    await store.applyEdit('m95', 'no mention now', 2000);
+
+    expect(await _asks(store), isTrue);
+  });
+
+  test(
+      'a mention kept through a catch-up op edit asks once, and the marker re-flags it',
+      () async {
+    final store = await _readTo80();
+    await store.applyMessages([_message(95, mentionsMe: true)]);
+    await store.applyEdit('m95', 'still @user-1', 2000);
+    expect(await _asks(store), isTrue);
+
+    await store.healMentionCursor('c1', 95);
+
+    expect(await _mentioned(store), 95);
+    expect(await _asks(store), isFalse);
+  });
+
+  test('a mention op-edited under a newer one survives that newer one going',
+      () async {
+    final store = await _readTo80();
+    await store.applyMessages(
+        [_message(90, mentionsMe: true), _message(95, mentionsMe: true)]);
+    await store.applyEdit('m90', 'still @user-1', 2000);
+
+    await store.discard('m95');
+    expect(await _mentioned(store), 90);
+    expect(await _asks(store), isTrue);
+
+    await store.healMentionCursor('c1', 90);
+    expect(await _mentioned(store), 90);
+    expect(await _asks(store), isFalse);
+  });
+
+  test('a marker below an op-edited row settles it as no mention', () async {
+    final store = await _readTo80();
+    await store.applyMessages(
+        [_message(90, mentionsMe: true), _message(95, mentionsMe: true)]);
+    await store.applyEdit('m95', 'no mention now', 2000);
+    await store.healMentionCursor('c1', 90);
+    expect(await _mentioned(store), 90);
+
+    await store.discard('m90');
+
+    expect(await _mentioned(store), 0);
+  });
+
   test('a held mention neither asks nor gives way to an older marker',
       () async {
     final store = await _readTo80();

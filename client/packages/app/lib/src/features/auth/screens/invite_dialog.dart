@@ -126,8 +126,8 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
   }
 
   Future<void> _verify() async {
-    if (looksLikeWebAddress(_code.text)) {
-      return _fail(_InviteField.code, inviteLooksLikeWebAddress);
+    if (localInviteCodeProblem(_code.text) case final problem?) {
+      return _fail(_InviteField.code, problem);
     }
     final address = parseServerAddress(_server.text);
     if (address == null) {

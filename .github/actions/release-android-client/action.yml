@@ -61,43 +61,7 @@ runs:
           --build-name=${{ inputs.version }} \
           --build-number=${{ github.run_number }}
 
-    - name: verify the signer is the upload key, not debug
-      shell: "bash -e {0}"
-      working-directory: client/packages/app
-      env:
-        # Play's registered upload certificate. A public fingerprint, not a secret, and the only check that proves Play will accept the upload.
-        EXPECTED_SHA256: 9dc12a6a03bd6125065fb5f6eca2d8d8477f74009e0f6624efee2d2b98ec033b
-      run: |
-        sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
-        if [ -z "$sdk" ] || [ ! -d "$sdk/build-tools" ]; then
-          echo "::error::no Android build-tools; ANDROID_HOME='${sdk}'"
-          exit 1
-        fi
-        tool="$(find "$sdk/build-tools" -name apksigner -type f | sort -V | tail -n1)"
-        if [ -z "$tool" ]; then
-          echo "::error::no apksigner under $sdk/build-tools"
-          ls -1 "$sdk/build-tools" || true
-          exit 1
-        fi
-        # Captured to a file and echoed before matching. The previous form assigned a grep pipeline, so a miss aborted with no output at all.
-        for abi in arm64-v8a armeabi-v7a x86_64; do
-          "$tool" verify --print-certs \
-            "build/app/outputs/flutter-apk/app-${abi}-release.apk" > certs.txt 2>&1 || {
-              echo "::error::apksigner could not verify the ${abi} release apk"
-              cat certs.txt
-              exit 1
-            }
-          cat certs.txt
-          if grep -q 'Android Debug' certs.txt; then
-            echo "::error::${abi} release apk is signed with the debug keystore; key.properties did not take effect"
-            exit 1
-          fi
-          if ! grep -qi "$EXPECTED_SHA256" certs.txt; then
-            echo "::error::${abi} signer is not Play's registered upload key (want $EXPECTED_SHA256)"
-            exit 1
-          fi
-        done
-        echo "signed by the expected upload key"
+    - uses: ./.github/actions/verify-android-signer
 
     - name: checksums
       shell: "bash -e {0}"

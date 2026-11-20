@@ -18,6 +18,7 @@ import 'package:slimm_app/src/widgets/color_swatch_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -140,7 +141,7 @@ void main() {
       find.text('Could not save the profile colour. Colour refused.'),
       findsOneWidget,
     );
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
   });
 
   testWidgets('with a custom colour set only Custom is selected', (

@@ -71,12 +71,18 @@ class FakeOverlay implements ScreenOverlay {
   int? appMonitorIndex;
   var hides = 0;
 
+  /// False makes every show fail, as a window that cannot be covered does; past a few tries it never answers, so a runaway retry stays countable.
+  var showWorks = true;
+
   @override
   Future<OverlaySupport> support() async => const OverlaySupport.unsupported();
   @override
   Future<bool> show(List<int> monitors, {int? window}) async {
     shown.add(monitors);
     windows.add(window);
+    if (!showWorks) {
+      return shown.length > 5 ? Completer<bool>().future : false;
+    }
     images.clear();
     return true;
   }

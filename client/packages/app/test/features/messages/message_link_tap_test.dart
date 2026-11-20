@@ -131,7 +131,7 @@ void main() {
     ], reason: 'the jump names the channel and message the link pointed at');
   });
 
-  // Fails: inverting messageLinkIsHere; deleting the showAppSnackbar call.
+  // Fails: inverting messageLinkIsHere; deleting the toast call.
   testWidgets('a link to another server is refused, and says so', (
     tester,
   ) async {

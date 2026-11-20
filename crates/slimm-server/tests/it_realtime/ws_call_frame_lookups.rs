@@ -75,7 +75,7 @@ async fn a_call_frame_costs_no_call_lookup_per_subscriber() {
     tracing::subscriber::set_global_default(
         Registry::default().with(CountQueries(Arc::clone(&counts))),
     )
-    .expect("no other subscriber in this binary");
+    .expect("a global subscriber needs nextest's one process per test");
 
     let (path, _guard) = support::TestDbGuard::new("slimm-ws-call-lookups");
     let config = Config {

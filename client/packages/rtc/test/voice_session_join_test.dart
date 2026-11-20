@@ -199,6 +199,37 @@ void main() {
     expect(mic.open, isTrue);
   });
 
+  test('an unmute while connecting waits for the join to publish', () async {
+    var now = Duration.zero;
+    final clocked = JoinTimings(clock: () => now);
+    final early = VoiceSession(
+      roomFactory: () => _GatedRoom(gate),
+      micPort: mic,
+      audioDevices: devices,
+      liveOutput: (room, device) async {},
+      joinTimings: clocked,
+      inputGate: InputGateMonitor.disabled(),
+    );
+    addTearDown(early.dispose);
+    clocked.begin();
+    final joined = early.join(
+        url: 'wss://a.invalid', token: 't', microphoneEnabled: false);
+    await pumpEventQueue();
+
+    now = const Duration(seconds: 1);
+    expect(await early.setMicrophoneEnabled(true), isTrue);
+    expect(mic.published, isEmpty, reason: 'there is no room to publish into');
+    now = const Duration(seconds: 2);
+    gate.complete();
+    await joined;
+    clocked.finish();
+
+    expect(mic.published, hasLength(1));
+    final millis = clocked.last!.millis;
+    expect(millis[JoinStage.micPublished],
+        greaterThanOrEqualTo(millis[JoinStage.connected]!));
+  });
+
   test('a mute asked while the join\'s own open is failing is not retried open',
       () async {
     final slow = VoiceSession(

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A refused moderation write is a persistent error state, shown by the
-/// app-level host the pane reports to, never a SnackBar that floats away.
+/// app-level host the pane reports to, never a toast meant for closed menus.
 ///
 /// Covers the bulk timeout and bulk remove in the selection bar, and the row
-/// menu's remove: the three that reported through `showAppSnackbar` even
-/// though the pane stays on screen.
+/// menu's remove: the three that once reported on a SnackBar even though the
+/// pane stays on screen.
 library;
 
 import 'dart:convert';
@@ -25,6 +25,7 @@ import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
+import '../../support/toast_host.dart';
 
 const _priya = UserProfile(
   id: '1',
@@ -91,8 +92,8 @@ Future<ProviderContainer> _pumpPane(WidgetTester tester) async {
   return container;
 }
 
-void _expectPersistentError(String sentence) {
-  expect(find.byType(SnackBar), findsNothing);
+void _expectPersistentError(WidgetTester tester, String sentence) {
+  expect(errorToasts(tester), isEmpty);
   expect(find.byType(AppErrorState), findsOneWidget);
   expect(find.textContaining(sentence), findsOneWidget);
 }
@@ -113,7 +114,7 @@ void main() {
     await tester.tap(find.widgetWithText(AppButton, '5m'));
     await tester.pumpAndSettle();
 
-    _expectPersistentError('time the member out');
+    _expectPersistentError(tester, 'time the member out');
     expect(container.read(memberSelectionProvider).contains('1'), isTrue);
   });
 
@@ -128,7 +129,7 @@ void main() {
     await tester.pumpAndSettle();
     await _confirmDialog(tester, 'Remove');
 
-    _expectPersistentError('remove the member');
+    _expectPersistentError(tester, 'remove the member');
   });
 
   testWidgets('a refused remove from the row menu stays on screen too', (
@@ -143,7 +144,7 @@ void main() {
     await removal;
     await tester.pumpAndSettle();
 
-    _expectPersistentError('remove Priya');
+    _expectPersistentError(tester, 'remove Priya');
   });
 
   testWidgets('the error can be dismissed', (tester) async {

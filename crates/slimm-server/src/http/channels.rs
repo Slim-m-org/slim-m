@@ -230,6 +230,12 @@ async fn create(
         return Err(CreateChannelError::UnknownCategory.into());
     }
 
+    // A retry answers the stored row, which must not hand a hidden channel's name to someone else.
+    let stored = state.store.channel_including_deleted(id).await?;
+    if stored.is_some() && !sees_channel(&state, ctx.user_id, base_permissions, id).await? {
+        return Err(CreateChannelError::IdConflict.into());
+    }
+
     let created = state
         .store
         .create_channel_with_id(
@@ -275,19 +281,29 @@ async fn require_manager_who_sees(
     if row.is_none_or(|channel| channel.kind == DM_CHANNEL_KIND) {
         return Err(missing);
     }
-    // An administrator sees every other channel, one whose thread parent is gone included.
-    let sees = base.contains(Permissions::ADMINISTRATOR)
-        || state
-            .store
-            .viewed_channel_before_delete(user_id, channel_id)
-            .await?;
-    match sees {
+    match sees_channel(state, user_id, base, channel_id).await? {
         true => Ok(()),
         false => Err(missing),
     }
 }
 
-/// Renames a channel, replaces its topic, and/or sets its slow-mode interval.
+/// An administrator sees every other channel, one whose thread parent is gone included.
+async fn sees_channel(
+    state: &AppState,
+    user_id: UserId,
+    base: Permissions,
+    channel_id: ChannelId,
+) -> Result<bool, ApiError> {
+    if base.contains(Permissions::ADMINISTRATOR) {
+        return Ok(true);
+    }
+    Ok(state
+        .store
+        .viewed_channel_before_delete(user_id, channel_id)
+        .await?)
+}
+
+/// Updates a channel's settings (see `UpdateChannelRequest`).
 /// Requires [`require_manager_who_sees`] - the same gate `delete` uses, not a
 /// new one for the topic or slow-mode half of this route.
 async fn update(

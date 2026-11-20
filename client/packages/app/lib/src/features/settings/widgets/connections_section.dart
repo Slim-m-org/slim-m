@@ -17,8 +17,9 @@ import '../../../providers/providers.dart';
 import '../../../spotify/spotify_config.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/discord_link_finish.dart';
+import '../providers/link_finish.dart';
 import '../providers/linked_accounts.dart';
-import 'discord_link_code_sheet.dart';
+import 'link_code_sheet.dart';
 import 'settings_detail_row.dart';
 import 'settings_refresh_button.dart';
 import 'spotify_connection_rows.dart';
@@ -156,7 +157,7 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
       ];
     }
     final status = ref.watch(discordLinkStatusProvider);
-    final finishing = status is DiscordLinkFinishing;
+    final finishing = status is LinkFinishing;
     return [
       SettingsDetailRow(
         leading:
@@ -193,14 +194,14 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
             onPressed: () => unawaited(showDiscordLinkCodeSheet(context)),
           ),
         ),
-      if (status is DiscordLinkFailed)
+      if (status is LinkFailed)
         SettingsCardBlock(
           children: [
             AppErrorState(
               message: status.message,
               onDismiss: () => ref
                   .read(discordLinkStatusProvider.notifier)
-                  .set(const DiscordLinkIdle()),
+                  .set(const LinkIdle()),
             ),
           ],
         ),

@@ -43,6 +43,8 @@ AccountHost createAccountHost(DesktopWindowShell shell) {
   final callStartYields = CallStartYields();
   // The keybinds switch is per device, so a server not on screen drops its system-wide grabs too.
   final callKeybinds = CallKeybindsStore(optIn: isDesktopHost);
+  // One per tab: each claims the tab's id, and a second claim in one tab reads as a duplicated tab.
+  final crossTab = CrossTab();
   late final AccountHost host;
   host = AccountHost(
     store: accounts,
@@ -58,6 +60,7 @@ AccountHost createAccountHost(DesktopWindowShell shell) {
         accountHostProvider.overrideWith((ref) => host),
         callStartYieldsProvider.overrideWithValue(callStartYields),
         callKeybindsStoreProvider.overrideWithValue(callKeybinds),
+        crossTabProvider.overrideWithValue(crossTab),
         desktopWindowShellProvider.overrideWithValue(shell),
       ],
     ),

@@ -8,16 +8,6 @@
 #include "single_instance.h"
 #include "utils.h"
 
-namespace {
-
-bool IsFile(const std::wstring& path) {
-  const DWORD attributes = ::GetFileAttributesW(path.c_str());
-  return attributes != INVALID_FILE_ATTRIBUTES &&
-         (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
-}
-
-}  // namespace
-
 bool HandStartToLauncher(const wchar_t* command_line) {
   const bool from_launcher =
       ::GetEnvironmentVariableW(slimm::kFromLauncherVariable, nullptr, 0) != 0;

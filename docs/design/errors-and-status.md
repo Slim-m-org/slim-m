@@ -2,7 +2,7 @@
 
 The owner's screen review (2026-11) asked why forms showed red banners "instead of subtext under the input boxes like during signups", and said of the canvas banners that "they don't fade away, they push other ui elements around and they just don't feel like proper error handling in the scenario they are in".
 This is the rule that answers both.
-`desktop-vs-mobile.md` rule 6 points here; decision 0018 still holds that an error is never a toast.
+`desktop-vs-mobile.md` rule 6 points here; decision 0018 still holds that an error is never a timed toast; a failure whose menu has already closed gets an error toast that stays until dismissed.
 
 ## The rule
 

@@ -75,3 +75,9 @@ std::wstring ExecutablePath() {
   path.resize(length < path.size() ? length : 0);
   return path;
 }
+
+bool IsFile(const std::wstring& path) {
+  const DWORD attributes = ::GetFileAttributesW(path.c_str());
+  return attributes != INVALID_FILE_ATTRIBUTES &&
+         (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
+}

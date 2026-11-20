@@ -114,15 +114,11 @@ async fn list(
 /// between colons, so `:Big Smile:` and `:big_smile:` cannot both exist and
 /// then disagree about which one a message meant.
 async fn upload(
-    Authed(ctx): Authed,
-    parts: Parts,
+    ManagerLimited(ctx): ManagerLimited<UPLOAD>,
     Query(params): Query<UploadParams>,
     State(state): State<AppState>,
     Bytes(body): Bytes,
 ) -> Result<(StatusCode, Json<CustomEmojiDto>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Upload)?;
-    require_manage_server(&state, ctx.user_id).await?;
-
     super::storage_room::room_for(&state, body.len() as i64).await?;
     let created = emoji::add_emoji(
         &state.store,

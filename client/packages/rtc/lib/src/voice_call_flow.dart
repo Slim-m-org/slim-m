@@ -46,7 +46,11 @@ class VoiceCallFlow {
 
   /// The room of the call in progress; cleared synchronously when one ends.
   lk.Room? room;
+  lk.Room? _connectedRoom;
   VoiceSessionState state = VoiceSessionState.idle;
+
+  /// Whether [room]'s connect has returned, so a microphone can be published into it.
+  bool get roomConnected => room != null && identical(room, _connectedRoom);
   bool disposed = false;
 
   /// Why the last call ended, when the SFU ended it rather than this client.
@@ -124,7 +128,7 @@ class VoiceCallFlow {
     return ending;
   }
 
-  /// [replaced] is a join taking over a call nobody left, which stays deafened:
+  /// [replaced] is a join taking over a call nobody left, which keeps deafen and local mutes:
   /// a rejoin after a drop, or a switch, must not start playing a call its listener silenced.
   Future<void> _end({required bool replaced}) async {
     final generation = ++_generation;
@@ -135,7 +139,7 @@ class VoiceCallFlow {
 
   void _resetForNewCall({required bool replaced}) {
     _core.roster.set(const []);
-    _core.listener.resetForNewCall(keepDeafened: replaced);
+    _core.listener.resetForNewCall(replaced: replaced);
     // Gain deliberately survives: somebody you turned down stays turned down.
     lastDisconnect = null;
     droppedWhileSharing = false;
@@ -173,6 +177,7 @@ class VoiceCallFlow {
     await _core.camera.dispose();
     await _core.micGate.dispose();
     await _core.micRecovery.dispose();
+    _core.readiness.release.dispose();
     await _core.micGate.gate.dispose();
     await _core.roster.dispose();
     await _states.close();
@@ -214,6 +219,7 @@ class VoiceCallFlow {
       await joining.connect(url, token);
       // A leave or newer join took this room mid-connect and tore it down.
       if (!identical(room, joining)) return;
+      _connectedRoom = joining;
       _core.joinTimings.mark(JoinStage.connected);
       // Apart from the connect: a muted preview or a token without SPEAK must not fail the join.
       final wantMic = _core.micRecovery.wantedAtJoin(microphoneEnabled);
@@ -418,6 +424,7 @@ class VoiceCallFlow {
     _core.stall.stop();
     _core.stats.release();
     _core.micRecovery.stopWatch();
+    _core.readiness.release.reset();
     _core.healthWatch.stop();
     _core.setupLog.stop();
     _core.micGate.strong.reset();

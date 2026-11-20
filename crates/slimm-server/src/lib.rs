@@ -122,6 +122,16 @@ async fn warn_if_unclaimed(store: &store::Store) -> anyhow::Result<()> {
 pub async fn run() -> anyhow::Result<()> {
     let config = config::Config::from_env()?;
     let logging = logging::install(&logging::LogSettings::from_config(&config))?;
+    let served = serve(config, logging).await;
+    if let Err(error) = &served {
+        tracing::error!(error = format!("{error:#}"), "server stopped");
+    }
+    // The file writer is a detached thread that dies with the process, taking unwritten lines.
+    tokio::task::spawn_blocking(|| logging.flush()).await?;
+    served
+}
+
+async fn serve(config: config::Config, logging: &'static logging::Logging) -> anyhow::Result<()> {
     logging.spawn_drop_report();
     http::panic_guard::install_hook();
     // Before the database is touched, so a misconfigured origin list is a

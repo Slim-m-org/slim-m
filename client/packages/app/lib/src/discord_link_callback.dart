@@ -8,6 +8,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/settings/providers/discord_link_finish.dart';
+import 'features/settings/providers/link_finish.dart' show linkCodeQuery;
 import 'features/settings/providers/steam_link_finish.dart';
 import 'routing/routes.dart';
 
@@ -22,7 +23,7 @@ bool isDiscordLinkDelivery(Uri uri) =>
 /// still being built.
 String? claimWebDiscordLink(Ref ref, Uri uri) {
   if (uri.path != discordLinkWebPath) return null;
-  final code = uri.queryParameters[discordLinkCodeQuery];
+  final code = uri.queryParameters[linkCodeQuery];
   if (code == null) return null;
   Future.microtask(
     () => ref.read(discordLinkFinisherProvider).completeDelivered(code),
@@ -36,7 +37,7 @@ bool isSteamLinkDelivery(Uri uri) =>
 /// [claimWebDiscordLink] for the web client's `/link/steam?code=` redirect.
 String? claimWebSteamLink(Ref ref, Uri uri) {
   if (uri.path != steamLinkWebPath) return null;
-  final code = uri.queryParameters[discordLinkCodeQuery];
+  final code = uri.queryParameters[linkCodeQuery];
   if (code == null) return null;
   Future.microtask(
     () => ref.read(steamLinkFinisherProvider).completeDelivered(code),

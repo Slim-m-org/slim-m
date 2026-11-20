@@ -21,6 +21,7 @@ import 'package:slimm_app/src/features/settings/widgets/settings_section_header.
 import 'package:slimm_app/src/features/settings/widgets/totp_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'user-1',
@@ -362,7 +363,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(AppErrorState), findsNothing);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     expect(find.text('JBSWY3DPEHPK3PXP'), findsNothing);
     expect(find.widgetWithText(AppButton, 'Continue'), findsOneWidget);
   });

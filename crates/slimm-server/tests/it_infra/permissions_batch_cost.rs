@@ -136,7 +136,7 @@ fn counter() -> Arc<AtomicUsize> {
     let count = Arc::new(AtomicUsize::new(0));
     let subscriber = Registry::default().with(CountQueries(Arc::clone(&count)));
     tracing::subscriber::set_global_default(subscriber)
-        .expect("no other subscriber in this binary");
+        .expect("a global subscriber needs nextest's one process per test");
     count
 }
 

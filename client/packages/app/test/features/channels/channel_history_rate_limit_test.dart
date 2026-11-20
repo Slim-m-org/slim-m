@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/rate_limit_retry.dart';
 
 import '../../channel_history_harness.dart';
+import '../../support/toast_host.dart';
 
 Future<void> _unmount(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
@@ -37,7 +38,7 @@ void main() {
     await scrollToOldest(tester);
 
     expect(find.text('Could not load earlier messages.'), findsNothing);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     expect(harness.rateLimitWaits, [
       const Duration(seconds: 3),
       const Duration(seconds: 3),
@@ -92,7 +93,7 @@ void main() {
     await scrollToOldest(tester);
 
     expect(find.text('Could not load earlier messages.'), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     expect(harness.rateLimitWaits, hasLength(rateLimitRetries));
     expect(harness.beforeCursors, hasLength(rateLimitRetries + 1));
 

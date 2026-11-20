@@ -187,7 +187,7 @@ pub(super) async fn short_link_preview(
         return Ok(None);
     };
     let Some(entity) = parse_entity(final_url.as_str()) else {
-        return Ok(None);
+        return Ok(Some(page));
     };
     let item_url = canonical_url(&entity);
     let oembed = fetch_oembed(client, &item_url, allow_private, oembed_endpoint).await;

@@ -193,19 +193,7 @@ jobs:
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
           xcrun simctl list devices available | grep "$udid" || true
 
-      # Measured 2026-11-17: pod install took 2.2 s on a miss, so this saves little; the lockfiles decide its contents.
-      - name: cache cocoapods
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: |
-            client/packages/app/ios/Pods
-            ~/Library/Caches/CocoaPods
-          # Keyed on the lockfiles alone, with no prefix fallback: restoring
-          # pods resolved from a different lockfile is how a build stops
-          # matching the dependencies it claims to have.
-          key: pods-${{ runner.os }}-${{ hashFiles('client/packages/app/ios/Podfile.lock', 'client/pubspec.lock') }}
-
-      # Config only: build-for-testing below is the one simulator build, so this writes the Flutter config, resolves the Swift packages and runs pod install.
+      # Config only: build-for-testing below is the one simulator build, so this writes the Flutter config and resolves the Swift packages.
       - name: generate the ios project
         working-directory: client/packages/app
         run: flutter build ios --simulator --no-codesign --config-only

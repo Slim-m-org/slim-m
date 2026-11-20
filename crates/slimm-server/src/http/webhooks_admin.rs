@@ -156,8 +156,7 @@ async fn reachable(
     webhook_id: WebhookId,
 ) -> Result<(Webhook, Reach), ApiError> {
     let missing = ApiError::NotFound("no such webhook");
-    let listed = state.store.list_webhooks().await?;
-    let Some(webhook) = listed.into_iter().find(|w| w.id == webhook_id) else {
+    let Some(webhook) = state.store.webhook_by_id(webhook_id).await? else {
         return Err(missing);
     };
     match Reach::of(state, user, webhook.channel_id).await? {

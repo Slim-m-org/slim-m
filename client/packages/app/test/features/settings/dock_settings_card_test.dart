@@ -19,6 +19,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../../dock_manifest_fixture.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',
@@ -125,7 +126,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AppErrorState), findsOneWidget);
     expect(find.text('Could not load the settings.'), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
     expect(find.byType(AppErrorState), findsNothing);
@@ -146,7 +147,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AppErrorState), findsOneWidget);
     expect(find.text('Could not save the settings.'), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     expect(tester.widget<EditableText>(_name()).controller.text, 'Bob');
     expect(find.text('Save changes'), findsOneWidget);
   });

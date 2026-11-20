@@ -9,6 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/labeled_field.dart';
 import '../providers/discord_link_finish.dart';
+import '../providers/link_finish.dart';
 import '../providers/steam_link_finish.dart';
 
 const _maxPasteChars = 128;
@@ -17,33 +18,39 @@ const _maxPasteChars = 128;
 Future<void> showDiscordLinkCodeSheet(BuildContext context) =>
     showAppSheet<void>(
       context,
-      builder: (_) => const _DiscordLinkCodeSheet(service: 'Discord'),
+      builder: (_) => _LinkCodeSheet(
+        service: 'Discord',
+        finisher: (ref) => ref.read(discordLinkFinisherProvider),
+      ),
     );
 
 /// Opens the code prompt for a Steam link.
 Future<void> showSteamLinkCodeSheet(BuildContext context) => showAppSheet<void>(
   context,
-  builder: (_) => const _DiscordLinkCodeSheet(service: 'Steam'),
+  builder: (_) => _LinkCodeSheet(
+    service: 'Steam',
+    finisher: (ref) => ref.read(steamLinkFinisherProvider),
+  ),
 );
 
-class _DiscordLinkCodeSheet extends ConsumerStatefulWidget {
-  const _DiscordLinkCodeSheet({required this.service});
+class _LinkCodeSheet extends ConsumerStatefulWidget {
+  const _LinkCodeSheet({required this.service, required this.finisher});
 
   final String service;
+  final LinkFinisher Function(WidgetRef ref) finisher;
 
   @override
-  ConsumerState<_DiscordLinkCodeSheet> createState() =>
-      _DiscordLinkCodeSheetState();
+  ConsumerState<_LinkCodeSheet> createState() => _LinkCodeSheetState();
 }
 
-class _DiscordLinkCodeSheetState extends ConsumerState<_DiscordLinkCodeSheet> {
+class _LinkCodeSheetState extends ConsumerState<_LinkCodeSheet> {
   final _code = TextEditingController();
   bool _busy = false;
-  String? _error;
+  LinkFailure? _failure;
 
   /// A refused or unreadable code shows under the field; anything else stays a boxed error.
   String? get _codeError =>
-      _error != null && linkFailureIsTheCode(_error!) ? _error : null;
+      _failure != null && _failure!.aboutCode ? _failure!.message : null;
 
   @override
   void dispose() {
@@ -52,14 +59,12 @@ class _DiscordLinkCodeSheetState extends ConsumerState<_DiscordLinkCodeSheet> {
   }
 
   Future<void> _submit() async {
-    final complete = widget.service == 'Steam'
-        ? ref.read(steamLinkFinisherProvider).complete
-        : ref.read(discordLinkFinisherProvider).complete;
+    final finisher = widget.finisher(ref);
     setState(() {
       _busy = true;
-      _error = null;
+      _failure = null;
     });
-    final failure = await complete(_code.text);
+    final failure = await finisher.complete(_code.text);
     if (!mounted) return;
     if (failure == null) {
       Navigator.of(context).pop();
@@ -67,7 +72,7 @@ class _DiscordLinkCodeSheetState extends ConsumerState<_DiscordLinkCodeSheet> {
     }
     setState(() {
       _busy = false;
-      _error = failure;
+      _failure = failure;
     });
   }
 
@@ -120,14 +125,14 @@ class _DiscordLinkCodeSheetState extends ConsumerState<_DiscordLinkCodeSheet> {
               semanticLabel: '${widget.service} link code',
               errorText: _codeError,
               onChanged: (_) {
-                if (_codeError != null) setState(() => _error = null);
+                if (_codeError != null) setState(() => _failure = null);
               },
               onSubmitted: (_) => _busy ? null : _submit(),
             ),
           ),
-          if (_error case final error? when _codeError == null) ...[
+          if (_failure case final failure? when !failure.aboutCode) ...[
             const SizedBox(height: AppSpacing.s8),
-            AppErrorState(message: error),
+            AppErrorState(message: failure.message),
           ],
           const SizedBox(height: AppSpacing.s12),
           AppButton(

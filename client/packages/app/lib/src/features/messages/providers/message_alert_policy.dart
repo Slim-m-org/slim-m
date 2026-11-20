@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Whether a live message should alert on this device, shared by the chime and the desktop banner so they cannot drift.
-/// Follows the server's push gate in order: own, blocked or deleted senders never alert; then the channel override, else the parent's for a thread, else the account's; the notification schedule has the last word.
+/// Follows the server's push gate in order: own, blocked or deleted senders never alert; a lobby never does; then the channel override, else the parent's for a thread, else a category mute, else the stricter of the channel's own default and the account's; the notification schedule has the last word.
 library;
 
 import 'dart:async';

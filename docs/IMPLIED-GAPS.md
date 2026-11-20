@@ -119,7 +119,13 @@ A thread's `VIEW_CHANNEL`/`SEND_MESSAGES` are always the parent's, resolved live
 
 ## 8. Two smaller, lower-confidence items worth a look
 
-**Jump-to cannot reach a message older than the transcript window, about the newest 1000 messages.** `MessageJumpController` pages history backwards until the target is held, then widens the window to show it, and stops when the window is full (`channelWindowCeiling` in `client/packages/app/lib/src/features/messages/providers/retention_policy.dart`). That ceiling is also what the local store keeps per channel, so anything older cannot be shown by paging and fails honestly (`MessageJumpUnreachable`), inline in the search panel or as a notice for a pin or a link. A search hit that old needs a view around the message rather than more paging, which needs a server route that pages forwards or around a seq. The bound used to be 500 messages, below what the window could hold, and a hit held locally but outside the window used to report an arrival nothing displayed.
+**Jump-to cannot reach a message older than the transcript window, about the newest 1000 messages.**
+**Superseded 2026-11 by `docs/decisions/0116-context-window-for-old-search-hits.md`.**
+A search hit that old now opens in a read-only window around it, from `GET /channels/{id}/messages?around=<seq>`.
+The rest of this entry is history.
+`MessageJumpController` pages history backwards until the target is held, then widens the window to show it, and stops when the window is full (`channelWindowCeiling` in `client/packages/app/lib/src/features/messages/providers/retention_policy.dart`).
+That ceiling is also what the local store keeps per channel, so anything older cannot be shown by paging and fails honestly (`MessageJumpUnreachable`), as a notice for a pin or a link.
+The bound used to be 500 messages, below what the window could hold, and a hit held locally but outside the window used to report an arrival nothing displayed.
 
 **Selecting and copying message text on desktop has not been checked against markdown's inline `WidgetSpan`s.** `TranscriptSelection` (`client/packages/app/lib/src/features/messages/widgets/transcript_selection.dart`) wraps the transcript in a plain `SelectionArea`, added before markdown's mention chips, inline-code spans and spoiler widgets existed as `WidgetSpan`s inside the rendered text (`message_text.dart`). Flutter's default handling of a `WidgetSpan` under selection does not guarantee the visible content round-trips through copy unless the span opts into selection explicitly, and neither `transcript_selection_test.dart` nor any other test exercises selecting across one of these spans. This is not a confirmed bug - it has not been run and observed - but the two features shipped independently and the interaction between them is untested in either direction.
 

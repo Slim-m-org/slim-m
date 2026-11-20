@@ -132,6 +132,36 @@ void main() {
     expect(bus.reconfigures, 3);
   });
 
+  test('a rule a crashed run left behind is cleared at the next start',
+      () async {
+    config.groups['General'] = {
+      'rules': 'other,$kwinAboveFullScreenRule',
+      'count': '2',
+    };
+    config.groups[kwinAboveFullScreenRule] = {
+      'title': 'slim-m pop-out',
+      'layer': 'popup',
+    };
+    expect(
+      await kwinClearLeftoverAboveFullScreen(
+          linux: true, client: bus, run: config.run),
+      isTrue,
+    );
+    expect(config.groups.containsKey(kwinAboveFullScreenRule), isFalse);
+    expect(config.groups['General'], {'rules': 'other', 'count': '1'});
+    expect(bus.reconfigures, 1);
+  });
+
+  test('the startup clean-up never runs off Linux', () async {
+    config.groups[kwinAboveFullScreenRule] = {'layer': 'popup'};
+    expect(
+      await kwinClearLeftoverAboveFullScreen(
+          linux: false, client: bus, run: config.run),
+      isFalse,
+    );
+    expect(config.commands, isEmpty);
+  });
+
   test('where KWin is not running the config is never touched', () async {
     bus = _KwinBus(running: false);
     expect(await add(), isFalse);

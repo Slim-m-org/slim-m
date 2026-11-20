@@ -25,11 +25,11 @@ import 'dock_update_report.dart';
 ///
 /// [reapproveOnly] is an update that asks for nothing new and only takes back
 /// access the module held, which a new build does to `message.post`.
-typedef DockUpdateAsk = ({List<String> capabilities, bool reapproveOnly});
+typedef _UpdateAsk = ({List<String> capabilities, bool reapproveOnly});
 
 /// The access [manifest] asks for that [installed] does not already hold:
 /// declared for the first time, widened, or approved before and taken back.
-DockUpdateAsk dockUpdateAsk(
+_UpdateAsk _updateAsk(
   api.DockManifest manifest,
   api.InstalledDockModule? installed,
 ) {
@@ -139,7 +139,7 @@ Future<_Turn?> _updateOne(
         .read(apiProvider)
         .getDockModule(item.entry.id, source: item.source);
     if (!context.mounted) return null;
-    final ask = dockUpdateAsk(manifest, current);
+    final ask = _updateAsk(manifest, current);
     _Grant? grant;
     if (ask.capabilities.isNotEmpty) {
       final agreed = await _askAbout(context, item, manifest, current, ask);
@@ -198,7 +198,7 @@ Future<bool> _askAbout(
   DockOutdated item,
   api.DockManifest manifest,
   api.InstalledDockModule? current,
-  DockUpdateAsk ask, {
+  _UpdateAsk ask, {
   bool updated = false,
 }) => showDockInstallConsent(
   context,
@@ -228,7 +228,7 @@ const _privateNetworkOffNote =
 bool _dropsPrivateNetwork(
   api.DockManifest manifest,
   api.InstalledDockModule? held,
-  DockUpdateAsk ask,
+  _UpdateAsk ask,
 ) =>
     (held?.localNetworkApproved ?? false) &&
     (manifest.network?.local ?? false) &&

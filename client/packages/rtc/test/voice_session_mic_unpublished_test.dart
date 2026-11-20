@@ -163,7 +163,23 @@ void main() {
 
   test('a microphone a full restart is still republishing is left to livekit',
       () async {
-    await join();
+    final patient = VoiceSession(
+      roomFactory: () => room,
+      micPort: mic,
+      audioDevices: const NoAudioDevices(),
+      micRecoveryTiming: const MicRecoveryTiming(
+        retryBase: Duration(milliseconds: 10),
+        maxRetryDelay: Duration(milliseconds: 20),
+        maxRetries: 3,
+        captureProbe: Duration(milliseconds: 5),
+        restartRepublish: Duration(hours: 1),
+      ),
+      inputGate: InputGateMonitor.disabled(),
+    );
+    addTearDown(patient.dispose);
+    patient.micStatuses.listen(statuses.add);
+    await patient.join(
+        url: 'wss://a.invalid', token: 't', microphoneEnabled: true);
     room.emit(const lk.RoomReconnectingEvent());
     mic.published = false;
     await _settle();

@@ -35,6 +35,7 @@ class MessageExtrasController
   final Ref _ref;
   late final StreamSubscription<api.ServerEvent> _sub;
   final _hydrated = <String, HydratedRanges>{};
+  final _pinned = <String, int>{};
 
   MessageExtras extrasFor(String messageId) =>
       state[messageId] ?? MessageExtras.empty;
@@ -444,11 +445,31 @@ class MessageExtrasController
   /// the one point this runs.
   void clear() {
     _hydrated.clear();
+    _pinned.clear();
     if (state.isEmpty) return;
     state = const {};
   }
 
-  /// Drops every entry whose id is not in [reachable]. See the file doc
+  /// Keeps [ids] through [retain] for messages shown from outside the local
+  /// store (a fetched reply parent, a context window) until [unpin].
+  void pin(Iterable<String> ids) {
+    for (final id in ids) {
+      _pinned[id] = (_pinned[id] ?? 0) + 1;
+    }
+  }
+
+  void unpin(Iterable<String> ids) {
+    for (final id in ids) {
+      final left = (_pinned[id] ?? 1) - 1;
+      if (left <= 0) {
+        _pinned.remove(id);
+      } else {
+        _pinned[id] = left;
+      }
+    }
+  }
+
+  /// Drops every entry whose id is not in [reachable] or pinned. See the file doc
   /// comment for why this, not a per-id prune, is the safe way to bound this
   /// map - only ever called from `providers/retention_sweep.dart`'s periodic
   /// sweep, with [reachable] already computed off the local store.
@@ -456,10 +477,11 @@ class MessageExtrasController
     _hydrated.removeWhere(
       (channelId, _) => !openChannelIds.contains(channelId),
     );
-    if (state.keys.every(reachable.contains)) return;
+    bool kept(String id) => reachable.contains(id) || _pinned.containsKey(id);
+    if (state.keys.every(kept)) return;
     state = {
       for (final entry in state.entries)
-        if (reachable.contains(entry.key)) entry.key: entry.value,
+        if (kept(entry.key)) entry.key: entry.value,
     };
   }
 

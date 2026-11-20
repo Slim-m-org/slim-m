@@ -20,7 +20,7 @@
 //! R-Tree as the outer loop. Left as a plain join, SQLite on a database that
 //! has never been ANALYZEd drives from `canvas_objects` instead and probes the
 //! R-Tree by rowid, which reads every object in the channel and prunes
-//! nothing; `tests/canvas.rs` asserts the plan rather than trusting it.
+//! nothing; `tests/it_canvas/canvas_index.rs` asserts the plan rather than trusting it.
 
 use anyhow::Context;
 use sqlx::SqliteExecutor;

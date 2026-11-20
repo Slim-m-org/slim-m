@@ -266,6 +266,7 @@ void main() {
     expect(rig.state.phase, VoicePhase.failed);
     expect(rig.state.error, contains('Microphone access is off'));
     expect(rig.state.clip, isNull);
+    expect(rig.capture.cancelled, isTrue);
   });
 
   test('a Linux start that fails names the program it needs', () async {
@@ -275,6 +276,7 @@ void main() {
       await rig.recorder.start();
       expect(rig.state.phase, VoicePhase.failed);
       expect(rig.state.error!.contains('parecord'), onLinux);
+      expect(rig.capture.cancelled, isTrue);
       rig.container.dispose();
     }
   });

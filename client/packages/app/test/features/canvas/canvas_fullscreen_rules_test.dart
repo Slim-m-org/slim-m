@@ -17,6 +17,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../voice/voice_controller_harness.dart';
 import 'canvas_pane_harness.dart';
+import '../../support/toast_host.dart';
 
 VoiceParticipant _sharer(String id, String name) => VoiceParticipant(
   identity: id,
@@ -312,7 +313,7 @@ void main() {
       final before = rig.document.camera;
       await tester.pump(summonRequestTimeout + const Duration(seconds: 1));
       expect(find.text('Accept'), findsNothing);
-      expect(find.byType(SnackBar), findsNothing);
+      expect(errorToasts(tester), isEmpty);
       expect(rig.document.camera, before);
     });
 

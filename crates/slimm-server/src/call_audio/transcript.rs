@@ -12,6 +12,7 @@ use crate::http::AppState;
 use crate::hub::Event;
 use crate::ids::{CallTranscriptId, ChannelId, UserId};
 use crate::store::{NewTranscript, NewTranscriptLine, TranscriptLine, TranscriptionMode, now_ms};
+use crate::voice::Listing;
 
 /// What a person is shown about the server's own transcript.
 pub fn subject() -> Subject {
@@ -94,14 +95,31 @@ pub async fn write_line(state: &AppState, segment: &AcceptedSegment) {
 
 /// Runs once for each line as it is kept: today it sends the line to the people in the call.
 fn on_line(state: &AppState, (channel, id): (ChannelId, CallTranscriptId), line: TranscriptLine) {
-    let audience: Arc<[UserId]> = state.voice.live_state().present(channel).into();
+    if let Some(audience) = state.voice.trusted_roster(channel) {
+        publish_line(state, (channel, id), audience, line);
+        return;
+    }
+    // Asking the SFU must not stall the call-audio loop every other session shares.
+    let state = state.clone();
+    tokio::spawn(async move {
+        let audience = state.voice.in_call(channel, Listing::Shared).await;
+        publish_line(&state, (channel, id), audience, line);
+    });
+}
+
+fn publish_line(
+    state: &AppState,
+    (channel, id): (ChannelId, CallTranscriptId),
+    audience: Vec<UserId>,
+    line: TranscriptLine,
+) {
     if audience.is_empty() {
         return;
     }
     state.hub.publish(Event::CallTranscriptLine {
         channel_id: channel,
         transcript_id: id,
-        audience,
+        audience: audience.into(),
         line: Arc::new(line),
     });
 }

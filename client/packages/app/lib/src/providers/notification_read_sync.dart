@@ -28,7 +28,7 @@ Set<int> staleNotificationIds({
   ],
 };
 
-/// Mounted once on the app-level container beside [appBadgeSyncProvider].
+/// Kept mounted by [ActiveAccountMount] beside [appBadgeSyncProvider].
 final notificationReadSyncProvider = Provider<void>((ref) {
   if (!isAndroidHost) return;
   onAccountsChanged(ref, (accounts) {

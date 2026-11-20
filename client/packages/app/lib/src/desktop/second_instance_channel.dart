@@ -19,9 +19,10 @@ class SecondInstanceChannel {
   /// Fires each time another launch hands over to this running instance.
   Stream<void> get launches => _launches.stream;
 
-  final _links = StreamController<Uri>.broadcast();
+  // Single-subscription, so a link sent before startup reaches the deep-link listener waits for it.
+  final _links = StreamController<Uri>();
 
-  /// The links later launches handed over, for the deep-link listener.
+  /// The links later launches handed over, for the one deep-link listener.
   Stream<Uri> get links => _links.stream;
 
   /// Listens for `focus`, running [bringForward] after announcing it, and

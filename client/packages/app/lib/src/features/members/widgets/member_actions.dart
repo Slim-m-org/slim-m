@@ -21,7 +21,7 @@ import '../../channels/providers/dms.dart' show openDirectMessage;
 import '../providers/member_presence.dart' show refreshRostersAfterModeration;
 import '../../settings/providers/notification_schedule_controller.dart';
 import '../../../routing/routes.dart';
-import '../../../widgets/app_snackbar.dart';
+import '../../../widgets/menu_outcome.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../voice/providers/dm_call_start.dart';
@@ -63,7 +63,7 @@ Future<void> messageMember(
       if (host.mounted) host.go(Routes.channel(channelId));
     },
   );
-  if (failure != null && host.mounted) showAppSnackbar(host, failure);
+  if (failure != null && host.mounted) showMenuFailure(host, failure);
 }
 
 /// Opens a direct message with [profile] and starts a call in it, ringing them.
@@ -84,7 +84,7 @@ Future<void> callMember(
       startDmCall(container.read, channelId);
     },
   );
-  if (failure != null && host.mounted) showAppSnackbar(host, failure);
+  if (failure != null && host.mounted) showMenuFailure(host, failure);
 }
 
 /// Blocks a member from the row's context menu.
@@ -125,12 +125,12 @@ Future<void> toggleNotificationScheduleAllowedUser(
   );
   if (failure == null) container.invalidate(notificationScheduleProvider);
   if (!context.mounted) return;
-  showAppSnackbar(
+  showMenuOutcome(
     context,
-    failure ??
-        (currentlyAllowed
-            ? 'Off hours now follow your usual schedule for this person.'
-            : 'You will always be notified about this person, even off hours.'),
+    failure: failure,
+    succeeded: currentlyAllowed
+        ? 'Off hours now follow your usual schedule for this person.'
+        : 'You will always be notified about this person, even off hours.',
   );
 }
 

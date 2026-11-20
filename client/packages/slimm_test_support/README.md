@@ -16,7 +16,7 @@ The part that needs Riverpod and the app's providers stays in `client/packages/a
 
 ## Source-reading gates
 
-`package:slimm_test_support/source_gates.dart` is what a test that reads source text needs, without the fake server.
+`package:slimm_test_support/source_gates.dart` is what a test that reads source text needs, without `testApi` and its HTTP dependencies.
 
 - `codeOnly(source)` blanks comments and string contents to spaces, so a regex or brace count only sees code.
 - `stripComments(source)` blanks comments only, for a gate that needs a string's own text.

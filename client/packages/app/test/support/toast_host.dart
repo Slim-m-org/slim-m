@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
+import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_app/src/widgets/toast_overlay.dart';
 
 /// A `MaterialApp.builder` that paints toasts above [child], as the app shell does.
@@ -24,3 +25,13 @@ Future<void> expireToasts(WidgetTester tester) =>
 List<String> toastMessages(WidgetTester tester) => ProviderScope.containerOf(
   tester.element(find.byWidgetPredicate((w) => w is Navigator).first),
 ).read(toastsProvider).map((t) => t.message).toList();
+
+/// The error toasts currently up: a failure that should have stayed on its own surface lands here.
+List<String> errorToasts(WidgetTester tester) =>
+    ProviderScope.containerOf(
+          tester.element(find.byWidgetPredicate((w) => w is Navigator).first),
+        )
+        .read(toastsProvider)
+        .where((t) => t.severity == AppToastSeverity.error)
+        .map((t) => t.message)
+        .toList();

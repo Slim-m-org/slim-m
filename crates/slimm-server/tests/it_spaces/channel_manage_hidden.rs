@@ -156,3 +156,20 @@ async fn nobody_manages_a_direct_message_as_a_channel() {
         ("", None, 0)
     );
 }
+
+#[tokio::test]
+async fn a_create_retry_does_not_hand_back_a_hidden_channel() {
+    let (app, hidden) = with_a_hidden_channel("slimm-channel-manage-hidden-create").await;
+    let body = json!({"id": hidden, "name": "staff", "restricted": false});
+
+    let (status, answer) = app
+        .call("POST", "/channels", &app.member.token, Some(body.clone()))
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{answer}");
+    assert!(!answer.to_string().contains("who we are letting go"));
+
+    let (status, answer) = app
+        .call("POST", "/channels", &app.admin.token, Some(body))
+        .await;
+    assert_eq!(status, StatusCode::OK, "an administrator's retry: {answer}");
+}

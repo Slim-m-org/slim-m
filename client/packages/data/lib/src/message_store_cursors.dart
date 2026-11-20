@@ -8,6 +8,7 @@ import 'dart:math' as math;
 
 import 'package:drift/drift.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'channel_standing.dart';
 import 'database.dart';
 import 'message_store.dart';
 
@@ -63,7 +64,7 @@ Future<void> advanceCursorHelper(
   final newest = seqs.reduce(math.max);
   if (row == null) return;
   // A row stands once it is stored, whether or not the cursor may move over it.
-  if ((row.liveSeq ?? row.cursor) < newest) {
+  if (row.standingSeq < newest) {
     await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
         .write(ChannelsCompanion(liveSeq: Value(newest)));
   }
@@ -103,7 +104,7 @@ Future<void> coverCursorHelper(
     await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
         .write(ChannelsCompanion(
       cursor: Value(seq),
-      liveSeq: Value(row.liveSeq ?? row.cursor),
+      liveSeq: Value(row.standingSeq),
     ));
   });
 }
@@ -125,7 +126,7 @@ Future<void> discardRowHelper(
     if (gone == null || gone.seq <= 0) return;
     final row = await channelRow(store, gone.channelId);
     if (row == null) return;
-    final standing = row.liveSeq ?? row.cursor;
+    final standing = row.standingSeq;
     final newest = standing > gone.seq
         ? standing
         : await _newestHeldSeq(db, gone.channelId);
@@ -145,7 +146,7 @@ Future<void> restandHelper(MessageStore store, String channelId) async {
   final row = await channelRow(store, channelId);
   if (row == null) return;
   final newest = await _newestHeldSeq(db, channelId);
-  if ((row.liveSeq ?? row.cursor) <= newest) return;
+  if (row.standingSeq <= newest) return;
   await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
       .write(ChannelsCompanion(liveSeq: Value(newest)));
 }
@@ -155,7 +156,8 @@ Future<int> _newestHeldSeq(
   String channelId, {
   bool mentionsOnly = false,
 }) async {
-  final mentions = mentionsOnly ? ' AND mentions_me = 1' : '';
+  final mentions =
+      mentionsOnly ? ' AND (mentions_me = 1 OR mention_unsure = 1)' : '';
   final got = await db.customSelect(
     'SELECT MAX(seq) AS newest FROM messages '
     'WHERE channel_id = ? AND seq > 0$mentions',
@@ -178,12 +180,13 @@ Future<void> advanceMentionCursorHelper(
       .write(ChannelsCompanion(mentionedSeq: Value(seq)));
 }
 
-/// Lowers the mention cursor to the server's [seq] when no held message at it
-/// still mentions this account, since then nothing local can walk it back.
+/// Settles unsure rows by the server's newest mention [seq], then lowers the
+/// mention cursor to it when no held message at the cursor still mentions this account.
 Future<void> healMentionCursorHelper(
     MessageStore store, String channelId, int seq) async {
   final db = store.db;
   await db.transaction(() async {
+    await _settleUnsureMentions(db, channelId, seq);
     final row = await channelRow(store, channelId);
     if (row == null || row.mentionedSeq <= seq) return;
     final held = await (db.select(db.messages)
@@ -197,6 +200,20 @@ Future<void> healMentionCursorHelper(
     await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
         .write(ChannelsCompanion(mentionedSeq: Value(seq)));
   });
+}
+
+/// Only unsure rows are settled: a definite flag came from a full copy, which may be newer than the marker.
+Future<void> _settleUnsureMentions(
+    SlimmDatabase db, String channelId, int seq) async {
+  await (db.update(db.messages)
+        ..where((m) =>
+            m.channelId.equals(channelId) &
+            m.mentionUnsure.equals(true) &
+            m.seq.isBiggerOrEqualValue(seq)))
+      .write(MessagesCompanion.custom(
+    mentionsMe: db.messages.seq.equals(seq),
+    mentionUnsure: const Constant(false),
+  ));
 }
 
 Future<List<api.ScopeCursor>> allCursors(MessageStore store) async {

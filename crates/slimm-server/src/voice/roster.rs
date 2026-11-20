@@ -164,7 +164,8 @@ impl VoiceService {
         self.roster_cache.clone()
     }
 
-    /// [`Self::list_participants`] reused for [`ROSTER_TTL`], for the polled roster route only.
+    /// [`Self::list_participants`] reused for [`ROSTER_TTL`], for callers that only show or address
+    /// who is present, such as the polled roster route and live transcript lines.
     ///
     /// Callers that act on who is present (cleanup, call rings) keep asking the SFU directly.
     pub async fn list_participants_shared(

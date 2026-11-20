@@ -18,6 +18,7 @@ import 'package:slimm_app/src/features/composer/widgets/staged_attachment_tile.d
 import 'package:slimm_design_system/design_system.dart';
 
 import 'composer_harness.dart';
+import '../../support/toast_host.dart';
 
 final _png = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
@@ -116,7 +117,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(StagedAttachmentTile), findsNWidgets(2));
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
   });
 
   testWidgets('Photo library opens the strip when the keyboard was up first', (
@@ -174,7 +175,7 @@ void main() {
 
     expect(find.textContaining('cannot see your photos'), findsOneWidget);
     expect(find.bySemanticsLabel('Attach photo'), findsNothing);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
 
     await tester.tap(find.text('Browse photos'));
     await tester.pumpAndSettle();

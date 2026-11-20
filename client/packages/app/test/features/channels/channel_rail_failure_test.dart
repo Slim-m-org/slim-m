@@ -31,10 +31,23 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
+import '../../support/async_wait.dart';
 import '../../ui_snapshot_support.dart';
 import '../../support/fake_sync.dart';
 
 const _railHeight = 880.0;
+
+class _OneUnsent extends MessageStore {
+  _OneUnsent(super.db);
+
+  static bool counted = false;
+
+  @override
+  Future<int> unsentCount() async {
+    counted = true;
+    return 1;
+  }
+}
 
 Future<ProviderContainer> _pumpRail(
   WidgetTester tester, {
@@ -125,7 +138,10 @@ const _keyUnavailable = LocalDatabaseKeyUnavailable('keychain locked');
 
 void main() {
   // The rail's category sections read the collapsed-category preference.
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    _OneUnsent.counted = false;
+  });
 
   testWidgets('a store that will not open shows a failure sized to its own '
       'content, near the top, leaving the rest of the rail empty', (
@@ -282,13 +298,40 @@ void main() {
     expect(session.tokens, isNotNull);
 
     expect(find.text('Sign in again'), findsOneWidget);
-    await tester.runAsync(() async {
-      await tester.tap(find.text('Sign in again'));
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-    });
-    await tester.pump();
+    await tester.tap(find.text('Sign in again'));
+    await waitUntil(
+      tester,
+      () => session.tokens == null,
+      reason: 'the control must really sign out',
+    );
 
-    expect(session.tokens, isNull, reason: 'the control must really sign out');
+    await _teardown(tester, container);
+  });
+
+  testWidgets('Sign in again asks first while a message has not been sent', (
+    tester,
+  ) async {
+    final container = await _pumpRail(
+      tester,
+      overrides: [
+        storeProvider.overrideWith((ref) async {
+          final db = SlimmDatabase(NativeDatabase.memory());
+          ref.onDispose(db.close);
+          return _OneUnsent(db);
+        }),
+        syncFailureProvider.overrideWith((ref) => SyncFailure.refused),
+      ],
+    );
+
+    await tester.tap(find.text('Sign in again'));
+    await waitUntil(tester, () => _OneUnsent.counted);
+    await pumpFrames(tester, frames: 20);
+
+    expect(
+      find.text('1 message has not been sent yet. Signing out deletes it.'),
+      findsOneWidget,
+    );
+    expect(container.read(sessionProvider).tokens, isNotNull);
 
     await _teardown(tester, container);
   });

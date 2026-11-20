@@ -450,6 +450,12 @@ pub async fn run(c: &mut Contract) {
         root,
     )
     .await;
+    // A transcript still being written cannot be deleted, so the call ends first.
+    c.state
+        .store
+        .end_call_transcript(transcript, now - 2000)
+        .await
+        .unwrap();
     c.bare(
         "deleteVoiceTranscript",
         "DELETE",

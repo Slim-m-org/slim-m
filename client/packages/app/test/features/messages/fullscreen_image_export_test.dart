@@ -20,6 +20,7 @@ import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_app/src/features/messages/widgets/fullscreen_image_viewer.dart';
 import 'package:slimm_app/src/features/messages/widgets/image_export.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../../support/toast_host.dart';
 
 final Uint8List _png = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAT0lEQVR42u3PQQkA'
@@ -193,7 +194,7 @@ void main() {
     await tester.pump();
     expect(find.byType(AppErrorState), findsOneWidget);
     expect(find.textContaining('allow photo access'), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     expect(container.read(toastsProvider), isEmpty);
   });
 }

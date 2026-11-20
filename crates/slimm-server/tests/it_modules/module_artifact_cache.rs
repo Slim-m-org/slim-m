@@ -50,7 +50,7 @@ async fn a_repeated_run_of_an_unchanged_module_does_not_read_its_artifact() {
     tracing::subscriber::set_global_default(
         Registry::default().with(CountArtifactReads(count.clone())),
     )
-    .expect("this binary installs the only global subscriber");
+    .expect("a global subscriber needs nextest's one process per test");
     let w = world("slimm-modcache").await;
     // The first run of anything also mints the deployment's caller key; do that with another module.
     w.install(Install {

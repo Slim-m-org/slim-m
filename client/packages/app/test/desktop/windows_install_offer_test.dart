@@ -6,6 +6,7 @@ import 'package:slimm_app/src/desktop/self_update/self_update_failure.dart';
 import 'package:slimm_app/src/providers/windows_adopt.dart';
 import 'package:slimm_app/src/widgets/windows_install_offer.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../support/toast_host.dart';
 
 Widget _host({required bool available, WindowsAdoptAction? action}) =>
     ProviderScope(
@@ -62,6 +63,6 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Install for automatic updates'), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
   });
 }

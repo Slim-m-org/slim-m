@@ -23,6 +23,7 @@ use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{InstalledModule, TranscriptionMode, now_ms};
+use crate::voice::Listing;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -197,16 +198,9 @@ async fn startable_module(
     Ok((module, subject))
 }
 
-/// Who is on the call per LiveKit's own webhooks, falling back to the SFU whenever they cannot be
-/// trusted: nobody is known, or the channel was never read off the SFU since a restart.
+/// The humans on the call, asking the SFU itself whenever the webhooks cannot be trusted.
 pub(super) async fn people_in_call(state: &AppState, channel: ChannelId) -> Vec<UserId> {
-    let live = state.voice.live_state();
-    let mut present = live.present(channel);
-    if (present.is_empty() || !live.is_reconciled(channel))
-        && let Ok(listed) = state.voice.list_participants(channel).await
-    {
-        present = listed.into_iter().map(|p| p.user_id).collect();
-    }
+    let present = state.voice.in_call(channel, Listing::Fresh).await;
     let mut humans = Vec::new();
     for user in present {
         if !state.store.is_bot(user).await.unwrap_or(true) {

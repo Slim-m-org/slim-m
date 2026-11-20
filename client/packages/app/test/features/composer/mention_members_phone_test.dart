@@ -7,8 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_autocomplete.dart';
+import 'package:slimm_app/src/features/members/providers/member_presence.dart'
+    show membersProvider;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
 import '../../ui_snapshot_support.dart';
 
 void main() {
@@ -36,20 +39,17 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
       await tester.showKeyboard(find.bySubtype<EditableText>().last);
       await tester.enterText(find.bySubtype<EditableText>().last, '@');
-      for (var i = 0; i < 10; i++) {
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 50)),
-        );
-        await tester.pump(const Duration(milliseconds: 50));
-      }
+      await waitUntil(
+        tester,
+        () => fixture.container.read(membersProvider).hasValue,
+        reason: 'the roster loads once @ asks for it',
+      );
       final list = find.bySubtype<ComposerAutocomplete>();
       expect(list, findsOneWidget, reason: 'the suggestion list is open');
       final box = tester.getRect(list);
       final ada = tester.getRect(
         find.descendant(of: list, matching: find.text('@ada')),
       );
-      // ignore: avoid_print
-      print('LIST $box ADA $ada');
       expect(box.contains(ada.center), isTrue, reason: 'a member is on screen');
       await teardownFixture(tester, fixture.container, fixture.db);
     },

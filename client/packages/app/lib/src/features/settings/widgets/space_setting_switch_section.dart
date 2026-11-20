@@ -25,6 +25,7 @@ class SpaceSettingSwitchSection extends ConsumerStatefulWidget {
     required this.description,
     required this.semanticLabel,
     required this.whatFailed,
+    this.cardDescription,
     required this.read,
     required this.update,
     this.unavailableReason,
@@ -32,6 +33,9 @@ class SpaceSettingSwitchSection extends ConsumerStatefulWidget {
   });
 
   final String title;
+
+  /// Said under the card's title, above the switch.
+  final String? cardDescription;
   final String label;
   final String description;
   final String semanticLabel;
@@ -84,6 +88,7 @@ class _SpaceSettingSwitchSectionState
       children: [
         SettingsSectionCard(
           title: widget.title,
+          description: widget.cardDescription,
           children: [
             SettingsToggleRow(
               label: widget.label,

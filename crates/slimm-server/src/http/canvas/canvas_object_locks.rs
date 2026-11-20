@@ -13,7 +13,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
-use super::canvas_write::{canvas_access, canvas_read_access};
+use super::canvas_write::{canvas_read_access, ensure_may_draw};
 use crate::hub::{CanvasEvent, Event};
 use crate::ids::{CanvasObjectId, ChannelId, UserId};
 use crate::permissions::Permissions;
@@ -77,10 +77,7 @@ async fn set(
 ) -> Result<StatusCode, ApiError> {
     let channel_id = ChannelId(parse_uuid(channel_id)?);
     let object_id = CanvasObjectId(parse_uuid(object_id)?);
-    let permissions = canvas_access(state, actor, channel_id).await?;
-    if state.store.timed_out_until(actor).await?.is_some() {
-        return Err(ApiError::Forbidden);
-    }
+    let permissions = ensure_may_draw(state, actor, channel_id).await?;
     let may_moderate = permissions.contains(Permissions::MANAGE_CANVAS);
     let version = match state
         .store

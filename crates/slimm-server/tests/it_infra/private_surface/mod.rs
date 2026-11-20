@@ -122,3 +122,23 @@ async fn no_get_hands_a_manager_what_is_in_a_channel_they_cannot_see() {
     let found: Vec<_> = found.iter().filter(by_design).collect();
     assert!(found.is_empty(), "{found:#?}");
 }
+
+#[tokio::test]
+async fn the_ask_twice_sweep_tells_ids_apart_for_someone_who_may_see_them() {
+    let app = TestApp::start("slimm-private-surface-ask-control").await;
+    let private = build(&app, None).await;
+    let token = &app.admin.token;
+    // Only reads, so the admin does not delete the world the sweep is asking about.
+    let reads_only = |method, _: &str| method != Method::Get;
+    let differ = ask_twice(&app, private, token, public(&app).await, reads_only).await;
+    for route in [
+        "GET /channels/{channelId}/messages\n",
+        "GET /channels/{channelId}/pins\n",
+    ] {
+        assert!(
+            differ.iter().any(|d| d.starts_with(route)),
+            "the admin's sweep never told {route:?} apart from a missing id:\n{}",
+            differ.join("\n")
+        );
+    }
+}

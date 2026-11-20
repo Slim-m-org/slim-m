@@ -57,6 +57,7 @@ mod safety;
 mod space_logging;
 mod sqlite_build_flags;
 mod sqlite_planner_stats;
+mod startup_error_log;
 mod storage;
 mod storage_ceiling;
 mod store_audit_counts;

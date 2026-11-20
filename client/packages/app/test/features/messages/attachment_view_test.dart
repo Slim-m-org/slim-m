@@ -24,6 +24,7 @@ import 'package:slimm_app/src/features/messages/widgets/attachment_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../downloads_harness.dart';
+import '../../support/toast_host.dart';
 
 const _attachment = api.Attachment(
   id: 'a1',
@@ -181,7 +182,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 200));
 
-      expect(find.byType(SnackBar), findsNothing);
+      expect(errorToasts(tester), isEmpty);
       expect(
         find.text(
           'Could not download ${pdf.filename}: you are not allowed to do that.',

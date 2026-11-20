@@ -241,14 +241,6 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
     if (shown == token) state = const MessageJumpIdle();
   }
 
-  /// Drops a refusal [channelId] was showing, for a surface that closed without
-  /// the person acting on it. A jump still seeking or arrived is left alone.
-  void clearNoticeFor(String channelId) {
-    if (jumpNoticeFor(state, channelId) != null) {
-      state = const MessageJumpIdle();
-    }
-  }
-
   /// Drops a jump still in flight or still waiting to be consumed for
   /// [channelId], called when the channel screen showing it is about to stop
   /// being that channel's - otherwise a jump neither finished nor consumed
@@ -306,8 +298,8 @@ typedef JumpNotice = ({
 
 /// The notice for [state] when it is a refusal in [channelId], else null.
 ///
-/// One place for the sentences, so the search panel and the snack bar a pin or
-/// a palette jump falls back on cannot word the same outcome two ways.
+/// One place for the sentences, so `MessageJumpStatus`, the one reader, words
+/// every outcome the same way.
 JumpNotice? jumpNoticeFor(MessageJumpState state, String channelId) {
   return switch (state) {
     MessageJumpUnreachable(channelId: final c, :final messageId, :final token)

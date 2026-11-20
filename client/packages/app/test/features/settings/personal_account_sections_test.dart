@@ -23,6 +23,7 @@ import 'package:slimm_platform/testing.dart';
 import '../../support/fake_blocks.dart';
 import '../../support/fake_api.dart';
 import '../../support/fake_sync.dart';
+import '../../support/toast_host.dart';
 
 http.Response _totpStatus({bool enabled = false}) => http.Response(
   jsonEncode({
@@ -228,7 +229,7 @@ void main() {
 
     // Still listed: the optimistic change reverted rather than sticking.
     expect(find.text('Kit'), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     expect(find.byType(AppErrorState), findsOneWidget);
     expect(find.textContaining('SocketException'), findsNothing);
     expect(

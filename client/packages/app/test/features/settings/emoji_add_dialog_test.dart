@@ -13,6 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/emoji_intake.dart';
 
 import 'emoji_add_harness.dart';
+import '../../support/toast_host.dart';
 
 EmojiHarness _bulkOk(
   List<String> picked, {
@@ -106,7 +107,7 @@ void main() {
     await tester.tap(find.text('Create 2 emoji'));
     await tester.pumpAndSettle();
     expect(find.textContaining('notes.txt: not a PNG'), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -261,7 +262,7 @@ void main() {
     await h.pump(tester);
     await h.choose(tester);
     expect(find.text('No images found.'), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
   });
 
   testWidgets('a failing picker is refused inline', (tester) async {
@@ -272,7 +273,7 @@ void main() {
       find.textContaining('Could not open the file picker'),
       findsOneWidget,
     );
-    expect(find.byType(SnackBar), findsNothing);
+    expect(errorToasts(tester), isEmpty);
   });
 
   testWidgets('a phone width lays the review out without overflow', (

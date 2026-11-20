@@ -197,3 +197,28 @@ async fn the_sweep_drops_logs_older_than_thirty_days() {
     );
     assert!(w.store.list_debug_logs(None, 10).await.unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn an_admin_pages_through_logs_newest_first() {
+    let w = world("debug_logs_paging").await;
+    let mut sent = Vec::new();
+    for n in 0..3 {
+        let (_, body) = post(&w, &w.member, payload(&format!("log {n}"), "")).await;
+        sent.push(body["id"].as_i64().unwrap());
+    }
+    let ids = |page: &Value| -> Vec<i64> {
+        page.as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["id"].as_i64().unwrap())
+            .collect()
+    };
+
+    let (_, first) = get(&w, "/debug-logs?limit=2", &w.admin).await;
+    assert_eq!(ids(&first), [sent[2], sent[1]]);
+    let uri = format!("/debug-logs?limit=2&before={}", sent[1]);
+    let (_, rest) = get(&w, &uri, &w.admin).await;
+    assert_eq!(ids(&rest), [sent[0]]);
+    let (_, one) = get(&w, "/debug-logs?limit=0", &w.admin).await;
+    assert_eq!(ids(&one), [sent[2]], "a limit under one reads one");
+}

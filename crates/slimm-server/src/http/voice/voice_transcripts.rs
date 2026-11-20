@@ -18,7 +18,7 @@ use crate::ids::{CallTranscriptId, ChannelId, UserId};
 use crate::limits::MAX_QUERY_CHARS;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{SearchError, TranscriptLine};
+use crate::store::{SearchError, TranscriptCursor, TranscriptLine};
 
 const DEFAULT_LINES: i64 = 200;
 const MAX_LINES: i64 = 500;
@@ -94,7 +94,31 @@ struct HitDto {
 struct SearchParams {
     q: Option<String>,
     before: Option<i64>,
+    before_transcript_id: Option<String>,
+    before_seq: Option<i64>,
     limit: Option<i64>,
+}
+
+impl SearchParams {
+    /// `before` alone pages by time; with the last hit's transcript and seq it never skips a tie.
+    fn cursor(&self) -> Result<Option<TranscriptCursor>, ApiError> {
+        let line = match (&self.before_transcript_id, self.before_seq) {
+            (Some(id), Some(seq)) => Some((CallTranscriptId(parse_uuid(id)?), seq)),
+            (None, None) => None,
+            _ => {
+                return Err(ApiError::BadRequest(
+                    "before_transcript_id and before_seq go together",
+                ));
+            }
+        };
+        match (self.before, line) {
+            (Some(at), line) => Ok(Some(TranscriptCursor { at, line })),
+            (None, None) => Ok(None),
+            (None, Some(_)) => Err(ApiError::BadRequest(
+                "before_transcript_id and before_seq need before",
+            )),
+        }
+    }
 }
 
 /// The transcript's channel, when the caller may see it at all; the same 404 for a missing row.
@@ -161,6 +185,12 @@ async fn remove(
     if !held.contains(Permissions::MANAGE_MESSAGES) {
         return Err(ApiError::Forbidden);
     }
+    // Its session is still writing lines, which would all fail against a deleted row.
+    if transcript.ended_at.is_none() {
+        return Err(ApiError::Conflict(
+            "stop transcribing the call before deleting its transcript",
+        ));
+    }
     state.store.delete_call_transcript(transcript.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -195,6 +225,7 @@ async fn search(
         return Err(ApiError::BadRequest("search query is too long"));
     }
     let limit = params.limit.unwrap_or(DEFAULT_HITS).clamp(1, MAX_HITS);
+    let cursor = params.cursor()?;
     let fts = match state.store.fts_query_for(q).await {
         Ok(Some(fts)) => fts,
         Ok(None) => return Ok(Json(Vec::new())),
@@ -204,7 +235,7 @@ async fn search(
     let channels = readable_channels(&state, ctx.user_id).await?;
     let hits = match state
         .store
-        .search_call_transcripts(&channels, &fts, params.before, limit)
+        .search_call_transcripts(&channels, &fts, cursor, limit)
         .await
     {
         Ok(hits) => hits,

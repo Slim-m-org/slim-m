@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-"""A failure caught from the server must not be shown with a SnackBar.
+"""A failure caught from the server must not float away from its surface.
 
 Flags a catch block (`on ApiException` and its siblings, a bare `catch`, or an
-inline `.catchError`) that hands its failure to `showAppSnackbar`, and a
-`runGuarded` result handed to one in the same function. The surface for such a
-failure is `AppErrorState` or `GuardedActionState`; a surface already closed by
-the time the request answers goes in `EXCEPTIONS` or `GUARDED_EXCEPTIONS` with
-its reason, never to silence a regression.
+inline `.catchError`) that hands its failure to a SnackBar or to the closed-menu
+toast (`showMenuFailure`, `showMenuOutcome`), and a `runGuarded` result handed to
+one in the same function. The surface for such a failure is `AppErrorState` or
+`GuardedActionState`; a surface already closed by the time the request answers
+goes in `EXCEPTIONS` or `GUARDED_EXCEPTIONS` with its reason, never to silence a
+regression.
 
 Reads each file's own text, so there is no list of call sites to go stale. The
 history, what each pattern is for and the blind spots are in docs/ci-details.md,
@@ -57,12 +58,12 @@ BARE_CATCH_HEADER = re.compile(
     r"^(?P<indent>[ \t]*)(?:\}[ \t]*)?catch[ \t]*\([^)]*\)[ \t]*\{[ \t]*$"
 )
 CATCH_ERROR_TAIL = re.compile(r"\.catchError\([ \t]*\([^)]*\)[ \t]*\{[ \t]*$")
-SHOWS_SNACKBAR = re.compile(r"ScaffoldMessenger|SnackBar\(|showAppSnackbar\(")
+SHOWS_SNACKBAR = re.compile(r"ScaffoldMessenger|SnackBar\(|showMenuFailure\(|showMenuOutcome\(")
 
 
 GUARDED_BINDING = re.compile(r"\b(\w+)\s*=\s*await\s+runGuarded\(")
 GUARDED_THEN = re.compile(r"\brunGuarded\((?:.|\n)*?\)\s*\.then\(\(\s*(\w+)\s*\)")
-SNACKBAR_CALL = re.compile(r"\bshowAppSnackbar\(")
+SNACKBAR_CALL = re.compile(r"\bshowMenu(?:Failure|Outcome)\(")
 TOP_LEVEL_HEADER = re.compile(r"^[A-Za-z_@]")
 TYPE_HEADER = re.compile(r"^(?:abstract\s+|final\s+|base\s+)*(?:class|mixin|extension|enum)\b")
 MEMBER_HEADER = re.compile(r"^ {2}[A-Za-z_]")
@@ -100,7 +101,7 @@ def call_arguments(text: str, open_paren: int) -> str:
 
 
 def guarded_snackbars(source: str):
-    """Yields (1-based line, enclosing function name) for each `showAppSnackbar(...)` call
+    """Yields (1-based line, enclosing function name) for each `showMenuFailure(...)` or `showMenuOutcome(...)` call
     whose arguments name a variable that a `runGuarded` result in the same
     function was bound to, which is a failure sentence being shown as a
     SnackBar without any `catch` for the other patterns to see.
