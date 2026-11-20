@@ -46,7 +46,11 @@ class VoiceCallFlow {
 
   /// The room of the call in progress; cleared synchronously when one ends.
   lk.Room? room;
+  lk.Room? _connectedRoom;
   VoiceSessionState state = VoiceSessionState.idle;
+
+  /// Whether [room]'s connect has returned, so a microphone can be published into it.
+  bool get roomConnected => room != null && identical(room, _connectedRoom);
   bool disposed = false;
 
   /// Why the last call ended, when the SFU ended it rather than this client.
@@ -215,6 +219,7 @@ class VoiceCallFlow {
       await joining.connect(url, token);
       // A leave or newer join took this room mid-connect and tore it down.
       if (!identical(room, joining)) return;
+      _connectedRoom = joining;
       _core.joinTimings.mark(JoinStage.connected);
       // Apart from the connect: a muted preview or a token without SPEAK must not fail the join.
       final wantMic = _core.micRecovery.wantedAtJoin(microphoneEnabled);

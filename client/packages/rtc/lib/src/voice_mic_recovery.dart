@@ -25,6 +25,7 @@ import 'voice_session_mic_fallback.dart';
 class VoiceMicRecoveryHost {
   const VoiceMicRecoveryHost({
     required this.room,
+    required this.roomConnected,
     required this.state,
     required this.noteError,
     required this.refresh,
@@ -39,6 +40,7 @@ class VoiceMicRecoveryHost {
   });
 
   final lk.Room? Function() room;
+  final bool Function() roomConnected;
   final VoiceSessionState Function() state;
   final void Function(Object error) noteError;
   final void Function() refresh;
@@ -239,6 +241,11 @@ class VoiceMicRecovery {
     // Nothing can be published before the connect, so the join applies this once it has.
     if (_host.state() == VoiceSessionState.connecting) {
       _askedWhileConnecting = enabled;
+      if (!_host.roomConnected()) {
+        _asks++;
+        _wanted = enabled;
+        return true;
+      }
     }
     final ask = ++_asks;
     final intent = _wanted;
