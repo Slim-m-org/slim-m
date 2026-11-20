@@ -20,6 +20,7 @@ import '../../emoji/widgets/stored_emoji.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/soundboard_actions.dart';
 import '../providers/soundboard_clips.dart';
+import 'soundboard_volume_row.dart';
 
 /// The popover's width: three tiles across, each wide enough for a starter
 /// clip's name.
@@ -138,6 +139,8 @@ class _SoundboardPickerState extends ConsumerState<SoundboardPicker>
               resting: _resting,
               onPlay: (clip) => unawaited(_play(clip)),
             ),
+            const SizedBox(height: AppSpacing.s4),
+            const SoundboardVolumeRow(),
           ],
         );
       },

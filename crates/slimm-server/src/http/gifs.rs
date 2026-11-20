@@ -272,8 +272,21 @@ impl GifSearch {
     }
 
     async fn download_full(&self, token: &str) -> Result<(Vec<u8>, String), GifError> {
+        self.download(token, Cache::full_url).await
+    }
+
+    /// The rendition a screen stamp takes, sized to animate on a tile (decision 0121).
+    async fn download_for_stamp(&self, token: &str) -> Result<(Vec<u8>, String), GifError> {
+        self.download(token, Cache::stamp_url).await
+    }
+
+    async fn download(
+        &self,
+        token: &str,
+        url_of: fn(&Cache, &str) -> Option<String>,
+    ) -> Result<(Vec<u8>, String), GifError> {
         let enabled = self.inner.as_deref().ok_or(GifError::NotConfigured)?;
-        let url = enabled.cache.full_url(token).ok_or(GifError::StaleToken)?;
+        let url = url_of(&enabled.cache, token).ok_or(GifError::StaleToken)?;
         // The title rides back with the bytes so `select` can name the stored file after it, from the same entry the url came from.
         let title = enabled.cache.title(token).unwrap_or_default();
         let bytes = fetch_capped(&enabled.http, &url, MAX_DOWNLOAD_BYTES).await?;

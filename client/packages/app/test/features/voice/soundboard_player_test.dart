@@ -40,9 +40,10 @@ const _played = api.SoundboardPlayed(
 );
 
 class _Rig {
-  _Rig({bool soundsOn = true, this.failingFetches = 0}) {
+  _Rig({bool soundsOn = true, this.failingFetches = 0, double? volume}) {
     SharedPreferences.setMockInitialValues({
       soundboardSoundsEnabledKey: soundsOn,
+      'slimm.voice.soundboard_volume': ?volume,
     });
     container = ProviderContainer(
       overrides: [
@@ -64,6 +65,7 @@ class _Rig {
       ],
     );
     container.read(soundboardSoundsProvider);
+    container.read(soundboardVolumeProvider);
     container.read(soundboardPlayerProvider);
     voice.connect();
   }
@@ -89,8 +91,16 @@ class _Rig {
   }
 }
 
-Future<_Rig> _rig({bool soundsOn = true, int failingFetches = 0}) async {
-  final rig = _Rig(soundsOn: soundsOn, failingFetches: failingFetches);
+Future<_Rig> _rig({
+  bool soundsOn = true,
+  int failingFetches = 0,
+  double? volume,
+}) async {
+  final rig = _Rig(
+    soundsOn: soundsOn,
+    failingFetches: failingFetches,
+    volume: volume,
+  );
   addTearDown(rig.dispose);
   await Future<void>.delayed(const Duration(milliseconds: 10));
   return rig;
@@ -178,5 +188,37 @@ void main() {
     await rig.session.setVolumeFor('user-bob', 2);
     await rig.hear();
     expect(rig.player.played.single.volume, 1.0);
+  });
+
+  test(
+    'the soundboard volume scales the clip on the perceptual curve',
+    () async {
+      final rig = await _rig(volume: 0.5);
+      await rig.hear();
+      expect(rig.player.played.single.volume, closeTo(0.125, 1e-9));
+
+      await rig.session.setVolumeFor('user-bob', 0.5);
+      await rig.hear();
+      expect(rig.player.played.last.volume, closeTo(0.125 * 0.125, 1e-9));
+    },
+  );
+
+  test('muting keeps the volume, and unmuting plays at it again', () async {
+    final rig = await _rig(volume: 0.5);
+    final sounds = rig.container.read(soundboardSoundsProvider.notifier);
+    await sounds.setEnabled(false);
+    await rig.hear();
+    expect(rig.player.played, isEmpty);
+
+    await sounds.setEnabled(true);
+    await rig.hear();
+    expect(rig.player.played.single.volume, closeTo(0.125, 1e-9));
+  });
+
+  test('a soundboard volume of zero is silent without being muted', () async {
+    final rig = await _rig(volume: 0);
+    await rig.hear();
+    expect(rig.player.played.single.volume, 0);
+    expect(rig.container.read(soundboardSoundsProvider), isTrue);
   });
 }

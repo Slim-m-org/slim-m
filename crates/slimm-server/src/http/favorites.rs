@@ -19,6 +19,7 @@ use super::error::ApiError;
 use super::extract::{ASSET, AUTHED_READ, Authed, AuthedLimited, GIF, Json, enforce};
 use super::gifs::store_gif;
 use super::messages::{AttachmentDto, parse_uuid};
+use super::screen_stamps::STAMP_ANIMATED_BYTES;
 use super::viewable_message::viewable_message;
 use crate::ids::{FavoriteId, MessageId, UserId};
 use crate::media;
@@ -286,6 +287,9 @@ async fn preview(
 struct SelectRequest {
     #[serde(default)]
     channel_id: Option<String>,
+    /// For a screen stamp, which takes a rendition small enough to animate (decision 0121).
+    #[serde(default)]
+    for_stamp: bool,
 }
 
 /// Turns a favorite into an attachment the composer can stage, as `selectGif` does.
@@ -303,7 +307,14 @@ async fn select(
     match row.kind {
         FavoriteKind::Gif => {
             let url = row.gif_full_url.ok_or(ApiError::Internal)?;
-            let bytes = state.gifs.download_full_from(&url).await?;
+            let mut bytes = state.gifs.download_full_from(&url).await?;
+            // A favorite keeps only the full and preview renditions, so a stamp too heavy to animate takes the preview.
+            if req.for_stamp
+                && bytes.len() as u64 > STAMP_ANIMATED_BYTES as u64
+                && let Some(preview) = row.gif_preview_url.as_deref()
+            {
+                bytes = state.gifs.download_full_from(preview).await?;
+            }
             let attachment = store_gif(&state, ctx.user_id, bytes, &row.title).await?;
             Ok((StatusCode::CREATED, Json(attachment)))
         }

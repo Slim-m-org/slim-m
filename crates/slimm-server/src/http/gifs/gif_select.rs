@@ -21,6 +21,9 @@ pub(super) struct SelectRequest {
     pub(super) id: String,
     #[serde(default)]
     pub(super) channel_id: Option<String>,
+    /// For a screen stamp, which takes a rendition small enough to animate (decision 0121).
+    #[serde(default)]
+    pub(super) for_stamp: bool,
 }
 
 /// Downloads the full-resolution image through this server and stores it
@@ -34,7 +37,11 @@ pub(super) async fn select(
     Json(req): Json<SelectRequest>,
 ) -> Result<(StatusCode, Json<AttachmentDto>), ApiError> {
     require_attach_files(&state, ctx.user_id, req.channel_id.as_deref()).await?;
-    let (bytes, title) = state.gifs.download_full(&req.id).await?;
+    let (bytes, title) = if req.for_stamp {
+        state.gifs.download_for_stamp(&req.id).await?
+    } else {
+        state.gifs.download_full(&req.id).await?
+    };
     let attachment = store_gif(&state, ctx.user_id, bytes, &title).await?;
     Ok((StatusCode::CREATED, Json(attachment)))
 }

@@ -42,8 +42,47 @@ Future<void> _frames(WidgetTester tester) async {
   }
 }
 
+/// One trending GIF, whose pick answers with an attachment and records the request.
+Future<http.Response> Function(http.Request) _withGif(
+  List<http.Request> seen,
+) => (request) async {
+  seen.add(request);
+  return switch (request.url.path) {
+    '/gifs/trending' => _json({
+      'results': [
+        {'id': 'tok', 'title': 'a cat', 'width': 100, 'height': 100},
+      ],
+    }),
+    '/gifs/preview/tok' => http.Response.bytes(
+      _gif,
+      200,
+      headers: const {'content-type': 'image/gif'},
+    ),
+    '/gifs/select' => http.Response(
+      jsonEncode({
+        'id': 'att',
+        'filename': 'cat.gif',
+        'content_type': 'image/gif',
+        'size': _gif.length,
+      }),
+      201,
+      headers: const {'content-type': 'application/json'},
+    ),
+    _ => _api(request),
+  };
+};
+
+/// A 1x1 GIF.
+final _gif = base64Decode(
+  'R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+);
+
 /// Opens the picker from a Stamp button on a window [width] wide.
-Future<void> _open(WidgetTester tester, double width) async {
+Future<void> _open(
+  WidgetTester tester,
+  double width, {
+  Future<http.Response> Function(http.Request) handler = _api,
+}) async {
   tester.view.physicalSize = Size(width, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -75,7 +114,7 @@ Future<void> _open(WidgetTester tester, double width) async {
           ),
         ),
       ),
-      mockApiOverride(_api),
+      mockApiOverride(handler),
     ],
   );
   await _frames(tester);
@@ -126,5 +165,21 @@ void main() {
     await _open(tester, 1280);
 
     expect(tester.testTextInput.hasAnyClients, isTrue);
+  });
+
+  testWidgets('a GIF picked for a stamp asks for one small enough to place', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final seen = <http.Request>[];
+    await _open(tester, 1280, handler: _withGif(seen));
+    await tester.tap(find.text('GIFs').last);
+    await _frames(tester);
+    await tester.tap(find.bySemanticsLabel('Pick: a cat'));
+    await _frames(tester);
+
+    final select = seen.singleWhere((r) => r.url.path == '/gifs/select');
+    expect(jsonDecode(select.body), containsPair('for_stamp', true));
+    handle.dispose();
   });
 }

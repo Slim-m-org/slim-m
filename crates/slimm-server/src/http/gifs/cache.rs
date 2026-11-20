@@ -31,6 +31,7 @@ const MAX_CACHE_ENTRIES: usize = 5_000;
 struct CachedGif {
     preview_url: String,
     full_url: String,
+    stamp_url: String,
     /// The provider's own title for this hit, kept so a selected GIF can be
     /// stored under a useful filename (slugged from this) instead of a bare
     /// "gif.gif" - see `gifs::select`.
@@ -86,6 +87,7 @@ impl Cache {
             CachedGif {
                 preview_url: gif.preview_url.clone(),
                 full_url: gif.full_url.clone(),
+                stamp_url: gif.stamp_url.clone(),
                 title: gif.title.clone(),
                 width: gif.width,
                 height: gif.height,
@@ -103,6 +105,12 @@ impl Cache {
 
     pub(super) fn full_url(&self, token: &str) -> Option<String> {
         self.lock().get(token).map(|cached| cached.full_url.clone())
+    }
+
+    pub(super) fn stamp_url(&self, token: &str) -> Option<String> {
+        self.lock()
+            .get(token)
+            .map(|cached| cached.stamp_url.clone())
     }
 
     pub(super) fn snapshot(&self, token: &str) -> Option<GifSnapshot> {
@@ -135,6 +143,7 @@ mod tests {
         CachedGif {
             preview_url: preview.to_owned(),
             full_url: full.to_owned(),
+            stamp_url: full.to_owned(),
             title: "a title".to_owned(),
             width: 0,
             height: 0,
@@ -149,6 +158,7 @@ mod tests {
             full_url: full.to_owned(),
             width: 100,
             height: 100,
+            stamp_url: full.to_owned(),
         }
     }
 

@@ -3,7 +3,7 @@
 ///
 /// The decision to stay silent is all here: not in that call, deafened, the
 /// "Soundboard sounds" switch off, or the player silenced for this listener.
-/// The player's own per-person volume scales the clip.
+/// The player's own per-person volume and the soundboard volume scale the clip.
 library;
 
 import 'dart:async';
@@ -33,9 +33,11 @@ class SoundboardPlayer {
     if (!_ref.read(soundboardSoundsProvider)) return;
     final controller = _ref.read(voiceControllerProvider.notifier);
     if (controller.isLocallyMuted(event.playerId)) return;
-    final volume = perceptualParticipantGain(
-      controller.volumes.volumeFor(event.playerId),
-    );
+    final volume =
+        perceptualParticipantGain(
+          controller.volumes.volumeFor(event.playerId),
+        ) *
+        perceptualParticipantGain(_ref.read(soundboardVolumeProvider));
     unawaited(_play(event.clipId, volume.clamp(0.0, 1.0)));
   }
 

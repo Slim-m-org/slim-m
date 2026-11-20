@@ -6,12 +6,14 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../format.dart';
 import 'call_tile_backdrop.dart';
 import 'call_tile_badges.dart';
+import '../providers/video_pause.dart';
 import 'second_clock.dart';
 import '../../../widgets/context_menu_region.dart';
 import '../../../widgets/double_click_detector.dart';
@@ -219,11 +221,8 @@ class CallParticipantTile extends StatelessWidget {
           left: AppSpacing.s8,
           top: AppSpacing.s8,
           width: width - 4 * AppSpacing.s8 - AppSpacing.s16,
-          child: Text(
-            'Starting camera',
-            key: cameraStartingKey,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          child: _CameraCaption(
+            local: participant.isLocal,
             style: AppText.caption.copyWith(color: onFace),
           ),
         ),
@@ -401,6 +400,26 @@ class _CallDurationState extends State<CallDuration> with SecondTickMixin {
             color: tokens.textSecondary,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
+    );
+  }
+}
+
+/// What a camera tile with no frame yet says; your own preview may instead be paused while the window is away.
+class _CameraCaption extends ConsumerWidget {
+  const _CameraCaption({required this.local, required this.style});
+
+  final bool local;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final paused = local && ref.watch(localPreviewPausedProvider);
+    return Text(
+      paused ? 'Preview paused in the background' : 'Starting camera',
+      key: paused ? null : cameraStartingKey,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: style,
     );
   }
 }

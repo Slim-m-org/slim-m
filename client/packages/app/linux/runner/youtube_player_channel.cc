@@ -7,6 +7,7 @@
 #include <cstring>
 #include <string>
 
+#include "flutter_view_focus.h"
 #include "webkit_loader.h"
 #include "youtube_player_navigation.h"
 #include "youtube_player_policy.h"
@@ -71,12 +72,19 @@ gboolean OnChildPosition(GtkOverlay* overlay, GtkWidget* widget,
   return TRUE;
 }
 
+GtkWidget* FlutterView() {
+  return gtk_bin_get_child(GTK_BIN(g_player.overlay));
+}
+
 void ApplyGeometry() {
   GtkWidget* view = g_player.view;
   if (view == nullptr) return;
   bool show = g_player.fullscreen ||
               (g_player.visible && g_player.bounds.width > 0 &&
                g_player.bounds.height > 0);
+  if (!show) {
+    flutter_view_focus_take_back(FlutterView(), view);
+  }
   gtk_widget_set_visible(view, show);
   gtk_widget_queue_resize(view);
 }
@@ -118,6 +126,7 @@ void OnWebProcessTerminated(GtkWidget* view, int reason, gpointer user_data) {
 void Destroy() {
   if (g_player.view == nullptr) return;
   if (g_player.fullscreen) OnLeaveFullscreen(g_player.view, nullptr);
+  flutter_view_focus_take_back(FlutterView(), g_player.view);
   gtk_widget_destroy(g_player.view);
   g_player.view = nullptr;
   g_player.visible = false;

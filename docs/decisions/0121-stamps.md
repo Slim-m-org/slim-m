@@ -282,6 +282,20 @@ This replaces 0096's line "Nothing a viewer draws is stored on the server or the
 - Stamping from the full-screen video view, which has no pen either (0096).
 - Animated WebP and PNG show their first frame everywhere, and only GIFs animate on tiles.
 
+## Found in the first real call (2026-11-20)
+
+The owner, in a call over a friend's share: "stamp emojis not animated", "gifs not placing", "image placing not working either".
+
+- A custom emoji that is a GIF now plays on a tile and on the sharer's preview, from the emoji's own image, by the same 4 MiB and 1024 px rule a picture follows.
+  Only picture stamps played before; an emoji showed its baked still.
+  The native overlay still draws one still frame.
+- A GIF picked for a stamp asks `selectGif` (or `selectFavorite`) with `for_stamp`.
+  The server then stores the largest rendition the provider lists that a tile still animates, else the smallest, instead of the full file.
+  Klipy's full file for the owner's pick weighed 10.8 MB, so the stamp route's 8 MiB cap refused it, and every GIF that size failed the same way.
+  A favorite keeps only its full and preview renditions, so a favorite past 4 MiB is stored as its preview.
+- A picture past 8 MiB, such as a screenshot of a large screen, is shrunk to 1024 px on its longest side and sent as a PNG, instead of being refused before upload.
+  A stamp is at most 30% of the screen's height and is shown from a 640 px still, so nothing visible is lost.
+
 ## Questions for the owner
 
 This record assumes each recommended answer until the owner says otherwise.

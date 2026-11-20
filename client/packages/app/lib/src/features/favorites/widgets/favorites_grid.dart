@@ -18,12 +18,20 @@ import '../providers/favorites_controller.dart';
 import 'favorite_tile.dart';
 
 class FavoritesGrid extends ConsumerStatefulWidget {
-  const FavoritesGrid({super.key, required this.onPicked, this.channelId});
+  const FavoritesGrid({
+    super.key,
+    required this.onPicked,
+    this.channelId,
+    this.forStamp = false,
+  });
 
   final ValueChanged<api.Attachment> onPicked;
 
   /// The channel the media is headed for, so its ATTACH_FILES overwrite counts.
   final String? channelId;
+
+  /// For a screen stamp, which takes a rendition small enough to animate.
+  final bool forStamp;
 
   @override
   ConsumerState<FavoritesGrid> createState() => _FavoritesGridState();
@@ -41,7 +49,11 @@ class _FavoritesGridState extends ConsumerState<FavoritesGrid> {
     try {
       final attachment = await ref
           .read(composerActionsProvider)
-          .selectFavorite(favorite.id, channelId: widget.channelId);
+          .selectFavorite(
+            favorite.id,
+            channelId: widget.channelId,
+            forStamp: widget.forStamp,
+          );
       if (!mounted) return;
       widget.onPicked(attachment);
     } on api.ConflictException catch (e, stack) {
