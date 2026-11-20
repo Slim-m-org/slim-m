@@ -220,9 +220,15 @@ impl VoiceTranscriber {
         engine: &dyn SpeechEngine,
         candidate: &VoiceCandidate,
     ) -> Step {
-        let Some(bytes) = read_clip(media, candidate).await else {
-            self.retries.failed(&candidate.sha256);
-            return Step::Later;
+        let bytes = match read_clip(media, candidate).await {
+            Ok(bytes) => bytes,
+            // Over what the listener is sent, so no later try would read it either.
+            Err(Unread::TooBig) => {
+                return self
+                    .settle(store, hub, candidate, TranscriptOutcome::Refused)
+                    .await;
+            }
+            Err(Unread::Unreadable) => return self.failed_try(store, hub, candidate, false).await,
         };
         // Right after the listener was out, a clip is only marked once the listener answers.
         let probing = !self.listener.is_empty();
@@ -262,16 +268,40 @@ impl VoiceTranscriber {
                 language: heard.language.as_deref(),
             },
             Err(Failure::Permanent) => TranscriptOutcome::Refused,
-            Err(_) => {
-                self.retries.failed(&candidate.sha256);
-                if !candidate.given_up && !out_of_tries(store, hub, candidate, marked).await {
-                    return Step::Later;
-                }
-                TranscriptOutcome::GaveUp {
-                    retry_at: crate::store::now_ms() + GIVEN_UP_RETRY.as_millis() as i64,
-                }
-            }
+            Err(_) => return self.failed_try(store, hub, candidate, marked).await,
         };
+        self.settle(store, hub, candidate, outcome).await
+    }
+
+    /// Backs a clip off after a failed try, and gives up on it once it has had all its tries.
+    async fn failed_try(
+        &self,
+        store: &Store,
+        hub: &Hub,
+        candidate: &VoiceCandidate,
+        marked: bool,
+    ) -> Step {
+        self.retries.failed(&candidate.sha256);
+        if !candidate.given_up && !out_of_tries(store, hub, candidate, marked).await {
+            return Step::Later;
+        }
+        let retry_at = crate::store::now_ms() + GIVEN_UP_RETRY.as_millis() as i64;
+        self.settle(
+            store,
+            hub,
+            candidate,
+            TranscriptOutcome::GaveUp { retry_at },
+        )
+        .await
+    }
+
+    async fn settle(
+        &self,
+        store: &Store,
+        hub: &Hub,
+        candidate: &VoiceCandidate,
+        outcome: TranscriptOutcome<'_>,
+    ) -> Step {
         match store
             .finish_voice_transcript(&candidate.sha256, outcome)
             .await
@@ -333,17 +363,26 @@ async fn out_of_tries(store: &Store, hub: &Hub, candidate: &VoiceCandidate, mark
     }
 }
 
-async fn read_clip(media: &Media, candidate: &VoiceCandidate) -> Option<Vec<u8>> {
+/// Why a clip's bytes could not be read for the listener.
+enum Unread {
+    TooBig,
+    Unreadable,
+}
+
+async fn read_clip(media: &Media, candidate: &VoiceCandidate) -> Result<Vec<u8>, Unread> {
     if candidate.size as u64 > MAX_CLIP_BYTES {
-        return None;
+        return Err(Unread::TooBig);
     }
-    let (file, _) = media.open_attachment(&candidate.hex).await.ok()?;
+    let (file, _) = media
+        .open_attachment(&candidate.hex)
+        .await
+        .map_err(|_| Unread::Unreadable)?;
     let mut bytes = Vec::new();
     file.take(MAX_CLIP_BYTES)
         .read_to_end(&mut bytes)
         .await
-        .ok()?;
-    Some(bytes)
+        .map_err(|_| Unread::Unreadable)?;
+    Ok(bytes)
 }
 
 /// Tells everyone who can see a voice message carrying the clip, so the line under it updates.
