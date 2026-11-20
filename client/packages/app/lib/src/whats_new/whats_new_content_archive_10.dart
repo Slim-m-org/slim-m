@@ -269,4 +269,26 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.132.1',
+    headline: 'Fixes from a two-week review',
+    points: [
+      WhatsNewPoint(
+        'When a kick, mute, delete or other menu action fails, the error '
+        'now stays up until you dismiss it.',
+      ),
+      WhatsNewPoint(
+        'Clicking a voice channel while you are in another call asks before '
+        'switching, and the live transcript reaches everyone in the call.',
+      ),
+      WhatsNewPoint(
+        'A mention stays marked when a message is edited while you were '
+        'away, and the unread badge follows the account on screen.',
+      ),
+      WhatsNewPoint(
+        'Leaving permission or module settings by the back button or Back '
+        'to channels asks about unsaved changes, like system back does.',
+      ),
+    ],
+  ),
 ];
