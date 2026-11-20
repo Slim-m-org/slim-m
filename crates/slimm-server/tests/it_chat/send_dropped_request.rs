@@ -64,14 +64,14 @@ async fn a_send_dropped_after_it_committed_is_still_announced_once() {
         app.clone()
             .oneshot(request("POST", &uri, &token, Some(body.clone()))),
     );
-    // One poll at a time, so the request is dropped at its first wait after the commit.
+    // One poll at a time, so the request is dropped at its first wait after the commit; see drop_after_commit.
     loop {
         let finished =
             std::future::poll_fn(|cx| Poll::Ready(send.as_mut().poll(cx).is_ready())).await;
-        assert!(!finished, "the send finished before it could be dropped");
         if store.message_including_deleted(id).await.unwrap().is_some() {
             break;
         }
+        assert!(!finished, "the send finished without committing");
     }
     drop(send);
 
@@ -128,11 +128,11 @@ async fn an_edit_dropped_after_it_committed_is_still_announced_once() {
     loop {
         let finished =
             std::future::poll_fn(|cx| Poll::Ready(edit.as_mut().poll(cx).is_ready())).await;
-        assert!(!finished, "the edit finished before it could be dropped");
         let stored = store.message(id).await.unwrap().unwrap();
         if stored.content == "hello again" {
             break;
         }
+        assert!(!finished, "the edit finished without committing");
     }
     drop(edit);
 
@@ -191,13 +191,10 @@ async fn a_reaction_dropped_after_it_committed_is_still_announced() {
     loop {
         let finished =
             std::future::poll_fn(|cx| Poll::Ready(react.as_mut().poll(cx).is_ready())).await;
-        assert!(
-            !finished,
-            "the reaction finished before it could be dropped"
-        );
         if !store.reaction_reactors(id).await.unwrap().is_empty() {
             break;
         }
+        assert!(!finished, "the reaction finished without committing");
     }
     drop(react);
 
@@ -213,6 +210,8 @@ async fn a_reaction_dropped_after_it_committed_is_still_announced() {
 }
 
 /// Polls `request` one step at a time and drops it at its first wait once `committed` holds.
+///
+/// The work runs on a task of its own, so it can finish while `committed` is being read; that only fails if nothing was stored.
 async fn drop_after_commit<R, C>(request: R, mut committed: impl FnMut() -> C)
 where
     R: Future,
@@ -222,10 +221,10 @@ where
     loop {
         let finished =
             std::future::poll_fn(|cx| Poll::Ready(request.as_mut().poll(cx).is_ready())).await;
-        assert!(!finished, "the request finished before it could be dropped");
         if committed().await {
             break;
         }
+        assert!(!finished, "the request finished without committing");
     }
 }
 
