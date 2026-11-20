@@ -26,7 +26,7 @@ class SettingsChoice<T> {
   /// A small mark shown before the label and beside the current value.
   final Widget? leading;
 
-  /// Shows the choice but not choosable, with this said on hover.
+  /// Honoured by [SettingsSegmentedRow] only: shows the choice but not choosable, with this said on hover.
   final String? disabledReason;
 }
 
