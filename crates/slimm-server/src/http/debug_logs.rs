@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::device_client_info::validate_client_info;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce, require_manage_server};
+use super::extract::{Authed, AuthedLimited, Json, UPLOAD, enforce, require_manage_server};
 use crate::ratelimit::Class;
 use crate::store::{DebugLogFull, DebugLogSummary, NewDebugLog};
 
@@ -105,12 +105,10 @@ fn label(value: &str, what: &'static str) -> Result<String, ApiError> {
 }
 
 async fn submit(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<UPLOAD>,
     State(state): State<AppState>,
     Json(req): Json<SubmitRequest>,
 ) -> Result<(StatusCode, Json<SubmittedDto>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Upload)?;
     if req.log.trim().is_empty() {
         return Err(ApiError::BadRequest("the debug log is empty"));
     }
