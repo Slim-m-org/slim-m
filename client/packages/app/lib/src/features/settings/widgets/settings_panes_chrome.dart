@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import '../../../routing/close_screen.dart';
@@ -85,7 +87,8 @@ class NavHeader extends StatelessWidget {
             icon: AppIcons.back,
             semanticLabel: backTooltip,
             tooltip: backTooltip,
-            onPressed: onBack ?? () => closeScreen(context, backFallback),
+            onPressed:
+                onBack ?? () => unawaited(leaveScreen(context, backFallback)),
           ),
           Expanded(
             child: Semantics(

@@ -6,6 +6,8 @@
 /// grid itself.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart' show Channel;
@@ -15,6 +17,7 @@ import '../../providers/channel_permissions_selection.dart';
 import '../settings_screen_scaffold.dart';
 import '../../widgets/admin/channel_permissions_grid.dart';
 import '../../widgets/admin/channel_permissions_list.dart';
+import '../../widgets/settings_draft_guard.dart';
 
 class ChannelPermissionsScreen extends StatelessWidget {
   const ChannelPermissionsScreen({super.key, this.initialChannel});
@@ -45,14 +48,16 @@ class _ChannelPermissionsFrame extends ConsumerWidget {
       title: 'Channel permissions',
       backTooltip: inChannel ? 'Back to channels' : 'Back to Space settings',
       backFallback: Routes.spaceSettings,
-      onBack: inChannel
-          ? () => ref.read(channelPermissionsSelectionProvider.notifier).state =
-                null
-          : null,
+      onBack: inChannel ? () => unawaited(_backToChannels(context, ref)) : null,
       scrollable: false,
       child: const ChannelPermissionsPane(),
     );
   }
+}
+
+Future<void> _backToChannels(BuildContext context, WidgetRef ref) async {
+  if (!await draftsLetGo(context) || !context.mounted) return;
+  ref.read(channelPermissionsSelectionProvider.notifier).state = null;
 }
 
 /// The picker-and-grid pane itself, embeddable as a Space settings pane as

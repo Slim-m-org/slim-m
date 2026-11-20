@@ -15,9 +15,6 @@ const discordLinkHost = 'discord-link';
 /// The web client's path for the same hand-back, under its own base path.
 const discordLinkWebPath = '/link/discord';
 
-/// The query key both forms carry the code under.
-const discordLinkCodeQuery = linkCodeQuery;
-
 final discordLinkStatusProvider =
     NotifierProvider<LinkStatusController, LinkStatus>(
       LinkStatusController.new,

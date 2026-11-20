@@ -47,6 +47,7 @@ import 'features/accounts/providers/account_providers.dart';
 import 'callback_route_guard.dart';
 import 'discord_link_callback.dart';
 import 'features/settings/providers/discord_link_finish.dart';
+import 'features/settings/providers/link_finish.dart' show linkCodeQuery;
 import 'features/settings/providers/steam_link_finish.dart';
 import 'invite_link.dart';
 import 'invite_pending.dart';
@@ -219,7 +220,7 @@ Future<void> _finishLink(
   Uri uri,
   Future<void> Function(String code) complete,
 ) async {
-  final code = uri.queryParameters[discordLinkCodeQuery];
+  final code = uri.queryParameters[linkCodeQuery];
   if (code == null || !container.read(sessionProvider).isSignedIn) return;
   final router = container.read(routerProvider);
   if (router.state.uri.path != Routes.personalSettings) {

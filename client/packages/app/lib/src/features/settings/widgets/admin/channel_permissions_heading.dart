@@ -3,11 +3,14 @@
 /// list, a breadcrumb with a back arrow once a channel is open.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/channel_permissions_selection.dart';
+import '../settings_draft_guard.dart';
 import '../settings_panes_chrome.dart';
 
 class ChannelPermissionsHeading extends ConsumerWidget {
@@ -22,8 +25,12 @@ class ChannelPermissionsHeading extends ConsumerWidget {
       return SettingsPaneHeading('Channel permissions', onClose: onClose);
     }
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    void back() =>
-        ref.read(channelPermissionsSelectionProvider.notifier).state = null;
+    Future<void> leave() async {
+      if (!await draftsLetGo(context) || !context.mounted) return;
+      ref.read(channelPermissionsSelectionProvider.notifier).state = null;
+    }
+
+    void back() => unawaited(leave());
     return SizedBox(
       height: AppSizes.controlLg,
       child: Row(
