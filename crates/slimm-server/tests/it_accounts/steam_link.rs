@@ -85,34 +85,42 @@ async fn links_of(app: &Router, token: &str) -> serde_json::Value {
     json_body(response).await
 }
 
-#[tokio::test]
-async fn a_vouched_sign_in_links_steam_through_the_handoff() {
-    let (store, token, _guard) = ada("slimm-steam-link").await;
-    let app = app_with_steam(store).await;
-    let (state, return_to) = start(&app, &token).await;
-
+/// Signs `token`'s member in through Steam as `STEAM_ID` and returns the handoff code.
+async fn vouched_code(app: &Router, token: &str) -> String {
+    let (state, return_to) = start(app, token).await;
     let params = steam::sign_in_params(&return_to, &claimed(STEAM_ID), "goodsig");
-    let response = callback(&app, &state, params).await;
+    let response = callback(app, &state, params).await;
     assert_eq!(response.status(), StatusCode::OK);
     let html = text_body(response).await;
     let marker = "slimm://steam-link?code=";
     let from = html.find(marker).unwrap() + marker.len();
-    let code: String = html[from..]
+    html[from..]
         .chars()
         .take_while(char::is_ascii_alphanumeric)
-        .collect();
-    assert_eq!(links_of(&app, &token).await, serde_json::json!([]));
+        .collect()
+}
 
-    let done = app
-        .clone()
+async fn complete(app: &Router, token: &str, code: &str) -> axum::response::Response {
+    app.clone()
         .oneshot(request_authed(
             "POST",
             "/me/links/steam/complete",
-            &token,
+            token,
             Some(serde_json::json!({ "code": code })),
         ))
         .await
-        .unwrap();
+        .unwrap()
+}
+
+#[tokio::test]
+async fn a_vouched_sign_in_links_steam_through_the_handoff() {
+    let (store, token, _guard) = ada("slimm-steam-link").await;
+    let app = app_with_steam(store).await;
+
+    let code = vouched_code(&app, &token).await;
+    assert_eq!(links_of(&app, &token).await, serde_json::json!([]));
+
+    let done = complete(&app, &token, &code).await;
     assert_eq!(done.status(), StatusCode::OK);
     let mine = links_of(&app, &token).await;
     assert_eq!(mine[0]["provider"], "steam");
@@ -241,25 +249,8 @@ async fn sharing_needs_a_link_and_unlinking_forgets_it() {
         app.clone().oneshot(share(true)).await.unwrap().status(),
         StatusCode::NOT_FOUND
     );
-    let (state, return_to) = start(&app, &token).await;
-    let params = steam::sign_in_params(&return_to, &claimed(STEAM_ID), "goodsig");
-    let html = text_body(callback(&app, &state, params).await).await;
-    let marker = "slimm://steam-link?code=";
-    let from = html.find(marker).unwrap() + marker.len();
-    let code: String = html[from..]
-        .chars()
-        .take_while(char::is_ascii_alphanumeric)
-        .collect();
-    let body = serde_json::json!({ "code": code });
-    app.clone()
-        .oneshot(request_authed(
-            "POST",
-            "/me/links/steam/complete",
-            &token,
-            Some(body),
-        ))
-        .await
-        .unwrap();
+    let code = vouched_code(&app, &token).await;
+    complete(&app, &token, &code).await;
 
     assert_eq!(
         app.clone().oneshot(share(true)).await.unwrap().status(),
@@ -273,4 +264,31 @@ async fn sharing_needs_a_link_and_unlinking_forgets_it() {
         .unwrap();
     assert_eq!(gone.status(), StatusCode::NO_CONTENT);
     assert_eq!(links_of(&app, &token).await, serde_json::json!([]));
+}
+
+#[tokio::test]
+async fn one_steam_account_links_to_one_member() {
+    let (store, ada_token, _guard) = ada("slimm-steam-taken").await;
+    let bob = store.create_user("bob", "Bob").await.unwrap();
+    let bob_token = store
+        .open_session(bob.id, "phone")
+        .await
+        .unwrap()
+        .access_token;
+    let app = app_with_steam(store).await;
+    let first = vouched_code(&app, &ada_token).await;
+    assert_eq!(
+        complete(&app, &ada_token, &first).await.status(),
+        StatusCode::OK
+    );
+
+    let second = vouched_code(&app, &bob_token).await;
+    let refused = complete(&app, &bob_token, &second).await;
+
+    assert_eq!(refused.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        json_body(refused).await["error"],
+        "that Steam account is already linked to someone else here"
+    );
+    assert_eq!(links_of(&app, &bob_token).await, serde_json::json!([]));
 }
