@@ -11,6 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/steam_connection.dart';
+import '../providers/link_finish.dart';
 import '../providers/steam_link_finish.dart';
 import 'discord_link_code_sheet.dart';
 import 'settings_detail_row.dart';
@@ -21,8 +22,8 @@ List<Widget> steamConnectionChildren(WidgetRef ref, api.LinkedAccount? steam) {
   final status = ref.watch(steamLinkStatusProvider);
   return [
     _SteamLinkRow(steam: steam),
-    if (steam == null && status is! SteamLinkFinishing) const _SteamCodeRow(),
-    if (status is SteamLinkFailed) _SteamFailure(message: status.message),
+    if (steam == null && status is! LinkFinishing) const _SteamCodeRow(),
+    if (status is LinkFailed) _SteamFailure(message: status.message),
   ];
 }
 
@@ -34,7 +35,7 @@ class _SteamLinkRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final connection = ref.watch(steamConnectionProvider);
-    final finishing = ref.watch(steamLinkStatusProvider) is SteamLinkFinishing;
+    final finishing = ref.watch(steamLinkStatusProvider) is LinkFinishing;
     final controller = ref.read(steamConnectionProvider.notifier);
     return SettingsDetailRow(
       icon: AppIcons.playing,
@@ -88,9 +89,8 @@ class _SteamFailure extends ConsumerWidget {
     children: [
       AppErrorState(
         message: message,
-        onDismiss: () => ref
-            .read(steamLinkStatusProvider.notifier)
-            .set(const SteamLinkIdle()),
+        onDismiss: () =>
+            ref.read(steamLinkStatusProvider.notifier).set(const LinkIdle()),
       ),
     ],
   );

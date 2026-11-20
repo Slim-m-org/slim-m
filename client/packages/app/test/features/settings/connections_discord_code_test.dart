@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/settings/providers/discord_link_finish.dart';
+import 'package:slimm_app/src/features/settings/providers/link_finish.dart';
 import 'package:slimm_app/src/features/settings/widgets/connections_section.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -191,7 +192,7 @@ void main() {
 
     h.container
         .read(discordLinkStatusProvider.notifier)
-        .set(const DiscordLinkFinishing());
+        .set(const LinkFinishing());
     await pumpFrames(tester);
 
     expect(find.text('Finishing...'), findsOneWidget);

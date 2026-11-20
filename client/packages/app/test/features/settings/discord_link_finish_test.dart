@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/settings/providers/discord_link_finish.dart';
+import 'package:slimm_app/src/features/settings/providers/link_finish.dart';
 import 'package:slimm_app/src/features/settings/providers/linked_accounts.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/testing.dart';
@@ -57,10 +58,9 @@ class _Rig {
   final bodies = <String>[];
   final paths = <String>[];
 
-  DiscordLinkFinisher get finisher =>
-      container.read(discordLinkFinisherProvider);
+  LinkFinisher get finisher => container.read(discordLinkFinisherProvider);
 
-  DiscordLinkStatus get status => container.read(discordLinkStatusProvider);
+  LinkStatus get status => container.read(discordLinkStatusProvider);
 }
 
 Future<_Rig> _rig(http.Response Function(http.Request) answer) async {
@@ -70,18 +70,18 @@ Future<_Rig> _rig(http.Response Function(http.Request) answer) async {
 }
 
 void main() {
-  group('parseDiscordLinkCode', () {
+  group('parseLinkCode', () {
     test('a code read off the page loses its dashes, spaces and case', () {
-      expect(parseDiscordLinkCode(' abcde-fghjk-lmnpq-rstuv-wxyz2 \n'), _code);
+      expect(parseLinkCode(' abcde-fghjk-lmnpq-rstuv-wxyz2 \n'), _code);
     });
 
     test('the whole link reads as its code', () {
-      expect(parseDiscordLinkCode('slimm://discord-link?code=$_code'), _code);
+      expect(parseLinkCode('slimm://discord-link?code=$_code'), _code);
     });
 
     test('nothing, or far too much, is no code', () {
-      expect(parseDiscordLinkCode('  - '), isNull);
-      expect(parseDiscordLinkCode('A' * 65), isNull);
+      expect(parseLinkCode('  - '), isNull);
+      expect(parseLinkCode('A' * 65), isNull);
     });
   });
 
@@ -97,7 +97,7 @@ void main() {
       final failure = await rig.finisher.complete('abcde-fghjk-$_code');
       await rig.container.read(myLinkedAccountsProvider.future);
 
-      expect(failure, isNull);
+      expect(failure?.message, isNull);
       expect(jsonDecode(rig.bodies[1]), {
         'code': 'ABCDEFGHJKABCDEFGHJKLMNPQRSTUVWXYZ2',
       });
@@ -109,8 +109,8 @@ void main() {
       () async {
         final rig = await _rig((_) => _json(404, {'error': 'nope'}));
         final failure = await rig.finisher.complete(_code);
-        expect(failure, contains('may have expired'));
-        expect(failure, contains('another account'));
+        expect(failure?.message, contains('may have expired'));
+        expect(failure?.message, contains('another account'));
       },
     );
 
@@ -122,27 +122,27 @@ void main() {
         }),
       );
       final failure = await rig.finisher.complete(_code);
-      expect(failure, contains('already linked to someone else here'));
+      expect(failure?.message, contains('already linked to someone else here'));
     });
 
     test('an empty paste asks for the code without a request', () async {
       final rig = await _rig((_) => _json(200, _linked));
       final failure = await rig.finisher.complete('   ');
-      expect(failure, contains('Paste the code'));
+      expect(failure?.message, contains('Paste the code'));
       expect(rig.bodies, isEmpty);
     });
 
     test('a server that cannot be reached says nothing was changed', () async {
       final rig = await _rig((_) => throw http.ClientException('down'));
       final failure = await rig.finisher.complete(_code);
-      expect(failure, contains('could not be reached'));
+      expect(failure?.message, contains('could not be reached'));
     });
   });
 
   group('completeDelivered', () {
     test('reports through the status, and ends idle once linked', () async {
       final rig = await _rig((_) => _json(200, _linked));
-      final seen = <DiscordLinkStatus>[];
+      final seen = <LinkStatus>[];
       rig.container.listen(
         discordLinkStatusProvider,
         (_, next) => seen.add(next),
@@ -150,18 +150,15 @@ void main() {
 
       await rig.finisher.completeDelivered(_code);
 
-      expect(seen.map((s) => s.runtimeType), [
-        DiscordLinkFinishing,
-        DiscordLinkIdle,
-      ]);
+      expect(seen.map((s) => s.runtimeType), [LinkFinishing, LinkIdle]);
     });
 
     test('a failure stays on the status until dismissed', () async {
       final rig = await _rig((_) => _json(404, {'error': 'nope'}));
       await rig.finisher.completeDelivered(_code);
       final status = rig.status;
-      expect(status, isA<DiscordLinkFailed>());
-      expect((status as DiscordLinkFailed).message, contains('did not work'));
+      expect(status, isA<LinkFailed>());
+      expect((status as LinkFailed).message, contains('did not work'));
     });
 
     test('the same code delivered twice is finished once', () async {
@@ -170,5 +167,51 @@ void main() {
       await rig.finisher.completeDelivered(_code.toLowerCase());
       expect(rig.bodies, hasLength(1));
     });
+
+    test(
+      'a code that failed for a transient reason can be delivered again',
+      () async {
+        var calls = 0;
+        final rig = await _rig((_) {
+          calls++;
+          return calls == 1
+              ? _json(500, {'error': 'boom'})
+              : _json(200, _linked);
+        });
+        await rig.finisher.completeDelivered(_code);
+        expect(rig.status, isA<LinkFailed>());
+
+        await rig.finisher.completeDelivered(_code);
+
+        expect(rig.bodies, hasLength(2));
+        expect(rig.status, isA<LinkIdle>());
+      },
+    );
+
+    test('a refused code is not retried when delivered again', () async {
+      final rig = await _rig((_) => _json(404, {'error': 'nope'}));
+      await rig.finisher.completeDelivered(_code);
+      await rig.finisher.completeDelivered(_code);
+      expect(rig.bodies, hasLength(1));
+    });
+
+    test(
+      'a pasted code that links clears an earlier delivery failure',
+      () async {
+        var calls = 0;
+        final rig = await _rig((_) {
+          calls++;
+          return calls == 1
+              ? _json(404, {'error': 'nope'})
+              : _json(200, _linked);
+        });
+        await rig.finisher.completeDelivered(_code);
+        expect(rig.status, isA<LinkFailed>());
+
+        expect(await rig.finisher.complete(_code), isNull);
+
+        expect(rig.status, isA<LinkIdle>());
+      },
+    );
   });
 }
