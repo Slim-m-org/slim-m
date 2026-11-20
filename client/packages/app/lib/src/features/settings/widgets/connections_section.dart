@@ -19,7 +19,7 @@ import '../../../widgets/run_guarded.dart';
 import '../providers/discord_link_finish.dart';
 import '../providers/link_finish.dart';
 import '../providers/linked_accounts.dart';
-import 'discord_link_code_sheet.dart';
+import 'link_code_sheet.dart';
 import 'settings_detail_row.dart';
 import 'settings_refresh_button.dart';
 import 'spotify_connection_rows.dart';

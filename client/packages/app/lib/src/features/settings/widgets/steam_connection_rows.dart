@@ -13,7 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/steam_connection.dart';
 import '../providers/link_finish.dart';
 import '../providers/steam_link_finish.dart';
-import 'discord_link_code_sheet.dart';
+import 'link_code_sheet.dart';
 import 'settings_detail_row.dart';
 import 'settings_section_header.dart';
 
