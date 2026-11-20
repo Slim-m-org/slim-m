@@ -5,7 +5,6 @@
 use std::path::Path;
 
 use slimm_server::permissions::Permissions;
-use slimm_server::store::Store;
 use sqlx::migrate::Migrator;
 
 use crate::support;
@@ -38,20 +37,27 @@ async fn an_existing_everyone_role_gains_use_soundboard_and_other_roles_do_not()
     .await
     .expect("seed roles");
 
-    migrator().await.run(&pool).await.expect("apply 0186");
+    let mut through = migrator().await;
+    through.migrations = through
+        .iter()
+        .filter(|m| m.version <= VERSION)
+        .cloned()
+        .collect();
+    through.run(&pool).await.expect("apply 0186");
 
-    let roles = Store::new(pool).list_roles().await.expect("list roles");
-    let bits = |name: &str| {
-        roles
-            .iter()
-            .find(|r| r.name == name)
-            .unwrap()
-            .permissions
-            .bits()
+    let bits = |name: &'static str| {
+        let pool = pool.clone();
+        async move {
+            sqlx::query_scalar::<_, i64>("SELECT permissions FROM roles WHERE name = ?1")
+                .bind(name)
+                .fetch_one(&pool)
+                .await
+                .expect("read role bits")
+        }
     };
     assert_eq!(
-        bits("@everyone"),
+        bits("@everyone").await,
         held.union(Permissions::USE_SOUNDBOARD).bits()
     );
-    assert_eq!(bits("Mod"), held.bits());
+    assert_eq!(bits("Mod").await, held.bits());
 }
