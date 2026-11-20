@@ -25,7 +25,10 @@ class VideoOrphans {
     if (event is! lk.LocalTrackPublishedEvent) return;
     final track = event.publication.track;
     if (track != null && _watched.contains(event.publication.source)) {
-      _published.add(track);
+      // A track already stopped cannot be an orphan, so toggles do not pile up.
+      _published
+        ..removeWhere((t) => !t.isActive)
+        ..add(track);
     }
   }
 
