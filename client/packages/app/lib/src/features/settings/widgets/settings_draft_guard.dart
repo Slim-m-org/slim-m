@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../routing/close_screen.dart';
 import '../../../widgets/confirm_dialog.dart';
 import 'settings_sub_pages.dart';
 
@@ -59,6 +60,11 @@ Future<bool> confirmDiscardChanges(BuildContext context, {Key? confirmKey}) =>
       confirmKey: confirmKey,
     );
 
+/// True when the drafts this [context] sits beside let go: the pane's in a
+/// settings pane, otherwise every one on its route, asking each that is dirty.
+Future<bool> draftsLetGo(BuildContext context) =>
+    SettingsSubPages.maybeOf(context)?.canLeave() ?? routeLetsGo(context);
+
 /// Guards a draft behind a Save bar: in a settings pane it is the pane's guard,
 /// anywhere else a back or dismiss asks first while [dirty].
 class DraftLeaveScope extends StatefulWidget {
@@ -74,6 +80,7 @@ class DraftLeaveScope extends StatefulWidget {
 class _DraftLeaveScopeState extends State<DraftLeaveScope> {
   late final _draft = DraftLeaveGuard(() => confirmDiscardChanges(context));
   late final SettingsSubPageStack? _pane = SettingsSubPages.maybeOf(context);
+  Route<Object?>? _route;
 
   @override
   void initState() {
@@ -82,7 +89,25 @@ class _DraftLeaveScopeState extends State<DraftLeaveScope> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_pane != null) return;
+    final route = ModalRoute.of(context);
+    if (identical(route, _route)) return;
+    _releaseRoute();
+    _route = route;
+    if (route != null) addRouteLeaveCheck(route, _draft.allowLeave);
+  }
+
+  void _releaseRoute() {
+    final route = _route;
+    if (route != null) removeRouteLeaveCheck(route, _draft.allowLeave);
+    _route = null;
+  }
+
+  @override
   void dispose() {
+    _releaseRoute();
     _pane?.releasePaneGuard(_draft);
     _draft.dispose();
     super.dispose();

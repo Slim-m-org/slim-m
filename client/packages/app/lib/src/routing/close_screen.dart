@@ -2,6 +2,8 @@
 /// Leaving a screen that may be a modal.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -17,7 +19,38 @@ void closeScreen(BuildContext context, String fallback) {
   context.go(fallback);
 }
 
-/// The app-bar leading button for a screen that [closeScreen] closes.
+/// Asks the person; true lets the route go.
+typedef RouteLeaveCheck = Future<bool> Function();
+
+final _leaveChecks = Expando<List<RouteLeaveCheck>>('route leave checks');
+
+/// Asks [check] before an on-screen back control leaves [route].
+///
+/// A [PopScope] only hears a system back; the app-bar arrow and in-screen
+/// backs close without popping through it, so they ask these instead.
+void addRouteLeaveCheck(Route<Object?> route, RouteLeaveCheck check) =>
+    (_leaveChecks[route] ??= []).add(check);
+
+void removeRouteLeaveCheck(Route<Object?> route, RouteLeaveCheck check) =>
+    _leaveChecks[route]?.remove(check);
+
+/// True when every check on this context's route lets it go, asking each in turn.
+Future<bool> routeLetsGo(BuildContext context) async {
+  final route = ModalRoute.of(context);
+  if (route == null) return true;
+  for (final check in [...?_leaveChecks[route]]) {
+    if (!await check()) return false;
+  }
+  return true;
+}
+
+/// [closeScreen] once every draft on this route lets it go.
+Future<void> leaveScreen(BuildContext context, String fallback) async {
+  if (!await routeLetsGo(context) || !context.mounted) return;
+  closeScreen(context, fallback);
+}
+
+/// The app-bar leading button for a screen that [leaveScreen] closes.
 ///
 /// Eight screens carried the identical five-line `IconButton` around this
 /// call; naming it once means a change to the back affordance is one edit,
@@ -42,7 +75,7 @@ class BackToButton extends StatelessWidget {
   /// Where to land when there is nothing to pop; see [closeScreen].
   final String fallback;
 
-  /// Runs instead of [closeScreen].
+  /// Runs instead of [leaveScreen].
   final VoidCallback? onBack;
 
   @override
@@ -51,7 +84,7 @@ class BackToButton extends StatelessWidget {
       icon: AppIcons.back,
       semanticLabel: tooltip,
       tooltip: tooltip,
-      onPressed: onBack ?? () => closeScreen(context, fallback),
+      onPressed: onBack ?? () => unawaited(leaveScreen(context, fallback)),
     );
     // The 56pt leading slot cannot hold a 44pt button plus the 8pt gutter, which squeezed it to 40.
     return AppTouchTargets.of(context)
