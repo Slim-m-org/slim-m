@@ -7,6 +7,7 @@
 
 #include "clipboard_image_channel.h"
 #include "flutter/generated_plugin_registrant.h"
+#include "flutter_view_focus.h"
 #include "linux_screen_overlay_channel.h"
 #include "linux_second_instance_channel.h"
 #include "linux_tray_probe_channel.h"
@@ -98,6 +99,8 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_show(overlay);
   gtk_container_add(GTK_CONTAINER(overlay), GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), overlay);
+  // A click in Flutter must take the keyboard back from the webview; see flutter_view_focus.h.
+  flutter_view_focus_follow_presses(GTK_WIDGET(view));
 
   // Show the window when Flutter renders.
   // Requires the view to be realized so we can start rendering.
