@@ -83,40 +83,47 @@ class CommandPaletteCompactShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
 
-    return Align(
-      alignment: Alignment.topCenter,
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: tokens.surfaceRaised,
-          border: Border(bottom: BorderSide(color: tokens.borderStrong)),
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: Material(
-            type: MaterialType.transparency,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _CompactSearchRow(
-                  searchField: searchField,
-                  onCancel: onCancel,
-                  divider: chips == null,
-                ),
-                if (chips case final chips?) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.s12,
-                      0,
-                      AppSpacing.s12,
-                      AppSpacing.s8,
-                    ),
-                    child: Align(alignment: Alignment.centerLeft, child: chips),
+    // The panel ends at an on-screen keyboard, so no result sits under it.
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: tokens.surfaceRaised,
+            border: Border(bottom: BorderSide(color: tokens.borderStrong)),
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Material(
+              type: MaterialType.transparency,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _CompactSearchRow(
+                    searchField: searchField,
+                    onCancel: onCancel,
+                    divider: chips == null,
                   ),
-                  const AppMenuDivider(),
+                  if (chips case final chips?) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.s12,
+                        0,
+                        AppSpacing.s12,
+                        AppSpacing.s8,
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: chips,
+                      ),
+                    ),
+                    const AppMenuDivider(),
+                  ],
+                  Flexible(child: results),
                 ],
-                results,
-              ],
+              ),
             ),
           ),
         ),

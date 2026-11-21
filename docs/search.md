@@ -40,6 +40,7 @@ With any chip the palette searches messages only, 25 at a time with a row that l
 While it does, the keys themselves are offered when the field is empty or the word being typed could become one; after a finished word the hits come first, so Enter opens one.
 
 Keys: arrows move, Enter picks, Tab completes a suggestion (and otherwise moves between sections), Backspace in an empty field removes the last chip, Esc closes.
+Under an on-screen keyboard the panel ends at the keyboard's top edge, and the keyboard's enter key or a drag on the results puts the keyboard away without opening anything; only a hardware Enter picks.
 Below `kCompactWidth` the palette is the pull-down panel with Cancel in place of Esc, chips under the field; see `docs/design/desktop-vs-mobile.md`.
 A hit opens through the same jump every other result uses: the conversation pages to the message and flashes it, and says so above the transcript while it is finding it or if it cannot.
 

@@ -273,6 +273,18 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     );
   }
 
+  /// An on-screen keyboard's enter key only puts the keyboard away, so the
+  /// results it was covering show; a hardware Enter opens the highlighted one.
+  void _submitted() {
+    if (MediaQuery.viewInsetsOf(context).bottom == 0) {
+      unawaited(_runHighlighted());
+      return;
+    }
+    _flushTranscripts();
+    unawaited(_messages.flush());
+    _field.focusNode.unfocus();
+  }
+
   /// Enter acts on the list for what was typed last, never a hit of an older query.
   Future<void> _runHighlighted() async {
     await WidgetsBinding.instance.endOfFrame;
@@ -345,7 +357,8 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
         color: tokens.textSecondary,
       ),
       onChanged: (_) => _field.typed(),
-      onSubmitted: (_) => _runHighlighted(),
+      textInputAction: TextInputAction.search,
+      onSubmitted: (_) => _submitted(),
       semanticLabel: label,
       trailing: compact ? null : PaletteEscKeycap(onTap: _close),
     );
@@ -387,7 +400,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     final results = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        list,
+        Flexible(child: list),
         if (actionError case final failure?)
           Padding(
             padding: const EdgeInsets.all(AppSpacing.s8),
