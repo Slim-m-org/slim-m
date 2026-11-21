@@ -94,6 +94,7 @@ jobs:
   # since each can fail with the other green.
   analyze-format:
     name: analyze, format check
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -121,6 +122,34 @@ jobs:
         working-directory: client
         run: dart format --output=none --set-exit-if-changed .
 
+  # The tests whose answer the version bump changes; a release PR skips everything else here (docs/ci-details.md).
+  release-version-gates:
+    name: release version gates
+    if: ${{ startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--client') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: set up flutter (stable channel)
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: 3.47.0
+          cache: true
+
+      - uses: ./.github/actions/native-hooks-cache
+
+      - name: resolve workspace dependencies
+        working-directory: client
+        run: flutter pub get --enforce-lockfile
+
+      - name: tests that read the app version
+        working-directory: client/packages/app
+        run: flutter test test/whats_new/whats_new_freshness_test.dart
+
+      - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
+
   # Sharded because one package dominates: measured on a real run, packages/app
   # was 9m44s of a 13m9s serial loop, with rtc a distant 2m1s and the other
   # five under 25s each. Matrixing per package would therefore have bottomed
@@ -136,12 +165,13 @@ jobs:
   # Halving the split trades four more runners' worth of setup for roughly
   # half the test time. The count is worth re-measuring rather than raising
   # on faith: past some point queueing for runners costs more than it saves.
-  # Twelve since 2026-10-22: on a main run the eight shards' test step took
-  # 18-26 minutes against the 30-minute job limit, and one PR shard hit it.
+  # Six since 2026-11-21, after bundling: twelve ran 144s of tests on ~105s of
+  # setup each and queued up to 23 minutes; six run ~300s, under other-packages.
   # Files are dealt by measured time (scripts/lib/client_shards.py), not by
   # count, so the slowest shard stays near the mean.
   test-shards:
     name: client tests (${{ matrix.label }})
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -165,18 +195,6 @@ jobs:
             shard: "4"
           - label: app-6
             shard: "5"
-          - label: app-7
-            shard: "6"
-          - label: app-8
-            shard: "7"
-          - label: app-9
-            shard: "8"
-          - label: app-10
-            shard: "9"
-          - label: app-11
-            shard: "10"
-          - label: app-12
-            shard: "11"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -212,7 +230,7 @@ jobs:
         if: matrix.shard != ''
         working-directory: client/packages/app
         env:
-          SHARDS: "12"
+          SHARDS: "6"
           SHARD_INDEX: ${{ matrix.shard }}
           SLIMM_TEST_PER_FILE: ${{ vars.SLIMM_TEST_PER_FILE }}
           # PRs fuzz a quick seed sample; main, where releases are cut, explores the full range.
@@ -284,6 +302,7 @@ jobs:
   # test shards so its compile and bundle-budget cost is not on the critical path.
   test-web:
     name: web build
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -326,6 +345,7 @@ jobs:
   # Dart compiled to JavaScript, which the VM suites cannot see: see docs/ci-details.md, "Logic tests also run as JavaScript".
   test-chrome:
     name: logic tests compiled to javascript (chrome)
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -366,6 +386,7 @@ jobs:
   # so it runs in parallel and its apt cost is not paid by every other check.
   linux-compiles:
     name: linux desktop compiles
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

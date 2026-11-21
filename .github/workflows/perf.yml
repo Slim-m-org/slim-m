@@ -33,7 +33,7 @@ env:
 jobs:
   # Type-checks the benches on every pull request: no codegen, so no fat-LTO release build per push.
   compile-gate:
-    if: github.event_name == 'pull_request'
+    if: ${{ !startsWith(github.head_ref, 'release-please--') && (github.event_name == 'pull_request') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

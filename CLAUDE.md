@@ -278,7 +278,7 @@ Do not silently decide these:
 
 - Real Android end-to-end background push test.
 - Reviewer protection for `release` and `testflight` GitHub Environments.
-- `RELEASE_PLEASE_TOKEN` is set, so release PRs are authored by the owner and run their full checks. It must stay set and unexpired: without it they fall back to `app/github-actions`, GitHub holds those runs at `action_required`, and a release PR shows `UNSTABLE` with only SonarCloud reporting.
+- `RELEASE_PLEASE_TOKEN` is set, so release PRs are authored by the owner and run their checks (the diff-reading ones only; tests skip there, see docs/ci-details.md). It must stay set and unexpired: without it they fall back to `app/github-actions`, GitHub holds those runs at `action_required`, and a release PR shows `UNSTABLE` with only SonarCloud reporting.
 - Optional GPG signing secret for Linux client checksums.
 - Whether to keep release-please's auto-PR flow or switch to manual tag releases.
 - Play internal tester management requires the owner; there is no Play Developer API credential available.

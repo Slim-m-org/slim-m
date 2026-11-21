@@ -53,6 +53,7 @@ jobs:
   # Split from the tests so a lint failure reports in minutes; see docs/ci.md, server-ci.
   lint:
     name: lint
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -119,6 +120,7 @@ jobs:
   # Three legs, each compiling the tests and running a third of them by name hash; see docs/ci.md, server-ci.
   test:
     name: test (${{ matrix.partition }}/3)
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
@@ -150,6 +152,7 @@ jobs:
 
   release-build:
     name: release build and size budget
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
