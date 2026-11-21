@@ -25,7 +25,8 @@ futures-util = "0.3"
 # Released 2026-10-12, more than two weeks before this was pinned.
 livekit = { version = "=0.9.5", optional = true, default-features = false, features = ["native", "rustls-tls-webpki-roots"] }
 ogg = "0.9"
-opus = "0.3"
+# Pure Rust, replacing opus/audiopus_sys (RUSTSEC-2026-0150); published 2026-03-12.
+opus-decoder = "=0.1.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net", "time", "sync"] }

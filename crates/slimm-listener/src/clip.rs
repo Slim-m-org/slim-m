@@ -5,7 +5,7 @@
 use std::io::Cursor;
 
 use anyhow::{Context, bail};
-use opus::{Channels, Decoder};
+use opus_decoder::OpusDecoder;
 
 use crate::endpoint::SAMPLE_RATE;
 
@@ -112,14 +112,12 @@ fn ogg_opus(bytes: &[u8]) -> anyhow::Result<Vec<i16>> {
     if head.len() < 19 || !head.starts_with(b"OpusHead") {
         bail!("the Ogg file is not Opus");
     }
-    let channels = match head[9] {
-        1 => Channels::Mono,
-        2 => Channels::Stereo,
+    let count = match head[9] {
+        channels @ (1 | 2) => usize::from(channels),
         other => bail!("{other} Opus channels are not supported"),
     };
-    let count = usize::from(head[9]);
     let pre_skip = usize::from(u16::from_le_bytes([head[10], head[11]])) * SAMPLE_RATE / 48_000;
-    let mut decoder = Decoder::new(SAMPLE_RATE as u32, channels)?;
+    let mut decoder = OpusDecoder::new(SAMPLE_RATE as u32, count)?;
     let mut frame = vec![0_i16; SAMPLE_RATE * OPUS_MAX_FRAME_MS / 1000 * count];
     let mut decoded = Vec::new();
     let mut seen_tags = false;
