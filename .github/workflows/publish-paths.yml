@@ -28,6 +28,7 @@ permissions:
 jobs:
   # The same reusable workflow the release calls, so this check and the release cannot drift apart.
   server-binaries:
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     uses: ./.github/workflows/server-binaries.yml
     permissions:
       contents: read
@@ -35,6 +36,7 @@ jobs:
       server_version: pr-${{ github.event.pull_request.number }}
 
   server-image:
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     strategy:
       fail-fast: false
       matrix:
@@ -62,6 +64,7 @@ jobs:
 
   # publish: false skips the login, the push, the manifest merge and the signature.
   web-image:
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     uses: ./.github/workflows/web-image.yml
     permissions:
       contents: read

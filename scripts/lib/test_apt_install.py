@@ -149,6 +149,49 @@ class AptInstallFallback(unittest.TestCase):
         self.assertIn("served by http://archive.ubuntu.com/ubuntu/", calls)
 
 
+# Downloads stall on the azure mirror; an install that is not --download-only must only ever find the debs already fetched.
+SLOW_DOWNLOAD_APT_GET = (
+    STALLING_APT_GET.replace(
+        'if [[ "$host" == *azure* ]]; then exit 124; fi\n',
+        '[[ " $* " == *" install "* ]] || exit 0\n'
+        'if [[ " $* " != *" --download-only "* ]]; then\n'
+        '  [[ -e "$DOWNLOADED" ]] || echo "E: dpkg started before the download finished" >> "$CALLS"\n'
+        '  exit 0\n'
+        'fi\n'
+        'if [[ "$host" == *azure* ]]; then exit 124; fi\n'
+        'touch "$DOWNLOADED"\n',
+    )
+)
+
+
+class AptInstallSlowMirror(unittest.TestCase):
+    def test_a_download_killed_by_the_limit_never_leaves_dpkg_half_done(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bin_dir = root / "bin"
+            write_fakes(bin_dir, {**FAKES, "apt-get": SLOW_DOWNLOAD_APT_GET})
+            etc = root / "etc-apt"
+            (etc / "sources.list.d").mkdir(parents=True)
+            (etc / "sources.list.d" / "ubuntu.sources").write_text(
+                "Types: deb\nURIs: http://azure.archive.ubuntu.com/ubuntu/\nSuites: noble\nComponents: main\n"
+            )
+            calls = root / "calls"
+            calls.write_text("")
+            env = dict(
+                os.environ,
+                PATH=f"{bin_dir}:{os.environ['PATH']}",
+                APT_ETC=str(etc),
+                CALLS=str(calls),
+                DOWNLOADED=str(root / "downloaded"),
+            )
+            env.pop("APT_DEB_CACHE", None)
+            result = subprocess.run(["bash", str(SCRIPT), "libmpv2"], env=env, capture_output=True, text=True)
+            log = calls.read_text()
+            self.assertEqual(result.returncode, 0, log)
+            self.assertNotIn("E: dpkg started", log)
+            self.assertIn("install -y --no-install-recommends libmpv2", log.splitlines()[-1])
+
+
 class AptInstallOrphanedDpkg(unittest.TestCase):
     def test_the_retry_waits_for_the_dpkg_a_stalled_attempt_left_running(self):
         with tempfile.TemporaryDirectory() as tmp:

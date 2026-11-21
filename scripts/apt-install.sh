@@ -8,8 +8,9 @@ set -uo pipefail
 [[ $# -gt 0 ]] || { echo "usage: apt-install.sh <package>..." >&2; exit 2; }
 
 readonly UPDATE_LIMIT="${APT_UPDATE_LIMIT:-4m}"
-readonly INSTALL_LIMIT="${APT_INSTALL_LIMIT:-6m}"
-# A stalled attempt killed by timeout leaves its dpkg running with the lock held, so the retry waits for it instead of failing at once.
+readonly DOWNLOAD_LIMIT="${APT_DOWNLOAD_LIMIT:-6m}"
+readonly INSTALL_LIMIT="${APT_INSTALL_LIMIT:-10m}"
+# A killed install can leave its dpkg running with the lock held, so a later apt call waits for it instead of failing at once.
 readonly APT_OPTS=(-o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o DPkg::Lock::Timeout=180)
 readonly FALLBACK="http://archive.ubuntu.com/ubuntu"
 readonly APT_ETC="${APT_ETC:-/etc/apt}"
@@ -29,10 +30,15 @@ open_cache() {
 }
 trap open_cache EXIT
 
-attempt() {
+# Only the download is timed against the mirror: killing it never leaves a dpkg half done, which a killed install did when a slow mirror ran into the limit.
+download() {
   timeout "$UPDATE_LIMIT" sudo apt-get "${APT_OPTS[@]}" update &&
-    timeout "$INSTALL_LIMIT" sudo apt-get "${APT_OPTS[@]}" "${CACHE_OPTS[@]}" install -y --no-install-recommends "$@"
+    timeout "$DOWNLOAD_LIMIT" sudo apt-get "${APT_OPTS[@]}" "${CACHE_OPTS[@]}" install -y --no-install-recommends --download-only "$@"
   return
+}
+
+install_downloaded() {
+  timeout "$INSTALL_LIMIT" sudo apt-get "${APT_OPTS[@]}" "${CACHE_OPTS[@]}" install -y --no-install-recommends "$@"
 }
 
 # A cache hit installs with no mirror at all; anything it cannot satisfy falls through to the network.
@@ -75,10 +81,10 @@ finish_interrupted_dpkg() {
   done
 }
 
-if attempt "$@"; then
-  exit 0
+if ! download "$@"; then
+  echo "::warning::apt from the default mirror failed or stalled; retrying from ${FALLBACK}"
+  finish_interrupted_dpkg
+  use_fallback_mirror
+  download "$@" || exit 1
 fi
-echo "::warning::apt from the default mirror failed or stalled; retrying from ${FALLBACK}"
-finish_interrupted_dpkg
-use_fallback_mirror
-attempt "$@"
+install_downloaded "$@"

@@ -52,6 +52,7 @@ concurrency:
 jobs:
   build:
     name: android release build, dependencies verified
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:

@@ -51,6 +51,7 @@ concurrency:
 jobs:
   windows-compiles:
     name: windows desktop compiles
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: windows-2025
     timeout-minutes: 45
     env:

@@ -152,7 +152,7 @@ It is not in `verify-client-ci`'s `required_checks`.
 
 ### The app shards are dealt by measured time
 
-The twelve `app-N` legs deal `packages/app`'s test files by measured time, not by count: `scripts/lib/client_shards.py deal` puts each file, longest first, on the emptiest shard using the seconds in `scripts/lib/client_durations.json`, and a file missing from it costs a default so a new test is never dropped.
+The six `app-N` legs deal `packages/app`'s test files by measured time, not by count: `scripts/lib/client_shards.py deal` puts each file, longest first, on the emptiest shard using the seconds in `scripts/lib/client_durations.json`, and a file missing from it costs a default so a new test is never dropped.
 To refresh the durations after the suite changes a lot, run `flutter test --reporter json --concurrency=2 > run.json` in `client/packages/app`, then `python3 scripts/lib/client_shards.py record run.json`.
 Record from that plain per-file run, never from a bundled one: the durations are per test file.
 
@@ -163,7 +163,7 @@ So `scripts/lib/client_bundles.py deal` writes gitignored entrypoints under `cli
 Each bundle imports its folder's test files with a prefix and runs each `main` inside a `group` named after the file, so a failure reads `test/features/x/y_test.dart <test name>` and still names its file.
 Files that load real fonts share bundles only with each other (`<folder>_fonts_<n>`): a loaded font stays loaded and changes text metrics for every later file, which broke a geometry test in `continuation_marker_test` when it followed `attachment_spoiler_test`.
 Files that set `PackageInfo`'s mock values are kept apart the same way (`<folder>_appinfo_<n>`), since nothing resets them: `title_bar_consolidation_test`'s version overflowed `update_chip_test`'s title bar.
-The dealer then deals bundles and the files that run alone across the twelve shards by predicted time.
+The dealer then deals bundles and the files that run alone across the six shards by predicted time.
 
 Some files cannot share an isolate, and those still run alone:
 
@@ -752,6 +752,13 @@ The discriminator is `triggering_actor`, not the workflow, the branch or the eve
 With `RELEASE_PLEASE_TOKEN` set to a fine-grained PAT, the PR is authored by the token's owner and its checks run like any other PR's.
 The secret is set on this repository now, and the release PRs and the tags release-please cuts are authored by the owner.
 The PAT needs `contents: read and write` and `pull requests: read and write` on this repository, and nothing else.
+
+Since 2026-11-21 a release PR runs only the checks that read its own diff: `hygiene` (the commit-lint parse of its title and body), `licenses`, `schema-ci` and SonarCloud.
+The test, build, e2e, perf and publish-paths jobs skip on a `release-please--` head branch, because the PR is main plus a version bump and main's push run already tested that code.
+release-please rebases both release PRs onto every push to main, so before this each merge started those workflows three times at once: in the 11 hours to 2026-11-21 07:00 the two release PRs used about 2,100 runner minutes, and a main push queued up to 23 minutes behind them on the 20-job limit.
+The release gates never read the PR's runs: `verify-release-checks` waits on the release commit's own push run, which still runs everything.
+In the 100 client-ci runs before the change, every failure on a release PR was a flake main had hit too.
+`scripts/lib/test_release_prs_skip_main_tested_ci.py` holds every job in those workflows to the skip, directly or through a job it needs.
 Set it with `gh secret set RELEASE_PLEASE_TOKEN` so the value never lands in a file or a shell history; rotating it is a re-run of that one command.
 
 The fallback to `GITHUB_TOKEN` keeps releases working while the secret is absent, at the cost of that behaviour.

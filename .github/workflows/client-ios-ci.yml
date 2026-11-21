@@ -78,6 +78,7 @@ jobs:
   # actually affect linking, the dorny/paths-filter pattern main-builds.yml
   # already uses for the same reason.
   changes:
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -108,6 +109,7 @@ jobs:
   # needed, so this runs on ubuntu ahead of the macOS jobs below.
   pbxproj-registration:
     name: ios sources are registered in project.pbxproj
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
