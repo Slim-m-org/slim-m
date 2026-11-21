@@ -129,14 +129,11 @@ class OnboardingScreen extends ConsumerWidget {
   /// there is nothing to validate here. A later key mismatch still stops the
   /// flow, as it does for every address.
   ///
-  /// This screen only ever runs on an install with no server chosen before,
-  /// so tapping this button is itself evidence there is no account here yet
-  /// - the same reasoning [assumeNewAccountProvider] documents - and sign-in
-  /// opens on creating one rather than asking for a tap it does not need.
+  /// Sign-in is not told this is a new account: a fresh install is as often a
+  /// second device, and guessing made duplicate accounts (decision 0130).
   Future<void> _officialFlow(BuildContext context, WidgetRef ref) async {
     final server = Uri.parse(officialServer);
     if (await confirmServerIdentity(context, ref, server)) {
-      ref.read(assumeNewAccountProvider.notifier).state = true;
       onServerChosen(server, null);
     }
   }

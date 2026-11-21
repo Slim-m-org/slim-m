@@ -20,6 +20,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../../support/mock_app_version.dart';
+import '../../support/sign_in_steps.dart';
 
 Future<void> _pumpCreateForm(
   WidgetTester tester, {
@@ -43,7 +44,6 @@ Future<void> _pumpCreateForm(
       serverUrlProvider.overrideWith(
         (ref) => Uri.parse('https://chat.example'),
       ),
-      assumeNewAccountProvider.overrideWith((ref) => true),
       pendingInviteProvider.overrideWith((ref) => pendingInvite),
       probeApiProvider.overrideWithValue(
         (baseUrl) => SlimmApi(baseUrl: baseUrl, httpClient: client),
@@ -70,6 +70,9 @@ Future<void> _pumpCreateForm(
     ),
   );
   await tester.pumpAndSettle();
+  if (signInButton('Create an account instead').evaluate().isNotEmpty) {
+    await chooseCreateInstead(tester);
+  }
 }
 
 void main() {
@@ -93,6 +96,15 @@ void main() {
     final text = tester.widget<Text>(find.textContaining('invite code')).data!;
     expect(text.split(' ').length, lessThanOrEqualTo(25));
     expect(text, isNot(contains('Settings')));
+  });
+
+  testWidgets('an invite from onboarding opens a server too old to look names '
+      'up on creating, with no tap', (tester) async {
+    await _pumpCreateForm(tester, pendingInvite: 'abc234');
+
+    expect(find.text('Create an account'), findsOneWidget);
+    expect(find.text('I already have an account'), findsOneWidget);
+    expect(signInButton('Create an account instead'), findsNothing);
   });
 
   testWidgets('a code redeemed this session silences the notice', (

@@ -101,7 +101,8 @@ export async function signIn(app: FlutterApp, stack: Stack, username: UserName):
   await app.click('Continue');
   await app.type('Username', username);
   await app.type('Password', stack.secret);
-  await app.click('Sign in');
+  // A Space first met this run has one form for signing in and creating, so its button is Continue.
+  await app.click('Continue');
   await app.waitForUrl('#/channels');
   // Setup opens only on an account's first sign-in, so a later worker's browser goes straight to the shell.
   const skip = await app.control(L.SKIP_SETUP, { timeout: 10_000 }).catch(() => undefined);

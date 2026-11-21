@@ -184,6 +184,9 @@ class Version {
   bool get supportsScreenStamps =>
       capabilities?.contains('screen_stamps') ?? false;
 
+  /// Whether `POST /auth/username/check` exists. False on older servers.
+  bool get usernameCheck => capabilities?.contains('username_check') ?? false;
+
   /// Whether this server supports partial (scoped) clear ops on the canvas.
   /// The server says so itself; one that predates the field is judged by its version, 0.98.0 being where the op arrived.
   bool get supportsPartialClear {

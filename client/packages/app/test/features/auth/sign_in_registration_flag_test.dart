@@ -17,7 +17,9 @@ import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
+import '../../support/async_wait.dart';
 import '../../support/mock_app_version.dart';
+import '../../support/sign_in_steps.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -36,8 +38,9 @@ Future<ProviderContainer> _register(
         'name': 'slim-m',
         'version': '0.10.0',
         'protocol': 1,
-        'capabilities': ['report', 'block'],
+        'capabilities': ['report', 'block', usernameCheckCapability],
       },
+      '/auth/username/check' => {'exists': false},
       '/auth/register' when status == 200 => _tokens.toJson(),
       _ => {'error': 'taken'},
     };
@@ -54,7 +57,6 @@ Future<ProviderContainer> _register(
       serverUrlProvider.overrideWith(
         (ref) => Uri.parse('https://chat.example'),
       ),
-      assumeNewAccountProvider.overrideWith((ref) => true),
       probeApiProvider.overrideWithValue(
         (baseUrl) => SlimmApi(baseUrl: baseUrl, httpClient: client),
       ),
@@ -82,13 +84,13 @@ Future<ProviderContainer> _register(
       ),
     ),
   );
-  await tester.pumpAndSettle();
-  Finder input(String label) =>
-      find.byWidgetPredicate((w) => w is AppInput && w.semanticLabel == label);
-  await tester.enterText(input('Username'), 'dana');
-  await tester.enterText(input('Password'), 'long enough pw');
-  await tester.tap(find.widgetWithText(AppButton, 'Create account'));
-  await tester.pumpAndSettle();
+  await pumpFrames(tester);
+  await submitUntilCreateStep(
+    tester,
+    username: 'dana',
+    password: 'long enough pw',
+  );
+  await confirmAndCreate(tester, 'long enough pw');
   return container;
 }
 

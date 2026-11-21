@@ -48,6 +48,55 @@ SessionStore _signedIn() => SessionStore(
     );
 
 void main() {
+  group('usernameExists', () {
+    test('posts the name without a session and reads the answer', () async {
+      final seen = _Seen();
+      final api = _api(seen, (_) => http.Response('{"exists":true}', 200));
+
+      expect(await api.usernameExists('Ada'), isTrue);
+
+      expect(seen.requests.single.method, 'POST');
+      expect(seen.requests.single.url.path, '/auth/username/check');
+      expect(
+          seen.requests.single.headers.containsKey('authorization'), isFalse);
+      expect(seen.body, {'username': 'Ada'});
+    });
+
+    test('a false answer is false', () async {
+      final api = _api(_Seen(), (_) => http.Response('{"exists":false}', 200));
+      expect(await api.usernameExists('ada'), isFalse);
+    });
+
+    test('refusals map to the usual exceptions', () async {
+      Future<Object?> failure(int status) async {
+        final api = _api(_Seen(), (_) => http.Response('{}', status));
+        try {
+          await api.usernameExists('ada');
+        } on ApiException catch (error) {
+          return error;
+        }
+        return null;
+      }
+
+      expect(await failure(400), isA<BadRequestException>());
+      expect(await failure(429), isA<RateLimitedException>());
+      expect(await failure(404), isA<NotFoundException>());
+      expect(await failure(405), isA<ServerException>());
+    });
+
+    test('the capability getter reads username_check', () {
+      Version version(List<String>? capabilities) => Version.fromJson({
+            'name': 'slim-m',
+            'version': '0.1.0',
+            'protocol': 1,
+            'capabilities': capabilities,
+          });
+      expect(version(['block', 'username_check']).usernameCheck, isTrue);
+      expect(version(['block']).usernameCheck, isFalse);
+      expect(version(null).usernameCheck, isFalse);
+    });
+  });
+
   group('login', () {
     test('a 200 opens the session and sends only what it was given', () async {
       final seen = _Seen();

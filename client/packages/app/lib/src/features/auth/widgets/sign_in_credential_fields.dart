@@ -30,6 +30,7 @@ class SignInCredentialFields extends StatelessWidget {
     super.key,
     required this.username,
     required this.password,
+    required this.confirmPassword,
     required this.creatingAccount,
     this.usernameInvalid = false,
     required this.busy,
@@ -41,6 +42,9 @@ class SignInCredentialFields extends StatelessWidget {
 
   final TextEditingController username;
   final TextEditingController password;
+
+  /// The password again, asked only while creating: no email can recover a typo.
+  final TextEditingController confirmPassword;
 
   /// Whether this is a registration, which states the password rule.
   final bool creatingAccount;
@@ -92,12 +96,33 @@ class SignInCredentialFields extends StatelessWidget {
                     ? AutofillHints.newPassword
                     : AutofillHints.password,
               ],
-              textInputAction: TextInputAction.done,
+              textInputAction: creatingAccount
+                  ? TextInputAction.next
+                  : TextInputAction.done,
               semanticLabel: 'Password',
               onChanged: (_) => onEdited?.call(),
-              onSubmitted: (_) => busy ? null : onSubmit(),
+              onSubmitted: creatingAccount
+                  ? null
+                  : (_) => busy ? null : onSubmit(),
             ),
           ),
+          if (creatingAccount) ...[
+            const SizedBox(height: AppSpacing.s16),
+            LabeledField(
+              label: 'Confirm password',
+              child: AppInput(
+                maxLength: InputLimits.password,
+                controller: confirmPassword,
+                errorText: errorFor(SignInErrorField.confirmPassword),
+                obscureText: true,
+                autofillHints: const [AutofillHints.newPassword],
+                textInputAction: TextInputAction.done,
+                semanticLabel: 'Confirm password',
+                onChanged: (_) => onEdited?.call(),
+                onSubmitted: (_) => busy ? null : onSubmit(),
+              ),
+            ),
+          ],
           if (!creatingAccount)
             Align(
               alignment: Alignment.centerRight,

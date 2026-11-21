@@ -95,6 +95,9 @@ Finder _input(String label) =>
 Future<void> _fillAndSubmit(WidgetTester tester, String button) async {
   await tester.enterText(_input('Username'), 'dana');
   await tester.enterText(_input('Password'), 'long enough pw');
+  if (_input('Confirm password').evaluate().isNotEmpty) {
+    await tester.enterText(_input('Confirm password'), 'long enough pw');
+  }
   await tester.tap(find.widgetWithText(AppButton, button));
   await pumpFrames(tester, frames: 30);
 }

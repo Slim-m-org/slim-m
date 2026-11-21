@@ -269,6 +269,7 @@ void main() {
           body: SignInCredentialFields(
             username: TextEditingController(),
             password: TextEditingController(),
+            confirmPassword: TextEditingController(),
             creatingAccount: true,
             busy: false,
             errorFor: (field) =>
@@ -304,6 +305,7 @@ void main() {
           body: SignInCredentialFields(
             username: TextEditingController(),
             password: TextEditingController(),
+            confirmPassword: TextEditingController(),
             creatingAccount: false,
             usernameInvalid: true,
             busy: false,

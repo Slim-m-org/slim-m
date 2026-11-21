@@ -128,15 +128,15 @@ void main() {
     return container;
   }
 
-  testWidgets('connecting for the first time says sign in, not welcome back', (
-    tester,
-  ) async {
+  testWidgets('connecting for the first time says sign in or create, not '
+      'welcome back', (tester) async {
     final container = await connectFirstTime(tester);
 
     await _show(tester, container, const SignInScreen());
 
     expect(find.text('Welcome back'), findsNothing);
-    expect(find.text('Sign in'), findsWidgets);
+    expect(find.text('Sign in or create an account'), findsOneWidget);
+    expect(find.widgetWithText(AppButton, 'Continue'), findsOneWidget);
     expect(find.text('Confirmed'), findsNothing);
   });
 
@@ -161,7 +161,7 @@ void main() {
     await _show(tester, container, const SignInScreen());
     await tester.enterText(_field('Username'), 'ava');
     await tester.enterText(_field('Password'), 'long enough pw');
-    await tester.tap(find.widgetWithText(AppButton, 'Sign in'));
+    await tester.tap(find.widgetWithText(AppButton, 'Continue'));
     await waitUntil(
       tester,
       () => container.read(sessionProvider).tokens != null,

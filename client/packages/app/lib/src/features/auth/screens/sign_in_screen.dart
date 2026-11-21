@@ -15,10 +15,8 @@ import '../../../providers/providers.dart';
 import '../providers/browser_reach.dart';
 import '../../../routing/routes.dart';
 import '../../../server_address_reduction.dart';
-import '../../../widgets/labeled_field.dart';
 import '../widgets/onboarding_shell.dart';
 import '../widgets/server_identity_confirmation.dart';
-import '../../../widgets/server_notice.dart';
 import '../../../providers/toasts.dart';
 import '../../../whats_new/providers/whats_new_controller.dart';
 import 'reset_password_sheet.dart';
@@ -29,12 +27,16 @@ import '../widgets/server_warnings_modal.dart';
 import '../widgets/sign_in_error.dart';
 import '../../../invite_link.dart';
 import 'sign_in_destination.dart';
-import 'sign_in_invite_notice.dart';
+import 'sign_in_form_parts.dart';
 import 'sign_in_join_steps.dart';
 import 'sign_in_server_probe.dart';
 import 'sign_in_reason_notices.dart';
+import 'sign_in_wording.dart';
 
-/// Sign in or create an account on a chosen server.
+/// Sign in or create an account on a chosen server, from one form: the
+/// server says whether the username exists, and only a name with no account
+/// opens the step that creates one (decision 0130). Opening on either mode by
+/// guess made second accounts for people signing back in on a new device.
 ///
 /// The server address is part of this screen rather than buried in settings,
 /// because self-hosting is the normal case: which server you are on is a
@@ -42,9 +44,7 @@ import 'sign_in_reason_notices.dart';
 /// compiled-in official server, where that choice was already made by
 /// picking "Join the official Space" in onboarding: the field stays
 /// collapsed so joining it is username and password, nothing else, and
-/// "Use a different Space" leads back to onboarding for any other address. It also opens straight on creating an account,
-/// for the same reason an invite does: that button means there is no
-/// account here yet.
+/// "Use a different Space" leads back to onboarding for any other address.
 ///
 /// Creating an account opens in steps (`sign_in_join_steps.dart`), and every
 /// state names where it is about to connect (`sign_in_destination.dart`).
@@ -71,8 +71,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   );
   final _username = TextEditingController();
   final _password = TextEditingController();
+  final _confirmPassword = TextEditingController();
 
   bool _creatingAccount = false;
+
+  /// The username the server said has no account, which the create step names.
+  String? _noAccountNamed;
 
   /// Set once the person picks a mode, so a late probe never switches it.
   bool _modeChosen = false;
@@ -125,17 +129,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   @override
   void initState() {
     super.initState();
-    // An invite or "Join the official Space" means no account here yet, so open on creating one.
-    // The flag is consumed after this build so a later sign-out on this address starts on "Sign in".
-    final assumedNew = ref.read(assumeNewAccountProvider);
-    if (assumedNew) {
-      // A provider cannot be written mid-build; this runs right after it, guarded because a screen disposed before that turn leaves the flag stale true, at worst opening a later visit on "Create an account" - recoverable via the toggle below.
-      Future(() {
-        if (!mounted) return;
-        ref.read(assumeNewAccountProvider.notifier).state = false;
-      });
-    }
-    _creatingAccount = ref.read(pendingInviteProvider) != null || assumedNew;
     _probeServer();
   }
 
@@ -147,6 +140,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     _invite.dispose();
     _username.dispose();
     _password.dispose();
+    _confirmPassword.dispose();
     super.dispose();
   }
 
@@ -174,7 +168,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _probed = answer.version;
       _probeFailure = answer.failure;
       _identityStatus = answer.status;
-      if (answer.version?.claimed == false && !_modeChosen) {
+      if (!_modeChosen && opensOnCreating(answer.version, invited: _invited)) {
         _creatingAccount = true;
       }
     });
@@ -297,10 +291,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final missing = missingCredential(
       username: _username.text,
       password: _password.text,
+      confirmPassword: _creatingAccount ? _confirmPassword.text : null,
     );
     if (missing != null) return setState(() => _error = missing);
     if (_creatingAccount && !await _acknowledgedWarnings()) return;
     if (!mounted) return;
+    final username = _username.text.trim();
+    var accountFound = false;
 
     setState(() {
       _busy = true;
@@ -309,16 +306,27 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     // Read before the awaits: the session redirect can dispose this screen mid-flight.
     final justRegistered = ref.read(justRegisteredProvider.notifier);
     try {
-      await connectAndSignIn(
+      final result = await connectAndSignIn(
         context,
         ref,
         address: address,
-        credentials: (
-          username: _username.text.trim(),
-          password: _password.text,
-        ),
+        credentials: (username: username, password: _password.text),
         creatingAccount: _creatingAccount,
         invite: _invite.codeFor(probeTarget(_server.text)),
+        // Tried unless this server is known to predate the question.
+        lookUpUsername: _probed?.usernameCheck != false,
+        onAccountFound: () => accountFound = true,
+      );
+      if (result == ConnectResult.noAccount && mounted) {
+        _offerToCreate(username);
+      }
+    } on UnauthorizedException catch (e, stack) {
+      reportFailure(LogTag.auth, 'sign in', e, stack);
+      if (!mounted) return;
+      setState(
+        () => _error = accountFound
+            ? wrongPasswordFor(username)
+            : signInErrorFor(e),
       );
     } on ApiException catch (e, stack) {
       reportFailure(LogTag.auth, 'sign in', e, stack);
@@ -344,6 +352,44 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     }
   }
 
+  /// Opens the create step for [username], which the server has no account for.
+  void _offerToCreate(String username) {
+    setState(() {
+      _creatingAccount = true;
+      _noAccountNamed = username;
+      _confirmPassword.clear();
+    });
+    // Creating waits on the server, so a failed answer is worth asking again.
+    if (_probed == null) unawaited(_checkServer());
+  }
+
+  /// An error or notice about the last attempt no longer holds once it changes.
+  void _onCredentialsEdited() {
+    _clearErrorOn(const {
+      SignInErrorField.username,
+      SignInErrorField.password,
+      SignInErrorField.confirmPassword,
+      SignInErrorField.credentials,
+      SignInErrorField.form,
+    });
+    if (_noAccountNamed != null && _noAccountNamed != _username.text.trim()) {
+      setState(() => _noAccountNamed = null);
+    }
+  }
+
+  void _toggleCreating() {
+    setState(() {
+      _creatingAccount = !_creatingAccount;
+      _noAccountNamed = null;
+      _modeChosen = true;
+      _error = null;
+    });
+    if (_creatingAccount && _probeFailure != null) unawaited(_checkServer());
+  }
+
+  /// Whether onboarding handed this screen an invite, so someone is joining.
+  late final bool _invited = ref.read(pendingInviteProvider) != null;
+
   /// The typed address when it can be submitted; otherwise shows why not.
   Uri? _submittableAddress() {
     final (address, problem) = submittableAddress(_server.text);
@@ -368,7 +414,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final firstContact = _firstContact;
     final identityStatus = _identityStatus ?? ServerIdentityStatus.unknown;
     final stage = _stage;
@@ -386,11 +431,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SignInDestination(
-            title: _creatingAccount
-                ? 'Create an account'
-                : firstContact
-                ? 'Sign in'
-                : 'Welcome back',
+            title: signInTitle(
+              creating: _creatingAccount,
+              firstContact: firstContact,
+            ),
             host: serverHostLabel(_server.text),
             version: _probed,
             // A key saved moments ago by this connect matches nothing from before.
@@ -401,33 +445,18 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             error: _addressExpanded ? null : serverError,
           ),
           const SignInReasonNotices(),
-          if (_addressExpanded) ...[
-            LabeledField(
-              label: 'Server',
-              child: AppInput(
-                controller: _server,
-                focusNode: _serverFocus,
-                placeholder: 'your-server-address.com',
-                mono: true,
-                errorText: serverError,
-                keyboardType: TextInputType.url,
-                autocorrect: false,
-                semanticLabel: 'Server',
-                onChanged: _onServerEdited,
-              ),
+          if (_addressExpanded)
+            SignInServerField(
+              controller: _server,
+              focusNode: _serverFocus,
+              error: serverError,
+              onChanged: _onServerEdited,
             ),
-            const SizedBox(height: AppSpacing.s8),
-          ],
-          if (_creatingAccount && _probed != null)
-            InviteRequiredNotice(version: _probed!),
-          if (_probed?.pushEnabled == false)
-            const ServerNotice(
-              icon: AppIcons.notificationsOff,
-              message:
-                  'This Space cannot send push notifications. '
-                  'You can still use it, but phones will only see '
-                  'new messages while the app is open.',
-            ),
+          SignInNotices(
+            probed: _probed,
+            creatingAccount: _creatingAccount,
+            noAccountNamed: _noAccountNamed,
+          ),
           // Each band brings its own gap, so a step not yet open leaves none behind.
           InviteCodeField(
             invite: _invite,
@@ -446,38 +475,28 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     child: SignInCredentialFields(
                       username: _username,
                       password: _password,
+                      confirmPassword: _confirmPassword,
                       creatingAccount: _creatingAccount,
                       usernameInvalid:
                           _error?.$1 == SignInErrorField.credentials,
                       busy: _busy,
                       errorFor: _errorFor,
                       onSubmit: _submit,
-                      onEdited: () => _clearErrorOn(const {
-                        SignInErrorField.username,
-                        SignInErrorField.password,
-                        SignInErrorField.credentials,
-                        SignInErrorField.form,
-                      }),
+                      onEdited: _onCredentialsEdited,
                       onRecoverAccount: () => unawaited(_recoverAccount()),
                     ),
                   )
                 : null,
           ),
-          if (_errorFor(SignInErrorField.form) case final formError?) ...[
-            const SizedBox(height: AppSpacing.s16),
-            Semantics(
-              liveRegion: true,
-              child: Text(
-                formError,
-                style: AppText.caption.copyWith(color: tokens.dangerText),
-              ),
-            ),
-          ],
+          if (_errorFor(SignInErrorField.form) case final formError?)
+            SignInFormError(message: formError),
           const SizedBox(height: AppSpacing.s24),
           AppButton(
             label: switch (stage) {
-              JoinStage.account when _creatingAccount => 'Create account',
-              JoinStage.account => 'Sign in',
+              JoinStage.account => signInAction(
+                creating: _creatingAccount,
+                firstContact: firstContact,
+              ),
               _ => 'Continue',
             },
             variant: AppButtonVariant.primary,
@@ -495,17 +514,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           SignInAlternatives(
             creatingAccount: _creatingAccount,
             busy: _busy,
-            onToggleCreating: () {
-              setState(() {
-                _creatingAccount = !_creatingAccount;
-                _modeChosen = true;
-                _error = null;
-              });
-              // Creating waits on the server, so a failed answer is worth asking again.
-              if (_creatingAccount && _probeFailure != null) {
-                unawaited(_checkServer());
-              }
-            },
+            onToggleCreating: _toggleCreating,
             onUseDifferentSpace: () => context.go(Routes.onboarding),
           ),
         ],

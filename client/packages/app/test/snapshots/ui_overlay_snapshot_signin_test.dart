@@ -28,6 +28,7 @@ import '../support/mid_flight_capture.dart';
 import '../support/async_wait.dart';
 import '../support/mock_app_version.dart';
 import '../support/onboarding_error_strings.dart';
+import '../support/sign_in_steps.dart';
 import '../ui_snapshot_support.dart';
 
 final _errorStrings = OnboardingErrorStrings.load();
@@ -53,6 +54,12 @@ const _identityA = {
 
 String _handleFor(String server) => 'server_identity:$server';
 
+const _checkingVersion = {
+  'name': 'slim-m',
+  'version': '0.10.0',
+  'protocol': 1,
+  'capabilities': ['report', 'block', usernameCheckCapability],
+};
 const _validVersion = {
   'name': 'slim-m',
   'version': '0.10.0',
@@ -69,11 +76,19 @@ Future<ProviderContainer> _pumpSignIn(
   http.Response Function(http.Request)? authResponder,
   KeyStore? keyStore,
   bool pendingInvite = false,
+  bool? usernameExists,
 }) async {
   final httpClient = MockClient((request) async {
     if (request.method == 'GET' && request.url.path == '/version') {
       return http.Response(
         jsonEncode(versionBody ?? _validVersion),
+        200,
+        headers: const {'content-type': 'application/json'},
+      );
+    }
+    if (request.url.path == '/auth/username/check') {
+      return http.Response(
+        jsonEncode({'exists': usernameExists}),
         200,
         headers: const {'content-type': 'application/json'},
       );
@@ -151,6 +166,7 @@ Future<void> _openWarnings(WidgetTester tester) async {
       find.byWidgetPredicate((w) => w is AppInput && w.semanticLabel == label);
   await tester.enterText(input('Username'), 'alice');
   await tester.enterText(input('Password'), 'hunter2hunter2');
+  await tester.enterText(input('Confirm password'), 'hunter2hunter2');
   await tester.tap(find.widgetWithText(AppButton, 'Create account'));
   await pumpFrames(tester, frames: 30);
 }
@@ -364,6 +380,23 @@ void main() {
       await _finish(tester, 'submit-wrong-credentials-desktop');
     });
 
+    testWidgets('wrong password for a name the server knows', (tester) async {
+      await _pumpSignIn(
+        tester,
+        versionBody: _checkingVersion,
+        usernameExists: true,
+        authResponder: (r) => _jsonResponse({'error': 'bad credentials'}, 401),
+      );
+      await submitSignIn(tester);
+      expect(
+        find.text(
+          'Wrong password for alice. New here? That username is taken.',
+        ),
+        findsOneWidget,
+      );
+      await _finish(tester, 'submit-wrong-password-for-desktop');
+    });
+
     testWidgets('username already taken, register mode', (tester) async {
       await _pumpSignIn(
         tester,
@@ -372,6 +405,7 @@ void main() {
       );
       await tester.enterText(find.byType(TextField).at(1), 'alice');
       await tester.enterText(find.byType(TextField).at(2), 'hunter2hunter2');
+      await tester.enterText(signInField('Confirm password'), 'hunter2hunter2');
       await tester.tap(find.widgetWithText(AppButton, 'Create account'));
       await tester.pumpAndSettle();
       expect(

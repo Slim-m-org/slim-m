@@ -2,6 +2,10 @@
 /// The two ways out from under the sign-in button: the other mode of this
 /// form, and a different Space.
 ///
+/// The way to creating an account is always here, though the one form finds
+/// it for a name with no account (decision 0130): a newcomer looks for it,
+/// and a button that waited on the server's answer moved the form under them.
+///
 /// Split from `sign_in_screen.dart` for the size ceiling. They read as
 /// alternatives to the action above rather than a list under it, which is why
 /// they share one [Wrap]. "Forgot password?" lives under the password

@@ -90,15 +90,6 @@ final serverUrlProvider = Provider<Uri>(
 /// An invite code chosen during onboarding, redeemed once an account exists.
 final pendingInviteProvider = StateProvider<String?>((ref) => null);
 
-/// Set by onboarding right before handing off to sign-in, true only for the
-/// compiled-in official server chosen with no invite: the one door besides an
-/// invite where arriving here is itself evidence of no account yet, since
-/// onboarding only ever runs on an install with no server previously chosen.
-/// Consumed and reset the moment sign-in reads it, so a later sign-out on
-/// this same server - which skips onboarding entirely - is never mistaken
-/// for a fresh join.
-final assumeNewAccountProvider = StateProvider<bool>((ref) => false);
-
 /// The handle the persisted session is stored under, in [keyStoreProvider].
 const sessionTokenHandle = 'session_token_pair';
 

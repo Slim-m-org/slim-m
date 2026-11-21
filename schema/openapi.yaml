@@ -293,6 +293,35 @@ paths:
         "503":
           $ref: "#/components/responses/Unavailable"
 
+  /auth/username/check:
+    post:
+      operationId: checkUsername
+      tags: [auth]
+      summary: Say whether a username already has an account.
+      description: >
+        POST so the name stays out of URL logs. Matches the way registration
+        does: any letter case, live accounts only, bots included. It discloses
+        what a 409 from /auth/register already does. An invalid username is the
+        same 400 registration gives.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsernameCheckRequest"
+      responses:
+        "200":
+          description: Whether a live account holds the username.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsernameCheckResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /auth/refresh:
     post:
       operationId: refresh
@@ -13893,7 +13922,7 @@ components:
           type: array
           items:
             type: string
-            enum: [block, report, webhooks, upload_sessions, screen_stamps]
+            enum: [block, report, webhooks, upload_sessions, screen_stamps, username_check]
           description: >
             The optional features this build serves, read off the router at
             runtime rather than declared, so the list cannot drift from what
@@ -14098,6 +14127,23 @@ components:
             same id replaces that install's session (the old refresh token is
             revoked) instead of adding a device. Optional; a client that sends
             none gets a new device per sign-in, and a malformed one is a 400.
+
+    UsernameCheckRequest:
+      type: object
+      required: [username]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: "^[A-Za-z0-9_.-]+$"
+
+    UsernameCheckResponse:
+      type: object
+      required: [exists]
+      properties:
+        exists:
+          type: boolean
 
     LoginRequest:
       type: object

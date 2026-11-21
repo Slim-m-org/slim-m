@@ -146,6 +146,13 @@ void main() {
         'persisting', (tester) async {
       var loginCalls = 0;
       final httpClient = MockClient((request) async {
+        if (request.url.path == '/auth/username/check') {
+          return http.Response(
+            '{"exists":true}',
+            200,
+            headers: const {'content-type': 'application/json'},
+          );
+        }
         if (request.method == 'POST' && request.url.path == '/auth/login') {
           loginCalls++;
           return http.Response(

@@ -233,6 +233,10 @@ class Client:
         raw = self.ev(e2e_js.NODES)
         return json.loads(raw or "[]")
 
+    def submit_sign_in(self, settle=1):
+        """Presses the sign-in form's button: "Continue" on a Space first met this run."""
+        self.click("Continue" if self.find("Continue") else "Sign in", settle=settle)
+
     def find(self, label, field=None, exact=False):
         """The first node whose label holds `label` (a string, or a compiled pattern it matches),
         or with `exact` starts with the string as a whole word (a short label like "Pan" sits inside "Expand")."""
