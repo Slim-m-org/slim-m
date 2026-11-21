@@ -64,6 +64,8 @@ allow = ["MPL-2.0"]
 ignore = [
   # 2026-10-26: unmaintained, not a vulnerability; pulled by lopdf for font handling, revisit when lopdf can be upgraded past the cipher pin.
   "RUSTSEC-2026-0192",
+  # 2026-11-21: unmaintained, not a vulnerability; the listener lockfile only, chrono comes through livekit 0.9.5 (livekit-protocol, pbjson-types) and has no chrono-free release, revisit on the next livekit bump.
+  "RUSTSEC-2026-0543",
 ]
 
 [bans]
