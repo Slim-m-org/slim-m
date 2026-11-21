@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show TextInput;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show ConflictException;
 
 import '../../first_run/providers/first_run_controller.dart'
     show firstRunInviterProvider;
@@ -76,14 +77,33 @@ Future<bool> connectAndSignIn(
     appInfo: ref.read(appInfoProvider.future),
   );
   if (creatingAccount) {
-    await registerAccount(
-      api,
-      identity,
-      justRegistered: justRegistered,
-      inviter: ref.read(firstRunInviterProvider.notifier),
-      credentials: credentials,
-      invite: invite,
-    );
+    final inviter = ref.read(firstRunInviterProvider.notifier);
+    try {
+      await registerAccount(
+        api,
+        identity,
+        justRegistered: justRegistered,
+        inviter: inviter,
+        credentials: credentials,
+        invite: invite,
+      );
+    } on ConflictException catch (taken) {
+      // Not a new account after all, so it gets no first-run welcome.
+      justRegistered.state = false;
+      inviter.state = null;
+      if (!context.mounted ||
+          !await signInToTakenUsername(
+            context,
+            ref,
+            api,
+            identity,
+            taken: taken,
+            credentials: credentials,
+            invite: invite,
+          )) {
+        return false;
+      }
+    }
   } else if (!context.mounted ||
       !await signInToAccount(
         context,

@@ -374,7 +374,12 @@ void main() {
       await tester.enterText(find.byType(TextField).at(2), 'hunter2hunter2');
       await tester.tap(find.widgetWithText(AppButton, 'Create account'));
       await tester.pumpAndSettle();
-      expect(find.text('That username is already taken.'), findsOneWidget);
+      expect(
+        find.text(
+          'That username is already taken. If it is yours, sign in instead.',
+        ),
+        findsOneWidget,
+      );
       await _finish(tester, 'submit-username-taken-desktop');
     });
 

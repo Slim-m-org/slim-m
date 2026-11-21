@@ -36,7 +36,7 @@ const unexpectedSignInError = (
   ),
   ConflictException() => (
     SignInErrorField.username,
-    'That username is already taken.',
+    'That username is already taken. If it is yours, sign in instead.',
   ),
   BadRequestException(:final message) => (
     _badRequestField(message),
