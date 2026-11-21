@@ -61,6 +61,7 @@ Future<ProviderContainer> _pump(
   List<InboxEntry> inbox = const [],
   Size size = const Size(1000, 800),
   bool withGate = false,
+  Widget? page,
   Duration accountAge = const Duration(days: 2),
 }) async {
   await tester.binding.setSurfaceSize(size);
@@ -83,7 +84,7 @@ Future<ProviderContainer> _pump(
     ],
   );
   addTearDown(container.dispose);
-  const home = Scaffold(body: NoChannelSelected());
+  final home = Scaffold(body: page ?? const NoChannelSelected());
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
@@ -91,7 +92,7 @@ Future<ProviderContainer> _pump(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: AppTouchTargets(
           enabled: touch,
-          child: withGate ? const WhatsNewGate(child: home) : home,
+          child: withGate ? WhatsNewGate(child: home) : home,
         ),
       ),
     ),
@@ -276,4 +277,20 @@ void main() {
       }
     });
   });
+
+  for (final (width, shown) in [(390.0, false), (1000.0, true)]) {
+    testWidgets('the routed page at $width wide ${shown ? 'is' : 'has no'} '
+        'home pane', (tester) async {
+      tester.view.physicalSize = Size(width, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await _pump(tester, size: Size(width, 844), page: const NoChannelPage());
+
+      expect(
+        find.text('Get started'),
+        shown ? findsOneWidget : findsNothing,
+        reason: 'a phone only ever sees this page under a channel sliding in',
+      );
+    });
+  }
 }
