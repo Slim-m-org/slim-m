@@ -20,6 +20,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 APP_DIR = os.path.join(REPO, "client", "packages", "app")
 DURATIONS_FILE = os.path.join(HERE, "client_durations.json")
+# Seconds of the files whose cost grows under SLIMM_FULL_FUZZ=1, which a PR-mode recording never sees.
+FULL_FUZZ_FILE = os.path.join(HERE, "client_durations_full_fuzz.json")
 # What a test file costs when no run has measured it yet.
 UNKNOWN_SECONDS = 3.0
 _MARKER = "client/packages/app/"
@@ -35,12 +37,20 @@ def test_files(app_dir=APP_DIR):
     return sorted(found)
 
 
-def load_durations(path=DURATIONS_FILE):
+def _read_json(path):
     try:
         with open(path, encoding="utf-8") as fh:
             return json.load(fh)
     except (OSError, ValueError):
         return {}
+
+
+def load_durations(path=DURATIONS_FILE, environ=None):
+    """Recorded seconds per file; a full-fuzz run (main) swaps in the longer cost of the fuzz files."""
+    durations = _read_json(path)
+    if (os.environ if environ is None else environ).get("SLIMM_FULL_FUZZ") == "1":
+        durations.update(_read_json(FULL_FUZZ_FILE))
+    return durations
 
 
 def deal(files, shards, durations=None):

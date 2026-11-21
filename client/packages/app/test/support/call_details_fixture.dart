@@ -85,14 +85,7 @@ class CallDetailsShell {
       'user_id': who,
       'kind': kind,
     };
-    // Midday yesterday by the local clock, so the label reads "yesterday" at any hour the suite runs.
-    final started = DateTime.fromMillisecondsSinceEpoch(startedAt);
-    final yesterday = DateTime(
-      started.year,
-      started.month,
-      started.day - 1,
-      12,
-    ).millisecondsSinceEpoch;
+    final yesterday = yesterdayNoonMs(DateTime.now().millisecondsSinceEpoch);
     return {
       'retention_days': 30,
       'canvas_object_count': 0,
@@ -255,4 +248,10 @@ Future<CallDetailsShell> pumpCallDetailsShell(
   );
   await pumpFrames(tester, frames: 20);
   return shell;
+}
+
+/// Midday on the local day before [nowMs], so "yesterday" holds at any hour, midnight included.
+int yesterdayNoonMs(int nowMs) {
+  final now = DateTime.fromMillisecondsSinceEpoch(nowMs);
+  return DateTime(now.year, now.month, now.day - 1, 12).millisecondsSinceEpoch;
 }

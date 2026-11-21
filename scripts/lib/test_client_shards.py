@@ -30,6 +30,13 @@ class DealTest(unittest.TestCase):
         dealt, _ = client_shards.deal(files, 12)
         self.assertEqual(sum(len(c) for c in dealt), len(files))
 
+    def test_a_full_fuzz_run_costs_the_fuzz_files_their_longer_time(self):
+        name = "test/sync/sync_convergence_property_test.dart"
+        quick = client_shards.load_durations(environ={})
+        full = client_shards.load_durations(environ={"SLIMM_FULL_FUZZ": "1"})
+        self.assertGreater(full[name], 3 * quick[name])
+        self.assertEqual(quick["test/audio/scene_synth_test.dart"], full["test/audio/scene_synth_test.dart"])
+
     def test_dealing_is_deterministic(self):
         first = client_shards.deal(list(reversed(FILES)), 12)
         self.assertEqual(first, client_shards.deal(FILES, 12))
