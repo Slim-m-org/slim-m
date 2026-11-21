@@ -55,7 +55,6 @@ import '../features/settings/widgets/rules_gate_banner_host.dart';
 import '../features/voice/widgets/push_to_talk_listener.dart';
 import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/download_failures.dart';
-import '../widgets/native_view_occlusion.dart';
 import '../widgets/shell_focus_anchor.dart';
 import '../widgets/update_banner_host.dart';
 import '../features/voice/providers/shortcut_overrides.dart';
@@ -67,7 +66,7 @@ import '../features/canvas/screens/canvas_fullscreen.dart';
 import '../features/canvas/screens/canvas_pane.dart';
 import '../features/voice/screens/dm_call_pane.dart';
 import '../features/voice/screens/hang_up_recap_toast.dart';
-import '../features/video/providers/docked_video.dart';
+import '../features/video/providers/desktop_video.dart';
 import '../features/background/widgets/app_background_host.dart';
 import '../features/role_preview/providers/role_preview_controller.dart';
 import '../features/role_preview/screens/role_preview_shell.dart';
@@ -222,7 +221,9 @@ class HomeShell extends ConsumerWidget {
         !showThread &&
         memberPaneWanted(ref, size);
     // A docked video takes the third pane, with the roster under it; a docked thread there sends it to the strip above the chat.
-    final videoDocked = ref.watch(dockedVideoProvider.select((v) => v != null));
+    final videoDocked = ref.watch(
+      desktopVideoProvider.select((v) => v?.docked ?? false),
+    );
     final videoSide =
         videoDocked && threadFits && !showThread && !canvasFullscreen;
     final showMembers = membersWanted && !videoSide;
@@ -305,12 +306,10 @@ class HomeShell extends ConsumerWidget {
       endDrawerEnableOpenDragGesture: !facts.canvasOpen,
       endDrawer: isDm || facts.membersFit || selected == null
           ? null
-          : OccludesNativeViews(
-              child: OpaquePanes(
-                child: Drawer(
-                  width: AppMemberPane.width,
-                  child: SafeArea(child: AppMemberPane(channelId: selected)),
-                ),
+          : OpaquePanes(
+              child: Drawer(
+                width: AppMemberPane.width,
+                child: SafeArea(child: AppMemberPane(channelId: selected)),
               ),
             ),
       body: Row(

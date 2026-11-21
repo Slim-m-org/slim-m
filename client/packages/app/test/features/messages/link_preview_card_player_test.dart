@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Where a tapped YouTube preview plays: in place on a phone, in the desktop
-/// panel (the card then says so), or in the browser where neither exists.
+/// Where a tapped YouTube preview plays: in place on a phone or through the
+/// desktop's shared player, or in the browser where neither exists.
 library;
 
 import 'package:flutter/material.dart';
@@ -11,11 +11,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/messages/providers/link_preview.dart';
 import 'package:slimm_app/src/features/messages/widgets/link_preview_card.dart';
-import 'package:slimm_app/src/features/video/providers/docked_video.dart';
+import 'package:slimm_app/src/features/video/providers/desktop_video.dart';
 import 'package:slimm_app/src/features/video/providers/embedded_video_player.dart';
 import 'package:slimm_app/src/features/video/providers/inline_video_player.dart';
 import 'package:slimm_app/src/features/video/providers/video_host_capability.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/features/video/widgets/desktop_video_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../video/fake_video_player.dart';
@@ -62,7 +63,7 @@ Future<_Harness> _pump(WidgetTester tester, VideoHostKind host) async {
         ),
       ),
       videoHostKindProvider.overrideWith((ref) async => host),
-      dockedVideoPlayerFactoryProvider.overrideWithValue(() => h.player),
+      desktopVideoPlayerFactoryProvider.overrideWithValue(() => h.player),
       inlineVideoFactoryProvider.overrideWithValue(
         ({required onShowFullscreen, required onHideFullscreen}) => (
           player: h.player,
@@ -144,27 +145,45 @@ void main() {
     expect(h.player.disposed, isTrue);
   });
 
-  testWidgets('on desktop the video goes to the panel and the card says so', (
+  testWidgets('on desktop the video plays in place through the one player', (
     tester,
   ) async {
-    final h = await _pump(tester, VideoHostKind.docked);
+    final h = await _pump(tester, VideoHostKind.desktop);
     await _tapPlay(tester);
 
-    final docked = h.container.read(dockedVideoProvider);
-    expect(docked?.url, _url);
-    expect(docked?.start, const Duration(seconds: 42));
-    expect(find.text('Playing in panel'), findsOneWidget);
-    expect(find.byIcon(AppIcons.play, skipOffstage: false), findsOneWidget);
+    final video = h.container.read(desktopVideoProvider);
+    expect(video?.url, _url);
+    expect(video?.start, const Duration(seconds: 42));
+    expect(video?.docked, isFalse);
+    expect(find.byKey(DesktopVideoView.textureKey), findsOneWidget);
+    expect(find.byIcon(AppIcons.play), findsNothing);
     expect(h.player.loads, hasLength(1));
     expect(h.launched, isEmpty);
+  });
+
+  testWidgets('a desktop video playing on in the panel comes back on a tap', (
+    tester,
+  ) async {
+    final h = await _pump(tester, VideoHostKind.desktop);
+    await _tapPlay(tester);
+    final controller = h.container.read(desktopVideoProvider.notifier);
+    controller.scrolledAway();
+    await tester.pump();
+
+    expect(h.container.read(desktopVideoProvider)?.docked, isTrue);
+    expect(find.text('Playing in panel'), findsOneWidget);
+    expect(find.byKey(DesktopVideoView.textureKey), findsNothing);
 
     await tester.tap(find.text('Playing in panel'));
     await tester.pump();
-    expect(h.player.loads, hasLength(1), reason: 'a second tap starts nothing');
+    expect(h.container.read(desktopVideoProvider)?.docked, isFalse);
+    expect(find.byKey(DesktopVideoView.textureKey), findsOneWidget);
+    expect(h.player.loads, hasLength(1), reason: 'it moves, never restarts');
 
-    h.container.read(dockedVideoProvider.notifier).close();
+    controller.close();
     await tester.pump();
     expect(find.text('Playing in panel'), findsNothing);
+    expect(find.byIcon(AppIcons.play), findsOneWidget);
   });
 
   testWidgets('without a player here the video opens in the browser', (
@@ -174,7 +193,7 @@ void main() {
     await _tapPlay(tester);
 
     expect(h.launched, [_url]);
-    expect(h.container.read(dockedVideoProvider), isNull);
+    expect(h.container.read(desktopVideoProvider), isNull);
     expect(find.byKey(_inlineView), findsNothing);
     expect(find.byIcon(AppIcons.play), findsOneWidget);
   });

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The docked video in the real shell: a third pane beside the chat where it
-/// fits, with the roster under it, a strip above the chat where it does not,
-/// and the same player across a channel switch until it is closed.
+/// The docked video in the real shell, where a video plays on once its
+/// message left the screen: a third pane beside the chat where it fits, with
+/// the roster under it, a strip above the chat where it does not, and the
+/// same player across a channel switch until it is closed.
 library;
 
 import 'package:flutter/material.dart';
@@ -12,7 +13,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 import 'package:slimm_app/src/features/canvas/providers/canvas_open.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_fullscreen.dart';
-import 'package:slimm_app/src/features/video/providers/docked_video.dart';
+import 'package:slimm_app/src/features/video/providers/desktop_video.dart';
 import 'package:slimm_app/src/features/video/providers/embedded_video_player.dart';
 import 'package:slimm_app/src/features/video/widgets/docked_video_panel.dart';
 import 'package:slimm_app/src/routing/breakpoints.dart';
@@ -47,7 +48,7 @@ Future<_Shell> _shell(
     httpClient: quietClient(),
     signedIn: true,
     extraOverrides: [
-      dockedVideoPlayerFactoryProvider.overrideWithValue(() => player),
+      desktopVideoPlayerFactoryProvider.overrideWithValue(() => player),
       if (window != null)
         desktopWindowShellProvider.overrideWith(
           (ref) => shellFor(window, active: true, frameless: true),
@@ -59,7 +60,11 @@ Future<_Shell> _shell(
     const api.Channel(id: 'c2', name: 'random', kind: 'text', createdAt: 0),
   ]);
   await pumpAtWidth(tester, s.container, width, location: '/channels/c1');
-  s.container.read(dockedVideoProvider.notifier).open(_url, _preview);
+  // Played in a message that then left the screen while playing.
+  final message = Object();
+  s.container.read(desktopVideoProvider.notifier)
+    ..playIn(message, _url, _preview)
+    ..leave(message);
   await tester.pump();
   // Past the pane's slide in, so the box is where it rests.
   await tester.pump(const Duration(seconds: 1));
@@ -95,8 +100,7 @@ void main() {
       expect(roster.top, greaterThan(box.bottom));
       expect(find.textContaining('MEMBERS'), findsOneWidget);
 
-      final sent = s.player.bounds.last;
-      expect(Rect.fromLTWH(sent.x, sent.y, sent.width, sent.height), box);
+      expect(s.player.size, box.size, reason: 'the page is sized to its box');
       await s.done();
     },
   );
@@ -123,7 +127,7 @@ void main() {
     expect(find.byKey(DockedVideoPanel.playerKey), findsOneWidget);
     expect(s.player.loads, hasLength(1));
     expect(s.player.disposed, isFalse);
-    expect(s.player.visible, isTrue);
+    expect(s.player.pauses, 0);
     await s.done();
   });
 
@@ -141,36 +145,16 @@ void main() {
     await s.done();
   });
 
-  testWidgets('the roster drawer over the strip hides the view', (
+  testWidgets('a drawer over the strip leaves the video playing', (
     tester,
   ) async {
     final s = await _shell(tester, 800);
-    expect(s.player.visible, isTrue);
-
     _shellScaffold(tester).openEndDrawer();
     await _settle(tester);
-    expect(s.player.visible, isFalse);
-
+    expect(s.player.pauses, 0, reason: 'Flutter draws the drawer over it');
     _shellScaffold(tester).closeEndDrawer();
     await _settle(tester);
-    expect(s.player.visible, isTrue);
-    await s.done();
-  });
-
-  testWidgets('both compact drawers hide the view while open', (tester) async {
-    final s = await _shell(tester, 500);
-    expect(s.player.visible, isTrue);
-
-    _shellScaffold(tester).openDrawer();
-    await _settle(tester);
-    expect(s.player.visible, isFalse, reason: 'the channel rail drawer');
-    _shellScaffold(tester).closeDrawer();
-    await _settle(tester);
-    expect(s.player.visible, isTrue);
-
-    _shellScaffold(tester).openEndDrawer();
-    await _settle(tester);
-    expect(s.player.visible, isFalse, reason: 'the roster drawer');
+    expect(s.player.pauses, 0);
     await s.done();
   });
 
@@ -183,7 +167,6 @@ void main() {
     await _settle(tester);
 
     expect(find.byKey(DockedVideoPanel.playerKey), findsNothing);
-    expect(s.player.visible, isFalse);
     expect(s.player.pauses, greaterThan(0));
     await s.done();
   });
@@ -212,27 +195,23 @@ void main() {
   });
 
   testWidgets(
-    'fullscreen started from the strip survives the wider window it makes',
+    'fullscreen from the strip covers the window, then gives the strip back',
     (tester) async {
       final window = FakeDesktopWindowPort();
       final s = await _shell(tester, 800, window: window);
-      s.player.emit(const VideoFullscreenChanged(on: true));
-      await tester.pump();
-      expect(window.fullScreen, isTrue);
+      final strip = tester.getSize(find.byKey(DockedVideoPanel.playerKey));
 
-      tester.view.physicalSize = const Size(1920, 1080);
+      s.player.emit(const VideoFullscreenChanged(on: true));
       await _settle(tester);
-      expect(
-        tester.getRect(find.byKey(DockedVideoPanel.playerKey)).right,
-        1920,
-        reason: 'the wider window docks it beside the chat',
-      );
       expect(window.fullScreen, isTrue);
-      expect(s.player.fullscreenExits, 0);
+      expect(s.player.size, const Size(800, 900), reason: 'the whole window');
+      expect(find.byKey(DockedVideoPanel.playerKey), findsNothing);
 
       s.player.emit(const VideoFullscreenChanged(on: false));
       await _settle(tester);
       expect(window.fullScreen, isFalse);
+      expect(find.byKey(DockedVideoPanel.playerKey), findsOneWidget);
+      expect(s.player.size, strip, reason: 'resized back to the strip');
       await s.done();
     },
   );

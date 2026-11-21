@@ -21,7 +21,6 @@ import '../../voice/screens/voice_text_pane.dart'
 import '../../channels/widgets/channel_rail_drawer.dart';
 import '../../channels/widgets/compact_channel_app_bar.dart';
 import '../../../widgets/drawer_edge_drag.dart';
-import '../../../widgets/native_view_occlusion.dart';
 import '../../members/widgets/member_pane.dart';
 
 class CompactDrawerScaffold extends ConsumerStatefulWidget {
@@ -108,11 +107,9 @@ class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
               : null,
           drawer: showRail
               ? restore(
-                  OccludesNativeViews(
-                    child: OpaquePanes(
-                      child: CompactChannelRailDrawer(
-                        selectedChannelId: channelId,
-                      ),
+                  OpaquePanes(
+                    child: CompactChannelRailDrawer(
+                      selectedChannelId: channelId,
                     ),
                   ),
                 )
@@ -126,13 +123,11 @@ class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
           // The roster slides in from the right: the conversation is the only pane at this width.
           endDrawer: showMembers
               ? restore(
-                  OccludesNativeViews(
-                    child: OpaquePanes(
-                      child: Drawer(
-                        width: AppMemberPane.width,
-                        child: SafeArea(
-                          child: AppMemberPane(channelId: channelId),
-                        ),
+                  OpaquePanes(
+                    child: Drawer(
+                      width: AppMemberPane.width,
+                      child: SafeArea(
+                        child: AppMemberPane(channelId: channelId),
                       ),
                     ),
                   ),

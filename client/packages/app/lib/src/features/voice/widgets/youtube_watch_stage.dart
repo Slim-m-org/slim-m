@@ -18,10 +18,11 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../external_link.dart';
 import '../../../format.dart' show formatPlaybackTime;
-import '../../video/providers/docked_video.dart';
 import '../../video/providers/video_host_capability.dart';
 import '../../video/providers/video_playback_coordinator.dart';
+import '../../video/providers/desktop_video_player.dart';
 import '../../video/providers/watch_video_host.dart';
+import '../../video/widgets/desktop_video_view.dart';
 import '../../video/widgets/video_fullscreen.dart';
 import '../providers/watch_room.dart';
 import '../providers/youtube_watch_sync.dart';
@@ -132,12 +133,6 @@ class _BodyState extends ConsumerState<_Body> {
   }
 
   /// The desktop panel was closed: the party plays there again on request.
-  void _reopen() {
-    unawaited(_detach());
-    final room = ref.read(watchRoomProvider(widget.channelId)).valueOrNull;
-    if (room != null) setState(() => _attach(room));
-  }
-
   @override
   void dispose() {
     _fullscreen.dispose();
@@ -171,15 +166,17 @@ class _BodyState extends ConsumerState<_Body> {
         onAction: openOnYoutube,
       );
     }
-    final view = handle.view;
+    final player = handle.player;
+    final view =
+        handle.view ??
+        (player is DesktopVideoPlayer
+            ? DesktopVideoView(player: player)
+            : const SizedBox.shrink());
     final localAt = _state.localAt;
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (view != null)
-          view
-        else
-          _DockedNote(videoId: room?.itemId, onReopen: _reopen),
+        view,
         if (localAt != null)
           _LocalBand(
             roomAt: localAt,
@@ -187,27 +184,6 @@ class _BodyState extends ConsumerState<_Body> {
           ),
       ],
     );
-  }
-}
-
-/// The desktop slot: the picture is in the video panel, or the panel was closed.
-class _DockedNote extends ConsumerWidget {
-  const _DockedNote({required this.videoId, required this.onReopen});
-
-  final String? videoId;
-  final VoidCallback onReopen;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final docked = ref.watch(dockedVideoProvider.select((v) => v?.videoId));
-    final open = docked != null && docked == videoId;
-    return open
-        ? const _Note(text: 'Playing in the video panel.')
-        : _Note(
-            text: 'The video panel is closed.',
-            action: 'Watch with the room',
-            onAction: onReopen,
-          );
   }
 }
 

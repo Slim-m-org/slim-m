@@ -1,25 +1,28 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The desktop video panel: it places the native view where its box landed,
-/// hides it whenever Flutter draws over it, explains a video that cannot
-/// play, and closes.
+/// The desktop video panel: it shows the player's texture in its box, sizes
+/// the page to that box, forwards the pointer, pauses while a page covers
+/// it, explains a video that cannot play, and closes.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart';
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
-import 'package:slimm_app/src/features/video/providers/docked_video.dart';
+import 'package:slimm_app/src/features/video/providers/desktop_video.dart';
+import 'package:slimm_app/src/features/video/providers/desktop_video_player.dart';
 import 'package:slimm_app/src/features/video/providers/embedded_video_player.dart';
 import 'package:slimm_app/src/features/video/widgets/docked_video_panel.dart';
-import 'package:slimm_app/src/widgets/native_view_occlusion.dart';
+import 'package:slimm_app/src/features/video/widgets/desktop_video_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../desktop/support/desktop_shell_fixture.dart';
 import '../../desktop/support/fake_desktop_window_port.dart';
 import 'fake_video_player.dart';
 
+const _field = Key('field');
 const _url = 'https://youtu.be/dQw4w9WgXcQ?t=42';
 const _preview = LinkPreview(
   url: _url,
@@ -36,7 +39,7 @@ const _preview = LinkPreview(
   final player = FakeVideoPlayer();
   final container = ProviderContainer(
     overrides: [
-      dockedVideoPlayerFactoryProvider.overrideWithValue(() => player),
+      desktopVideoPlayerFactoryProvider.overrideWithValue(() => player),
       if (window != null)
         desktopWindowShellProvider.overrideWith(
           (ref) => shellFor(window, active: true, frameless: true),
@@ -44,7 +47,10 @@ const _preview = LinkPreview(
     ],
   );
   addTearDown(container.dispose);
-  container.read(dockedVideoProvider.notifier).open(_url, _preview);
+  final message = Object();
+  container.read(desktopVideoProvider.notifier)
+    ..playIn(message, _url, _preview)
+    ..leave(message);
   return (container: container, player: player);
 }
 
@@ -98,7 +104,7 @@ void main() {
     expect(find.text('A channel'), findsOneWidget);
   });
 
-  testWidgets('the native view lands on the player box, at least 200 tall', (
+  testWidgets('the texture fills the player box, at least 200 tall', (
     tester,
   ) async {
     final s = _open();
@@ -107,9 +113,39 @@ void main() {
     final box = tester.getRect(find.byKey(DockedVideoPanel.playerKey));
     expect(box.width, 360);
     expect(box.height, kMinPlayerHeight + 2.5);
-    final sent = s.player.bounds.last;
-    expect(Rect.fromLTWH(sent.x, sent.y, sent.width, sent.height), box);
-    expect(s.player.visible, isTrue);
+    expect(tester.getRect(find.byKey(DesktopVideoView.textureKey)), box);
+    expect(
+      tester.widget<Texture>(find.byKey(DesktopVideoView.textureKey)).textureId,
+      FakeVideoPlayer.textureId,
+    );
+    expect(s.player.sizes.last, (box.size, 1.0));
+  });
+
+  testWidgets('the pointer reaches the page at its spot in the box', (
+    tester,
+  ) async {
+    final s = _open();
+    await _pump(tester, s.container);
+    final box = tester.getRect(find.byKey(DockedVideoPanel.playerKey));
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(box.topLeft + const Offset(30, 40));
+    await mouse.down(box.topLeft + const Offset(30, 40));
+    await mouse.moveTo(box.topLeft + const Offset(90, 40));
+    await mouse.up();
+    await mouse.moveTo(Offset.zero);
+    await tester.pump();
+
+    expect(s.player.pointers.take(5), [
+      (VideoPointerKind.enter, const Offset(30, 40)),
+      (VideoPointerKind.move, const Offset(30, 40)),
+      (VideoPointerKind.down, const Offset(30, 40)),
+      (VideoPointerKind.move, const Offset(90, 40)),
+      (VideoPointerKind.up, const Offset(90, 40)),
+    ]);
+    expect(s.player.pointers.last.$1, VideoPointerKind.leave);
   });
 
   testWidgets(
@@ -141,32 +177,47 @@ void main() {
     },
   );
 
-  testWidgets('an open menu hides the view until it closes', (tester) async {
-    final s = _open();
-    final menuOpen = ValueNotifier(false);
-    addTearDown(menuOpen.dispose);
-    await _pump(
-      tester,
-      s.container,
-      extra: ValueListenableBuilder<bool>(
-        valueListenable: menuOpen,
-        builder: (_, open, _) => open
-            ? const OccludesNativeViews(child: SizedBox(width: 10))
-            : const SizedBox(width: 10),
-      ),
-    );
-    expect(s.player.visible, isTrue);
+  testWidgets(
+    'after a click on the player, a field takes the keyboard again',
+    variant: TargetPlatformVariant.only(TargetPlatform.linux),
+    (tester) async {
+      final s = _open();
+      final focus = FocusNode();
+      addTearDown(focus.dispose);
+      await _pump(
+        tester,
+        s.container,
+        extra: SizedBox(
+          width: 200,
+          child: TextField(key: _field, focusNode: focus),
+        ),
+      );
+      await tester.tap(find.byKey(_field), kind: PointerDeviceKind.mouse);
+      await tester.pump();
+      expect(focus.hasFocus, isTrue);
 
-    menuOpen.value = true;
-    await tester.pump();
-    expect(s.player.visible, isFalse);
+      await tester.tap(
+        find.byKey(DesktopVideoView.textureKey),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump();
+      expect(
+        FocusManager.instance.primaryFocus?.context?.widget,
+        isNot(isA<Texture>()),
+        reason: 'the player holds no Flutter focus, so keys never go to it',
+      );
+      await tester.tap(find.byKey(_field), kind: PointerDeviceKind.mouse);
+      await tester.pump();
 
-    menuOpen.value = false;
-    await tester.pump();
-    expect(s.player.visible, isTrue);
-  });
+      expect(focus.hasFocus, isTrue);
+      expect(
+        s.player.pointers.map((p) => p.$1),
+        contains(VideoPointerKind.down),
+      );
+    },
+  );
 
-  testWidgets('a page over the shell hides the view until it pops', (
+  testWidgets('a page over the shell pauses the video and resizes on return', (
     tester,
   ) async {
     final s = _open();
@@ -180,13 +231,14 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    expect(s.player.visible, isFalse);
     expect(s.player.pauses, 1, reason: 'nothing plays out of sight');
+    final sent = s.player.sizes.length;
 
     navigator.pop();
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    expect(s.player.visible, isTrue);
+    await tester.pump();
+    expect(s.player.sizes.length, sent + 1, reason: 'in front again');
   });
 
   testWidgets('a video its owner will not let embed says so and hides', (
@@ -204,7 +256,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Open on YouTube'), findsOneWidget);
-    expect(s.player.visible, isFalse);
+    expect(find.byKey(DesktopVideoView.textureKey), findsNothing);
   });
 
   testWidgets('close ends the video and disposes the player', (tester) async {
@@ -215,7 +267,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(s.container.read(dockedVideoProvider), isNull);
+    expect(s.container.read(desktopVideoProvider), isNull);
     expect(s.player.disposed, isTrue);
     expect(find.text('A talk'), findsNothing);
   });
@@ -223,17 +275,19 @@ void main() {
   testWidgets('a second video reuses the one player', (tester) async {
     final s = _open();
     await _pump(tester, s.container);
-    s.container
-        .read(dockedVideoProvider.notifier)
-        .open(
-          'https://youtu.be/abcdefghijk',
-          const LinkPreview(
-            url: 'https://youtu.be/abcdefghijk',
-            title: 'Another',
-            videoProvider: LinkPreviewVideoProvider.youtube,
-            videoId: 'abcdefghijk',
-          ),
-        );
+    final message = Object();
+    s.container.read(desktopVideoProvider.notifier)
+      ..playIn(
+        message,
+        'https://youtu.be/abcdefghijk',
+        const LinkPreview(
+          url: 'https://youtu.be/abcdefghijk',
+          title: 'Another',
+          videoProvider: LinkPreviewVideoProvider.youtube,
+          videoId: 'abcdefghijk',
+        ),
+      )
+      ..leave(message);
     await tester.pump();
 
     expect(s.player.loads.map((l) => l.id), ['dQw4w9WgXcQ', 'abcdefghijk']);
@@ -258,7 +312,7 @@ void main() {
 
     s.player.emit(const VideoFullscreenChanged(on: true));
     await tester.pump();
-    s.container.read(dockedVideoProvider.notifier).close();
+    s.container.read(desktopVideoProvider.notifier).close();
     await tester.pump();
     await tester.pump();
     expect(window.fullScreen, isFalse, reason: 'closing lets the window go');

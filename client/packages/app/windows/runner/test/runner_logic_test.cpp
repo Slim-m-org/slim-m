@@ -232,19 +232,16 @@ void TheOpenCommandMatchesTheSetup() {
         L"\"" + kRoot + L"\\slim-m.exe\" \"%1\"");
 }
 
-void ALogicalRectScalesToPhysicalPixels() {
-  slimm::PixelRect rect = slimm::ToPhysical(10, 20, 360, 202.5, 1.5);
-  CHECK(rect.left == 15);
-  CHECK(rect.top == 30);
-  CHECK(rect.right == 555);
-  CHECK(rect.bottom == 334);
+void ASecondPressSoonAndNearIsADoubleClick() {
+  slimm::Click first = {1000, 100, 100};
+  CHECK(slimm::IsDoubleClick(first, {1400, 102, 101}, 500, 4, 4));
+  CHECK(!slimm::IsDoubleClick(first, {1600, 100, 100}, 500, 4, 4));
+  CHECK(!slimm::IsDoubleClick(first, {1100, 110, 100}, 500, 4, 4));
 }
 
-void AnEmptyOrBadRectIsNothing() {
-  slimm::PixelRect empty = slimm::ToPhysical(10, 20, 0, 100, 1);
-  CHECK(empty.right == 0 && empty.bottom == 0);
-  slimm::PixelRect unscaled = slimm::ToPhysical(1, 2, 3, 4, 0);
-  CHECK(unscaled.left == 1 && unscaled.right == 4 && unscaled.bottom == 6);
+void AClearedPressNeverStartsADoubleClick() {
+  CHECK(!slimm::IsDoubleClick(slimm::Click{}, {10, 0, 0}, 500, 4, 4));
+  CHECK(!slimm::IsDoubleClick({1000, 0, 0}, {900, 0, 0}, 500, 4, 4));
 }
 
 void OnlyTheHostPageStaysInThePlayer() {
@@ -284,8 +281,8 @@ int main() {
   TheHandOverNamesTheCopyTheLauncherWaitsFor();
   ACopyOutsideTheLayoutRegistersItself();
   TheOpenCommandMatchesTheSetup();
-  ALogicalRectScalesToPhysicalPixels();
-  AnEmptyOrBadRectIsNothing();
+  ASecondPressSoonAndNearIsADoubleClick();
+  AClearedPressNeverStartsADoubleClick();
   OnlyTheHostPageStaysInThePlayer();
   OnlyWebLinksReachTheBrowser();
   if (g_failures != 0) {

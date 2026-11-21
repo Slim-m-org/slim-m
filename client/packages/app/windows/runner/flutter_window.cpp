@@ -45,7 +45,7 @@ bool FlutterWindow::OnCreate() {
   RegisterTaskbarAttentionChannel(flutter_controller_->engine()->messenger(),
                                   GetHandle());
   RegisterWindowsToastsChannel(flutter_controller_->engine()->messenger());
-  RegisterYoutubePlayerChannel(flutter_controller_->engine()->messenger(),
+  RegisterYoutubePlayerChannel(flutter_controller_->engine(),
                                flutter_controller_->view()->GetNativeWindow());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
