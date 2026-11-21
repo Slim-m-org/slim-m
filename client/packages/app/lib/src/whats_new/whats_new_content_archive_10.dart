@@ -270,7 +270,7 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
     ],
   ),
   WhatsNewEntry(
-    version: '0.132.1',
+    version: '0.133.0',
     headline: 'YouTube in your messages, watch parties, and a round of fixes',
     points: [
       WhatsNewPoint(
