@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.133.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.133.0...client-v0.133.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* a flaky test, the main-only ci straggler, listener dependencies and logging, two file splits ([#2451](https://github.com/Slim-m-org/slim-m/issues/2451)) ([7f235d2](https://github.com/Slim-m-org/slim-m/commit/7f235d2fb3e13b25d6be898c13ab7be143583941))
+* **client:** android back closes an open menu, sheet or search instead of leaving the app ([#2458](https://github.com/Slim-m-org/slim-m/issues/2458)) ([2248d46](https://github.com/Slim-m-org/slim-m/commit/2248d46d6ea53cf6c941f2c7ca490a7fccdb2c5a))
+* **client:** search on a phone stays usable with the keyboard up ([#2457](https://github.com/Slim-m-org/slim-m/issues/2457)) ([3f0e7c1](https://github.com/Slim-m-org/slim-m/commit/3f0e7c1f31cc2cc55496b2366daf8a7440862972))
+* **client:** signing back in on the create form no longer makes a second account ([#2459](https://github.com/Slim-m-org/slim-m/issues/2459)) ([627613e](https://github.com/Slim-m-org/slim-m/commit/627613ee14f71b80591dea1d744991c52b457226))
+* one form signs in and creates accounts, so a new device no longer makes a second account ([#2460](https://github.com/Slim-m-org/slim-m/issues/2460)) ([149f5f7](https://github.com/Slim-m-org/slim-m/commit/149f5f7d38a0596e1caf3c568d947a15c60bcc97))
+
 ## [0.133.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.132.0...client-v0.133.0) (2026-11-21)
 
 
