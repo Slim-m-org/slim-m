@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The listener against a real `livekit-server --dev`, with the tiny English
 //! model: two people publish a generated voice and only the included one is
-//! heard, a speaker who publishes after the listener joined is transcribed,
-//! and a speaker's mute and unmute reach the listener.
+//! heard, a speaker who publishes before or after the listener joined is
+//! transcribed, and a speaker's mute and unmute reach the listener.
 //!
 //! Opt in with `LISTENER_REAL_LIVEKIT=ws://127.0.0.1:7880` and
 //! `LISTENER_TEST_MODEL` (a ggml model file), plus `LISTENER_TEST_WAV_SCRIPT`
 //! (`scripts/lib/make_fake_voice.py`) for the first test and
-//! `LISTENER_TEST_SPEECH_WAV` (espeak-ng speech) for the second. Without them
-//! each test passes at once.
+//! `LISTENER_TEST_SPEECH_WAV` (espeak-ng speech) for the two transcribed
+//! ones. Without them each test passes at once.
 #![cfg(all(feature = "livekit-room", feature = "whisper"))]
 
 use std::collections::HashSet;
@@ -204,9 +204,26 @@ fn speech_file(path: &str) -> Vec<i16> {
         .collect()
 }
 
+/// When the speaker's microphone is published, relative to the listener joining.
+#[derive(Clone, Copy)]
+enum Publishes {
+    BeforeTheListener,
+    AfterTheListener,
+}
+
 /// A call's first speaker usually publishes after the listener joined, so this path gets its own test.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_speaker_who_publishes_after_the_listener_joined_is_transcribed() {
+    speech_comes_back_as_words("carol", Publishes::AfterTheListener).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_speaker_who_published_before_the_listener_joined_is_transcribed() {
+    speech_comes_back_as_words("dave", Publishes::BeforeTheListener).await;
+}
+
+/// `who` speaks the espeak-ng sentence and the listener must send it back as words, from `who` alone.
+async fn speech_comes_back_as_words(who: &str, publishes: Publishes) {
     let (Ok(url), Ok(model), Ok(speech)) = (
         std::env::var("LISTENER_REAL_LIVEKIT"),
         std::env::var("LISTENER_TEST_MODEL"),
@@ -217,7 +234,11 @@ async fn a_speaker_who_publishes_after_the_listener_joined_is_transcribed() {
         );
         return;
     };
-    let room = LiveKitRoom::connect(&url, &token("listener-late", false, true))
+    let early = match publishes {
+        Publishes::BeforeTheListener => Some(speaker(&url, who, speech_file(&speech)).await),
+        Publishes::AfterTheListener => None,
+    };
+    let room = LiveKitRoom::connect(&url, &token(&format!("listener-{who}"), false, true))
         .await
         .expect("the listener joins hidden");
     let heard = Arc::new(Mutex::new(HashSet::new()));
@@ -230,23 +251,25 @@ async fn a_speaker_who_publishes_after_the_listener_joined_is_transcribed() {
     let (commands, feed) = unbounded_channel();
     let (reports, mut seen) = unbounded_channel::<Report>();
     let params = Params {
-        id: "late".into(),
-        include: ["carol".to_owned()].into(),
+        id: who.into(),
+        include: [who.to_owned()].into(),
         language: Some("en".into()),
     };
     let session = tokio::spawn(run(params, spy, feed, pool, reports));
 
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    let (_carol, carol_task) = speaker(&url, "carol", speech_file(&speech)).await;
+    let (_speaker, speaking) = match early {
+        Some(early) => early,
+        None => {
+            tokio::time::sleep(Duration::from_secs(2)).await;
+            speaker(&url, who, speech_file(&speech)).await
+        }
+    };
     tokio::time::sleep(Duration::from_secs(10)).await;
     commands.send(SessionCommand::Stop).unwrap();
     session.await.unwrap();
-    carol_task.abort();
+    speaking.abort();
 
-    assert!(
-        heard.lock().unwrap().contains("carol"),
-        "a speaker who arrived after the listener is heard"
-    );
+    assert!(heard.lock().unwrap().contains(who), "{who} is heard");
     let mut text = String::new();
     while let Ok(report) = seen.try_recv() {
         if let Report::Segment {
@@ -255,13 +278,13 @@ async fn a_speaker_who_publishes_after_the_listener_joined_is_transcribed() {
             ..
         } = report
         {
-            assert_eq!(identity, "carol");
+            assert_eq!(identity, who);
             text.push_str(&words);
         }
     }
     assert!(
         text.to_lowercase().contains("listener"),
-        "the speech comes back as words: {text:?}"
+        "{who}'s speech comes back as words: {text:?}"
     );
 }
 

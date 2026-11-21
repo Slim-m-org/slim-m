@@ -82,7 +82,12 @@ struct Heard {
     samples: u64,
     since_log: u64,
     peak: u16,
+    /// The loudest sample since the last periodic log, so a speaker who went quiet shows as quiet.
+    recent_peak: u16,
     utterances: u32,
+    too_short: u32,
+    lines: u32,
+    no_words: u32,
 }
 
 struct Track {
@@ -256,7 +261,8 @@ impl<R: RoomSource> Session<R> {
             .entry(identity.to_owned())
             .or_insert_with(|| Endpointer::new(origin));
         let utterances = endpoint.push(samples);
-        self.note_heard(identity, samples, utterances.len());
+        let too_short = endpoint.too_short();
+        self.note_heard(identity, samples, utterances.len(), too_short);
         self.queue_all(identity, utterances);
     }
 
@@ -310,10 +316,13 @@ impl<R: RoomSource> Session<R> {
         if !self.include.contains(&meta.identity) {
             return;
         }
+        let heard = self.heard.entry(meta.identity.clone()).or_default();
         if is_noise_marker(&transcript.text) {
+            heard.no_words += 1;
             tracing::info!(session = %self.id, identity = %meta.identity, "an utterance came back as no words");
             return;
         }
+        heard.lines += 1;
         let _ = self.reports.send(Report::Segment {
             session: self.id.clone(),
             identity: meta.identity,
@@ -330,12 +339,13 @@ impl<R: RoomSource> Session<R> {
     async fn drain(&mut self, done: &mut UnboundedReceiver<Done>) {
         let speakers: Vec<String> = self.endpoints.keys().cloned().collect();
         for identity in speakers {
-            let last = self
-                .endpoints
-                .get_mut(&identity)
-                .and_then(Endpointer::finish);
+            let Some(endpoint) = self.endpoints.get_mut(&identity) else {
+                continue;
+            };
+            let last = endpoint.finish();
+            let too_short = endpoint.too_short();
+            self.note_heard(&identity, &[], usize::from(last.is_some()), too_short);
             if let Some(utterance) = last {
-                self.note_heard(&identity, &[], 1);
                 self.queue_all(&identity, vec![utterance]);
             }
         }
@@ -352,15 +362,15 @@ impl<R: RoomSource> Session<R> {
         }
     }
 
-    fn note_heard(&mut self, identity: &str, samples: &[i16], utterances: usize) {
+    fn note_heard(&mut self, identity: &str, samples: &[i16], utterances: usize, too_short: u32) {
         let heard = self.heard.entry(identity.to_owned()).or_default();
         heard.samples += samples.len() as u64;
         heard.since_log += samples.len() as u64;
-        heard.peak = samples
-            .iter()
-            .map(|s| s.unsigned_abs())
-            .fold(heard.peak, u16::max);
+        let loudest = samples.iter().map(|s| s.unsigned_abs()).max().unwrap_or(0);
+        heard.peak = heard.peak.max(loudest);
+        heard.recent_peak = heard.recent_peak.max(loudest);
         heard.utterances += u32::try_from(utterances).unwrap_or(u32::MAX);
+        heard.too_short = too_short;
         if heard.since_log >= HEARD_LOG_SAMPLES {
             heard.since_log = 0;
             tracing::info!(
@@ -368,9 +378,14 @@ impl<R: RoomSource> Session<R> {
                 identity,
                 seconds = heard.samples / SAMPLE_RATE as u64,
                 peak = heard.peak,
+                recent_peak = heard.recent_peak,
                 utterances = heard.utterances,
+                too_short = heard.too_short,
+                lines = heard.lines,
+                no_words = heard.no_words,
                 "heard a speaker"
             );
+            heard.recent_peak = 0;
         }
     }
 
@@ -382,6 +397,9 @@ impl<R: RoomSource> Session<R> {
                 seconds = heard.samples / SAMPLE_RATE as u64,
                 peak = heard.peak,
                 utterances = heard.utterances,
+                too_short = heard.too_short,
+                lines = heard.lines,
+                no_words = heard.no_words,
                 "heard in total"
             );
         }
