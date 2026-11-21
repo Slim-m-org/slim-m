@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.115.1](https://github.com/Slim-m-org/slim-m/compare/server-v0.115.0...server-v0.115.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **server:** a preview listing no longer fails when a temp file is renamed mid-listing ([#2456](https://github.com/Slim-m-org/slim-m/issues/2456)) ([e284016](https://github.com/Slim-m-org/slim-m/commit/e2840163bb2e355d1929b17fb98601c653babbb1))
+
 ## [0.115.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.114.1...server-v0.115.0) (2026-11-21)
 
 
