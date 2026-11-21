@@ -14,7 +14,6 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_api/api.dart' show CategoryOrderGroup, ChannelOrderGroup;
 import 'package:slimm_data/data.dart';
@@ -28,6 +27,7 @@ import 'rail_drop_slots.dart';
 import 'rail_move_actions.dart';
 import 'rail_carry_overlay.dart';
 import 'rail_carry_slot.dart';
+import 'rail_item.dart';
 
 const _holdDelay = Duration(milliseconds: 300);
 
@@ -67,27 +67,6 @@ class DesktopRailReorder extends StatefulWidget {
   State<DesktopRailReorder> createState() => _DesktopRailReorderState();
 }
 
-class _Carry {
-  _Carry({
-    required this.id,
-    required this.isCategory,
-    required this.grab,
-    required this.size,
-    required this.inset,
-    required this.entry,
-  });
-
-  final String id;
-  final bool isCategory;
-  final Offset grab;
-  final Size size;
-
-  /// The gap left of the lifted item's face, by its depth.
-  final double inset;
-  final OverlayEntry entry;
-  DropSlot? slot;
-}
-
 class _DesktopRailReorderState extends State<DesktopRailReorder>
     with SingleTickerProviderStateMixin {
   final _stackKey = GlobalKey();
@@ -100,7 +79,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     vsync: this,
     duration: AppMotion.base,
   );
-  _Carry? _carry;
+  RailCarry? _carry;
   Timer? _scrollTimer;
 
   List<ChannelSection>? _treeOf;
@@ -189,7 +168,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
         )
       else
         _item(
-          _RailItem(
+          RailItem(
             id: 'h:${category?.id}',
             dimmed: lifted,
             liftable: category?.canManage ?? false,
@@ -213,7 +192,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
                 child: const SizedBox.shrink(),
               )
             : _item(
-                _RailItem(
+                RailItem(
                   id: 'c:${channel.id}',
                   dimmed: carry?.id == channel.id && !carry!.isCategory,
                   liftable: true,
@@ -239,7 +218,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     ];
   }
 
-  Widget _item(_RailItem entry) {
+  Widget _item(RailItem entry) {
     Widget item = Semantics(
       customSemanticsActions: entry.actions,
       child: entry.dimmed ? _slotFor(entry.inset) : entry.child,
@@ -302,15 +281,15 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     return boxes;
   }
 
-  void _liftItem(_RailItem item, Offset global) {
+  void _liftItem(RailItem item, Offset global) {
     if (_carry != null) return;
     final box = _boxOf(_keyFor(item.id));
     if (box == null) return;
     final origin = box.localToGlobal(Offset.zero);
     final overlay = Overlay.of(context);
-    late final _Carry carry;
+    late final RailCarry carry;
     final entry = OverlayEntry(builder: (_) => _floating(carry));
-    carry = _Carry(
+    carry = RailCarry(
       id: item.liftId,
       isCategory: item.isCategory,
       grab: global - origin,
@@ -331,7 +310,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     _lift.forward(from: 0);
   }
 
-  Widget _floating(_Carry carry) {
+  Widget _floating(RailCarry carry) {
     final copy = carry.isCategory
         ? (widget.carriedHeaderBuilder ?? widget.headerBuilder)(
             widget.sections
@@ -370,7 +349,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
   }
 
   /// The shut section the carried item already sits in, where the server still allows a move.
-  int? _homeSection(_Carry carry) {
+  int? _homeSection(RailCarry carry) {
     final home = carry.isCategory
         ? _tree.parentOf(_tree.byId[carry.id])?.id
         : widget.sections
@@ -484,31 +463,4 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
       ..remove()
       ..dispose();
   }
-}
-
-/// What one rail row needs to be lifted, moved and announced.
-class _RailItem {
-  const _RailItem({
-    required this.id,
-    required this.dimmed,
-    required this.liftable,
-    required this.isCategory,
-    required this.liftId,
-    required this.inset,
-    required this.actions,
-    this.shortcuts = const {},
-    required this.child,
-  });
-
-  final String id;
-  final bool dimmed;
-  final bool liftable;
-  final bool isCategory;
-  final String liftId;
-
-  /// The gap left of the item's face, which its carried copy and slot keep.
-  final double inset;
-  final Map<CustomSemanticsAction, VoidCallback> actions;
-  final Map<ShortcutActivator, VoidCallback> shortcuts;
-  final Widget child;
 }
