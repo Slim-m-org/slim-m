@@ -46,6 +46,7 @@ pub struct Endpointer {
     floor: f32,
     pre_roll: VecDeque<Vec<i16>>,
     active: Option<Active>,
+    too_short: u32,
 }
 
 struct Active {
@@ -65,7 +66,13 @@ impl Endpointer {
             floor: 100.0,
             pre_roll: VecDeque::new(),
             active: None,
+            too_short: 0,
         }
+    }
+
+    /// How many bursts were dropped as shorter than [`MIN_UTTERANCE_MS`], so a log can tell clipped speech from silence.
+    pub fn too_short(&self) -> u32 {
+        self.too_short
     }
 
     /// Feeds samples and returns the utterances that ended in them.
@@ -145,6 +152,7 @@ impl Endpointer {
         let frames = (active.pcm.len() / FRAME_SAMPLES) as i64;
         let spoken_ms = (frames - active.quiet_frames - active.lead) * FRAME_MS;
         if spoken_ms < MIN_UTTERANCE_MS {
+            self.too_short = self.too_short.saturating_add(1);
             return None;
         }
         let start_ms = self.origin_ms + active.start_frame * FRAME_MS;

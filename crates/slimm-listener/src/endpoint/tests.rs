@@ -83,6 +83,17 @@ fn six_hundred_milliseconds_of_silence_ends_it() {
 fn a_blip_under_four_hundred_milliseconds_is_dropped() {
     let found = run(0, &[hiss(500, 60.0), speech(200), hiss(1_000, 60.0)]);
     assert!(found.is_empty(), "{found:?}");
+    let mut counted = Endpointer::new(0);
+    for part in [
+        hiss(500, 60.0),
+        speech(200),
+        hiss(1_000, 60.0),
+        speech(200),
+        hiss(1_000, 60.0),
+    ] {
+        assert!(counted.push(&part).is_empty());
+    }
+    assert_eq!(counted.too_short(), 2, "each dropped blip is counted");
     let kept = run(0, &[hiss(500, 60.0), speech(500), hiss(1_000, 60.0)]);
     assert_eq!(kept.len(), 1);
 }
