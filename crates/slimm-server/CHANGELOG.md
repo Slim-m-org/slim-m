@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.115.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.114.1...server-v0.115.0) (2026-11-21)
+
+
+### Features
+
+* **voice:** fold repeated joins into one row of a call's timeline, drop quick reconnects ([#2445](https://github.com/Slim-m-org/slim-m/issues/2445)) ([335cd12](https://github.com/Slim-m-org/slim-m/commit/335cd127f7dc8ada93eeefcddeb661df652ccac9))
+* youtube watch parties on the watch session ([#2446](https://github.com/Slim-m-org/slim-m/issues/2446)) ([e9737d1](https://github.com/Slim-m-org/slim-m/commit/e9737d1e73f95a983981229f8f27bc9aa9f048e1))
+
+
+### Bug Fixes
+
+* typing after the youtube player on linux, share stamps and pictures, paused camera label, soundboard volume ([#2442](https://github.com/Slim-m-org/slim-m/issues/2442)) ([7827fec](https://github.com/Slim-m-org/slim-m/commit/7827fecb280071e25ddf603f41da9afd4016e257))
+
 ## [0.114.1](https://github.com/Slim-m-org/slim-m/compare/server-v0.114.0...server-v0.114.1) (2026-11-20)
 
 
