@@ -271,23 +271,43 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
   ),
   WhatsNewEntry(
     version: '0.132.1',
-    headline: 'Fixes from a two-week review',
+    headline: 'YouTube in your messages, watch parties, and a round of fixes',
     points: [
       WhatsNewPoint(
-        'When a kick, mute, delete or other menu action fails, the error '
-        'now stays up until you dismiss it.',
+        'On Windows and Linux, YouTube links now play right in the message, '
+        'and keep playing beside the chat when you scroll away.',
       ),
       WhatsNewPoint(
-        'Clicking a voice channel while you are in another call asks before '
-        'switching, and the live transcript reaches everyone in the call.',
+        'Watch YouTube together: in a call, ask the YouTube bot to play a '
+        'link and everyone watches in sync.',
       ),
       WhatsNewPoint(
-        'A mention stays marked when a message is edited while you were '
-        'away, and the unread badge follows the account on screen.',
+        'The soundboard has its own volume and mute, right in the picker '
+        'and under Voice settings.',
       ),
       WhatsNewPoint(
-        'Leaving permission or module settings by the back button or Back '
-        'to channels asks about unsaved changes, like system back does.',
+        'Typing works again in search and the message box after you click '
+        'a YouTube video on Linux.',
+      ),
+      WhatsNewPoint(
+        'Stamps on a screen share: animated emoji move, and big GIFs and '
+        'pictures place instead of doing nothing.',
+      ),
+      WhatsNewPoint(
+        'On Windows, a pinned taskbar icon keeps working after an update '
+        'instead of leaving a second one.',
+      ),
+      WhatsNewPoint(
+        'A call\'s timeline shows "joined ×6" instead of six rows, and quick '
+        'reconnects no longer count as leaving.',
+      ),
+      WhatsNewPoint(
+        'Your camera tile says the preview is paused while the window is in '
+        'the background, instead of Starting camera.',
+      ),
+      WhatsNewPoint(
+        'When a menu action like kick, mute or delete fails, the error now '
+        'stays until you dismiss it, and mentions stay marked through edits.',
       ),
     ],
   ),
