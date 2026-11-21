@@ -6,7 +6,7 @@ library;
 
 export '../features/channels/screens/conversation_pane.dart'
     show ConversationPane;
-export 'home_shell_empty_state.dart' show NoChannelSelected;
+export 'home_shell_empty_state.dart' show NoChannelPage, NoChannelSelected;
 
 import 'dart:math' as math;
 

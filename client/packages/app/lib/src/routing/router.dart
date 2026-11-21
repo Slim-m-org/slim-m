@@ -305,7 +305,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: Routes.channels,
             pageBuilder: (context, state) => fadeThroughPage(
               context,
-              const NoChannelSelected(),
+              const NoChannelPage(),
               key: const ValueKey('no-channel'),
             ),
             routes: [

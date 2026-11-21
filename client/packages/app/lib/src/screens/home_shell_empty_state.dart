@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:slimm_design_system/design_system.dart' show kCompactWidth;
 
 import '../features/home/widgets/home_pane.dart';
 
@@ -13,4 +14,17 @@ class NoChannelSelected extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const HomePane();
+}
+
+/// The routed page for no channel chosen. Below `kCompactWidth` the channel
+/// list is the whole screen then, so this is empty: it is only ever seen
+/// under a channel sliding in, and a home pane nobody saw must not count as read.
+class NoChannelPage extends StatelessWidget {
+  const NoChannelPage({super.key});
+
+  @override
+  Widget build(BuildContext context) =>
+      MediaQuery.sizeOf(context).width < kCompactWidth
+      ? const SizedBox.shrink()
+      : const NoChannelSelected();
 }
