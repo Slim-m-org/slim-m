@@ -282,14 +282,22 @@ class HomeShell extends ConsumerWidget {
           ? wide(false)
           : withChannelKind(ref, selected, wide);
     }
-    if (selected == null) {
-      return const Scaffold(
-        backgroundColor: Colors.transparent,
-        body: ChannelRail(),
-      );
-    }
+    if (selected == null) return _compactList(child);
     return _compactScaffold(context, ref, facts, selected);
   }
+
+  /// The list has no use for the routed child, but go_router's system-back lookup dereferences this shell's navigator, so it stays mounted out of sight.
+  Widget _compactList(Widget child) => Stack(
+    fit: StackFit.expand,
+    children: [
+      Offstage(
+        child: ExcludeFocus(
+          child: Material(type: MaterialType.transparency, child: child),
+        ),
+      ),
+      const Scaffold(backgroundColor: Colors.transparent, body: ChannelRail()),
+    ],
+  );
 
   Widget _wideScaffold(
     BuildContext context,
