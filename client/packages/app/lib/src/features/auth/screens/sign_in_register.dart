@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
+import '../../../providers/toasts.dart';
 import '../../first_run/providers/first_run_inviter.dart';
 import '../../settings/widgets/totp_sign_in_prompt.dart';
 import '../providers/sign_in_identity.dart';
@@ -36,6 +37,42 @@ Future<void> registerAccount(
     clientVersion: identity.clientVersion,
     installId: identity.installId,
   );
+}
+
+/// What the create form does when its username already exists: someone
+/// signing back in, if the password is that account's. Fresh installs open on
+/// creating an account, and people with one made a second by picking a new
+/// name here. Rethrows [taken] when the password is not the account's.
+Future<bool> signInToTakenUsername(
+  BuildContext context,
+  WidgetRef ref,
+  SlimmApi api,
+  SignInIdentity identity, {
+  required ConflictException taken,
+  required NewAccountCredentials credentials,
+  String? invite,
+}) async {
+  // Read before the awaits: signing in can dispose the screen mid-flight.
+  final toasts = ref.read(toastsProvider.notifier);
+  final bool signedIn;
+  try {
+    signedIn = await signInToAccount(
+      context,
+      ref,
+      api,
+      identity,
+      credentials: credentials,
+      invite: invite,
+    );
+  } on ApiException {
+    throw taken;
+  }
+  if (signedIn) {
+    toasts.show(
+      'You already have an account here, so you are signed in to it.',
+    );
+  }
+  return signedIn;
 }
 
 /// Signs in to an existing account; false when the second-factor sheet was
