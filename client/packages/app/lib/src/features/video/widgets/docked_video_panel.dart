@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The desktop video panel: a header with the video's title, the player, and
-/// whatever the shell docks below it. Beside the chat it is a third pane
+/// The desktop video panel, where a video plays on once its message left the
+/// screen: a header with the video's title, the player, and whatever the
+/// shell docks below it. Beside the chat it is a third pane
 /// ([DockedVideoLayout.side]); without room for one it is a strip above the
 /// conversation ([DockedVideoLayout.strip]). Width decides which, never the
 /// platform (docs/design/desktop-vs-mobile.md, rule 8).
@@ -14,10 +15,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../external_link.dart';
-import '../providers/docked_video.dart';
-import '../providers/docked_video_player.dart';
+import '../providers/desktop_video.dart';
+import '../providers/desktop_video_player.dart';
 import '../providers/embedded_video_player.dart';
-import 'native_view_slot.dart';
+import 'desktop_video_view.dart';
 
 enum DockedVideoLayout { side, strip }
 
@@ -36,7 +37,7 @@ double _stripMaxHeight(double windowHeight) =>
 class DockedVideoPanel extends ConsumerWidget {
   const DockedVideoPanel({super.key, required this.layout, this.below});
 
-  /// The box the player's native view floats over.
+  /// The box the player's texture fills.
   static const playerKey = Key('docked-video-player');
 
   final DockedVideoLayout layout;
@@ -46,9 +47,11 @@ class DockedVideoPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final video = ref.watch(dockedVideoProvider);
-    final player = ref.read(dockedVideoProvider.notifier).player;
-    if (video == null || player == null) return const SizedBox.shrink();
+    final video = ref.watch(desktopVideoProvider);
+    final player = ref.read(desktopVideoProvider.notifier).player;
+    if (video == null || !video.docked || player == null) {
+      return const SizedBox.shrink();
+    }
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final body = _PlayerBody(
       key: ValueKey(video.videoId),
@@ -58,7 +61,7 @@ class DockedVideoPanel extends ConsumerWidget {
     );
     final header = _VideoHeader(
       video: video,
-      onClose: ref.read(dockedVideoProvider.notifier).close,
+      onClose: ref.read(desktopVideoProvider.notifier).close,
     );
     return Semantics(
       container: true,
@@ -105,7 +108,7 @@ class DockedVideoPanel extends ConsumerWidget {
 class _VideoHeader extends StatelessWidget {
   const _VideoHeader({required this.video, required this.onClose});
 
-  final DockedVideo video;
+  final DesktopVideo video;
   final VoidCallback onClose;
 
   @override
@@ -179,8 +182,8 @@ class _PlayerBody extends StatefulWidget {
     required this.strip,
   });
 
-  final DockedVideo video;
-  final DockedVideoPlayer player;
+  final DesktopVideo video;
+  final DesktopVideoPlayer player;
   final bool strip;
 
   @override
@@ -219,27 +222,19 @@ class _PlayerBodyState extends State<_PlayerBody> {
   @override
   Widget build(BuildContext context) {
     final failure = _failure;
-    final player = NativeViewSlot(player: widget.player, show: failure == null);
     final framed = failure == null
-        ? player
-        : Stack(
-            fit: StackFit.expand,
-            children: [
-              player,
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.s12),
-                  child: AppErrorState(
-                    message: failure.embeddingRefused
-                        ? 'This video can only be watched on YouTube.'
-                        : 'This video could not be played here.',
-                    retryLabel: _openOnYoutube,
-                    onRetry: () =>
-                        unawaited(openExternalHttpUrl(widget.video.url)),
-                  ),
-                ),
+        ? DesktopVideoView(player: widget.player)
+        : Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.s12),
+              child: AppErrorState(
+                message: failure.embeddingRefused
+                    ? 'This video can only be watched on YouTube.'
+                    : 'This video could not be played here.',
+                retryLabel: _openOnYoutube,
+                onRetry: () => unawaited(openExternalHttpUrl(widget.video.url)),
               ),
-            ],
+            ),
           );
     return LayoutBuilder(
       builder: (context, constraints) {

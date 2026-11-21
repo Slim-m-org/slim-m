@@ -12,7 +12,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show LinkPreview, LinkPreviewVideoProvider;
 
-import 'docked_video.dart';
+import 'desktop_video.dart';
 import 'embedded_video_player.dart';
 import 'inline_video_player.dart';
 import 'video_host_capability.dart';
@@ -33,10 +33,11 @@ class WatchVideoHandle {
 
   final EmbeddedVideoPlayer player;
 
-  /// The picture for the call stage; null when the desktop panel shows it.
+  /// The picture for the call stage; null for the desktop's shared player,
+  /// which the stage draws itself.
   final Widget? view;
 
-  /// Replaces the video, so the desktop panel's title follows it too.
+  /// Replaces the video.
   final Future<void> Function(String videoId, Duration start, String title)
   load;
   final Future<void> Function() release;
@@ -58,7 +59,7 @@ final watchVideoFactoryProvider =
       (_, kind) => switch (kind) {
         VideoHostKind.inline when kIsWeb => _iframe,
         VideoHostKind.inline => _phone,
-        VideoHostKind.docked => _docked,
+        VideoHostKind.desktop => _desktop,
         VideoHostKind.external => null,
       },
     );
@@ -114,9 +115,9 @@ LinkPreview _preview(String videoId, Duration start, String title) =>
       videoStartMs: start.inMilliseconds,
     );
 
-/// The desktop panel is the shell's one native player, so the party borrows
-/// it and hands it back closed when the stage lets go.
-WatchVideoHandle _docked(
+/// The desktop's one shared player, shown on the call stage: a party video
+/// replaces whatever was playing, and is closed when the stage lets go.
+WatchVideoHandle _desktop(
   ProviderContainer container, {
   required String videoId,
   required Duration start,
@@ -124,20 +125,20 @@ WatchVideoHandle _docked(
   required ShowFullscreen onShowFullscreen,
   required void Function() onHideFullscreen,
 }) {
-  final dock = container.read(dockedVideoProvider.notifier);
-  dock.open(youtubeWatchUrl(videoId), _preview(videoId, start, title));
-  final player = dock.player!;
-  var current = videoId;
+  final desktop = container.read(desktopVideoProvider.notifier);
+  final stage = Object();
+  var current = youtubeWatchUrl(videoId);
+  desktop.playIn(stage, current, _preview(videoId, start, title));
+  final player = desktop.player!;
   return WatchVideoHandle(
     player: player,
     load: (id, at, name) async {
-      current = id;
-      dock.open(youtubeWatchUrl(id), _preview(id, at, name));
+      current = youtubeWatchUrl(id);
+      desktop.playIn(stage, current, _preview(id, at, name));
     },
     release: () async {
-      if (identical(dock.player, player) &&
-          container.read(dockedVideoProvider)?.videoId == current) {
-        dock.close();
+      if (identical(container.read(desktopVideoProvider)?.owner, stage)) {
+        desktop.close();
       }
     },
   );

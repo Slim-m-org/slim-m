@@ -408,10 +408,11 @@ Instead `linux/runner/webkit_loader.cc` opens `libwebkit2gtk-4.1.so.0` with `dlo
 It needs WebKitGTK 2.40 or newer and refuses to load when libsoup 2 is already in the process, since libsoup 2 and 3 abort when they meet.
 The rpm carries `Recommends: webkit2gtk4.1`; the tarball and the flatpak run without it and open a video in the browser.
 WebKitGTK is LGPL-2.1 and only loaded, never shipped.
+The view is never shown: `linux/runner/youtube_player_channel.cc` copies its frames into a Flutter texture (decision 0128's 2026-11-20 amendment).
 
 Windows has no pub package either.
 `webview_windows` 0.4.0 was last released in 2024 on a 2022 WebView2 SDK, `flutter_inappwebview` 6.2 adds a Linux implementation that breaks every Linux build, and `webview_win_floating` and `webview_all` both link WebKitGTK on Linux too.
-`windows/runner/youtube_player_win.cpp` hosts WebView2 directly.
+`windows/runner/youtube_player_win.cpp` hosts WebView2 directly, through a composition controller, and `youtube_player_capture.cpp` copies its visual into a Flutter texture with Windows.Graphics.Capture (the Windows SDK's C++/WinRT headers, `windowsapp`, `d3d11`, `dxgi` and `CoreMessaging`, all part of Windows).
 `windows/runner/CMakeLists.txt` downloads the `Microsoft.Web.WebView2` 1.0.4314.35 nupkg (BSD-3-Clause, sha256 `90778deb1b77e36292828b4b5833c9255c27533f40e0ddd55891ae718944edc4`) at configure time and checks its hash, so no `nuget.exe` is needed.
 Only its headers and `WebView2LoaderStatic.lib` are used, so no `WebView2Loader.dll` ships and the exe grows by about 0.2 MB.
 The licenses gate does not see a CMake download, which is why it is recorded here.

@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The desktop runners' YouTube host: a native webview (WebKitGTK on Linux,
-/// WebView2 on Windows) floating over the Flutter view at a rect Dart sets.
-/// The C++ halves are `linux/runner/youtube_player_channel.cc` and
+/// WebView2 on Windows) kept off screen, its frames handed to Flutter as a
+/// texture. The C++ halves are `linux/runner/youtube_player_channel.cc` and
 /// `windows/runner/youtube_player_channel.cpp`.
 library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/services.dart';
 
-import 'docked_video_player.dart';
+import 'desktop_video_player.dart';
 import 'youtube_bridge_player.dart';
 import 'youtube_host_page.dart';
 
@@ -36,29 +37,31 @@ class NativeVideoHost {
     }
   }
 
-  /// Builds the hidden view and loads the host page into it.
-  Future<bool> create(void Function(String message) onMessage) async {
+  /// Builds the view, loads the host page into it and answers the texture
+  /// its frames go to, or null when the view could not be built.
+  Future<int?> create(void Function(String message) onMessage) async {
     _onMessage = onMessage;
     try {
-      return await _channel.invokeMethod<bool>('create', {
-            'html': youtubeHostHtml,
-            'url': kYoutubeHostUrl,
-          }) ??
-          false;
+      final id = await _channel.invokeMethod<int>('create', {
+        'html': youtubeHostHtml,
+        'url': kYoutubeHostUrl,
+      });
+      return id == null || id < 0 ? null : id;
     } on PlatformException {
-      return false;
+      return null;
     }
   }
 
-  Future<void> setBounds(NativeViewRect rect) => _invoke('setBounds', {
-    'x': rect.x,
-    'y': rect.y,
-    'width': rect.width,
-    'height': rect.height,
+  Future<void> resize(Size size, double pixelRatio) => _invoke('resize', {
+    'width': size.width,
+    'height': size.height,
+    'pixelRatio': pixelRatio,
   });
 
-  Future<void> setVisible(bool visible) =>
-      _invoke('setVisible', {'visible': visible});
+  Future<void> pointer(VideoPointerKind kind, Offset position) => _invoke(
+    'pointer',
+    {'kind': kind.name, 'x': position.dx, 'y': position.dy, 'button': 1},
+  );
 
   Future<void> run(String script) => _invoke('run', {'script': script});
 
@@ -85,21 +88,30 @@ class NativeVideoHost {
   }
 }
 
-/// The player inside the docked panel on desktop.
-class NativeDockedPlayer extends YoutubeBridgePlayer
-    implements DockedVideoPlayer {
-  NativeDockedPlayer(this.host);
+/// The app's one desktop player, over [NativeVideoHost].
+class TextureVideoPlayer extends YoutubeBridgePlayer
+    implements DesktopVideoPlayer {
+  TextureVideoPlayer(this.host);
 
   final NativeVideoHost host;
+
+  final _texture = ValueNotifier<int?>(null);
   Future<bool>? _created;
+
+  @override
+  ValueListenable<int?> get texture => _texture;
 
   /// Creates the native view on first use; every command waits for it.
   Future<bool> _ensureCreated() => _created ??= _create();
 
   Future<bool> _create() async {
-    final created = await host.create(handleMessage);
-    if (!created) reportHostFailure();
-    return created;
+    final id = await host.create(handleMessage);
+    if (id == null) {
+      reportHostFailure();
+      return false;
+    }
+    _texture.value = id;
+    return true;
   }
 
   @override
@@ -108,17 +120,18 @@ class NativeDockedPlayer extends YoutubeBridgePlayer
   }
 
   @override
-  Future<void> setBounds(NativeViewRect rect) async {
-    if (await _ensureCreated()) await host.setBounds(rect);
+  Future<void> resize(Size size, double pixelRatio) async {
+    if (await _ensureCreated()) await host.resize(size, pixelRatio);
   }
 
   @override
-  Future<void> setVisible(bool visible) async {
-    if (await _ensureCreated()) await host.setVisible(visible);
+  Future<void> pointer(VideoPointerKind kind, Offset position) async {
+    if (await _ensureCreated()) await host.pointer(kind, position);
   }
 
   @override
   Future<void> disposeHost() async {
+    _texture.value = null;
     if (_created != null) await host.destroy();
   }
 }

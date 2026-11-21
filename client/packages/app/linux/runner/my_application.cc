@@ -94,7 +94,7 @@ static void my_application_activate(GApplication* application) {
   gdk_rgba_parse(&background_color, transparent ? "#00000000" : "#000000");
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
-  // An overlay around the view, so the YouTube panel's webview can float above it; see youtube_player_channel.h.
+  // An overlay around the view, which holds the YouTube player's webview out of sight; see youtube_player_channel.h.
   GtkWidget* overlay = gtk_overlay_new();
   gtk_widget_show(overlay);
   gtk_container_add(GTK_CONTAINER(overlay), GTK_WIDGET(view));
@@ -131,7 +131,10 @@ static void my_application_activate(GApplication* application) {
   // A Wayland minimise changes no window state; see linux_window_suspended_channel.h.
   linux_window_suspended_channel_register(self->messenger, window);
   linux_idle_channel_register(self->messenger);
-  youtube_player_channel_register(self->messenger, GTK_OVERLAY(overlay));
+  youtube_player_channel_register(
+      self->messenger,
+      fl_engine_get_texture_registrar(fl_view_get_engine(view)),
+      GTK_OVERLAY(overlay));
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

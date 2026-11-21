@@ -8,8 +8,9 @@
 /// Privacy is the point of click-to-play: nothing from the provider loads on
 /// render, only when the reader taps. Where a tapped video plays is
 /// `videoHostKindProvider`'s answer: in place (the web build's iframe, a
-/// phone's webview), in the desktop panel beside the chat, or in the system
-/// browser where neither exists. A Spotify item plays inline on web and
+/// phone's webview, the desktop's one shared player, which moves on to the
+/// panel beside the chat when its message leaves the screen while playing),
+/// or in the system browser where none exists. A Spotify item plays inline on web and
 /// opens the Spotify app or site everywhere else.
 ///
 /// A missing or failed preview renders nothing - never an error surface -
@@ -23,13 +24,14 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RendererBinding;
+import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show LinkPreview, SpotifyEntity;
 import 'package:slimm_data/data.dart' show Message;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../external_link.dart';
-import '../../video/providers/docked_video.dart';
+import '../../video/providers/desktop_video.dart';
 import '../../video/providers/video_host_capability.dart';
 import '../providers/link_preview.dart';
 import '../providers/media_preferences.dart';
@@ -124,6 +126,10 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
   /// item's Play on web - see [_handlePlayTap].
   bool _playing = false;
 
+  /// The desktop player, once this card asked it to play here; told when
+  /// the card goes so a playing video moves on to the panel.
+  DesktopVideoController? _desktopVideo;
+
   bool _hovered = false;
   bool _removeFocused = false;
 
@@ -131,9 +137,22 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
 
   /// A playing embed is an iframe the pointer's hover never reaches, so its
   /// X stays shown rather than vanishing the moment the reader moves onto it.
-  bool get _xShown => _hovered || _removeFocused || !_hasMouse || _playing;
+  bool get _xShown =>
+      _hovered || _removeFocused || !_hasMouse || _playing || _playsHere;
+
+  bool _playsHere = false;
 
   Future<void> _open() async => openExternalHttpUrl(widget.url);
+
+  @override
+  void dispose() {
+    final video = _desktopVideo;
+    // The tree is locked while this disposes, so the hand-off waits for the frame's end.
+    if (video != null) {
+      SchedulerBinding.instance.addPostFrameCallback((_) => video.leave(this));
+    }
+    super.dispose();
+  }
 
   /// The click-to-play action for a recognized video, with nothing fetched
   /// from the provider until now: the thumbnail becomes the player in place,
@@ -144,8 +163,10 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
     switch (host) {
       case VideoHostKind.inline:
         setState(() => _playing = true);
-      case VideoHostKind.docked:
-        ref.read(dockedVideoProvider.notifier).open(widget.url, preview);
+      case VideoHostKind.desktop:
+        final video = ref.read(desktopVideoProvider.notifier);
+        _desktopVideo = video;
+        video.playIn(this, widget.url, preview);
       case VideoHostKind.external:
         unawaited(_open());
     }
@@ -167,9 +188,16 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
   Widget build(BuildContext context) {
     final preview = ref.watch(linkPreviewProvider(widget.url)).valueOrNull;
     if (preview == null) return const SizedBox.shrink();
-    final inPanel = ref.watch(
-      dockedVideoProvider.select((v) => v?.url == widget.url),
+    final desktop = ref.watch(
+      desktopVideoProvider.select(
+        (v) => (
+          here: v != null && identical(v.owner, this),
+          panel: v != null && v.docked && v.url == widget.url,
+        ),
+      ),
     );
+    final inPanel = desktop.panel;
+    _playsHere = desktop.here;
     // Probed ahead of the tap, so the tap already knows where the video plays.
     if (preview.isPlayableVideo) ref.watch(videoHostKindProvider);
     final hasText =
@@ -187,8 +215,6 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
     void play() => _handlePlayTap(preview);
     final VoidCallback onCardTap = spotify != null
         ? () => _openSpotify(spotify)
-        : inPanel
-        ? () {}
         : preview.isPlayableVideo
         ? play
         : _open;
@@ -212,7 +238,7 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
           onExit: (_) => setState(() => _hovered = false),
           child: GestureDetector(
             // A playing player takes its own taps, pause and seek included.
-            onTap: _playing ? null : onCardTap,
+            onTap: _playing || _playsHere ? null : onCardTap,
             child: SelectionContainer.disabled(
               child: ConstrainedBox(
                 constraints: BoxConstraints(
@@ -251,6 +277,7 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
                               revealed: _revealed,
                               onReveal: () => setState(() => _revealed = true),
                               playing: _playing,
+                              playingOnDesktop: _playsHere,
                               playingInPanel: inPanel,
                               onPlay: play,
                             ),

@@ -5,21 +5,27 @@ library;
 
 import 'dart:async';
 
-import 'package:slimm_app/src/features/video/providers/docked_video_player.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
+import 'package:slimm_app/src/features/video/providers/desktop_video_player.dart';
 import 'package:slimm_app/src/features/video/providers/embedded_video_player.dart';
 
-class FakeVideoPlayer implements DockedVideoPlayer {
+class FakeVideoPlayer implements DesktopVideoPlayer {
   final _events = StreamController<VideoPlayerEvent>.broadcast(sync: true);
+  final _texture = ValueNotifier<int?>(null);
   final loads = <({String id, Duration start})>[];
-  final bounds = <NativeViewRect>[];
-  final visibility = <bool>[];
+  final sizes = <(Size, double)>[];
+  final pointers = <(VideoPointerKind, Offset)>[];
   int plays = 0;
   int pauses = 0;
   int fullscreenExits = 0;
   Duration reported = Duration.zero;
   bool disposed = false;
 
-  bool? get visible => visibility.isEmpty ? null : visibility.last;
+  /// The texture id the fake hands out once loaded.
+  static const textureId = 7;
+
+  Size? get size => sizes.isEmpty ? null : sizes.last.$1;
 
   void emit(VideoPlayerEvent event) => _events.add(event);
 
@@ -27,8 +33,13 @@ class FakeVideoPlayer implements DockedVideoPlayer {
   Stream<VideoPlayerEvent> get events => _events.stream;
 
   @override
-  Future<void> load(String videoId, {Duration start = Duration.zero}) async =>
-      loads.add((id: videoId, start: start));
+  ValueListenable<int?> get texture => _texture;
+
+  @override
+  Future<void> load(String videoId, {Duration start = Duration.zero}) async {
+    loads.add((id: videoId, start: start));
+    _texture.value = textureId;
+  }
 
   @override
   Future<void> play() async => plays++;
@@ -43,10 +54,12 @@ class FakeVideoPlayer implements DockedVideoPlayer {
   Future<Duration> position() async => reported;
 
   @override
-  Future<void> setBounds(NativeViewRect rect) async => bounds.add(rect);
+  Future<void> resize(Size size, double pixelRatio) async =>
+      sizes.add((size, pixelRatio));
 
   @override
-  Future<void> setVisible(bool visible) async => visibility.add(visible);
+  Future<void> pointer(VideoPointerKind kind, Offset position) async =>
+      pointers.add((kind, position));
 
   @override
   Future<void> exitFullscreen() async => fullscreenExits++;
@@ -54,6 +67,7 @@ class FakeVideoPlayer implements DockedVideoPlayer {
   @override
   Future<void> dispose() async {
     disposed = true;
+    _texture.value = null;
     await _events.close();
   }
 }

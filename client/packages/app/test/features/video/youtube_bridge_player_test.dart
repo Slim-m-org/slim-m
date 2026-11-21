@@ -10,6 +10,7 @@ import 'package:clock/clock.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/video/providers/desktop_video_player.dart';
 import 'package:slimm_app/src/features/video/providers/native_video_host.dart';
 import 'package:slimm_app/src/features/video/providers/embedded_video_player.dart';
 import 'package:slimm_app/src/features/video/providers/youtube_bridge_player.dart';
@@ -51,18 +52,52 @@ void main() {
     test('a view that cannot be built reports a failed player', () async {
       messenger.setMockMethodCallHandler(
         channel,
-        (call) async => call.method == 'create' ? false : null,
+        (call) async => call.method == 'create' ? -1 : null,
       );
-      final player = NativeDockedPlayer(NativeVideoHost());
+      final player = TextureVideoPlayer(NativeVideoHost());
       final events = <VideoPlayerEvent>[];
       player.events.listen(events.add);
 
-      await player.setBounds((x: 0, y: 0, width: 360, height: 202.5));
+      await player.resize(const Size(360, 202.5), 1);
       await Future<void>.delayed(Duration.zero);
 
       expect(events.single, isA<VideoFailed>());
       expect((events.single as VideoFailed).code, -1);
+      expect(player.texture.value, isNull);
     });
+
+    test(
+      'a built view hands over its texture, then takes size and pointer',
+      () async {
+        final calls = <MethodCall>[];
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          calls.add(call);
+          return call.method == 'create' ? 3 : null;
+        });
+        final player = TextureVideoPlayer(NativeVideoHost());
+
+        await player.resize(const Size(360, 202.5), 2);
+        await player.pointer(VideoPointerKind.down, const Offset(12, 34));
+
+        expect(player.texture.value, 3);
+        expect(calls.map((c) => c.method), ['create', 'resize', 'pointer']);
+        expect(calls[1].arguments, {
+          'width': 360.0,
+          'height': 202.5,
+          'pixelRatio': 2.0,
+        });
+        expect(calls[2].arguments, {
+          'kind': 'down',
+          'x': 12.0,
+          'y': 34.0,
+          'button': 1,
+        });
+
+        await player.dispose();
+        expect(calls.last.method, 'destroy');
+        expect(player.texture.value, isNull);
+      },
+    );
   });
 
   test('commands wait for the page, then run in order', () async {
