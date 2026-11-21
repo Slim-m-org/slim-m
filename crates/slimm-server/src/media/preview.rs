@@ -254,18 +254,9 @@ impl Previews {
     /// Every preview file name with when it was last written, for the leak scan.
     pub async fn files(&self) -> io::Result<Vec<(String, std::time::SystemTime)>> {
         let dir = self.dir.clone();
-        tokio::task::spawn_blocking(move || {
-            let mut files = Vec::new();
-            for entry in std::fs::read_dir(dir)? {
-                let entry = entry?;
-                if let Some(name) = entry.file_name().to_str() {
-                    files.push((name.to_owned(), entry.metadata()?.modified()?));
-                }
-            }
-            Ok(files)
-        })
-        .await
-        .unwrap_or_else(|e| Err(io::Error::other(e)))
+        tokio::task::spawn_blocking(move || written_times(std::fs::read_dir(dir)?))
+            .await
+            .unwrap_or_else(|e| Err(io::Error::other(e)))
     }
 
     pub async fn remove_file(&self, name: &str) -> io::Result<()> {
@@ -277,6 +268,26 @@ impl Previews {
             .await
             .unwrap_or_else(|e| Err(io::Error::other(e)))
     }
+}
+
+/// Each entry's name and last write. An entry gone by the time it is read is left out: a temp
+/// file is renamed into place while the directory is being listed, and that is not a failure.
+fn written_times(
+    entries: impl Iterator<Item = io::Result<std::fs::DirEntry>>,
+) -> io::Result<Vec<(String, std::time::SystemTime)>> {
+    let mut files = Vec::new();
+    for entry in entries {
+        let entry = entry?;
+        let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
+            continue;
+        };
+        match entry.metadata() {
+            Ok(meta) => files.push((name, meta.modified()?)),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(files)
 }
 
 async fn existing(path: &Path) -> io::Result<Option<Preview>> {
@@ -427,5 +438,24 @@ mod tests {
             decoy.exists(),
             "a name no variant produces is not scanned for"
         );
+    }
+
+    #[test]
+    fn a_file_renamed_away_between_listing_and_reading_it_is_left_out() {
+        let media = Media::for_tests();
+        let dir = media.previews().dir.clone();
+        let temp = dir.join(".tmp-being-written");
+        std::fs::write(&temp, b"x").unwrap();
+        std::fs::write(dir.join(format!("{}.320", "ab".repeat(32))), b"x").unwrap();
+        let listed: Vec<_> = std::fs::read_dir(&dir).unwrap().collect();
+
+        std::fs::rename(&temp, dir.join(format!("{}.640", "ab".repeat(32)))).unwrap();
+
+        let names: Vec<String> = written_times(listed.into_iter())
+            .expect("a vanished temp file does not fail the listing")
+            .into_iter()
+            .map(|(name, _)| name)
+            .collect();
+        assert_eq!(names, [format!("{}.320", "ab".repeat(32))]);
     }
 }
