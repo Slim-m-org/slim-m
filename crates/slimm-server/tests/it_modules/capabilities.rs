@@ -44,6 +44,7 @@ async fn the_real_router_serves_every_capability() {
             Capability::Webhook,
             Capability::UploadSessions,
             Capability::ScreenStamps,
+            Capability::UsernameCheck,
         ],
     );
 }
@@ -73,7 +74,8 @@ async fn version_advertises_what_the_router_serves() {
             "report",
             "webhooks",
             "upload_sessions",
-            "screen_stamps"
+            "screen_stamps",
+            "username_check"
         ])
     );
 }

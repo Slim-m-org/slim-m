@@ -28,6 +28,13 @@ Future<void> _pump(
   bool reduceMotion = false,
 }) async {
   final httpClient = MockClient((request) async {
+    if (request.url.path == '/auth/username/check') {
+      return http.Response(
+        '{"exists":true}',
+        200,
+        headers: const {'content-type': 'application/json'},
+      );
+    }
     if (request.method == 'POST' && request.url.path == '/auth/login') {
       await gate.future;
       return http.Response('{"error":"wrong password"}', 401);

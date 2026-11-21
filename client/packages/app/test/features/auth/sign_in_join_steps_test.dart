@@ -23,6 +23,7 @@ import 'package:slimm_platform/testing.dart';
 
 import '../../support/async_wait.dart';
 import '../../support/mock_app_version.dart';
+import '../../support/sign_in_steps.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -64,6 +65,7 @@ class _LockableKeyStore extends InMemoryKeyStore {
 class _Server {
   final registered = <Map<String, Object?>>[];
   final probed = <String>[];
+  bool reachable = true;
 }
 
 Future<_Server> _pump(
@@ -83,7 +85,7 @@ Future<_Server> _pump(
     if (path == '/version') {
       server.probed.add(request.url.host);
       await versionAnswer;
-      if (!reachable) throw http.ClientException('connection refused');
+      if (!server.reachable) throw http.ClientException('connection refused');
       final open = openHosts.contains(request.url.host);
       return _json(_version(invitesOnly: invitesOnly && !open));
     }
@@ -104,7 +106,6 @@ Future<_Server> _pump(
       serverUrlProvider.overrideWith(
         (ref) => Uri.parse('https://chat.example'),
       ),
-      assumeNewAccountProvider.overrideWith((ref) => creating),
       pendingInviteProvider.overrideWith((ref) => pendingInvite),
       probeApiProvider.overrideWithValue(
         (baseUrl) => SlimmApi(baseUrl: baseUrl, httpClient: client),
@@ -134,7 +135,21 @@ Future<_Server> _pump(
     ),
   );
   await pumpFrames(tester);
+  if (creating &&
+      signInButton('Create an account instead').evaluate().isNotEmpty) {
+    await chooseCreateInstead(tester);
+  }
+  server.reachable = reachable;
   return server;
+}
+
+/// Asks an unreachable Space again from the create step, the way Continue does.
+Future<void> _askAgain(WidgetTester tester) async {
+  await tester.enterText(_input('Server'), 'https://down.example');
+  await tester.pump(const Duration(seconds: 1));
+  await pumpFrames(tester);
+  await tester.tap(_button('Continue'));
+  await pumpFrames(tester);
 }
 
 http.Response _json(Object body) => http.Response(
@@ -177,6 +192,7 @@ void main() {
 
     await tester.enterText(_input('Username'), 'dana');
     await tester.enterText(_input('Password'), 'long enough pw');
+    await tester.enterText(_input('Confirm password'), 'long enough pw');
     await tester.tap(_button('Create account'));
     await waitUntil(tester, () => server.registered.isNotEmpty);
     expect(server.registered.single['invite_code'], 'GOOD');
@@ -225,6 +241,7 @@ void main() {
     expect(find.text('Invite accepted.'), findsOneWidget);
     await tester.enterText(_input('Username'), 'dana');
     await tester.enterText(_input('Password'), 'long enough pw');
+    await tester.enterText(_input('Confirm password'), 'long enough pw');
     await tester.tap(_button('Create account'));
     await waitUntil(tester, () => server.registered.isNotEmpty);
     expect(server.registered.single['invite_code'], 'GOOD');
@@ -251,25 +268,34 @@ void main() {
     expect(_input('Username'), findsOneWidget);
   });
 
-  testWidgets('while the server has not answered, no account field shows', (
+  testWidgets('an invited join on a server too old to look names up asks for '
+      'the sign-in fields until it answers, then opens on creating', (
     tester,
   ) async {
     final answer = Completer<void>();
-    await _pump(tester, invitesOnly: false, versionAnswer: answer.future);
+    await _pump(
+      tester,
+      invitesOnly: false,
+      creating: false,
+      pendingInvite: 'GOOD',
+      versionAnswer: answer.future,
+    );
 
-    expect(_input('Username'), findsNothing);
-    expect(_button('Continue'), findsOneWidget);
+    expect(_input('Username'), findsOneWidget);
+    expect(_button('Sign in'), findsOneWidget);
+    expect(_input('Confirm password'), findsNothing);
 
     answer.complete();
     await pumpFrames(tester);
     expect(_input('Invite code'), findsNothing);
-    expect(_input('Username'), findsOneWidget);
+    expect(_input('Confirm password'), findsOneWidget);
     expect(_button('Create account'), findsOneWidget);
   });
 
   testWidgets('a server that cannot be reached says so under the address and '
       'asks for nothing else', (tester) async {
     await _pump(tester, reachable: false);
+    await _askAgain(tester);
 
     final field = tester.widget<AppInput>(_input('Server'));
     expect(field.errorText, contains('Could not reach this Space'));
@@ -382,6 +408,7 @@ void main() {
       keyStore: keyStore,
       browserReaches: true,
     );
+    await _askAgain(tester);
 
     expect(
       tester.widget<AppInput>(_input('Server')).errorText,
@@ -411,6 +438,7 @@ void main() {
     expect(find.text('Invite accepted.'), findsOneWidget);
     await tester.enterText(_input('Username'), 'dana');
     await tester.enterText(_input('Password'), 'long enough pw');
+    await tester.enterText(_input('Confirm password'), 'long enough pw');
     await tester.tap(_button('Create account'));
     await waitUntil(tester, () => server.registered.isNotEmpty);
     expect(server.registered.single['invite_code'], 'GOOD');

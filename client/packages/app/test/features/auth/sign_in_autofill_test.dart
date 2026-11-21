@@ -19,6 +19,7 @@ Future<Iterable<String>?> _passwordHints(
         body: SignInCredentialFields(
           username: TextEditingController(),
           password: TextEditingController(),
+          confirmPassword: TextEditingController(),
           creatingAccount: creatingAccount,
           busy: false,
           errorFor: (_) => null,
@@ -30,7 +31,7 @@ Future<Iterable<String>?> _passwordHints(
   );
   expect(find.byType(AutofillGroup), findsOneWidget);
   final passwordField = find.byWidgetPredicate(
-    (w) => w is AppInput && w.obscureText,
+    (w) => w is AppInput && w.semanticLabel == 'Password',
   );
   return tester.widget<AppInput>(passwordField).autofillHints;
 }
@@ -40,6 +41,21 @@ void main() {
     final hints = await _passwordHints(tester, creatingAccount: true);
 
     expect(hints, [AutofillHints.newPassword]);
+  });
+
+  testWidgets('the confirm field is also a new password, only when creating', (
+    tester,
+  ) async {
+    Finder confirm() => find.byWidgetPredicate(
+      (w) => w is AppInput && w.semanticLabel == 'Confirm password',
+    );
+    await _passwordHints(tester, creatingAccount: true);
+    expect(tester.widget<AppInput>(confirm()).autofillHints, [
+      AutofillHints.newPassword,
+    ]);
+
+    await _passwordHints(tester, creatingAccount: false);
+    expect(confirm(), findsNothing);
   });
 
   testWidgets('sign-in asks for the saved password', (tester) async {

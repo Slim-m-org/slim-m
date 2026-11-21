@@ -311,4 +311,25 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.133.1',
+    headline: 'One sign-in form, and search that works with a phone keyboard',
+    points: [
+      WhatsNewPoint(
+        'Signing in and creating an account are one form now. Enter your '
+        'username and password; slim-m only offers to create an account '
+        'when that username does not exist, so a new device no longer '
+        'leaves you with a second account.',
+      ),
+      WhatsNewPoint('Creating an account asks for the password twice.'),
+      WhatsNewPoint(
+        'On a phone, search results stay above the keyboard, and the '
+        'keyboard\'s search key or a drag on the results puts it away.',
+      ),
+      WhatsNewPoint(
+        'On Android, Back closes an open menu, sheet or search instead of '
+        'leaving the app.',
+      ),
+    ],
+  ),
 ];

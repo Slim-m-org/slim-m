@@ -2,8 +2,7 @@
 /// Tests for the compiled-in official server collapsing the address field on
 /// sign-in: skipped entirely, with "Use a different Space" as the one way to
 /// another address, and never collapsed for any other address. Also covers the
-/// related default mode: creating an account, when onboarding signals a
-/// fresh join, versus signing in otherwise.
+/// default mode: the official Space opens on signing in, never on creating.
 ///
 /// Split out of sign_in_screen_test.dart to stay under the file budget.
 library;
@@ -19,6 +18,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/default_server.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
+import 'package:slimm_app/src/features/auth/widgets/server_identity_confirmation.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
@@ -34,29 +34,36 @@ const _tokens = TokenPair(
 /// Answers every `/version` probe with a bare, identity-free body and
 /// everything else with an empty object, so no test in this file ever makes
 /// a real network call to the compiled-in official host.
-http.Client _quietProbe() => MockClient((request) async {
-  if (request.method == 'GET' && request.url.path == '/version') {
-    return http.Response(
-      jsonEncode({'name': 'slim-m', 'version': '0.10.0', 'protocol': 1}),
-      200,
-      headers: const {'content-type': 'application/json'},
-    );
-  }
-  return http.Response('{}', 200);
-});
+http.Client _quietProbe({List<String>? capabilities}) =>
+    MockClient((request) async {
+      if (request.method == 'GET' && request.url.path == '/version') {
+        return http.Response(
+          jsonEncode({
+            'name': 'slim-m',
+            'version': '0.10.0',
+            'protocol': 1,
+            'capabilities': ?capabilities,
+          }),
+          200,
+          headers: const {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('{}', 200);
+    });
 
 Future<ProviderContainer> _pumpSignIn(
   WidgetTester tester, {
   required Uri server,
   http.Client? httpClient,
-  bool assumeNewAccount = false,
+  Set<String> firstContact = const {},
+  List<String>? capabilities,
 }) async {
-  final client = httpClient ?? _quietProbe();
+  final client = httpClient ?? _quietProbe(capabilities: capabilities);
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       serverUrlProvider.overrideWith((ref) => server),
-      assumeNewAccountProvider.overrideWith((ref) => assumeNewAccount),
+      firstContactServersProvider.overrideWith((ref) => firstContact),
       probeApiProvider.overrideWithValue(
         (baseUrl) => SlimmApi(baseUrl: baseUrl, httpClient: client),
       ),
@@ -157,8 +164,8 @@ void main() {
   );
 
   testWidgets(
-    'arriving at the official server with no invite still opens on signing '
-    'in, absent the onboarding flag that means a fresh join',
+    'arriving at the official server opens on signing in, with the older-'
+    'server way across',
     (tester) async {
       await _pumpSignIn(tester, server: Uri.parse(officialServer));
 
@@ -168,25 +175,21 @@ void main() {
   );
 
   testWidgets(
-    'choosing "Join the official Space" in onboarding opens sign-in on '
-    'creating an account, skipping the extra tap a newcomer has no use for',
+    'choosing "Join the official Space" in onboarding leaves sign-in on the '
+    'one form, with the way to creating an account still offered',
     (tester) async {
-      final container = await _pumpSignIn(
+      final officialHandle = identityHandleFor(Uri.parse(officialServer));
+      await _pumpSignIn(
         tester,
         server: Uri.parse(officialServer),
-        assumeNewAccount: true,
+        firstContact: {officialHandle},
+        capabilities: const ['username_check'],
       );
 
-      expect(find.text('Create an account'), findsOneWidget);
-      expect(find.text('I already have an account'), findsOneWidget);
-      expect(
-        container.read(assumeNewAccountProvider),
-        isFalse,
-        reason:
-            'consumed on the first read, so a later sign-out on this same '
-            'address - which skips onboarding - is not mistaken for another '
-            'fresh join',
-      );
+      expect(find.text('Sign in or create an account'), findsOneWidget);
+      expect(find.text('I already have an account'), findsNothing);
+      expect(find.text('Create an account instead'), findsOneWidget);
+      expect(find.widgetWithText(AppButton, 'Continue'), findsOneWidget);
     },
   );
 }

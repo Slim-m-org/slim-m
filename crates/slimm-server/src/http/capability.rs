@@ -32,16 +32,20 @@ pub enum Capability {
     /// Whether viewers can stamp an emoji or picture on a shared screen, and the
     /// board takes the `emoji` object kind (decision 0121).
     ScreenStamps,
+    /// Whether `POST /auth/username/check` exists, so the sign-in screen can
+    /// ask before choosing between signing in and creating an account.
+    UsernameCheck,
 }
 
 impl Capability {
     /// Every capability `/version` speaks about, in the order it reports them.
-    pub const ALL: [Capability; 5] = [
+    pub const ALL: [Capability; 6] = [
         Capability::Block,
         Capability::Report,
         Capability::Webhook,
         Capability::UploadSessions,
         Capability::ScreenStamps,
+        Capability::UsernameCheck,
     ];
 
     /// The name this goes over the wire under.
@@ -52,6 +56,7 @@ impl Capability {
             Capability::Webhook => "webhooks",
             Capability::UploadSessions => "upload_sessions",
             Capability::ScreenStamps => "screen_stamps",
+            Capability::UsernameCheck => "username_check",
         }
     }
 
@@ -75,6 +80,7 @@ impl Capability {
                 Method::POST,
                 "/channels/00000000-0000-0000-0000-000000000000/voice/screen-stamps",
             ),
+            Capability::UsernameCheck => (Method::POST, "/auth/username/check"),
         }
     }
 }

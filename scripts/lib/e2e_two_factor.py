@@ -72,7 +72,7 @@ def _sign_in_with_code(client, server, username, code):
         client.click(L.CONTINUE)
     client.type_into(L.USERNAME, username)
     client.type_into(L.PASSWORD, PASSWORD)
-    client.click(L.SIGN_IN, settle=2)
+    client.submit_sign_in(settle=2)
     client.wait_for(L.TOTP_CODE_FIELD, field=True)
     client.type_into(L.TOTP_CODE_FIELD, code)
     client.click(L.SIGN_IN, settle=3)

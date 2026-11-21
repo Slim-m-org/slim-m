@@ -73,4 +73,5 @@ mod totp_reauth;
 mod totp_secret_at_rest;
 mod user_notes;
 mod username_case;
+mod username_check;
 mod users;

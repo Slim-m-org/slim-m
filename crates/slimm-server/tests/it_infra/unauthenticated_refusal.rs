@@ -47,6 +47,10 @@ const PUBLIC: &[(&str, &str)] = &[
     ),
     ("steamLinkCallback", "a browser redirect with signed state"),
     ("checkInvite", "a prospective member checks a code"),
+    (
+        "checkUsername",
+        "the sign-in screen asks whether a name has an account",
+    ),
     ("inviteLandingPage", "the shareable page for an invite"),
     ("getInviteBanner", "the landing page's banner"),
     ("getInviteIcon", "the landing page's icon"),

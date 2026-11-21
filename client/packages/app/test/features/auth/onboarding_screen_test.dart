@@ -154,7 +154,7 @@ void main() {
     tester,
   ) async {
     Uri? chosen;
-    final container = await _pumpOnboarding(
+    await _pumpOnboarding(
       tester,
       versionBody: const {'name': 'slim-m', 'version': '0.6.0', 'protocol': 1},
       onServerChosen: (server, invite) => chosen = server,
@@ -164,13 +164,6 @@ void main() {
 
     expect(chosen, Uri.parse(_server));
     expect(find.text('Confirm this server'), findsNothing);
-    expect(
-      container.read(assumeNewAccountProvider),
-      isFalse,
-      reason:
-          'a manually-typed address is not the compiled-in official server, '
-          'so sign-in must still default to signing in, not creating',
-    );
   });
 
   testWidgets('the first connection to a server pins its key silently and '
@@ -383,13 +376,6 @@ void main() {
       expect(
         await keyStore.read('server_identity:$officialServer'),
         _identityA['public_key'],
-      );
-      expect(
-        container.read(assumeNewAccountProvider),
-        isTrue,
-        reason:
-            'this button only ever appears with no server chosen before, so '
-            'sign-in should open on creating an account, not signing in',
       );
     });
 

@@ -22,6 +22,8 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
+import '../../support/sign_in_steps.dart';
+
 /// A 390x844 iPhone-class screen and the smallest Android phone still in use.
 const _phones = {'390x844': Size(390, 844), '360x640': Size(360, 640)};
 
@@ -47,13 +49,13 @@ final _servers = <_Server>[
     label: 'self-hosted',
     address: Uri.parse('https://chat.example.test'),
     invitesOnly: false,
-    fields: ['Username', 'Password'],
+    fields: ['Username', 'Password', 'Confirm password'],
   ),
   (
     label: 'official',
     address: Uri.parse(officialServer),
     invitesOnly: false,
-    fields: ['Username', 'Password'],
+    fields: ['Username', 'Password', 'Confirm password'],
   ),
   (
     label: 'invite-only',
@@ -95,7 +97,6 @@ Future<void> _pump(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       serverUrlProvider.overrideWith((ref) => server.address),
-      assumeNewAccountProvider.overrideWith((ref) => true),
       probeApiProvider.overrideWithValue(
         (baseUrl) => SlimmApi(baseUrl: baseUrl, httpClient: httpClient),
       ),
@@ -114,6 +115,8 @@ Future<void> _pump(
   );
   // The probe answers on the first frame and the fields it opens grow in over the next.
   await tester.pump();
+  await tester.pump(const Duration(seconds: 1));
+  await chooseCreateInstead(tester);
   await tester.pump(const Duration(seconds: 1));
 }
 

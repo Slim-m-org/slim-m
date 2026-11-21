@@ -22,6 +22,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
+import '../../support/async_wait.dart';
 import '../../support/mock_app_version.dart';
 
 const _tokens = TokenPair(
@@ -40,6 +41,13 @@ void main() {
     (tester) async {
       var listChannelsCalls = 0;
       final httpClient = MockClient((request) async {
+        if (request.url.path == '/auth/username/check') {
+          return http.Response(
+            '{"exists":true}',
+            200,
+            headers: const {'content-type': 'application/json'},
+          );
+        }
         if (request.method == 'POST' && request.url.path == '/auth/login') {
           return http.Response(
             jsonEncode(_tokens.toJson()),
@@ -278,13 +286,26 @@ void main() {
     });
   });
 
-  testWidgets('a screen popped before its deferred provider write runs is left '
-      'stale, never thrown into', (tester) async {
+  testWidgets('a screen unmounted before the server answers is not thrown '
+      'into when the answer arrives', (tester) async {
+    final answer = Completer<void>();
+    final client = MockClient((request) async {
+      await answer.future;
+      return http.Response(
+        jsonEncode({'name': 'slim-m', 'version': '0.10.0', 'protocol': 1}),
+        200,
+        headers: const {'content-type': 'application/json'},
+      );
+    });
     final container = ProviderContainer(
-      overrides: [keyStoreProvider.overrideWithValue(InMemoryKeyStore())],
+      overrides: [
+        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        probeApiProvider.overrideWithValue(
+          (baseUrl) => SlimmApi(baseUrl: baseUrl, httpClient: client),
+        ),
+      ],
     );
     addTearDown(container.dispose);
-    container.read(assumeNewAccountProvider.notifier).state = true;
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
@@ -295,18 +316,11 @@ void main() {
         ),
       ),
     );
-
-    // Unmount before the real zero-duration Timer `Future(() {...})` scheduled fires - a bare `pumpWidget` never elapses time, so nothing has fired it yet.
     await tester.pumpWidget(const SizedBox.shrink());
-    // Now let it fire.
-    await tester.pump(const Duration(milliseconds: 1));
+    answer.complete();
+    await pumpFrames(tester);
 
     expect(tester.takeException(), isNull);
-    expect(
-      container.read(assumeNewAccountProvider),
-      isTrue,
-      reason: 'a disposed screen must not write into the provider',
-    );
   });
 
   testWidgets(

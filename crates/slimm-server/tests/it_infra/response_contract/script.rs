@@ -138,6 +138,14 @@ pub async fn run(c: &mut Contract) {
         Payload::None,
     )
     .await;
+    c.call(
+        "checkUsername",
+        "POST",
+        "/auth/username/check",
+        None,
+        Payload::Json(json!({ "username": "root" })),
+    )
+    .await;
 
     let bob = c
         .call(

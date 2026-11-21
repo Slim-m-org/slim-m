@@ -16,7 +16,8 @@ use super::AppState;
 use super::device_client_info::validate_client_info;
 use super::error::ApiError;
 use super::extract::{
-    Authed, AuthedLimited, Json, PASSWORD, REFRESH, RateLimited, WRITE, enforce, limit_key,
+    Authed, AuthedLimited, INVITE_CHECK, Json, PASSWORD, REFRESH, RateLimited, WRITE, enforce,
+    limit_key,
 };
 use super::invites::invite_code_key;
 use crate::hub::Event;
@@ -38,6 +39,7 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/auth/register", post(register))
         .route("/auth/login", post(login))
+        .route("/auth/username/check", post(check_username))
         .route("/auth/refresh", post(refresh))
         .route("/auth/ws-ticket", post(ws_ticket))
         .route("/auth/logout", post(logout))
@@ -70,6 +72,16 @@ struct RegisterRequest {
     /// replaces that install's session instead of adding a device.
     #[serde(default)]
     install_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct UsernameCheckRequest {
+    username: String,
+}
+
+#[derive(Serialize)]
+struct UsernameCheckResponse {
+    exists: bool,
 }
 
 #[derive(Deserialize)]
@@ -269,6 +281,25 @@ async fn register(
         )
         .await?;
     Ok(Json(token_response(&tokens)))
+}
+
+/// Says whether a live account, bot included, already holds this username.
+///
+/// Registration already answers 409 for a taken name, so this discloses nothing
+/// new. It hashes nothing and writes nothing, so it charges the `INVITE_CHECK`
+/// budget instead of spending the sign-in's `PASSWORD` one.
+async fn check_username(
+    _limited: RateLimited<INVITE_CHECK>,
+    State(state): State<AppState>,
+    Json(req): Json<UsernameCheckRequest>,
+) -> Result<Json<UsernameCheckResponse>, ApiError> {
+    validate_username(&req.username)?;
+    let exists = state
+        .store
+        .live_user_id_by_username(&req.username)
+        .await?
+        .is_some();
+    Ok(Json(UsernameCheckResponse { exists }))
 }
 
 /// Verifies a password, and then either opens a session or asks for the second

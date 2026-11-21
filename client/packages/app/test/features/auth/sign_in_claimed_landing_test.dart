@@ -7,7 +7,6 @@
 /// opens on sign-in. A mode chosen by hand is never overridden by the probe.
 library;
 
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -22,6 +21,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../../support/mock_app_version.dart';
+import '../../support/sign_in_steps.dart';
 
 const _phone = Size(390, 844);
 const _desktop = Size(1280, 800);
@@ -31,21 +31,22 @@ Future<void> _pump(
   required Size size,
   required Map<String, Object?> version,
   Brightness brightness = Brightness.light,
-  Future<void>? answerAfter,
+  Map<String, Object?>? laterVersion,
 }) async {
+  var answers = 0;
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   final client = MockClient((request) async {
-    await answerAfter;
+    final body = answers++ == 0 ? version : laterVersion ?? version;
     return http.Response(
       jsonEncode({
         'name': 'slim-m',
         'version': '0.90.0',
         'protocol': 1,
         'invite_required': true,
-        ...version,
+        ...body,
       }),
       200,
       headers: const {'content-type': 'application/json'},
@@ -129,14 +130,13 @@ void main() {
     expect(find.textContaining('first account'), findsNothing);
   });
 
-  testWidgets('choosing sign-in before the probe answers is not undone by '
-      'it answering unclaimed', (tester) async {
-    final answer = Completer<void>();
+  testWidgets('choosing sign-in by hand is not undone by a later answer '
+      'saying unclaimed', (tester) async {
     await _pump(
       tester,
       size: _phone,
-      version: const {'claimed': false},
-      answerAfter: answer.future,
+      version: const {'claimed': true},
+      laterVersion: const {'claimed': false},
     );
     expect(find.text('Welcome back'), findsOneWidget);
     await tester.ensureVisible(find.text('Create an account instead'));
@@ -146,7 +146,8 @@ void main() {
     await tester.tap(find.text('I already have an account'));
     await tester.pumpAndSettle();
 
-    answer.complete();
+    await tester.enterText(signInField('Server'), 'https://other.example');
+    await tester.pump(const Duration(seconds: 1));
     await tester.pumpAndSettle();
 
     expect(find.text('Welcome back'), findsOneWidget);

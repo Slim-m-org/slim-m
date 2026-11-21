@@ -129,7 +129,7 @@ void main() {
 
   for (final MapEntry(key: name, value: size) in _sizes.entries) {
     testWidgets('$name: official button goes straight to username and '
-        'password', (tester) async {
+        'password, on the one form rather than a guessed mode', (tester) async {
       await _pump(tester, size: size);
       await writeSnapshot(tester, 'join-1-onboarding-$name');
       await tester.tap(find.text('Join the official Space'));
@@ -137,7 +137,8 @@ void main() {
       await writeSnapshot(tester, 'join-2-official-signup-$name');
 
       expect(find.text('SECURITY CHECK'), findsNothing);
-      expect(find.text('Create an account'), findsWidgets);
+      expect(find.text('Sign in or create an account'), findsOneWidget);
+      expect(find.text('Create an account'), findsNothing);
       expect(find.text('Server'), findsNothing);
       expect(find.text('Display name'), findsNothing);
       expect(find.byType(TextField), findsNWidgets(2));

@@ -53,6 +53,18 @@ extension SlimmApiAuth on SlimmApi {
     return tokens;
   }
 
+  /// Whether a live account already holds [username], compared in any letter
+  /// case. Unauthenticated; gate it on [Version.usernameCheck].
+  Future<bool> usernameExists(String username) async {
+    final json = await send(
+      'POST',
+      '/auth/username/check',
+      authenticated: false,
+      body: {'username': username},
+    );
+    return (json as Map<String, dynamic>)['exists'] as bool;
+  }
+
   /// Verifies a password, and either opens a session or reports that a second
   /// factor is still owed.
   ///

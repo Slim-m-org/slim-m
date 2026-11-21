@@ -116,7 +116,7 @@ def sign_in(client, server, username, password):
     client.click("Continue")
     client.type_into("Username", username)
     client.type_into("Password", password)
-    client.click("Sign in", settle=1)
+    client.submit_sign_in(settle=1)
     client.wait_url("#/channels")
     skip_first_run(client)
     print(f"  {client.name}: signed in as {username}")

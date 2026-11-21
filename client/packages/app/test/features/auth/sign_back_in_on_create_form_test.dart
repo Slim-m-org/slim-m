@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Someone with an account who lands on the create form, as a fresh install
-/// joining the official Space does, is signed in to it when the password is
-/// theirs, and is told to sign in when it is not.
+/// Someone with an account who reaches the create step anyway, as on a server
+/// too old to look names up, is signed in to it when the password is theirs,
+/// and is told to sign in when it is not.
 library;
 
 import 'dart:convert';
@@ -20,6 +20,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../../support/mock_app_version.dart';
+import '../../support/sign_in_steps.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -76,7 +77,7 @@ Future<void> _wait(WidgetTester tester) async {
   }
 }
 
-/// Opens the create form the way the official join does and submits it.
+/// Opens the create form on a server too old to look names up, and submits it.
 Future<ProviderContainer> _createAccount(
   WidgetTester tester,
   _Server server, {
@@ -90,7 +91,6 @@ Future<ProviderContainer> _createAccount(
       serverUrlProvider.overrideWith(
         (ref) => Uri.parse('https://chat.example'),
       ),
-      assumeNewAccountProvider.overrideWith((ref) => true),
       probeApiProvider.overrideWithValue(
         (baseUrl) => SlimmApi(baseUrl: baseUrl, httpClient: client),
       ),
@@ -119,9 +119,10 @@ Future<ProviderContainer> _createAccount(
     ),
   );
   await _wait(tester);
+  await chooseCreateInstead(tester);
   await tester.enterText(_input('Username'), username);
   await tester.enterText(_input('Password'), password);
-  await tester.tap(find.widgetWithText(AppButton, 'Create account'));
+  await confirmAndCreate(tester, password);
   await _wait(tester);
   return container;
 }

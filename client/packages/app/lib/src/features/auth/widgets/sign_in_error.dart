@@ -17,7 +17,15 @@ import '../../../api_failure.dart';
 /// and [SignInErrorField.invite] is the code an invite-only Space asks for.
 /// [SignInErrorField.credentials] marks both username and password, with the
 /// message under the password, because a wrong pair does not say which half.
-enum SignInErrorField { server, invite, username, password, credentials, form }
+enum SignInErrorField {
+  server,
+  invite,
+  username,
+  password,
+  confirmPassword,
+  credentials,
+  form,
+}
 
 /// What to say when something other than the server failed, such as the key store.
 const unexpectedSignInError = (
@@ -77,9 +85,12 @@ const _offline = (
 );
 
 /// The empty field a submit would send, named before anything goes out.
+///
+/// [confirmPassword] is the second entry a new account asks for, null otherwise.
 (SignInErrorField, String)? missingCredential({
   required String username,
   required String password,
+  String? confirmPassword,
 }) {
   if (username.trim().isEmpty) {
     return (SignInErrorField.username, 'Enter your username.');
@@ -87,8 +98,18 @@ const _offline = (
   if (password.isEmpty) {
     return (SignInErrorField.password, 'Enter your password.');
   }
+  if (confirmPassword != null && confirmPassword != password) {
+    return (SignInErrorField.confirmPassword, 'The passwords do not match.');
+  }
   return null;
 }
+
+/// A refusal from a server that had just said [username] has an account, so
+/// only the password can be wrong. Someone new learns the name is not free.
+(SignInErrorField, String) wrongPasswordFor(String username) => (
+  SignInErrorField.password,
+  'Wrong password for $username. New here? That username is taken.',
+);
 
 const _blockedByBrowser = (
   SignInErrorField.server,

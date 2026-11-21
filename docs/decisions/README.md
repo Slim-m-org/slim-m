@@ -138,3 +138,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0127](0127-canvas-spectators.md) | A member who cannot draw spectates the canvas | accepted |
 | [0128](0128-in-app-youtube-player.md) | YouTube links play in the app, in place in the message; on desktop a playing video moves to a panel when its message leaves | accepted |
 | [0129](0129-server-logging-modes.md) | One server logging component, three modes an admin switches live, and log files that survive a redeploy | accepted |
+| [0130](0130-one-sign-in-form.md) | One form signs in and creates accounts, and the server says which | accepted |
