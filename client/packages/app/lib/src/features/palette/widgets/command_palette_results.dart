@@ -78,16 +78,23 @@ class PaletteResultsList extends ConsumerWidget {
     } else {
       body = ConstrainedBox(
         constraints: BoxConstraints(maxHeight: maxHeight),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ..._rows(lookups),
-              if (notice.forbidden) ..._forbidden(tokens),
-              if (notice.failed && !empty)
-                AppErrorState(message: 'Search failed.', onRetry: notice.retry),
-            ],
+        child: _PutsKeyboardAwayOnDrag(
+          child: SingleChildScrollView(
+            // A touch list always takes a drag, so a short one can still put the keyboard away.
+            physics: compact ? const AlwaysScrollableScrollPhysics() : null,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ..._rows(lookups),
+                if (notice.forbidden) ..._forbidden(tokens),
+                if (notice.failed && !empty)
+                  AppErrorState(
+                    message: 'Search failed.',
+                    onRetry: notice.retry,
+                  ),
+              ],
+            ),
           ),
         ),
       );
@@ -101,7 +108,7 @@ class PaletteResultsList extends ConsumerWidget {
           label: notice.announcement,
           child: const SizedBox.shrink(),
         ),
-        body,
+        Flexible(child: body),
       ],
     );
   }
@@ -161,4 +168,27 @@ class PaletteResultsList extends ConsumerWidget {
       ),
     ),
   ];
+}
+
+/// A finger dragging the results takes focus from the field while an
+/// on-screen keyboard is up, which hides it. A hardware keyboard keeps focus,
+/// since its arrows and Enter act on this list.
+class _PutsKeyboardAwayOnDrag extends StatelessWidget {
+  const _PutsKeyboardAwayOnDrag({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
+    return NotificationListener<ScrollStartNotification>(
+      onNotification: (notification) {
+        if (keyboardUp && notification.dragDetails != null) {
+          FocusManager.instance.primaryFocus?.unfocus();
+        }
+        return false;
+      },
+      child: child,
+    );
+  }
 }
