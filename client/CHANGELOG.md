@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.133.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.132.0...client-v0.133.0) (2026-11-21)
+
+
+### Features
+
+* **client:** play youtube in the message on linux and windows desktop ([#2448](https://github.com/Slim-m-org/slim-m/issues/2448)) ([9aa28e6](https://github.com/Slim-m-org/slim-m/commit/9aa28e6c84990a8f59e70c277bb43be8e3648c9e))
+* **voice:** fold repeated joins into one row of a call's timeline, drop quick reconnects ([#2445](https://github.com/Slim-m-org/slim-m/issues/2445)) ([335cd12](https://github.com/Slim-m-org/slim-m/commit/335cd127f7dc8ada93eeefcddeb661df652ccac9))
+* youtube watch parties on the watch session ([#2446](https://github.com/Slim-m-org/slim-m/issues/2446)) ([e9737d1](https://github.com/Slim-m-org/slim-m/commit/e9737d1e73f95a983981229f8f27bc9aa9f048e1))
+
+
+### Bug Fixes
+
+* **client:** a Windows taskbar pin keeps matching slim-m after an update ([#2443](https://github.com/Slim-m-org/slim-m/issues/2443)) ([2ca2cdb](https://github.com/Slim-m-org/slim-m/commit/2ca2cdb6351389a3823f1240c48d0feddfda73cc))
+* typing after the youtube player on linux, share stamps and pictures, paused camera label, soundboard volume ([#2442](https://github.com/Slim-m-org/slim-m/issues/2442)) ([7827fec](https://github.com/Slim-m-org/slim-m/commit/7827fecb280071e25ddf603f41da9afd4016e257))
+* what a review of the last two weeks found - closed-menu failures stay up, mention flags survive catch-up edits, transcript and bulk-delete gaps, cleanup ([#2437](https://github.com/Slim-m-org/slim-m/issues/2437)) ([34a557a](https://github.com/Slim-m-org/slim-m/commit/34a557af0dab44af52a65d5714d2581cd9d8e2fd))
+
 ## [0.132.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.131.0...client-v0.132.0) (2026-11-20)
 
 
