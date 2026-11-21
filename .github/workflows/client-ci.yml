@@ -122,6 +122,34 @@ jobs:
         working-directory: client
         run: dart format --output=none --set-exit-if-changed .
 
+  # The tests whose answer the version bump changes; a release PR skips everything else here (docs/ci-details.md).
+  release-version-gates:
+    name: release version gates
+    if: ${{ startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--client') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: set up flutter (stable channel)
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: 3.47.0
+          cache: true
+
+      - uses: ./.github/actions/native-hooks-cache
+
+      - name: resolve workspace dependencies
+        working-directory: client
+        run: flutter pub get --enforce-lockfile
+
+      - name: tests that read the app version
+        working-directory: client/packages/app
+        run: flutter test test/whats_new/whats_new_freshness_test.dart
+
+      - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
+
   # Sharded because one package dominates: measured on a real run, packages/app
   # was 9m44s of a 13m9s serial loop, with rtc a distant 2m1s and the other
   # five under 25s each. Matrixing per package would therefore have bottomed

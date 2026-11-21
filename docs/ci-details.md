@@ -757,8 +757,11 @@ Since 2026-11-21 a release PR runs only the checks that read its own diff: `hygi
 The test, build, e2e, perf and publish-paths jobs skip on a `release-please--` head branch, because the PR is main plus a version bump and main's push run already tested that code.
 release-please rebases both release PRs onto every push to main, so before this each merge started those workflows three times at once: in the 11 hours to 2026-11-21 07:00 the two release PRs used about 2,100 runner minutes, and a main push queued up to 23 minutes behind them on the 20-job limit.
 The release gates never read the PR's runs: `verify-release-checks` waits on the release commit's own push run, which still runs everything.
-In the 100 client-ci runs before the change, every failure on a release PR was a flake main had hit too.
-`scripts/lib/test_release_prs_skip_main_tested_ci.py` holds every job in those workflows to the skip, directly or through a job it needs.
+One kind of test is not covered by main: a test that reads the version the release PR bumps.
+Of the 144 release PR runs since August that failed while main was green on the same base, 47 were `whats_new_freshness_test.dart`, which reads the app version from the pubspec and exists to fail at exactly that point; the rest were flakes and apt stalls.
+So client-ci's `release version gates` job runs only on the client release PR and runs that test, in about two minutes.
+A new client test that opens a `pubspec.yaml` must be added to that job or named as version-blind in the gate below.
+`scripts/lib/test_release_prs_skip_main_tested_ci.py` holds every job in those workflows to the skip, directly or through a job it needs, and holds the version-reading tests to that job.
 Set it with `gh secret set RELEASE_PLEASE_TOKEN` so the value never lands in a file or a shell history; rotating it is a re-run of that one command.
 
 The fallback to `GITHUB_TOKEN` keeps releases working while the secret is absent, at the cost of that behaviour.
