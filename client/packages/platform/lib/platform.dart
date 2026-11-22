@@ -19,6 +19,7 @@ export 'src/cross_tab.dart';
 export 'src/device_name.dart';
 export 'src/device_push_keys.dart';
 export 'src/fcm_token_channel.dart';
+export 'src/test_lab_channel.dart';
 export 'src/host_platform.dart';
 export 'src/push_envelope.dart';
 export 'src/autostart.dart';

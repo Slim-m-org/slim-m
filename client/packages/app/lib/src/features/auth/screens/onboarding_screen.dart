@@ -63,7 +63,7 @@ class OnboardingScreen extends ConsumerWidget {
               title: 'Join the official Space',
               // The host, not the whole address: a scheme is not something a
               // person reads, and mono is how every other host here is set.
-              description: Uri.parse(officialServer).host,
+              description: ref.watch(officialServerProvider).host,
               mono: true,
               onTap: () => _officialFlow(context, ref),
             ),
@@ -125,14 +125,14 @@ class OnboardingScreen extends ConsumerWidget {
     }
   }
 
-  /// The official address is a compile-time constant, never user input, so
+  /// The official address is a resolved at startup, never user input, so
   /// there is nothing to validate here. A later key mismatch still stops the
   /// flow, as it does for every address.
   ///
   /// Sign-in is not told this is a new account: a fresh install is as often a
   /// second device, and guessing made duplicate accounts (decision 0130).
   Future<void> _officialFlow(BuildContext context, WidgetRef ref) async {
-    final server = Uri.parse(officialServer);
+    final server = ref.read(officialServerProvider);
     if (await confirmServerIdentity(context, ref, server)) {
       onServerChosen(server, null);
     }
