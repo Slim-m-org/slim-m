@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/default_server.dart';
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_host_factory.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
@@ -68,7 +69,10 @@ void main() {
     tearDown(harness.dispose);
 
     test('every server the app opens reads the same switch', () {
-      final host = createAccountHost(DesktopWindowShell());
+      final host = createAccountHost(
+        DesktopWindowShell(),
+        Uri.parse(officialServer),
+      );
       ProviderContainer open() {
         final container = host.createContainer(
           AccountSlot(chooseServer: (_, _) => throw UnimplementedError()),

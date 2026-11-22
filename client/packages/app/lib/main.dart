@@ -19,6 +19,7 @@ import 'package:slimm_rtc/rtc.dart'
 export 'src/desktop/startup_state.dart';
 
 import 'src/api_failure.dart' show loadFailureRetries;
+import 'src/default_server.dart';
 import 'src/audio/sound_backend_warmup.dart';
 import 'src/features/settings/providers/resolved_theme.dart';
 import 'src/features/settings/providers/stored_theme.dart';
@@ -133,7 +134,7 @@ Future<void> main([List<String> args = const []]) async {
   shell.registerSecondInstanceHandler();
   DesktopQuitShortcut(shell).register();
 
-  final host = createAccountHost(shell);
+  final host = createAccountHost(shell, await resolveOfficialServer());
   final container = host.createFirst();
   // Before anything that can throw, so startup failures land in the log too.
   installDiagnostics(container);
