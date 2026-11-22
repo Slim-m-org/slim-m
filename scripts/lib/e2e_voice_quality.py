@@ -97,10 +97,11 @@ def write_clip(path, who):
 
 def score_mos(directory, script="voice_quality_mos.py"):
     """DNSMOS per recording, run in the venv that has onnxruntime; skipped without it."""
-    python = os.environ.get("E2E_VQ_MOS_PYTHON") or os.path.expanduser(
+    named = os.environ.get("E2E_VQ_MOS_PYTHON") or os.path.expanduser(
         "~/.slimm-scratch/mos-venv/bin/python")
-    if not os.path.exists(python):
-        print("  MOS skipped: no venv at", python)
+    python = shutil.which(named)
+    if python is None:
+        print("  MOS skipped: no python at", named)
         return
     here = os.path.dirname(os.path.abspath(__file__))
     subprocess.run([python, os.path.join(here, script), directory], check=True)

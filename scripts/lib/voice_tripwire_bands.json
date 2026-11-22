@@ -1,10 +1,10 @@
 {
-  "provisional": true,
-  "source": "median of 3 local runs on the dev box (Chrome 158.0.8127.36, livekit-server 1.13.11), not a GitHub runner",
+  "provisional": false,
+  "source": "median of 3 repeats on the GitHub ubuntu-24.04 runner, run 45075372688 (Chrome 157.0.8103.78, livekit-server 1.13.11)",
   "mos_band": 0.3,
   "delay_band_ms": 30,
   "profiles": {
-    "clean": {"visqol": 4.417, "jitter_buffer_delay_ms": 31.865},
-    "loss5-jitter30": {"visqol": 4.379, "jitter_buffer_delay_ms": 68.565}
+    "clean": {"visqol": 4.357, "jitter_buffer_delay_ms": 35.59},
+    "loss5-jitter30": {"visqol": 4.347, "jitter_buffer_delay_ms": 58.555}
   }
 }
