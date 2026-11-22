@@ -294,6 +294,19 @@ Launched into a channel as a message that renders as the module's own interactiv
 - A launch runs the command once with an empty `input`, so a well-behaved app returns its initial frame for empty input.
   From then on the surface is driven entirely by the [interactive scene](#interactive-scenes) protocol, shared through the same stored-and-broadcast mechanism a code-block runner uses.
 
+### panel
+
+A persistent surface a member opens from the apps menu, kept beside the chat on a wide window and on its own page on a phone (decision [0131](../decisions/0131-dock-panels.md)).
+It needs `"addon_api": 6`, and a module may declare at most 2.
+
+```json
+{ "kind": "panel", "name": "My checklist", "permission": "edit", "command": "checklist", "description": "Your own checklist, kept open beside the chat." }
+```
+
+- Only members holding `permission` see it, from `GET /modules/panels`.
+- The panel runs `command` for the viewer alone: first with an empty `input`, then with each `{"action","state"}` its scene sends. Nothing is stored or broadcast; the client keeps the latest scene, so it is still there after the viewer switches channels.
+- A top-level `refresh_ms` redraws it with the action `refresh` while it is open, within the same bounds as a shared scene.
+
 ## The scene contract
 
 A command normally returns text.

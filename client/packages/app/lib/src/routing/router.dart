@@ -56,6 +56,7 @@ import '../features/voice/screens/call_stats_screen.dart';
 import '../features/auth/screens/onboarding_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/messages/screens/thread_screen.dart';
+import '../features/modules/screens/module_panel_screen.dart';
 import 'breakpoints.dart';
 import 'cold_modal_launch.dart';
 import 'launch_route.dart';
@@ -295,6 +296,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             modalPage(context, const DebugLogScreen()),
       ),
       GoRoute(path: Routes.threadPattern, pageBuilder: _threadPage),
+      GoRoute(
+        path: Routes.modulePanelPattern,
+        pageBuilder: (context, state) => modalPage(
+          context,
+          ModulePanelScreen(
+            moduleId: state.pathParameters['moduleId']!,
+            command: state.pathParameters['command']!,
+          ),
+        ),
+      ),
       // The shell keeps the channel list alive across conversation changes;
       // the child pages fade through so switching one for another reads as a
       // navigation rather than an instant swap.

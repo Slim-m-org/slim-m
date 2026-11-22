@@ -12369,6 +12369,30 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /modules/panels:
+    get:
+      operationId: listModulePanels
+      tags: [space]
+      summary: Discover which Dock panels this caller may open.
+      description: >
+        One entry per installed and enabled module that declares a `panel`
+        extension point with `"addon_api": 6` or higher and whose declared
+        permission the caller holds. The client runs `command` through
+        `runModuleCommand` and hosts the scene beside the conversation
+        (decision 0131). An empty list means no panels.
+      responses:
+        "200":
+          description: The panels this caller may open, possibly empty.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ModulePanel"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /read-states:
     get:
       operationId: listReadStates
@@ -16360,6 +16384,27 @@ components:
           type: string
           nullable: true
           description: A short human summary of what the app is.
+        module:
+          $ref: "#/components/schemas/ModuleInfo"
+    ModulePanel:
+      type: object
+      required: [module_id, command, name]
+      properties:
+        module_id:
+          type: string
+        command:
+          type: string
+          description: >
+            The `command` extension point the panel runs through
+            `runModuleCommand`, first with empty input and then with each
+            `{"action","state"}` the scene sends.
+        name:
+          type: string
+          description: What the apps menu and the panel's header show.
+        description:
+          type: string
+          nullable: true
+          description: A short human summary of the panel.
         module:
           $ref: "#/components/schemas/ModuleInfo"
     CallRecord:

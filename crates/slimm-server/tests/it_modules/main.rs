@@ -67,6 +67,7 @@ mod module_install_atomic;
 mod module_log_read;
 mod module_net_lan;
 mod module_net_slow;
+mod module_panels;
 mod module_permissions;
 mod module_platform_dock;
 mod module_platform_settings;

@@ -5,6 +5,7 @@ import 'dart:async';
 import 'models.dart';
 import 'client.dart';
 import 'client_transport.dart';
+import 'exceptions.dart';
 
 /// Discovering and running an installed module's command, per
 /// `docs/decisions/0021-modules-and-the-dock.md`'s module-agnostic
@@ -39,6 +40,20 @@ extension SlimmApiModuleCommands on SlimmApi {
     final json = await send('GET', '/modules/apps');
     return (json as List<dynamic>)
         .map((a) => App.fromJson(a as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  /// Every Dock panel this caller may currently open, possibly empty; an
+  /// older server answers 404, which reads as none.
+  Future<List<ModulePanel>> listModulePanels() async {
+    final Object? json;
+    try {
+      json = await send('GET', '/modules/panels');
+    } on NotFoundException {
+      return const [];
+    }
+    return (json as List<dynamic>)
+        .map((p) => ModulePanel.fromJson(p as Map<String, dynamic>))
         .toList(growable: false);
   }
 

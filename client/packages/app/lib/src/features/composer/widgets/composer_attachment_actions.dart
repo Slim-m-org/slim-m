@@ -39,7 +39,7 @@ class ComposerAttachmentActions {
 
   void openActions({
     required String channelId,
-    required List<App> apps,
+    required bool canLaunch,
     required VoidCallback onInsertCode,
     required void Function(String) onCommandError,
   }) {
@@ -74,7 +74,7 @@ class ComposerAttachmentActions {
         onPoll: keepKeyboard(() => showPollComposerSheet(context, channelId)),
         onCode: keepKeyboard(onInsertCode),
         // Only when there is something to launch; an empty menu entry would dead-end.
-        onApps: apps.isEmpty
+        onApps: !canLaunch
             ? null
             : keepKeyboard(() => launchApps(channelId, onCommandError)),
       ).then((picked) {

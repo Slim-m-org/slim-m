@@ -39,6 +39,7 @@ class ModuleCommandOutput extends ConsumerWidget {
     this.command,
     this.messageId,
     this.blockIndex,
+    this.runAction,
   });
 
   final api.RunModuleCommandResult result;
@@ -50,6 +51,10 @@ class ModuleCommandOutput extends ConsumerWidget {
   /// than the ephemeral one - see the class doc. Null for the Dock panel.
   final String? messageId;
   final int? blockIndex;
+
+  /// Runs a private scene's actions in place of the ephemeral route, so a Dock
+  /// panel can keep each answer it gets (decision 0131).
+  final ModuleSceneRunner? runAction;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -128,6 +133,7 @@ class ModuleCommandOutput extends ConsumerWidget {
     final shared = messageId != null && blockIndex != null;
     // The full-screen route outlives this widget, so its closures hold the container, never ref.
     final container = ProviderScope.containerOf(context, listen: false);
+    final runAction = this.runAction;
     Future<api.RunModuleCommandResult> run(String input) => shared
         ? container
               .read(moduleActionsProvider)
@@ -138,6 +144,8 @@ class ModuleCommandOutput extends ConsumerWidget {
                 command: command,
                 input: input,
               )
+        : runAction != null
+        ? runAction(input)
         : container
               .read(moduleActionsProvider)
               .runModuleCommand(

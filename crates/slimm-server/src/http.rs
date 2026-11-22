@@ -104,6 +104,7 @@ pub(crate) mod module_hooks;
 pub(crate) mod module_host;
 mod module_logs;
 mod module_net;
+mod module_panels;
 mod module_run;
 pub(crate) mod module_schedule;
 mod module_slot_cache;
@@ -332,6 +333,7 @@ pub fn router(state: AppState) -> Router {
         .merge(diagnostics::ping_routes())
         .merge(direct_route::routes())
         .merge(dock::routes())
+        .merge(module_panels::routes())
         .merge(module_slots::routes())
         .merge(emoji::routes())
         .merge(soundboard::routes())

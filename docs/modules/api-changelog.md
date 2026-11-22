@@ -3,6 +3,12 @@
 Every change to a contract a module depends on is listed here, newest first.
 The policy behind the levels is decision [0100](../decisions/0100-module-safety-contracts.md).
 
+## Level 6 (Dock panels)
+
+- Adds the `panel` extension point (decision [0131](../decisions/0131-dock-panels.md)): `{ "kind": "panel", "name", "permission", "command", "description"? }`, at most 2 per module, with `"addon_api": 6`. A level 5 server refuses such a module at install instead of installing it without its panel.
+- Adds `GET /modules/panels`, listing the panels the caller holds the permission for. A panel runs through the existing `POST /modules/{id}/commands/{command}`; there is no new run route and no new contract version.
+- Nothing is removed or changed in meaning. A module that declares `addon_api_max` of 5 must be updated to run on a level 6 server, as at every level.
+
 ## Level 5 additions (no level bump, nothing to declare)
 
 - A scene's `controls` may hold a dropdown, `{"label", "value", "options"}`, alongside button names; picking an option sends it as the action. This is read by the client (0.132 and later), so the server and the add-on level are unchanged, and an older client skips the entry. Its optional `replaces` lists buttons in the same row that the dropdown stands for: an older client shows them, a newer one leaves them out.
