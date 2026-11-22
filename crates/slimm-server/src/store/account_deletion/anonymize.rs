@@ -140,6 +140,13 @@ pub(super) async fn anonymize_authored_content(
     )
     .execute(&mut **tx)
     .await?;
+    // A module tile's frame stays on the canvas; who pressed it last goes the way a code run's runner does.
+    sqlx::query!(
+        "UPDATE canvas_tile_scenes SET ran_by = NULL WHERE ran_by = ?",
+        user_id
+    )
+    .execute(&mut **tx)
+    .await?;
     // A launched app surface stays visible to everyone in the channel; who launched it goes the way a poll's creator does, and for the same tombstone-UPDATE reason the FK never fires.
     sqlx::query!(
         "UPDATE app_surfaces SET created_by = NULL WHERE created_by = ?",

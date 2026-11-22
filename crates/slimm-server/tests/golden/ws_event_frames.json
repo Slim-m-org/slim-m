@@ -32,6 +32,7 @@
   "{\"channel_id\":\"CHANNEL\",\"message_id\":\"01900000-0000-7000-8000-000000000001\",\"type\":\"message.unpinned\"}",
   "{\"channel_id\":\"CHANNEL\",\"object_id\":\"01900000-0000-7000-8000-000000000002\",\"op_id\":\"01900000-0000-7000-8000-000000000003\",\"props\":{\"a\":1},\"seq\":10,\"type\":\"canvas.object.edited\"}",
   "{\"channel_id\":\"CHANNEL\",\"object_id\":\"01900000-0000-7000-8000-000000000002\",\"op_id\":\"01900000-0000-7000-8000-000000000003\",\"seq\":9,\"type\":\"canvas.object.reordered\",\"z_index\":3}",
+  "{\"channel_id\":\"CHANNEL\",\"object_id\":\"01900000-0000-7000-8000-000000000002\",\"output\":\"{\\\"$slim\\\":\\\"scene/1\\\"}\",\"ran_at\":9,\"ran_by\":\"BOB\",\"type\":\"canvas.tile.scene_changed\"}",
   "{\"channel_id\":\"CHANNEL\",\"object_ids\":[\"01900000-0000-7000-8000-000000000002\"],\"op_id\":\"01900000-0000-7000-8000-000000000003\",\"seq\":4,\"type\":\"canvas.objects.removed\"}",
   "{\"channel_id\":\"CHANNEL\",\"object_ids\":[\"01900000-0000-7000-8000-000000000002\"],\"op_id\":\"01900000-0000-7000-8000-000000000003\",\"seq\":7,\"type\":\"canvas.objects.restored\"}",
   "{\"channel_id\":\"CHANNEL\",\"outcome\":\"declined\",\"ring_id\":\"01900000-0000-7000-8000-00000000000b\",\"type\":\"call.ring_ended\"}",

@@ -37,10 +37,12 @@ use crate::store::{CanvasObject, Rect, ViewportQuery, WORLD_LIMIT};
 
 pub(super) mod canvas_batch;
 pub(super) mod canvas_media_slots;
+pub(super) mod canvas_module_tiles;
 pub(super) mod canvas_object_locks;
 pub(super) mod canvas_ops;
 pub(super) mod canvas_ops_write;
 pub(super) mod canvas_purge;
+pub(super) mod canvas_tile_scene;
 pub(super) mod canvas_write;
 
 /// Default and maximum objects returned for one viewport read. The ceiling is
@@ -74,6 +76,8 @@ pub fn routes() -> Router<AppState> {
                 )
                 .layer(DefaultBodyLimit::max(MAX_BATCH_BODY_BYTES)),
         )
+        .merge(canvas_module_tiles::routes())
+        .merge(canvas_tile_scene::routes())
 }
 
 // --- Wire types ---

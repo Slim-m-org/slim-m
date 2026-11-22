@@ -12,20 +12,30 @@ use std::sync::{Arc, LazyLock, Mutex};
 
 use tokio::sync::{Mutex as AsyncMutex, OwnedMutexGuard};
 
-use crate::ids::MessageId;
+use uuid::Uuid;
 
-static LOCKS: LazyLock<Mutex<HashMap<MessageId, Arc<AsyncMutex<()>>>>> =
-    LazyLock::new(Mutex::default);
+use crate::ids::{CanvasObjectId, MessageId};
+
+static LOCKS: LazyLock<Mutex<HashMap<Uuid, Arc<AsyncMutex<()>>>>> = LazyLock::new(Mutex::default);
 
 /// Waits for the surface's turn; the turn ends when the guard is dropped.
 pub(super) async fn lock_surface(message: MessageId) -> OwnedMutexGuard<()> {
+    lock(message.0).await
+}
+
+/// [`lock_surface`] for a module tile on a canvas; ids are UUIDv7, so one map holds both.
+pub(super) async fn lock_canvas_tile(object: CanvasObjectId) -> OwnedMutexGuard<()> {
+    lock(object.0).await
+}
+
+async fn lock(key: Uuid) -> OwnedMutexGuard<()> {
     let lock = {
         let mut locks = LOCKS
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         // An idle surface has no waiter holding its lock, so its entry can go.
         locks.retain(|_, lock| Arc::strong_count(lock) > 1);
-        Arc::clone(locks.entry(message).or_default())
+        Arc::clone(locks.entry(key).or_default())
     };
     lock.lock_owned().await
 }

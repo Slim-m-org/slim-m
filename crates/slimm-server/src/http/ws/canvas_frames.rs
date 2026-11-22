@@ -35,6 +35,7 @@ pub(super) fn channel_id(event: &Event) -> Option<ChannelId> {
         Event::Canvas(CanvasEvent::ObjectEdited { channel_id, .. }) => *channel_id,
         Event::Canvas(CanvasEvent::MediaSlotChanged { channel_id, .. }) => *channel_id,
         Event::Canvas(CanvasEvent::ObjectLockChanged { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::TileSceneChanged { channel_id, .. }) => *channel_id,
         _ => return None,
     })
 }
@@ -280,6 +281,19 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             object_id: object_id.to_string(),
             locked,
             version,
+        },
+        Event::Canvas(CanvasEvent::TileSceneChanged {
+            channel_id,
+            object_id,
+            output,
+            ran_by,
+            ran_at,
+        }) => ServerFrame::CanvasTileSceneChanged {
+            channel_id: channel_id.to_string(),
+            object_id: object_id.to_string(),
+            output,
+            ran_by: ran_by.map(|id| id.to_string()),
+            ran_at,
         },
         other => return Err(Box::new(other)),
     })

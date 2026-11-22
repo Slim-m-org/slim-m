@@ -362,6 +362,13 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             locked: true,
             version: 3,
         }),
+        Event::Canvas(CanvasEvent::TileSceneChanged {
+            channel_id: channel,
+            object_id: object,
+            output: Arc::from("{\"$slim\":\"scene/1\"}"),
+            ran_by: Some(bob),
+            ran_at: 9,
+        }),
         Event::ReportsChanged,
         Event::AdminAlertsChanged,
         Event::ReadStateChanged {

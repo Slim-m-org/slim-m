@@ -73,6 +73,12 @@ pub(in crate::http) async fn place_batch(
             )));
         }
         let place = validate_place(object).map_err(|error| indexed(error, index))?;
+        if place.module_tile.is_some() {
+            return Err(indexed(
+                ApiError::BadRequest("a module tile is placed on its own, not in a batch"),
+                index,
+            ));
+        }
         ids.push(id);
         validated.push(place);
     }

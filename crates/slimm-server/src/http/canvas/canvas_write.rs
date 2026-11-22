@@ -54,7 +54,7 @@ use crate::hub::{CanvasEvent, Event};
 use crate::ids::{CanvasObjectId, ChannelId};
 use crate::media;
 use crate::permissions::Permissions;
-use crate::store::PlaceError;
+use crate::store::{MODULE_TILE_KIND, ModuleTileRef, PlaceError};
 
 /// Largest serialized `props` one object may carry.
 ///
@@ -79,7 +79,16 @@ pub(in crate::http) const MAX_BODY_BYTES: usize = 8 * 1024;
 /// authorizes against - a note's text and a shape's own primitive both stay
 /// inside the opaque `props` every other kind's fields already do. `emoji` is a
 /// board stamp (decision 0121), and its `props.emoji` is the second field read here.
-const KINDS: [&str; 6] = ["stroke", "image", "note", "shape", "text", "emoji"];
+/// `module` is a module's tile, and its `props.module_id` and `props.tile` are authorized at place.
+pub(super) const KINDS: [&str; 7] = [
+    "stroke",
+    "image",
+    "note",
+    "shape",
+    "text",
+    "emoji",
+    MODULE_TILE_KIND,
+];
 
 /// The only kind-specific field this server reads out of an otherwise opaque
 /// `props`: which attachment an `image` object names. A raw sha256, not a hex
@@ -127,6 +136,8 @@ pub(super) struct ValidatedPlace {
     bounds: (f64, f64, f64, f64),
     props: String,
     attachment: Option<Vec<u8>>,
+    /// What a `module` object names, which the place route authorizes before it writes.
+    pub(super) module_tile: Option<ModuleTileRef>,
 }
 
 impl ValidatedPlace {
@@ -163,11 +174,21 @@ pub(super) fn validate_place(params: PlaceParams) -> Result<ValidatedPlace, ApiE
     } else {
         None
     };
+    let module_tile = if params.kind == MODULE_TILE_KIND {
+        Some(
+            ModuleTileRef::from_props(&params.props).ok_or(ApiError::BadRequest(
+                "a module tile needs props.module_id and props.tile",
+            ))?,
+        )
+    } else {
+        None
+    };
     Ok(ValidatedPlace {
         kind: params.kind,
         bounds: (params.x, params.y, params.w, params.h),
         props,
         attachment,
+        module_tile,
     })
 }
 
@@ -256,6 +277,9 @@ pub(in crate::http) async fn place(
     ensure_may_draw(&state, ctx.user_id, channel_id).await?;
 
     let place = validate_place(params)?;
+    if let Some(tile) = &place.module_tile {
+        super::canvas_module_tiles::authorize_place(&state, ctx.user_id, tile).await?;
+    }
 
     let placement = state
         .store

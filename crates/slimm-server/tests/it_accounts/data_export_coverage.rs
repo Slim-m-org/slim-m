@@ -62,6 +62,7 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
     ("canvas_object_locks", "locked_by", Fate::Excluded(CANVAS)),
     ("canvas_objects", "author_id", Fate::Excluded(CANVAS)),
     ("canvas_ops", "actor_id", Fate::Excluded(CANVAS)),
+    ("canvas_tile_scenes", "ran_by", Fate::Excluded(CANVAS)),
     ("category_mutes", "user_id", Fate::Exported("settings.json")),
     (
         "channel_notification_prefs",

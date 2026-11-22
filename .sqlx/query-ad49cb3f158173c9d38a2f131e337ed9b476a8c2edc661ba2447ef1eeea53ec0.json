@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE canvas_tile_scenes SET ran_by = NULL WHERE ran_by = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "ad49cb3f158173c9d38a2f131e337ed9b476a8c2edc661ba2447ef1eeea53ec0"
+}
