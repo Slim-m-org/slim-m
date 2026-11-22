@@ -6,6 +6,8 @@ library;
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
+
 /// How long a sample runs.
 const int kMicSampleSeconds = 30;
 
@@ -178,8 +180,13 @@ class MicSampleRecorder {
     try {
       await _source.stop();
       await _source.close();
-    } on Object {
-      // Nothing left to tell the person: the sample is already kept or failed.
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'Could not close the mic sample capture',
+        error,
+        stack,
+      );
     }
   }
 

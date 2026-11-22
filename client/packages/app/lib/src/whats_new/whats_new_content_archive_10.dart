@@ -351,4 +351,22 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.134.0',
+    headline: 'Games in calls, and a clearer Strongest',
+    points: [
+      WhatsNewPoint(
+        'Modules can now put a game on the call stage, a tile on the '
+        'canvas, or a panel beside the chat.',
+      ),
+      WhatsNewPoint(
+        'Strongest noise suppression no longer makes your voice quieter '
+        'than Strong does.',
+      ),
+      WhatsNewPoint(
+        'On Linux and Windows, Settings > Troubleshooting can record a '
+        '30 second sample of your raw microphone to a file.',
+      ),
+    ],
+  ),
 ];

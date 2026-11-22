@@ -424,6 +424,13 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'troubleshooting',
+    'Record a mic sample',
+    description: 'Save 30 seconds of your raw microphone to a file.',
+    keywords: ['microphone', 'recording', 'wav', 'noise', 'sample'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    'troubleshooting',
     'Run setup again',
     description: 'Profile, notifications and voice, one step at a time.',
     keywords: ['onboarding', 'welcome', 'tour', 'first run', 'setup'],
