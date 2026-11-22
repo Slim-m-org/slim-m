@@ -14,98 +14,103 @@ import 'canvas_people_session.dart';
 /// The width of the outline; wide enough to read as a state, thin enough to cover no ink.
 const double canvasFollowOutlineWidth = 3;
 
-class CanvasFollowStatus extends StatefulWidget {
-  const CanvasFollowStatus({
+/// The outline over the board; it also lets go of a followed person who left.
+class CanvasFollowOutline extends StatelessWidget {
+  const CanvasFollowOutline({super.key, required this.participants});
+
+  /// The call, so a follow of someone with no cursor still resolves to a name.
+  final List<VoiceParticipant> participants;
+
+  @override
+  Widget build(BuildContext context) {
+    final following = _resolveFollowing(context, participants);
+    if (following == null) return const SizedBox.shrink();
+    return IgnorePointer(
+      child: DecoratedBox(
+        key: followOutlineKey,
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: following.color,
+            width: canvasFollowOutlineWidth,
+          ),
+        ),
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+}
+
+/// The chip and the summon card as a strip of the pane's own chrome, above the board so neither covers a tile.
+class CanvasFollowStrip extends StatelessWidget {
+  const CanvasFollowStrip({
     super.key,
     required this.participants,
     required this.below,
   });
 
-  /// The call, so a follow of someone with no cursor still resolves to a name.
   final List<VoiceParticipant> participants;
 
-  /// Shown under the chip in the same top-centre slot, so the two never overlap.
+  /// Shown under the chip in the same strip, so the two never overlap.
   final Widget below;
 
   @override
-  State<CanvasFollowStatus> createState() => _CanvasFollowStatusState();
+  Widget build(BuildContext context) {
+    final following = _resolveFollowing(context, participants);
+    final session = CanvasPeopleScope.maybeOf(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (following != null && session != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.s8),
+              child: _Chip(
+                name: following.name,
+                color: following.color,
+                tokens: Theme.of(context).extension<AppTokens>()!,
+                onStop: session.stopFollowing,
+              ),
+            ),
+          below,
+        ],
+      ),
+    );
+  }
 }
 
-class _CanvasFollowStatusState extends State<CanvasFollowStatus> {
-  // Someone who left can no longer be followed, so their return must not pull the camera.
-  void _dropFollowedWhoLeft(
-    CanvasPeopleSession session,
-    List<CanvasFollowTarget> targets,
-  ) {
-    final followed = session.followed;
-    if (followed == null || targets.any((t) => t.id == followed)) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) session.relay.forget(followed);
-    });
-  }
+typedef _Following = ({String name, Color color});
 
-  @override
-  Widget build(BuildContext context) {
-    final session = CanvasPeopleScope.maybeOf(context);
-    if (session == null) return _slot(context, null);
-    final targets = canvasFollowTargets(
-      cursors: session.cursors.all,
-      participants: widget.participants,
-      selfId: session.selfId(),
-    );
-    _dropFollowedWhoLeft(session, targets);
-    final followed = targets.where((t) => t.id == session.followed).firstOrNull;
-    if (followed == null) return _slot(context, null);
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final color = session.followedColor ?? tokens.accentFill;
-    return _slot(context, (
-      color: color,
-      chip: _Chip(
-        name: followed.name,
-        color: color,
-        tokens: tokens,
-        onStop: session.stopFollowing,
-      ),
-    ));
+_Following? _resolveFollowing(
+  BuildContext context,
+  List<VoiceParticipant> participants,
+) {
+  final session = CanvasPeopleScope.maybeOf(context);
+  if (session == null) return null;
+  final targets = canvasFollowTargets(
+    cursors: session.cursors.all,
+    participants: participants,
+    selfId: session.selfId(),
+  );
+  final followed = targets.where((t) => t.id == session.followed).firstOrNull;
+  if (followed == null) {
+    _dropFollowedWhoLeft(context, session);
+    return null;
   }
+  final tokens = Theme.of(context).extension<AppTokens>()!;
+  return (
+    name: followed.name,
+    color: session.followedColor ?? tokens.accentFill,
+  );
+}
 
-  Widget _slot(BuildContext context, ({Color color, Widget chip})? following) =>
-      Stack(
-        fit: StackFit.expand,
-        children: [
-          if (following != null)
-            IgnorePointer(
-              child: DecoratedBox(
-                key: followOutlineKey,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: following.color,
-                    width: canvasFollowOutlineWidth,
-                  ),
-                ),
-              ),
-            ),
-          Align(
-            alignment: Alignment.topCenter,
-            child: SafeArea(
-              minimum: EdgeInsets.fromLTRB(
-                AppSpacing.s12,
-                canvasCornerRowsInset(context),
-                AppSpacing.s12,
-                AppSpacing.s12,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ?following?.chip,
-                  if (following != null) const SizedBox(height: AppSpacing.s8),
-                  widget.below,
-                ],
-              ),
-            ),
-          ),
-        ],
-      );
+// Someone who left can no longer be followed, so their return must not pull the camera.
+void _dropFollowedWhoLeft(BuildContext context, CanvasPeopleSession session) {
+  final followed = session.followed;
+  if (followed == null) return;
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (context.mounted) session.relay.forget(followed);
+  });
 }
 
 const followOutlineKey = ValueKey('canvas-follow-outline');

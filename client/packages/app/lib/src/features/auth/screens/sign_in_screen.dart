@@ -29,6 +29,7 @@ import '../../../invite_link.dart';
 import 'sign_in_destination.dart';
 import 'sign_in_form_parts.dart';
 import 'sign_in_join_steps.dart';
+import 'sign_in_probe_controller.dart';
 import 'sign_in_server_probe.dart';
 import 'sign_in_reason_notices.dart';
 import 'sign_in_wording.dart';
@@ -93,22 +94,19 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       ? _error!.$2
       : null;
 
-  /// What the server in the field said about itself, or null while nothing is
-  /// known: the probe is pending, the host is unreachable, or it answered with
-  /// something that is not a slim-m `/version`. Every notice below reads from
-  /// this, and null renders none of them, because warning someone off a server
-  /// that is merely slow to answer is worse than staying quiet.
-  Version? _probed;
-  Timer? _probeDebounce;
-
-  /// Why the last probe failed; shown only while creating an account, the one
-  /// mode that waits on the server answering (see `sign_in_join_steps.dart`).
-  String? _probeFailure;
-
-  /// Whether the person asked for this address's answer: on open, Continue, or
-  /// leaving the field. The debounced probe while typing keeps a failure quiet.
-  bool _failureAsked = true;
-  late final _serverFocus = FocusNode()..addListener(_onServerFocus);
+  late final _probe = SignInProbeController(
+    SignInProbeHost(
+      mounted: () => mounted,
+      address: () => _server.text,
+      ask: _askServer,
+      update: setState,
+      onAnswered: (version) {
+        if (!_modeChosen && opensOnCreating(version, invited: _invited)) {
+          _creatingAccount = true;
+        }
+      },
+    ),
+  );
 
   late final _invite = HeldInvite(
     pending: ref.read(pendingInviteProvider),
@@ -117,25 +115,19 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   JoinStage get _stage => _invite.stageOn(
     probeTarget(_server.text),
-    _probed,
+    _probe.probed,
     creating: _creatingAccount,
   );
-
-  /// How [_probed]'s identity compares against whatever this app already
-  /// pinned for the address in the field. Read alongside [_probed] so the
-  /// chip never has to guess a status for an answer it has not seen yet.
-  ServerIdentityStatus? _identityStatus;
 
   @override
   void initState() {
     super.initState();
-    _probeServer();
+    unawaited(_probe.probe());
   }
 
   @override
   void dispose() {
-    _probeDebounce?.cancel();
-    _serverFocus.dispose();
+    _probe.dispose();
     _server.dispose();
     _invite.dispose();
     _username.dispose();
@@ -144,42 +136,22 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     super.dispose();
   }
 
-  /// Asks the server in the field what it is, so the facts worth knowing
-  /// before joining are on screen while the choice is still open: whether it
-  /// can deliver push at all, whether joining needs an invite, and whether it
-  /// offers reporting and blocking.
-  ///
-  /// The result is applied only if the field still holds the address that was
-  /// probed, on every path including failures, so a slow answer about a
-  /// previously typed address cannot relabel the current one either way.
-  Future<void> _probeServer() async {
-    final text = _server.text;
-    final answer = await answerForAddress(
-      text,
-      probeApi: ref.read(probeApiProvider),
-      keyStore: ref.read(keyStoreProvider),
-      // Only the create form says why a probe failed, so only it asks the browser.
-      reach: _creatingAccount
-          ? ref.read(browserReachProbeProvider)
-          : (_) async => null,
-    );
-    if (!mounted || probeTarget(_server.text) != probeTarget(text)) return;
-    setState(() {
-      _probed = answer.version;
-      _probeFailure = answer.failure;
-      _identityStatus = answer.status;
-      if (!_modeChosen && opensOnCreating(answer.version, invited: _invited)) {
-        _creatingAccount = true;
-      }
-    });
-  }
+  Future<ServerAnswer> _askServer(String text) => answerForAddress(
+    text,
+    probeApi: ref.read(probeApiProvider),
+    keyStore: ref.read(keyStoreProvider),
+    // Only the create form says why a probe failed, so only it asks the browser.
+    reach: _creatingAccount
+        ? ref.read(browserReachProbeProvider)
+        : (_) async => null,
+  );
 
   /// Continue before the address has answered checks it now, without the debounce.
   Future<void> _checkServer() async {
-    _probeDebounce?.cancel();
+    _probe.cancelDebounce();
     if (_submittableAddress() == null) return;
-    _failureAsked = true;
-    await _whileBusy(_probeServer);
+    _probe.failureAsked = true;
+    await _whileBusy(_probe.probe);
   }
 
   /// Checks the code on the server in the field before any account field opens.
@@ -230,7 +202,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   /// The link's own Space answers first, then its code is checked there.
   Future<void> _checkLinkedInvite() async {
     await _checkServer();
-    if (mounted && _probed != null) await _checkInvite();
+    if (mounted && _probe.probed != null) await _checkInvite();
   }
 
   void _onServerEdited(String _) {
@@ -243,20 +215,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   /// [keepError] holds a failure just shown, as after a sign-in nothing answered.
   void _reprobe({bool keepError = false}) {
     setState(() {
-      _probed = null;
-      _probeFailure = null;
-      _identityStatus = null;
+      _probe.forget();
       if (!keepError && _error?.$1 == SignInErrorField.server) _error = null;
-      _failureAsked = false;
     });
-    _probeDebounce?.cancel();
-    _probeDebounce = Timer(const Duration(milliseconds: 600), _probeServer);
-  }
-
-  void _onServerFocus() {
-    if (!_serverFocus.hasFocus && !_failureAsked) {
-      setState(() => _failureAsked = true);
-    }
+    _probe.probeSoon();
   }
 
   void _clearErrorOn(Set<SignInErrorField> fields) {
@@ -314,7 +276,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         creatingAccount: _creatingAccount,
         invite: _invite.codeFor(probeTarget(_server.text)),
         // Tried unless this server is known to predate the question.
-        lookUpUsername: _probed?.usernameCheck != false,
+        lookUpUsername: _probe.probed?.usernameCheck != false,
         onAccountFound: () => accountFound = true,
       );
       if (result == ConnectResult.noAccount && mounted) {
@@ -360,7 +322,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _confirmPassword.clear();
     });
     // Creating waits on the server, so a failed answer is worth asking again.
-    if (_probed == null) unawaited(_checkServer());
+    if (_probe.probed == null) unawaited(_checkServer());
   }
 
   /// An error or notice about the last attempt no longer holds once it changes.
@@ -384,7 +346,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _modeChosen = true;
       _error = null;
     });
-    if (_creatingAccount && _probeFailure != null) unawaited(_checkServer());
+    if (_creatingAccount && _probe.failure != null) unawaited(_checkServer());
   }
 
   /// Whether onboarding handed this screen an invite, so someone is joining.
@@ -401,7 +363,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   /// Joining is where server warnings matter; signing in never asks.
   Future<bool> _acknowledgedWarnings() {
-    final warnings = serverWarningsFor(_probed);
+    final warnings = serverWarningsFor(_probe.probed);
     if (warnings.isEmpty) return Future.value(true);
     return confirmServerWarnings(context, warnings);
   }
@@ -415,11 +377,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   @override
   Widget build(BuildContext context) {
     final firstContact = _firstContact;
-    final identityStatus = _identityStatus ?? ServerIdentityStatus.unknown;
+    final identityStatus =
+        _probe.identityStatus ?? ServerIdentityStatus.unknown;
     final stage = _stage;
     final serverError =
         _errorFor(SignInErrorField.server) ??
-        (_creatingAccount && _failureAsked ? _probeFailure : null);
+        (_creatingAccount && _probe.failureAsked ? _probe.failure : null);
 
     return OnboardingShell(
       // Creating an account is the last of the join steps; signing back in to
@@ -436,7 +399,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               firstContact: firstContact,
             ),
             host: serverHostLabel(_server.text),
-            version: _probed,
+            version: _probe.probed,
             // A key saved moments ago by this connect matches nothing from before.
             status:
                 firstContact && identityStatus == ServerIdentityStatus.confirmed
@@ -448,12 +411,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           if (_addressExpanded)
             SignInServerField(
               controller: _server,
-              focusNode: _serverFocus,
+              focusNode: _probe.focusNode,
               error: serverError,
               onChanged: _onServerEdited,
             ),
           SignInNotices(
-            probed: _probed,
+            probed: _probe.probed,
             creatingAccount: _creatingAccount,
             noAccountNamed: _noAccountNamed,
           ),
@@ -461,7 +424,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           InviteCodeField(
             invite: _invite,
             server: probeTarget(_server.text),
-            probed: _probed,
+            probed: _probe.probed,
             creatingAccount: _creatingAccount,
             busy: _busy,
             error: _errorFor(SignInErrorField.invite),

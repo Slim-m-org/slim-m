@@ -52,8 +52,8 @@ Turn on `use_send_side_bwe` or a larger video buffer only after a viewer-side sy
 ## What is not known
 
 - The home uplink has never been measured, and it is the real ceiling for screen share fan-out.
-- A relay-only join to prod has never been run.
-  It needs a private test channel and a debug build with the ICE transport policy set to relay.
-- TURN on 443 has never been tried.
+- A relay-only join has only been run from inside the LAN: a browser join through TURN on 443 connected in about 1.4 s on 2026-11-03 (see `deploy/README.md`).
+  The same join from outside the LAN, over a mobile or guest network, has never been run.
+  It needs a private test channel and a build with the ICE transport policy set to relay.
 
 Each of these is a card on the Planka board.
