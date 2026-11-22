@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.134.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.133.2...client-v0.134.0) (2026-11-22)
+
+
+### Features
+
+* module call scenes, canvas tiles and dock panels, a clearer Strongest, and a mic sample recorder ([#2465](https://github.com/Slim-m-org/slim-m/issues/2465)) ([487afef](https://github.com/Slim-m-org/slim-m/commit/487afef0ed30e52b044d864b1a508174a1a11085))
+
 ## [0.133.2](https://github.com/Slim-m-org/slim-m/compare/client-v0.133.1...client-v0.133.2) (2026-11-22)
 
 
