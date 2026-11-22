@@ -63,17 +63,24 @@ class _Rig {
               selfId: 'me',
               viewMode: null,
               onBringEveryone: () => brought++,
-              child: Stack(
+              child: Column(
                 children: [
-                  CanvasFollowStatus(
+                  CanvasFollowStrip(
                     participants: call,
                     below: const SizedBox.shrink(),
                   ),
-                  const Align(
-                    alignment: Alignment.topLeft,
-                    child: Padding(
-                      padding: EdgeInsets.all(12),
-                      child: CanvasPeopleCluster(),
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        CanvasFollowOutline(participants: call),
+                        const Align(
+                          alignment: Alignment.topLeft,
+                          child: Padding(
+                            padding: EdgeInsets.all(12),
+                            child: CanvasPeopleCluster(),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

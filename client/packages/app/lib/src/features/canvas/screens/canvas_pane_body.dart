@@ -347,9 +347,8 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     final leave = widget.fullscreen ? widget.onToggleFullscreen : null;
     unawaited(
       widget.viewRelay?.acceptSummon(
-            beforeMoving: leave == null
-                ? null
-                : () => leaveFullscreenThenSettle(leave),
+            // The prompt's strip is already gone, so the board must refit before the camera is aimed.
+            beforeMoving: () => leaveFullscreenThenSettle(leave ?? () {}),
           ) ??
           Future<void>.value(),
     );
@@ -424,68 +423,72 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                   widget.document.visibleBoard ?? canvasSharedArea,
                 ),
                 // Canvas content panned past the top edge must never paint over the header above it.
-                child: ClipRect(
-                  // Tab goes banner action, board, dock, call tiles, view controls: reading order put the board's corners first.
-                  child: FocusTraversalGroup(
-                    policy: OrderedTraversalPolicy(),
-                    child: Stack(
-                      children: [
-                        FocusTraversalOrder(
-                          key: const ValueKey('canvas-surface'),
-                          order: const NumericFocusOrder(1),
-                          child: _activityLogOpen ? _panel() : _surface(tokens),
-                        ),
-                        CanvasSpeakingSync(cursors: widget.cursors),
-                        if (!_activityLogOpen)
+                child: _withPeerStrip(
+                  ClipRect(
+                    // Tab goes banner action, board, dock, call tiles, view controls: reading order put the board's corners first.
+                    child: FocusTraversalGroup(
+                      policy: OrderedTraversalPolicy(),
+                      child: Stack(
+                        children: [
                           FocusTraversalOrder(
-                            key: const ValueKey('canvas-peer-controls'),
-                            order: const NumericFocusOrder(4),
-                            child: CanvasPeerControls(
-                              participants: widget.callParticipants,
-                              cursors: widget.cursors,
-                              relay: widget.viewRelay,
-                              selfId: widget.selfId,
-                              onAcceptSummon: _acceptSummon,
+                            key: const ValueKey('canvas-surface'),
+                            order: const NumericFocusOrder(1),
+                            child: _activityLogOpen
+                                ? _panel()
+                                : _surface(tokens),
+                          ),
+                          CanvasSpeakingSync(cursors: widget.cursors),
+                          if (!_activityLogOpen)
+                            FocusTraversalOrder(
+                              key: const ValueKey('canvas-peer-controls'),
+                              order: const NumericFocusOrder(4),
+                              child: CanvasPeerControls(
+                                participants: widget.callParticipants,
+                                cursors: widget.cursors,
+                                relay: widget.viewRelay,
+                                selfId: widget.selfId,
+                                onAcceptSummon: _acceptSummon,
+                              ),
+                            ),
+                          if (widget.paging case final paging?)
+                            CanvasPagingIndicator(paging: paging),
+                          FocusTraversalOrder(
+                            key: const ValueKey('canvas-notice'),
+                            order: const NumericFocusOrder(0),
+                            child: CanvasNotice(
+                              callError: widget.callError,
+                              onRetryCall: widget.onRetryCall,
+                              error: widget.error,
+                              onDismissError: widget.onDismissError,
+                              onRetryError: widget.onRetryError,
+                              unsavedInk: widget.document.unsavedInk.count,
                             ),
                           ),
-                        if (widget.paging case final paging?)
-                          CanvasPagingIndicator(paging: paging),
-                        FocusTraversalOrder(
-                          key: const ValueKey('canvas-notice'),
-                          order: const NumericFocusOrder(0),
-                          child: CanvasNotice(
-                            callError: widget.callError,
-                            onRetryCall: widget.onRetryCall,
-                            error: widget.error,
-                            onDismissError: widget.onDismissError,
-                            onRetryError: widget.onRetryError,
-                            unsavedInk: widget.document.unsavedInk.count,
-                          ),
-                        ),
-                        FocusTraversalOrder(
-                          key: const ValueKey('canvas-dock'),
-                          order: const NumericFocusOrder(2),
-                          child: CanvasDockOverlay(
-                            call: widget.callDock,
-                            canvas: _dockData,
-                            tileOverrides: widget.tileOverrides,
-                            compact: compact,
-                          ),
-                        ),
-                        if (shortWindow && !widget.fullscreen)
                           FocusTraversalOrder(
-                            key: const ValueKey('canvas-short-toggle'),
-                            order: const NumericFocusOrder(3),
-                            child: CanvasShortToggle(
-                              channelId: widget.channelId,
+                            key: const ValueKey('canvas-dock'),
+                            order: const NumericFocusOrder(2),
+                            child: CanvasDockOverlay(
+                              call: widget.callDock,
+                              canvas: _dockData,
+                              tileOverrides: widget.tileOverrides,
+                              compact: compact,
                             ),
                           ),
-                        const FocusTraversalOrder(
-                          key: ValueKey('canvas-music-badge'),
-                          order: NumericFocusOrder(5),
-                          child: CanvasMusicBadge(),
-                        ),
-                      ],
+                          if (shortWindow && !widget.fullscreen)
+                            FocusTraversalOrder(
+                              key: const ValueKey('canvas-short-toggle'),
+                              order: const NumericFocusOrder(3),
+                              child: CanvasShortToggle(
+                                channelId: widget.channelId,
+                              ),
+                            ),
+                          const FocusTraversalOrder(
+                            key: ValueKey('canvas-music-badge'),
+                            order: NumericFocusOrder(5),
+                            child: CanvasMusicBadge(),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -498,6 +501,21 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
       ),
     );
   }
+
+  // The chip and summon card take their own row, so they never cover a tile.
+  Widget _withPeerStrip(Widget board) => Column(
+    children: [
+      if (!_activityLogOpen)
+        CanvasPeerStrip(
+          participants: widget.callParticipants,
+          cursors: widget.cursors,
+          relay: widget.viewRelay,
+          selfId: widget.selfId,
+          onAcceptSummon: _acceptSummon,
+        ),
+      Expanded(child: board),
+    ],
+  );
 
   void _toggleActivityLog() {
     setState(() => _activityLogOpen = !_activityLogOpen);
