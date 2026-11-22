@@ -28,6 +28,7 @@ import '../../../../providers/admin_providers.dart';
 import '../../../channels/providers/channel_permissions.dart'
     show myVisibleChannelsProvider;
 import '../../../modules/providers/app_launch.dart';
+import '../../../modules/providers/module_panels.dart';
 import '../../../modules/providers/code_block_runner.dart';
 import '../../../composer/providers/slash_command.dart';
 import '../../../../providers/providers.dart';
@@ -237,6 +238,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     ref.invalidate(codeBlockRunnerProvider);
     ref.invalidate(slashCommandProvider);
     ref.invalidate(appLaunchProvider);
+    ref.invalidate(modulePanelsProvider);
     if (wasInstalled || !mounted) return;
     // Installed is not usable until somebody is granted it; see the role access card's doc.
     if (manifest.permissions.isNotEmpty) {
@@ -262,6 +264,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
       ref.invalidate(codeBlockRunnerProvider);
       ref.invalidate(slashCommandProvider);
       ref.invalidate(appLaunchProvider);
+      ref.invalidate(modulePanelsProvider);
     }
   }
 
@@ -329,6 +332,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
       ref.invalidate(codeBlockRunnerProvider);
       ref.invalidate(slashCommandProvider);
       ref.invalidate(appLaunchProvider);
+      ref.invalidate(modulePanelsProvider);
       // Back to the list: this module's own screen no longer describes anything installed.
       if (mounted) closeToDock(context);
     }

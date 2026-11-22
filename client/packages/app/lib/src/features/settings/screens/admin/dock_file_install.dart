@@ -19,6 +19,7 @@ import '../../../../routing/routes.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../../composer/providers/slash_command.dart';
 import '../../../modules/providers/app_launch.dart';
+import '../../../modules/providers/module_panels.dart';
 import '../../../modules/providers/code_block_runner.dart';
 import 'dock_install_consent.dart';
 
@@ -123,6 +124,7 @@ Future<void> installDockModuleFromFile(
       container.invalidate(codeBlockRunnerProvider);
       container.invalidate(slashCommandProvider);
       container.invalidate(appLaunchProvider);
+      container.invalidate(modulePanelsProvider);
     },
   );
   if (!installed || !context.mounted) return;

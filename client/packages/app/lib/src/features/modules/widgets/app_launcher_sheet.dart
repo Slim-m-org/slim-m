@@ -23,6 +23,8 @@ import '../../../ids.dart';
 import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart';
 import '../providers/app_launch.dart';
+import '../providers/module_panels.dart';
+import 'module_panel_slot.dart';
 import 'module_about_sheet.dart';
 import '../../messages/providers/message_extras.dart';
 import '../../../providers/providers.dart';
@@ -88,9 +90,15 @@ Future<void> showAppLauncherSheet(
       builder: (context, sheetRef, _) {
         final tokens = Theme.of(sheetContext).extension<AppTokens>()!;
         final apps = sheetRef.watch(appLaunchProvider);
+        final panels = sheetRef.watch(modulePanelsProvider);
         final canManageServer = sheetRef
             .watch(myPermissionsProvider)
             .hasPermission(Perm.manageServer);
+        // Panels failing to load must not hide the apps; they read as none.
+        final panelList = panels.hasError
+            ? const <api.ModulePanel>[]
+            : panels.valueOrNull;
+        final loaded = (apps.valueOrNull, panelList);
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -100,14 +108,52 @@ Future<void> showAppLauncherSheet(
               AppSpacing.s12,
             ),
             // Empty is hand-rendered below: its copy depends on permission.
-            child: AppAsyncView<List<api.App>>(
-              value: AppAsyncState(data: apps.valueOrNull, error: apps.error),
+            child: AppAsyncView<_Launchable>(
+              value: AppAsyncState(
+                data: switch (loaded) {
+                  (final a?, final p?) => (apps: a, panels: p),
+                  _ => null,
+                },
+                error: apps.error,
+              ),
               center: false,
               errorMessage: 'Could not load your apps.',
               onRetry: () => sheetRef.invalidate(appLaunchProvider),
-              data: (context, list) => list.isEmpty
-                  ? _emptyApps(sheetContext, context, tokens, canManageServer)
-                  : _appRows(sheetContext, ref, channelId, list, onError),
+              data: (dataContext, found) =>
+                  found.apps.isEmpty && found.panels.isEmpty
+                  ? _emptyApps(
+                      sheetContext,
+                      dataContext,
+                      tokens,
+                      canManageServer,
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _appRows(
+                          sheetContext,
+                          ref,
+                          channelId,
+                          found.apps,
+                          onError,
+                        ),
+                        if (found.panels.isNotEmpty)
+                          _PanelRows(
+                            panels: found.panels,
+                            labelled: found.apps.isNotEmpty,
+                            onOpen: (panel) {
+                              Navigator.of(sheetContext).pop();
+                              openModulePanel(
+                                context,
+                                ref,
+                                panel,
+                                besideChannelId: channelId,
+                              );
+                            },
+                          ),
+                      ],
+                    ),
             ),
           ),
         );
@@ -115,6 +161,8 @@ Future<void> showAppLauncherSheet(
     ),
   );
 }
+
+typedef _Launchable = ({List<api.App> apps, List<api.ModulePanel> panels});
 
 Widget _emptyApps(
   BuildContext sheetContext,
@@ -206,4 +254,58 @@ Widget _appRows(
         ),
     ],
   );
+}
+
+/// The panels this viewer may open, under a label when apps are listed above them.
+class _PanelRows extends StatelessWidget {
+  const _PanelRows({
+    required this.panels,
+    required this.labelled,
+    required this.onOpen,
+  });
+
+  final List<api.ModulePanel> panels;
+  final bool labelled;
+  final void Function(api.ModulePanel panel) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (labelled)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s16,
+              AppSpacing.s12,
+              AppSpacing.s16,
+              AppSpacing.s4,
+            ),
+            child: Text(
+              'Panels',
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ),
+        for (final panel in panels)
+          AppListRow(
+            label: panel.name,
+            subtitle: moduleCommandDetail(
+              panel.description,
+              panel.module,
+              shownAs: panel.name,
+            ),
+            leading: Icon(
+              AppIcons.modulePanel,
+              size: AppSizes.icon16,
+              color: tokens.textSecondary,
+            ),
+            trailing: ModuleNetworkBadge(module: panel.module),
+            trailingExtra: ModuleAboutButton(module: panel.module),
+            onTap: () => onOpen(panel),
+          ),
+      ],
+    );
+  }
 }

@@ -138,4 +138,10 @@ abstract final class Routes {
   static String thread(String id) => '/thread/$id';
 
   static const threadPattern = '/thread/:channelId';
+
+  /// A Dock panel on its own page, where no third pane fits (decision 0132).
+  static String modulePanel(String moduleId, String command) =>
+      '/panel/$moduleId/$command';
+
+  static const modulePanelPattern = '/panel/:moduleId/:command';
 }

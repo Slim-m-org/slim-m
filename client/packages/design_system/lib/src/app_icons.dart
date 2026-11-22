@@ -454,6 +454,9 @@ abstract final class AppIcons {
   /// addon", matching decision 0021's own naming.
   static const IconData dock = LucideIcons.puzzle300;
 
+  /// A module's Dock panel, which opens beside the chat rather than in it.
+  static const IconData modulePanel = LucideIcons.panelRight300;
+
   /// Removing a row from a personal list view rather than deleting anything:
   /// distinct from [delete], which destroys the thing itself.
   static const IconData removeFromList = LucideIcons.listX300;

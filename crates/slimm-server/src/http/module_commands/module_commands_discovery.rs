@@ -83,6 +83,8 @@ pub(in crate::http) struct Reachable {
     pub(in crate::http) command: String,
     pub(in crate::http) point: ModuleExtensionPoint,
     pub(in crate::http) module: ModuleInfoDto,
+    /// The `addon_api` the module's manifest declared.
+    pub(in crate::http) addon_api: u32,
 }
 
 /// Every extension point of `kind` the caller may currently reach: declared by
@@ -117,6 +119,7 @@ pub(in crate::http) async fn reachable_extension_points(
                     command: command.clone(),
                     point,
                     module: info.clone(),
+                    addon_api: module.addon_api,
                 });
             }
         }

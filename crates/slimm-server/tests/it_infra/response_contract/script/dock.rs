@@ -181,6 +181,8 @@ pub(super) async fn dock_calls(c: &mut Contract, root: &str, admin_id: &str, cha
         .await;
     // code-exec declares an `app` extension point and the admin holds `run`, so this is a real populated App list.
     c.get("listApps", "/modules/apps", root).await;
+    // code-exec declares no panel, so this is the empty-list shape; the populated shape is checked in tests/it_modules/module_panels.rs.
+    c.get("listModulePanels", "/modules/panels", root).await;
     // Launching an app is a message send; the admin holds `run` and can view, so a real 200 carrying the Message with its app_surface.
     c.json(
         "launchAppMessage",

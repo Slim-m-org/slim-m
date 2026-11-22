@@ -9,6 +9,8 @@ The policy behind the levels is decision [0100](../decisions/0100-module-safety-
 - Adds the `room/1` contract: the host runs `@room` with the room, its `seq`, the state it holds and the participant's input, and the module answers a next `state`, a `reject` or `end`. Inputs to one room run one at a time in the order they arrive.
 - Adds `GET /channels/{channel_id}/module-rooms`, `POST /channels/{channel_id}/module-rooms/{module_id}/inputs` and the `module.room` websocket frame.
 - A failed, slow or malformed answer keeps the state and counts toward the module's circuit breaker. Rooms are memory only and end with the call, the channel, the module or a day without input.
+- Adds the `panel` extension point (decision [0132](../decisions/0132-dock-panels.md)): `{ "kind": "panel", "name", "permission", "command", "description"? }`, at most 2 per module, with `"addon_api": 6`. A level 5 server refuses such a module at install instead of installing it without its panel.
+- Adds `GET /modules/panels`, listing the panels the caller holds the permission for. A panel runs through the existing `POST /modules/{id}/commands/{command}`; there is no new run route and no new contract version.
 - Nothing is removed or changed in meaning. A module that declares `addon_api_max` of 5 must be updated to run on a level 6 server, as at every level.
 - Fixtures for the input and the answers are in `docs/modules/room-fixtures/`.
 

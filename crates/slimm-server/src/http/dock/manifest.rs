@@ -286,6 +286,7 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
         &capabilities,
     )?;
     settings::check_hosts_declared(&platform.settings_schema, &network.hosts)?;
+    panel::check_panels(&extension_points, platform.addon_api)?;
     let call_audio = call_audio::validate_call_audio(
         raw.call_audio,
         &capabilities,
@@ -453,7 +454,7 @@ fn validate_extension_point(
     // Every known kind gates on a declared permission; the runner-like kinds (all but bare `command`) also name a command they invoke.
     match kind.as_str() {
         "command" => require_declared_permission(&kind, &permission, permission_keys)?,
-        "code-block-runner" | "slash-command" | "app" => {
+        "code-block-runner" | "slash-command" | "app" | "panel" => {
             require_declared_permission(&kind, &permission, permission_keys)?;
             require_declared_command(&kind, &command, command_names)?;
         }
@@ -513,6 +514,7 @@ pub(in crate::http) mod hooks;
 mod index;
 mod names;
 mod network;
+mod panel;
 mod platform;
 mod review;
 mod schedule;

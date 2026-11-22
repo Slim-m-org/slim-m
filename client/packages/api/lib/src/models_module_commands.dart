@@ -74,6 +74,40 @@ class App {
       );
 }
 
+/// A module `panel` extension point the caller may open beside the chat, from
+/// `GET /modules/panels` (decision 0132). Its [command] runs through
+/// `runModuleCommand`; a plain mirror of the wire shape.
+class ModulePanel {
+  const ModulePanel({
+    required this.moduleId,
+    required this.command,
+    required this.name,
+    this.description,
+    this.module,
+  });
+
+  final String moduleId;
+  final String command;
+
+  /// What the apps menu and the panel's header show.
+  final String name;
+  final String? description;
+
+  /// The module behind it and what it may do.
+  final ModuleInfo? module;
+
+  /// Identifies one panel across the session, whichever list it came from.
+  String get key => '$moduleId/$command';
+
+  factory ModulePanel.fromJson(Map<String, dynamic> json) => ModulePanel(
+        moduleId: json['module_id'] as String,
+        command: json['command'] as String,
+        name: json['name'] as String,
+        description: json['description'] as String?,
+        module: ModuleInfo.fromJson(json['module']),
+      );
+}
+
 class CodeBlockRunner {
   const CodeBlockRunner({
     required this.moduleId,
