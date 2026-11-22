@@ -21,10 +21,11 @@ STEP_SECONDS = 0.25
 # The restart waits 700 ms to settle a burst of changes, then republishes.
 CHANGE_SECONDS = 14
 SETTLE_SECONDS = 5
+# A fresh publish ramps its top layer with the bandwidth estimate; CI took over 5 s to reach full rate.
+WARM_UP_SECONDS = 30
+WARM_UP_WINDOW = 3
 # The 360p top layer is LiveKit's h360 preset, capped at 20 fps whatever the capture rate.
 MIN_FPS = {"360p": 18.0, "720p": 25.0, "1080p": 25.0}
-# A shared CI runner decodes in software and measured 22 fps on a healthy call; freezes catch stutter.
-MIN_VIEWER_FPS = 15.0
 # Layer heights each camera quality publishes: a 180p and a 360p below the top, or just the 180p under a 360p top.
 EXPECTED_HEIGHTS = {"360p": [180, 360], "720p": [180, 360, 720], "1080p": [180, 360, 1080]}
 CAMERA_ON = "Turn on camera"
@@ -113,8 +114,8 @@ def problems(quality, samples):
     floor = MIN_FPS[quality]
     if top_layer_fps(samples) < floor:
         found.append(f"{quality}: top layer encoded {top_layer_fps(samples)} fps, under {floor}")
-    if viewer_fps(samples) < MIN_VIEWER_FPS:
-        found.append(f"{quality}: the viewer decoded {viewer_fps(samples)} fps, under {MIN_VIEWER_FPS}")
+    if viewer_fps(samples) < floor:
+        found.append(f"{quality}: the viewer decoded {viewer_fps(samples)} fps, under {floor}")
     if viewer_freezes(samples):
         found.append(f"{quality}: the viewer froze {viewer_freezes(samples)} times")
     return found
@@ -146,8 +147,22 @@ def _camera_published(room_id, bob_id, timeout=45):
     raise AssertionError("bob's camera never reached the SFU")
 
 
+def at_full_rate(quality, samples):
+    """Whether both ends already run at the quality's floor, so a measurement started now is of steady state."""
+    floor = MIN_FPS[quality]
+    return top_layer_fps(samples) >= floor and viewer_fps(samples) >= floor
+
+
+def _warm_up(a, b, quality):
+    deadline = time.time() + WARM_UP_SECONDS
+    while time.time() < deadline:
+        if at_full_rate(quality, sample_for(a, b, WARM_UP_WINDOW)):
+            return
+
+
 def _measure(a, b, quality):
     time.sleep(SETTLE_SECONDS)
+    _warm_up(a, b, quality)
     samples = sample_for(a, b, MEASURE_SECONDS)
     layers = live_layers(samples)
     row = {"quality": quality, "layers": layers, "top_fps": top_layer_fps(samples),

@@ -61,7 +61,12 @@ class ProblemsTest(unittest.TestCase):
 
     def test_a_slow_sender_or_viewer_is_named(self):
         self.assertTrue(any("encoded" in p for p in cq.problems("720p", window([180, 360, 720], fps=20))))
-        self.assertTrue(any("decoded" in p for p in cq.problems("720p", window([180, 360, 720], viewer=10))))
+        self.assertTrue(any("decoded" in p for p in cq.problems("720p", window([180, 360, 720], viewer=20))))
+
+    def test_a_ramping_top_layer_is_not_yet_at_full_rate(self):
+        self.assertFalse(cq.at_full_rate("720p", window([180, 360, 720], fps=9.5, viewer=11)))
+        self.assertFalse(cq.at_full_rate("720p", window([180, 360, 720], fps=29, viewer=22)))
+        self.assertTrue(cq.at_full_rate("720p", window([180, 360, 720], fps=29, viewer=28)))
 
     def test_a_freeze_fails(self):
         self.assertTrue(any("froze" in p for p in cq.problems("720p", window([180, 360, 720], freezes=1))))
