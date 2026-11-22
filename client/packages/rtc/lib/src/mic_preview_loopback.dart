@@ -44,10 +44,15 @@ typedef LoopbackPeerFactory = Future<rtc.RTCPeerConnection> Function(
 );
 
 class LoopbackMicSource implements MicPreviewSource {
-  LoopbackMicSource(this._switching, {LoopbackPeerFactory? createPeer})
-      : _createPeer = createPeer ?? rtc.createPeerConnection;
+  /// [raw] opens the capture with libwebrtc's own processing off.
+  LoopbackMicSource(
+    this._switching, {
+    LoopbackPeerFactory? createPeer,
+    this.raw = false,
+  }) : _createPeer = createPeer ?? rtc.createPeerConnection;
 
   final AudioDeviceSwitching _switching;
+  final bool raw;
   final LoopbackPeerFactory _createPeer;
   rtc.MediaStream? _stream;
   rtc.RTCPeerConnection? _sender;
@@ -73,9 +78,10 @@ class LoopbackMicSource implements MicPreviewSource {
   Future<void> _open(String? deviceId) async {
     if (_opened) await _close();
     _opened = true;
-    final constraints = _switching.previewCaptureOptions(
-      await _switching.pluggedInputId(deviceId),
-    );
+    final inputId = await _switching.pluggedInputId(deviceId);
+    final constraints = raw
+        ? _switching.rawCaptureOptions(inputId)
+        : _switching.previewCaptureOptions(inputId);
     final stream = _stream = await rtc.navigator.mediaDevices.getUserMedia({
       'audio': constraints.toMediaConstraintsMap(),
       'video': false,

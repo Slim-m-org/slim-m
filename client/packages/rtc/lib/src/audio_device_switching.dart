@@ -197,6 +197,19 @@ class AudioDeviceSwitching {
         stopAudioCaptureOnMute: false,
       );
 
+  /// A capture with every libwebrtc processing stage off, for a raw sample.
+  lk.AudioCaptureOptions rawCaptureOptions(String? inputId) =>
+      lk.AudioCaptureOptions(
+        deviceId: isPulseDeviceId(inputId) ? null : inputId,
+        noiseSuppression: false,
+        echoCancellation: false,
+        autoGainControl: false,
+        highPassFilter: false,
+        voiceIsolation: false,
+        typingNoiseDetection: false,
+        stopAudioCaptureOnMute: false,
+      );
+
   /// Moves a just-opened preview capture onto a sound-server node.
   Future<void> routePreviewInput(String? inputId) async {
     if (inputId == null) {
