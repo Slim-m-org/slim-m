@@ -48,7 +48,7 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/piper-venv"
           "$RUNNER_TEMP/piper-venv/bin/pip" install --only-binary :all: piper-tts==1.8.0
           mkdir -p "$RUNNER_TEMP/piper-voices"
-          base=https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US
+          base=https://huggingface.co/rhasspy/piper-voices/resolve/e9c8a39444359388adaa94255becb37a5a2b8e51/en/en_US
           curl --proto '=https' --tlsv1.2 -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-lessac-medium.onnx" "$base/lessac/medium/en_US-lessac-medium.onnx"
           curl --proto '=https' --tlsv1.2 -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-lessac-medium.onnx.json" "$base/lessac/medium/en_US-lessac-medium.onnx.json"
           curl --proto '=https' --tlsv1.2 -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-ryan-medium.onnx" "$base/ryan/medium/en_US-ryan-medium.onnx"
@@ -56,7 +56,9 @@ jobs:
           cd "$RUNNER_TEMP/piper-voices"
           sha256sum -c - <<'SUMS'
           5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eeaaf019f  en_US-lessac-medium.onnx
-          abf4c274862564ed647ba0d2c47f8ee7c9b717d27bdad9219100eb310db4047a  en_US-ryan-medium.onnx
+          efe19c417bed055f2d69908248c6ba650fa135bc868b0e6abb3da181dab690a0  en_US-lessac-medium.onnx.json
+          33b53106e049f68a51f014e4fa10bf5a04e0f7d6668692dc05228cc4554c1d71  en_US-ryan-medium.onnx
+          d29061675e660113d51f81650e922134d94cab750271f9ce2bcb05121f925a60  en_US-ryan-medium.onnx.json
           SUMS
 
       - name: the netem and ViSQOL images
