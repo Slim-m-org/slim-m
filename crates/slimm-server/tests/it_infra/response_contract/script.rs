@@ -22,6 +22,7 @@ mod content_group_dm_calls;
 mod content_media_slots;
 mod content_messages_window;
 mod content_roles;
+mod debug_logs;
 mod discord_link;
 mod dock;
 mod exports;
@@ -39,11 +40,13 @@ mod screen_stamps;
 mod soundboard;
 mod space_banner;
 mod space_icon;
+mod space_settings;
 mod space_themes;
 mod steam_link;
 mod threads;
 mod totp_calls;
 mod upload_sessions;
+mod voice_history;
 mod voice_session_calls;
 mod webhooks;
 
@@ -54,6 +57,7 @@ use content_group_dm_calls::group_dm_calls;
 use content_media_slots::{canvas_more_calls, media_slot_calls, object_lock_calls};
 use content_messages_window::bulk_delete_by_author_call;
 use content_roles::{overwrite_calls, role_calls};
+use debug_logs::debug_log_calls;
 use discord_link::discord_link_calls;
 use dock::dock_calls;
 use farewell::farewell_calls;
@@ -65,11 +69,12 @@ use screen_stamps::screen_stamp_calls;
 use soundboard::soundboard_calls;
 use space_banner::banner_calls;
 use space_icon::icon_calls;
+use space_settings::space_settings_calls;
 use space_themes::space_theme_calls;
 use steam_link::steam_link_calls;
 use threads::thread_calls;
 use upload_sessions::upload_session_calls;
-use voice_session_calls::voice_session_calls;
+use voice_history::voice_history_calls;
 
 const PASSWORD: &str = "a-long-enough-password";
 /// A 16x16 PNG's signature and header chunks, which is all the server reads of an upload.
@@ -186,124 +191,7 @@ pub async fn run(c: &mut Contract) {
     icon_calls(c, root, &code).await;
     upload_session_calls(c, root).await;
     exports::export_calls(c, root).await;
-    c.bare("getSpaceSettings", "GET", "/space/settings", root)
-        .await;
-    // Set back to what it already is, so the rest of the pass still runs
-    // against an invite-only deployment.
-    c.json(
-        "updateSpaceSettings",
-        "PATCH",
-        "/space/settings",
-        root,
-        json!({"join_policy": "invite", "hide_bots_in_member_list": false, "welcome_message": "Welcome {user} to {space}", "debug_logging": "off"}),
-    )
-    .await;
-    c.bare("getJoinGate", "GET", "/space/join-gate", root).await;
-    // Left off, so nobody the rest of the pass registers waits behind it.
-    let gate = json!({"enabled": false, "rules": "be kind", "rules_channel_id": null, "joins_paused": false});
-    c.json("putJoinGate", "PUT", "/space/join-gate", root, gate)
-        .await;
-    c.bare("getSpaceRules", "GET", "/space/rules", root).await;
-    c.bare("acceptSpaceRules", "POST", "/space/rules/accept", root)
-        .await;
-
-    // Off by default, exercising the `stats: null` branch before it is on.
-    c.bare("getSpaceAnalytics", "GET", "/space/analytics", root)
-        .await;
-
-    c.bare("getSpaceRetention", "GET", "/space/retention", root)
-        .await;
-    c.bare(
-        "previewSpaceRetention",
-        "GET",
-        "/space/retention/preview?days=30",
-        root,
-    )
-    .await;
-    // Set back to disabled, so the rest of the pass keeps its own history.
-    c.json(
-        "updateSpaceRetention",
-        "PATCH",
-        "/space/retention",
-        root,
-        json!({"retention_days": 30}),
-    )
-    .await;
-    c.json(
-        "updateSpaceRetention",
-        "PATCH",
-        "/space/retention",
-        root,
-        json!({"retention_days": 0}),
-    )
-    .await;
-
-    c.bare("getSpaceCanvasCap", "GET", "/space/canvas-cap", root)
-        .await;
-    // Change it and set it back, so the rest of the pass keeps the default.
-    c.json(
-        "updateSpaceCanvasCap",
-        "PATCH",
-        "/space/canvas-cap",
-        root,
-        json!({"object_cap": 5000}),
-    )
-    .await;
-    c.json(
-        "updateSpaceCanvasCap",
-        "PATCH",
-        "/space/canvas-cap",
-        root,
-        json!({"object_cap": 20000}),
-    )
-    .await;
-
-    c.bare("getSpaceScreenShareCap", "GET", "/space/screen-share", root)
-        .await;
-    // Change it and set it back, so the rest of the pass keeps the default.
-    c.json(
-        "updateSpaceScreenShareCap",
-        "PATCH",
-        "/space/screen-share",
-        root,
-        json!({"max_height": 720}),
-    )
-    .await;
-    c.json(
-        "updateSpaceScreenShareCap",
-        "PATCH",
-        "/space/screen-share",
-        root,
-        json!({"max_height": 2160}),
-    )
-    .await;
-
-    c.bare("getSpaceUplinkTests", "GET", "/space/uplink-test", root)
-        .await;
-
-    c.bare("getSpaceLinkPreviews", "GET", "/space/link-previews", root)
-        .await;
-    c.json(
-        "updateSpaceLinkPreviews",
-        "PATCH",
-        "/space/link-previews",
-        root,
-        json!({"enabled": false}),
-    )
-    .await;
-    // Back on, because later calls unfurl and embed images.
-    c.json(
-        "updateSpaceLinkPreviews",
-        "PATCH",
-        "/space/link-previews",
-        root,
-        json!({"enabled": true}),
-    )
-    .await;
-
-    c.bare("getSpaceSetup", "GET", "/space/setup", root).await;
-    c.bare("completeSpaceSetup", "POST", "/space/setup/complete", root)
-        .await;
+    space_settings_calls(c, root).await;
 
     profile_calls(c, root, &admin_id, &bob_id).await;
     safety_calls(c, root, bob_token, &bob_id).await;
@@ -372,140 +260,11 @@ pub async fn run(c: &mut Contract) {
         json!({ "scopes": [{ "channel_id": channel, "after_seq": 0 }] }),
     )
     .await;
-    // A call in the history, so the shape checked is a populated one.
-    let voice_channel = slimm_server::ids::ChannelId(channel.parse().unwrap());
-    let caller = slimm_server::ids::UserId(admin_id.parse().unwrap());
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as i64;
-    for (at, kind) in [
-        (now - 2000, slimm_server::store::VoiceEventKind::Joined),
-        (now - 1000, slimm_server::store::VoiceEventKind::Left),
-    ] {
-        c.state
-            .store
-            .record_voice_event(voice_channel, caller, kind, at)
-            .await
-            .unwrap();
-    }
-    c.get(
-        "listVoiceCalls",
-        &format!("/channels/{channel}/voice/calls"),
-        root,
-    )
-    .await;
-    let call_audio_channel = c
-        .state
-        .store
-        .create_channel("call-audio", "voice")
-        .await
-        .unwrap();
-    c.get(
-        "getVoiceCallAudio",
-        &format!("/channels/{}/voice/call-audio", call_audio_channel.id),
-        root,
-    )
-    .await;
-    let transcript = slimm_server::ids::CallTranscriptId::generate();
-    c.state
-        .store
-        .begin_call_transcript(&slimm_server::store::NewTranscript {
-            id: transcript,
-            channel_id: call_audio_channel.id,
-            started_at: now - 5000,
-            mode: slimm_server::store::TranscriptionMode::Always,
-            started_by: None,
-        })
-        .await
-        .unwrap();
-    c.state
-        .store
-        .append_call_transcript_line(
-            transcript,
-            &slimm_server::store::NewTranscriptLine {
-                speaker: caller,
-                at: now - 4000,
-                end_at: Some(now - 3000),
-                language: Some("en"),
-                text: "hello transcript",
-            },
-        )
-        .await
-        .unwrap();
-    c.get(
-        "getVoiceTranscript",
-        &format!("/voice/transcripts/{transcript}"),
-        root,
-    )
-    .await;
-    c.get(
-        "searchVoiceTranscripts",
-        "/search/transcripts?q=hello",
-        root,
-    )
-    .await;
-    c.get(
-        "getVoiceTranscriptionNotice",
-        "/voice/transcription-notice",
-        root,
-    )
-    .await;
-    c.bare(
-        "acknowledgeVoiceTranscriptionNotice",
-        "POST",
-        "/voice/transcription-notice/ack",
-        root,
-    )
-    .await;
-    // A transcript still being written cannot be deleted, so the call ends first.
-    c.state
-        .store
-        .end_call_transcript(transcript, now - 2000)
-        .await
-        .unwrap();
-    c.bare(
-        "deleteVoiceTranscript",
-        "DELETE",
-        &format!("/voice/transcripts/{transcript}"),
-        root,
-    )
-    .await;
-    c.json(
-        "setVoiceNotification",
-        "PUT",
-        &format!("/voice-notifications/channels/{}", call_audio_channel.id),
-        root,
-        json!({ "joins": "first", "streams": true }),
-    )
-    .await;
-    c.get(
-        "listVoiceNotifications",
-        "/voice-notifications/channels",
-        root,
-    )
-    .await;
-    voice_session_calls(c, root, call_audio_channel.id).await;
+    voice_history_calls(c, root, &channel, &admin_id).await;
 
     push_calls(c, root, &channel, &bob_id).await;
     invite_calls(c, root, bob_token).await;
     // Last: a refusal leaves no state behind.
     refusals::refusal_calls(c, bob_token, &admin_id, &code).await;
     farewell_calls(c, root, &bob_id, &code, &channel).await;
-}
-
-async fn debug_log_calls(c: &mut Contract, root: &str, bob_token: &str) {
-    let sent = c
-        .json(
-            "submitDebugLog",
-            "POST",
-            "/debug-logs",
-            bob_token,
-            json!({"log": "12:00:00  ERROR  [sync]  failed", "note": "settings reset", "app_version": "0.1.0", "platform": "linux"}),
-        )
-        .await;
-    let uri = format!("/debug-logs/{}", sent["id"]);
-    c.get("listDebugLogs", "/debug-logs", root).await;
-    c.get("getDebugLog", &uri, root).await;
-    c.bare("deleteDebugLog", "DELETE", &uri, root).await;
 }
