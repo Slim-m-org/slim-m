@@ -291,4 +291,56 @@ void main() {
     expect(requests[0]['props'], {'shape': 'arrow', 'flip_x': true});
     expect(requests[1]['props'], {'shape': 'arrow'});
   });
+
+  testWidgets("a tapped shape's create request carries its own w and h", (
+    tester,
+  ) async {
+    final requests = <Map<String, dynamic>>[];
+    final client = testApi(
+      (request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        requests.add(body);
+        return http.Response(
+          jsonEncode({
+            'id': body['id'],
+            'kind': 'shape',
+            'z_index': 1,
+            'x': body['x'],
+            'y': body['y'],
+            'w': body['w'],
+            'h': body['h'],
+            'props': body['props'],
+            'author_id': 'me',
+            'seq': 1,
+            'created_at': 0,
+          }),
+          201,
+          headers: {'content-type': 'application/json'},
+        );
+      },
+      session: api.SessionStore(
+        tokens: const api.TokenPair(
+          userId: 'me',
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          accessExpiresAt: 0,
+        ),
+      ),
+    );
+    final placement = CanvasQuickPlacement(
+      client: client,
+      channelId: 'c1',
+      document: CanvasDocument(),
+      timedOutUntil: () => null,
+    );
+
+    await placement.placeShape(
+      Offset.zero,
+      CanvasShapeKind.rectangle,
+      onError: (_) => fail('must not error'),
+    );
+
+    expect(requests.single['w'], defaultShapeWidth);
+    expect(requests.single['h'], defaultShapeHeight);
+  });
 }
