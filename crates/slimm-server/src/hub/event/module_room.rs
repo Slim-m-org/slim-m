@@ -37,6 +37,8 @@ pub struct ModuleRoomChange {
     pub module_id: String,
     pub seq: u64,
     pub state: Option<RoomJson>,
+    /// The `scene/1` the module drew from `state`, when it drew one (decision 0133).
+    pub scene: Option<RoomJson>,
     /// Why the room ended: `ended`, `call_ended`, `idle`, `module_off` or `channel_removed`.
     pub ended: Option<&'static str>,
 }

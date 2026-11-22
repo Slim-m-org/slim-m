@@ -28,6 +28,11 @@ pub(super) fn announce(state: &AppState, key: &RoomKey, held: &Held, ended: Opti
             } else {
                 held.state.clone()
             },
+            scene: if ended.is_some() {
+                None
+            } else {
+                held.scene.clone()
+            },
             ended,
         })));
 }

@@ -15947,7 +15947,10 @@ components:
       properties:
         kind:
           type: string
-          enum: [profile.section, member.badge]
+          enum: [profile.section, member.badge, call.scene]
+          description: >
+            `call.scene` (decision 0133) needs the `room.state` capability, at
+            most one per module: the call's stage paints the room's `scene`.
         name:
           type: string
         title:
@@ -15977,6 +15980,10 @@ components:
           format: int64
         state:
           description: The JSON the module answered, at most 16 KiB; any JSON value.
+        scene:
+          description: >
+            The `scene/1` the module drew from this state (decision 0133), at
+            most 32 KiB; absent when it drew none. The same for every viewer.
         updated_at_ms:
           type: integer
           format: int64
@@ -15988,6 +15995,27 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ModuleRoom"
+        call_scenes:
+          type: array
+          description: >
+            The modules that offer a scene on this call's stage (decision
+            0133): enabled, approved for `room.state` and declaring a
+            `call.scene` slot. Empty in a text channel; absent from an older
+            server.
+          items:
+            $ref: "#/components/schemas/ModuleCallScene"
+    ModuleCallScene:
+      type: object
+      required: [module_id, name, title]
+      properties:
+        module_id:
+          type: string
+        name:
+          type: string
+          description: The slot's name in the manifest.
+        title:
+          type: string
+          description: The slot's title, or else the module's name.
     ModuleRoomInputRequest:
       type: object
       required: [input]
@@ -16012,6 +16040,10 @@ components:
           format: int64
         state:
           description: The room's state after the input; null when it holds none.
+        scene:
+          description: >
+            The `scene/1` the module drew from that state (decision 0133), at
+            most 32 KiB; absent when it drew none. The same for every viewer.
         reason:
           type: string
         error:
@@ -23624,6 +23656,10 @@ components:
           format: int64
         state:
           description: The JSON the module answered; any JSON value, or null once the room ended.
+        scene:
+          description: >
+            The `scene/1` the module drew from this state (decision 0133), at
+            most 32 KiB; absent when it drew none. The same for every viewer.
         ended:
           type: string
 

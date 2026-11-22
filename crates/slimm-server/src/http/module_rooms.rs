@@ -38,6 +38,8 @@ use self::turn::{Outcome, Place};
 
 /// The host capability a module needs to keep room state.
 pub(crate) const ROOM_STATE: &str = "room.state";
+/// The manifest slot that puts a module's room scene on a call's stage (decision 0133).
+pub(crate) const CALL_SCENE: &str = "call.scene";
 const BODY_LIMIT: usize = 4 * 1024;
 
 pub fn routes() -> Router<AppState> {
@@ -55,12 +57,24 @@ struct RoomDto {
     module_id: String,
     seq: u64,
     state: Option<RoomJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scene: Option<RoomJson>,
     updated_at_ms: i64,
+}
+
+/// A module that offers a scene on a call's stage (decision 0133).
+#[derive(Serialize)]
+struct CallSceneDto {
+    module_id: String,
+    name: String,
+    title: String,
 }
 
 #[derive(Serialize)]
 struct RoomsDto {
     rooms: Vec<RoomDto>,
+    /// Only for a voice channel; empty in a text channel.
+    call_scenes: Vec<CallSceneDto>,
 }
 
 #[derive(Deserialize)]
@@ -75,6 +89,8 @@ struct InputResultDto {
     seq: u64,
     /// The room's state now; null when it holds none or has ended.
     state: Option<RoomJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scene: Option<RoomJson>,
     #[serde(skip_serializing_if = "Option::is_none")]
     reason: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -124,19 +140,42 @@ async fn list(
 ) -> Result<Json<RoomsDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
     let (place, _) = place(&state, ctx.user_id, &channel).await?;
-    let mut rooms = Vec::new();
-    for (module_id, held) in state.dock.rooms().in_channel(place.channel) {
-        let live = state.store.installed_module(&module_id).await?;
-        if live.is_some_and(|m| m.enabled && room_state_approved(&m)) {
-            rooms.push(RoomDto {
-                module_id,
-                seq: held.seq,
-                state: held.state,
-                updated_at_ms: held.touched_at,
-            });
-        }
-    }
-    Ok(Json(RoomsDto { rooms }))
+    let keeping: Vec<InstalledModule> = state
+        .store
+        .list_installed_modules()
+        .await?
+        .into_iter()
+        .filter(|m| m.enabled && room_state_approved(m))
+        .collect();
+    let rooms = state
+        .dock
+        .rooms()
+        .in_channel(place.channel)
+        .into_iter()
+        .filter(|(id, _)| keeping.iter().any(|m| &m.id == id))
+        .map(|(module_id, held)| RoomDto {
+            module_id,
+            seq: held.seq,
+            state: held.state,
+            scene: held.scene,
+            updated_at_ms: held.touched_at,
+        })
+        .collect();
+    let call_scenes = match place.kind {
+        RoomKind::Voice => keeping.iter().filter_map(call_scene).collect(),
+        RoomKind::Channel => Vec::new(),
+    };
+    Ok(Json(RoomsDto { rooms, call_scenes }))
+}
+
+/// The call scene `module` declares, titled by the slot or else by the module's name.
+fn call_scene(module: &InstalledModule) -> Option<CallSceneDto> {
+    let slot = module.slots.iter().find(|s| s.kind == CALL_SCENE)?;
+    Some(CallSceneDto {
+        module_id: module.id.clone(),
+        name: slot.name.clone(),
+        title: slot.title.clone().unwrap_or_else(|| module.name.clone()),
+    })
 }
 
 async fn send_input(
@@ -192,6 +231,7 @@ fn result_of(outcome: Outcome) -> InputResultDto {
         applied,
         seq: held.seq,
         state: held.state,
+        scene: held.scene,
         reason,
         error,
     }

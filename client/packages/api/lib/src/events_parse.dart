@@ -386,6 +386,7 @@ ServerEvent? voiceFrame(Map<String, dynamic> decoded) {
         moduleId: decoded['module_id'] as String,
         seq: decoded['seq'] as int,
         state: decoded['state'],
+        scene: roomSceneText(decoded['scene']),
         ended: decoded['ended'] as String?,
       ),
     'call.transcript_changed'

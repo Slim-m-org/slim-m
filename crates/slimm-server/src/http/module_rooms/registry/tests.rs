@@ -10,8 +10,11 @@ fn key(module: &str, channel: ChannelId) -> RoomKey {
     }
 }
 
-fn state(text: &str) -> RoomJson {
-    RoomJson::new(RawValue::from_string(text.to_owned()).unwrap())
+fn state(text: &str) -> Next {
+    Next {
+        state: RoomJson::new(RawValue::from_string(text.to_owned()).unwrap()),
+        scene: None,
+    }
 }
 
 #[test]

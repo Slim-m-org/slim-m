@@ -292,6 +292,8 @@ pub(super) enum ServerFrame {
         seq: u64,
         state: Option<crate::hub::RoomJson>,
         #[serde(skip_serializing_if = "Option::is_none")]
+        scene: Option<crate::hub::RoomJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         ended: Option<&'static str>,
     },
     /// The server started or finished transcribing a call; see

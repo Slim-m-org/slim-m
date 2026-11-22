@@ -206,6 +206,7 @@ pub(super) fn to_frame(
             module_id: change.module_id.clone(),
             seq: change.seq,
             state: change.state.clone(),
+            scene: change.scene.clone(),
             ended: change.ended,
         },
         Event::CallTranscriptChanged {
