@@ -58,6 +58,9 @@ pub(super) struct RawPlatform {
     pub(super) data: Option<Value>,
 }
 
+/// The add-on API level that introduced shared room state (decision 0131).
+const ROOM_STATE_API: i64 = 6;
+
 fn has(capabilities: &[String], name: &str) -> bool {
     capabilities.iter().any(|c| c == name)
 }
@@ -86,6 +89,9 @@ pub(super) fn validate_platform(
     )?;
     if raw.data.is_some() && !has(capabilities, "data.store") {
         return Err(malformed("data needs the data.store capability"));
+    }
+    if has(capabilities, "room.state") && addon_api < ROOM_STATE_API {
+        return Err(malformed("room.state needs \"addon_api\": 6 or higher"));
     }
     let uses_platform = !subscriptions.is_empty()
         || !settings.is_empty()

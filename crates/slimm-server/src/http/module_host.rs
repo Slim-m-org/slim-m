@@ -30,7 +30,7 @@ use crate::store::{InstalledModule, KvSetError, ModuleStamp, NewMessage, Store};
 
 /// The capabilities this host implements behind `slim.host_call`. A manifest
 /// may declare others (it is free text); none of them can ever be approved.
-pub(crate) const HOST_CAPABILITIES: [&str; 10] = [
+pub(crate) const HOST_CAPABILITIES: [&str; 11] = [
     "kv.store",
     "message.post",
     "net.fetch",
@@ -41,15 +41,17 @@ pub(crate) const HOST_CAPABILITIES: [&str; 10] = [
     "interceptors",
     "permission.hook",
     "call.audio",
+    "room.state",
 ];
 
 /// Approved like the others, but a permission to be run, not a host call.
-const NOT_HOST_CALLS: [&str; 5] = [
+const NOT_HOST_CALLS: [&str; 6] = [
     "schedule",
     "events",
     "interceptors",
     "permission.hook",
     "call.audio",
+    "room.state",
 ];
 
 /// Most keys a `list` returns; equal to the entry cap, so it is never truncated.

@@ -104,6 +104,7 @@ pub(crate) mod module_hooks;
 pub(crate) mod module_host;
 mod module_logs;
 mod module_net;
+pub mod module_rooms;
 mod module_run;
 pub(crate) mod module_schedule;
 mod module_slot_cache;
@@ -312,6 +313,7 @@ pub fn router(state: AppState) -> Router {
         .merge(media_compression::routes())
         .merge(module_schedule::routes())
         .merge(module_call_audio::routes())
+        .merge(module_rooms::routes())
         .merge(module_hooks::routes())
         .merge(channel_retention::routes())
         .merge(space_themes::routes())

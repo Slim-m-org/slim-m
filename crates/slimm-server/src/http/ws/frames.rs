@@ -283,6 +283,17 @@ pub(super) enum ServerFrame {
         #[serde(skip_serializing_if = "Option::is_none")]
         ended: Option<&'static str>,
     },
+    /// A module's room state changed, or the room ended when `state` is null;
+    /// see [`crate::hub::Event::ModuleRoomChanged`].
+    #[serde(rename = "module.room")]
+    ModuleRoom {
+        channel_id: String,
+        module_id: String,
+        seq: u64,
+        state: Option<crate::hub::RoomJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ended: Option<&'static str>,
+    },
     /// The server started or finished transcribing a call; see
     /// [`crate::hub::Event::CallTranscriptChanged`].
     #[serde(rename = "call.transcript_changed")]

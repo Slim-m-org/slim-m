@@ -51,6 +51,7 @@ export 'client_moderation.dart'
 export 'client_module_commands.dart' show SlimmApiModuleCommands;
 export 'client_module_permissions.dart' show SlimmApiModulePermissions;
 export 'client_module_hooks.dart' show SlimmApiModuleHooks;
+export 'client_module_rooms.dart' show SlimmApiModuleRooms;
 export 'client_module_settings.dart' show SlimmApiModuleSettings;
 export 'client_module_slots.dart' show SlimmApiModuleSlots;
 export 'client_bots.dart' show Bot, NewBot, SlimmApiBots;

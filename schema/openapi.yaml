@@ -8609,6 +8609,88 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /channels/{channelId}/module-rooms:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    get:
+      operationId: listModuleRooms
+      tags: [space]
+      summary: The shared room state every module keeps in this call or channel.
+      description: >
+        Decision 0131. Needs `VIEW_CHANNEL`; a direct message is never a room
+        (404). One entry per enabled module with `room.state` approved that
+        holds a state here, ordered by module id. This is how someone who
+        joins late catches up; after it, `module.room` frames keep each entry
+        current. Rooms live in memory, so a server restart empties this list.
+      responses:
+        "200":
+          description: The rooms with a state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleRooms"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /channels/{channelId}/module-rooms/{moduleId}/inputs:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+      - name: moduleId
+        in: path
+        required: true
+        description: The installed module's slug id.
+        schema:
+          type: string
+    post:
+      operationId: sendModuleRoomInput
+      tags: [space]
+      summary: Send one input to a module's shared room state here.
+      description: >
+        Decision 0131. Needs `VIEW_CHANNEL`, and for a voice channel to be in
+        the call, for a text channel `SEND_MESSAGES` (403 otherwise). The
+        module must be installed with `room.state` approved (404) and enabled
+        (409). `input` is at most 1024 bytes (400). Inputs to one room are
+        applied one at a time in the order they arrive: the host runs the
+        module's `@room` with the state it holds, stores the next state the
+        module answers and sends it to everyone who can view the channel as a
+        `module.room` frame. A refused input answers `applied: false` with the
+        module's `reason`; a module that fails, times out or answers outside
+        `room/1` answers `applied: false` with `error`, keeps the state as it
+        was and counts toward the module's circuit breaker. 429 past the rate
+        for one member in one room, or with eight inputs already waiting for
+        the room's turn; 409 when the module already keeps 64 rooms.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModuleRoomInputRequest"
+      responses:
+        "200":
+          description: The module ran; see `applied` for whether it took the input.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleRoomInputResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /channels/{channelId}/voice/call-audio:
     parameters:
       - $ref: "#/components/parameters/ChannelId"
@@ -15856,6 +15938,60 @@ components:
         - type: object
           properties:
             value: {}
+    ModuleRoom:
+      type: object
+      required: [module_id, seq, state, updated_at_ms]
+      description: >
+        One module's shared room state in a call or channel (decision 0131).
+        `seq` counts the states this room has held, from 1; a frame with a
+        lower `seq` than the one held is stale.
+      properties:
+        module_id:
+          type: string
+        seq:
+          type: integer
+          format: int64
+        state:
+          description: The JSON the module answered, at most 16 KiB; any JSON value.
+        updated_at_ms:
+          type: integer
+          format: int64
+    ModuleRooms:
+      type: object
+      required: [rooms]
+      properties:
+        rooms:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleRoom"
+    ModuleRoomInputRequest:
+      type: object
+      required: [input]
+      properties:
+        input:
+          type: string
+          maxLength: 1024
+          description: What the participant sends; the module decides what it means.
+    ModuleRoomInputResult:
+      type: object
+      required: [applied, seq, state]
+      description: >
+        `applied` is true when the module answered a next state (now `state`
+        at `seq`) or ended the room (`state` null, `seq` 0). Otherwise the
+        room is as it was, and `reason` (the module refused the input) or
+        `error` (the module failed) says why.
+      properties:
+        applied:
+          type: boolean
+        seq:
+          type: integer
+          format: int64
+        state:
+          description: The room's state after the input; null when it holds none.
+        reason:
+          type: string
+        error:
+          type: string
     ModuleSettings:
       type: object
       required: [settings]
@@ -21516,6 +21652,7 @@ components:
         - $ref: "#/components/schemas/VoiceParticipantLeft"
         - $ref: "#/components/schemas/VoiceScreenShareChanged"
         - $ref: "#/components/schemas/VoiceCallAudioChanged"
+        - $ref: "#/components/schemas/ModuleRoomChanged"
         - $ref: "#/components/schemas/VoiceCallTranscriptChanged"
         - $ref: "#/components/schemas/VoiceCallTranscriptLine"
         - $ref: "#/components/schemas/WatchTick"
@@ -23418,6 +23555,32 @@ components:
           format: uuid
         line:
           $ref: "#/components/schemas/VoiceTranscriptLine"
+
+    ModuleRoomChanged:
+      type: object
+      required: [type, channel_id, module_id, seq, state]
+      description: >
+        A module's shared room state changed, or the room ended when `state`
+        is null (decision 0131). `ended` then says how: `ended` (the module
+        ended it), `call_ended`, `channel_removed`, `module_off` or `idle`.
+        Sent to everyone who can view the channel. Apply it when `seq` is
+        above the one held; after a reconnect, read listModuleRooms again.
+      properties:
+        type:
+          type: string
+          enum: [module.room]
+        channel_id:
+          type: string
+          format: uuid
+        module_id:
+          type: string
+        seq:
+          type: integer
+          format: int64
+        state:
+          description: The JSON the module answered; any JSON value, or null once the room ended.
+        ended:
+          type: string
 
     VoiceCallAudioChanged:
       type: object
