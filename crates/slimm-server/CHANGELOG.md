@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.116.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.115.1...server-v0.116.0) (2026-11-22)
+
+
+### Features
+
+* module call scenes, canvas tiles and dock panels, a clearer Strongest, and a mic sample recorder ([#2465](https://github.com/Slim-m-org/slim-m/issues/2465)) ([487afef](https://github.com/Slim-m-org/slim-m/commit/487afef0ed30e52b044d864b1a508174a1a11085))
+
+
+### Bug Fixes
+
+* **client:** android back closes the canvas before leaving the channel, and the follow strip no longer covers tiles ([#2461](https://github.com/Slim-m-org/slim-m/issues/2461)) ([ce23e83](https://github.com/Slim-m-org/slim-m/commit/ce23e83df2b6f3a82f81572e882dd1e174bc824b))
+
 ## [0.115.1](https://github.com/Slim-m-org/slim-m/compare/server-v0.115.0...server-v0.115.1) (2026-11-21)
 
 
