@@ -106,8 +106,8 @@ prints it every time so it cannot quietly grow.
 | `lib/e2e_input.py` | real pointer and key input: right-click, hold, Tab, Shift+Enter |
 | `lib/e2e_labels.py` | every accessible name the app is driven by, in one place |
 | `lib/e2e_api.py` | the server's own answer, for checking against |
-| `lib/e2e_messaging.py`, `e2e_settings.py`, `e2e_admin.py`, `e2e_voice.py`, `e2e_voice_rejoin.py`, `e2e_markdown.py`, `e2e_reconcile.py`, `e2e_replies.py`, `e2e_threads.py`, `e2e_message_menu.py`, `e2e_composer.py`, `e2e_members.py`, `e2e_accounts.py`, `e2e_dm_call.py`, `e2e_canvas.py`, `e2e_canvas_shapes.py`, `e2e_media_slots.py`, `e2e_voice_noise.py`, `e2e_voice_volume.py`, `e2e_voice_devices.py`, `e2e_voice_deafen.py`, `e2e_voice_share.py`, `e2e_voice_multishare.py` | the scenarios |
-| `lib/e2e_audio.py`, `e2e_audio_js.py`, `e2e_audio_levels.py`, `e2e_browsers.py`, `e2e_voice_ui.py` | the voice probe, its maths, extra browsers, and the call-surface helpers (see Measured voice) |
+| `lib/e2e_messaging.py`, `e2e_settings.py`, `e2e_admin.py`, `e2e_voice.py`, `e2e_voice_rejoin.py`, `e2e_markdown.py`, `e2e_reconcile.py`, `e2e_replies.py`, `e2e_threads.py`, `e2e_message_menu.py`, `e2e_composer.py`, `e2e_members.py`, `e2e_accounts.py`, `e2e_dm_call.py`, `e2e_canvas.py`, `e2e_canvas_shapes.py`, `e2e_media_slots.py`, `e2e_voice_noise.py`, `e2e_voice_volume.py`, `e2e_voice_devices.py`, `e2e_voice_deafen.py`, `e2e_voice_share.py`, `e2e_voice_multishare.py`, `e2e_camera_quality.py` | the scenarios |
+| `lib/e2e_audio.py`, `e2e_audio_js.py`, `e2e_audio_levels.py`, `e2e_browsers.py`, `e2e_voice_ui.py`, `e2e_camera_quality_js.py` | the voice probe, its maths, extra browsers, and the call-surface helpers (see Measured voice) |
 | `lib/e2e_sweep.py` | the API-level routes the scenarios do not reach |
 | `lib/e2e_client_contract.py` | the Dart api package's `live_server_test.dart` and `compression_interop_test.dart`, run against this stack with `SLIMM_TEST_SERVER_REQUIRED=1` |
 | `lib/e2e_seed.py`, `e2e_fixtures.py` | the accounts and the two PNGs a run uploads |
@@ -139,6 +139,7 @@ A scenario that needs a third person, or a different WAV, starts its own browser
 | deafening | bob's own playback of alice, and alice's of bob | deafened bob hears silence, alice still hears bob, undeafening restores it |
 | a share's own volume | bob's share is given a steady tone; the screen-audio stream and the voice stream are measured apart | the stream slider moves only the screen, the voice slider only the voice |
 | two shares at once | decoded frames and mean luminance of every `<video>` on three pages | carol decodes both, focusing enlarges one, showing all restores both, and stopping one leaves the other |
+| a camera and a mid-call quality change | bob's own simulcast layers, capture size and encodings read off his sender, and alice's decoded frame rate and freezes, per quality (`e2e_camera_quality.py`, Chrome's fake video device at 30 fps) | 720p and 1080p publish three layers (180p, 360p, top) at 25 fps or more, 360p publishes two at 18 fps or more (the top layer is LiveKit's 20 fps h360 preset), the viewer never freezes, and each change reaches the sender's layers; the gap alice sees after a change is printed and bounded by `E2E_CAMERA_GAP_MAX` (10 s) |
 
 The web client has the browser's noise suppression only.
 The rnnoise "Strong" mode is a native desktop capture chain and is measured natively, not here.
@@ -155,7 +156,9 @@ E2E_REBUILD=1 E2E_ONLY="volume slider" flock ~/.slimm-scratch/tmp/e2e.lock scrip
 E2E_ONLY="noise suppression|deafening" scripts/e2e.sh    # several, split by |
 ```
 
-`E2E_ONLY` matches a fragment of the scenario's name, so `noise suppression`, `volume slider`, `picking a microphone`, `deafening`, `share's own volume` and `two shares at once` each pick one.
+`E2E_ONLY` matches a fragment of the scenario's name, so `noise suppression`, `volume slider`, `picking a microphone`, `deafening`, `share's own volume`, `two shares at once` and `a camera publishes` each pick one.
+The camera scenario makes alice watch at Max (a stored setting and a reload), because the SFU stops encoding a layer nobody asked for, and puts it back afterwards.
+It reads `CAMERA-QUALITY` and `CAMERA-RESTART` lines, and `E2E_CAMERA_OUT` appends the rows to a file.
 Leave `E2E_REBUILD` off to reuse the last web build, and set it after any client change.
 Each scenario joins its own call and leaves it, so any of them runs alone.
 Added to a full run they cost about eight minutes: the noise scenario about two (it signs two more accounts into two more browsers), the share volume and two-share scenarios a minute and a half each, the volume slider and microphone scenarios a minute each, and deafening about forty seconds.

@@ -113,7 +113,7 @@ def chrome_args(profile, port, wav):
         "--headless=new", f"--user-data-dir={profile}",
         f"--remote-debugging-port={port}", "--window-size=1280,900",
         "--no-first-run", "--no-default-browser-check",
-        "--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream",
+        "--use-fake-device-for-media-stream=fps=30", "--use-fake-ui-for-media-stream",
         f"--use-file-for-fake-audio-capture={wav}",
         "--autoplay-policy=no-user-gesture-required",
         "--enable-unsafe-swiftshader", "--mute-audio",
