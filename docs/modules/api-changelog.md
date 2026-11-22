@@ -3,6 +3,23 @@
 Every change to a contract a module depends on is listed here, newest first.
 The policy behind the levels is decision [0100](../decisions/0100-module-safety-contracts.md).
 
+## Level 6
+
+- Adds the `room.state` capability (decision [0131](../decisions/0131-module-room-state.md)): a small shared state the host keeps per module in a call or a text channel. It needs `"addon_api": 6`.
+- Adds the `room/1` contract: the host runs `@room` with the room, its `seq`, the state it holds and the participant's input, and the module answers a next `state`, a `reject` or `end`. Inputs to one room run one at a time in the order they arrive.
+- Adds `GET /channels/{channel_id}/module-rooms`, `POST /channels/{channel_id}/module-rooms/{module_id}/inputs` and the `module.room` websocket frame.
+- A failed, slow or malformed answer keeps the state and counts toward the module's circuit breaker. Rooms are memory only and end with the call, the channel, the module or a day without input.
+- Adds the `panel` extension point (decision [0132](../decisions/0132-dock-panels.md)): `{ "kind": "panel", "name", "permission", "command", "description"? }`, at most 2 per module, with `"addon_api": 6`. A level 5 server refuses such a module at install instead of installing it without its panel.
+- Adds `GET /modules/panels`, listing the panels the caller holds the permission for. A panel runs through the existing `POST /modules/{id}/commands/{command}`; there is no new run route and no new contract version.
+- Nothing is removed or changed in meaning. A module that declares `addon_api_max` of 5 must be updated to run on a level 6 server, as at every level.
+- Fixtures for the input and the answers are in `docs/modules/room-fixtures/`.
+- Adds the `call.scene` slot (decision [0133](../decisions/0133-module-call-scene.md)), at most one per module and only with `room.state`: the call's stage paints the module's room scene.
+- A `room/1` `state` answer may carry `scene`, a `scene/1` drawn from that state (at most 32 KiB). The host keeps it with the state and sends it in the input's answer, the `module.room` frame and the room list; a scene that is not tagged `scene/1` or is over the cap is a failure. `room.reply.scene.json` is its fixture.
+- The room list gains `call_scenes` for a voice channel. A call's stage opens a scene with the empty input, and a tap or control sends its action text as the next input.
+- Adds the `canvas-tile` extension point: `{ "kind": "canvas-tile", "name", "permission", "command", "description"? }`, with `"addon_api": 6`. A member who holds `permission` places it on a voice canvas from the canvas menu; it is a canvas object of kind `module` whose `props` are `{"module_id", "tile"}`, so it moves, resizes, restacks and is removed like any other object.
+- The tile's frame is `command`'s scene, run with the same interactive scene protocol as an `app` surface: the host keeps the frame's `state`, a launch is an empty input, presses run as whoever pressed, a failed or private answer reaches only the presser, and `refresh_ms` redraws as the last presser. `context.channel_id` is the canvas's channel, and `context.voice_channel_id` is set when the presser is in that call.
+- New routes: `GET /modules/canvas-tiles`, and `GET`/`POST /channels/{id}/canvas/objects/{id}/scene`. New frame: `canvas.tile.scene_changed`. An older client ignores both the frame and the `module` kind.
+
 ## Level 5 additions (no level bump, nothing to declare)
 
 - A scene's `controls` may hold a dropdown, `{"label", "value", "options"}`, alongside button names; picking an option sends it as the action. This is read by the client (0.132 and later), so the server and the add-on level are unchanged, and an older client skips the entry. Its optional `replaces` lists buttons in the same row that the dropdown stands for: an older client shows them, a newer one leaves them out.

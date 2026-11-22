@@ -23,6 +23,7 @@ class CallNotificationPlugin : FlutterPlugin, MethodCallHandler {
     private lateinit var channel: MethodChannel
     private lateinit var notifier: IncomingCallNotifier
     private lateinit var appContext: Context
+    private var testLab: TestLabChannel? = null
 
     /** Whether this engine's last word was that a call or share is live; see [onDetachedFromEngine]. */
     private var ownsCallService = false
@@ -32,6 +33,7 @@ class CallNotificationPlugin : FlutterPlugin, MethodCallHandler {
         channel.setMethodCallHandler(this)
         appContext = binding.applicationContext
         notifier = IncomingCallNotifier(appContext)
+        testLab = TestLabChannel(appContext, binding.binaryMessenger)
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
@@ -74,6 +76,8 @@ class CallNotificationPlugin : FlutterPlugin, MethodCallHandler {
      */
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
+        testLab?.dispose()
+        testLab = null
         if (ownsCallService) {
             CallForegroundService.update(appContext, call = false, camera = false, share = false)
             ownsCallService = false

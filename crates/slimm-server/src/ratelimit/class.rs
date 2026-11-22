@@ -312,6 +312,10 @@ classes! {
     /// module past twenty in a burst. A module is admin-approved code, but a
     /// buggy loop in one should cost a channel a few messages, not a flood.
     ModulePost,
+    /// An input to a module's shared room (decision 0131), keyed per (member, module, room) and
+    /// charged on top of the [`Class::Module`] run it starts. A turn-based game needs a move a
+    /// second at most, and each input is one serialized run in that room.
+    ModuleRoomInput,
     /// The "a new device signed in" notice, keyed per account.
     ///
     /// Sustained refill of one per ten minutes after a burst of three, so a
@@ -432,6 +436,7 @@ impl Class {
             Class::Interaction => (8.0, 1.0),
             // See this variant's own doc comment for how these were sized.
             Class::ModulePost => (5.0, 1.0 / 6.0),
+            Class::ModuleRoomInput => (8.0, 2.0),
             // See this variant's own doc comment for how these were sized.
             Class::SignInAlert => (3.0, 1.0 / 600.0),
             // See this variant's own doc comment for how these were sized.

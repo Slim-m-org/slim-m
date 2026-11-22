@@ -62,6 +62,7 @@ import e2e_presence_live
 import e2e_voice_roster_live
 import e2e_voice_multishare
 import e2e_voice_share
+import e2e_camera_quality
 import e2e_share_quality
 import e2e_share_ramp
 import e2e_voice_noise
@@ -425,6 +426,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
              a, b, room_id, member.me()["id"])),
         ("voice: a share reaches the viewer's full resolution within seconds",
          lambda: e2e_share_ramp.a_share_reaches_full_resolution_quickly(a, b, room_id)),
+        ("voice: a camera publishes its simulcast layers at a steady frame rate and a quality change applies",
+         lambda: e2e_camera_quality.a_camera_publishes_its_layers_and_changes_quality(
+             a, b, room_id, member.me()["id"])),
         ("voice: calling in a dm", lambda: e2e_dm_call.start_dm_and_call(
             a, b, admin, member)),
         ("voice: a call nobody answers shows up in the dm",

@@ -39,6 +39,9 @@ class ModuleCommandOutput extends ConsumerWidget {
     this.command,
     this.messageId,
     this.blockIndex,
+    this.runAction,
+    this.runner,
+    this.fillAvailable = false,
   });
 
   final api.RunModuleCommandResult result;
@@ -50,6 +53,16 @@ class ModuleCommandOutput extends ConsumerWidget {
   /// than the ephemeral one - see the class doc. Null for the Dock panel.
   final String? messageId;
   final int? blockIndex;
+
+  /// Runs a private scene's actions in place of the ephemeral route, so a Dock
+  /// panel can keep each answer it gets (decision 0132).
+  final ModuleSceneRunner? runAction;
+
+  /// Where a shared scene that is not a message's (a canvas tile) sends its actions; overrides both routes above.
+  final ModuleSceneRunner? runner;
+
+  /// Fills the box it is given, for a surface with a fixed size of its own such as a canvas tile.
+  final bool fillAvailable;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -116,6 +129,33 @@ class ModuleCommandOutput extends ConsumerWidget {
     );
   }
 
+  Future<api.RunModuleCommandResult> Function(String input) _commandRunner(
+    ProviderContainer container,
+    String moduleId,
+    String command,
+  ) {
+    final messageId = this.messageId;
+    final blockIndex = this.blockIndex;
+    final runner = this.runner;
+    final runAction = this.runAction;
+    if (runner != null) return runner;
+    if (messageId != null && blockIndex != null) {
+      return (input) => container
+          .read(moduleActionsProvider)
+          .runCodeBlock(
+            messageId: messageId,
+            blockIndex: blockIndex,
+            moduleId: moduleId,
+            command: command,
+            input: input,
+          );
+    }
+    if (runAction != null) return runAction;
+    return (input) => container
+        .read(moduleActionsProvider)
+        .runModuleCommand(moduleId: moduleId, command: command, input: input);
+  }
+
   Widget _sceneView(
     BuildContext context,
     ModuleScene scene,
@@ -124,27 +164,12 @@ class ModuleCommandOutput extends ConsumerWidget {
   ) {
     final messageId = this.messageId;
     final blockIndex = this.blockIndex;
-    // Shared when this scene belongs to a message: each action stores and broadcasts, so everyone watching sees the same evolving scene.
-    final shared = messageId != null && blockIndex != null;
+    final runner = this.runner;
+    // Shared when this scene belongs to a message or a canvas tile: each action stores and broadcasts, so everyone watching sees the same evolving scene.
+    final shared = runner != null || (messageId != null && blockIndex != null);
     // The full-screen route outlives this widget, so its closures hold the container, never ref.
     final container = ProviderScope.containerOf(context, listen: false);
-    Future<api.RunModuleCommandResult> run(String input) => shared
-        ? container
-              .read(moduleActionsProvider)
-              .runCodeBlock(
-                messageId: messageId,
-                blockIndex: blockIndex,
-                moduleId: moduleId,
-                command: command,
-                input: input,
-              )
-        : container
-              .read(moduleActionsProvider)
-              .runModuleCommand(
-                moduleId: moduleId,
-                command: command,
-                input: input,
-              );
+    final run = _commandRunner(container, moduleId, command);
     // The other half of "never plays without interaction": see NotesOp's own doc comment for the full defence.
     void notes(List<SceneNote> played) {
       if (!container.read(moduleSoundSettingsProvider)) return;
@@ -155,8 +180,9 @@ class ModuleCommandOutput extends ConsumerWidget {
       initial: scene,
       runCommand: run,
       onNotes: notes,
-      // Only a message-scoped board has a screen of its own to go to.
-      onExpand: shared
+      fillAvailable: fillAvailable,
+      // Only a shared board has a screen of its own to go to.
+      onExpand: shared && !fillAvailable
           ? () => showModuleSceneFullscreen(
               context,
               initial: scene,

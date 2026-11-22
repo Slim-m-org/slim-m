@@ -23,6 +23,7 @@ export 'client_watch_session.dart' show SlimmApiWatchSession;
 export 'client_channel_admin.dart'
     show ChannelRetention, ChannelUpdate, SlimmApiChannelAdmin;
 export 'client_canvas.dart' show SlimmApiCanvas;
+export 'client_canvas_tiles.dart' show SlimmApiCanvasTiles;
 export 'client_diagnostics.dart' show SlimmApiDiagnostics;
 export 'client_direct_route.dart' show SlimmApiDirectRoute;
 export 'client_edge.dart' show SlimmApiEdge;
@@ -51,6 +52,7 @@ export 'client_moderation.dart'
 export 'client_module_commands.dart' show SlimmApiModuleCommands;
 export 'client_module_permissions.dart' show SlimmApiModulePermissions;
 export 'client_module_hooks.dart' show SlimmApiModuleHooks;
+export 'client_module_rooms.dart' show SlimmApiModuleRooms;
 export 'client_module_settings.dart' show SlimmApiModuleSettings;
 export 'client_module_slots.dart' show SlimmApiModuleSlots;
 export 'client_bots.dart' show Bot, NewBot, SlimmApiBots;

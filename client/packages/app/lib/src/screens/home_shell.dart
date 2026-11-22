@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../features/modules/widgets/module_panel_slot.dart';
 import '../features/admin_setup/screens/admin_setup_gate.dart';
 import '../features/first_run/widgets/first_run_gate.dart';
 import '../features/members/providers/activity_publisher.dart';
@@ -226,10 +227,14 @@ class HomeShell extends ConsumerWidget {
     final videoDocked = ref.watch(
       desktopVideoProvider.select((v) => v?.docked ?? false),
     );
-    final videoSide =
-        videoDocked && threadFits && !showThread && !canvasFullscreen;
-    final showMembers = membersWanted && !videoSide;
-    final dockedPane = switch ((showThread || videoSide, showMembers)) {
+    final sideFree = threadFits && !showThread && !canvasFullscreen;
+    final panelSide = modulePanelDocked(ref, fits: sideFree);
+    final videoSide = videoDocked && sideFree && !panelSide;
+    final showMembers = membersWanted && !videoSide && !panelSide;
+    final dockedPane = switch ((
+      showThread || videoSide || panelSide,
+      showMembers,
+    )) {
       (true, _) => kThreadPaneWidth,
       (_, true) => AppMemberPane.width,
       _ => 0.0,
@@ -245,6 +250,7 @@ class HomeShell extends ConsumerWidget {
       showThread: showThread,
       showMembers: showMembers,
       videoSide: videoSide,
+      panelSide: panelSide,
       videoStrip: videoDocked && !videoSide && !canvasFullscreen,
       membersUnderVideo: videoSide && membersWanted,
       notFound: notFound,
@@ -353,6 +359,8 @@ class HomeShell extends ConsumerWidget {
               ),
             ),
           ),
+          if (facts.panelSide)
+            const PaneReadingOrder(order: 2, child: ModulePanelSlot()),
           if (facts.videoSide)
             PaneReadingOrder(
               order: 2,
@@ -489,6 +497,7 @@ class _ShellFacts {
     required this.showThread,
     required this.showMembers,
     required this.videoSide,
+    required this.panelSide,
     required this.videoStrip,
     required this.membersUnderVideo,
     required this.notFound,
@@ -506,6 +515,7 @@ class _ShellFacts {
   final bool showThread;
   final bool showMembers;
   final bool videoSide;
+  final bool panelSide;
   final bool videoStrip;
   final bool membersUnderVideo;
   final bool notFound;

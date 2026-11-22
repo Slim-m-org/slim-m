@@ -222,6 +222,7 @@ fn apply(state: &AppState, event: WebhookEvent) -> Option<Presence> {
     let live_state = state.voice.live_state();
     if event.event == "room_finished" {
         live_state.forget_room(channel_id);
+        crate::http::module_rooms::end_call(state, channel_id);
         return None;
     }
     let (user_id, sid) = event

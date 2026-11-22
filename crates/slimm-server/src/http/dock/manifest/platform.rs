@@ -13,7 +13,9 @@ const MAX_SUBSCRIPTIONS: usize = 8;
 const MAX_SLOTS: usize = 4;
 const MAX_SLOT_NAME: usize = 64;
 const MAX_SLOT_TITLE: usize = 40;
-const SLOT_KINDS: [&str; 2] = ["profile.section", "member.badge"];
+const SLOT_KINDS: [&str; 3] = ["profile.section", "member.badge", CALL_SCENE];
+/// The slot that shows a module's room scene on a call's stage (decision 0133).
+const CALL_SCENE: &str = "call.scene";
 
 /// The events a phase 1 module may subscribe to.
 pub(in crate::http) const EVENTS: [&str; 12] = [
@@ -58,6 +60,9 @@ pub(super) struct RawPlatform {
     pub(super) data: Option<Value>,
 }
 
+/// The add-on API level that introduced shared room state (decision 0131).
+const ROOM_STATE_API: i64 = 6;
+
 fn has(capabilities: &[String], name: &str) -> bool {
     capabilities.iter().any(|c| c == name)
 }
@@ -86,6 +91,18 @@ pub(super) fn validate_platform(
     )?;
     if raw.data.is_some() && !has(capabilities, "data.store") {
         return Err(malformed("data needs the data.store capability"));
+    }
+    if has(capabilities, "room.state") && addon_api < ROOM_STATE_API {
+        return Err(malformed("room.state needs \"addon_api\": 6 or higher"));
+    }
+    let call_scenes = slots.iter().filter(|s| s.kind == CALL_SCENE).count();
+    if call_scenes > 0 && !has(capabilities, "room.state") {
+        return Err(malformed(
+            "a call.scene slot needs the room.state capability",
+        ));
+    }
+    if call_scenes > 1 {
+        return Err(malformed("a module declares at most one call.scene slot"));
     }
     let uses_platform = !subscriptions.is_empty()
         || !settings.is_empty()

@@ -73,7 +73,7 @@ for pair in "$((CDP+1)):alice" "$((CDP+2)):bob"; do
   nohup setsid bash -c "exec '$CHROME' --headless=new \
     --user-data-dir='$profile' --remote-debugging-port=$port \
     --window-size=1280,900 --no-first-run --no-default-browser-check \
-    --use-fake-device-for-media-stream --use-fake-ui-for-media-stream \
+    --use-fake-device-for-media-stream=fps=30 --use-fake-ui-for-media-stream \
     --use-file-for-fake-audio-capture='$VOICE_WAV' \
     --autoplay-policy=no-user-gesture-required --enable-unsafe-swiftshader \
     --mute-audio \

@@ -168,6 +168,7 @@ pub(super) async fn install_manifest(
         .await?;
     module_data::apply(state, manifest, &approved_host).await?;
     state.dock.slot_cache().invalidate_module(&installed.id);
+    crate::http::module_rooms::end_module(state, &installed.id);
     let installed = if module_host::schedule_approved(&installed)
         || module_events::events_approved(&installed)
         || module_host::logs_approved(&installed)

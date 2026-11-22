@@ -71,6 +71,7 @@ async fn count_failure(
             ),
         )
         .await;
+    super::module_rooms::end_module(state, &module.id);
     crate::call_audio::runtime::end_module_sessions(
         state,
         &module.id,

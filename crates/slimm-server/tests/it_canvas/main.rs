@@ -15,6 +15,7 @@ mod canvas_index;
 mod canvas_live;
 mod canvas_media_slot_preview_live;
 mod canvas_media_slots;
+mod canvas_module_tile;
 mod canvas_object_cap;
 mod canvas_object_preview_live;
 mod canvas_ops;

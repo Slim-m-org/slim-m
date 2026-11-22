@@ -323,7 +323,7 @@ async fn spawn_fake_dock_registry() -> String {
                 {"key": "run", "name": "Execute code blocks", "description": "run a snippet"}
             ],
             "capabilities": ["command.register", "message.post", "net.fetch", "schedule", "events", "data.store", "interceptors", "permission.hook"],
-            "addon_api": 3,
+            "addon_api": 6,
             "interceptors": [{"hook": "message.pre_send", "phase": "annotate", "reads": ["content"]}],
             "permission_hooks": [{"action": "message.send"}],
             "subscriptions": [{"event": "member.joined"}],
@@ -338,7 +338,8 @@ async fn spawn_fake_dock_registry() -> String {
             "extension_points": [
                 {"kind": "command", "name": "run", "description": "runs it", "permission": "run"},
                 {"kind": "code-block-runner", "name": "Run in chat", "description": "offers Run on a fenced code block", "permission": "run", "command": "run", "language": "javascript"},
-                {"kind": "app", "name": "Code App", "description": "launch it as a surface", "permission": "run", "command": "run"}
+                {"kind": "app", "name": "Code App", "description": "launch it as a surface", "permission": "run", "command": "run"},
+                {"kind": "canvas-tile", "name": "Code Tile", "description": "a tile on the canvas", "permission": "run", "command": "run"}
             ]
         }))
     }

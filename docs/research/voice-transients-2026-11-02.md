@@ -122,14 +122,57 @@ The third run (the same tree plus the leveler, fork 5697ace) confirms the hand-o
 
 Strong now reads like the auto-gain-off arm on every event.
 Speech sits 1.2 dB under what was sent because piper is already at the leveler's -20 dBFS target, so there is nothing to lift; the 2 dB it had with auto gain on was auto gain pushing already-loud speech further.
-Strongest costs 3.2 dB of speech and clips 7 of 11 word starts on this corpus, DeepFilterNet's known trade-off (`deepfilternet-evaluation.md`), so it is not a default arm of the scenario and has its own card.
+Strongest costs 3.2 dB of speech and clips 7 of 11 word starts on this corpus, DeepFilterNet's known trade-off (`deepfilternet-evaluation.md`), so it is not a default arm of the scenario and has its own card; the section "Strongest's cost, measured and fixed" below has the follow-up.
+
+## Strongest's cost, measured and fixed (2026-11-22)
+
+The card read: Strongest sent speech 3.2 dB quieter than Strong and clipped 7 of 11 word starts against 2 of 11.
+Re-run on main 26fa4d280 (fork 6e008df), the same scenario gave Strong -1.15 dB and Strongest -3.2 dB, so the gap is 2.0 dB and not 3.2, and the onsets were 4 of 11 in both arms.
+The onset count moves by two or three between runs of the same build, so the 7 of 11 was noise on top of a smaller difference.
+
+Where the 2 dB goes: steady speech, not onsets.
+The cover that blends rnnoise over DeepFilterNet's clipped starts kept only half of rnnoise's output once a word was under way (`speaking_weight` 0.5), so DeepFilterNet's own turn-down of a continuing word came through.
+Offline with `scripts/research/strongest_sweep.py` (the scenario's piper voices A and B with the fan and the recorded clips in the gaps, through the fork's `strongest_tool` with `CHAIN=1` so the gate and leveler are in), the suppressor alone shows it only on the noisy dfn material, where babble speech was -3.8 dB:
+
+| `speaking_weight` | clipped onsets (of 168) | babble speech dB | babble / music gap dB | fan / door / typing gap dB |
+|---|---|---|---|---|
+| Strong (rnnoise) | 2 | -0.9 | 8.6 / 7.5 | 26.5 / 7.6 / 1.7 |
+| 0.5 (before) | 6 | -3.8 | 13.2 / 13.2 | 50.0 / 32.4 / 12.1 |
+| 0.75 | 5 | -2.6 | 11.5 / 12.4 | 50.0 / 32.4 / 12.1 |
+| 1.0 (after) | 5 | -1.7 | 9.9 / 11.7 | 50.0 / 32.4 / 12.1 |
+
+`clip_margin_db` 3, 4 and 6 on top of 1.0 moved nothing useful (babble speech -1.8, -1.9, -2.3 against -1.7 at 2), so only the continuing weight is changed.
+Giving it all to rnnoise costs 3 dB of babble gap attenuation and 1.5 dB of music, still above Strong's, and leaves the fan, door and typing gaps and the smack suppression as they were.
+
+On the real client (scenario arms `strong-gate-on` and `strongest-gate-on`, the fork built from the same tree with the weight set by environment before it was made the default):
+
+| arm | speech dB | onsets clipped | smack gap dB | chew gap dB |
+|---|---|---|---|---|
+| strong | -1.15 | 4/11 | -13.3 | -2.7 |
+| strongest, weight 0.5 (before) | -3.2 | 4/11 | -77.5 | -4.7 |
+| strongest, weight 0.75 | -2.4 | 2/10 | -77.9 | -2.3 |
+| strongest, weight 1.0, run 1 | -1.7 | 5/10 | -77.9 | -2.2 |
+| strong, run 2 | -1.1 | 3/10 | -7.2 | -2.1 |
+| strongest, weight 1.0, run 2 | -1.8 | 4/10 | -77.9 | -2.0 |
+
+Weight 1.0 holds speech within 0.7 dB of Strong in both runs and onsets within one of Strong's, with the smack still removed.
+Fork commit b55235b sets it as the default.
+Three more runs of the bundle built with that default read speech -1.3 / -1.8, -1.3 / -1.8 and -0.8 / -1.6 dB (Strong / Strongest), 0.5 to 0.8 dB apart.
+Their gap rows and onset counts are not usable: the virtual microphone carried about -27 dB of extra sound in the gaps on this machine at that time, in the Strong arm as much as the Strongest arm and in an unchanged earlier bundle too, so the scenario failed its gap bounds for both.
+
+A second finding, not acted on: with libwebrtc's own suppression switched off (`slimm.voice.webrtc_noise_suppression` false), Strong sent speech at -1.0 dB with 0 of 10 onsets clipped and Strongest at -1.2 dB with 0 of 10.
+The 2 dB and the clipped starts in the default arms are mostly libwebrtc's suppressor and DeepFilterNet stacking, not DeepFilterNet alone, which is why the cover helps and does not fully close the gap.
+The cost of switching it off under Strongest is that the chew gap read -0.2 dB instead of -4.7 and the bark gap came out 5.8 dB louder in its loudest frame under Strong, so that is a product decision and not a tuning one.
+The scenario has `strong-ns-off` and `strongest-ns-off` arms for it (`E2E_DESKTOP_ARMS`).
 
 ## What is left
 
 - Loud mouth sounds at the microphone are a model limit.
   rnnoise and DeepFilterNet both read them as voice.
-  A card covers evaluating a newer small model trained on the DNS mouth-noise categories; nothing in the gate or the dynamics can fix it, and a stricter gate would clip word starts.
+  GTCRN and DTLN, the small models trained on the DNS challenge, were evaluated on 2026-11-22 and are a no-go (`mouth-noise-models-2026-11-22.md`); nothing in the gate or the dynamics can fix it, and a stricter gate would clip word starts.
 - The owner's own microphone is the missing fixture.
   A 60 second raw recording (room tone, talking, chewing, a swallow, typing) from the headset he uses would replace the freesound previews with the real thing and can be added to the corpus folder as `chew-owner.wav` and friends without committing it.
-  A card covers recording such a sample from Settings so friends' machines can supply them too.
+  Settings > Troubleshooting > "Record a mic sample" (Linux and Windows) now records 30 seconds of the microphone before the chain, as a 48 kHz mono WAV in the Downloads folder named `mic-sample-<platform>-<date>-<time>.wav`, and uploads nothing, so friends' machines can supply them too.
+  To use one in the `voice transients` scenario, cut each sound out of it (for example `ffmpeg -ss 12 -t 4 -i mic-sample-linux-....wav chew-owner.wav`, keeping 48 kHz mono), name it `<kind>-owner.wav` for a kind the scenario knows (`smack`, `chew`, `swallow` or `breath`, such as `chew-owner.wav`), and point `E2E_TRANSIENT_CLIPS` at a folder holding them.
+  The scenario takes the first file by name for each kind, so a folder that also holds the fetched `chew-chips.wav` would still win; use a folder of your own.
 - The Advanced card's "Automatic gain" row still reads as if it applied under Strong; its description should say the chain levels instead while Strong is the effective choice.

@@ -59,6 +59,7 @@ pub(crate) fn moves_permissions(event: &Event) -> bool {
         | Event::Canvas(CanvasEvent::ObjectEdited { .. })
         | Event::Canvas(CanvasEvent::MediaSlotChanged { .. })
         | Event::Canvas(CanvasEvent::ObjectLockChanged { .. })
+        | Event::Canvas(CanvasEvent::TileSceneChanged { .. })
         | Event::SessionRevoked(_)
         // A join changes nobody's existing cached answer; see the variant's own doc.
         | Event::MemberJoined(_)
@@ -70,6 +71,7 @@ pub(crate) fn moves_permissions(event: &Event) -> bool {
         | Event::WatchTick { .. }
         | Event::CallAudioChanged { .. }
         | Event::CallTranscriptChanged { .. }
+        | Event::ModuleRoomChanged(_)
         | Event::CallTranscriptLine { .. }
         // Ringing, and how a ring ended, changes no permission's answer either.
         | Event::CallRinging { .. }
@@ -183,6 +185,7 @@ pub(super) fn is_ephemeral(event: &Event) -> bool {
         | Event::Canvas(CanvasEvent::ObjectEdited { .. })
         | Event::Canvas(CanvasEvent::MediaSlotChanged { .. })
         | Event::Canvas(CanvasEvent::ObjectLockChanged { .. })
+        | Event::Canvas(CanvasEvent::TileSceneChanged { .. })
         | Event::SessionRevoked(_)
         | Event::VoiceActivityChanged { .. }
         | Event::VoiceParticipantJoined { .. }
@@ -190,6 +193,7 @@ pub(super) fn is_ephemeral(event: &Event) -> bool {
         | Event::VoiceScreenShareChanged { .. }
         | Event::CallAudioChanged { .. }
         | Event::CallTranscriptChanged { .. }
+        | Event::ModuleRoomChanged(_)
         // Durable so a lagging reader resyncs; the client fills a gap in `seq` over REST.
         | Event::CallTranscriptLine { .. }
         | Event::CallRinging { .. }

@@ -377,6 +377,18 @@ ServerEvent? voiceFrame(Map<String, dynamic> decoded) {
             : CallAudioState.fromJson(decoded['state'] as Map<String, dynamic>),
         ended: decoded['ended'] as String?,
       ),
+    'module.room'
+        when decoded['channel_id'] is String &&
+            decoded['module_id'] is String &&
+            decoded['seq'] is int =>
+      ModuleRoomChanged(
+        channelId: decoded['channel_id'] as String,
+        moduleId: decoded['module_id'] as String,
+        seq: decoded['seq'] as int,
+        state: decoded['state'],
+        scene: roomSceneText(decoded['scene']),
+        ended: decoded['ended'] as String?,
+      ),
     'call.transcript_changed'
         when decoded['channel_id'] is String &&
             decoded['transcript_id'] is String =>

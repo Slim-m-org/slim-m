@@ -12,7 +12,8 @@ use std::sync::Arc;
 
 use slimm_server::call_audio::CallAudioView;
 use slimm_server::hub::{
-    CanvasEvent, Event, MessageEvent, RoleChange, RoleLook, VoiceRemovalReason,
+    CanvasEvent, Event, MessageEvent, ModuleRoomChange, RoleChange, RoleLook, RoomJson,
+    VoiceRemovalReason,
 };
 use slimm_server::ids::{
     CallRingId, CanvasObjectId, CanvasOpId, ChannelId, MessageId, RoleId, Seq, SessionId, UserId,
@@ -218,6 +219,27 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             state: None,
             ended: Some("declined"),
         },
+        Event::ModuleRoomChanged(Arc::new(ModuleRoomChange {
+            channel_id: channel,
+            module_id: "noughts".into(),
+            seq: 3,
+            state: Some(RoomJson::new(
+                serde_json::value::RawValue::from_string(r#"{"board":"x...o...."}"#.into())
+                    .unwrap(),
+            )),
+            scene: Some(RoomJson::new(
+                serde_json::value::RawValue::from_string(r#"{"$slim":"scene/1"}"#.into()).unwrap(),
+            )),
+            ended: None,
+        })),
+        Event::ModuleRoomChanged(Arc::new(ModuleRoomChange {
+            channel_id: channel,
+            module_id: "noughts".into(),
+            seq: 3,
+            state: None,
+            scene: None,
+            ended: Some("call_ended"),
+        })),
         Event::CallTranscriptChanged {
             channel_id: channel,
             transcript_id: slimm_server::ids::CallTranscriptId(id(12)),
@@ -361,6 +383,13 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             object_id: object,
             locked: true,
             version: 3,
+        }),
+        Event::Canvas(CanvasEvent::TileSceneChanged {
+            channel_id: channel,
+            object_id: object,
+            output: Arc::from("{\"$slim\":\"scene/1\"}"),
+            ran_by: Some(bob),
+            ran_at: 9,
         }),
         Event::ReportsChanged,
         Event::AdminAlertsChanged,

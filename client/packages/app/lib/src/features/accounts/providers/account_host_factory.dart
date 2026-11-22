@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
 import '../../../audio/call_start_yields.dart';
+import '../../../default_server.dart';
 import '../../../desktop/desktop_window_shell.dart';
 import '../../../diagnostics/debug_log.dart';
 import '../../../diagnostics/debug_log_persistence.dart';
@@ -27,7 +28,7 @@ import 'account_store.dart';
 /// One shared key store and emoji cache, then a container per account built on them.
 ///
 /// See emojiImageCacheProvider's own doc for why the cache is opted into here rather than left as its default.
-AccountHost createAccountHost(DesktopWindowShell shell) {
+AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
   final keyStore = createPersistentKeyStore();
   final emojiCache = createEmojiImageCache();
   final previewCache = createAttachmentPreviewCache();
@@ -61,6 +62,7 @@ AccountHost createAccountHost(DesktopWindowShell shell) {
         callStartYieldsProvider.overrideWithValue(callStartYields),
         callKeybindsStoreProvider.overrideWithValue(callKeybinds),
         crossTabProvider.overrideWithValue(crossTab),
+        officialServerProvider.overrideWithValue(official),
         desktopWindowShellProvider.overrideWithValue(shell),
       ],
     ),

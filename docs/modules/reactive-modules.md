@@ -18,7 +18,7 @@ A server that supports a lower `addon_api` refuses the module with a clear reaso
 | Values an admin sets | `settings` | no |
 | Content on profiles and next to names | `slots` | no |
 
-The approvable capabilities are `kv.store`, `message.post`, `net.fetch`, `schedule`, `events`, `data.store` and `log.read`.
+The approvable capabilities are `kv.store`, `message.post`, `net.fetch`, `schedule`, `events`, `data.store` and `log.read`, plus the later ones below (`interceptors`, `permission.hook`, `call.audio` and `room.state`).
 `events`, `data.store` and `log.read` are asked again at the install screen after a new build of the wasm, like `schedule`.
 The consent screen lists each in plain words, including which events, which logs and the size cap.
 
@@ -31,6 +31,7 @@ They are not declared as extension points, and the module routes on `command` li
 | --- | --- | --- |
 | `@event` | a subscribed event happened | the JSON text `{"event","id","at_ms","data"}` |
 | `@slot` | a member opened a profile or a list that shows a badge | the JSON text `{"slot","name","user_ids","bot_ids","viewer_id"}` |
+| `@room` | someone sent an input to the module's room (add-on API 6) | the JSON text `{"$slim":"room/1","room","seq","state","input"}` |
 
 A module with `subscriptions` that returns `{ok:false}` for `@event` counts every event as a failed run, so route it.
 Return `{ok:true}` for an event you choose to ignore.
@@ -472,6 +473,45 @@ Levels only add; the changelog is [api-changelog.md](api-changelog.md).
 - The command is `@allow`. The input text is `{"$slim":"permission/1","action","channel_id","member_joined_ms"}`; reply `{"allow":true}` or `{"allow":false,"reason":"..."}`.
 - It runs only after the server has already allowed the action. A module can turn an allow into a deny and can never grant: a member who lacks the permission is refused without the module being asked.
 - Same budget, fail-open default and breaker as interceptors.
+
+## Shared room state: `room.state`
+
+Add-on API 6 (decision [0131](../decisions/0131-module-room-state.md)).
+A room is one module's state in one voice call or text channel.
+People taking part send inputs, the host runs your module on each in turn with the state it holds, and everyone who can see the room gets each state you answer.
+Someone who joins late reads the current state.
+
+```json
+"addon_api": 6,
+"capabilities": ["room.state"]
+```
+
+The command is `@room`, and the input text is:
+
+```json
+{"$slim":"room/1","room":{"channel_id":"...","kind":"voice"},"seq":1,"state":{"board":"x........"},"input":"4"}
+```
+
+- `kind` is `voice` for a call and `channel` for a text channel. `state` is what you last answered, or `null` for a new room. `seq` counts the states the room has held.
+- `input` is the participant's text, at most 1024 bytes; what it means is yours to decide.
+- `caller.id` is the sender's per-module id, so you can seat players without knowing who they are.
+- Answer, as your `output`, exactly one of:
+  `{"$slim":"room/1","state":<any JSON>}` to store the next state (at most 16 KiB);
+  `{"$slim":"room/1","reject":"<why>"}` to refuse the input, which only the sender sees;
+  `{"$slim":"room/1","end":true}` to end the room.
+- Inputs to one room never overlap: the host runs them one at a time in the order they arrived, and yours is the only code that writes the state.
+- A trap, a timeout, `ok:false`, a state over the cap or anything that is not one of the three answers keeps the state as it was and counts toward the circuit breaker. A `reject` is not a failure.
+- Everyone who can see the room can read the state, so never keep a secret in it.
+- Rooms live in memory. A restart, the call ending, the channel being deleted, your module being turned off or reinstalled, or a day without input drops the room. Keep anything that must last in `data.store`.
+- A run may use your other approved host calls, except `message.post`. Nothing here posts, pushes or notifies.
+
+The inputs and answers are in [`room-fixtures/`](room-fixtures/), and `run-module` drives `@room` like any command:
+
+```bash
+$R --caller a8e1f6b2c9d04e7f modules/noughts/0.1.0/module.wasm @room "$(cat room-fixtures/room.input.json)"
+```
+
+The `noughts` module in slim-addons is the worked example: noughts and crosses kept as a call's room state.
 
 ## A worked example: XP for time in calls
 

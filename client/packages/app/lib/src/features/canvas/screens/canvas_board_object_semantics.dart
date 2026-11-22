@@ -104,6 +104,7 @@ class _CanvasBoardObjectSemanticsState
         CanvasObjectKind.note => 'Note: ${document.textOf(id) ?? ''}',
         CanvasObjectKind.image => 'Image',
         CanvasObjectKind.emoji => 'Emoji stamp',
+        CanvasObjectKind.tile => 'Module tile',
         CanvasObjectKind.shape => 'Shape',
         CanvasObjectKind.text => 'Text: ${document.textOf(id) ?? ''}',
         CanvasObjectKind.stroke || null => 'Drawing',

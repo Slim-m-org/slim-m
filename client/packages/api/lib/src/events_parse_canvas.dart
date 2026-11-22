@@ -281,6 +281,17 @@ ServerEvent? _canvasEditFrame(Map<String, dynamic> decoded) {
         locked: decoded['locked'] as bool,
         version: (decoded['version'] as num?)?.toInt() ?? 0,
       ),
+    'canvas.tile.scene_changed'
+        when decoded['channel_id'] is String &&
+            decoded['object_id'] is String &&
+            decoded['output'] is String =>
+      CanvasTileSceneChanged(
+        channelId: decoded['channel_id'] as String,
+        objectId: decoded['object_id'] as String,
+        output: decoded['output'] as String,
+        ranAt: (decoded['ran_at'] as num?)?.toInt() ?? 0,
+        ranBy: decoded['ran_by'] as String?,
+      ),
     _ => null,
   };
 }

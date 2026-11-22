@@ -6,6 +6,8 @@
 //! marked apart by their own `// --- Envelope ---` / `// --- Connection ---`
 //! section comments before this existed.
 
+use std::sync::Arc;
+
 use serde::Serialize;
 
 use crate::http::canvas::CanvasObjectDto;
@@ -283,6 +285,19 @@ pub(super) enum ServerFrame {
         #[serde(skip_serializing_if = "Option::is_none")]
         ended: Option<&'static str>,
     },
+    /// A module's room state changed, or the room ended when `state` is null;
+    /// see [`crate::hub::Event::ModuleRoomChanged`].
+    #[serde(rename = "module.room")]
+    ModuleRoom {
+        channel_id: String,
+        module_id: String,
+        seq: u64,
+        state: Option<crate::hub::RoomJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        scene: Option<crate::hub::RoomJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ended: Option<&'static str>,
+    },
     /// The server started or finished transcribing a call; see
     /// [`crate::hub::Event::CallTranscriptChanged`].
     #[serde(rename = "call.transcript_changed")]
@@ -500,6 +515,16 @@ pub(super) enum ServerFrame {
         object_id: String,
         locked: bool,
         version: i64,
+    },
+    /// A module tile's shared frame changed; `output` is the scene every viewer draws.
+    #[serde(rename = "canvas.tile.scene_changed")]
+    CanvasTileSceneChanged {
+        channel_id: String,
+        object_id: String,
+        output: Arc<str>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ran_by: Option<String>,
+        ran_at: i64,
     },
     /// The moderation queue changed: a report was filed or resolved. Carries
     /// nothing beyond the type tag; see [`crate::hub::Event::ReportsChanged`]

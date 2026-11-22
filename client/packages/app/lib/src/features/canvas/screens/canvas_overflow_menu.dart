@@ -25,6 +25,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../providers/canvas_grid_snap.dart';
 import 'canvas_chat_toggle.dart';
+import 'canvas_module_tile_scope.dart';
 import '../../voice/providers/voice_chat_unread.dart';
 import '../../voice/widgets/voice_chat_unread_dot.dart';
 import '../widgets/canvas_clear_scope.dart';
@@ -388,6 +389,10 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
           onTap: widget.canDraw
               ? () => _openAfterClose(() async => addImage())
               : null,
+        ),
+      if (!widget.readOnly)
+        CanvasModuleTileScope.menuItems(
+          open: (place) => _openAfterClose(() async => place()),
         ),
       AppMenuItem(
         label: widget.fullscreen ? 'Exit fullscreen' : 'Enter fullscreen',

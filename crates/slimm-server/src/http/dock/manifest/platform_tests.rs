@@ -66,10 +66,14 @@ fn an_old_manifest_keeps_its_review_digest() {
 
 #[test]
 fn a_higher_addon_api_than_the_host_supports_is_refused_with_a_reason() {
-    let reason = refusal(&manifest_with(json!({"addon_api": 6}), &[]));
-    assert!(reason.contains("add-on API 6"), "{reason}");
-    assert!(reason.contains("up to 5"), "{reason}");
-    for supported in [1, 2, 3, 4, 5] {
+    let host = crate::module_runtime::ADDON_API;
+    let reason = refusal(&manifest_with(json!({"addon_api": host + 1}), &[]));
+    assert!(
+        reason.contains(&format!("add-on API {}", host + 1)),
+        "{reason}"
+    );
+    assert!(reason.contains(&format!("up to {host}")), "{reason}");
+    for supported in 1..=host {
         assert!(
             parse_manifest(manifest_with(json!({"addon_api": supported}), &[]).as_bytes()).is_ok()
         );
@@ -98,6 +102,28 @@ fn subscriptions_need_the_events_capability_and_known_events() {
     assert!(refusal(&manifest_with(unknown, &["events"])).contains("unknown event"));
     let twice = json!({"addon_api": 1, "subscriptions": [{"event": "member.left"}, {"event": "member.left"}]});
     assert!(refusal(&manifest_with(twice, &["events"])).contains("twice"));
+}
+
+#[test]
+fn room_state_needs_add_on_api_6() {
+    let old = json!({"addon_api": 5});
+    assert!(refusal(&manifest_with(old, &["room.state"])).contains("\"addon_api\": 6"));
+    let new = ok(json!({"addon_api": 6}), &["room.state"]);
+    assert!(new.capabilities.iter().any(|c| c == "room.state"));
+}
+
+#[test]
+fn a_call_scene_needs_room_state_and_comes_once() {
+    let scene = |name: &str| json!({"kind": "call.scene", "name": name, "title": "Board"});
+    let one = json!({"addon_api": 6, "slots": [scene("board")]});
+    assert!(refusal(&manifest_with(one.clone(), &[])).contains("room.state"));
+    let slots = ok(one, &["room.state"]).platform.slots;
+    assert_eq!(
+        (slots[0].kind.as_str(), slots[0].title.as_deref()),
+        ("call.scene", Some("Board"))
+    );
+    let two = json!({"addon_api": 6, "slots": [scene("a"), scene("b")]});
+    assert!(refusal(&manifest_with(two, &["room.state"])).contains("at most one"));
 }
 
 #[test]

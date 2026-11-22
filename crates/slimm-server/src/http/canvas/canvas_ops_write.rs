@@ -37,7 +37,7 @@ use crate::store::{
 };
 
 /// The object kinds a scoped clear may name; the same set `place` accepts.
-const CLEAR_KINDS: [&str; 6] = ["stroke", "image", "note", "shape", "text", "emoji"];
+const CLEAR_KINDS: [&str; 7] = super::canvas_write::KINDS;
 
 /// Widest `z_index` a reorder may carry: a client adds one for "bring to front", so it stays far inside the 2^53 integers every client holds exactly.
 const Z_INDEX_LIMIT: i64 = 1 << 52;

@@ -16,6 +16,7 @@ import '../../../../providers/admin_providers.dart';
 import '../../../../providers/providers.dart';
 import '../../../composer/providers/slash_command.dart';
 import '../../../modules/providers/app_launch.dart';
+import '../../../modules/providers/module_panels.dart';
 import '../../../modules/providers/code_block_runner.dart';
 import 'dock_host_access_card.dart';
 import 'dock_install_consent.dart';
@@ -113,6 +114,7 @@ void _refreshAfterInstall(WidgetRef ref) {
   ref.invalidate(codeBlockRunnerProvider);
   ref.invalidate(slashCommandProvider);
   ref.invalidate(appLaunchProvider);
+  ref.invalidate(modulePanelsProvider);
 }
 
 /// The record the server holds for [moduleId] now, or null once it is gone.

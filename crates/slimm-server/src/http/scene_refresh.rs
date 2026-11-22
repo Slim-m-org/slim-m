@@ -88,6 +88,7 @@ pub async fn run_due(state: &AppState, now: i64) -> anyhow::Result<usize> {
             None => stop(state, message).await,
         }
     }
+    redrawn += super::canvas::canvas_tile_scene::run_due(state, now).await?;
     Ok(redrawn)
 }
 

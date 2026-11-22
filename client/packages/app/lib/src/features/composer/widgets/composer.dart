@@ -14,6 +14,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../ids.dart';
 import '../../members/providers/bot_commands.dart';
 import '../providers/composer_attachment_drop.dart';
+import '../../modules/providers/module_panels.dart';
 import '../../modules/providers/app_launch.dart';
 import '../../../routing/breakpoints.dart';
 import '../providers/slash_command.dart';
@@ -149,6 +150,7 @@ class _ComposerState extends ConsumerState<Composer> {
   final _autocomplete = ComposerAutocompleteController();
   List<SlashCommand> _slashCommands = const [];
   List<App> _apps = const [];
+  bool _hasPanels = false;
   List<ChannelBotCommand> _botCommands = const [];
 
   final _mentionHelp = ComposerMentionHelp();
@@ -316,7 +318,7 @@ class _ComposerState extends ConsumerState<Composer> {
 
   void _openActions() => _actions.openActions(
     channelId: widget.channelId,
-    apps: _apps,
+    canLaunch: _apps.isNotEmpty || _hasPanels,
     onInsertCode: _insertCodeFence,
     onCommandError: _reportCommandError,
   );
@@ -386,6 +388,8 @@ class _ComposerState extends ConsumerState<Composer> {
     // In build because both sources are watched and can arrive late.
     _slashCommands = ref.watch(slashCommandProvider).valueOrNull ?? const [];
     _apps = ref.watch(appLaunchProvider).valueOrNull ?? const [];
+    _hasPanels =
+        ref.watch(modulePanelsProvider).valueOrNull?.isNotEmpty ?? false;
     _botCommands =
         ref.watch(channelBotCommandsProvider(widget.channelId)).valueOrNull ??
         const [];
@@ -465,7 +469,7 @@ class _ComposerState extends ConsumerState<Composer> {
               onSend: _send,
               onTyping: _onTyping,
               onOpenActions: _openActions,
-              onLaunchApps: _apps.isEmpty
+              onLaunchApps: _apps.isEmpty && !_hasPanels
                   ? null
                   : () => _actions.launchApps(
                       widget.channelId,

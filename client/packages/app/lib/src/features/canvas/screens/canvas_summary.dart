@@ -14,12 +14,20 @@ String canvasSummary(CanvasDocument document) {
       counts.images +
       counts.notes +
       counts.shapes +
-      counts.texts;
+      counts.texts +
+      counts.tiles;
   if (total == 0) return 'no objects';
-  return '$total ${total == 1 ? 'object' : 'objects'}: '
-      '${counts.strokes} ${counts.strokes == 1 ? 'stroke' : 'strokes'}, '
-      '${counts.images} ${counts.images == 1 ? 'image' : 'images'}, '
-      '${counts.notes} ${counts.notes == 1 ? 'note' : 'notes'}, '
-      '${counts.shapes} ${counts.shapes == 1 ? 'shape' : 'shapes'}, '
-      '${counts.texts} ${counts.texts == 1 ? 'text box' : 'text boxes'}';
+  final tiles = counts.tiles == 0
+      ? ''
+      : ', ${_counted(counts.tiles, 'module tile', 'module tiles')}';
+  return '${_counted(total, 'object', 'objects')}: '
+      '${_counted(counts.strokes, 'stroke', 'strokes')}, '
+      '${_counted(counts.images, 'image', 'images')}, '
+      '${_counted(counts.notes, 'note', 'notes')}, '
+      '${_counted(counts.shapes, 'shape', 'shapes')}, '
+      '${_counted(counts.texts, 'text box', 'text boxes')}'
+      '$tiles';
 }
+
+String _counted(int count, String one, String many) =>
+    '$count ${count == 1 ? one : many}';

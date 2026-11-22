@@ -294,6 +294,31 @@ Launched into a channel as a message that renders as the module's own interactiv
 - A launch runs the command once with an empty `input`, so a well-behaved app returns its initial frame for empty input.
   From then on the surface is driven entirely by the [interactive scene](#interactive-scenes) protocol, shared through the same stored-and-broadcast mechanism a code-block runner uses.
 
+### panel
+
+A persistent surface a member opens from the apps menu, kept beside the chat on a wide window and on its own page on a phone (decision [0132](../decisions/0132-dock-panels.md)).
+It needs `"addon_api": 6`, and a module may declare at most 2.
+
+```json
+{ "kind": "panel", "name": "My checklist", "permission": "edit", "command": "checklist", "description": "Your own checklist, kept open beside the chat." }
+```
+
+- Only members holding `permission` see it, from `GET /modules/panels`.
+- The panel runs `command` for the viewer alone: first with an empty `input`, then with each `{"action","state"}` its scene sends. Nothing is stored or broadcast; the client keeps the latest scene, so it is still there after the viewer switches channels.
+- A top-level `refresh_ms` redraws it with the action `refresh` while it is open, within the same bounds as a shared scene.
+
+### canvas-tile
+
+A tile people place on a voice canvas, showing the module's shared scene. Add-on API 6.
+
+```json
+{ "kind": "canvas-tile", "name": "Scoreboard", "permission": "play", "command": "board", "description": "A shared scoreboard for the call." }
+```
+
+- `name` is what the canvas menu offers as "Add Scoreboard" and the tile's header shows.
+- Anyone holding `permission` may place one; it then moves, resizes and is removed like a note.
+- The tile runs `command` exactly like an [app](#app) surface: an empty input launches it, and every viewer of the canvas sees the same stored frame. The tile is 640 by 480 board units when placed, so draw a scene that reads at that size.
+
 ## The scene contract
 
 A command normally returns text.

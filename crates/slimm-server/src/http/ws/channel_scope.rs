@@ -37,6 +37,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         Event::WatchTick { channel_id, .. } => *channel_id,
         Event::CallAudioChanged { channel_id, .. } => *channel_id,
         Event::CallTranscriptChanged { channel_id, .. } => *channel_id,
+        Event::ModuleRoomChanged(change) => change.channel_id,
         Event::CallTranscriptLine { channel_id, .. } => *channel_id,
         Event::CallRinging { channel_id, .. } => *channel_id,
         Event::CallRingEnded { channel_id, .. } => *channel_id,
@@ -56,7 +57,8 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::Canvas(CanvasEvent::ObjectReordered { .. })
         | Event::Canvas(CanvasEvent::ObjectEdited { .. })
         | Event::Canvas(CanvasEvent::MediaSlotChanged { .. })
-        | Event::Canvas(CanvasEvent::ObjectLockChanged { .. }) => {
+        | Event::Canvas(CanvasEvent::ObjectLockChanged { .. })
+        | Event::Canvas(CanvasEvent::TileSceneChanged { .. }) => {
             unreachable!("canvas_frames::channel_id")
         }
         // Control events are handled in the loop; the rest already returned above.

@@ -69,6 +69,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   /// needs to make; a different address is chosen through onboarding.
   late final bool _addressExpanded = !isOfficialServer(
     ref.read(serverUrlProvider),
+    ref.read(officialServerProvider),
   );
   final _username = TextEditingController();
   final _password = TextEditingController();

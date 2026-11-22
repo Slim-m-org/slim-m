@@ -28,7 +28,8 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::Canvas(CanvasEvent::ObjectEdited { .. })
         | Event::Canvas(CanvasEvent::MediaSlotChanged { .. })
         // Watching a canvas needs only the view bit, as its read routes do; USE_CANVAS gates sending.
-        | Event::Canvas(CanvasEvent::ObjectLockChanged { .. }) => None,
+        | Event::Canvas(CanvasEvent::ObjectLockChanged { .. })
+        | Event::Canvas(CanvasEvent::TileSceneChanged { .. }) => None,
         // The bit the transcript read route needs, so a live line reaches no one it would 404.
         Event::CallTranscriptLine { .. } => Some(Permissions::VIEW_TRANSCRIPTS),
         Event::Message(MessageEvent::Created { .. })
@@ -58,6 +59,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::WatchTick { .. }
         | Event::CallAudioChanged { .. }
         | Event::CallTranscriptChanged { .. }
+        | Event::ModuleRoomChanged(_)
         // Same again: a DM's own VIEW_CHANNEL already limits this to the pair.
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }

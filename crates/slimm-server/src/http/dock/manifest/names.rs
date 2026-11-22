@@ -13,7 +13,10 @@ fn is_keyword_kind(kind: &str) -> bool {
 
 /// Kinds a client resolves by name, so two of them under one name are ambiguous.
 fn is_resolved_by_name(kind: &str) -> bool {
-    matches!(kind, "command" | "slash-command" | "app")
+    matches!(
+        kind,
+        "command" | "slash-command" | "app" | "panel" | super::canvas_tile::KIND
+    )
 }
 
 /// A keyword the composer can split off and a route segment can carry: the

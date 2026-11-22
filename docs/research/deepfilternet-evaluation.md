@@ -150,7 +150,7 @@ What ships.
 rnnoise keeps running beside DeepFilterNet, as it already does for Strong, and gives the gate its speech probability.
 DeepFilterNet's output trails its input by three frames, so rnnoise's probability is three frames ahead of the audio it steers.
 When that probability stays above 0.5 for five frames in a row after at least 200 ms without that, the output switches to rnnoise's own for 200 ms from the word start and fades back over 100 ms.
-While the same speech goes on, half of the output stays rnnoise's.
+While the same speech goes on, all of the output stays rnnoise's where DeepFilterNet is turned down more (half until 2026-11-22; `voice-transients-2026-11-02.md` has why it moved).
 Both only apply to a frame where rnnoise's output is louder than -50 dBFS and DeepFilterNet's is at least 2 dB under it, so noise at the floor and frames the two agree on are left to DeepFilterNet.
 The five frames fit inside the three frames of lead plus the cover's own start, so a single click or door slam does not count as a word and the cost is the first 10 to 20 ms of the cover.
 The first 500 ms after capture opens never cover, because rnnoise reads its own start-up as speech.
