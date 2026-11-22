@@ -56,6 +56,7 @@ export 'models_voice_notification.dart';
 export 'models_message_history.dart';
 export 'models_message_ops.dart';
 export 'models_module_commands.dart';
+export 'models_module_rooms.dart';
 export 'models_module_settings.dart';
 export 'models_module_slots.dart';
 export 'models_notification_preference.dart';

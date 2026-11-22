@@ -15,11 +15,13 @@ use crate::voice::CallRingOutcome;
 
 mod canvas;
 mod message;
+mod module_room;
 mod presence_change;
 mod role_change;
 
 pub use canvas::CanvasEvent;
 pub use message::MessageEvent;
+pub use module_room::{ModuleRoomChange, RoomJson};
 pub use presence_change::PresenceChange;
 pub use role_change::{RoleChange, RoleLook};
 
@@ -270,6 +272,9 @@ pub enum Event {
         transcript_id: crate::ids::CallTranscriptId,
         ended: bool,
     },
+    /// A module's shared room state changed or ended (decision 0131), for everyone who can view
+    /// the channel. Never persisted and unnumbered here; the room carries its own `seq`.
+    ModuleRoomChanged(Arc<ModuleRoomChange>),
     /// A line the server just kept in a call's transcript, for whoever in `audience` (the
     /// call's roster then) may read it (0113). Durable: a lagging reader resyncs over REST.
     CallTranscriptLine {

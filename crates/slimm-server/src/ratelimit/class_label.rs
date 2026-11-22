@@ -35,6 +35,7 @@ impl Class {
             Class::LiveKitWebhook => "livekit_webhook",
             Class::Interaction => "interaction",
             Class::ModulePost => "module_post",
+            Class::ModuleRoomInput => "module_room_input",
             Class::SignInAlert => "sign_in_alert",
             Class::PresenceActivity => "presence_activity",
             Class::Totp => "totp",

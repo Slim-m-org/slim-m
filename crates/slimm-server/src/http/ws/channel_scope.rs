@@ -37,6 +37,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         Event::WatchTick { channel_id, .. } => *channel_id,
         Event::CallAudioChanged { channel_id, .. } => *channel_id,
         Event::CallTranscriptChanged { channel_id, .. } => *channel_id,
+        Event::ModuleRoomChanged(change) => change.channel_id,
         Event::CallTranscriptLine { channel_id, .. } => *channel_id,
         Event::CallRinging { channel_id, .. } => *channel_id,
         Event::CallRingEnded { channel_id, .. } => *channel_id,

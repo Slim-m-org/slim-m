@@ -411,6 +411,7 @@ async fn delete(
     match state.store.delete_channel(channel_id).await {
         Ok(deleted) => {
             end_voice_room(&state, channel_id).await;
+            super::module_rooms::end_channel(&state, channel_id);
             // Only a genuine delete is worth publishing; a retry changes nothing.
             if deleted {
                 state.hub.publish(Event::ChannelDeleted { channel_id });

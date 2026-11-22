@@ -106,6 +106,9 @@ pub(crate) enum RunKind {
     /// A hook on a member's action; it draws on its own lane, is held to a short budget,
     /// and counts toward the circuit breaker like a background run.
     Hook,
+    /// A participant's input to a shared room (decision 0131): the member's own lane, and a
+    /// failure or a reply outside `room/1` counts toward the circuit breaker.
+    Room,
 }
 
 /// One gated run: who asked, for which command, and what started it.
@@ -129,6 +132,11 @@ pub(crate) async fn run_installed(
     super::module_compat::require_compatible(module)?;
     let started = Instant::now();
     let (ran, fuel_used) = run_checked(state, module, request, surface).await;
+    let ran = if request.kind == RunKind::Room {
+        ran.map(super::module_rooms::held_to_contract)
+    } else {
+        ran
+    };
     if request.kind == RunKind::Slot
         && ran
             .as_ref()
@@ -162,7 +170,10 @@ pub(crate) async fn run_installed(
     {
         tracing::warn!(%err, module = %module.id, "could not record a module run");
     }
-    if matches!(request.kind, RunKind::Background | RunKind::Hook) {
+    if matches!(
+        request.kind,
+        RunKind::Background | RunKind::Hook | RunKind::Room
+    ) {
         super::module_breaker::note_background_run(state, module, &result, ran.as_ref().ok()).await;
     }
     ran
@@ -254,7 +265,7 @@ async fn prepare_and_run(
 /// The pool of run slots a request draws from; a member's own commands are capped per member.
 fn lane_for(request: &RunRequest<'_>) -> RunLane {
     match request.kind {
-        RunKind::Command => RunLane::MemberOf(request.caller),
+        RunKind::Command | RunKind::Room => RunLane::MemberOf(request.caller),
         RunKind::Background => RunLane::Background,
         RunKind::Slot => RunLane::Slot,
         RunKind::Hook => RunLane::Hook,
@@ -306,5 +317,6 @@ mod tests {
         assert_eq!(lane(RunKind::Background, member), RunLane::Background);
         assert_eq!(lane(RunKind::Slot, member), RunLane::Slot);
         assert_eq!(lane(RunKind::Hook, member), RunLane::Hook);
+        assert_eq!(lane(RunKind::Room, member), RunLane::MemberOf(member));
     }
 }

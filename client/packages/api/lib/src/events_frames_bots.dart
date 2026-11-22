@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 part of 'events.dart';
 
-// The bot-facing `ServerEvent` frames, split from `events_frames.dart` for the line budget.
+// The bot- and module-facing `ServerEvent` frames, split from `events_frames.dart` for the line budget.
 
 /// A bot answered this account privately. Delivered only to the account's own
 /// sockets and never replayed, so a receiver keeps it in memory and drops it
@@ -92,4 +92,23 @@ class InteractionForm extends ServerEvent {
 
   /// Absent from an older server, which did not say which bot opened the form.
   final String? botId;
+}
+
+/// A module's room state in [channelId] changed (decision 0131), or the room
+/// ended when [state] is null; [ended] then says how (`ended`, `call_ended`,
+/// `channel_removed`, `module_off`, `idle`).
+class ModuleRoomChanged extends ServerEvent {
+  const ModuleRoomChanged({
+    required this.channelId,
+    required this.moduleId,
+    required this.seq,
+    required this.state,
+    this.ended,
+  });
+
+  final String channelId;
+  final String moduleId;
+  final int seq;
+  final Object? state;
+  final String? ended;
 }

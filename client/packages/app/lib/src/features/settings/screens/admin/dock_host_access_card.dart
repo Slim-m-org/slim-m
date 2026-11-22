@@ -86,6 +86,13 @@ final dockHostCapabilities = <String, DockCapability>{
     description: 'Can stop members from sending, uploading or reacting.',
     warning: _permissionHookWarning,
   ),
+  'room.state': (
+    label: 'Share a live state',
+    description: 'Keeps a small state everyone in a call or channel sees.',
+    warning: (_) =>
+        'Can keep a small state in calls and channels, such as a game board, '
+        'that everyone there can see.',
+  ),
 };
 
 String _interceptorsWarning(List<String> reads) => reads.contains('content')

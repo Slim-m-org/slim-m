@@ -73,6 +73,8 @@ mod module_platform_settings;
 mod module_post_thread_reply;
 mod module_principal_and_output;
 mod module_reinstall_keyword_collision;
+mod module_rooms;
+mod module_rooms_failures;
 mod module_run_context;
 mod module_run_fuel;
 mod module_runs;

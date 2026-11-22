@@ -79,6 +79,8 @@ pub struct Dock {
     event_queues: Arc<super::module_events::Queues>,
     /// The live module hooks; see `module_hooks`.
     hooks: Arc<super::module_hooks::Registry>,
+    /// Modules' shared room states; see `module_rooms`.
+    rooms: Arc<super::module_rooms::Rooms>,
 }
 
 struct Enabled {
@@ -107,6 +109,11 @@ impl Dock {
     /// The queues pushed events wait in; see `module_events`.
     pub(super) fn event_queues(&self) -> Arc<super::module_events::Queues> {
         Arc::clone(&self.event_queues)
+    }
+
+    /// The rooms modules keep shared state in.
+    pub(crate) fn rooms(&self) -> &super::module_rooms::Rooms {
+        &self.rooms
     }
 
     /// The hooks modules have placed in front of actions.
@@ -179,6 +186,7 @@ impl Dock {
         Self {
             slot_cache: super::module_slot_cache::SlotCache::default(),
             hooks: Arc::default(),
+            rooms: Arc::default(),
             module_data: Arc::default(),
             event_queues: new_event_queues(&queue_depths),
             queue_depths,
@@ -202,6 +210,7 @@ impl Dock {
             inner: None,
             slot_cache: super::module_slot_cache::SlotCache::default(),
             hooks: Arc::default(),
+            rooms: Arc::default(),
             module_data: Arc::default(),
             event_queues: new_event_queues(&queue_depths),
             queue_depths,

@@ -201,6 +201,13 @@ pub(super) fn to_frame(
             state,
             ended,
         },
+        Event::ModuleRoomChanged(change) => ServerFrame::ModuleRoom {
+            channel_id: change.channel_id.to_string(),
+            module_id: change.module_id.clone(),
+            seq: change.seq,
+            state: change.state.clone(),
+            ended: change.ended,
+        },
         Event::CallTranscriptChanged {
             channel_id,
             transcript_id,

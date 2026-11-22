@@ -3,6 +3,15 @@
 Every change to a contract a module depends on is listed here, newest first.
 The policy behind the levels is decision [0100](../decisions/0100-module-safety-contracts.md).
 
+## Level 6
+
+- Adds the `room.state` capability (decision [0131](../decisions/0131-module-room-state.md)): a small shared state the host keeps per module in a call or a text channel. It needs `"addon_api": 6`.
+- Adds the `room/1` contract: the host runs `@room` with the room, its `seq`, the state it holds and the participant's input, and the module answers a next `state`, a `reject` or `end`. Inputs to one room run one at a time in the order they arrive.
+- Adds `GET /channels/{channel_id}/module-rooms`, `POST /channels/{channel_id}/module-rooms/{module_id}/inputs` and the `module.room` websocket frame.
+- A failed, slow or malformed answer keeps the state and counts toward the module's circuit breaker. Rooms are memory only and end with the call, the channel, the module or a day without input.
+- Nothing is removed or changed in meaning. A module that declares `addon_api_max` of 5 must be updated to run on a level 6 server, as at every level.
+- Fixtures for the input and the answers are in `docs/modules/room-fixtures/`.
+
 ## Level 5 additions (no level bump, nothing to declare)
 
 - A scene's `controls` may hold a dropdown, `{"label", "value", "options"}`, alongside button names; picking an option sends it as the action. This is read by the client (0.132 and later), so the server and the add-on level are unchanged, and an older client skips the entry. Its optional `replaces` lists buttons in the same row that the dropdown stands for: an older client shows them, a newer one leaves them out.

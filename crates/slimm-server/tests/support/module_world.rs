@@ -35,6 +35,14 @@ pub struct World {
 }
 
 pub async fn world(name: &str) -> World {
+    world_with(name, |builder| builder).await
+}
+
+/// [`world`], with the app state's services set by `configure` (a voice service, say).
+pub async fn world_with(
+    name: &str,
+    configure: impl FnOnce(super::app::StateBuilder) -> super::app::StateBuilder,
+) -> World {
     let (path, guard) = super::TestDbGuard::new(name);
     let config = Config {
         port: 0,
@@ -57,7 +65,7 @@ pub async fn world(name: &str) -> World {
         .unwrap()
         .access_token;
     let hub = Hub::new();
-    let state = super::app::builder(store.clone()).hub(hub.clone()).build();
+    let state = configure(super::app::builder(store.clone()).hub(hub.clone())).build();
     let router = http::router(state.clone());
     World {
         state,
