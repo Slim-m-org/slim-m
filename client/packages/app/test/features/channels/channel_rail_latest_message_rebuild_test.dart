@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A message arriving in one channel rebuilds nothing in the rail: not the
+/// A message arriving in a channel, open or not, rebuilds nothing in the rail: not the
 /// section, not any row, and not the keeper holding the recency loaded.
 library;
 
@@ -56,6 +56,21 @@ void main() {
   testWidgets('a new message in one channel rebuilds no rail widget', (
     tester,
   ) async {
+    expect(await _rebuildsAfterMessage(tester, selectedId: null), isEmpty);
+  });
+
+  testWidgets('a new message in the open channel rebuilds nothing either', (
+    tester,
+  ) async {
+    expect(await _rebuildsAfterMessage(tester, selectedId: 'c1'), isEmpty);
+  });
+}
+
+Future<List<String>> _rebuildsAfterMessage(
+  WidgetTester tester, {
+  required String? selectedId,
+}) async {
+  {
     SharedPreferences.setMockInitialValues({});
     final db = SlimmDatabase(NativeDatabase.memory());
     final store = MessageStore(db);
@@ -96,7 +111,7 @@ void main() {
             body: ChannelCategorySections(
               channels: channels,
               categories: const [],
-              selectedId: null,
+              selectedId: selectedId,
               onReorder: (_) {},
             ),
           ),
@@ -131,12 +146,13 @@ void main() {
       2000,
       reason: 'the new message reached the keeper at all',
     );
-    expect(rebuilt, isEmpty);
+    final result = List<String>.of(rebuilt);
 
     debugOnRebuildDirtyWidget = null;
     await tester.pumpWidget(const SizedBox());
     container.dispose();
     await tester.pump(const Duration(milliseconds: 1));
     await db.close();
-  });
+    return result;
+  }
 }
