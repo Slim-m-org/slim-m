@@ -4,7 +4,7 @@
 //! a host outside that range never loads it, so a core change cannot silently
 //! break an installed module.
 
-/// The add-on API level: 1 is the module platform (0091), 2 adds private scenes (0099), 3 adds hooks (0100), 4 adds call audio (0105), 5 adds the richer events (0109), 6 adds room state (0131) and Dock panels (0132).
+/// The add-on API level: 1 is the module platform (0091), 2 adds private scenes (0099), 3 adds hooks (0100), 4 adds call audio (0105), 5 adds the richer events (0109), 6 adds room state (0131), Dock panels (0132), the call scene (0133) and canvas tiles.
 pub const ADDON_API: u32 = 6;
 /// The shape of an `@event` input.
 pub const EVENT_CONTRACT: u32 = 1;

@@ -41,6 +41,15 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
     onBitmapAttached: _engine.hydrator.adopt,
   );
 
+  /// Places [offer]'s module tile at the view's centre.
+  void _placeModuleTile(api.CanvasTileOffer offer) => unawaited(
+    _quickPlacement.placeModuleTile(
+      _document.worldView.center,
+      offer,
+      onError: _engine.reportError,
+    ),
+  );
+
   /// Picks one still image and places it at the view's centre.
   Future<void> _pickImageFile() async {
     final PlatformFile? file;

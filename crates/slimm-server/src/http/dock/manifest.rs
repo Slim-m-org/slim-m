@@ -287,6 +287,7 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
     )?;
     settings::check_hosts_declared(&platform.settings_schema, &network.hosts)?;
     panel::check_panels(&extension_points, platform.addon_api)?;
+    canvas_tile::require_level(&extension_points, platform.addon_api)?;
     let call_audio = call_audio::validate_call_audio(
         raw.call_audio,
         &capabilities,
@@ -454,7 +455,7 @@ fn validate_extension_point(
     // Every known kind gates on a declared permission; the runner-like kinds (all but bare `command`) also name a command they invoke.
     match kind.as_str() {
         "command" => require_declared_permission(&kind, &permission, permission_keys)?,
-        "code-block-runner" | "slash-command" | "app" | "panel" => {
+        "code-block-runner" | "slash-command" | "app" | "panel" | canvas_tile::KIND => {
             require_declared_permission(&kind, &permission, permission_keys)?;
             require_declared_command(&kind, &command, command_names)?;
         }
@@ -509,6 +510,7 @@ fn is_sha256_hex(value: &str) -> bool {
 
 mod artifact_path;
 pub(in crate::http) mod call_audio;
+mod canvas_tile;
 mod changelog;
 pub(in crate::http) mod hooks;
 mod index;

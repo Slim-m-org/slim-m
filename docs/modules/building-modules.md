@@ -307,6 +307,18 @@ It needs `"addon_api": 6`, and a module may declare at most 2.
 - The panel runs `command` for the viewer alone: first with an empty `input`, then with each `{"action","state"}` its scene sends. Nothing is stored or broadcast; the client keeps the latest scene, so it is still there after the viewer switches channels.
 - A top-level `refresh_ms` redraws it with the action `refresh` while it is open, within the same bounds as a shared scene.
 
+### canvas-tile
+
+A tile people place on a voice canvas, showing the module's shared scene. Add-on API 6.
+
+```json
+{ "kind": "canvas-tile", "name": "Scoreboard", "permission": "play", "command": "board", "description": "A shared scoreboard for the call." }
+```
+
+- `name` is what the canvas menu offers as "Add Scoreboard" and the tile's header shows.
+- Anyone holding `permission` may place one; it then moves, resizes and is removed like a note.
+- The tile runs `command` exactly like an [app](#app) surface: an empty input launches it, and every viewer of the canvas sees the same stored frame. The tile is 640 by 480 board units when placed, so draw a scene that reads at that size.
+
 ## The scene contract
 
 A command normally returns text.

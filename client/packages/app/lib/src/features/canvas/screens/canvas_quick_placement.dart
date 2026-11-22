@@ -39,6 +39,10 @@ const double defaultNoteHeight = noteReferenceHeight;
 const double defaultShapeWidth = 180;
 const double defaultShapeHeight = 120;
 
+/// A module tile's default box: a third of the shared area wide, 4:3, room for a board and its controls.
+const double defaultModuleTileWidth = 640;
+const double defaultModuleTileHeight = 480;
+
 class CanvasQuickPlacement {
   CanvasQuickPlacement({
     required this.client,
@@ -156,6 +160,20 @@ class CanvasQuickPlacement {
       EmojiStamp(:final key) => {'emoji': key},
       PictureStamp(:final attachmentId) => {'attachment': attachmentId},
     },
+    onError: onError,
+  );
+
+  /// Places [offer]'s module tile centred at [world], at the default tile box.
+  Future<api.CanvasObject?> placeModuleTile(
+    Offset world,
+    api.CanvasTileOffer offer, {
+    required void Function(String message) onError,
+  }) => _place(
+    kind: api.canvasModuleTileKind,
+    world: world,
+    w: defaultModuleTileWidth,
+    h: defaultModuleTileHeight,
+    props: offer.props,
     onError: onError,
   );
 

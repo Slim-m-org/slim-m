@@ -7,6 +7,7 @@ import 'dart:math' as math;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_module_tiles.dart';
 import 'canvas_text_props.dart';
 
 /// Converts a wire object into what the document paints, or null for a kind this client does not draw; shared by viewport pages, live placements and the catch-up feed.
@@ -18,8 +19,30 @@ CanvasStrokeInput? canvasStrokeInputFrom(api.CanvasObject object) {
     'shape' => _shapeInputFrom(object),
     'text' => _textInputFrom(object),
     'emoji' => _emojiInputFrom(object),
+    api.canvasModuleTileKind => _moduleTileInputFrom(object),
     _ => null,
   };
+}
+
+/// A module's tile: a plain rectangle to the document, which the app fills with the module's shared scene.
+CanvasStrokeInput? _moduleTileInputFrom(api.CanvasObject object) {
+  final tile = ModuleTileRef.fromProps(object.props);
+  if (tile == null) return null;
+  return CanvasStrokeInput(
+    id: object.id,
+    seq: object.seq,
+    zIndex: object.zIndex,
+    x: object.x,
+    y: object.y,
+    w: object.w,
+    h: object.h,
+    points: const [],
+    width: 0,
+    colorKey: '',
+    authorId: object.authorId,
+    kind: CanvasObjectKind.tile,
+    tileKey: tile.key,
+  );
 }
 
 /// A board stamp's one emoji (decision 0121), carried as the object's text and painted from a baked bitmap.

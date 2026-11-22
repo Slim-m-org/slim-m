@@ -78,6 +78,7 @@ import 'canvas_cursor_relay.dart';
 import 'canvas_text_focus.dart';
 import 'canvas_engine.dart';
 import 'canvas_timeout_banner.dart';
+import 'canvas_module_tile_scope.dart';
 import 'canvas_object_locks.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_presence_geometry.dart'
@@ -325,161 +326,167 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       active: ref.watch(portraitLockedPhoneProvider) && focusedTile != null,
       child: CanvasObjectLocksScope(
         locks: _engine.objectLocks,
-        child: CanvasPaneInput(
-          shortcuts: {
-            // Only bound while there is something to escape from, so Escape keeps reaching whatever else would have handled it.
-            if (editingNote)
-              const SingleActivator(LogicalKeyboardKey.escape):
-                  _onNoteEditCancel
-            else if (_tool != CanvasTool.pan)
-              const SingleActivator(LogicalKeyboardKey.escape): _onEscapeTool
-            else if (fullscreen)
-              const SingleActivator(LogicalKeyboardKey.escape):
-                  _escapeFullscreen
-            else if (_threadPaneDocked)
-              const SingleActivator(LogicalKeyboardKey.escape): _closeThreadPane
-            else if (_memberPaneDocked)
-              const SingleActivator(LogicalKeyboardKey.escape):
-                  _closeMemberPane,
-            // None of these while a note is being typed in (its field owns them) or while the log hides the board.
-            if (!editingNote && !_activityLogOpen && !spectating)
-              ..._canvasEditShortcuts(),
-          },
-          focusNode: _focusNode,
-          onKey: (event) => _onToolKey(event, canDraw: canDraw),
-          onPointerDown: _onPanePointerDown,
-          onPointerUp: _onPanePointerUp,
-          canDrop: canDraw,
-          onDrop: (items) => unawaited(_dropImage(items)),
-          child: CanvasPaneBody(
-            channelId: widget.channelId,
-            boardFocusNode: _boardFocusNode,
-            onClose: _closeCanvas,
-            onActivityLogOpenChanged: (open) =>
-                setState(() => _activityLogOpen = open),
-            fullscreen: fullscreen,
-            onToggleFullscreen: _toggleFullscreen,
-            focusedTileKey: focusedTile,
-            onFocusTile: _focusTile,
-            tool: _tool,
-            onToolChanged: _onToolChanged,
-            canUndo: _ops.canUndo,
-            onUndo: () => unawaited(_onUndo()),
-            canRedo: _ops.canRedo,
-            onRedo: () => unawaited(_onRedo()),
-            canManage: manageCanvas,
-            document: _document,
-            onClear: _onClear,
-            scopedClear: partialClear ? _scopedClear : null,
-            onAddImageFile: () => unawaited(_pickImageFile()),
-            onRecenter: _onRecenter,
-            onBringIntoBoard: () => unawaited(_onBringIntoBoard()),
-            error: engineState.error,
-            onDismissError: () => _engine.reportError(null),
-            onRetryError: engineState.error == CanvasEngine.genericLoadError
-                ? () => unawaited(_engine.fetch())
-                : null,
-            truncated: engineState.truncated,
-            paging: engineState.paging,
-            loading: engineState.loading,
-            onStroke: _onStroke,
-            onErase: _onErase,
-            onEraseEnd: () => unawaited(_onEraseEnd()),
-            onEraseCancel: () => unawaited(_onEraseCancel()),
-            onSelectCancel: () => unawaited(_select.cancel()),
-            onSelectStart: _select.start,
-            onSelectDrag: _select.drag,
-            onSelectEnd: () => unawaited(_select.end()),
-            onSelectTap: _select.tap,
-            grabsHandleAt: _select.grabsHandleAt,
-            onEditNote: _onEditNote,
-            noteSpans: (text, base) =>
-                buildNoteSpans(text, base, noteSpanStyle),
-            noteSpansRevision: noteSpanStyle.revision,
-            noteEditor: _text.editor(
-              _editingNoteId,
-              onCancel: _onNoteEditCancel,
-              onEditClosed: () => _refresh(() => _editingNoteId = null),
-              onNoteSave: _onNoteEditSave,
-            ),
-            onNotePlace: (world, [size]) =>
-                unawaited(_onNotePlace(world, size)),
-            onTextPlace: _text.place,
-            onSelectLongPress: _text.longPress,
-            onShapePlace: (world, size, {flipX = false, flipY = false}) =>
-                unawaited(
-                  _onShapePlace(world, size, flipX: flipX, flipY: flipY),
-                ),
-            stamping: _stampPlacement,
-            shapeKind: _shapeKind,
-            onShapeKindChanged: (kind) {
-              ref.read(canvasActiveShapeKindProvider.notifier).state = kind;
-              setState(() => _shapeKind = kind);
+        child: CanvasModuleTileScope(
+          channelId: widget.channelId,
+          onPlace: canDraw ? _placeModuleTile : null,
+          child: CanvasPaneInput(
+            shortcuts: {
+              // Only bound while there is something to escape from, so Escape keeps reaching whatever else would have handled it.
+              if (editingNote)
+                const SingleActivator(LogicalKeyboardKey.escape):
+                    _onNoteEditCancel
+              else if (_tool != CanvasTool.pan)
+                const SingleActivator(LogicalKeyboardKey.escape): _onEscapeTool
+              else if (fullscreen)
+                const SingleActivator(LogicalKeyboardKey.escape):
+                    _escapeFullscreen
+              else if (_threadPaneDocked)
+                const SingleActivator(LogicalKeyboardKey.escape):
+                    _closeThreadPane
+              else if (_memberPaneDocked)
+                const SingleActivator(LogicalKeyboardKey.escape):
+                    _closeMemberPane,
+              // None of these while a note is being typed in (its field owns them) or while the log hides the board.
+              if (!editingNote && !_activityLogOpen && !spectating)
+                ..._canvasEditShortcuts(),
             },
-            pen: _pen,
-            onPenChanged: (pen) {
-              ref.read(canvasActivePenStyleProvider.notifier).state = pen;
-              setState(() => _pen = pen);
-            },
-            onBringToFront: (id) => unawaited(_onBringToFront(id)),
-            onSendToBack: (id) => unawaited(_onSendToBack(id)),
-            onDeleteSelected: (id) => unawaited(_onDeleteSelected(id)),
-            selfId: me?.id,
-            viewRelay: _engine.viewRelay,
-            cursors: _cursors,
-            cursorColors: AppCanvasColors.cursors,
-            onPointerMoved: _onPointerMoved,
-            onPointerLeft: () => _relay.reportLocalPointerLeft(),
-            remoteDrafts: _remoteDrafts,
-            onDraftPoint: (world) => _strokePreview.reportLocalDraftPoint(
-              world,
-              pen: (
-                colorKey: _pen.colorKey,
-                width: canvasPenWorldWidth(_pen.width, _document.camera.zoom),
+            focusNode: _focusNode,
+            onKey: (event) => _onToolKey(event, canDraw: canDraw),
+            onPointerDown: _onPanePointerDown,
+            onPointerUp: _onPanePointerUp,
+            canDrop: canDraw,
+            onDrop: (items) => unawaited(_dropImage(items)),
+            child: CanvasPaneBody(
+              channelId: widget.channelId,
+              boardFocusNode: _boardFocusNode,
+              onClose: _closeCanvas,
+              onActivityLogOpenChanged: (open) =>
+                  setState(() => _activityLogOpen = open),
+              fullscreen: fullscreen,
+              onToggleFullscreen: _toggleFullscreen,
+              focusedTileKey: focusedTile,
+              onFocusTile: _focusTile,
+              tool: _tool,
+              onToolChanged: _onToolChanged,
+              canUndo: _ops.canUndo,
+              onUndo: () => unawaited(_onUndo()),
+              canRedo: _ops.canRedo,
+              onRedo: () => unawaited(_onRedo()),
+              canManage: manageCanvas,
+              document: _document,
+              onClear: _onClear,
+              scopedClear: partialClear ? _scopedClear : null,
+              onAddImageFile: () => unawaited(_pickImageFile()),
+              onRecenter: _onRecenter,
+              onBringIntoBoard: () => unawaited(_onBringIntoBoard()),
+              error: engineState.error,
+              onDismissError: () => _engine.reportError(null),
+              onRetryError: engineState.error == CanvasEngine.genericLoadError
+                  ? () => unawaited(_engine.fetch())
+                  : null,
+              truncated: engineState.truncated,
+              paging: engineState.paging,
+              loading: engineState.loading,
+              onStroke: _onStroke,
+              onErase: _onErase,
+              onEraseEnd: () => unawaited(_onEraseEnd()),
+              onEraseCancel: () => unawaited(_onEraseCancel()),
+              onSelectCancel: () => unawaited(_select.cancel()),
+              onSelectStart: _select.start,
+              onSelectDrag: _select.drag,
+              onSelectEnd: () => unawaited(_select.end()),
+              onSelectTap: _select.tap,
+              grabsHandleAt: _select.grabsHandleAt,
+              onEditNote: _onEditNote,
+              noteSpans: (text, base) =>
+                  buildNoteSpans(text, base, noteSpanStyle),
+              noteSpansRevision: noteSpanStyle.revision,
+              noteEditor: _text.editor(
+                _editingNoteId,
+                onCancel: _onNoteEditCancel,
+                onEditClosed: () => _refresh(() => _editingNoteId = null),
+                onNoteSave: _onNoteEditSave,
               ),
-            ),
-            onDraftEnded: _strokePreview.endLocalDraft,
-            onDraftCancel: _strokePreview.cancelLocalDraft,
-            gestureController: _gestureController,
-            callParticipants: _callParticipants(),
-            blockedTileKeys: _blockedTileKeys(),
-            cameraViewFor: (identity) => ref
-                .read(voiceControllerProvider.notifier)
-                .cameraViewFor(identity, declaresInterest: false),
-            screenShareViewFor: (identity) => ref
-                .read(voiceControllerProvider.notifier)
-                .screenShareViewFor(identity, declaresInterest: false),
-            tileOverrides: _tileOverrides,
-            viewMode: _engine.viewMode,
-            onCommitTile: (key, rect) => unawaited(_slotSync.commit(key, rect)),
-            onVideoInterest: (keys) => interest.declare(keys, owner: this),
-            activityLog: _activityLog,
-            selfBubbleHidden: selfPresence.hidden,
-            onToggleSelfBubbleHidden: _onToggleSelfBubbleHidden,
-            toolsHidden: ref.watch(canvasToolsHiddenProvider),
-            onToggleToolsHidden: _onToggleToolsHidden,
-            readOnly: spectating,
-            callError: _callFailure(voiceFlags),
-            onRetryCall: voiceFlags.retryable
-                ? () => unawaited(
-                    ref
-                        .read(voiceControllerProvider.notifier)
-                        .join(widget.channelId),
-                  )
-                : null,
-            callDock: callDockDataFor(
-              ref.watch(voiceFlagsProvider),
-              ref.read(voiceControllerProvider.notifier),
-              widget.channelId,
-            ),
-            participantMenuItemsBuilder: (context, participant, close) =>
-                participantCallMenuItems(
-                  context,
-                  ref,
-                  participant: participant,
-                  close: close,
-                  withFullscreen: false,
+              onNotePlace: (world, [size]) =>
+                  unawaited(_onNotePlace(world, size)),
+              onTextPlace: _text.place,
+              onSelectLongPress: _text.longPress,
+              onShapePlace: (world, size, {flipX = false, flipY = false}) =>
+                  unawaited(
+                    _onShapePlace(world, size, flipX: flipX, flipY: flipY),
+                  ),
+              stamping: _stampPlacement,
+              shapeKind: _shapeKind,
+              onShapeKindChanged: (kind) {
+                ref.read(canvasActiveShapeKindProvider.notifier).state = kind;
+                setState(() => _shapeKind = kind);
+              },
+              pen: _pen,
+              onPenChanged: (pen) {
+                ref.read(canvasActivePenStyleProvider.notifier).state = pen;
+                setState(() => _pen = pen);
+              },
+              onBringToFront: (id) => unawaited(_onBringToFront(id)),
+              onSendToBack: (id) => unawaited(_onSendToBack(id)),
+              onDeleteSelected: (id) => unawaited(_onDeleteSelected(id)),
+              selfId: me?.id,
+              viewRelay: _engine.viewRelay,
+              cursors: _cursors,
+              cursorColors: AppCanvasColors.cursors,
+              onPointerMoved: _onPointerMoved,
+              onPointerLeft: () => _relay.reportLocalPointerLeft(),
+              remoteDrafts: _remoteDrafts,
+              onDraftPoint: (world) => _strokePreview.reportLocalDraftPoint(
+                world,
+                pen: (
+                  colorKey: _pen.colorKey,
+                  width: canvasPenWorldWidth(_pen.width, _document.camera.zoom),
                 ),
+              ),
+              onDraftEnded: _strokePreview.endLocalDraft,
+              onDraftCancel: _strokePreview.cancelLocalDraft,
+              gestureController: _gestureController,
+              callParticipants: _callParticipants(),
+              blockedTileKeys: _blockedTileKeys(),
+              cameraViewFor: (identity) => ref
+                  .read(voiceControllerProvider.notifier)
+                  .cameraViewFor(identity, declaresInterest: false),
+              screenShareViewFor: (identity) => ref
+                  .read(voiceControllerProvider.notifier)
+                  .screenShareViewFor(identity, declaresInterest: false),
+              tileOverrides: _tileOverrides,
+              viewMode: _engine.viewMode,
+              onCommitTile: (key, rect) =>
+                  unawaited(_slotSync.commit(key, rect)),
+              onVideoInterest: (keys) => interest.declare(keys, owner: this),
+              activityLog: _activityLog,
+              selfBubbleHidden: selfPresence.hidden,
+              onToggleSelfBubbleHidden: _onToggleSelfBubbleHidden,
+              toolsHidden: ref.watch(canvasToolsHiddenProvider),
+              onToggleToolsHidden: _onToggleToolsHidden,
+              readOnly: spectating,
+              callError: _callFailure(voiceFlags),
+              onRetryCall: voiceFlags.retryable
+                  ? () => unawaited(
+                      ref
+                          .read(voiceControllerProvider.notifier)
+                          .join(widget.channelId),
+                    )
+                  : null,
+              callDock: callDockDataFor(
+                ref.watch(voiceFlagsProvider),
+                ref.read(voiceControllerProvider.notifier),
+                widget.channelId,
+              ),
+              participantMenuItemsBuilder: (context, participant, close) =>
+                  participantCallMenuItems(
+                    context,
+                    ref,
+                    participant: participant,
+                    close: close,
+                    withFullscreen: false,
+                  ),
+            ),
           ),
         ),
       ),

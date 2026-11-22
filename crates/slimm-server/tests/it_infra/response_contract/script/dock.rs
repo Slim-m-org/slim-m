@@ -183,6 +183,10 @@ pub(super) async fn dock_calls(c: &mut Contract, root: &str, admin_id: &str, cha
     c.get("listApps", "/modules/apps", root).await;
     // code-exec declares no panel, so this is the empty-list shape; the populated shape is checked in tests/it_modules/module_panels.rs.
     c.get("listModulePanels", "/modules/panels", root).await;
+    // code-exec declares a `canvas-tile` too, so this is a populated CanvasTile list and the tile below is a real placement.
+    c.get("listCanvasTiles", "/modules/canvas-tiles", root)
+        .await;
+    module_tile_calls(c, root, channel, &id).await;
     // Launching an app is a message send; the admin holds `run` and can view, so a real 200 carrying the Message with its app_surface.
     c.json(
         "launchAppMessage",
@@ -250,4 +254,35 @@ pub(super) async fn dock_calls(c: &mut Contract, root: &str, admin_id: &str, cha
         root,
     )
     .await;
+}
+
+/// Places code-exec's tile, launches it, then reads the frame the launch stored.
+async fn module_tile_calls(c: &mut Contract, root: &str, channel: &str, module_id: &str) {
+    let tile = c
+        .json(
+            "placeCanvasObject",
+            "POST",
+            &format!("/channels/{channel}/canvas/objects"),
+            root,
+            json!({
+                "id": Uuid::now_v7().to_string(),
+                "kind": "module",
+                "x": 100.0, "y": 100.0, "w": 640.0, "h": 480.0,
+                "props": { "module_id": module_id, "tile": "Code Tile" },
+            }),
+        )
+        .await;
+    let scene = format!(
+        "/channels/{channel}/canvas/objects/{}/scene",
+        text(&tile, "id")
+    );
+    c.json(
+        "pressCanvasTileScene",
+        "POST",
+        &scene,
+        root,
+        json!({ "input": "" }),
+    )
+    .await;
+    c.get("getCanvasTileScene", &scene, root).await;
 }

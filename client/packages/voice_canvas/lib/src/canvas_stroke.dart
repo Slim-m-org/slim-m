@@ -27,6 +27,10 @@ enum CanvasObjectKind {
 
   /// A board stamp (decision 0121): one emoji, painted from a bitmap the app bakes, like an image.
   emoji,
+
+  /// A rectangle the app fills with a live widget, named by [CanvasStrokeInput.tileKey].
+  /// This package paints only a plain tile under it, which is what shows when the app has nothing to put there.
+  tile,
 }
 
 /// Which primitive a [CanvasObjectKind.shape] object draws. A line and an
@@ -147,6 +151,7 @@ class CanvasStrokeInput {
     this.flipX = false,
     this.flipY = false,
     this.fontSize,
+    this.tileKey,
   });
 
   final String id;
@@ -203,6 +208,9 @@ class CanvasStrokeInput {
 
   /// A [CanvasObjectKind.note]'s text size in world units; null paints [noteWorldFontSize], the size every note had before it was stored.
   final double? fontSize;
+
+  /// What a [CanvasObjectKind.tile] holds, opaque to this package. Null for every other kind.
+  final String? tileKey;
 }
 
 /// The endpoints of a line or arrow inside a `w` by `h` box, from its tail to
@@ -246,6 +254,7 @@ class CanvasStroke {
     this.flipX = false,
     this.flipY = false,
     this.fontSize,
+    this.tileKey,
   });
 
   final String id;
@@ -315,6 +324,9 @@ class CanvasStroke {
 
   /// See [CanvasStrokeInput.fontSize].
   final double? fontSize;
+
+  /// See [CanvasStrokeInput.tileKey].
+  final String? tileKey;
 
   /// Every point in absolute world coordinates, for hit testing against a
   /// world-space pointer with no per-call offset arithmetic.

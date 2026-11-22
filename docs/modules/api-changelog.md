@@ -16,6 +16,9 @@ The policy behind the levels is decision [0100](../decisions/0100-module-safety-
 - Adds the `call.scene` slot (decision [0133](../decisions/0133-module-call-scene.md)), at most one per module and only with `room.state`: the call's stage paints the module's room scene.
 - A `room/1` `state` answer may carry `scene`, a `scene/1` drawn from that state (at most 32 KiB). The host keeps it with the state and sends it in the input's answer, the `module.room` frame and the room list; a scene that is not tagged `scene/1` or is over the cap is a failure. `room.reply.scene.json` is its fixture.
 - The room list gains `call_scenes` for a voice channel. A call's stage opens a scene with the empty input, and a tap or control sends its action text as the next input.
+- Adds the `canvas-tile` extension point: `{ "kind": "canvas-tile", "name", "permission", "command", "description"? }`, with `"addon_api": 6`. A member who holds `permission` places it on a voice canvas from the canvas menu; it is a canvas object of kind `module` whose `props` are `{"module_id", "tile"}`, so it moves, resizes, restacks and is removed like any other object.
+- The tile's frame is `command`'s scene, run with the same interactive scene protocol as an `app` surface: the host keeps the frame's `state`, a launch is an empty input, presses run as whoever pressed, a failed or private answer reaches only the presser, and `refresh_ms` redraws as the last presser. `context.channel_id` is the canvas's channel, and `context.voice_channel_id` is set when the presser is in that call.
+- New routes: `GET /modules/canvas-tiles`, and `GET`/`POST /channels/{id}/canvas/objects/{id}/scene`. New frame: `canvas.tile.scene_changed`. An older client ignores both the frame and the `module` kind.
 
 ## Level 5 additions (no level bump, nothing to declare)
 

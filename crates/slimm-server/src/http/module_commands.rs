@@ -183,6 +183,20 @@ pub(crate) async fn execute_command(
     execute_gated(state, user_id, (module_id, command, input), None, context).await
 }
 
+/// [`execute_command`] for a module tile on `canvas`: the module is also told the call when the host confirms the member is in it.
+pub(crate) async fn execute_on_canvas(
+    state: &AppState,
+    user_id: UserId,
+    (module_id, command, input): (&str, &str, &str),
+    canvas: ChannelId,
+) -> Result<CommandOutcome, ApiError> {
+    let context = RunContext {
+        channel: Some(canvas),
+        voice_channel: Some(canvas).filter(|id| state.voice.has_heartbeat(user_id, *id)),
+    };
+    execute_gated(state, user_id, (module_id, command, input), None, context).await
+}
+
 /// [`execute_command`] for a command the invoker composed themselves in
 /// `channel`, which is the only channel a `message.post` may target.
 /// `voice_channel` is the voice channel the invoker says they are in; the

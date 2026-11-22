@@ -233,6 +233,9 @@ class CanvasPaneFixture {
   /// The server version served on `/version`.
   String serverVersion = '0.102.0';
 
+  /// Answers a request before every route below when it returns a response, for a suite with routes of its own.
+  FutureOr<http.Response?> Function(http.Request request)? routes;
+
   /// A caller that also needs `voiceControllerProvider` or `blocksProvider`
   /// stubbed (the presence-layer suite) appends onto this rather than this
   /// fixture growing a case for every consumer's own needs.
@@ -245,6 +248,7 @@ class CanvasPaneFixture {
       syncControllerProvider.overrideWith(NoopSyncController.new),
       liveEventsProvider.overrideWithValue(events.stream),
       mockApiOverride((request) async {
+        if (await routes?.call(request) case final answered?) return answered;
         if (request.url.path.endsWith('/me')) {
           return jsonResponse({
             'id': 'me',

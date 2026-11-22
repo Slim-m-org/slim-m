@@ -57,7 +57,8 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::Canvas(CanvasEvent::ObjectReordered { .. })
         | Event::Canvas(CanvasEvent::ObjectEdited { .. })
         | Event::Canvas(CanvasEvent::MediaSlotChanged { .. })
-        | Event::Canvas(CanvasEvent::ObjectLockChanged { .. }) => {
+        | Event::Canvas(CanvasEvent::ObjectLockChanged { .. })
+        | Event::Canvas(CanvasEvent::TileSceneChanged { .. }) => {
             unreachable!("canvas_frames::channel_id")
         }
         // Control events are handled in the loop; the rest already returned above.

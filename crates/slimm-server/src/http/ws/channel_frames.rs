@@ -284,7 +284,8 @@ pub(super) fn to_frame(
         | Event::Canvas(CanvasEvent::ObjectReordered { .. })
         | Event::Canvas(CanvasEvent::ObjectEdited { .. })
         | Event::Canvas(CanvasEvent::MediaSlotChanged { .. })
-        | Event::Canvas(CanvasEvent::ObjectLockChanged { .. }) => {
+        | Event::Canvas(CanvasEvent::ObjectLockChanged { .. })
+        | Event::Canvas(CanvasEvent::TileSceneChanged { .. }) => {
             unreachable!("canvas_frames::to_frame")
         }
         // The deployment-wide and channel-deletion cases already answered by `deployment_frames::authorize`.

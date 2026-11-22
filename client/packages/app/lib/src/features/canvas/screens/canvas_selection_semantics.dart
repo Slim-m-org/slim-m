@@ -77,6 +77,7 @@ class CanvasSelectionSemantics extends StatelessWidget {
         'Selected note: ${document.textOf(id) ?? '(empty)'}',
       CanvasObjectKind.image => 'Selected image',
       CanvasObjectKind.emoji => 'Selected emoji stamp',
+      CanvasObjectKind.tile => 'Selected module tile',
       CanvasObjectKind.shape => 'Selected shape',
       CanvasObjectKind.text =>
         'Selected text: ${document.textOf(id) ?? '(empty)'}',

@@ -66,10 +66,14 @@ fn an_old_manifest_keeps_its_review_digest() {
 
 #[test]
 fn a_higher_addon_api_than_the_host_supports_is_refused_with_a_reason() {
-    let reason = refusal(&manifest_with(json!({"addon_api": 7}), &[]));
-    assert!(reason.contains("add-on API 7"), "{reason}");
-    assert!(reason.contains("up to 6"), "{reason}");
-    for supported in [1, 2, 3, 4, 5, 6] {
+    let host = crate::module_runtime::ADDON_API;
+    let reason = refusal(&manifest_with(json!({"addon_api": host + 1}), &[]));
+    assert!(
+        reason.contains(&format!("add-on API {}", host + 1)),
+        "{reason}"
+    );
+    assert!(reason.contains(&format!("up to {host}")), "{reason}");
+    for supported in 1..=host {
         assert!(
             parse_manifest(manifest_with(json!({"addon_api": supported}), &[]).as_bytes()).is_ok()
         );

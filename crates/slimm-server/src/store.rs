@@ -169,6 +169,9 @@ pub use call_transcripts::{
 };
 pub use calls::CallRecord;
 pub use canvas::canvas_batch::{BatchError, BatchItem};
+pub use canvas::canvas_tile_scenes::{
+    CANVAS_TILE_POINT, MODULE_TILE_KIND, ModuleTileRef, TileScene,
+};
 pub(crate) use canvas::valid_bounds;
 pub use canvas::{
     CanvasObject, MAX_CANVAS_OBJECT_CAP, MAX_OBJECT_EXTENT, MAX_OBJECTS_PER_CHANNEL,

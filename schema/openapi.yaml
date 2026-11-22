@@ -8107,6 +8107,85 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /channels/{channelId}/canvas/objects/{objectId}/scene:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+      - name: objectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getCanvasTileScene
+      tags: [canvas]
+      summary: Read a module tile's shared frame.
+      description: >
+        A `module` canvas object's last stored scene, the frame every viewer
+        of the canvas draws. Requires `VIEW_CHANNEL`. 404 when there is no
+        live module tile with that id or it has no frame yet (a client then
+        launches it with `pressCanvasTileScene`); 409 with the reason when
+        its module is not installed, is turned off, or no longer declares
+        the tile, so the tile shows that instead of a stale frame.
+      responses:
+        "200":
+          description: The tile's frame.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasTileScene"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      operationId: pressCanvasTileScene
+      tags: [canvas]
+      summary: Press a module tile, or launch it.
+      description: >
+        Runs the command the tile's `canvas-tile` extension point names, as
+        the caller, with the interactive scene protocol of an app surface:
+        the host hands the module the stored frame's `state` and ignores any
+        the client sent, presses are applied one at a time, and a press with
+        no stored frame launches the tile. Requires `VIEW_CHANNEL`, no
+        active timeout, and the permission the command declares. A stored
+        frame is broadcast as `canvas.tile.scene_changed`; a failed press
+        (`ok: false`) or a private scene answers only the caller. A scene's
+        `refresh_ms` is honoured the same way as on an app surface.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PressCanvasTileRequest"
+      responses:
+        "200":
+          description: The tile ran; see `ok` for whether it succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunModuleCommandResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /channels/{channelId}/canvas/media-slots:
     parameters:
       - $ref: "#/components/parameters/ChannelId"
@@ -12471,6 +12550,30 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ModulePanel"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /modules/canvas-tiles:
+    get:
+      operationId: listCanvasTiles
+      tags: [space]
+      summary: Discover which module tiles this caller may place on a canvas.
+      description: >
+        One entry per `canvas-tile` extension point of an installed and
+        enabled module whose declared permission the caller holds (add-on
+        API 6). Placing one is `placeCanvasObject` with kind `module` and
+        `props` of `{"module_id", "tile"}`. An empty list means no module
+        tiles; a server older than this route answers 404.
+      responses:
+        "200":
+          description: The tiles this caller may place, possibly empty.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CanvasTile"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -19038,12 +19141,15 @@ components:
           description: Client-generated UUIDv7; also the idempotency key.
         kind:
           type: string
-          enum: [stroke, image, note, shape, text, emoji]
+          enum: [stroke, image, note, shape, text, emoji, module]
           description: >
             `emoji` is a stamp on the board (decision 0121): its
             `props.emoji` must be one emoji, a `:shortcode:` or a custom
             emoji id, and anything else is a 400. Offered when `/version`
             lists `screen_stamps`.
+            `module` is a module tile: `props.module_id` and `props.tile`
+            name a `canvas-tile` extension point from `listCanvasTiles`, the
+            caller must hold its permission, and it is refused in a batch.
         x:
           type: number
           format: double
@@ -19254,7 +19360,7 @@ components:
             canvas `seq` is removed.
         kinds:
           type: array
-          items: { type: string, enum: [stroke, image, note, shape, text, emoji] }
+          items: { type: string, enum: [stroke, image, note, shape, text, emoji, module] }
           description: >-
             `clear_scoped` only. Removes only objects of these kinds; omit
             for every kind.
@@ -21752,6 +21858,7 @@ components:
         - $ref: "#/components/schemas/CanvasObjectEdited"
         - $ref: "#/components/schemas/CanvasMediaSlotChanged"
         - $ref: "#/components/schemas/CanvasObjectLockChanged"
+        - $ref: "#/components/schemas/CanvasTileSceneChanged"
         - $ref: "#/components/schemas/ReportsChanged"
         - $ref: "#/components/schemas/AdminAlertsChanged"
         - $ref: "#/components/schemas/ReadStateChanged"
@@ -22314,6 +22421,73 @@ components:
           format: int64
           description: >-
             Orders this against every lock and slot change in the channel. Absent on servers older than this field.
+    CanvasTileSceneChanged:
+      type: object
+      required: [type, channel_id, object_id, output, ran_at]
+      description: >-
+        A module tile's shared frame changed, gated the same way
+        `canvas.object.placed` is. `output` is the whole stored scene, so a
+        receiver needs no refetch. Carries no `seq`: a frame is current state
+        beside the op stream, so a reconnecting client rereads
+        `getCanvasTileScene`. An older client ignores the type.
+      properties:
+        type:
+          type: string
+          enum: [canvas.tile.scene_changed]
+        channel_id:
+          type: string
+          format: uuid
+        object_id:
+          type: string
+          format: uuid
+        output:
+          type: string
+        ran_by:
+          type: string
+          format: uuid
+          description: Whose press produced the frame; absent once that account is gone.
+        ran_at:
+          type: integer
+          format: int64
+    CanvasTileScene:
+      type: object
+      required: [object_id, output, ran_at]
+      properties:
+        object_id:
+          type: string
+          format: uuid
+        output:
+          type: string
+          description: The module's last stored output, normally a `scene/1`.
+        ran_by:
+          type: string
+          format: uuid
+          description: Whose press produced it; absent once that account is gone.
+        ran_at:
+          type: integer
+          format: int64
+    PressCanvasTileRequest:
+      type: object
+      properties:
+        input:
+          type: string
+          description: >-
+            `{"action", "state"}` as on an app surface, or empty to launch.
+            Any `state` is replaced with the stored frame's.
+    CanvasTile:
+      type: object
+      required: [module_id, tile, module]
+      properties:
+        module_id:
+          type: string
+        tile:
+          type: string
+          description: The extension point's name, which `props.tile` carries and the place menu shows.
+        description:
+          type: string
+          nullable: true
+        module:
+          $ref: "#/components/schemas/ModuleInfo"
     CanvasMediaSlotChanged:
       type: object
       required: [type, channel_id, kind, user_id, x, y, w, h, locked, sent_to_back]

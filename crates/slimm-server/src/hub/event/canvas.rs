@@ -267,4 +267,13 @@ pub enum CanvasEvent {
         /// Orders this against every other lock or slot change in the channel.
         version: i64,
     },
+    /// A module tile's shared frame changed: a press, a launch or a host redraw stored a new scene.
+    /// `ran_by` is whoever's press produced it, so a client can tell its own work from another viewer's.
+    TileSceneChanged {
+        channel_id: ChannelId,
+        object_id: CanvasObjectId,
+        output: Arc<str>,
+        ran_by: Option<UserId>,
+        ran_at: i64,
+    },
 }
