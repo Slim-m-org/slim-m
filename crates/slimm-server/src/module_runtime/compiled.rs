@@ -27,6 +27,8 @@ fn engine() -> &'static Engine {
     ENGINE.get_or_init(|| {
         let mut config = Config::default();
         config.consume_fuel(true);
+        // wasmi 0.51.5 panics resuming a lazily translated call_indirect after a fuel slice runs out.
+        config.compilation_mode(wasmi::CompilationMode::Eager);
         Engine::new(&config)
     })
 }
