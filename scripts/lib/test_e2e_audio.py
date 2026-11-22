@@ -313,5 +313,37 @@ class ProbeReloadTest(unittest.TestCase):
         self.assertEqual(page.storage, {"flutter.theme": "dark"})
 
 
+class StillCommittingPage:
+    """A tab that denies localStorage until its first navigation has committed."""
+
+    def __init__(self, denials):
+        self.denials = denials
+        self.sent = []
+
+    def ev(self, script):
+        if self.denials:
+            self.denials -= 1
+            raise AssertionError("vqb: the injected script threw: SecurityError: Failed to read the 'localStorage' property")
+
+    def send(self, method, params=None):
+        self.sent.append(method)
+
+
+class ReloadWaitsForTheDocumentTest(unittest.TestCase):
+    def test_a_tab_that_denies_localstorage_at_first_is_retried(self):
+        page = StillCommittingPage(denials=3)
+        with patch("e2e_audio.time.sleep"):
+            e2e_audio._reload(page)
+        self.assertEqual(page.sent, ["Page.reload"])
+
+    def test_any_other_failure_still_surfaces(self):
+        class Broken(StillCommittingPage):
+            def ev(self, script):
+                raise AssertionError("vqb: the injected script threw: ReferenceError")
+
+        with self.assertRaises(AssertionError):
+            e2e_audio._reload(Broken(0))
+
+
 if __name__ == "__main__":
     unittest.main()

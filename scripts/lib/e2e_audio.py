@@ -21,12 +21,25 @@ RESTORE_KEYS = ("Object.keys(localStorage)"
                 ".filter(k => k.endsWith('slimm.voice.call_in_progress'))")
 
 
+def _clear_restore_keys(client, timeout=15):
+    """Clears the restore record; a tab still committing its first navigation denies localStorage, so retry."""
+    deadline = time.time() + timeout
+    while True:
+        try:
+            client.ev(RESTORE_KEYS + ".forEach(k => localStorage.removeItem(k))")
+            return
+        except AssertionError as err:
+            if "SecurityError" not in str(err) or time.time() > deadline:
+                raise
+            time.sleep(0.25)
+
+
 def _reload(client):
     """Reloads for the probe, which ends any call the page is in: the harness's reload, so nothing offers it back.
 
     Left in place, "Rejoin the call?" covered the page and took the scenario's next click.
     """
-    client.ev(RESTORE_KEYS + ".forEach(k => localStorage.removeItem(k))")
+    _clear_restore_keys(client)
     client.send("Page.reload")
 
 
