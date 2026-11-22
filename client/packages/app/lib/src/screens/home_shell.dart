@@ -11,6 +11,7 @@ export 'home_shell_empty_state.dart' show NoChannelPage, NoChannelSelected;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show OrdinalSortKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -55,6 +56,7 @@ import '../features/settings/widgets/rules_gate_banner_host.dart';
 import '../features/voice/widgets/push_to_talk_listener.dart';
 import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/download_failures.dart';
+import '../widgets/pane_reading_order.dart';
 import '../widgets/shell_focus_anchor.dart';
 import '../widgets/update_banner_host.dart';
 import '../features/voice/providers/shortcut_overrides.dart';
@@ -307,6 +309,13 @@ class HomeShell extends ConsumerWidget {
   ) {
     final selected = facts.selected;
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final rail = railSlot(
+      context: context,
+      expanded: ref.watch(channelRailExpandedProvider),
+      canvasFullscreen: facts.canvasFullscreen,
+      railWidth: facts.railWidth,
+      dragging: ref.watch(railDraggingProvider),
+    );
     return Scaffold(
       backgroundColor: Colors.transparent,
       // Where no pane docks, the roster is the same end drawer compact uses.
@@ -323,13 +332,9 @@ class HomeShell extends ConsumerWidget {
       body: Row(
         children: [
           // The rail at full or compact width, or neither, plus its handle; see railSlot's own doc.
-          ...railSlot(
-            context: context,
-            expanded: ref.watch(channelRailExpandedProvider),
-            canvasFullscreen: facts.canvasFullscreen,
-            railWidth: facts.railWidth,
-            dragging: ref.watch(railDraggingProvider),
-          ),
+          PaneReadingOrder(order: 0, child: rail.first),
+          // Unwrapped: the handle's hit region reaches outside its own box, which a wrapper would clip.
+          ...rail.skip(1),
           // Its own semantics node, or the modal barrier inside this pane's
           // navigator blocks everything painted before it, which is the
           // whole rail: no channel row, section or search field reached a
@@ -340,6 +345,7 @@ class HomeShell extends ConsumerWidget {
               color: tokens.surfaceBase,
               child: Semantics(
                 container: true,
+                sortKey: const OrdinalSortKey(1),
                 child: videoStripAbove(
                   CallMiniPlayerHost(child: child),
                   show: facts.videoStrip,
@@ -348,16 +354,22 @@ class HomeShell extends ConsumerWidget {
             ),
           ),
           if (facts.videoSide)
-            VideoPaneSlot(
-              channelId: facts.rosterPending ? null : selected,
-              withMembers: facts.membersUnderVideo,
+            PaneReadingOrder(
+              order: 2,
+              child: VideoPaneSlot(
+                channelId: facts.rosterPending ? null : selected,
+                withMembers: facts.membersUnderVideo,
+              ),
             ),
           // Between the transcript and the roster (the Discord/Slack order); it and the roster never both take width, so the transcript loses at most one third pane.
           if (facts.threadFits)
-            ThreadPaneSlot(
-              channelId: facts.openThread,
-              besideChannelId: selected,
-              requested: facts.showThread,
+            PaneReadingOrder(
+              order: 3,
+              child: ThreadPaneSlot(
+                channelId: facts.openThread,
+                besideChannelId: selected,
+                requested: facts.showThread,
+              ),
             ),
           // The pane comes from the edge it lives on: the slot's width
           // animates while the content slides in and fades (motion spec
@@ -367,9 +379,12 @@ class HomeShell extends ConsumerWidget {
           // duration while the entrance gets the full slide.
           if (facts.membersFit)
             // Once synced, unscoped until the row resolves, so no request names a channel not yet known to be visible.
-            MemberPaneSlot(
-              channelId: facts.rosterPending ? null : selected,
-              requested: facts.showMembers,
+            PaneReadingOrder(
+              order: 4,
+              child: MemberPaneSlot(
+                channelId: facts.rosterPending ? null : selected,
+                requested: facts.showMembers,
+              ),
             ),
         ],
       ),

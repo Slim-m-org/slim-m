@@ -260,12 +260,15 @@ void main() {
   });
 
   group('a summon is a request', () {
+    late Camera restCamera;
+    // The prompt is a strip above the board, so the board refits while it shows and back when it goes.
     Future<_Rig> pumpSummoned(WidgetTester tester, {Size? size}) async {
       final rig = await _pump(
         tester,
         board: true,
         size: size ?? const Size(1280, 800),
       );
+      restCamera = rig.document.camera;
       rig.relay.applyRemote('user-ada', _view, summon: true);
       await tester.pump();
       return rig;
@@ -274,22 +277,24 @@ void main() {
     testWidgets('nothing moves, and the person can accept or decline', (
       tester,
     ) async {
-      final rig = await _pump(tester, board: true);
-      final before = rig.document.camera;
-      rig.relay.applyRemote('user-ada', _view, summon: true);
-      await tester.pump();
+      final rig = await pumpSummoned(tester);
 
       expect(find.text('Ada wants to bring you to their view'), findsOneWidget);
       expect(find.text('Accept'), findsOneWidget);
       expect(find.text('Decline'), findsOneWidget);
-      expect(rig.document.camera, before);
+      expect(
+        rig.document.camera,
+        isNot(
+          cameraForBoardView(_view, rig.document.board!, rig.document.viewport),
+        ),
+      );
     });
 
     testWidgets('declining leaves the view alone and clears the prompt', (
       tester,
     ) async {
       final rig = await pumpSummoned(tester);
-      final before = rig.document.camera;
+      final before = restCamera;
       await tester.tap(find.text('Decline'));
       await tester.pumpAndSettle();
       expect(find.text('Accept'), findsNothing);
@@ -301,6 +306,8 @@ void main() {
       await tester.tap(find.text('Accept'));
       await tester.pumpAndSettle();
       await rig.settleGlide();
+      // The move waits out the strip's refit, so the glide starts a few frames after the tap.
+      await tester.pump(const Duration(seconds: 1));
       expect(find.text('Accept'), findsNothing);
       _expectCamera(
         rig.document.camera,
@@ -310,7 +317,7 @@ void main() {
 
     testWidgets('an unanswered request lapses quietly', (tester) async {
       final rig = await pumpSummoned(tester);
-      final before = rig.document.camera;
+      final before = restCamera;
       await tester.pump(summonRequestTimeout + const Duration(seconds: 1));
       expect(find.text('Accept'), findsNothing);
       expect(errorToasts(tester), isEmpty);

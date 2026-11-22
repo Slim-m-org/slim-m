@@ -23,7 +23,7 @@ import 'canvas_presence_roster.dart';
 import 'canvas_summon_request.dart';
 import 'canvas_view_relay.dart';
 
-/// The follow outline and chip and any summon request when a [relay] is wired, else the plain roster.
+/// The follow outline when a [relay] is wired, else the plain roster; the chip and summon card are [CanvasPeerStrip].
 class CanvasPeerControls extends StatelessWidget {
   const CanvasPeerControls({
     super.key,
@@ -53,7 +53,34 @@ class CanvasPeerControls extends StatelessWidget {
       );
     }
     if (cursors == null) return const SizedBox.shrink();
-    return CanvasFollowStatus(
+    return CanvasFollowOutline(participants: participants);
+  }
+}
+
+/// The follow chip and any summon request, in the pane's chrome above the board.
+class CanvasPeerStrip extends StatelessWidget {
+  const CanvasPeerStrip({
+    super.key,
+    required this.participants,
+    required this.cursors,
+    required this.relay,
+    required this.selfId,
+    this.onAcceptSummon,
+  });
+
+  /// Runs when the person accepts a summon; the pane leaves full screen first.
+  final VoidCallback? onAcceptSummon;
+
+  final List<VoiceParticipant> participants;
+  final CanvasCursors? cursors;
+  final CanvasViewRelay? relay;
+  final String? selfId;
+
+  @override
+  Widget build(BuildContext context) {
+    final relay = this.relay;
+    if (relay == null || cursors == null) return const SizedBox.shrink();
+    return CanvasFollowStrip(
       participants: participants,
       below: CanvasSummonRequestCard(
         relay: relay,
