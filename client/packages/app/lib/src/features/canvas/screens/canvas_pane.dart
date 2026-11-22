@@ -275,7 +275,20 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => PopScope(
+    canPop: false,
+    onPopInvokedWithResult: (didPop, _) {
+      if (didPop) return;
+      if (_fullscreen) {
+        _escapeFullscreen();
+      } else {
+        _closeCanvas();
+      }
+    },
+    child: _buildPane(context),
+  );
+
+  Widget _buildPane(BuildContext context) {
     final me = ref.watch(meProvider).valueOrNull;
     // Per-channel, not deployment-wide: docs/decisions/0011-per-channel-permissions.md, site 5.
     final manageCanvas = ref
