@@ -13,6 +13,10 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../widgets/status_banner.dart';
+import '../../modules/providers/call_scene_choice.dart';
+import '../../modules/providers/module_rooms.dart';
+import '../../modules/widgets/call_scene_launcher.dart';
+import '../../modules/widgets/call_scene_stage.dart';
 import '../providers/direct_play_provider.dart';
 import '../providers/share_watch.dart';
 import '../providers/voice_health.dart';
@@ -104,6 +108,9 @@ class CallStageLayout extends ConsumerWidget {
         : ref.watch(directPlayProvider(channelId).select((d) => d.active))
         ? DirectPlayStage(channelId: channelId)
         : null;
+    final callScene = isDm || channelId == null
+        ? null
+        : _callSceneTile(ref, channelId);
     return Padding(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -114,7 +121,7 @@ class CallStageLayout extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _CallHeader(channelId: voice.channelId),
+          _CallHeader(channelId: voice.channelId, isDm: isDm),
           // One banner at a time: the reconnect notice already says why the stage is quiet.
           if (voice.rejoining || voice.reconnecting)
             VoiceReconnectBanner(
@@ -152,6 +159,7 @@ class CallStageLayout extends ConsumerWidget {
               shares: shares,
               focused: watch.focused,
               directStage: directStage,
+              callScene: callScene,
               controller: controller,
               onOpenProfile: onOpenProfile,
               onStopWatching: watching.stop,
@@ -163,6 +171,27 @@ class CallStageLayout extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// The module call scene this viewer has on stage, if any (decision 0132).
+({Widget child, double aspect})? _callSceneTile(
+  WidgetRef ref,
+  String channelId,
+) {
+  final choice = ref.watch(callSceneChoiceProvider(channelId));
+  final pick = ref.watch(
+    moduleRoomsProvider(channelId).select((rooms) {
+      final scene = callSceneOnStage(rooms, choice);
+      if (scene == null) return null;
+      final drawn = roomScene(rooms.room(scene.moduleId)?.scene);
+      return (scene: scene, aspect: callSceneAspect(drawn));
+    }),
+  );
+  if (pick == null) return null;
+  return (
+    child: CallSceneStage(channelId: channelId, scene: pick.scene),
+    aspect: pick.aspect,
+  );
 }
 
 /// [shown] with a connecting tile for each of [pending], after everyone the call delivered.
@@ -186,14 +215,22 @@ List<VoiceParticipant> withPendingPeers(
       ];
 
 class _CallHeader extends StatelessWidget {
-  const _CallHeader({required this.channelId});
+  const _CallHeader({required this.channelId, required this.isDm});
 
   final String? channelId;
+  final bool isDm;
 
   @override
   Widget build(BuildContext context) {
     final channelId = this.channelId;
     if (channelId == null) return const SizedBox.shrink();
-    return CallHeaderLine(channelId: channelId, showTitle: false);
+    final facts = CallHeaderLine(channelId: channelId, showTitle: false);
+    if (isDm) return facts;
+    return Row(
+      children: [
+        Expanded(child: facts),
+        CallSceneLauncher(channelId: channelId),
+      ],
+    );
   }
 }

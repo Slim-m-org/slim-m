@@ -103,6 +103,7 @@ class ModuleRoomChanged extends ServerEvent {
     required this.moduleId,
     required this.seq,
     required this.state,
+    this.scene,
     this.ended,
   });
 
@@ -110,5 +111,8 @@ class ModuleRoomChanged extends ServerEvent {
   final String moduleId;
   final int seq;
   final Object? state;
+
+  /// See [roomSceneText].
+  final String? scene;
   final String? ended;
 }

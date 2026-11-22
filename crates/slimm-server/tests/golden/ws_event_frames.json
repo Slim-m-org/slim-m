@@ -31,7 +31,7 @@
   "{\"channel_id\":\"CHANNEL\",\"message_id\":\"01900000-0000-7000-8000-000000000001\",\"reactions\":[],\"type\":\"reactions.changed\"}",
   "{\"channel_id\":\"CHANNEL\",\"message_id\":\"01900000-0000-7000-8000-000000000001\",\"type\":\"code_runs.cleared\"}",
   "{\"channel_id\":\"CHANNEL\",\"message_id\":\"01900000-0000-7000-8000-000000000001\",\"type\":\"message.unpinned\"}",
-  "{\"channel_id\":\"CHANNEL\",\"module_id\":\"noughts\",\"seq\":3,\"state\":{\"board\":\"x...o....\"},\"type\":\"module.room\"}",
+  "{\"channel_id\":\"CHANNEL\",\"module_id\":\"noughts\",\"scene\":{\"$slim\":\"scene/1\"},\"seq\":3,\"state\":{\"board\":\"x...o....\"},\"type\":\"module.room\"}",
   "{\"channel_id\":\"CHANNEL\",\"object_id\":\"01900000-0000-7000-8000-000000000002\",\"op_id\":\"01900000-0000-7000-8000-000000000003\",\"props\":{\"a\":1},\"seq\":10,\"type\":\"canvas.object.edited\"}",
   "{\"channel_id\":\"CHANNEL\",\"object_id\":\"01900000-0000-7000-8000-000000000002\",\"op_id\":\"01900000-0000-7000-8000-000000000003\",\"seq\":9,\"type\":\"canvas.object.reordered\",\"z_index\":3}",
   "{\"channel_id\":\"CHANNEL\",\"object_ids\":[\"01900000-0000-7000-8000-000000000002\"],\"op_id\":\"01900000-0000-7000-8000-000000000003\",\"seq\":4,\"type\":\"canvas.objects.removed\"}",

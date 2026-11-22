@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use tokio::sync::{Mutex as TurnLock, MutexGuard};
 
+use super::contract::Next;
 use crate::hub::RoomJson;
 use crate::ids::ChannelId;
 
@@ -28,6 +29,8 @@ pub(crate) struct RoomKey {
 pub(crate) struct Held {
     pub(crate) seq: u64,
     pub(crate) state: Option<RoomJson>,
+    /// The `scene/1` the module drew from [`Self::state`], when it drew one.
+    pub(crate) scene: Option<RoomJson>,
     pub(crate) touched_at: i64,
     pub(crate) ended: bool,
 }
@@ -52,13 +55,14 @@ impl Room {
     }
 
     /// Stores the module's next state unless the room ended meanwhile; the stored copy on success.
-    pub(crate) fn commit(&self, state: RoomJson, now: i64) -> Option<Held> {
+    pub(crate) fn commit(&self, next: Next, now: i64) -> Option<Held> {
         let mut held = self.held.lock().unwrap_or_else(PoisonError::into_inner);
         if held.ended {
             return None;
         }
         held.seq += 1;
-        held.state = Some(state);
+        held.state = Some(next.state);
+        held.scene = next.scene;
         held.touched_at = now;
         Some(held.clone())
     }

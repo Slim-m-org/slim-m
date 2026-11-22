@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Shared room state (decision 0131): one input to a module that keeps room
-//! state, then the room list holding the state it answered.
+//! state, then the room list holding the state and the scene it answered.
 
 use serde_json::json;
 use slimm_server::store::{
@@ -14,7 +14,9 @@ use crate::support::wasm_fixtures::sha256_hex;
 const MODULE: &str = "room-keeper";
 
 async fn install_room_module(c: &Contract) {
-    let wasm = canned_room_wasm(&json!({ "$slim": "room/1", "state": { "turn": 1 } }));
+    let scene = json!({ "$slim": "scene/1", "width": 3, "height": 3, "ops": [] });
+    let wasm =
+        canned_room_wasm(&json!({ "$slim": "room/1", "state": { "turn": 1 }, "scene": scene }));
     let store = &c.state.store;
     let approved = ["room.state".to_owned()];
     let none_p: [ModulePermissionSpec; 0] = [];

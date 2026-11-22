@@ -6,23 +6,26 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::ids::{ChannelId, UserId};
+use slimm_server::store::{
+    DockProvenance, InstallModuleRequest, ModulePlatform, ModuleRuntimeLimits, ModuleSlot,
+};
 use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
 
 use super::livekit_webhook::webhook_request;
-use super::module_world::{Install, World, world_with};
+use super::module_world::{World, world_with};
 use super::wasm_fixtures::{canned_raw_wasm, sha256_hex};
 
 const API_KEY: &str = "APItestkey";
 const API_SECRET: &str = "a-test-secret-of-at-least-32-characters";
 
-/// The noughts proof module from slim-addons, exactly as its 0.1.0 manifest pins it.
+/// The noughts proof module from slim-addons, exactly as its 0.2.0 manifest pins it.
 pub fn noughts_wasm() -> Vec<u8> {
-    let wasm = include_bytes!("../fixtures/noughts-0.1.0.wasm").to_vec();
+    let wasm = include_bytes!("../fixtures/noughts-0.2.0.wasm").to_vec();
     assert_eq!(
         sha256_hex(&wasm),
-        "df1324a1693ba926e7f8f84ae1a3cb3ce32a11d45711318043f120c3ff70bb53",
-        "tests/fixtures/noughts-0.1.0.wasm is not slim-addons' noughts 0.1.0"
+        "6c1a24786ea8591cc54fafd1fb226596c8fa8709b78f08057032635ac113c2d7",
+        "tests/fixtures/noughts-0.2.0.wasm is not slim-addons' noughts 0.2.0"
     );
     wasm
 }
@@ -83,19 +86,53 @@ pub struct Player {
     pub ticket: String,
 }
 
-/// A deployment with a voice channel and `module` installed with `room.state` approved.
+/// A deployment with a voice channel and `module` installed with `room.state` approved,
+/// declaring a call scene titled "Noughts and crosses" (decision 0132).
 pub async fn room_world(name: &str, module: &'static str, wasm: Vec<u8>) -> RoomWorld {
     let voice = VoiceService::for_test("http://127.0.0.1:1", API_KEY, API_SECRET);
     let w = world_with(name, |builder| builder.voice(voice)).await;
-    w.install(Install {
-        id: module,
-        wasm,
-        declared: &["room.state"],
-        approved_host: &["room.state"],
-    })
-    .await;
+    install_room_module(&w, module, &wasm).await;
     let call = w.store.create_channel("lounge", "voice").await.unwrap().id;
     RoomWorld { w, call, module }
+}
+
+async fn install_room_module(w: &World, id: &str, wasm: &[u8]) {
+    let capabilities = ["room.state".to_owned()];
+    let platform = ModulePlatform {
+        addon_api: 6,
+        slots: vec![ModuleSlot {
+            kind: "call.scene".into(),
+            name: "board".into(),
+            title: Some("Noughts and crosses".into()),
+        }],
+        ..ModulePlatform::default()
+    };
+    w.store
+        .install_module_from_dock(
+            InstallModuleRequest {
+                id,
+                name: "Noughts",
+                version: "0.2.0",
+                artifact_sha256: &sha256_hex(wasm),
+                approved_capabilities: &capabilities,
+                runtime_limits: &ModuleRuntimeLimits::default(),
+                permissions: &[],
+                extension_points: &[],
+            },
+            wasm,
+            &DockProvenance {
+                manifest_json: None,
+                host_capabilities: &capabilities,
+                source_repo: None,
+                network_hosts: &[],
+                local_network_approved: false,
+                schedules: &[],
+                platform: &platform,
+            },
+        )
+        .await
+        .unwrap();
+    w.store.set_module_enabled(id, true).await.unwrap();
 }
 
 impl RoomWorld {

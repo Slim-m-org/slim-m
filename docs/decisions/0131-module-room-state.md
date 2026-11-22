@@ -127,6 +127,7 @@ A run gets the module's usual host calls for the sender, except `message.post`, 
 A slot renders from the client provider `moduleRoomsProvider(channelId)` in `client/packages/app/lib/src/features/modules/providers/module_rooms.dart`.
 It holds every module's room in that channel by module id, sends an input with `send(moduleId, input)`, and keeps the module's last refusal or failure for the sender in `notices`.
 How a state becomes pixels (a `scene/1` the module derives from its state, or a tile type) is each slot's own decision record.
+The call scene slot is decision [0132](0132-module-call-scene.md): a `state` answer may carry a `scene`, kept and sent with it.
 
 ## Where it lives
 

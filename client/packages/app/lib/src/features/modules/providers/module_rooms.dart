@@ -18,11 +18,15 @@ import '../../../providers/sync_controller.dart';
 class ModuleRoomsModel {
   const ModuleRoomsModel({
     this.rooms = const {},
+    this.callScenes = const [],
     this.notices = const {},
     this.sending = const {},
   });
 
   final Map<String, api.ModuleRoom> rooms;
+
+  /// The modules that offer a scene on this call's stage (decision 0132).
+  final List<api.ModuleCallScene> callScenes;
 
   /// Why a module last refused or failed this person's input, until their next one.
   final Map<String, String> notices;
@@ -34,10 +38,12 @@ class ModuleRoomsModel {
 
   ModuleRoomsModel copyWith({
     Map<String, api.ModuleRoom>? rooms,
+    List<api.ModuleCallScene>? callScenes,
     Map<String, String>? notices,
     Set<String>? sending,
   }) => ModuleRoomsModel(
     rooms: rooms ?? this.rooms,
+    callScenes: callScenes ?? this.callScenes,
     notices: notices ?? this.notices,
     sending: sending ?? this.sending,
   );
@@ -84,6 +90,7 @@ class ModuleRoomsController
         moduleId: event.moduleId,
         seq: event.seq,
         state: event.state,
+        scene: event.scene,
       ),
     );
   }
@@ -103,7 +110,7 @@ class ModuleRoomsController
   /// Reads every room again; a server without room state reads as none.
   Future<void> refresh() async {
     final version = ++_version;
-    List<api.ModuleRoom> rooms;
+    api.ModuleRooms rooms;
     try {
       rooms = await _api.moduleRooms(channelId);
     } on api.ApiException catch (error, stack) {
@@ -113,10 +120,13 @@ class ModuleRoomsController
         error,
         stack,
       );
-      rooms = const [];
+      rooms = const api.ModuleRooms();
     }
     if (_disposed || version != _version) return;
-    state = state.copyWith(rooms: {for (final r in rooms) r.moduleId: r});
+    state = state.copyWith(
+      rooms: {for (final r in rooms.rooms) r.moduleId: r},
+      callScenes: rooms.callScenes,
+    );
   }
 
   /// Sends [input] to [moduleId]'s room here. The answer is the module's;
@@ -156,6 +166,7 @@ class ModuleRoomsController
           moduleId: moduleId,
           seq: result.seq,
           state: result.state,
+          scene: result.scene,
         ),
       );
     }

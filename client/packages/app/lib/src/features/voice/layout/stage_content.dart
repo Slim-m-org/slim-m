@@ -14,6 +14,9 @@ const double stageDefaultAspect = 16 / 9;
 
 const String directStageId = 'direct';
 
+/// A module's call scene (decision 0132), which takes the place a share would.
+const String callSceneStageId = 'scene';
+
 String shareItemId(String identity) => 'share:$identity';
 String cameraItemId(String identity) => 'cam:$identity';
 
@@ -40,6 +43,7 @@ StageContent buildStageContent({
   required List<VoiceParticipant> shares,
   required String? pinned,
   required bool directPlaying,
+  double? sceneAspect,
   double Function(String id)? aspectOf,
 }) {
   double aspect(String id) => aspectOf?.call(id) ?? stageDefaultAspect;
@@ -50,6 +54,8 @@ StageContent buildStageContent({
     ...shares.where((s) => s.identity != pinnedShare),
   ];
   final items = <StageItem>[
+    if (sceneAspect != null)
+      StageItem(callSceneStageId, StageKind.share, sceneAspect),
     if (directPlaying)
       const StageItem(directStageId, StageKind.share, stageDefaultAspect),
     for (final s in ordered)
@@ -72,6 +78,6 @@ StageContent buildStageContent({
       for (final p in participants)
         if (!p.isCameraOn && !sharing.contains(p.identity)) p,
     ],
-    pinnedIdentity: directPlaying ? null : pinnedShare,
+    pinnedIdentity: directPlaying || sceneAspect != null ? null : pinnedShare,
   );
 }

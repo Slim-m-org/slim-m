@@ -109,6 +109,20 @@ fn room_state_needs_add_on_api_6() {
 }
 
 #[test]
+fn a_call_scene_needs_room_state_and_comes_once() {
+    let scene = |name: &str| json!({"kind": "call.scene", "name": name, "title": "Board"});
+    let one = json!({"addon_api": 6, "slots": [scene("board")]});
+    assert!(refusal(&manifest_with(one.clone(), &[])).contains("room.state"));
+    let slots = ok(one, &["room.state"]).platform.slots;
+    assert_eq!(
+        (slots[0].kind.as_str(), slots[0].title.as_deref()),
+        ("call.scene", Some("Board"))
+    );
+    let two = json!({"addon_api": 6, "slots": [scene("a"), scene("b")]});
+    assert!(refusal(&manifest_with(two, &["room.state"])).contains("at most one"));
+}
+
+#[test]
 fn the_newer_events_need_add_on_api_5() {
     for event in [
         "message.edited",

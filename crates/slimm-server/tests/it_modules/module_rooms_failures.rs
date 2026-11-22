@@ -170,7 +170,7 @@ async fn a_module_without_room_state_approved_keeps_no_room() {
     assert_eq!(r.input(&ava, "0").await.0, StatusCode::NOT_FOUND);
     let (status, body) = r.rooms_in(&ava, r.call).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body, json!({ "rooms": [] }));
+    assert_eq!(body, json!({ "rooms": [], "call_scenes": [] }));
 }
 
 async fn admin_post(r: &RoomWorld, uri: &str) -> StatusCode {

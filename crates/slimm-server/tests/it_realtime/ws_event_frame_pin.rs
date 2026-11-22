@@ -227,6 +227,9 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
                 serde_json::value::RawValue::from_string(r#"{"board":"x...o...."}"#.into())
                     .unwrap(),
             )),
+            scene: Some(RoomJson::new(
+                serde_json::value::RawValue::from_string(r#"{"$slim":"scene/1"}"#.into()).unwrap(),
+            )),
             ended: None,
         })),
         Event::ModuleRoomChanged(Arc::new(ModuleRoomChange {
@@ -234,6 +237,7 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             module_id: "noughts".into(),
             seq: 3,
             state: None,
+            scene: None,
             ended: Some("call_ended"),
         })),
         Event::CallTranscriptChanged {

@@ -40,7 +40,11 @@ fn a_first_input_carries_no_state() {
 fn each_reply_fixture_is_accepted_as_what_it_says() {
     assert!(matches!(
         answer(&fixture("room.reply.state")),
-        Ok(Answer::Next(state)) if state.get().contains("a8e1f6b2c9d04e7f")
+        Ok(Answer::Next(Next { state, scene: None })) if state.get().contains("a8e1f6b2c9d04e7f")
+    ));
+    assert!(matches!(
+        answer(&fixture("room.reply.scene")),
+        Ok(Answer::Next(Next { scene: Some(scene), .. })) if scene.get().contains(r#""tap":"1""#)
     ));
     assert!(matches!(
         answer(&fixture("room.reply.reject")),
@@ -62,6 +66,10 @@ fn a_reply_outside_the_contract_is_refused() {
         r#"{"$slim":"room/1","state":null}"#,
         r#"{"$slim":"room/1","state":{},"reject":"no"}"#,
         r#"{"$slim":"room/1","state":{},"end":true}"#,
+        r#"{"$slim":"room/1","reject":"no","scene":{"$slim":"scene/1"}}"#,
+        r#"{"$slim":"room/1","state":{},"scene":{"ops":[]}}"#,
+        r#"{"$slim":"room/1","state":{},"scene":"scene/1"}"#,
+        r#"{"$slim":"room/1","state":{},"scene":{"$slim":"scene/2"}}"#,
     ] {
         assert!(answer(reply).is_err(), "{reply}");
     }
@@ -79,4 +87,24 @@ fn a_state_is_held_to_its_cap_and_a_reason_is_cut() {
         answer(&long),
         Ok(Answer::Reject(reason)) if reason.chars().count() == MAX_REASON_CHARS
     ));
+}
+
+#[test]
+fn a_scene_is_held_to_its_cap() {
+    let scene = |pad: usize| {
+        let head = r#"{"$slim":"scene/1","p":""#;
+        format!(
+            r#"{{"$slim":"room/1","state":1,"scene":{head}{}"}}}}"#,
+            "s".repeat(pad - head.len() - 2)
+        )
+    };
+    assert!(matches!(
+        answer(&scene(MAX_SCENE_BYTES)),
+        Ok(Answer::Next(_))
+    ));
+    assert!(
+        answer(&scene(MAX_SCENE_BYTES + 1))
+            .unwrap_err()
+            .contains("scene is over")
+    );
 }

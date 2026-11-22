@@ -26,6 +26,7 @@ class CallStageFitView extends StatefulWidget {
     required this.shares,
     required this.focused,
     required this.directStage,
+    this.callScene,
     required this.controller,
     required this.onOpenProfile,
     required this.onStopWatching,
@@ -41,6 +42,9 @@ class CallStageFitView extends StatefulWidget {
 
   /// The viewer's own player, which takes the pinned place while they play directly.
   final Widget? directStage;
+
+  /// A module's call scene and its tile's aspect; it takes the first place when there is one.
+  final ({Widget child, double aspect})? callScene;
   final VoiceController controller;
   final void Function(BuildContext anchor, VoiceParticipant participant)
   onOpenProfile;
@@ -100,6 +104,7 @@ class _CallStageFitViewState extends State<CallStageFitView> {
       shares: widget.shares,
       pinned: _pinned,
       directPlaying: widget.directStage != null,
+      sceneAspect: widget.callScene?.aspect,
     );
     final byId = {for (final p in widget.participants) p.identity: p};
     return LayoutBuilder(
@@ -152,6 +157,7 @@ class _CallStageFitViewState extends State<CallStageFitView> {
     StageContent content,
   ) {
     if (item.id == directStageId) return widget.directStage!;
+    if (item.id == callSceneStageId) return widget.callScene!.child;
     final isShare = item.kind == StageKind.share;
     final identity = item.id.substring(item.id.indexOf(':') + 1);
     final person = byId[identity];

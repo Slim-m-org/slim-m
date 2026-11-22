@@ -11,6 +11,9 @@ The policy behind the levels is decision [0100](../decisions/0100-module-safety-
 - A failed, slow or malformed answer keeps the state and counts toward the module's circuit breaker. Rooms are memory only and end with the call, the channel, the module or a day without input.
 - Nothing is removed or changed in meaning. A module that declares `addon_api_max` of 5 must be updated to run on a level 6 server, as at every level.
 - Fixtures for the input and the answers are in `docs/modules/room-fixtures/`.
+- Adds the `call.scene` slot (decision [0132](../decisions/0132-module-call-scene.md)), at most one per module and only with `room.state`: the call's stage paints the module's room scene.
+- A `room/1` `state` answer may carry `scene`, a `scene/1` drawn from that state (at most 32 KiB). The host keeps it with the state and sends it in the input's answer, the `module.room` frame and the room list; a scene that is not tagged `scene/1` or is over the cap is a failure. `room.reply.scene.json` is its fixture.
+- The room list gains `call_scenes` for a voice channel. A call's stage opens a scene with the empty input, and a tap or control sends its action text as the next input.
 
 ## Level 5 additions (no level bump, nothing to declare)
 

@@ -10,3 +10,11 @@ GET /reports added the new `screen_stamp` enum value to the `items/subject_kind`
 GET /reports/history added the new `screen_stamp` enum value to the `items/oneOf[#/components/schemas/ResolvedReportHistoryEntry]/subject_kind` response property for the response status `200`
 GET /reports/mine/{reportId} added the new `screen_stamp` enum value to the `subject_kind` response property for the response status `200`
 GET /version added the new `screen_stamps` enum value to the `capabilities/items/` response property for the response status `200`
+GET /space/dock/installed added the new `call.scene` enum value to the `items/slots/items/kind` response property for the response status `200`
+GET /space/dock/modules/{moduleId} added the new `call.scene` enum value to the `slots/items/kind` response property for the response status `200`
+POST /space/dock/modules/{moduleId}/disable added the new `call.scene` enum value to the `slots/items/kind` response property for the response status `200`
+POST /space/dock/modules/{moduleId}/enable added the new `call.scene` enum value to the `slots/items/kind` response property for the response status `200`
+POST /space/dock/modules/{moduleId}/install added the new `call.scene` enum value to the `slots/items/kind` response property for the response status `200`
+PUT /space/dock/modules/{moduleId}/schedule-channel added the new `call.scene` enum value to the `slots/items/kind` response property for the response status `200`
+POST /space/dock/packages/install added the new `call.scene` enum value to the `slots/items/kind` response property for the response status `200`
+POST /space/dock/packages/preview added the new `call.scene` enum value to the `slots/items/kind` response property for the response status `200`
