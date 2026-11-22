@@ -65,17 +65,17 @@ class MicSampleState {
   int get secondsLeft => (total - secondsKept).clamp(0, total);
 }
 
-class MicSampleController extends StateNotifier<MicSampleState> {
-  MicSampleController(this._ref) : super(const MicSampleState());
+class MicSampleController extends Notifier<MicSampleState> {
+  @override
+  MicSampleState build() => const MicSampleState();
 
-  final Ref _ref;
   MicSampleRecorder? _recorder;
   bool _stopped = false;
 
   Future<void> start() async {
-    if (state.recording || _ref.read(micPreviewBlockedProvider)) return;
+    if (state.recording || ref.read(micPreviewBlockedProvider)) return;
     _stopped = false;
-    final recorder = _recorder = _ref.read(micSampleRecorderFactoryProvider)();
+    final recorder = _recorder = ref.read(micSampleRecorderFactoryProvider)();
     state = MicSampleState(
       phase: MicSamplePhase.recording,
       total: recorder.seconds,
@@ -89,7 +89,7 @@ class MicSampleController extends StateNotifier<MicSampleState> {
     );
     try {
       final wav = await recorder.record(
-        _ref.read(voiceSettingsControllerProvider).audioInputDeviceId,
+        ref.read(voiceSettingsControllerProvider).audioInputDeviceId,
       );
       await _save(wav);
     } on MicSampleException catch (e) {
@@ -110,10 +110,10 @@ class MicSampleController extends StateNotifier<MicSampleState> {
 
   Future<void> _save(Uint8List wav) async {
     final name = micSampleFileName(
-      _ref.read(micSampleClockProvider)(),
+      ref.read(micSampleClockProvider)(),
       defaultTargetPlatform.name,
     );
-    final kept = await _ref.read(micSampleSaverProvider)(name, wav);
+    final kept = await ref.read(micSampleSaverProvider)(name, wav);
     state = kept
         ? MicSampleState(phase: MicSamplePhase.saved, fileName: name)
         : const MicSampleState();
@@ -132,6 +132,6 @@ class MicSampleController extends StateNotifier<MicSampleState> {
 }
 
 final micSampleControllerProvider =
-    StateNotifierProvider<MicSampleController, MicSampleState>(
+    NotifierProvider<MicSampleController, MicSampleState>(
       MicSampleController.new,
     );
