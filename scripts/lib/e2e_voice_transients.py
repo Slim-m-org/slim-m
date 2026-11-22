@@ -20,7 +20,7 @@ AMPLIFY_MAX_DB = 1.0
 PEAK_MAX_DB = 4.0
 # Standard is libwebrtc's own processing, reported for comparison and not judged: its auto gain lifts an isolated sound by several dB.
 JUDGED_CHOICES = ("strong", "strongest")
-# Strongest runs only via E2E_DESKTOP_ARMS: DeepFilterNet's known 3 dB speech cost (its own card) would fail the speech bound every time.
+# Strongest and the libwebrtc-suppression-off arms run only via E2E_DESKTOP_ARMS, to keep the default run to the arms the chain's regression test judges.
 DEFAULT_ARMS = ("standard-gate-on", "strong-gate-on", "strong-agc-off")
 # Speech itself must survive every arm within this much of its sent level.
 SPEECH_DRIFT_MAX_DB = 3.0
@@ -33,6 +33,8 @@ ARMS = {
     "strong-gate-on": desktop.arm_prefs("strong", desktop.GATE_ON),
     "strong-agc-off": desktop.arm_prefs("strong", desktop.GATE_ON, **{"slimm.voice.auto_gain": False}),
     "strongest-gate-on": desktop.arm_prefs("strongest", desktop.GATE_ON),
+    "strong-ns-off": desktop.arm_prefs("strong", desktop.GATE_ON, **{"slimm.voice.webrtc_noise_suppression": False}),
+    "strongest-ns-off": desktop.arm_prefs("strongest", desktop.GATE_ON, **{"slimm.voice.webrtc_noise_suppression": False}),
 }
 
 
