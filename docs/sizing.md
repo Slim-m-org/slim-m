@@ -62,6 +62,26 @@ At one core it used only three quarters of what it had while delivering a 1.3 se
 It was not short of work to do, it was being stopped: a quota is enforced by freezing the process for part of every scheduling window, so a tight quota collapses latency while average utilisation still looks comfortable.
 That is why one core is a cliff rather than a slope, and why the first table row says unusable rather than slow.
 
+### Canvas cursors and stroke previews
+
+Measured on 2026-11-21 against the shipped static musl binary (jemalloc, extracted from the server image), with a glibc release build alongside.
+Four people drew at once in one canvas, each sending a cursor frame and a stroke preview frame (16 points) about 14.5 times a second, which is the rate limiter's ceiling for cursors.
+Every connection had declared the canvas through `canvas.watch`, and CPU is the server process's own, taken from `/proc` over a 20 second window against the same connections sitting idle.
+
+| Connections | Frames in per second | Deliveries per second | Musl CPU (one core) | Musl cost per delivery | Glibc CPU (one core) | Glibc cost per delivery |
+| --- | --- | --- | --- | --- | --- | --- |
+| 12 idle | 0 | 0 | 0.0 percent | n/a | 0.05 percent | n/a |
+| 12, 4 drawing | 109 | 1,200 | 1.85 percent | 15.4 us | 1.52 percent | 12.7 us |
+| 44 idle | 0 | 0 | 0.05 percent | n/a | 0.0 percent | n/a |
+| 44, 4 drawing | 109 | 4,690 | 5.94 percent | 12.7 us | 5.18 percent | 11.0 us |
+
+A delivery here costs about a seventh of a chat message delivery, so the cost is the fan-out count rather than any per-frame work.
+Nothing was dropped: every frame reached every other connection, so the limiter was not the thing holding the rate down.
+The harness shares the machine with the server and parses every frame in Python, so these figures lean high, not low.
+At roughly 13 us per delivery one core would carry about 75,000 of these deliveries a second, so a realistic canvas session costs a few percent of one core.
+Coalescing cursor frames on the server was therefore not built: it would save a few percent in an extreme case and add a second delivery path to the ephemeral signals.
+Re-measure before reconsidering it if canvases routinely hold well over 40 watchers.
+
 ## Memory
 
 Memory is predictable, and it costs more per connection than this page first reported.
