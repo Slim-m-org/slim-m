@@ -24,6 +24,7 @@ import 'connection_route_row.dart';
 import 'connection_test_row.dart';
 import 'debug_log_page.dart';
 import 'debug_log_send_sheet.dart';
+import 'mic_sample_row.dart';
 import '../../voice/widgets/media_capability_section.dart';
 import 'notification_troubleshooting_card.dart';
 import 'settings_detail_row.dart';
@@ -57,6 +58,7 @@ class TroubleshootingPane extends ConsumerWidget {
                   ConnectionTestRow(),
                   CallHealthRow(),
                   CallDiagnosticsRow(),
+                  MicSampleRow(),
                   _DebugLogRow(),
                   _SendDebugLogRow(),
                   CallStatsRow(),

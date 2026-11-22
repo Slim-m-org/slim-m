@@ -172,5 +172,7 @@ The scenario has `strong-ns-off` and `strongest-ns-off` arms for it (`E2E_DESKTO
   GTCRN and DTLN, the small models trained on the DNS challenge, were evaluated on 2026-11-22 and are a no-go (`mouth-noise-models-2026-11-22.md`); nothing in the gate or the dynamics can fix it, and a stricter gate would clip word starts.
 - The owner's own microphone is the missing fixture.
   A 60 second raw recording (room tone, talking, chewing, a swallow, typing) from the headset he uses would replace the freesound previews with the real thing and can be added to the corpus folder as `chew-owner.wav` and friends without committing it.
-  A card covers recording such a sample from Settings so friends' machines can supply them too.
+  Settings > Troubleshooting > "Record a mic sample" (Linux and Windows) now records 30 seconds of the microphone before the chain, as a 48 kHz mono WAV in the Downloads folder named `mic-sample-<platform>-<date>-<time>.wav`, and uploads nothing, so friends' machines can supply them too.
+  To use one in the `voice transients` scenario, cut each sound out of it (for example `ffmpeg -ss 12 -t 4 -i mic-sample-linux-....wav chew-owner.wav`, keeping 48 kHz mono), name it `<kind>-owner.wav` for a kind the scenario knows (`smack`, `chew`, `swallow` or `breath`, such as `chew-owner.wav`), and point `E2E_TRANSIENT_CLIPS` at a folder holding them.
+  The scenario takes the first file by name for each kind, so a folder that also holds the fetched `chew-chips.wav` would still win; use a folder of your own.
 - The Advanced card's "Automatic gain" row still reads as if it applied under Strong; its description should say the chain levels instead while Strong is the effective choice.

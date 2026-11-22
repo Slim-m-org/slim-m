@@ -68,6 +68,9 @@ export 'src/os_mic_block.dart' show osBlocksMicrophone;
 export 'src/mic_port.dart';
 export 'src/mic_preview.dart';
 export 'src/mic_preview_loopback.dart' show LoopbackMicSource, systemMicPreview;
+export 'src/mic_sample.dart';
+export 'src/mic_sample_native.dart'
+    show supportsMicSample, systemMicSampleRecorder;
 export 'src/mic_recovery.dart';
 export 'src/mic_release.dart';
 export 'src/remote_video_publication.dart';
