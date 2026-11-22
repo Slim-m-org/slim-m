@@ -128,7 +128,7 @@ Strongest costs 3.2 dB of speech and clips 7 of 11 word starts on this corpus, D
 
 - Loud mouth sounds at the microphone are a model limit.
   rnnoise and DeepFilterNet both read them as voice.
-  A card covers evaluating a newer small model trained on the DNS mouth-noise categories; nothing in the gate or the dynamics can fix it, and a stricter gate would clip word starts.
+  GTCRN and DTLN, the small models trained on the DNS challenge, were evaluated on 2026-11-22 and are a no-go (`mouth-noise-models-2026-11-22.md`); nothing in the gate or the dynamics can fix it, and a stricter gate would clip word starts.
 - The owner's own microphone is the missing fixture.
   A 60 second raw recording (room tone, talking, chewing, a swallow, typing) from the headset he uses would replace the freesound previews with the real thing and can be added to the corpus folder as `chew-owner.wav` and friends without committing it.
   A card covers recording such a sample from Settings so friends' machines can supply them too.
