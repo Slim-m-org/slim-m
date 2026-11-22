@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+name: voice-quality-tripwire
+# Advisory nightly call audio quality check against bands measured on this runner; triggers and why it gates nothing: docs/ci.md.
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: voice-quality-tripwire
+  cancel-in-progress: false
+
+env:
+  SQLX_OFFLINE: "true"
+  E2E_WORK: /tmp/e2e
+  VQ_REPEATS: "3"
+
+jobs:
+  tripwire:
+    name: two profiles, scored and held to the bands
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: 3.47.0
+          cache: true
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      # Wheel-only so no sdist setup script runs; numpy and scipy are what the ViSQOL scorer resamples with.
+      - name: python dependencies
+        run: "pip install --only-binary :all: websocket-client==1.9.0 numpy==2.3.5 scipy==1.16.3"
+
+      # Piper says the reference clips; the voices are checked against the hashes the bands were seeded with.
+      - name: piper and its voices
+        run: |
+          python3 -m venv "$RUNNER_TEMP/piper-venv"
+          "$RUNNER_TEMP/piper-venv/bin/pip" install --only-binary :all: piper-tts==1.8.0
+          mkdir -p "$RUNNER_TEMP/piper-voices"
+          base=https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US
+          curl -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-lessac-medium.onnx" "$base/lessac/medium/en_US-lessac-medium.onnx"
+          curl -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-lessac-medium.onnx.json" "$base/lessac/medium/en_US-lessac-medium.onnx.json"
+          curl -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-ryan-medium.onnx" "$base/ryan/medium/en_US-ryan-medium.onnx"
+          curl -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-ryan-medium.onnx.json" "$base/ryan/medium/en_US-ryan-medium.onnx.json"
+          cd "$RUNNER_TEMP/piper-voices"
+          sha256sum -c - <<'SUMS'
+          5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eeaaf019f  en_US-lessac-medium.onnx
+          abf4c274862564ed647ba0d2c47f8ee7c9b717d27bdad9219100eb310db4047a  en_US-ryan-medium.onnx
+          SUMS
+
+      - name: the netem and ViSQOL images
+        run: docker build -f scripts/lib/visqol.Dockerfile -t slimm-visqol:local scripts/lib
+
+      - name: resolve workspace dependencies
+        working-directory: client
+        run: flutter pub get --enforce-lockfile
+
+      # Each repeat is a whole harness run; the first builds the web client, the rest reuse it.
+      - name: run the harness
+        env:
+          E2E_ONLY: voice quality
+          E2E_VQ_PROFILES: clean,loss5-jitter30
+          E2E_VQ_SECONDS: "45"
+          E2E_VQ_OUT: /tmp/vq
+          E2E_VQ_MOS_PYTHON: python3
+          SLIMM_PIPER: ${{ runner.temp }}/piper-venv/bin/piper
+          SLIMM_PIPER_VOICES: ${{ runner.temp }}/piper-voices
+        run: |
+          for i in $(seq "$VQ_REPEATS"); do
+            E2E_VQ_VARIANT="baseline$i" E2E_REBUILD="$([ "$i" = 1 ] && echo 1)" bash scripts/e2e.sh
+          done
+
+      - name: check the bands
+        run: |
+          lk_image=$(grep -oP 'LIVEKIT_VERSION:-\K[^}]+' scripts/e2e-stack.sh)
+          runs=()
+          for i in $(seq "$VQ_REPEATS"); do runs+=("/tmp/vq/baseline$i"); done
+          python3 scripts/lib/voice_tripwire.py check "${runs[@]}" \
+            --chrome "$(google-chrome-stable --version)" \
+            --livekit "$(docker run --rm "livekit/livekit-server:$lk_image" --version)" \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: upload the evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: voice-quality-results
+          path: |
+            /tmp/vq/*/results.json
+            /tmp/vq/*/provenance.json
+            ${{ env.E2E_WORK }}/server.log
+          if-no-files-found: warn
+          retention-days: 30
