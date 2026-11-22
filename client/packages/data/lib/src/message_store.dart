@@ -7,7 +7,7 @@ import 'package:slimm_api/api.dart' as api;
 
 import 'database.dart';
 import 'message_dto.dart';
-import 'rail_channel.dart';
+import 'message_store_channel_reads.dart';
 import 'transcript_query.dart';
 import 'message_store_batch.dart' as batch_impl;
 import 'message_store_channels.dart' as channels_impl;
@@ -92,86 +92,24 @@ class MessageStore {
     return rows.reversed.map((r) => r.toDto()).toList(growable: false);
   }
 
-  /// Rail order over the ordinary list: [watchChannels], [watchRailChannels]
-  /// and [allChannels] all read this one query.
-  SimpleSelectStatement<$ChannelsTable, Channel> _ordinaryChannelsQuery() {
-    return db.select(db.channels)
-      ..where((c) => c.parentMessageId.isNull())
-      ..orderBy([
-        (c) => OrderingTerm(expression: c.position),
-        (c) => OrderingTerm(expression: c.createdAt),
-      ]);
-  }
+  late final _channels = ChannelReads(db);
 
-  /// Position first, then creation order as the tiebreak every DM (whose
-  /// position is never set) falls back to - the same ordering the server's
-  /// own `list_channels` applies, so a cold-started rail matches a synced one.
-  ///
-  /// Excludes a thread (`parentMessageId` set), mirroring the server's own
-  /// `list_channels` exclusion: a thread is a hidden sub-channel reached
-  /// from the message it was opened on, never a rail entry. [watchChannel]
-  /// (singular, by id) is unaffected, so a thread's own messages still watch
-  /// and send normally once a caller already holds its id.
-  Stream<List<Channel>> watchChannels() {
-    final query = _ordinaryChannelsQuery();
-    return query.watch();
-  }
+  /// The ordinary channel list in rail order, a thread excluded.
+  Stream<List<Channel>> watchChannels() => _channels.watchChannels();
 
-  /// [watchChannels]'s own rows and ordering, deduped to the fields
-  /// `channel_rail.dart` actually renders or groups by (CP8).
-  ///
-  /// [watchChannels] is a table-wide watch: it re-emits on any write to
-  /// `channels`, and drift's [Channel] equality is over every column, so a
-  /// write nothing on screen reads - [setOpCursor] moving the message-op
-  /// cursor, or [applyMessage]'s own advance of the ordinary one - still
-  /// produces a genuinely different [Channel] list and re-triggers every
-  /// subscriber. The rail pays for this on every incoming message anywhere
-  /// in the deployment, rebuilding rows for channels the write never
-  /// touched. This keeps the same query and still emits full [Channel]
-  /// rows - every existing row widget keeps reading them unmodified,
-  /// [Channel.cursor]/[Channel.lastReadSeq] included - but folds each
-  /// emission down to [RailChannelKey] first, so a new emission that
-  /// projects identically to the last one is dropped rather than passed on.
-  ///
-  /// A projected `unread` is the derived boolean the rail shows, not the raw
-  /// `cursor`/`lastReadSeq` behind it: a channel already unread stays
-  /// unread through every further message, so only the flip in or out of
-  /// that state is a real rebuild for a text channel row, a DM row or the
-  /// personal space row to make. See `rail_channel.dart` for the projection.
-  Stream<List<Channel>> watchRailChannels() {
-    final query = _ordinaryChannelsQuery();
-    return query.watch().distinct(railChannelsUnchanged);
-  }
+  /// [watchChannels], dropping emissions the rail renders identically.
+  Stream<List<Channel>> watchRailChannels() => _channels.watchRailChannels();
 
-  /// [watchChannels]'s own snapshot, for a caller that wants today's list
-  /// once rather than a subscription it would only ever read one value from.
-  Future<List<Channel>> allChannels() {
-    final query = _ordinaryChannelsQuery();
-    return query.get();
-  }
+  /// [watchChannels]'s snapshot, fetched once.
+  Future<List<Channel>> allChannels() => _channels.allChannels();
 
-  /// Watches one channel's own row, by id - unlike [watchChannels], never
-  /// filtered to the ordinary list, so this is what a screen already
-  /// showing a channel's messages should use to find its own name and read
-  /// marker, including a thread's, which [watchChannels] deliberately
-  /// excludes.
-  ///
-  /// Drift re-selects on any write to `channels`, other channels' included,
-  /// and rows compare by value, so an unchanged row is dropped here.
-  Stream<Channel?> watchChannelRow(String channelId) {
-    final query = db.select(db.channels)..where((c) => c.id.equals(channelId));
-    return query.watchSingleOrNull().distinct();
-  }
+  /// One channel's own row by id, a thread included.
+  Stream<Channel?> watchChannelRow(String channelId) =>
+      _channels.watchChannelRow(channelId);
 
-  /// [watchChannelRow]'s own snapshot: a thread included, unlike
-  /// [allChannels], for a caller that wants today's answer once rather than
-  /// a subscription - a widget test proving a row was written being the
-  /// usual reason, since a stream's own `.first` needs the fake test clock
-  /// pumped for its subscription-cleanup timer to ever resolve.
-  Future<Channel?> channelRow(String channelId) {
-    final query = db.select(db.channels)..where((c) => c.id.equals(channelId));
-    return query.getSingleOrNull();
-  }
+  /// [watchChannelRow]'s snapshot, fetched once.
+  Future<Channel?> channelRow(String channelId) =>
+      _channels.channelRow(channelId);
 
   /// Whether a channel row exists locally.
   Future<bool> hasChannel(String channelId) =>
