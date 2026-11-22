@@ -332,4 +332,23 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.133.2',
+    headline: 'Canvas fixes for phones and screen readers',
+    points: [
+      WhatsNewPoint(
+        'On Android, Back with the canvas open leaves fullscreen first, '
+        'then closes the canvas, instead of leaving the channel.',
+      ),
+      WhatsNewPoint(
+        'The follow chip and the summon card sit above the canvas board, '
+        'so they no longer cover a tile.',
+      ),
+      WhatsNewPoint(
+        'On a wide window, a screen reader goes through the channel list, '
+        'the conversation, the canvas and then the member list, in that '
+        'order.',
+      ),
+    ],
+  ),
 ];
