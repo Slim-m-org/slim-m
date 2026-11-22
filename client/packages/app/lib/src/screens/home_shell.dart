@@ -227,16 +227,9 @@ class HomeShell extends ConsumerWidget {
     final videoDocked = ref.watch(
       desktopVideoProvider.select((v) => v?.docked ?? false),
     );
-    final panelSide = modulePanelDocked(
-      ref,
-      fits: threadFits && !showThread && !canvasFullscreen,
-    );
-    final videoSide =
-        videoDocked &&
-        threadFits &&
-        !showThread &&
-        !canvasFullscreen &&
-        !panelSide;
+    final sideFree = threadFits && !showThread && !canvasFullscreen;
+    final panelSide = modulePanelDocked(ref, fits: sideFree);
+    final videoSide = videoDocked && sideFree && !panelSide;
     final showMembers = membersWanted && !videoSide && !panelSide;
     final dockedPane = switch ((
       showThread || videoSide || panelSide,

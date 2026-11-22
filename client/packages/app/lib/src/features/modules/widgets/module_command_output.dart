@@ -129,6 +129,33 @@ class ModuleCommandOutput extends ConsumerWidget {
     );
   }
 
+  Future<api.RunModuleCommandResult> Function(String input) _commandRunner(
+    ProviderContainer container,
+    String moduleId,
+    String command,
+  ) {
+    final messageId = this.messageId;
+    final blockIndex = this.blockIndex;
+    final runner = this.runner;
+    final runAction = this.runAction;
+    if (runner != null) return runner;
+    if (messageId != null && blockIndex != null) {
+      return (input) => container
+          .read(moduleActionsProvider)
+          .runCodeBlock(
+            messageId: messageId,
+            blockIndex: blockIndex,
+            moduleId: moduleId,
+            command: command,
+            input: input,
+          );
+    }
+    if (runAction != null) return runAction;
+    return (input) => container
+        .read(moduleActionsProvider)
+        .runModuleCommand(moduleId: moduleId, command: command, input: input);
+  }
+
   Widget _sceneView(
     BuildContext context,
     ModuleScene scene,
@@ -142,28 +169,7 @@ class ModuleCommandOutput extends ConsumerWidget {
     final shared = runner != null || (messageId != null && blockIndex != null);
     // The full-screen route outlives this widget, so its closures hold the container, never ref.
     final container = ProviderScope.containerOf(context, listen: false);
-    final runAction = this.runAction;
-    Future<api.RunModuleCommandResult> run(String input) => runner != null
-        ? runner(input)
-        : messageId != null && blockIndex != null
-        ? container
-              .read(moduleActionsProvider)
-              .runCodeBlock(
-                messageId: messageId,
-                blockIndex: blockIndex,
-                moduleId: moduleId,
-                command: command,
-                input: input,
-              )
-        : runAction != null
-        ? runAction(input)
-        : container
-              .read(moduleActionsProvider)
-              .runModuleCommand(
-                moduleId: moduleId,
-                command: command,
-                input: input,
-              );
+    final run = _commandRunner(container, moduleId, command);
     // The other half of "never plays without interaction": see NotesOp's own doc comment for the full defence.
     void notes(List<SceneNote> played) {
       if (!container.read(moduleSoundSettingsProvider)) return;

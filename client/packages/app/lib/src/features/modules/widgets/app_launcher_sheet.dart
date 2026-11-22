@@ -94,11 +94,6 @@ Future<void> showAppLauncherSheet(
         final canManageServer = sheetRef
             .watch(myPermissionsProvider)
             .hasPermission(Perm.manageServer);
-        // Panels failing to load must not hide the apps; they read as none.
-        final panelList = panels.hasError
-            ? const <api.ModulePanel>[]
-            : panels.valueOrNull;
-        final loaded = (apps.valueOrNull, panelList);
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -110,10 +105,7 @@ Future<void> showAppLauncherSheet(
             // Empty is hand-rendered below: its copy depends on permission.
             child: AppAsyncView<_Launchable>(
               value: AppAsyncState(
-                data: switch (loaded) {
-                  (final a?, final p?) => (apps: a, panels: p),
-                  _ => null,
-                },
+                data: _launchable(apps, panels),
                 error: apps.error,
               ),
               center: false,
@@ -163,6 +155,20 @@ Future<void> showAppLauncherSheet(
 }
 
 typedef _Launchable = ({List<api.App> apps, List<api.ModulePanel> panels});
+
+_Launchable? _launchable(
+  AsyncValue<List<api.App>> apps,
+  AsyncValue<List<api.ModulePanel>> panels,
+) {
+  // Panels failing to load must not hide the apps; they read as none.
+  final panelList = panels.hasError
+      ? const <api.ModulePanel>[]
+      : panels.valueOrNull;
+  return switch ((apps.valueOrNull, panelList)) {
+    (final a?, final p?) => (apps: a, panels: p),
+    _ => null,
+  };
+}
 
 Widget _emptyApps(
   BuildContext sheetContext,

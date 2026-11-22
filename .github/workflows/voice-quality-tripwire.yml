@@ -49,10 +49,10 @@ jobs:
           "$RUNNER_TEMP/piper-venv/bin/pip" install --only-binary :all: piper-tts==1.8.0
           mkdir -p "$RUNNER_TEMP/piper-voices"
           base=https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US
-          curl -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-lessac-medium.onnx" "$base/lessac/medium/en_US-lessac-medium.onnx"
-          curl -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-lessac-medium.onnx.json" "$base/lessac/medium/en_US-lessac-medium.onnx.json"
-          curl -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-ryan-medium.onnx" "$base/ryan/medium/en_US-ryan-medium.onnx"
-          curl -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-ryan-medium.onnx.json" "$base/ryan/medium/en_US-ryan-medium.onnx.json"
+          curl --proto '=https' --tlsv1.2 -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-lessac-medium.onnx" "$base/lessac/medium/en_US-lessac-medium.onnx"
+          curl --proto '=https' --tlsv1.2 -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-lessac-medium.onnx.json" "$base/lessac/medium/en_US-lessac-medium.onnx.json"
+          curl --proto '=https' --tlsv1.2 -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-ryan-medium.onnx" "$base/ryan/medium/en_US-ryan-medium.onnx"
+          curl --proto '=https' --tlsv1.2 -fsSL -o "$RUNNER_TEMP/piper-voices/en_US-ryan-medium.onnx.json" "$base/ryan/medium/en_US-ryan-medium.onnx.json"
           cd "$RUNNER_TEMP/piper-voices"
           sha256sum -c - <<'SUMS'
           5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eeaaf019f  en_US-lessac-medium.onnx

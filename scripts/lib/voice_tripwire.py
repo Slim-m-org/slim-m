@@ -78,7 +78,7 @@ def summary(measured, bands, problems, versions, run_count):
         lines += ["Bands are provisional (not measured on this runner), so this run cannot fail.", ""]
     lines += ["| profile | ViSQOL | band | jitter buffer ms | band |", "| --- | --- | --- | --- | --- |"]
     for profile, want in bands["profiles"].items():
-        got = measured.get(profile) or {m: None for m in METRICS}
+        got = measured.get(profile) or dict.fromkeys(METRICS)
         lines.append(f"| {profile} | {got['visqol']} | >= {round(want['visqol'] - bands['mos_band'], 3)} "
                      f"| {got['jitter_buffer_delay_ms']} | <= {want['jitter_buffer_delay_ms'] + bands['delay_band_ms']} |")
     lines += [""] + [f"- {p}" for p in problems] + ["", "Measured, in the bands file's shape:", "", "```json",

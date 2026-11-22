@@ -341,8 +341,9 @@ class ReloadWaitsForTheDocumentTest(unittest.TestCase):
             def ev(self, script):
                 raise AssertionError("vqb: the injected script threw: ReferenceError")
 
+        page = Broken(0)
         with self.assertRaises(AssertionError):
-            e2e_audio._reload(Broken(0))
+            e2e_audio._reload(page)
 
 
 if __name__ == "__main__":
