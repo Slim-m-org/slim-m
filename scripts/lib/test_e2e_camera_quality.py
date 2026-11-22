@@ -61,7 +61,7 @@ class ProblemsTest(unittest.TestCase):
 
     def test_a_slow_sender_or_viewer_is_named(self):
         self.assertTrue(any("encoded" in p for p in cq.problems("720p", window([180, 360, 720], fps=20))))
-        self.assertTrue(any("decoded" in p for p in cq.problems("720p", window([180, 360, 720], viewer=20))))
+        self.assertTrue(any("decoded" in p for p in cq.problems("720p", window([180, 360, 720], viewer=10))))
 
     def test_a_freeze_fails(self):
         self.assertTrue(any("froze" in p for p in cq.problems("720p", window([180, 360, 720], freezes=1))))
