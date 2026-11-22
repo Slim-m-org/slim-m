@@ -294,6 +294,18 @@ Launched into a channel as a message that renders as the module's own interactiv
 - A launch runs the command once with an empty `input`, so a well-behaved app returns its initial frame for empty input.
   From then on the surface is driven entirely by the [interactive scene](#interactive-scenes) protocol, shared through the same stored-and-broadcast mechanism a code-block runner uses.
 
+### canvas-tile
+
+A tile people place on a voice canvas, showing the module's shared scene. Add-on API 6.
+
+```json
+{ "kind": "canvas-tile", "name": "Scoreboard", "permission": "play", "command": "board", "description": "A shared scoreboard for the call." }
+```
+
+- `name` is what the canvas menu offers as "Add Scoreboard" and the tile's header shows.
+- Anyone holding `permission` may place one; it then moves, resizes and is removed like a note.
+- The tile runs `command` exactly like an [app](#app) surface: an empty input launches it, and every viewer of the canvas sees the same stored frame. The tile is 640 by 480 board units when placed, so draw a scene that reads at that size.
+
 ## The scene contract
 
 A command normally returns text.

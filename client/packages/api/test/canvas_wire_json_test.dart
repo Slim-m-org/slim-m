@@ -93,6 +93,33 @@ void main() {
       expect((event! as CanvasObjectLockChanged).locked, isTrue);
     });
 
+    test('canvas.tile.scene_changed carries the whole frame and who made it',
+        () {
+      final event = _parse({
+        'type': 'canvas.tile.scene_changed',
+        'channel_id': 'c1',
+        'object_id': 'o1',
+        'output': '{"\$slim":"scene/1"}',
+        'ran_by': 'u1',
+        'ran_at': 9,
+      });
+
+      final changed = event! as CanvasTileSceneChanged;
+      expect(changed.objectId, 'o1');
+      expect(changed.output, '{"\$slim":"scene/1"}');
+      expect(changed.ranBy, 'u1');
+      expect(changed.ranAt, 9);
+      expect(
+        _parse({
+          'type': 'canvas.tile.scene_changed',
+          'channel_id': 'c1',
+          'object_id': 'o1',
+        }),
+        isNull,
+        reason: 'a frame with no output is dropped',
+      );
+    });
+
     test('a frame of the wrong type is dropped, not thrown', () {
       expect(
         _parse({

@@ -345,6 +345,9 @@ class StrokePainter extends CustomPainter {
           noteIds.add(stroke.id);
           _objects.paintText(canvas, stroke, camera);
           continue;
+        case CanvasObjectKind.tile:
+          _paintTile(canvas, stroke, camera, elevated: isElevated);
+          continue;
         case CanvasObjectKind.stroke:
           break;
       }
@@ -398,6 +401,31 @@ class StrokePainter extends CustomPainter {
       bitmap.height.toDouble(),
     );
     canvas.drawImageRect(bitmap, src, dst, _imagePaint);
+  }
+
+  /// A plain muted tile with a border, the same box an image placeholder draws but without the broken-picture glyph.
+  void _paintTile(
+    Canvas canvas,
+    CanvasStroke stroke,
+    Camera camera, {
+    required bool elevated,
+  }) {
+    final box = Rect.fromLTWH(
+      (stroke.x - camera.x) * camera.zoom,
+      (stroke.y - camera.y) * camera.zoom,
+      stroke.w * camera.zoom,
+      stroke.h * camera.zoom,
+    );
+    if (elevated) _objects.paintElevation(canvas, box);
+    final rounded = RRect.fromRectAndRadius(box, const Radius.circular(6));
+    canvas.drawRRect(rounded, Paint()..color = placeholderFill);
+    canvas.drawRRect(
+      rounded.deflate(0.75),
+      Paint()
+        ..color = placeholderIcon
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
   }
 
   /// Shared across images and repaints; nothing about it varies per image.

@@ -71,14 +71,14 @@ pub(super) async fn runnable_tile(
         .store
         .installed_module(&tile.module_id)
         .await?
-        .ok_or(ApiError::Conflict("this tile's module is not installed"))?;
+        .ok_or(ApiError::Conflict("its module is not installed"))?;
     if !module.enabled {
-        return Err(ApiError::Conflict("this tile's module is turned off"));
+        return Err(ApiError::Conflict("its module is turned off"));
     }
     super::super::module_compat::require_compatible(&module)?;
     let command = tile_point(&module, &tile.tile)
         .and_then(|p| p.command.clone())
-        .ok_or(ApiError::Conflict("this tile's module no longer offers it"))?;
+        .ok_or(ApiError::Conflict("its module no longer offers this tile"))?;
     Ok((module, command))
 }
 

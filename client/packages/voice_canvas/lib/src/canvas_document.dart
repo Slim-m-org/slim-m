@@ -284,6 +284,7 @@ class CanvasDocument extends ChangeNotifier {
         flipX: input.flipX,
         flipY: input.flipY,
         fontSize: input.fontSize,
+        tileKey: input.tileKey,
       ),
     );
     if (input.groupId case final group?) {

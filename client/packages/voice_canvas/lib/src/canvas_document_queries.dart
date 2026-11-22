@@ -126,6 +126,31 @@ extension CanvasDocumentQueries on CanvasDocument {
               (id: stroke.id, emoji: stroke.text!),
       ];
 
+  /// Every tile the last cull kept, with its box and what the app fills it with, in paint order.
+  List<({String id, ui.Rect rect, String tileKey})> get visibleTiles {
+    final slots = [
+      for (final slot in scene.visible)
+        if (strokeIfAlive(slot) case final stroke?
+            when stroke.kind == CanvasObjectKind.tile &&
+                stroke.tileKey != null &&
+                !_outsideIds.contains(stroke.id))
+          slot,
+    ]..sort(comparePaintOrder);
+    return [
+      for (final slot in slots)
+        (
+          id: _strokes[slot]!.id,
+          rect: ui.Rect.fromLTWH(
+            _strokes[slot]!.x,
+            _strokes[slot]!.y,
+            _strokes[slot]!.w,
+            _strokes[slot]!.h,
+          ),
+          tileKey: _strokes[slot]!.tileKey!,
+        ),
+    ];
+  }
+
   /// The on-screen emoji stamps with no bitmap yet, and the emoji each one names.
   List<({String id, String emoji})> get visibleEmojiAwaitingBitmap => [
         for (final slot in scene.visible)
@@ -180,13 +205,14 @@ extension CanvasDocumentQueries on CanvasDocument {
   /// server itself measured a plain scan at 20,000 rows as 1.56ms), and it
   /// is only ever asked for when a screen-reader user opens the activity
   /// panel, never once per frame the way [objectCount] is.
-  ({int strokes, int images, int notes, int shapes, int texts})
+  ({int strokes, int images, int notes, int shapes, int texts, int tiles})
       get liveCountsByKind {
     var strokes = 0;
     var images = 0;
     var notes = 0;
     var shapes = 0;
     var texts = 0;
+    var tiles = 0;
     for (final stroke in _strokes) {
       if (stroke == null || !stroke.alive) continue;
       switch (stroke.kind) {
@@ -199,6 +225,8 @@ extension CanvasDocumentQueries on CanvasDocument {
           shapes++;
         case CanvasObjectKind.text:
           texts++;
+        case CanvasObjectKind.tile:
+          tiles++;
         case CanvasObjectKind.stroke:
           strokes++;
       }
@@ -209,6 +237,7 @@ extension CanvasDocumentQueries on CanvasDocument {
       notes: notes,
       shapes: shapes,
       texts: texts,
+      tiles: tiles,
     );
   }
 

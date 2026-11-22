@@ -3,6 +3,13 @@
 Every change to a contract a module depends on is listed here, newest first.
 The policy behind the levels is decision [0100](../decisions/0100-module-safety-contracts.md).
 
+## Level 6
+
+- Adds the `canvas-tile` extension point: `{ "kind": "canvas-tile", "name", "permission", "command", "description"? }`, with `"addon_api": 6`. A member who holds `permission` places it on a voice canvas from the canvas menu; it is a canvas object of kind `module` whose `props` are `{"module_id", "tile"}`, so it moves, resizes, restacks and is removed like any other object.
+- The tile's frame is `command`'s scene, run with the same interactive scene protocol as an `app` surface: the host keeps the frame's `state`, a launch is an empty input, presses run as whoever pressed, a failed or private answer reaches only the presser, and `refresh_ms` redraws as the last presser. `context.channel_id` is the canvas's channel, and `context.voice_channel_id` is set when the presser is in that call.
+- New routes: `GET /modules/canvas-tiles`, and `GET`/`POST /channels/{id}/canvas/objects/{id}/scene`. New frame: `canvas.tile.scene_changed`. An older client ignores both the frame and the `module` kind.
+- Nothing is removed or changed in meaning. A module that declares `addon_api_max` of 5 must be updated to run on a level 6 server, as at every level.
+
 ## Level 5 additions (no level bump, nothing to declare)
 
 - A scene's `controls` may hold a dropdown, `{"label", "value", "options"}`, alongside button names; picking an option sends it as the action. This is read by the client (0.132 and later), so the server and the add-on level are unchanged, and an older client skips the entry. Its optional `replaces` lists buttons in the same row that the dropdown stands for: an older client shows them, a newer one leaves them out.

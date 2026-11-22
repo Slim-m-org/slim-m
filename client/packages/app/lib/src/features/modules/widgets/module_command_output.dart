@@ -39,6 +39,8 @@ class ModuleCommandOutput extends ConsumerWidget {
     this.command,
     this.messageId,
     this.blockIndex,
+    this.runner,
+    this.fillAvailable = false,
   });
 
   final api.RunModuleCommandResult result;
@@ -50,6 +52,12 @@ class ModuleCommandOutput extends ConsumerWidget {
   /// than the ephemeral one - see the class doc. Null for the Dock panel.
   final String? messageId;
   final int? blockIndex;
+
+  /// Where a shared scene that is not a message's (a canvas tile) sends its actions; overrides both routes above.
+  final ModuleSceneRunner? runner;
+
+  /// Fills the box it is given, for a surface with a fixed size of its own such as a canvas tile.
+  final bool fillAvailable;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -124,11 +132,14 @@ class ModuleCommandOutput extends ConsumerWidget {
   ) {
     final messageId = this.messageId;
     final blockIndex = this.blockIndex;
-    // Shared when this scene belongs to a message: each action stores and broadcasts, so everyone watching sees the same evolving scene.
-    final shared = messageId != null && blockIndex != null;
+    final runner = this.runner;
+    // Shared when this scene belongs to a message or a canvas tile: each action stores and broadcasts, so everyone watching sees the same evolving scene.
+    final shared = runner != null || (messageId != null && blockIndex != null);
     // The full-screen route outlives this widget, so its closures hold the container, never ref.
     final container = ProviderScope.containerOf(context, listen: false);
-    Future<api.RunModuleCommandResult> run(String input) => shared
+    Future<api.RunModuleCommandResult> run(String input) => runner != null
+        ? runner(input)
+        : messageId != null && blockIndex != null
         ? container
               .read(moduleActionsProvider)
               .runCodeBlock(
@@ -155,8 +166,9 @@ class ModuleCommandOutput extends ConsumerWidget {
       initial: scene,
       runCommand: run,
       onNotes: notes,
-      // Only a message-scoped board has a screen of its own to go to.
-      onExpand: shared
+      fillAvailable: fillAvailable,
+      // Only a shared board has a screen of its own to go to.
+      onExpand: shared && !fillAvailable
           ? () => showModuleSceneFullscreen(
               context,
               initial: scene,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The canvas pane's drawing layers, bottom to top: grid, focused feed, call-tile video,
-/// ink surface, object menu, call-tile controls, note editor and edge indicators.
+/// ink surface, object menu, module tiles, call-tile controls, note editor and edge indicators.
 library;
 
 import 'package:flutter/material.dart';
@@ -13,6 +13,7 @@ import 'canvas_focused_fit.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_board_keys.dart';
 import 'canvas_board_object_semantics.dart';
+import 'canvas_module_tile_layer.dart';
 import 'canvas_object_context_menu.dart';
 import 'canvas_pane_surface_actions.dart';
 import '../providers/canvas_pen_style.dart';
@@ -199,6 +200,8 @@ class CanvasPaneSurface extends StatelessWidget {
           onToolChanged: actions.onToolChanged,
           wheel: toolWheel,
         ),
+        // Above the menu's hit catcher, so a tile's scene takes its own taps; its header lets them through to the board.
+        CanvasModuleTileLayer(document: document),
         if (actions.stamping case final stamping?)
           Positioned.fill(
             child: CanvasStampGhost(document: document, placement: stamping),

@@ -394,6 +394,26 @@ class CanvasObjectLockChanged extends ServerEvent {
   final int version;
 }
 
+/// A module tile's shared frame changed; [output] is the whole scene every viewer draws.
+/// Carries no seq: a frame is current state beside the op stream.
+class CanvasTileSceneChanged extends ServerEvent {
+  const CanvasTileSceneChanged({
+    required this.channelId,
+    required this.objectId,
+    required this.output,
+    required this.ranAt,
+    this.ranBy,
+  });
+
+  final String channelId;
+  final String objectId;
+  final String output;
+  final int ranAt;
+
+  /// Whose press produced it; null once that account is gone.
+  final String? ranBy;
+}
+
 /// A placed object's paint order changed.
 ///
 /// Carries the new [zIndex] outright, so a receiver needs no refetch to
