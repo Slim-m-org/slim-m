@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.133.2](https://github.com/Slim-m-org/slim-m/compare/client-v0.133.1...client-v0.133.2) (2026-11-22)
+
+
+### Bug Fixes
+
+* **client:** android back closes the canvas before leaving the channel, and the follow strip no longer covers tiles ([#2461](https://github.com/Slim-m-org/slim-m/issues/2461)) ([ce23e83](https://github.com/Slim-m-org/slim-m/commit/ce23e83df2b6f3a82f81572e882dd1e174bc824b))
+
 ## [0.133.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.133.0...client-v0.133.1) (2026-11-21)
 
 
