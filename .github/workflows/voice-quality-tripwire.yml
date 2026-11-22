@@ -38,6 +38,10 @@ jobs:
         with:
           python-version: "3.14"
 
+      # The harness cuts and stages the reference clips with ffmpeg, which the runner image does not carry.
+      - name: ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
       # Wheel-only so no sdist setup script runs; numpy and scipy are what the ViSQOL scorer resamples with.
       - name: python dependencies
         run: "pip install --only-binary :all: websocket-client==1.9.0 numpy==2.3.5 scipy==1.16.3"
