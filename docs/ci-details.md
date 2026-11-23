@@ -995,6 +995,22 @@ The release name is the client version, and no release notes are sent.
 When it is empty the step is skipped with a `::notice::`.
 The upload runs after the apk is attached to the release, so a Play failure fails the job visibly without costing the release its apk.
 
+The appbundle is built with `--dart-define=SLIMM_PLAY_BUILD=true`, which compiles the sideload apk updater out of the Dart code, and Gradle sets `BuildConfig.SIDELOAD_UPDATER` false for any bundle task, which leaves the native installer channel unregistered.
+A step after the signer check fails the job before any upload when the bundle's manifest still names `REQUEST_INSTALL_PACKAGES`.
+
+### The flatpak remote
+
+`linux-client` keeps the flatpak-builder repo as a one-day `flatpak-repo` artifact whenever the bundle built.
+`flatpak-remote` then copies the app ref and its Locale extension (never `.Debug`) into a fresh archive repo with `scripts/flatpak-remote.py` (through `.github/actions/release-flatpak-remote`), signing every commit and the summary with `FLATPAK_GPG_KEY`, and writes `slim-m.flatpakrepo`, `top.npcserver.slimm.flatpakref` and `slim-m.gpg` beside it.
+Before anything is uploaded, the script adds the result as a remote in a throwaway installation and lists it, so a bad key fails the job instead of reaching a user.
+`flatpak-pages` deploys the site with `actions/deploy-pages`, which needs its own `github-pages` environment and an OIDC token, so it is a job of its own.
+Without the secret, `flatpak-remote` warns and stops, and nothing is published: an unsigned remote is never deployed.
+With the secret but GitHub Pages off, `actions/configure-pages` fails the job by name.
+Nothing needs either job, so a failure reds only itself and never holds the release, its checksums or the update manifest.
+GitHub Pages was chosen over the owner's host because CI has no push access to that host (it only pulls images), Pages is a CDN that stays up when the home server does not, and the site carries only signed, public data.
+Each release replaces the site with that release's repo alone, so `flatpak update` pulls the new commit in full; there is no history to delta from.
+`scripts/lib/test_flatpak_remote.py` covers the ref choice and the files, and, where flatpak and ostree are installed, signs a fake app and checks that a client trusting another key refuses it.
+
 Both the version and the tag are emitted by the resolve step: the tag names the release and the version feeds `--build-name`.
 Emitting only the tag left `--build-name=` empty on every run before that was fixed.
 

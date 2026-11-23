@@ -7,6 +7,19 @@ Like the rpm, it repackages the already-built Flutter Linux bundle rather than r
 The sandbox has no network by default and `dart pub get` needs one.
 So `release.yml`'s `linux-client` job builds the bundle first, and this manifest's `dir` source points straight at `client/packages/app/build/linux/x64/release/bundle`.
 
+## Installing from the remote, so updates arrive
+
+Once the owner has set `FLATPAK_GPG_KEY` and turned on GitHub Pages, every client release also publishes a signed flatpak remote (`docs/ci-details.md`, "The flatpak remote").
+Install from it once, and `flatpak update` or the software center keeps it current:
+
+```bash
+flatpak install --user --from https://slim-m-org.github.io/slim-m/top.npcserver.slimm.flatpakref
+```
+
+The `.flatpakref` carries the remote's public key and points the runtime at Flathub.
+A copy installed from a `.flatpak` bundle has no remote and never updates; installing from the `.flatpakref` replaces it.
+The URL above is the Pages default for this repository; a custom Pages domain changes it.
+
 ## What is verified, and how
 
 This manifest has been built for real, several times now, with `org.flatpak.Builder` (the sandboxed Flathub build tool, installed with `flatpak install --user flathub org.flatpak.Builder`) against a real `flutter build linux --release` output produced on this machine.
