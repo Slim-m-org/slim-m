@@ -4,12 +4,9 @@
 library;
 
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/main.dart' show appChromeBuilder;
 import 'package:slimm_app/src/desktop/popout/popout_windowing.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart' show ResizeEdge;
 import 'package:slimm_app/src/features/voice/providers/call_mini_player.dart';
@@ -18,154 +15,12 @@ import 'package:slimm_app/src/features/voice/providers/popout_window.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_mini_player.dart';
 import 'package:slimm_app/src/features/voice/widgets/popout_window_view.dart';
-import 'package:slimm_data/data.dart' show SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../ui_snapshot_support.dart';
 import 'voice_controller_harness.dart';
-
-class _FakeWindow implements PopOutWindowHandle {
-  _FakeWindow(
-    this.onCloseRequested, {
-    required this.decorated,
-    required this.title,
-  });
-
-  final VoidCallback onCloseRequested;
-  final bool decorated;
-  final String title;
-  bool destroyed = false;
-  int keptAbove = 0;
-
-  @override
-  Future<void> keepAbove() async => keptAbove++;
-
-  @override
-  bool get drawsOwnFrame => !decorated;
-  int moves = 0;
-  final resizes = <ResizeEdge>[];
-
-  @override
-  void beginMove() => moves++;
-
-  @override
-  void beginResize(ResizeEdge edge) => resizes.add(edge);
-
-  @override
-  void fitAspect(double aspect) {}
-
-  @override
-  Widget host(Widget child) => const ViewCollection(views: []);
-
-  @override
-  void destroy() => destroyed = true;
-}
-
-const _ada = VoiceParticipant(
-  identity: 'u-ada',
-  name: 'Ada',
-  isSpeaking: false,
-  isMuted: false,
-  isLocal: false,
-  isScreenSharing: true,
-);
-const _adaStopped = VoiceParticipant(
-  identity: 'u-ada',
-  name: 'Ada',
-  isSpeaking: false,
-  isMuted: false,
-  isLocal: false,
-  isScreenSharing: false,
-);
-
-const _bo = VoiceParticipant(
-  identity: 'u-bo',
-  name: 'Bo',
-  isSpeaking: false,
-  isMuted: false,
-  isLocal: false,
-  isScreenSharing: true,
-);
-
-MiniPlayerFeed _screen(VoiceParticipant p) =>
-    (identity: p.identity, name: p.name, kind: FeedKind.screenShare);
-
-VoiceState _call(List<VoiceParticipant> who) => VoiceState(
-  channelId: 'c-main',
-  state: VoiceSessionState.connected,
-  participants: who,
-);
-
-class _Rig {
-  final session = FakeSession();
-  final windows = <_FakeWindow>[];
-  final openedInPhase = <SchedulerPhase>[];
-  late final ProviderContainer container;
-  late final SlimmDatabase db;
-  FixedVoiceController get voice =>
-      container.read(voiceControllerProvider.notifier) as FixedVoiceController;
-}
-
-Future<_Rig> _pump(
-  WidgetTester tester, {
-  required bool supported,
-  List<VoiceParticipant> who = const [_ada],
-  PopOutWindowFactory? factory,
-}) async {
-  final rig = _Rig();
-  final fixture = await fixtureContainer(
-    extraOverrides: [
-      voiceControllerProvider.overrideWith(
-        (ref) => FixedVoiceController(ref, _call(who), rig.session),
-      ),
-      popOutWindowFactoryProvider.overrideWithValue(
-        factory ??
-            (supported
-                ? ({
-                    required title,
-                    required size,
-                    required decorated,
-                    required onCloseRequested,
-                  }) {
-                    final w = _FakeWindow(
-                      onCloseRequested,
-                      decorated: decorated,
-                      title: title,
-                    );
-                    rig.windows.add(w);
-                    rig.openedInPhase.add(
-                      SchedulerBinding.instance.schedulerPhase,
-                    );
-                    return w;
-                  }
-                : null),
-      ),
-    ],
-  );
-  rig.container = fixture.container;
-  rig.db = fixture.db;
-  tester.view.physicalSize = const Size(1400, 880);
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.reset);
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: fixture.container,
-      child: MaterialApp.router(
-        theme: buildTheme(Brightness.dark, AppTokens.dark),
-        routerConfig: fixtureRouter('/channels/c-general'),
-        builder: appChromeBuilder,
-      ),
-    ),
-  );
-  await tester.pump(const Duration(milliseconds: 350));
-  return rig;
-}
-
-Finder get _popOutButton => find.descendant(
-  of: find.byKey(miniPlayerKey),
-  matching: find.byTooltip('Pop out'),
-);
+import 'popout_window_support.dart';
 
 double _headerOpacity(WidgetTester tester) => tester
     .widget<AnimatedOpacity>(
@@ -189,49 +44,20 @@ void main() {
   testWidgets('no pop-out control where windowing is unavailable', (
     tester,
   ) async {
-    final rig = await _pump(tester, supported: false);
+    final rig = await pumpPopOut(tester, supported: false);
     expect(find.byKey(miniPlayerKey), findsOneWidget);
-    expect(_popOutButton, findsNothing);
-    await teardownFixture(tester, rig.container, rig.db);
-  });
-
-  testWidgets('Windows offers the pop-out control', (tester) async {
-    final rig = await _pump(
-      tester,
-      supported: true,
-      factory: nativePopOutWindowFactory(
-        windowing: true,
-        linux: false,
-        windows: true,
-      ),
-    );
-    expect(_popOutButton, findsOneWidget);
-    await teardownFixture(tester, rig.container, rig.db);
-  });
-
-  testWidgets('on Windows the window opens between frames, not inside one', (
-    tester,
-  ) async {
-    final rig = await _pump(tester, supported: true);
-    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-    await tester.tap(_popOutButton);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 1));
-    await tester.pump();
-    debugDefaultTargetPlatformOverride = null;
-    expect(rig.windows, hasLength(1));
-    expect(rig.openedInPhase, [SchedulerPhase.idle]);
+    expect(popOutButton, findsNothing);
     await teardownFixture(tester, rig.container, rig.db);
   });
 
   testWidgets('pop out opens a window; closing it keeps the call', (
     tester,
   ) async {
-    final rig = await _pump(tester, supported: true);
-    await tester.tap(_popOutButton);
+    final rig = await pumpPopOut(tester, supported: true);
+    await tester.tap(popOutButton);
     await tester.pump();
     expect(rig.windows, hasLength(1));
-    expect(rig.container.read(popOutFeedsProvider), [_screen(_ada)]);
+    expect(rig.container.read(popOutFeedsProvider), [screenFeed(adaSharing)]);
 
     rig.windows.single.onCloseRequested();
     await tester.pump();
@@ -243,8 +69,8 @@ void main() {
   });
 
   testWidgets('the window is requested without OS decorations', (tester) async {
-    final rig = await _pump(tester, supported: true);
-    await tester.tap(_popOutButton);
+    final rig = await pumpPopOut(tester, supported: true);
+    await tester.tap(popOutButton);
     await tester.pump();
     expect(rig.windows.single.decorated, isFalse);
     await teardownFixture(tester, rig.container, rig.db);
@@ -253,8 +79,8 @@ void main() {
   testWidgets('the window stays above the others under its own title', (
     tester,
   ) async {
-    final rig = await _pump(tester, supported: true);
-    await tester.tap(_popOutButton);
+    final rig = await pumpPopOut(tester, supported: true);
+    await tester.tap(popOutButton);
     await tester.pump();
     await tester.pump(const Duration(seconds: 2));
     expect(rig.windows.single.title, popOutWindowTitle);
@@ -263,10 +89,10 @@ void main() {
   });
 
   testWidgets('the window closes when the share stops', (tester) async {
-    final rig = await _pump(tester, supported: true);
-    await tester.tap(_popOutButton);
+    final rig = await pumpPopOut(tester, supported: true);
+    await tester.tap(popOutButton);
     await tester.pump();
-    rig.voice.replace(_call([_adaStopped]));
+    rig.voice.replace(callOf([adaStopped]));
     await tester.pump();
     expect(rig.windows.single.destroyed, isTrue);
     expect(rig.container.read(popOutFeedsProvider), isEmpty);
@@ -274,8 +100,8 @@ void main() {
   });
 
   testWidgets('the window closes when the call ends', (tester) async {
-    final rig = await _pump(tester, supported: true);
-    await tester.tap(_popOutButton);
+    final rig = await pumpPopOut(tester, supported: true);
+    await tester.tap(popOutButton);
     await tester.pump();
     rig.voice.replace(const VoiceState());
     await tester.pump();
@@ -284,11 +110,19 @@ void main() {
   });
 
   group('several pop-outs', () {
-    Future<_Rig> twoOut(WidgetTester tester) async {
-      final rig = await _pump(tester, supported: true, who: [_ada, _bo]);
-      rig.container.read(popOutFeedsProvider.notifier).open(_screen(_ada));
+    Future<PopOutRig> twoOut(WidgetTester tester) async {
+      final rig = await pumpPopOut(
+        tester,
+        supported: true,
+        who: [adaSharing, boSharing],
+      );
+      rig.container
+          .read(popOutFeedsProvider.notifier)
+          .open(screenFeed(adaSharing));
       await tester.pump();
-      rig.container.read(popOutFeedsProvider.notifier).open(_screen(_bo));
+      rig.container
+          .read(popOutFeedsProvider.notifier)
+          .open(screenFeed(boSharing));
       await tester.pump();
       return rig;
     }
@@ -305,17 +139,17 @@ void main() {
       rig.windows.first.onCloseRequested();
       await tester.pump();
       expect(rig.windows.map((w) => w.destroyed), [true, false]);
-      expect(rig.container.read(popOutFeedsProvider), [_screen(_bo)]);
+      expect(rig.container.read(popOutFeedsProvider), [screenFeed(boSharing)]);
       expect(rig.session.leaveCalls, 0);
       await teardownFixture(tester, rig.container, rig.db);
     });
 
     testWidgets('one stream ending closes only its window', (tester) async {
       final rig = await twoOut(tester);
-      rig.voice.replace(_call([_adaStopped, _bo]));
+      rig.voice.replace(callOf([adaStopped, boSharing]));
       await tester.pump();
       expect(rig.windows.map((w) => w.destroyed), [true, false]);
-      expect(rig.container.read(popOutFeedsProvider), [_screen(_bo)]);
+      expect(rig.container.read(popOutFeedsProvider), [screenFeed(boSharing)]);
       await teardownFixture(tester, rig.container, rig.db);
     });
 
@@ -339,7 +173,9 @@ void main() {
 
     testWidgets('popping the same feed twice opens one window', (tester) async {
       final rig = await twoOut(tester);
-      rig.container.read(popOutFeedsProvider.notifier).open(_screen(_ada));
+      rig.container
+          .read(popOutFeedsProvider.notifier)
+          .open(screenFeed(adaSharing));
       await tester.pump();
       expect(rig.windows, hasLength(2));
       expect(rig.container.read(popOutFeedsProvider), hasLength(2));
@@ -349,13 +185,13 @@ void main() {
     testWidgets('a camera and a screen of one person are two windows', (
       tester,
     ) async {
-      final rig = await _pump(
+      final rig = await pumpPopOut(
         tester,
         supported: true,
-        who: [_ada.copyWith(isCameraOn: true)],
+        who: [adaSharing.copyWith(isCameraOn: true)],
       );
       final feeds = rig.container.read(popOutFeedsProvider.notifier);
-      feeds.open(_screen(_ada));
+      feeds.open(screenFeed(adaSharing));
       feeds.open((identity: 'u-ada', name: 'Ada', kind: FeedKind.camera));
       await tester.pump();
       expect(rig.windows, hasLength(2));
@@ -373,16 +209,17 @@ void main() {
       onClose: () => closes++,
     );
 
-    Future<_Rig> content(
+    Future<PopOutRig> content(
       WidgetTester tester,
       double width, {
       PopOutFrame? frame,
     }) async {
-      final rig = _Rig();
+      final rig = PopOutRig();
       final fixture = await fixtureContainer(
         extraOverrides: [
           voiceControllerProvider.overrideWith(
-            (ref) => FixedVoiceController(ref, _call([_ada]), rig.session),
+            (ref) =>
+                FixedVoiceController(ref, callOf([adaSharing]), rig.session),
           ),
         ],
       );
