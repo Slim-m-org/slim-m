@@ -51,6 +51,9 @@ impl FromRequestParts<AppState> for Authed {
             state.store.authenticate(&token).await?
         }
         .ok_or(ApiError::Unauthorized)?;
+        if let Some(grant) = ctx.connector {
+            super::connector_gate::check(parts, grant)?;
+        }
         Ok(Authed(ctx))
     }
 }

@@ -283,7 +283,9 @@ pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};
 pub use screen_stamps::{
     NewScreenStamp, ReportPicture, SCREEN_STAMP_TTL_MS, ScreenStamp, StampInsert, StampSender,
 };
-pub use sessions::{Account, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens};
+pub use sessions::{
+    Account, ConnectorGrant, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens,
+};
 pub use soundboard::{
     ClipEmoji, MAX_SOUNDBOARD_CLIPS, SoundClip, SoundClipChange, SoundClipError, StarterClipRow,
     StarterSeeded,

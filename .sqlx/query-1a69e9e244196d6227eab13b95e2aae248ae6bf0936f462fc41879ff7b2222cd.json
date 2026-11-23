@@ -1,0 +1,98 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT t.bot_user_id AS \"user_id!: UserId\",\n                      t.session_id AS \"session_id!: SessionId\",\n                      s.device_id AS \"device_id!: DeviceId\",\n                      t.last_used_at,\n                      u.connector_principal AS \"connector_principal!: i64\",\n                      (SELECT m.enabled FROM installed_modules m\n                       WHERE m.bot_user_id = u.id AND m.provider = 'connector') AS \"module_enabled: i64\",\n                      (SELECT m.connector_permissions FROM installed_modules m\n                       WHERE m.bot_user_id = u.id AND m.provider = 'connector') AS \"approved: Permissions\"\n               FROM bot_tokens t\n               JOIN sessions s ON s.id = t.session_id\n               JOIN users u ON u.id = t.bot_user_id\n               WHERE t.token_hash = ?\n                 AND t.revoked_at IS NULL\n                 AND s.revoked_at IS NULL\n                 AND u.deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "user_id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "bot_tokens",
+            "name": "bot_user_id"
+          }
+        }
+      },
+      {
+        "name": "session_id!: SessionId",
+        "ordinal": 1,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "bot_tokens",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "name": "device_id!: DeviceId",
+        "ordinal": 2,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "sessions",
+            "name": "device_id"
+          }
+        }
+      },
+      {
+        "name": "last_used_at",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "bot_tokens",
+            "name": "last_used_at"
+          }
+        }
+      },
+      {
+        "name": "connector_principal!: i64",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "connector_principal"
+          }
+        }
+      },
+      {
+        "name": "module_enabled: i64",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "installed_modules",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "name": "approved: Permissions",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "installed_modules",
+            "name": "connector_permissions"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "1a69e9e244196d6227eab13b95e2aae248ae6bf0936f462fc41879ff7b2222cd"
+}

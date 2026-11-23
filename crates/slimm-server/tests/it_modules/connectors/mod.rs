@@ -9,6 +9,7 @@ mod host_run_monitor;
 mod host_run_runs;
 mod host_run_world;
 mod install;
+mod route_walk;
 mod runs;
 mod runs_world;
 mod scope;

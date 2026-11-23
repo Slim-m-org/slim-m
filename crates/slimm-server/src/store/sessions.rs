@@ -62,6 +62,15 @@ pub struct SessionContext {
     pub user_id: UserId,
     pub session_id: SessionId,
     pub device_id: DeviceId,
+    /// Set only for a connector's token: whether its module is on, and what it was approved.
+    pub connector: Option<ConnectorGrant>,
+}
+
+/// What a connector's token was granted, read with the token itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ConnectorGrant {
+    pub enabled: bool,
+    pub cap: crate::permissions::Permissions,
 }
 
 /// Why opening a session failed.
@@ -258,6 +267,7 @@ impl Store {
             user_id: row.user_id,
             session_id: row.session_id,
             device_id: row.device_id,
+            connector: None,
         }))
     }
 
@@ -331,6 +341,7 @@ impl Store {
             user_id: claimed.user_id,
             session_id: claimed.session_id,
             device_id: claimed.device_id,
+            connector: None,
         }))
     }
 
