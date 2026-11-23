@@ -24,6 +24,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/reports_screen.dar
 import 'package:slimm_app/src/features/settings/screens/admin/roles_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/space_settings_screen.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_notice.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_panes_chrome.dart';
 import 'package:slimm_app/src/features/settings/screens/space_settings_section.dart'
     show spaceSettingsReachable;
 import 'package:slimm_design_system/design_system.dart';
@@ -295,5 +296,19 @@ void main() {
     await tester.tap(find.text('Who can join'));
     await tester.pumpAndSettle();
     expect(find.text('Anyone with the address'), findsOneWidget);
+  });
+
+  testWidgets('a pane that scrolls itself keeps a gap between title and tabs', (
+    tester,
+  ) async {
+    await _pump(tester, permissions: -1);
+    final title = tester.getRect(
+      find.descendant(
+        of: find.byType(SettingsPaneHeading),
+        matching: find.text('Reports'),
+      ),
+    );
+    final tabs = tester.getRect(find.byType(AppSegmentedControl).first);
+    expect(tabs.top - title.bottom, greaterThanOrEqualTo(AppSpacing.s16));
   });
 }

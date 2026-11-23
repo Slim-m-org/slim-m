@@ -150,6 +150,7 @@ class SettingsPaneBody extends StatelessWidget {
           ),
           child: _heading(context),
         ),
+        if (!pane.scrollable) const SizedBox(height: AppSpacing.s16),
         Expanded(
           child: pane.scrollable
               ? ListView(
