@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The stage fit (decision 0114): every tile inside the box and clear of the
-/// others, shares exactly at their aspect, cameras cropped at most 15% from
-/// the shape the stage gives them (3:4 on a portrait stage), and
+/// others, shares exactly at their aspect, cameras cropped at most 15%, and
 /// the owner's approved scenarios landing on the shapes they were shown with.
 library;
 
@@ -77,8 +76,7 @@ void main() {
 
       test('shares keep their aspect and cameras crop at most 15%', () {
         final fit = _fit(box, content, people);
-        final laidOut = stageLayoutItems(content, box.width, box.height);
-        for (final item in laidOut) {
+        for (final item in content) {
           final r = fit.items[item.id]!;
           if (item.kind == StageKind.share) {
             expect(r.width / r.height, closeTo(item.aspect, 0.005));
@@ -173,29 +171,13 @@ void main() {
     expect({for (final r in fit.people) r.top}, hasLength(1), reason: 'a row');
   });
 
-  test('on a phone the pinned share takes the width, little is left empty', () {
+  test('on a phone the shares stack and the cameras sit two by two', () {
     final fit = _fit(_phone, [..._shares(2), ..._cams(4)]);
+    final cams = [for (var i = 0; i < 4; i++) fit.items['c$i']!];
+    expect({for (final r in cams) r.top.round()}, hasLength(2));
+    expect({for (final r in cams) r.left.round()}, hasLength(2));
     expect(fit.items['s0']!.width, greaterThan(_phone.width * 0.8));
-    expect(fit.fill, greaterThan(0.8));
-    for (var i = 0; i < 4; i++) {
-      expect(fit.items['c$i']!.width, greaterThanOrEqualTo(96));
-    }
   });
-
-  test(
-    'on a portrait stage a camera and a person leave little dead height',
-    () {
-      for (final box in [_phone, const Size(358, 620), const Size(770, 900)]) {
-        final fit = _fit(box, _cams(1), 1);
-        final tiles = [...fit.items.values, ...fit.people];
-        final used = tiles.fold(0.0, (s, r) => s + r.height);
-        final free = box.height - used - _gap * (tiles.length - 1);
-        expect(free / box.height, lessThan(0.12), reason: '$box free $free');
-        final cam = fit.items['c0']!;
-        expect(cam.height, greaterThan(cam.width), reason: 'portrait camera');
-      }
-    },
-  );
 
   test('the pinned item is never smaller than another', () {
     for (final box in [_w1280, _w1920, _phone]) {

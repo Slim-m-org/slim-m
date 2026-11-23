@@ -50,9 +50,6 @@ A share is sized to its aspect, so it is never cropped and has no black bars.
 A camera may be cropped by at most 15% to line a row up with the box width, and never more.
 Aspects come from the track when known and fall back to 16:9.
 
-Amended 2026-11-23: on a portrait stage (taller than 1.1 times its width, a phone or tablet held upright) a camera lays out at 3:4 instead of its own aspect, so cameras fill the height a 16:9 tile left as dead bands.
-The camera view covers the tile (a portrait feed is not cropped); shares are unchanged and keep their aspect with no black bars.
-
 ### Audio-only people
 
 On a landscape stage at least 640px wide, up to four of them join the bento as one column at the content's right: 20% of the stage wide (160 to 320px), flush with the content's top, and stretched to its full height when there are several (never taller than 1.25 times their width).
