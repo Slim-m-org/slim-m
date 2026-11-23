@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.117.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.116.0...server-v0.117.0) (2026-11-23)
+
+
+### Features
+
+* connectors, live captions and marks, phone and web noise suppression, call stats ([#2469](https://github.com/Slim-m-org/slim-m/issues/2469)) ([4277658](https://github.com/Slim-m-org/slim-m/commit/42776581f2f3aaa97d3bc482a5a3d789a4c6d17e))
+
 ## [0.116.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.115.1...server-v0.116.0) (2026-11-22)
 
 
