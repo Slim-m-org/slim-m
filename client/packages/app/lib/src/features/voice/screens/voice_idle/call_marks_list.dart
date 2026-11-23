@@ -75,9 +75,6 @@ class _CallMarksListState extends ConsumerState<CallMarksList> {
     final moderator = ref
         .watch(myChannelPermissionsProvider(widget.channelId))
         .hasPermission(Perm.manageMessages);
-    final lines = ref.watch(
-      callTranscriptProvider(widget.transcriptId).select((m) => m.lines),
-    );
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.s12),
       child: Column(
@@ -93,7 +90,7 @@ class _CallMarksListState extends ConsumerState<CallMarksList> {
           for (final mark in model.marks)
             _MarkRow(
               mark: mark,
-              line: _lineText(lines, mark.lineSeq),
+              transcriptId: widget.transcriptId,
               onTap: mark.lineSeq == null ? null : () => _jump(mark),
               onDelete: mark.authorId == me || moderator
                   ? () => unawaited(_delete(mark))
@@ -106,10 +103,20 @@ class _CallMarksListState extends ConsumerState<CallMarksList> {
   }
 }
 
+/// The text of line [seq], found by search since lines are kept in seq order.
 String? _lineText(List<api.TranscriptLine> lines, int? seq) {
   if (seq == null) return null;
-  for (final line in lines) {
-    if (line.seq == seq) return line.text;
+  var low = 0;
+  var high = lines.length - 1;
+  while (low <= high) {
+    final mid = (low + high) >> 1;
+    final at = lines[mid].seq;
+    if (at == seq) return lines[mid].text;
+    if (at < seq) {
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
   }
   return null;
 }
@@ -117,15 +124,14 @@ String? _lineText(List<api.TranscriptLine> lines, int? seq) {
 class _MarkRow extends ConsumerWidget {
   const _MarkRow({
     required this.mark,
-    required this.line,
+    required this.transcriptId,
     required this.onTap,
     required this.onDelete,
   });
 
   final api.TranscriptMark mark;
 
-  /// The text of the line the mark points at, when it is loaded.
-  final String? line;
+  final String transcriptId;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
 
@@ -142,6 +148,11 @@ class _MarkRow extends ConsumerWidget {
     final time = formatClock(
       DateTime.fromMillisecondsSinceEpoch(mark.at),
       use24Hour: watchUse24Hour(ref, context),
+    );
+    final line = ref.watch(
+      callTranscriptProvider(
+        transcriptId,
+      ).select((m) => _lineText(m.lines, mark.lineSeq)),
     );
     final detail = mark.text ?? line;
     final note = mark.text != null;
