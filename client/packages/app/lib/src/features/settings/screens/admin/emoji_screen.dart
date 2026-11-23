@@ -49,7 +49,7 @@ class EmojiScreen extends StatelessWidget {
     backFallback: Routes.spaceSettings,
     actions: [
       EmojiCreateButton(),
-      SizedBox(width: AppSpacing.s8),
+      SizedBox(width: AppSpacing.s16),
     ],
     child: EmojiPane(),
   );
