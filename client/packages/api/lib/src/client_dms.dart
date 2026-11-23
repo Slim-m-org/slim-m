@@ -82,4 +82,8 @@ extension SlimmApiDms on SlimmApi {
   /// Leaves a group DM. The rest keep it; the last one out deletes it.
   Future<void> leaveGroupDirectMessage(String channelId) =>
       send('POST', '/dms/groups/$channelId/leave', expectNoContent: true);
+
+  /// Deletes a group DM for everyone in it; any participant may. Safe to repeat.
+  Future<void> deleteGroupDirectMessage(String channelId) =>
+      send('DELETE', '/dms/groups/$channelId', expectNoContent: true);
 }

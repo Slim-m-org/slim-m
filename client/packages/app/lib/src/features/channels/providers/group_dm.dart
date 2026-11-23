@@ -3,7 +3,7 @@
 ///
 /// The channel is an ordinary DM row in the local store, so messages, calls
 /// and sync need nothing here. What lives here is the roster: the default
-/// name, the four requests, and the live roster a members sheet reads.
+/// name, the five requests, and the live roster a members sheet reads.
 library;
 
 import 'dart:async';
@@ -115,6 +115,16 @@ Future<void> renameGroupDm(
 /// Leaves, then drops the local row so the rail does not wait for a refresh.
 Future<void> leaveGroupDm(ProviderContainer container, String channelId) async {
   await container.read(apiProvider).leaveGroupDirectMessage(channelId);
+  final store = await container.read(storeProvider.future);
+  await store.removeChannel(channelId);
+}
+
+/// Deletes the group for everyone, then drops the local row like [leaveGroupDm].
+Future<void> deleteGroupDm(
+  ProviderContainer container,
+  String channelId,
+) async {
+  await container.read(apiProvider).deleteGroupDirectMessage(channelId);
   final store = await container.read(storeProvider.future);
   await store.removeChannel(channelId);
 }

@@ -18,6 +18,9 @@ final deletedChannelsProvider = StateProvider<Map<String, String>>(
   (ref) => const {},
 );
 
+/// The deleted ids in [deletedChannelsProvider] that were group DMs, which are not "#" channels.
+final deletedGroupDmsProvider = StateProvider<Set<String>>((ref) => const {});
+
 /// Channels whose access was taken away this session, by id with their name,
 /// so a screen still showing one leaves saying so rather than as not found.
 final lostChannelsProvider = StateProvider<Map<String, String>>(
