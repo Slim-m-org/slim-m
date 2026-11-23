@@ -164,7 +164,7 @@ void main() {
     });
 
     testWidgets(
-      'a bot is one row of icon chips with its name at ${entry.key}',
+      'a bot is one row of icon chips under its name at ${entry.key}',
       (tester) async {
         final semantics = tester.ensureSemantics();
         final s = await pumpCallScreen(tester, entry.value);
@@ -179,9 +179,9 @@ void main() {
         expect(label, findsOneWidget);
         final name = tester.getRect(label);
         expect(
-          (name.center.dy - rects.first.center.dy).abs(),
-          lessThan(rects.first.height / 2),
-          reason: 'the name sits on the same row as the chips',
+          name.bottom,
+          lessThanOrEqualTo(rects.first.top),
+          reason: 'the name sits on its own line above the chips',
         );
         expect(find.text('Play or pause'), findsNothing, reason: 'icon only');
 

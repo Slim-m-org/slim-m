@@ -2,9 +2,9 @@
 /// Controls a bot puts in a call, shown in the call's dock only while that bot
 /// is on the call. See docs/decisions/0045-bot-contributed-ui.md.
 ///
-/// Every width gets the same shape (docs/design/desktop-vs-mobile.md, law 2:
-/// tokens and type never scale with width): a bot is one row, its name as a
-/// small label, then an icon chip per control, the same chip the call's own
+/// A bot is its name as a small label, beside its icon chips on a wide window
+/// and above them below the compact width (docs/design/desktop-vs-mobile.md,
+/// law 1), then an icon chip per control, the same chip the call's own
 /// controls use, labelled by tooltip and semantics. The chips grow to the
 /// touch floor by themselves and wrap rather than scroll. A control that
 /// offers options opens them as a menu, a sheet on a compact window, the same
