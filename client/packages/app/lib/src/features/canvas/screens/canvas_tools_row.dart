@@ -304,13 +304,17 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
         ),
       ),
       if (_fadeLeading)
-        Align(
-          alignment: Alignment.centerLeft,
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
           child: _edgeFade(tokens, leading: true),
         ),
       if (_fadeTrailing)
-        Align(
-          alignment: Alignment.centerRight,
+        Positioned(
+          right: 0,
+          top: 0,
+          bottom: 0,
           child: _edgeFade(tokens, leading: false),
         ),
     ],
