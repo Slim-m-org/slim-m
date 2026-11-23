@@ -17,6 +17,6 @@ impl FromRequestParts<AppState> for PendingKey {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        Ok(Self(limit_key(parts, None, state.limiter.trusted_hops())))
+        Ok(Self(limit_key(parts, None, &state.limiter)))
     }
 }

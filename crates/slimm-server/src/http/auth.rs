@@ -327,7 +327,7 @@ async fn login(
 
     let credentials = state.store.find_credentials(&req.username).await?;
     // Keyed like the limiter, so a stranger's guesses only throttle the stranger.
-    let source = limit_key(&parts, None, state.limiter.trusted_hops());
+    let source = limit_key(&parts, None, &state.limiter);
     // A throttled account still runs the decoy and answers like a wrong password.
     let throttled = match &credentials {
         Some((user_id, _)) => state.store.login_throttled(*user_id, &source).await?,

@@ -96,26 +96,25 @@ pub enum Kind {
 pub struct Head {
     pub target: HostPort,
     pub connect: bool,
-    pub upstream_head: Vec<u8>,
+    pub upstream: Origin,
 }
 
-/// `CONNECT host:port` tunnels; `METHOD http://host[:port]/path` forwards in origin form,
-/// without the proxy's own headers.
+/// A request head rebuilt in origin form, and whether it asks to upgrade the connection.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Origin {
+    pub head: Vec<u8>,
+    pub upgrade: bool,
+}
+
+/// `CONNECT host:port` tunnels; `METHOD http://host[:port]/path` forwards in origin form.
 pub fn parse_head(head: &[u8]) -> Result<Head, &'static str> {
-    let text = std::str::from_utf8(head).map_err(|_| "the request head is not UTF-8")?;
-    let mut lines = text.split("\r\n");
-    let request_line = lines.next().ok_or("empty request")?;
-    let mut parts = request_line.split(' ');
-    let (method, target, version) = match (parts.next(), parts.next(), parts.next(), parts.next()) {
-        (Some(m), Some(t), Some(v), None) if v.starts_with("HTTP/1.") => (m, t, v),
-        _ => return Err("malformed request line"),
-    };
+    let (method, target, version, headers) = request_line(head)?;
     if method == "CONNECT" {
         let target = HostPort::parse(target).ok_or("CONNECT needs host:port")?;
         return Ok(Head {
             target,
             connect: true,
-            upstream_head: Vec::new(),
+            upstream: Origin::default(),
         });
     }
     let rest = target
@@ -130,24 +129,69 @@ pub fn parse_head(head: &[u8]) -> Result<Head, &'static str> {
     let target = HostPort::parse(authority)
         .or_else(|| HostPort::parse(&format!("{authority}:80")))
         .ok_or("bad host in the URL")?;
-    let mut upstream = format!("{method} {path} {version}\r\n");
-    for line in lines {
-        let name = line
-            .split(':')
-            .next()
-            .unwrap_or_default()
-            .to_ascii_lowercase();
-        if !name.starts_with("proxy-") {
-            upstream.push_str(line);
-            upstream.push_str("\r\n");
-        }
-    }
-    let upstream = upstream.trim_end_matches("\r\n").to_owned() + "\r\n\r\n";
     Ok(Head {
         target,
         connect: false,
-        upstream_head: upstream.into_bytes(),
+        upstream: origin(method, path, version, &headers),
     })
+}
+
+/// The first request inside a CONNECT tunnel to the server, which is plain HTTP in origin form.
+pub fn parse_tunnelled_head(head: &[u8]) -> Result<Origin, &'static str> {
+    let (method, path, version, headers) = request_line(head)?;
+    if method == "CONNECT" || !path.starts_with('/') {
+        return Err("a tunnel to the server carries one origin-form HTTP request");
+    }
+    Ok(origin(method, path, version, &headers))
+}
+
+fn request_line(head: &[u8]) -> Result<(&str, &str, &str, Vec<&str>), &'static str> {
+    let text = std::str::from_utf8(head).map_err(|_| "the request head is not UTF-8")?;
+    let mut lines = text.split("\r\n");
+    let request_line = lines.next().ok_or("empty request")?;
+    let mut parts = request_line.split(' ');
+    match (parts.next(), parts.next(), parts.next(), parts.next()) {
+        (Some(m), Some(t), Some(v), None) if v.starts_with("HTTP/1.") => {
+            Ok((m, t, v, lines.collect()))
+        }
+        _ => Err("malformed request line"),
+    }
+}
+
+/// Headers a connector could claim another address with, and hop-by-hop ones the gateway sets.
+fn dropped(name: &str) -> bool {
+    name.starts_with("proxy-")
+        || name.starts_with("x-forwarded-")
+        || matches!(
+            name,
+            "forwarded" | "x-real-ip" | "connection" | "keep-alive"
+        )
+}
+
+/// One request per connection: `Connection: close` unless it is an upgrade, so no later
+/// request on the stream can skip this filter.
+fn origin(method: &str, path: &str, version: &str, headers: &[&str]) -> Origin {
+    let mut out = format!("{method} {path} {version}\r\n");
+    let mut upgrade = false;
+    for line in headers.iter().filter(|l| !l.is_empty()) {
+        let (name, value) = line.split_once(':').unwrap_or((line, ""));
+        let name = name.trim().to_ascii_lowercase();
+        if dropped(&name) {
+            continue;
+        }
+        upgrade |= name == "upgrade" && !value.trim().is_empty();
+        out.push_str(line);
+        out.push_str("\r\n");
+    }
+    out.push_str(if upgrade {
+        "Connection: Upgrade\r\n\r\n"
+    } else {
+        "Connection: close\r\n\r\n"
+    });
+    Origin {
+        head: out.into_bytes(),
+        upgrade,
+    }
 }
 
 #[cfg(test)]
@@ -245,8 +289,8 @@ mod tests {
         let head = parse_head(b"GET http://server:8080/connectors/me HTTP/1.1\r\nHost: server:8080\r\nProxy-Connection: keep-alive").unwrap();
         assert_eq!(head.target, HostPort::new("server", 8080));
         assert_eq!(
-            head.upstream_head,
-            b"GET /connectors/me HTTP/1.1\r\nHost: server:8080\r\n\r\n"
+            head.upstream.head,
+            b"GET /connectors/me HTTP/1.1\r\nHost: server:8080\r\nConnection: close\r\n\r\n"
         );
         assert_eq!(
             parse_head(b"GET http://x.com HTTP/1.1").unwrap().target,
@@ -261,6 +305,30 @@ mod tests {
         ] {
             assert!(parse_head(bad).is_err(), "{}", String::from_utf8_lossy(bad));
         }
+    }
+
+    /// M1: a connector must not choose the address the server keys it by.
+    #[test]
+    fn forwarding_headers_and_keep_alive_never_reach_upstream() {
+        let head = parse_head(
+            b"POST http://server:8080/auth/login HTTP/1.1\r\nHost: server:8080\r\nX-Forwarded-For: 1.2.3.4\r\nforwarded: for=1.2.3.4\r\nX-Real-IP: 1.2.3.4\r\nX-Forwarded-Proto: https\r\nConnection: keep-alive\r\nKeep-Alive: timeout=5\r\nContent-Length: 2",
+        )
+        .unwrap();
+        assert_eq!(
+            String::from_utf8(head.upstream.head).unwrap(),
+            "POST /auth/login HTTP/1.1\r\nHost: server:8080\r\nContent-Length: 2\r\nConnection: close\r\n\r\n"
+        );
+        let inner = parse_tunnelled_head(
+            b"GET /ws HTTP/1.1\r\nHost: server:8080\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nX-Forwarded-For: 9.9.9.9",
+        )
+        .unwrap();
+        assert!(inner.upgrade);
+        assert_eq!(
+            String::from_utf8(inner.head).unwrap(),
+            "GET /ws HTTP/1.1\r\nHost: server:8080\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+        );
+        assert!(parse_tunnelled_head(b"GET http://server:8080/ HTTP/1.1").is_err());
+        assert!(parse_tunnelled_head(b"CONNECT x:1 HTTP/1.1").is_err());
     }
 
     #[test]

@@ -24,7 +24,7 @@ mod lan;
 
 #[doc(hidden)]
 pub use lan::treat_loopback_as_lan_for_tests;
-pub use lan::{LanGuardResolver, OwnAddresses, allowed_with_local_approval};
+pub use lan::{Cidr, LanGuardResolver, OwnAddresses, allowed_with_local_approval};
 
 /// The reqwest DNS resolver that fails a whole request closed if any address
 /// the name resolves to is blocked. `allow_private` lets a test reach the

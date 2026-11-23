@@ -135,6 +135,7 @@ async fn a_connector_reaches_no_host_address_and_sends_no_dns_out() {
         "SLIMM_PROBE_TARGETS_URL": format!("http://{}:8080/targets", stage.server_name),
         "SLIMM_PROBE_HTTP": format!("http://{}:8080/ok", stage.server_name),
         "SLIMM_PROBE_DNS": format!("example.com {unique}"),
+        "SLIMM_PROBE_FORGE": format!("{}:8080", stage.server_name),
     });
     create(
         &client,
@@ -191,6 +192,13 @@ async fn a_connector_reaches_no_host_address_and_sends_no_dns_out() {
         gateways.is_empty(),
         "the connector network must give the host no address on it: {gateways:?}"
     );
+    for kind in ["plain", "tunnel"] {
+        assert_eq!(
+            line(&lines, &format!("forge {kind} =>")),
+            format!("forge {kind} => seen=1 forged=0"),
+            "the server must never see a forwarding header a connector wrote: {lines:?}"
+        );
+    }
     let control = (
         lookup_from(&stage.egress_network, "example.com", &stage),
         lookup_from(&stage.egress_network, &unique, &stage),

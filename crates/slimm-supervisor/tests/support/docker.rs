@@ -83,7 +83,11 @@ impl Stage {
             &label,
             &stage.egress_network,
         ]);
-        let serve = "mkdir -p /www && echo server-ok > /www/ok && exec httpd -f -p 8080 -h /www";
+        let serve = concat!(
+            "mkdir -p /www/cgi-bin && echo server-ok > /www/ok && ",
+            "printf '#!/bin/sh\\necho Content-Type: text/plain\\necho\\nenv | grep ^HTTP_\\n' > /www/cgi-bin/h && ",
+            "chmod +x /www/cgi-bin/h && exec httpd -f -p 8080 -h /www"
+        );
         docker(&[
             "run",
             "-d",

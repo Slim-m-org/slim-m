@@ -180,7 +180,9 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
         trust_proxy_hops = config.trust_proxy_hops,
         "rate limits key on the TCP peer unless SLIMM_TRUST_PROXY_HOPS names the proxies in front"
     );
-    let limiter = ratelimit::RateLimiter::with_trusted_hops(config.trust_proxy_hops);
+    let proxies = ratelimit::ProxyTrust::from_setting(config.trusted_proxies.as_deref())
+        .map_err(anyhow::Error::msg)?;
+    let limiter = ratelimit::RateLimiter::with_proxy_trust(config.trust_proxy_hops, proxies);
     let push = push::PushSender::new(&config)?;
     let voice = voice::VoiceService::new(&config)?;
     voice_session_sweeps::reconcile_on_startup(&store, &voice).await;

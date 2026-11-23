@@ -25,7 +25,9 @@ mod capacity;
 mod class;
 mod class_label;
 mod peek;
+mod proxy_trust;
 pub use class::Class;
+pub use proxy_trust::{DEFAULT_TRUSTED_PROXIES, ProxyTrust};
 
 /// Most distinct keys tracked at once, across all classes.
 const MAX_BUCKETS: usize = 20_000;
@@ -69,6 +71,7 @@ pub struct RetryAfter(pub u64);
 pub struct RateLimiter {
     state: Arc<Mutex<State>>,
     trusted_hops: usize,
+    proxies: ProxyTrust,
 }
 
 impl Default for RateLimiter {
@@ -86,6 +89,11 @@ impl RateLimiter {
     /// unauthenticated caller. Zero, the default, trusts none and keys on the
     /// TCP peer; see [`RateLimiter::trusted_hops`].
     pub fn with_trusted_hops(trusted_hops: usize) -> Self {
+        Self::with_proxy_trust(trusted_hops, ProxyTrust::default())
+    }
+
+    /// [`RateLimiter::with_trusted_hops`], believing the forwarded header only from `proxies`.
+    pub fn with_proxy_trust(trusted_hops: usize, proxies: ProxyTrust) -> Self {
         Self {
             state: Arc::new(Mutex::new(State {
                 buckets: HashMap::new(),
@@ -94,6 +102,7 @@ impl RateLimiter {
                 counts: HashMap::new(),
             })),
             trusted_hops,
+            proxies,
         }
     }
 
@@ -111,6 +120,11 @@ impl RateLimiter {
     /// request distinguishes a proxy the operator runs from one they do not.
     pub fn trusted_hops(&self) -> usize {
         self.trusted_hops
+    }
+
+    /// The peers whose forwarded header is believed at all; see [`ProxyTrust`].
+    pub fn trusted_proxies(&self) -> &ProxyTrust {
+        &self.proxies
     }
 
     /// Takes one token for `key` in `class`, returning false if the caller is
