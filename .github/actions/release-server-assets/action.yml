@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# GPG_PRIVATE_KEY and GPG_PASSPHRASE come from the calling job's env and are optional; secrets and needs are not readable here, so the rest arrive as inputs.
+name: release server assets
+description: Checksum the per-arch server binaries, sign the checksums when a key is set, and attach them to the server release.
+
+inputs:
+  tag:
+    description: server release tag, from release-please's server_tag output
+    required: true
+  gh_token:
+    description: token that attaches assets to the release
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      with:
+        pattern: server-binary-*
+        path: dist
+        merge-multiple: true
+        if-no-files-found: error
+
+    - name: checksums
+      shell: "bash -e {0}"
+      working-directory: dist
+      run: sha256sum -- * > SHA256SUMS
+
+    - name: sign checksums (optional)
+      if: env.GPG_PRIVATE_KEY != ''
+      shell: "bash -e {0}"
+      working-directory: dist
+      run: |
+        echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+        gpg --batch --pinentry-mode loopback --passphrase-fd 0 <<< "$GPG_PASSPHRASE" \
+          --armor --detach-sign --output SHA256SUMS.asc SHA256SUMS
+
+    # Retried, and fails when a required file is missing; scripts/upload-release-assets.sh.
+    - name: attach to the github release
+      shell: "bash -e {0}"
+      env:
+        GH_TOKEN: ${{ inputs.gh_token }}
+        TAG: ${{ inputs.tag }}
+      run: scripts/upload-release-assets.sh "$TAG" 'dist/slimm-server-*' dist/SHA256SUMS '?dist/SHA256SUMS.asc'
