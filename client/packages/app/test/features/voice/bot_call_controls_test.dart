@@ -355,4 +355,20 @@ void main() {
       await answer(tester, h.events, requests);
     });
   });
+
+  testWidgets('on a phone the name sits above one row of chips', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _pump(tester, [], width: 320, bots: const [_jellyfin]);
+    final name = tester.getRect(find.text('Jellyfin'));
+    final tops = {
+      for (final label in ['Previous', 'Pause', 'Skip', 'Stop'])
+        tester.getRect(find.byTooltip(label)).top,
+    };
+    expect(tops, hasLength(1), reason: 'the chips share one line');
+    expect(tops.single, greaterThanOrEqualTo(name.bottom));
+  });
 }
