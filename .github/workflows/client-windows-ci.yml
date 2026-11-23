@@ -37,7 +37,7 @@ on:
         type: boolean
         default: false
       version:
-        description: "Version the tester build reports (VERSION file and setup name)"
+        description: "Version the tester build reports (VERSION file, setup name and, unless 0.0.0, the app itself)"
         type: string
         default: "0.0.0"
 
@@ -144,11 +144,23 @@ jobs:
         working-directory: client
         run: flutter pub get --enforce-lockfile
 
-      # Mirrors desktop-clients.yml's windows job, minus the release upload.
+      # Mirrors desktop-clients.yml's windows job minus the upload; a given version also names the app (title bar, About, zip hand-over).
       - name: flutter build windows --release
         working-directory: client/packages/app
         shell: pwsh
-        run: flutter build windows --release
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          $name = @()
+          if ($env:VERSION -ne '0.0.0') {
+            if ($env:VERSION -notmatch '^\d+\.\d+\.\d+$') {
+              Write-Error "version must be MAJOR.MINOR.PATCH, got '$env:VERSION'"
+              exit 1
+            }
+            $name = @("--build-name=$env:VERSION")
+          }
+          flutter build windows --release @name
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: build the launcher
         shell: pwsh

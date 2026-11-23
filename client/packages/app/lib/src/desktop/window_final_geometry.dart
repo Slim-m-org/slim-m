@@ -11,7 +11,9 @@ import 'window_geometry_store.dart';
 /// What the handoff reveal must wait for: a windowed size, or a display fill.
 typedef HandoffTarget = ({WindowSize? size, bool fillsDisplay});
 
-/// Hides the window, then applies the saved geometry while nothing is visible.
+/// Hides the window, then applies the saved geometry while nothing is visible;
+/// with [hideFirst] off it resizes in place, for an embedder that holds the
+/// resize until a frame of the new size is drawn (Windows).
 ///
 /// [onTarget] fires before the maximize or fullscreen await, so a call that
 /// hangs past the startup timeout still leaves the reveal its target.
@@ -24,8 +26,9 @@ Future<void> applyFinalGeometry(
   WindowGeometryStore store, {
   required bool positionSupported,
   required void Function(HandoffTarget target) onTarget,
+  bool hideFirst = true,
 }) async {
-  await port.hide();
+  if (hideFirst) await port.hide();
 
   final saved = store.read() ?? WindowGeometry.fallback;
   final displays = await port.allDisplays();

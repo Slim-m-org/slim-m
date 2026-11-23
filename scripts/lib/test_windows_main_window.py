@@ -55,7 +55,7 @@ class PluginsWaitForTheWindow(unittest.TestCase):
         window = strip_c_comments((RUNNER_DIR / "main_window.cpp").read_text())
         serve = window[window.index("void ServeMainWindowReady("):]
         self.assertIn("RegisterTopLevelWindowProcDelegate(", serve)
-        self.assertIn("DWMWA_CLOAK", window)
+        self.assertIn("SWP_SHOWWINDOW", window)
         # A reveal waits for a drawn frame; uncloaking at once showed a black window.
         self.assertIn("SetNextFrameCallback(", window)
 
@@ -71,7 +71,7 @@ class DartAndRunnerAgree(unittest.TestCase):
         channel = "top.npcserver.slimm/main_window"
         self.assertIn(f'"{channel}"', window)
         self.assertIn(f"MethodChannel('{channel}')", dart)
-        for call in ("ready", "reveal", "conceal"):
+        for call in ("ready", "reveal"):
             self.assertIn(f'method == "{call}"', window)
             self.assertIn(f"invokeMethod<void>('{call}')", dart)
 

@@ -35,7 +35,7 @@ namespace {
 
 constexpr int kCornerPreferenceRound = 2;  // DWMWCP_ROUND
 
-// Shows the window anyway if Dart never asks, or no frame follows its ask, so it cannot stay cloaked.
+// Shows the window anyway if Dart never asks, or no frame follows its ask, so it cannot stay hidden.
 constexpr UINT_PTR kRevealTimer = 0x534C;
 constexpr UINT kRevealDeadlineMs = 15000;
 constexpr UINT kFrameDeadlineMs = 1000;
@@ -49,29 +49,26 @@ flutter::FlutterEngine* g_engine = nullptr;
 std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> g_channel;
 HWND g_window = nullptr;
 bool g_revealed = false;
-// Tells a frame callback from a reveal that a later conceal has overtaken.
-unsigned g_reveal_request = 0;
+bool g_shown = false;
 
-void SetCloaked(HWND window, bool cloaked) {
-  const BOOL value = cloaked ? TRUE : FALSE;
-  ::DwmSetWindowAttribute(window, DWMWA_CLOAK, &value, sizeof(value));
-}
-
-void Uncloak(unsigned request) {
-  if (request != g_reveal_request || g_window == nullptr) return;
+/// Shows the main window as the old runner did on its first frame: a plain
+/// ShowWindow from this thread, so it is activated as a fresh launch's first
+/// window is.
+void ShowMainWindow() {
+  if (g_shown || g_window == nullptr) return;
+  g_shown = true;
   ::KillTimer(g_window, kRevealTimer);
-  SetCloaked(g_window, false);
-  if (::IsWindowVisible(g_window)) ::SetForegroundWindow(g_window);
+  ::ShowWindow(g_window, SW_SHOWNORMAL);
+  ::SetForegroundWindow(g_window);
 }
 
-/// Uncloaks once the next frame is drawn, as the old runner showed its window,
-/// so the first thing seen is a painted frame at the window's current size.
+/// Shows the window once the next frame is drawn, so what appears is a
+/// painted frame at the window's current size, never an empty one.
 void RequestReveal() {
   if (g_revealed) return;
   g_revealed = true;
   if (g_window == nullptr) return;
-  const unsigned request = ++g_reveal_request;
-  g_engine->SetNextFrameCallback([request] { Uncloak(request); });
+  g_engine->SetNextFrameCallback([] { ShowMainWindow(); });
   ::SetTimer(g_window, kRevealTimer, kFrameDeadlineMs, nullptr);
   const HWND content =
       ::FindWindowExW(g_window, nullptr, L"FLUTTERVIEW", nullptr);
@@ -80,34 +77,29 @@ void RequestReveal() {
   }
 }
 
-void Conceal() {
-  g_revealed = false;
-  ++g_reveal_request;
-  if (g_window == nullptr) return;
-  SetCloaked(g_window, true);
-  ::SetTimer(g_window, kRevealTimer, kRevealDeadlineMs, nullptr);
-}
-
 /// The engine shows a window on its first frame, before window_manager has
-/// sized it or taken its title bar; the main window is cloaked from then
-/// until Dart's `reveal`, so the user first sees the finished splash.
-void CloakFirstShow(HWND window, LPARAM lparam) {
-  const auto* change = reinterpret_cast<const WINDOWPOS*>(lparam);
-  if ((change->flags & SWP_SHOWWINDOW) != 0) SetCloaked(window, true);
+/// sized it or taken its title bar; until Dart's `reveal` the main window's
+/// show is dropped, so the user first sees the finished splash.
+void HoldFirstShow(LPARAM lparam) {
+  auto* change = reinterpret_cast<WINDOWPOS*>(lparam);
+  if ((change->flags & SWP_SHOWWINDOW) == 0) return;
+  // A hidden window must not take activation either, or the launch's foreground right is spent on it.
+  change->flags = (change->flags & ~static_cast<UINT>(SWP_SHOWWINDOW)) |
+                  SWP_NOACTIVATE;
 }
 
 std::optional<LRESULT> HandleTopLevelMessage(HWND window, UINT message,
                                              WPARAM wparam, LPARAM lparam) {
   // Until Dart reports the main window, the only window there is is that one.
   const bool is_main = g_window == nullptr || window == g_window;
-  if (is_main && !g_revealed && message == WM_WINDOWPOSCHANGING) {
-    CloakFirstShow(window, lparam);
+  if (is_main && !g_shown && message == WM_WINDOWPOSCHANGING) {
+    HoldFirstShow(lparam);
   }
   if (g_window == nullptr) return std::nullopt;
   if (!is_main) return HandlePopOutMessage(window, message, wparam, lparam);
   if (message == WM_TIMER && wparam == kRevealTimer) {
     g_revealed = true;
-    Uncloak(g_reveal_request);
+    ShowMainWindow();
     return 0;
   }
   if (message == WM_COPYDATA && OnForwardedLink(lparam)) return TRUE;
@@ -172,8 +164,6 @@ void HandleCall(const flutter::MethodCall<flutter::EncodableValue>& call,
     }
   } else if (method == "reveal") {
     RequestReveal();
-  } else if (method == "conceal") {
-    Conceal();
   } else {
     result->NotImplemented();
     return;

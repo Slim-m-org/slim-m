@@ -66,8 +66,8 @@ class DesktopWindowShell {
   /// and maximizes through; the native listener must be registered only once.
   final DesktopWindowPort port;
 
-  /// The main window Dart created, on Windows: held cloaked by the runner
-  /// until [lockSplashChrome], and cloaked over the handoff's resize.
+  /// The main window Dart created, on Windows: held hidden by the runner
+  /// until [lockSplashChrome] reveals the finished splash.
   NativeMainWindow? nativeWindow;
 
   /// How long a native window or tray call may take before startup proceeds
@@ -240,8 +240,9 @@ class DesktopWindowShell {
   }
 
   /// Hides the window, then applies the real saved-or-default geometry while
-  /// nothing is on screen to see it change. Pair with [revealAfterHandoff],
-  /// called once the real UI has painted.
+  /// nothing is on screen to see it change; on Windows it grows in place (see
+  /// [_applyFinalGeometry]). Pair with [revealAfterHandoff], called once the
+  /// real UI has painted.
   ///
   /// Bounded and swallowed like [applyInitialGeometry], so a hang here cannot
   /// strand the app hidden. Persistence stays off until the reveal settles.
@@ -273,14 +274,22 @@ class DesktopWindowShell {
     }
   }
 
+  /// On Windows the window grows in place: the engine holds a resize until a
+  /// frame of the new size is drawn, so the splash goes straight to the full
+  /// window with nothing hidden in between.
   Future<void> _applyFinalGeometry(ProviderContainer container) async {
     final prefs = await container.read(preferencesProvider.future);
+    final inPlace =
+        (_chromePlatform ?? currentDesktopPlatform()) ==
+        DesktopPlatform.windows;
+    final inset = inPlace ? splashFrameInset(currentViewSize()) : null;
     await applyFinalGeometry(
       port,
       WindowGeometryStore(prefs),
       positionSupported: _positionSupported(),
+      hideFirst: !inPlace,
       onTarget: (target) {
-        _handoffTargetSize = target.size;
+        _handoffTargetSize = viewSizeFor(target.size, inset);
         _handoffFillsDisplay = target.fillsDisplay;
       },
     );
@@ -300,26 +309,6 @@ class DesktopWindowShell {
   }
 
   Future<void> _reveal() async {
-    final window = nativeWindow;
-    if (window == null) return _showAfterHandoff();
-    try {
-      await window.conceal();
-    } catch (error, stack) {
-      AppLog.swallowed(
-        LogTag.platform,
-        'Could not cloak the window',
-        error,
-        stack,
-      );
-    }
-    try {
-      await _showAfterHandoff();
-    } finally {
-      await _revealNativeWindow();
-    }
-  }
-
-  Future<void> _showAfterHandoff() async {
     try {
       await port.show();
     } catch (error, stack) {

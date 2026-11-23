@@ -97,15 +97,12 @@ class _Win32MainWindow
   @override
   VoidCallback? onCloseRequested;
 
-  /// The runner uncloaks on the next drawn frame, so one is asked for here.
+  /// The runner shows the window on the next drawn frame, so one is asked for.
   @override
   Future<void> reveal() async {
     await _mainWindowChannel.invokeMethod<void>('reveal');
     SchedulerBinding.instance.scheduleForcedFrame();
   }
-
-  @override
-  Future<void> conceal() => _mainWindowChannel.invokeMethod<void>('conceal');
 
   @override
   void onWindowCloseRequested(RegularWindowController controller) {

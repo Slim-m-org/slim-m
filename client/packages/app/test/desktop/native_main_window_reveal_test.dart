@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// On Windows the runner holds the main window cloaked from its first frame,
-/// so the user never sees it before the splash is sized and frameless, and the
-/// handoff cloaks it again while it takes its real size.
+/// On Windows the runner holds the main window hidden from its first frame
+/// until the splash is sized and frameless, and the handoff then grows the
+/// window in place instead of hiding it.
 library;
 
 import 'dart:async';
 
-import 'package:flutter/widgets.dart' show VoidCallback;
+import 'package:flutter/widgets.dart' show Size, VoidCallback;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/desktop/window_geometry.dart';
+import 'package:slimm_app/src/desktop/window_view_size.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/close_behavior.dart';
 import 'package:slimm_app/src/desktop/popout/popout_windowing.dart';
@@ -27,10 +32,6 @@ class _FakeMainWindow implements NativeMainWindow {
   Future<void> reveal() async => steps.add(
     'reveal (title bar hidden ${port.hideTitleBarCalls}, shown ${port.showCalls})',
   );
-
-  @override
-  Future<void> conceal() async =>
-      steps.add('conceal (shown ${port.showCalls})');
 }
 
 /// Pumps frames until [work], which waits on frames of its own, is done.
@@ -41,6 +42,12 @@ Future<void> _settle(WidgetTester tester, Future<void> work) async {
     await tester.pump(const Duration(milliseconds: 16));
   }
   expect(done, isTrue);
+}
+
+ProviderContainer _container() {
+  final container = ProviderContainer();
+  addTearDown(container.dispose);
+  return container;
 }
 
 void main() {
@@ -57,19 +64,42 @@ void main() {
     expect(window.steps, ['reveal (title bar hidden 1, shown 0)']);
   });
 
-  testWidgets('the handoff is cloaked from before the show until it painted', (
+  testWidgets('on Windows the handoff grows the window in place', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues({});
     final port = FakeDesktopWindowPort();
-    final window = _FakeMainWindow(port);
-    final shell = shellFor(port, chrome: DesktopPlatform.windows)
-      ..nativeWindow = window;
+    final shell = shellFor(port, chrome: DesktopPlatform.windows);
 
-    await _settle(tester, shell.revealAfterHandoff());
+    await _settle(tester, shell.prepareHandoff(_container()));
 
-    expect(window.steps, [
-      'conceal (shown 0)',
-      'reveal (title bar hidden 0, shown 1)',
-    ]);
+    expect(port.hideCalls, 0);
+    expect(port.lastSize, isNotNull);
+  });
+
+  testWidgets('elsewhere the handoff still hides the window first', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final port = FakeDesktopWindowPort();
+    final shell = shellFor(port, chrome: DesktopPlatform.linux);
+
+    await _settle(tester, shell.prepareHandoff(_container()));
+
+    expect(port.hideCalls, 1);
+  });
+
+  test('a frameless Windows view is measured against its borders', () {
+    final inset = splashFrameInset(const Size(344, 252));
+    expect(inset?.width, 16);
+    expect(inset?.height, 8);
+    final view = viewSizeFor(const WindowSize(width: 1280, height: 720), inset);
+    expect(view?.width, 1264);
+    expect(view?.height, 712);
+  });
+
+  test('a view that is not a splash gives no inset', () {
+    expect(splashFrameInset(const Size(800, 600)), isNull);
+    expect(splashFrameInset(null), isNull);
   });
 }
