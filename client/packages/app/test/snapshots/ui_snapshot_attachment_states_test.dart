@@ -29,7 +29,7 @@ void main() {
       tester.view.physicalSize = entry.value;
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
-      final edge = entry.key == 'phone' ? 171.0 : 188.0;
+      final edge = entry.key == 'phone' ? 177.0 : 188.0;
       Widget loading(double? e) => AttachmentLoadingBox(
         filename: 'photo-b.jpeg',
         width: 380,
