@@ -7,8 +7,8 @@ noise suppression refused (e2e_audio_js.RAW_CAPTURE), so everything else on
 the path, including auto gain, is identical. Alice's in-page analyser then
 measures what each sender sounds like after the SFU.
 
-The web client has the browser's suppression only: the rnnoise "Strong" mode
-is a native desktop capture chain and is measured separately.
+The app arm also runs the capture chain's gate at its default threshold;
+Strong and the gate are measured on their own in e2e_voice_noise_chain.py.
 
 The thresholds carry the numbers they were set from, beside them below.
 """
