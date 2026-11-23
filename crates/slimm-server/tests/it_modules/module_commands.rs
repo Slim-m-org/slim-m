@@ -291,7 +291,8 @@ async fn the_wasm_receives_an_opaque_caller_id_and_nothing_else() {
 
     let (id, _entropy) = echoed
         .strip_prefix("{'command':'run','input':'hi','caller':{'id':'")
-        .and_then(|rest| rest.split_once("'},'entropy':'"))
+        .and_then(|rest| rest.split_once("','name':'"))
+        .and_then(|(id, rest)| Some((id, rest.split_once("'},'entropy':'")?.1)))
         .unwrap_or_else(|| panic!("the request carries more than it should: {echoed}"));
     assert_eq!(id.len(), 64);
     assert!(id.chars().all(|c| c.is_ascii_hexdigit()));
@@ -304,7 +305,11 @@ async fn the_wasm_receives_an_opaque_caller_id_and_nothing_else() {
         "the id can be recomputed from the module id and a user id anybody can list"
     );
     assert!(!echoed.contains(&member.id.to_string()));
-    assert!(!echoed.contains("Nia"));
+    assert!(
+        echoed.contains("'name':'Nia'"),
+        "the display name is sent: {echoed}"
+    );
+    assert!(!echoed.contains("nia"), "the username is not: {echoed}");
 }
 
 /// A module has no clock and no random source, so a command whose answer is

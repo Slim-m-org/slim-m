@@ -440,14 +440,14 @@ impl Store {
         Ok(())
     }
 
-    /// The explicit DM authorization check that [`Store::permissions_in_channel`]
+    /// [`Store::dm_permissions`] before a connector's ceiling. The DM check [`Store::permissions_in_channel`]
     /// delegates to for a `dm`-kind channel, instead of running the ordinary
     /// role/overwrite evaluator. A caller outside the pair gets
     /// [`Permissions::NONE`] regardless of any role they hold -
     /// `ADMINISTRATOR` included, since that bypass belongs to the
     /// deployment's own channels, not to a conversation between two
     /// specific people who happen to be on it.
-    pub(crate) async fn dm_permissions(
+    pub(in crate::store) async fn dm_grant(
         &self,
         user_id: UserId,
         channel_id: ChannelId,

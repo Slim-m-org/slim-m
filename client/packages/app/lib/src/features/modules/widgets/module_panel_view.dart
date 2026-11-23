@@ -92,9 +92,16 @@ class _ModulePanelViewState extends ConsumerState<ModulePanelView> {
       );
     }
     if (run?.error case final error?) {
-      return AppErrorState(
-        message: error,
-        onRetry: () => unawaited(_runs.open(panel, retry: true)),
+      // Top-aligned: the pane's tight height would otherwise stretch the outline to fill it.
+      return Padding(
+        padding: const EdgeInsets.all(AppSpacing.s12),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: AppErrorState(
+            message: error,
+            onRetry: () => unawaited(_runs.open(panel, retry: true)),
+          ),
+        ),
       );
     }
     return const Center(child: AppSpinner(size: AppSpinnerSize.md));

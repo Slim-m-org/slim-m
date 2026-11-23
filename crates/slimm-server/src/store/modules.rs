@@ -15,7 +15,10 @@
 use self::module_artifacts::store_module_artifact_tx;
 use super::Store;
 use crate::ids::{ChannelId, UserId};
+use crate::permissions::Permissions;
 
+mod connector_host_run;
+mod connectors;
 pub(super) mod hooks;
 pub(super) mod module_artifacts;
 mod module_call_audio;
@@ -30,6 +33,8 @@ pub(super) mod module_timers;
 pub(super) mod platform;
 
 use self::module_metadata::insert_module_metadata;
+pub use connector_host_run::{EgressHost, HostRun, HostRunSpec};
+pub use connectors::{ConnectorInstall, InstalledConnector};
 pub use hooks::{HookChange, HookDecl, HookKind, ModuleHook};
 pub use module_timers::{DueTimer, TimerSpec};
 use platform::write_platform;
@@ -75,6 +80,15 @@ pub struct InstalledModule {
     pub data_schema: serde_json::Value,
     pub settings_schema: Vec<ModuleSettingDef>,
     pub slots: Vec<ModuleSlot>,
+    /// What the admin approved for a connector's token; `None` for a WASM module.
+    pub connector_permissions: Option<Permissions>,
+}
+
+impl InstalledModule {
+    /// Whether its logic is an external program holding a bot token (decision 0090).
+    pub fn is_connector(&self) -> bool {
+        self.connector_permissions.is_some()
+    }
 }
 
 /// A manifest schedule as recorded at install.
@@ -185,6 +199,7 @@ struct ModuleRow {
     data_schema: String,
     settings_schema: String,
     slots: String,
+    connector_permissions: Option<Permissions>,
 }
 
 impl From<ModuleRow> for InstalledModule {
@@ -219,6 +234,7 @@ impl From<ModuleRow> for InstalledModule {
             data_schema: serde_json::from_str(&row.data_schema).unwrap_or_default(),
             settings_schema: serde_json::from_str(&row.settings_schema).unwrap_or_default(),
             slots: serde_json::from_str(&row.slots).unwrap_or_default(),
+            connector_permissions: row.connector_permissions,
         }
     }
 }
@@ -341,7 +357,8 @@ impl Store {
                       subscriptions AS "subscriptions!",
                       data_schema AS "data_schema!",
                       settings_schema AS "settings_schema!",
-                      slots AS "slots!"
+                      slots AS "slots!",
+                      connector_permissions AS "connector_permissions: Permissions"
                FROM installed_modules WHERE id = ?"#,
             id
         )
@@ -372,7 +389,8 @@ impl Store {
                       subscriptions AS "subscriptions!",
                       data_schema AS "data_schema!",
                       settings_schema AS "settings_schema!",
-                      slots AS "slots!"
+                      slots AS "slots!",
+                      connector_permissions AS "connector_permissions: Permissions"
                FROM installed_modules ORDER BY installed_at DESC"#
         )
         .fetch_all(&self.pool)
@@ -445,12 +463,16 @@ impl Store {
     /// Uninstalls a module. `Ok(false)` if it was not installed. The
     /// `module_permissions`, `role_module_permissions`, `module_artifacts` and
     /// `module_kv` rows all cascade away on the `installed_modules` foreign key, so
-    /// nothing dangles: see the migrations' own comments.
+    /// nothing dangles: see the migrations' own comments. A connector is never removed
+    /// here: `uninstall_connector` revokes its token in the same transaction.
     pub async fn uninstall_module(&self, id: &str) -> anyhow::Result<bool> {
-        let affected = sqlx::query!("DELETE FROM installed_modules WHERE id = ?", id)
-            .execute(&self.pool)
-            .await?
-            .rows_affected();
+        let affected = sqlx::query!(
+            "DELETE FROM installed_modules WHERE id = ? AND provider = 'wasm'",
+            id
+        )
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
         self.touch_modules();
         Ok(affected > 0)
     }

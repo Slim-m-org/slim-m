@@ -165,3 +165,12 @@ fn finishing_ends_speech_in_progress() {
     assert!(endpointer.finish().is_some());
     assert!(endpointer.finish().is_none());
 }
+
+#[test]
+fn the_voiced_end_leaves_out_the_silence_that_closed_the_utterance() {
+    let found = run(0, &[hiss(1_000, 60.0), speech(1_500), hiss(1_000, 60.0)]);
+    let u = &found[0];
+    let voiced = u.voiced_end_ms - u.start_ms;
+    assert!((1_500..=1_620).contains(&voiced), "{voiced}");
+    assert!(u.end_ms - u.voiced_end_ms >= END_SILENCE_MS - 40);
+}

@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# Needs, from the calling job: the commit checked out, docker buildx set up, a GHCR login,
+# and for merge cosign installed and an id-token: write permission. See docs/ci.md.
+name: release supervisor image
+description: Build, or merge and sign, ghcr.io/<owner>/slim-m-supervisor beside the server image (decision 0134).
+
+inputs:
+  mode:
+    description: "build (one arch, pushed by digest), merge (manifest, tags, keyless cosign) or push (one arch, tagged, as main-builds does for the server)"
+    required: true
+  arch:
+    description: "build and push: amd64 or arm64"
+    default: amd64
+  tags:
+    description: "merge and push: newline-separated tags; empty lines are skipped"
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: name the supervisor image after this repo's owner, lowercased for GHCR
+      shell: bash
+      run: echo "SUPERVISOR_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/slim-m-supervisor" >> "$GITHUB_ENV"
+
+    - name: tags as build-push arguments
+      if: inputs.mode == 'push'
+      id: tagged
+      shell: bash
+      env:
+        TAGS: ${{ inputs.tags }}
+      run: |
+        {
+          echo "tags<<EOF"
+          while IFS= read -r tag; do [ -z "$tag" ] || echo "${SUPERVISOR_IMAGE}:${tag}"; done <<< "$TAGS"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+      if: inputs.mode == 'push'
+      with:
+        context: .
+        file: docker/supervisor.Dockerfile
+        platforms: linux/${{ inputs.arch }}
+        tags: ${{ steps.tagged.outputs.tags }}
+        push: true
+        sbom: true
+        provenance: mode=max
+
+    # Never cached: a stale layer must not reach a signed artifact, as for the server image.
+    - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+      if: inputs.mode == 'build'
+      id: build
+      with:
+        context: .
+        file: docker/supervisor.Dockerfile
+        platforms: linux/${{ inputs.arch }}
+        outputs: type=image,name=${{ env.SUPERVISOR_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+        sbom: true
+        provenance: mode=max
+
+    - name: export digest
+      if: inputs.mode == 'build'
+      shell: bash
+      run: |
+        mkdir -p /tmp/supervisor-digests
+        echo "${{ steps.build.outputs.digest }}" > "/tmp/supervisor-digests/${{ inputs.arch }}"
+
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      if: inputs.mode == 'build'
+      with:
+        name: supervisor-image-digest-${{ inputs.arch }}
+        path: /tmp/supervisor-digests/${{ inputs.arch }}
+        if-no-files-found: error
+
+    - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      if: inputs.mode == 'merge'
+      with:
+        pattern: supervisor-image-digest-*
+        path: /tmp/supervisor-digests
+        merge-multiple: true
+
+    # Both arch digests or nothing: a failed arch must not ship a single-arch manifest.
+    - name: create, inspect and sign the manifest
+      if: inputs.mode == 'merge'
+      shell: bash
+      env:
+        TAGS: ${{ inputs.tags }}
+      run: |
+        refs=()
+        for f in /tmp/supervisor-digests/*; do refs+=("${SUPERVISOR_IMAGE}@$(cat "$f")"); done
+        [ "${#refs[@]}" -eq 2 ] || { echo "expected two supervisor arch digests, got ${#refs[@]}" >&2; exit 1; }
+        args=()
+        first=
+        while IFS= read -r tag; do
+          [ -n "$tag" ] || continue
+          args+=(-t "${SUPERVISOR_IMAGE}:${tag}")
+          first="${first:-$tag}"
+        done <<< "$TAGS"
+        [ -n "$first" ] || { echo "no tags given" >&2; exit 1; }
+        docker buildx imagetools create "${args[@]}" "${refs[@]}"
+        digest="$(docker buildx imagetools inspect "${SUPERVISOR_IMAGE}:${first}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
+        cosign sign --yes "${SUPERVISOR_IMAGE}@${digest}"

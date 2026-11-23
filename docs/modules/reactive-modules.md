@@ -410,7 +410,7 @@ They need no `subscriptions` entry.
 | `call.audio.segment` | `session_id`, `channel_id`, `segment_id`, `user_id`, `start_ms`, `end_ms`, `text`, `language` |
 | `call.audio.stopped` | `session_id`, `channel_id`, `stopped_at_ms`, `reason`, `segments_sent` |
 
-- `start_ms` and `end_ms` are wall-clock milliseconds.
+- `start_ms` and `end_ms` are wall-clock milliseconds, and `end_ms` is the end of speech, not of the silence that closed it.
 - `text` is cut at 1,000 characters on a word boundary. A session delivers at most 120 segments a minute.
 - `reason` is one of `stopped`, `declined`, `call_ended`, `time_limit`, `overload`, `module_disabled`, `channel_removed`, `listener_unavailable`. It never names a person.
 - Event ids are `call-audio:<session_id>:<n>`.

@@ -17,6 +17,10 @@ dependencies:
   connectivity_plus_platform_interface: ^2.1.0
   # The call's signalling socket over the server's own network; already the api package's, at the same version.
   web_socket_channel: ^3.0.0
+  # The browser capture chain's Web Audio graph; already the api and app packages', at the same version.
+  web: ^1.1.0
+  # flutter_webrtc's own web implementation, for wrapping the worklet's output track; the fork's constraint.
+  dart_webrtc: ^1.8.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

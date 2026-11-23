@@ -6,6 +6,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_design_system/design_system.dart';
+
+import '../../../../api_failure.dart';
 
 import '../../../../preset_options.dart';
 import '../../../../widgets/confirm_dialog.dart';
@@ -16,6 +19,7 @@ import '../../providers/space_settings.dart';
 import '../../widgets/settings_save_feedback.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_segmented_block.dart';
+import '../../widgets/settings_toggle_row.dart';
 import 'retention_section.dart' show retentionDeletesHistory;
 import '../../../../widgets/load_error_block.dart';
 
@@ -40,14 +44,14 @@ String _modeConsequence(CallTranscriptionMode mode) => switch (mode) {
     'Every call is transcribed from the first join, and everyone sees it.',
 };
 
-/// The mode and the retention window, one card each.
+/// The mode, spoken marks and the retention window, one card each.
 class CallTranscriptsSection extends StatelessWidget {
   const CallTranscriptsSection({super.key});
 
   @override
   Widget build(BuildContext context) => const Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [_ModeCard(), _RetentionCard()],
+    children: [_ModeCard(), _VoiceCommandsCard(), _RetentionCard()],
   );
 }
 
@@ -184,6 +188,140 @@ class _RetentionCardState extends ConsumerState<_RetentionCard>
               LoadErrorBlock(
                 message: 'Could not load this setting.',
                 onRetry: () => ref.invalidate(spaceSettingsProvider),
+              ),
+          ],
+        ),
+        SettingsSaveFeedback(
+          tick: successTick,
+          error: actionError,
+          onDismissError: clearActionError,
+        ),
+      ],
+    );
+  }
+}
+
+const voiceCommandsToggleLabel = 'Use voice commands';
+const voicePhraseFieldKey = Key('voice-command-phrase');
+const voicePhraseSaveKey = Key('voice-command-phrase-save');
+
+/// Spoken marks: off by default, and only while calls are transcribed.
+class _VoiceCommandsCard extends ConsumerStatefulWidget {
+  const _VoiceCommandsCard();
+
+  @override
+  ConsumerState<_VoiceCommandsCard> createState() => _VoiceCommandsCardState();
+}
+
+class _VoiceCommandsCardState extends ConsumerState<_VoiceCommandsCard>
+    with
+        GuardedActionState<_VoiceCommandsCard>,
+        OptimisticSettingState<_VoiceCommandsCard, bool> {
+  final _phrase = TextEditingController();
+  String? _phraseError;
+  bool _savingPhrase = false;
+
+  @override
+  void dispose() {
+    _phrase.dispose();
+    super.dispose();
+  }
+
+  Future<void> _set(bool on) => saveOptimistic(
+    on,
+    whatFailed: 'change voice commands',
+    action: () => ref
+        .read(settingsActionsProvider)
+        .setSpaceSettings(SpaceSettingsUpdate(voiceCommands: on)),
+    refresh: spaceSettingsProvider,
+  );
+
+  Future<void> _savePhrase() async {
+    setState(() {
+      _savingPhrase = true;
+      _phraseError = null;
+    });
+    try {
+      await ref
+          .read(settingsActionsProvider)
+          .setSpaceSettings(
+            SpaceSettingsUpdate(voiceCommandPhrase: _phrase.text.trim()),
+          );
+      ref.invalidate(spaceSettingsProvider);
+    } on ApiException catch (error, stack) {
+      reportFailure(LogTag.ui, 'save the wake phrase', error, stack);
+      if (mounted) {
+        setState(
+          () =>
+              _phraseError = describeApiFailure('save the wake phrase', error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingPhrase = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = ref.watch(spaceSettingsProvider);
+    ref.listen(spaceSettingsProvider, (_, next) {
+      retireOptimistic(next);
+      final phrase = next.valueOrNull?.voiceCommandPhrase;
+      if (phrase != null && _phrase.text.isEmpty) _phrase.text = phrase;
+    });
+    final loaded = settings.valueOrNull;
+    if (loaded == null) return const SizedBox.shrink();
+    if (_phrase.text.isEmpty) _phrase.text = loaded.voiceCommandPhrase;
+    final on = optimistic ?? loaded.voiceCommands;
+    final possible =
+        loaded.callTranscriptionAvailable &&
+        loaded.callTranscription != CallTranscriptionMode.off;
+    final phrase = loaded.voiceCommandPhrase;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingsSectionCard(
+          title: 'Voice commands',
+          description: 'Say "$phrase, mark that" in a call.',
+          children: [
+            SettingsToggleRow(
+              label: voiceCommandsToggleLabel,
+              semanticLabel: voiceCommandsToggleLabel,
+              value: on,
+              onChanged: saving || (!possible && !on) ? null : _set,
+            ),
+            if (!possible)
+              const SettingsSubRow(label: 'Needs call transcripts turned on.'),
+            if (on && possible)
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.s16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AppInput(
+                      key: voicePhraseFieldKey,
+                      controller: _phrase,
+                      placeholder: 'Wake phrase',
+                      semanticLabel: 'Wake phrase',
+                      helperText: '2 to 4 words.',
+                      errorText: _phraseError,
+                      onSubmitted: (_) => _savePhrase(),
+                    ),
+                    const SizedBox(height: AppSpacing.s8),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: AppButton(
+                        key: voicePhraseSaveKey,
+                        label: 'Save phrase',
+                        size: AppButtonSize.sm,
+                        variant: AppButtonVariant.secondary,
+                        disabled: _savingPhrase,
+                        onPressed: _savePhrase,
+                      ),
+                    ),
+                  ],
+                ),
               ),
           ],
         ),

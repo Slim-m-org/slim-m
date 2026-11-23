@@ -68,12 +68,7 @@ pub(super) struct ExtensionPointDto {
     name: String,
     description: Option<String>,
     permission: Option<String>,
-    /// Omitted rather than sent as a literal `null` when absent (a `command`
-    /// extension point never has one): `tests/response_contract` validates
-    /// with a real JSON Schema, which has no `nullable` keyword of its own -
-    /// an emitted `null` on an `Option` field the schema types as `string`
-    /// fails validation outright, where an absent field on a non-`required`
-    /// property does not.
+    /// Omitted rather than `null` when absent: the response contract's JSON Schema has no `nullable`.
     #[serde(skip_serializing_if = "Option::is_none")]
     command: Option<String>,
     /// For a `code-block-runner` only: the fenced-block language it
@@ -111,6 +106,8 @@ pub(super) struct ManifestDto {
     review_digest: String,
     #[serde(flatten)]
     platform: PlatformDto,
+    #[serde(flatten)]
+    connector: super::dock_connector::ConnectorAskDto,
 }
 
 #[derive(Serialize)]
@@ -192,9 +189,9 @@ pub(super) struct NetworkDto {
 
 impl From<Manifest> for ManifestDto {
     fn from(m: Manifest) -> Self {
-        let review_digest = m.review_digest();
         Self {
-            review_digest,
+            connector: super::dock_connector::ConnectorAskDto::of(&m),
+            review_digest: m.review_digest(),
             id: m.id,
             name: m.name,
             version: m.version,
@@ -315,6 +312,8 @@ pub(in crate::http) struct InstalledModuleDto {
     fuel_limit: i64,
     #[serde(flatten)]
     platform: PlatformDto,
+    #[serde(flatten)]
+    pub(super) connector: super::dock_connector::ConnectorInstalledDto,
 }
 
 #[derive(Serialize)]
@@ -444,6 +443,7 @@ impl From<InstalledModule> for InstalledModuleDto {
             events_dropped: 0,
             queue_depth: None,
             fuel_limit: i64::try_from(RunLimits::from(&m.runtime_limits).fuel).unwrap_or(i64::MAX),
+            connector: super::dock_connector::ConnectorInstalledDto::of(m.connector_permissions),
             platform: PlatformDto {
                 addon_api: m.addon_api,
                 addon_api_max: m.addon_api_max,

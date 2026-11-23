@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/audio/call_path_clip_output.dart';
 import 'package:slimm_app/src/audio/sound_clip_player.dart';
 
 const _channels = ['xyz.luan/audioplayers', 'xyz.luan/audioplayers.global'];
@@ -91,4 +92,82 @@ void main() {
       expect(plugin.calls, containsAllInOrder([source, 'resume', 'dispose']));
     });
   }
+
+  group('during a call on iPhone', () {
+    final native = <MethodCall>[];
+
+    setUp(() {
+      native.clear();
+      messenger.setMockMethodCallHandler(
+        const MethodChannel(soundClipChannelName),
+        (call) async {
+          native.add(call);
+          return null;
+        },
+      );
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(
+          const MethodChannel(soundClipChannelName),
+          null,
+        ),
+      );
+    });
+
+    final bytes = Uint8List.fromList(List.filled(64, 1));
+
+    test(
+      'the clip plays on the app engine and never touches audioplayers',
+      () async {
+        await AudioPlayersSoundClipPlayer(
+          inCall: () => true,
+          ios: true,
+        ).play(bytes, mimeType: 'audio/mpeg', volume: 0.5);
+
+        expect(plugin.calls, isEmpty);
+        expect(native.single.method, 'play');
+        final args = native.single.arguments as Map;
+        expect(args['bytes'], bytes);
+        expect(args['extension'], 'mp3');
+        expect(args['volume'], closeTo(0.5 * 0.6, 1e-9));
+      },
+    );
+
+    test(
+      'a wav clip keeps its extension so the engine can decode it',
+      () async {
+        await AudioPlayersSoundClipPlayer(
+          inCall: () => true,
+          ios: true,
+        ).play(bytes, mimeType: 'audio/wav', volume: 1);
+
+        expect((native.single.arguments as Map)['extension'], 'wav');
+      },
+    );
+
+    test('outside a call the clip still goes through audioplayers', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      await AudioPlayersSoundClipPlayer(
+        inCall: () => false,
+        ios: true,
+      ).play(bytes, mimeType: 'audio/mpeg', volume: 1);
+
+      await plugin.disposed.future.timeout(const Duration(seconds: 2));
+
+      expect(native, isEmpty);
+      expect(plugin.calls, contains('resume'));
+    });
+
+    test('in a call on another platform audioplayers still plays it', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      await AudioPlayersSoundClipPlayer(
+        inCall: () => true,
+        ios: false,
+      ).play(bytes, mimeType: 'audio/mpeg', volume: 1);
+
+      await plugin.disposed.future.timeout(const Duration(seconds: 2));
+
+      expect(native, isEmpty);
+      expect(plugin.calls, contains('resume'));
+    });
+  });
 }

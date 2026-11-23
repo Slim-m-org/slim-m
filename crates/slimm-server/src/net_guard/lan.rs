@@ -53,7 +53,7 @@ impl Cidr {
         (prefix <= max).then_some(Self { network, prefix })
     }
 
-    fn contains(&self, ip: IpAddr) -> bool {
+    pub fn contains(&self, ip: IpAddr) -> bool {
         let (net, ip) = match (self.network, unmapped(ip)) {
             (IpAddr::V4(n), IpAddr::V4(i)) => (u128::from(u32::from(n)), u128::from(u32::from(i))),
             (IpAddr::V6(n), IpAddr::V6(i)) => (u128::from(n), u128::from(i)),

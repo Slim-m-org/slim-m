@@ -76,11 +76,14 @@ fn run_entropy() -> String {
     crate::media::to_hex(&bytes)
 }
 
-/// Who is asking, and nothing more: an id a module can dedupe against.
+/// Who is asking: an id a module can dedupe against, and the name other members see for them.
 /// See docs/decisions/0038-module-caller-id.md.
 #[derive(Serialize)]
 struct ModuleCaller {
     id: String,
+    /// A snapshot at run time; left out when the account cannot be read.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -198,6 +201,10 @@ async fn prepare_and_run(
     request: &RunRequest<'_>,
     surface: CapabilitySurface,
 ) -> Result<(CommandOutcome, Option<u64>), ApiError> {
+    if module.is_connector() {
+        let outcome = super::connector_runs::run(state, module, request).await?;
+        return Ok((outcome, None));
+    }
     let module_id = module.id.as_str();
     let Some(stored_sha256) = state.store.module_artifact_sha256(module_id).await? else {
         return Err(ApiError::Conflict(
@@ -219,23 +226,9 @@ async fn prepare_and_run(
     {
         limits = limits.for_fetching();
     }
-    let settings = state
-        .store
-        .module_run_settings(module_id, &module.settings_schema)
-        .await?;
-    let caller_key = state.store.module_caller_key().await?;
-    let request_json = serde_json::to_vec(&ModuleWireRequest {
-        command: request.command,
-        input: request.input,
-        caller: ModuleCaller {
-            id: super::module_caller::module_caller_id(&caller_key, module_id, request.caller),
-        },
-        entropy: run_entropy(),
-        now_ms: now_ms(),
-        settings,
-        context: request.context.into(),
-    })
-    .map_err(|_| ApiError::Internal)?;
+    let request_json = wire_request(state, module, request, request.context)
+        .await?
+        .into_bytes();
 
     let store = state.store.clone();
     let (ran, fuel) = ModuleHost::run_metered_in(
@@ -262,6 +255,34 @@ async fn prepare_and_run(
     Ok((outcome, fuel))
 }
 
+/// The run request a module reads, as JSON: the same for a WASM module and a connector.
+pub(super) async fn wire_request(
+    state: &AppState,
+    module: &InstalledModule,
+    request: &RunRequest<'_>,
+    context: RunContext,
+) -> Result<String, ApiError> {
+    let module_id = module.id.as_str();
+    let settings = state
+        .store
+        .module_run_settings(module_id, &module.settings_schema)
+        .await?;
+    let caller_key = state.store.module_caller_key().await?;
+    serde_json::to_string(&ModuleWireRequest {
+        command: request.command,
+        input: request.input,
+        caller: ModuleCaller {
+            id: super::module_caller::module_caller_id(&caller_key, module_id, request.caller),
+            name: super::module_caller::caller_name(&state.store, request.caller).await,
+        },
+        entropy: run_entropy(),
+        now_ms: now_ms(),
+        settings,
+        context: context.into(),
+    })
+    .map_err(|_| ApiError::Internal)
+}
+
 /// The pool of run slots a request draws from; a member's own commands are capped per member.
 fn lane_for(request: &RunRequest<'_>) -> RunLane {
     match request.kind {
@@ -273,7 +294,7 @@ fn lane_for(request: &RunRequest<'_>) -> RunLane {
 }
 
 /// The module's own answer, or a host failure when it is not the ABI's shape.
-fn interpret(bytes: &[u8]) -> CommandOutcome {
+pub(super) fn interpret(bytes: &[u8]) -> CommandOutcome {
     match serde_json::from_slice::<ModuleWireResponse>(bytes) {
         Ok(wire) if wire.ok && wire.output.is_some() => CommandOutcome {
             ok: true,

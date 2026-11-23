@@ -248,6 +248,10 @@ void main() {
       'changed the settings of module polls',
     ),
     (
+      _change('module.connector_token', target: 'jellyfin'),
+      'replaced the token of module jellyfin',
+    ),
+    (
       _change('module.auto_disable', target: 'polls'),
       'turned off module polls after repeated failures',
     ),

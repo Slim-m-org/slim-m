@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM call_transcript_marks WHERE author_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "ce56ed7ff7911a2a4cd1a2625db7b75a767429f1ebcb237c85dfc7e070e93867"
+}

@@ -11,6 +11,7 @@ use crate::ids::{ChannelId, RoleId, UserId};
 use crate::permissions::{Overwrite, Permissions, evaluate};
 
 pub(super) mod channel_overwrites;
+pub(super) mod connector_cap;
 pub(super) mod permissions_batch;
 pub(super) mod permissions_preview;
 pub(super) mod permissions_resolve;
@@ -26,6 +27,8 @@ pub(super) struct RoleContext {
     pub(super) role_ids: Vec<Uuid>,
     /// The Space owner holds every permission whatever their roles and any overwrite say.
     pub(super) owner: bool,
+    /// The most this principal may hold, whatever its roles say; see `connector_cap`.
+    pub(super) cap: Permissions,
 }
 
 impl RoleContext {
@@ -37,15 +40,16 @@ impl RoleContext {
             role_perms: Vec::new(),
             role_ids: Vec::new(),
             owner: false,
+            cap: Permissions::ALL,
         }
     }
 
     /// The deployment-level grant, before any timeout or join gate is subtracted.
     pub(super) fn base(&self) -> Permissions {
         if self.owner {
-            return Permissions::ALL;
+            return self.cap;
         }
-        evaluate(self.everyone_perms, &self.role_perms, None, &[], None)
+        evaluate(self.everyone_perms, &self.role_perms, None, &[], None).intersect(self.cap)
     }
 
     /// Sorts `overwrites` into the tiers `user_id` is subject to and runs the
@@ -90,7 +94,7 @@ impl RoleContext {
             ),
         };
         Evaluated {
-            permissions,
+            permissions: permissions.intersect(self.cap),
             everyone_overwrite: everyone,
         }
     }
@@ -344,13 +348,22 @@ impl Store {
     /// `docs/decisions/0030-incoming-webhooks.md`.
     pub(super) async fn load_roles(&self, user_id: UserId) -> anyhow::Result<RoleContext> {
         // Checked first; see this function's own doc comment.
-        let is_webhook = sqlx::query_scalar!(
-            r#"SELECT is_webhook AS "is_webhook!: i64" FROM users WHERE id = ?"#,
+        let principal = sqlx::query!(
+            r#"SELECT u.is_webhook AS "is_webhook!: i64",
+                      CASE WHEN u.connector_principal = 1
+                      THEN COALESCE((SELECT CASE WHEN m.enabled = 1 THEN COALESCE(m.connector_permissions, 0) ELSE 0 END
+                                     FROM installed_modules m
+                                     WHERE m.bot_user_id = u.id AND m.provider = 'connector'), 0)
+                      ELSE (SELECT CASE WHEN m.enabled = 1 THEN COALESCE(m.connector_permissions, 0) ELSE 0 END
+                            FROM installed_modules m
+                            WHERE m.bot_user_id = u.id AND m.provider = 'connector') END
+                      AS "cap: Permissions"
+               FROM users u WHERE u.id = ?"#,
             user_id
         )
         .fetch_optional(&self.pool)
-        .await?
-        .unwrap_or(0);
+        .await?;
+        let (is_webhook, cap) = principal.map_or((0, None), |p| (p.is_webhook, p.cap));
         if is_webhook != 0 {
             return Ok(RoleContext::none());
         }
@@ -377,6 +390,7 @@ impl Store {
             role_perms,
             role_ids,
             owner,
+            cap: connector_cap::effective(cap),
         })
     }
 }

@@ -59,7 +59,7 @@ ed25519-dalek = { version = "2.2", default-features = false, features = ["zeroiz
 # Pure-Rust WASM interpreter for the module runtime host (decision 0021,
 # Phase 3): no JIT, small binary footprint, and fuel metering for CPU limits.
 # Chosen over wasmtime specifically to protect the release-binary size budget.
-wasmi = "0.51"
+wasmi = "2.0.2"
 # IANA-timezone-aware datetime arithmetic for the notification schedule
 # (decision 0033): `tzdb-bundle-always` embeds the whole tz database in the
 # binary, since the distroless release image ships no /usr/share/zoneinfo.

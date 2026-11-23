@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM installed_modules WHERE id = ? AND provider = 'wasm'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "84b85f1882bc36c941f3427879eecb6c2c95d2f6e46e208c40366167f3aeb1da"
+}

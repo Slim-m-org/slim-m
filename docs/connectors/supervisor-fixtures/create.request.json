@@ -1,0 +1,8 @@
+{
+  "image": "ghcr.io/slim-m-org/example-connector@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "env": {"SLIMM_API_URL": "http://server:8080", "SLIMM_TOKEN": "slimbot_fixture"},
+  "limits": {"memory_mib": 128, "cpus": 0.5, "pids": 64, "volume_mib": 256},
+  "egress": [{"host": "api.example.com", "port": 443}],
+  "egress_private": false,
+  "volume": true
+}

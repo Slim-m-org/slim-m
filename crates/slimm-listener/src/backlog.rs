@@ -96,6 +96,7 @@ mod tests {
             utterance: Utterance {
                 start_ms: 0,
                 end_ms: ms,
+                voiced_end_ms: ms,
                 pcm: Vec::new(),
             },
         }

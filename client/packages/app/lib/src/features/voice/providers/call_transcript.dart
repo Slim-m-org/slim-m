@@ -15,6 +15,9 @@ import '../../../providers/sync_controller.dart';
 
 const transcriptPageSize = 50;
 
+/// A running call's page, so a pane opened late in a long call reaches its end in few reads.
+const liveTranscriptPageSize = 500;
+
 /// The most pages one jump to a line reads, so a bad seq cannot loop.
 const _maxJumpPages = 40;
 
@@ -69,6 +72,12 @@ class CallTranscriptController
   /// Live lines that came in while a page was being read, applied once it lands.
   final _held = <api.TranscriptLine>[];
 
+  /// A read was asked for while one ran, so another follows it.
+  bool _again = false;
+
+  /// The last seq a gap read started after; a gap still there after it is a line REST no longer has.
+  int? _gapReadAfter;
+
   api.SlimmApi get _api => ref.read(apiProvider);
 
   @override
@@ -111,9 +120,11 @@ class CallTranscriptController
     if (!state.loaded || state.hasMore || state.error != null) return;
     final last = state.lines.isEmpty ? 0 : state.lines.last.seq;
     if (line.seq <= last) return;
-    if (line.seq == last + 1) {
+    if (line.seq == last + 1 || _gapReadAfter == last) {
       state = state.copyWith(lines: [...state.lines, line]);
     } else {
+      _gapReadAfter = last;
+      _held.add(line);
       unawaited(loadMore());
     }
   }
@@ -132,27 +143,40 @@ class CallTranscriptController
 
   /// Reads the page after the last loaded line, or the first page.
   Future<void> loadMore() async {
-    if (state.busy) return;
+    if (state.busy) {
+      _again = true;
+      return;
+    }
     state = state.copyWith(busy: true, clearError: true);
     try {
       final after = state.lines.isEmpty ? null : state.lines.last.seq;
       final page = await _api.callTranscript(
         transcriptId,
         afterSeq: after,
-        limit: transcriptPageSize,
+        limit: state.ongoing ? liveTranscriptPageSize : transcriptPageSize,
       );
       if (_disposed) return;
+      final last = state.lines.isEmpty ? 0 : state.lines.last.seq;
       state = state.copyWith(
-        lines: [...state.lines, ...page.lines],
+        lines: [
+          ...state.lines,
+          for (final line in page.lines)
+            if (line.seq > last) line,
+        ],
         hasMore: page.nextAfterSeq != null,
         ongoing: page.ongoing,
         loaded: true,
         busy: false,
       );
       _applyHeld();
+      if (_again && !state.busy) {
+        _again = false;
+        unawaited(loadMore());
+      }
     } on api.ApiException catch (error, stack) {
       if (_disposed) return;
       _held.clear();
+      _again = false;
       state = state.copyWith(
         busy: false,
         loaded: true,

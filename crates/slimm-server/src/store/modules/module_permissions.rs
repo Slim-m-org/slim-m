@@ -16,6 +16,7 @@ use uuid::Uuid;
 
 use super::super::Store;
 use crate::ids::{RoleId, UserId};
+use crate::permissions::Permissions;
 
 /// One grantable module permission, joined to its module's current display
 /// name so a role editor can label the row without a second lookup.
@@ -184,6 +185,10 @@ impl Store {
         if roles.owner {
             return self.declared_module_permissions().await;
         }
+        // A connector's approval names core permissions only.
+        if roles.cap != Permissions::ALL {
+            return Ok(HashSet::new());
+        }
         let mut role_ids: Vec<Uuid> = roles.role_ids;
         role_ids.extend(roles.everyone_id);
         if role_ids.is_empty() {
@@ -227,6 +232,9 @@ impl Store {
         if roles.owner {
             let wanted = (module_id.to_owned(), perm_key.to_owned());
             return Ok(self.declared_module_permissions().await?.contains(&wanted));
+        }
+        if roles.cap != Permissions::ALL {
+            return Ok(false);
         }
         let mut role_ids: Vec<Uuid> = roles.role_ids;
         role_ids.extend(roles.everyone_id);

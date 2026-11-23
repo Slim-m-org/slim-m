@@ -4,6 +4,7 @@
 //! panicking the caller.
 
 use std::fmt;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
@@ -376,10 +377,13 @@ fn host_call(mut caller: Caller<'_, HostState>, req_ptr: i32, req_len: i32) -> i
 
     // The borrow of `caller` ends when `dispatch` returns its owned bytes, so the alloc/write below can take `caller` mutably.
     let deadline = caller.data().deadline;
-    let response = caller
-        .data_mut()
-        .surface
-        .dispatch_before(&request, Some(deadline));
+    let surface = &mut caller.data_mut().surface;
+    // A backend that `block_on`s a runtime already shutting down panics, and a panic cannot unwind through the wasm frames.
+    let Ok(response) = catch_unwind(AssertUnwindSafe(|| {
+        surface.dispatch_before(&request, Some(deadline))
+    })) else {
+        return 0;
+    };
 
     let Some(Extern::Func(alloc)) = caller.get_export("alloc") else {
         return 0;

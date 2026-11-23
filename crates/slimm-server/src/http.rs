@@ -52,6 +52,10 @@ use channels::{
     channel_slow_mode, channel_validation,
 };
 mod code_runs;
+mod connector_gate;
+pub mod connector_host;
+mod connector_runs;
+mod connectors;
 mod debug_logs;
 mod device_client_info;
 mod dms;
@@ -103,6 +107,7 @@ pub(crate) mod module_events;
 pub(crate) mod module_hooks;
 pub(crate) mod module_host;
 mod module_logs;
+mod module_mentions;
 mod module_net;
 mod module_panels;
 pub mod module_rooms;
@@ -143,6 +148,7 @@ mod reports;
 mod role_ladder;
 mod roles;
 use roles::{role_preview, role_reorder};
+mod call_stats;
 mod data_exports;
 mod favorites;
 mod hold_music;
@@ -162,6 +168,7 @@ mod space_link_previews;
 mod space_owner;
 mod space_setup;
 mod space_themes;
+mod space_voice_commands;
 mod still_picture;
 mod storage;
 mod surface_lock;
@@ -335,6 +342,8 @@ pub fn router(state: AppState) -> Router {
         .merge(diagnostics::ping_routes())
         .merge(direct_route::routes())
         .merge(dock::routes())
+        .merge(connectors::routes())
+        .merge(connector_runs::routes())
         .merge(module_panels::routes())
         .merge(module_slots::routes())
         .merge(emoji::routes())
@@ -364,6 +373,7 @@ pub fn router(state: AppState) -> Router {
         .merge(notification_schedule::routes())
         .merge(link_preview_removal::routes())
         .merge(pins::routes())
+        .merge(call_stats::routes())
         .merge(hold_music::routes())
         .merge(saved_messages::routes())
         .merge(favorites::routes())

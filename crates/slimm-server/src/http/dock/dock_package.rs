@@ -76,6 +76,11 @@ fn open(package: &Package) -> Result<(Manifest, Vec<u8>), ApiError> {
         super::manifest::ManifestError::Malformed(reason) => refused(&reason),
     })?;
     validate_module_id(&manifest.id)?;
+    if manifest.connector.is_some() {
+        return Err(refused(
+            "a connector is installed from its source, not a package",
+        ));
+    }
     if package.artifact.len() > MAX_ARTIFACT_BYTES / 3 * 4 + 4 {
         return Err(refused("the module is too large"));
     }
@@ -100,7 +105,7 @@ async fn preview(
 }
 
 async fn install_package(
-    _manager: ManagerLimited<WRITE>,
+    ManagerLimited(ctx): ManagerLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<PackageInstall>,
 ) -> Result<Json<InstalledModuleDto>, ApiError> {
@@ -118,6 +123,7 @@ async fn install_package(
         ArtifactSource::Bytes(artifact),
         &req.request,
         Some(FILE_REPO),
+        ctx.user_id,
     )
     .await
     .map(Json)

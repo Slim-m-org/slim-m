@@ -91,7 +91,8 @@ pub(super) async fn authorize_unstamped(
     let Some(channel_id) = super::channel_scope::channel_of(&event) else {
         return Authorization::Withhold;
     };
-    if let Event::CallTranscriptLine { audience, .. } = &event
+    if let Event::CallTranscriptLine { audience, .. }
+    | Event::CallTranscriptMarkChanged { audience, .. } = &event
         && !audience.contains(&ctx.user_id)
     {
         return Authorization::Withhold;

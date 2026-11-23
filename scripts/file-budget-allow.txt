@@ -15,5 +15,4 @@ crates/slimm-server/tests/it_accounts/invites.rs 612 # issue, check, redeem and 
 client/packages/api/test/new_routes_test.dart 596 # the REST routes of PR #36 in one file; the WebSocket frames split to new_routes_ws_frames_test.dart
 crates/slimm-server/tests/it_chat/dms.rs 519 # pair membership, the deliberately skipped ADMINISTRATOR bypass, and fan-out
 client/packages/app/test/features/auth/session_persistence_test.dart 586 # restore, refresh and revocation paths
-crates/slimm-server/src/http/ws/frames.rs 600 # one enum variant per wire frame; each new event adds a variant. Ceiling moves in steps of 50
 scripts/lib/e2e_run.py 565 # the scenario registry, one entry per scenario; split it by area before it grows again

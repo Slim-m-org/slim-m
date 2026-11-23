@@ -10,6 +10,7 @@ import 'camera_devices.dart';
 import 'camera_join.dart';
 import 'camera_switching.dart';
 import 'camera_view.dart';
+import 'video_publish_options.dart';
 import 'video_quality.dart';
 import 'voice_models.dart';
 import 'voice_session_screen_share.dart';
@@ -21,9 +22,13 @@ class VoiceCamera {
     this._density, {
     required bool Function() connecting,
     CameraDevices? devices,
+    CameraTrackFactory? createTrack,
     Duration joinTimeout = kJoinCameraTimeout,
   })  : _connecting = connecting,
-        switching = CameraSwitching(devices ?? const HardwareCameraDevices()),
+        switching = CameraSwitching(
+          devices ?? const HardwareCameraDevices(),
+          createTrack: createTrack,
+        ),
         _join = CameraJoin(timeout: joinTimeout);
 
   final VoiceScreenShareHost _host;
@@ -103,6 +108,7 @@ class VoiceCamera {
       room.localParticipant,
       enabled,
       options: saved == null ? base : base.copyWith(deviceId: saved),
+      publishOptions: cameraPublishOptionsFor(quality),
     );
     // Off only mutes, and the next enable reopens the capture front-facing: reset now.
     if (!enabled && result.ok) switching.resetFacing();

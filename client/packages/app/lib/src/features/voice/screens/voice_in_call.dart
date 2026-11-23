@@ -19,6 +19,8 @@ import '../widgets/lounge_backdrop.dart';
 import '../widgets/participant_call_menu.dart';
 import 'voice_call_dock.dart';
 
+const voiceCallDockKey = Key('voice-call-dock');
+
 /// In the call: who is here, and the controls.
 ///
 /// The controls used to trail this column as a full-width anchored strip,
@@ -121,6 +123,7 @@ class _InCallState extends ConsumerState<VoiceInCall> {
               key: ValueKey('call-dock-$channelId'),
               offset: 0,
               child: DockHeightReporter(
+                key: voiceCallDockKey,
                 onHeight: _onDockHeight,
                 onWidth: _onDockWidth,
                 child: VoiceCallDock(

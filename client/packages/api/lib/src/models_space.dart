@@ -51,6 +51,8 @@ class SpaceSettings {
     this.transcribeVoiceMessages = false,
     this.transcribeVoiceMessagesAvailable = true,
     this.debugLogging = ServerLogMode.off,
+    this.voiceCommands = false,
+    this.voiceCommandPhrase = 'hey space',
   });
 
   /// The Space's name, shown in the channel list header and on invites.
@@ -113,6 +115,10 @@ class SpaceSettings {
   /// How much the server logs (decision 0129).
   final ServerLogMode debugLogging;
 
+  /// Whether a transcribed call acts on [voiceCommandPhrase], as in "hey space, mark that".
+  final bool voiceCommands;
+  final String voiceCommandPhrase;
+
   /// `totp_policy` is absent from a server older than decision 0048, which
   /// reads as [TotpPolicy.optional] rather than failing the whole settings load
   /// over a field the rest of the screen does not need.
@@ -150,6 +156,9 @@ class SpaceSettings {
         transcribeVoiceMessagesAvailable:
             json['transcribe_voice_messages_available'] as bool? ?? true,
         debugLogging: ServerLogMode.parse(json['debug_logging'] as String?),
+        voiceCommands: json['voice_commands'] as bool? ?? false,
+        voiceCommandPhrase:
+            json['voice_command_phrase'] as String? ?? 'hey space',
       );
 }
 
@@ -173,6 +182,8 @@ class SpaceSettingsUpdate {
     this.callTranscriptRetentionDays,
     this.transcribeVoiceMessages,
     this.debugLogging,
+    this.voiceCommands,
+    this.voiceCommandPhrase,
   });
 
   final String? name;
@@ -193,4 +204,6 @@ class SpaceSettingsUpdate {
   final int? callTranscriptRetentionDays;
   final bool? transcribeVoiceMessages;
   final ServerLogMode? debugLogging;
+  final bool? voiceCommands;
+  final String? voiceCommandPhrase;
 }

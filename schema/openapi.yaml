@@ -1222,6 +1222,60 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /me/call-stats:
+    get:
+      operationId: getMyCallStats
+      tags: [voice]
+      summary: The caller's own talk statistics from their call transcript lines.
+      description: >
+        Worked out on request from the caller's own transcript lines that are
+        still kept, and never from anyone else's (decision 0113). There is no
+        user parameter, no one else can read these numbers, and a bot is
+        refused. A Space with transcription off answers with nothing counted.
+        With `transcript_id` only the caller's lines in that call count, and
+        the call must be readable by the caller, as for `GET
+        /voice/transcripts/{transcript_id}`. A window read charges the write
+        rate limit because it scans every line the caller spoke.
+      parameters:
+        - name: days
+          in: query
+          required: false
+          description: Count only the last this many days. Omitted means everything still kept.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 3650
+        - name: tz
+          in: query
+          required: false
+          description: An IANA time zone name for the day buckets. UTC when omitted.
+          schema:
+            type: string
+        - name: transcript_id
+          in: query
+          required: false
+          description: Count only the caller's lines in this transcript.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The caller's own numbers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallStats"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /me/links:
     get:
       operationId: listMyLinkedAccounts
@@ -8544,6 +8598,133 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /voice/transcripts/{transcriptId}/marks:
+    parameters:
+      - name: transcriptId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listVoiceTranscriptMarks
+      tags: [voice]
+      summary: List the marks and notes on a call's transcript.
+      description: >
+        Needs what reading the transcript needs: `VIEW_CHANNEL` and
+        `VIEW_TRANSCRIPTS` on its channel at read time (decision 0113). 404
+        when the transcript does not exist or the reader lacks either
+        permission. Oldest first, at most 500.
+      responses:
+        "200":
+          description: The transcript's marks.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [marks]
+                properties:
+                  marks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/VoiceTranscriptMark"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /voice/transcripts/{transcriptId}/marks/{markId}:
+    parameters:
+      - name: transcriptId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: markId
+        in: path
+        required: true
+        description: A UUIDv7 the client mints, so a retry is the same mark.
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: putVoiceTranscriptMark
+      tags: [voice]
+      summary: Mark the current moment of a transcribed call, optionally with a note.
+      description: >
+        Needs `VIEW_CHANNEL` and `VIEW_TRANSCRIPTS` (404 otherwise), being in
+        the call (403), and the transcript still running (409). The server
+        stamps the time and points the mark at the newest line kept. A repeat
+        with the same id answers 200 with the mark as kept. One person may mark
+        a call once every 2 s (429). The people in the call who may read the
+        transcript get a `call.transcript_mark` frame.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind]
+              properties:
+                kind:
+                  type: string
+                  enum: [mark, note]
+                text:
+                  type: [string, "null"]
+                  maxLength: 500
+                  description: The note; required for `note`, absent for `mark`.
+      responses:
+        "200":
+          description: A repeat of a mark already kept.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceTranscriptMark"
+        "201":
+          description: Kept.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceTranscriptMark"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: deleteVoiceTranscriptMark
+      tags: [voice]
+      summary: Remove a mark or note from a call's transcript.
+      description: >
+        The author, or someone with `MANAGE_MESSAGES` on the channel, may
+        remove it, during the call or after. 404 when the reader cannot read
+        the transcript or there is no such mark on it.
+      responses:
+        "204":
+          description: Removed.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /search/transcripts:
     get:
       operationId: searchVoiceTranscripts
@@ -8619,6 +8800,7 @@ paths:
         In `always` mode a member is told once, before their first call, not on
         every call (decision 0113); the acknowledgement is kept per member, so
         it holds across devices. `mode` is the Space's `call_transcription`.
+        Turning voice commands on makes it due again for everyone.
       responses:
         "200":
           description: The Space's mode and whether the caller acknowledged.
@@ -8633,6 +8815,12 @@ paths:
                     enum: [off, on_request, always]
                   acknowledged:
                     type: boolean
+                  voice_commands:
+                    type: boolean
+                    description: Whether spoken marks are on; absent on older servers.
+                  phrase:
+                    type: string
+                    description: The wake phrase spoken marks start with.
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -11759,6 +11947,12 @@ paths:
           $ref: "#/components/responses/TooManyRequests"
         "502":
           $ref: "#/components/responses/UpstreamInvalid"
+        "501":
+          description: The connector asks to be run by the host and the operator has not set up the connector supervisor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "503":
           $ref: "#/components/responses/Unavailable"
     delete:
@@ -11928,6 +12122,216 @@ paths:
           $ref: "#/components/responses/Conflict"
         "404":
           $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: The connector asks to be run by the host and the operator has not set up the connector supervisor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+  /space/dock/modules/{moduleId}/connector-token:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: reissueConnectorToken
+      tags: [space]
+      summary: Replace a connector's token. Requires MANAGE_SERVER, and a person.
+      description: >
+        Revokes the connector's token, closes its sockets and mints a new one,
+        shown only in this answer (decision 0090). A bot is refused.
+      responses:
+        "200":
+          description: The new token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorToken"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/dock/connector-runtime:
+    get:
+      operationId: getConnectorRuntime
+      tags: [space]
+      summary: Whether this server can run connectors. Requires MANAGE_SERVER.
+      description: >
+        Off unless the operator set up the connector supervisor (decision
+        0134); the Dock offers host-run installs only when it is available.
+      responses:
+        "200":
+          description: The runtime's state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorRuntime"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/dock/modules/{moduleId}/host-run:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getConnectorHostRun
+      tags: [space]
+      summary: A host-run connector's state. Requires MANAGE_SERVER.
+      description: >
+        Running, stopped, crashed, turned off after crashes, refused by the
+        supervisor, starting, or runtime unavailable, with what it was
+        approved (decision 0134). 404 for a connector the host does not run.
+      responses:
+        "200":
+          description: Its state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorHostRun"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/dock/modules/{moduleId}/host-run/logs:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getConnectorHostRunLogs
+      tags: [space]
+      summary: A host-run connector's recent output. Requires MANAGE_SERVER.
+      description: >
+        Read from the container runtime on demand and never stored, at most
+        1000 lines (decision 0134). 503 while the runtime is unavailable.
+      parameters:
+        - name: tail
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+      responses:
+        "200":
+          description: The newest lines.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorHostRunLogs"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: The operator has not set up the connector supervisor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+  /connectors/me:
+    get:
+      operationId: getConnectorSelf
+      tags: [space]
+      summary: What a connector reads about itself with its own token.
+      description: >
+        The module it is, the permissions it was approved and its settings,
+        secret values included in plain text (decision 0090). Only a
+        connector's own token reaches it; anyone else gets 403, and a
+        disabled connector gets 409. The answer carries Cache-Control
+        no-store.
+      responses:
+        "200":
+          description: The connector's own view.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorSelf"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /connectors/me/runs/{runId}:
+    parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: answerConnectorRun
+      tags: [space]
+      summary: A connector answers a member's run it was sent as a connector.run frame.
+      description: >
+        Add-on API 7 (decision 0090). The body is the WASM module answer
+        shape, `{"ok": true, "output"}` or `{"ok": false, "error"}`, at most
+        1 MiB. Only the connector the run was sent to can answer it, once,
+        before its `deadline_ms`; anything else gets 404. A malformed answer
+        still ends the run as a failure for the member and is refused with
+        400. Only a connector's own token reaches it (403 otherwise), and a
+        disabled connector gets 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectorRunAnswer"
+      responses:
+        "204":
+          description: The answer reached the waiting member.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/dock/modules/{moduleId}/disable:
@@ -14974,6 +15378,15 @@ components:
             media, and one per HTTP request. `verbose` adds every slim-m debug
             and trace line. Passwords, tokens and message text are never
             logged in any mode.
+        voice_commands:
+          type: boolean
+          description: >
+            Whether a transcribed call acts on its wake phrase ("hey space,
+            mark that" and "hey space, note ..."), reading only the transcript's
+            own text. Off by default; absent on older servers, read as false.
+        voice_command_phrase:
+          type: string
+          description: The wake phrase, "hey space" by default.
         join_policy:
           type: string
           enum: [invite, open]
@@ -15085,6 +15498,21 @@ components:
           description: >
             Switches the server log mode at once, with no restart. Any other
             value is a 400.
+        voice_commands:
+          type: boolean
+          description: >
+            Turns spoken marks on or off. Turning them on needs call
+            transcription on and the listener, else 409, and makes the
+            transcription notice due again for everyone. A call that is already
+            transcribed keeps going without them.
+        voice_command_phrase:
+          type: string
+          minLength: 3
+          maxLength: 40
+          description: >
+            The wake phrase: 2 to 4 words of letters, without mark, note or
+            bookmark; anything else is a 400. Changing it alone does not make
+            the notice due again.
       description: >
         Only the fields present are written, so a client changing one setting
         cannot overwrite another from a stale copy. An empty body is refused.
@@ -15901,6 +16329,25 @@ components:
         addon_api_max:
           type: integer
           description: The newest add-on API version it declares it works with; absent when it names none.
+        provider:
+          type: string
+          enum: [connector]
+          description: >
+            Present for a connector (add-on API 7, decision 0090): an external
+            program holding a bot token instead of a WASM artifact. Absent for
+            a WASM module. A connector's artifact and runtime read as kind and
+            backend "connector" with an empty path and sha256.
+        connector:
+          type: object
+          description: What a connector's token asks for; present with provider.
+          required: [permissions]
+          properties:
+            permissions:
+              type: integer
+              format: int64
+              description: The core permission bits it asks the admin to approve.
+            host_run:
+              $ref: "#/components/schemas/HostRunAsk"
         subscriptions:
           type: array
           description: The events it subscribes to.
@@ -16283,6 +16730,30 @@ components:
             The `review_digest` of the manifest the admin was shown. The
             install is refused with 409 if the manifest has changed since.
             Omitted skips the check.
+        approved_connector_permissions:
+          type: integer
+          format: int64
+          description: >
+            For a connector, the core permission bits the admin approved, each
+            one the manifest asks for and the admin holds. Required for a
+            connector (400 without it, so an app that cannot show the ask
+            cannot install one); ignored for a WASM module.
+        approved_host_run:
+          type: object
+          additionalProperties: false
+          description: >
+            For a connector that asks to be run by the host (decision 0134),
+            the egress hosts the admin approved, each one it asks for, and the
+            Private network approval, only if it asks for one. Required for such
+            a connector (400 without it). A host-run install answers no
+            connector_token: the host hands the token to the container itself.
+          properties:
+            egress:
+              type: array
+              items:
+                $ref: "#/components/schemas/EgressHost"
+            egress_private:
+              type: boolean
     DockPackage:
       type: object
       required: ["$slim", manifest, artifact]
@@ -16315,6 +16786,23 @@ components:
           schedules,
         ]
       properties:
+        provider:
+          type: string
+          enum: [connector]
+          description: Present for a connector; absent for a WASM module.
+        connector_permissions:
+          type: integer
+          format: int64
+          description: >
+            The core permission bits the admin approved for a connector's
+            token. Its principal never holds more, whatever roles it is given
+            later, and holds nothing while the connector is disabled.
+        connector_token:
+          type: string
+          description: >
+            The connector's bot token, only in the install answer that created
+            its principal. It is never shown again; reissueConnectorToken
+            replaces a lost one.
         id:
           type: string
         name:
@@ -16575,6 +17063,19 @@ components:
         input:
           type: string
           description: The block's own text, passed through as the ABI `input`.
+    ConnectorRunAnswer:
+      type: object
+      required: [ok]
+      description: >
+        A connector's answer to one run: `output` when `ok` (text, or a
+        scene/1 document as text), else `error`.
+      properties:
+        ok:
+          type: boolean
+        output:
+          type: string
+        error:
+          type: string
     RunModuleCommandResponse:
       type: object
       required: [ok]
@@ -17479,6 +17980,146 @@ components:
           description: >-
             Replaces what the bot's managed role grants. Same guards as
             `CreateBotRequest.permissions`.
+    EgressHost:
+      type: object
+      required: [host, port]
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+    HostRunAsk:
+      type: object
+      description: >
+        What a host-run connector asks the host to run (add-on API 7, decision
+        0134): its image pinned by digest, the hosts it may reach, whether it
+        asks for the Private network and a data volume, and its limits. It never
+        publishes a port.
+      required: [image, egress, egress_private, volume, limits]
+      properties:
+        image:
+          type: string
+        egress:
+          type: array
+          items:
+            $ref: "#/components/schemas/EgressHost"
+        egress_private:
+          type: boolean
+        volume:
+          type: boolean
+        limits:
+          type: object
+          description: Absent fields take the supervisor's defaults.
+          properties:
+            memory_mib:
+              type: integer
+            cpus:
+              type: number
+            pids:
+              type: integer
+            volume_mib:
+              type: integer
+              minimum: 1
+              description: >
+                The data volume's ceiling in MiB (default 256). The supervisor
+                measures the volume and stops the connector past it.
+    ConnectorRuntime:
+      type: object
+      required: [configured, available]
+      properties:
+        configured:
+          type: boolean
+          description: Whether the operator set up the connector supervisor.
+        available:
+          type: boolean
+          description: Whether it answers and its runtime can enforce the sandbox.
+        detail:
+          type: string
+          description: Why it is unavailable.
+        runtime:
+          type: string
+          description: docker or podman.
+        registries:
+          type: array
+          description: The image prefixes the operator allows.
+          items:
+            type: string
+        ceilings:
+          type: object
+          description: The most a connector may ask for.
+          additionalProperties: true
+    ConnectorHostRun:
+      allOf:
+        - $ref: "#/components/schemas/HostRunAsk"
+        - type: object
+          required: [state, oom_killed, restarts]
+          properties:
+            state:
+              type: string
+              enum: [running, stopped, crashed, disabled_after_crashes, refused, starting, runtime_unavailable]
+            exit_code:
+              type: integer
+            oom_killed:
+              type: boolean
+            started_at:
+              type: string
+            finished_at:
+              type: string
+            restarts:
+              type: integer
+              description: Crashes in the last 10 minutes.
+            last_error:
+              type: string
+              description: Why it is not running, for the admin.
+            volume_bytes:
+              type: integer
+              description: The data volume's size at the supervisor's last measurement.
+    ConnectorHostRunLogs:
+      type: object
+      required: [lines]
+      properties:
+        lines:
+          type: array
+          items:
+            type: object
+            required: [ts, stream, text]
+            properties:
+              ts:
+                type: string
+              stream:
+                type: string
+                enum: [stdout, stderr]
+              text:
+                type: string
+    ConnectorToken:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: The connector's new bot token, shown this once.
+    ConnectorSelf:
+      type: object
+      required: [module_id, name, version, permissions, settings]
+      properties:
+        module_id:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
+        permissions:
+          type: integer
+          format: int64
+          description: The core permission bits the admin approved, the ceiling on this token.
+        settings:
+          type: object
+          description: >
+            Every declared setting by key: the stored value, else its default,
+            else null. A secret's value is in plain text.
+          additionalProperties: true
     NewBot:
       type: object
       required: [bot, token]
@@ -20785,6 +21426,111 @@ components:
             field sends `false` whenever the member never toggled; an unmarked
             `true` is always saved. A marked value is always saved.
 
+    CallStats:
+      type: object
+      required: [since, calls, talk_ms, words, characters, words_per_minute, fillers, languages, buckets, retention_days]
+      properties:
+        since:
+          type: [integer, "null"]
+          format: int64
+          description: When the first counted line began, in ms since the epoch.
+        calls:
+          type: integer
+          description: Calls the caller spoke in.
+        talk_ms:
+          type: integer
+          format: int64
+        words:
+          type: integer
+          format: int64
+          description: Words in lines of languages written with spaces.
+        characters:
+          type: integer
+          format: int64
+          description: Characters in lines of languages written without spaces, such as Japanese.
+        words_per_minute:
+          type: [number, "null"]
+          description: Null under one minute of talk time.
+        fillers:
+          description: Null when the caller spoke no English. English lines only.
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/CallStatsFillers"
+        languages:
+          type: array
+          description: Ranked by talk time. Small ones are folded into `other`.
+          items:
+            $ref: "#/components/schemas/CallStatsLanguage"
+        buckets:
+          $ref: "#/components/schemas/CallStatsBuckets"
+        retention_days:
+          type: [integer, "null"]
+          description: How long the Space keeps transcripts, null when it keeps them without limit.
+
+    CallStatsFillers:
+      type: object
+      required: [total, per_100_words, phrases]
+      properties:
+        total:
+          type: integer
+          format: int64
+        per_100_words:
+          type: number
+        phrases:
+          type: array
+          items:
+            type: object
+            required: [phrase, count]
+            properties:
+              phrase:
+                type: string
+              count:
+                type: integer
+                format: int64
+
+    CallStatsLanguage:
+      type: object
+      required: [code, talk_ms, share, pace, unit]
+      properties:
+        code:
+          type: string
+          description: A whisper language code, or `other`.
+        talk_ms:
+          type: integer
+          format: int64
+        share:
+          type: number
+          description: Share of the caller's talk time, 0 to 1.
+        pace:
+          type: [number, "null"]
+          description: Units a minute, null under one minute of talk time.
+        unit:
+          type: string
+          enum: [words, characters]
+
+    CallStatsBuckets:
+      type: object
+      required: [size, items]
+      properties:
+        size:
+          type: string
+          enum: [day, week]
+        items:
+          type: array
+          items:
+            type: object
+            required: [date, talk_ms, words]
+            properties:
+              date:
+                type: string
+                description: The day, or the Monday of the week, in the requested zone.
+              talk_ms:
+                type: integer
+                format: int64
+              words:
+                type: integer
+                format: int64
+
     HoldMusic:
       type: object
       required: [enabled]
@@ -21819,6 +22565,7 @@ components:
         - $ref: "#/components/schemas/OwnerChanged"
         - $ref: "#/components/schemas/ProfileChanged"
         - $ref: "#/components/schemas/BotUiChanged"
+        - $ref: "#/components/schemas/ConnectorRun"
         - $ref: "#/components/schemas/TypingStarted"
         - $ref: "#/components/schemas/TypingStopped"
         - $ref: "#/components/schemas/RoleChanged"
@@ -21838,6 +22585,7 @@ components:
         - $ref: "#/components/schemas/ModuleRoomChanged"
         - $ref: "#/components/schemas/VoiceCallTranscriptChanged"
         - $ref: "#/components/schemas/VoiceCallTranscriptLine"
+        - $ref: "#/components/schemas/VoiceCallTranscriptMark"
         - $ref: "#/components/schemas/WatchTick"
         - $ref: "#/components/schemas/CallRinging"
         - $ref: "#/components/schemas/CallRingEnded"
@@ -23093,6 +23841,34 @@ components:
           type: string
           format: uuid
 
+    ConnectorRun:
+      type: object
+      required: [type, run_id, module_id, deadline_ms, request]
+      description: >
+        Add-on API 7: a member ran a command or opened a panel a connector
+        declares in its manifest. Sent only to the connector principal's own
+        connections, and lossy like a button click. `request` is the same run
+        request a WASM module reads (command, input, the opaque per-module
+        caller id and name, entropy, now_ms, non-secret settings and a
+        context naming only channels the connector may view). Answer it with
+        `POST /connectors/me/runs/{run_id}` within `deadline_ms`, or the
+        member is told the connector did not answer.
+      properties:
+        type:
+          type: string
+          enum: [connector.run]
+        run_id:
+          type: string
+          format: uuid
+        module_id:
+          type: string
+        deadline_ms:
+          type: integer
+          format: int64
+        request:
+          type: object
+          additionalProperties: true
+
     TypingStarted:
       type: object
       required: [type, channel_id, user_id]
@@ -23634,6 +24410,12 @@ components:
           type: string
           enum: [on_request, always]
           description: Present only when the server's own transcript hears the call (`module_id` is `server`).
+        transcript_id:
+          type: string
+          format: uuid
+          description: >
+            The running transcript, present once the server's own transcript is
+            on. Its `call.transcript_line` frames carry the same id.
         included:
           type: array
           description: Everyone who said yes, the only people the module hears.
@@ -23682,6 +24464,38 @@ components:
                 type: string
               keeps:
                 type: string
+
+    VoiceTranscriptMark:
+      type: object
+      required: [id, transcript_id, author_id, at, line_seq, kind, text, source]
+      properties:
+        id:
+          type: string
+          format: uuid
+        transcript_id:
+          type: string
+          format: uuid
+        author_id:
+          type: string
+          format: uuid
+        at:
+          type: integer
+          format: int64
+          description: When it was marked, in epoch milliseconds.
+        line_seq:
+          type: [integer, "null"]
+          format: int64
+          description: The newest line kept when it was marked; null before the first line.
+        kind:
+          type: string
+          enum: [mark, note]
+        text:
+          type: [string, "null"]
+          description: The note; null on a plain mark.
+        source:
+          type: string
+          enum: [manual, voice]
+          description: "`manual` for the Mark button or a hotkey, `voice` for the spoken command."
 
     VoiceTranscriptLine:
       type: object
@@ -23806,6 +24620,32 @@ components:
           format: uuid
         line:
           $ref: "#/components/schemas/VoiceTranscriptLine"
+
+    VoiceCallTranscriptMark:
+      type: object
+      required: [type, channel_id, transcript_id, mark_id, mark]
+      description: >
+        A mark or note was kept on a running call's transcript, or removed
+        when `mark` is null. Sent to the same people as `call.transcript_line`:
+        those in the call who hold `VIEW_CHANNEL` and `VIEW_TRANSCRIPTS`.
+        Anyone else reads listVoiceTranscriptMarks.
+      properties:
+        type:
+          type: string
+          enum: [call.transcript_mark]
+        channel_id:
+          type: string
+          format: uuid
+        transcript_id:
+          type: string
+          format: uuid
+        mark_id:
+          type: string
+          format: uuid
+        mark:
+          oneOf:
+            - $ref: "#/components/schemas/VoiceTranscriptMark"
+            - type: "null"
 
     ModuleRoomChanged:
       type: object

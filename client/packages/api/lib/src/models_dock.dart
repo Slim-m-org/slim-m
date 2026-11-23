@@ -10,6 +10,9 @@ library;
 
 import 'models_dock_activity.dart';
 import 'models_dock_changelog.dart';
+import 'models_dock_connector.dart';
+import 'models_dock_host_run.dart';
+import 'models_dock_runtime.dart';
 import 'models_dock_platform.dart';
 
 /// The `source` that reads a module installed from a package file back from the
@@ -73,63 +76,6 @@ class DockSource {
         repo: json['repo'] as String,
         official: json['official'] as bool,
         local: json['local'] as bool? ?? false,
-      );
-}
-
-/// Where a module's verified artifact lives, and the hash the install call
-/// checks it against before anything runs.
-class DockArtifact {
-  const DockArtifact({
-    required this.kind,
-    required this.path,
-    required this.sha256,
-  });
-
-  final String kind;
-  final String path;
-
-  /// 64 lowercase hex characters.
-  final String sha256;
-
-  factory DockArtifact.fromJson(Map<String, dynamic> json) => DockArtifact(
-        kind: json['kind'] as String,
-        path: json['path'] as String,
-        sha256: json['sha256'] as String,
-      );
-}
-
-/// Resource ceilings the host enforces on a module's runtime. Any field can
-/// be absent, meaning that backend applies its own default rather than the
-/// manifest naming one.
-class DockLimits {
-  const DockLimits({this.memoryMb, this.wallMs, this.fuel});
-
-  final int? memoryMb;
-  final int? wallMs;
-
-  /// The WASM fuel budget metering CPU use; see decision 0021's runtime
-  /// section for why this replaces a wall-clock-only limit.
-  final int? fuel;
-
-  factory DockLimits.fromJson(Map<String, dynamic> json) => DockLimits(
-        memoryMb: json['memory_mb'] as int?,
-        wallMs: json['wall_ms'] as int?,
-        fuel: json['fuel'] as int?,
-      );
-}
-
-/// Which host-provided runtime a module needs, and its resource ceilings. A
-/// module never ships or installs a runtime; it only names one slim already
-/// offers.
-class DockRuntime {
-  const DockRuntime({required this.backend, required this.limits});
-
-  final String backend;
-  final DockLimits limits;
-
-  factory DockRuntime.fromJson(Map<String, dynamic> json) => DockRuntime(
-        backend: json['backend'] as String,
-        limits: DockLimits.fromJson(json['limits'] as Map<String, dynamic>),
       );
 }
 
@@ -277,7 +223,16 @@ class DockManifest {
     this.permissionHooks = const [],
     this.reviewDigest,
     this.callAudio,
+    this.connectorPermissions,
+    this.hostRun,
   });
+
+  /// For a connector the host runs, the image, egress and limits it asks for (decision 0134).
+  final HostRunAsk? hostRun;
+
+  /// For a connector, the core permission bits its token asks for; null for a WASM module.
+  final int? connectorPermissions;
+  bool get isConnector => connectorPermissions != null;
 
   /// What it does with a call it hears, in its own words; absent without `call.audio`.
   final DockCallAudio? callAudio;
@@ -377,6 +332,8 @@ class DockManifest {
             ? null
             : DockCallAudio.fromJson(
                 json['call_audio'] as Map<String, dynamic>),
+        connectorPermissions: dockConnectorAsk(json),
+        hostRun: dockHostRunAsk(json),
       );
 }
 
@@ -413,7 +370,16 @@ class InstalledDockModule {
     this.eventsDropped = 0,
     this.queueDepth = 0,
     this.fuelLimit = 0,
+    this.connectorPermissions,
+    this.connectorToken,
   });
+
+  /// For a connector, the core permission bits the admin approved; null for a WASM module.
+  final int? connectorPermissions;
+  bool get isConnector => connectorPermissions != null;
+
+  /// A connector's token, only in the install answer that created it.
+  final String? connectorToken;
 
   /// Event kinds it was installed to receive.
   final List<String> subscriptions;
@@ -543,5 +509,7 @@ class InstalledDockModule {
         eventsDropped: json['events_dropped'] as int? ?? 0,
         queueDepth: json['queue_depth'] as int? ?? 0,
         fuelLimit: json['fuel_limit'] as int? ?? 0,
+        connectorPermissions: json['connector_permissions'] as int?,
+        connectorToken: json['connector_token'] as String?,
       );
 }

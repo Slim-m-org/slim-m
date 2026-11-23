@@ -180,6 +180,15 @@ async fn on_request_needs_everyones_yes_before_anything_is_kept() {
     assert_eq!(body["session"]["mode"], "on_request");
     assert_eq!(body["session"]["module_id"], "server");
     assert_eq!(body["session"]["asked_by"], a.id.to_string());
+    assert!(
+        body["session"].get("transcript_id").is_none(),
+        "no transcript exists while people are asked"
+    );
+    let purpose = body["session"]["purpose"].as_str().unwrap();
+    assert!(
+        purpose.contains("shows it to the people in it"),
+        "{purpose}"
+    );
     assert!(rig.listener.of_type("start").is_empty());
     let kept = rig
         .store
@@ -197,6 +206,8 @@ async fn on_request_needs_everyones_yes_before_anything_is_kept() {
         (row.mode.as_str(), row.started_by),
         ("on_request", Some(a.id))
     );
+    let view = rig.status(b).await;
+    assert_eq!(view["session"]["transcript_id"], id.to_string());
 
     rig.listener
         .segment(&rig.session_id(), &b.id.to_string(), "said after yes");

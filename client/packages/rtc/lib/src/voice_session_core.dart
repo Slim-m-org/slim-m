@@ -14,6 +14,7 @@ import 'package:slimm_api/api.dart' show AppLog, LogLevel, LogTag;
 import 'audio_devices.dart';
 import 'audio_engine_line.dart';
 import 'broadcast_bridge.dart';
+import 'camera_switching.dart' show CameraTrackFactory;
 import 'camera_devices.dart';
 import 'camera_join.dart';
 import 'desktop_sources.dart';
@@ -59,6 +60,7 @@ class VoiceSessionCore {
     BroadcastBridge? broadcast,
     DesktopSources? desktopSources,
     CameraDevices? cameraDevices,
+    CameraTrackFactory? cameraTrackFactory,
     InputGateMonitor? inputGate,
     MicPort? micPort,
     VoiceLog? audioLog,
@@ -205,6 +207,7 @@ class VoiceSessionCore {
       video.density,
       connecting: () => flow.state == VoiceSessionState.connecting,
       devices: cameraDevices,
+      createTrack: cameraTrackFactory,
       joinTimeout: cameraJoinTimeout,
     );
     roster = VoiceRoster(

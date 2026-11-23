@@ -250,6 +250,7 @@ void main() {
       GlobalHotkeyId.pushToTalk,
       GlobalHotkeyId.toggleMute,
       GlobalHotkeyId.toggleDeafen,
+      GlobalHotkeyId.markCall,
     ]);
     await c.voice.leave();
   });

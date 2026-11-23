@@ -1,0 +1,110 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: CallTranscriptMarkId\", transcript_id AS \"transcript_id!: CallTranscriptId\",\n                      author_id AS \"author_id!: UserId\", at, line_seq, kind, text, source\n               FROM call_transcript_marks WHERE transcript_id = ?\n               ORDER BY at, id LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CallTranscriptMarkId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "call_transcript_marks",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "transcript_id!: CallTranscriptId",
+        "ordinal": 1,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "call_transcript_marks",
+            "name": "transcript_id"
+          }
+        }
+      },
+      {
+        "name": "author_id!: UserId",
+        "ordinal": 2,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "call_transcript_marks",
+            "name": "author_id"
+          }
+        }
+      },
+      {
+        "name": "at",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "call_transcript_marks",
+            "name": "at"
+          }
+        }
+      },
+      {
+        "name": "line_seq",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "call_transcript_marks",
+            "name": "line_seq"
+          }
+        }
+      },
+      {
+        "name": "kind",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "call_transcript_marks",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "text",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "call_transcript_marks",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "name": "source",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "call_transcript_marks",
+            "name": "source"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "3ab60c12eb61b9135e705fc1e1a333b6428a920e73f809624204e1fb22a8bbea"
+}

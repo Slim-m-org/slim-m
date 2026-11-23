@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -205,6 +206,36 @@ void main() {
       },
       skip: !Platform.isLinux,
     );
+
+    for (final (name, entries) in [
+      ('a dot-dot entry', [_entry('pkg/../../escaped')]),
+      (
+        'a file written through a symlink',
+        [_link('pkg/out', '../..'), _entry('pkg/out/escaped')],
+      ),
+    ]) {
+      test('unpackWithTar keeps $name inside the destination', () async {
+        final archive = File('${root.path}/evil.tar.gz')
+          ..writeAsBytesSync(
+            const GZipEncoder().encodeBytes(
+              TarEncoder().encodeBytes(_archiveOf(entries)),
+            ),
+          );
+        final into = Directory('${root.path}/a/b/out')
+          ..createSync(recursive: true);
+        try {
+          await unpackWithTar(archive, into);
+        } on FileSystemException {
+          // Refusing outright is as good as dropping the entry.
+        }
+        final escaped = root
+            .listSync(recursive: true, followLinks: false)
+            .whereType<File>()
+            .where((f) => f.path.contains('escaped'))
+            .where((f) => !f.path.startsWith(into.path));
+        expect(escaped, isEmpty);
+      }, skip: !Platform.isLinux);
+    }
   });
 
   group('confirmCleanStart', () {
@@ -446,4 +477,15 @@ void main() {
     expect(detectLinuxLayout('/usr/lib/slim-m/slimm_app'), isNull);
     expect(detectLinuxLayout('${root.path}/nope/slimm_app'), isNull);
   });
+}
+
+ArchiveFile _entry(String name) => ArchiveFile.bytes(name, [0x78]);
+
+ArchiveFile _link(String name, String target) =>
+    ArchiveFile.symlink(name, target);
+
+Archive _archiveOf(List<ArchiveFile> entries) {
+  final archive = Archive();
+  entries.forEach(archive.addFile);
+  return archive;
 }

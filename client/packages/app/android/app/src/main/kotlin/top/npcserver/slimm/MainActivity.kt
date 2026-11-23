@@ -67,7 +67,10 @@ class MainActivity : FlutterFragmentActivity() {
         ClipboardImageChannel(applicationContext).attach(flutterEngine.dartExecutor.binaryMessenger)
         shareIntake.attach(flutterEngine.dartExecutor.binaryMessenger)
         pictureInPicture.attach(flutterEngine.dartExecutor.binaryMessenger)
-        ApkInstallChannel(this).attach(flutterEngine.dartExecutor.binaryMessenger)
+        // The Play build has no install permission and Play updates it, so it leaves the sideload updater out.
+        if (BuildConfig.SIDELOAD_UPDATER) {
+            ApkInstallChannel(this).attach(flutterEngine.dartExecutor.binaryMessenger)
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_LOCK_WINDOW_CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {

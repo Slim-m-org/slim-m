@@ -6,11 +6,9 @@
 //! marked apart by their own `// --- Envelope ---` / `// --- Connection ---`
 //! section comments before this existed.
 
-use std::sync::Arc;
-
 use serde::Serialize;
 
-use crate::http::canvas::CanvasObjectDto;
+use super::canvas_wire;
 use crate::http::channels::ChannelDto;
 use crate::http::ephemeral_messages::EphemeralMessageDto;
 use crate::http::messages::MessageDto;
@@ -206,6 +204,14 @@ pub(super) enum ServerFrame {
     ProfileChanged { user_id: String },
     #[serde(rename = "bot_ui.changed")]
     BotUiChanged { bot_user_id: String },
+    /// A member's run for a connector to answer at `POST /connectors/me/runs/{run_id}` (add-on API 7).
+    #[serde(rename = "connector.run")]
+    ConnectorRun {
+        run_id: String,
+        module_id: String,
+        deadline_ms: u64,
+        request: crate::hub::RoomJson,
+    },
     #[serde(rename = "typing.started")]
     TypingStarted { channel_id: String, user_id: String },
     #[serde(rename = "typing.stopped")]
@@ -314,6 +320,9 @@ pub(super) enum ServerFrame {
         transcript_id: String,
         line: crate::http::voice::voice_transcripts::LineDto,
     },
+    /// A mark or note kept on, or removed from, a running call's transcript.
+    #[serde(rename = "call.transcript_mark")]
+    CallTranscriptMark(super::call_mark_frames::MarkFrame),
     /// A member played a soundboard clip in a call this connection's account is in;
     /// see [`crate::hub::Event::SoundboardPlayed`].
     #[serde(rename = "soundboard.played")]
@@ -342,190 +351,43 @@ pub(super) enum ServerFrame {
     #[serde(rename = "dm.changed")]
     DmChanged { channel_id: String },
     #[serde(rename = "canvas.object.placed")]
-    CanvasObjectPlaced {
-        channel_id: String,
-        seq: i64,
-        object: CanvasObjectDto,
-    },
+    CanvasObjectPlaced(canvas_wire::ObjectPlaced),
     #[serde(rename = "canvas.objects.removed")]
-    CanvasObjectsRemoved {
-        channel_id: String,
-        seq: i64,
-        op_id: String,
-        object_ids: Vec<String>,
-    },
+    CanvasObjectsRemoved(canvas_wire::ObjectsRemoved),
     #[serde(rename = "canvas.cleared")]
-    CanvasCleared {
-        channel_id: String,
-        seq: i64,
-        op_id: String,
-        before_seq: i64,
-    },
+    CanvasCleared(canvas_wire::Cleared),
     /// A distinct type so a client that predates scoped clears ignores it rather than clearing everything.
+    /// Locked objects the clear left standing; fewer ids than `spared_count` means refetch.
     #[serde(rename = "canvas.cleared_scoped")]
-    CanvasClearedScoped {
-        channel_id: String,
-        seq: i64,
-        op_id: String,
-        before_seq: i64,
-        kinds: Vec<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        author_id: Option<String>,
-        /// Locked objects the clear left standing; fewer ids than `spared_count` means refetch.
-        #[serde(skip_serializing_if = "Vec::is_empty")]
-        spared_ids: Vec<String>,
-        #[serde(skip_serializing_if = "is_zero")]
-        spared_count: i64,
-    },
+    CanvasClearedScoped(canvas_wire::ClearedScoped),
     #[serde(rename = "canvas.objects.restored")]
-    CanvasObjectsRestored {
-        channel_id: String,
-        seq: i64,
-        op_id: String,
-        object_ids: Vec<String>,
-    },
+    CanvasObjectsRestored(canvas_wire::ObjectsRestored),
     #[serde(rename = "canvas.cursor.moved")]
-    CanvasCursorMoved {
-        channel_id: String,
-        user_id: String,
-        x: f64,
-        y: f64,
-        #[serde(skip_serializing_if = "std::ops::Not::not")]
-        left: bool,
-    },
+    CanvasCursorMoved(canvas_wire::CursorMoved),
     #[serde(rename = "canvas.stroke_preview.updated")]
-    CanvasStrokePreview {
-        channel_id: String,
-        user_id: String,
-        object_id: String,
-        points: Vec<f64>,
-        ended: bool,
-        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-        cancelled: bool,
-        color: Option<String>,
-        width: Option<f64>,
-    },
+    CanvasStrokePreview(canvas_wire::StrokePreview),
     #[serde(rename = "canvas.object_preview.updated")]
-    CanvasObjectPreview {
-        channel_id: String,
-        user_id: String,
-        object_id: String,
-        x: f64,
-        y: f64,
-        w: f64,
-        h: f64,
-        ended: bool,
-    },
+    CanvasObjectPreview(canvas_wire::ObjectPreview),
     #[serde(rename = "canvas.media_slot_preview.updated")]
-    CanvasMediaSlotPreview {
-        channel_id: String,
-        user_id: String,
-        kind: String,
-        slot_user_id: String,
-        x: f64,
-        y: f64,
-        w: f64,
-        h: f64,
-        ended: bool,
-    },
+    CanvasMediaSlotPreview(canvas_wire::MediaSlotPreview),
     #[serde(rename = "canvas.screen_annotation.updated")]
-    CanvasScreenAnnotation {
-        channel_id: String,
-        user_id: String,
-        target_user_id: String,
-        kind: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        annotation_id: Option<String>,
-        points: Vec<f64>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        color: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        text: Option<String>,
-        ended: bool,
-        allowed: bool,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        aspect: Option<f64>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        size: Option<f64>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        emoji: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        attachment: Option<String>,
-        #[serde(skip_serializing_if = "std::ops::Not::not")]
-        animated: bool,
-        #[serde(skip_serializing_if = "std::ops::Not::not")]
-        stamps: bool,
-    },
+    CanvasScreenAnnotation(canvas_wire::ScreenAnnotation),
     #[serde(rename = "canvas.view.updated")]
-    CanvasView {
-        channel_id: String,
-        user_id: String,
-        x: f64,
-        y: f64,
-        w: f64,
-        h: f64,
-        summon: bool,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        tile: Option<String>,
-    },
+    CanvasView(canvas_wire::View),
     #[serde(rename = "canvas.object.moved")]
-    CanvasObjectMoved {
-        channel_id: String,
-        seq: i64,
-        op_id: String,
-        object_id: String,
-        x: f64,
-        y: f64,
-        w: f64,
-        h: f64,
-    },
+    CanvasObjectMoved(canvas_wire::ObjectMoved),
     #[serde(rename = "canvas.object.reordered")]
-    CanvasObjectReordered {
-        channel_id: String,
-        seq: i64,
-        op_id: String,
-        object_id: String,
-        z_index: i64,
-    },
+    CanvasObjectReordered(canvas_wire::ObjectReordered),
     #[serde(rename = "canvas.object.edited")]
-    CanvasObjectEdited {
-        channel_id: String,
-        seq: i64,
-        op_id: String,
-        object_id: String,
-        props: serde_json::Value,
-    },
+    CanvasObjectEdited(canvas_wire::ObjectEdited),
     #[serde(rename = "canvas.media_slot.changed")]
-    CanvasMediaSlotChanged {
-        channel_id: String,
-        kind: String,
-        user_id: String,
-        x: f64,
-        y: f64,
-        w: f64,
-        h: f64,
-        locked: bool,
-        sent_to_back: bool,
-        version: i64,
-    },
+    CanvasMediaSlotChanged(canvas_wire::MediaSlotChanged),
     /// A canvas object was locked in place or unlocked.
     #[serde(rename = "canvas.object.lock_changed")]
-    CanvasObjectLockChanged {
-        channel_id: String,
-        object_id: String,
-        locked: bool,
-        version: i64,
-    },
+    CanvasObjectLockChanged(canvas_wire::ObjectLockChanged),
     /// A module tile's shared frame changed; `output` is the scene every viewer draws.
     #[serde(rename = "canvas.tile.scene_changed")]
-    CanvasTileSceneChanged {
-        channel_id: String,
-        object_id: String,
-        output: Arc<str>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        ran_by: Option<String>,
-        ran_at: i64,
-    },
+    CanvasTileSceneChanged(canvas_wire::TileSceneChanged),
     /// The moderation queue changed: a report was filed or resolved. Carries
     /// nothing beyond the type tag; see [`crate::hub::Event::ReportsChanged`]
     /// for why. Delivered only to a connection whose user holds
@@ -635,8 +497,4 @@ impl ServerFrame {
         }
         self
     }
-}
-
-fn is_zero(n: &i64) -> bool {
-    *n == 0
 }

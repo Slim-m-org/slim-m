@@ -16,6 +16,17 @@ import 'module_scene.dart';
 import 'module_scene_path.dart';
 import 'module_scene_sweep.dart';
 
+/// A bare [TextPainter] inherits no theme, so the app face is named here.
+TextStyle moduleSceneTextStyle({
+  required Color color,
+  required double fontSize,
+}) => TextStyle(
+  color: color,
+  fontSize: fontSize,
+  fontFamily: AppFonts.sans,
+  fontFamilyFallback: AppFonts.emoji,
+);
+
 class ModuleScenePainter extends CustomPainter {
   const ModuleScenePainter({
     required this.scene,
@@ -176,7 +187,7 @@ class ModuleScenePainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: op.text,
-        style: TextStyle(
+        style: moduleSceneTextStyle(
           color: _resolve(op.fill, tokens.textPrimary),
           fontSize: op.size * sy,
         ),

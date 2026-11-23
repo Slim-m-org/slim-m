@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+name: supervisor-ci
+
+# The connector supervisor (decision 0134): its Docker tests, which server-ci's workspace run skips as ignored, and its image; see docs/ci.md.
+on:
+  pull_request:
+    paths:
+      - "crates/slimm-supervisor/**"
+      - "docker/supervisor.Dockerfile"
+      - "docs/connectors/supervisor-fixtures/**"
+      - ".github/workflows/supervisor-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "crates/slimm-supervisor/**"
+      - "docker/supervisor.Dockerfile"
+      - "docs/connectors/supervisor-fixtures/**"
+      - ".github/workflows/supervisor-ci.yml"
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+# On main, keyed per commit: a group shared across pushes lets GitHub cancel an older still-queued run outright, which cancel-in-progress cannot prevent; see docs/ci.md.
+  group: supervisor-ci-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  docker-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+        with:
+          cache-shared-key: supervisor-ci
+      # The runner's own Docker daemon; the tests start a local registry and remove everything they label.
+      - run: cargo test --locked -p slimm-supervisor -- --include-ignored
+
+  image:
+    strategy:
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # Native per architecture, never QEMU; not pushed until the release pipeline publishes it.
+      - run: docker build -f docker/supervisor.Dockerfile -t slimm-supervisor:ci .
+      - run: docker run --rm slimm-supervisor:ci --version

@@ -70,5 +70,38 @@ void main() {
       expect(
           cameraDegradationPreference, isNot(screenShareDegradationPreference));
     });
+
+    test('carry each quality\'s bitrate and fps to the top layer', () {
+      for (final q in CameraQuality.values) {
+        final encoding = cameraPublishOptionsFor(q).videoEncoding;
+        expect(encoding?.maxBitrate, q.params.encoding?.maxBitrate,
+            reason: q.name);
+        expect(encoding?.maxFramerate, q.params.encoding?.maxFramerate,
+            reason: q.name);
+      }
+    });
+
+    test('ask for the budgets the enum documents', () {
+      expect(
+        {
+          for (final q in CameraQuality.values)
+            q: cameraPublishOptionsFor(q).videoEncoding?.maxBitrate,
+        },
+        {
+          CameraQuality.dataSaver: 600000,
+          CameraQuality.balanced: 2500000,
+          CameraQuality.high: 4500000,
+        },
+      );
+    });
+
+    test('keep simulcast on and the room default at the 720p budget', () {
+      for (final q in CameraQuality.values) {
+        expect(cameraPublishOptionsFor(q).simulcast, isTrue, reason: q.name);
+      }
+      expect(cameraPublishOptions().videoEncoding?.maxBitrate, 2500000);
+      expect(receiveRoomOptions().defaultVideoPublishOptions.videoEncoding,
+          CameraQuality.balanced.params.encoding);
+    });
   });
 }

@@ -78,6 +78,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       ),
       cameraOnJoin: prefs.getBool(VoiceSettingKeys.cameraOnJoin) ?? false,
       mirrorSelfView: prefs.getBool(VoiceSettingKeys.mirrorSelfView) ?? true,
+      showCaptions: prefs.getBool(VoiceSettingKeys.showCaptions) ?? false,
       pushToTalkEnabled:
           prefs.getBool(VoiceSettingKeys.pushToTalkEnabled) ?? false,
       // Any key a person picked; `V` for voice until they pick one.
@@ -256,6 +257,12 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(mirrorSelfView: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(VoiceSettingKeys.mirrorSelfView, enabled);
+  }
+
+  Future<void> setShowCaptions(bool enabled) async {
+    state = state.copyWith(showCaptions: enabled);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(VoiceSettingKeys.showCaptions, enabled);
   }
 
   Future<void> setPauseVideoWhenMinimised(bool enabled) async {

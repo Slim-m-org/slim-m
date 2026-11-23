@@ -80,3 +80,13 @@ So the request gains a second additive field, `entropy`: 16 random bytes as 32 l
 
 A host that replays a run to check it would see a different value and, for a module that uses it, a different answer.
 Nothing replays runs today, and a module whose answer must be checkable should keep its state in `input` instead.
+
+## Amended 2026-11-22
+
+The request's `caller` gains an optional `name`: the display name other members see for the caller in this space (the nickname set here, else the account's display name, else the username), as it was when the run started.
+It is a snapshot, not an identity: it is not stable, it is not unique, and a module must not key anything on it.
+
+- It names a person only to the module that person just ran, in the run they started, so it tells that module nothing a member's own message in the channel would not.
+  The username is sent only as the fallback when there is no display name.
+- A module that uses it must keep working without it: a host below add-on level 7 never sends it, and the host leaves it out when the account cannot be read.
+- Mentioning a caller back goes through the same opacity rule: a module writes `{{mention:<caller id>}}` in a `message.post`, and the host expands only ids it computed for this module (see docs/modules/building-modules.md), so the id still never reveals a user id or an `@username`.

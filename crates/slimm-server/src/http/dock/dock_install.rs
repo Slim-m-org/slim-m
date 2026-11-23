@@ -64,6 +64,12 @@ pub(super) struct InstallRequest {
     /// the manifest has changed since, so consent is for what was reviewed.
     #[serde(default)]
     pub(super) reviewed_digest: Option<String>,
+    /// The core permissions the admin approved for a connector's token; required for one.
+    #[serde(default)]
+    pub(super) approved_connector_permissions: Option<i64>,
+    /// What the admin approved of a host-run connector's ask; required for one (decision 0134).
+    #[serde(default)]
+    pub(super) approved_host_run: Option<super::dock_host_run::HostRunApproval>,
 }
 
 /// Checks the admin's review and approvals against `manifest`, then stores the
@@ -74,6 +80,7 @@ pub(super) async fn install_manifest(
     artifact: ArtifactSource<'_>,
     req: &InstallRequest,
     repo: Option<&str>,
+    actor: crate::ids::UserId,
 ) -> Result<InstalledModuleDto, ApiError> {
     let id = manifest.id.as_str();
     if manifest.version != req.version {
@@ -90,6 +97,11 @@ pub(super) async fn install_manifest(
             "the module changed since you reviewed it; reopen it in the Dock",
         ));
     }
+    if manifest.connector.is_some() {
+        return super::dock_connector::install(state, manifest, req, repo, actor).await;
+    }
+    let installed_before = state.store.installed_module(id).await?;
+    super::dock_connector::refuse_replacing_connector(installed_before.as_ref())?;
     let approved_host = match &req.approved_host_capabilities {
         Some(requested) => approvable_host_capabilities(manifest, requested)?,
         None => carried_host_capabilities(state, manifest).await?,
@@ -101,12 +113,7 @@ pub(super) async fn install_manifest(
     } else {
         &[]
     };
-    if state
-        .store
-        .installed_module(id)
-        .await?
-        .is_some_and(|m| m.enabled)
-    {
+    if installed_before.is_some_and(|m| m.enabled) {
         let keywords = manifest
             .extension_points
             .iter()

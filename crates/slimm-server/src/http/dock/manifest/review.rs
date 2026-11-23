@@ -38,6 +38,9 @@ struct Reviewed<'a> {
     settings: Vec<(&'a str, SettingKind, Vec<&'a str>)>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     slots: Vec<(&'a str, &'a str)>,
+    /// The core permissions a connector's token asks for.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    connector: Option<i64>,
 }
 
 type ExtensionPoint<'a> = (
@@ -129,6 +132,7 @@ impl Manifest {
             extension_points,
             settings,
             slots,
+            connector: self.connector.as_ref().map(|c| c.permissions.bits()),
         };
         let json = serde_json::to_vec(&reviewed).unwrap_or_default();
         to_hex(&Sha256::digest(json))

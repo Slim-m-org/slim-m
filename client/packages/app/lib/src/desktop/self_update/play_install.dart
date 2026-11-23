@@ -8,7 +8,17 @@ import 'package:slimm_platform/platform.dart' show isAndroidHost;
 
 const playStoreInstaller = 'com.android.vending';
 
-/// Whether [info] describes an Android copy installed by Google Play.
-/// [onAndroid] is injectable because every test host is a desktop.
-bool installedFromPlay(PackageInfo info, {bool? onAndroid}) =>
-    (onAndroid ?? isAndroidHost) && info.installerStore == playStoreInstaller;
+/// Set for the appbundle, which only ever goes to Google Play; a const so the
+/// sideload apk updater is compiled out of that build.
+const bool playBuild = bool.fromEnvironment('SLIMM_PLAY_BUILD');
+
+/// Whether [info] describes an Android copy that Google Play updates.
+/// [onAndroid] and [isPlayBuild] are injectable because every test host is a
+/// desktop build without the define.
+bool installedFromPlay(
+  PackageInfo info, {
+  bool? onAndroid,
+  bool isPlayBuild = playBuild,
+}) =>
+    (onAndroid ?? isAndroidHost) &&
+    (isPlayBuild || info.installerStore == playStoreInstaller);

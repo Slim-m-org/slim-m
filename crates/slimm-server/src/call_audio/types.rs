@@ -86,6 +86,8 @@ pub struct AcceptedSegment {
     pub end_ms: i64,
     pub text: String,
     pub language: Option<String>,
+    /// The wake phrase this session acts on; `None` for a module or with spoken marks off.
+    pub listens_for: Option<String>,
     pub segment_id: String,
     pub ids: EventIds,
 }

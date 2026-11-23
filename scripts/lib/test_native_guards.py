@@ -57,6 +57,22 @@ class HoldMusic(unittest.TestCase):
             self.assertLess(body.index("engine.isRunning"), body.index("node.play()"), signature)
 
 
+class SoundClips(unittest.TestCase):
+    def setUp(self):
+        self.source = swift("Runner/SoundClipChannel.swift")
+
+    def test_a_clip_never_writes_the_calls_audio_session(self):
+        for call in ("setCategory", "setActive", "setMode", "overrideOutputAudioPort"):
+            self.assertNotIn(call, self.source)
+
+    def test_a_clip_checks_for_the_call_session_before_starting_an_engine(self):
+        body = body_of(self.source, "func play(data:")
+        self.assertLess(body.index(".playAndRecord"), body.index("engine.start()"))
+
+    def test_a_failed_engine_start_is_never_swallowed(self):
+        self.assertNotIn("try? voice.engine.start()", self.source)
+
+
 class ClipboardReads(unittest.TestCase):
     def test_android_reads_the_image_on_a_worker_thread_with_a_cap(self):
         source = scrub((ANDROID / "ClipboardImageChannel.kt").read_text())
