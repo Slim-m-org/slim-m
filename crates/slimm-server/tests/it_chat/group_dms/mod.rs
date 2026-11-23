@@ -5,6 +5,7 @@
 
 mod calls;
 mod create_errors;
+mod delete;
 mod lifecycle;
 mod live;
 mod membership;

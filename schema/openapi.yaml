@@ -3282,6 +3282,29 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: deleteGroupDirectMessage
+      tags: [dms]
+      summary: Delete a group DM for everyone in it.
+      description: >
+        Any participant may; there is no creator with extra powers. The group
+        leaves every member's list at once, its messages and attachments are
+        pruned for all of them, and any call in it ends. Announced to the
+        participants with a `channel.deleted` event. Deleting a group that is
+        already deleted is a no-op that still answers 204 for a former
+        participant; anyone else gets 404, the same as for a group that never
+        existed.
+      responses:
+        "204":
+          description: The group is deleted.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /dms/groups/{channelId}/members:
     parameters:

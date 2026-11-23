@@ -51,6 +51,7 @@ mod dms;
 mod dock_sources;
 mod emoji;
 mod forward_cascade;
+mod group_dm_delete;
 mod group_dms;
 mod interactions;
 mod invite_reuse;

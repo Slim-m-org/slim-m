@@ -437,7 +437,7 @@ async fn delete(
 /// "no room", which is already true for a channel that never had one, and a
 /// retry is the natural second chance if the first attempt could not reach
 /// the SFU.
-async fn end_voice_room(state: &AppState, channel_id: ChannelId) {
+pub(super) async fn end_voice_room(state: &AppState, channel_id: ChannelId) {
     match state.voice.delete_room(channel_id).await {
         // No SFU configured at all: there is no room to end.
         Ok(()) | Err(VoiceError::Unavailable) => {}
