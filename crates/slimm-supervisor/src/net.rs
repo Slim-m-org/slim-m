@@ -62,6 +62,9 @@ pub fn normalize_host(host: &str) -> Option<String> {
         return Some(unmapped(ip).to_string());
     }
     let host = host.trim_end_matches('.').to_ascii_lowercase();
+    if ends_in_a_number(&host) {
+        return None;
+    }
     let label_ok = |l: &str| {
         !l.is_empty()
             && l.len() <= 63
@@ -71,6 +74,16 @@ pub fn normalize_host(host: &str) -> Option<String> {
                 .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     };
     (!host.is_empty() && host.len() <= 253 && host.split('.').all(label_ok)).then_some(host)
+}
+
+/// The WHATWG URL rule: a last label of digits or `0x` hex makes a resolver read the whole
+/// name as an IPv4 address (`127.1`, `0x7f000001`), which a consent screen would hide.
+pub fn ends_in_a_number(host: &str) -> bool {
+    let last = host.rsplit('.').next().unwrap_or_default();
+    let hex = last
+        .strip_prefix("0x")
+        .is_some_and(|h| h.chars().all(|c| c.is_ascii_hexdigit()));
+    hex || (!last.is_empty() && last.chars().all(|c| c.is_ascii_digit()))
 }
 
 /// An address or a CIDR range, v4 or v6.
@@ -298,6 +311,22 @@ mod tests {
             Some("api.example.com".into())
         );
         assert_eq!(normalize_host("::ffff:10.0.0.1"), Some("10.0.0.1".into()));
+        for numeric in [
+            "127.1",
+            "0x7f000001",
+            "0xc0a80101",
+            "2130706433",
+            "0177.0.0.1",
+            "a.0x",
+            "nas.10",
+        ] {
+            assert_eq!(normalize_host(numeric), None, "{numeric}");
+        }
+        assert_eq!(
+            normalize_host("1password.com"),
+            Some("1password.com".into())
+        );
+        assert_eq!(normalize_host("10.0.0.1"), Some("10.0.0.1".into()));
         for bad in [
             "",
             "*",

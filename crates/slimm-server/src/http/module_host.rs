@@ -197,13 +197,19 @@ pub(super) fn surface_posting_as(
 }
 
 /// Posts what a slash command printed as the member who ran it, labelled as the
-/// module's so the output can never pass for the member's own words.
+/// module's so the output can never pass for the member's own words. `@everyone` reaches
+/// only when the member and the module's principal both hold `MENTION_EVERYONE`.
 pub(crate) async fn post_command_output(
     state: &AppState,
     module: &InstalledModule,
     (user_id, channel): (UserId, ChannelId),
     (content, reply_to): (&str, Option<MessageId>),
 ) -> Result<MessageId, PostRefused> {
+    let member_may = state
+        .store
+        .has_permission(user_id, channel, Permissions::MENTION_EVERYONE)
+        .await
+        .unwrap_or(false);
     ChannelPoster {
         state: state.clone(),
         handle: Handle::current(),
@@ -211,7 +217,7 @@ pub(crate) async fn post_command_output(
         module_name: module.name.clone(),
         background: false,
         user_id,
-        mass_authority: module.bot_user_id,
+        mass_authority: module.bot_user_id.filter(|_| member_may),
         channel,
         reply_to,
     }

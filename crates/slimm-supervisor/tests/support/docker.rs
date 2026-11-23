@@ -19,6 +19,7 @@ pub struct Stage {
     pub egress_network: String,
     pub server_name: String,
     pub instances: Vec<String>,
+    pub handles: Vec<std::sync::Arc<slimm_supervisor::supervisor::Supervisor>>,
 }
 
 pub fn docker(args: &[&str]) -> String {
@@ -65,6 +66,7 @@ impl Stage {
             egress_network: format!("slimm-test-egress-{run}"),
             server_name: format!("slimm-test-server-{run}"),
             instances: Vec::new(),
+            handles: Vec::new(),
             run,
             dir,
         };
@@ -83,7 +85,11 @@ impl Stage {
             &label,
             &stage.egress_network,
         ]);
-        let serve = "mkdir -p /www && echo server-ok > /www/ok && exec httpd -f -p 8080 -h /www";
+        let serve = concat!(
+            "mkdir -p /www/cgi-bin && echo server-ok > /www/ok && ",
+            "printf '#!/bin/sh\\necho Content-Type: text/plain\\necho\\nenv | grep ^HTTP_\\n' > /www/cgi-bin/h && ",
+            "chmod +x /www/cgi-bin/h && exec httpd -f -p 8080 -h /www"
+        );
         docker(&[
             "run",
             "-d",
@@ -160,12 +166,23 @@ impl Stage {
             ("SLIMM_SUPERVISOR_SERVER_URL", &server_url),
         ];
         keys.extend_from_slice(extra);
-        let config = config(&sub, &keys);
+        let mut config = config(&sub, &keys);
+        config.requirements.lsm = daemon_has_lsm();
         let client = Client::new(&config.socket);
-        start(config, &instance).await;
+        self.handles.push(start(config, &instance).await);
         self.instances.push(instance.clone());
         (client, instance)
     }
+}
+
+/// A dev box whose daemon has neither AppArmor nor SELinux still runs the suite; CI's does not need this.
+pub fn daemon_has_lsm() -> bool {
+    let options = docker(&["info", "--format", "{{json .SecurityOptions}}"]);
+    let has = options.contains("name=apparmor") || options.contains("name=selinux");
+    if !has {
+        eprintln!("SKIPPED the AppArmor/SELinux requirement: this daemon applies neither");
+    }
+    has
 }
 
 fn copy_into(ctx: &Path, from: &Path, to: &str) {

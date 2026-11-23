@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT h.module_id, h.run_id, h.image, h.egress, h.egress_private, h.volume,\n                      h.memory_mib, h.cpus, h.pids, h.refused, h.last_error, h.crash_disabled_at,\n                      m.enabled, m.bot_user_id AS \"bot_user_id: UserId\"\n               FROM connector_host_runs h JOIN installed_modules m ON m.id = h.module_id\n               WHERE h.module_id = ?",
+  "query": "SELECT h.module_id, h.run_id, h.image, h.egress, h.egress_private, h.volume,\n                      h.memory_mib, h.cpus, h.pids, h.volume_mib, h.refused, h.last_error, h.crash_disabled_at,\n                      m.enabled, m.bot_user_id AS \"bot_user_id: UserId\"\n               FROM connector_host_runs h JOIN installed_modules m ON m.id = h.module_id\n               WHERE h.module_id = ?",
   "describe": {
     "columns": [
       {
@@ -103,8 +103,19 @@
         }
       },
       {
-        "name": "refused",
+        "name": "volume_mib",
         "ordinal": 9,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "connector_host_runs",
+            "name": "volume_mib"
+          }
+        }
+      },
+      {
+        "name": "refused",
+        "ordinal": 10,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -115,7 +126,7 @@
       },
       {
         "name": "last_error",
-        "ordinal": 10,
+        "ordinal": 11,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -126,7 +137,7 @@
       },
       {
         "name": "crash_disabled_at",
-        "ordinal": 11,
+        "ordinal": 12,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -137,7 +148,7 @@
       },
       {
         "name": "enabled",
-        "ordinal": 12,
+        "ordinal": 13,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -148,7 +159,7 @@
       },
       {
         "name": "bot_user_id: UserId",
-        "ordinal": 13,
+        "ordinal": 14,
         "type_info": "Blob",
         "origin": {
           "Table": {
@@ -171,6 +182,7 @@
       true,
       true,
       true,
+      true,
       false,
       true,
       true,
@@ -178,5 +190,5 @@
       true
     ]
   },
-  "hash": "eb80f9a769c9e229ef3ada159d9f6834289bc697cbde413a7e18b4034f667f52"
+  "hash": "2c9115b602be410a856da33d2fb57132426e919d3821a452e1e9166feec1fba5"
 }

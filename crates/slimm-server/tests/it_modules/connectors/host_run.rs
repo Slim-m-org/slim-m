@@ -51,7 +51,10 @@ async fn the_dock_shows_the_image_egress_and_limits_it_asks_for() {
         (ask["egress_private"].clone(), ask["volume"].clone()),
         (json!(true), json!(true))
     );
-    assert_eq!(ask["limits"], json!({"memory_mib": 64, "pids": 32}));
+    assert_eq!(
+        ask["limits"],
+        json!({"memory_mib": 64, "pids": 32, "volume_mib": 64})
+    );
     let (_, runtime) = w
         .as_owner("GET", "/space/dock/connector-runtime", None)
         .await;
@@ -115,7 +118,10 @@ async fn install_creates_with_only_what_was_approved_and_never_shows_the_token()
         "the Private network was not approved"
     );
     assert_eq!(body["volume"], json!(true));
-    assert_eq!(body["limits"], json!({"memory_mib": 64, "pids": 32}));
+    assert_eq!(
+        body["limits"],
+        json!({"memory_mib": 64, "pids": 32, "volume_mib": 64})
+    );
     assert_eq!(body["env"]["SLIMM_API_URL"], json!("http://server:8080"));
     let keys: Vec<&String> = body["env"].as_object().unwrap().keys().collect();
     assert!(keys.iter().all(|k| k.starts_with("SLIMM_")), "{keys:?}");
@@ -272,4 +278,53 @@ async fn a_policy_refusal_shows_on_the_connector_and_is_not_retried() {
         creates,
         "a policy answer is not retried"
     );
+}
+
+/// L1: the docker host's own LAN address is private too, so the Private network waits for the deny list.
+#[tokio::test]
+async fn the_private_network_is_refused_while_the_operator_lists_no_host_address() {
+    let w = host_world("slimm-hostrun-nodeny", true, true).await;
+    w.fake.with(|f| {
+        f.hello = Some(json!({"v": 1, "protocol": "supervisor/1", "version": "test", "runtime": "docker",
+            "rootless": false, "ready": true, "problems": [], "registries": ["ghcr.io/slim-m-org/"],
+            "ceilings": {"max_connectors": 8, "max_memory_mib": 512, "max_cpus": 1.0, "max_pids": 256},
+            "private_network": false, "connectors": 0}));
+    });
+    w.tick().await;
+    let (status, body) = w.install(all_egress()).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert!(
+        body["error"]
+            .as_str()
+            .unwrap()
+            .contains("SLIMM_SUPERVISOR_LAN_DENY"),
+        "{body}"
+    );
+    let (status, body) = w
+        .install(
+            json!({"egress": [{"host": "api.example.com", "port": 443}], "egress_private": false}),
+        )
+        .await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "without the Private network it installs: {body}"
+    );
+}
+
+/// L5: every call names this deployment, so a supervisor bound to another one refuses it.
+#[tokio::test]
+async fn every_supervisor_call_names_the_deployment() {
+    let w = host_world("slimm-hostrun-deployment", true, true).await;
+    w.running().await;
+    let id = w.store.connector_deployment_id().await.unwrap();
+    assert_eq!(id.len(), 32);
+    assert_eq!(
+        id,
+        w.store.connector_deployment_id().await.unwrap(),
+        "stable"
+    );
+    let named = w.fake.with(|f| f.deployments.clone());
+    assert!(!named.is_empty());
+    assert!(named.iter().all(|d| *d == id), "{named:?}");
 }

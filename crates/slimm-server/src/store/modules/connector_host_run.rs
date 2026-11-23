@@ -24,6 +24,7 @@ pub struct HostRunSpec {
     pub memory_mib: Option<i64>,
     pub cpus: Option<f64>,
     pub pids: Option<i64>,
+    pub volume_mib: Option<i64>,
 }
 
 /// A host-run connector as stored, with the module fields the runtime acts on.
@@ -49,6 +50,7 @@ struct Row {
     memory_mib: Option<i64>,
     cpus: Option<f64>,
     pids: Option<i64>,
+    volume_mib: Option<i64>,
     refused: i64,
     last_error: Option<String>,
     crash_disabled_at: Option<i64>,
@@ -69,6 +71,7 @@ impl From<Row> for HostRun {
                 memory_mib: r.memory_mib,
                 cpus: r.cpus,
                 pids: r.pids,
+                volume_mib: r.volume_mib,
             },
             enabled: r.enabled != 0,
             principal: r.bot_user_id,
@@ -92,12 +95,14 @@ impl Store {
         let now = now_ms();
         sqlx::query!(
             "INSERT INTO connector_host_runs
-                 (module_id, run_id, image, egress, egress_private, volume, memory_mib, cpus, pids, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 (module_id, run_id, image, egress, egress_private, volume, memory_mib, cpus, pids,
+                  volume_mib, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(module_id) DO UPDATE SET
                  image = excluded.image, egress = excluded.egress,
                  egress_private = excluded.egress_private, volume = excluded.volume,
                  memory_mib = excluded.memory_mib, cpus = excluded.cpus, pids = excluded.pids,
+                 volume_mib = excluded.volume_mib,
                  refused = 0, last_error = NULL, crash_disabled_at = NULL",
             module_id,
             run_id,
@@ -108,6 +113,7 @@ impl Store {
             spec.memory_mib,
             spec.cpus,
             spec.pids,
+            spec.volume_mib,
             now
         )
         .execute(&self.pool)
@@ -121,7 +127,7 @@ impl Store {
         let row = sqlx::query_as!(
             Row,
             r#"SELECT h.module_id, h.run_id, h.image, h.egress, h.egress_private, h.volume,
-                      h.memory_mib, h.cpus, h.pids, h.refused, h.last_error, h.crash_disabled_at,
+                      h.memory_mib, h.cpus, h.pids, h.volume_mib, h.refused, h.last_error, h.crash_disabled_at,
                       m.enabled, m.bot_user_id AS "bot_user_id: UserId"
                FROM connector_host_runs h JOIN installed_modules m ON m.id = h.module_id
                WHERE h.module_id = ?"#,
@@ -136,7 +142,7 @@ impl Store {
         let rows = sqlx::query_as!(
             Row,
             r#"SELECT h.module_id, h.run_id, h.image, h.egress, h.egress_private, h.volume,
-                      h.memory_mib, h.cpus, h.pids, h.refused, h.last_error, h.crash_disabled_at,
+                      h.memory_mib, h.cpus, h.pids, h.volume_mib, h.refused, h.last_error, h.crash_disabled_at,
                       m.enabled, m.bot_user_id AS "bot_user_id: UserId"
                FROM connector_host_runs h JOIN installed_modules m ON m.id = h.module_id
                ORDER BY h.module_id"#

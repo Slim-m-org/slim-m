@@ -93,20 +93,26 @@ pub fn secret_matches(given: &str, expected: &str) -> bool {
         == 0
 }
 
+/// The header a server names its deployment with on every request (L5 of the 2026-11-23 review).
+pub const DEPLOYMENT_HEADER: &str = "x-slimm-deployment";
+
 fn authorize(supervisor: &Supervisor, headers: &HeaderMap) -> Result<(), ApiError> {
     let given = headers
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
         .unwrap_or_default();
-    if secret_matches(given, &supervisor.config.secret) {
-        Ok(())
-    } else {
-        Err(ApiError::new(
+    if !secret_matches(given, &supervisor.config.secret) {
+        return Err(ApiError::new(
             Code::Unauthorized,
             "missing or wrong bearer secret",
-        ))
+        ));
     }
+    let deployment = headers
+        .get(DEPLOYMENT_HEADER)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default();
+    crate::checks::bind_deployment(&supervisor.config.state_dir, deployment)
 }
 
 fn log_line(verb: &str, id: &str, uid: u32, outcome: Result<(), Code>) {

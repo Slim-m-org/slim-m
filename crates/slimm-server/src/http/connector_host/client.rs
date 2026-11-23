@@ -57,6 +57,8 @@ pub struct Limits {
     pub cpus: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pids: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volume_mib: Option<i64>,
 }
 
 /// One labelled connector as the supervisor lists it.
@@ -74,6 +76,11 @@ pub struct Listed {
     pub finished_at: Option<String>,
     #[serde(default)]
     pub image: Option<String>,
+    #[serde(default)]
+    pub volume_bytes: Option<u64>,
+    /// The supervisor stopped it because its data volume is over the approved ceiling.
+    #[serde(default)]
+    pub volume_over_limit: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -87,6 +94,7 @@ pub struct LogLine {
 pub struct SupervisorClient {
     socket: PathBuf,
     secret: String,
+    deployment: std::sync::Arc<std::sync::OnceLock<String>>,
 }
 
 impl std::fmt::Debug for SupervisorClient {
@@ -102,7 +110,13 @@ impl SupervisorClient {
         Self {
             socket: socket.into(),
             secret,
+            deployment: Default::default(),
         }
+    }
+
+    /// Names this deployment on every call; the supervisor binds to the first one it hears.
+    pub fn set_deployment(&self, deployment: String) {
+        let _ = self.deployment.set(deployment);
     }
 
     pub async fn hello(&self) -> Result<Value, SupervisorError> {
@@ -199,6 +213,10 @@ impl SupervisorClient {
             .header("host", "supervisor")
             .header("authorization", format!("Bearer {}", self.secret))
             .header("content-type", "application/json")
+            .header(
+                "x-slimm-deployment",
+                self.deployment.get().map_or("", String::as_str),
+            )
             .body(Full::new(Bytes::from(body.unwrap_or_default())))
             .map_err(|e| down("bad supervisor request", &e))?;
         let response = sender
@@ -264,6 +282,10 @@ mod tests {
             ),
             ("exited", Some(137), true)
         );
+        assert_eq!(
+            (list[0].volume_bytes, list[0].volume_over_limit),
+            (Some(1_048_576), false)
+        );
         let lines: Vec<LogLine> =
             serde_json::from_value(fixture!("logs.response.json")["lines"].clone()).unwrap();
         assert_eq!(lines[1].stream, "stderr");
@@ -288,6 +310,7 @@ mod tests {
                 memory_mib: Some(128),
                 cpus: Some(0.5),
                 pids: Some(64),
+                volume_mib: Some(256),
             },
             egress: &egress,
             egress_private: false,

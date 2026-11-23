@@ -18,6 +18,7 @@ fn spec(volume: bool) -> Spec {
         egress: vec![HostPort::new("api.example.com", 443)],
         egress_private: false,
         volume,
+        volume_mib: 256,
     }
 }
 
@@ -124,4 +125,26 @@ fn the_connector_network_is_internal() {
     let network = internal_network(&Names::new("abcdef0123456789", ID));
     assert_eq!(network["Internal"], json!(true));
     assert_eq!(network["Attachable"], json!(false));
+    assert_eq!(
+        network["Options"]["com.docker.network.bridge.gateway_mode_ipv4"],
+        json!("isolated")
+    );
+}
+
+#[test]
+fn a_network_the_host_has_an_address_on_is_not_isolated() {
+    let isolated = json!({"Internal": true, "EnableIPv6": false,
+        "Options": {"com.docker.network.bridge.gateway_mode_ipv4": "isolated"},
+        "IPAM": {"Config": [{"Subnet": "172.30.0.0/16"}]}});
+    assert!(network_is_isolated(&isolated));
+    let mut with_gateway = isolated.clone();
+    with_gateway["IPAM"]["Config"][0]["Gateway"] = json!("172.30.0.1");
+    assert!(!network_is_isolated(&with_gateway));
+    let mut ignored_option = isolated.clone();
+    ignored_option["Options"] = json!({});
+    assert!(!network_is_isolated(&ignored_option));
+    let mut routable = isolated.clone();
+    routable["Internal"] = json!(false);
+    assert!(!network_is_isolated(&routable));
+    assert!(!network_is_isolated(&json!(null)));
 }

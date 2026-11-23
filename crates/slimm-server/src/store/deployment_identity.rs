@@ -25,6 +25,13 @@ impl Store {
         crate::identity::load_or_create(&self.pool).await
     }
 
+    /// The id this deployment names itself with to the connector supervisor, which binds to
+    /// the first one it hears; derived, so it survives a restart and names nothing secret.
+    pub async fn connector_deployment_id(&self) -> anyhow::Result<String> {
+        let key = crate::identity::derived_key(&self.pool, b"slim-connector-deployment-v1").await?;
+        Ok(key[..16].iter().map(|b| format!("{b:02x}")).collect())
+    }
+
     /// The secret a module's caller id is keyed with, so the id cannot be
     /// recomputed from a module id and a user id, both of which are public.
     pub async fn module_caller_key(&self) -> anyhow::Result<[u8; 32]> {

@@ -38,7 +38,7 @@ const _hostRun = {
   ],
   'egress_private': true,
   'volume': true,
-  'limits': {'memory_mib': 64},
+  'limits': {'memory_mib': 64, 'volume_mib': 32},
 };
 
 Map<String, dynamic> _manifest() => {
@@ -188,6 +188,7 @@ void main() {
     expect(find.text('Your server, jellyfin.lan:8096'), findsOneWidget);
     expect(find.text('None open to the outside'), findsOneWidget);
     expect(find.text('64 MB memory, 0.5 CPU, 64 processes'), findsOneWidget);
+    expect(find.text('Its own data folder, up to 32 MB'), findsOneWidget);
     expect(find.text('Runs in a sandbox on this server.'), findsOneWidget);
   });
 

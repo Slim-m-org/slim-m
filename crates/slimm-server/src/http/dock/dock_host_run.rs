@@ -75,6 +75,11 @@ pub(super) fn approve(
     runner.require_available()?;
     if let Health::Up(hello) = runner.health() {
         check_against_operator(asked, &hello)?;
+        if approval.egress_private && hello["private_network"] == Value::Bool(false) {
+            return Err(ApiError::BadRequest(
+                "this server cannot grant the Private network until its operator lists the docker host's own addresses in SLIMM_SUPERVISOR_LAN_DENY",
+            ));
+        }
     }
     let approved = HostRunSpec {
         egress,
@@ -107,9 +112,10 @@ fn check_against_operator(asked: &HostRunSpec, hello: &Value) -> Result<(), ApiE
     if over(asked.memory_mib.map(|m| m as f64), "max_memory_mib")
         || over(asked.cpus, "max_cpus")
         || over(asked.pids.map(|p| p as f64), "max_pids")
+        || (asked.volume && over(asked.volume_mib.map(|v| v as f64), "max_volume_mib"))
     {
         return Err(ApiError::BadRequestDetail(
-            "this connector asks for more memory, CPU or processes than this server allows"
+            "this connector asks for more memory, CPU, processes or storage than this server allows"
                 .to_owned(),
         ));
     }
@@ -146,6 +152,8 @@ struct LimitsDto {
     cpus: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pids: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    volume_mib: Option<i64>,
 }
 
 impl HostRunAskDto {
@@ -159,6 +167,7 @@ impl HostRunAskDto {
                 memory_mib: spec.memory_mib,
                 cpus: spec.cpus,
                 pids: spec.pids,
+                volume_mib: spec.volume_mib,
             },
         }
     }
@@ -226,6 +235,8 @@ struct StatusDto {
     restarts: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     last_error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    volume_bytes: Option<u64>,
 }
 
 /// A host-run connector's state for admins: running, stopped, crashed, disabled after
@@ -279,6 +290,8 @@ async fn status(
         started_at: None,
         finished_at: None,
         image: None,
+        volume_bytes: None,
+        volume_over_limit: false,
     });
     Ok(Json(StatusDto {
         state: state_name,
@@ -289,6 +302,7 @@ async fn status(
         finished_at: listed.finished_at,
         restarts: runner.as_ref().map_or(0, |r| r.restarts(&id)),
         last_error: record.last_error.or(unavailable),
+        volume_bytes: listed.volume_bytes,
     }))
 }
 

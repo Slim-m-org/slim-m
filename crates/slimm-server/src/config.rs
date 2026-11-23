@@ -159,6 +159,11 @@ pub struct Config {
     #[serde(default)]
     pub trust_proxy_hops: usize,
 
+    /// The TCP peers whose `X-Forwarded-For` is believed at all (`SLIMM_TRUSTED_PROXIES`):
+    /// IPs or CIDRs, `!` to exclude one; unset means loopback and the private ranges.
+    #[serde(default)]
+    pub trusted_proxies: Option<String>,
+
     /// The `owner/repo` the Dock's marketplace browses and installs from
     /// (see docs/decisions/0021-modules-and-the-dock.md). The Dock always
     /// reaches it at `https://raw.githubusercontent.com/<repo>/main/`; only
@@ -332,6 +337,7 @@ impl Default for Config {
             link_previews: false,
             cors_allowed_origins: None,
             trust_proxy_hops: 0,
+            trusted_proxies: None,
             addons_repo: default_addons_repo(),
             dev_module_dir: None,
             code_runner_url: None,

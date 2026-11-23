@@ -12,7 +12,7 @@ use tokio::sync::Semaphore;
 
 pub mod request;
 
-use request::{GatewayConfig, Head, parse_head};
+use request::{GatewayConfig, Head, Kind, Origin, parse_head, parse_tunnelled_head};
 
 const MAX_HEAD: usize = 16 * 1024;
 const HEAD_TIMEOUT: Duration = Duration::from_secs(10);
@@ -49,10 +49,11 @@ pub async fn serve(listener: TcpListener, config: Arc<GatewayConfig>) -> std::io
 }
 
 async fn handle(mut client: TcpStream, config: &GatewayConfig) {
-    let (head, extra) = match tokio::time::timeout(HEAD_TIMEOUT, read_head(&mut client)).await {
-        Ok(Ok(read)) => read,
-        _ => return,
-    };
+    let (head, extra) =
+        match tokio::time::timeout(HEAD_TIMEOUT, read_head(&mut client, Vec::new())).await {
+            Ok(Ok(read)) => read,
+            _ => return,
+        };
     let head = match parse_head(&head) {
         Ok(head) => head,
         Err(reason) => return refuse(&mut client, "400 Bad Request", reason).await,
@@ -97,28 +98,69 @@ async fn handle(mut client: TcpStream, config: &GatewayConfig) {
             .unwrap_or_default(),
         "",
     );
-    if forward_start(&mut client, &mut upstream, &head, &extra)
-        .await
-        .is_ok()
-    {
-        let _ = tokio::io::copy_bidirectional(&mut client, &mut upstream).await;
-    }
+    let _ = relay(&mut client, &mut upstream, (head, kind), extra).await;
 }
 
-async fn forward_start(
+/// A tunnel to an approved host is raw bytes; everything to the server is HTTP the
+/// gateway reads, so a connector cannot send the server a header the filter dropped.
+async fn relay(
     client: &mut TcpStream,
     upstream: &mut TcpStream,
-    head: &Head,
-    extra: &[u8],
+    (head, kind): (Head, Kind),
+    extra: Vec<u8>,
 ) -> std::io::Result<()> {
     if head.connect {
         client
             .write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
             .await?;
-    } else {
-        upstream.write_all(&head.upstream_head).await?;
+        if kind != Kind::Server {
+            upstream.write_all(&extra).await?;
+            return tokio::io::copy_bidirectional(client, upstream)
+                .await
+                .map(drop);
+        }
+        let (inner, rest) = tokio::time::timeout(HEAD_TIMEOUT, read_head(client, extra))
+            .await
+            .map_err(|_| std::io::ErrorKind::TimedOut)??;
+        return match parse_tunnelled_head(&inner) {
+            Ok(origin) => forward_http(client, upstream, origin, rest).await,
+            Err(reason) => {
+                refuse(client, "400 Bad Request", reason).await;
+                Ok(())
+            }
+        };
     }
-    upstream.write_all(extra).await
+    forward_http(client, upstream, head.upstream, extra).await
+}
+
+/// Sends one cleaned request; an upgrade is spliced through only once the server answers 101.
+async fn forward_http(
+    client: &mut TcpStream,
+    upstream: &mut TcpStream,
+    origin: Origin,
+    extra: Vec<u8>,
+) -> std::io::Result<()> {
+    upstream.write_all(&origin.head).await?;
+    if !origin.upgrade {
+        upstream.write_all(&extra).await?;
+        return tokio::io::copy_bidirectional(client, upstream)
+            .await
+            .map(drop);
+    }
+    let (answer, rest) = tokio::time::timeout(HEAD_TIMEOUT, read_head(upstream, Vec::new()))
+        .await
+        .map_err(|_| std::io::ErrorKind::TimedOut)??;
+    client.write_all(&answer).await?;
+    client.write_all(b"\r\n\r\n").await?;
+    client.write_all(&rest).await?;
+    if answer.starts_with(b"HTTP/1.1 101") {
+        upstream.write_all(&extra).await?;
+        return tokio::io::copy_bidirectional(client, upstream)
+            .await
+            .map(drop);
+    }
+    upstream.shutdown().await?;
+    tokio::io::copy(upstream, client).await.map(drop)
 }
 
 async fn dial(addresses: &[SocketAddr]) -> Option<TcpStream> {
@@ -132,16 +174,14 @@ async fn dial(addresses: &[SocketAddr]) -> Option<TcpStream> {
     None
 }
 
-/// Reads up to the blank line; returns the head and any bytes that came after it.
-async fn read_head(client: &mut TcpStream) -> std::io::Result<(Vec<u8>, Vec<u8>)> {
-    let mut buf = Vec::with_capacity(1024);
+/// Reads up to the blank line after `already`; returns the head and any bytes after it.
+async fn read_head(
+    stream: &mut TcpStream,
+    already: Vec<u8>,
+) -> std::io::Result<(Vec<u8>, Vec<u8>)> {
+    let mut buf = already;
     let mut chunk = [0u8; 2048];
     loop {
-        let n = client.read(&mut chunk).await?;
-        if n == 0 {
-            return Err(std::io::ErrorKind::UnexpectedEof.into());
-        }
-        buf.extend_from_slice(&chunk[..n]);
         if let Some(end) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
             let extra = buf.split_off(end + 4);
             buf.truncate(end);
@@ -150,6 +190,11 @@ async fn read_head(client: &mut TcpStream) -> std::io::Result<(Vec<u8>, Vec<u8>)
         if buf.len() > MAX_HEAD {
             return Err(std::io::ErrorKind::InvalidData.into());
         }
+        let n = stream.read(&mut chunk).await?;
+        if n == 0 {
+            return Err(std::io::ErrorKind::UnexpectedEof.into());
+        }
+        buf.extend_from_slice(&chunk[..n]);
     }
 }
 

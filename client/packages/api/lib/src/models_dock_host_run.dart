@@ -36,6 +36,7 @@ class HostRunAsk {
     this.memoryMib,
     this.cpus,
     this.pids,
+    this.volumeMib,
   });
 
   /// The image, pinned by digest.
@@ -53,6 +54,9 @@ class HostRunAsk {
   final double? cpus;
   final int? pids;
 
+  /// The data volume's ceiling; null takes the supervisor's default.
+  final int? volumeMib;
+
   factory HostRunAsk.fromJson(Map<String, dynamic> json) {
     final limits = (json['limits'] as Map<String, dynamic>?) ?? const {};
     return HostRunAsk(
@@ -66,6 +70,7 @@ class HostRunAsk {
       memoryMib: limits['memory_mib'] as int?,
       cpus: (limits['cpus'] as num?)?.toDouble(),
       pids: limits['pids'] as int?,
+      volumeMib: limits['volume_mib'] as int?,
     );
   }
 }

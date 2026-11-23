@@ -186,3 +186,39 @@ async fn a_wasm_module_and_a_connector_cannot_replace_each_other() {
     assert!(module.is_connector());
     assert_eq!(module.version, "0.1.0");
 }
+
+/// L2: the generic bot routes cannot mint, revoke or regrant a connector's token; the Dock owns it.
+#[tokio::test]
+async fn the_bot_routes_refuse_a_connector_principal() {
+    let w = world("slimm-conn-botroutes", &["view_channel", "send_messages"]).await;
+    let token = w.installed(Permissions::VIEW_CHANNEL.bits()).await;
+    let principal = w
+        .store
+        .installed_module(ID)
+        .await
+        .unwrap()
+        .unwrap()
+        .bot_user_id
+        .unwrap();
+    for (method, verb, body) in [
+        ("POST", "token", None),
+        ("POST", "revoke", None),
+        (
+            "PATCH",
+            "permissions",
+            Some(json!({"permissions": Permissions::ADMINISTRATOR.bits()})),
+        ),
+        ("PATCH", "prefix", Some(json!({"prefix": "?"}))),
+    ] {
+        let (status, answer) = w
+            .as_owner(method, &format!("/bots/{principal}/{verb}"), body)
+            .await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{verb}: {answer}");
+    }
+    let (status, _) = w.as_token(&token, "GET", "/connectors/me", None).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "the connector's own token still works"
+    );
+}

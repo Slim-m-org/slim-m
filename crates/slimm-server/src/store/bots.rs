@@ -290,7 +290,12 @@ impl Store {
             r#"SELECT t.bot_user_id AS "user_id!: UserId",
                       t.session_id AS "session_id!: SessionId",
                       s.device_id AS "device_id!: DeviceId",
-                      t.last_used_at
+                      t.last_used_at,
+                      u.connector_principal AS "connector_principal!: i64",
+                      (SELECT m.enabled FROM installed_modules m
+                       WHERE m.bot_user_id = u.id AND m.provider = 'connector') AS "module_enabled: i64",
+                      (SELECT m.connector_permissions FROM installed_modules m
+                       WHERE m.bot_user_id = u.id AND m.provider = 'connector') AS "approved: Permissions"
                FROM bot_tokens t
                JOIN sessions s ON s.id = t.session_id
                JOIN users u ON u.id = t.bot_user_id
@@ -324,10 +329,18 @@ impl Store {
             }
         }
 
+        let connector = (row.connector_principal == 1).then(|| super::sessions::ConnectorGrant {
+            enabled: row.module_enabled == Some(1),
+            cap: match row.approved.unwrap_or(Permissions::NONE) {
+                cap if cap.contains(Permissions::ADMINISTRATOR) => Permissions::ALL,
+                cap => cap,
+            },
+        });
         Ok(Some(SessionContext {
             user_id: row.user_id,
             session_id: row.session_id,
             device_id: row.device_id,
+            connector,
         }))
     }
 

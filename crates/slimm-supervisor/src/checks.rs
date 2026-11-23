@@ -5,17 +5,23 @@
 use std::path::Path;
 
 use serde::Serialize;
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use crate::error::ApiError;
 use crate::runtime::Runtime;
-use crate::sandbox::{INSTANCE, MANAGED_BY, MANAGED_BY_VALUE, ROLE};
+use crate::sandbox::{
+    INSTANCE, MANAGED_BY, MANAGED_BY_VALUE, ROLE, isolated_network, network_is_isolated,
+};
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct Readiness {
     pub runtime: &'static str,
     pub rootless: bool,
     pub problems: Vec<String>,
+    /// The supervisor's own image by content id (`sha256:...`), so a moved tag never changes
+    /// what gateways and the volume helper run until the supervisor restarts.
+    #[serde(skip)]
+    pub own_image_id: Option<String>,
 }
 
 impl Readiness {
@@ -31,10 +37,11 @@ pub async fn check(
     instance: &str,
     egress_network: &str,
     own_image: &str,
+    wanted: Requirements,
 ) -> Result<Readiness, ApiError> {
     let version = runtime.get("/version").await?.json();
     let info = runtime.get("/info").await?.json();
-    let mut readiness = judge_info(&version, &info);
+    let mut readiness = judge_info(&version, &info, wanted);
     match runtime.get(&format!("/networks/{egress_network}")).await? {
         reply if reply.status.is_success() => {
             if reply.json().get("Internal").and_then(Value::as_bool) == Some(true) {
@@ -59,14 +66,45 @@ pub async fn check(
             err.detail
         ));
     }
+    readiness.own_image_id = runtime
+        .get(&format!("/images/{own_image}/json"))
+        .await?
+        .json()
+        .get("Id")
+        .and_then(Value::as_str)
+        .filter(|id| id.starts_with("sha256:"))
+        .map(str::to_owned);
+    if readiness.own_image_id.is_none() && readiness.problems.is_empty() {
+        readiness.problems.push(format!(
+            "the supervisor image {own_image} has no content id"
+        ));
+    }
     if let Err(problem) = probe_internal_network(runtime, instance).await {
         readiness.problems.push(problem);
     }
     Ok(readiness)
 }
 
-/// The pure half: cgroup v2 with memory, cpu and pids limits, and a seccomp profile that is not unconfined.
-pub fn judge_info(version: &Value, info: &Value) -> Readiness {
+/// The oldest Docker Engine that can make an internal network the host has no address on
+/// (gateway mode `isolated`, 28.0.0); it also has the embedded-resolver fix for CVE-2024-29018.
+pub const MIN_DOCKER: (u64, u64, u64) = (28, 0, 0);
+
+/// What the runtime is asked to enforce beyond its defaults.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Requirements {
+    /// An AppArmor or SELinux profile on every container; off only in tests on a host without either.
+    pub lsm: bool,
+}
+
+impl Default for Requirements {
+    fn default() -> Self {
+        Self { lsm: true }
+    }
+}
+
+/// The pure half: rootful Docker of at least [`MIN_DOCKER`], cgroup v2 with memory, cpu and
+/// pids limits, a seccomp profile that is not unconfined, and AppArmor or SELinux.
+pub fn judge_info(version: &Value, info: &Value, wanted: Requirements) -> Readiness {
     let components = version.get("Components").and_then(Value::as_array);
     let podman = components.is_some_and(|c| {
         c.iter().any(|x| {
@@ -80,7 +118,31 @@ pub fn judge_info(version: &Value, info: &Value) -> Readiness {
         .and_then(Value::as_array)
         .map(|a| a.iter().filter_map(Value::as_str).collect())
         .unwrap_or_default();
+    let rootless = options.iter().any(|o| o.contains("name=rootless"));
     let mut problems = Vec::new();
+    if podman {
+        problems.push(
+            "Podman is not supported: only rootful Docker Engine 28.0.0 or newer (docs/connectors/operating.md)"
+                .to_owned(),
+        );
+    } else {
+        let raw = version
+            .get("Version")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        match parse_version(raw) {
+            Some(v) if v >= MIN_DOCKER => {}
+            _ => problems.push(format!(
+                "Docker Engine {raw:?} is older than 28.0.0, which connectors need"
+            )),
+        }
+    }
+    if rootless {
+        problems.push(
+            "rootless Docker is not supported: only rootful Docker Engine 28.0.0 or newer (docs/connectors/operating.md)"
+                .to_owned(),
+        );
+    }
     if info.get("CgroupVersion").and_then(Value::as_str) != Some("2") {
         problems.push("the runtime is not on cgroup v2".to_owned());
     }
@@ -103,20 +165,41 @@ pub fn judge_info(version: &Value, info: &Value) -> Readiness {
         }
         Some(_) => {}
     }
+    let lsm = options
+        .iter()
+        .any(|o| o.contains("name=apparmor") || o.contains("name=selinux"));
+    if wanted.lsm && !lsm {
+        problems.push(
+            "the runtime applies neither AppArmor nor SELinux, so containers would run unconfined; on an SELinux host set \"selinux-enabled\": true in /etc/docker/daemon.json"
+                .to_owned(),
+        );
+    }
     Readiness {
         runtime: if podman { "podman" } else { "docker" },
-        rootless: options.iter().any(|o| o.contains("name=rootless")),
+        rootless,
         problems,
+        own_image_id: None,
     }
+}
+
+/// `28.0.4`, `29.1.0-rc.1` and the like, as numbers; `None` for anything else.
+pub fn parse_version(raw: &str) -> Option<(u64, u64, u64)> {
+    let core = raw.split(['-', '+']).next()?;
+    let mut parts = core.split('.').map(|p| p.parse::<u64>().ok());
+    let major = parts.next()??;
+    let minor = parts.next().unwrap_or(Some(0))?;
+    let patch = parts.next().unwrap_or(Some(0))?;
+    Some((major, minor, patch))
 }
 
 async fn probe_internal_network(runtime: &Runtime, instance: &str) -> Result<(), String> {
     let name = format!("slimm-probe-{instance}");
     let _ = runtime.delete(&format!("/networks/{name}")).await;
-    let body = json!({
-        "Name": name, "Driver": "bridge", "Internal": true,
-        "Labels": {MANAGED_BY: MANAGED_BY_VALUE, INSTANCE: instance, ROLE: "probe"},
-    });
+    let mut labels = serde_json::Map::new();
+    labels.insert(MANAGED_BY.into(), MANAGED_BY_VALUE.into());
+    labels.insert(INSTANCE.into(), instance.into());
+    labels.insert(ROLE.into(), "probe".into());
+    let body = isolated_network(&name, labels);
     let created = runtime
         .post("/networks/create", Some(&body))
         .await
@@ -133,10 +216,46 @@ async fn probe_internal_network(runtime: &Runtime, instance: &str) -> Result<(),
         .map_err(|e| e.detail)?
         .json();
     let _ = runtime.delete(&format!("/networks/{name}")).await;
-    if inspected.get("Internal").and_then(Value::as_bool) != Some(true) {
-        return Err("the runtime made the probe network routable".to_owned());
+    if !network_is_isolated(&inspected) {
+        return Err(
+            "the runtime cannot make an internal network that gives the host no address on it (gateway mode isolated)"
+                .to_owned(),
+        );
     }
     Ok(())
+}
+
+/// Binds this supervisor to the first deployment that names itself, kept in the state
+/// directory, so a second server pointed at the same socket is refused rather than
+/// removing the first one's connectors as orphans.
+pub fn bind_deployment(state_dir: &Path, deployment: &str) -> Result<(), ApiError> {
+    let ok = (1..=64).contains(&deployment.len())
+        && deployment
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+    if !ok {
+        return Err(ApiError::bad_request(
+            "X-Slimm-Deployment must name the deployment in 1 to 64 of [a-z0-9-]",
+        ));
+    }
+    let path = state_dir.join("deployment-id");
+    let bound = match std::fs::read_to_string(&path) {
+        Ok(existing) => existing.trim().to_owned(),
+        Err(_) => {
+            std::fs::create_dir_all(state_dir)
+                .and_then(|()| std::fs::write(&path, deployment))
+                .map_err(|e| ApiError::runtime(format!("state directory: {e}")))?;
+            deployment.to_owned()
+        }
+    };
+    if bound == deployment {
+        Ok(())
+    } else {
+        Err(ApiError::new(
+            crate::error::Code::Conflict,
+            "this supervisor serves another deployment; run one supervisor per deployment",
+        ))
+    }
 }
 
 /// The instance id, made once and kept, so two deployments on one host never share connectors.
@@ -157,18 +276,30 @@ pub fn instance_id(state_dir: &Path) -> std::io::Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
+
+    fn good_version() -> Value {
+        json!({"Version": "28.0.0", "Components": [{"Name": "Engine"}]})
+    }
 
     fn good_info() -> Value {
         json!({"CgroupVersion": "2", "MemoryLimit": true, "CpuCfsQuota": true, "PidsLimit": true,
-               "SecurityOptions": ["name=seccomp,profile=builtin", "name=cgroupns"]})
+               "SecurityOptions": ["name=apparmor", "name=seccomp,profile=builtin", "name=cgroupns"]})
+    }
+
+    fn judge(version: &Value, info: &Value) -> Readiness {
+        judge_info(version, info, Requirements::default())
     }
 
     #[test]
     fn a_capable_docker_is_ready() {
-        let r = judge_info(&json!({"Components": [{"Name": "Engine"}]}), &good_info());
+        let r = judge(&good_version(), &good_info());
         assert!(r.ready(), "{:?}", r.problems);
         assert_eq!(r.runtime, "docker");
         assert!(!r.rootless);
+        let mut info = good_info();
+        info["SecurityOptions"] = json!(["name=seccomp,profile=builtin", "name=selinux"]);
+        assert!(judge(&good_version(), &info).ready());
     }
 
     #[test]
@@ -176,18 +307,93 @@ mod tests {
         let mut info = good_info();
         info["CgroupVersion"] = json!("1");
         info["PidsLimit"] = json!(false);
-        info["SecurityOptions"] = json!(["name=seccomp,profile=unconfined", "name=rootless"]);
-        let r = judge_info(&json!({"Components": [{"Name": "Podman Engine"}]}), &info);
-        assert_eq!(r.runtime, "podman");
-        assert!(r.rootless);
+        info["SecurityOptions"] = json!(["name=seccomp,profile=unconfined", "name=apparmor"]);
+        let r = judge(&good_version(), &info);
         assert_eq!(r.problems.len(), 3, "{:?}", r.problems);
-        info["SecurityOptions"] = json!([]);
+        info["SecurityOptions"] = json!(["name=apparmor"]);
         assert!(
-            judge_info(&json!({}), &info)
+            judge(&good_version(), &info)
                 .problems
                 .iter()
                 .any(|p| p.contains("no seccomp"))
         );
+    }
+
+    #[test]
+    fn an_engine_older_than_the_floor_is_refused() {
+        for old in ["27.5.1", "26.1.4", "25.0.5", "", "dev"] {
+            let r = judge(&json!({"Version": old}), &good_info());
+            assert!(
+                r.problems.iter().any(|p| p.contains("older than 28.0.0")),
+                "{old}: {:?}",
+                r.problems
+            );
+        }
+        for new in ["28.0.0", "28.0.0-rc.2", "29.10.0"] {
+            assert!(
+                judge(&json!({"Version": new}), &good_info()).ready(),
+                "{new}"
+            );
+        }
+        assert_eq!(parse_version("28.0.0-rc.2"), Some((28, 0, 0)));
+        assert_eq!(parse_version("x.1"), None);
+    }
+
+    #[test]
+    fn podman_and_rootless_docker_are_refused_by_name() {
+        let r = judge(
+            &json!({"Version": "5.4.0", "Components": [{"Name": "Podman Engine"}]}),
+            &good_info(),
+        );
+        assert_eq!(r.runtime, "podman");
+        assert!(
+            r.problems
+                .iter()
+                .any(|p| p.contains("Podman is not supported"))
+        );
+        let mut info = good_info();
+        info["SecurityOptions"] = json!([
+            "name=apparmor",
+            "name=seccomp,profile=builtin",
+            "name=rootless"
+        ]);
+        let r = judge(&good_version(), &info);
+        assert!(r.rootless);
+        assert!(
+            r.problems
+                .iter()
+                .any(|p| p.contains("rootless Docker is not supported"))
+        );
+    }
+
+    #[test]
+    fn a_runtime_without_apparmor_or_selinux_is_refused() {
+        let mut info = good_info();
+        info["SecurityOptions"] = json!(["name=seccomp,profile=builtin", "name=cgroupns"]);
+        let r = judge(&good_version(), &info);
+        assert!(
+            r.problems
+                .iter()
+                .any(|p| p.contains("neither AppArmor nor SELinux")),
+            "{:?}",
+            r.problems
+        );
+        assert!(judge_info(&good_version(), &info, Requirements { lsm: false }).ready());
+    }
+
+    #[test]
+    fn the_first_deployment_binds_the_supervisor() {
+        let dir =
+            std::env::temp_dir().join(format!("slimm-sup-bind-{}", uuid::Uuid::now_v7().simple()));
+        assert!(bind_deployment(&dir, "deployment-a").is_ok());
+        assert!(bind_deployment(&dir, "deployment-a").is_ok());
+        let other = bind_deployment(&dir, "deployment-b").unwrap_err();
+        assert_eq!(other.code, crate::error::Code::Conflict);
+        assert_eq!(
+            bind_deployment(&dir, "Bad Id").unwrap_err().code,
+            crate::error::Code::BadRequest
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

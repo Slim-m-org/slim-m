@@ -37,7 +37,10 @@ pub(in crate::http) async fn uninstall(
     super::dock_host_run::before_uninstall(&state, &id, !query.delete_data).await;
     let uninstalled = match module.as_ref().is_some_and(InstalledModule::is_connector) {
         true => uninstall_connector(&state, &id, ctx.user_id).await?,
-        false => state.store.uninstall_module(&id).await?,
+        false => {
+            state.store.uninstall_module(&id).await?
+                || uninstall_connector(&state, &id, ctx.user_id).await?
+        }
     };
     state.dock.slot_cache().invalidate_module(&id);
     crate::http::module_rooms::end_module(&state, &id);

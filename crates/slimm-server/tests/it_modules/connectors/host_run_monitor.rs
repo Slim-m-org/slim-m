@@ -68,6 +68,48 @@ async fn five_crashes_in_ten_minutes_turn_it_off_with_an_alert_and_audit_row() {
     );
 }
 
+/// M2: the supervisor stops a connector whose volume passed its ceiling; the server turns it
+/// off with the breaker's alert and audit row and does not restart it.
+#[tokio::test]
+async fn a_full_volume_turns_it_off_and_it_is_not_restarted() {
+    let w = host_world("slimm-hostrun-volume", true, true).await;
+    let run_id = w.running().await;
+    let (_, create) = w.fake.calls("create").last().cloned().unwrap();
+    assert_eq!(create["limits"]["volume_mib"], json!(64), "{create}");
+    w.fake.with(|f| {
+        f.containers.insert(
+            run_id.clone(),
+            json!({"state": "exited", "finished_at": "2026-11-22T10:00:01Z", "exit_code": 137,
+                   "volume_bytes": 70 * 1024 * 1024, "volume_over_limit": true}),
+        );
+    });
+    let starts = w.fake.calls("start").len();
+    w.tick().await;
+    tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+    w.tick().await;
+    assert_eq!(
+        w.fake.calls("start").len(),
+        starts,
+        "a full connector is not restarted"
+    );
+    let module = w.store.installed_module(ID).await.unwrap().unwrap();
+    assert!(!module.enabled, "it was turned off");
+    let status = w.status().await;
+    assert_eq!(status["state"], json!("refused"), "{status}");
+    assert!(
+        status["last_error"].as_str().unwrap().contains("64 MiB"),
+        "{status}"
+    );
+    assert_eq!(status["volume_bytes"], json!(70 * 1024 * 1024));
+    let audit = w.store.admin_changes(None, 50).await.unwrap();
+    assert!(
+        audit.iter().any(|e| e.action == "module.auto_disable"
+            && e.target_id.as_deref() == Some(ID)
+            && e.detail.contains("volume_bytes")),
+        "{audit:?}"
+    );
+}
+
 #[tokio::test]
 async fn reconcile_creates_what_is_missing_and_removes_what_it_has_no_record_of() {
     let w = host_world("slimm-hostrun-reconcile", true, true).await;

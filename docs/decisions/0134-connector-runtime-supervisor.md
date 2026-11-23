@@ -132,7 +132,7 @@ The server cannot set, override or see any of these:
 - No bind mounts, no devices, no sysctls, no published ports, private IPC, PID and UTS namespaces, and an init process.
 - The only mount is the connector's own named volume at `/data`, made by the supervisor and owned by 65532.
   A one-shot container from the supervisor's own image, with only `CHOWN`, no network and only that volume mounted, sets the owner once at create.
-- Network: a network of its own per connector, created `internal`, so it has no route out.
+- Network: a network of its own per connector, created `internal` in gateway mode `isolated`, so it has no route out and the host has no address on it (amendment below).
   Its only neighbour is the connector's gateway (below), and `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` point at it.
 - No restart policy: the server decides when to restart, so the crash count and the auto-disable live where the admin sees them.
 - Log driver `json-file` with 10 MiB per file and 3 files, so a chatty connector cannot fill the disk.
@@ -144,7 +144,8 @@ Docker and Podman networks cannot limit egress by hostname, so each connector ge
 The gateway is the supervisor's own image run as `slimm-supervisor gateway`, with the same hardening as a connector, attached to the connector's internal network and to the egress network the operator names (`SLIMM_SUPERVISOR_EGRESS_NETWORK`).
 It is an HTTP forward proxy with `CONNECT`, and it forwards only to the server's API address and the approved `host:port` pairs.
 It resolves names itself and checks the resolved address, the way the link-preview SSRF guard does (0019), so a hostname that resolves to a private address is refused unless `egress_private` is set.
-Always refused, whatever is approved: loopback, link-local and metadata addresses, the docker host's addresses, every docker bridge network, and `SLIMM_SUPERVISOR_LAN_DENY`.
+Always refused, whatever is approved: loopback, link-local and metadata addresses, every docker bridge network, and `SLIMM_SUPERVISOR_LAN_DENY`.
+The supervisor cannot see the docker host's own LAN addresses, so the operator lists them in `SLIMM_SUPERVISOR_LAN_DENY`, and `egress_private` is refused while that list is empty.
 The server's API address is the one private address that is always allowed.
 A connector that ignores the proxy variables reaches nothing, which is the point.
 UDP and other non-TCP egress are not supported.
@@ -206,13 +207,10 @@ The server builds no supervisor client, the Dock offers no host-run install, and
 
 ## Rootless Docker and Podman
 
-- The supervisor speaks the Docker Engine API, which Podman serves with `podman system service`.
-  `SLIMM_RUNTIME_SOCKET` points at whichever socket the operator runs: `/var/run/docker.sock`, `$XDG_RUNTIME_DIR/docker.sock` for rootless Docker, or `$XDG_RUNTIME_DIR/podman/podman.sock` for Podman.
-- For a rootless runtime the bare-metal unit runs as the runtime's own user, which is the recommended setup: the supervisor then holds that user's powers and no more.
-- At start, and on every `hello`, the supervisor checks that the runtime can enforce what it promises: cgroup v2 with the memory, cpu and pids controllers delegated, and an internal network it creates and removes as a probe.
+- Only rootful Docker Engine 28.0.0 or newer is supported (amendment below); the supervisor refuses Podman and rootless Docker at start and names why.
+- At start, and on `hello` until the runtime is ready, the supervisor checks that the runtime can enforce what it promises: the engine and its version, AppArmor or SELinux, cgroup v2 with the memory, cpu and pids controllers, a seccomp profile, and an isolated internal network it creates and removes as a probe.
   If any check fails it refuses to create connectors and says which, rather than running them without limits.
-  Rootless setups without cgroup delegation fail this check, which is the honest answer.
-- That Podman's compatible API accepts every fixed field above, and that rootless internal networks behave the same, is to be verified in the build, on the Fedora, Ubuntu and openSUSE test VMs.
+- Podman 5.8.1 and rootless Docker 29.10.0 were tried on the test VMs on 2026-11-23; `docs/connectors/operating.md` has what each lacked.
 
 ## Failure modes
 
@@ -254,3 +252,28 @@ Where the owner has not decided, this record takes the safer side:
    Allowing it would need its own consent line and a port range the operator sets.
 4. **The three reads.** Health and logs need reads beyond the four verbs; they are limited to labelled containers and change nothing.
 5. **Default ceilings.** 8 connectors, and per connector at most 512 MiB, 1 CPU and 256 processes, with 128 MiB, 0.5 CPU and 64 processes when the manifest asks for nothing.
+
+## Amendment, 2026-11-23: the security review
+
+A review of the built supervisor and server found the following, and each is now fixed and tested.
+
+- An `internal` bridge network still gives the host the network's gateway address, so a connector could reach every host service listening on 0.0.0.0 through it; a real Docker probe showed it open.
+- Connector networks now use gateway mode `isolated` (Docker 28.0.0), and the supervisor refuses a connector network that still has a gateway, at its startup probe, at create and at start.
+- The supervisor now refuses Docker Engine older than 28.0.0, which also carries the embedded-resolver fix for CVE-2024-29018, and a probe test asserts that a lookup from a connector is never answered from outside.
+- It refuses a runtime that applies neither AppArmor nor SELinux, since "never unconfined" was not checked; Docker on an SELinux host needs `"selinux-enabled": true`.
+- It refuses Podman, which ignores gateway mode `isolated` and leaves the host reachable from an internal network, and rootless Docker, which applies no AppArmor or SELinux profile.
+- The server believes `X-Forwarded-For` only from a peer in `SLIMM_TRUSTED_PROXIES`, and the connectors overlay pins the egress subnet and excludes it.
+- The gateway removes forwarding headers and sends `Connection: close` on every request to the server, and reads the request inside a `CONNECT` tunnel to it, splicing an upgrade through only after the server's 101.
+- A connector's data volume has a ceiling, `limits.volume_mib` (default 256 MiB, operator ceiling `SLIMM_SUPERVISOR_MAX_VOLUME_MIB`, default 1024), shown on the consent sheet.
+- The supervisor measures every connector volume every 30 seconds and stops a connector past its ceiling; the server turns it off with the breaker's alert and audit row.
+- The residual risk is the window between measurements: a connector can write past its ceiling for up to 30 seconds, bounded by the disk's write speed, because the local volume driver has no quota of its own.
+- `egress_private` is refused while `SLIMM_SUPERVISOR_LAN_DENY` is empty, since the docker host's own LAN address is otherwise reachable and the supervisor cannot see it.
+- The generic bot routes no longer accept a connector's principal, which is now marked for good (migration 0212), and a marked principal whose module row is gone holds nothing.
+- The plain module uninstall deletes only WASM rows, so only the connector uninstall, which revokes the token in the same transaction, removes a connector.
+- An egress host whose last label is digits or `0x` hex is refused, and an IPv6 literal that carries an IPv4 address is shown as that IPv4, so consent shows what is dialled.
+- Every `supervisor/1` call names the server's deployment in `X-Slimm-Deployment`, and a supervisor binds to the first one it hears: run one supervisor per deployment.
+- `hello` probes the runtime only until it is ready.
+- A connector's token is held to a route table before any handler runs, because many routes check no permission bit; a disabled connector reaches only `GET /connectors/me`.
+- Posted command output reaches `@everyone` only when both the member who ran it and the module's principal hold `mention_everyone`.
+- Gateways and the volume helper run the supervisor's own image by its content id, and the bare-metal unit gains a system call filter.
+- The supervisor image is built natively per architecture, merged by digest and cosign-signed with the server's images under the same tags, release-please bumps the supervisor crate with the server, and the compose overlay needs `SLIMM_VERSION` instead of following `latest`.

@@ -19,7 +19,8 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    image: ghcr.io/slim-m-org/slim-m-supervisor:${SLIMM_VERSION:-latest}
+    # A release tag, never latest: the supervisor pins its own image by content id at start, and the tag decides which.
+    image: ghcr.io/slim-m-org/slim-m-supervisor:${SLIMM_VERSION:?set SLIMM_VERSION in .env to the release you run, for example 0.117.0}
     restart: unless-stopped
     # Root for the runtime socket, the server's group (65532) for its own socket.
     user: "0:65532"
@@ -29,7 +30,7 @@ services:
       SLIMM_SUPERVISOR_SOCKET: /run/slimm-supervisor/supervisor.sock
       SLIMM_SUPERVISOR_SERVER_UID: "65532"
       SLIMM_RUNTIME_SOCKET: /run/runtime.sock
-      SLIMM_SUPERVISOR_IMAGE: ghcr.io/slim-m-org/slim-m-supervisor:${SLIMM_VERSION:-latest}
+      SLIMM_SUPERVISOR_IMAGE: ghcr.io/slim-m-org/slim-m-supervisor:${SLIMM_VERSION:?set SLIMM_VERSION in .env to the release you run, for example 0.117.0}
       SLIMM_SUPERVISOR_SERVER_URL: http://server:8080
       SLIMM_SUPERVISOR_EGRESS_NETWORK: slimm_connectors_egress
       SLIMM_SUPERVISOR_STATE_DIR: /var/lib/slimm-supervisor
@@ -38,6 +39,7 @@ services:
       SLIMM_SUPERVISOR_MAX_MEMORY_MIB: ${SLIMM_SUPERVISOR_MAX_MEMORY_MIB:-512}
       SLIMM_SUPERVISOR_MAX_CPUS: ${SLIMM_SUPERVISOR_MAX_CPUS:-1.0}
       SLIMM_SUPERVISOR_MAX_PIDS: ${SLIMM_SUPERVISOR_MAX_PIDS:-256}
+      SLIMM_SUPERVISOR_MAX_VOLUME_MIB: ${SLIMM_SUPERVISOR_MAX_VOLUME_MIB:-1024}
       # Put the docker host's own LAN address here if admins may grant connectors the Private network.
       SLIMM_SUPERVISOR_LAN_DENY: ${SLIMM_SUPERVISOR_LAN_DENY:-}
     volumes:
@@ -50,6 +52,8 @@ services:
       SLIMM_CONNECTOR_SUPERVISOR_SOCKET: /run/slimm-supervisor/supervisor.sock
       SLIMM_SUPERVISOR_SECRET: ${SLIMM_SUPERVISOR_SECRET:?set SLIMM_SUPERVISOR_SECRET in .env (openssl rand -hex 32)}
       SLIMM_CONNECTOR_API_URL: http://server:8080
+      # Never believe a forwarded header from a connector gateway, which sits on the egress subnet below.
+      SLIMM_TRUSTED_PROXIES: ${SLIMM_TRUSTED_PROXIES:-127.0.0.0/8,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7,!10.213.254.0/24}
     volumes:
       - slimm_supervisor_run:/run/slimm-supervisor
     networks:
@@ -62,6 +66,10 @@ networks:
   # The gateways' way out; the server joins it so connectors reach its API through their gateway.
   connectors_egress:
     name: slimm_connectors_egress
+    # Fixed so the server can exclude it above; change both together if it collides with a network of yours.
+    ipam:
+      config:
+        - subnet: 10.213.254.0/24
 
 volumes:
   slimm_supervisor_state:

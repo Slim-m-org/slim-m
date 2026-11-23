@@ -18,7 +18,7 @@ use super::AppState;
 use super::error::ApiError;
 use crate::ids::UserId;
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
+use crate::ratelimit::{Class, RateLimiter};
 use crate::store::{BOT_TOKEN_PREFIX, SessionContext};
 
 /// The session a request is authenticated as, resolved from its bearer access
@@ -51,6 +51,9 @@ impl FromRequestParts<AppState> for Authed {
             state.store.authenticate(&token).await?
         }
         .ok_or(ApiError::Unauthorized)?;
+        if let Some(grant) = ctx.connector {
+            super::connector_gate::check(parts, grant)?;
+        }
         Ok(Authed(ctx))
     }
 }
@@ -77,13 +80,20 @@ impl FromRequestParts<AppState> for Authed {
 pub(crate) fn limit_key(
     parts: &Parts,
     ctx: Option<&SessionContext>,
-    trusted_hops: usize,
+    limiter: &RateLimiter,
 ) -> String {
     if let Some(ctx) = ctx {
         return format!("u:{}", ctx.user_id);
     }
+    let trusted_hops = limiter.trusted_hops();
     super::proxy_hint::observe(parts, trusted_hops);
+    let peer = parts
+        .extensions
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|ConnectInfo(addr)| addr.ip());
+    let from_proxy = peer.is_some_and(|ip| limiter.trusted_proxies().trusts(ip));
     if trusted_hops > 0
+        && from_proxy
         && let Some(addr) = forwarded_for(parts, trusted_hops)
     {
         return match addr.parse::<std::net::IpAddr>() {
@@ -91,10 +101,7 @@ pub(crate) fn limit_key(
             Err(_) => format!("ip:{addr}"),
         };
     }
-    parts
-        .extensions
-        .get::<ConnectInfo<SocketAddr>>()
-        .map(|ConnectInfo(addr)| anonymous_key(addr.ip()))
+    peer.map(anonymous_key)
         .unwrap_or_else(|| "ip:unknown".to_owned())
 }
 
@@ -141,7 +148,7 @@ pub(crate) fn enforce(
     ctx: Option<&SessionContext>,
     class: Class,
 ) -> Result<(), ApiError> {
-    let key = limit_key(parts, ctx, state.limiter.trusted_hops());
+    let key = limit_key(parts, ctx, &state.limiter);
     state.limiter.admit(class, &key).map_err(ApiError::from)
 }
 
@@ -153,7 +160,7 @@ pub(crate) fn enforce_weighted(
     class: Class,
     cost: f64,
 ) -> Result<(), ApiError> {
-    let key = limit_key(parts, Some(ctx), state.limiter.trusted_hops());
+    let key = limit_key(parts, Some(ctx), &state.limiter);
     state
         .limiter
         .admit_weighted(class, &key, cost)
@@ -382,11 +389,13 @@ pub(crate) async fn require_base_permission(
 mod tests {
     use super::{
         ASSET, AUTHED_READ, CANVAS, GIF, INVITE_CHECK, LINK_PREVIEW, MODULE, PASSWORD, READ,
-        REFRESH, TOTP, UPLOAD, WRITE, anonymous_key, class_of, forwarded_for,
+        REFRESH, TOTP, UPLOAD, WRITE, anonymous_key, class_of, forwarded_for, limit_key,
     };
-    use crate::ratelimit::Class;
+    use crate::ratelimit::{Class, RateLimiter};
+    use axum::extract::ConnectInfo;
     use axum::http::Request;
     use axum::http::request::Parts;
+    use std::net::SocketAddr;
 
     /// Each code maps to its own class, and none share one - a swap here would
     /// silently charge a route the wrong budget, which is exactly the bug the
@@ -439,6 +448,47 @@ mod tests {
             builder = builder.header("x-forwarded-for", value);
         }
         builder.body(()).unwrap().into_parts().0
+    }
+
+    fn from_peer(peer: &str, xff: &str) -> Parts {
+        let mut parts = parts(Some(xff));
+        let addr: SocketAddr = peer.parse().unwrap();
+        parts.extensions.insert(ConnectInfo(addr));
+        parts
+    }
+
+    /// A forwarded header is believed only from a peer in `SLIMM_TRUSTED_PROXIES`, so a
+    /// caller that reaches the server directly, a connector's gateway among them, cannot pick its key.
+    #[test]
+    fn a_forwarded_header_counts_only_from_a_trusted_proxy() {
+        let limiter = RateLimiter::with_proxy_trust(
+            1,
+            crate::ratelimit::ProxyTrust::parse("172.16.0.0/12,!172.31.254.0/24").unwrap(),
+        );
+        assert_eq!(
+            limit_key(&from_peer("172.18.0.5:4000", "203.0.113.7"), None, &limiter),
+            "ip:203.0.113.7"
+        );
+        assert_eq!(
+            limit_key(
+                &from_peer("172.31.254.9:4000", "203.0.113.7"),
+                None,
+                &limiter
+            ),
+            "ip:172.31.254.9"
+        );
+        assert_eq!(
+            limit_key(
+                &from_peer("198.51.100.2:4000", "203.0.113.7"),
+                None,
+                &limiter
+            ),
+            "ip:198.51.100.2"
+        );
+        assert_eq!(
+            limit_key(&parts(Some("203.0.113.7")), None, &limiter),
+            "ip:unknown"
+        );
     }
 
     #[test]

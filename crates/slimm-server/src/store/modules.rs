@@ -463,12 +463,16 @@ impl Store {
     /// Uninstalls a module. `Ok(false)` if it was not installed. The
     /// `module_permissions`, `role_module_permissions`, `module_artifacts` and
     /// `module_kv` rows all cascade away on the `installed_modules` foreign key, so
-    /// nothing dangles: see the migrations' own comments.
+    /// nothing dangles: see the migrations' own comments. A connector is never removed
+    /// here: `uninstall_connector` revokes its token in the same transaction.
     pub async fn uninstall_module(&self, id: &str) -> anyhow::Result<bool> {
-        let affected = sqlx::query!("DELETE FROM installed_modules WHERE id = ?", id)
-            .execute(&self.pool)
-            .await?
-            .rows_affected();
+        let affected = sqlx::query!(
+            "DELETE FROM installed_modules WHERE id = ? AND provider = 'wasm'",
+            id
+        )
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
         self.touch_modules();
         Ok(affected > 0)
     }

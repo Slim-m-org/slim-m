@@ -20,6 +20,11 @@ use crate::sandbox::{
 
 mod gateway_plan;
 mod objects;
+pub mod volumes;
+
+/// The host's own LAN address is a private address like any other, so the Private network
+/// is safe to grant only once the operator has named it.
+pub const PRIVATE_NEEDS_DENY: &str = "the Private network needs the operator to list the docker host's own LAN addresses in SLIMM_SUPERVISOR_LAN_DENY first";
 
 pub struct Supervisor {
     pub config: Config,
@@ -27,6 +32,7 @@ pub struct Supervisor {
     pub runtime: Runtime,
     readiness: RwLock<Option<Readiness>>,
     verbs: Mutex<()>,
+    volumes: RwLock<std::collections::HashMap<String, volumes::Usage>>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -38,6 +44,10 @@ pub struct ConnectorState {
     pub started_at: Option<String>,
     pub finished_at: Option<String>,
     pub image: Option<String>,
+    /// The data volume's size at the last measurement, when it has one.
+    pub volume_bytes: Option<u64>,
+    /// The supervisor stopped it, or refuses to start it, because its volume is over the ceiling.
+    pub volume_over_limit: bool,
 }
 
 impl Supervisor {
@@ -49,6 +59,7 @@ impl Supervisor {
             runtime,
             readiness: RwLock::new(None),
             verbs: Mutex::new(()),
+            volumes: RwLock::new(Default::default()),
         })
     }
 
@@ -63,10 +74,21 @@ impl Supervisor {
             &self.instance,
             &self.config.egress_network,
             &self.config.own_image,
+            self.config.requirements,
         )
         .await;
         *self.readiness.write().await = result.as_ref().ok().cloned();
         result
+    }
+
+    /// The supervisor's own image pinned by content id, as the last readiness check found it.
+    pub(super) async fn pinned_image(&self) -> Result<String, ApiError> {
+        self.readiness
+            .read()
+            .await
+            .as_ref()
+            .and_then(|r| r.own_image_id.clone())
+            .ok_or_else(|| ApiError::runtime("the supervisor's own image has not been resolved"))
     }
 
     async fn require_ready(&self) -> Result<(), ApiError> {
@@ -84,8 +106,13 @@ impl Supervisor {
         )))
     }
 
+    /// Probes the runtime only until it is ready; afterwards a down runtime shows as `list` failing.
     pub async fn hello(&self) -> Result<Value, ApiError> {
-        let readiness = self.refresh_readiness().await?;
+        let cached = self.readiness.read().await.clone();
+        let readiness = match cached {
+            Some(r) if r.ready() => r,
+            _ => self.refresh_readiness().await?,
+        };
         let connectors = self.list().await?.len();
         Ok(json!({
             "v": 1,
@@ -97,12 +124,16 @@ impl Supervisor {
             "problems": readiness.problems,
             "ceilings": self.config.ceilings,
             "registries": self.config.registries,
+            "private_network": !self.config.lan_deny.is_empty(),
             "connectors": connectors,
         }))
     }
 
     pub async fn create(&self, id: &str, req: CreateRequest) -> Result<(), ApiError> {
         let spec = policy::validate(req, &self.config.registries, &self.config.ceilings)?;
+        if spec.egress_private && self.config.lan_deny.is_empty() {
+            return Err(ApiError::policy(PRIVATE_NEEDS_DENY));
+        }
         let _guard = self.verbs.lock().await;
         self.require_ready().await?;
         let names = self.names(id);
@@ -159,12 +190,20 @@ impl Supervisor {
         let _guard = self.verbs.lock().await;
         self.require_ready().await?;
         let names = self.names(id);
-        if self
+        let Some(existing) = self
             .owned_container(&names.container, &names, "connector")
             .await?
-            .is_none()
-        {
+        else {
             return Err(ApiError::new(Code::NotFound, "no such connector"));
+        };
+        if let Some(usage) = self.measure(id, &existing).await?
+            && usage.over()
+        {
+            return Err(ApiError::limit(format!(
+                "the connector's data volume holds {} MiB, over its {} MiB limit",
+                usage.bytes.div_ceil(1024 * 1024),
+                usage.limit_mib
+            )));
         }
         self.recreate_gateway(&names).await?;
         self.start_container(&names.gateway).await?;
@@ -194,6 +233,7 @@ impl Supervisor {
 
     pub async fn remove(&self, id: &str, keep_volume: bool) -> Result<(), ApiError> {
         let _guard = self.verbs.lock().await;
+        self.remember_usage(id, None).await;
         self.teardown(&self.names(id), keep_volume).await
     }
 
@@ -228,7 +268,12 @@ impl Supervisor {
                     .get(&format!("/containers/{name}/json"))
                     .await?
                     .json();
-                found.insert(id.clone(), state_of(&id, &inspected));
+                let mut state = state_of(&id, &inspected);
+                if let Some(usage) = self.usage(&id).await {
+                    state.volume_bytes = Some(usage.bytes);
+                    state.volume_over_limit = usage.over();
+                }
+                found.insert(id.clone(), state);
             } else if role == "gateway" {
                 found.entry(id.clone()).or_insert_with(|| missing(&id));
             }
@@ -275,6 +320,8 @@ fn missing(id: &str) -> ConnectorState {
         started_at: None,
         finished_at: None,
         image: None,
+        volume_bytes: None,
+        volume_over_limit: false,
     }
 }
 
@@ -313,6 +360,8 @@ pub fn state_of(id: &str, inspected: &Value) -> ConnectorState {
             .pointer("/Config/Image")
             .and_then(Value::as_str)
             .map(str::to_owned),
+        volume_bytes: None,
+        volume_over_limit: false,
     }
 }
 

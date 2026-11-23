@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 
+use crate::checks::Requirements;
 use crate::net::{Cidr, HostPort};
 
 /// The shortest bearer secret the supervisor accepts (decision 0134).
@@ -18,6 +19,7 @@ pub struct Ceilings {
     pub max_memory_mib: u64,
     pub max_cpus: f64,
     pub max_pids: u64,
+    pub max_volume_mib: u64,
 }
 
 impl Default for Ceilings {
@@ -27,6 +29,7 @@ impl Default for Ceilings {
             max_memory_mib: 512,
             max_cpus: 1.0,
             max_pids: 256,
+            max_volume_mib: 1024,
         }
     }
 }
@@ -45,6 +48,8 @@ pub struct Config {
     pub lan_deny: Vec<Cidr>,
     pub state_dir: PathBuf,
     pub own_image: String,
+    /// Never read from the environment, so an operator cannot switch a requirement off.
+    pub requirements: Requirements,
 }
 
 impl std::fmt::Debug for Config {
@@ -97,6 +102,10 @@ impl Config {
             )?,
             max_cpus: parse_or(get("SLIMM_SUPERVISOR_MAX_CPUS"), defaults.max_cpus)?,
             max_pids: parse_or(get("SLIMM_SUPERVISOR_MAX_PIDS"), defaults.max_pids)?,
+            max_volume_mib: parse_or(
+                get("SLIMM_SUPERVISOR_MAX_VOLUME_MIB"),
+                defaults.max_volume_mib,
+            )?,
         };
         if !(ceilings.max_cpus.is_finite() && ceilings.max_cpus > 0.0) {
             return Err("SLIMM_SUPERVISOR_MAX_CPUS must be a positive number".into());
@@ -121,6 +130,7 @@ impl Config {
                 .unwrap_or("/var/lib/slimm-supervisor")
                 .into(),
             own_image,
+            requirements: Requirements::default(),
         })
     }
 }
@@ -198,6 +208,7 @@ mod tests {
     fn defaults_match_the_decision() {
         let config = Config::from_map(&base()).unwrap();
         assert_eq!(config.ceilings, Ceilings::default());
+        assert_eq!(config.ceilings.max_volume_mib, 1024);
         assert_eq!(config.registries, vec!["ghcr.io/slim-m-org/".to_owned()]);
         assert_eq!(config.server_uid, 65532);
         assert_eq!(config.server, HostPort::new("server", 8080));

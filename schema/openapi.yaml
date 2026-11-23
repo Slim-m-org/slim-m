@@ -18019,6 +18019,12 @@ components:
               type: number
             pids:
               type: integer
+            volume_mib:
+              type: integer
+              minimum: 1
+              description: >
+                The data volume's ceiling in MiB (default 256). The supervisor
+                measures the volume and stops the connector past it.
     ConnectorRuntime:
       type: object
       required: [configured, available]
@@ -18067,6 +18073,9 @@ components:
             last_error:
               type: string
               description: Why it is not running, for the admin.
+            volume_bytes:
+              type: integer
+              description: The data volume's size at the supervisor's last measurement.
     ConnectorHostRunLogs:
       type: object
       required: [lines]

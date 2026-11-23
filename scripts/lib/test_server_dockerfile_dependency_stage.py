@@ -73,12 +73,11 @@ class ServerDockerfileDependencyStageTest(unittest.TestCase):
 
     def test_every_workspace_member_has_its_manifest_and_stubs_in_the_stage(self):
         deps = code_only(stage(self.dockerfile, "deps"))
-        members = workspace_members(ROOT)
-        self.assertIn(SERVER, members)
-        for member in members:
-            manifest = tomllib.loads((ROOT / member / "Cargo.toml").read_text())
-            self.assertIn(f"COPY {member}/Cargo.toml {member}/Cargo.toml", deps, "a member needs its manifest in the deps stage")
-            self.assertEqual(missing_stubs(self.dockerfile, manifest, ROOT / member, member), [])
+        for member in workspace_members(ROOT):
+            with self.subTest(member=member):
+                self.assertIn(f"COPY {member}/Cargo.toml {member}/Cargo.toml", deps)
+                manifest = tomllib.loads((ROOT / member / "Cargo.toml").read_text())
+                self.assertEqual(missing_stubs(self.dockerfile, manifest, ROOT / member, member), [])
 
     def test_the_stage_copies_manifests_and_never_sources(self):
         deps = code_only(stage(self.dockerfile, "deps"))

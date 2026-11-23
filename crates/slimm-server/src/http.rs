@@ -52,6 +52,7 @@ use channels::{
     channel_slow_mode, channel_validation,
 };
 mod code_runs;
+mod connector_gate;
 pub mod connector_host;
 mod connector_runs;
 mod connectors;

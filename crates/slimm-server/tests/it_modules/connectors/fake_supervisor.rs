@@ -25,6 +25,8 @@ pub struct Inner {
     pub runtime_down: bool,
     pub refuse_create: Option<(String, String)>,
     pub hello: Option<Value>,
+    /// The `X-Slimm-Deployment` every verb call named.
+    pub deployments: Vec<String>,
 }
 
 #[derive(Clone, Default)]
@@ -119,7 +121,7 @@ async fn hello(State(fake): State<Fake>, headers: HeaderMap) -> Response {
     let hello = inner.hello.clone().unwrap_or_else(|| {
         json!({"v": 1, "protocol": "supervisor/1", "version": "test", "runtime": "docker", "rootless": false,
                "ready": true, "problems": [], "registries": ["ghcr.io/slim-m-org/"],
-               "ceilings": {"max_connectors": 8, "max_memory_mib": 512, "max_cpus": 1.0, "max_pids": 256},
+               "ceilings": {"max_connectors": 8, "max_memory_mib": 512, "max_cpus": 1.0, "max_pids": 256, "max_volume_mib": 1024},
                "connectors": inner.containers.len()})
     });
     axum::Json(hello).into_response()
@@ -144,7 +146,8 @@ async fn list(State(fake): State<Fake>, headers: HeaderMap) -> Response {
         .containers
         .iter()
         .map(|(id, c)| json!({"id": id, "state": c["state"], "exit_code": c["exit_code"], "oom_killed": false,
-                              "started_at": "2026-11-22T10:00:00Z", "finished_at": c["finished_at"], "image": "img"}))
+                              "started_at": "2026-11-22T10:00:00Z", "finished_at": c["finished_at"], "image": "img",
+                              "volume_bytes": c.get("volume_bytes"), "volume_over_limit": c.get("volume_over_limit").unwrap_or(&json!(false))}))
         .collect();
     axum::Json(json!({"v": 1, "connectors": connectors})).into_response()
 }
@@ -183,6 +186,12 @@ async fn verb(
     let body: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
     let mut inner = fake.0.lock().unwrap();
     inner.calls.push((verb.clone(), id.clone(), body.clone()));
+    let deployment = headers
+        .get("x-slimm-deployment")
+        .and_then(|v| v.to_str().ok());
+    inner
+        .deployments
+        .push(deployment.unwrap_or_default().to_owned());
     if inner.runtime_down {
         return error(
             StatusCode::SERVICE_UNAVAILABLE,

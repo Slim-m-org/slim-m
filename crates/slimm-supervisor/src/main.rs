@@ -54,6 +54,7 @@ async fn serve() -> Result<(), String> {
         }
         Err(err) => return Err(err.to_string()),
     }
+    slimm_supervisor::supervisor::volumes::spawn_watch(supervisor.clone());
     api::serve(supervisor)
         .await
         .map_err(|e| format!("socket: {e}"))
