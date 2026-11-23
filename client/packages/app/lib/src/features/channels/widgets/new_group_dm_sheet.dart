@@ -100,9 +100,9 @@ class _NewGroupDmSheetState extends ConsumerState<_NewGroupDmSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
+        AppSpacing.s8,
         0,
-        AppSpacing.s16,
+        AppSpacing.s8,
         AppSpacing.s16,
       ),
       child: SingleChildScrollView(
@@ -115,7 +115,12 @@ class _NewGroupDmSheetState extends ConsumerState<_NewGroupDmSheet> {
               caption:
                   'Pick $_minOthers to $_maxOthers people. Up to '
                   '$groupDmMaxPeople can be in a group, you included.',
-              padding: EdgeInsets.only(bottom: AppSpacing.s12),
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.s8,
+                AppSpacing.s12,
+                AppSpacing.s8,
+                AppSpacing.s12,
+              ),
             ),
             GroupDmPeopleList(
               exclude: const {},
@@ -126,31 +131,41 @@ class _NewGroupDmSheetState extends ConsumerState<_NewGroupDmSheet> {
               }),
             ),
             const SizedBox(height: AppSpacing.s12),
-            AppInput(
-              counterMax: entityNameMaxChars,
-              controller: _name,
-              placeholder: 'Group name (optional)',
-              semanticLabel: 'Group name',
-              onChanged: (_) => setState(() {}),
+            _inset(
+              AppInput(
+                counterMax: entityNameMaxChars,
+                controller: _name,
+                placeholder: 'Group name (optional)',
+                semanticLabel: 'Group name',
+                onChanged: (_) => setState(() {}),
+              ),
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.s8),
-              AppErrorState(message: _error!),
+              _inset(AppErrorState(message: _error!)),
             ],
             const SizedBox(height: AppSpacing.s12),
-            AppButton(
-              label: _buttonLabel,
-              // A dimmed primary leaves its dark label low-contrast on the dark theme.
-              variant: _canSubmit
-                  ? AppButtonVariant.primary
-                  : AppButtonVariant.secondary,
-              full: true,
-              disabled: !_canSubmit,
-              onPressed: _submit,
+            _inset(
+              AppButton(
+                label: _buttonLabel,
+                // A dimmed primary leaves its dark label low-contrast on the dark theme.
+                variant: _canSubmit
+                    ? AppButtonVariant.primary
+                    : AppButtonVariant.secondary,
+                full: true,
+                disabled: !_canSubmit,
+                onPressed: _submit,
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  /// Rows carry their own 8dp inset, so everything else steps in to meet their content edge.
+  Widget _inset(Widget child) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+    child: child,
+  );
 }

@@ -53,6 +53,7 @@ import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/download_failures.dart';
 import '../widgets/pane_reading_order.dart';
 import '../widgets/shell_focus_anchor.dart';
+import '../web_update/web_update_banner_host.dart';
 import '../widgets/update_banner_host.dart';
 import '../features/voice/providers/shortcut_overrides.dart';
 import '../features/voice/widgets/call_keyboard_pill.dart' show ShellKeyboard;
@@ -118,9 +119,11 @@ class HomeShell extends ConsumerWidget {
                       child: AdminAlertBannerHost(
                         child: RulesGateBannerHost(
                           child: UpdateBannerHost(
-                            child: DownloadFailureHost(
-                              child: DatabaseResetNotice(
-                                child: AppBackgroundHost(child: scaffold),
+                            child: WebUpdateBannerHost(
+                              child: DownloadFailureHost(
+                                child: DatabaseResetNotice(
+                                  child: AppBackgroundHost(child: scaffold),
+                                ),
                               ),
                             ),
                           ),

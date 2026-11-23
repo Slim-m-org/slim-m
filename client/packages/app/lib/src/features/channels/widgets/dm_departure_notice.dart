@@ -18,7 +18,7 @@ class DmDepartureNotice extends StatelessWidget {
       AppSpacing.s16,
       AppSpacing.s8,
       AppSpacing.s16,
-      0,
+      AppSpacing.s8,
     ),
     child: AppCallout(tone: AppCalloutTone.info, child: Text(departure.notice)),
   );

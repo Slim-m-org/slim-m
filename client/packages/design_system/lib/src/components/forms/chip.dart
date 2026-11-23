@@ -62,7 +62,7 @@ class AppChip extends StatelessWidget {
       ringRadius: AppRadii.full,
       builder: (context, focused, hovered) {
         return Container(
-          height: 24,
+          constraints: const BoxConstraints(minHeight: 24),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
           decoration: BoxDecoration(
             color: active ? tokens.accentSoft : tokens.surfaceRaised,

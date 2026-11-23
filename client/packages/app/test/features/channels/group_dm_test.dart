@@ -263,7 +263,7 @@ void main() {
         reason: 'one tap only asks',
       );
 
-      await tester.tap(find.textContaining('Leave Person1'));
+      await tester.tap(find.text('Leave group'));
       await tester.pumpAndSettle();
 
       expect(server.requests, contains('POST /dms/groups/g1/leave'));

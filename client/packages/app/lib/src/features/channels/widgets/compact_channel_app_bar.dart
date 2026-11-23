@@ -197,8 +197,7 @@ class _Title extends StatelessWidget {
                 excluding: isDm && groupMemberIds.isEmpty,
                 child: Text(
                   name,
-                  // A group's default name is a list of people, so it may take two lines.
-                  maxLines: groupMemberIds.isEmpty ? 1 : 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.body.copyWith(
                     color: tokens.textPrimary,
