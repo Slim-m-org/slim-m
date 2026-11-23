@@ -56,3 +56,6 @@ mod tests_fixtures;
 
 #[cfg(test)]
 mod tests_limits;
+
+#[cfg(test)]
+mod tests_lazy;

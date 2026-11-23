@@ -27,7 +27,7 @@ fn engine() -> &'static Engine {
     ENGINE.get_or_init(|| {
         let mut config = Config::default();
         config.consume_fuel(true);
-        // wasmi 0.51.5 panics resuming a lazily translated call_indirect after a fuel slice runs out.
+        // wasmi 2.0.2 still fails a lazily translated call when a fuel slice ends mid-translation (tests_lazy.rs).
         config.compilation_mode(wasmi::CompilationMode::Eager);
         Engine::new(&config)
     })
