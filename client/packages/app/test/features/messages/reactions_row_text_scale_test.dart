@@ -24,8 +24,8 @@ Future<void> _pump(WidgetTester tester, {required double scale}) async {
     MaterialApp(
       theme: buildTheme(Brightness.light, AppTokens.light),
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(
-          context,
+        data: MediaQueryData.fromView(
+          View.of(context),
         ).copyWith(textScaler: TextScaler.linear(scale)),
         child: child!,
       ),

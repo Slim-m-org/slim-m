@@ -19,8 +19,8 @@ void main() {
       MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
+          data: MediaQueryData.fromView(
+            View.of(context),
           ).copyWith(textScaler: const TextScaler.linear(2)),
           child: child!,
         ),
