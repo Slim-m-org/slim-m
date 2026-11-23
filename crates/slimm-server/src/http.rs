@@ -104,6 +104,7 @@ pub(crate) mod module_events;
 pub(crate) mod module_hooks;
 pub(crate) mod module_host;
 mod module_logs;
+mod module_mentions;
 mod module_net;
 mod module_panels;
 pub mod module_rooms;

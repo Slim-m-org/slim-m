@@ -3,7 +3,9 @@
 //! modules/building-modules.md): the host runs one of the module's commands
 //! once, no sooner than [`MIN_DELAY_MS`] later, as the module's own principal.
 //! Schedules answer "every N minutes"; this answers "at the end of this
-//! phase". It needs the same approved `schedule` capability.
+//! phase". It needs the same approved `schedule` capability. A timer armed from
+//! a channel posts into that channel, as the module's principal, under the
+//! same permission check an interactive run there gets.
 
 use std::time::Duration;
 
@@ -11,7 +13,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use super::AppState;
-use super::module_host::{background_surface, schedule_approved};
+use super::module_host::{background_surface, schedule_approved, scheduled_surface};
 use super::module_run::{RunContext, RunKind, RunRequest, run_installed};
 use crate::store::{DueTimer, InstalledModule, TimerSpec, now_ms};
 
@@ -164,6 +166,16 @@ async fn run_claimed(state: &AppState, timer: &DueTimer) -> anyhow::Result<bool>
     {
         return Ok(false);
     }
+    let surface = match timer.channel_id {
+        Some(channel) => {
+            if state.store.channel(channel).await?.is_none() {
+                tracing::info!(module = %module.id, "module timer dropped: its channel is gone");
+                return Ok(false);
+            }
+            scheduled_surface(state, &module, bot, channel)
+        }
+        None => background_surface(state, &module, bot),
+    };
     let request = RunRequest {
         caller: bot,
         command: &timer.command,
@@ -174,7 +186,6 @@ async fn run_claimed(state: &AppState, timer: &DueTimer) -> anyhow::Result<bool>
             voice_channel: None,
         },
     };
-    let surface = background_surface(state, &module, bot);
     match run_installed(state, &module, &request, surface).await {
         Ok(outcome) if outcome.ok => {}
         Ok(outcome) => {

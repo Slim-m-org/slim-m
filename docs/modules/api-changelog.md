@@ -10,6 +10,9 @@ The policy behind the levels is decision [0100](../decisions/0100-module-safety-
 - `DockManifest` gains `provider` and `connector.permissions` (bits); a connector's `artifact` and `runtime` read as kind and backend `connector` with an empty path and sha256, so an older app still parses the listing.
 - `POST /space/dock/modules/{id}/install` takes `approved_connector_permissions` and refuses a connector without it, so an app that cannot show the ask cannot install one. `InstalledDockModule` gains `provider`, `connector_permissions` and, in the install answer that created it, `connector_token`.
 - New routes: `POST /space/dock/modules/{id}/connector-token` and `GET /connectors/me`.
+- The run request's `caller` gains an optional `name`: the caller's display name as other members see it in that space (nickname, else display name, else username), a snapshot taken when the run started. It is sent on every run that has a caller, a host below level 7 never sends it, and it is left out when the account cannot be read.
+- `message.post` content may carry `{{mention:<caller id>}}`: the host writes it as `@username` for the member whose `caller.id` (for this module) it names, so the normal mention rules apply. Only ids the host computes for this module are expanded; any other token, a member who cannot view the channel, and tokens past the tenth in a message stay literal. `@everyone`, `@here` and roles are not reachable through it.
+- A one-shot timer (`run_after`) armed from a channel now runs against that channel: `context.channel_id` is that channel and `message.post` posts there as the module's principal under the usual view and send check. A timer whose channel was deleted is dropped without running. A timer with no channel and the daily `schedules` keep using the admin's schedule channel.
 - Nothing is removed or changed in meaning. A module that declares `addon_api_max` of 6 must be updated to run on a level 7 server, as at every level.
 
 ## Level 6

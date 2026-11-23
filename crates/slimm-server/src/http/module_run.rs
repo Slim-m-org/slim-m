@@ -76,11 +76,14 @@ fn run_entropy() -> String {
     crate::media::to_hex(&bytes)
 }
 
-/// Who is asking, and nothing more: an id a module can dedupe against.
+/// Who is asking: an id a module can dedupe against, and the name other members see for them.
 /// See docs/decisions/0038-module-caller-id.md.
 #[derive(Serialize)]
 struct ModuleCaller {
     id: String,
+    /// A snapshot at run time; left out when the account cannot be read.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -229,6 +232,7 @@ async fn prepare_and_run(
         input: request.input,
         caller: ModuleCaller {
             id: super::module_caller::module_caller_id(&caller_key, module_id, request.caller),
+            name: super::module_caller::caller_name(&state.store, request.caller).await,
         },
         entropy: run_entropy(),
         now_ms: now_ms(),

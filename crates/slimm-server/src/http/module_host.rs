@@ -358,7 +358,9 @@ impl ChannelPoster {
         if hides_text(content) {
             return Err(PostRefused("content contains hidden characters"));
         }
-        let content = &*validate_content(content, false)
+        let expanded =
+            super::module_mentions::expand(state, &self.module_id, channel_id, content).await;
+        let content = &*validate_content(&expanded, false)
             .map_err(|_| PostRefused("content is empty or too long"))?;
         let slow_mode_window_ms = enforce_slow_mode(state, channel_id, self.user_id)
             .await
