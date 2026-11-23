@@ -21,6 +21,7 @@ export 'models_voice.dart';
 export 'models_voice_calls.dart';
 export 'models_call_stats.dart';
 export 'models_call_transcript.dart';
+export 'models_transcript_mark.dart';
 export 'models_attachments.dart';
 export 'models_dms.dart';
 export 'models_read_states.dart';

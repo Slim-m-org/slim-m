@@ -10,9 +10,11 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../../connection/providers/connection_report.dart';
 import '../providers/call_audio.dart';
+import '../providers/call_mark_chip.dart';
 import '../providers/dm_call_ring_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_ping.dart';
+import 'call_mark_chip.dart';
 import 'call_participant_tiles.dart';
 import 'voice_ping_readout.dart';
 
@@ -94,6 +96,13 @@ class CallHeaderLine extends ConsumerWidget {
         if (ref.watch(_transcribed(channelId))) ...[
           Text(' · ', style: facts),
           const _TranscribedMark(),
+        ],
+        if (ref.watch(callMarkChipProvider(channelId)) != null) ...[
+          Text(' · ', style: facts),
+          CallMarkChipView(
+            channelId: channelId,
+            style: AppText.micro.copyWith(color: tokens.textSecondary),
+          ),
         ],
       ],
     );

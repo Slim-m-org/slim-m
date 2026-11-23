@@ -183,6 +183,7 @@ export 'src/events.dart'
         ModuleRoomChanged,
         CallTranscriptChanged,
         CallTranscriptLineAdded,
+        CallTranscriptMarkChanged,
         VoiceActivity,
         VoiceMoved,
         VoiceNotice,

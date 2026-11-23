@@ -11,7 +11,9 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../messages/widgets/jump_to_latest_button.dart';
 import '../providers/call_transcript.dart';
+import '../providers/call_transcript_marks.dart';
 import 'transcript_line_row.dart';
+import 'transcript_mark_chips.dart';
 
 const liveTranscriptJumpKey = Key('live-transcript-jump');
 
@@ -84,6 +86,7 @@ class _LiveTranscriptViewState extends ConsumerState<LiveTranscriptView> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final model = ref.watch(callTranscriptProvider(widget.transcriptId));
+    final marks = ref.watch(transcriptMarksProvider(widget.transcriptId));
     ref.listen(
       callTranscriptProvider(widget.transcriptId).select((m) => m.busy),
       (_, busy) {
@@ -119,11 +122,17 @@ class _LiveTranscriptViewState extends ConsumerState<LiveTranscriptView> {
           controller: _scroll,
           padding: const EdgeInsets.all(AppSpacing.s16),
           itemCount: model.lines.length,
-          itemBuilder: (context, i) => TranscriptLineRow(
-            key: ValueKey(model.lines[i].seq),
-            line: model.lines[i],
-            highlighted: false,
-          ),
+          itemBuilder: (context, i) {
+            final line = model.lines[i];
+            return Column(
+              key: ValueKey(line.seq),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TranscriptLineRow(line: line, highlighted: false),
+                TranscriptMarkChips(marks: marks.onLine(line.seq).toList()),
+              ],
+            );
+          },
         ),
         Align(
           alignment: Alignment.bottomCenter,

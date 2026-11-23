@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_overlay_controller.dart';
 import 'package:slimm_app/src/features/screen_overlay/widgets/call_overlay_shortcut.dart';
+import 'package:slimm_app/src/features/voice/providers/call_mark_actions.dart';
 import 'package:slimm_app/src/features/voice/providers/global_hotkeys_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/push_to_talk_gate.dart';
 import 'package:slimm_app/src/features/voice/providers/shortcut_overrides.dart';
@@ -40,6 +41,7 @@ void main() {
   Future<({VoiceController voice, FakeHotkeySource source})> connect(
     WidgetTester tester, {
     required bool overlayHosted,
+    List<Override> extra = const [],
   }) async {
     final hotkeys = FakeHotkeySource();
     final session = FakeSession();
@@ -49,6 +51,7 @@ void main() {
       extraOverrides: [
         globalHotkeySourceProvider.overrideWithValue(hotkeys),
         screenOverlaySupportedProvider.overrideWithValue(overlayHosted),
+        ...extra,
       ],
     );
     await tester.pumpWidget(
@@ -93,6 +96,7 @@ void main() {
         GlobalHotkeyId.pushToTalk,
         GlobalHotkeyId.toggleMute,
         GlobalHotkeyId.toggleDeafen,
+        GlobalHotkeyId.markCall,
         GlobalHotkeyId.toggleCallOverlay,
       ]);
       final chord = c.source.chords.last.last;
@@ -103,6 +107,35 @@ void main() {
       await c.voice.leave();
     },
   );
+
+  testWidgets('the global mark hotkey runs the one mark action per press', (
+    tester,
+  ) async {
+    final marks = <int>[];
+    final c = await connect(
+      tester,
+      overlayHosted: false,
+      extra: [
+        callMarkActionsProvider.overrideWith(
+          (ref) => _CountingMarks(ref, marks),
+        ),
+      ],
+    );
+    await global(
+      tester,
+      c.source,
+      GlobalHotkeyId.markCall,
+      GlobalHotkeyPhase.pressed,
+    );
+    await global(
+      tester,
+      c.source,
+      GlobalHotkeyId.markCall,
+      GlobalHotkeyPhase.released,
+    );
+    expect(marks, [1]);
+    await c.voice.leave();
+  });
 
   testWidgets('the global overlay shortcut flips the setting once per press', (
     tester,
@@ -192,4 +225,16 @@ void main() {
     gate.toggleCallOverlay(HoldSource.global, () => overlays++);
     expect(overlays, 2, reason: 'a later press is a new press');
   });
+}
+
+class _CountingMarks extends CallMarkActions {
+  _CountingMarks(super.ref, this.calls);
+
+  final List<int> calls;
+
+  @override
+  Future<String?> mark({String? note}) async {
+    calls.add(calls.length + 1);
+    return null;
+  }
 }

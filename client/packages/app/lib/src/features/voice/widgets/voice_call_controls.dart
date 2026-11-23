@@ -55,6 +55,7 @@ import 'screen_stamps_received_sheet.dart';
 import '../../canvas/providers/armed_stamp.dart'
     show canvasStampsSupportedProvider;
 import 'captions_button.dart';
+import 'mark_button.dart';
 import 'soundboard_button.dart';
 import '../../../widgets/shortcut_label.dart';
 
@@ -78,7 +79,7 @@ class CallControls extends ConsumerStatefulWidget {
   /// False for a second copy laid over the first, such as a full screen video's dock, which must not take the call shortcuts from it.
   final bool ownsShortcuts;
 
-  /// For a card too narrow to hold them all: camera switch, soundboard, captions and the extra control leave this row, and the mic's caret gives way to a long press.
+  /// For a card too narrow to hold them all: camera switch, soundboard, captions, mark and the extra control leave this row, and the mic's caret gives way to a long press.
   final bool tight;
 
   /// Draws only the controls a [tight] row leaves out, as a card row of their own above it.
@@ -180,8 +181,9 @@ class _CallControlsState extends ConsumerState<CallControls> {
     final captions = canUseCaptions(ref, voice.channelId)
         ? const CaptionsButton()
         : null;
+    final mark = captions != null ? const MarkButton() : null;
     if (widget.spilledOnly) {
-      final spilled = [?switchCamera, ?soundboard, ?captions, ?extra];
+      final spilled = [?switchCamera, ?soundboard, ?captions, ?mark, ?extra];
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -231,6 +233,10 @@ class _CallControlsState extends ConsumerState<CallControls> {
         if (captions != null && !widget.tight) ...[
           const SizedBox(width: AppSpacing.s8),
           captions,
+        ],
+        if (mark != null && !widget.tight) ...[
+          const SizedBox(width: AppSpacing.s8),
+          mark,
         ],
         if (extra != null && !widget.tight) ...[
           const SizedBox(width: AppSpacing.s8),

@@ -276,7 +276,7 @@ class CanvasCallDock extends ConsumerWidget {
     final extra =
         (alone ? dockExtraExtent(context) : 0.0) +
         (soundboard ? dockButtonExtent(context) : 0.0) +
-        (captions ? dockButtonExtent(context) : 0.0) +
+        (captions ? 2 * dockButtonExtent(context) : 0.0) +
         stamp;
     return LayoutBuilder(
       key: const ValueKey('call-and-canvas'),

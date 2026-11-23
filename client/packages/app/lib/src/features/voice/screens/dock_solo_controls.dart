@@ -243,12 +243,12 @@ bool callRowFits(
   final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
   final chip = AppSizes.controlMd > hitTarget ? AppSizes.controlMd : hitTarget;
   final button = chip + 2 * (focusRingGap + focusRingWidth);
-  // mic, deafen, camera, [switch camera], share, [soundboard], [captions], leave, and the extras.
+  // mic, deafen, camera, [switch camera], share, [soundboard], [captions and mark], leave, and the extras.
   final controlCount =
       5 +
       (switchCameraShown ? 1 : 0) +
       (soundboardShown ? 1 : 0) +
-      (captionsShown ? 1 : 0) +
+      (captionsShown ? 2 : 0) +
       extraCount;
   const cardPadding = AppSpacing.s12 * 2 + 2;
   // The divider before leave takes the place of one gap: s4, 1dp, s4.

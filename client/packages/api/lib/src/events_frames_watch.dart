@@ -71,6 +71,22 @@ class CallTranscriptLineAdded extends ServerEvent {
   final TranscriptLine line;
 }
 
+/// A mark kept on, or removed from when [mark] is null, a running call's
+/// transcript. Sent to the same people as [CallTranscriptLineAdded].
+class CallTranscriptMarkChanged extends ServerEvent {
+  const CallTranscriptMarkChanged({
+    required this.channelId,
+    required this.transcriptId,
+    required this.markId,
+    this.mark,
+  });
+
+  final String channelId;
+  final String transcriptId;
+  final String markId;
+  final TranscriptMark? mark;
+}
+
 /// The server ended this account's call in [channelId]. Delivered only to the
 /// account's own sockets, so the device that was in it can say why.
 class VoiceRemoved extends ServerEvent {

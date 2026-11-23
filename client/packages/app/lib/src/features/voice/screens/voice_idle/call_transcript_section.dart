@@ -14,10 +14,13 @@ import '../../../../permissions.dart';
 import '../../../../widgets/confirm_dialog.dart';
 import '../../../channels/providers/channel_permissions.dart';
 import '../../providers/call_transcript.dart';
+import '../../providers/call_transcript_marks.dart';
 import '../../providers/voice_call_history.dart';
 import '../../widgets/transcript_line_row.dart';
+import '../../widgets/transcript_mark_chips.dart';
 import '../../widgets/your_talk_line.dart';
 import 'call_fold_link.dart';
+import 'call_marks_list.dart';
 
 /// Lines shown before "Show all".
 const transcriptCollapsedLines = 8;
@@ -104,6 +107,7 @@ class _CallTranscriptSectionState extends ConsumerState<CallTranscriptSection> {
     });
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final model = ref.watch(callTranscriptProvider(widget.transcriptId));
+    final marks = ref.watch(transcriptMarksProvider(widget.transcriptId));
     if (model.deleted) return const SizedBox.shrink();
     final canDelete = ref
         .watch(myChannelPermissionsProvider(widget.channelId))
@@ -142,12 +146,18 @@ class _CallTranscriptSectionState extends ConsumerState<CallTranscriptSection> {
           ),
         ),
         YourTalkLine(transcriptId: widget.transcriptId),
-        for (final line in shown)
+        CallMarksList(
+          channelId: widget.channelId,
+          transcriptId: widget.transcriptId,
+        ),
+        for (final line in shown) ...[
           TranscriptLineRow(
             key: _keyFor(line.seq),
             line: line,
             highlighted: line.seq == _highlighted,
           ),
+          TranscriptMarkChips(marks: marks.onLine(line.seq).toList()),
+        ],
         if (model.loaded && model.error == null && model.lines.isEmpty)
           Text(
             model.ongoing ? 'Nothing said yet.' : 'Nothing was said.',
