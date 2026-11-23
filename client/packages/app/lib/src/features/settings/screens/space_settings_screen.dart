@@ -44,6 +44,7 @@ class SpaceSettingsScreen extends ConsumerWidget {
         // Reached with go(), which replaces, so there is no stack to pop.
         backTooltip: 'Back to channels',
         backFallback: Routes.channels,
+        scrollable: false,
         child: SettingsNotice(
           message: 'None of your roles grant access to anything here.',
           detail: 'An administrator can grant you access.',

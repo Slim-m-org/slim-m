@@ -264,6 +264,13 @@ void main() {
     await _pump(tester, permissions: 0);
 
     expect(find.byType(SettingsNotice), findsOneWidget);
+    final body = tester.getRect(find.byType(Scaffold));
+    final notice = tester.getRect(find.byType(SettingsNotice));
+    expect(
+      notice.center.dy,
+      closeTo(body.center.dy, 80),
+      reason: 'the empty state is centred in its page, not pinned to the top',
+    );
     expect(
       find.textContaining('None of your roles grant access'),
       findsOneWidget,
