@@ -35,9 +35,10 @@ namespace {
 
 constexpr int kCornerPreferenceRound = 2;  // DWMWCP_ROUND
 
-// Shows the window anyway if Dart never asks, so a failed startup cannot leave it cloaked.
+// Shows the window anyway if Dart never asks, or no frame follows its ask, so it cannot stay cloaked.
 constexpr UINT_PTR kRevealTimer = 0x534C;
 constexpr UINT kRevealDeadlineMs = 15000;
+constexpr UINT kFrameDeadlineMs = 1000;
 
 // The engine numbers views from 0, so the first window Dart creates, the main one, is the implicit view.
 constexpr flutter::FlutterViewId kMainViewId = 0;
@@ -48,18 +49,43 @@ flutter::FlutterEngine* g_engine = nullptr;
 std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> g_channel;
 HWND g_window = nullptr;
 bool g_revealed = false;
+// Tells a frame callback from a reveal that a later conceal has overtaken.
+unsigned g_reveal_request = 0;
 
 void SetCloaked(HWND window, bool cloaked) {
   const BOOL value = cloaked ? TRUE : FALSE;
   ::DwmSetWindowAttribute(window, DWMWA_CLOAK, &value, sizeof(value));
 }
 
-void Reveal() {
-  g_revealed = true;
-  if (g_window == nullptr) return;
+void Uncloak(unsigned request) {
+  if (request != g_reveal_request || g_window == nullptr) return;
   ::KillTimer(g_window, kRevealTimer);
   SetCloaked(g_window, false);
   if (::IsWindowVisible(g_window)) ::SetForegroundWindow(g_window);
+}
+
+/// Uncloaks once the next frame is drawn, as the old runner showed its window,
+/// so the first thing seen is a painted frame at the window's current size.
+void RequestReveal() {
+  if (g_revealed) return;
+  g_revealed = true;
+  if (g_window == nullptr) return;
+  const unsigned request = ++g_reveal_request;
+  g_engine->SetNextFrameCallback([request] { Uncloak(request); });
+  ::SetTimer(g_window, kRevealTimer, kFrameDeadlineMs, nullptr);
+  const HWND content =
+      ::FindWindowExW(g_window, nullptr, L"FLUTTERVIEW", nullptr);
+  if (content != nullptr) {
+    ::RedrawWindow(content, nullptr, nullptr, RDW_INVALIDATE);
+  }
+}
+
+void Conceal() {
+  g_revealed = false;
+  ++g_reveal_request;
+  if (g_window == nullptr) return;
+  SetCloaked(g_window, true);
+  ::SetTimer(g_window, kRevealTimer, kRevealDeadlineMs, nullptr);
 }
 
 /// The engine shows a window on its first frame, before window_manager has
@@ -80,7 +106,8 @@ std::optional<LRESULT> HandleTopLevelMessage(HWND window, UINT message,
   if (g_window == nullptr) return std::nullopt;
   if (!is_main) return HandlePopOutMessage(window, message, wparam, lparam);
   if (message == WM_TIMER && wparam == kRevealTimer) {
-    Reveal();
+    g_revealed = true;
+    Uncloak(g_reveal_request);
     return 0;
   }
   if (message == WM_COPYDATA && OnForwardedLink(lparam)) return TRUE;
@@ -108,7 +135,9 @@ bool AdoptMainWindow() {
   ::DwmSetWindowAttribute(g_window, DWMWA_WINDOW_CORNER_PREFERENCE,
                           &kCornerPreferenceRound,
                           sizeof(kCornerPreferenceRound));
-  if (!g_revealed) ::SetTimer(g_window, kRevealTimer, kRevealDeadlineMs, nullptr);
+  if (!g_revealed) {
+    ::SetTimer(g_window, kRevealTimer, kRevealDeadlineMs, nullptr);
+  }
 
   flutter::BinaryMessenger* messenger = g_engine->messenger();
   RegisterPlugins(g_engine);
@@ -142,9 +171,9 @@ void HandleCall(const flutter::MethodCall<flutter::EncodableValue>& call,
       return;
     }
   } else if (method == "reveal") {
-    Reveal();
+    RequestReveal();
   } else if (method == "conceal") {
-    if (g_window != nullptr) SetCloaked(g_window, true);
+    Conceal();
   } else {
     result->NotImplemented();
     return;

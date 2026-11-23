@@ -103,6 +103,8 @@ There is no second subscription, no second decode and no server token route, whi
   The Win32 pop-out has no undecorated option, so it keeps the OS title bar; it is kept above with `SetWindowPos(HWND_TOPMOST)` (`popout_windowing_win32.dart`).
   On Windows a pop-out opens between frames, never inside one: the engine sizes a new view by waiting on a frame of that size, which cannot come while a frame is being built.
   The engine shows a Dart-made window on its first frame, before window_manager has sized it and taken its title bar, so the runner cloaks the main window until `lockSplashChrome` reveals it, and cloaks it again over the handoff's resize.
+  A reveal uncloaks on the engine's next drawn frame, as the old runner showed its window, because a cloaked window's content is not composed and uncloaking at once showed black.
+  Opening a pop-out can run Dart again while Windows sizes the new view, so `PopOutWindowSet` folds a sync asked for meanwhile into a rerun; the first round opened a second, hidden window that way.
   The flag also turns `showDialog` into OS windows on Windows, so `showInWindowDialog` keeps dialogs in the main window there as on Linux.
 - Web never offers it.
 - Always-on-top is not requested: the controller exposes no such call, and on KDE the user can set "keep above" from the window menu.

@@ -12,15 +12,16 @@ import 'dart:ffi' as ffi;
 import 'dart:ui' show AppExitType;
 
 import 'package:flutter/foundation.dart' show VoidCallback, kIsWeb;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/src/foundation/_features.dart' show isWindowingEnabled;
 import 'package:flutter/src/widgets/_window.dart';
 import 'package:flutter/src/widgets/_window_win32.dart';
 import 'package:flutter/widgets.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_platform/platform.dart' show isWindowsHost;
 
 import '../desktop_window_port.dart' show ResizeEdge;
-import 'popout_win32_probe.dart';
 import 'popout_windowing.dart' show NativeMainWindow, PopOutWindowHandle;
 
 /// user32's `SetWindowPos`.
@@ -96,8 +97,12 @@ class _Win32MainWindow
   @override
   VoidCallback? onCloseRequested;
 
+  /// The runner uncloaks on the next drawn frame, so one is asked for here.
   @override
-  Future<void> reveal() => _mainWindowChannel.invokeMethod<void>('reveal');
+  Future<void> reveal() async {
+    await _mainWindowChannel.invokeMethod<void>('reveal');
+    SchedulerBinding.instance.scheduleForcedFrame();
+  }
 
   @override
   Future<void> conceal() => _mainWindowChannel.invokeMethod<void>('conceal');
@@ -127,7 +132,11 @@ PopOutWindowHandle openWin32PopOutWindow({
     title: title,
     resizable: true,
   );
-  probePopOut('opened', controller.rootView, controller.windowHandle);
+  AppLog.debug(
+    LogTag.platform,
+    'Pop-out opened: view ${controller.rootView.viewId}, phase '
+    '${SchedulerBinding.instance.schedulerPhase.name}',
+  );
   return Win32PopOutWindow(
     controller,
     windowHandle: () => controller.windowHandle,

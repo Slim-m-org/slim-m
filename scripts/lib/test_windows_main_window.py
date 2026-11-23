@@ -56,6 +56,8 @@ class PluginsWaitForTheWindow(unittest.TestCase):
         serve = window[window.index("void ServeMainWindowReady("):]
         self.assertIn("RegisterTopLevelWindowProcDelegate(", serve)
         self.assertIn("DWMWA_CLOAK", window)
+        # A reveal waits for a drawn frame; uncloaking at once showed a black window.
+        self.assertIn("SetNextFrameCallback(", window)
 
     def test_the_windows_go_before_the_engine(self):
         main = strip_c_comments((RUNNER_DIR / "main.cpp").read_text())
