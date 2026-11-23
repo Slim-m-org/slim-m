@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Plays one soundboard clip from memory, under the same "never take the
-/// call's audio" configuration every other interface sound uses.
+/// Plays one soundboard clip from memory. Outside a call it uses the same
+/// "never take the call's audio" configuration every other interface sound
+/// uses; on iPhone in a call it goes to the app's own engine in the call's session.
 ///
 /// Each clip gets its own short-lived player so clips from two people overlap
 /// the way two voices do, instead of the second cutting the first off.
@@ -13,6 +14,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'call_holds_audio_session.dart';
+import 'call_path_clip_output.dart';
 import 'notification_sound.dart' show AudioPlayersSoundPlayer;
 import 'sound_audio_context.dart';
 import 'sound_output_router.dart';
@@ -27,10 +29,17 @@ abstract class SoundClipPlayer {
 }
 
 class AudioPlayersSoundClipPlayer implements SoundClipPlayer {
-  AudioPlayersSoundClipPlayer({this.afterPlay, bool Function()? inCall})
-    : inCall = inCall ?? (() => false);
+  AudioPlayersSoundClipPlayer({
+    this.afterPlay,
+    bool Function()? inCall,
+    this.ios,
+    SoundClipPlayer? callPath,
+  }) : inCall = inCall ?? (() => false),
+       _callPath = callPath ?? CallPathSoundClipPlayer();
 
   final bool Function() inCall;
+  final bool? ios;
+  final SoundClipPlayer _callPath;
   final Future<void> Function()? afterPlay;
 
   /// Longer than any clip the server accepts, so a player that never reports completion is still released.
@@ -42,7 +51,9 @@ class AudioPlayersSoundClipPlayer implements SoundClipPlayer {
     required String mimeType,
     required double volume,
   }) async {
-    if (callOwnsSoundSession(inCall: inCall())) return;
+    if (callOwnsSoundSession(inCall: inCall(), ios: ios)) {
+      return _playInCall(bytes, mimeType: mimeType, volume: volume);
+    }
     final player = AudioPlayer();
     // onPlayerComplete is a Stream<AudioEvent> at runtime, so its first must be retyped before timeout takes a void fallback.
     final completed = player.onPlayerComplete.first.then<void>(
@@ -63,6 +74,17 @@ class AudioPlayersSoundClipPlayer implements SoundClipPlayer {
     );
     unawaited(afterPlay?.call());
   }
+
+  /// The call holds the iOS session, so the clip joins it rather than taking it.
+  Future<void> _playInCall(
+    Uint8List bytes, {
+    required String mimeType,
+    required double volume,
+  }) => _callPath.play(
+    bytes,
+    mimeType: mimeType,
+    volume: volume * AudioPlayersSoundPlayer.playbackVolume,
+  );
 }
 
 final soundClipPlayerProvider = Provider<SoundClipPlayer>(
