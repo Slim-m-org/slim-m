@@ -286,4 +286,7 @@ A review of the built supervisor and server found the following, and each is now
 - A connector turned off for crashes or a full volume is marked and disabled in one transaction, so a database error cannot leave a connector that says it was turned off while the module stays enabled.
 - The server logs one warning when a request carries `X-Forwarded-For` from a peer outside `SLIMM_TRUSTED_PROXIES`, naming the peer, since the header is then ignored and every caller shares the proxy's rate-limit key.
 - An update that makes a host-run connector admin-started removes its container, keeps its volume, and revokes the container's token: the admin is shown a new one once, as for any admin-started install.
+- The runtime cannot report one volume's size: `/system/df` ignores filters and `/volumes/{name}` carries no usage, so every volume on the host is read, at most every 30 seconds, with a 20 second limit.
+- A start measures before it takes the supervisor's verb lock, so a slow report never holds other verbs back.
+- A check that cannot read the sizes logs why; after three in a row the supervisor stops every running connector that has a volume, since its ceiling can no longer be enforced.
 

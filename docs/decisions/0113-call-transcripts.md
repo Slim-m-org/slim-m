@@ -158,3 +158,10 @@ A call acts on commands only if its transcript started while the switch was on, 
 The consent text names the phrase while it is on, the always-mode notice gains one sentence saying how to mark a moment, and turning the switch on makes that notice due again for everyone (changing only the phrase does not).
 A spoken mark belongs to the speaker, is stamped with the line's time and points at that line, which stays in the transcript as it was said.
 How whisper hears the phrase was measured before this shipped: docs/research/voice-command-phrase-2026-11-22.md.
+
+## Amendment 2026-11-23: what the stats read costs
+
+`call_transcript_lines (speaker_id, at)` (migration 0213) makes a window read a range of one index, and replaces the speaker-only index.
+A member has at most one stats read running at a time; a second answers 429.
+"All kept" still reads every kept line of the member, about 3 seconds at a million lines; nothing is stored to avoid it.
+

@@ -61,6 +61,12 @@ impl Runtime {
             .await
     }
 
+    /// [`Self::get`] giving up after `timeout`, for a report whose cost follows the host's size.
+    pub async fn get_within(&self, path: &str, timeout: Duration) -> Result<Reply, ApiError> {
+        self.request(Method::GET, path, None, (timeout, MAX_BODY))
+            .await
+    }
+
     pub async fn post(&self, path: &str, body: Option<&Value>) -> Result<Reply, ApiError> {
         self.request(Method::POST, path, body, (DEFAULT_TIMEOUT, MAX_BODY))
             .await
