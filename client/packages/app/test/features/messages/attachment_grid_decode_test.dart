@@ -54,6 +54,7 @@ Future<List<_Decoded>> _decodedTiles(
   required double dpr,
   required double width,
   required AttachmentPreviewQuality quality,
+  List<int>? buckets,
 }) async {
   tester.view.physicalSize = Size(width * dpr, 1600 * dpr);
   tester.view.devicePixelRatio = dpr;
@@ -72,9 +73,10 @@ Future<List<_Decoded>> _decodedTiles(
           attachmentBytesProvider(
             a.id,
           ).overrideWith((ref) async => previews[1280]!),
-        attachmentPreviewBytesProvider.overrideWith(
-          (ref, key) async => previews[key.bucket]!,
-        ),
+        attachmentPreviewBytesProvider.overrideWith((ref, key) async {
+          buckets?.add(key.bucket);
+          return previews[key.bucket]!;
+        }),
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
@@ -135,7 +137,7 @@ void main() {
       for (final count in [2, 3, 4, 6]) {
         for (final ratio in [4 / 3, 3 / 2, 3 / 4, 1.0]) {
           testWidgets(
-            'sharp: every tile decodes to its physical size '
+            'sharp: every tile decodes at twice its physical size '
             '(dpr $dpr, $width wide, $count images, ratio ${ratio.toStringAsFixed(2)})',
             (tester) async {
               final tiles = await _decodedTiles(
@@ -149,9 +151,14 @@ void main() {
               expect(tiles, hasLength(math.min(count, kGalleryMaxTiles)));
               for (final t in tiles) {
                 final physical = t.tile.width * dpr;
-                expect(_shorter(t), greaterThanOrEqualTo(physical.floor()));
+                // Twice the painted pixels, so the GPU minifies rather than the codec.
+                expect(
+                  _shorter(t),
+                  greaterThanOrEqualTo(2 * physical.floor() - 1),
+                );
                 // Bounded: never the whole preview decoded into a tile.
-                expect(_shorter(t), lessThanOrEqualTo(physical.ceil() + 1));
+                expect(_shorter(t), lessThanOrEqualTo(2 * physical.ceil() + 1));
+                expect(t.tile.width, t.tile.width.floorToDouble());
               }
             },
           );
@@ -188,4 +195,27 @@ void main() {
       lessThan(shorter[sharp]!),
     );
   });
+
+  const expectedBucket = {
+    AttachmentPreviewQuality.sharp: 640,
+    AttachmentPreviewQuality.balanced: 320,
+    AttachmentPreviewQuality.dataSaver: 320,
+  };
+  for (final q in AttachmentPreviewQuality.values) {
+    testWidgets('$q asks for a ${expectedBucket[q]} preview at dpr 1', (
+      tester,
+    ) async {
+      final buckets = <int>[];
+      await _decodedTiles(
+        tester,
+        count: 4,
+        ratio: 4 / 3,
+        dpr: 1,
+        width: 1280,
+        quality: q,
+        buckets: buckets,
+      );
+      expect(buckets.last, expectedBucket[q]);
+    });
+  }
 }

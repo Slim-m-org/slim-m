@@ -54,7 +54,7 @@ Future<void> _pump(WidgetTester tester, Uint8List bytes) async {
 void main() {
   setUpAll(MediaKit.ensureInitialized);
 
-  testWidgets('the decode width is capped at the inline max, scaled by dpr', (
+  testWidgets('the decode width is twice the inline max, scaled by dpr', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 2;
@@ -65,12 +65,15 @@ void main() {
     // cacheWidth/cacheHeight land on the provider as a ResizeImage, not Image.
     final image = tester.widget<Image>(find.byType(Image));
     final resized = image.image as ResizeImage;
-    expect(resized.width, (kInlineImageMax * 2).round());
+    // Sharp decodes at twice the painted pixels.
+    expect(resized.width, (kInlineImageMax * 2 * 2).round());
     // Null, so the codec keeps the source's own aspect ratio.
     expect(resized.height, isNull);
   });
 
-  testWidgets('at 1x the cap is the inline max in real pixels', (tester) async {
+  testWidgets('at 1x the decode is twice the inline max in real pixels', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -78,7 +81,7 @@ void main() {
 
     final image = tester.widget<Image>(find.byType(Image));
     final resized = image.image as ResizeImage;
-    expect(resized.width, kInlineImageMax.round());
+    expect(resized.width, (kInlineImageMax * 2).round());
   });
 
   testWidgets(

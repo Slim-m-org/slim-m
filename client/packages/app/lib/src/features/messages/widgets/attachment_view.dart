@@ -159,13 +159,12 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
       );
     }
 
-    final previewScale = ref
-        .watch(attachmentPreviewQualityControllerProvider)
-        .decodeScale;
+    final quality = ref.watch(attachmentPreviewQualityControllerProvider);
     final decodeWidth = decodeEdge(
       context,
       tile ?? kInlineImageMax,
-      scale: previewScale,
+      scale: quality.decodeScale,
+      oversample: quality.decodeOversample,
     );
     // A gif answers its first frame; the original is fetched only once it plays.
     final bytesAsync = ref.watch(
@@ -411,10 +410,17 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     );
   }
 
-  /// A cover tile needs its shorter side, and the server sizes the longer one, so ask for room up to 3:2.
-  int _previewBucket(int decodeWidth) => attachmentPreviewBucket(
-    widget.tileEdge == null ? decodeWidth : (decodeWidth * 1.5).ceil(),
-  );
+  /// A cover tile needs its shorter side and the server sizes the longer one, so it asks for room up to 3:2.
+  /// A single image is fetched for the pixels it paints; the oversample only widens the decode.
+  int _previewBucket(int decodeWidth) {
+    if (widget.tileEdge != null) {
+      return attachmentPreviewBucket((decodeWidth * 1.5).ceil());
+    }
+    final oversample = ref
+        .read(attachmentPreviewQualityControllerProvider)
+        .decodeOversample;
+    return attachmentPreviewBucket((decodeWidth / oversample).ceil());
+  }
 
   void _refetch(int decodeWidth) {
     ref.invalidate(attachmentBytesProvider(attachment.id));
