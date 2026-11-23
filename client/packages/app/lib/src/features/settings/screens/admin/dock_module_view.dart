@@ -17,6 +17,7 @@ import '../../widgets/settings_section_header.dart';
 import 'dock_call_audio_card.dart';
 import 'dock_changelog_card.dart';
 import 'dock_connector_card.dart';
+import 'dock_host_run_panel.dart';
 import 'dock_display_card.dart';
 import 'dock_health_card.dart';
 import 'dock_host_access_card.dart';
@@ -175,12 +176,22 @@ class DockManifestView extends StatelessWidget {
                 DockDisplayCard(installed: it),
               ],
               // Before install the switches are asked in the Install sheet, so the page reads like a store page.
+              if (manifest.hostRun case final ask?)
+                DockHostRunPanel(
+                  moduleId: manifest.id,
+                  ask: ask,
+                  installed: installed,
+                  busy: busy,
+                  onSetEnabled: onSetEnabled,
+                ),
               if (manifest.isConnector)
                 DockConnectorCard(
                   manifest: manifest,
                   installed: installed,
                   busy: busy,
-                  onNewToken: onNewConnectorToken,
+                  onNewToken: manifest.hostRun == null
+                      ? onNewConnectorToken
+                      : null,
                 )
               else if (installed != null ||
                   grantableHostCapabilities(manifest.capabilities).isEmpty)

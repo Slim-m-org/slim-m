@@ -49,6 +49,7 @@ extension SlimmApiDock on SlimmApi {
   /// the admin was shown; the server refuses the install if it has changed.
   /// [approvedConnectorPermissions] is required for a connector: the core
   /// permission bits its token may use, a subset of what it asks for.
+  /// [approvedHostRun] is required for a connector the host runs.
   Future<InstalledDockModule> installDockModule({
     required String moduleId,
     required String version,
@@ -57,6 +58,7 @@ extension SlimmApiDock on SlimmApi {
     String? reviewedDigest,
     String? source,
     int? approvedConnectorPermissions,
+    HostRunApproval? approvedHostRun,
   }) async {
     final json = await send(
       'POST',
@@ -71,6 +73,8 @@ extension SlimmApiDock on SlimmApi {
         if (reviewedDigest != null) 'reviewed_digest': reviewedDigest,
         if (approvedConnectorPermissions != null)
           'approved_connector_permissions': approvedConnectorPermissions,
+        if (approvedHostRun != null)
+          'approved_host_run': approvedHostRun.toJson(),
       },
     );
     return InstalledDockModule.fromJson(json as Map<String, dynamic>);

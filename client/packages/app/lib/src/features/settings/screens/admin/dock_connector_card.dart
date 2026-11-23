@@ -45,8 +45,10 @@ class DockConnectorCard extends StatelessWidget {
     return SettingsSectionCard(
       title: 'Token access',
       children: [
-        const SettingsInfoLine(
-          'Runs outside your server, as a bot with its own token.',
+        SettingsInfoLine(
+          manifest.hostRun == null
+              ? 'Runs outside your server, as a bot with its own token.'
+              : 'Runs on this server in a sandbox, as a bot with its own token.',
         ),
         SettingsDetailRow(
           title: installed == null ? 'Asks to' : 'Can',
