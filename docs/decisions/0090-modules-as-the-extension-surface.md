@@ -185,7 +185,7 @@ These are conditions on building it, not a description of something built.
 - The consent screen names the image, ports, egress hosts, volumes and token scope.
 - The host shows health and logs, restarts with backoff, and disables a connector that keeps crashing.
 - Uninstall removes the container, revokes the token and removes the volume unless the admin chooses to keep it.
-- Whether the runtime client lives inside the server process or in a small separate supervisor is decided in its own record before the build, because it decides what a compromised server can reach.
+- The runtime client lives in a separate supervisor process, not in the server, and its interface is decision [0134](0134-connector-runtime-supervisor.md).
 
 ## Phasing
 
