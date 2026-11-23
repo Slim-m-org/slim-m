@@ -149,6 +149,24 @@ extension SlimmApiDock on SlimmApi {
     return ConnectorSelf.fromJson(json as Map<String, dynamic>);
   }
 
+  /// A connector answers a member's run it was sent: [output] when [ok], else [error].
+  Future<void> answerConnectorRun(
+    String runId, {
+    required bool ok,
+    String? output,
+    String? error,
+  }) =>
+      send(
+        'POST',
+        '/connectors/me/runs/$runId',
+        body: {
+          'ok': ok,
+          if (output != null) 'output': output,
+          if (error != null) 'error': error,
+        },
+        expectNoContent: true,
+      );
+
   /// Enables an installed module.
   Future<InstalledDockModule> enableDockModule(String moduleId) async {
     final json = await send('POST', '/space/dock/modules/$moduleId/enable');
