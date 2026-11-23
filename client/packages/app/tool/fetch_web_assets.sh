@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 #
 # Fetches the two binaries the web build needs, pinned to the versions in
-# pubspec.lock and checked against a recorded digest.
+# pubspec.lock and checked against a recorded digest, and copies the capture
+# chain worklet out of the pinned flutter_webrtc fork.
 #
 # They are fetched rather than committed because the web build is a test
 # surface rather than something shipped, so 355KB of vendored minified JS in
@@ -62,3 +63,21 @@ fetch "https://github.com/simolus3/sqlite3.dart/releases/download/sqlite3-${SQLI
   "$WEB/sqlite3.wasm" "$SQLITE3_SHA"
 fetch "https://github.com/simolus3/drift/releases/download/drift-${DRIFT_VERSION}/drift_worker.js" \
   "$WEB/drift_worker.js" "$DRIFT_SHA"
+
+# The browser's capture chain (docs/voice-input-gate.md) is built in the fork and pinned with it, so it needs a resolved workspace.
+CONFIG=../../.dart_tool/package_config.json
+if [[ ! -f "$CONFIG" ]]; then
+  echo "error: $CONFIG is missing; run flutter pub get in client/ first." >&2
+  exit 1
+fi
+FORK=$(awk '/"name": "flutter_webrtc"/ {found=1} found && /"rootUri"/ {gsub(/.*"rootUri": "(file:\/\/)?|\/?",?$/, ""); print; exit}' "$CONFIG")
+# A path dependency is written relative to the config's own folder.
+[[ "$FORK" == /* ]] || FORK="$(dirname "$CONFIG")/$FORK"
+for file in capture_chain.wasm capture_chain_worklet.js; do
+  if [[ ! -f "$FORK/web_capture_chain/$file" ]]; then
+    echo "error: the pinned flutter_webrtc ($FORK) has no web_capture_chain/$file." >&2
+    exit 1
+  fi
+  cp "$FORK/web_capture_chain/$file" "$WEB/$file"
+  echo "ok $WEB/$file"
+done

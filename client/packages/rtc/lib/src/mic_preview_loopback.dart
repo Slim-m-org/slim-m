@@ -12,9 +12,10 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'audio_device_switching.dart';
 import 'audio_devices.dart';
-import 'input_gate.dart' show kInputFloorDb, supportsInputGate;
+import 'input_gate.dart' show invokeInputGate, kInputFloorDb, supportsInputGate;
 import 'mic_preview.dart';
 import 'mic_recovery.dart' show senderLevelToDb;
+import 'web_capture_chain.dart';
 
 /// The far end must never reach the speakers.
 ///
@@ -58,6 +59,7 @@ class LoopbackMicSource implements MicPreviewSource {
   rtc.RTCPeerConnection? _sender;
   rtc.RTCPeerConnection? _receiver;
   rtc.MediaStreamTrack? _far;
+  rtc.MediaStreamTrack? _processed;
   bool _opened = false;
 
   /// Process-wide, so an old preview's close finishes before a new one opens.
@@ -95,7 +97,10 @@ class LoopbackMicSource implements MicPreviewSource {
       unawaited(silenceLoopbackTrack(event.track));
     };
     for (final track in stream.getAudioTracks()) {
-      await sender.addTrack(track, stream);
+      // In a browser the meter reads the worklet chain, so the preview sends through it like a call does.
+      final sent = raw ? track : await attachWebCaptureChain(track);
+      if (!identical(sent, track)) _processed = sent;
+      await sender.addTrack(sent, stream);
     }
     final offer = await sender.createOffer();
     await sender.setLocalDescription(offer);
@@ -135,7 +140,7 @@ class LoopbackMicSource implements MicPreviewSource {
   }
 
   Future<({double levelDb, bool voice})?> _readGate() async {
-    final raw = await rtc.WebRTC.invokeMethod<Object?, Object?>('getInputGate');
+    final raw = await invokeInputGate('getInputGate');
     if (raw is! Map) return null;
     return (
       levelDb: (raw['levelDb'] as num?)?.toDouble() ?? kInputFloorDb,
@@ -148,7 +153,12 @@ class LoopbackMicSource implements MicPreviewSource {
     final sender = _sender;
     final receiver = _receiver;
     final stream = _stream;
-    _sender = _receiver = _stream = _far = null;
+    final processed = _processed;
+    _sender = _receiver = _stream = _far = _processed = null;
+    if (processed != null) {
+      await detachWebCaptureChain(processed);
+      await processed.stop();
+    }
     for (final track in stream?.getAudioTracks() ?? const []) {
       await track.stop();
     }

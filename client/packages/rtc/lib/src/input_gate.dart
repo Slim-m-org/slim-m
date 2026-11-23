@@ -9,6 +9,8 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show AppLog, LogTag, reportFailure;
 
+import 'web_capture_chain.dart';
+
 /// Quietest level the meter and the threshold slider show.
 const double kInputFloorDb = -80.0;
 
@@ -16,14 +18,37 @@ const double kInputFloorDb = -80.0;
 /// auto gain control has levelled it.
 const double kDefaultInputThresholdDb = -50.0;
 
-/// Only the fork's shared desktop C++ (Linux and Windows) has the gate.
-bool get supportsInputGate =>
-    lk.lkPlatformIs(lk.PlatformType.linux) ||
-    lk.lkPlatformIs(lk.PlatformType.windows);
+/// Whether [platform] runs the fork's capture chain (Strong, the gate, the
+/// dynamics); a browser needs an AudioWorklet ([webChain]). See docs/voice-input-gate.md.
+bool captureChainRunsOn(lk.PlatformType platform, {bool webChain = false}) =>
+    switch (platform) {
+      lk.PlatformType.linux ||
+      lk.PlatformType.windows ||
+      lk.PlatformType.android ||
+      lk.PlatformType.iOS =>
+        true,
+      lk.PlatformType.web => webChain,
+      _ => false,
+    };
 
-/// DeepFilterNet ("Strongest") is built into the same Linux and Windows
-/// plugin; a build without its model falls back to Strong inside the plugin.
-bool get supportsStrongestNoiseSuppression => supportsInputGate;
+/// Whether [platform]'s chain carries DeepFilterNet ("Strongest") and the raw
+/// mic sample tap, which only the Linux and Windows plugin builds.
+bool desktopChainRunsOn(lk.PlatformType platform) =>
+    platform == lk.PlatformType.linux || platform == lk.PlatformType.windows;
+
+bool get supportsInputGate =>
+    captureChainRunsOn(lk.lkPlatform(), webChain: webCaptureChainAvailable);
+
+bool get hasDesktopCaptureChain => desktopChainRunsOn(lk.lkPlatform());
+
+bool get supportsStrongestNoiseSuppression => hasDesktopCaptureChain;
+
+/// `setInputGate` and `getInputGate`, against the native plugin or the
+/// browser's worklet.
+Future<Object?> invokeInputGate(String method, [Object? args]) =>
+    lk.lkPlatformIs(lk.PlatformType.web)
+        ? invokeWebCaptureChain(method, args)
+        : rtc.WebRTC.invokeMethod<Object?, Object?>(method, args);
 
 /// One read of the native gate.
 class InputGateReading {
@@ -101,7 +126,7 @@ class InputGateMonitor {
     Future<Object?> Function(String method, [Object? args])? invoke,
     bool? supported,
   })  : displayInterval = interval,
-        _invoke = invoke ?? _invokeNative,
+        _invoke = invoke ?? invokeInputGate,
         _supported = supported ?? supportsInputGate;
 
   /// A monitor that never touches the platform, for a session whose room is
@@ -157,9 +182,6 @@ class InputGateMonitor {
     }
     _timer = Timer.periodic(interval, (_) => _poll(onVoiceChanged));
   }
-
-  static Future<Object?> _invokeNative(String method, [Object? args]) =>
-      rtc.WebRTC.invokeMethod<Object?, Object?>(method, args);
 
   /// [dynamics] turns on the compressor and limiter that run after the gate;
   /// [strongNoiseSuppression] the rnnoise stage that runs before it,
