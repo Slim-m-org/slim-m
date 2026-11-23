@@ -106,7 +106,7 @@ prints it every time so it cannot quietly grow.
 | `lib/e2e_input.py` | real pointer and key input: right-click, hold, Tab, Shift+Enter |
 | `lib/e2e_labels.py` | every accessible name the app is driven by, in one place |
 | `lib/e2e_api.py` | the server's own answer, for checking against |
-| `lib/e2e_messaging.py`, `e2e_settings.py`, `e2e_admin.py`, `e2e_voice.py`, `e2e_voice_rejoin.py`, `e2e_markdown.py`, `e2e_reconcile.py`, `e2e_replies.py`, `e2e_threads.py`, `e2e_message_menu.py`, `e2e_composer.py`, `e2e_members.py`, `e2e_accounts.py`, `e2e_dm_call.py`, `e2e_canvas.py`, `e2e_canvas_shapes.py`, `e2e_media_slots.py`, `e2e_voice_noise.py`, `e2e_voice_volume.py`, `e2e_voice_devices.py`, `e2e_voice_deafen.py`, `e2e_voice_share.py`, `e2e_voice_multishare.py`, `e2e_camera_quality.py` | the scenarios |
+| `lib/e2e_messaging.py`, `e2e_settings.py`, `e2e_admin.py`, `e2e_voice.py`, `e2e_voice_rejoin.py`, `e2e_markdown.py`, `e2e_reconcile.py`, `e2e_replies.py`, `e2e_threads.py`, `e2e_message_menu.py`, `e2e_composer.py`, `e2e_members.py`, `e2e_accounts.py`, `e2e_dm_call.py`, `e2e_canvas.py`, `e2e_canvas_shapes.py`, `e2e_media_slots.py`, `e2e_voice_noise.py`, `e2e_voice_noise_chain.py`, `e2e_voice_volume.py`, `e2e_voice_devices.py`, `e2e_voice_deafen.py`, `e2e_voice_share.py`, `e2e_voice_multishare.py`, `e2e_camera_quality.py` | the scenarios |
 | `lib/e2e_audio.py`, `e2e_audio_js.py`, `e2e_audio_levels.py`, `e2e_browsers.py`, `e2e_voice_ui.py`, `e2e_camera_quality_js.py` | the voice probe, its maths, extra browsers, and the call-surface helpers (see Measured voice) |
 | `lib/e2e_sweep.py` | the API-level routes the scenarios do not reach |
 | `lib/e2e_client_contract.py` | the Dart api package's `live_server_test.dart` and `compression_interop_test.dart`, run against this stack with `SLIMM_TEST_SERVER_REQUIRED=1` |
@@ -117,10 +117,11 @@ incidental strings: when one changes, exactly one line changes with it.
 
 ## Measured voice
 
-Six scenarios judge voice by what a listener would hear and see, not by what a widget says.
-They live in `lib/e2e_voice_noise.py`, `e2e_voice_volume.py`, `e2e_voice_devices.py`, `e2e_voice_deafen.py`, `e2e_voice_share.py` and `e2e_voice_multishare.py`.
+Seven scenarios judge voice by what a listener would hear and see, not by what a widget says.
+They live in `lib/e2e_voice_noise.py`, `e2e_voice_noise_chain.py`, `e2e_voice_volume.py`, `e2e_voice_devices.py`, `e2e_voice_deafen.py`, `e2e_voice_share.py` and `e2e_voice_multishare.py`.
 
 `lib/e2e_audio_js.py` holds an in-page probe.
+Its sender list reports the settings of the microphone capture behind the app's Web Audio capture chain, since the published track is the chain's output and has no device of its own.
 `lib/e2e_audio.py` installs it with `Page.addScriptToEvaluateOnNewDocument` and reloads the page, so it sees the app's own `AudioContext` and `RTCPeerConnection`.
 For each remote audio element it samples every 50 ms, in two places: the stream as it arrives, and the output after the app's own gain graph (or after the element's mute and volume when the app has spliced in no graph).
 Comparing the two in the same window gives the gain the app applied, which cancels the sender's own level drift.
@@ -139,7 +140,7 @@ A scenario that needs a third person, or a different WAV, starts its own browser
 | deafening | bob's own playback of alice, and alice's of bob | deafened bob hears silence, alice still hears bob, undeafening restores it |
 | a share's own volume | bob's share is given a steady tone; the screen-audio stream and the voice stream are measured apart | the stream slider moves only the screen, the voice slider only the voice |
 | two shares at once | decoded frames and mean luminance of every `<video>` on three pages | carol decodes both, focusing enlarges one, showing all restores both, and stopping one leaves the other |
-| a camera and a mid-call quality change | bob's own simulcast layers, capture size and encodings read off his sender, and alice's decoded frame rate and freezes, per quality (`e2e_camera_quality.py`, Chrome's fake video device at 30 fps) | 720p and 1080p publish three layers (180p, 360p, top) at 25 fps or more, 360p publishes two at 18 fps or more (the top layer is LiveKit's 20 fps h360 preset), the viewer never freezes, and each change reaches the sender's layers; each measurement waits up to 30 s for both ends to reach the floor first, since a fresh publish ramps its top layer; the gap alice sees after a change is printed and bounded by `E2E_CAMERA_GAP_MAX` (10 s) |
+| a camera and a mid-call quality change | bob's own simulcast layers, capture size and encodings read off his sender, and alice's decoded frame rate and freezes, per quality (`e2e_camera_quality.py`, Chrome's fake video device at 30 fps) | 720p and 1080p publish three layers (180p, 360p, top) at 25 fps or more, 360p publishes two, all at 25 fps or more, and the top layer's sender encoding carries the budget in `CameraQuality` (600 kbps, 2.5 Mbps and 4.5 Mbps at 30 fps), the viewer never freezes, and each change reaches the sender's layers; each measurement waits up to 30 s for both ends to reach the floor first, since a fresh publish ramps its top layer; the gap alice sees after a change is printed and bounded by `E2E_CAMERA_GAP_MAX` (10 s) |
 
 The web client has the browser's noise suppression only.
 The rnnoise "Strong" mode is a native desktop capture chain and is measured natively, not here.

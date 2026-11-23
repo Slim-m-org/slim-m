@@ -11,6 +11,7 @@ pub mod blobs;
 pub mod bot_ui;
 pub mod call_audio;
 pub mod call_history;
+pub mod call_stats;
 pub mod canvas_text;
 pub mod capacity;
 pub(crate) mod code_fences;
@@ -179,7 +180,9 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
         trust_proxy_hops = config.trust_proxy_hops,
         "rate limits key on the TCP peer unless SLIMM_TRUST_PROXY_HOPS names the proxies in front"
     );
-    let limiter = ratelimit::RateLimiter::with_trusted_hops(config.trust_proxy_hops);
+    let proxies = ratelimit::ProxyTrust::from_setting(config.trusted_proxies.as_deref())
+        .map_err(anyhow::Error::msg)?;
+    let limiter = ratelimit::RateLimiter::with_proxy_trust(config.trust_proxy_hops, proxies);
     let push = push::PushSender::new(&config)?;
     let voice = voice::VoiceService::new(&config)?;
     voice_session_sweeps::reconcile_on_startup(&store, &voice).await;
@@ -221,6 +224,12 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
     http::module_timers::spawn_sweep(state.clone());
     http::scene_refresh::spawn_sweep(state.clone());
     http::module_rooms::spawn_sweep(state.clone());
+    if let Some(runner) = state.dock.host_run() {
+        runner
+            .client
+            .set_deployment(state.store.connector_deployment_id().await?);
+    }
+    http::connector_host::spawn_monitor(state.clone());
     let _module_events = http::spawn_module_events(state.clone());
     let _call_audio = call_audio::runtime::spawn(state.clone());
     http::spawn_voice_access_watch(state.clone());

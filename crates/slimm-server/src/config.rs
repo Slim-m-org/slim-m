@@ -159,6 +159,11 @@ pub struct Config {
     #[serde(default)]
     pub trust_proxy_hops: usize,
 
+    /// The TCP peers whose `X-Forwarded-For` is believed at all (`SLIMM_TRUSTED_PROXIES`):
+    /// IPs or CIDRs, `!` to exclude one; unset means loopback and the private ranges.
+    #[serde(default)]
+    pub trusted_proxies: Option<String>,
+
     /// The `owner/repo` the Dock's marketplace browses and installs from
     /// (see docs/decisions/0021-modules-and-the-dock.md). The Dock always
     /// reaches it at `https://raw.githubusercontent.com/<repo>/main/`; only
@@ -193,6 +198,15 @@ pub struct Config {
     /// as unset.
     #[serde(default, deserialize_with = "blank_as_none")]
     pub code_runner_url: Option<String>,
+
+    /// The connector supervisor's socket (decision 0134); with `supervisor_secret`, turns on host-run connectors.
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub connector_supervisor_socket: Option<String>,
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub supervisor_secret: Option<String>,
+    /// Where a host-run connector reaches this server's API; `http://server:8080` when unset.
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub connector_api_url: Option<String>,
 
     /// The `ws://` or `wss://` address of the optional call-audio listener
     /// (decision 0105). Unset leaves call audio off, like the other sidecars.
@@ -323,9 +337,13 @@ impl Default for Config {
             link_previews: false,
             cors_allowed_origins: None,
             trust_proxy_hops: 0,
+            trusted_proxies: None,
             addons_repo: default_addons_repo(),
             dev_module_dir: None,
             code_runner_url: None,
+            connector_supervisor_socket: None,
+            supervisor_secret: None,
+            connector_api_url: None,
             listener_url: None,
             listener_secret: None,
             listener_livekit_url: None,

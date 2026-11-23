@@ -140,10 +140,19 @@ class TranscriptHit {
 
 /// Whether the caller still owes the one-time `always` notice before joining.
 class TranscriptionNotice {
-  const TranscriptionNotice({required this.mode, required this.acknowledged});
+  const TranscriptionNotice({
+    required this.mode,
+    required this.acknowledged,
+    this.voiceCommands = false,
+    this.phrase = 'hey space',
+  });
 
   final CallTranscriptionMode mode;
   final bool acknowledged;
+
+  /// Whether calls act on [phrase], so the notice can say how to mark a moment.
+  final bool voiceCommands;
+  final String phrase;
 
   /// Shown once: the Space transcribes every call and this member never agreed.
   bool get due => mode == CallTranscriptionMode.always && !acknowledged;
@@ -152,5 +161,7 @@ class TranscriptionNotice {
       TranscriptionNotice(
         mode: CallTranscriptionMode.parse(json['mode'] as String?),
         acknowledged: json['acknowledged'] as bool? ?? false,
+        voiceCommands: json['voice_commands'] as bool? ?? false,
+        phrase: json['phrase'] as String? ?? 'hey space',
       );
 }

@@ -90,12 +90,22 @@ class CameraToggleResult {
       reason == null || cause == null ? cause : CameraFailure(cause!, reason!);
 }
 
+typedef CameraTrackFactory = Future<lk.LocalVideoTrack> Function(
+    lk.CameraCaptureOptions options);
+
 typedef CameraFrameMeasure = Future<({int width, int height})?> Function(
     webrtc.MediaStream stream);
 
 class CameraSwitching {
-  CameraSwitching(this._devices, {CameraFrameMeasure? measure})
-      : _measure = measure ?? measureCapturedSize;
+  CameraSwitching(
+    this._devices, {
+    CameraFrameMeasure? measure,
+    CameraTrackFactory? createTrack,
+  })  : _measure = measure ?? measureCapturedSize,
+        _createTrack = createTrack ?? lk.LocalVideoTrack.createCameraTrack;
+
+  /// Opens the capture for a fresh publish; a test without the native plugin passes its own.
+  final CameraTrackFactory _createTrack;
 
   final CameraDevices _devices;
 
@@ -150,6 +160,7 @@ class CameraSwitching {
     lk.LocalParticipant? local,
     bool enabled, {
     lk.CameraCaptureOptions? options,
+    lk.VideoPublishOptions? publishOptions,
   }) async {
     if (local == null) return const CameraToggleResult.ok();
     if (enabled && await _chosenCameraMissing(options?.deviceId)) {
@@ -165,7 +176,7 @@ class CameraSwitching {
         await local.removePublishedTrack(stale.sid);
         resetFacing();
       }
-      await local.setCameraEnabled(enabled, cameraCaptureOptions: options);
+      await _toggle(local, enabled, options, publishOptions);
       if (enabled) unawaited(_measureReach(local, options));
       return const CameraToggleResult.ok();
     } catch (e, stack) {
@@ -183,6 +194,26 @@ class CameraSwitching {
         classifyCameraFailure(e, hasDevice: hasDevice),
       );
     }
+  }
+
+  /// A fresh enable publishes with [publishOptions], which LiveKit's own
+  /// toggle cannot take; an unmute or a disable keeps its original encodings.
+  Future<void> _toggle(
+    lk.LocalParticipant local,
+    bool enabled,
+    lk.CameraCaptureOptions? options,
+    lk.VideoPublishOptions? publishOptions,
+  ) async {
+    final fresh = enabled &&
+        publishOptions != null &&
+        local.getTrackPublicationBySource(lk.TrackSource.camera) == null;
+    if (!fresh) {
+      await local.setCameraEnabled(enabled, cameraCaptureOptions: options);
+      return;
+    }
+    final track =
+        await _createTrack(options ?? const lk.CameraCaptureOptions());
+    await local.publishVideoTrack(track, publishOptions: publishOptions);
   }
 
   /// Reads how tall the camera's frames really are, for [localCameraReach].

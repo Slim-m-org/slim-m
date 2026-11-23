@@ -47,6 +47,7 @@ extension SlimmApiDock on SlimmApi {
   /// is the separate yes to reach home-network addresses, only valid with
   /// `net.fetch` approved. [reviewedDigest] is the manifest's `reviewDigest`
   /// the admin was shown; the server refuses the install if it has changed.
+  /// [connector] is required for a connector: see [ConnectorApproval].
   Future<InstalledDockModule> installDockModule({
     required String moduleId,
     required String version,
@@ -54,6 +55,7 @@ extension SlimmApiDock on SlimmApi {
     bool? approveLocalNetwork,
     String? reviewedDigest,
     String? source,
+    ConnectorApproval? connector,
   }) async {
     final json = await send(
       'POST',
@@ -66,6 +68,10 @@ extension SlimmApiDock on SlimmApi {
         if (approveLocalNetwork != null)
           'approve_local_network': approveLocalNetwork,
         if (reviewedDigest != null) 'reviewed_digest': reviewedDigest,
+        if (connector?.permissions != null)
+          'approved_connector_permissions': connector!.permissions,
+        if (connector?.hostRun != null)
+          'approved_host_run': connector!.hostRun!.toJson(),
       },
     );
     return InstalledDockModule.fromJson(json as Map<String, dynamic>);
@@ -126,6 +132,39 @@ extension SlimmApiDock on SlimmApi {
   Future<void> clearDockModuleStorage(String moduleId) => send(
         'DELETE',
         '/space/dock/modules/$moduleId/storage',
+        expectNoContent: true,
+      );
+
+  /// Replaces a connector's lost token; the new one is shown only in this answer.
+  Future<String> reissueConnectorToken(String moduleId) async {
+    final json = await send(
+      'POST',
+      '/space/dock/modules/$moduleId/connector-token',
+    );
+    return (json as Map<String, dynamic>)['token'] as String;
+  }
+
+  /// What a connector reads about itself; only its own token reaches it.
+  Future<ConnectorSelf> getConnectorSelf() async {
+    final json = await send('GET', '/connectors/me');
+    return ConnectorSelf.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// A connector answers a member's run it was sent: [output] when [ok], else [error].
+  Future<void> answerConnectorRun(
+    String runId, {
+    required bool ok,
+    String? output,
+    String? error,
+  }) =>
+      send(
+        'POST',
+        '/connectors/me/runs/$runId',
+        body: {
+          'ok': ok,
+          if (output != null) 'output': output,
+          if (error != null) 'error': error,
+        },
         expectNoContent: true,
       );
 

@@ -149,7 +149,14 @@ impl Permissions {
     pub const fn remove(self, other: Self) -> Self {
         Self(self.0 & !other.0)
     }
+
+    /// The bits present in both sets.
+    pub const fn intersect(self, other: Self) -> Self {
+        Self(self.0 & other.0)
+    }
 }
+
+pub mod names;
 
 /// A channel overwrite: bits to force on (`allow`) and bits to force off
 /// (`deny`) for one role or one member.

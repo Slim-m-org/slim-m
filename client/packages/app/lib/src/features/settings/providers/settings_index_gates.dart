@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../spotify/spotify_config.dart';
 import '../../../spotify/spotify_link.dart';
 import '../../../spotify/spotify_link_status.dart';
+import '../../voice/providers/call_stats.dart';
 import 'linked_accounts.dart';
 import 'settings_index.dart';
 import 'stored_theme.dart';
@@ -17,6 +18,9 @@ enum SettingsGate {
   spotifyLinked,
   steamLinked,
   spaceDefaultTheme,
+
+  /// The Space transcribes calls, so there are stats to show.
+  callTranscripts,
 }
 
 bool _open(Ref ref, SettingsGate gate) => switch (gate) {
@@ -29,6 +33,7 @@ bool _open(Ref ref, SettingsGate gate) => switch (gate) {
         false,
   SettingsGate.spaceDefaultTheme =>
     ref.watch(spaceDefaultThemeProvider) != null,
+  SettingsGate.callTranscripts => ref.watch(callStatsAvailableProvider),
 };
 
 bool _spotifyConfigured(Ref ref) =>

@@ -34,7 +34,7 @@ use crate::permissions::Permissions;
 
 use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::roles::role_bots::{
-    assign_to_bot, delete_managed_role, ensure_bots_role, insert_managed_role,
+    assign_to_bot, ensure_bots_role, insert_managed_role, set_managed_role,
 };
 use super::sessions::{SessionContext, revoke_session_rows};
 use super::{Store, now_ms};
@@ -290,7 +290,12 @@ impl Store {
             r#"SELECT t.bot_user_id AS "user_id!: UserId",
                       t.session_id AS "session_id!: SessionId",
                       s.device_id AS "device_id!: DeviceId",
-                      t.last_used_at
+                      t.last_used_at,
+                      u.connector_principal AS "connector_principal!: i64",
+                      (SELECT m.enabled FROM installed_modules m
+                       WHERE m.bot_user_id = u.id AND m.provider = 'connector') AS "module_enabled: i64",
+                      (SELECT m.connector_permissions FROM installed_modules m
+                       WHERE m.bot_user_id = u.id AND m.provider = 'connector') AS "approved: Permissions"
                FROM bot_tokens t
                JOIN sessions s ON s.id = t.session_id
                JOIN users u ON u.id = t.bot_user_id
@@ -324,10 +329,18 @@ impl Store {
             }
         }
 
+        let connector = (row.connector_principal == 1).then(|| super::sessions::ConnectorGrant {
+            enabled: row.module_enabled == Some(1),
+            cap: match row.approved.unwrap_or(Permissions::NONE) {
+                cap if cap.contains(Permissions::ADMINISTRATOR) => Permissions::ALL,
+                cap => cap,
+            },
+        });
         Ok(Some(SessionContext {
             user_id: row.user_id,
             session_id: row.session_id,
             device_id: row.device_id,
+            connector,
         }))
     }
 
@@ -353,44 +366,9 @@ impl Store {
         let Some(bot) = bot else {
             return Err(UpdateBotPermissionsError::NoSuchBot);
         };
-        let existing = sqlx::query_scalar!(
-            r#"SELECT id AS "id!: RoleId" FROM roles WHERE managed_bot_id = ?"#,
-            bot_user_id
-        )
-        .fetch_optional(&mut *tx)
-        .await?;
-
-        let bits = permissions.bits();
         let now = now_ms();
-        let (role_id, reason) = match (existing, permissions == Permissions::NONE) {
-            (Some(role_id), false) => {
-                sqlx::query!(
-                    "UPDATE roles SET permissions = ? WHERE id = ?",
-                    bits,
-                    role_id
-                )
-                .execute(&mut *tx)
-                .await?;
-                (
-                    Some(role_id),
-                    format!("role {role_id} permissions now {bits}"),
-                )
-            }
-            (Some(role_id), true) => {
-                delete_managed_role(&mut tx, role_id).await?;
-                (None, format!("role {role_id} removed, permissions now 0"))
-            }
-            (None, false) => {
-                let role_id =
-                    insert_managed_role(&mut tx, bot_user_id, &bot.display_name, permissions, now)
-                        .await?;
-                (
-                    Some(role_id),
-                    format!("role {role_id} created with permissions {bits}"),
-                )
-            }
-            (None, true) => (None, "permissions still 0".to_owned()),
-        };
+        let (role_id, reason) =
+            set_managed_role(&mut tx, bot_user_id, &bot.display_name, permissions, now).await?;
 
         record_moderation_audit(
             &mut tx,

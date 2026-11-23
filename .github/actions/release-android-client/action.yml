@@ -52,8 +52,9 @@ runs:
       run: |
         # --enforce-lockfile: resolve exactly what pubspec.lock pins.
         flutter pub get --enforce-lockfile
-        # Build number from the run number and build name from the tag, never from pubspec. Both stores reject a reuse; see docs/ci.md.
+        # Build number from the run number, name from the tag (stores reject a reuse); SLIMM_PLAY_BUILD drops the apk updater from Play's build. See docs/ci.md.
         flutter build appbundle --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
+          --dart-define=SLIMM_PLAY_BUILD=true \
           --build-name=${{ inputs.version }} \
           --build-number=${{ github.run_number }}
         # One apk per ABI: the fat one carried every ABI and weighed 189 MB. The appbundle above is untouched; Play splits it itself.
@@ -62,6 +63,17 @@ runs:
           --build-number=${{ github.run_number }}
 
     - uses: ./.github/actions/verify-android-signer
+
+    # Play restricts this permission and the Play build never installs apks; fail before anything is uploaded.
+    - name: verify the appbundle drops the install permission
+      shell: "bash -e {0}"
+      working-directory: client/packages/app
+      run: |
+        if unzip -p build/app/outputs/bundle/release/app-release.aab base/manifest/AndroidManifest.xml \
+            | grep -a -q REQUEST_INSTALL_PACKAGES; then
+          echo "::error::the appbundle still requests REQUEST_INSTALL_PACKAGES"
+          exit 1
+        fi
 
     - name: checksums
       shell: "bash -e {0}"

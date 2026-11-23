@@ -16,10 +16,12 @@ import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
 import 'package:slimm_app/src/features/voice/widgets/fullscreen_video_overlay.dart';
 import 'package:slimm_app/src/features/voice/widgets/screen_share_stage.dart';
 import 'package:slimm_app/src/features/voice/widgets/share_stage_grid.dart';
+import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'features/voice/voice_controller_harness.dart';
+import 'support/fake_sync.dart';
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
 
@@ -163,7 +165,13 @@ void main() {
       final harness = VoiceHarness();
       addTearDown(harness.dispose);
       final session = _SoundSession();
-      final controller = harness.controllerWith(session, voiceApi());
+      final controller = harness.controllerWith(
+        session,
+        voiceApi(),
+        extraOverrides: [
+          syncControllerProvider.overrideWith(NoopSyncController.new),
+        ],
+      );
       await controller.join('channel-1');
       session.emitState(VoiceSessionState.connected);
       await tester.pump();

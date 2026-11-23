@@ -29,6 +29,7 @@ export 'client_direct_route.dart' show SlimmApiDirectRoute;
 export 'client_edge.dart' show SlimmApiEdge;
 export 'client_dms.dart' show SlimmApiDms;
 export 'client_dock.dart' show SlimmApiDock;
+export 'client_dock_host_run.dart' show SlimmApiDockHostRun;
 export 'client_emoji.dart' show SlimmApiEmoji;
 export 'client_soundboard.dart' show SlimmApiSoundboard;
 export 'client_screen_stamps.dart' show SlimmApiScreenStamps;

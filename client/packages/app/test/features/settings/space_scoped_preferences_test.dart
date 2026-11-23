@@ -185,6 +185,7 @@ const _deviceKeys = <String>{
   'slimm.voice.camera_device_id',
   'slimm.voice.camera_on_join',
   'slimm.voice.mirror_self_view',
+  'slimm.voice.show_captions',
   'slimm.voice.mini_player_corner',
   'slimm.voice.camera_quality',
   'slimm.voice.camera_reach',

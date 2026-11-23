@@ -102,6 +102,7 @@ String _shortName(AppAction action) => switch (action) {
   AppAction.toggleShareCall => 'Share',
   AppAction.leaveCall => 'Leave',
   AppAction.toggleCallOverlay => 'Call overlay',
+  AppAction.markCallMoment => 'Mark the moment',
   _ => action.label,
 };
 

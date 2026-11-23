@@ -32,6 +32,7 @@ pub fn routes() -> Router<AppState> {
             get(show).delete(remove),
         )
         .route("/search/transcripts", get(search))
+        .merge(super::voice_transcript_marks::routes())
 }
 
 /// One line as a reader sees it, read back or sent live.
@@ -122,7 +123,7 @@ impl SearchParams {
 }
 
 /// The transcript's channel, when the caller may see it at all; the same 404 for a missing row.
-async fn readable(
+pub(in crate::http) async fn readable(
     state: &AppState,
     user: UserId,
     raw: &str,

@@ -442,7 +442,10 @@ async fn the_notice_is_acknowledged_once_per_member_and_stays_acknowledged() {
         .unwrap();
 
     let (_, first) = get(&rig, a, "/voice/transcription-notice").await;
-    assert_eq!(first, json!({"mode": "always", "acknowledged": false}));
+    assert_eq!(
+        first,
+        json!({"mode": "always", "acknowledged": false, "voice_commands": false, "phrase": "hey space"})
+    );
     let ack = || rig.call(a, "POST", "/voice/transcription-notice/ack", None);
     assert_eq!(ack().await.0, StatusCode::NO_CONTENT);
     let at = rig

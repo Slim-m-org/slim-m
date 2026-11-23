@@ -21,6 +21,7 @@ abstract final class VoiceSettingKeys {
   static const quality = 'slimm.voice.screen_share_quality';
   static const cameraOnJoin = 'slimm.voice.camera_on_join';
   static const mirrorSelfView = 'slimm.voice.mirror_self_view';
+  static const showCaptions = 'slimm.voice.show_captions';
   static const pushToTalkEnabled = 'slimm.voice.push_to_talk_enabled';
   static const pushToTalkKeyId = 'slimm.voice.push_to_talk_key_id';
   static const sensitivity = 'slimm.voice.activity_sensitivity';

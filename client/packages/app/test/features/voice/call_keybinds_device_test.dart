@@ -118,6 +118,7 @@ void main() {
       expect(source.binds.last, [
         GlobalHotkeyId.toggleMute,
         GlobalHotkeyId.toggleDeafen,
+        GlobalHotkeyId.markCall,
       ]);
 
       final other = _container(shared);

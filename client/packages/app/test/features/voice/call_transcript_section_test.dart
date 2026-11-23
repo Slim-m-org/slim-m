@@ -18,6 +18,7 @@ import 'package:slimm_app/src/features/voice/providers/call_transcript.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_call_history.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_idle/call_transcript_section.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_idle/voice_channel_idle.dart';
+import 'package:slimm_app/src/features/voice/widgets/transcript_line_row.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';

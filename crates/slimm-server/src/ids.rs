@@ -67,6 +67,10 @@ uuid_id!(
     "A call transcript's identity: the id of the call-audio session that wrote it."
 );
 uuid_id!(
+    CallTranscriptMarkId,
+    "A mark or note on a call transcript, minted by the client so a retry is the same mark."
+);
+uuid_id!(
     InteractionId,
     "A button click awaiting its bot's answer, chosen by the clicking client so a retry is the same click."
 );

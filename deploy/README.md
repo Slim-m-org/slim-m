@@ -660,6 +660,9 @@ Too low keys every unauthenticated caller together, which is the problem above: 
 Too high reads an address the *client* chose, so any caller can mint themselves an unlimited number of buckets, and the limit stops existing.
 That is why the default is zero and why this is not inferred: nothing in a request distinguishes a proxy you run from one you do not.
 
+The header is also believed only from a peer in `SLIMM_TRUSTED_PROXIES`, which defaults to loopback and the private ranges, where Caddy sits.
+A request that reaches the server from anywhere else is keyed by its own address, whatever header it carries.
+
 The header is read from the right, which is what makes a correct setting safe.
 A proxy appends the address it saw, so the rightmost entry is the one your own proxy wrote; a caller can prepend as much as they like and never reach it.
 

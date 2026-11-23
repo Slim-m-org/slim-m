@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO call_transcript_marks\n                 (id, transcript_id, author_id, at, line_seq, kind, text, source, created_at)\n             VALUES (?1, ?2, ?3, ?4,\n                     (SELECT MAX(seq) FROM call_transcript_lines WHERE transcript_id = ?2),\n                     ?5, ?6, ?7, ?8)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "40b56b053982e12c1d83b4db5414e54b1149341ea8fc01b1b61e26a98f44936a"
+}

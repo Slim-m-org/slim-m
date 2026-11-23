@@ -8,12 +8,9 @@ export '../features/channels/screens/conversation_pane.dart'
     show ConversationPane;
 export 'home_shell_empty_state.dart' show NoChannelPage, NoChannelSelected;
 
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show OrdinalSortKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../features/modules/widgets/module_panel_slot.dart';
@@ -31,7 +28,6 @@ import '../providers/admin_providers.dart';
 import '../features/members/providers/blocks_controller.dart';
 import '../features/voice/providers/hold_music_controller.dart';
 import '../features/channels/providers/channel_notification_overrides_controller.dart';
-import '../features/channels/providers/channel_by_id_provider.dart';
 import '../features/composer/widgets/voice_recording_marker.dart';
 import '../features/auth/providers/database_key_store.dart';
 import '../features/members/providers/member_presence.dart'
@@ -42,8 +38,6 @@ import '../features/settings/providers/notification_schedule_controller.dart';
 import '../features/settings/providers/notification_sound_controller.dart';
 import '../features/channels/providers/rail_width_preference.dart';
 import '../features/messages/providers/retention_sweep.dart';
-import '../providers/sync_controller.dart' show initialSyncCompleteProvider;
-import '../features/channels/providers/threads.dart';
 import '../features/voice/providers/voice_controller.dart';
 import '../routing/breakpoints.dart';
 import '../features/voice/widgets/call_mini_player.dart';
@@ -67,12 +61,11 @@ import '../widgets/whats_new_gate.dart';
 import '../features/messages/widgets/bot_form_gate.dart';
 import '../features/canvas/screens/canvas_fullscreen.dart';
 import '../features/canvas/screens/canvas_pane.dart';
-import '../features/voice/screens/dm_call_pane.dart';
 import '../features/voice/screens/hang_up_recap_toast.dart';
-import '../features/video/providers/desktop_video.dart';
 import '../features/background/widgets/app_background_host.dart';
 import '../features/role_preview/providers/role_preview_controller.dart';
 import '../features/role_preview/screens/role_preview_shell.dart';
+import 'home_shell_facts.dart';
 import 'home_shell_pane_slots.dart';
 import 'home_shell_shortcuts.dart';
 
@@ -96,7 +89,7 @@ class HomeShell extends ConsumerWidget {
     ref.watch(shortcutOverridesProvider);
     listenForHangUpRecap(context, ref, selectedChannelId: selected);
     _holdSessionProviders(ref);
-    final facts = _shellFacts(
+    final facts = resolveShellFacts(
       ref,
       layout,
       MediaQuery.sizeOf(context),
@@ -174,114 +167,11 @@ class HomeShell extends ConsumerWidget {
     ref.watch(retentionSweepControllerProvider);
   }
 
-  _ShellFacts _shellFacts(
-    WidgetRef ref,
-    LayoutClass layout,
-    Size size,
-    String? selected,
-  ) {
-    final width = size.width;
-    // CanvasBar is the only header while open (ConversationPane's doc); the compact app bar below would otherwise stack a second one above it.
-    final canvasOpen =
-        selected != null && ref.watch(canvasOpenProvider) == selected;
-    // DmCallBar is the same: a DM's call pane replaces the header too.
-    final dmCallOpen =
-        selected != null && ref.watch(dmCallOpenProvider) == selected;
-    // The canvas asked for the whole pane; the rail and the roster are exactly the chrome it asked to be rid of, and both unmount rather than sitting at zero width, so neither keeps polling behind it.
-    final fullscreenChannel = ref.watch(canvasFullscreenProvider);
-    final canvasFullscreen = canvasOpen && fullscreenChannel == selected;
-    // Whatever the header toggle says: it can only hide the pane, not summon
-    // room for it that is not there (see LayoutClass.fitsMemberPane's doc).
-    final membersFit = layout.fitsMemberPane(width);
-    // The thread pane and the roster share the one third-pane slot; a docked
-    // thread takes it, so the roster yields while a thread is open (UX1, and
-    // see fitsThreadPane's doc). Below the width that fits a docked pane the
-    // thread stays the pushed modal route instead.
-    final openThread = dockedThreadBeside(
-      ref.watch(dockedThreadsProvider),
-      selected,
-    );
-    final threadFits = layout.fitsThreadPane(width);
-    final showThread = openThread != null && threadFits && !canvasFullscreen;
-    // Once synced, a channel the store lacks is one the viewer cannot see: ChannelNotFound owns the pane, with no roster or members control.
-    final channelRow = selected == null
-        ? null
-        : ref.watch(
-            channelByIdProvider(selected).select(
-              // Only whether the row is there: the row itself changes with every message and read marker.
-              (row) => (
-                loaded: row.hasValue,
-                missing: row is AsyncData<Channel?> && row.value == null,
-              ),
-            ),
-          );
-    final synced = ref.watch(initialSyncCompleteProvider);
-    final notFound = (channelRow?.missing ?? false) && synced;
-    final membersWanted =
-        membersFit &&
-        !notFound &&
-        !canvasFullscreen &&
-        !showThread &&
-        memberPaneWanted(ref, size);
-    // A docked video takes the third pane, with the roster under it; a docked thread there sends it to the strip above the chat.
-    final videoDocked = ref.watch(
-      desktopVideoProvider.select((v) => v?.docked ?? false),
-    );
-    final sideFree = threadFits && !showThread && !canvasFullscreen;
-    final panelSide = modulePanelDocked(ref, fits: sideFree);
-    final videoSide = videoDocked && sideFree && !panelSide;
-    final showMembers = membersWanted && !videoSide && !panelSide;
-    final dockedPane = switch ((
-      showThread || videoSide || panelSide,
-      showMembers,
-    )) {
-      (true, _) => kThreadPaneWidth,
-      (_, true) => AppMemberPane.width,
-      _ => 0.0,
-    };
-    return _ShellFacts(
-      selected: selected,
-      canvasOpen: canvasOpen,
-      dmCallOpen: dmCallOpen,
-      canvasFullscreen: canvasFullscreen,
-      membersFit: membersFit,
-      openThread: openThread,
-      threadFits: threadFits,
-      showThread: showThread,
-      showMembers: showMembers,
-      videoSide: videoSide,
-      panelSide: panelSide,
-      videoStrip: videoDocked && !videoSide && !canvasFullscreen,
-      membersUnderVideo: videoSide && membersWanted,
-      notFound: notFound,
-      rosterPending: channelRow != null && !channelRow.loaded && synced,
-      railWidth: _railWidth(ref, layout, width, dockedPane),
-    );
-  }
-
-  double _railWidth(
-    WidgetRef ref,
-    LayoutClass layout,
-    double width,
-    double dockedPane,
-  ) {
-    final defaultRailWidth = layout == LayoutClass.expanded
-        ? ChannelRail.expandedWidth
-        : ChannelRail.mediumWidth;
-    // A dragged width wins, but never squeezes the conversation below its floor beside a docked pane.
-    final railRoom =
-        width - AppSizes.rowPointer - dockedPane - kMinTranscriptWidth;
-    return math.min(
-      ref.watch(railWidthControllerProvider) ?? defaultRailWidth,
-      math.max(defaultRailWidth, railRoom),
-    );
-  }
-
   Widget _scaffold(
     BuildContext context,
     WidgetRef ref,
     LayoutClass layout,
-    _ShellFacts facts,
+    ShellFacts facts,
   ) {
     final selected = facts.selected;
     if (layout.showsBothPanes) {
@@ -310,7 +200,7 @@ class HomeShell extends ConsumerWidget {
   Widget _wideScaffold(
     BuildContext context,
     WidgetRef ref,
-    _ShellFacts facts,
+    ShellFacts facts,
     bool isDm,
   ) {
     final selected = facts.selected;
@@ -402,7 +292,7 @@ class HomeShell extends ConsumerWidget {
   Widget _compactScaffold(
     BuildContext context,
     WidgetRef ref,
-    _ShellFacts facts,
+    ShellFacts facts,
     String channelId,
   ) {
     // No rail here to carry the strip, so a call not on screen gets its own row.
@@ -482,43 +372,4 @@ class _LayoutBridge extends StatelessWidget {
     offset: 0,
     child: child,
   );
-}
-
-/// What one build of the shell resolved once, shared by its scaffolds.
-class _ShellFacts {
-  const _ShellFacts({
-    required this.selected,
-    required this.canvasOpen,
-    required this.dmCallOpen,
-    required this.canvasFullscreen,
-    required this.membersFit,
-    required this.openThread,
-    required this.threadFits,
-    required this.showThread,
-    required this.showMembers,
-    required this.videoSide,
-    required this.panelSide,
-    required this.videoStrip,
-    required this.membersUnderVideo,
-    required this.notFound,
-    required this.rosterPending,
-    required this.railWidth,
-  });
-
-  final String? selected;
-  final bool canvasOpen;
-  final bool dmCallOpen;
-  final bool canvasFullscreen;
-  final bool membersFit;
-  final String? openThread;
-  final bool threadFits;
-  final bool showThread;
-  final bool showMembers;
-  final bool videoSide;
-  final bool panelSide;
-  final bool videoStrip;
-  final bool membersUnderVideo;
-  final bool notFound;
-  final bool rosterPending;
-  final double railWidth;
 }

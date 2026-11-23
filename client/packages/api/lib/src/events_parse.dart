@@ -341,7 +341,7 @@ VoiceActivity? _voiceActivity(Object? wire) => switch (wire) {
       _ => null,
     };
 
-/// Voice, call and watch-party frames.
+/// Voice participant, screen share and call-audio frames.
 ServerEvent? voiceFrame(Map<String, dynamic> decoded) {
   return switch (decoded['type']) {
     'voice.activity' when decoded['channel_id'] is String =>
@@ -377,6 +377,13 @@ ServerEvent? voiceFrame(Map<String, dynamic> decoded) {
             : CallAudioState.fromJson(decoded['state'] as Map<String, dynamic>),
         ended: decoded['ended'] as String?,
       ),
+    _ => null,
+  };
+}
+
+/// Module room, call transcript, watch-party and ring frames.
+ServerEvent? callFrame(Map<String, dynamic> decoded) {
+  return switch (decoded['type']) {
     'module.room'
         when decoded['channel_id'] is String &&
             decoded['module_id'] is String &&
@@ -405,6 +412,18 @@ ServerEvent? voiceFrame(Map<String, dynamic> decoded) {
         channelId: decoded['channel_id'] as String,
         transcriptId: decoded['transcript_id'] as String,
         line: TranscriptLine.fromJson(decoded['line'] as Map<String, dynamic>),
+      ),
+    'call.transcript_mark'
+        when decoded['channel_id'] is String &&
+            decoded['transcript_id'] is String &&
+            decoded['mark_id'] is String =>
+      CallTranscriptMarkChanged(
+        channelId: decoded['channel_id'] as String,
+        transcriptId: decoded['transcript_id'] as String,
+        markId: decoded['mark_id'] as String,
+        mark: decoded['mark'] is Map<String, dynamic>
+            ? TranscriptMark.fromJson(decoded['mark'] as Map<String, dynamic>)
+            : null,
       ),
     'watch.tick'
         when decoded['channel_id'] is String &&

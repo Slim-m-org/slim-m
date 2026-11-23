@@ -25,6 +25,7 @@ fn subject() -> Subject {
         module_name: "Transcript".into(),
         purpose: "p".into(),
         keeps: "k".into(),
+        listens_for: None,
     }
 }
 

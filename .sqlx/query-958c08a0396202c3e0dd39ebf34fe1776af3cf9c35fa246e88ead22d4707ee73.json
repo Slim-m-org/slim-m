@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT voice_commands AS \"on!: bool\", voice_command_phrase AS \"phrase!: String\"\n               FROM space_settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "on!: bool",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "space_settings",
+            "name": "voice_commands"
+          }
+        }
+      },
+      {
+        "name": "phrase!: String",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "space_settings",
+            "name": "voice_command_phrase"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "958c08a0396202c3e0dd39ebf34fe1776af3cf9c35fa246e88ead22d4707ee73"
+}

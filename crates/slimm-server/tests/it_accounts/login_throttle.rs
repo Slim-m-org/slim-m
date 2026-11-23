@@ -62,6 +62,9 @@ async fn login_from(
         "x-forwarded-for",
         format!("198.51.100.{}", ip % 250 + 1).parse().unwrap(),
     );
+    let proxy: std::net::SocketAddr = "127.0.0.1:4000".parse().unwrap();
+    req.extensions_mut()
+        .insert(axum::extract::ConnectInfo(proxy));
     let response = router.clone().oneshot(req).await.unwrap();
     let status = response.status();
     let body = json_body(response).await;

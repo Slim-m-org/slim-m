@@ -31,6 +31,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../desktop/self_update/play_install.dart';
+import '../desktop/self_update/play_update.dart';
 import '../desktop/startup_screen.dart';
 import '../desktop/update_check.dart';
 import '../desktop/update_watch.dart';
@@ -130,6 +131,22 @@ class _UpdateStatusRowsState extends ConsumerState<UpdateStatusRows> {
     );
   }
 
+  /// Play's own update action, once Play has offered one.
+  Widget? _playButton() {
+    final stage = ref.watch(playUpdateProvider);
+    final label = playUpdateActionLabel(stage);
+    if (label == null) return null;
+    return AppButton(
+      label: label,
+      onPressed: stage == PlayUpdateStage.downloading
+          ? null
+          : () => runPlayUpdateAction(
+              ref.read(playUpdateProvider.notifier),
+              stage,
+            ),
+    );
+  }
+
   String _versionLabel(PackageInfo i) => switch (i) {
     PackageInfo(version: '') => 'Version unknown',
     PackageInfo(buildNumber: '') => 'Version ${i.version}',
@@ -161,6 +178,8 @@ class _UpdateStatusRowsState extends ConsumerState<UpdateStatusRows> {
             label: _checking ? 'Checking…' : 'Check for updates',
             onPressed: _checking ? null : () => unawaited(_checkNow()),
           )
+        : fromPlay
+        ? _playButton()
         : null;
 
     return AppCard(

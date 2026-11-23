@@ -154,6 +154,8 @@ jobs:
           name: server-image-digest-${{ matrix.arch }}
           path: /tmp/digests/${{ matrix.arch }}
           if-no-files-found: error
+      - uses: ./.github/actions/release-supervisor-image
+        with: {mode: build, arch: "${{ matrix.arch }}"}
 
   # Assembles the per-arch digests into one multi-arch manifest tag and
   # cosign-signs it keylessly over OIDC. Reviewer-gated.
@@ -217,6 +219,8 @@ jobs:
       # tag that resolves to it.
       - name: cosign sign (keyless)
         run: cosign sign --yes "${IMAGE}@${{ steps.manifest.outputs.digest }}"
+      - uses: ./.github/actions/release-supervisor-image
+        with: {mode: merge, tags: "${{ needs.release-please.outputs.server_version }}\nsha-${{ needs.release-please.outputs.server_ref }}\n${{ steps.latest.outputs.move == 'true' && 'latest' || '' }}"}
 
   # The web bundle under the server's version, so SLIMM_VERSION pins both images (decision 0025); never moves latest.
   web-image:
@@ -310,6 +314,55 @@ jobs:
           spotify_client_id: ${{ vars.SLIMM_SPOTIFY_CLIENT_ID }}
           gh_token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
+
+  # The signed flatpak remote on GitHub Pages; inert without FLATPAK_GPG_KEY and required by nothing. See docs/ci.md.
+  flatpak-remote:
+    needs: [release-please, linux-client, verify-client-ci]
+    if: needs.verify-client-ci.result == 'success' && needs.linux-client.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: read
+      pages: read
+    outputs:
+      ready: ${{ steps.gate.outputs.ready }}
+    env:
+      FLATPAK_GPG_KEY: ${{ secrets.FLATPAK_GPG_KEY }}
+    steps:
+      - name: check secret
+        id: gate
+        run: |
+          if [ -n "$FLATPAK_GPG_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::FLATPAK_GPG_KEY is not configured. Add it and set GitHub Pages to deploy from Actions to publish the signed flatpak remote. Skipping."
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          ref: ${{ needs.release-please.outputs.client_ref }}
+
+      - uses: ./.github/actions/release-flatpak-remote
+        if: steps.gate.outputs.ready == 'true'
+
+  # Deploys what flatpak-remote signed; Pages wants its own environment and an OIDC token.
+  flatpak-pages:
+    needs: [flatpak-remote]
+    if: needs.flatpak-remote.outputs.ready == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
   # Rewrites SHA256SUMS from the release's actual assets once the Linux, Android and (through desktop-clients) Windows and macOS downloads are attached; linux-client's own partial file is only the first draft.
   client-checksums:

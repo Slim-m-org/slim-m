@@ -423,3 +423,26 @@ That is a wire and client change, so it is parked here rather than decided in a 
 
 *What the run did instead:* left `crates/slimm-server/src/http/linked_accounts.rs` unchanged.
 The answer above replaced that.
+
+## 23. Do soundboard clips play cleanly inside an iPhone call? (needs a real device, 2026-11-22)
+
+An iPhone in a call plays soundboard clips on the app's own `AVAudioEngine` (`ios/Runner/SoundClipChannel.swift`), without setting the audio session's category, mode or activation.
+This follows the hold music path, and was chosen because audioplayers' Darwin plugin resets the category on every play and deactivates the session when a clip ends.
+No iPhone is available to the agents, and iOS only builds in CI, so none of the following has been observed.
+
+*Check on a TestFlight build, in a call with a second person who presses clips from the soundboard:*
+
+1. Earpiece: hold the phone to the ear.
+   The clip is heard once at the earpiece, the route icon does not change, and the other person still hears you.
+2. Speaker: switch the call to speaker.
+   The clip is heard once, the route stays on the speaker, and nothing jumps to the earpiece.
+3. AirPods: connect AirPods and join.
+   The clip is heard in the AirPods, the route does not fall back to the phone, and the mic stays on the AirPods.
+4. Mic: the other person keeps hearing you before, during and after the clip, and the mute button state does not change.
+5. Ducking: the other person's voice does not dip while the clip plays, and the volume stays the same after it ends.
+6. Overlap: two clips pressed close together both sound, and ten fast presses do not crash or freeze the call.
+7. Rules: deafen yourself and press a clip (nothing sounds), turn "Soundboard sounds" off (nothing sounds), and lower the player's volume or mute them (the clip follows it).
+8. Outside a call: with no call, a clip pressed by someone in a call you are not in plays nothing, and other chimes still play as before.
+9. After the call: leave, and check the app's other sounds and music from another app still play normally.
+
+If the route changes, the mic cuts or the call ducks, the likely cause is `AVAudioEngine.start()` reconfiguring the shared session; the fallback is to play through the call's own LiveKit engine from the rtc layer.

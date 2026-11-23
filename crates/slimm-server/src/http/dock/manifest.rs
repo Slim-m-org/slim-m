@@ -13,9 +13,9 @@
 use serde::Deserialize;
 
 use super::super::hidden_chars::is_hidden_char;
-use crate::module_runtime::{MAX_FUEL, MAX_MEMORY_MB, MAX_WALL_MS};
 use crate::store::{ModulePlatform, ModuleSettingDef, ModuleSlot};
 pub(in crate::http) use changelog::ChangelogEntry;
+pub(in crate::http) use connector::ManifestConnector;
 pub(super) use index::{IndexEntry, parse_index};
 pub(in crate::http) use network::{ManifestNetwork, NET_FETCH};
 pub(in crate::http) use schedule::ManifestSchedule;
@@ -51,8 +51,14 @@ struct RawManifest {
     summary: String,
     #[serde(default)]
     author: Option<String>,
-    artifact: RawArtifact,
-    runtime: RawRuntime,
+    #[serde(default)]
+    artifact: Option<RawArtifact>,
+    #[serde(default)]
+    runtime: Option<RawRuntime>,
+    #[serde(default)]
+    provider: Option<String>,
+    #[serde(default)]
+    connector: Option<connector::RawConnector>,
     #[serde(default)]
     permissions: Vec<RawPermission>,
     #[serde(default)]
@@ -202,6 +208,8 @@ pub(super) struct Manifest {
     pub(super) platform: ModulePlatform,
     pub(super) data: Option<crate::module_runtime::DataSchema>,
     pub(super) call_audio: Option<call_audio::ManifestCallAudio>,
+    /// `Some` when the module is a connector, with what its token asks for.
+    pub(in crate::http) connector: Option<ManifestConnector>,
     /// The text it was parsed from, kept so an install can be exported unchanged.
     pub(super) raw_json: String,
 }
@@ -214,10 +222,11 @@ pub(super) fn parse_manifest(bytes: &[u8]) -> Result<Manifest, ManifestError> {
     Ok(manifest)
 }
 
-fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
+fn validate_manifest(mut raw: RawManifest) -> Result<Manifest, ManifestError> {
     if raw.schema != SUPPORTED_SCHEMA {
         return Err(malformed("unsupported manifest.json schema version"));
     }
+    let connector = connector::validate(&mut raw)?;
     validate_slug(&raw.id, MAX_SLUG).map_err(|_| malformed("module id must be a safe slug"))?;
     let name = bounded(&raw.name, MAX_SHORT_FIELD, "name")?;
     let version = bounded(&raw.version, MAX_SLUG, "version")?;
@@ -227,8 +236,7 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
         .map(|a| bounded(&a, MAX_SHORT_FIELD, "author"))
         .transpose()?;
 
-    let artifact = validate_artifact(raw.artifact)?;
-    let runtime = validate_runtime(raw.runtime)?;
+    let (artifact, runtime) = sandbox::validate(connector.is_some(), raw.artifact, raw.runtime)?;
 
     if raw.permissions.len() > MAX_LIST_ITEMS {
         return Err(malformed("manifest declares too many permissions"));
@@ -270,6 +278,7 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
         .map(|ep| validate_extension_point(ep, &seen_keys, &command_names))
         .collect::<Result<Vec<_>, _>>()?;
     names::reject_colliding_names(&extension_points)?;
+    connector_surfaces::check(connector.as_ref(), &extension_points)?;
 
     let network = network::validate_network(raw.network, &capabilities)?;
     let platform = platform::validate_platform(
@@ -288,6 +297,7 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
     settings::check_hosts_declared(&platform.settings_schema, &network.hosts)?;
     panel::check_panels(&extension_points, platform.addon_api)?;
     canvas_tile::require_level(&extension_points, platform.addon_api)?;
+    connector::require_level(connector.as_ref(), platform.addon_api)?;
     let call_audio = call_audio::validate_call_audio(
         raw.call_audio,
         &capabilities,
@@ -315,57 +325,10 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
             .map_err(|e| malformed(&e))?,
         platform,
         call_audio,
+        connector,
         capabilities,
         extension_points,
         raw_json: String::new(),
-    })
-}
-
-fn validate_artifact(raw: RawArtifact) -> Result<ManifestArtifact, ManifestError> {
-    let kind = bounded(&raw.kind, MAX_SLUG, "artifact.kind")?;
-    supported::require_artifact_kind(&kind)?;
-    if raw.path.is_empty()
-        || raw.path.len() > MAX_LONG_FIELD
-        || !artifact_path::is_plain_relative_path(&raw.path)
-    {
-        return Err(malformed("artifact.path is not a safe relative path"));
-    }
-    if !is_sha256_hex(&raw.sha256) {
-        return Err(malformed("artifact.sha256 must be 64 hex characters"));
-    }
-    Ok(ManifestArtifact {
-        kind,
-        path: raw.path,
-        sha256: raw.sha256,
-    })
-}
-
-fn validate_runtime(raw: RawRuntime) -> Result<ManifestRuntime, ManifestError> {
-    let backend = bounded(&raw.backend, MAX_SLUG, "runtime.backend")?;
-    supported::require_runtime_backend(&backend)?;
-    for (value, field, max) in [
-        (raw.limits.memory_mb, "memory_mb", MAX_MEMORY_MB),
-        (raw.limits.wall_ms, "wall_ms", MAX_WALL_MS),
-        (raw.limits.fuel, "fuel", MAX_FUEL),
-    ] {
-        if value == Some(0) {
-            return Err(malformed(&format!(
-                "runtime.limits.{field} must be positive"
-            )));
-        }
-        if value.is_some_and(|v| v > max) {
-            return Err(malformed(&format!(
-                "runtime.limits.{field} may not exceed {max}"
-            )));
-        }
-    }
-    Ok(ManifestRuntime {
-        backend,
-        limits: ManifestLimits {
-            memory_mb: raw.limits.memory_mb,
-            wall_ms: raw.limits.wall_ms,
-            fuel: raw.limits.fuel,
-        },
     })
 }
 
@@ -512,6 +475,8 @@ mod artifact_path;
 pub(in crate::http) mod call_audio;
 mod canvas_tile;
 mod changelog;
+pub(in crate::http) mod connector;
+mod connector_surfaces;
 pub(in crate::http) mod hooks;
 mod index;
 mod names;
@@ -519,6 +484,7 @@ mod network;
 mod panel;
 mod platform;
 mod review;
+mod sandbox;
 mod schedule;
 mod settings;
 mod supported;

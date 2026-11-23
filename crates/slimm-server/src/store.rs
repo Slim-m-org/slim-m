@@ -103,6 +103,8 @@ mod reports;
 mod roles;
 use roles::{role_hierarchy, role_reorder, role_update};
 mod attachment_originals;
+mod call_stats;
+mod call_transcript_marks;
 mod call_transcripts;
 mod favorites;
 mod hold_music;
@@ -134,6 +136,7 @@ mod uplink_tests;
 mod user_notes;
 mod users;
 mod voice_call_events;
+mod voice_commands;
 mod voice_notify;
 mod voice_rooms;
 mod voice_sessions;
@@ -163,6 +166,9 @@ pub use bot_prefix::SetBotPrefixError;
 pub use bot_token::{ReissueError, ReissuedToken};
 pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
+pub use call_transcript_marks::{
+    MAX_MARKS_PER_TRANSCRIPT, MarkKind, MarkSource, NewMark, PutMark, TranscriptMark,
+};
 pub use call_transcripts::{
     CallTranscript, HIGHLIGHT_CLOSE, HIGHLIGHT_OPEN, MAX_TRANSCRIPT_RETENTION_DAYS, NewTranscript,
     NewTranscriptLine, TranscriptCursor, TranscriptHit, TranscriptLine, TranscriptionMode,
@@ -242,10 +248,11 @@ pub use module_permissions::{
 };
 pub use module_stats::{ModuleRunStat, RunResult, RunTiming, StorageUsage};
 pub use modules::{
-    DockProvenance, DueTimer, HookChange, HookDecl, HookKind, InstallModuleRequest,
-    InstalledModule, ModuleExtensionPoint, ModuleExtensionPointSpec, ModuleHook,
-    ModulePermissionSpec, ModulePlatform, ModuleRuntimeLimits, ModuleSchedule, ModuleSettingDef,
-    ModuleSlot, SettingChoice, SettingKind, TimerSpec,
+    ConnectorInstall, DockProvenance, DueTimer, EgressHost, HookChange, HookDecl, HookKind,
+    HostRun, HostRunSpec, InstallModuleRequest, InstalledConnector, InstalledModule,
+    ModuleExtensionPoint, ModuleExtensionPointSpec, ModuleHook, ModulePermissionSpec,
+    ModulePlatform, ModuleRuntimeLimits, ModuleSchedule, ModuleSettingDef, ModuleSlot,
+    SettingChoice, SettingKind, TimerSpec,
 };
 pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;
@@ -276,7 +283,9 @@ pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};
 pub use screen_stamps::{
     NewScreenStamp, ReportPicture, SCREEN_STAMP_TTL_MS, ScreenStamp, StampInsert, StampSender,
 };
-pub use sessions::{Account, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens};
+pub use sessions::{
+    Account, ConnectorGrant, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens,
+};
 pub use soundboard::{
     ClipEmoji, MAX_SOUNDBOARD_CLIPS, SoundClip, SoundClipChange, SoundClipError, StarterClipRow,
     StarterSeeded,
@@ -304,6 +313,7 @@ pub use users::ProfileUpdate;
 pub use voice_call_events::{
     CALL_HISTORY_RETENTION_DAYS, CanvasActivity, VoiceEvent, VoiceEventKind,
 };
+pub use voice_commands::VoiceCommands;
 pub use voice_sessions::{SessionScope, VOICE_SESSION_RETENTION_DAYS, VoiceSession};
 pub use voice_transcripts::{TranscriptOutcome, TranscriptStatus, VoiceCandidate, VoiceTranscript};
 pub use watch_sessions::{

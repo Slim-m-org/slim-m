@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT u.id AS \"id!: UserId\" FROM installed_modules m\n           JOIN users u ON u.id = m.bot_user_id\n           WHERE m.id = ? AND m.provider = 'connector' AND u.deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e0b8bed9b427d4dd1dbf1227e9cdb291b34323940937e6ea84e781ac5802e219"
+}

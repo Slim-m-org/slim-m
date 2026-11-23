@@ -106,3 +106,55 @@ No screen shows lines live in the call yet; captions, summaries and the rest of 
 Since #2405 the call header shows a transcript mark whenever the server is transcribing the call, in both modes, with "This call is being transcribed" on hover.
 In `always` there is no in-call banner any more: nothing in it could be answered or stopped, so the mark replaces the passive banner described above.
 In `on_request` the banner with Stop stays, beside the mark.
+
+## Amendment 2026-11-22: your own call stats
+
+A member can read numbers about their own speech: talk time, words a minute, filler words and languages (`GET /me/call-stats`, the "Call stats" pane in personal Settings, and one "You talked ..." line in each call's Transcript section).
+They are worked out on request, in plain server code, from the caller's own lines that are still kept (those with an `end_at`, in live community channels), and nothing new is stored.
+They follow retention, a moderator's delete, channel deletion and account deletion, and nothing leaves the deployment.
+
+The rule is self-only.
+The route has no user parameter, and no administrator view, Space-wide view, per-person numbers shown to other readers of a call, module power or bot route exists.
+A bot is refused, and an administrator asking gets their own numbers.
+A Space with transcription off answers with nothing counted.
+With `transcript_id` the call must be readable by the caller as for `GET /voice/transcripts/{id}`, and only the caller's lines in it count.
+Filler words are counted on English lines only, and the pane says the transcriber leaves out most ums and uhs.
+A listener's segment `end_ms` is now the end of the last voiced frame, not of the silence that closed it, so talk time is not overstated.
+
+## Amendment 2026-11-22: captions and the live pane
+
+The live lines now have screens.
+Captions are a per-device choice, off by default, turned on from the call's Captions control or from Voice & video settings.
+They sit in a strip of fixed height under the call stage, show only lines said after the strip opened, as "Name: text", and clear 8 seconds after the last line.
+While a transcript runs, the voice channel's chat pane (docked, or the compact swapped view) gains a "Chat | Transcript" choice; the Transcript side lists the whole running transcript and follows the newest line.
+
+Both appear only while the server is transcribing the call and the viewer holds `VIEW_CHANNEL` and `VIEW_TRANSCRIPTS` on the channel, the same rule the live lines already follow.
+To know which transcript is running without waiting for `call.transcript_changed`, the call-audio state (`GET .../voice/call-audio` and the `voice.call_audio` frame) carries an optional `transcript_id` once the server's own transcript is on (additive; modules never get one).
+The consent text's purpose now reads "Writes down what is said in this call and shows it to the people in it."
+
+Marks, notes and spoken commands are not part of this amendment.
+
+## Amendment 2026-11-22: marks and notes
+
+Someone in a transcribed call can mark the moment, or leave a short note, with the Mark control in the call, the Mark call moment shortcut, or an opt-in global hotkey.
+A mark is a side row on the transcript (`call_transcript_marks`, migration 0208): who made it, when, the newest line kept at that time, and the note's text, up to 500 characters.
+It records no audio; a mark is only a point on the transcript's timeline.
+
+Marks follow the transcript's own audience and retention.
+Whoever may read the transcript (`VIEW_CHANNEL` and `VIEW_TRANSCRIPTS` at read time) may read its marks, and notes are not private to their author.
+Only people in the call add them, and only while it is transcribed; afterwards they can only be removed, by their author or by someone with `MANAGE_MESSAGES` on the channel.
+Live, a kept or removed mark goes as `call.transcript_mark` to the same people the live lines go to.
+Deleting the transcript, its retention sweep, and the author's account deletion remove the marks, and a member's export holds their own (`transcript_marks.jsonl`).
+Nothing changes in a Space with transcription off: there is no running transcript to mark.
+
+## Amendment 2026-11-22: spoken marks
+
+A Space can turn on voice commands (Space settings > Voice), off by default, with an editable wake phrase ("hey space" by default; 2 to 4 words, without mark, note or bookmark).
+While they are on, a transcribed call acts on "hey space, mark that" (also "bookmark" or "clip", which only ever makes a mark) and "hey space, note ...", said by someone in the call.
+A line that is only the phrase waits 10 seconds for the same speaker's command, and one speaker gives at most one command every 5 seconds.
+
+It reads only the text the server transcript already keeps: no new audio path, no new listener, nothing while transcription is off, and nothing for a module's call audio.
+A call acts on commands only if its transcript started while the switch was on, so a call that agreed to the old consent text never starts acting on speech; turning the switch off takes effect within 5 seconds.
+The consent text names the phrase while it is on, the always-mode notice gains one sentence saying how to mark a moment, and turning the switch on makes that notice due again for everyone (changing only the phrase does not).
+A spoken mark belongs to the speaker, is stamped with the line's time and points at that line, which stays in the transcript as it was said.
+How whisper hears the phrase was measured before this shipped: docs/research/voice-command-phrase-2026-11-22.md.

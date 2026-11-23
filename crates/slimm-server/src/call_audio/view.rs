@@ -29,6 +29,9 @@ pub struct CallAudioView {
     /// `on_request` or `always`, only when the server is the one hearing the call.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<&'static str>,
+    /// The running transcript, once the server's own transcript is on: the id its live lines carry.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transcript_id: Option<String>,
     /// The server's own transcript is what hears the call, not a module.
     #[serde(skip)]
     pub transcript: bool,
@@ -103,6 +106,9 @@ impl CallAudioView {
                     "on_request"
                 }
             }),
+            transcript_id: (session.subject.consumer == Consumer::Transcript
+                && session.status == Status::On)
+                .then(|| session.id.to_string()),
             transcript: session.subject.consumer == Consumer::Transcript,
             automatic: session.is_automatic(),
         }

@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+[package]
+name = "slimm-supervisor"
+version = "0.116.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "slim-m connector supervisor: the only holder of the container runtime socket (decision 0134)"
+
+[lib]
+name = "slimm_supervisor"
+path = "src/lib.rs"
+
+[[bin]]
+name = "slimm-supervisor"
+path = "src/main.rs"
+
+# Every crate here is already in the server's tree; the list stays short enough to review (decision 0134).
+[dependencies]
+axum.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+uuid.workspace = true
+hyper = { version = "1", features = ["client", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+redundant_closure_for_method_calls = "warn"

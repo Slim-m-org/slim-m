@@ -34,7 +34,10 @@ import '../widgets/theme_gallery.dart';
 import '../widgets/totp_section.dart';
 import '../widgets/troubleshooting_pane.dart';
 import '../../auth/widgets/change_password_section.dart';
+import '../../voice/providers/call_stats.dart';
+import '../../voice/screens/call_stats_pane.dart';
 import '../../voice/screens/voice_settings_screen.dart';
+import '../providers/settings_index_call_stats.dart' show callStatsPane;
 import '../../../action_labels.dart';
 import '../providers/settings_index_gates.dart';
 
@@ -112,6 +115,13 @@ class PersonalSettingsScreen extends ConsumerWidget {
                 ],
               ),
             ),
+            if (ref.watch(callStatsAvailableProvider))
+              SettingsPane(
+                id: callStatsPane,
+                label: 'Call stats',
+                icon: AppIcons.analytics,
+                builder: (context) => const CallStatsPane(),
+              ),
           ],
         ),
         SettingsPaneGroup(

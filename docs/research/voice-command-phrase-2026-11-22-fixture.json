@@ -1,0 +1,1556 @@
+{
+ "phrase": "hey space",
+ "clips": [
+  {
+   "said": "hey space / mark that",
+   "heard": [
+    "Hey Space!",
+    "Mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space / mark that",
+   "heard": [
+    "Hey Space! Mark that!"
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space / mark that",
+   "heard": [
+    "Hey Space.",
+    "Mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space / mark that",
+   "heard": [
+    "Hey space!",
+    "Mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space / mark that",
+   "heard": [
+    "Hey space! Mark that!"
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space / mark that",
+   "heard": [
+    "Hey space.",
+    "Mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space / mark that",
+   "heard": [
+    "Hey space. Mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space / mark that",
+   "heard": [
+    "Hey, space.",
+    "Mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space / mark that",
+   "heard": [
+    "Mark that."
+   ],
+   "expect": "mark",
+   "lost": true
+  },
+  {
+   "said": "hey space, bookmark that",
+   "heard": [
+    "Hey Space! Bookmark that!"
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, bookmark that",
+   "heard": [
+    "Hey Space, bookmark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, bookmark that",
+   "heard": [
+    "Hey Space, both mark that."
+   ],
+   "expect": "mark",
+   "lost": true
+  },
+  {
+   "said": "hey space, bookmark that",
+   "heard": [
+    "Hey space, bookmark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, bookmark that",
+   "heard": [
+    "[Motor]",
+    "Hey space, bookmark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, clip that",
+   "heard": [
+    "A Space Clip That."
+   ],
+   "expect": "mark",
+   "lost": true
+  },
+  {
+   "said": "hey space, clip that",
+   "heard": [
+    "A space. Clip that."
+   ],
+   "expect": "mark",
+   "lost": true
+  },
+  {
+   "said": "hey space, clip that",
+   "heard": [
+    "Hey Space, Clip that!"
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, clip that",
+   "heard": [
+    "Hey Space, Glipp that."
+   ],
+   "expect": "mark",
+   "lost": true
+  },
+  {
+   "said": "hey space, clip that",
+   "heard": [
+    "Hey Space, clip that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, clip that",
+   "heard": [
+    "Hey space, clip that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, clip that",
+   "heard": [
+    "Hey space, flip that."
+   ],
+   "expect": "mark",
+   "lost": true
+  },
+  {
+   "said": "hey space, mark that",
+   "heard": [
+    "Hey Space, Mark Bat."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, mark that",
+   "heard": [
+    "Hey Space, mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, mark that",
+   "heard": [
+    "Hey space, mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, mark that, the build numbers look wrong",
+   "heard": [
+    "4f0 txş",
+    "Hey space, mark that the build numbers look wrong."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, mark that, the build numbers look wrong",
+   "heard": [
+    "Hey Space, mark that the build numbers look wrong."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, mark that, the build numbers look wrong",
+   "heard": [
+    "Hey Space, mark that, the build numbers look wrong."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, mark that, the build numbers look wrong",
+   "heard": [
+    "Hey space, mark that the build numbers look wrong."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, mark that, the build numbers look wrong",
+   "heard": [
+    "Hey space, mark that, the build numbers look wrong."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, mark that, the build numbers look wrong",
+   "heard": [
+    "Pay space, mark that, the build numbers look wrong."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, mark this",
+   "heard": [
+    "Hey Space, mark this."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "hey space, mark this",
+   "heard": [
+    "Hey space, mark this."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "okay so hey space, please mark that",
+   "heard": [
+    "Okay so hey space, please mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "okay so hey space, please mark that",
+   "heard": [
+    "Okay, so hey space, please mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "the build numbers look wrong, hey space, mark that",
+   "heard": [
+    "The bill numbers look wrong, hey space, mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "the build numbers look wrong, hey space, mark that",
+   "heard": [
+    "The build numbers look wrong hey space, mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "the build numbers look wrong, hey space, mark that",
+   "heard": [
+    "The build numbers look wrong, hey space, mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "the build numbers look wrong, hey space, mark that",
+   "heard": [
+    "The build numbers look wrong. Hey space, mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "the build numbers look wrong, hey space, mark that",
+   "heard": [
+    "The build's numbers look wrong, hey space, mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "the build numbers look wrong, hey space, mark that",
+   "heard": [
+    "The build's numbers look wrong. Hey space, mark that."
+   ],
+   "expect": "mark"
+  },
+  {
+   "said": "",
+   "heard": [
+    "(upbeat music)",
+    "(upbeat music)",
+    "(upbeat music)",
+    "(upbeat music)",
+    "(upbeat music)",
+    "(upbeat music)",
+    "(upbeat music)",
+    "(upbeat music)"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "",
+   "heard": [
+    "[BLANK_AUDIO]",
+    "[BLANK_AUDIO]",
+    "[BLANK_AUDIO]",
+    "[BLANK_AUDIO]",
+    "[BLANK_AUDIO]",
+    "[BLANK_AUDIO]",
+    "[BLANK_AUDIO]",
+    "[BLANK_AUDIO]"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "I marked the spreadsheet yesterday",
+   "heard": [
+    "I mark the spreadsheet yesterday."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "I marked the spreadsheet yesterday",
+   "heard": [
+    "I marked the spreadsheet yesterday."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "I marked the spreadsheet yesterday",
+   "heard": [
+    "I'm Mark the spreadsheet yesterday."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "I marked the spreadsheet yesterday",
+   "heard": [
+    "I'm Mark, the spreadsheet yesterday."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "I think the deploy went fine",
+   "heard": [
+    "I think the deploy went fine."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "I think the deploy went fine",
+   "heard": [
+    "I think they deploy when fine."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "I will fix it after this call",
+   "heard": [
+    "I will fix it after this call."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "I will fix it after this call",
+   "heard": [
+    "[Motor]",
+    "I will fix it after this call."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "I will fix it after this call",
+   "heard": [
+    "[Piazza del Piazza]",
+    "I will fix it after this call."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "I'll send the link in the chat",
+   "heard": [
+    "I'll send a link in the chat."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "I'll send the link in the chat",
+   "heard": [
+    "I'll send the link in the chat."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "can everyone see my screen",
+   "heard": [
+    "Can everyone see my screen?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "can everyone see my screen",
+   "heard": [
+    "In everyone, see my screen."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "can you clip that video for me",
+   "heard": [
+    "Can you clip that video for me?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "can you clip that video for me",
+   "heard": [
+    "Halt!",
+    "Can you clip that video for me?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "can you clip that video for me",
+   "heard": [
+    "NGTV www.nGTV.com/NGTV",
+    "Can you clip that video for me?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "can you clip that video for me",
+   "heard": [
+    "[S]",
+    "Can you clip that video for me?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "can you hear me now",
+   "heard": [
+    "Can you hear me now?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "did you get my message about the server",
+   "heard": [
+    "Did you get my message about the server?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "did you get my message about the server",
+   "heard": [
+    "[Ambient]",
+    "Did you get my message about the server?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "did you get my message about the server",
+   "heard": [
+    "[Motor]",
+    "Did you get my message about the server?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "has anyone tried the new phone build",
+   "heard": [
+    "*Subscribe*",
+    "Has anyone tried the new phone bill?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "has anyone tried the new phone build",
+   "heard": [
+    "Has anyone tried the new phone bill?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "has anyone tried the new phone build",
+   "heard": [
+    "Has anyone tried the new phone build?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "has anyone tried the new phone build",
+   "heard": [
+    "has anyone tried the new phone bill."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey Mark, did you see that",
+   "heard": [
+    "Hey Mark, did you see that?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey Mark, did you see that",
+   "heard": [
+    "Hey, Mark, did you see that?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey Mark, did you see that",
+   "heard": [
+    "[Motor]",
+    "Hey Mark, did you see that?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey Spencer, mark that",
+   "heard": [
+    "Hey Spencer mark that."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey Spencer, mark that",
+   "heard": [
+    "Hey Spencer, Mark Dach."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey Spencer, mark that",
+   "heard": [
+    "Hey Spencer, mark that."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey Stacey, mark that one for me",
+   "heard": [
+    "Hey CC, mark that one for me."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey Stacey, mark that one for me",
+   "heard": [
+    "Hey Stacey, mark that one for me."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey Stacey, mark that one for me",
+   "heard": [
+    "Hey Stacy, mark that one for me."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey Stacey, mark that one for me",
+   "heard": [
+    "[Motor]",
+    "Hey Stacy, mark that one for me."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey Stacey, mark that one for me",
+   "heard": [
+    "[Traditional music]",
+    "Hey Stacy, mark that one for me."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey there, how is everyone",
+   "heard": [
+    "Hey there, how is everyone?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey there, how is everyone",
+   "heard": [
+    "Hey there, how was everyone?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey, can you make some space on the drive",
+   "heard": [
+    "Hey, can you make some space on the drive?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey, can you make some space on the drive",
+   "heard": [
+    "Hey, can you make some space on the dry?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey, can you make some space on the drive",
+   "heard": [
+    "[Motor]",
+    "Hey, can you make some space on the drive?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey, did anyone mark that ticket",
+   "heard": [
+    "Hey, did anyone mark that ticket?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey, it's fine, note it later",
+   "heard": [
+    "Hey, it's fine, note it later."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey, it's fine, note it later",
+   "heard": [
+    "Hey, it's fine. Note it later."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey, space it out a bit more",
+   "heard": [
+    "Hey, space it out a bit more."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey, space it out a bit more",
+   "heard": [
+    "Hey, space it out a bit more.",
+    "[BLANK_AUDIO]"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey, take a note of that",
+   "heard": [
+    "Hey take a note of that."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey, take a note of that",
+   "heard": [
+    "Hey, take a note of that."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "let me share the document",
+   "heard": [
+    "Let me share the document."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "let me share the document",
+   "heard": [
+    "Let me show the document."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "let's take a five minute break",
+   "heard": [
+    "@mrc.com/mrc.",
+    "Let's take a five minute break."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "let's take a five minute break",
+   "heard": [
+    "Let's take a 5 minute break."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "let's take a five minute break",
+   "heard": [
+    "Let's take a five minute break."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "mark my words, it will rain tomorrow",
+   "heard": [
+    "Mark my words, it will rain tomorrow."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "mark my words, it will rain tomorrow",
+   "heard": [
+    "Mark my words.",
+    "It will ring tomorrow."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "mark my words, it will rain tomorrow",
+   "heard": [
+    "Mark my words. It will rain tomorrow."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "my space heater broke last night",
+   "heard": [
+    "My Space Heater Bro class night."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "my space heater broke last night",
+   "heard": [
+    "My Space Heater Broke Last Night."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "my space heater broke last night",
+   "heard": [
+    "My Space Heater broke last night."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "my space heater broke last night",
+   "heard": [
+    "My Space Heaterbroke last night."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "my space heater broke last night",
+   "heard": [
+    "My space heater broke last night."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "my space heater broke last night",
+   "heard": [
+    "NGTV www.ng.co.uk/ngbj3r4",
+    "My space heater broke last night."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "my space heater broke last night",
+   "heard": [
+    "my space heater broke last night."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "note that the space is limited",
+   "heard": [
+    "Note that the space is limited."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "note that the space is limited",
+   "heard": [
+    "[S]",
+    "Note that the space is limited."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "okay, I need to go soon",
+   "heard": [
+    "Okay, I need to go soon"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "okay, I need to go soon",
+   "heard": [
+    "Okay, I need to go soon."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "please note the meeting moved",
+   "heard": [
+    "Please note the meeting mood."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "please note the meeting moved",
+   "heard": [
+    "Please note the meeting move."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "please note the meeting moved",
+   "heard": [
+    "Please note the meeting moved."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "please note the meeting moved",
+   "heard": [
+    "Please note the meeting moved.",
+    "[BLANK_AUDIO]"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "please note the meeting moved",
+   "heard": [
+    "UIG' [\" essential tassup ]",
+    "Please note the meeting moved."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "please note the meeting moved",
+   "heard": [
+    "[Rain]",
+    "Please note the meeting move."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "put a mark next to the third item",
+   "heard": [
+    "Plenty mark next to the third item."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "put a mark next to the third item",
+   "heard": [
+    "Put a mark next to the third item."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "put a mark next to the third item",
+   "heard": [
+    "Put him mark next to the third item."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "put a mark next to the third item",
+   "heard": [
+    "Putty mark next to the third item."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "put a mark next to the third item",
+   "heard": [
+    "[Motor]",
+    "Put a mark next to the third item."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "put a mark next to the third item",
+   "heard": [
+    "put a mark next to the third item."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "put a mark next to the third item",
+   "heard": [
+    "put him marked next to the third item."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "put a mark next to the third item",
+   "heard": [
+    "对 etme.",
+    "put a mark next to the third item."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "she said hey and then left",
+   "heard": [
+    "She said \"Hey\" and then \"Luft\""
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "she said hey and then left",
+   "heard": [
+    "She said \"Hey\" and then \"Luft\"."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "she said hey and then left",
+   "heard": [
+    "She said \"Hey\" and then \"Luft.\""
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "she said hey and then left",
+   "heard": [
+    "She said \"Hey\" and then \"left\"."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "she said hey and then left",
+   "heard": [
+    "She said \"Hey\" and then left."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "she said hey and then left",
+   "heard": [
+    "She said hey and then left."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "she said hey and then left",
+   "heard": [
+    "She said, \"Hey,\" and then left."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "she said hey and then left",
+   "heard": [
+    "WWE Rest",
+    "She said, \"Hey, and then left.\""
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "she said hey and then left",
+   "heard": [
+    "she said \"Hey\" and then left."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "sorry, I was on mute",
+   "heard": [
+    "Sorry, I was on mute."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "space, the final frontier",
+   "heard": [
+    "Base the final frontier."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "space, the final frontier",
+   "heard": [
+    "Base, the final frontier."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "space, the final frontier",
+   "heard": [
+    "Face the final frontier."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "space, the final frontier",
+   "heard": [
+    "Face, the final frontier."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "space, the final frontier",
+   "heard": [
+    "Paste the final frontier."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "space, the final frontier",
+   "heard": [
+    "Space, the final frontier."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "space, the final frontier",
+   "heard": [
+    "face the final frontier."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "that clip was really funny",
+   "heard": [
+    "That clip was really funny."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "that clip was really funny",
+   "heard": [
+    "that clip was really funny."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "that sounds good to me",
+   "heard": [
+    "Nuoy du K",
+    "That sounds good to me."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "that sounds good to me",
+   "heard": [
+    "That sounds good to me."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "that sounds good to me",
+   "heard": [
+    "[Motor]",
+    "That sounds good to me."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the bookmark is on the second page",
+   "heard": [
+    "The bookmark is on the second page."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the bookmark is on the second page",
+   "heard": [
+    "[Motor]",
+    "The bookmark is on the second page."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the coffee machine is broken again",
+   "heard": [
+    "The coffee machine is broken again."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the game starts in ten minutes",
+   "heard": [
+    "The game starts in 10 minutes."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the game starts in ten minutes",
+   "heard": [
+    "the game starts in 10 minutes."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the notebook has a lot of space",
+   "heard": [
+    "The Notebook has a lot of space."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the notebook has a lot of space",
+   "heard": [
+    "The notebook has a lot of space."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the numbers look better this week",
+   "heard": [
+    "The numbers look better this week."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the numbers look better this week",
+   "heard": [
+    "the numbers look better this week."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the second build failed on the lint step",
+   "heard": [
+    "The second build failed on the LIDG step."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the second build failed on the lint step",
+   "heard": [
+    "The second build failed on the Lens step."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the second build failed on the lint step",
+   "heard": [
+    "The second build failed on the Linch Step."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the second build failed on the lint step",
+   "heard": [
+    "The second build failed on the Lins step."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the second build failed on the lint step",
+   "heard": [
+    "The second build failed on the Lint step."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the second build failed on the lint step",
+   "heard": [
+    "The second build failed on the lint step."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the second build failed on the lint step",
+   "heard": [
+    "the second build failed on the lint step."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the spacebar on my keyboard is stuck",
+   "heard": [
+    "The space bar on Nike Board is stuck."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the spacebar on my keyboard is stuck",
+   "heard": [
+    "The space bar on my keyboard is stuck."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "the spacebar on my keyboard is stuck",
+   "heard": [
+    "The spacebar on my keyboard is stuck."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "there is no space left for notes here",
+   "heard": [
+    "There is no space left for notes here."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "they clipped the hedge this morning",
+   "heard": [
+    "They clip the hedge this morning."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "they clipped the hedge this morning",
+   "heard": [
+    "They clipped the head this morning."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "they clipped the hedge this morning",
+   "heard": [
+    "They clipped the hedge this morning."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "they clipped the hedge this morning",
+   "heard": [
+    "[Motor]",
+    "They clipped the hedge this morning."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "we need more office space",
+   "heard": [
+    "We need more office space."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "we need more office space",
+   "heard": [
+    "We need more office space.",
+    "[BLANK_AUDIO]"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "we need more office space",
+   "heard": [
+    "[Motor]",
+    "We need more office space."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "we should mark that down as done",
+   "heard": [
+    "Deal!",
+    "We should mark that down as done."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "we should mark that down as done",
+   "heard": [
+    "We should mark that down as done."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "we should mark that down as done",
+   "heard": [
+    "We should mark that down is done."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "we should ship it on Friday",
+   "heard": [
+    "$5 ain't bad to me to come on, and I only love that guy.",
+    "We should ship it on Friday"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "we should ship it on Friday",
+   "heard": [
+    "We should chip it on Friday."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "we should ship it on Friday",
+   "heard": [
+    "We should ship it on Friday."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "we should ship it on Friday",
+   "heard": [
+    "[Motor]",
+    "We should chip it on Friday."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "we should ship it on Friday",
+   "heard": [
+    "で item Ex düştsel",
+    "We should chip it on Friday."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "what time is the release tomorrow",
+   "heard": [
+    "What time is the release tomorrow?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "who is taking notes today",
+   "heard": [
+    "Who is taking notes today?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "who is taking notes today",
+   "heard": [
+    "Who was taking notes today?"
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "who is taking notes today",
+   "heard": [
+    "who is taking notes today."
+   ],
+   "expect": "none"
+  },
+  {
+   "said": "hey space, note call the plumber tomorrow morning",
+   "heard": [
+    "Hey Space, note call the plumber tomorrow morning."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "hey space, note call the plumber tomorrow morning",
+   "heard": [
+    "Hey Space, note called the plumber tomorrow morning."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "hey space, note call the plumber tomorrow morning",
+   "heard": [
+    "Hey Space, note to call the plumber tomorrow morning."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "hey space, note call the plumber tomorrow morning",
+   "heard": [
+    "Hey space, note call the plumber tomorrow morning."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "hey space, note call the plumber tomorrow morning",
+   "heard": [
+    "Hey space, note coal the plumber tomorrow morning."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "hey space, note call the plumber tomorrow morning",
+   "heard": [
+    "Hey space, note to call the plumber tomorrow morning."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "hey space, note call the plumber tomorrow morning",
+   "heard": [
+    "Pay space, note called the plumber tomorrow morning."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "hey space, note call the plumber tomorrow morning",
+   "heard": [
+    "ご視聴ありがとうございました!",
+    "Hey Space, no call the plumber tomorrow morning."
+   ],
+   "expect": "note",
+   "lost": true
+  },
+  {
+   "said": "hey space, note the budget is due on Friday",
+   "heard": [
+    "Hey Space, note the budget is due on Friday."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "hey space, note the budget is due on Friday",
+   "heard": [
+    "Hey Space, note the budget is due on Friday.",
+    "[BLANK_AUDIO]"
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "hey space, note the budget is due on Friday",
+   "heard": [
+    "Hey Space.",
+    "Note the budget as due on Friday."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "hey space, note the budget is due on Friday",
+   "heard": [
+    "Hey space, note the budget as due on Friday."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "hey space, note the budget is due on Friday",
+   "heard": [
+    "Hey space, note the budget is due on Friday."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point, hey space, no to ask Ada about the release."
+   ],
+   "expect": "note",
+   "lost": true
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point, hey space, note \"Ask Ada\" about the release."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point, hey space, note Ascada about the release."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point, hey space, note Ask Aida about the release."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point, hey space, note ass ETA about the release."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point.",
+    "Hey Space, note Ask Aida about the release."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point. Hey Space, note ass Ada about the release."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point. Hey Space. No to ask Ada about the release."
+   ],
+   "expect": "note",
+   "lost": true
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point. Hey Space. Note Ascade about the release."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point. Hey Space. Note ass Ada about the release."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point. Hey Space. Note-ass Ada about the release."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point. Hey space, note Ask Aida about the release."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point. Hey space, note ass data about the release."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point. Hey space. Note Ascada about the release."
+   ],
+   "expect": "note"
+  },
+  {
+   "said": "that was a good point, hey space, note ask Ada about the release",
+   "heard": [
+    "That was a good point. Hey space. Note, ask Ada about the release."
+   ],
+   "expect": "note"
+  }
+ ]
+}

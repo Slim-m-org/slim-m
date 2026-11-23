@@ -228,6 +228,7 @@ impl Store {
             .collect();
         let groups = self.group_memberships_among(user_id, &unpaired).await?;
 
+        let cap = self.principal_cap(user_id).await?;
         let mut result = HashMap::with_capacity(channel_ids.len());
         for &channel_id in channel_ids {
             let perms = match other_party.get(&channel_id) {
@@ -238,7 +239,7 @@ impl Store {
                 }
                 Some(_) => DM_BASE,
             };
-            result.insert(channel_id, perms);
+            result.insert(channel_id, perms.intersect(cap));
         }
         Ok(result)
     }

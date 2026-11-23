@@ -1,0 +1,1 @@
+{"v": 1, "error": "policy", "detail": "image must be pinned by digest: <registry>/<path>@sha256:<digest>"}

@@ -22,6 +22,7 @@ on:
       - "Cargo.lock"
       - "rust-toolchain.toml"
       - "docker/server.Dockerfile"
+      - "docker/supervisor.Dockerfile"
       - "docker/listener*"
       - "docker/web*"
       - ".github/workflows/web-image.yml"
@@ -35,6 +36,7 @@ on:
       - ".github/actions/release-ios-testflight/**"
       - ".github/actions/verify-android-signer/**"
       - ".github/actions/select-xcode/**"
+      - ".github/actions/release-supervisor-image/**"
       - "scripts/select-xcode.sh"
       - ".sqlx/**"
       # Its own file, so a change to how these builds work is run by them.
@@ -118,6 +120,8 @@ jobs:
               - 'scripts/select-xcode.sh'
             server:
               - 'crates/**'
+              - 'docker/supervisor.Dockerfile'
+              - '.github/actions/release-supervisor-image/**'
             listener:
               - 'crates/slimm-listener/**'
               - 'docker/listener*'
@@ -414,6 +418,8 @@ jobs:
           sbom: true
           provenance: mode=max
           cache-from: type=gha,scope=server-deps
+      - uses: ./.github/actions/release-supervisor-image
+        with: {mode: push, tags: "sha-${{ github.sha }}\n${{ steps.move.outputs.allowed == 'true' && 'main' || '' }}\n${{ steps.move.outputs.allowed == 'true' && 'latest' || '' }}"}
 
   # The optional call-audio listener as ghcr.io/<owner>/slim-m-listener (decision 0105); nothing deploys it on its own.
   listener-image:

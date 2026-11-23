@@ -41,9 +41,13 @@ impl fmt::Debug for Config {
             link_previews,
             cors_allowed_origins,
             trust_proxy_hops,
+            trusted_proxies,
             addons_repo,
             dev_module_dir,
             code_runner_url,
+            connector_supervisor_socket,
+            supervisor_secret,
+            connector_api_url,
             listener_url,
             listener_secret,
             listener_livekit_url,
@@ -79,9 +83,13 @@ impl fmt::Debug for Config {
             .field("link_previews", link_previews)
             .field("cors_allowed_origins", cors_allowed_origins)
             .field("trust_proxy_hops", trust_proxy_hops)
+            .field("trusted_proxies", trusted_proxies)
             .field("addons_repo", addons_repo)
             .field("dev_module_dir", dev_module_dir)
             .field("code_runner_url", code_runner_url)
+            .field("connector_supervisor_socket", connector_supervisor_socket)
+            .field("supervisor_secret", &Redacted(supervisor_secret))
+            .field("connector_api_url", connector_api_url)
             .field("listener_url", listener_url)
             .field("listener_secret", &Redacted(listener_secret))
             .field("listener_livekit_url", listener_livekit_url)

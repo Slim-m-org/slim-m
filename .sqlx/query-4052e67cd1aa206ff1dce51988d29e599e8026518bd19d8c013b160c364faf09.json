@@ -1,0 +1,194 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT h.module_id, h.run_id, h.image, h.egress, h.egress_private, h.volume,\n                      h.memory_mib, h.cpus, h.pids, h.volume_mib, h.refused, h.last_error, h.crash_disabled_at,\n                      m.enabled, m.bot_user_id AS \"bot_user_id: UserId\"\n               FROM connector_host_runs h JOIN installed_modules m ON m.id = h.module_id\n               ORDER BY h.module_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "module_id",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "connector_host_runs",
+            "name": "module_id"
+          }
+        }
+      },
+      {
+        "name": "run_id",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "connector_host_runs",
+            "name": "run_id"
+          }
+        }
+      },
+      {
+        "name": "image",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "connector_host_runs",
+            "name": "image"
+          }
+        }
+      },
+      {
+        "name": "egress",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "connector_host_runs",
+            "name": "egress"
+          }
+        }
+      },
+      {
+        "name": "egress_private",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "connector_host_runs",
+            "name": "egress_private"
+          }
+        }
+      },
+      {
+        "name": "volume",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "connector_host_runs",
+            "name": "volume"
+          }
+        }
+      },
+      {
+        "name": "memory_mib",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "connector_host_runs",
+            "name": "memory_mib"
+          }
+        }
+      },
+      {
+        "name": "cpus",
+        "ordinal": 7,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "connector_host_runs",
+            "name": "cpus"
+          }
+        }
+      },
+      {
+        "name": "pids",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "connector_host_runs",
+            "name": "pids"
+          }
+        }
+      },
+      {
+        "name": "volume_mib",
+        "ordinal": 9,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "connector_host_runs",
+            "name": "volume_mib"
+          }
+        }
+      },
+      {
+        "name": "refused",
+        "ordinal": 10,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "connector_host_runs",
+            "name": "refused"
+          }
+        }
+      },
+      {
+        "name": "last_error",
+        "ordinal": 11,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "connector_host_runs",
+            "name": "last_error"
+          }
+        }
+      },
+      {
+        "name": "crash_disabled_at",
+        "ordinal": 12,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "connector_host_runs",
+            "name": "crash_disabled_at"
+          }
+        }
+      },
+      {
+        "name": "enabled",
+        "ordinal": 13,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "installed_modules",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "name": "bot_user_id: UserId",
+        "ordinal": 14,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "installed_modules",
+            "name": "bot_user_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "4052e67cd1aa206ff1dce51988d29e599e8026518bd19d8c013b160c364faf09"
+}

@@ -36,6 +36,7 @@ pub(super) mod voice_one_call;
 pub(super) mod voice_ring;
 pub(super) mod voice_rooms;
 pub(super) mod voice_self_state;
+pub(super) mod voice_transcript_marks;
 pub(super) mod voice_transcription;
 pub(super) mod voice_transcripts;
 pub(super) mod voice_webhook;

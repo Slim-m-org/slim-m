@@ -30,10 +30,10 @@ import '../../voice/providers/voice_chat_unread.dart';
 import '../../voice/widgets/voice_chat_unread_dot.dart';
 import '../widgets/canvas_clear_scope.dart';
 import '../widgets/canvas_clear_sheet.dart';
+import 'canvas_overflow_sections.dart';
 import 'canvas_people_sheet.dart';
 import '../../../widgets/context_menu_focus.dart';
 import '../../../widgets/dock_collapse.dart' show DockPopupPin;
-import 'canvas_shape_icons.dart';
 import 'canvas_tools_row.dart' show CanvasHiddenTile;
 
 /// The bar's own overflow trigger and the confirm dialog behind Clear.
@@ -380,6 +380,21 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
     );
   }
 
+  CanvasOverflowSections get _sections => CanvasOverflowSections(
+    hiddenTiles: widget.hiddenTiles,
+    tool: widget.tool,
+    shapeKind: widget.shapeKind,
+    canManage: widget.canManage,
+    scopedClear: widget.scopedClear,
+    onShowTile: _showTile,
+    onPickShapeKind: _pickShapeKind,
+    onBringToFront: _bringToFront,
+    onSendToBack: _sendToBack,
+    onDelete: _delete,
+    onClear: _requestClear,
+    onScopedClear: _requestScopedClear,
+  );
+
   List<Widget> _menuItems(BuildContext context, String? selected) {
     return [
       if (widget.onAddImageFile case final addImage? when !widget.readOnly)
@@ -457,11 +472,11 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
           _selfBubbleItem(),
         ],
       ]),
-      ..._hiddenTileItems(),
+      ..._sections.hiddenTileItems(),
       if (!widget.readOnly) ...[
-        ..._shapeKindItems(),
-        if (selected != null) ..._selectionItems(selected),
-        ..._manageItems(),
+        ..._sections.shapeKindItems(),
+        if (selected != null) ..._sections.selectionItems(selected),
+        ..._sections.manageItems(),
       ],
     ];
   }
@@ -477,71 +492,4 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
     leading: AppIcons.camera,
     onTap: _toggleSelfBubble,
   );
-
-  List<Widget> _hiddenTileItems() {
-    if (widget.hiddenTiles.isEmpty) return const [];
-    return [
-      const AppMenuDivider(),
-      for (final tile in widget.hiddenTiles)
-        AppMenuItem(
-          label: 'Show ${tile.label}',
-          leading: AppIcons.tileHide,
-          onTap: () => _showTile(tile.key),
-        ),
-    ];
-  }
-
-  List<Widget> _shapeKindItems() {
-    if (widget.tool != CanvasTool.shape) return const [];
-    return [
-      const AppMenuDivider(),
-      for (final kind in CanvasShapeKind.values)
-        AppMenuItem(
-          label: canvasShapeKindLabel(kind),
-          leading: canvasShapeKindIcon(kind),
-          selected: widget.shapeKind == kind,
-          onTap: () => _pickShapeKind(kind),
-        ),
-    ];
-  }
-
-  List<Widget> _selectionItems(String selected) => [
-    const AppMenuDivider(),
-    AppMenuItem(
-      label: 'Bring to front',
-      leading: AppIcons.bringToFront,
-      onTap: () => _bringToFront(selected),
-    ),
-    AppMenuItem(
-      label: 'Send to back',
-      leading: AppIcons.sendToBack,
-      onTap: () => _sendToBack(selected),
-    ),
-    AppMenuItem(
-      label: 'Delete',
-      leading: AppIcons.delete,
-      tone: AppMenuItemTone.danger,
-      onTap: () => _delete(selected),
-    ),
-  ];
-
-  List<Widget> _manageItems() {
-    if (!widget.canManage) return const [];
-    return [
-      const AppMenuDivider(),
-      AppMenuItem(
-        label: 'Clear canvas',
-        leading: AppIcons.delete,
-        tone: AppMenuItemTone.danger,
-        onTap: _requestClear,
-      ),
-      if (widget.scopedClear case final control?)
-        AppMenuItem(
-          label: 'Clear part of the canvas',
-          leading: AppIcons.eraser,
-          tone: AppMenuItemTone.danger,
-          onTap: () => _requestScopedClear(control),
-        ),
-    ];
-  }
 }

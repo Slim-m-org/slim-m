@@ -42,9 +42,9 @@ def targets(manifest: dict, crate_dir: Path) -> list[str]:
     return found
 
 
-def missing_stubs(dockerfile: str, manifest: dict, crate_dir: Path) -> list[str]:
+def missing_stubs(dockerfile: str, manifest: dict, crate_dir: Path, crate: str = SERVER) -> list[str]:
     deps = code_only(stage(dockerfile, "deps"))
-    return [f"{SERVER}/{t}" for t in targets(manifest, crate_dir) if f"{SERVER}/{t}" not in deps]
+    return [f"{crate}/{t}" for t in targets(manifest, crate_dir) if f"{crate}/{t}" not in deps]
 
 
 def uncopied_inputs(dockerfile: str, tracked: list[str]) -> list[str]:
@@ -71,8 +71,13 @@ class ServerDockerfileDependencyStageTest(unittest.TestCase):
     def test_every_target_the_manifest_declares_has_a_stub(self):
         self.assertEqual(missing_stubs(self.dockerfile, self.manifest, ROOT / SERVER), [])
 
-    def test_the_only_workspace_member_is_the_one_the_stage_copies(self):
-        self.assertEqual(workspace_members(ROOT), [SERVER], "a new member needs its manifest and stubs in the deps stage")
+    def test_every_workspace_member_has_its_manifest_and_stubs_in_the_stage(self):
+        deps = code_only(stage(self.dockerfile, "deps"))
+        for member in workspace_members(ROOT):
+            with self.subTest(member=member):
+                self.assertIn(f"COPY {member}/Cargo.toml {member}/Cargo.toml", deps)
+                manifest = tomllib.loads((ROOT / member / "Cargo.toml").read_text())
+                self.assertEqual(missing_stubs(self.dockerfile, manifest, ROOT / member, member), [])
 
     def test_the_stage_copies_manifests_and_never_sources(self):
         deps = code_only(stage(self.dockerfile, "deps"))

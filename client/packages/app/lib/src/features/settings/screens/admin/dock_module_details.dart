@@ -101,7 +101,8 @@ class _DockModuleDetailsState extends State<DockModuleDetails> {
               manifest: widget.manifest,
               installedVersion: it?.version,
             ),
-          DockLimitsCard(manifest: widget.manifest),
+          if (!widget.manifest.isConnector)
+            DockLimitsCard(manifest: widget.manifest),
           if (it?.runStats case final stats?)
             DockActivityCard(stats: stats, fuelLimit: it!.fuelLimit),
           if (_hasHooks) DockHooksCard(moduleId: widget.manifest.id),

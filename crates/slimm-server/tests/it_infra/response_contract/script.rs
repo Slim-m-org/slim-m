@@ -15,6 +15,7 @@ use super::world::{Contract, Payload};
 
 mod admin_recovery;
 mod bots;
+mod connectors;
 mod content;
 mod content_dm_calls;
 mod content_emoji;
@@ -205,6 +206,7 @@ pub async fn run(c: &mut Contract) {
     let upstream = c.upstream.clone();
     link_preview_calls(c, root, &upstream).await;
     dock_calls(c, root, &admin_id, &channel).await;
+    connectors::connector_calls(c, root).await;
     module_room_calls(c, root, &channel).await;
     let message = message_calls(c, root, &channel).await;
     bulk_delete_by_author_call(c, root, bob_token, &bob_id, &channel).await;

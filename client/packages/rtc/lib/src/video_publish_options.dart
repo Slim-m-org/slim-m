@@ -9,6 +9,7 @@ library;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'screen_share.dart';
+import 'video_quality.dart' show CameraQuality;
 
 /// A camera on a weak uplink should lose sharpness, not smoothness.
 const cameraDegradationPreference = lk.DegradationPreference.maintainFramerate;
@@ -17,8 +18,18 @@ const cameraDegradationPreference = lk.DegradationPreference.maintainFramerate;
 /// keep up, instead of stuttering or asking the sharer to change a setting.
 const screenShareDegradationPreference = lk.DegradationPreference.balanced;
 
-/// Room-wide defaults, which a camera publish picks up.
-lk.VideoPublishOptions cameraPublishOptions() => const lk.VideoPublishOptions(
+/// Room-wide defaults, before a camera has picked its own quality.
+lk.VideoPublishOptions cameraPublishOptions() =>
+    cameraPublishOptionsFor(CameraQuality.balanced);
+
+/// Carries [quality]'s top-layer bitrate and frame rate to the encoder.
+///
+/// The simulcast layers below the top come from LiveKit's 180p and 360p
+/// presets, which it clamps to the top layer's rate.
+lk.VideoPublishOptions cameraPublishOptionsFor(CameraQuality quality) =>
+    lk.VideoPublishOptions(
+      videoEncoding: quality.params.encoding,
+      simulcast: true,
       degradationPreference: cameraDegradationPreference,
     );
 

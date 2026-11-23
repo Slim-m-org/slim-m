@@ -128,13 +128,15 @@ Every extension point that runs is, underneath, a call to one of the module's co
 The **request** the host writes is a JSON object:
 
 ```json
-{ "command": "roll", "input": "2d20+3", "caller": { "id": "9f2c...e1" }, "entropy": "4b0d...a7", "now_ms": 1760000000000 }
+{ "command": "roll", "input": "2d20+3", "caller": { "id": "9f2c...e1", "name": "Ada" }, "entropy": "4b0d...a7", "now_ms": 1760000000000 }
 ```
 
 - `command` is the name of a `command` extension point the module declared.
   Two names are reserved for the host: `@event` delivers a pushed event and `@slot` asks for slot content, both described in [reactive-modules.md](reactive-modules.md).
 - `input` is a string whose meaning is entirely the module's own - a code snippet, a dice notation, a JSON blob, whatever the command wants.
-- `caller.id` is an opaque, stable id for whoever ran the command, and it is the only thing the module is told about them.
+- `caller.id` is an opaque, stable id for whoever ran the command.
+- `caller.name` (add-on API 7, optional) is the name other members see for them in this space: their nickname here, else their display name, else their username.
+  It is a snapshot taken when the run started, it is not unique and it changes, so show it but never key on it; a host below level 7 never sends it, and it is left out when the account cannot be read.
 - `entropy` is 32 hex characters of fresh randomness, new for every run and unrelated to who ran it.
   A module has no random source, so mix it into your seed when a command should vary, such as a die roll.
 - `now_ms` is the host's wall clock when the run started: UTC, milliseconds since the Unix epoch.
@@ -146,8 +148,8 @@ The **request** the host writes is a JSON object:
 
 ### Who is calling
 
-A module is told who is asking by `caller.id` and nothing else.
-There is no display name, no user id, no channel, no space, no roles and no permissions in the request.
+A module is told who is asking by `caller.id`, and at add-on API 7 and up by `caller.name` as well.
+There is no user id, no space, no roles and no permissions in the request.
 The id is a lowercase hex string derived from the module and the user.
 It is the same for one person across runs of the same module, differs between people, and differs between modules for the same person.
 It is not a user id and cannot be turned back into one: it is keyed with a secret only the deployment holds, so it also differs between deployments.
@@ -155,6 +157,7 @@ It is not a user id and cannot be turned back into one: it is keyed with a secre
 Use it to dedupe against yourself, for example "one vote per person" in a poll.
 Do not treat it as authentication or as a way to act as the person.
 A module cannot post, read or spend anything on someone's behalf through it.
+To notify a person it has seen as a caller, write `{{mention:<caller id>}}` in a `message.post` (see [`message.post`](#messagepost)).
 A module that runs at all was already allowed to by its permission, so "does the caller hold the permission" is always yes and is not sent.
 
 The field is additive and the ABI stays v1.
@@ -578,6 +581,12 @@ For a moment that is not a redraw, answer with `"run_after": {"command": "phase_
 `"cancel": true` with the same command and key removes it.
 This needs `schedule` approved, and a module may have 32 timers waiting.
 A timer runs at most once: it is not retried when its run fails, when the server restarts during the run, or when the module is disabled at the time it comes due.
+A timer armed from a channel (add-on API 7) runs against that channel: `context.channel_id` is that channel, and `message.post` posts there, as the module's own principal, only where that principal may view and send, the same check an interactive run in the channel gets.
+Where it may not, the post is refused and nothing is posted anywhere else.
+If the channel was deleted by then the timer is dropped without running.
+A timer armed from a thread posts in that thread.
+A DM or group DM has no module principal among its participants, so a post there is refused.
+A timer armed with no channel, and the daily `schedules`, keep posting to the admin's schedule channel.
 
 ## Limits and the security model
 
@@ -677,6 +686,12 @@ Posts a message as the person who ran the module, into the channel they ran it f
 
 - The invoker needs view and send permission there, and slow mode and rate limits apply as for any send.
 - A run may attempt three posts, and the host marks the message with your module's installed name (`via_module`), which you can neither choose nor remove, and refuses text that hides characters (bidi overrides, zero-width marks).
+- `{{mention:<caller id>}}` in `content` (add-on API 7) is written as a real `@username` mention of the member that id stands for.
+  The id is the 64 hex characters of a `caller.id` this module was handed in an earlier run; the host can recognise only those, so a module cannot mention a member it has not been given.
+  A well-formed token that is not one of those ids, belongs to another module, names a member who cannot view the channel, or comes after the tenth in the message, is written as the plain words "a member": no name and no mention.
+  A malformed token (not exactly 64 hex characters between `{{mention:` and `}}`) stays literal text.
+  The usual rules then apply to the mention: `@everyone`, `@here` and roles are never reachable through a token, and Do Not Disturb, mutes and notification settings decide who is notified.
+  The host puts a space after the name when the next character would read as part of it.
 - Runs started from a code block (`code-block-runner`) get no `message.post`, because the input there is whoever wrote the message, not whoever clicked Run.
 - The text a slash command *returns* is posted the same way: the client asks the host to post it, and it carries the same host-written marker.
   A module cannot make its output pass for the member's own words, whether it posts with `message.post` or just prints.

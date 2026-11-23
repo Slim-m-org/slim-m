@@ -79,6 +79,43 @@ The screen overlay picks its monitor by aspect ratio, which scaling preserves.
 Windows and elinux compile the same common code, with the same CMake entries, but were not built here.
 macOS has its own ScreenCaptureKit capturer and is untouched.
 
+## The scaler, measured and replaced (2026-11-22)
+
+The limiter's scaler now keeps its taps per source and target size, scales rows first so the column pass runs once per output row, and halves 2:1 sides in a loop the compiler vectorizes (fork commit b11f1af, branch `b41/share-scaler`).
+libyuv's `I420Scale` was the first choice, but the prebuilt libwebrtc ships no libyuv headers and exports only its wrapper API, on Linux and on Windows, so it cannot be called from the fork.
+The first scaler stays in the fork's native tests as a reference, and every sample of the new one is within one level of it, at the same output sizes.
+
+`frame_fit_bench` (fork `test/native`, release build, median of 60 frames, one core of this box) gives these milliseconds per frame:
+
+| Screen | Target | First scaler | New scaler |
+| --- | --- | --- | --- |
+| 3840x2160 | 1920x1080 | 11.6 | 2.3 |
+| 3440x1440 | 1920x804 | 9.7 | 3.4 |
+| 2560x1600 | 2304x1440 | 13.2 | 4.9 |
+| 5120x1080 | 1920x406 | 7.3 | 2.4 |
+
+The copy into a libwebrtc frame after the scale costs under 0.1 ms on every row, so it stays; it is also what lets the limiter reuse its buffer while the frame is still in flight.
+
+The readback was run again for three builds of the same client: the share unscaled (limiter bypassed), the first scaler, and the new one.
+This time the screen was an Xvfb of the case's size in a container, not a nested KWin, so no KDE program ran on the dev box; the numbers are therefore lower than the KWin ones above and only compare with each other.
+Each cell is the top layer's fps from two interleaved runs per build (three for the new one), with the load average of the box between 7 and 12 out of 32 threads.
+
+| Screen | Tier | Unscaled | First scaler | New scaler |
+| --- | --- | --- | --- | --- |
+| 1920x1080 | 1080p30 | 27, 27 | 27, 27 | 27, 27, 26 |
+| 3840x2160 | 1080p30 | 16, 17 | 15, 14 | 16, 20, 15 |
+| 3440x1440 | 1080p30 | 24, 19 | 13, 17 | 21, 18, 19 |
+| 2560x1600 | 1440p30 | 25, 25 | 18, 15 | 22, 21, 21 |
+| 5120x1080 | 1080p30 | 21, 21 | 18, 17 | 20, 22, 21 |
+
+The new scaler brings the scaled share back to about the fps of the unscaled one, and the first scaler was costing 2 to 8 fps on the large screens.
+None of the cases reach 30 fps, and the unscaled path does not either, so the scaler was not what held them below it.
+The wrapper's capture loop runs the capture, the I420 conversion and every renderer on its thread, then waits a full 1000/fps ms before the next capture (`RTCDesktopCapturerImpl::CaptureFrame`, read from a local copy of the webrtc-sdk wrapper source).
+So the frame rate is 1000 / (33 + work) ms: about 5 ms of work gives the 27 fps of the 1080p screen, and a 4K capture with its conversion takes about 30 ms before any scaling.
+Reaching 30 fps needs that delay to subtract the time the capture took, which is in the prebuilt libwebrtc, or the fork asking the capturer for a higher rate and letting the video adapter drop back to 30; neither was tried here.
+
+Windows builds the same scaler but was not compiled here; it uses nothing beyond the C++17 standard library, and the Windows native tests run without failing the workflow until they have run green.
+
 ## Camera (C2)
 
 | Setting | Requested top / mid / low | Delivered top / mid / low |
@@ -96,4 +133,4 @@ That case is still open, and the Windows VM has no webcam to stand in for one ei
 - Read the per-rid `frameWidth` on a 720p-only webcam at the high camera setting.
 - Build the fork on Windows and elinux; only Linux was compiled and run here.
 - Read the Windows share back the same way, once the Windows VM can run the harness.
-- Find out why the 4K case settles at 20 fps on this box: read the fps of the unscaled path for the same cases, and try caching the scale's tap tables.
+- Get the large screens to 30 fps; the capture loop below is the next thing to change, not the scaler.

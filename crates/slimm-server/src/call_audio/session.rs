@@ -114,6 +114,8 @@ pub struct Subject {
     pub module_name: String,
     pub purpose: String,
     pub keeps: String,
+    /// The wake phrase a server transcript acts on, when the Space turned spoken marks on as it started.
+    pub listens_for: Option<String>,
 }
 
 #[derive(Debug, Clone)]

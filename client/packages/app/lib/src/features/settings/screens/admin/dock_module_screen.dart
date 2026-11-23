@@ -39,6 +39,8 @@ import '../../../../widgets/run_guarded.dart';
 import '../settings_screen_scaffold.dart';
 import 'dock_module_view.dart';
 import 'dock_host_access_card.dart';
+import 'dock_connector_consent.dart';
+import 'dock_host_run_ask.dart' show dockApproveAll;
 import 'dock_file_install.dart';
 import 'dock_install_access_sheet.dart';
 import 'dock_install_consent.dart';
@@ -62,6 +64,9 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
 
   /// Set by a first install, so the role switches open at once.
   bool _rolesOpen = false;
+
+  /// A connector's token from the answer that minted it, until dismissed.
+  String? _connectorToken;
 
   /// The switches the admin has flipped, or null to show what is installed.
   Set<String>? _hostApproved;
@@ -143,6 +148,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     api.DockManifest manifest, {
     bool wasInstalled = false,
   }) async {
+    if (manifest.isConnector) return _installConnector(manifest, wasInstalled);
     final current = ref
         .read(dockCatalogProvider)
         .valueOrNull
@@ -191,6 +197,72 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
       }
     });
     if (ok) await _afterInstall(manifest, wasInstalled);
+  }
+
+  /// A connector asks its own consent and is approved everything it asks for.
+  Future<void> _installConnector(
+    api.DockManifest manifest,
+    bool wasInstalled,
+  ) async {
+    final agreed = await showDockConnectorConsent(
+      context,
+      manifest: manifest,
+      verified: dockIsVerified(widget.source),
+      isUpdate: wasInstalled,
+    );
+    if (!agreed || !mounted) return;
+    setState(() => _busy = true);
+    String? token;
+    final ok = await guard(
+      whatFailed: wasInstalled
+          ? 'update ${manifest.name}'
+          : 'install ${manifest.name}',
+      action: () async => token =
+          (await ref
+                  .read(apiProvider)
+                  .installDockModule(
+                    moduleId: manifest.id,
+                    version: manifest.version,
+                    reviewedDigest: manifest.reviewDigest,
+                    source: widget.source,
+                    connector: api.ConnectorApproval(
+                      permissions: manifest.connectorPermissions,
+                      hostRun: dockApproveAll(manifest.hostRun),
+                    ),
+                  ))
+              .connectorToken,
+    );
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _connectorToken = token ?? _connectorToken;
+    });
+    if (ok) await _afterInstall(manifest, wasInstalled);
+  }
+
+  Future<void> _newConnectorToken(String name) async {
+    final confirmed = await confirmDangerousAction(
+      context,
+      title: 'Make a new token for $name?',
+      message:
+          'The old token stops working at once, so the connector is offline '
+          'until you give it the new one.',
+      confirmLabel: 'New token',
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _busy = true);
+    String? token;
+    await guard(
+      whatFailed: 'make a new token for $name',
+      action: () async => token = await ref
+          .read(apiProvider)
+          .reissueConnectorToken(widget.moduleId),
+    );
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _connectorToken = token ?? _connectorToken;
+    });
   }
 
   /// False when the admin declined or left the screen; true when no consent was due.
@@ -387,6 +459,10 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
           onScheduleChannel: _setScheduleChannel,
           onClearStorage: () => _clearStorage(m.name),
           rolesOpen: _rolesOpen,
+          connectorToken: _connectorToken,
+          serverUrl: ref.read(serverUrlProvider),
+          onDismissConnectorToken: () => setState(() => _connectorToken = null),
+          onNewConnectorToken: () => _newConnectorToken(m.name),
           onDiscardAccess: () => setState(() {
             _hostApproved = null;
             _localNetwork = null;

@@ -56,6 +56,14 @@ class _Notice implements TranscriptionNoticeActions {
   Future<bool> isDue() async => due;
 
   @override
+  Future<TranscriptionNotice?> dueNotice() async => due
+      ? const TranscriptionNotice(
+          mode: CallTranscriptionMode.always,
+          acknowledged: false,
+        )
+      : null;
+
+  @override
   Future<void> acknowledge() async {}
 }
 

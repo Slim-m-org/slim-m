@@ -62,6 +62,8 @@ services:
       # peer is trusted instead, which behind any proxy puts every
       # unauthenticated caller in one rate-limit bucket; deploy/README.md.
       SLIMM_TRUST_PROXY_HOPS: ${SLIMM_TRUST_PROXY_HOPS:-1}
+      # Blank means loopback and the private ranges: only those peers may set X-Forwarded-For.
+      SLIMM_TRUSTED_PROXIES: ${SLIMM_TRUSTED_PROXIES:-}
       # Empty means the key lives in /data/slimm-data.key; docs/OPERATING.md, The data key.
       SLIMM_DATA_KEY: ${SLIMM_DATA_KEY:-}
       SLIMM_MAX_TOTAL_ATTACHMENT_BYTES: ${SLIMM_MAX_TOTAL_ATTACHMENT_BYTES:-}

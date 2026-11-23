@@ -12,6 +12,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../screen_overlay/providers/call_overlay_toggle.dart';
 import '../../screen_overlay/providers/screen_overlay_controller.dart';
+import 'call_mark_actions.dart';
 import 'push_to_talk_gate.dart';
 import 'shortcut_overrides.dart';
 import 'voice_controller.dart';
@@ -118,6 +119,11 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
         AppAction.toggleDeafenCall,
         'Deafen or undeafen',
       ),
+      ?call(
+        GlobalHotkeyId.markCall,
+        AppAction.markCallMoment,
+        'Mark the moment',
+      ),
       if (_ref.read(screenOverlaySupportedProvider))
         ?call(
           GlobalHotkeyId.toggleCallOverlay,
@@ -182,6 +188,10 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
             HoldSource.global,
             _ref.read(toggleCallOverlayProvider),
           );
+        }
+      case GlobalHotkeyId.markCall:
+        if (event.phase == GlobalHotkeyPhase.pressed) {
+          unawaited(_ref.read(callMarkActionsProvider).mark());
         }
       case null:
         return;

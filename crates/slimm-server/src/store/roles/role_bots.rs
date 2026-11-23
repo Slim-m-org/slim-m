@@ -12,6 +12,51 @@ use super::super::Store;
 use super::Role;
 use super::role_reorder::{BOTTOM_POSITION, open_bottom_slot};
 
+/// Makes a bot's own role grant exactly `permissions`: created, changed, or removed at none.
+/// The role it holds now, and the audit line saying what changed.
+pub(in crate::store) async fn set_managed_role(
+    conn: &mut SqliteConnection,
+    bot_user_id: UserId,
+    name: &str,
+    permissions: Permissions,
+    now: i64,
+) -> sqlx::Result<(Option<RoleId>, String)> {
+    let existing = sqlx::query_scalar!(
+        r#"SELECT id AS "id!: RoleId" FROM roles WHERE managed_bot_id = ?"#,
+        bot_user_id
+    )
+    .fetch_optional(&mut *conn)
+    .await?;
+    let bits = permissions.bits();
+    Ok(match (existing, permissions == Permissions::NONE) {
+        (Some(role_id), false) => {
+            sqlx::query!(
+                "UPDATE roles SET permissions = ? WHERE id = ?",
+                bits,
+                role_id
+            )
+            .execute(&mut *conn)
+            .await?;
+            (
+                Some(role_id),
+                format!("role {role_id} permissions now {bits}"),
+            )
+        }
+        (Some(role_id), true) => {
+            delete_managed_role(conn, role_id).await?;
+            (None, format!("role {role_id} removed, permissions now 0"))
+        }
+        (None, false) => {
+            let role_id = insert_managed_role(conn, bot_user_id, name, permissions, now).await?;
+            (
+                Some(role_id),
+                format!("role {role_id} created with permissions {bits}"),
+            )
+        }
+        (None, true) => (None, "permissions still 0".to_owned()),
+    })
+}
+
 impl Store {
     /// The role minted for this bot, if it still has one.
     pub async fn role_for_bot(&self, bot_user_id: UserId) -> anyhow::Result<Option<Role>> {
@@ -128,11 +173,13 @@ pub(in crate::store) async fn delete_managed_role(
 }
 
 impl Store {
-    /// Whether this id is a live bot with a token record; a module's principal has none.
+    /// Whether this id is a live bot with a token record; a module principal has none and a
+    /// connector principal is managed from the Dock.
     pub async fn is_bot_account(&self, user_id: UserId) -> anyhow::Result<bool> {
         let row = sqlx::query_scalar!(
             r#"SELECT 1 AS "one!: i64" FROM users u
                WHERE u.id = ? AND u.is_bot = 1 AND u.deleted_at IS NULL
+                 AND u.connector_principal = 0
                  AND EXISTS (SELECT 1 FROM bot_tokens t WHERE t.bot_user_id = u.id)"#,
             user_id
         )

@@ -142,3 +142,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0131](0131-module-room-state.md) | Modules keep a small shared state per call or channel: inputs run one at a time, everyone who can see the room gets each state, memory only | accepted |
 | [0132](0132-dock-panels.md) | A module can keep a panel open beside the chat, from the Apps menu | accepted |
 | [0133](0133-module-call-scene.md) | A module fills a scene on the call's stage: the `room/1` answer carries a `scene/1` drawn from the state, kept and sent with it | accepted |
+| [0134](0134-connector-runtime-supervisor.md) | Host-run connectors go through a separate supervisor that owns the container runtime socket | accepted |

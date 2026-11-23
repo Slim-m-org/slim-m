@@ -210,6 +210,8 @@ enum CameraQuality {
 
   /// Bitrates sit where a talking-head camera stops looking better, above
   /// LiveKit's presets (1.7M at 720p, 3M at 1080p), which smear on movement.
+  /// Capture params only size the capture: `cameraPublishOptionsFor` carries
+  /// the encoding to the encoder.
   const CameraQuality(this.params);
 
   final lk.VideoParameters params;

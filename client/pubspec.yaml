@@ -12,7 +12,7 @@ dependency_overrides:
   flutter_webrtc:
     git:
       url: https://github.com/Slim-m-org/flutter-webrtc.git
-      ref: fe8f89a3ad5097f1fa0f306ca7324b390305d593
+      ref: 0c22772cebde200a9be2e43042dabf79e1375285
 workspace:
   - packages/api
   - packages/slimm_test_support
