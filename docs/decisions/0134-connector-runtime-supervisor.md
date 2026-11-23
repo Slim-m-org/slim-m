@@ -276,3 +276,4 @@ A review of the built supervisor and server found the following, and each is now
 - A connector's token is held to a route table before any handler runs, because many routes check no permission bit; a disabled connector reaches only `GET /connectors/me`.
 - Posted command output reaches `@everyone` only when both the member who ran it and the module's principal hold `mention_everyone`.
 - Gateways and the volume helper run the supervisor's own image by its content id, and the bare-metal unit gains a system call filter.
+- The supervisor image is built natively per architecture, merged by digest and cosign-signed with the server's images under the same tags, release-please bumps the supervisor crate with the server, and the compose overlay needs `SLIMM_VERSION` instead of following `latest`.

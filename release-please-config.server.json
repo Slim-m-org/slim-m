@@ -27,6 +27,16 @@
         {
           "type": "generic",
           "path": "schema/openapi.yaml"
+        },
+        {
+          "type": "toml",
+          "path": "crates/slimm-supervisor/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "Cargo.lock",
+          "jsonpath": "$.package[?(@.name.value==='slimm-supervisor')].version"
         }
       ]
     }

@@ -19,7 +19,8 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    image: ghcr.io/slim-m-org/slim-m-supervisor:${SLIMM_VERSION:-latest}
+    # A release tag, never latest: the supervisor pins its own image by content id at start, and the tag decides which.
+    image: ghcr.io/slim-m-org/slim-m-supervisor:${SLIMM_VERSION:?set SLIMM_VERSION in .env to the release you run, for example 0.117.0}
     restart: unless-stopped
     # Root for the runtime socket, the server's group (65532) for its own socket.
     user: "0:65532"
@@ -29,7 +30,7 @@ services:
       SLIMM_SUPERVISOR_SOCKET: /run/slimm-supervisor/supervisor.sock
       SLIMM_SUPERVISOR_SERVER_UID: "65532"
       SLIMM_RUNTIME_SOCKET: /run/runtime.sock
-      SLIMM_SUPERVISOR_IMAGE: ghcr.io/slim-m-org/slim-m-supervisor:${SLIMM_VERSION:-latest}
+      SLIMM_SUPERVISOR_IMAGE: ghcr.io/slim-m-org/slim-m-supervisor:${SLIMM_VERSION:?set SLIMM_VERSION in .env to the release you run, for example 0.117.0}
       SLIMM_SUPERVISOR_SERVER_URL: http://server:8080
       SLIMM_SUPERVISOR_EGRESS_NETWORK: slimm_connectors_egress
       SLIMM_SUPERVISOR_STATE_DIR: /var/lib/slimm-supervisor

@@ -45,7 +45,8 @@ The supervisor fixes every security setting itself; the server can choose only t
 ## Turning it on with docker compose
 
 1. Generate a secret with `openssl rand -hex 32` and put it in `.env` as `SLIMM_SUPERVISOR_SECRET`.
-2. Add the overlay: `COMPOSE_FILE=docker-compose.yml:docker-compose.connectors.yml`.
+2. Add the overlay: `COMPOSE_FILE=docker-compose.yml:docker-compose.connectors.yml`, and set `SLIMM_VERSION` to the release you run.
+   The overlay refuses to start without it: the supervisor image `ghcr.io/slim-m-org/slim-m-supervisor` is published and cosign-signed with the server's images under the same tags, and the overlay never follows `latest`.
 3. If the runtime's socket is not `/var/run/docker.sock`, set `SLIMM_RUNTIME_SOCKET` to it (for example `$XDG_RUNTIME_DIR/podman/podman.sock`).
 4. If admins may grant connectors the Private network, put the docker host's own LAN addresses in `SLIMM_SUPERVISOR_LAN_DENY` (comma separated IPs or CIDRs).
    The supervisor has no network of its own, so it cannot see the host's addresses; every docker network it can see is denied already.

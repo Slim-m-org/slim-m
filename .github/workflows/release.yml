@@ -154,6 +154,8 @@ jobs:
           name: server-image-digest-${{ matrix.arch }}
           path: /tmp/digests/${{ matrix.arch }}
           if-no-files-found: error
+      - uses: ./.github/actions/release-supervisor-image
+        with: {mode: build, arch: "${{ matrix.arch }}"}
 
   # Assembles the per-arch digests into one multi-arch manifest tag and
   # cosign-signs it keylessly over OIDC. Reviewer-gated.
@@ -217,6 +219,8 @@ jobs:
       # tag that resolves to it.
       - name: cosign sign (keyless)
         run: cosign sign --yes "${IMAGE}@${{ steps.manifest.outputs.digest }}"
+      - uses: ./.github/actions/release-supervisor-image
+        with: {mode: merge, tags: "${{ needs.release-please.outputs.server_version }}\nsha-${{ needs.release-please.outputs.server_ref }}\n${{ steps.latest.outputs.move == 'true' && 'latest' || '' }}"}
 
   # The web bundle under the server's version, so SLIMM_VERSION pins both images (decision 0025); never moves latest.
   web-image:

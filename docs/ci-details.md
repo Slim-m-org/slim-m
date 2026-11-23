@@ -884,6 +884,8 @@ Every image job (here, `main-builds`' `server-image` and `web-image`) names its 
 `scripts/decide-latest-tag.sh` reads the owner back out of the image and lists its tags under `orgs/` first, then `users/`.
 
 `server-image-merge` assembles the per-arch digests into one multi-arch manifest tag and cosign-signs it keylessly over OIDC.
+Both jobs also run `.github/actions/release-supervisor-image`, which does the same for `ghcr.io/<owner>/slim-m-supervisor` from `docker/supervisor.Dockerfile` (decision 0134), so the supervisor gets the server image's tags, `latest` included only when the server's moved, and refuses a manifest with fewer than both arch digests.
+`main-builds`' `server-image` runs it in `push` mode, an amd64 image with the server image's `sha-`, `main` and `latest` tags.
 It signs the manifest-list digest, which covers both arch images and every tag that resolves to it.
 
 It also requires that *every* arch actually built, and that requirement has to be written out.
