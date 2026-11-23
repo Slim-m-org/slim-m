@@ -1,0 +1,33 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT u.is_webhook AS \"is_webhook!: i64\",\n                      CASE WHEN u.connector_principal = 1\n                      THEN COALESCE((SELECT CASE WHEN m.enabled = 1 THEN COALESCE(m.connector_permissions, 0) ELSE 0 END\n                                     FROM installed_modules m\n                                     WHERE m.bot_user_id = u.id AND m.provider = 'connector'), 0)\n                      ELSE (SELECT CASE WHEN m.enabled = 1 THEN COALESCE(m.connector_permissions, 0) ELSE 0 END\n                            FROM installed_modules m\n                            WHERE m.bot_user_id = u.id AND m.provider = 'connector') END\n                      AS \"cap: Permissions\"\n               FROM users u WHERE u.id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "is_webhook!: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "is_webhook"
+          }
+        }
+      },
+      {
+        "name": "cap: Permissions",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "74d7bcd3747ba1f5d47c0d47237d5bd2e8415ed0d7750f4682491003ceabcf23"
+}

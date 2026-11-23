@@ -130,7 +130,7 @@ async fn caller_granted(state: &AppState, user_id: UserId) -> Result<Permissions
 
 /// A bot is only manageable by someone who already holds every bit its roles grant and who
 /// outranks it on the role ladder, since its token acts with all of it. Module principals
-/// have no token record, so they are not bots to manage.
+/// have no token record and a connector's is managed from the Dock, so neither is a bot here.
 async fn guard_over_bot(
     state: &AppState,
     caller: UserId,

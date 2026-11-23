@@ -76,6 +76,12 @@ impl Store {
             }
         };
         sqlx::query!(
+            "UPDATE users SET connector_principal = 1 WHERE id = ?",
+            principal
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
             "UPDATE users SET display_name = ? WHERE id = ?",
             req.name,
             principal

@@ -350,9 +350,14 @@ impl Store {
         // Checked first; see this function's own doc comment.
         let principal = sqlx::query!(
             r#"SELECT u.is_webhook AS "is_webhook!: i64",
-                      (SELECT CASE WHEN m.enabled = 1 THEN COALESCE(m.connector_permissions, 0) ELSE 0 END
-                       FROM installed_modules m
-                       WHERE m.bot_user_id = u.id AND m.provider = 'connector') AS "cap: Permissions"
+                      CASE WHEN u.connector_principal = 1
+                      THEN COALESCE((SELECT CASE WHEN m.enabled = 1 THEN COALESCE(m.connector_permissions, 0) ELSE 0 END
+                                     FROM installed_modules m
+                                     WHERE m.bot_user_id = u.id AND m.provider = 'connector'), 0)
+                      ELSE (SELECT CASE WHEN m.enabled = 1 THEN COALESCE(m.connector_permissions, 0) ELSE 0 END
+                            FROM installed_modules m
+                            WHERE m.bot_user_id = u.id AND m.provider = 'connector') END
+                      AS "cap: Permissions"
                FROM users u WHERE u.id = ?"#,
             user_id
         )

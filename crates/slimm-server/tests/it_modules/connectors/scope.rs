@@ -229,3 +229,34 @@ async fn a_disabled_connector_holds_nothing() {
     w.set_enabled(true).await;
     assert!(w.post(&token, &general).await.is_success());
 }
+
+/// L3: the plain module uninstall never removes a connector's row, and a principal whose
+/// row is gone anyway (a race, a hand edit) holds nothing rather than everything.
+#[tokio::test]
+async fn a_principal_without_its_module_row_holds_nothing() {
+    let w = world("slimm-conn-orphan", &["view_channel", "send_messages"]).await;
+    let token = w.installed(SEND).await;
+    grant_everything_later(&w).await;
+    assert!(
+        !w.store.uninstall_module(ID).await.unwrap(),
+        "the wasm uninstall path left the connector alone"
+    );
+    assert!(w.store.installed_module(ID).await.unwrap().is_some());
+    sqlx::query("DELETE FROM installed_modules WHERE id = ?")
+        .bind(ID)
+        .execute(&w.pool)
+        .await
+        .unwrap();
+    assert_eq!(create_channel(&w, &token).await, StatusCode::FORBIDDEN);
+    let general = w.general().await;
+    let body = json!({"id": Uuid::now_v7().to_string(), "content": "still here"});
+    let (status, _) = w
+        .as_token(
+            &token,
+            "POST",
+            &format!("/channels/{general}/messages"),
+            Some(body),
+        )
+        .await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "no bit survives the row");
+}

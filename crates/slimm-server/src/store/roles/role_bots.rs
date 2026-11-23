@@ -173,11 +173,13 @@ pub(in crate::store) async fn delete_managed_role(
 }
 
 impl Store {
-    /// Whether this id is a live bot with a token record; a module's principal has none.
+    /// Whether this id is a live bot with a token record; a module principal has none and a
+    /// connector principal is managed from the Dock.
     pub async fn is_bot_account(&self, user_id: UserId) -> anyhow::Result<bool> {
         let row = sqlx::query_scalar!(
             r#"SELECT 1 AS "one!: i64" FROM users u
                WHERE u.id = ? AND u.is_bot = 1 AND u.deleted_at IS NULL
+                 AND u.connector_principal = 0
                  AND EXISTS (SELECT 1 FROM bot_tokens t WHERE t.bot_user_id = u.id)"#,
             user_id
         )

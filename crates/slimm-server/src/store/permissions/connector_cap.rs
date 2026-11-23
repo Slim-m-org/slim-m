@@ -11,10 +11,13 @@ use super::super::Store;
 use crate::ids::UserId;
 use crate::permissions::Permissions;
 
-/// The ceiling column for a principal, in a query that has `u` as `users`.
-pub(in crate::store) const CAP_COLUMN: &str = "(SELECT CASE WHEN m.enabled = 1 \
-     THEN COALESCE(m.connector_permissions, 0) ELSE 0 END \
-     FROM installed_modules m WHERE m.bot_user_id = u.id AND m.provider = 'connector')";
+/// The ceiling column for a principal, in a query that has `u` as `users`: a connector's
+/// principal whose module row is gone holds nothing, never every bit its roles grant.
+pub(in crate::store) const CAP_COLUMN: &str = "(CASE WHEN u.connector_principal = 1 \
+     THEN COALESCE((SELECT CASE WHEN m.enabled = 1 THEN COALESCE(m.connector_permissions, 0) ELSE 0 END \
+     FROM installed_modules m WHERE m.bot_user_id = u.id AND m.provider = 'connector'), 0) \
+     ELSE (SELECT CASE WHEN m.enabled = 1 THEN COALESCE(m.connector_permissions, 0) ELSE 0 END \
+     FROM installed_modules m WHERE m.bot_user_id = u.id AND m.provider = 'connector') END)";
 
 /// The ceiling a stored value stands for: none for an ordinary principal.
 /// An approved ADMINISTRATOR is every bit, as the evaluator reads it.
@@ -43,14 +46,20 @@ impl Store {
         user_id: UserId,
     ) -> anyhow::Result<Permissions> {
         let stored = sqlx::query_scalar!(
-            r#"SELECT CASE WHEN m.enabled = 1 THEN COALESCE(m.connector_permissions, 0) ELSE 0 END
-                      AS "cap!: Permissions"
-               FROM installed_modules m
-               WHERE m.bot_user_id = ? AND m.provider = 'connector'"#,
+            r#"SELECT CASE WHEN u.connector_principal = 1
+                      THEN COALESCE((SELECT CASE WHEN m.enabled = 1 THEN COALESCE(m.connector_permissions, 0) ELSE 0 END
+                                     FROM installed_modules m
+                                     WHERE m.bot_user_id = u.id AND m.provider = 'connector'), 0)
+                      ELSE (SELECT CASE WHEN m.enabled = 1 THEN COALESCE(m.connector_permissions, 0) ELSE 0 END
+                            FROM installed_modules m
+                            WHERE m.bot_user_id = u.id AND m.provider = 'connector') END
+                      AS "cap: Permissions"
+               FROM users u WHERE u.id = ?"#,
             user_id
         )
         .fetch_optional(&self.pool)
-        .await?;
+        .await?
+        .flatten();
         Ok(effective(stored))
     }
 }
