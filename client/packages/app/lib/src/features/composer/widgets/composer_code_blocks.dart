@@ -191,6 +191,7 @@ class _OfferBand extends StatelessWidget {
                     ? 'That looks like code.'
                     : 'That looks like $language.',
                 style: AppText.caption.copyWith(color: tokens.textSecondary),
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
