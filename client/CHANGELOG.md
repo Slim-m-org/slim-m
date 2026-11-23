@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.135.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.134.0...client-v0.135.0) (2026-11-23)
+
+
+### Features
+
+* **client:** pop out a screen share or camera on Windows, always on top ([#2472](https://github.com/Slim-m-org/slim-m/issues/2472)) ([3abb28e](https://github.com/Slim-m-org/slim-m/commit/3abb28e51c9f5885733f8ddefc7be42a9dfb168f))
+* connectors, live captions and marks, phone and web noise suppression, call stats ([#2469](https://github.com/Slim-m-org/slim-m/issues/2469)) ([4277658](https://github.com/Slim-m-org/slim-m/commit/42776581f2f3aaa97d3bc482a5a3d789a4c6d17e))
+
 ## [0.134.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.133.2...client-v0.134.0) (2026-11-22)
 
 
