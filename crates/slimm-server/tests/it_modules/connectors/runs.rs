@@ -240,3 +240,83 @@ async fn an_answer_past_the_size_cap_is_refused() {
     let ((_, ran), ()) = tokio::join!(l.run(json!({"input": ""})), connector);
     assert_eq!(ran, json!({"ok": true, "output": "small"}));
 }
+
+/// Item 6 of the 2026-11-23 review: a connector's posted output reaches `@everyone` only when
+/// the member who ran the command could have written it too, so a member cannot borrow the
+/// connector's approval, nor the connector the member's.
+#[tokio::test]
+async fn posted_output_pings_everyone_only_when_member_and_connector_both_may() {
+    use slimm_server::ids::MessageId;
+    use slimm_server::permissions::Permissions;
+    let mention = Permissions::MENTION_EVERYONE.bits();
+    let mut doc = super::runs_world::with_surfaces();
+    doc["connector"]["permissions"] = json!(["view_channel", "send_messages", "mention_everyone"]);
+    let w = super::harness::world("slimm-conn-mention", &[]).await;
+    *w.served.lock().unwrap() = doc;
+    let token = w.installed(SEND | mention).await;
+    sqlx::query("UPDATE roles SET permissions = permissions & ~? WHERE is_everyone = 1")
+        .bind(mention)
+        .execute(&w.pool)
+        .await
+        .unwrap();
+    let member = support::app::register_account(&w.store, "member").await;
+    let bystander = support::app::register_account(&w.store, "bystander").await;
+    let role = w
+        .store
+        .create_role("players", Permissions::NONE, false)
+        .await
+        .unwrap();
+    w.store.assign_role(member.id, role).await.unwrap();
+    w.store
+        .grant_module_permission(role, ID, "use")
+        .await
+        .unwrap();
+    let addr = support::ws::serve(w.state.clone()).await;
+    let l = Live {
+        w,
+        addr,
+        token,
+        member,
+    };
+    let general = l.w.general().await;
+    let body = json!({"input": "", "channel_id": general, "post_output": true});
+    let ((_, ran), _) = run_answered(
+        &l,
+        body.clone(),
+        json!({"ok": true, "output": "@everyone look"}),
+    )
+    .await;
+    let id = MessageId(ran["message_id"].as_str().unwrap().parse().unwrap());
+    let pinged = l.w.store.mentioned_user_ids(id).await.unwrap();
+    assert!(
+        !pinged.contains(&bystander.id),
+        "the member lacks MENTION_EVERYONE: {pinged:?}"
+    );
+    let mut ws = l.connect().await;
+    let owner_run = async {
+        support::app::call(
+            &l.w.router,
+            "POST",
+            &format!("/modules/{ID}/commands/servers"),
+            Some(&l.w.owner.token),
+            Some(body),
+        )
+        .await
+    };
+    let connector = async {
+        let frame = next_run(&mut ws)
+            .await
+            .expect("the run reaches the connector");
+        let run_id = frame["run_id"].as_str().unwrap().to_owned();
+        l.answer(
+            &l.token,
+            &run_id,
+            json!({"ok": true, "output": "@everyone look"}),
+        )
+        .await
+    };
+    let ((_, ran), _) = tokio::join!(owner_run, connector);
+    let id = MessageId(ran["message_id"].as_str().unwrap().parse().unwrap());
+    let pinged = l.w.store.mentioned_user_ids(id).await.unwrap();
+    assert!(pinged.contains(&bystander.id), "both hold it: {pinged:?}");
+}
