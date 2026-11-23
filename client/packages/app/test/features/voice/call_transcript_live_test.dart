@@ -197,4 +197,38 @@ void main() {
     expect(rig.seqs, [1, 2]);
     expect(rig.reads, [null]);
   });
+
+  test('a change that lands during a read reads again after it', () async {
+    final rig = await _open([1, 2]);
+    rig.gate = Completer<void>();
+    const changed = api.CallTranscriptChanged(
+      channelId: 'voice-1',
+      transcriptId: 't1',
+      ended: false,
+    );
+    rig.events.add(changed);
+    await pumpEventQueue();
+    rig.store([3]);
+    rig.events.add(changed);
+    rig.gate!.complete();
+    rig.gate = null;
+    await pumpEventQueue();
+
+    expect(rig.reads, [null, 2, 3]);
+    expect(rig.seqs, [1, 2, 3]);
+  });
+
+  test('a gap the route never fills is skipped after one read', () async {
+    final rig = await _open([1, 2]);
+
+    rig.push(_line(4));
+    await pumpEventQueue();
+    expect(rig.reads, [null, 2]);
+    expect(rig.seqs, [1, 2, 4]);
+
+    rig.push(_line(5));
+    await pumpEventQueue();
+    expect(rig.reads, [null, 2]);
+    expect(rig.seqs, [1, 2, 4, 5]);
+  });
 }

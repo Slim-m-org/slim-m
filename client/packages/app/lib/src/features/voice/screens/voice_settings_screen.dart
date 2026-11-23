@@ -205,6 +205,17 @@ class _SpeakerSection extends ConsumerWidget {
             onChanged: (v) =>
                 ref.read(soundboardVolumeProvider.notifier).setVolume(v / 100),
           ),
+        SettingsToggleRow(
+          label: 'Show captions',
+          description: 'Shows what is said in calls that are transcribed.',
+          value: ref.watch(
+            voiceSettingsControllerProvider.select((s) => s.showCaptions),
+          ),
+          semanticLabel: 'Show captions in transcribed calls',
+          onChanged: ref
+              .read(voiceSettingsControllerProvider.notifier)
+              .setShowCaptions,
+        ),
       ],
     );
   }

@@ -24,6 +24,7 @@ import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/call_roster_gap.dart';
 import 'call_audio_banner.dart';
+import 'call_captions_strip.dart';
 import 'call_gap_banner.dart';
 import 'call_header_facts.dart';
 import 'call_stage_fit_view.dart';
@@ -167,6 +168,9 @@ class CallStageLayout extends ConsumerWidget {
               menuItemsBuilder: menuItemsBuilder,
             ),
           ),
+          // Under the stage and above the dock's clearance, so captions never cover a tile or a share.
+          if (!isDm && channelId != null)
+            CallCaptionsStrip(channelId: channelId),
         ],
       ),
     );
