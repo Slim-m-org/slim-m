@@ -14,12 +14,19 @@ const _installer = 'api/lib/src/windows_roots_io.dart';
 
 void main() {
   test('main installs root fetching before anything can connect', () {
-    final main = codeOnly(File('lib/main.dart').readAsStringSync());
-    final install = main.indexOf('installWindowsRootFetching()');
+    final startup = codeOnly(
+      File('lib/src/desktop/platform_startup.dart').readAsStringSync(),
+    );
+    final install = startup.indexOf('installWindowsRootFetching()');
     expect(install, isNonNegative);
-    for (final later in ['countLaunch(', 'runApp(', 'DesktopWindowShell(']) {
-      expect(main.indexOf(later), greaterThan(install), reason: later);
+    for (final later in ['countLaunch(', 'DesktopWindowShell(']) {
+      expect(startup.indexOf(later), greaterThan(install), reason: later);
     }
+    final main = codeOnly(File('lib/main.dart').readAsStringSync());
+    expect(
+      main.indexOf('runApp('),
+      greaterThan(main.indexOf('startPlatform(')),
+    );
   });
 
   test('nothing else replaces HttpOverrides.global', () {
