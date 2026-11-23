@@ -54,6 +54,7 @@ StageFit fitStage({
   required List<StageItem> content,
   required int people,
 }) {
+  content = stageLayoutItems(content, box.width, box.height);
   final full = Offset.zero & box;
   final boxArea = box.width * box.height;
   if (box.width <= 0 || box.height <= 0 || (content.isEmpty && people == 0)) {

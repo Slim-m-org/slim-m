@@ -69,7 +69,7 @@ class CallAudioBanner extends ConsumerWidget {
       key: stopKey,
       label: 'Stop',
       size: AppButtonSize.sm,
-      variant: AppButtonVariant.ghost,
+      variant: AppButtonVariant.secondary,
       onPressed: controller.stop,
     );
     if (!session.isOn) {

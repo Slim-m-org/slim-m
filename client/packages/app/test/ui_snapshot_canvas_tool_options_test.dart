@@ -48,7 +48,10 @@ Future<void> _capture(
     ),
   );
   await tester.pump(const Duration(milliseconds: 350));
-  await tester.tap(find.byIcon(AppIcons.chevronDown));
+  final caret = tool == CanvasTool.shape ? 'Shape options' : 'Pen options';
+  await tester.ensureVisible(find.bySemanticsLabel(caret));
+  await tester.pump(const Duration(milliseconds: 350));
+  await tester.tap(find.bySemanticsLabel(caret));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 350));
   await tester.pump(const Duration(milliseconds: 350));
