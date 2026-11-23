@@ -180,6 +180,7 @@ class _Entry extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadii.card),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // The accent's soft tint is where it does most of its work
                 // (decision 0004); a bare glyph on the surface read as an icon
@@ -217,16 +218,22 @@ class _Entry extends StatelessWidget {
                           description,
                           style: (mono ? AppText.code : AppText.caption)
                               .copyWith(color: tokens.textSecondary),
+                          // A host breaks only at its end, never mid-word.
+                          softWrap: !mono,
+                          overflow: mono ? TextOverflow.ellipsis : null,
                         ),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.s8),
-                Icon(
-                  AppIcons.chevronRight,
-                  size: AppSizes.icon16,
-                  color: tokens.textSecondary,
+                SizedBox(
+                  height: 40,
+                  child: Icon(
+                    AppIcons.chevronRight,
+                    size: AppSizes.icon16,
+                    color: tokens.textSecondary,
+                  ),
                 ),
               ],
             ),
