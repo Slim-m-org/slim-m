@@ -66,6 +66,7 @@ import e2e_camera_quality
 import e2e_share_quality
 import e2e_share_ramp
 import e2e_voice_noise
+import e2e_voice_noise_chain
 import e2e_call_restore
 import e2e_voice_activity
 import e2e_voice_desktop
@@ -380,6 +381,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
              a, b, room_id)),
         ("voice: noise suppression quiets the noise floor and keeps the voice",
          lambda: e2e_voice_noise.suppression_quiets_the_noise_floor(
+             a, server, secret, admin, sign_in, room_id)),
+        ("voice: Strong and the input gate run in the browser",
+         lambda: e2e_voice_noise_chain.strong_and_the_gate_run_in_the_browser(
              a, server, secret, admin, sign_in, room_id)),
         ("voice: the speaking ring lights for a soft voice you can hear",
          lambda: e2e_voice_activity.ring_follows_a_soft_voice(

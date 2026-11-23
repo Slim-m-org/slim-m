@@ -8,8 +8,9 @@ And nothing stopped quiet sound from being sent: echo cancellation, noise suppre
 
 ## What runs where
 
-The gate lives in slim-m's flutter-webrtc fork, in `common/cpp/src/flutter_input_gate.cc`, so it covers Linux and Windows.
+The gate lives in slim-m's flutter-webrtc fork, in `common/cpp/src/flutter_input_gate.cc`, as one stage of the capture chain.
 libwebrtc's audio processing module accepts one capture post-processing step, which runs on every 10 ms frame after AEC, NS and AGC.
+The same chain runs on Linux, Windows, Android, iPhone and in a browser; see "Phones and the browser" below for how it gets there on each.
 The gate measures each frame's RMS level in dBFS and, when the frame is below the threshold and has been for longer than a 300 ms hold, replaces it with silence through a 60 ms fade.
 Opening takes a 5 ms fade.
 The audio leaves the gate two frames (20 ms) behind the decision, so the gate is already open when the frame that opened it comes out and a soft start of a word is kept: a synthetic fricative at -45 dBFS leading into a vowel keeps about 83% of its last 20 ms, against none without the delay.
@@ -29,7 +30,7 @@ While it reads at the display rate the local speaking ring follows that voice st
 
 On a host with the gate, Voice settings shows the microphone meter with the threshold as its draggable line ("Input sensitivity", stored as `slimm.voice.input_threshold_db`, default -50 dBFS).
 Push-to-talk turns the silencing off, since the key already decides when you are heard; the meter and ring keep working.
-Elsewhere (web, macOS, iOS, Android) the old indicator-only slider stays until those platforms get a gate of their own.
+macOS, and a browser without AudioWorklet or WebAssembly, keep the old indicator-only slider.
 
 ## Measuring it
 
@@ -105,6 +106,38 @@ Voice settings offers Strongest as a fourth choice, only where the host can run 
 A saved Strongest on a host that cannot run it is Strong.
 The picker is a select row (a sheet on a phone), because four choices wrap in a segmented row at 390 px wide.
 
+## Phones and the browser
+
+Since 2026-11-22 the capture chain (Strong, the gate, the dynamics and the leveler) runs on Android, iPhone and in a browser as well, from the same `common/cpp` sources, so every choice in Voice settings means the same thing everywhere.
+Strongest and the raw mic sample stay on Linux and Windows: DeepFilterNet needs a Rust cross build per phone ABI, 48 MB and about 2% of a desktop core, and the picker only offers it where it runs.
+The fork exposes the chain through a small C interface (`flutter_capture_chain_api.h`) that each host calls; desktop keeps calling the stages directly.
+
+| Host | Where the chain runs | Notes |
+|---|---|---|
+| Android | libwebrtc's capture post-processing hook (`ExternalAudioProcessingFactory` in the webrtc-sdk build the fork pins), through `CaptureChainProcessing` and a JNI library | The hook hands over libwebrtc's own first-channel buffer, so the chain edits what is sent without a copy. |
+| iPhone | `RTCDefaultAudioProcessingModule`'s `capturePostProcessingDelegate`, through `CaptureChainProcessing` | The same hook LiveKit's own noise filter uses; built in CI only. |
+| Browser | An AudioWorklet running `capture_chain.wasm` between the microphone and the track LiveKit publishes | Needs AudioWorklet and WebAssembly (any current browser in a secure context); otherwise the old indicator-only slider. |
+
+Android's APM processes at 32 kHz at most, and the emulator's microphone delivers 16 kHz, so the chain runs on resampled frames there exactly as it does for a Bluetooth headset on desktop.
+`logcat -s CaptureChain` prints a line when a capture starts, when the stages change and on the first frame after either, with whether rnnoise ran.
+
+In the browser the worklet gets the microphone in 128-sample blocks and hands the chain 10 ms frames, which adds 448 samples (9.3 ms at 48 kHz) of framing on top of the gate's 20 ms lookahead.
+`LocalTrack.restartTrack` in livekit_client 2.13.1 gives the sender the raw capture before it sets the processor again, so the processor puts its own output back on the sender after every restart.
+Releasing a muted microphone stops the worklet's output track too, and with nothing attached the audio context is suspended.
+The wasm is built in the fork (`web_capture_chain/build.sh`, Emscripten in a Docker image pinned by digest) and committed there; fork CI rebuilds it and fails if the committed file differs.
+`tool/fetch_web_assets.sh` copies it and the worklet from the pinned fork into `web/` before a web build.
+
+Measured on 2026-11-22:
+
+| What | Result |
+|---|---|
+| Browser, Standard against Strong, e2e speech-over-fan WAV at the listener (`e2e_voice_noise_chain.py`) | noise floor -49.8 dB against -76.1 dB (26.3 dB more removed), speech -16.3 dB against -15.8 dB |
+| Browser, Strong with the gate at -50 dB | floor -112.6 dB between phrases, speech within 0.1 dB of ungated |
+| Browser CPU, the worklet in V8 (node, same engine), 20 s of 48 kHz audio | 0.27% of one core without Strong, 1.16% with it (Ryzen 9 9950X3D); the plain C build of rnnoise took 3%, rnnoise's x86 vector path lowered to wasm SIMD brings it down |
+| Android emulator (API 35, x86_64) | the library loads, the chain initializes at 16 kHz on the mic test, and rnnoise reports running once Strong is chosen; the meter reads the chain's level ("Below the line, not sent") |
+
+Not measured: CPU on a real phone (the emulator runs a debug build on a desktop core, so its numbers say nothing), and anything on an iPhone.
+
 ## Automatic sensitivity
 
 Owner, 2026-10-14: "option to automatically determine input sensitivity".
@@ -158,7 +191,7 @@ Remote rings also ignore the listener's own Voice activity sensitivity; that sli
 Owner, 2026-10-18: the setup step and Voice settings said "Join a voice channel to see your level here", and a Reset microphone row asked the user to repair a mic by hand.
 libwebrtc only runs its audio processing (and so the gate and its meter) while a track is being sent, so a plain `getUserMedia` track has no level to read.
 `LoopbackMicSource` in `slimm_rtc` therefore sends the track to a second peer connection in the same process and mutes what arrives, so nothing plays.
-On Linux and Windows the level is `getInputGate`, the same post-suppression reading a call shows; elsewhere it is the sender's `media-source` `audioLevel`, which is not gated or run through rnnoise.
+Wherever the capture chain runs the level is `getInputGate`, the same post-suppression reading a call shows (a browser sends the preview through the worklet for it); on macOS it is the sender's `media-source` `audioLevel`, which is not gated or run through rnnoise.
 `MicPreviewController` opens it while a screen holds it (`MicPreviewHold`, which lets go when a route covers the screen), a call is not connecting or connected, and the app is focused, and closes it the moment any of those stops.
 Changing the microphone picker restarts the preview on the new device.
 This path has been unit and widget tested against fakes; it has not been run on real hardware.
@@ -170,6 +203,7 @@ A lost track, an unplugged chosen microphone, a new system default (when the cap
 Silence is never evidence of a dead microphone: a gated or virtual source sends exact zeros whenever its owner says nothing, so the level restarts nothing and switches nothing.
 The only sign of life is the capture counter (`totalSamplesDuration` of the media source), read every 1.5 s on any host that reports it.
 A host that reports none gets no automatic restart for a stall, rather than a wrong one from the level.
+In a browser the sender's track is the capture chain's worklet output, whose counter keeps moving while the audio context runs, so a stalled browser microphone is not caught by this check; an ended one still is.
 When the level reads the floor for 2 minutes while the counter advances, one log line says so and nothing else happens.
 Only when recovery gives up does the mic button say "Microphone unavailable, tap to retry", through the existing inline call surface; the mic menu lists the other devices, and nothing switches by itself.
 The fallback to another device (`MicFallback`, on by default) runs only when recovery cannot reopen the mic and the chosen device is gone from the device list.
@@ -220,7 +254,7 @@ Verified against the code on 2026-10-27.
 | Setting | Applies | Notes |
 | --- | --- | --- |
 | Microphone, speaker device | Live | Web has no speaker picker. |
-| Noise suppression (Space default, Standard, Strong) | Live | Needs the native gate (Linux and Windows desktop). A native gate flag, no restart, and libwebrtc's suppression is on either way. The Space default is reread every minute. |
+| Noise suppression (Space default, Standard, Strong) | Live | Needs the capture chain (everywhere but macOS). A chain flag, no restart, and libwebrtc's suppression is on either way. The Space default is reread every minute. |
 | Input sensitivity, automatic sensitivity, even out loud | Live | Native gate flags, no restart. |
 | Push to talk | Live | |
 | Per-person voice and screen volume, local mute | Live | Reapplied on every room event; the debug log has a `Volume x...` line per push (applied, failed, or already applied and skipped). |

@@ -15,6 +15,7 @@ import 'pulse_audio.dart';
 import 'voice_log.dart';
 import 'voice_models.dart';
 import 'voice_processing.dart';
+import 'web_capture_chain.dart';
 
 /// Points a live [lk.Room]'s capture at [device]. A seam so tests can see
 /// what a mid-call pick sends without a native audio stack.
@@ -110,7 +111,8 @@ class AudioDeviceSwitching {
         ),
       );
 
-  /// Strong adds rnnoise natively on top of whichever libwebrtc filters are on.
+  /// Strong adds rnnoise natively on top of whichever libwebrtc filters are on;
+  /// a browser runs the same chain in a worklet [processor].
   lk.AudioCaptureOptions captureOptions() {
     // libwebrtc cannot open a sound server node; [applyServerRouting] moves the stream instead.
     final deviceId =
@@ -128,6 +130,7 @@ class AudioDeviceSwitching {
       echoCancellation: processing.echoCancellation,
       autoGainControl: processing.autoGainControl && !leveled,
       noiseSuppression: processing.noiseSuppression,
+      processor: webCaptureProcessor(),
       // The session releases a muted capture after a grace period; reopening on every unmute flips Bluetooth profiles and clips the first syllable.
       stopAudioCaptureOnMute: false,
     );

@@ -61,10 +61,23 @@ PROBE = r"""
   });
   var gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
   st.gum = [];
+  st.captures = [];
   navigator.mediaDevices.getUserMedia = function(c){
     st.gum.push(JSON.stringify(c));
-    return gum(c);
+    return gum(c).then(function(stream){
+      stream.getAudioTracks().forEach(function(t){ st.captures.push(t); });
+      return stream;
+    });
   };
+  // The app sends the mic through its Web Audio capture chain, whose output track is not the capture; report the capture behind it.
+  function captureSettings(t){
+    var settings = t.getSettings();
+    if (t.kind !== 'audio' || st.captures.indexOf(t) >= 0) return settings;
+    for (var i = st.captures.length - 1; i >= 0; i--) {
+      if (st.captures[i].readyState === 'live') return st.captures[i].getSettings();
+    }
+    return settings;
+  }
   var own = new AC();
   function level(an){
     var buf = new Float32Array(an.fftSize);
@@ -161,7 +174,7 @@ PROBE = r"""
         var t = s.track;
         if (!t) return;
         out.push({kind: t.kind, id: t.id, label: t.label, state: t.readyState,
-                  enabled: t.enabled, settings: t.getSettings()});
+                  enabled: t.enabled, settings: captureSettings(t)});
       });
     });
     return out;

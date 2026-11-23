@@ -171,7 +171,10 @@ class LiveKitMicPort implements MicPort {
   @override
   Future<void> release() async {
     for (final publication in _publications) {
-      await publication.track?.stop();
+      final track = publication.track;
+      await track?.stop();
+      // livekit leaves a processor's output running after stop; a restart sets it up again.
+      await track?.processor?.destroy();
     }
     await stopUnpublished();
     if (!_recordsUntilToldToStop) return;

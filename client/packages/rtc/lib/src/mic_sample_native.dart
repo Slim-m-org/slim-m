@@ -9,12 +9,12 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 
 import 'audio_device_switching.dart';
 import 'audio_devices.dart';
-import 'input_gate.dart' show supportsInputGate;
+import 'input_gate.dart' show hasDesktopCaptureChain;
 import 'mic_preview_loopback.dart';
 import 'mic_sample.dart';
 
 /// Only the fork's desktop chain (Linux and Windows) has the tap.
-bool get supportsMicSample => supportsInputGate;
+bool get supportsMicSample => hasDesktopCaptureChain;
 
 class NativeMicSampleSource implements MicSampleSource {
   NativeMicSampleSource(AudioDeviceSwitching switching)
