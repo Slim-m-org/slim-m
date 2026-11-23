@@ -12,6 +12,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
+import 'package:flutter/widgets.dart' show Color;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/accounts/providers/account_host.dart';
@@ -69,6 +70,20 @@ class DesktopWindowShell {
   /// The main window Dart created, on Windows: held hidden by the runner
   /// until [lockSplashChrome] reveals the finished splash.
   NativeMainWindow? nativeWindow;
+  Color? _nativeBackground;
+
+  /// Gives the native window the splash's colour for anything a resize
+  /// exposes before Flutter paints it; asked again only when it changes.
+  void useNativeBackground(Color color) {
+    final window = nativeWindow;
+    if (window == null || color == _nativeBackground) return;
+    _nativeBackground = color;
+    unawaited(
+      window.setBackground(color.toARGB32()).catchError((Object error) {
+        AppLog.swallowed(LogTag.platform, 'No window background', error);
+      }),
+    );
+  }
 
   /// How long a native window or tray call may take before startup proceeds
   /// regardless, so a hung call never leaves the startup screen up forever.

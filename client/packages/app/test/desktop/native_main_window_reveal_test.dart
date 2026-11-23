@@ -6,7 +6,7 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/widgets.dart' show Size, VoidCallback;
+import 'package:flutter/widgets.dart' show Color, Size, VoidCallback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/desktop/window_geometry.dart';
@@ -27,6 +27,11 @@ class _FakeMainWindow implements NativeMainWindow {
 
   @override
   set onCloseRequested(VoidCallback? handler) {}
+
+  final backgrounds = <int>[];
+
+  @override
+  Future<void> setBackground(int argb) async => backgrounds.add(argb);
 
   @override
   Future<void> reveal() async => steps.add(
@@ -96,6 +101,19 @@ void main() {
     final view = viewSizeFor(const WindowSize(width: 1280, height: 720), inset);
     expect(view?.width, 1264);
     expect(view?.height, 712);
+  });
+
+  test('the window gets the splash colour once per change', () {
+    final port = FakeDesktopWindowPort();
+    final window = _FakeMainWindow(port);
+    final shell = shellFor(port, chrome: DesktopPlatform.windows)
+      ..nativeWindow = window;
+
+    shell.useNativeBackground(const Color(0xFF1E1F22));
+    shell.useNativeBackground(const Color(0xFF1E1F22));
+    shell.useNativeBackground(const Color(0xFFF5F5F7));
+
+    expect(window.backgrounds, [0xFF1E1F22, 0xFFF5F5F7]);
   });
 
   test('a view that is not a splash gives no inset', () {

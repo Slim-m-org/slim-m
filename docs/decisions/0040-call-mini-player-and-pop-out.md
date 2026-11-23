@@ -105,6 +105,7 @@ There is no second subscription, no second decode and no server token route, whi
   The engine shows a Dart-made window on its first frame, before window_manager has sized it and taken its title bar, so the runner holds the main window hidden until `lockSplashChrome` asks for it, then shows it with a plain `ShowWindow` on the next drawn frame, as the old runner did on its first frame.
   Cloaking it instead showed black on uncloak and, on the win11 VM, opened behind the focused app.
   The handoff to the saved geometry grows the window in place on Windows, since the engine holds a resize until a frame of the new size is drawn; the handoff's view-size wait subtracts the frameless window's resize borders, measured on the splash, which it used to wait out for its whole five seconds.
+  The main window's class brush is the splash colour (sent from the app's theme) and the window clips its children, so an area a resize exposes before Flutter paints it shows that colour, not Windows' white.
   Opening a pop-out can run Dart again while Windows sizes the new view, so `PopOutWindowSet` folds a sync asked for meanwhile into a rerun; the first round opened a second, hidden window that way.
   The flag also turns `showDialog` into OS windows on Windows, so `showInWindowDialog` keeps dialogs in the main window there as on Linux.
 - Web never offers it.

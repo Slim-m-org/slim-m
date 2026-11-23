@@ -373,6 +373,7 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
           hasFailedSinceLive: ref.watch(hasFailedSinceLiveProvider),
         );
     final theme = _theme();
+    if (_onDesktop) _paintNativeBackground(theme);
     final splash = StartupApp(
       status: ref.watch(startupStatusProvider),
       prompt: ref.watch(startupPromptProvider),
@@ -407,6 +408,20 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
       applyHighContrast(theme.dark),
       theme.mode,
     );
+  }
+
+  /// The splash's colour behind the window, for an area a resize exposes.
+  void _paintNativeBackground(ResolvedTheme theme) {
+    final dark = switch (theme.mode) {
+      ThemeMode.dark => true,
+      ThemeMode.light => false,
+      ThemeMode.system =>
+        MediaQuery.platformBrightnessOf(context) == Brightness.dark,
+    };
+    final tokens = dark ? theme.dark : theme.light;
+    ref
+        .read(desktopWindowShellProvider)
+        .useNativeBackground(tokens.surfaceRaised);
   }
 
   Widget _app() {

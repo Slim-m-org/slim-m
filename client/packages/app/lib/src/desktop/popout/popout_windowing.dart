@@ -48,6 +48,10 @@ abstract interface class NativeMainWindow {
   /// Shows the window the runner holds hidden from its first frame, on the
   /// next frame drawn.
   Future<void> reveal();
+
+  /// What the window shows where a resize has exposed an area Flutter has not
+  /// drawn yet, as 0xAARRGGBB; Windows shows white there otherwise.
+  Future<void> setBackground(int argb);
 }
 
 typedef PopOutWindowFactory =

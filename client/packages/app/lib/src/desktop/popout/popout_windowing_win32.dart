@@ -97,6 +97,10 @@ class _Win32MainWindow
   @override
   VoidCallback? onCloseRequested;
 
+  @override
+  Future<void> setBackground(int argb) =>
+      _mainWindowChannel.invokeMethod<void>('background', argb);
+
   /// The runner shows the window on the next drawn frame, so one is asked for.
   @override
   Future<void> reveal() async {

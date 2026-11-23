@@ -8,9 +8,11 @@
 #include <flutter/plugin_registrar_windows.h>
 #include <flutter/standard_method_codec.h>
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "flutter/generated_plugin_registrant.h"
@@ -50,6 +52,20 @@ std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> g_channel;
 HWND g_window = nullptr;
 bool g_revealed = false;
 bool g_shown = false;
+HBRUSH g_background = nullptr;
+
+/// Paints what a resize exposes before Flutter draws it in the app's own
+/// background, not the white Windows uses when a window has no brush.
+void SetBackground(int64_t argb) {
+  if (g_window == nullptr) return;
+  const HBRUSH brush = ::CreateSolidBrush(
+      RGB((argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF));
+  ::SetClassLongPtrW(g_window, GCLP_HBRBACKGROUND,
+                     reinterpret_cast<LONG_PTR>(brush));
+  if (g_background != nullptr) ::DeleteObject(g_background);
+  g_background = brush;
+  ::InvalidateRect(g_window, nullptr, TRUE);
+}
 
 /// Shows the main window as the old runner did on its first frame: a plain
 /// ShowWindow from this thread, so it is activated as a fresh launch's first
@@ -123,6 +139,9 @@ bool AdoptMainWindow() {
   const HWND content = view->GetNativeWindow();
   g_window = ::GetAncestor(content, GA_ROOT);
   ::SetPropW(g_window, slimm::kMainWindowProperty, g_window);
+  // So erasing the background never paints over the Flutter view.
+  ::SetWindowLongPtrW(g_window, GWL_STYLE,
+                      ::GetWindowLongPtrW(g_window, GWL_STYLE) | WS_CLIPCHILDREN);
   // Rounds the whole window, so the frameless splash needs no Flutter-side clip.
   ::DwmSetWindowAttribute(g_window, DWMWA_WINDOW_CORNER_PREFERENCE,
                           &kCornerPreferenceRound,
@@ -164,6 +183,14 @@ void HandleCall(const flutter::MethodCall<flutter::EncodableValue>& call,
     }
   } else if (method == "reveal") {
     RequestReveal();
+  } else if (method == "background") {
+    const auto* argb = std::get_if<int64_t>(call.arguments());
+    const auto* small = std::get_if<int32_t>(call.arguments());
+    if (argb != nullptr) {
+      SetBackground(*argb);
+    } else if (small != nullptr) {
+      SetBackground(static_cast<uint32_t>(*small));
+    }
   } else {
     result->NotImplemented();
     return;

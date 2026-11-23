@@ -71,9 +71,9 @@ class DartAndRunnerAgree(unittest.TestCase):
         channel = "top.npcserver.slimm/main_window"
         self.assertIn(f'"{channel}"', window)
         self.assertIn(f"MethodChannel('{channel}')", dart)
-        for call in ("ready", "reveal"):
+        for call in ("ready", "reveal", "background"):
             self.assertIn(f'method == "{call}"', window)
-            self.assertIn(f"invokeMethod<void>('{call}')", dart)
+            self.assertIn(f"invokeMethod<void>('{call}'", dart)
 
     def test_main_claims_the_window_before_any_plugin(self):
         main = strip_c_comments((APP / "lib" / "main.dart").read_text())
