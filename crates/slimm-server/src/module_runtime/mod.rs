@@ -59,3 +59,6 @@ mod tests_limits;
 
 #[cfg(test)]
 mod tests_lazy;
+
+#[cfg(test)]
+mod tests_shutdown;
