@@ -59,7 +59,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    final style = AppText.body;
+    const style = AppText.body;
     final oneLine = style.fontSize! * (style.height ?? 1.2);
     expect(
       tester.getSize(find.text(_name)).height,

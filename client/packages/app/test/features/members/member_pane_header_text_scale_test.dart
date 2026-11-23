@@ -43,7 +43,7 @@ void main() {
 
     final label = find.text('MEMBERS · 3');
     final text = tester.renderObject<RenderBox>(label);
-    final style = AppText.label;
+    const style = AppText.label;
     expect(
       text.size.height,
       lessThanOrEqualTo(style.fontSize! * 2 * (style.height ?? 1.3) + 1),

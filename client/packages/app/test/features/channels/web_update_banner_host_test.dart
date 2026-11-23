@@ -32,10 +32,10 @@ void main() {
           container: container,
           child: MaterialApp(
             theme: buildTheme(Brightness.light, AppTokens.light),
-            home: Scaffold(
+            home: const Scaffold(
               body: Stack(
                 children: [
-                  const WebUpdateBannerHost(
+                  WebUpdateBannerHost(
                     child: Column(
                       children: [
                         Text('Offline, retrying'),
@@ -43,7 +43,7 @@ void main() {
                       ],
                     ),
                   ),
-                  const Positioned.fill(child: WebUpdatePill()),
+                  Positioned.fill(child: WebUpdatePill()),
                 ],
               ),
             ),
