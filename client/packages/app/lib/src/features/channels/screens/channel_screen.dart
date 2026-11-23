@@ -21,6 +21,8 @@ import '../../accounts/providers/account_slot.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../providers/arrival_readers.dart';
 import '../providers/channel_drafts.dart';
+import '../providers/dm_departure.dart';
+import '../widgets/dm_departure_notice.dart';
 import '../providers/channel_history.dart';
 import '../../messages/providers/message_actions.dart';
 import '../../messages/providers/message_context_window.dart';
@@ -333,6 +335,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen>
     final channelName = channel?.name ?? '';
     final dmPartnerId = channel?.dmParticipantId;
     final blockedDm = dmPartnerId != null && blocked.contains(dmPartnerId);
+    final departure = channel != null && channel.kind == 'dm'
+        ? ref.watch(dmDepartureProvider(dmPeersOf(channel)))
+        : null;
     // Ored with the store's own answer; see isThread's doc comment.
     final isThread = widget.isThread || channel?.parentMessageId != null;
     final isVoice = channel?.kind == 'voice';
@@ -351,7 +356,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen>
             ChannelHeader(
               channelId: widget.channelId,
               name: channelName,
-              topic: channel?.topic,
+              topic: departure?.label ?? channel?.topic,
               isVoice: isVoice,
               isDm: channel?.kind == 'dm',
               dmParticipantId: dmPartnerId,
@@ -381,6 +386,8 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen>
             onReply: _startReply,
             fitContent: widget.fitContent,
           ),
+          if (departure != null && !blockedDm)
+            DmDepartureNotice(departure: departure),
           blockedDm
               ? BlockedDmNotice(userId: dmPartnerId, name: channelName)
               : ChannelComposerArea(

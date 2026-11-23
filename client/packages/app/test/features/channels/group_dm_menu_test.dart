@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_app/src/features/channels/widgets/dm_row.dart';
 import 'package:slimm_app/src/features/channels/providers/dms.dart';
 import 'package:slimm_data/data.dart';
@@ -32,11 +31,17 @@ Channel _row() => const Channel(
 
 Future<void> _openRowMenu(WidgetTester tester) async {
   await tester.tapAt(
-    tester.getCenter(find.byType(DmRow)),
+    tester.getCenter(find.text('Person1 and Person2')),
     buttons: kSecondaryButton,
     kind: PointerDeviceKind.mouse,
   );
-  await tester.pumpAndSettle();
+  await _settle(tester);
+}
+
+Future<void> _settle(WidgetTester tester) async {
+  for (var i = 0; i < 4; i++) {
+    await tester.pump(const Duration(milliseconds: 500));
+  }
 }
 
 void main() {
@@ -80,7 +85,7 @@ void main() {
     );
     await _openRowMenu(tester);
     await tester.tap(find.text(item));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     return container;
   }
 
@@ -92,7 +97,7 @@ void main() {
     expect(server.requests.where((r) => r.endsWith('/leave')), isEmpty);
 
     await tester.tap(find.textContaining('Leave Person1'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     expect(server.requests, contains('POST /dms/groups/g1/leave'));
     final store = await container.read(storeProvider.future);
@@ -117,7 +122,7 @@ void main() {
     expect(server.requests.where((r) => r.startsWith('DELETE')), isEmpty);
 
     await tester.tap(find.text('Delete Person1 and Person2'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     expect(server.requests, contains('DELETE /dms/groups/g1'));
     final store = await container.read(storeProvider.future);
@@ -136,10 +141,10 @@ void main() {
       server: server,
     );
     await tester.tap(find.text('Delete Person1 and Person2'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
-    expect(find.byType(AppErrorState), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(find.textContaining('Could not delete the group'), findsOneWidget);
+    expect(find.byWidgetPredicate((w) => w is SnackBar), findsNothing);
     final store = await container.read(storeProvider.future);
     expect(await store.hasChannel('g1'), isTrue);
     await finishGroupDm(tester, container);
@@ -149,7 +154,9 @@ void main() {
     final container = await openMenuItem(tester, 'Rename group');
     expect(
       tester
-          .widget<EditableText>(find.byType(EditableText).first)
+          .widget<EditableText>(
+            find.byWidgetPredicate((w) => w is EditableText).first,
+          )
           .focusNode
           .hasFocus,
       isTrue,

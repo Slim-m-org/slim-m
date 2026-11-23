@@ -39,6 +39,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import '../../voice/providers/dm_call_activity.dart';
+import '../providers/dm_departure.dart';
 import '../providers/dms.dart';
 import '../../../providers/providers.dart' show sessionProvider;
 import 'group_avatar_stack.dart';
@@ -195,6 +196,7 @@ class DmRow extends ConsumerWidget {
       ),
     );
     final muted = override == api.NotificationPreference.nothing;
+    final departure = ref.watch(dmDepartureProvider(dmPeersOf(channel)));
     // Mentions-only leaves a DM loud: somebody writing here is addressing this account directly.
     final indicator = unreadIndicatorForChannel(
       channel,
@@ -215,7 +217,9 @@ class DmRow extends ConsumerWidget {
           selected: selected,
           unread: indicator.unread,
           mentioned: indicator.mentioned,
-          muted: muted,
+          muted: muted || departure != null,
+          labelColor: departure == null ? null : tokens.textSecondary,
+          subtitle: departure?.label,
           leading: channel.isGroupDm
               ? GroupAvatarStack(
                   memberIds: [
@@ -242,7 +246,9 @@ class DmRow extends ConsumerWidget {
                   color: tokens.textSecondary,
                 )
               : null,
-          stateDescription: inCall ? 'call in progress' : null,
+          stateDescription: inCall
+              ? 'call in progress'
+              : departure?.label.toLowerCase(),
           onTap: () {
             // Opens straight into the call pane, the same double action RailCallSummary uses.
             if (inCall) {

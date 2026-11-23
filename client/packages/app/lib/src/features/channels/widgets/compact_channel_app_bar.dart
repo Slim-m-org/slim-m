@@ -16,6 +16,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/header_icon_action.dart';
+import '../providers/dm_departure.dart';
 import '../providers/channel_by_id_provider.dart';
 import '../../palette/widgets/conversation_search.dart';
 import '../providers/pins_controller.dart';
@@ -62,12 +63,16 @@ class CompactChannelAppBar extends ConsumerWidget
     final inCall = ref.watch(
       voiceFlagsProvider.select((voice) => voice.inCallStageFor(channelId)),
     );
+    final departure = channel != null && channel.kind == 'dm'
+        ? ref.watch(dmDepartureProvider(dmPeersOf(channel)))
+        : null;
     return _bar(
       context,
       channel,
       tokens,
       voiceChatOpen: ref.watch(voiceChatPaneVisibleProvider),
       inCall: inCall,
+      departure: departure,
     );
   }
 
@@ -78,6 +83,7 @@ class CompactChannelAppBar extends ConsumerWidget
     AppTokens tokens, {
     required bool voiceChatOpen,
     required bool inCall,
+    DmDeparture? departure,
   }) {
     final isVoice = channel?.kind == 'voice';
     // See `ChannelHeader.isDm`'s own doc comment for why.
@@ -97,7 +103,7 @@ class CompactChannelAppBar extends ConsumerWidget
       titleSpacing: 0,
       title: _Title(
         name: channel?.name ?? '',
-        topic: channel?.topic,
+        topic: departure?.label ?? channel?.topic,
         isVoice: isVoice,
         restricted: channel?.restricted ?? false,
         isDm: isDm,
