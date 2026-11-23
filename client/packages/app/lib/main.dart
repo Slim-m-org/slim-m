@@ -135,6 +135,7 @@ Future<void> main([List<String> args = const []]) async {
   MediaKit.ensureInitialized();
   await initAndroidPush();
   final shell = DesktopWindowShell();
+  shell.nativeWindow = mainWindow;
   if (shell.port case final WindowManagerDesktopWindowPort port) {
     mainWindow?.onCloseRequested = port.onNativeCloseRequested;
   }

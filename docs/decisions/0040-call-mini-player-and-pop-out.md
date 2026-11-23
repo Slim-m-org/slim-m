@@ -101,6 +101,9 @@ There is no second subscription, no second decode and no server token route, whi
   The runner registers the plugins and its own channels only when Dart reports that window (`windows/runner/main_window.cpp`), because window_manager, tray_manager and media_kit look the window up when they are registered.
   The engine's windowing hears `WM_CLOSE` before window_manager does, so the main window's delegate hands a close to `WindowManagerDesktopWindowPort.onNativeCloseRequested`.
   The Win32 pop-out has no undecorated option, so it keeps the OS title bar; it is kept above with `SetWindowPos(HWND_TOPMOST)` (`popout_windowing_win32.dart`).
+  On Windows a pop-out opens between frames, never inside one: the engine sizes a new view by waiting on a frame of that size, which cannot come while a frame is being built.
+  The engine shows a Dart-made window on its first frame, before window_manager has sized it and taken its title bar, so the runner cloaks the main window until `lockSplashChrome` reveals it, and cloaks it again over the handoff's resize.
+  The flag also turns `showDialog` into OS windows on Windows, so `showInWindowDialog` keeps dialogs in the main window there as on Linux.
 - Web never offers it.
 - Always-on-top is not requested: the controller exposes no such call, and on KDE the user can set "keep above" from the window menu.
 - Since 2026-10-08 the window opens undecorated (`RegularWindowControllerLinux(decorated: false)`): the app draws its own drag area, resize edges and close button, and moving or resizing goes to GTK over FFI (`popout_gtk_drag.dart`). With no OS title bar, "keep above" is no longer one click away on KDE; it is still in the window's Alt+F3 menu.

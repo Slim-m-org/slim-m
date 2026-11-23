@@ -7,14 +7,19 @@ namespace {
 constexpr double kMinWidth = 240;
 constexpr double kMinHeight = 160;
 
-LRESULT FitContentToClient(HWND window) {
-  const HWND content = ::GetWindow(window, GW_CHILD);
-  if (content != nullptr) {
-    RECT client;
-    ::GetClientRect(window, &client);
-    ::MoveWindow(content, client.left, client.top, client.right - client.left,
-                 client.bottom - client.top, TRUE);
-  }
+// The engine's view window class; window_manager looks it up by the same name.
+constexpr wchar_t kViewWindowClass[] = L"FLUTTERVIEW";
+
+/// Sizes the Flutter view to the client area, as the engine's own window
+/// does; empty when there is no view to size, so the engine handles it.
+std::optional<LRESULT> FitContentToClient(HWND window) {
+  const HWND content =
+      ::FindWindowExW(window, nullptr, kViewWindowClass, nullptr);
+  if (content == nullptr) return std::nullopt;
+  RECT client;
+  ::GetClientRect(window, &client);
+  ::MoveWindow(content, client.left, client.top, client.right - client.left,
+               client.bottom - client.top, TRUE);
   return 0;
 }
 
@@ -62,7 +67,6 @@ std::optional<LRESULT> HandlePopOutMessage(HWND window, UINT message,
     case WM_MOVING:
     case WM_EXITSIZEMOVE:
     case WM_SHOWWINDOW:
-    case WM_WINDOWPOSCHANGED:
       return ::DefWindowProcW(window, message, wparam, lparam);
     default:
       return std::nullopt;

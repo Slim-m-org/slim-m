@@ -44,6 +44,14 @@ const popOutWindowTitle = 'slim-m pop-out';
 abstract interface class NativeMainWindow {
   /// What the window's close button and Alt+F4 do; until set, they quit.
   set onCloseRequested(VoidCallback? handler);
+
+  /// Shows the window the runner holds cloaked from its first frame, and
+  /// brings it to the front.
+  Future<void> reveal();
+
+  /// Cloaks the window until the next [reveal], so a resize it has not yet
+  /// painted is never seen.
+  Future<void> conceal();
 }
 
 typedef PopOutWindowFactory =

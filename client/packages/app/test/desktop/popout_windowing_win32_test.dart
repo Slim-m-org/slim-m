@@ -40,13 +40,20 @@ class _FakeController extends RegularWindowController {
 
 typedef _Call = ({int window, int insertAfter, int flags});
 
-({Win32PopOutWindow window, _FakeController controller, List<_Call> calls})
+({
+  Win32PopOutWindow window,
+  _FakeController controller,
+  List<_Call> calls,
+  List<VoidCallback> deferred,
+})
 _popOut() {
   final controller = _FakeController();
+  final deferred = <VoidCallback>[];
   final calls = <_Call>[];
   final window = Win32PopOutWindow(
     controller,
     windowHandle: () => ffi.Pointer<ffi.Void>.fromAddress(0x1234),
+    defer: deferred.add,
     setWindowPos: (window, insertAfter, x, y, width, height, flags) {
       calls.add((
         window: window.address,
@@ -56,7 +63,12 @@ _popOut() {
       return 1;
     },
   );
-  return (window: window, controller: controller, calls: calls);
+  return (
+    window: window,
+    controller: controller,
+    calls: calls,
+    deferred: deferred,
+  );
 }
 
 void main() {
@@ -122,23 +134,35 @@ void main() {
   });
 
   group('fitAspect', () {
-    test('matches the height to the width for a new shape', () {
+    void runDeferred(List<VoidCallback> deferred) {
+      for (final run in deferred) {
+        run();
+      }
+      deferred.clear();
+    }
+
+    test('resizes only once the reporting frame is over', () {
       final rig = _popOut();
       rig.window.fitAspect(16 / 9);
+      expect(rig.controller.sizes, isEmpty);
+      runDeferred(rig.deferred);
       expect(rig.controller.sizes, [const Size(640, 360)]);
     });
 
     test('leaves a user resize alone while the shape holds', () {
       final rig = _popOut();
       rig.window.fitAspect(16 / 9);
+      runDeferred(rig.deferred);
       rig.controller.size = const Size(900, 300);
       rig.window.fitAspect(16 / 9 + 0.001);
+      runDeferred(rig.deferred);
       expect(rig.controller.sizes, hasLength(1));
     });
 
     test('never goes below the minimum height', () {
       final rig = _popOut();
       rig.window.fitAspect(32);
+      runDeferred(rig.deferred);
       expect(rig.controller.sizes, [const Size(640, 160)]);
     });
 
@@ -146,6 +170,14 @@ void main() {
       final rig = _popOut();
       rig.window.fitAspect(0);
       rig.window.fitAspect(double.nan);
+      expect(rig.deferred, isEmpty);
+    });
+
+    test('a window closed before the resize is left alone', () {
+      final rig = _popOut();
+      rig.window.fitAspect(16 / 9);
+      rig.window.destroy();
+      runDeferred(rig.deferred);
       expect(rig.controller.sizes, isEmpty);
     });
   });

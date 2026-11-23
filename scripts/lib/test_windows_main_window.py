@@ -51,6 +51,12 @@ class PluginsWaitForTheWindow(unittest.TestCase):
         window = strip_c_comments((RUNNER_DIR / "main_window.cpp").read_text())
         self.assertLess(window.index("GetViewById("), window.index("RegisterPlugins("))
 
+    def test_the_runner_delegate_is_there_before_the_first_show(self):
+        window = strip_c_comments((RUNNER_DIR / "main_window.cpp").read_text())
+        serve = window[window.index("void ServeMainWindowReady("):]
+        self.assertIn("RegisterTopLevelWindowProcDelegate(", serve)
+        self.assertIn("DWMWA_CLOAK", window)
+
     def test_the_windows_go_before_the_engine(self):
         main = strip_c_comments((RUNNER_DIR / "main.cpp").read_text())
         self.assertLess(main.index("DestroyDartWindows()"), main.index("engine.reset()"))
@@ -63,8 +69,9 @@ class DartAndRunnerAgree(unittest.TestCase):
         channel = "top.npcserver.slimm/main_window"
         self.assertIn(f'"{channel}"', window)
         self.assertIn(f"MethodChannel('{channel}')", dart)
-        self.assertIn('!= "ready"', window)
-        self.assertIn("invokeMethod<void>('ready')", dart)
+        for call in ("ready", "reveal", "conceal"):
+            self.assertIn(f'method == "{call}"', window)
+            self.assertIn(f"invokeMethod<void>('{call}')", dart)
 
     def test_main_claims_the_window_before_any_plugin(self):
         main = strip_c_comments((APP / "lib" / "main.dart").read_text())

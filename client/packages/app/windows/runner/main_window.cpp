@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "flutter/generated_plugin_registrant.h"
@@ -34,6 +35,10 @@ namespace {
 
 constexpr int kCornerPreferenceRound = 2;  // DWMWCP_ROUND
 
+// Shows the window anyway if Dart never asks, so a failed startup cannot leave it cloaked.
+constexpr UINT_PTR kRevealTimer = 0x534C;
+constexpr UINT kRevealDeadlineMs = 15000;
+
 // The engine numbers views from 0, so the first window Dart creates, the main one, is the implicit view.
 constexpr flutter::FlutterViewId kMainViewId = 0;
 
@@ -42,12 +47,41 @@ using DestroyHostWindow = void (*)(HWND);
 flutter::FlutterEngine* g_engine = nullptr;
 std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> g_channel;
 HWND g_window = nullptr;
+bool g_revealed = false;
+
+void SetCloaked(HWND window, bool cloaked) {
+  const BOOL value = cloaked ? TRUE : FALSE;
+  ::DwmSetWindowAttribute(window, DWMWA_CLOAK, &value, sizeof(value));
+}
+
+void Reveal() {
+  g_revealed = true;
+  if (g_window == nullptr) return;
+  ::KillTimer(g_window, kRevealTimer);
+  SetCloaked(g_window, false);
+  if (::IsWindowVisible(g_window)) ::SetForegroundWindow(g_window);
+}
+
+/// The engine shows a window on its first frame, before window_manager has
+/// sized it or taken its title bar; the main window is cloaked from then
+/// until Dart's `reveal`, so the user first sees the finished splash.
+void CloakFirstShow(HWND window, LPARAM lparam) {
+  const auto* change = reinterpret_cast<const WINDOWPOS*>(lparam);
+  if ((change->flags & SWP_SHOWWINDOW) != 0) SetCloaked(window, true);
+}
 
 std::optional<LRESULT> HandleTopLevelMessage(HWND window, UINT message,
                                              WPARAM wparam, LPARAM lparam) {
-  // Only the engine's windows reach a top-level delegate, so any other one is a pop-out.
-  if (window != g_window) {
-    return HandlePopOutMessage(window, message, wparam, lparam);
+  // Until Dart reports the main window, the only window there is is that one.
+  const bool is_main = g_window == nullptr || window == g_window;
+  if (is_main && !g_revealed && message == WM_WINDOWPOSCHANGING) {
+    CloakFirstShow(window, lparam);
+  }
+  if (g_window == nullptr) return std::nullopt;
+  if (!is_main) return HandlePopOutMessage(window, message, wparam, lparam);
+  if (message == WM_TIMER && wparam == kRevealTimer) {
+    Reveal();
+    return 0;
   }
   if (message == WM_COPYDATA && OnForwardedLink(lparam)) return TRUE;
   if (message == SecondInstanceMessage()) {
@@ -74,8 +108,7 @@ bool AdoptMainWindow() {
   ::DwmSetWindowAttribute(g_window, DWMWA_WINDOW_CORNER_PREFERENCE,
                           &kCornerPreferenceRound,
                           sizeof(kCornerPreferenceRound));
-  // Before the plugins, so a forwarded link is taken before app_links sees it and a pop-out's frame before window_manager does.
-  registrar->RegisterTopLevelWindowProcDelegate(HandleTopLevelMessage);
+  if (!g_revealed) ::SetTimer(g_window, kRevealTimer, kRevealDeadlineMs, nullptr);
 
   flutter::BinaryMessenger* messenger = g_engine->messenger();
   RegisterPlugins(g_engine);
@@ -88,6 +121,35 @@ bool AdoptMainWindow() {
   RegisterWindowsToastsChannel(messenger);
   RegisterYoutubePlayerChannel(g_engine, content);
   return true;
+}
+
+bool OnTopLevelMessage(HWND window, UINT message, WPARAM wparam,
+                       LPARAM lparam, void*, LRESULT* result) {
+  const std::optional<LRESULT> handled =
+      HandleTopLevelMessage(window, message, wparam, lparam);
+  if (!handled) return false;
+  *result = *handled;
+  return true;
+}
+
+void HandleCall(const flutter::MethodCall<flutter::EncodableValue>& call,
+                std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+                    result) {
+  const std::string& method = call.method_name();
+  if (method == "ready") {
+    if (g_window == nullptr && !AdoptMainWindow()) {
+      result->Error("no_main_window", "Dart has not created the main window");
+      return;
+    }
+  } else if (method == "reveal") {
+    Reveal();
+  } else if (method == "conceal") {
+    if (g_window != nullptr) SetCloaked(g_window, true);
+  } else {
+    result->NotImplemented();
+    return;
+  }
+  result->Success();
 }
 
 BOOL CALLBACK CollectHostWindow(HWND window, LPARAM found) {
@@ -104,17 +166,11 @@ void ServeMainWindowReady(flutter::FlutterEngine* engine) {
   g_channel = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
       engine->messenger(), "top.npcserver.slimm/main_window",
       &flutter::StandardMethodCodec::GetInstance());
-  g_channel->SetMethodCallHandler([](const auto& call, auto result) {
-    if (call.method_name() != "ready") {
-      result->NotImplemented();
-      return;
-    }
-    if (g_window == nullptr && !AdoptMainWindow()) {
-      result->Error("no_main_window", "Dart has not created the main window");
-      return;
-    }
-    result->Success();
-  });
+  g_channel->SetMethodCallHandler(HandleCall);
+  // C API, since the wrapper would capture a main view not yet made; before Run to see the first show, before the plugins to take links and pop-out frames first.
+  FlutterDesktopPluginRegistrarRegisterTopLevelWindowProcDelegate(
+      engine->GetRegistrarForPlugin("SlimmMainWindow"), OnTopLevelMessage,
+      nullptr);
 }
 
 void DestroyDartWindows() {

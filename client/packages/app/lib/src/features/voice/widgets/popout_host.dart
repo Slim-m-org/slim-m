@@ -8,6 +8,9 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart' show VideoShapeScope;
@@ -85,6 +88,14 @@ class _PopOutHostState extends ConsumerState<PopOutHost> {
   }
 
   void _sync(List<MiniPlayerFeed> live) {
+    // Windows sizes a new window's view by waiting on frames, which stalls inside a frame; so windows open between frames.
+    if (defaultTargetPlatform == TargetPlatform.windows &&
+        SchedulerBinding.instance.schedulerPhase != SchedulerPhase.idle) {
+      Timer.run(() {
+        if (mounted) _sync(ref.read(popOutLiveFeedsProvider));
+      });
+      return;
+    }
     final wanted = {
       for (final feed in live) pictureInPictureTileKey(feed): feed,
     };

@@ -20,6 +20,7 @@ import 'package:flutter/widgets.dart';
 import 'package:slimm_platform/platform.dart' show isWindowsHost;
 
 import '../desktop_window_port.dart' show ResizeEdge;
+import 'popout_win32_probe.dart';
 import 'popout_windowing.dart' show NativeMainWindow, PopOutWindowHandle;
 
 /// user32's `SetWindowPos`.
@@ -96,6 +97,12 @@ class _Win32MainWindow
   VoidCallback? onCloseRequested;
 
   @override
+  Future<void> reveal() => _mainWindowChannel.invokeMethod<void>('reveal');
+
+  @override
+  Future<void> conceal() => _mainWindowChannel.invokeMethod<void>('conceal');
+
+  @override
   void onWindowCloseRequested(RegularWindowController controller) {
     final handler = onCloseRequested;
     if (handler != null) return handler();
@@ -104,7 +111,8 @@ class _Win32MainWindow
 }
 
 /// The [PopOutWindowFactory] for Windows. The Win32 controller has no
-/// undecorated window, so [decorated] is ignored and the OS draws the frame.
+/// undecorated window, so [decorated] is ignored and the OS draws the frame;
+/// the runner keeps its minimum size (`popout_window_proc.cpp`).
 PopOutWindowHandle openWin32PopOutWindow({
   required String title,
   required Size size,
@@ -116,13 +124,10 @@ PopOutWindowHandle openWin32PopOutWindow({
     owner: WidgetsBinding.instance.windowingOwner as WindowingOwnerWin32,
     delegate: delegate,
     size: size,
-    constraints: BoxConstraints(
-      minWidth: _minSize.width,
-      minHeight: _minSize.height,
-    ),
     title: title,
     resizable: true,
   );
+  probePopOut('opened', controller.rootView, controller.windowHandle);
   return Win32PopOutWindow(
     controller,
     windowHandle: () => controller.windowHandle,
@@ -145,20 +150,27 @@ class Win32PopOutWindow implements PopOutWindowHandle {
     this._controller, {
     required HWND Function() windowHandle,
     SetWindowPos? setWindowPos,
+    void Function(VoidCallback) defer = Timer.run,
   }) : _windowHandle = windowHandle,
-       _setWindowPos = setWindowPos;
+       _setWindowPos = setWindowPos,
+       _defer = defer;
 
   final RegularWindowController _controller;
   final HWND Function() _windowHandle;
+  final void Function(VoidCallback) _defer;
   SetWindowPos? _setWindowPos;
   double? _aspect;
+  bool _destroyed = false;
 
   @override
   Widget host(Widget child) =>
       RegularWindow(controller: _controller, child: child);
 
   @override
-  void destroy() => _controller.destroy();
+  void destroy() {
+    _destroyed = true;
+    _controller.destroy();
+  }
 
   @override
   void beginMove() {}
@@ -167,18 +179,23 @@ class Win32PopOutWindow implements PopOutWindowHandle {
   void beginResize(ResizeEdge edge) {}
 
   /// Win32 has no aspect hint like GTK's, so the height is matched to the
-  /// width once for each new shape; a user's own resize is left alone.
+  /// width once for each new shape; a user's own resize is left alone. The
+  /// resize waits for the frame that reported the shape to end, since Windows
+  /// sizes a view by waiting on a frame of the new size.
   @override
   void fitAspect(double aspect) {
     if (!aspect.isFinite || aspect <= 0) return;
     final last = _aspect;
     if (last != null && (aspect - last).abs() < last * 0.01) return;
     _aspect = aspect;
-    final width = _controller.contentSize.width;
-    final height = width / aspect;
-    _controller.setSize(
-      Size(width, height < _minSize.height ? _minSize.height : height),
-    );
+    _defer(() {
+      if (_destroyed) return;
+      final width = _controller.contentSize.width;
+      final height = width / aspect;
+      _controller.setSize(
+        Size(width, height < _minSize.height ? _minSize.height : height),
+      );
+    });
   }
 
   @override
