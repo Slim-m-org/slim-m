@@ -1222,6 +1222,60 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /me/call-stats:
+    get:
+      operationId: getMyCallStats
+      tags: [voice]
+      summary: The caller's own talk statistics from their call transcript lines.
+      description: >
+        Worked out on request from the caller's own transcript lines that are
+        still kept, and never from anyone else's (decision 0113). There is no
+        user parameter, no one else can read these numbers, and a bot is
+        refused. A Space with transcription off answers with nothing counted.
+        With `transcript_id` only the caller's lines in that call count, and
+        the call must be readable by the caller, as for `GET
+        /voice/transcripts/{transcript_id}`. A window read charges the write
+        rate limit because it scans every line the caller spoke.
+      parameters:
+        - name: days
+          in: query
+          required: false
+          description: Count only the last this many days. Omitted means everything still kept.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 3650
+        - name: tz
+          in: query
+          required: false
+          description: An IANA time zone name for the day buckets. UTC when omitted.
+          schema:
+            type: string
+        - name: transcript_id
+          in: query
+          required: false
+          description: Count only the caller's lines in this transcript.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The caller's own numbers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallStats"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /me/links:
     get:
       operationId: listMyLinkedAccounts
@@ -20784,6 +20838,111 @@ components:
             unmarked `false` is ignored, because a client that predates this
             field sends `false` whenever the member never toggled; an unmarked
             `true` is always saved. A marked value is always saved.
+
+    CallStats:
+      type: object
+      required: [since, calls, talk_ms, words, characters, words_per_minute, fillers, languages, buckets, retention_days]
+      properties:
+        since:
+          type: [integer, "null"]
+          format: int64
+          description: When the first counted line began, in ms since the epoch.
+        calls:
+          type: integer
+          description: Calls the caller spoke in.
+        talk_ms:
+          type: integer
+          format: int64
+        words:
+          type: integer
+          format: int64
+          description: Words in lines of languages written with spaces.
+        characters:
+          type: integer
+          format: int64
+          description: Characters in lines of languages written without spaces, such as Japanese.
+        words_per_minute:
+          type: [number, "null"]
+          description: Null under one minute of talk time.
+        fillers:
+          description: Null when the caller spoke no English. English lines only.
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/CallStatsFillers"
+        languages:
+          type: array
+          description: Ranked by talk time. Small ones are folded into `other`.
+          items:
+            $ref: "#/components/schemas/CallStatsLanguage"
+        buckets:
+          $ref: "#/components/schemas/CallStatsBuckets"
+        retention_days:
+          type: [integer, "null"]
+          description: How long the Space keeps transcripts, null when it keeps them without limit.
+
+    CallStatsFillers:
+      type: object
+      required: [total, per_100_words, phrases]
+      properties:
+        total:
+          type: integer
+          format: int64
+        per_100_words:
+          type: number
+        phrases:
+          type: array
+          items:
+            type: object
+            required: [phrase, count]
+            properties:
+              phrase:
+                type: string
+              count:
+                type: integer
+                format: int64
+
+    CallStatsLanguage:
+      type: object
+      required: [code, talk_ms, share, pace, unit]
+      properties:
+        code:
+          type: string
+          description: A whisper language code, or `other`.
+        talk_ms:
+          type: integer
+          format: int64
+        share:
+          type: number
+          description: Share of the caller's talk time, 0 to 1.
+        pace:
+          type: [number, "null"]
+          description: Units a minute, null under one minute of talk time.
+        unit:
+          type: string
+          enum: [words, characters]
+
+    CallStatsBuckets:
+      type: object
+      required: [size, items]
+      properties:
+        size:
+          type: string
+          enum: [day, week]
+        items:
+          type: array
+          items:
+            type: object
+            required: [date, talk_ms, words]
+            properties:
+              date:
+                type: string
+                description: The day, or the Monday of the week, in the requested zone.
+              talk_ms:
+                type: integer
+                format: int64
+              words:
+                type: integer
+                format: int64
 
     HoldMusic:
       type: object

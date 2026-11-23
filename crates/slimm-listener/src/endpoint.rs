@@ -28,7 +28,10 @@ const FLOOR_RISE_KEEP: f32 = 0.9995;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Utterance {
     pub start_ms: i64,
+    /// The end of the PCM span, trailing silence included.
     pub end_ms: i64,
+    /// The end of the last loud frame, which is what a person was heard until.
+    pub voiced_end_ms: i64,
     pub pcm: Vec<i16>,
 }
 
@@ -159,6 +162,7 @@ impl Endpointer {
         Some(Utterance {
             start_ms,
             end_ms: start_ms + frames * FRAME_MS,
+            voiced_end_ms: start_ms + (frames - active.quiet_frames) * FRAME_MS,
             pcm: active.pcm,
         })
     }

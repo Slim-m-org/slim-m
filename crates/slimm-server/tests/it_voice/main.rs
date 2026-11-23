@@ -8,6 +8,7 @@ mod block_evicts_shared_call;
 mod call_audio;
 mod call_audio_privacy;
 mod call_records;
+mod call_stats;
 mod call_transcripts;
 mod call_transcripts_export;
 mod call_transcripts_live;

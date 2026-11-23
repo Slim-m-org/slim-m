@@ -15,6 +15,8 @@ import 'package:slimm_app/src/features/settings/widgets/settings_segmented_row.d
 import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_slider_row.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
+import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/voice/providers/call_stats.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_data/data.dart' show SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
@@ -38,6 +40,24 @@ Future<({ProviderContainer container, SlimmDatabase db})> pumpSettingsAt(
   addTearDown(tester.view.reset);
   final fixture = await fixtureContainer(
     extraOverrides: [
+      // The Call stats pane only exists where the Space transcribes.
+      callTranscriptionModeProvider.overrideWith(
+        (ref) async => api.CallTranscriptionMode.always,
+      ),
+      myCallStatsProvider.overrideWith(
+        (ref, days) async => api.CallStats.fromJson({
+          'since': null,
+          'calls': 0,
+          'talk_ms': 0,
+          'words': 0,
+          'characters': 0,
+          'words_per_minute': null,
+          'fillers': null,
+          'languages': <Object>[],
+          'buckets': {'size': 'day', 'items': <Object>[]},
+          'retention_days': null,
+        }),
+      ),
       voiceControllerProvider.overrideWith(
         (ref) => SnapshotVoiceController(ref, const VoiceState()),
       ),

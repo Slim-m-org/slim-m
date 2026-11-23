@@ -106,3 +106,17 @@ No screen shows lines live in the call yet; captions, summaries and the rest of 
 Since #2405 the call header shows a transcript mark whenever the server is transcribing the call, in both modes, with "This call is being transcribed" on hover.
 In `always` there is no in-call banner any more: nothing in it could be answered or stopped, so the mark replaces the passive banner described above.
 In `on_request` the banner with Stop stays, beside the mark.
+
+## Amendment 2026-11-22: your own call stats
+
+A member can read numbers about their own speech: talk time, words a minute, filler words and languages (`GET /me/call-stats`, the "Call stats" pane in personal Settings, and one "You talked ..." line in each call's Transcript section).
+They are worked out on request, in plain server code, from the caller's own lines that are still kept (those with an `end_at`, in live community channels), and nothing new is stored.
+They follow retention, a moderator's delete, channel deletion and account deletion, and nothing leaves the deployment.
+
+The rule is self-only.
+The route has no user parameter, and no administrator view, Space-wide view, per-person numbers shown to other readers of a call, module power or bot route exists.
+A bot is refused, and an administrator asking gets their own numbers.
+A Space with transcription off answers with nothing counted.
+With `transcript_id` the call must be readable by the caller as for `GET /voice/transcripts/{id}`, and only the caller's lines in it count.
+Filler words are counted on English lines only, and the pane says the transcriber leaves out most ums and uhs.
+A listener's segment `end_ms` is now the end of the last voiced frame, not of the silence that closed it, so talk time is not overstated.

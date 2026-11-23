@@ -80,6 +80,16 @@ pub(super) async fn voice_history_calls(
         root,
     )
     .await;
+    // Only a Space that transcribes has numbers to show, so the shape is checked populated.
+    let off = slimm_server::store::TranscriptionMode::Off;
+    c.state
+        .store
+        .set_call_transcription(slimm_server::store::TranscriptionMode::Always)
+        .await
+        .unwrap();
+    c.get("getMyCallStats", "/me/call-stats?days=30&tz=UTC", root)
+        .await;
+    c.state.store.set_call_transcription(off).await.unwrap();
     c.get(
         "searchVoiceTranscripts",
         "/search/transcripts?q=hello",

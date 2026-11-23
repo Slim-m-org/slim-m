@@ -143,6 +143,7 @@ mod reports;
 mod role_ladder;
 mod roles;
 use roles::{role_preview, role_reorder};
+mod call_stats;
 mod data_exports;
 mod favorites;
 mod hold_music;
@@ -364,6 +365,7 @@ pub fn router(state: AppState) -> Router {
         .merge(notification_schedule::routes())
         .merge(link_preview_removal::routes())
         .merge(pins::routes())
+        .merge(call_stats::routes())
         .merge(hold_music::routes())
         .merge(saved_messages::routes())
         .merge(favorites::routes())

@@ -9,10 +9,12 @@ import 'package:slimm_platform/platform.dart';
 
 import '../../../routing/routes.dart' show desktopPane;
 import 'settings_index_appearance.dart';
+import 'settings_index_call_stats.dart';
 import 'settings_index_gates.dart';
 import 'settings_index_voice.dart';
 
 export 'settings_index_appearance.dart';
+export 'settings_index_call_stats.dart';
 export 'settings_index_gates.dart' show SettingsGate;
 export 'settings_index_space.dart';
 export 'settings_index_voice.dart';
@@ -257,6 +259,7 @@ const personalSettingsIndex = <SettingsEntry>[
     keywords: ['audio', 'haptics', 'vibration'],
   ),
   ...voiceSettingsIndex,
+  ...callStatsSettingsIndex,
   SettingsEntry(
     'performance',
     'Load images in chat',
