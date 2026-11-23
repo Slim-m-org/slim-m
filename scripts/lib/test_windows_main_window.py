@@ -78,7 +78,15 @@ class DartAndRunnerAgree(unittest.TestCase):
     def test_main_claims_the_window_before_any_plugin(self):
         main = strip_c_comments((APP / "lib" / "main.dart").read_text())
         body = main[main.index("Future<void> main("):]
-        self.assertLess(body.index("claimNativeMainWindow()"), body.index("registerPreferencesStore()"))
+        self.assertIn("await startPlatform(", body)
+        # Nothing may precede the claim in main() except the binding it hands over.
+        self.assertLess(body.index("ensureInitialized()"), body.index("startPlatform("))
+        self.assertLess(body.index("startPlatform("), body.index("createAccountHost("))
+        startup = strip_c_comments((APP / "lib" / "src" / "desktop" / "platform_startup.dart").read_text())
+        steps = startup[startup.index("Future<DesktopWindowShell> startPlatform("):]
+        self.assertLess(steps.index("claimNativeMainWindow()"), steps.index("registerPreferencesStore()"))
+        self.assertLess(steps.index("claimNativeMainWindow()"), steps.index("MediaKit.ensureInitialized()"))
+        self.assertLess(steps.index("claimNativeMainWindow()"), steps.index("DesktopWindowShell()"))
 
 
 if __name__ == "__main__":
