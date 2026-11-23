@@ -73,7 +73,8 @@ class AttachmentGallery extends StatelessWidget {
         // One tile size at any count (half the single-image cap), shrinking only when the column is narrower.
         const fullEdge = (kInlineImageMax - gap) / 2;
         final fitted = (constraints.maxWidth - gap * (columns - 1)) / columns;
-        final edge = fitted < fullEdge ? fitted : fullEdge;
+        // Whole pixels, so a tile is never resampled once more by the draw.
+        final edge = (fitted < fullEdge ? fitted : fullEdge).floorToDouble();
         final width = edge * columns + gap * (columns - 1);
         return SizedBox(
           width: width,
