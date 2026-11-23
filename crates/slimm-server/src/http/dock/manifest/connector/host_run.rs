@@ -119,12 +119,21 @@ fn check_image(image: &str) -> Result<(), ManifestError> {
     }
 }
 
-/// A lowercase DNS name or a canonical IP literal, as the supervisor normalizes them.
+/// A lowercase DNS name or a canonical IP literal, as the supervisor normalizes them: an
+/// IPv6 form that carries an IPv4 address is shown as that IPv4, and a name a resolver
+/// would read as a number (`127.1`, `0x7f000001`) is refused, so consent shows what is dialled.
 pub(in crate::http) fn normalize_host(host: &str) -> Option<String> {
     if let Ok(ip) = host.parse::<std::net::IpAddr>() {
-        return Some(ip.to_string());
+        return Some(embedded_v4(ip).to_string());
     }
     let host = host.trim_end_matches('.').to_ascii_lowercase();
+    let last = host.rsplit('.').next().unwrap_or_default();
+    let hex = last
+        .strip_prefix("0x")
+        .is_some_and(|h| h.chars().all(|c| c.is_ascii_hexdigit()));
+    if hex || (!last.is_empty() && last.chars().all(|c| c.is_ascii_digit())) {
+        return None;
+    }
     let label = |l: &str| {
         !l.is_empty()
             && l.len() <= 63
@@ -134,6 +143,26 @@ pub(in crate::http) fn normalize_host(host: &str) -> Option<String> {
                 .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     };
     (!host.is_empty() && host.len() <= 253 && host.split('.').all(label)).then_some(host)
+}
+
+/// The IPv4 inside a mapped, 6to4 or NAT64 IPv6 address, as the supervisor's gateway judges it.
+fn embedded_v4(ip: std::net::IpAddr) -> std::net::IpAddr {
+    use std::net::{IpAddr, Ipv4Addr};
+    let IpAddr::V6(v6) = ip else {
+        return ip;
+    };
+    if let Some(mapped) = v6.to_ipv4_mapped() {
+        return IpAddr::V4(mapped);
+    }
+    let s = v6.segments();
+    let pair = |hi: u16, lo: u16| IpAddr::V4(Ipv4Addr::from((u32::from(hi) << 16) | u32::from(lo)));
+    if s[0] == 0x2002 {
+        return pair(s[1], s[2]);
+    }
+    if s[0] == 0x0064 && s[1] == 0xff9b && s[2..6].iter().all(|&x| x == 0) {
+        return pair(s[6], s[7]);
+    }
+    ip
 }
 
 #[cfg(test)]
@@ -170,6 +199,25 @@ mod tests {
             (run.memory_mib, run.cpus, run.pids),
             (Some(64), Some(0.25), Some(32))
         );
+    }
+
+    /// L4: consent shows the address that is dialled, never a name that hides one.
+    #[test]
+    fn numeric_names_are_refused_and_embedded_ipv4_is_shown_as_ipv4() {
+        for host in ["127.1", "0x7f000001", "0xc0a80101", "2130706433", "nas.10"] {
+            let doc = manifest(json!({"image": IMAGE, "egress": [{"host": host, "port": 80}]}));
+            assert!(parse(doc).unwrap_err().contains("egress hosts"), "{host}");
+        }
+        for (raw, shown) in [
+            ("::ffff:192.168.1.1", "192.168.1.1"),
+            ("2002:c0a8:101::", "192.168.1.1"),
+            ("64:ff9b::a00:1", "10.0.0.1"),
+            ("1password.com", "1password.com"),
+        ] {
+            let doc = manifest(json!({"image": IMAGE, "egress": [{"host": raw, "port": 80}]}));
+            let run = parse(doc).unwrap().connector.unwrap().host_run.unwrap();
+            assert_eq!(run.egress[0].host, shown, "{raw}");
+        }
     }
 
     #[test]
