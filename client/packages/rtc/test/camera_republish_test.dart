@@ -29,7 +29,7 @@ class _Camera extends Fake implements lk.LocalTrackPublication<lk.LocalTrack> {
 class _Me extends Fake implements lk.LocalParticipant {
   _Me(this.camera);
 
-  final _Camera? camera;
+  _Camera? camera;
   final calls = <String>[];
 
   @override
@@ -39,8 +39,20 @@ class _Me extends Fake implements lk.LocalParticipant {
 
   @override
   Future<void> removePublishedTrack(String trackSid,
-          {bool notify = true}) async =>
-      calls.add('remove $trackSid');
+      {bool notify = true}) async {
+    calls.add('remove $trackSid');
+    camera = null;
+  }
+
+  @override
+  Future<lk.LocalTrackPublication<lk.LocalVideoTrack>> publishVideoTrack(
+    lk.LocalVideoTrack track, {
+    lk.VideoPublishOptions? publishOptions,
+  }) async {
+    calls.add('publish ${track.currentOptions.params.dimensions.height} '
+        '${publishOptions?.videoEncoding?.maxBitrate}');
+    return _Camera(track) as lk.LocalTrackPublication<lk.LocalVideoTrack>;
+  }
 
   @override
   Future<lk.LocalTrackPublication?> setCameraEnabled(
@@ -133,6 +145,52 @@ void main() {
       );
 
       expect(me.calls, ['enable true 720']);
+    });
+
+    test('a fresh publish carries the quality\'s encoding', () async {
+      for (final q in CameraQuality.values) {
+        final me = _Me(null);
+        await CameraSwitching(
+          _NoCameras(),
+          measure: (_) async => null,
+          // ignore: invalid_use_of_internal_member
+          createTrack: (options) async => lk.LocalVideoTrack(
+            lk.TrackSource.camera,
+            _Stream(),
+            _Capture(),
+            options,
+          ),
+        ).setEnabled(
+          me,
+          true,
+          options: _options(q),
+          publishOptions: cameraPublishOptionsFor(q),
+        );
+        expect(
+          me.calls,
+          [
+            'publish ${q.params.dimensions.height} ${q.params.encoding!.maxBitrate}'
+          ],
+          reason: q.name,
+        );
+      }
+    });
+
+    test('a republish after a quality change carries the new encoding',
+        () async {
+      final me = _Me(_Camera(_publishedAt(CameraQuality.balanced)));
+      final switching = CameraSwitching(
+        _NoCameras(),
+        measure: (_) async => null,
+        createTrack: (options) async => _publishedAt(CameraQuality.high),
+      );
+      await switching.setEnabled(
+        me,
+        true,
+        options: _options(CameraQuality.high),
+        publishOptions: cameraPublishOptionsFor(CameraQuality.high),
+      );
+      expect(me.calls, ['remove TR_camera', 'publish 1080 4500000']);
     });
 
     test('turning off never unpublishes', () async {

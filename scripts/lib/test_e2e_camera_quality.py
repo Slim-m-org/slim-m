@@ -49,10 +49,10 @@ class ProblemsTest(unittest.TestCase):
         self.assertEqual(cq.problems("720p", window([180, 360, 720])), [])
 
     def test_a_healthy_360p_camera_has_two_layers(self):
-        self.assertEqual(cq.problems("360p", window([180, 360], fps=20)), [])
+        self.assertEqual(cq.problems("360p", window([180, 360], fps=30)), [])
 
-    def test_360p_is_held_to_its_own_lower_frame_rate_floor(self):
-        self.assertTrue(any("encoded" in p for p in cq.problems("360p", window([180, 360], fps=15))))
+    def test_360p_is_held_to_the_same_frame_rate_floor_as_the_rest(self):
+        self.assertTrue(any("encoded" in p for p in cq.problems("360p", window([180, 360], fps=20))))
 
     def test_a_quality_that_never_applied_keeps_the_old_layers(self):
         found = cq.problems("360p", window([180, 360, 720]))
@@ -70,6 +70,42 @@ class ProblemsTest(unittest.TestCase):
 
     def test_a_freeze_fails(self):
         self.assertTrue(any("froze" in p for p in cq.problems("720p", window([180, 360, 720], freezes=1))))
+
+
+def enc(rid, bitrate, fps, scale):
+    return {"rid": rid, "maxBitrate": bitrate, "maxFramerate": fps, "scale": scale, "active": True}
+
+
+def ladder(top_bitrate, top_fps, tiers=3):
+    low = [enc("q", 160000, 15, 2 ** (tiers - 1) * 2), enc("h", 450000, 20, 2 ** (tiers - 1))]
+    return low[: tiers - 1] + [enc("f", top_bitrate, top_fps, 1)]
+
+
+class EncodingTest(unittest.TestCase):
+    def test_the_top_layer_is_the_one_not_scaled_down(self):
+        self.assertEqual(cq.top_encoding(ladder(2500000, 30)), (2500000, 30))
+
+    def test_a_missing_scale_counts_as_full_size(self):
+        self.assertEqual(cq.top_encoding([{"rid": "f", "maxBitrate": 5, "maxFramerate": 6}]), (5, 6))
+
+    def test_no_sender_has_no_top_layer(self):
+        self.assertIsNone(cq.top_encoding([]))
+
+    def test_each_quality_matches_its_budget(self):
+        self.assertEqual(cq.encoding_problems("360p", ladder(600000, 30, tiers=2)), [])
+        self.assertEqual(cq.encoding_problems("720p", ladder(2500000, 30)), [])
+        self.assertEqual(cq.encoding_problems("1080p", ladder(4500000, 30)), [])
+
+    def test_livekit_presets_are_named(self):
+        self.assertIn("1700000", cq.encoding_problems("720p", ladder(1700000, 30))[0])
+        self.assertTrue(cq.encoding_problems("1080p", ladder(3000000, 30)))
+        self.assertTrue(cq.encoding_problems("360p", ladder(450000, 20, tiers=2)))
+
+    def test_a_wrong_frame_rate_alone_fails(self):
+        self.assertTrue(cq.encoding_problems("720p", ladder(2500000, 20)))
+
+    def test_no_encodings_fail(self):
+        self.assertTrue(cq.encoding_problems("720p", []))
 
 
 class RestartTest(unittest.TestCase):

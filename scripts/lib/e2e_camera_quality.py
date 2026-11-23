@@ -24,8 +24,9 @@ SETTLE_SECONDS = 5
 # A fresh publish ramps its top layer with the bandwidth estimate; CI took over 5 s to reach full rate.
 WARM_UP_SECONDS = 30
 WARM_UP_WINDOW = 3
-# The 360p top layer is LiveKit's h360 preset, capped at 20 fps whatever the capture rate.
-MIN_FPS = {"360p": 18.0, "720p": 25.0, "1080p": 25.0}
+MIN_FPS = {"360p": 25.0, "720p": 25.0, "1080p": 25.0}
+# What CameraQuality publishes for the top layer as (max bitrate in bps, max frame rate).
+EXPECTED_TOP = {"360p": (600000, 30), "720p": (2500000, 30), "1080p": (4500000, 30)}
 # Layer heights each camera quality publishes: a 180p and a 360p below the top, or just the 180p under a 360p top.
 EXPECTED_HEIGHTS = {"360p": [180, 360], "720p": [180, 360, 720], "1080p": [180, 360, 1080]}
 CAMERA_ON = "Turn on camera"
@@ -121,6 +122,22 @@ def problems(quality, samples):
     return found
 
 
+def top_encoding(encodings):
+    """The sender's full-size layer (not scaled down) as (maxBitrate, maxFramerate), or None."""
+    for e in encodings:
+        if (e.get("scale") or 1) == 1:
+            return e.get("maxBitrate"), e.get("maxFramerate")
+    return None
+
+
+def encoding_problems(quality, encodings):
+    """Why the encodings the sender was given differ from the quality's budget, empty when they match."""
+    wanted, found = EXPECTED_TOP[quality], top_encoding(encodings)
+    if found != wanted:
+        return [f"{quality}: the top layer is allowed {found} (bps, fps), expected {wanted}"]
+    return []
+
+
 def sample_for(a, b, seconds):
     """Both pages' video stats every STEP_SECONDS, stamped from the first call."""
     rows, start = [], time.time()
@@ -201,7 +218,7 @@ def a_camera_publishes_its_layers_and_changes_quality(a, b, room_id, bob_id):
         _camera_published(room_id, bob_id)
         row, samples = _measure(a, b, "720p")
         rows.append(row)
-        failures += problems("720p", samples)
+        failures += problems("720p", samples) + encoding_problems("720p", row["encodings"])
         for quality in ORDER[1:]:
             samples = _change_quality(a, b, quality)
             row = {"quality": quality, "gap_s": restart_gap(samples),
@@ -210,7 +227,7 @@ def a_camera_publishes_its_layers_and_changes_quality(a, b, room_id, bob_id):
             rows.append(row)
             settled, tail = _measure(a, b, quality)
             rows.append(settled)
-            failures += problems(quality, tail)
+            failures += problems(quality, tail) + encoding_problems(quality, settled["encodings"])
             if row["applied_s"] is None:
                 failures.append(f"{quality}: the layers never became {EXPECTED_HEIGHTS[quality]} after the change")
             if row["gap_s"] > GAP_MAX_SECONDS:
