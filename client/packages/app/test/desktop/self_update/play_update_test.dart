@@ -217,6 +217,20 @@ void main() {
       },
     );
 
+    test('a download kept across a restart finishes into Restart', () async {
+      final play = _FakePlay()
+        ..report = _report(status: InstallStatus.downloading);
+      final container = _container(play);
+      container.listen(playUpdateProvider, (_, _) {});
+      await container.read(playUpdateProvider.notifier).refresh();
+      expect(container.read(playUpdateProvider), PlayUpdateStage.downloading);
+
+      play.statuses.add(InstallStatus.downloaded);
+      await pumpEventQueue();
+
+      expect(container.read(playUpdateProvider), PlayUpdateStage.downloaded);
+    });
+
     test('a failed check keeps what it had', () async {
       final play = _FakePlay();
       final container = _container(play);
