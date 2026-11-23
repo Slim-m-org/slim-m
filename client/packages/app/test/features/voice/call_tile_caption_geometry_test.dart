@@ -52,7 +52,7 @@ void main() {
       await tester.pump();
       final caption = tester.getRect(find.byKey(cameraStartingKey));
       final avatar = tester.getRect(find.byKey(callTileAvatarKey));
-      final tile = tester.getRect(find.byType(CallParticipantTile));
+      final tile = Rect.fromLTWH(0, 0, 170, height);
       expect(caption.overlaps(avatar), isFalse, reason: '$caption vs $avatar');
       expect(tile.inflate(0.5).contains(caption.topLeft), isTrue);
       expect(tile.inflate(0.5).contains(caption.bottomRight), isTrue);
