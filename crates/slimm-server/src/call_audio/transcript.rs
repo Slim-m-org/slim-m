@@ -11,16 +11,27 @@ use super::{AcceptedSegment, Outcome};
 use crate::http::AppState;
 use crate::hub::Event;
 use crate::ids::{CallTranscriptId, ChannelId, UserId};
-use crate::store::{NewTranscript, NewTranscriptLine, TranscriptLine, TranscriptionMode, now_ms};
+use crate::store::{
+    NewTranscript, NewTranscriptLine, TranscriptLine, TranscriptionMode, VoiceCommands, now_ms,
+};
 use crate::voice::Listing;
 
-/// What a person is shown about the server's own transcript.
-pub fn subject() -> Subject {
+/// What a person is shown about the server's own transcript, naming the wake phrase while spoken marks are on.
+pub fn subject(commands: &VoiceCommands) -> Subject {
+    let mut purpose =
+        "Writes down what is said in this call and shows it to the people in it.".to_owned();
+    if commands.on {
+        let phrase = &commands.phrase;
+        purpose.push_str(&format!(
+            " It acts on \"{phrase}, mark that\" and \"{phrase}, note ...\"."
+        ));
+    }
     Subject {
         consumer: Consumer::Transcript,
         module_name: "Call transcript".to_owned(),
-        purpose: "Writes down what is said in this call and shows it to the people in it.".to_owned(),
-        keeps: "Each line, who said it and when, as part of the call, until the Space's retention window passes or a moderator deletes it.".to_owned(),
+        purpose,
+        keeps: "Each line, who said it and when, and any marks and notes, as part of the call, until the Space's retention window passes or a moderator deletes it.".to_owned(),
+        listens_for: commands.on.then(|| commands.phrase.clone()),
     }
 }
 
@@ -78,7 +89,8 @@ pub async fn close(state: &AppState, outcome: &Outcome) {
     changed(state, outcome, true);
 }
 
-pub async fn write_line(state: &AppState, segment: &AcceptedSegment) {
+/// Keeps the segment as a line; false when it could not be written.
+pub async fn write_line(state: &AppState, segment: &AcceptedSegment) -> bool {
     let id = CallTranscriptId(segment.session_id);
     let line = NewTranscriptLine {
         speaker: segment.user_id,
@@ -88,8 +100,14 @@ pub async fn write_line(state: &AppState, segment: &AcceptedSegment) {
         text: &segment.text,
     };
     match state.store.append_call_transcript_line(id, &line).await {
-        Ok(stored) => on_line(state, (segment.channel, id), stored),
-        Err(err) => tracing::warn!(%err, "could not write a call transcript line"),
+        Ok(stored) => {
+            on_line(state, (segment.channel, id), stored);
+            true
+        }
+        Err(err) => {
+            tracing::warn!(%err, "could not write a call transcript line");
+            false
+        }
     }
 }
 

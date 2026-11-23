@@ -76,6 +76,9 @@ String uuidV7At(int now, Random random) {
 /// The same generator for a favorite, idempotent by id like a message send.
 String newFavoriteId() => _uuidV7();
 
+/// The same generator for a call transcript mark, so a retried mark is the same mark.
+String newCallMarkId() => _uuidV7();
+
 /// One id per distinct request: the same while the request is unchanged, so a
 /// retry after a lost reply replays on the server, and fresh once any part of
 /// it changes, because a replay returns the first result whatever the new body

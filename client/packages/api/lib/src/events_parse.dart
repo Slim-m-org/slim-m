@@ -406,6 +406,18 @@ ServerEvent? voiceFrame(Map<String, dynamic> decoded) {
         transcriptId: decoded['transcript_id'] as String,
         line: TranscriptLine.fromJson(decoded['line'] as Map<String, dynamic>),
       ),
+    'call.transcript_mark'
+        when decoded['channel_id'] is String &&
+            decoded['transcript_id'] is String &&
+            decoded['mark_id'] is String =>
+      CallTranscriptMarkChanged(
+        channelId: decoded['channel_id'] as String,
+        transcriptId: decoded['transcript_id'] as String,
+        markId: decoded['mark_id'] as String,
+        mark: decoded['mark'] is Map<String, dynamic>
+            ? TranscriptMark.fromJson(decoded['mark'] as Map<String, dynamic>)
+            : null,
+      ),
     'watch.tick'
         when decoded['channel_id'] is String &&
             decoded['bot_user_id'] is String &&

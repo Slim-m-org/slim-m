@@ -320,6 +320,9 @@ pub(super) enum ServerFrame {
         transcript_id: String,
         line: crate::http::voice::voice_transcripts::LineDto,
     },
+    /// A mark or note kept on, or removed from, a running call's transcript.
+    #[serde(rename = "call.transcript_mark")]
+    CallTranscriptMark(super::call_mark_frames::MarkFrame),
     /// A member played a soundboard clip in a call this connection's account is in;
     /// see [`crate::hub::Event::SoundboardPlayed`].
     #[serde(rename = "soundboard.played")]

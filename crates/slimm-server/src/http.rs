@@ -166,6 +166,7 @@ mod space_link_previews;
 mod space_owner;
 mod space_setup;
 mod space_themes;
+mod space_voice_commands;
 mod still_picture;
 mod storage;
 mod surface_lock;

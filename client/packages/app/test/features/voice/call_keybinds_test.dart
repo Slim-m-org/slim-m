@@ -197,7 +197,10 @@ void main() {
         _overridesKey: encodeOverrides({AppAction.toggleMuteCall: null}),
       });
       final c = await inCall(tester);
-      expect(c.source.binds.last, [GlobalHotkeyId.toggleDeafen]);
+      expect(c.source.binds.last, [
+        GlobalHotkeyId.toggleDeafen,
+        GlobalHotkeyId.markCall,
+      ]);
       await c.voice.leave();
     });
 
@@ -209,6 +212,7 @@ void main() {
       expect(c.source.binds.last, [
         GlobalHotkeyId.toggleMute,
         GlobalHotkeyId.toggleDeafen,
+        GlobalHotkeyId.markCall,
       ]);
       await harness.container
           .read(shortcutOverridesProvider.notifier)

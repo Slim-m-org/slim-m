@@ -26,6 +26,45 @@ extension SlimmApiCallTranscripts on SlimmApi {
     return CallTranscript.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Every mark and note on the transcript, oldest first; 404 when the reader
+  /// may not see it.
+  Future<List<TranscriptMark>> callTranscriptMarks(String id) async {
+    final json = await send('GET', '/voice/transcripts/$id/marks');
+    // A reply with no list reads as no marks, like a server that predates them.
+    final marks = json is Map<String, dynamic> ? json['marks'] : null;
+    if (marks is! List<dynamic>) return const [];
+    return [
+      for (final raw in marks)
+        TranscriptMark.fromJson(raw as Map<String, dynamic>),
+    ];
+  }
+
+  /// Marks the current moment of a running transcribed call, with [note] when
+  /// given. [markId] is a UUIDv7 the caller mints, so a retry is the same mark.
+  Future<TranscriptMark> putCallTranscriptMark(
+    String transcriptId,
+    String markId, {
+    String? note,
+  }) async {
+    final json = await send(
+      'PUT',
+      '/voice/transcripts/$transcriptId/marks/$markId',
+      body: {
+        'kind': note == null ? 'mark' : 'note',
+        if (note != null) 'text': note,
+      },
+    );
+    return TranscriptMark.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Removes a mark. The author, or someone with MANAGE_MESSAGES.
+  Future<void> deleteCallTranscriptMark(String transcriptId, String markId) =>
+      send(
+        'DELETE',
+        '/voice/transcripts/$transcriptId/marks/$markId',
+        expectNoContent: true,
+      );
+
   /// Deletes the transcript and its lines. Needs MANAGE_MESSAGES.
   Future<void> deleteCallTranscript(String id) =>
       send('DELETE', '/voice/transcripts/$id', expectNoContent: true);

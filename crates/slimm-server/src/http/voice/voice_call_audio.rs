@@ -194,6 +194,7 @@ async fn startable_module(
         module_name: module.name.clone(),
         purpose: declared.purpose,
         keeps: declared.keeps,
+        listens_for: None,
     };
     Ok((module, subject))
 }

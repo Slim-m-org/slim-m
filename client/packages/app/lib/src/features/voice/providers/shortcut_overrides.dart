@@ -23,6 +23,7 @@ const remappableActions = [
   AppAction.toggleDeafenCall,
   AppAction.toggleCameraCall,
   AppAction.toggleShareCall,
+  AppAction.markCallMoment,
   AppAction.leaveCall,
   AppAction.toggleCallOverlay,
 ];

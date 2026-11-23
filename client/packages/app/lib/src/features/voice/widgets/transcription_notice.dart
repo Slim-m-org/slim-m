@@ -20,13 +20,17 @@ Future<bool> confirmTranscriptionNotice(
   WidgetRef ref,
 ) async {
   final actions = ref.read(transcriptionNoticeActionsProvider);
-  if (!await actions.isDue() || !context.mounted) return true;
+  final notice = await actions.dueNotice();
+  if (notice == null || !context.mounted) return true;
   final joined = await confirmChoice(
     context,
     title: 'Calls in this Space are transcribed',
-    message:
-        'What is said is written down and kept with the call, '
-        'for members who may read it.',
+    message: [
+      'What is said is written down and kept with the call, '
+          'for members who may read it.',
+      if (notice.voiceCommands)
+        'Say "${notice.phrase}, mark that" to mark a moment.',
+    ].join(' '),
     confirmLabel: 'Join',
     confirmKey: transcriptionNoticeJoinKey,
     cancelKey: transcriptionNoticeCancelKey,

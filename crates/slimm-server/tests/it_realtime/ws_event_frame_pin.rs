@@ -259,6 +259,22 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
                 text: "hello".into(),
             }),
         },
+        Event::CallTranscriptMarkChanged {
+            channel_id: channel,
+            transcript_id: slimm_server::ids::CallTranscriptId(id(12)),
+            mark_id: slimm_server::ids::CallTranscriptMarkId(id(13)),
+            mark: Some(Arc::new(slimm_server::store::TranscriptMark {
+                id: slimm_server::ids::CallTranscriptMarkId(id(13)),
+                transcript_id: slimm_server::ids::CallTranscriptId(id(12)),
+                author_id: bob,
+                at: 1_700_000_000_008,
+                line_seq: Some(3),
+                kind: slimm_server::store::MarkKind::Note,
+                text: Some("follow up".into()),
+                source: slimm_server::store::MarkSource::Manual,
+            })),
+            audience: vec![alice].into(),
+        },
         Event::DmChanged {
             channel_id: channel,
         },

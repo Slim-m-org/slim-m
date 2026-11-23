@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE users SET transcription_notice_ack_at = ?1\n             WHERE id = ?2 AND (transcription_notice_ack_at IS NULL OR transcription_notice_ack_at <\n                 COALESCE((SELECT transcription_notice_revised_at FROM space_settings WHERE id = 1), 0))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "6e1fada8386563c36873f6552c24d8efbea00be6c688169815de38515894a341"
+}

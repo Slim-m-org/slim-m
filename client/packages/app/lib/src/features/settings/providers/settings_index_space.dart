@@ -202,6 +202,18 @@ const spaceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     _voicePage,
+    'Voice commands',
+    description: 'Say "hey space, mark that" in a call.',
+    keywords: ['wake phrase', 'mark', 'note', 'hey space', 'command'],
+  ),
+  SettingsEntry(
+    _voicePage,
+    'Use voice commands',
+    description: 'Calls act on the wake phrase.',
+    keywords: ['wake phrase', 'voice commands'],
+  ),
+  SettingsEntry(
+    _voicePage,
     'Call transcript retention',
     description: 'Older call transcripts are deleted.',
     keywords: ['transcription', 'delete', 'history'],

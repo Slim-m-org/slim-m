@@ -200,6 +200,12 @@ impl Store {
         .execute(&mut *tx)
         .await?;
         sqlx::query!(
+            "DELETE FROM call_transcript_marks WHERE author_id = ?",
+            user_id
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
             "UPDATE call_transcripts SET started_by = NULL WHERE started_by = ?",
             user_id
         )

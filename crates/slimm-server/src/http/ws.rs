@@ -50,6 +50,7 @@ use permission_cache::PermissionCache;
 mod account_frames;
 mod authorization;
 mod authorization_bits;
+mod call_mark_frames;
 mod canvas_frames;
 mod canvas_gate;
 mod canvas_watch;

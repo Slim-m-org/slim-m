@@ -24,6 +24,7 @@
   "{\"channel_id\":\"CHANNEL\",\"last_reply_at\":1700000000001,\"parent_message_id\":\"01900000-0000-7000-8000-000000000001\",\"reply_count\":3,\"thread_channel_id\":\"01900000-0000-7000-8000-000000000004\",\"type\":\"thread.updated\"}",
   "{\"channel_id\":\"CHANNEL\",\"line\":{\"at\":1700000000007,\"end_at\":1700000000009,\"language\":\"en\",\"seq\":3,\"speaker_id\":\"BOB\",\"text\":\"hello\"},\"transcript_id\":\"01900000-0000-7000-8000-00000000000c\",\"type\":\"call.transcript_line\"}",
   "{\"channel_id\":\"CHANNEL\",\"locked\":true,\"object_id\":\"01900000-0000-7000-8000-000000000002\",\"type\":\"canvas.object.lock_changed\",\"version\":3}",
+  "{\"channel_id\":\"CHANNEL\",\"mark\":{\"at\":1700000000008,\"author_id\":\"BOB\",\"id\":\"01900000-0000-7000-8000-00000000000d\",\"kind\":\"note\",\"line_seq\":3,\"source\":\"manual\",\"text\":\"follow up\",\"transcript_id\":\"01900000-0000-7000-8000-00000000000c\"},\"mark_id\":\"01900000-0000-7000-8000-00000000000d\",\"transcript_id\":\"01900000-0000-7000-8000-00000000000c\",\"type\":\"call.transcript_mark\"}",
   "{\"channel_id\":\"CHANNEL\",\"message_id\":\"01900000-0000-7000-8000-000000000001\",\"op_seq\":7,\"type\":\"message.link_previews_removed\"}",
   "{\"channel_id\":\"CHANNEL\",\"message_id\":\"01900000-0000-7000-8000-000000000001\",\"op_seq\":8,\"type\":\"message.deleted\"}",
   "{\"channel_id\":\"CHANNEL\",\"message_id\":\"01900000-0000-7000-8000-000000000001\",\"options\":[{\"position\":0,\"votes\":2},{\"position\":1,\"votes\":1}],\"type\":\"poll.voted\"}",

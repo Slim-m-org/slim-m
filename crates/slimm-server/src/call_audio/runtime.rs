@@ -7,6 +7,7 @@ use std::time::Duration;
 use super::link::LinkEvent;
 use super::protocol::FromListener;
 use super::session::{Consumer, Effect, EndReason};
+use super::spoken_marks::Ears;
 use super::transcript;
 use super::{CallAudioView, Outcome};
 use crate::http::AppState;
@@ -26,11 +27,13 @@ pub fn spawn(state: AppState) -> Option<tokio::task::JoinHandle<()>> {
     Some(tokio::spawn(async move {
         let mut ticker = tokio::time::interval(TICK);
         let mut ticks = 0_u64;
+        let mut ears = Ears::default();
+        ears.refresh(&state).await;
         loop {
             tokio::select! {
                 event = events.recv() => {
                     let Some(event) = event else { return };
-                    handle(&state, event).await;
+                    handle(&state, event, &mut ears).await;
                 }
                 _ = ticker.tick() => {
                     ticks += 1;
@@ -39,6 +42,7 @@ pub fn spawn(state: AppState) -> Option<tokio::task::JoinHandle<()>> {
                     }
                     if ticks.is_multiple_of(STANDING_EVERY_TICKS) {
                         check_standing(&state).await;
+                        ears.refresh(&state).await;
                     }
                 }
             }
@@ -46,7 +50,7 @@ pub fn spawn(state: AppState) -> Option<tokio::task::JoinHandle<()>> {
     }))
 }
 
-async fn handle(state: &AppState, event: LinkEvent) {
+async fn handle(state: &AppState, event: LinkEvent, ears: &mut Ears) {
     let now = now_ms();
     match event {
         LinkEvent::Ready { max_sessions } => state.call_audio.listener_ready(max_sessions),
@@ -59,7 +63,11 @@ async fn handle(state: &AppState, event: LinkEvent) {
             if let Some(accepted) = state.call_audio.accept_segment(&segment, now) {
                 match accepted.consumer {
                     Consumer::Module(_) => module_events::segment(state, &accepted),
-                    Consumer::Transcript => transcript::write_line(state, &accepted).await,
+                    Consumer::Transcript => {
+                        if transcript::write_line(state, &accepted).await {
+                            ears.heard(state, &accepted).await;
+                        }
+                    }
                 }
             }
         }

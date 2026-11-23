@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE space_settings SET\n                 transcription_notice_revised_at = CASE WHEN ?1 = 1 AND voice_commands = 0\n                     THEN ?3 ELSE transcription_notice_revised_at END,\n                 voice_commands = COALESCE(?1, voice_commands),\n                 voice_command_phrase = COALESCE(?2, voice_command_phrase),\n                 updated_at = ?3\n             WHERE id = 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "d1269b0a9d3d2ad162b6e170c403eda804874539789ec6cce1d63bb45113d87d"
+}

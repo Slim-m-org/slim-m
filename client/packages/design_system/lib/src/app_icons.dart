@@ -495,6 +495,13 @@ abstract final class AppIcons {
   static const IconData callList = LucideIcons.listMusic300;
   static const IconData callCaptions = LucideIcons.captions300;
 
+  /// Marking a moment of a transcribed call for everyone who reads it, unlike
+  /// [bookmark], which keeps a message in your own private list.
+  static const IconData callMark = LucideIcons.bookmarkPlus300;
+
+  /// A note left on a transcribed call's timeline, unlike the canvas [note].
+  static const IconData callNote = LucideIcons.notebookPen300;
+
   /// Leads every row a bot adds to a menu, so none can borrow a built-in's glyph.
   static const IconData botAction = LucideIcons.bot300;
 

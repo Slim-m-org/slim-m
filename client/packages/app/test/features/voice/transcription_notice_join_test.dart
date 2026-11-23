@@ -29,10 +29,15 @@ Widget _harness(ProviderContainer container) => UncontrolledProviderScope(
 );
 
 class _Notice {
-  _Notice({required this.mode, required this.acknowledged});
+  _Notice({
+    required this.mode,
+    required this.acknowledged,
+    this.voiceCommands = false,
+  });
 
   final String mode;
   bool acknowledged;
+  final bool voiceCommands;
   final calls = <String>[];
 
   http.Client client() {
@@ -42,7 +47,12 @@ class _Notice {
       if (path == '/voice/transcription-notice') {
         calls.add('GET');
         return http.Response(
-          jsonEncode({'mode': mode, 'acknowledged': acknowledged}),
+          jsonEncode({
+            'mode': mode,
+            'acknowledged': acknowledged,
+            'voice_commands': voiceCommands,
+            'phrase': 'hey orbit',
+          }),
           200,
           headers: {'content-type': 'application/json'},
         );
@@ -107,6 +117,24 @@ void main() {
 
         expect(notice.calls, ['GET', 'ACK']);
         expect(controller.state.channelId, 'channel-1');
+        await unmount(tester);
+      });
+
+      testWidgets('with voice commands on it says how to mark a moment', (
+        tester,
+      ) async {
+        final notice = _Notice(
+          mode: 'always',
+          acknowledged: false,
+          voiceCommands: true,
+        );
+        await open(tester, notice, size: size);
+        expect(
+          find.textContaining('Say "hey orbit, mark that" to mark a moment.'),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(transcriptionNoticeCancelKey));
+        await settle(tester);
         await unmount(tester);
       });
 

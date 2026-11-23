@@ -19,6 +19,7 @@ import '../features/composer/providers/composer_focus.dart';
 import '../features/messages/widgets/inbox_sheet.dart';
 import '../features/palette/widgets/command_palette.dart';
 import '../features/screen_overlay/widgets/call_overlay_shortcut.dart';
+import '../features/voice/providers/call_mark_actions.dart';
 import '../features/voice/providers/call_shortcut_registry.dart';
 import '../features/voice/providers/push_to_talk_gate.dart';
 import '../providers/providers.dart';
@@ -42,6 +43,7 @@ Map<ShortcutActivator, VoidCallback> shellShortcutBindings(
   final cameraCall = activatorFor(AppAction.toggleCameraCall);
   final shareCall = activatorFor(AppAction.toggleShareCall);
   final leaveCall = activatorFor(AppAction.leaveCall);
+  final markCall = activatorFor(AppAction.markCallMoment);
   // Reads the row's handlers when a key arrives, so these are live only while a call row is on screen.
   CallShortcutHandlers? call() => ref.read(callShortcutHandlersProvider);
   return {
@@ -76,6 +78,8 @@ Map<ShortcutActivator, VoidCallback> shellShortcutBindings(
     if (cameraCall != null) cameraCall: () => call()?.toggleCamera(),
     if (shareCall != null) shareCall: () => call()?.toggleShare(),
     if (leaveCall != null) leaveCall: () => call()?.leave(),
+    if (markCall != null)
+      markCall: () => unawaited(ref.read(callMarkActionsProvider).mark()),
     ...serverSwitchBindings(ref),
     ...callOverlayShortcutBindings(ref),
   };

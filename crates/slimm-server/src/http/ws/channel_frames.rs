@@ -228,6 +228,17 @@ pub(super) fn to_frame(
             transcript_id: transcript_id.to_string(),
             line: (*line).clone().into(),
         },
+        Event::CallTranscriptMarkChanged {
+            channel_id,
+            transcript_id,
+            mark_id,
+            mark,
+            ..
+        } => ServerFrame::CallTranscriptMark(super::call_mark_frames::MarkFrame::new(
+            channel_id,
+            (transcript_id, mark_id),
+            mark.as_deref(),
+        )),
         Event::WatchTick {
             channel_id,
             bot_user_id,

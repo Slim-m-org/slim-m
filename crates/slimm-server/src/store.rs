@@ -104,6 +104,7 @@ mod roles;
 use roles::{role_hierarchy, role_reorder, role_update};
 mod attachment_originals;
 mod call_stats;
+mod call_transcript_marks;
 mod call_transcripts;
 mod favorites;
 mod hold_music;
@@ -135,6 +136,7 @@ mod uplink_tests;
 mod user_notes;
 mod users;
 mod voice_call_events;
+mod voice_commands;
 mod voice_notify;
 mod voice_rooms;
 mod voice_sessions;
@@ -164,6 +166,9 @@ pub use bot_prefix::SetBotPrefixError;
 pub use bot_token::{ReissueError, ReissuedToken};
 pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
+pub use call_transcript_marks::{
+    MAX_MARKS_PER_TRANSCRIPT, MarkKind, MarkSource, NewMark, PutMark, TranscriptMark,
+};
 pub use call_transcripts::{
     CallTranscript, HIGHLIGHT_CLOSE, HIGHLIGHT_OPEN, MAX_TRANSCRIPT_RETENTION_DAYS, NewTranscript,
     NewTranscriptLine, TranscriptCursor, TranscriptHit, TranscriptLine, TranscriptionMode,
@@ -306,6 +311,7 @@ pub use users::ProfileUpdate;
 pub use voice_call_events::{
     CALL_HISTORY_RETENTION_DAYS, CanvasActivity, VoiceEvent, VoiceEventKind,
 };
+pub use voice_commands::VoiceCommands;
 pub use voice_sessions::{SessionScope, VOICE_SESSION_RETENTION_DAYS, VoiceSession};
 pub use voice_transcripts::{TranscriptOutcome, TranscriptStatus, VoiceCandidate, VoiceTranscript};
 pub use watch_sessions::{

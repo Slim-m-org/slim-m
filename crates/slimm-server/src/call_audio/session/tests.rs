@@ -7,6 +7,7 @@ fn subject() -> Subject {
         module_name: "Transcript".into(),
         purpose: "writes it down".into(),
         keeps: "the text".into(),
+        listens_for: None,
     }
 }
 

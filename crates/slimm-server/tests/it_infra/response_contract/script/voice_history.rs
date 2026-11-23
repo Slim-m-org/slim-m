@@ -80,6 +80,7 @@ pub(super) async fn voice_history_calls(
         root,
     )
     .await;
+    marks_calls(c, root, (call_audio_channel.id, caller), transcript).await;
     // Only a Space that transcribes has numbers to show, so the shape is checked populated.
     let off = slimm_server::store::TranscriptionMode::Off;
     c.state
@@ -137,4 +138,33 @@ pub(super) async fn voice_history_calls(
     )
     .await;
     voice_session_calls(c, root, call_audio_channel.id).await;
+}
+
+/// A mark kept by someone in the call, read back, then removed.
+async fn marks_calls(
+    c: &mut Contract,
+    root: &str,
+    (channel, caller): (slimm_server::ids::ChannelId, slimm_server::ids::UserId),
+    transcript: slimm_server::ids::CallTranscriptId,
+) {
+    let roster = [(caller, "PA_contract".to_owned(), None)];
+    c.state.voice.live_state().seed(channel, roster);
+    let mark = uuid::Uuid::now_v7();
+    let path = format!("/voice/transcripts/{transcript}/marks");
+    c.json(
+        "putVoiceTranscriptMark",
+        "PUT",
+        &format!("{path}/{mark}"),
+        root,
+        json!({ "kind": "note", "text": "look at this" }),
+    )
+    .await;
+    c.get("listVoiceTranscriptMarks", &path, root).await;
+    c.bare(
+        "deleteVoiceTranscriptMark",
+        "DELETE",
+        &format!("{path}/{mark}"),
+        root,
+    )
+    .await;
 }
