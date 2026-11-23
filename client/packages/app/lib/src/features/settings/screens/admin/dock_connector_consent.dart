@@ -141,12 +141,17 @@ class _ConnectorConsentState extends State<_ConnectorConsent> {
 
   Widget _standing(AppTokens tokens) {
     if (widget.verified) {
-      return const Align(
-        alignment: Alignment.centerLeft,
-        child: DockVerifiedBadge(
-          message: 'From the official slim-addons registry.',
-          tapToShow: true,
-        ),
+      return Row(
+        spacing: AppSpacing.s8,
+        children: [
+          const DockVerifiedBadge(),
+          Expanded(
+            child: Text(
+              'Verified: from the official slim-addons registry.',
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ),
+        ],
       );
     }
     return AppCallout(
@@ -163,7 +168,7 @@ class _ConnectorConsentState extends State<_ConnectorConsent> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(
-          widget.verified ? AppIcons.info : AppIcons.warning,
+          widget.verified ? AppIcons.check : AppIcons.warning,
           size: AppSizes.icon16,
           color: widget.verified ? tokens.textSecondary : tokens.warnText,
         ),
