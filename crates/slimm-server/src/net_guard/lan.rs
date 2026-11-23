@@ -134,14 +134,15 @@ impl OwnAddresses {
         let direct = std::env::var("SLIMM_DIRECT_ADDRESSES").unwrap_or_default();
         let operator = std::env::var("SLIMM_MODULE_LAN_DENY").unwrap_or_default();
         let read = |path| std::fs::read_to_string(path).unwrap_or_default();
+        let docker_host = std::env::var("SLIMM_DOCKER_HOST_ADDRESS").unwrap_or_default();
         let routes = read("/proc/net/route");
+        let (if_inet6, ipv6_route) = (read("/proc/net/if_inet6"), read("/proc/net/ipv6_route"));
+        let isolated = in_container() && !sees_docker_interface(&routes, &if_inet6);
         Self::new(found.into_iter().map(IpAddr::V4))
-            .with_denied(bridge_networks(&routes))
-            .with_denied(v6::own_ranges(
-                &read("/proc/net/if_inet6"),
-                &read("/proc/net/ipv6_route"),
-            ))
+            .with_denied(bridge_networks(&routes, isolated))
+            .with_denied(v6::own_ranges(&if_inet6, &ipv6_route, isolated))
             .with_denied(direct_hosts(&direct).into_iter().map(Cidr::host))
+            .with_denied(parse_denied(&docker_host))
             .with_denied(parse_denied(&operator))
     }
 
@@ -150,9 +151,30 @@ impl OwnAddresses {
     }
 }
 
-/// Directly connected routes that are docker networks: a `br-`/`docker` interface, or any
-/// network inside docker's 172.16/12 pool.
-fn bridge_networks(route_table: &str) -> Vec<Cidr> {
+/// Whether this process runs in a container, where every directly connected network is a
+/// docker network whatever its interface or address range.
+fn in_container() -> bool {
+    ["/.dockerenv", "/run/.containerenv"]
+        .iter()
+        .any(|path| std::path::Path::new(path).exists())
+}
+
+/// A container on host networking sees the host's docker bridges and its real LAN, so its
+/// directly connected networks are not all docker networks.
+fn sees_docker_interface(route_table: &str, if_inet6: &str) -> bool {
+    let v4 = route_table
+        .lines()
+        .skip(1)
+        .filter_map(|line| line.split_whitespace().next());
+    let v6 = if_inet6
+        .lines()
+        .filter_map(|line| line.split_whitespace().nth(5));
+    v4.chain(v6).any(is_docker_interface)
+}
+
+/// Directly connected routes that are docker networks: a `br-`/`docker` interface, any network
+/// inside docker's 172.16/12 pool, or every direct network when `isolated` in a bridged container.
+fn bridge_networks(route_table: &str, isolated: bool) -> Vec<Cidr> {
     route_table
         .lines()
         .skip(1)
@@ -167,10 +189,12 @@ fn bridge_networks(route_table: &str) -> Vec<Cidr> {
                 .count_ones();
             let direct = u32::from_str_radix(gateway, 16).ok()? == 0;
             let docker = is_docker_interface(iface);
-            (direct && prefix > 0 && (docker || in_docker_range(network))).then_some(Cidr {
-                network: IpAddr::V4(network),
-                prefix: prefix as u8,
-            })
+            (direct && prefix > 0 && (docker || isolated || in_docker_range(network))).then_some(
+                Cidr {
+                    network: IpAddr::V4(network),
+                    prefix: prefix as u8,
+                },
+            )
         })
         .collect()
 }
@@ -371,12 +395,55 @@ mod tests {
             br-ab12\t0002A8C0\t00000000\t0001\t0\t0\t0\t00FFFFFF\t0\t0\t0\n\
             eth1\t0000000A\t00000000\t0001\t0\t0\t0\t000000FF\t0\t0\t0\n\
             eth2\t000014AC\t00000000\t0001\t0\t0\t0\t0000FFFF\t0\t0\t0\n";
-        let own = OwnAddresses::default().with_denied(bridge_networks(route));
+        let own = OwnAddresses::default().with_denied(bridge_networks(route, false));
         for text in ["172.17.0.9", "192.168.2.40", "172.20.3.4"] {
             assert!(!allowed_with_local_approval(ip(text), &own), "{text}");
         }
         assert!(allowed_with_local_approval(ip("10.5.5.5"), &own));
         assert!(allowed_with_local_approval(ip("192.168.1.5"), &own));
+    }
+
+    const BRIDGED_ROUTE: &str = "Iface\tDestination\tGateway\tFlags\tRefCnt\tUse\tMetric\tMask\tMTU\tWindow\tIRTT\n\
+        eth0\t00000000\t0100590A\t0003\t0\t0\t0\t00000000\t0\t0\t0\n\
+        eth0\t0000590A\t00000000\t0001\t0\t0\t0\t00FFFFFF\t0\t0\t0\n\
+        eth0\t0030A8C0\t00000000\t0001\t0\t0\t0\t00F0FFFF\t0\t0\t0\n";
+
+    #[test]
+    fn a_bridged_containers_own_network_is_refused_whatever_its_range() {
+        let own = OwnAddresses::default().with_denied(bridge_networks(BRIDGED_ROUTE, true));
+        for text in ["10.89.0.7", "192.168.48.9", "192.168.63.250"] {
+            assert!(!allowed_with_local_approval(ip(text), &own), "{text}");
+        }
+        for text in ["192.168.1.5", "10.5.5.5", "192.168.64.1"] {
+            assert!(allowed_with_local_approval(ip(text), &own), "{text}");
+        }
+    }
+
+    #[test]
+    fn a_host_networked_container_keeps_its_lan_reachable() {
+        let own = OwnAddresses::default().with_denied(bridge_networks(BRIDGED_ROUTE, false));
+        assert!(allowed_with_local_approval(ip("10.89.0.7"), &own));
+        assert!(allowed_with_local_approval(ip("192.168.48.9"), &own));
+    }
+
+    #[test]
+    fn docker_interfaces_mark_a_host_networked_container() {
+        let host = "Iface\tDestination\nenp3s0\t0000A8C0\ndocker0\t000011AC\n";
+        assert!(sees_docker_interface(host, ""));
+        assert!(sees_docker_interface("", "fd00 02 40 00 80 br-ab12\n"));
+        assert!(!sees_docker_interface(
+            BRIDGED_ROUTE,
+            "fd00 02 40 00 80 eth0\n"
+        ));
+    }
+
+    #[test]
+    fn the_configured_docker_host_address_stays_refused() {
+        let own = OwnAddresses::default().with_denied(parse_denied("192.168.1.50, fd00::50"));
+        for text in ["192.168.1.50", "fd00::50"] {
+            assert!(!allowed_with_local_approval(ip(text), &own), "{text}");
+        }
+        assert!(allowed_with_local_approval(ip("192.168.1.51"), &own));
     }
 
     #[test]

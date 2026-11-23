@@ -20,12 +20,15 @@ struct Route {
     interface: String,
 }
 
-/// Every address the host holds, its default gateway and each docker bridge's whole network.
-pub(super) fn own_ranges(if_inet6: &str, ipv6_route: &str) -> Vec<Cidr> {
+/// Every address the host holds, its default gateway and each docker network, which is every
+/// direct network when `isolated`.
+pub(super) fn own_ranges(if_inet6: &str, ipv6_route: &str, isolated: bool) -> Vec<Cidr> {
+    let own_network =
+        |interface: &str| is_docker_interface(interface) || (isolated && interface != "lo");
     let mut ranges = Vec::new();
     for held in held_addresses(if_inet6) {
         ranges.push(Cidr::host(IpAddr::V6(held.address)));
-        if is_docker_interface(&held.interface) {
+        if own_network(&held.interface) {
             ranges.push(network(held.address, held.prefix));
         }
     }
@@ -33,7 +36,7 @@ pub(super) fn own_ranges(if_inet6: &str, ipv6_route: &str) -> Vec<Cidr> {
         let direct = route.next_hop.is_unspecified();
         if route.prefix == 0 && !direct {
             ranges.push(Cidr::host(IpAddr::V6(route.next_hop)));
-        } else if direct && route.prefix > 0 && is_docker_interface(&route.interface) {
+        } else if direct && route.prefix > 0 && own_network(&route.interface) {
             ranges.push(network(route.destination, route.prefix));
         }
     }
@@ -122,7 +125,7 @@ fe800000000000000000000000000000 40 00000000000000000000000000000000 00 00000000
     }
 
     fn own() -> OwnAddresses {
-        OwnAddresses::default().with_denied(own_ranges(IF_INET6, IPV6_ROUTE))
+        OwnAddresses::default().with_denied(own_ranges(IF_INET6, IPV6_ROUTE, false))
     }
 
     #[test]
@@ -160,11 +163,21 @@ fe800000000000000000000000000000 40 00000000000000000000000000000000 00 00000000
     }
 
     #[test]
+    fn a_bridged_containers_unique_local_network_is_refused_whole() {
+        let held = "fd00000000000000000000000000000a 02 40 00 80 eth0\n";
+        let route = "fd000000000000000000000000000000 40 00000000000000000000000000000000 00 00000000000000000000000000000000 00000100 00000001 00000000 00000001 eth0\n";
+        let own = OwnAddresses::default().with_denied(own_ranges(held, route, true));
+        assert!(!allowed_with_local_approval(ip("fd00::77"), &own));
+        let kept = OwnAddresses::default().with_denied(own_ranges(held, route, false));
+        assert!(allowed_with_local_approval(ip("fd00::77"), &kept));
+    }
+
+    #[test]
     fn nothing_is_refused_when_the_kernel_tables_cannot_be_read() {
-        assert!(own_ranges("", "").is_empty());
-        assert!(own_ranges("garbage\n12 34", "nonsense here\n").is_empty());
+        assert!(own_ranges("", "", false).is_empty());
+        assert!(own_ranges("garbage\n12 34", "nonsense here\n", false).is_empty());
         let oversized = "fdc0ffee00000001000000000000000a 05 ff 00 80 br-ab12cd\n";
-        assert!(own_ranges(oversized, "").is_empty());
+        assert!(own_ranges(oversized, "", false).is_empty());
     }
 
     #[test]
