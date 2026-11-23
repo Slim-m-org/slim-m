@@ -20,7 +20,6 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../providers/admin_providers.dart';
 import '../../../../routing/routes.dart';
-import '../../../voice/widgets/ring_flush.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_empty.dart';
@@ -185,13 +184,11 @@ class _DockPaneState extends ConsumerState<DockPane>
               ),
               const SizedBox(height: AppSpacing.s12),
             ],
-            RingFlush(
-              child: AppInput(
-                controller: _query,
-                placeholder: 'Search modules',
-                semanticLabel: 'Search modules',
-                onChanged: (_) => setState(() {}),
-              ),
+            AppInput(
+              controller: _query,
+              placeholder: 'Search modules',
+              semanticLabel: 'Search modules',
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: AppSpacing.s12),
             if (filter == DockListFilter.installed)

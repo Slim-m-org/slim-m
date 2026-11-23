@@ -188,16 +188,12 @@ class _AppInputState extends State<AppInput> {
         // Its own node, so the count never merges into the field's label.
         child: Semantics(
           container: true,
-          child: Padding(
-            padding: _beneathTheBorder,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                '$length/$max',
-                style: AppText.micro.copyWith(
-                  color:
-                      length > max ? tokens.dangerText : tokens.textSecondary,
-                ),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              '$length/$max',
+              style: AppText.micro.copyWith(
+                color: length > max ? tokens.dangerText : tokens.textSecondary,
               ),
             ),
           ),
@@ -216,11 +212,6 @@ class _AppInputState extends State<AppInput> {
 
   bool get _multiline => widget.minLines != null || widget.maxLines != null;
 
-  /// The focus ring's reserved 2px plus the 2px border: what lines text under the field up with the border it explains.
-  static const _beneathTheBorder = EdgeInsets.symmetric(
-    horizontal: AppSpacing.s4,
-  );
-
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -236,10 +227,7 @@ class _AppInputState extends State<AppInput> {
           _counterLine(tokens, max, nearOnly: nearOnly),
         if (hasMessage || widget.helperText != null) ...[
           const SizedBox(height: AppSpacing.s4),
-          Padding(
-            padding: _beneathTheBorder,
-            child: _beneath(tokens, hasMessage),
-          ),
+          _beneath(tokens, hasMessage),
         ],
       ],
     );
@@ -388,31 +376,41 @@ class _AppInputState extends State<AppInput> {
     );
   }
 
-  // The 2px ring is reserved space regardless of focus, coloured only when
-  // focused, so gaining focus never shifts layout.
+  // The ring is painted outside the box, so the box itself is the layout edge and gaining focus never shifts layout.
   Widget _ring(AppTokens tokens, Widget field) {
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: _focused && widget.enabled
-              ? tokens.accentRing
-              : Colors.transparent,
-          width: 2,
+    final ring = _focused && widget.enabled ? tokens.accentRing : null;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        if (ring != null)
+          Positioned.fill(
+            left: -_ringOutset,
+            top: -_ringOutset,
+            right: -_ringOutset,
+            bottom: -_ringOutset,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(color: ring, width: 2),
+                  borderRadius: BorderRadius.circular(AppRadii.control + 2),
+                ),
+              ),
+            ),
+          ),
+        // The whole box is the target; the text line alone left most of it dead to a tap.
+        MouseRegion(
+          cursor: widget.enabled ? SystemMouseCursors.text : MouseCursor.defer,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            // The field inside already says everything a screen reader needs.
+            excludeFromSemantics: true,
+            onTap: widget.enabled ? _focusNode.requestFocus : null,
+            child: field,
+          ),
         ),
-        borderRadius: BorderRadius.circular(AppRadii.control + 2),
-      ),
-      // The whole box is the target; the text line alone left most of it dead to a tap.
-      child: MouseRegion(
-        cursor: widget.enabled ? SystemMouseCursors.text : MouseCursor.defer,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          // The field inside already says everything a screen reader needs.
-          excludeFromSemantics: true,
-          onTap: widget.enabled ? _focusNode.requestFocus : null,
-          child: field,
-        ),
-      ),
+      ],
     );
   }
+
+  static const _ringOutset = 4.0;
 }

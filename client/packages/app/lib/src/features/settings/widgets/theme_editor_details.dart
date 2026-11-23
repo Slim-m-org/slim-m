@@ -103,9 +103,6 @@ class ThemeEditorDetails extends ConsumerWidget {
   }
 }
 
-/// What [AppInput] keeps outside its border for the focus ring.
-const _inputRing = AppSpacing.s4;
-
 /// The name and its field, the field's border on the card's inset like the
 /// Mode and Start from controls under it.
 class _NameField extends StatelessWidget {
@@ -118,21 +115,18 @@ class _NameField extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.s16 - _inputRing,
+        horizontal: AppSpacing.s16,
         vertical: AppSpacing.s16,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 6,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: _inputRing),
-            child: Text(
-              'Name',
-              style: AppText.caption.copyWith(
-                color: tokens.textPrimary,
-                fontWeight: AppWeights.medium,
-              ),
+          Text(
+            'Name',
+            style: AppText.caption.copyWith(
+              color: tokens.textPrimary,
+              fontWeight: AppWeights.medium,
             ),
           ),
           input,
