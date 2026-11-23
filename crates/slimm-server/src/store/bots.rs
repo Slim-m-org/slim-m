@@ -34,7 +34,7 @@ use crate::permissions::Permissions;
 
 use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::roles::role_bots::{
-    assign_to_bot, delete_managed_role, ensure_bots_role, insert_managed_role,
+    assign_to_bot, ensure_bots_role, insert_managed_role, set_managed_role,
 };
 use super::sessions::{SessionContext, revoke_session_rows};
 use super::{Store, now_ms};
@@ -353,44 +353,9 @@ impl Store {
         let Some(bot) = bot else {
             return Err(UpdateBotPermissionsError::NoSuchBot);
         };
-        let existing = sqlx::query_scalar!(
-            r#"SELECT id AS "id!: RoleId" FROM roles WHERE managed_bot_id = ?"#,
-            bot_user_id
-        )
-        .fetch_optional(&mut *tx)
-        .await?;
-
-        let bits = permissions.bits();
         let now = now_ms();
-        let (role_id, reason) = match (existing, permissions == Permissions::NONE) {
-            (Some(role_id), false) => {
-                sqlx::query!(
-                    "UPDATE roles SET permissions = ? WHERE id = ?",
-                    bits,
-                    role_id
-                )
-                .execute(&mut *tx)
-                .await?;
-                (
-                    Some(role_id),
-                    format!("role {role_id} permissions now {bits}"),
-                )
-            }
-            (Some(role_id), true) => {
-                delete_managed_role(&mut tx, role_id).await?;
-                (None, format!("role {role_id} removed, permissions now 0"))
-            }
-            (None, false) => {
-                let role_id =
-                    insert_managed_role(&mut tx, bot_user_id, &bot.display_name, permissions, now)
-                        .await?;
-                (
-                    Some(role_id),
-                    format!("role {role_id} created with permissions {bits}"),
-                )
-            }
-            (None, true) => (None, "permissions still 0".to_owned()),
-        };
+        let (role_id, reason) =
+            set_managed_role(&mut tx, bot_user_id, &bot.display_name, permissions, now).await?;
 
         record_moderation_audit(
             &mut tx,

@@ -297,7 +297,8 @@ async fn spawn_fake_dock_registry() -> String {
         axum::Json(json!({
             "schema": 1,
             "modules": [
-                {"id": "code-exec", "name": "Code Blocks", "version": "0.1.0", "summary": "runs code"}
+                {"id": "code-exec", "name": "Code Blocks", "version": "0.1.0", "summary": "runs code"},
+                {"id": "jellyfin", "name": "Jellyfin", "version": "0.1.0", "summary": "a connector"}
             ]
         }))
     }
@@ -343,6 +344,14 @@ async fn spawn_fake_dock_registry() -> String {
             ]
         }))
     }
+    async fn connector() -> axum::Json<Value> {
+        axum::Json(json!({
+            "schema": 1, "id": "jellyfin", "name": "Jellyfin", "version": "0.1.0",
+            "summary": "a connector", "provider": "connector", "addon_api": 7,
+            "connector": {"permissions": ["view_channel", "send_messages"]},
+            "settings": [{"key": "api_key", "type": "secret", "label": "API key"}]
+        }))
+    }
     async fn artifact() -> Vec<u8> {
         wasm_fixtures::canned_ok_wasm("done")
     }
@@ -353,6 +362,7 @@ async fn spawn_fake_dock_registry() -> String {
     let router = Router::new()
         .route("/index.json", get(index))
         .route("/modules/code-exec/manifest.json", get(manifest))
+        .route("/modules/jellyfin/manifest.json", get(connector))
         .route("/modules/code-exec/0.1.0/module.wasm", get(artifact));
     tokio::spawn(async move {
         axum::serve(listener, router).await.unwrap();

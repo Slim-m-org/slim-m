@@ -12,6 +12,7 @@
 //! fixed host this Dock is configured with; `wire.rs` holds the DTOs.
 
 mod capabilities;
+mod dock_connector;
 mod dock_install;
 mod dock_package;
 mod fetch;
@@ -267,6 +268,10 @@ pub fn routes() -> Router<AppState> {
         )
         .route("/space/dock/modules/{id}/enable", post(enable))
         .route("/space/dock/modules/{id}/disable", post(disable))
+        .route(
+            "/space/dock/modules/{id}/connector-token",
+            post(dock_connector::reissue_token),
+        )
         .route("/space/dock/installed", get(list_installed))
         .route("/space/dock/sources", get(list_sources).post(add_source))
         .route(
@@ -385,7 +390,8 @@ async fn install(
     if query.source.as_deref() == Some(sources::FILE_ID) {
         let (manifest, wasm) = dock_package::stored_file_module(&state, &id).await?;
         let artifact = ArtifactSource::Bytes(wasm);
-        return install_manifest(&state, &manifest, artifact, &req, Some(sources::FILE_REPO))
+        let repo = Some(sources::FILE_REPO);
+        return install_manifest(&state, &manifest, artifact, &req, repo, ctx.user_id)
             .await
             .map(Json);
     }
@@ -398,7 +404,8 @@ async fn install(
         dock,
         origin: &origin,
     };
-    install_manifest(&state, &manifest, artifact, &req, resolved.repo.as_deref())
+    let repo = resolved.repo.as_deref();
+    install_manifest(&state, &manifest, artifact, &req, repo, ctx.user_id)
         .await
         .map(Json)
 }

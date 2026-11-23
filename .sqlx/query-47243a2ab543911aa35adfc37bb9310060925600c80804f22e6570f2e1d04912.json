@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE installed_modules\n             SET provider = 'connector', connector_permissions = ?, source_repo = ?,\n                 manifest_json = ?, approved_host_capabilities = '[]', network_hosts = '[]',\n                 local_network_approved = 0, schedules = '[]'\n             WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "47243a2ab543911aa35adfc37bb9310060925600c80804f22e6570f2e1d04912"
+}

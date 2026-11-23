@@ -155,7 +155,18 @@ Future<_Turn?> _updateOne(
         ...ask.capabilities,
       }, ask.capabilities);
     }
-    final installed = await _install(context, ref, item, manifest, grant);
+    // A connector keeps what it was approved; asking for more is its own page's consent.
+    final connector = manifest.isConnector
+        ? (current.connectorPermissions ?? 0) & manifest.connectorPermissions!
+        : null;
+    final installed = await _install(
+      context,
+      ref,
+      item,
+      manifest,
+      grant,
+      connector: connector,
+    );
     if (!context.mounted) return null;
     final lost = grant == null
         ? _lostAccess(manifest, current, installed)
@@ -246,8 +257,9 @@ Future<api.InstalledDockModule> _install(
   WidgetRef ref,
   DockOutdated item,
   api.DockManifest manifest,
-  _Grant? grant,
-) async {
+  _Grant? grant, {
+  int? connector,
+}) async {
   try {
     return await ref
         .read(apiProvider)
@@ -262,6 +274,7 @@ Future<api.InstalledDockModule> _install(
               : grant.localNetwork,
           reviewedDigest: manifest.reviewDigest,
           source: item.source,
+          approvedConnectorPermissions: connector,
         );
   } finally {
     if (context.mounted) _refreshAfterInstall(ref);

@@ -34,7 +34,10 @@ pub(in crate::http) async fn uninstall(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let module = state.store.installed_module(&id).await?;
-    let uninstalled = state.store.uninstall_module(&id).await?;
+    let uninstalled = match module.as_ref().is_some_and(InstalledModule::is_connector) {
+        true => uninstall_connector(&state, &id, ctx.user_id).await?,
+        false => state.store.uninstall_module(&id).await?,
+    };
     state.dock.slot_cache().invalidate_module(&id);
     crate::http::module_rooms::end_module(&state, &id);
     if uninstalled && let Some(module) = module {
@@ -49,6 +52,19 @@ pub(in crate::http) async fn uninstall(
         return Err(ApiError::NotFound("module not installed"));
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Revokes the connector's token and grants with its row, then closes the token's sockets.
+async fn uninstall_connector(
+    state: &AppState,
+    id: &str,
+    actor: crate::ids::UserId,
+) -> Result<bool, ApiError> {
+    let Some(revoked) = state.store.uninstall_connector(id, actor).await? else {
+        return Ok(false);
+    };
+    super::dock_connector::close_sessions(state, revoked);
+    Ok(true)
 }
 
 /// Removes a module's data files; `true` when there were any.
@@ -73,7 +89,10 @@ async fn retire_principal(state: &AppState, module: &InstalledModule) {
         tracing::warn!(%err, module = %module.id, "could not remove a module's channel overwrite");
     }
     let handoff = match state.store.delete_account(bot).await {
-        Ok(deleted) => deleted.handoff,
+        Ok(deleted) => {
+            super::dock_connector::close_sessions(state, deleted.revoked);
+            deleted.handoff
+        }
         Err(DeleteAccountError::UserNotFound) => None,
         Err(err) => {
             tracing::warn!(?err, module = %module.id, "could not remove a module's principal");

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT session_id AS \"session_id!: SessionId\"\n           FROM bot_tokens WHERE bot_user_id = ? AND revoked_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "session_id!: SessionId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "bot_tokens",
+            "name": "session_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c5ba296f25b7cd72f0817e0bfc9e9872e04bf9013bba572bc2f164a1ca4c145d"
+}

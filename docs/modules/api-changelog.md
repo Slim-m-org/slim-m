@@ -3,6 +3,15 @@
 Every change to a contract a module depends on is listed here, newest first.
 The policy behind the levels is decision [0100](../decisions/0100-module-safety-contracts.md).
 
+## Level 7
+
+- Adds connectors (decision [0090](../decisions/0090-modules-as-the-extension-surface.md), guide [connectors.md](connectors.md)): `"provider": "connector"` with `"addon_api": 7` and `"connector": {"permissions": [<core permission names>]}`. A connector has no artifact or runtime and declares none of a WASM module's sandbox; `settings` is the one shared section.
+- A level 6 host refuses a connector manifest, since it has no artifact.
+- `DockManifest` gains `provider` and `connector.permissions` (bits); a connector's `artifact` and `runtime` read as kind and backend `connector` with an empty path and sha256, so an older app still parses the listing.
+- `POST /space/dock/modules/{id}/install` takes `approved_connector_permissions` and refuses a connector without it, so an app that cannot show the ask cannot install one. `InstalledDockModule` gains `provider`, `connector_permissions` and, in the install answer that created it, `connector_token`.
+- New routes: `POST /space/dock/modules/{id}/connector-token` and `GET /connectors/me`.
+- Nothing is removed or changed in meaning. A module that declares `addon_api_max` of 6 must be updated to run on a level 7 server, as at every level.
+
 ## Level 6
 
 - Adds the `room.state` capability (decision [0131](../decisions/0131-module-room-state.md)): a small shared state the host keeps per module in a call or a text channel. It needs `"addon_api": 6`.

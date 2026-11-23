@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM installed_modules WHERE id = ? AND provider = 'connector'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "16c5af9a8694f2e372c78bf5008b9df2e945d86d2aefb9f728ee060b9cea46a7"
+}

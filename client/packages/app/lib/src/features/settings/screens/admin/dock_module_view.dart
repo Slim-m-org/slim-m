@@ -16,6 +16,7 @@ import '../../widgets/settings_save_bar.dart';
 import '../../widgets/settings_section_header.dart';
 import 'dock_call_audio_card.dart';
 import 'dock_changelog_card.dart';
+import 'dock_connector_card.dart';
 import 'dock_display_card.dart';
 import 'dock_health_card.dart';
 import 'dock_host_access_card.dart';
@@ -50,7 +51,17 @@ class DockManifestView extends StatelessWidget {
     this.onExport,
     this.sourceRepo,
     this.verified = false,
+    this.connectorToken,
+    this.serverUrl,
+    this.onDismissConnectorToken,
+    this.onNewConnectorToken,
   });
+
+  /// A connector's token, shown once at the top until dismissed.
+  final String? connectorToken;
+  final Uri? serverUrl;
+  final VoidCallback? onDismissConnectorToken;
+  final VoidCallback? onNewConnectorToken;
 
   final api.DockManifest manifest;
 
@@ -138,6 +149,15 @@ class DockManifestView extends StatelessWidget {
                 AppErrorState(message: error!, onDismiss: onErrorDismiss),
                 const SizedBox(height: AppSpacing.s12),
               ],
+              if (connectorToken case final token?) ...[
+                DockConnectorTokenReveal(
+                  name: manifest.name,
+                  token: token,
+                  serverUrl: serverUrl ?? Uri(),
+                  onDismiss: onDismissConnectorToken ?? () {},
+                ),
+                const SizedBox(height: AppSpacing.s12),
+              ],
               _DockModuleHeader(
                 manifest: manifest,
                 sourceRepo: sourceRepo,
@@ -155,7 +175,14 @@ class DockManifestView extends StatelessWidget {
                 DockDisplayCard(installed: it),
               ],
               // Before install the switches are asked in the Install sheet, so the page reads like a store page.
-              if (installed != null ||
+              if (manifest.isConnector)
+                DockConnectorCard(
+                  manifest: manifest,
+                  installed: installed,
+                  busy: busy,
+                  onNewToken: onNewConnectorToken,
+                )
+              else if (installed != null ||
                   grantableHostCapabilities(manifest.capabilities).isEmpty)
                 ..._access(),
               if (_updatePending)

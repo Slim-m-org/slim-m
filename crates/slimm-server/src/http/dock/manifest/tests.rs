@@ -3,6 +3,7 @@
 //! purely to hold `manifest.rs` under the file-budget ceiling.
 
 use super::*;
+use crate::module_runtime::{MAX_FUEL, MAX_MEMORY_MB, MAX_WALL_MS};
 
 pub(super) const GOOD_INDEX: &str = r#"{
     "schema": 1,

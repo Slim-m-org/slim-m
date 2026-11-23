@@ -51,6 +51,8 @@ const Map<String, String> _allowlist = {
       'contract for third-party clients',
   'memberPermissions': 'bot accounts only: the server answers 403 to a '
       'person, so the app has no use for it (2026-10-18)',
+  'getConnectorSelf': 'a connector\'s own token only: the server answers '
+      '403 to a person, so the app has no use for it (2026-11-22)',
   'bulkDeleteMessagesByAuthor': 'the author-plus-window sibling of '
       'bulkDeleteMessages: the server route and its index exist so a raid '
       'response is not "select 64 ids by hand", but no transcript UI offers '

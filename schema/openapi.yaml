@@ -11984,6 +11984,63 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/dock/modules/{moduleId}/connector-token:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: reissueConnectorToken
+      tags: [space]
+      summary: Replace a connector's token. Requires MANAGE_SERVER, and a person.
+      description: >
+        Revokes the connector's token, closes its sockets and mints a new one,
+        shown only in this answer (decision 0090). A bot is refused.
+      responses:
+        "200":
+          description: The new token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorToken"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /connectors/me:
+    get:
+      operationId: getConnectorSelf
+      tags: [space]
+      summary: What a connector reads about itself with its own token.
+      description: >
+        The module it is, the permissions it was approved and its settings,
+        secret values included in plain text (decision 0090). Only a
+        connector's own token reaches it; anyone else gets 403, and a
+        disabled connector gets 409. The answer carries Cache-Control
+        no-store.
+      responses:
+        "200":
+          description: The connector's own view.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorSelf"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/dock/modules/{moduleId}/disable:
     parameters:
       - name: moduleId
@@ -15955,6 +16012,23 @@ components:
         addon_api_max:
           type: integer
           description: The newest add-on API version it declares it works with; absent when it names none.
+        provider:
+          type: string
+          enum: [connector]
+          description: >
+            Present for a connector (add-on API 7, decision 0090): an external
+            program holding a bot token instead of a WASM artifact. Absent for
+            a WASM module. A connector's artifact and runtime read as kind and
+            backend "connector" with an empty path and sha256.
+        connector:
+          type: object
+          description: What a connector's token asks for; present with provider.
+          required: [permissions]
+          properties:
+            permissions:
+              type: integer
+              format: int64
+              description: The core permission bits it asks the admin to approve.
         subscriptions:
           type: array
           description: The events it subscribes to.
@@ -16337,6 +16411,14 @@ components:
             The `review_digest` of the manifest the admin was shown. The
             install is refused with 409 if the manifest has changed since.
             Omitted skips the check.
+        approved_connector_permissions:
+          type: integer
+          format: int64
+          description: >
+            For a connector, the core permission bits the admin approved, each
+            one the manifest asks for and the admin holds. Required for a
+            connector (400 without it, so an app that cannot show the ask
+            cannot install one); ignored for a WASM module.
     DockPackage:
       type: object
       required: ["$slim", manifest, artifact]
@@ -16369,6 +16451,23 @@ components:
           schedules,
         ]
       properties:
+        provider:
+          type: string
+          enum: [connector]
+          description: Present for a connector; absent for a WASM module.
+        connector_permissions:
+          type: integer
+          format: int64
+          description: >
+            The core permission bits the admin approved for a connector's
+            token. Its principal never holds more, whatever roles it is given
+            later, and holds nothing while the connector is disabled.
+        connector_token:
+          type: string
+          description: >
+            The connector's bot token, only in the install answer that created
+            its principal. It is never shown again; reissueConnectorToken
+            replaces a lost one.
         id:
           type: string
         name:
@@ -17533,6 +17632,33 @@ components:
           description: >-
             Replaces what the bot's managed role grants. Same guards as
             `CreateBotRequest.permissions`.
+    ConnectorToken:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: The connector's new bot token, shown this once.
+    ConnectorSelf:
+      type: object
+      required: [module_id, name, version, permissions, settings]
+      properties:
+        module_id:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
+        permissions:
+          type: integer
+          format: int64
+          description: The core permission bits the admin approved, the ceiling on this token.
+        settings:
+          type: object
+          description: >
+            Every declared setting by key: the stored value, else its default,
+            else null. A secret's value is in plain text.
+          additionalProperties: true
     NewBot:
       type: object
       required: [bot, token]

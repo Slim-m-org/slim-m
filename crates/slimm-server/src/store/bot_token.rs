@@ -46,9 +46,6 @@ impl Store {
         bot_id: UserId,
         reissued_by: UserId,
     ) -> Result<ReissuedToken, ReissueError> {
-        let token = format!("{BOT_TOKEN_PREFIX}{}", generate_secret());
-        let token_hash = hash_secret(&token);
-        let (device_id, session_id) = (DeviceId::generate(), SessionId::generate());
         let now = now_ms();
 
         let mut tx = self.begin_write().await?;
@@ -66,57 +63,9 @@ impl Store {
             return Err(ReissueError::Removed);
         }
 
-        let old = sqlx::query!(
-            r#"SELECT session_id AS "session_id!: SessionId"
-               FROM bot_tokens WHERE bot_user_id = ? AND revoked_at IS NULL"#,
-            bot_id
-        )
-        .fetch_all(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "UPDATE bot_tokens SET revoked_at = ? WHERE bot_user_id = ? AND revoked_at IS NULL",
-            now,
-            bot_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        let mut revoked = Vec::with_capacity(old.len());
-        for row in old {
-            revoke_session_rows(&mut tx, row.session_id, now).await?;
-            revoked.push(row.session_id);
-        }
-
-        sqlx::query!(
-            "INSERT INTO devices (id, user_id, name, created_at) VALUES (?, ?, ?, ?)",
-            device_id,
-            bot_id,
-            account.display_name,
-            now
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "INSERT INTO sessions (id, user_id, device_id, created_at) VALUES (?, ?, ?, ?)",
-            session_id,
-            bot_id,
-            device_id,
-            now
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "INSERT INTO bot_tokens
-               (token_hash, bot_user_id, session_id, name, created_by, created_at)
-             VALUES (?, ?, ?, ?, ?, ?)",
-            token_hash,
-            bot_id,
-            session_id,
-            account.display_name,
-            reissued_by,
-            now
-        )
-        .execute(&mut *tx)
-        .await?;
+        let revoked = revoke_bot_tokens(&mut tx, bot_id, now).await?;
+        let token =
+            mint_bot_token(&mut tx, bot_id, &account.display_name, reissued_by, now).await?;
         record_moderation_audit(
             &mut tx,
             ModerationAudit {
@@ -143,4 +92,77 @@ impl Store {
             revoked,
         })
     }
+}
+
+/// Revokes every live token `bot_id` holds and their sessions; the sessions, for `Event::SessionRevoked`.
+pub(in crate::store) async fn revoke_bot_tokens(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    bot_id: UserId,
+    now: i64,
+) -> anyhow::Result<Vec<SessionId>> {
+    let old = sqlx::query!(
+        r#"SELECT session_id AS "session_id!: SessionId"
+           FROM bot_tokens WHERE bot_user_id = ? AND revoked_at IS NULL"#,
+        bot_id
+    )
+    .fetch_all(&mut **tx)
+    .await?;
+    sqlx::query!(
+        "UPDATE bot_tokens SET revoked_at = ? WHERE bot_user_id = ? AND revoked_at IS NULL",
+        now,
+        bot_id
+    )
+    .execute(&mut **tx)
+    .await?;
+    let mut revoked = Vec::with_capacity(old.len());
+    for row in old {
+        revoke_session_rows(tx, row.session_id, now).await?;
+        revoked.push(row.session_id);
+    }
+    Ok(revoked)
+}
+
+/// Mints a token on a fresh device and session for `bot_id`; the plaintext, legible this once.
+pub(in crate::store) async fn mint_bot_token(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    bot_id: UserId,
+    name: &str,
+    created_by: UserId,
+    now: i64,
+) -> Result<String, sqlx::Error> {
+    let token = format!("{BOT_TOKEN_PREFIX}{}", generate_secret());
+    let token_hash = hash_secret(&token);
+    let (device_id, session_id) = (DeviceId::generate(), SessionId::generate());
+    sqlx::query!(
+        "INSERT INTO devices (id, user_id, name, created_at) VALUES (?, ?, ?, ?)",
+        device_id,
+        bot_id,
+        name,
+        now
+    )
+    .execute(&mut **tx)
+    .await?;
+    sqlx::query!(
+        "INSERT INTO sessions (id, user_id, device_id, created_at) VALUES (?, ?, ?, ?)",
+        session_id,
+        bot_id,
+        device_id,
+        now
+    )
+    .execute(&mut **tx)
+    .await?;
+    sqlx::query!(
+        "INSERT INTO bot_tokens
+           (token_hash, bot_user_id, session_id, name, created_by, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)",
+        token_hash,
+        bot_id,
+        session_id,
+        name,
+        created_by,
+        now
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(token)
 }
