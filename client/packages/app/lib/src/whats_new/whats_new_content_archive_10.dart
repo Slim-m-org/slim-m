@@ -369,4 +369,50 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.135.0',
+    headline: 'Live captions, marks, and stronger noise suppression on phones',
+    points: [
+      WhatsNewPoint(
+        'A transcribed call can show live captions and a live Transcript '
+        'tab. Captions are off until you turn them on in the call dock or '
+        'in Voice settings.',
+      ),
+      WhatsNewPoint(
+        'Mark a moment in a transcribed call with the Mark button or a '
+        'hotkey, and add a note. Marks are listed with the transcript '
+        'after the call.',
+      ),
+      WhatsNewPoint(
+        'A Space can turn on voice commands, so saying its wake phrase '
+        'marks the moment. It is off unless an admin turns it on, and it '
+        'only reads what the transcript already wrote down.',
+        warn: true,
+      ),
+      WhatsNewPoint(
+        'Settings has a Call stats page with your own talk time, pace, '
+        'filler words and languages. Only you can see it.',
+      ),
+      WhatsNewPoint(
+        'Strong noise suppression and the input gate now work on Android, '
+        'iPhone and the web, not only on Linux and Windows.',
+      ),
+      WhatsNewPoint(
+        'On Windows you can pop a screen share or camera out into its own '
+        'window that stays on top, and the app starts several seconds '
+        'faster.',
+      ),
+      WhatsNewPoint('iPhone plays soundboard clips during a call.'),
+      WhatsNewPoint(
+        'Bots can be installed from the Dock as connectors, limited to '
+        'the permissions an admin approves, with their own commands and '
+        'panels.',
+      ),
+      WhatsNewPoint(
+        'Plus: cameras publish at the bitrate their quality promises, '
+        'sharing a large screen costs less, and module text uses the app '
+        'font.',
+      ),
+    ],
+  ),
 ];
