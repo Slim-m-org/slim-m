@@ -8,5 +8,6 @@
   "problems": [],
   "ceilings": {"max_connectors": 8, "max_memory_mib": 512, "max_cpus": 1.0, "max_pids": 256, "max_volume_mib": 1024},
   "registries": ["ghcr.io/slim-m-org/"],
+  "private_network": true,
   "connectors": 1
 }

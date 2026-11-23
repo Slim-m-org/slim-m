@@ -119,6 +119,31 @@ async fn a_policy_refusal_matches_its_fixture() {
     assert_eq!(answer, expected);
 }
 
+/// L1: without a deny list the docker host's own LAN address would be reachable.
+#[tokio::test]
+async fn the_private_network_is_refused_until_the_operator_names_the_host() {
+    let dir = TestDir::new("slimm-sup-api");
+    let config = config(&dir.0, &[]);
+    let client = Client::new(&config.socket);
+    start(config, "aaaaaaaaaaaaaaaa").await;
+    let mut body: Value = serde_json::from_str(&fixture("create.request.json")).unwrap();
+    body["egress_private"] = json!(true);
+    let (status, answer) = client
+        .post(&format!("/v1/connectors/{ID}/create"), &body.to_string())
+        .await;
+    assert_eq!(
+        (status, answer["error"].clone()),
+        (403, json!("policy")),
+        "{answer}"
+    );
+    assert!(
+        answer["detail"]
+            .as_str()
+            .unwrap()
+            .contains("SLIMM_SUPERVISOR_LAN_DENY")
+    );
+}
+
 #[tokio::test]
 async fn a_missing_runtime_is_runtime_unavailable() {
     let dir = TestDir::new("slimm-sup-api");

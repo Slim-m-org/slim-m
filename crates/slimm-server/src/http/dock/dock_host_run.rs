@@ -75,6 +75,11 @@ pub(super) fn approve(
     runner.require_available()?;
     if let Health::Up(hello) = runner.health() {
         check_against_operator(asked, &hello)?;
+        if approval.egress_private && hello["private_network"] == Value::Bool(false) {
+            return Err(ApiError::BadRequest(
+                "this server cannot grant the Private network until its operator lists the docker host's own addresses in SLIMM_SUPERVISOR_LAN_DENY",
+            ));
+        }
     }
     let approved = HostRunSpec {
         egress,

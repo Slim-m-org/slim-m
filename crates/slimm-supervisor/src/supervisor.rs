@@ -22,6 +22,10 @@ mod gateway_plan;
 mod objects;
 pub mod volumes;
 
+/// The host's own LAN address is a private address like any other, so the Private network
+/// is safe to grant only once the operator has named it.
+pub const PRIVATE_NEEDS_DENY: &str = "the Private network needs the operator to list the docker host's own LAN addresses in SLIMM_SUPERVISOR_LAN_DENY first";
+
 pub struct Supervisor {
     pub config: Config,
     pub instance: String,
@@ -105,12 +109,16 @@ impl Supervisor {
             "problems": readiness.problems,
             "ceilings": self.config.ceilings,
             "registries": self.config.registries,
+            "private_network": !self.config.lan_deny.is_empty(),
             "connectors": connectors,
         }))
     }
 
     pub async fn create(&self, id: &str, req: CreateRequest) -> Result<(), ApiError> {
         let spec = policy::validate(req, &self.config.registries, &self.config.ceilings)?;
+        if spec.egress_private && self.config.lan_deny.is_empty() {
+            return Err(ApiError::policy(PRIVATE_NEEDS_DENY));
+        }
         let _guard = self.verbs.lock().await;
         self.require_ready().await?;
         let names = self.names(id);
