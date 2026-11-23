@@ -33,6 +33,7 @@ class SettingsMeterRow extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final mono = AppText.caption.copyWith(fontFamily: AppFonts.mono);
     return Container(
+      alignment: Alignment.center,
       constraints: BoxConstraints(minHeight: fraction == null ? 56 : 0),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.s16,
