@@ -1,0 +1,14 @@
+{
+  "v": 1,
+  "connectors": [
+    {
+      "id": "0196f2a0-0000-7000-8000-000000000001",
+      "state": "exited",
+      "exit_code": 137,
+      "oom_killed": true,
+      "started_at": "2026-11-22T10:00:00.000000000Z",
+      "finished_at": "2026-11-22T10:05:00.000000000Z",
+      "image": "ghcr.io/slim-m-org/example-connector@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  ]
+}
