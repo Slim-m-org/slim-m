@@ -231,9 +231,8 @@ void main() {
       await _pump(tester, width: width, installedVersion: '0.1.0');
       final card = tester.getRect(find.byType(SettingsSectionCard).first);
       final field = tester.getRect(find.byType(AppInput));
-      // The 2px focus ring plus its 2px gutter are reserved outside the box.
-      expect(field.left, card.left - 4);
-      expect(field.right, card.right + 4);
+      expect(field.left, card.left);
+      expect(field.right, card.right);
     });
 
     testWidgets('card text starts at one inset on the module page at $width', (

@@ -377,6 +377,18 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'troubleshooting',
+    'Debug log',
+    description: 'What this device caught this session.',
+    keywords: ['logs', 'diagnostics', 'errors', 'bug'],
+  ),
+  SettingsEntry(
+    'troubleshooting',
+    'Send debug log',
+    description: 'Share it with the admins.',
+    keywords: ['report', 'bug', 'logs', 'send'],
+  ),
+  SettingsEntry(
+    'troubleshooting',
     'Copy call diagnostics',
     description: 'Audio and video numbers to paste into a bug report.',
     keywords: ['report', 'bug', 'logs', 'call', 'quality', 'copy'],

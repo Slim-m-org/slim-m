@@ -48,10 +48,18 @@ class SettingsPaneBody extends StatelessWidget {
   final VoidCallback? onClose;
 
   EdgeInsets _padding(BuildContext context) {
-    final base =
-        showHeading && pane.padding == const EdgeInsets.all(AppSpacing.s16)
-        ? kSettingsWidePaneInset
-        : pane.padding;
+    final isDefault = pane.padding == const EdgeInsets.all(AppSpacing.s16);
+    // Under an app bar the first section's own top gap is the whole gap.
+    final base = switch ((showHeading, isDefault)) {
+      (true, true) => kSettingsWidePaneInset,
+      (false, true) => const EdgeInsets.fromLTRB(
+        AppSpacing.s16,
+        0,
+        AppSpacing.s16,
+        AppSpacing.s16,
+      ),
+      _ => pane.padding,
+    };
     return base + EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom);
   }
 

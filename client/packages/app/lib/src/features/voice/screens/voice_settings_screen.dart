@@ -59,8 +59,16 @@ class _SensitivitySection extends ConsumerWidget {
     final settings = ref.watch(voiceSettingsControllerProvider);
 
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return SettingsCardBlock(
-      gap: AppSpacing.s8,
+    return _FlushSliderBlock(
+      slider: AppSlider(
+        value: settings.voiceActivitySensitivity,
+        ticks: const ['Strict', 'Moderate', 'Loose'],
+        tickInset: _FlushSliderBlock.inset,
+        semanticLabel: 'Voice activity sensitivity',
+        onChanged: (value) => ref
+            .read(voiceSettingsControllerProvider.notifier)
+            .setVoiceActivitySensitivity(value),
+      ),
       children: [
         Text(
           'Voice activity sensitivity',
@@ -70,17 +78,37 @@ class _SensitivitySection extends ConsumerWidget {
           sensitivityDescription,
           style: AppText.caption.copyWith(color: tokens.textSecondary),
         ),
-        AppSlider(
-          value: settings.voiceActivitySensitivity,
-          ticks: const ['Strict', 'Moderate', 'Loose'],
-          semanticLabel: 'Voice activity sensitivity',
-          onChanged: (value) => ref
-              .read(voiceSettingsControllerProvider.notifier)
-              .setVoiceActivitySensitivity(value),
-        ),
       ],
     );
   }
+}
+
+/// Text at the card's inset with a slider under it whose track already starts in from the edge, so the track lines up with the text.
+class _FlushSliderBlock extends StatelessWidget {
+  const _FlushSliderBlock({required this.children, required this.slider});
+
+  static const double inset = AppSpacing.s16;
+
+  final List<Widget> children;
+  final Widget slider;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: AppSpacing.s16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      spacing: AppSpacing.s8,
+      children: [
+        for (final child in children)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: inset),
+            child: child,
+          ),
+        slider,
+      ],
+    ),
+  );
 }
 
 /// A live level for the local microphone: the native gate's own reading on a
@@ -136,26 +164,31 @@ class _MicrophoneSection extends ConsumerWidget {
           part: AudioDevicePart.microphone,
         ),
         MicPreviewHold(
-          child: SettingsCardBlock(
-            gap: AppSpacing.s8,
+          child: _FlushSliderBlock(
+            slider: TweenAnimationBuilder<double>(
+              tween: Tween(
+                end: preview == null
+                    ? (speaking ? _speakingLevel : _quietLevel)
+                    : preview.fraction * 100,
+              ),
+              duration: AppMotion.reduced(
+                context,
+                const Duration(milliseconds: 200),
+              ),
+              builder: (context, level, _) => AppSlider(
+                tall: true,
+                value: 0,
+                onChanged: null,
+                meter: level,
+                muted: muted,
+                semanticLabel: 'Microphone input level',
+              ),
+            ),
             children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(
-                  end: preview == null
-                      ? (speaking ? _speakingLevel : _quietLevel)
-                      : preview.fraction * 100,
-                ),
-                duration: AppMotion.reduced(
-                  context,
-                  const Duration(milliseconds: 200),
-                ),
-                builder: (context, level, _) => AppSlider(
-                  tall: true,
-                  value: 0,
-                  onChanged: null,
-                  meter: level,
-                  muted: muted,
-                  semanticLabel: 'Microphone input level',
+              Text(
+                'Input level',
+                style: AppText.ui.copyWith(
+                  color: Theme.of(context).extension<AppTokens>()!.textPrimary,
                 ),
               ),
               if (preview?.status == MicPreviewStatus.unavailable)

@@ -34,9 +34,7 @@ class SoundClipEmojiField extends ConsumerWidget {
       semanticLabel: 'Choose an emoji for the clip',
       tooltip: 'Choose emoji',
       onSelect: (token) => onChanged(storableEmoji(token, index)),
-      // Inset by the focus ring a text field reserves, so the two boxes line up.
       builder: (context, button) => Container(
-        margin: const EdgeInsets.all(focusRingGap + focusRingWidth),
         constraints: const BoxConstraints(minHeight: AppSizes.controlLg),
         padding: const EdgeInsets.only(
           left: AppSpacing.s12,

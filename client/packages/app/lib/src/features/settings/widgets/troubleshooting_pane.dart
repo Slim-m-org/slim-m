@@ -82,10 +82,10 @@ class _DebugLogRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final count = ref.watch(debugLogProvider).length;
-    return AppListRow(
-      leading: const SettingsIconTile(AppIcons.debugLog),
-      label: 'Debug log',
-      subtitle: count == 0 ? 'Nothing caught this session.' : '$count caught.',
+    return SettingsDetailRow(
+      icon: AppIcons.debugLog,
+      title: 'Debug log',
+      detail: count == 0 ? 'Nothing caught this session.' : '$count caught.',
       trailing: const Icon(AppIcons.chevronRight, size: AppSizes.icon16),
       onTap: () {
         if (_isWide(context)) {
@@ -104,10 +104,10 @@ class _SendDebugLogRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final empty = ref.watch(debugLogProvider).isEmpty;
-    return AppListRow(
-      leading: const SettingsIconTile(AppIcons.send),
-      label: 'Send debug log',
-      subtitle: empty ? 'Nothing to send yet.' : 'Share it with the admins.',
+    return SettingsDetailRow(
+      icon: AppIcons.send,
+      title: 'Send debug log',
+      detail: empty ? 'Nothing to send yet.' : 'Share it with the admins.',
       trailing: const Icon(AppIcons.chevronRight, size: AppSizes.icon16),
       onTap: empty ? null : () => unawaited(showDebugLogSendSheet(context)),
     );

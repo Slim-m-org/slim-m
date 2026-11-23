@@ -54,6 +54,24 @@ void main() {
     expect(find.byKey(whatsNewScrollRuleKey), findsNothing);
   });
 
+  testWidgets('the notes keep a gutter clear of the scrollbar thumb', (
+    tester,
+  ) async {
+    await _open(tester, const Size(390, 600), 2.0);
+    final viewport = tester.getRect(
+      find.byWidgetPredicate((w) => w is Scrollable),
+    );
+    final column = tester.getRect(
+      find
+          .descendant(
+            of: find.byWidgetPredicate((w) => w is SingleChildScrollView),
+            matching: find.byWidgetPredicate((w) => w is Column),
+          )
+          .first,
+    );
+    expect(viewport.right - column.right, greaterThanOrEqualTo(12));
+  });
+
   testWidgets('notes that fit show no rule', (tester) async {
     // Its own one-line entry: the newest real one grows release by release.
     const short = WhatsNewEntry(

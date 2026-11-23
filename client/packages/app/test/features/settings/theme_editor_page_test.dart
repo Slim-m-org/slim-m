@@ -429,10 +429,7 @@ void main() {
       await rig.open(tester, size: size);
       Finder inDetails(Finder finder) =>
           find.descendant(of: byKey('theme-editor-details'), matching: finder);
-      // The field's border sits inside the box it reserves for its focus ring.
-      final field = tester
-          .getRect(byKey('theme-editor-name'))
-          .deflate(AppSpacing.s4);
+      final field = tester.getRect(byKey('theme-editor-name'));
       final mode = tester.getRect(
         inDetails(find.byWidgetPredicate((w) => w is AppSegmentedControl)),
       );

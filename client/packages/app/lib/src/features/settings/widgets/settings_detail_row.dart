@@ -94,7 +94,12 @@ class SettingsDetailRow extends StatelessWidget {
   /// Machine-ish detail (versions, ids) reads in the mono face.
   final bool monoDetail;
   final Widget? trailing;
+
+  /// Fades only the icon: the text and trailing control stay at full contrast.
   final bool dimmed;
+
+  Widget _dim(Widget tile) =>
+      dimmed ? Opacity(opacity: 0.5, child: tile) : tile;
 
   /// A mono lead-in on the detail line (a version, an id), before [detail].
   final String? meta;
@@ -182,9 +187,9 @@ class SettingsDetailRow extends StatelessWidget {
               spacing: 14,
               children: [
                 if (leading != null)
-                  leading!
+                  _dim(leading!)
                 else if (icon != null)
-                  SettingsIconTile(icon!),
+                  _dim(SettingsIconTile(icon!)),
                 Expanded(child: text),
                 if (!stacked) ?trailing,
               ],
@@ -220,7 +225,6 @@ class SettingsDetailRow extends StatelessWidget {
         ),
       );
     }
-    if (dimmed) row = Opacity(opacity: 0.6, child: row);
     if (error == null) return row;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

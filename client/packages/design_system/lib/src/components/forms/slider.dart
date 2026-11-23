@@ -45,6 +45,7 @@ class AppSlider extends StatefulWidget {
     this.meterActive = true,
     this.muted = false,
     this.ticks,
+    this.tickInset = 0,
     this.semanticLabel,
     this.autofocus = false,
     this.valueLabel,
@@ -81,6 +82,9 @@ class AppSlider extends StatefulWidget {
   /// nearest the thumb is picked out in accent, so the highlight never
   /// disagrees with where the thumb is.
   final List<String>? ticks;
+
+  /// Indents [ticks] on both sides, to line them up with text the track sits wider than.
+  final double tickInset;
   final String? semanticLabel;
 
   /// Takes focus when it appears, so arrow keys move it at once.
@@ -401,7 +405,10 @@ class _AppSliderState extends State<AppSlider> {
           withBubble,
           if (widget.ticks != null) ...[
             const SizedBox(height: AppSpacing.s8),
-            _tickLabels(tokens),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: widget.tickInset),
+              child: _tickLabels(tokens),
+            ),
           ],
         ],
       ),
