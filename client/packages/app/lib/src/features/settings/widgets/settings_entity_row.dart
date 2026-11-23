@@ -114,9 +114,14 @@ class SettingsEntityRow extends StatefulWidget {
 double _actionSlot(BuildContext context) =>
     AppTouchTargets.of(context) ? AppSizes.rowTouch : AppSizes.rowPointer;
 
-/// Below this width and at this text scale the actions drop under the text instead of squeezing it.
+/// Below this width, labelled actions drop under the text instead of squeezing it.
 const _stackActionsBelowWidth = 600.0;
+
+/// At this text scale even icon-only actions drop under the text.
 const _stackActionsScale = 1.5;
+
+bool _hasLabelledAction(List<Widget?> actions) =>
+    actions.any((a) => a != null && a is! AppIconButton);
 
 class _SettingsEntityRowState extends State<SettingsEntityRow> {
   bool _hovered = false;
@@ -129,7 +134,8 @@ class _SettingsEntityRowState extends State<SettingsEntityRow> {
   bool _stackActions(BoxConstraints constraints) =>
       widget.actions.isNotEmpty &&
       constraints.maxWidth < _stackActionsBelowWidth &&
-      MediaQuery.textScalerOf(context).scale(1) >= _stackActionsScale;
+      (_hasLabelledAction(widget.actions) ||
+          MediaQuery.textScalerOf(context).scale(1) >= _stackActionsScale);
 
   Widget _headlineRow(AppTokens tokens) => Row(
     // A caption badge beside a body headline would otherwise sit off its line.
@@ -330,7 +336,11 @@ class _SettingsEntityActions extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       // A pointer slot is barely wider than its button, so neighbours would touch.
-      spacing: AppTouchTargets.of(context) ? 0 : AppSpacing.s4,
+      spacing: _hasLabelledAction(children)
+          ? AppSpacing.s8
+          : AppTouchTargets.of(context)
+          ? 0
+          : AppSpacing.s4,
       children: [
         for (final child in children)
           child ?? SizedBox(width: slot, height: slot),
