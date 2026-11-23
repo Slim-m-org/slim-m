@@ -20,6 +20,8 @@ const _update = ClientUpdate(
 );
 
 void main() {
+  setUpAll(loadRealFonts);
+
   for (final theme in const [darkAndLight]) {
     for (final viewport in const ['phone-portrait', 'desktop']) {
       testWidgets('update chip at $viewport ($theme) fits its viewport', (

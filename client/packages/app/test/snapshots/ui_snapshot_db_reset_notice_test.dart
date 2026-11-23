@@ -10,6 +10,8 @@ import 'package:slimm_data/data.dart';
 import '../ui_snapshot_support.dart';
 
 void main() {
+  setUpAll(loadRealFonts);
+
   for (final theme in const [darkAndLight]) {
     for (final viewport in phoneAndDesktop) {
       testWidgets('database reset notice at $viewport ($theme) fits', (

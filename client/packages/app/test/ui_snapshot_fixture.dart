@@ -28,6 +28,8 @@ import 'package:slimm_app/src/features/settings/screens/admin/server_metrics_scr
 import 'package:slimm_app/src/features/settings/screens/admin/audit_log_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/storage_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/debug_log_screen.dart';
+import 'package:slimm_app/src/features/voice/screens/call_stats_screen.dart';
+import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_app/src/features/auth/screens/onboarding_screen.dart';
 import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
@@ -194,6 +196,11 @@ GoRouter fixtureRouter(String location) => GoRouter(
           modalPage(context, const AccountRecoveryScreen()),
     ),
     ...dockFixtureRoutes,
+    GoRoute(
+      path: Routes.callStats,
+      pageBuilder: (context, state) =>
+          modalPage(context, const CallStatsScreen()),
+    ),
     GoRoute(
       path: '/settings/debug-log',
       pageBuilder: (context, state) =>
