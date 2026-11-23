@@ -22,16 +22,26 @@ const CLOSE: &str = "}}";
 /// A caller id is a SHA-256 HMAC as hex.
 const ID_LEN: usize = 64;
 
-/// `content` with each usable token written as `@username`.
+/// A post's content with its tokens written out, and the members those tokens named.
+pub(super) struct Expanded {
+    pub text: String,
+    /// Exactly the members whose caller ids the tokens held, whatever name they were written as.
+    pub named: Vec<UserId>,
+}
+
+/// `content` with each usable token written as `@username`, or as a name that is not a mention.
 pub(super) async fn expand(
     state: &AppState,
     module_id: &str,
     channel: ChannelId,
     content: &str,
-) -> String {
+) -> Expanded {
     let tokens = find_tokens(content);
     if tokens.is_empty() {
-        return content.to_owned();
+        return Expanded {
+            text: content.to_owned(),
+            named: Vec::new(),
+        };
     }
     let shown = match resolve(state, module_id, channel, &tokens).await {
         Ok(shown) => shown,
@@ -40,7 +50,11 @@ pub(super) async fn expand(
             HashMap::new()
         }
     };
-    splice(content, &tokens, &shown)
+    let named = shown.values().map(|(user, _)| *user).collect();
+    Expanded {
+        text: splice(content, &tokens, &shown),
+        named,
+    }
 }
 
 struct Token<'a> {
@@ -78,7 +92,7 @@ async fn resolve(
     module_id: &str,
     channel: ChannelId,
     tokens: &[Token<'_>],
-) -> anyhow::Result<HashMap<String, String>> {
+) -> anyhow::Result<HashMap<String, (UserId, String)>> {
     let key = state.store.module_caller_key().await?;
     let wanted: Vec<String> = tokens
         .iter()
@@ -100,13 +114,19 @@ async fn resolve(
         let text = if mentionable(&profile.username) {
             format!("@{}", profile.username)
         } else {
-            caller_name(&state.store, profile.id)
+            let name = caller_name(&state.store, profile.id)
                 .await
-                .unwrap_or(profile.username)
+                .unwrap_or(profile.username);
+            inert(&name)
         };
-        shown.insert(id, text);
+        shown.insert(id, (profile.id, text));
     }
     Ok(shown)
+}
+
+/// `name` with every `@` made the full-width `＠`, which the mention grammar does not read.
+fn inert(name: &str) -> String {
+    name.replace('@', "\u{FF20}")
 }
 
 /// The mention grammar drops a trailing `.` or `-`, so such a username cannot be written as one.
@@ -114,14 +134,18 @@ fn mentionable(username: &str) -> bool {
     !username.ends_with(['.', '-'])
 }
 
-fn splice(content: &str, tokens: &[Token<'_>], shown: &HashMap<String, String>) -> String {
+fn splice(
+    content: &str,
+    tokens: &[Token<'_>],
+    shown: &HashMap<String, (UserId, String)>,
+) -> String {
     let mut out = String::with_capacity(content.len());
     let mut copied = 0;
     for (index, token) in tokens.iter().enumerate() {
         let text = (index < MAX_TOKEN_MENTIONS)
             .then(|| shown.get(&token.id.to_ascii_lowercase()))
             .flatten()
-            .map_or(UNRESOLVED, String::as_str);
+            .map_or(UNRESOLVED, |(_, text)| text.as_str());
         out.push_str(&content[copied..token.start]);
         out.push_str(text);
         if runs_on(&content[token.end..]) {
@@ -175,7 +199,7 @@ mod tests {
             id('b')
         );
         let tokens = find_tokens(&text);
-        let shown = HashMap::from([(id('a'), "@ada".to_owned())]);
+        let shown = HashMap::from([(id('a'), (UserId::generate(), "@ada".to_owned()))]);
         assert_eq!(splice(&text, &tokens, &shown), "@ada and a member!");
     }
 
@@ -183,7 +207,7 @@ mod tests {
     fn tokens_past_the_cap_read_as_a_member() {
         let one = format!("{{{{mention:{}}}}}", id('a'));
         let text = vec![one.clone(); MAX_TOKEN_MENTIONS + 2].join(",");
-        let shown = HashMap::from([(id('a'), "@ada".to_owned())]);
+        let shown = HashMap::from([(id('a'), (UserId::generate(), "@ada".to_owned()))]);
         let out = splice(&text, &find_tokens(&text), &shown);
         assert_eq!(out.matches("@ada").count(), MAX_TOKEN_MENTIONS);
         assert_eq!(out.matches(UNRESOLVED).count(), 2);
@@ -198,9 +222,16 @@ mod tests {
     }
 
     #[test]
+    fn a_name_is_written_without_anything_the_mention_grammar_reads() {
+        let written = inert("@alice @everyone @here @[Mods]");
+        assert!(!written.contains('@'), "{written}");
+        assert_eq!(inert("Ada"), "Ada");
+    }
+
+    #[test]
     fn text_that_would_join_the_name_gets_a_space() {
         let text = format!("{{{{mention:{}}}}}x {{{{mention:{}}}}}.", id('a'), id('a'));
-        let shown = HashMap::from([(id('a'), "@ada".to_owned())]);
+        let shown = HashMap::from([(id('a'), (UserId::generate(), "@ada".to_owned()))]);
         assert_eq!(splice(&text, &find_tokens(&text), &shown), "@ada x @ada.");
     }
 }

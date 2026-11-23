@@ -37,7 +37,10 @@ pub(super) fn check(parts: &Parts, grant: ConnectorGrant) -> Result<(), ApiError
         .split('/')
         .map(|s| if s.starts_with('{') { "{}" } else { s })
         .collect();
-    let method = parts.method.as_str();
+    let method = match parts.method.as_str() {
+        "HEAD" => "GET",
+        other => other,
+    };
     if (method, segments.as_slice()) == ("GET", ["connectors", "me"].as_slice()) {
         return Ok(());
     }

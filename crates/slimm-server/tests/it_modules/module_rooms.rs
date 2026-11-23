@@ -8,7 +8,7 @@ use serde_json::Value;
 use slimm_server::permissions::Permissions;
 
 use crate::support;
-use support::room_world::{RoomWorld, noughts_wasm, room_world};
+use support::room_world::{RoomWorld, echo_room_wasm, noughts_wasm, room_world};
 use support::ws::{Client, assert_no_frame_of_type, connect, read_frame_of_type, serve};
 
 async fn noughts(name: &str) -> RoomWorld {
@@ -193,4 +193,19 @@ async fn a_text_channel_room_needs_send_messages() {
         .unwrap();
     assert_eq!(r.input_in(&ava, text, "4").await.0, StatusCode::FORBIDDEN);
     assert_eq!(r.rooms_in(&ava, text).await.0, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn a_room_run_is_not_told_who_the_player_is() {
+    let r = room_world("slimm-rooms-no-names", "echo", echo_room_wasm()).await;
+    let ava = r.player("ava").await;
+    r.join_call(&ava);
+
+    let (status, answer) = r.input(&ava, "go").await;
+
+    assert_eq!(status, StatusCode::OK, "{answer}");
+    let request = answer["state"]["r"].as_str().expect("the echoed request");
+    assert!(request.contains("'caller':{'id':'"), "{request}");
+    assert!(!request.contains("'name'"), "{request}");
+    assert!(!request.contains("ava"), "{request}");
 }

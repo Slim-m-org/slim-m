@@ -269,3 +269,144 @@ async fn a_member_who_cannot_see_the_channel_is_not_mentioned_or_named() {
     assert_eq!(stored.content, "a member");
     assert!(!w.store.is_mentioned(message, bob).await.unwrap());
 }
+
+/// A caller whose username ends in `.`, so a token for them is written as their display name.
+async fn dotted_caller(w: &World, module: &str, display_name: &str) -> (UserId, String) {
+    install_echo(w, module).await;
+    let eve = w.store.create_user("eve.", display_name).await.unwrap();
+    let token = w
+        .store
+        .open_session(eve.id, "pc")
+        .await
+        .unwrap()
+        .access_token;
+    allow_runs(w, eve.id, module).await;
+    let echo = run_as(w, &token, module, None).await;
+    (eve.id, caller_id_in(&echo))
+}
+
+async fn module_principal_may_mention_everyone(w: &World, module: &str) {
+    let bot = w
+        .store
+        .ensure_module_bot(module, "Scorekeeper")
+        .await
+        .unwrap();
+    let role = w
+        .store
+        .create_role("module-pingers", Permissions::MENTION_EVERYONE, false)
+        .await
+        .unwrap();
+    w.store.assign_role(bot, role).await.unwrap();
+}
+
+#[tokio::test]
+async fn a_display_name_naming_other_people_does_not_mention_them() {
+    let w = world("slimm-mention-injection").await;
+    let channel = w.store.create_channel("general", "text").await.unwrap();
+    let alice = w.store.create_user("alice", "Alice").await.unwrap().id;
+    let carol = w.store.create_user("carol", "Carol").await.unwrap().id;
+    let mods = w
+        .store
+        .create_role("Mods", Permissions::NONE, false)
+        .await
+        .unwrap();
+    w.store.assign_role(carol, mods).await.unwrap();
+    let (eve, id) = dotted_caller(&w, "announcer", "@alice @everyone @here @[Mods]").await;
+    module_principal_may_mention_everyone(&w, "announcer").await;
+
+    let answer = post_as_module(
+        &w,
+        "announcer",
+        channel.id,
+        &format!("hi {{{{mention:{id}}}}}"),
+    )
+    .await;
+
+    let message = message_id_in(&answer);
+    let stored = w
+        .store
+        .message_including_deleted(message)
+        .await
+        .unwrap()
+        .unwrap();
+    for victim in [alice, carol] {
+        assert!(
+            !w.store.is_mentioned(message, victim).await.unwrap(),
+            "{}",
+            stored.content
+        );
+    }
+    assert!(w.store.is_mentioned(message, eve).await.unwrap());
+}
+
+#[tokio::test]
+async fn a_nickname_naming_other_people_does_not_mention_them() {
+    let w = world("slimm-mention-injection-nick").await;
+    let channel = w.store.create_channel("general", "text").await.unwrap();
+    let alice = w.store.create_user("alice", "Alice").await.unwrap().id;
+    let (eve, id) = dotted_caller(&w, "announcer", "Eve").await;
+    w.store.set_nickname(eve, "@alice", eve).await.unwrap();
+
+    let answer = post_as_module(
+        &w,
+        "announcer",
+        channel.id,
+        &format!("hi {{{{mention:{id}}}}}"),
+    )
+    .await;
+
+    let message = message_id_in(&answer);
+    assert!(!w.store.is_mentioned(message, alice).await.unwrap());
+}
+
+#[tokio::test]
+async fn a_username_token_still_pings_next_to_a_hostile_name() {
+    let w = world("slimm-mention-injection-control").await;
+    let channel = w.store.create_channel("general", "text").await.unwrap();
+    let (bob, bob_id) = bobs_id(&w, "announcer").await;
+    let (_, eve_id) = dotted_caller(&w, "announcer", "@bob").await;
+    let content = format!("{{{{mention:{eve_id}}}}} {{{{mention:{bob_id}}}}}");
+
+    let answer = post_as_module(&w, "announcer", channel.id, &content).await;
+
+    assert!(
+        w.store
+            .is_mentioned(message_id_in(&answer), bob)
+            .await
+            .unwrap()
+    );
+}
+
+#[tokio::test]
+async fn a_timer_post_cannot_borrow_a_names_everyone_even_from_a_principal_that_may() {
+    use slimm_server::http::run_module_timers;
+    use slimm_server::store::TimerSpec;
+
+    let w = world("slimm-mention-injection-timer").await;
+    let channel = w.store.create_channel("general", "text").await.unwrap();
+    let alice = w.store.create_user("alice", "Alice").await.unwrap().id;
+    let (_, id) = dotted_caller(&w, "pomo", "@everyone").await;
+    module_principal_may_mention_everyone(&w, "pomo").await;
+    let post = post_request(&channel.id.to_string(), &format!("{{{{mention:{id}}}}}"));
+    w.install(Install {
+        id: "pomo",
+        wasm: host_call_loop_wasm(&post, 1),
+        declared: &["schedule", "message.post"],
+        approved_host: &["schedule", "message.post"],
+    })
+    .await;
+    let timer = TimerSpec {
+        command: "run",
+        key: "k",
+        input: "",
+        channel_id: Some(channel.id),
+        run_at: 1,
+    };
+    assert!(w.store.set_module_timer("pomo", &timer, 32).await.unwrap());
+
+    assert_eq!(run_module_timers(&w.state, i64::MAX / 2).await.unwrap(), 1);
+
+    let posted = w.store.list_messages(channel.id, None, 10).await.unwrap();
+    let message = posted.first().expect("the timer posted").id;
+    assert!(!w.store.is_mentioned(message, alice).await.unwrap());
+}

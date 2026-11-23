@@ -32,6 +32,7 @@ A direct message is never a room.
   The host runs the module with `command: "@room"` and `input` set to `room/1`:
   `{"$slim":"room/1","room":{"channel_id","kind":"voice"|"channel"},"seq":<n>,"state":<the state held, or null>,"input":"<the text>"}`.
   The run's `caller.id` is the sender's per-module id (decision 0038), so a module can seat players without learning who they are.
+  A room run carries no `caller.name`, whatever decision 0038's 2026-11-22 amendment sends to a command run, so the promise holds.
   The run's `context` names the room as `voice_channel_id` for a call or `channel_id` for a text channel.
 - **Answer.** The module's `output` is one of three:
   `{"$slim":"room/1","state":<any JSON>}` stores the next state;
