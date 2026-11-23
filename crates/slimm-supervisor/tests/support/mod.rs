@@ -30,7 +30,18 @@ impl TestDir {
 impl Drop for TestDir {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
+        let _ = std::fs::remove_file(socket_for(&self.0));
     }
+}
+
+/// A unix socket path must fit in 108 bytes, which a deep `TMPDIR` does not, so sockets
+/// live in the short runtime directory under a name derived from their test directory.
+pub fn socket_for(dir: &Path) -> PathBuf {
+    use sha2::Digest;
+    let base = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_owned());
+    let hash = sha2::Sha256::digest(dir.as_os_str().as_encoded_bytes());
+    let name: String = hash.iter().take(8).map(|b| format!("{b:02x}")).collect();
+    Path::new(&base).join(format!("slimm-sup-{name}.sock"))
 }
 
 pub fn my_uid() -> u32 {
@@ -57,7 +68,7 @@ pub fn config(dir: &Path, extra: &[(&str, &str)]) -> Config {
         ),
         (
             "SLIMM_SUPERVISOR_SOCKET",
-            dir.join("supervisor.sock").display().to_string(),
+            socket_for(dir).display().to_string(),
         ),
         (
             "SLIMM_SUPERVISOR_STATE_DIR",
@@ -82,7 +93,12 @@ pub fn config(dir: &Path, extra: &[(&str, &str)]) -> Config {
 pub async fn start(config: Config, instance: &str) -> Arc<Supervisor> {
     let socket = config.socket.clone();
     let supervisor = Supervisor::new(config, instance.to_owned());
-    tokio::spawn(slimm_supervisor::api::serve(supervisor.clone()));
+    let serving = supervisor.clone();
+    tokio::spawn(async move {
+        if let Err(err) = slimm_supervisor::api::serve(serving).await {
+            panic!("the supervisor could not serve: {err}");
+        }
+    });
     for _ in 0..100 {
         if UnixStream::connect(&socket).await.is_ok() {
             break;
@@ -148,3 +164,5 @@ pub fn fixture(name: &str) -> String {
         .join(name);
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
 }
+
+pub mod docker;
