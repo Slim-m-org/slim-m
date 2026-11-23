@@ -11,17 +11,36 @@ done
 if grep -q -e docker.sock -e runtime.sock /proc/mounts; then echo "mount=runtime-socket"; fi
 echo "capeff=$(awk '/^CapEff/ {print $2}' /proc/self/status)"
 echo "nonewprivs=$(awk '/^NoNewPrivs/ {print $2}' /proc/self/status)"
+echo "lsm=$(tr -d '\0' </proc/self/attr/current 2>/dev/null)"
 echo "seccomp=$(awk '/^Seccomp:/ {print $2}' /proc/self/status)"
 for t in $SLIMM_PROBE_CONNECT; do
   r=$(printf 'CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\n' "$t" "$t" | nc -w 3 slimm-gateway 3128 | head -n 1 | tr -d '\r')
   echo "connect $t => $r"
 done
+echo "ipv6_disabled=$(cat /proc/sys/net/ipv6/conf/eth0/disable_ipv6 2>/dev/null || echo none)"
+if [ -n "$SLIMM_PROBE_TARGETS_URL" ]; then
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    late=$(wget -q -T 5 -O - "$SLIMM_PROBE_TARGETS_URL" 2>/dev/null) && break
+    sleep 1
+  done
+  SLIMM_PROBE_DIRECT="$SLIMM_PROBE_DIRECT $late"
+fi
 for t in $SLIMM_PROBE_DIRECT; do
   if nc -w 2 "${t%:*}" "${t##*:}" </dev/null >/dev/null 2>&1; then echo "direct $t => open"; else echo "direct $t => closed"; fi
 done
 for u in $SLIMM_PROBE_HTTP; do
   r=$(wget -q -T 5 -O - "$u" 2>&1 | head -n 1)
   echo "http $u => $r"
+done
+for n in $SLIMM_PROBE_DNS; do
+  out=$(nslookup "$n" 2>&1)
+  case "$out" in
+    *NXDOMAIN*) r=nxdomain ;;
+    *SERVFAIL*|*REFUSED*|*"timed out"*|*"no servers"*) r=unanswered ;;
+    *"Name:"*) r=resolved ;;
+    *) r=other ;;
+  esac
+  echo "dns $n => $r"
 done
 echo "probe=done"
 exec sleep "${SLIMM_PROBE_SLEEP:-3600}"

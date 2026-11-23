@@ -96,6 +96,13 @@ async fn a_connector_runs_as_the_fixed_user_with_a_read_only_root_and_no_socket(
         "seccomp=2",
         "default seccomp filter"
     );
+    if support::docker::daemon_has_lsm() {
+        let lsm = line(&lines, "lsm=");
+        assert!(
+            lsm.len() > 4 && !lsm.contains("unconfined") && !lsm.contains("spc_t"),
+            "the connector runs under the runtime's AppArmor or SELinux profile: {lsm}"
+        );
+    }
     let inspected: Value = serde_json::from_str(&docker(&[
         "inspect",
         &format!("slimm-c-{}-{id}", stage.instances[0]),

@@ -216,14 +216,49 @@ pub fn chown_container(names: &Names, image: &str) -> Value {
 }
 
 pub fn internal_network(names: &Names) -> Value {
+    isolated_network(&names.network, names.labels("network"))
+}
+
+const GATEWAY_MODE_V4: &str = "com.docker.network.bridge.gateway_mode_ipv4";
+const GATEWAY_MODE_V6: &str = "com.docker.network.bridge.gateway_mode_ipv6";
+
+/// An internal bridge whose host side has no address: without `isolated` the bridge holds the
+/// gateway address and every host service listening on 0.0.0.0 is reachable from it.
+pub fn isolated_network(name: &str, labels: serde_json::Map<String, Value>) -> Value {
     json!({
-        "Name": names.network,
+        "Name": name,
         "Driver": "bridge",
         "Internal": true,
         "Attachable": false,
         "EnableIPv6": false,
-        "Labels": names.labels("network"),
+        "Options": {GATEWAY_MODE_V4: "isolated", GATEWAY_MODE_V6: "isolated"},
+        "Labels": labels,
     })
+}
+
+/// Whether an inspected network is internal and gives the host no address on it.
+pub fn network_is_isolated(inspected: &Value) -> bool {
+    let option = |key: &str| {
+        inspected
+            .pointer("/Options")
+            .and_then(|o| o.get(key))
+            .and_then(Value::as_str)
+    };
+    let no_gateway = inspected
+        .pointer("/IPAM/Config")
+        .and_then(Value::as_array)
+        .is_some_and(|configs| {
+            configs.iter().all(|c| {
+                c.get("Gateway")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .is_empty()
+            })
+        });
+    inspected.get("Internal").and_then(Value::as_bool) == Some(true)
+        && inspected.get("EnableIPv6").and_then(Value::as_bool) != Some(true)
+        && option(GATEWAY_MODE_V4) == Some("isolated")
+        && no_gateway
 }
 
 pub fn volume(names: &Names) -> Value {

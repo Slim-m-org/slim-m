@@ -63,6 +63,7 @@ impl Supervisor {
             &self.instance,
             &self.config.egress_network,
             &self.config.own_image,
+            self.config.requirements,
         )
         .await;
         *self.readiness.write().await = result.as_ref().ok().cloned();

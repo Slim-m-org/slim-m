@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 
+use crate::checks::Requirements;
 use crate::net::{Cidr, HostPort};
 
 /// The shortest bearer secret the supervisor accepts (decision 0134).
@@ -45,6 +46,8 @@ pub struct Config {
     pub lan_deny: Vec<Cidr>,
     pub state_dir: PathBuf,
     pub own_image: String,
+    /// Never read from the environment, so an operator cannot switch a requirement off.
+    pub requirements: Requirements,
 }
 
 impl std::fmt::Debug for Config {
@@ -121,6 +124,7 @@ impl Config {
                 .unwrap_or("/var/lib/slimm-supervisor")
                 .into(),
             own_image,
+            requirements: Requirements::default(),
         })
     }
 }

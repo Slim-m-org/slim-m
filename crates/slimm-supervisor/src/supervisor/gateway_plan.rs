@@ -18,6 +18,14 @@ impl Supervisor {
             .ok_or_else(|| ApiError::new(Code::NotFound, "no such connector"))?;
         let (egress, egress_private, _) = egress_of(&connector);
         let networks = self.runtime.get("/networks").await?.json();
+        let own = networks
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|n| n.get("Name").and_then(Value::as_str) == Some(names.network.as_str()))
+            .cloned()
+            .unwrap_or(Value::Null);
+        super::objects::require_isolated(&own, names)?;
         let plan = GatewayPlan {
             egress,
             egress_private,

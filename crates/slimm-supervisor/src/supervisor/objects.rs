@@ -75,7 +75,7 @@ impl Supervisor {
             )
             .await?
         {
-            Owned::Ours(_) => Ok(()),
+            Owned::Ours(inspected) => require_isolated(&inspected, names),
             Owned::Foreign => Err(ApiError::policy(format!(
                 "{} exists but the supervisor did not create it",
                 names.network
@@ -85,7 +85,13 @@ impl Supervisor {
                     .runtime
                     .post("/networks/create", Some(&sandbox::internal_network(names)))
                     .await?;
-                expect_success(&reply, "creating the connector network")
+                expect_success(&reply, "creating the connector network")?;
+                let inspected = self
+                    .runtime
+                    .get(&format!("/networks/{}", encode(&names.network)))
+                    .await?
+                    .json();
+                require_isolated(&inspected, names)
             }
         }
     }
@@ -251,6 +257,17 @@ impl Supervisor {
         }
         Ok(())
     }
+}
+
+/// Refuses a connector network the host has an address on, which a runtime that ignored the gateway mode makes.
+pub(super) fn require_isolated(inspected: &Value, names: &Names) -> Result<(), ApiError> {
+    if sandbox::network_is_isolated(inspected) {
+        return Ok(());
+    }
+    Err(ApiError::policy(format!(
+        "{} gives the host an address on the connector network; remove the connector and create it again",
+        names.network
+    )))
 }
 
 fn expect_success(reply: &Reply, what: &str) -> Result<(), ApiError> {

@@ -160,12 +160,23 @@ impl Stage {
             ("SLIMM_SUPERVISOR_SERVER_URL", &server_url),
         ];
         keys.extend_from_slice(extra);
-        let config = config(&sub, &keys);
+        let mut config = config(&sub, &keys);
+        config.requirements.lsm = daemon_has_lsm();
         let client = Client::new(&config.socket);
         start(config, &instance).await;
         self.instances.push(instance.clone());
         (client, instance)
     }
+}
+
+/// A dev box whose daemon has neither AppArmor nor SELinux still runs the suite; CI's does not need this.
+pub fn daemon_has_lsm() -> bool {
+    let options = docker(&["info", "--format", "{{json .SecurityOptions}}"]);
+    let has = options.contains("name=apparmor") || options.contains("name=selinux");
+    if !has {
+        eprintln!("SKIPPED the AppArmor/SELinux requirement: this daemon applies neither");
+    }
+    has
 }
 
 fn copy_into(ctx: &Path, from: &Path, to: &str) {
