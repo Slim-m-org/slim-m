@@ -23,6 +23,7 @@ import 'package:slimm_platform/platform.dart';
 import '../providers/providers.dart';
 import 'desktop_window_shell.dart';
 import 'self_update/play_install.dart';
+import 'self_update/play_update.dart';
 import 'update_check.dart';
 
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -46,12 +47,10 @@ const updateWatchMinGap = Duration(minutes: 10);
 /// `SLIMM_NO_UPDATE_CHECK` - the same flag `startup_updates.dart` honours for
 /// the splash's own one-shot check.
 ///
-/// Android is here because it is the one platform with no update signal at
-/// all. Desktop has this watcher and the splash; iOS has TestFlight; a
-/// sideloaded apk has nothing, and there is no Play listing to give it one,
-/// so without this a tester learns a new build exists only by thinking to
-/// revisit the releases page. iOS is deliberately still absent: TestFlight
-/// already nags, and a second prompt beside it would be noise.
+/// Android is here because a sideloaded apk has no other update signal, and
+/// a Play copy asks Play rather than GitHub (`self_update/play_update.dart`).
+/// iOS is deliberately absent: TestFlight already nags, and a second prompt
+/// beside it would be noise.
 bool updateWatchShouldRun() =>
     (isDesktopHost || isAndroidHost) && !updateChecksDisabled();
 
@@ -122,7 +121,10 @@ class UpdateWatcher {
     _lastCheck = _now();
     try {
       final info = await _ref.read(appInfoProvider.future);
-      if (_fromPlay(info)) return;
+      if (_fromPlay(info)) {
+        await _ref.read(playUpdateProvider.notifier).refresh();
+        return;
+      }
       final update = await _check(
         currentVersion: info.version,
         format: _format,
@@ -167,7 +169,9 @@ final dismissedBannerVersionProvider = StateProvider<String?>((ref) => null);
 
 /// Whether a known update is waiting, which is all the gear badge needs.
 final updatePendingProvider = Provider<bool>(
-  (ref) => ref.watch(inSessionUpdateProvider) != null,
+  (ref) =>
+      ref.watch(inSessionUpdateProvider) != null ||
+      ref.watch(playUpdateProvider) != PlayUpdateStage.none,
 );
 
 /// Whether [UpdateAvailableBanner] actually has something to paint right
@@ -179,6 +183,7 @@ final updatePendingProvider = Provider<bool>(
 /// nothing is showing there left a permanent empty band above the rail on
 /// every phone, banner or not.
 final bannerVisibleProvider = Provider<bool>((ref) {
+  if (ref.watch(playBannerVisibleProvider)) return true;
   final update = ref.watch(inSessionUpdateProvider);
   if (update == null) return false;
   return ref.watch(dismissedBannerVersionProvider) != update.version;

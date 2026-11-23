@@ -15,10 +15,11 @@
 /// on restart, so repeating that branching here would only be a second place
 /// for it to drift out of sync with the splash's own copy.
 ///
-/// Android has no such splash and no store to hand off to, so telling
-/// somebody there to restart would be advice that does nothing. It gets an
-/// Update button instead, which downloads the signed apk and opens the system
-/// installer, and falls back to the release page whenever that cannot work.
+/// Android has no such splash, so telling somebody there to restart would be
+/// advice that does nothing. A sideloaded apk gets an Update button instead,
+/// which downloads the signed apk and opens the system installer, and falls
+/// back to the release page whenever that cannot work. A Play copy gets Play's
+/// own flexible update, and the Play build carries no apk updater at all.
 library;
 
 import 'dart:async';
@@ -32,6 +33,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/providers.dart';
 import 'self_update/android_apk_update.dart';
+import 'self_update/play_install.dart';
+import 'self_update/play_update.dart';
 import 'update_check.dart';
 import 'update_watch.dart';
 
@@ -47,7 +50,10 @@ class UpdateAvailableBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Forces UpdateWatcher into existence for as long as this stays mounted.
     ref.watch(updateWatcherProvider);
-    if (!ref.watch(bannerVisibleProvider)) return const SizedBox.shrink();
+    if (ref.watch(playBannerVisibleProvider)) return const _PlayUpdateBanner();
+    if (playBuild || !ref.watch(bannerVisibleProvider)) {
+      return const SizedBox.shrink();
+    }
     final update = ref.watch(inSessionUpdateProvider)!;
 
     // A sideloaded apk never re-runs the splash, so a restart gets it nothing.
@@ -115,5 +121,50 @@ class UpdateAvailableBanner extends ConsumerWidget {
     ref.read(dismissedBannerVersionProvider.notifier).state = update.version;
     final prefs = await ref.read(preferencesProvider.future);
     await prefs.setString(dismissedUpdateVersionKey, update.version);
+  }
+}
+
+/// Play's flexible update: offer it, show the download, then restart into it.
+class _PlayUpdateBanner extends ConsumerWidget {
+  const _PlayUpdateBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stage = ref.watch(playUpdateProvider);
+    final label = playUpdateActionLabel(stage);
+    return AppCallout(
+      tone: AppCalloutTone.info,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              stage == PlayUpdateStage.downloaded
+                  ? 'The update is ready.'
+                  : 'An update is available.',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (label != null)
+            AppButton(
+              label: label,
+              variant: AppButtonVariant.ghost,
+              onPressed: stage == PlayUpdateStage.downloading
+                  ? null
+                  : () => runPlayUpdateAction(
+                      ref.read(playUpdateProvider.notifier),
+                      stage,
+                    ),
+            ),
+          AppIconButton(
+            icon: AppIcons.dismiss,
+            semanticLabel: 'Dismiss',
+            size: AppIconButtonSize.sm,
+            onPressed: () =>
+                ref.read(dismissedPlayStageProvider.notifier).state = stage,
+          ),
+        ],
+      ),
+    );
   }
 }
