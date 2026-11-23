@@ -190,6 +190,7 @@ class SettingsSubRow extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.semanticLabel,
+    this.stackTrailing = false,
   });
 
   final String label;
@@ -198,6 +199,11 @@ class SettingsSubRow extends StatelessWidget {
   final VoidCallback? onTap;
   final String? semanticLabel;
 
+  static const _trailingShare = 0.62;
+
+  /// Puts [trailing] on its own line under the label, at the full row width.
+  final bool stackTrailing;
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -205,19 +211,41 @@ class SettingsSubRow extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 44),
       padding: const EdgeInsets.fromLTRB(32, 6, AppSpacing.s16, 6),
       color: Color.lerp(tokens.surfaceBase, tokens.surfaceRaised, 0.5),
-      child: Row(
-        spacing: 10,
-        children: [
-          if (leading != null) leading!,
-          Expanded(
-            child: Text(
-              label,
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
+      child: stackTrailing && trailing != null
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  label,
+                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+                ),
+                trailing!,
+              ],
+            )
+          : LayoutBuilder(
+              builder: (context, box) => Row(
+                spacing: 10,
+                children: [
+                  if (leading != null) leading!,
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: AppText.caption.copyWith(
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                  ),
+                  // Capped, so a long value ellipsizes instead of overflowing the row.
+                  if (trailing != null)
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: box.maxWidth * _trailingShare,
+                      ),
+                      child: trailing,
+                    ),
+                ],
+              ),
             ),
-          ),
-          if (trailing != null) trailing!,
-        ],
-      ),
     );
     if (onTap == null) return row;
     return Semantics(

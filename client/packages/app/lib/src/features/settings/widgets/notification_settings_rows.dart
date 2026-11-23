@@ -133,12 +133,7 @@ class _NotificationPreferenceRowState
         ),
         if (loadFailed)
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s8,
-              0,
-              AppSpacing.s8,
-              AppSpacing.s8,
-            ),
+            padding: const EdgeInsets.all(AppSpacing.s16),
             child: AppErrorState(
               message: 'Could not load your notification preference.',
               onRetry: () => ref.invalidate(notificationPreferenceProvider),
@@ -146,12 +141,7 @@ class _NotificationPreferenceRowState
           ),
         if (actionError != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s8,
-              0,
-              AppSpacing.s8,
-              AppSpacing.s8,
-            ),
+            padding: const EdgeInsets.all(AppSpacing.s16),
             child: AppErrorState(
               message: actionError!,
               onDismiss: clearActionError,
