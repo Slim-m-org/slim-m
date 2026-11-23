@@ -92,9 +92,15 @@ A pop-out is a `RegularWindow` hosted through `ViewAnchor`, so it renders the sa
 There is no second subscription, no second decode and no server token route, which is why `desktop_multi_window` (second engine) was not taken.
 - The gate is `isWindowingEnabled`, read from the compile-time define `FLUTTER_ENABLED_FEATURE_FLAGS`, and it is not guarded by `kDebugMode`, so a release build honours it.
 - The flutter tool only sets that define on the master channel and rejects it from `--dart-define`, so `client/packages/app/linux/flutter/CMakeLists.txt` appends it to `FLUTTER_TOOL_ENVIRONMENT`.
-- `popout_windowing.dart` is the one file that imports the internal API, so a framework change lands there.
+- `popout_windowing_native.dart` and `popout_windowing_win32.dart` are the only files that import the internal API, so a framework change lands there.
 - The API is marked unstable, so a Flutter upgrade can break the build; treat a bump as needing a pop-out check.
-- Windows and macOS builds do not carry the flag yet, so `popOutSupportedProvider` is false there and no button shows.
+- macOS builds do not carry the flag yet, so `popOutSupportedProvider` is false there and no button shows.
+- Since 2026-11-22 Windows carries it too (`client/packages/app/windows/flutter/CMakeLists.txt`).
+  The Windows engine renders only windows made from Dart: a pop-out beside the runner's own `FlutterViewController` window opened blank on the win11 VM.
+  So the runner now runs a bare `FlutterEngine`, as Flutter's `examples/multiple_windows` does, and `claimNativeMainWindow` creates the main window first thing in `main`.
+  The runner registers the plugins and its own channels only when Dart reports that window (`windows/runner/main_window.cpp`), because window_manager, tray_manager and media_kit look the window up when they are registered.
+  The engine's windowing hears `WM_CLOSE` before window_manager does, so the main window's delegate hands a close to `WindowManagerDesktopWindowPort.onNativeCloseRequested`.
+  The Win32 pop-out has no undecorated option, so it keeps the OS title bar; it is kept above with `SetWindowPos(HWND_TOPMOST)` (`popout_windowing_win32.dart`).
 - Web never offers it.
 - Always-on-top is not requested: the controller exposes no such call, and on KDE the user can set "keep above" from the window menu.
 - Since 2026-10-08 the window opens undecorated (`RegularWindowControllerLinux(decorated: false)`): the app draws its own drag area, resize edges and close button, and moving or resizing goes to GTK over FFI (`popout_gtk_drag.dart`). With no OS title bar, "keep above" is no longer one click away on KDE; it is still in the window's Alt+F3 menu.

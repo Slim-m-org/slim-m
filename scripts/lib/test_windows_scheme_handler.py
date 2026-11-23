@@ -86,9 +86,9 @@ class RunnerForwardsTheLink(unittest.TestCase):
         self.assertNotIn("SendAppLinkToInstance", source)
 
     def test_the_window_takes_a_forwarded_link_before_the_plugins(self):
-        window = strip_c_comments((RUNNER_DIR / "flutter_window.cpp").read_text())
+        window = strip_c_comments((RUNNER_DIR / "main_window.cpp").read_text())
         self.assertIn("OnForwardedLink(", window)
-        self.assertLess(window.index("OnForwardedLink("), window.index("HandleTopLevelWindowProc("))
+        self.assertLess(window.index("RegisterTopLevelWindowProcDelegate("), window.index("RegisterPlugins("))
 
     def test_only_a_slimm_link_is_forwarded(self):
         source = strip_c_comments((RUNNER_DIR / "link_handoff.h").read_text())

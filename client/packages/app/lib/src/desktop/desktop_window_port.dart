@@ -153,6 +153,7 @@ class WindowManagerDesktopWindowPort
   bool _hidden = false;
   bool _destroying = false;
   bool _suspended = false;
+  bool _preventClose = false;
 
   @override
   bool get suspendedByCompositor => _suspended;
@@ -207,6 +208,13 @@ class WindowManagerDesktopWindowPort
     // window_manager's destroy closes the GTK window, which echoes a close; routing that one closed it twice and crashed.
     if (_destroying) return;
     _events.add(DesktopWindowEventKind.close);
+  }
+
+  /// A close the window's own delegate hears, on Windows, where
+  /// `window_manager` never sees it; it acts as the plugin would have.
+  void onNativeCloseRequested() {
+    if (_preventClose) return onWindowClose();
+    unawaited(destroy());
   }
 
   @override
@@ -339,8 +347,10 @@ class WindowManagerDesktopWindowPort
   Future<void> restore() => wm.windowManager.restore();
 
   @override
-  Future<void> setPreventClose(bool value) =>
-      wm.windowManager.setPreventClose(value);
+  Future<void> setPreventClose(bool value) {
+    _preventClose = value;
+    return wm.windowManager.setPreventClose(value);
+  }
 
   @override
   Future<void> hideTitleBar() => wm.windowManager.setTitleBarStyle(

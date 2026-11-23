@@ -108,6 +108,7 @@ Future<_Rig> _pump(
   WidgetTester tester, {
   required bool supported,
   List<VoiceParticipant> who = const [_ada],
+  PopOutWindowFactory? factory,
 }) async {
   final rig = _Rig();
   final fixture = await fixtureContainer(
@@ -116,22 +117,23 @@ Future<_Rig> _pump(
         (ref) => FixedVoiceController(ref, _call(who), rig.session),
       ),
       popOutWindowFactoryProvider.overrideWithValue(
-        supported
-            ? ({
-                required title,
-                required size,
-                required decorated,
-                required onCloseRequested,
-              }) {
-                final w = _FakeWindow(
-                  onCloseRequested,
-                  decorated: decorated,
-                  title: title,
-                );
-                rig.windows.add(w);
-                return w;
-              }
-            : null,
+        factory ??
+            (supported
+                ? ({
+                    required title,
+                    required size,
+                    required decorated,
+                    required onCloseRequested,
+                  }) {
+                    final w = _FakeWindow(
+                      onCloseRequested,
+                      decorated: decorated,
+                      title: title,
+                    );
+                    rig.windows.add(w);
+                    return w;
+                  }
+                : null),
       ),
     ],
   );
@@ -184,6 +186,20 @@ void main() {
     final rig = await _pump(tester, supported: false);
     expect(find.byKey(miniPlayerKey), findsOneWidget);
     expect(_popOutButton, findsNothing);
+    await teardownFixture(tester, rig.container, rig.db);
+  });
+
+  testWidgets('Windows offers the pop-out control', (tester) async {
+    final rig = await _pump(
+      tester,
+      supported: true,
+      factory: nativePopOutWindowFactory(
+        windowing: true,
+        linux: false,
+        windows: true,
+      ),
+    );
+    expect(_popOutButton, findsOneWidget);
     await teardownFixture(tester, rig.container, rig.db);
   });
 

@@ -39,6 +39,13 @@ abstract interface class PopOutWindowHandle {
 /// The pop-out's own window title, distinct from the main window's, so a window manager script can find it.
 const popOutWindowTitle = 'slim-m pop-out';
 
+/// The main window where the app, not the runner, creates it: Windows, since
+/// Flutter's windowing there renders only windows made from Dart.
+abstract interface class NativeMainWindow {
+  /// What the window's close button and Alt+F4 do; until set, they quit.
+  set onCloseRequested(VoidCallback? handler);
+}
+
 typedef PopOutWindowFactory =
     PopOutWindowHandle Function({
       required String title,
