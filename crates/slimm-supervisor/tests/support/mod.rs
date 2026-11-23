@@ -111,6 +111,7 @@ pub async fn start(config: Config, instance: &str) -> Arc<Supervisor> {
 pub struct Client {
     pub socket: PathBuf,
     pub secret: String,
+    pub deployment: String,
 }
 
 impl Client {
@@ -118,6 +119,7 @@ impl Client {
         Self {
             socket: socket.to_owned(),
             secret: SECRET.to_owned(),
+            deployment: "test-deployment".to_owned(),
         }
     }
 
@@ -133,6 +135,7 @@ impl Client {
             .uri(path)
             .header("host", "supervisor")
             .header("authorization", format!("Bearer {}", self.secret))
+            .header("x-slimm-deployment", &self.deployment)
             .header("content-type", "application/json")
             .body(Full::new(Bytes::from(body.to_owned())))
             .unwrap();

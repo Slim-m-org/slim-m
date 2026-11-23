@@ -207,6 +207,39 @@ async fn probe_internal_network(runtime: &Runtime, instance: &str) -> Result<(),
     Ok(())
 }
 
+/// Binds this supervisor to the first deployment that names itself, kept in the state
+/// directory, so a second server pointed at the same socket is refused rather than
+/// removing the first one's connectors as orphans.
+pub fn bind_deployment(state_dir: &Path, deployment: &str) -> Result<(), ApiError> {
+    let ok = (1..=64).contains(&deployment.len())
+        && deployment
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+    if !ok {
+        return Err(ApiError::bad_request(
+            "X-Slimm-Deployment must name the deployment in 1 to 64 of [a-z0-9-]",
+        ));
+    }
+    let path = state_dir.join("deployment-id");
+    let bound = match std::fs::read_to_string(&path) {
+        Ok(existing) => existing.trim().to_owned(),
+        Err(_) => {
+            std::fs::create_dir_all(state_dir)
+                .and_then(|()| std::fs::write(&path, deployment))
+                .map_err(|e| ApiError::runtime(format!("state directory: {e}")))?;
+            deployment.to_owned()
+        }
+    };
+    if bound == deployment {
+        Ok(())
+    } else {
+        Err(ApiError::new(
+            crate::error::Code::Conflict,
+            "this supervisor serves another deployment; run one supervisor per deployment",
+        ))
+    }
+}
+
 /// The instance id, made once and kept, so two deployments on one host never share connectors.
 pub fn instance_id(state_dir: &Path) -> std::io::Result<String> {
     let path = state_dir.join("instance-id");
@@ -328,6 +361,21 @@ mod tests {
             r.problems
         );
         assert!(judge_info(&good_version(), &info, Requirements { lsm: false }).ready());
+    }
+
+    #[test]
+    fn the_first_deployment_binds_the_supervisor() {
+        let dir =
+            std::env::temp_dir().join(format!("slimm-sup-bind-{}", uuid::Uuid::now_v7().simple()));
+        assert!(bind_deployment(&dir, "deployment-a").is_ok());
+        assert!(bind_deployment(&dir, "deployment-a").is_ok());
+        let other = bind_deployment(&dir, "deployment-b").unwrap_err();
+        assert_eq!(other.code, crate::error::Code::Conflict);
+        assert_eq!(
+            bind_deployment(&dir, "Bad Id").unwrap_err().code,
+            crate::error::Code::BadRequest
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

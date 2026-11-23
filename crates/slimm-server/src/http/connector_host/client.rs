@@ -94,6 +94,7 @@ pub struct LogLine {
 pub struct SupervisorClient {
     socket: PathBuf,
     secret: String,
+    deployment: std::sync::Arc<std::sync::OnceLock<String>>,
 }
 
 impl std::fmt::Debug for SupervisorClient {
@@ -109,7 +110,13 @@ impl SupervisorClient {
         Self {
             socket: socket.into(),
             secret,
+            deployment: Default::default(),
         }
+    }
+
+    /// Names this deployment on every call; the supervisor binds to the first one it hears.
+    pub fn set_deployment(&self, deployment: String) {
+        let _ = self.deployment.set(deployment);
     }
 
     pub async fn hello(&self) -> Result<Value, SupervisorError> {
@@ -206,6 +213,10 @@ impl SupervisorClient {
             .header("host", "supervisor")
             .header("authorization", format!("Bearer {}", self.secret))
             .header("content-type", "application/json")
+            .header(
+                "x-slimm-deployment",
+                self.deployment.get().map_or("", String::as_str),
+            )
             .body(Full::new(Bytes::from(body.unwrap_or_default())))
             .map_err(|e| down("bad supervisor request", &e))?;
         let response = sender

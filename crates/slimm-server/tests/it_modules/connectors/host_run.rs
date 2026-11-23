@@ -311,3 +311,20 @@ async fn the_private_network_is_refused_while_the_operator_lists_no_host_address
         "without the Private network it installs: {body}"
     );
 }
+
+/// L5: every call names this deployment, so a supervisor bound to another one refuses it.
+#[tokio::test]
+async fn every_supervisor_call_names_the_deployment() {
+    let w = host_world("slimm-hostrun-deployment", true, true).await;
+    w.running().await;
+    let id = w.store.connector_deployment_id().await.unwrap();
+    assert_eq!(id.len(), 32);
+    assert_eq!(
+        id,
+        w.store.connector_deployment_id().await.unwrap(),
+        "stable"
+    );
+    let named = w.fake.with(|f| f.deployments.clone());
+    assert!(!named.is_empty());
+    assert!(named.iter().all(|d| *d == id), "{named:?}");
+}

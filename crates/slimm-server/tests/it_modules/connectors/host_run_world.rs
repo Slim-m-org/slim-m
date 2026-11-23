@@ -56,12 +56,9 @@ pub async fn host_world(name: &str, supervisor: bool, serving: bool) -> HostWorl
     if serving {
         fake_supervisor::serve(fake.clone(), &socket).await;
     }
-    let runner = supervisor.then(|| {
-        HostRunner::new(
-            SupervisorClient::new(&socket, SECRET.to_owned()),
-            "http://server:8080".into(),
-        )
-    });
+    let client = SupervisorClient::new(&socket, SECRET.to_owned());
+    client.set_deployment(store.connector_deployment_id().await.unwrap());
+    let runner = supervisor.then(|| HostRunner::new(client, "http://server:8080".into()));
     let state = support::app::builder(store.clone())
         .dock(Dock::for_test(&base).with_connector_runtime(runner))
         .build();

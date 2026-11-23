@@ -25,6 +25,8 @@ pub struct Inner {
     pub runtime_down: bool,
     pub refuse_create: Option<(String, String)>,
     pub hello: Option<Value>,
+    /// The `X-Slimm-Deployment` every verb call named.
+    pub deployments: Vec<String>,
 }
 
 #[derive(Clone, Default)]
@@ -184,6 +186,12 @@ async fn verb(
     let body: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
     let mut inner = fake.0.lock().unwrap();
     inner.calls.push((verb.clone(), id.clone(), body.clone()));
+    let deployment = headers
+        .get("x-slimm-deployment")
+        .and_then(|v| v.to_str().ok());
+    inner
+        .deployments
+        .push(deployment.unwrap_or_default().to_owned());
     if inner.runtime_down {
         return error(
             StatusCode::SERVICE_UNAVAILABLE,

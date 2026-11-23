@@ -144,6 +144,40 @@ async fn the_private_network_is_refused_until_the_operator_names_the_host() {
     );
 }
 
+/// L5: a second server on the same socket is refused, so its orphan sweep cannot remove the first one's connectors.
+#[tokio::test]
+async fn a_second_deployment_on_one_supervisor_is_refused() {
+    let dir = TestDir::new("slimm-sup-api");
+    let config = config(&dir.0, &[]);
+    let first = Client::new(&config.socket);
+    let mut second = Client::new(&config.socket);
+    second.deployment = "another-deployment".into();
+    start(config, "aaaaaaaaaaaaaaaa").await;
+    assert_eq!(
+        first
+            .post(&format!("/v1/connectors/{ID}/remove"), "{}")
+            .await
+            .0,
+        503,
+        "bound; then the missing runtime answers"
+    );
+    let (status, answer) = second
+        .post(&format!("/v1/connectors/{ID}/remove"), "{}")
+        .await;
+    assert_eq!(
+        (status, answer["error"].clone()),
+        (409, json!("conflict")),
+        "{answer}"
+    );
+    assert_eq!(second.get("/v1/connectors").await.0, 409);
+    second.deployment = String::new();
+    assert_eq!(
+        second.get("/v1/connectors").await.0,
+        400,
+        "a server must name itself"
+    );
+}
+
 #[tokio::test]
 async fn a_missing_runtime_is_runtime_unavailable() {
     let dir = TestDir::new("slimm-sup-api");
