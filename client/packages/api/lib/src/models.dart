@@ -29,6 +29,7 @@ export 'models_dock.dart';
 export 'models_dock_changelog.dart';
 export 'models_dock_connector.dart';
 export 'models_dock_host_run.dart';
+export 'models_dock_installed.dart';
 export 'models_dock_runtime.dart';
 export 'models_dock_activity.dart';
 export 'models_dock_platform.dart';

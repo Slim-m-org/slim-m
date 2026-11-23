@@ -4,17 +4,13 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'
-    show BrowserContextMenu, SystemUiOverlayStyle;
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:slimm_api/api.dart' show TokenPair, installWindowsRootFetching;
+import 'package:slimm_api/api.dart' show TokenPair;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'package:slimm_rtc/rtc.dart'
-    show GuardedConnectivity, MirrorSelfViewScope, applyCallMediaRole;
+import 'package:slimm_rtc/rtc.dart' show MirrorSelfViewScope;
 
 export 'src/desktop/startup_state.dart';
 
@@ -43,17 +39,13 @@ import 'src/providers/app_lock_controller.dart';
 import 'src/desktop/close_behavior.dart';
 import 'src/desktop/desktop_chrome.dart';
 import 'src/desktop/desktop_quit_shortcut.dart';
-import 'src/desktop/desktop_window_port.dart'
-    show WindowManagerDesktopWindowPort;
 import 'src/desktop/desktop_window_shell.dart';
-import 'src/desktop/popout/popout_windowing.dart' show claimNativeMainWindow;
+import 'src/desktop/platform_startup.dart';
 import 'src/desktop/providers/desktop_splash_preference.dart';
 import 'src/desktop/splash_floor.dart';
 import 'src/desktop/startup_screen.dart';
 import 'src/desktop/startup_state.dart';
 import 'src/diagnostics/debug_log.dart';
-import 'src/storage/register_preferences_store_web.dart'
-    if (dart.library.io) 'src/storage/register_preferences_store_io.dart';
 import 'src/diagnostics/voice_harness.dart';
 import 'src/features/settings/providers/autostart_setting.dart';
 import 'src/features/settings/providers/display_density.dart';
@@ -66,9 +58,7 @@ import 'src/providers/sync_controller.dart'
 import 'src/widgets/launch_cover.dart';
 import 'src/widgets/mobile_boot_gate.dart';
 import 'src/providers/startup_restores.dart';
-import 'src/push/android_push_init.dart';
 import 'src/routing/router.dart';
-import 'src/semantics_tap_once_per_frame.dart';
 import 'src/web_update/web_page.dart' show reloadPage;
 import 'src/web_update/web_update_pill.dart';
 import 'src/widgets/app_lock_gate.dart';
@@ -115,33 +105,7 @@ import 'src/widgets/toast_overlay.dart';
 /// size. Waiting for the real first frame avoids that race entirely.
 Future<void> main([List<String> args = const []]) async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
-  // First: on Windows no plugin is registered until the main window exists.
-  final mainWindow = await claimNativeMainWindow();
-  SemanticsTapOncePerFrame.install(binding.platformDispatcher, binding);
-  if (isAndroidHost) unawaited(drawUnderSystemBars());
-  // Before the first SharedPreferences read, which countLaunch makes.
-  registerPreferencesStore();
-  // Before any audio stack opens: libpulse reads the role once per context.
-  applyCallMediaRole();
-  // livekit_client awaits this probe on every join; see the class doc.
-  GuardedConnectivity.install();
-  // Before the first connection, so every client is built through it.
-  installWindowsRootFetching();
-  // First, so a launch that dies in any later step still counts toward a rollback.
-  await countLaunch();
-  // The browser's own menu otherwise lands on top of every in-app one.
-  if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
-  // Registers media_kit's player backend; every inline video attachment goes through it (attachment_video_player.dart).
-  MediaKit.ensureInitialized();
-  await initAndroidPush();
-  final shell = DesktopWindowShell();
-  shell.nativeWindow = mainWindow;
-  if (shell.port case final WindowManagerDesktopWindowPort port) {
-    mainWindow?.onCloseRequested = port.onNativeCloseRequested;
-  }
-  await shell.applyInitialGeometry();
-  shell.registerSecondInstanceHandler();
-  DesktopQuitShortcut(shell).register();
+  final shell = await startPlatform(binding);
 
   final host = createAccountHost(shell, await resolveOfficialServer());
   final container = host.createFirst();

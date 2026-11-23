@@ -132,7 +132,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         id: build
         with:
@@ -182,7 +181,6 @@ jobs:
           path: /tmp/digests
           merge-multiple: true
           if-no-files-found: error
-
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
       - uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4
         with:
@@ -263,31 +261,11 @@ jobs:
         with:
           sparse-checkout: scripts
 
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      - uses: ./.github/actions/release-server-assets
         with:
-          pattern: server-binary-*
-          path: dist
-          merge-multiple: true
-          if-no-files-found: error
-
-      - name: checksums
-        working-directory: dist
-        run: sha256sum -- * > SHA256SUMS
-
-      - name: sign checksums (optional)
-        if: env.GPG_PRIVATE_KEY != ''
-        working-directory: dist
-        run: |
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          gpg --batch --pinentry-mode loopback --passphrase-fd 0 <<< "$GPG_PASSPHRASE" \
-            --armor --detach-sign --output SHA256SUMS.asc SHA256SUMS
-
-      # Retried, and fails when a required file is missing; scripts/upload-release-assets.sh.
-      - name: attach to the github release
-        env:
-          # The same identity release-please creates the release with; see below.
-          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
-        run: scripts/upload-release-assets.sh "${{ needs.release-please.outputs.server_tag }}" 'dist/slimm-server-*' dist/SHA256SUMS '?dist/SHA256SUMS.asc'
+          tag: ${{ needs.release-please.outputs.server_tag }}
+          # The same identity release-please creates the release with.
+          gh_token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
   # The portable Linux tarball, always, plus whichever packaging formats have
   # their inputs in the repo. Each format gates on its own file. See docs/ci.md.

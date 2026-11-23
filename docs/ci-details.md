@@ -922,6 +922,7 @@ Each arch builds its own musl target natively on a native runner, with no `cross
 It builds with `--locked`, the same as the container image and every other server build in this workflow, so the raw binary someone downloads is built from exactly what `Cargo.lock` pins.
 
 `server-release-assets` attaches a GPG-signable `SHA256SUMS` plus the raw binaries to the server GitHub Release, under a reviewer-gated environment.
+The download, checksum, sign and attach steps live in `.github/actions/release-server-assets`, which reads the GPG secrets from the job env like `release-linux-client`.
 `GPG_PRIVATE_KEY` (ASCII-armored private key) and `GPG_PASSPHRASE` are optional: the attach still works without them and only the `.asc` is skipped.
 
 ### linux-client
