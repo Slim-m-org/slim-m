@@ -175,6 +175,10 @@ async fn a_joiner_who_stays_silent_stays_out_and_the_session_goes_on() {
     }
     let view = rig.wait_session(Some("on")).await;
     assert_eq!(view["pending"], json!([c.id.to_string()]));
+    assert!(
+        view.get("transcript_id").is_none(),
+        "a module session has no transcript"
+    );
 }
 
 #[tokio::test]

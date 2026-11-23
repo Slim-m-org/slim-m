@@ -19,7 +19,7 @@ pub fn subject() -> Subject {
     Subject {
         consumer: Consumer::Transcript,
         module_name: "Call transcript".to_owned(),
-        purpose: "Writes down what is said in this call.".to_owned(),
+        purpose: "Writes down what is said in this call and shows it to the people in it.".to_owned(),
         keeps: "Each line, who said it and when, as part of the call, until the Space's retention window passes or a moderator deletes it.".to_owned(),
     }
 }
