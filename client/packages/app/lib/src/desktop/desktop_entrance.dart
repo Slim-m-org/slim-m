@@ -26,9 +26,19 @@ bool _playedThisProcess = false;
 void resetDesktopEntranceForTest() => _playedThisProcess = false;
 
 class DesktopEntrance extends StatefulWidget {
-  const DesktopEntrance({super.key, required this.child, this.topInset = 0});
+  const DesktopEntrance({
+    super.key,
+    required this.child,
+    this.topInset = 0,
+    this.background,
+  });
 
   final Widget child;
+
+  /// Painted under the fading content until the entrance ends, where the
+  /// window has no transparent surface of its own to show through (Windows):
+  /// there the uncovered view is black, which a light theme must not show.
+  final Color? background;
 
   /// Height of anything drawn above the rail header (the frameless title
   /// bar), so the mark lands on the header rather than on the bar.
@@ -80,6 +90,15 @@ class _DesktopEntranceState extends State<DesktopEntrance>
   Widget build(BuildContext context) => Stack(
     fit: StackFit.passthrough,
     children: [
+      if (widget.background case final background?)
+        Positioned.fill(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) => _controller.isCompleted
+                ? const SizedBox.shrink()
+                : ColoredBox(color: background),
+          ),
+        ),
       FadeTransition(opacity: _content, child: widget.child),
       Positioned.fill(
         child: IgnorePointer(

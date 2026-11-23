@@ -29,6 +29,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_design_system/design_system.dart' show AppTokens;
 
 import '../features/voice/providers/fullscreen_video.dart';
 import 'close_behavior.dart';
@@ -58,6 +59,9 @@ class DesktopChrome extends ConsumerWidget {
     // Transparent so each piece keeps its own surface; the library doc says why a Material and an Overlay are both here.
     return DesktopEntrance(
       topInset: shell.frameless && !videoFullscreen ? titleBarHeight : 0,
+      background: currentDesktopPlatform() == DesktopPlatform.windows
+          ? Theme.of(context).extension<AppTokens>()?.surfaceRaised
+          : null,
       child: Material(
         type: MaterialType.transparency,
         child: Overlay.wrap(
