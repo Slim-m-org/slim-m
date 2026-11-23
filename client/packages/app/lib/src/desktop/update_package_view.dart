@@ -26,6 +26,15 @@ final releaseLauncherProvider = Provider<Future<void> Function(Uri)>(
       (uri) => launchUrl(uri, mode: LaunchMode.externalApplication),
 );
 
+/// The software center's page for this app. A flatpak's sandbox cannot run
+/// `flatpak update`, so the center does it (decision 0025, phase 3).
+final softwareCenterUri = Uri.parse('appstream://top.npcserver.slimm');
+
+/// Opens [softwareCenterUri]; false when nothing handles `appstream:`.
+final softwareCenterLauncherProvider = Provider<Future<bool> Function(Uri)>(
+  (ref) => launchUrl,
+);
+
 /// Whether [format] is replaced by a package manager, never from GitHub.
 bool isPackageManaged(InstallFormat format) =>
     format == InstallFormat.rpm ||
@@ -96,6 +105,17 @@ class UpdatePackageView extends ConsumerWidget {
             const SizedBox(height: AppSpacing.s12),
             _CommandRow(command: command),
           ],
+          if (update.format == InstallFormat.flatpak) ...[
+            const SizedBox(height: AppSpacing.s16),
+            SizedBox(
+              width: double.infinity,
+              child: AppButton(
+                label: 'Open software center',
+                icon: AppIcons.externalLink,
+                onPressed: () => unawaited(_openSoftwareCenter(ref)),
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.s16),
           Row(
             children: [
@@ -120,6 +140,14 @@ class UpdatePackageView extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// Falls back to the release page where no software center is installed.
+  Future<void> _openSoftwareCenter(WidgetRef ref) async {
+    final opened = await ref.read(softwareCenterLauncherProvider)(
+      softwareCenterUri,
+    );
+    if (!opened) await _check(ref);
   }
 
   Future<void> _check(WidgetRef ref) async {

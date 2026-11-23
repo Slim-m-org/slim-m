@@ -4,6 +4,7 @@
 /// close and reopen, and a failing module shows the error state, not a blank.
 library;
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -104,6 +105,18 @@ void main() {
     final server = BoardServer(fails: true);
     final s = await _shell(tester, server);
     expect(find.text('module timed out'), findsOneWidget);
+    final outline = find.ancestor(
+      of: find.text('module timed out'),
+      matching: find.byWidgetPredicate(
+        (w) => w is Container && w.decoration is BoxDecoration,
+      ),
+    );
+    final pane = tester.getRect(find.byKey(ModulePanelSlot.paneKey));
+    expect(
+      tester.getRect(outline.first).height,
+      lessThan(pane.height / 3),
+      reason: 'the error card hugs its content instead of filling the pane',
+    );
 
     server.fails = false;
     await tester.tap(find.text('Retry'));

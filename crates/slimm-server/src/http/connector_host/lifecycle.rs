@@ -158,6 +158,7 @@ pub(crate) async fn after_enable(
             .as_ref()
             .and_then(|l| l.iter().find(|c| c.id == record.run_id));
         let result = runner.ensure_running(state, &record, found).await;
+        runner.set_running(module_id, result.is_ok());
         runner.note(state, module_id, &result).await;
     }
     runner.nudge();
@@ -166,6 +167,7 @@ pub(crate) async fn after_enable(
 
 /// A disabled connector's token is already powerless; stopping the container follows.
 pub(crate) async fn after_disable(state: &AppState, runner: &HostRun, module_id: &str) {
+    runner.set_running(module_id, false);
     if let Ok(Some(record)) = state.store.host_run(module_id).await
         && let Err(err) = runner.client.stop(&record.run_id).await
     {

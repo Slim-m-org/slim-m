@@ -101,6 +101,7 @@ async fn reconcile_one(
 ) {
     let should_run = record.enabled && !record.refused && record.crash_disabled_at.is_none();
     let running = listed.is_some_and(|l| l.state == "running");
+    runner.set_running(&record.module_id, running);
     if !should_run {
         if running && let Err(err) = runner.client.stop(&record.run_id).await {
             tracing::warn!(module = %record.module_id, reason = err.detail(), "could not stop a disabled connector");

@@ -39,7 +39,8 @@ pub use gate::RunLane;
 pub use host::{ModuleHost, RunError};
 pub use kv::{InMemoryKv, KvBackend, KvError, MAX_ENTRIES, MAX_TOTAL_BYTES};
 pub use limits::{
-    MAX_FETCH_MS, MAX_FUEL, MAX_MEMORY_MB, MAX_WALL_MS, NET_FETCH_WALL_FLOOR_MS, RunLimits,
+    MAX_FETCH_MS, MAX_FUEL, MAX_MEMORY_MB, MAX_RESPONSE_BYTES, MAX_WALL_MS,
+    NET_FETCH_WALL_FLOOR_MS, RunLimits,
 };
 pub use log_read::{LogBackend, LogError, LogPage, MAX_ROWS as MAX_LOG_ROWS, VoiceSessionRow};
 pub use net::{
@@ -59,3 +60,6 @@ mod tests_limits;
 
 #[cfg(test)]
 mod tests_lazy;
+
+#[cfg(test)]
+mod tests_shutdown;

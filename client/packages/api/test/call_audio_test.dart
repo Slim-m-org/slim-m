@@ -56,6 +56,16 @@ void main() {
     expect(CallAudioState.fromJson(_session(status: 'on')).isOn, isTrue);
   });
 
+  test('the server transcript names its running transcript, a module none', () {
+    expect(CallAudioState.fromJson(_session()).transcriptId, isNull);
+    final server = CallAudioState.fromJson({
+      ..._session(status: 'on'),
+      'module_id': 'server',
+      'transcript_id': 't1',
+    });
+    expect((server.isServerTranscript, server.transcriptId), (true, 't1'));
+  });
+
   test('voice.call_audio carries the state, or null and how it ended', () {
     final on = ServerEvent.parse(jsonEncode({
       'type': 'voice.call_audio',

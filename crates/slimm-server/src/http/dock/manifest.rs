@@ -278,6 +278,7 @@ fn validate_manifest(mut raw: RawManifest) -> Result<Manifest, ManifestError> {
         .map(|ep| validate_extension_point(ep, &seen_keys, &command_names))
         .collect::<Result<Vec<_>, _>>()?;
     names::reject_colliding_names(&extension_points)?;
+    connector_surfaces::check(connector.as_ref(), &extension_points)?;
 
     let network = network::validate_network(raw.network, &capabilities)?;
     let platform = platform::validate_platform(
@@ -475,6 +476,7 @@ pub(in crate::http) mod call_audio;
 mod canvas_tile;
 mod changelog;
 pub(in crate::http) mod connector;
+mod connector_surfaces;
 pub(in crate::http) mod hooks;
 mod index;
 mod names;

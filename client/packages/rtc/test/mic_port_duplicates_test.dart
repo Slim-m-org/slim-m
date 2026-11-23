@@ -12,10 +12,22 @@ class _Track extends Fake implements lk.LocalAudioTrack {
   int stops = 0;
 
   @override
+  lk.TrackProcessor? processor = _Processor();
+
+  @override
   Future<bool> stop() async {
     stops++;
     return true;
   }
+}
+
+/// The browser's capture chain stands behind a web microphone this way.
+class _Processor extends Fake
+    implements lk.TrackProcessor<lk.AudioProcessorOptions> {
+  int destroys = 0;
+
+  @override
+  Future<void> destroy() async => destroys++;
 }
 
 class _Publication extends Fake
@@ -114,6 +126,9 @@ void main() {
 
     expect(first.track.stops, 1);
     expect(second.track.stops, 1);
+    // livekit leaves a processor's output track running after stop.
+    expect((first.track.processor! as _Processor).destroys, 1);
+    expect((second.track.processor! as _Processor).destroys, 1);
 
     await port.discard();
 

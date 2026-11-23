@@ -9,7 +9,7 @@ Evidence tags: [code] = read in our repo or the fork; [src] = read in upstream s
 2. PTT and mute stop the capture device. We use livekit_client defaults, so `stopAudioCaptureOnMute` is true and every PTT press/unmute reopens the device. That costs latency on every press, can flip Bluetooth profiles, and (on Windows) can restart the communications stream. Fix is one option (P2).
 3. The noise gate can clip word starts, contrary to docs/voice-input-gate.md. It opens at the first 10 ms frame whose RMS crosses the threshold, with a 5 ms fade. Soft onsets (s, f, th, h, p) sit well below vowel level, so the first tens of ms are zeroed. There is no lookahead and no hysteresis (P3).
 4. We compute rnnoise's VAD probability every frame and throw it away (`rnnoise_process_frame` returns it; flutter_noise_suppressor.cc ignores it). It is a better "is this speech" signal than an RMS threshold, and it is free (P3).
-5. Only Linux and Windows get the gate, rnnoise and the compressor. Web, macOS, Android and iOS rely purely on the platform APM. That is a deliberate scope, but it means the owner's "mics pick up everything" report is unaddressed on 4 of 6 targets (P6).
+5. (Fixed 2026-11-22, see the update at the end: Android, iPhone and the browser run the same chain.) Only Linux and Windows get the gate, rnnoise and the compressor. Web, macOS, Android and iOS rely purely on the platform APM. That is a deliberate scope, but it means the owner's "mics pick up everything" report is unaddressed on 4 of 6 targets (P6).
 6. Publish defaults are LiveKit's music-oriented defaults (48 kbps, DTX on, RED on). Reasonable but unmeasured for voice (P8).
 7. We cannot currently see audio quality. No getStats-based health probe exists in the app or CI (P7).
 
@@ -722,3 +722,21 @@ A stalled counter on a device that is still listed ends as "Microphone unavailab
 A host that reports no counter gets no automatic restart for a stall; the level never stands in for it.
 The level still feeds one log line after 2 minutes of the floor with an advancing counter, so a tester's export shows it.
 Not verified: that every host reports `totalSamplesDuration` (web and iOS read the sender level today), and the owner's Sonar on Windows.
+
+## Update 2026-11-22: P6, the chain on phones and in the browser
+
+P6 asked whether the gate and dynamics could reach the platforms without the desktop plugin.
+All three in scope can run the desktop chain itself, so nothing was re-implemented.
+
+- Android: the webrtc-sdk build the fork pins (150.7871.01) ships LiveKit's `ExternalAudioProcessingFactory`, whose capture post-processor passes Java a direct `ByteBuffer` over libwebrtc's own first-channel samples (`sdk/android/src/jni/pc/external_audio_processing_factory.cc` on the m150 branch: `NewDirectByteBuffer(env, buffer, ...)`), so it is writable in place and no custom libwebrtc build is needed.
+  The fork already installed that factory; a JNI library now runs the chain from it.
+  `JavaAudioDeviceModule`'s samples callback was not needed (it is a read-only copy before processing).
+- iPhone: `RTCDefaultAudioProcessingModule.capturePostProcessingDelegate` exists in the same SDK version, and `RTCAudioBuffer.rawBufferForChannel:` returns libwebrtc's own `AudioBuffer` channel pointer, so it is writable too.
+  The fork's `AudioManager` already set the delegate; the chain is now one of its processors.
+  It is built only in CI, and nothing has run on a device.
+- Browser: no Dart-side TrackProcessor for audio is shipped by livekit_client 2.13.1, but its `TrackProcessor<AudioProcessorOptions>` interface is honoured on web (`LocalAudioTrack.create` sets it before publish and swaps in `processedTrack`).
+  The chain is compiled to wasm with Emscripten and run in an AudioWorklet; rnnoise's x86 vector path lowered to wasm SIMD costs 1.16% of a desktop core against 3% for the plain C build.
+  No third-party rnnoise wasm build was needed, which keeps one rnnoise (0.2, BSD-3-Clause, already in the fork) and one gate implementation across every host.
+- Measured at the listener in the e2e stack: Strong removes 26.3 dB more of a steady fan-like noise than the browser's own suppression, with speech unchanged within 0.5 dB, and the gate brings the floor between phrases to -112.6 dB with speech within 0.1 dB (numbers and method in voice-input-gate.md, "Phones and the browser").
+- Strongest stays desktop only: DeepFilterNet would need a Rust cross build per phone ABI, 48 MB of memory and about 2% of a desktop core before a phone's slower cores.
+- Still open: phone CPU on real hardware (an Android phone and an iPhone in a call with Strong on and off), and whether Apple's voice processing in front of the chain changes how Strong sounds.

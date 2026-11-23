@@ -10,6 +10,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::routing::get;
 use serde_json::{Value, json};
+use slimm_server::http::AppState;
 use slimm_server::http::dock::Dock;
 use slimm_server::store::Store;
 use sqlx::SqlitePool;
@@ -40,6 +41,7 @@ pub fn manifest(permissions: &[&str]) -> Value {
 }
 
 pub struct World {
+    pub state: AppState,
     pub store: Store,
     pub pool: SqlitePool,
     pub router: Router,
@@ -76,10 +78,12 @@ pub async fn world(name: &str, permissions: &[&str]) -> World {
     let owner = support::app::register_account(&store, "owner").await;
     let served = Arc::new(Mutex::new(manifest(permissions)));
     let base = registry(served.clone()).await;
-    let router = support::app::builder(store.clone())
+    let state = support::app::builder(store.clone())
         .dock(Dock::for_test(&base))
-        .router();
+        .build();
+    let router = slimm_server::http::router(state.clone());
     World {
+        state,
         store,
         pool,
         router,

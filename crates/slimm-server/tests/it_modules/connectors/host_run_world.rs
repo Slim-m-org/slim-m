@@ -12,7 +12,7 @@ use slimm_server::http::dock::Dock;
 use slimm_server::store::Store;
 
 use super::fake_supervisor::{self, Fake, SECRET, SocketGuard};
-use super::harness::{ID, manifest, registry};
+use super::harness::{ID, registry};
 use crate::support;
 use support::app::{Account, call};
 
@@ -21,7 +21,7 @@ pub const SEND: i64 = slimm_server::permissions::Permissions::VIEW_CHANNEL.bits(
     | slimm_server::permissions::Permissions::SEND_MESSAGES.bits();
 
 pub fn host_run_manifest() -> Value {
-    let mut doc = manifest(&["view_channel", "send_messages"]);
+    let mut doc = super::runs_world::with_surfaces();
     doc["connector"]["host_run"] = json!({
         "image": IMAGE,
         "egress": [{"host": "api.example.com", "port": 443}, {"host": "jellyfin.lan", "port": 8096}],

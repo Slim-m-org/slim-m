@@ -53,6 +53,7 @@ use channels::{
 };
 mod code_runs;
 pub mod connector_host;
+mod connector_runs;
 mod connectors;
 mod debug_logs;
 mod device_client_info;
@@ -105,6 +106,7 @@ pub(crate) mod module_events;
 pub(crate) mod module_hooks;
 pub(crate) mod module_host;
 mod module_logs;
+mod module_mentions;
 mod module_net;
 mod module_panels;
 pub mod module_rooms;
@@ -339,6 +341,7 @@ pub fn router(state: AppState) -> Router {
         .merge(direct_route::routes())
         .merge(dock::routes())
         .merge(connectors::routes())
+        .merge(connector_runs::routes())
         .merge(module_panels::routes())
         .merge(module_slots::routes())
         .merge(emoji::routes())

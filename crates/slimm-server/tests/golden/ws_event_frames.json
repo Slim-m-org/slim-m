@@ -49,6 +49,7 @@
   "{\"channel_id\":\"CHANNEL\",\"type\":\"voice.participant_joined\",\"user_id\":\"BOB\"}",
   "{\"channel_id\":\"CHANNEL\",\"type\":\"voice.participant_left\",\"user_id\":\"BOB\"}",
   "{\"client_kind\":\"linux\",\"device_id\":\"01900000-0000-7000-8000-00000000000c\",\"device_name\":\"laptop\",\"signed_in_at\":1700000000005,\"type\":\"device.signed_in\"}",
+  "{\"deadline_ms\":6000,\"module_id\":\"pelican\",\"request\":{\"command\":\"servers\",\"input\":\"\"},\"run_id\":\"01900000-0000-7000-8000-000000000015\",\"type\":\"connector.run\"}",
   "{\"from_channel_id\":\"CHANNEL\",\"moved_by_id\":\"BOB\",\"moved_by_name\":\"bob\",\"to_channel_id\":\"01900000-0000-7000-8000-00000000000d\",\"to_channel_name\":\"lounge\",\"type\":\"voice.moved\"}",
   "{\"granted\":true,\"role_id\":\"01900000-0000-7000-8000-000000000009\",\"role_name\":\"Moderators\",\"seq\":\"CLOCK\",\"type\":\"member.role_changed\",\"user_id\":\"BOB\"}",
   "{\"role_id\":\"01900000-0000-7000-8000-000000000009\",\"seq\":\"CLOCK\",\"type\":\"role.changed\"}",

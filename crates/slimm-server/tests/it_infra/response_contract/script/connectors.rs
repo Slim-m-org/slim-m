@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! A connector's surface (decision 0090): the manifest with its ask, the install
-//! that shows its token, a new token, and what the connector reads about itself.
+//! that shows its token, a new token, what the connector reads about itself, and
+//! an answer to a run nobody is waiting on.
 
 use serde_json::json;
 
 use super::text;
-use crate::response_contract::world::Contract;
+use crate::response_contract::world::{Contract, Payload};
 
 const ID: &str = "jellyfin";
 
@@ -39,8 +40,16 @@ pub(super) async fn connector_calls(c: &mut Contract, root: &str) {
             root,
         )
         .await;
-    c.get("getConnectorSelf", "/connectors/me", &text(&fresh, "token"))
-        .await;
+    let token = text(&fresh, "token");
+    c.get("getConnectorSelf", "/connectors/me", &token).await;
+    c.refuses(
+        "answerConnectorRun",
+        "POST",
+        "/connectors/me/runs/01900000-0000-7000-8000-000000000001",
+        Some(&token),
+        Payload::Json(json!({ "ok": true, "output": "late" })),
+    )
+    .await;
     host_run_calls(c, root).await;
 }
 

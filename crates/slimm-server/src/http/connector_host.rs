@@ -3,7 +3,7 @@
 //! start, stop and remove a connector's container. Built only when the operator sets
 //! `SLIMM_CONNECTOR_SUPERVISOR_SOCKET` and `SLIMM_SUPERVISOR_SECRET`; unset, nothing here runs.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
 
 use serde_json::Value;
@@ -36,6 +36,8 @@ pub struct HostRunner {
     health: RwLock<Health>,
     pub(crate) crashes: Mutex<HashMap<String, crashes::CrashLog>>,
     pub(crate) retries: Mutex<HashMap<String, crashes::Retry>>,
+    /// Connectors the supervisor last reported as not running, by module id.
+    down: Mutex<HashSet<String>>,
     pub(crate) wake: Notify,
 }
 
@@ -49,6 +51,7 @@ impl HostRunner {
             health: RwLock::new(Health::Unknown),
             crashes: Mutex::default(),
             retries: Mutex::default(),
+            down: Mutex::default(),
             wake: Notify::new(),
         })
     }
@@ -113,6 +116,20 @@ impl HostRunner {
         }
     }
 
+    pub(crate) fn set_running(&self, module_id: &str, running: bool) {
+        if let Ok(mut down) = self.down.lock() {
+            if running {
+                down.remove(module_id);
+            } else {
+                down.insert(module_id.to_owned());
+            }
+        }
+    }
+
+    fn known_down(&self, module_id: &str) -> bool {
+        self.down.lock().is_ok_and(|d| d.contains(module_id))
+    }
+
     /// Whether a failed create or start for this connector may be tried again now.
     pub(crate) fn retry_due(&self, module_id: &str, now: i64) -> bool {
         self.retries
@@ -142,4 +159,19 @@ fn problems(hello: &Value) -> String {
         "the container runtime cannot enforce the sandbox: {}",
         listed.join("; ")
     )
+}
+
+/// Whether a host-run connector is known not to be running (stopped, crashed, refused or turned
+/// off), so a member's run reads as offline at once even while a dying socket lingers.
+pub(crate) async fn known_offline(state: &crate::http::AppState, module_id: &str) -> bool {
+    let Ok(Some(record)) = state.store.host_run(module_id).await else {
+        return false;
+    };
+    if !record.enabled || record.refused || record.crash_disabled_at.is_some() {
+        return true;
+    }
+    state
+        .dock
+        .host_run()
+        .is_some_and(|runner| runner.known_down(module_id))
 }

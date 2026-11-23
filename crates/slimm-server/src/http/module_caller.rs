@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The one thing a module is told about who ran it: an opaque id.
+//! What a module is told about who ran it: an opaque id and the name members see.
 //! See docs/decisions/0038-module-caller-id.md.
 
 use crate::ids::UserId;
+use crate::store::Store;
 
 /// Stable per (module, user) and opaque: it never equals a user id and does
 /// not match across modules, so it cannot be used to follow a person around.
@@ -18,6 +19,32 @@ pub(super) fn module_caller_id(key: &[u8; 32], module_id: &str, user_id: UserId)
     mac.update(b"\0");
     mac.update(user_id.to_string().as_bytes());
     crate::media::to_hex(&mac.finalize().into_bytes())
+}
+
+/// The name members see for `user` here: the nickname set in this space, else the display name,
+/// else the username. `None` when the account cannot be read.
+pub(super) async fn caller_name(store: &Store, user: UserId) -> Option<String> {
+    let profile = store
+        .user_profiles(&[user])
+        .await
+        .ok()?
+        .into_iter()
+        .next()?;
+    let nickname = store.nicknames_for(&[user]).await.ok()?.remove(&user);
+    Some(shown_name(
+        nickname.as_deref(),
+        &profile.display_name,
+        &profile.username,
+    ))
+}
+
+fn shown_name(nickname: Option<&str>, display_name: &str, username: &str) -> String {
+    [nickname.unwrap_or(""), display_name, username]
+        .into_iter()
+        .map(str::trim)
+        .find(|name| !name.is_empty())
+        .unwrap_or(username)
+        .to_owned()
 }
 
 #[cfg(test)]
@@ -56,5 +83,13 @@ mod tests {
             module_caller_id(&[1; 32], "polls", user),
             module_caller_id(&[1; 32], &format!("polls\0{joined}"), user)
         );
+    }
+
+    #[test]
+    fn the_shown_name_is_the_nickname_then_the_display_name_then_the_username() {
+        assert_eq!(shown_name(Some("Boss"), "Ada", "ada"), "Boss");
+        assert_eq!(shown_name(None, "Ada", "ada"), "Ada");
+        assert_eq!(shown_name(None, " ", "ada"), "ada");
+        assert_eq!(shown_name(Some(""), "", "ada"), "ada");
     }
 }

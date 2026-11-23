@@ -49,6 +49,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../providers/armed_stamp.dart' show canvasStampsSupportedProvider;
 import '../../voice/widgets/bot_call_controls.dart';
+import '../../voice/widgets/captions_button.dart' show canUseCaptions;
 import '../../voice/widgets/soundboard_button.dart' show canUseSoundboard;
 import '../../voice/widgets/call_leave_button.dart';
 import '../../voice/screens/dock_solo_controls.dart';
@@ -268,12 +269,14 @@ class CanvasCallDock extends ConsumerWidget {
     }
     final alone = soloMusicInDock(context, ref);
     final soundboard = canUseSoundboard(ref, call.voice.channelId);
+    final captions = canUseCaptions(ref, call.voice.channelId);
     final stamp = ref.watch(canvasStampsSupportedProvider)
         ? _stampToolExtent
         : 0.0;
     final extra =
         (alone ? dockExtraExtent(context) : 0.0) +
         (soundboard ? dockButtonExtent(context) : 0.0) +
+        (captions ? dockButtonExtent(context) : 0.0) +
         stamp;
     return LayoutBuilder(
       key: const ValueKey('call-and-canvas'),

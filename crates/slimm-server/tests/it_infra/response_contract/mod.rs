@@ -56,6 +56,11 @@ use world::Contract;
 /// this list must be called.
 const UNCOVERED: &[(&str, &str)] = &[
     (
+        "answerConnectorRun",
+        "needs a member's run waiting on the connector's live socket; only its 404 can be \
+         driven here. tests/it_modules/connectors/runs.rs covers its 204, 400, 403, 404 and 413.",
+    ),
+    (
         "runSpaceUplinkTest",
         "uploads 40 MB to an external speed endpoint; tests/it_voice/uplink_test.rs covers it against a local one",
     ),

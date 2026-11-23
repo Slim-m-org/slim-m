@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# Needs FLATPAK_GPG_KEY from the calling job's env, which checks it before this runs; scripts/flatpak-remote.py refuses without it.
+name: release flatpak remote
+description: Sign the release's flatpak repo into a remote and stage it as the GitHub Pages artifact.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      with:
+        name: flatpak-repo
+        path: ${{ runner.temp }}
+
+    - uses: ./.github/actions/apt-install
+      with:
+        packages: flatpak ostree
+
+    # Fails while Pages is off, which is the owner's other half of turning this on.
+    - id: pages
+      uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+    - name: sign the remote
+      shell: "bash -e {0}"
+      env:
+        BASE_URL: ${{ steps.pages.outputs.base_url }}
+      run: |
+        tar -C "$RUNNER_TEMP" -xf "$RUNNER_TEMP/flatpak-repo.tar"
+        python3 scripts/flatpak-remote.py build "$RUNNER_TEMP/flatpak-repo" "$RUNNER_TEMP/site" "$BASE_URL"
+
+    - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+      with:
+        path: ${{ runner.temp }}/site

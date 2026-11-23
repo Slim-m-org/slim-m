@@ -204,6 +204,14 @@ pub(super) enum ServerFrame {
     ProfileChanged { user_id: String },
     #[serde(rename = "bot_ui.changed")]
     BotUiChanged { bot_user_id: String },
+    /// A member's run for a connector to answer at `POST /connectors/me/runs/{run_id}` (add-on API 7).
+    #[serde(rename = "connector.run")]
+    ConnectorRun {
+        run_id: String,
+        module_id: String,
+        deadline_ms: u64,
+        request: crate::hub::RoomJson,
+    },
     #[serde(rename = "typing.started")]
     TypingStarted { channel_id: String, user_id: String },
     #[serde(rename = "typing.stopped")]

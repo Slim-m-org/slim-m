@@ -381,6 +381,11 @@ async fn post_output(
         .installed_module(module_id)
         .await?
         .ok_or(ApiError::NotFound("module not installed"))?;
+    if !super::connector_runs::may_post_in(state, &module, channel).await? {
+        return Ok(RunCommandResponse::failure(
+            "this connector may not post in this channel",
+        ));
+    }
     Ok(
         match module_host::post_command_output(
             state,

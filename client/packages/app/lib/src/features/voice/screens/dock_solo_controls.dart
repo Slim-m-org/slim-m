@@ -19,6 +19,7 @@ import '../providers/hold_music_actions.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import 'hold_music_dock_toggle.dart';
+import '../widgets/captions_button.dart' show canUseCaptions;
 import '../widgets/soundboard_button.dart' show canUseSoundboard;
 import '../widgets/voice_call_controls.dart';
 
@@ -169,6 +170,7 @@ List<Widget> tightCallRows(
   final spills =
       extra != null ||
       canUseSoundboard(ref, voice.channelId) ||
+      canUseCaptions(ref, voice.channelId) ||
       (voice.cameraEnabled && canSwitchCamera(ref, controller));
   return [
     if (spills)
@@ -203,6 +205,7 @@ bool callRowFitsFor(
     width,
     switchCameraShown: voice.cameraEnabled && canSwitchCamera(ref, controller),
     soundboardShown: canUseSoundboard(ref, voice.channelId),
+    captionsShown: canUseCaptions(ref, voice.channelId),
     shareCaret: voice.screenSharing && controller.video.screenShareNeedsSource,
     extraCount: extraCount,
     musicCaret: musicCaret,
@@ -231,6 +234,7 @@ bool callRowFits(
   double width, {
   required bool switchCameraShown,
   bool soundboardShown = false,
+  bool captionsShown = false,
   bool shareCaret = false,
   required int extraCount,
   bool musicCaret = false,
@@ -239,9 +243,13 @@ bool callRowFits(
   final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
   final chip = AppSizes.controlMd > hitTarget ? AppSizes.controlMd : hitTarget;
   final button = chip + 2 * (focusRingGap + focusRingWidth);
-  // mic, deafen, camera, [switch camera], share, [soundboard], leave, and the extras.
+  // mic, deafen, camera, [switch camera], share, [soundboard], [captions], leave, and the extras.
   final controlCount =
-      5 + (switchCameraShown ? 1 : 0) + (soundboardShown ? 1 : 0) + extraCount;
+      5 +
+      (switchCameraShown ? 1 : 0) +
+      (soundboardShown ? 1 : 0) +
+      (captionsShown ? 1 : 0) +
+      extraCount;
   const cardPadding = AppSpacing.s12 * 2 + 2;
   // The divider before leave takes the place of one gap: s4, 1dp, s4.
   const leaveDivider = 1.0;

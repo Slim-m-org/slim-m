@@ -100,6 +100,12 @@ const voiceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'voice',
+    'Show captions',
+    description: 'Shows what is said in calls that are transcribed.',
+    keywords: ['subtitles', 'transcript', 'live', 'deaf', 'hearing'],
+  ),
+  SettingsEntry(
+    'voice',
     'Share device audio',
     description: 'Includes sound playing on this device.',
     keywords: ['screen share audio', 'system audio'],

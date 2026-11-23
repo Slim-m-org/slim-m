@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A connector's wire fields: the manifest's ask, the installed approval and
-/// the token the install answer carries once; all absent for a WASM module.
+/// the token the install answer carries once (all absent for a WASM module),
+/// and the binding a connector answers its runs with.
 library;
 
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:test/test.dart';
 
@@ -74,5 +79,30 @@ void main() {
     expect(me.settings['api_key'], 'k');
     expect(me.settings.containsKey('server_url'), isTrue);
     expect(me.permissions, 6);
+  });
+
+  test('a connector answers a run at its own path, with the answer as sent',
+      () async {
+    String? seen;
+    Object? body;
+    final api = SlimmApi(
+      baseUrl: Uri.parse('http://localhost:8080'),
+      session: SessionStore(
+        tokens: const TokenPair(
+          userId: 'u',
+          accessToken: 'a',
+          refreshToken: 'r',
+          accessExpiresAt: 0,
+        ),
+      ),
+      httpClient: MockClient((request) async {
+        seen = '${request.method} ${request.url.path}';
+        body = jsonDecode(request.body);
+        return http.Response('', 204);
+      }),
+    );
+    await api.answerConnectorRun('r1', ok: true, output: 'up');
+    expect(seen, 'POST /connectors/me/runs/r1');
+    expect(body, {'ok': true, 'output': 'up'});
   });
 }

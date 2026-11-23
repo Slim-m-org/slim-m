@@ -146,7 +146,7 @@ void main() {
     });
   });
 
-  test('Strongest is offered where the native gate is', () {
+  test('Strongest is offered on the desktop plugin', () {
     expect(supportsStrongestNoiseSuppression, isTrue,
         reason: 'tests run on Linux');
   });

@@ -14,12 +14,14 @@ use crate::store::Channel;
 use crate::voice::CallRingOutcome;
 
 mod canvas;
+mod connector_run;
 mod message;
 mod module_room;
 mod presence_change;
 mod role_change;
 
 pub use canvas::CanvasEvent;
+pub use connector_run::ConnectorRunRequest;
 pub use message::MessageEvent;
 pub use module_room::{ModuleRoomChange, RoomJson};
 pub use presence_change::PresenceChange;
@@ -275,6 +277,9 @@ pub enum Event {
     /// A module's shared room state changed or ended (decision 0131), for everyone who can view
     /// the channel. Never persisted and unnumbered here; the room carries its own `seq`.
     ModuleRoomChanged(Arc<ModuleRoomChange>),
+    /// A member's run forwarded to a connector (add-on API 7), for its principal's connections only.
+    /// Lossy like a click: the run's deadline is the only catch-up.
+    ConnectorRun(Arc<ConnectorRunRequest>),
     /// A line the server just kept in a call's transcript, for whoever in `audience` (the
     /// call's roster then) may read it (0113). Durable: a lagging reader resyncs over REST.
     CallTranscriptLine {

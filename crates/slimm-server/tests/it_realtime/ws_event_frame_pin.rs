@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 use slimm_server::call_audio::CallAudioView;
 use slimm_server::hub::{
-    CanvasEvent, Event, MessageEvent, ModuleRoomChange, RoleChange, RoleLook, RoomJson,
-    VoiceRemovalReason,
+    CanvasEvent, ConnectorRunRequest, Event, MessageEvent, ModuleRoomChange, RoleChange, RoleLook,
+    RoomJson, VoiceRemovalReason,
 };
 use slimm_server::ids::{
     CallRingId, CanvasObjectId, CanvasOpId, ChannelId, MessageId, RoleId, Seq, SessionId, UserId,
@@ -209,6 +209,7 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
                 expires_at_ms: 1_700_000_000_006,
                 full: false,
                 mode: None,
+                transcript_id: None,
                 transcript: false,
                 automatic: false,
             })),
@@ -443,6 +444,27 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             left_at_ms: 2,
             alone_ms: 3,
         },
+        Event::ConnectorRun(Arc::new(ConnectorRunRequest {
+            principal: alice,
+            run_id: id(21),
+            module_id: "pelican".into(),
+            deadline_ms: 6000,
+            request: RoomJson::new(
+                serde_json::value::RawValue::from_string(
+                    r#"{"command":"servers","input":""}"#.into(),
+                )
+                .unwrap(),
+            ),
+        })),
+        Event::ConnectorRun(Arc::new(ConnectorRunRequest {
+            principal: bob,
+            run_id: id(22),
+            module_id: "pelican".into(),
+            deadline_ms: 6000,
+            request: RoomJson::new(
+                serde_json::value::RawValue::from_string(r#"{"withheld":true}"#.into()).unwrap(),
+            ),
+        })),
         Event::Stamped {
             seq: 41,
             event: Box::new(Event::MemberRemoved(UserId(id(14)))),

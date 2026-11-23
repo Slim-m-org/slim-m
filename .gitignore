@@ -74,6 +74,9 @@ ios-broadcast-extension.patch
 # The web build is a test surface, so these are not vendored into git.
 client/packages/app/web/drift_worker.js
 client/packages/app/web/sqlite3.wasm
+# Copied from the pinned flutter_webrtc fork by the same script.
+client/packages/app/web/capture_chain.wasm
+client/packages/app/web/capture_chain_worklet.js
 
 # Rendered by scripts/ui-snapshots.sh for looking at, never committed.
 client/packages/app/build/ui-snapshots/
