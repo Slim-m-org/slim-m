@@ -280,10 +280,10 @@ async fn remove(
 /// Binds the socket mode 0660, replacing a stale one, and serves until the process ends.
 pub async fn serve(supervisor: Shared) -> std::io::Result<()> {
     let path = supervisor.config.socket.clone();
-    let _ = std::fs::remove_file(&path);
+    let _ = tokio::fs::remove_file(&path).await;
     let inner = UnixListener::bind(&path)?;
     use std::os::unix::fs::PermissionsExt;
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o660))?;
+    tokio::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o660)).await?;
     let listener = PeerListener {
         inner,
         allowed_uid: supervisor.config.server_uid,

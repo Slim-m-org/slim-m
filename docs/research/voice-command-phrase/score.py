@@ -2,6 +2,7 @@
 """Scores whisper's raw text from the wake-phrase corpus with the card's parser rules."""
 import json, re, sys
 from collections import defaultdict
+from pathlib import Path
 
 FILLERS = {"please", "um", "uh", "okay", "ok"}
 MARK = {"mark", "bookmark", "clip"}
@@ -46,35 +47,50 @@ def parse(text, phrase, aliases):
     if not rest or all(w in FILLERS for w in rest): return ("wake", None)
     return verb(rest) or ("none", None)
 
+def under_cwd(arg):
+    """A path argument, refused unless it stays inside the working directory."""
+    base = Path.cwd().resolve()
+    path = (base / arg).resolve()
+    if not path.is_relative_to(base):
+        raise SystemExit(f"{arg}: outside the working directory")
+    return path
+
+def accepted_kind(row, phrase, aliases):
+    """What a clip made the parser act on: "mark", "note" or None."""
+    armed_until = -1
+    for u in row["heard"]:
+        kind, _ = parse(u["text"], phrase, aliases)
+        if kind == "wake":
+            armed_until = u["voiced_end_ms"] + ARM_MS
+            continue
+        if kind == "none" and u["start_ms"] <= armed_until:
+            kind = (verb(norm(u["text"])) or ("none",))[0]
+        if kind in ("mark", "note"):
+            return kind
+    return None
+
 def run(rows, manifest, phrase, aliases):
     stats = defaultdict(lambda: [0, 0])
     false_accepts, misses, neg_seconds = [], [], 0.0
     for row in rows:
         meta = manifest[row["file"]]
-        armed_until = -1
-        got = None
-        for u in row["heard"]:
-            kind, _ = parse(u["text"], phrase, aliases)
-            if kind == "wake":
-                armed_until = u["voiced_end_ms"] + ARM_MS
-                continue
-            if kind == "none" and u["start_ms"] <= armed_until:
-                kind = (verb(norm(u["text"])) or ("none",))[0]
-            if kind in ("mark", "note") and got is None:
-                got = kind
+        got = accepted_kind(row, phrase, aliases)
+        heard = [u["text"] for u in row["heard"]]
         if meta["expect"] == "none":
             neg_seconds += meta["seconds"]
-            if got: false_accepts.append((row["file"], [u["text"] for u in row["heard"]]))
-        else:
-            ok = got == meta["expect"]
-            key = meta["cond"]
-            stats[key][0] += ok; stats[key][1] += 1
-            if not ok: misses.append((row["file"], got, [u["text"] for u in row["heard"]]))
+            if got:
+                false_accepts.append((row["file"], heard))
+            continue
+        ok = got == meta["expect"]
+        stats[meta["cond"]][0] += ok
+        stats[meta["cond"]][1] += 1
+        if not ok:
+            misses.append((row["file"], got, heard))
     return stats, false_accepts, misses, neg_seconds
 
 if __name__ == "__main__":
-    manifest = {m["file"]: m for m in json.load(open(sys.argv[1]))}
-    rows = [json.loads(l) for l in open(sys.argv[2])]
+    manifest = {m["file"]: m for m in json.loads(under_cwd(sys.argv[1]).read_text())}
+    rows = [json.loads(l) for l in under_cwd(sys.argv[2]).read_text().splitlines()]
     aliases = json.loads(sys.argv[3]) if len(sys.argv) > 3 else {}
     stats, fa, misses, neg_s = run(rows, manifest, ["hey", "space"], aliases)
     tot = [sum(v[0] for v in stats.values()), sum(v[1] for v in stats.values())]

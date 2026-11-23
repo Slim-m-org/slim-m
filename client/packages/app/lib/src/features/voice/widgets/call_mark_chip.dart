@@ -60,17 +60,19 @@ class CallMarkChipView extends ConsumerWidget {
 
   String _text(WidgetRef ref, CallMarkChip chip, {bool watch = false}) {
     final me = ref.read(sessionProvider).tokens?.userId;
-    final author = chip.authorId;
-    final profile = author == null
-        ? null
-        : watch
-        ? ref.watch(userProfileProvider(author))
-        : ref.read(userProfileProvider(author));
     return callMarkChipText(
       chip,
       me: me,
-      name: profile?.valueOrNull?.displayName,
+      name: _authorName(ref, chip.authorId, watch: watch),
     );
+  }
+
+  String? _authorName(WidgetRef ref, String? author, {required bool watch}) {
+    if (author == null) return null;
+    final profile = watch
+        ? ref.watch(userProfileProvider(author))
+        : ref.read(userProfileProvider(author));
+    return profile.valueOrNull?.displayName;
   }
 
   void _announce(BuildContext context, WidgetRef ref, CallMarkChip chip) {

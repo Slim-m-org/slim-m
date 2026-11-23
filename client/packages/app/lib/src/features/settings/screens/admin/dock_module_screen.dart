@@ -225,8 +225,10 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
                     version: manifest.version,
                     reviewedDigest: manifest.reviewDigest,
                     source: widget.source,
-                    approvedConnectorPermissions: manifest.connectorPermissions,
-                    approvedHostRun: dockApproveAll(manifest.hostRun),
+                    connector: api.ConnectorApproval(
+                      permissions: manifest.connectorPermissions,
+                      hostRun: dockApproveAll(manifest.hostRun),
+                    ),
                   ))
               .connectorToken,
     );

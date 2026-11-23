@@ -203,16 +203,18 @@ bool callRowFitsFor(
   return callRowFits(
     context,
     width,
-    switchCameraShown: voice.cameraEnabled && canSwitchCamera(ref, controller),
-    soundboardShown: canUseSoundboard(ref, voice.channelId),
-    captionsShown: canUseCaptions(ref, voice.channelId),
+    optionalCount:
+        extraCount +
+        (voice.cameraEnabled && canSwitchCamera(ref, controller) ? 1 : 0) +
+        (canUseSoundboard(ref, voice.channelId) ? 1 : 0) +
+        // Captions come with the mark button beside them.
+        (canUseCaptions(ref, voice.channelId) ? 2 : 0),
     shareCaret: voice.screenSharing && controller.video.screenShareNeedsSource,
-    extraCount: extraCount,
     musicCaret: musicCaret,
   );
 }
 
-/// Whether the call row plus [extraCount] extra buttons fit one line at [width]
+/// Whether the call row plus [optionalCount] optional buttons fit one line at [width]
 /// ([musicCaret]: the music button among them carries an options caret;
 /// [shareCaret]: share draws its caret even at touch density, to switch source),
 /// mirroring [CallDockButton]'s own fixed-size formula rather than measuring
@@ -232,24 +234,16 @@ bool callRowFitsFor(
 bool callRowFits(
   BuildContext context,
   double width, {
-  required bool switchCameraShown,
-  bool soundboardShown = false,
-  bool captionsShown = false,
+  required int optionalCount,
   bool shareCaret = false,
-  required int extraCount,
   bool musicCaret = false,
 }) {
   final touch = AppTouchTargets.of(context);
   final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
   final chip = AppSizes.controlMd > hitTarget ? AppSizes.controlMd : hitTarget;
   final button = chip + 2 * (focusRingGap + focusRingWidth);
-  // mic, deafen, camera, [switch camera], share, [soundboard], [captions and mark], leave, and the extras.
-  final controlCount =
-      5 +
-      (switchCameraShown ? 1 : 0) +
-      (soundboardShown ? 1 : 0) +
-      (captionsShown ? 2 : 0) +
-      extraCount;
+  // mic, deafen, camera, share and leave, then the optional buttons.
+  final controlCount = 5 + optionalCount;
   const cardPadding = AppSpacing.s12 * 2 + 2;
   // The divider before leave takes the place of one gap: s4, 1dp, s4.
   const leaveDivider = 1.0;

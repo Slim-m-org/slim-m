@@ -3,8 +3,10 @@
 import json, subprocess, sys, wave
 from pathlib import Path
 import numpy as np
+from score import under_cwd
 
-OUT = Path(sys.argv[1]); OUT.mkdir(parents=True, exist_ok=True)
+OUT = under_cwd(sys.argv[1])
+OUT.mkdir(parents=True, exist_ok=True)
 PIPER = str(Path.home() / ".slimm-scratch/piper-venv/bin/piper")
 VOICES = {v: str(Path.home() / f".slimm-scratch/piper-voices/en_US-{v}-medium.onnx") for v in ("lessac", "ryan")}
 SPEEDS = {"fast": 0.85, "normal": 1.0, "slow": 1.2}
@@ -82,7 +84,7 @@ def write(path, x):
 
 manifest = []
 tmp = OUT / "_t.wav"
-def build(name, parts, voice, speed):
+def build(parts, voice, speed):
     gap = np.zeros(int(RATE * 1.2))
     speech = [np.zeros(RATE // 2)]
     for i, text in enumerate(parts):
@@ -93,12 +95,12 @@ def build(name, parts, voice, speed):
 for voice in VOICES:
     for sname, speed in SPEEDS.items():
         for name, parts, kind in POS:
-            clean = build(name, parts, voice, speed)
+            clean = build(parts, voice, speed)
             for cond, snr in CONDS:
                 f = f"pos_{name}_{voice}_{sname}_{cond}{snr or ''}.wav"
                 write(OUT / f, mix(clean, cond, snr)); manifest.append({"file": f, "expect": kind, "said": " / ".join(parts), "voice": voice, "speed": sname, "cond": f"{cond}{snr or ''}", "seconds": len(clean) / RATE})
         for i, text in enumerate(NEG):
-            clean = build(f"neg{i}", [text], voice, speed)
+            clean = build([text], voice, speed)
             for cond, snr in CONDS:
                 f = f"neg_{i:02d}_{voice}_{sname}_{cond}{snr or ''}.wav"
                 write(OUT / f, mix(clean, cond, snr)); manifest.append({"file": f, "expect": "none", "said": text, "voice": voice, "speed": sname, "cond": f"{cond}{snr or ''}", "seconds": len(clean) / RATE})
@@ -108,5 +110,6 @@ for kind in ("room", "music"):
     f = f"bg_{kind}.wav"; write(OUT / f, x); manifest.append({"file": f, "expect": "none", "said": "", "voice": "", "speed": "", "cond": kind, "seconds": 120})
 write(OUT / "bg_silence.wav", np.zeros(RATE * 60)); manifest.append({"file": "bg_silence.wav", "expect": "none", "said": "", "voice": "", "speed": "", "cond": "silence", "seconds": 60})
 tmp.unlink(missing_ok=True)
-json.dump(manifest, open(OUT / "manifest.json", "w"), indent=1)
+with (OUT / "manifest.json").open("w") as dest:
+    json.dump(manifest, dest, indent=1)
 print(len(manifest), "clips", round(sum(m["seconds"] for m in manifest) / 3600, 2), "hours")

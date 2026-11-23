@@ -141,12 +141,29 @@ impl Stage {
     }
 
     /// Pushes the probe to the local registry and drops the local copy, so create must pull it.
+    ///
+    /// The run label makes the image id unique to this stage: identical builds share one id, and
+    /// with it the `RepoDigests` of every registry another parallel stage pushed it to.
     fn push_probe(&mut self) {
         let tag = format!("{}probe:{}", self.registry_prefix, self.run);
         let ctx = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/probe");
-        docker(&["build", "-q", "-t", &tag, ctx.to_str().unwrap()]);
+        let label = format!("{TEST_LABEL}={}", self.run);
+        docker(&[
+            "build",
+            "-q",
+            "--label",
+            &label,
+            "-t",
+            &tag,
+            ctx.to_str().unwrap(),
+        ]);
         docker(&["push", "-q", &tag]);
-        let digest = docker(&["inspect", "--format", "{{index .RepoDigests 0}}", &tag]);
+        let digests = docker(&["inspect", "--format", "{{json .RepoDigests}}", &tag]);
+        let digests: Vec<String> = serde_json::from_str(&digests).unwrap();
+        let digest = digests
+            .into_iter()
+            .find(|d| d.starts_with(&self.registry_prefix))
+            .unwrap_or_else(|| panic!("the push left no digest under {}", self.registry_prefix));
         docker(&["rmi", &tag]);
         let _ = docker_ok(&["rmi", &digest]);
         self.probe_image = digest;

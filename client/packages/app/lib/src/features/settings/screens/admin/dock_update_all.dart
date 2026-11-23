@@ -274,7 +274,7 @@ Future<api.InstalledDockModule> _install(
               : grant.localNetwork,
           reviewedDigest: manifest.reviewDigest,
           source: item.source,
-          approvedConnectorPermissions: connector,
+          connector: api.ConnectorApproval(permissions: connector),
         );
   } finally {
     if (context.mounted) _refreshAfterInstall(ref);

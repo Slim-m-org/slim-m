@@ -60,6 +60,7 @@ sealed class ServerEvent {
       overlayFrame(decoded) ??
       rosterFrame(decoded) ??
       voiceFrame(decoded) ??
+      callFrame(decoded) ??
       canvasFrame(decoded);
 }
 

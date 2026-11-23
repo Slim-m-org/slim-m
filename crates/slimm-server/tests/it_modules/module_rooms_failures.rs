@@ -7,6 +7,8 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::permissions::Permissions;
+use slimm_server::ratelimit::Class;
+use std::time::{Duration, Instant};
 use tower::ServiceExt;
 
 use crate::support;
@@ -147,15 +149,24 @@ async fn one_member_is_held_to_the_input_rate() {
     let r = room_world("slimm-rooms-rate", "noughts", noughts_wasm()).await;
     let ava = r.player("ava").await;
     r.join_call(&ava);
+    let burst = 8;
+    // Spent at a future instant, so no real time elapsing on a slow runner can refill the bucket.
+    let key = format!("u:{}:{}:{}", ava.id, r.module, r.call);
+    let later = Instant::now() + Duration::from_secs(3600);
+    assert!(
+        r.w.state
+            .limiter
+            .check_at(Class::ModuleRoomInput, &key, later)
+    );
     let mut statuses = Vec::new();
-    for _ in 0..9 {
+    for _ in 0..burst {
         statuses.push(r.input(&ava, "0").await.0);
     }
     assert!(
-        statuses[..8].iter().all(|s| *s == StatusCode::OK),
+        statuses[..burst - 1].iter().all(|s| *s == StatusCode::OK),
         "{statuses:?}"
     );
-    assert_eq!(statuses[8], StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(statuses[burst - 1], StatusCode::TOO_MANY_REQUESTS);
 }
 
 #[tokio::test]

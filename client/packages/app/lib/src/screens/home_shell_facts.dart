@@ -48,17 +48,7 @@ ShellFacts resolveShellFacts(
   final threadFits = layout.fitsThreadPane(width);
   final showThread = openThread != null && threadFits && !canvasFullscreen;
   // Once synced, a channel the store lacks is one the viewer cannot see: ChannelNotFound owns the pane, with no roster or members control.
-  final channelRow = selected == null
-      ? null
-      : ref.watch(
-          channelByIdProvider(selected).select(
-            // Only whether the row is there: the row itself changes with every message and read marker.
-            (row) => (
-              loaded: row.hasValue,
-              missing: row is AsyncData<Channel?> && row.value == null,
-            ),
-          ),
-        );
+  final channelRow = _channelRow(ref, selected);
   final synced = ref.watch(initialSyncCompleteProvider);
   final notFound = (channelRow?.missing ?? false) && synced;
   final membersWanted =
@@ -100,6 +90,21 @@ ShellFacts resolveShellFacts(
     notFound: notFound,
     rosterPending: channelRow != null && !channelRow.loaded && synced,
     railWidth: _railWidth(ref, layout, width, dockedPane),
+  );
+}
+
+typedef _ChannelRow = ({bool loaded, bool missing});
+
+_ChannelRow? _channelRow(WidgetRef ref, String? selected) {
+  if (selected == null) return null;
+  return ref.watch(
+    channelByIdProvider(selected).select(
+      // Only whether the row is there: the row itself changes with every message and read marker.
+      (row) => (
+        loaded: row.hasValue,
+        missing: row is AsyncData<Channel?> && row.value == null,
+      ),
+    ),
   );
 }
 

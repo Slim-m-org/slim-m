@@ -96,6 +96,16 @@ class HostRunApproval {
       };
 }
 
+/// What the admin approved of a connector at install: the core permission
+/// bits its token may use (a subset of what it asks for) and, for one the host
+/// runs, the sandbox it is given.
+class ConnectorApproval {
+  const ConnectorApproval({this.permissions, this.hostRun});
+
+  final int? permissions;
+  final HostRunApproval? hostRun;
+}
+
 /// Whether this server can run connectors (`GET /space/dock/connector-runtime`).
 class ConnectorRuntimeStatus {
   const ConnectorRuntimeStatus({

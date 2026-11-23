@@ -32,7 +32,9 @@ COPY crates/slimm-supervisor/Cargo.toml crates/slimm-supervisor/Cargo.toml
 # One stub per target the manifest declares (lib, bin, bench); a new target or workspace member needs its stub here.
 RUN mkdir -p crates/slimm-server/src crates/slimm-server/benches crates/slimm-supervisor/src \
     && touch crates/slimm-server/src/lib.rs crates/slimm-supervisor/src/lib.rs \
-    && echo 'fn main() {}' | tee crates/slimm-server/src/main.rs crates/slimm-supervisor/src/main.rs > crates/slimm-server/benches/hot_paths.rs \
+    && echo 'fn main() {}' \
+        | tee crates/slimm-server/src/main.rs crates/slimm-supervisor/src/main.rs \
+        > crates/slimm-server/benches/hot_paths.rs \
     && . /jemalloc.env \
     && cargo build --locked --release --bin slimm-server \
     && cargo clean --release --package slimm-server

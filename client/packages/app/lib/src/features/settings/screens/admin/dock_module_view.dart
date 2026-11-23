@@ -123,6 +123,30 @@ class DockManifestView extends StatelessWidget {
   bool get _updatePending =>
       installed != null && installed!.version != manifest.version;
 
+  List<Widget> _notices() => [
+    if (installed case final it? when dockHasHealthNews(it)) ...[
+      DockHealthCard(
+        installed: it,
+        onTurnOn: () => onSetEnabled(true),
+        enabled: !busy,
+      ),
+      const SizedBox(height: AppSpacing.s12),
+    ],
+    if (error != null) ...[
+      AppErrorState(message: error!, onDismiss: onErrorDismiss),
+      const SizedBox(height: AppSpacing.s12),
+    ],
+    if (connectorToken case final token?) ...[
+      DockConnectorTokenReveal(
+        name: manifest.name,
+        token: token,
+        serverUrl: serverUrl ?? Uri(),
+        onDismiss: onDismissConnectorToken ?? () {},
+      ),
+      const SizedBox(height: AppSpacing.s12),
+    ],
+  ];
+
   @override
   Widget build(BuildContext context) {
     final primary = DockPrimaryAction(
@@ -138,27 +162,7 @@ class DockManifestView extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.s16),
             children: [
-              if (installed case final it? when dockHasHealthNews(it)) ...[
-                DockHealthCard(
-                  installed: it,
-                  onTurnOn: () => onSetEnabled(true),
-                  enabled: !busy,
-                ),
-                const SizedBox(height: AppSpacing.s12),
-              ],
-              if (error != null) ...[
-                AppErrorState(message: error!, onDismiss: onErrorDismiss),
-                const SizedBox(height: AppSpacing.s12),
-              ],
-              if (connectorToken case final token?) ...[
-                DockConnectorTokenReveal(
-                  name: manifest.name,
-                  token: token,
-                  serverUrl: serverUrl ?? Uri(),
-                  onDismiss: onDismissConnectorToken ?? () {},
-                ),
-                const SizedBox(height: AppSpacing.s12),
-              ],
+              ..._notices(),
               _DockModuleHeader(
                 manifest: manifest,
                 sourceRepo: sourceRepo,
