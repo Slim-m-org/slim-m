@@ -2,11 +2,11 @@
 # The connector supervisor on bare metal (decision 0134). It is the only thing
 # that holds the container runtime's socket; the server reaches it through
 # /run/slimm-supervisor/supervisor.sock. docs/connectors/operating.md says how
-# to install it. For a rootless runtime, run it as the runtime's own user
-# instead and point SLIMM_RUNTIME_SOCKET at that user's socket.
+# to install it. Only rootful Docker Engine 28.0.0 or newer is supported; the
+# supervisor refuses Podman and rootless Docker at start.
 [Unit]
 Description=slim-m connector supervisor
-After=docker.service podman.socket
+After=docker.service
 Wants=docker.service
 
 [Service]
@@ -38,6 +38,11 @@ ProtectKernelModules=yes
 ProtectControlGroups=yes
 RestrictNamespaces=yes
 LockPersonality=yes
+SystemCallFilter=@system-service
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=yes
+ProtectProc=invisible
+RestrictSUIDSGID=yes
 CapabilityBoundingSet=
 AmbientCapabilities=
 UMask=0007

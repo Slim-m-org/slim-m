@@ -18,6 +18,10 @@ pub struct Readiness {
     pub runtime: &'static str,
     pub rootless: bool,
     pub problems: Vec<String>,
+    /// The supervisor's own image by content id (`sha256:...`), so a moved tag never changes
+    /// what gateways and the volume helper run until the supervisor restarts.
+    #[serde(skip)]
+    pub own_image_id: Option<String>,
 }
 
 impl Readiness {
@@ -60,6 +64,19 @@ pub async fn check(
         readiness.problems.push(format!(
             "the supervisor image {own_image} is not available: {}",
             err.detail
+        ));
+    }
+    readiness.own_image_id = runtime
+        .get(&format!("/images/{own_image}/json"))
+        .await?
+        .json()
+        .get("Id")
+        .and_then(Value::as_str)
+        .filter(|id| id.starts_with("sha256:"))
+        .map(str::to_owned);
+    if readiness.own_image_id.is_none() && readiness.problems.is_empty() {
+        readiness.problems.push(format!(
+            "the supervisor image {own_image} has no content id"
         ));
     }
     if let Err(problem) = probe_internal_network(runtime, instance).await {
@@ -161,6 +178,7 @@ pub fn judge_info(version: &Value, info: &Value, wanted: Requirements) -> Readin
         runtime: if podman { "podman" } else { "docker" },
         rootless,
         problems,
+        own_image_id: None,
     }
 }
 

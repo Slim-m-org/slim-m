@@ -81,6 +81,16 @@ impl Supervisor {
         result
     }
 
+    /// The supervisor's own image pinned by content id, as the last readiness check found it.
+    pub(super) async fn pinned_image(&self) -> Result<String, ApiError> {
+        self.readiness
+            .read()
+            .await
+            .as_ref()
+            .and_then(|r| r.own_image_id.clone())
+            .ok_or_else(|| ApiError::runtime("the supervisor's own image has not been resolved"))
+    }
+
     async fn require_ready(&self) -> Result<(), ApiError> {
         let cached = self.readiness.read().await.clone();
         let readiness = match cached {

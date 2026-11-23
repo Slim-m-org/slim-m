@@ -128,7 +128,7 @@ impl Supervisor {
         self.remove_container(&names.chown, names, "chown").await?;
         self.create_container(
             &names.chown,
-            &sandbox::chown_container(names, &self.config.own_image),
+            &sandbox::chown_container(names, &self.pinned_image().await?),
         )
         .await?;
         self.start_container(&names.chown).await?;

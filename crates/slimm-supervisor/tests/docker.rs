@@ -117,6 +117,17 @@ async fn a_connector_runs_as_the_fixed_user_with_a_read_only_root_and_no_socket(
     let (status, list) = client.get("/v1/connectors").await;
     assert_eq!(status, 200);
     assert_eq!(list["connectors"][0]["state"], json!("running"), "{list}");
+    let gateway_image = docker(&[
+        "inspect",
+        "--format",
+        "{{.Config.Image}}",
+        &format!("slimm-g-{}-{id}", stage.instances[0]),
+    ]);
+    let own_id = docker(&["image", "inspect", "--format", "{{.Id}}", &stage.own_image]);
+    assert_eq!(
+        gateway_image, own_id,
+        "the gateway runs the supervisor image by content id, never a tag"
+    );
 }
 
 #[tokio::test]

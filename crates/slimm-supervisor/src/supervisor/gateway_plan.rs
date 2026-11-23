@@ -38,7 +38,7 @@ impl Supervisor {
         }
         self.remove_container(&names.gateway, names, "gateway")
             .await?;
-        let body = sandbox::gateway_container(names, &self.config.own_image, &plan);
+        let body = sandbox::gateway_container(names, &self.pinned_image().await?, &plan);
         self.create_container(&names.gateway, &body).await?;
         let connect = json!({"Container": names.gateway});
         let path = format!("/networks/{}/connect", encode(&self.config.egress_network));
