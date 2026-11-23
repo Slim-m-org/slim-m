@@ -36,6 +36,11 @@ class TranscriptMarksController
   late String transcriptId;
   bool _disposed = false;
 
+  int _version = 0;
+
+  /// The version each mark last changed at by a frame, so a read that left before it cannot undo it.
+  final _changedAt = <String, int>{};
+
   api.SlimmApi get _api => ref.read(apiProvider);
 
   @override
@@ -67,6 +72,7 @@ class TranscriptMarksController
 
   /// Adds or replaces [mark] in time order, for a frame or a mark this device just made.
   void keep(api.TranscriptMark mark) {
+    _changedAt[mark.id] = ++_version;
     final marks = [
       for (final held in state.marks)
         if (held.id != mark.id) held,
@@ -76,6 +82,7 @@ class TranscriptMarksController
   }
 
   void _drop(String markId) {
+    _changedAt[markId] = ++_version;
     state = TranscriptMarksModel(
       marks: [
         for (final held in state.marks)
@@ -86,9 +93,17 @@ class TranscriptMarksController
   }
 
   Future<void> load() async {
+    final started = ++_version;
+    bool newer(String id) => (_changedAt[id] ?? 0) > started;
     try {
-      final marks = await _api.callTranscriptMarks(transcriptId);
+      final read = await _api.callTranscriptMarks(transcriptId);
       if (_disposed) return;
+      final marks = [
+        for (final mark in read)
+          if (!newer(mark.id)) mark,
+        for (final held in state.marks)
+          if (newer(held.id)) held,
+      ]..sort((a, b) => a.at.compareTo(b.at));
       state = TranscriptMarksModel(marks: marks, loaded: true);
     } on api.ApiException catch (error, stack) {
       if (_disposed) return;
