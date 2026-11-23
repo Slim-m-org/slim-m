@@ -152,7 +152,7 @@ async fn a_caller_token_becomes_a_real_mention() {
 }
 
 #[tokio::test]
-async fn an_id_the_module_was_never_given_stays_literal_and_mentions_nobody() {
+async fn an_id_the_module_was_never_given_reads_as_a_member_and_mentions_nobody() {
     let w = world("slimm-mention-forged").await;
     let channel = w.store.create_channel("general", "text").await.unwrap();
     let (bob, _) = bobs_id(&w, "other").await;
@@ -168,8 +168,25 @@ async fn an_id_the_module_was_never_given_stays_literal_and_mentions_nobody() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(stored.content, content);
+    assert_eq!(stored.content, "a member @everyone");
     assert!(!w.store.is_mentioned(message, bob).await.unwrap());
+}
+
+#[tokio::test]
+async fn a_malformed_token_stays_literal() {
+    let w = world("slimm-mention-malformed").await;
+    let channel = w.store.create_channel("general", "text").await.unwrap();
+    let content = "{{mention:abc}} {{mention:}}";
+
+    let answer = post_as_module(&w, "announcer", channel.id, content).await;
+
+    let stored = w
+        .store
+        .message_including_deleted(message_id_in(&answer))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.content, content);
 }
 
 #[tokio::test]
@@ -188,7 +205,7 @@ async fn an_id_given_to_another_module_does_not_work_here() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(stored.content, content);
+    assert_eq!(stored.content, "a member");
     assert!(!w.store.is_mentioned(message, bob).await.unwrap());
 }
 
@@ -209,7 +226,8 @@ async fn at_most_ten_tokens_in_a_message_are_expanded() {
         .unwrap()
         .unwrap();
     assert_eq!(stored.content.matches("@bob").count(), 10);
-    assert_eq!(stored.content.matches(&token).count(), 2);
+    assert_eq!(stored.content.matches("a member").count(), 2);
+    assert!(!stored.content.contains("mention:"));
 }
 
 #[tokio::test]
@@ -248,6 +266,6 @@ async fn a_member_who_cannot_see_the_channel_is_not_mentioned_or_named() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(stored.content, content);
+    assert_eq!(stored.content, "a member");
     assert!(!w.store.is_mentioned(message, bob).await.unwrap());
 }

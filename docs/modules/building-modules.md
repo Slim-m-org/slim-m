@@ -688,7 +688,8 @@ Posts a message as the person who ran the module, into the channel they ran it f
 - A run may attempt three posts, and the host marks the message with your module's installed name (`via_module`), which you can neither choose nor remove, and refuses text that hides characters (bidi overrides, zero-width marks).
 - `{{mention:<caller id>}}` in `content` (add-on API 7) is written as a real `@username` mention of the member that id stands for.
   The id is the 64 hex characters of a `caller.id` this module was handed in an earlier run; the host can recognise only those, so a module cannot mention a member it has not been given.
-  A token that is not one of those ids, belongs to another module, names a member who cannot view the channel, or comes after the tenth in the message, stays literal text.
+  A well-formed token that is not one of those ids, belongs to another module, names a member who cannot view the channel, or comes after the tenth in the message, is written as the plain words "a member": no name and no mention.
+  A malformed token (not exactly 64 hex characters between `{{mention:` and `}}`) stays literal text.
   The usual rules then apply to the mention: `@everyone`, `@here` and roles are never reachable through a token, and Do Not Disturb, mutes and notification settings decide who is notified.
   The host puts a space after the name when the next character would read as part of it.
 - Runs started from a code block (`code-block-runner`) get no `message.post`, because the input there is whoever wrote the message, not whoever clicked Run.
