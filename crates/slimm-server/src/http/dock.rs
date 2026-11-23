@@ -82,6 +82,8 @@ pub struct Dock {
     hooks: Arc<super::module_hooks::Registry>,
     /// Modules' shared room states; see `module_rooms`.
     rooms: Arc<super::module_rooms::Rooms>,
+    /// Members' runs waiting on connectors; see `connector_runs`.
+    connector_runs: Arc<super::connector_runs::ConnectorRuns>,
 }
 
 struct Enabled {
@@ -115,6 +117,11 @@ impl Dock {
     /// The rooms modules keep shared state in.
     pub(crate) fn rooms(&self) -> &super::module_rooms::Rooms {
         &self.rooms
+    }
+
+    /// The runs waiting on a connector's answer.
+    pub(super) fn connector_runs(&self) -> &super::connector_runs::ConnectorRuns {
+        &self.connector_runs
     }
 
     /// The hooks modules have placed in front of actions.
@@ -188,6 +195,7 @@ impl Dock {
             slot_cache: super::module_slot_cache::SlotCache::default(),
             hooks: Arc::default(),
             rooms: Arc::default(),
+            connector_runs: Arc::default(),
             module_data: Arc::default(),
             event_queues: new_event_queues(&queue_depths),
             queue_depths,
@@ -212,6 +220,7 @@ impl Dock {
             slot_cache: super::module_slot_cache::SlotCache::default(),
             hooks: Arc::default(),
             rooms: Arc::default(),
+            connector_runs: Arc::default(),
             module_data: Arc::default(),
             event_queues: new_event_queues(&queue_depths),
             queue_depths,

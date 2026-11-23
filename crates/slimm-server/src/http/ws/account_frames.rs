@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Frames private to one account: its read marker, its per-channel
-//! notification overrides, its category mutes and a voice move or removal, delivered only to that account's own connections.
+//! notification overrides, its category mutes, a voice move or removal and a
+//! connector's forwarded runs, delivered only to that account's own connections.
 
 use super::authorization::Authorization;
 use super::frames::ServerFrame;
@@ -99,6 +100,15 @@ pub(super) fn authorize(ctx: &SessionContext, event: &Event) -> Option<Authoriza
                 channel_id: channel_id.to_string(),
                 clip_id: clip_id.to_string(),
                 player_id: player_id.to_string(),
+            },
+        ),
+        Event::ConnectorRun(run) => (
+            run.principal,
+            ServerFrame::ConnectorRun {
+                run_id: run.run_id.to_string(),
+                module_id: run.module_id.clone(),
+                deadline_ms: run.deadline_ms,
+                request: run.request.clone(),
             },
         ),
         _ => return None,

@@ -4,9 +4,10 @@
 //! and no runtime, and asks for core permissions instead of host capabilities.
 //!
 //! What a WASM module declares about its own sandbox (capabilities, network,
-//! schedules, events, hooks, data, call audio, commands and slots) has no
-//! meaning for a program the host does not run, so a connector may declare
-//! none of it. Settings are the one shared section.
+//! schedules, events, hooks, data, call audio and slots) has no meaning for a
+//! program the host does not run, so a connector may declare none of it.
+//! Settings, permission keys and member-run extension points are shared
+//! (`super::connector_surfaces`).
 
 use serde::Deserialize;
 
@@ -75,9 +76,7 @@ fn refuse_wasm_sections(raw: &RawManifest) -> Result<(), ManifestError> {
     let declared = [
         ("artifact", raw.artifact.is_some()),
         ("runtime", raw.runtime.is_some()),
-        ("permissions", !raw.permissions.is_empty()),
         ("capabilities", !raw.capabilities.is_empty()),
-        ("extension_points", !raw.extension_points.is_empty()),
         ("network", raw.network.is_some()),
         ("schedules", !raw.schedules.is_empty()),
         ("subscriptions", !raw.subscriptions.is_empty()),

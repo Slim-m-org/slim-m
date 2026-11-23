@@ -55,14 +55,7 @@ fn a_connector_declares_none_of_a_wasm_module_s_sandbox() {
         ("capabilities", json!(["kv.store"])),
         ("schedules", json!([{"command": "x", "every_minutes": 5}])),
         ("subscriptions", json!([{"event": "message.created"}])),
-        (
-            "extension_points",
-            json!([{"kind": "command", "name": "x", "permission": "x"}]),
-        ),
-        (
-            "permissions",
-            json!([{"key": "x", "name": "X", "description": "x"}]),
-        ),
+        ("slots", json!([{"kind": "profile.section", "name": "x"}])),
     ] {
         let mut doc = connector();
         doc[field] = value;

@@ -3,7 +3,8 @@
 //! real `@username` for the member that id stands for, so the ordinary mention rules apply.
 //!
 //! A caller id is an HMAC only this deployment can compute, so a module can name only members
-//! it was handed as a caller. Anything else stays the literal text it wrote.
+//! it was handed as a caller. A well-formed token that names nobody it may mention reads as
+//! [`UNRESOLVED`]; a malformed one stays the literal text it wrote.
 
 use std::collections::HashMap;
 
@@ -11,8 +12,10 @@ use super::AppState;
 use super::module_caller::{caller_name, module_caller_id};
 use crate::ids::{ChannelId, UserId};
 
-/// Most tokens one message may turn into mentions; later ones stay literal.
+/// Most tokens one message may turn into mentions; later ones read as [`UNRESOLVED`].
 pub(super) const MAX_TOKEN_MENTIONS: usize = 10;
+/// What a well-formed token reads as when it names nobody: no name and no mention.
+const UNRESOLVED: &str = "a member";
 
 const OPEN: &str = "{{mention:";
 const CLOSE: &str = "}}";
@@ -34,7 +37,7 @@ pub(super) async fn expand(
         Ok(shown) => shown,
         Err(err) => {
             tracing::warn!(%err, "module post: could not expand mentions");
-            return content.to_owned();
+            HashMap::new()
         }
     };
     splice(content, &tokens, &shown)
@@ -115,12 +118,10 @@ fn splice(content: &str, tokens: &[Token<'_>], shown: &HashMap<String, String>) 
     let mut out = String::with_capacity(content.len());
     let mut copied = 0;
     for (index, token) in tokens.iter().enumerate() {
-        let Some(text) = (index < MAX_TOKEN_MENTIONS)
+        let text = (index < MAX_TOKEN_MENTIONS)
             .then(|| shown.get(&token.id.to_ascii_lowercase()))
             .flatten()
-        else {
-            continue;
-        };
+            .map_or(UNRESOLVED, String::as_str);
         out.push_str(&content[copied..token.start]);
         out.push_str(text);
         if runs_on(&content[token.end..]) {
@@ -167,7 +168,7 @@ mod tests {
     }
 
     #[test]
-    fn a_token_is_replaced_and_the_rest_stays_literal() {
+    fn a_token_is_replaced_and_one_naming_nobody_reads_as_a_member() {
         let text = format!(
             "{{{{mention:{}}}}} and {{{{mention:{}}}}}!",
             id('a'),
@@ -175,20 +176,25 @@ mod tests {
         );
         let tokens = find_tokens(&text);
         let shown = HashMap::from([(id('a'), "@ada".to_owned())]);
-        assert_eq!(
-            splice(&text, &tokens, &shown),
-            format!("@ada and {{{{mention:{}}}}}!", id('b'))
-        );
+        assert_eq!(splice(&text, &tokens, &shown), "@ada and a member!");
     }
 
     #[test]
-    fn tokens_past_the_cap_stay_literal() {
+    fn tokens_past_the_cap_read_as_a_member() {
         let one = format!("{{{{mention:{}}}}}", id('a'));
         let text = vec![one.clone(); MAX_TOKEN_MENTIONS + 2].join(",");
         let shown = HashMap::from([(id('a'), "@ada".to_owned())]);
         let out = splice(&text, &find_tokens(&text), &shown);
         assert_eq!(out.matches("@ada").count(), MAX_TOKEN_MENTIONS);
-        assert_eq!(out.matches(&one).count(), 2);
+        assert_eq!(out.matches(UNRESOLVED).count(), 2);
+        assert!(!out.contains("mention:"), "{out}");
+    }
+
+    #[test]
+    fn a_malformed_token_stays_literal_beside_an_unresolved_one() {
+        let text = format!("{{{{mention:abc}}}} {{{{mention:{}}}}}x", id('c'));
+        let out = splice(&text, &find_tokens(&text), &HashMap::new());
+        assert_eq!(out, "{{mention:abc}} a member x");
     }
 
     #[test]

@@ -12041,6 +12041,49 @@ paths:
           $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /connectors/me/runs/{runId}:
+    parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: answerConnectorRun
+      tags: [space]
+      summary: A connector answers a member's run it was sent as a connector.run frame.
+      description: >
+        Add-on API 7 (decision 0090). The body is the WASM module answer
+        shape, `{"ok": true, "output"}` or `{"ok": false, "error"}`, at most
+        1 MiB. Only the connector the run was sent to can answer it, once,
+        before its `deadline_ms`; anything else gets 404. A malformed answer
+        still ends the run as a failure for the member and is refused with
+        400. Only a connector's own token reaches it (403 otherwise), and a
+        disabled connector gets 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectorRunAnswer"
+      responses:
+        "204":
+          description: The answer reached the waiting member.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/dock/modules/{moduleId}/disable:
     parameters:
       - name: moduleId
@@ -16728,6 +16771,19 @@ components:
         input:
           type: string
           description: The block's own text, passed through as the ABI `input`.
+    ConnectorRunAnswer:
+      type: object
+      required: [ok]
+      description: >
+        A connector's answer to one run: `output` when `ok` (text, or a
+        scene/1 document as text), else `error`.
+      properties:
+        ok:
+          type: boolean
+        output:
+          type: string
+        error:
+          type: string
     RunModuleCommandResponse:
       type: object
       required: [ok]
@@ -22104,6 +22160,7 @@ components:
         - $ref: "#/components/schemas/OwnerChanged"
         - $ref: "#/components/schemas/ProfileChanged"
         - $ref: "#/components/schemas/BotUiChanged"
+        - $ref: "#/components/schemas/ConnectorRun"
         - $ref: "#/components/schemas/TypingStarted"
         - $ref: "#/components/schemas/TypingStopped"
         - $ref: "#/components/schemas/RoleChanged"
@@ -23377,6 +23434,34 @@ components:
         bot_user_id:
           type: string
           format: uuid
+
+    ConnectorRun:
+      type: object
+      required: [type, run_id, module_id, deadline_ms, request]
+      description: >
+        Add-on API 7: a member ran a command or opened a panel a connector
+        declares in its manifest. Sent only to the connector principal's own
+        connections, and lossy like a button click. `request` is the same run
+        request a WASM module reads (command, input, the opaque per-module
+        caller id and name, entropy, now_ms, non-secret settings and a
+        context naming only channels the connector may view). Answer it with
+        `POST /connectors/me/runs/{run_id}` within `deadline_ms`, or the
+        member is told the connector did not answer.
+      properties:
+        type:
+          type: string
+          enum: [connector.run]
+        run_id:
+          type: string
+          format: uuid
+        module_id:
+          type: string
+        deadline_ms:
+          type: integer
+          format: int64
+        request:
+          type: object
+          additionalProperties: true
 
     TypingStarted:
       type: object

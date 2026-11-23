@@ -89,6 +89,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
+        | Event::ConnectorRun(_)
         | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }

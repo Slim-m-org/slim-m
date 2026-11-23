@@ -20,7 +20,8 @@ use crate::ids::{SessionId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{
-    ConnectorInstall, DockProvenance, InstallModuleRequest, InstalledModule, ModuleRuntimeLimits,
+    ConnectorInstall, DockProvenance, InstallModuleRequest, InstalledModule,
+    ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits,
 };
 
 /// Told to an app too old to show what a connector asks for, so it cannot install one blind.
@@ -51,16 +52,31 @@ pub(super) async fn install(
             "a connector can only be approved permissions it asks for",
         ));
     }
-    if state
-        .store
-        .installed_module(&manifest.id)
-        .await?
-        .is_some_and(|m| !m.is_connector())
-    {
+    let installed_before = state.store.installed_module(&manifest.id).await?;
+    if installed_before.as_ref().is_some_and(|m| !m.is_connector()) {
         return Err(ApiError::Conflict(
             "a module with this id is installed; uninstall it before installing the connector",
         ));
     }
+    if installed_before.is_some_and(|m| m.enabled) {
+        let keywords = manifest
+            .extension_points
+            .iter()
+            .filter(|e| e.kind == "slash-command")
+            .map(|e| e.name.as_str());
+        super::keywords::ensure_slash_keywords_free(state, &manifest.id, keywords).await?;
+    }
+    let permissions: Vec<ModulePermissionSpec> = manifest
+        .permissions
+        .iter()
+        .map(|p| ModulePermissionSpec {
+            key: &p.key,
+            name: &p.name,
+            description: &p.description,
+        })
+        .collect();
+    let extension_points: Vec<ModuleExtensionPointSpec> =
+        manifest.extension_points.iter().map(Into::into).collect();
     let provenance = DockProvenance {
         host_capabilities: &[],
         source_repo: repo,
@@ -80,8 +96,8 @@ pub(super) async fn install(
                 artifact_sha256: &manifest.artifact.sha256,
                 approved_capabilities: &[],
                 runtime_limits: &ModuleRuntimeLimits::default(),
-                permissions: &[],
-                extension_points: &[],
+                permissions: &permissions,
+                extension_points: &extension_points,
             },
             provenance: &provenance,
             approved,
