@@ -136,6 +136,7 @@ mod uplink_tests;
 mod user_notes;
 mod users;
 mod voice_call_events;
+mod voice_commands;
 mod voice_notify;
 mod voice_rooms;
 mod voice_sessions;
@@ -310,6 +311,7 @@ pub use users::ProfileUpdate;
 pub use voice_call_events::{
     CALL_HISTORY_RETENTION_DAYS, CanvasActivity, VoiceEvent, VoiceEventKind,
 };
+pub use voice_commands::VoiceCommands;
 pub use voice_sessions::{SessionScope, VOICE_SESSION_RETENTION_DAYS, VoiceSession};
 pub use voice_transcripts::{TranscriptOutcome, TranscriptStatus, VoiceCandidate, VoiceTranscript};
 pub use watch_sessions::{

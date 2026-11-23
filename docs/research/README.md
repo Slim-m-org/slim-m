@@ -96,6 +96,7 @@ Everything below postdates the pre-build research above by weeks and reports on 
 | [screen-share-camera-real-encode-2026-11-02.md](screen-share-camera-real-encode-2026-11-02.md) | 2026-11-02 | Requested versus delivered share and camera encode read back per layer from the real Linux client: desktop capture ignored the requested size (a 4K screen on the 1080p tier encoded at 3840x2160), a post-publish scale is a no-op, the fix is native. |
 | [screen-overlay-next-2026-11-02.md](screen-overlay-next-2026-11-02.md) | 2026-11-02 | Why viewers marks did not show on the sharer screen (a primary-monitor tie-break that always chose monitor 0 on Wayland) and a ranked proposal of further overlay features. |
 | [call-audio-real-speech-2026-11-02.md](call-audio-real-speech-2026-11-02.md) | 2026-11-02 | Decision 0105 run end to end with real speech, a real listener container and the transcript module: consent held on every path, segments attributed correctly, 2.4 s p95 latency, nothing written to disk, and the 1G listener limit was too tight (964 MiB with four at once). |
+| [voice-command-phrase-2026-11-22.md](voice-command-phrase-2026-11-22.md) | 2026-11-22 | How whisper base hears "hey space, mark that" in synthetic speech with noise and music: 94.7% of commands acted on, no false command in 62 minutes of confusing negatives; the parser gained one alias (pay, hay). |
 
 ## Why this corpus stays, unpruned
 

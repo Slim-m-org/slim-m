@@ -19,7 +19,7 @@ use super::voice_call_audio::{
 use crate::call_audio::{RequestError, runtime, transcript};
 use crate::ids::{ChannelId, UserId};
 use crate::ratelimit::Class;
-use crate::store::{TranscriptionMode, now_ms};
+use crate::store::{TranscriptionMode, VoiceCommands, now_ms};
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -32,6 +32,10 @@ pub fn routes() -> Router<AppState> {
 struct NoticeDto {
     mode: &'static str,
     acknowledged: bool,
+    /// Whether spoken marks are on, so the notice can say how to give one.
+    voice_commands: bool,
+    /// The wake phrase spoken marks start with.
+    phrase: String,
 }
 
 async fn ask(
@@ -56,10 +60,11 @@ async fn ask(
     if !people.contains(&ctx.user_id) {
         return Err(ApiError::ForbiddenBecause("join the call first"));
     }
+    let commands = state.store.voice_commands().await?;
     let began = state
         .call_audio
         .begin(
-            (channel, transcript::subject()),
+            (channel, transcript::subject(&commands)),
             ctx.user_id,
             &people,
             now_ms(),
@@ -89,9 +94,18 @@ pub(super) async fn ensure_always(state: &AppState, channel: ChannelId, joiner: 
     if !present.contains(&joiner) {
         present.push(joiner);
     }
-    let begun = state
-        .call_audio
-        .begin_always((channel, transcript::subject()), &present, now_ms());
+    let commands = state.store.voice_commands().await.unwrap_or_else(|err| {
+        tracing::warn!(%err, "could not read voice commands; the call starts without them");
+        VoiceCommands {
+            on: false,
+            phrase: String::new(),
+        }
+    });
+    let begun = state.call_audio.begin_always(
+        (channel, transcript::subject(&commands)),
+        &present,
+        now_ms(),
+    );
     match begun {
         Ok(outcome) => {
             runtime::apply(state, outcome).await;
@@ -119,13 +133,15 @@ async fn notice(
     Authed(ctx): Authed,
 ) -> Result<Json<NoticeDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
+    let commands = state.store.voice_commands().await?;
     Ok(Json(NoticeDto {
         mode: state.store.call_transcription().await?.as_str(),
         acknowledged: state
             .store
-            .transcription_notice_acknowledged_at(ctx.user_id)
-            .await?
-            .is_some(),
+            .transcription_notice_acknowledged(ctx.user_id)
+            .await?,
+        voice_commands: commands.on,
+        phrase: commands.phrase,
     }))
 }
 

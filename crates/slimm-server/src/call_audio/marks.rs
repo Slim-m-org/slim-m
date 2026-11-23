@@ -9,6 +9,7 @@ use crate::http::AppState;
 use crate::hub::Event;
 use crate::ids::{CallTranscriptId, CallTranscriptMarkId, ChannelId, UserId};
 use crate::store::{NewMark, PutMark, TranscriptMark, now_ms};
+use crate::voice::Listing;
 
 /// Keeps `new` and tells `audience` about it when it is new.
 pub async fn add(
@@ -28,6 +29,29 @@ pub async fn add(
         );
     }
     Ok(put)
+}
+
+/// Keeps a mark said in a call. Its frame goes to the call's roster, asked of the
+/// SFU off the call-audio loop when the live roster cannot be trusted yet.
+pub async fn add_spoken(
+    state: &AppState,
+    channel: ChannelId,
+    new: &NewMark<'_>,
+) -> anyhow::Result<()> {
+    let PutMark::Created(mark) = state.store.put_call_transcript_mark(new, now_ms()).await? else {
+        return Ok(());
+    };
+    let ids = (mark.transcript_id, mark.id);
+    if let Some(audience) = state.voice.trusted_roster(channel) {
+        publish(state, channel, ids, Some(mark), &audience);
+        return Ok(());
+    }
+    let state = state.clone();
+    tokio::spawn(async move {
+        let audience = state.voice.in_call(channel, Listing::Shared).await;
+        publish(&state, channel, ids, Some(mark), &audience);
+    });
+    Ok(())
 }
 
 /// Tells `audience` a mark is gone.

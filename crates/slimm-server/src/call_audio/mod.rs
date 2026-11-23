@@ -9,12 +9,14 @@
 //! the effects of a transition (tokens, hub frames, module events) is
 //! [`runtime`]'s job.
 
+pub mod commands;
 mod filter;
 pub mod link;
 pub mod marks;
 pub mod protocol;
 pub mod runtime;
 pub mod session;
+pub mod spoken_marks;
 pub mod transcript;
 mod types;
 mod view;
@@ -414,6 +416,7 @@ impl CallAudio {
             end_ms: started + end_ms,
             text,
             language: language.as_deref().and_then(filter::language_tag),
+            listens_for: live.session.subject.listens_for.clone(),
             segment_id,
             ids: live.ids.clone(),
         })

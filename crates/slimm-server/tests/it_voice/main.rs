@@ -11,6 +11,7 @@ mod call_records;
 mod call_stats;
 mod call_transcript_marks;
 mod call_transcript_marks_lifecycle;
+mod call_transcript_spoken_marks;
 mod call_transcripts;
 mod call_transcripts_export;
 mod call_transcripts_live;

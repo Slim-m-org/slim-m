@@ -146,3 +146,15 @@ Only people in the call add them, and only while it is transcribed; afterwards t
 Live, a kept or removed mark goes as `call.transcript_mark` to the same people the live lines go to.
 Deleting the transcript, its retention sweep, and the author's account deletion remove the marks, and a member's export holds their own (`transcript_marks.jsonl`).
 Nothing changes in a Space with transcription off: there is no running transcript to mark.
+
+## Amendment 2026-11-22: spoken marks
+
+A Space can turn on voice commands (Space settings > Voice), off by default, with an editable wake phrase ("hey space" by default; 2 to 4 words, without mark, note or bookmark).
+While they are on, a transcribed call acts on "hey space, mark that" (also "bookmark" or "clip", which only ever makes a mark) and "hey space, note ...", said by someone in the call.
+A line that is only the phrase waits 10 seconds for the same speaker's command, and one speaker gives at most one command every 5 seconds.
+
+It reads only the text the server transcript already keeps: no new audio path, no new listener, nothing while transcription is off, and nothing for a module's call audio.
+A call acts on commands only if its transcript started while the switch was on, so a call that agreed to the old consent text never starts acting on speech; turning the switch off takes effect within 5 seconds.
+The consent text names the phrase while it is on, the always-mode notice gains one sentence saying how to mark a moment, and turning the switch on makes that notice due again for everyone (changing only the phrase does not).
+A spoken mark belongs to the speaker, is stamped with the line's time and points at that line, which stays in the transcript as it was said.
+How whisper hears the phrase was measured before this shipped: docs/research/voice-command-phrase-2026-11-22.md.

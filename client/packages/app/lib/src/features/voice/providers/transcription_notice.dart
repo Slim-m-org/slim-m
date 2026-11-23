@@ -15,9 +15,13 @@ class TranscriptionNoticeActions {
 
   /// Whether the member still owes the notice. A notice that cannot be read
   /// lets the join through; the call header's transcript mark still says the call is transcribed.
-  Future<bool> isDue() async {
+  Future<bool> isDue() async => await dueNotice() != null;
+
+  /// The notice while it is owed, else null; [isDue] says why a failed read is null.
+  Future<api.TranscriptionNotice?> dueNotice() async {
     try {
-      return (await _api.transcriptionNotice()).due;
+      final notice = await _api.transcriptionNotice();
+      return notice.due ? notice : null;
     } on api.ApiException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.voice,
@@ -25,7 +29,7 @@ class TranscriptionNoticeActions {
         error,
         stack,
       );
-      return false;
+      return null;
     }
   }
 

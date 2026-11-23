@@ -118,4 +118,28 @@ void main() {
     ) as CallTranscriptMarkChanged;
     expect(removed.mark, isNull);
   });
+
+  test('the notice and the settings carry the voice command switch', () {
+    final notice = TranscriptionNotice.fromJson({
+      'mode': 'always',
+      'acknowledged': false,
+      'voice_commands': true,
+      'phrase': 'hey orbit',
+    });
+    expect((notice.voiceCommands, notice.phrase), (true, 'hey orbit'));
+    final older = TranscriptionNotice.fromJson({'mode': 'always'});
+    expect((older.voiceCommands, older.phrase), (false, 'hey space'));
+    final settings = SpaceSettings.fromJson({
+      'join_policy': 'invite',
+      'voice_commands': true,
+      'voice_command_phrase': 'hey orbit',
+    });
+    expect((
+      settings.voiceCommands,
+      settings.voiceCommandPhrase
+    ), (
+      true,
+      'hey orbit',
+    ));
+  });
 }

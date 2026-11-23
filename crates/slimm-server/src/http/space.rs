@@ -85,6 +85,9 @@ struct SpaceSettingsDto {
     transcribe_voice_messages_available: bool,
     /// How much the server logs: `off`, `compact` or `verbose` (decision 0129).
     debug_logging: &'static str,
+    /// Whether a transcribed call acts on its wake phrase, such as "hey space, mark that".
+    voice_commands: bool,
+    voice_command_phrase: String,
 }
 
 /// The PATCH body: only the fields present are written.
@@ -109,6 +112,8 @@ struct UpdateSpaceSettingsDto {
     call_transcript_retention_days: Option<Option<i64>>,
     transcribe_voice_messages: Option<bool>,
     debug_logging: Option<String>,
+    voice_commands: Option<bool>,
+    voice_command_phrase: Option<String>,
 }
 
 /// Tells a null field from an absent one, which `#[serde(default)]` leaves as `None`.
@@ -154,6 +159,7 @@ async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
     let landing = state.store.space_landing().await?;
     let welcome = state.store.space_welcome().await?;
     let display = state.store.module_display().await?;
+    let commands = state.store.voice_commands().await?;
     Ok(SpaceSettingsDto {
         name: state.store.deployment_name().await?,
         join_policy: state.store.join_policy().await?.as_str().to_owned(),
@@ -176,6 +182,8 @@ async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
         transcribe_voice_messages: state.store.transcribe_voice_messages().await?,
         transcribe_voice_messages_available: state.call_audio.is_enabled(),
         debug_logging: state.store.log_mode().await?.as_str(),
+        voice_commands: commands.on,
+        voice_command_phrase: commands.phrase,
     })
 }
 
@@ -355,9 +363,11 @@ async fn update(
         && body.call_transcript_retention_days.is_none()
         && body.transcribe_voice_messages.is_none()
         && body.debug_logging.is_none()
+        && body.voice_commands.is_none()
+        && body.voice_command_phrase.is_none()
     {
         return Err(ApiError::BadRequest(
-            "send name, join_policy, totp_policy, description, strong_noise_suppression, members_can_invite, hide_bots_in_member_list, a module display switch, a welcome field, a call transcript setting, transcribe_voice_messages or debug_logging",
+            "send name, join_policy, totp_policy, description, strong_noise_suppression, members_can_invite, hide_bots_in_member_list, a module display switch, a welcome field, a call transcript setting, transcribe_voice_messages, debug_logging or a voice command setting",
         ));
     }
     if body.transcribe_voice_messages == Some(true) && !state.call_audio.is_enabled() {
@@ -373,6 +383,13 @@ async fn update(
     };
     let welcome = merged_welcome(&state, ctx.user_id, &body).await?;
     let (transcription, retention) = transcript_settings(&state, &body)?;
+    let commands = super::space_voice_commands::check(
+        &state,
+        body.voice_commands,
+        body.voice_command_phrase.as_deref(),
+        transcription,
+    )
+    .await?;
     let name = body.name.as_deref().map(validate_name).transpose()?;
     let changes_version = name.is_some()
         || body.description.is_some()
@@ -440,6 +457,9 @@ async fn update(
     }
     if let Some(on) = body.transcribe_voice_messages {
         state.store.set_transcribe_voice_messages(on).await?;
+    }
+    if let Some(commands) = commands {
+        super::space_voice_commands::apply(&state, commands).await?;
     }
     if let Some(days) = retention {
         state.store.set_call_transcript_retention_days(days).await?;

@@ -171,12 +171,13 @@ impl Store {
         Ok(at.flatten())
     }
 
-    /// Records the acknowledgement once; a repeat keeps the first time.
+    /// Records the acknowledgement; a repeat keeps the first time unless the notice changed since.
     pub async fn acknowledge_transcription_notice(&self, user: UserId) -> anyhow::Result<()> {
         let now = now_ms();
         sqlx::query!(
-            "UPDATE users SET transcription_notice_ack_at = ?
-             WHERE id = ? AND transcription_notice_ack_at IS NULL",
+            "UPDATE users SET transcription_notice_ack_at = ?1
+             WHERE id = ?2 AND (transcription_notice_ack_at IS NULL OR transcription_notice_ack_at <
+                 COALESCE((SELECT transcription_notice_revised_at FROM space_settings WHERE id = 1), 0))",
             now,
             user
         )

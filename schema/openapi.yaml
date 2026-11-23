@@ -8800,6 +8800,7 @@ paths:
         In `always` mode a member is told once, before their first call, not on
         every call (decision 0113); the acknowledgement is kept per member, so
         it holds across devices. `mode` is the Space's `call_transcription`.
+        Turning voice commands on makes it due again for everyone.
       responses:
         "200":
           description: The Space's mode and whether the caller acknowledged.
@@ -8814,6 +8815,12 @@ paths:
                     enum: [off, on_request, always]
                   acknowledged:
                     type: boolean
+                  voice_commands:
+                    type: boolean
+                    description: Whether spoken marks are on; absent on older servers.
+                  phrase:
+                    type: string
+                    description: The wake phrase spoken marks start with.
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -15212,6 +15219,15 @@ components:
             media, and one per HTTP request. `verbose` adds every slim-m debug
             and trace line. Passwords, tokens and message text are never
             logged in any mode.
+        voice_commands:
+          type: boolean
+          description: >
+            Whether a transcribed call acts on its wake phrase ("hey space,
+            mark that" and "hey space, note ..."), reading only the transcript's
+            own text. Off by default; absent on older servers, read as false.
+        voice_command_phrase:
+          type: string
+          description: The wake phrase, "hey space" by default.
         join_policy:
           type: string
           enum: [invite, open]
@@ -15323,6 +15339,21 @@ components:
           description: >
             Switches the server log mode at once, with no restart. Any other
             value is a 400.
+        voice_commands:
+          type: boolean
+          description: >
+            Turns spoken marks on or off. Turning them on needs call
+            transcription on and the listener, else 409, and makes the
+            transcription notice due again for everyone. A call that is already
+            transcribed keeps going without them.
+        voice_command_phrase:
+          type: string
+          minLength: 3
+          maxLength: 40
+          description: >
+            The wake phrase: 2 to 4 words of letters, without mark, note or
+            bookmark; anything else is a 400. Changing it alone does not make
+            the notice due again.
       description: >
         Only the fields present are written, so a client changing one setting
         cannot overwrite another from a stale copy. An empty body is refused.

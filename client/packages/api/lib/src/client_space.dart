@@ -37,6 +37,8 @@ extension SlimmApiSpace on SlimmApi {
       :callTranscriptRetentionDays,
       :transcribeVoiceMessages,
       :debugLogging,
+      :voiceCommands,
+      :voiceCommandPhrase,
     ) = update;
     assert(
       name != null ||
@@ -54,7 +56,9 @@ extension SlimmApiSpace on SlimmApi {
           callTranscription != null ||
           callTranscriptRetentionDays != null ||
           transcribeVoiceMessages != null ||
-          debugLogging != null,
+          debugLogging != null ||
+          voiceCommands != null ||
+          voiceCommandPhrase != null,
       'a settings PATCH must carry at least one field',
     );
     final json = await send(
@@ -82,6 +86,9 @@ extension SlimmApiSpace on SlimmApi {
         if (transcribeVoiceMessages != null)
           'transcribe_voice_messages': transcribeVoiceMessages,
         if (debugLogging != null) 'debug_logging': debugLogging.wire,
+        if (voiceCommands != null) 'voice_commands': voiceCommands,
+        if (voiceCommandPhrase != null)
+          'voice_command_phrase': voiceCommandPhrase,
         if (callTranscriptRetentionDays != null)
           'call_transcript_retention_days': callTranscriptRetentionDays == 0
               ? null
