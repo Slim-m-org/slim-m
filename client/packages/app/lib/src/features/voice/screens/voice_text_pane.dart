@@ -38,10 +38,10 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../widgets/app_panel_reveal.dart';
 import '../../../widgets/header_icon_action.dart';
-import '../../channels/screens/channel_screen.dart';
 import '../providers/voice_chat_unread.dart';
 import '../widgets/voice_chat_unread_dot.dart';
 import 'call_details_pane.dart';
+import 'voice_text_surface.dart';
 
 /// Whether the voice channel's docked chat pane is open, at desktop widths.
 /// Defaults closed: opening a voice channel keeps the call stage at full
@@ -119,12 +119,8 @@ class VoiceCallWithChatPane extends ConsumerWidget {
                       child: AppPanelReveal(
                         key: ValueKey(chat ? 'chat' : 'details'),
                         fromLeft: false,
-                        // See ChannelScreen.showHeader's own doc for why this pane omits its own header.
                         child: chat
-                            ? ChannelScreen(
-                                channelId: channelId,
-                                showHeader: false,
-                              )
+                            ? VoiceTextSurface(channelId: channelId)
                             : details!,
                       ),
                     ),
@@ -161,10 +157,7 @@ class VoiceCallWithChatTabs extends ConsumerWidget {
     return AppFadeIn(
       key: ValueKey('voice-chat-open-$chatOpen'),
       offset: 0,
-      // showHeader: false for the same reason the docked pane withholds it - see ChannelScreen's own doc.
-      child: chatOpen
-          ? ChannelScreen(channelId: channelId, showHeader: false)
-          : call,
+      child: chatOpen ? VoiceTextSurface(channelId: channelId) : call,
     );
   }
 }

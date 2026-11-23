@@ -209,6 +209,7 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
                 expires_at_ms: 1_700_000_000_006,
                 full: false,
                 mode: None,
+                transcript_id: None,
                 transcript: false,
                 automatic: false,
             })),

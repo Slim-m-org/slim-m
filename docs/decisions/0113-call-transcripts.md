@@ -120,3 +120,16 @@ A Space with transcription off answers with nothing counted.
 With `transcript_id` the call must be readable by the caller as for `GET /voice/transcripts/{id}`, and only the caller's lines in it count.
 Filler words are counted on English lines only, and the pane says the transcriber leaves out most ums and uhs.
 A listener's segment `end_ms` is now the end of the last voiced frame, not of the silence that closed it, so talk time is not overstated.
+
+## Amendment 2026-11-22: captions and the live pane
+
+The live lines now have screens.
+Captions are a per-device choice, off by default, turned on from the call's Captions control or from Voice & video settings.
+They sit in a strip of fixed height under the call stage, show only lines said after the strip opened, as "Name: text", and clear 8 seconds after the last line.
+While a transcript runs, the voice channel's chat pane (docked, or the compact swapped view) gains a "Chat | Transcript" choice; the Transcript side lists the whole running transcript and follows the newest line.
+
+Both appear only while the server is transcribing the call and the viewer holds `VIEW_CHANNEL` and `VIEW_TRANSCRIPTS` on the channel, the same rule the live lines already follow.
+To know which transcript is running without waiting for `call.transcript_changed`, the call-audio state (`GET .../voice/call-audio` and the `voice.call_audio` frame) carries an optional `transcript_id` once the server's own transcript is on (additive; modules never get one).
+The consent text's purpose now reads "Writes down what is said in this call and shows it to the people in it."
+
+Marks, notes and spoken commands are not part of this amendment.

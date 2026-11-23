@@ -23919,6 +23919,12 @@ components:
           type: string
           enum: [on_request, always]
           description: Present only when the server's own transcript hears the call (`module_id` is `server`).
+        transcript_id:
+          type: string
+          format: uuid
+          description: >
+            The running transcript, present once the server's own transcript is
+            on. Its `call.transcript_line` frames carry the same id.
         included:
           type: array
           description: Everyone who said yes, the only people the module hears.

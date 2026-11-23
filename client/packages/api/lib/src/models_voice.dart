@@ -203,6 +203,7 @@ class CallAudioState {
     required this.expiresAtMs,
     required this.full,
     this.always = false,
+    this.transcriptId,
   });
 
   final String moduleId;
@@ -225,6 +226,9 @@ class CallAudioState {
   /// The Space transcribes every call, so nobody was asked and nobody can stop
   /// it (decision 0113). Read from `mode`, or from a missing asker.
   final bool always;
+
+  /// The running transcript once the server's own transcript is on; its live lines carry this id.
+  final String? transcriptId;
 
   /// The consumer id when the server's own transcriber hears the call
   /// (decision 0113) rather than a module.
@@ -254,6 +258,7 @@ class CallAudioState {
         full: json['full'] as bool? ?? false,
         always: json['mode'] == 'always' ||
             (json['mode'] == null && json['asked_by'] == null),
+        transcriptId: json['transcript_id'] as String?,
       );
 
   static List<String> _strings(Object? json) => [
