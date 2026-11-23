@@ -47,6 +47,8 @@ extension SlimmApiDock on SlimmApi {
   /// is the separate yes to reach home-network addresses, only valid with
   /// `net.fetch` approved. [reviewedDigest] is the manifest's `reviewDigest`
   /// the admin was shown; the server refuses the install if it has changed.
+  /// [approvedConnectorPermissions] is required for a connector: the core
+  /// permission bits its token may use, a subset of what it asks for.
   Future<InstalledDockModule> installDockModule({
     required String moduleId,
     required String version,
@@ -54,6 +56,7 @@ extension SlimmApiDock on SlimmApi {
     bool? approveLocalNetwork,
     String? reviewedDigest,
     String? source,
+    int? approvedConnectorPermissions,
   }) async {
     final json = await send(
       'POST',
@@ -66,6 +69,8 @@ extension SlimmApiDock on SlimmApi {
         if (approveLocalNetwork != null)
           'approve_local_network': approveLocalNetwork,
         if (reviewedDigest != null) 'reviewed_digest': reviewedDigest,
+        if (approvedConnectorPermissions != null)
+          'approved_connector_permissions': approvedConnectorPermissions,
       },
     );
     return InstalledDockModule.fromJson(json as Map<String, dynamic>);
@@ -128,6 +133,21 @@ extension SlimmApiDock on SlimmApi {
         '/space/dock/modules/$moduleId/storage',
         expectNoContent: true,
       );
+
+  /// Replaces a connector's lost token; the new one is shown only in this answer.
+  Future<String> reissueConnectorToken(String moduleId) async {
+    final json = await send(
+      'POST',
+      '/space/dock/modules/$moduleId/connector-token',
+    );
+    return (json as Map<String, dynamic>)['token'] as String;
+  }
+
+  /// What a connector reads about itself; only its own token reaches it.
+  Future<ConnectorSelf> getConnectorSelf() async {
+    final json = await send('GET', '/connectors/me');
+    return ConnectorSelf.fromJson(json as Map<String, dynamic>);
+  }
 
   /// Enables an installed module.
   Future<InstalledDockModule> enableDockModule(String moduleId) async {

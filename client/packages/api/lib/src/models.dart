@@ -25,6 +25,8 @@ export 'models_dms.dart';
 export 'models_read_states.dart';
 export 'models_dock.dart';
 export 'models_dock_changelog.dart';
+export 'models_dock_connector.dart';
+export 'models_dock_runtime.dart';
 export 'models_dock_activity.dart';
 export 'models_dock_platform.dart';
 export 'models_module_hooks.dart';

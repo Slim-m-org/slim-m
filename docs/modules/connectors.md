@@ -63,5 +63,5 @@ Authorization: Bearer slimbot_...
 Each declared setting appears with its stored value, else its default, else `null`.
 Secret values are in plain text here and nowhere else: the admin's settings view shows only whether a secret is set, and no audit row or listing carries one.
 Any other caller gets 403, and a disabled connector gets 409.
-The answer is not pushed when an admin changes a setting, so a connector reads it again on its own schedule.
-The slimbots library does this for a bot that declares a manifest (`slimbots.connector`).
+The answer is not pushed when an admin changes a setting, so a connector reads it again when it needs to.
+The slimbots library reads it at start for a bot run with `SLIMM_CONNECTOR=1` (`slimbots.connector`).
