@@ -11,7 +11,6 @@ import 'package:slimm_app/src/features/channels/providers/channel_permissions.da
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/features/voice/providers/call_audio.dart';
 import 'package:slimm_app/src/features/voice/providers/call_transcript.dart';
-import 'package:slimm_app/src/features/voice/providers/live_call_transcript.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_captions_strip.dart';
 import 'package:slimm_app/src/permissions.dart';
