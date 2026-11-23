@@ -39,6 +39,7 @@ pub struct HostRunner {
     /// Connectors the supervisor last reported as not running, by module id.
     down: Mutex<HashSet<String>>,
     pub(crate) wake: Notify,
+    clock: Box<dyn Fn() -> i64 + Send + Sync>,
     /// Held by a monitor pass, and by an uninstall that must not meet one halfway.
     pass_gate: tokio::sync::Mutex<()>,
 }
@@ -47,7 +48,23 @@ pub type HostRun = Arc<HostRunner>;
 
 impl HostRunner {
     pub fn new(client: SupervisorClient, api_url: String) -> HostRun {
-        Arc::new(Self {
+        Arc::new(Self::build(client, api_url))
+    }
+
+    /// [`Self::new`] reading the time, in milliseconds, from `clock`, so a test can move it.
+    #[doc(hidden)]
+    pub fn with_clock(
+        client: SupervisorClient,
+        api_url: String,
+        clock: impl Fn() -> i64 + Send + Sync + 'static,
+    ) -> HostRun {
+        let mut runner = Self::build(client, api_url);
+        runner.clock = Box::new(clock);
+        Arc::new(runner)
+    }
+
+    fn build(client: SupervisorClient, api_url: String) -> Self {
+        Self {
             client,
             api_url,
             health: RwLock::new(Health::Unknown),
@@ -56,7 +73,13 @@ impl HostRunner {
             down: Mutex::default(),
             wake: Notify::new(),
             pass_gate: tokio::sync::Mutex::new(()),
-        })
+            clock: Box::new(crate::store::now_ms),
+        }
+    }
+
+    /// The time the monitor measures backoffs and crash windows by.
+    pub(crate) fn now(&self) -> i64 {
+        (self.clock)()
     }
 
     /// `None` unless both the socket and a secret are configured.

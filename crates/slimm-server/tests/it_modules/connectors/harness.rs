@@ -74,12 +74,21 @@ pub async fn registry(served: Arc<Mutex<Value>>) -> String {
 }
 
 pub async fn world(name: &str, permissions: &[&str]) -> World {
+    world_with(name, permissions, |dock| dock).await
+}
+
+/// [`world`] with the Dock `configure` makes of the test one.
+pub async fn world_with(
+    name: &str,
+    permissions: &[&str],
+    configure: impl FnOnce(Dock) -> Dock,
+) -> World {
     let (store, pool, guard) = support::new_store_with_pool(name).await;
     let owner = support::app::register_account(&store, "owner").await;
     let served = Arc::new(Mutex::new(manifest(permissions)));
     let base = registry(served.clone()).await;
     let state = support::app::builder(store.clone())
-        .dock(Dock::for_test(&base))
+        .dock(configure(Dock::for_test(&base)))
         .build();
     let router = slimm_server::http::router(state.clone());
     World {

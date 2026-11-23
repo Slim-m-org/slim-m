@@ -164,6 +164,15 @@ impl Dock {
         self
     }
 
+    /// Makes a member's run wait `deadline` for a connector, so a test need not wait the real one.
+    #[doc(hidden)]
+    pub fn with_connector_run_deadline(mut self, deadline: std::time::Duration) -> Self {
+        self.connector_runs = Arc::new(super::connector_runs::ConnectorRuns::with_deadline(
+            deadline,
+        ));
+        self
+    }
+
     /// The connector supervisor's client, when the operator configured one.
     pub fn host_run(&self) -> Option<super::connector_host::HostRun> {
         self.host_run.clone()

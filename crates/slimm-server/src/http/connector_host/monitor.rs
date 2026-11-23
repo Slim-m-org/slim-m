@@ -121,7 +121,7 @@ async fn reconcile_one(
             .map(|mut c| {
                 c.entry(record.module_id.clone())
                     .or_default()
-                    .on_exited(&finished, crate::store::now_ms())
+                    .on_exited(&finished, runner.now())
             })
             .unwrap_or(Decision::Wait);
         match decision {
@@ -132,7 +132,7 @@ async fn reconcile_one(
             Decision::StartNow => {}
         }
     }
-    let now = crate::store::now_ms();
+    let now = runner.now();
     if running || !runner.retry_due(&record.module_id, now) {
         return;
     }
@@ -174,7 +174,7 @@ async fn disable_for_crashes(
     crashes: usize,
 ) {
     let reason = format!("Turned off after {crashes} crashes within 10 minutes.");
-    let at = crate::store::now_ms();
+    let at = runner.now();
     let detail = json!({ "crashes": crashes, "host_run": true });
     turn_off(
         state,

@@ -285,4 +285,5 @@ A review of the built supervisor and server found the following, and each is now
   The orphan sweep still keeps volumes, so a delete-data request can no longer be turned into a kept volume by a failed removal.
 - A connector turned off for crashes or a full volume is marked and disabled in one transaction, so a database error cannot leave a connector that says it was turned off while the module stays enabled.
 - The server logs one warning when a request carries `X-Forwarded-For` from a peer outside `SLIMM_TRUSTED_PROXIES`, naming the peer, since the header is then ignored and every caller shares the proxy's rate-limit key.
+- An update that makes a host-run connector admin-started removes its container, keeps its volume, and revokes the container's token: the admin is shown a new one once, as for any admin-started install.
 

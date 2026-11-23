@@ -22,7 +22,7 @@ async fn a_crash_is_restarted_after_its_backoff() {
         "the first restart waits a second"
     );
     assert_eq!(w.status().await["state"], json!("crashed"));
-    tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+    w.advance(1_100);
     w.tick().await;
     assert_eq!(w.fake.calls("start").len(), starts + 1);
     assert_eq!(w.fake.state(&run_id).as_deref(), Some("running"));
@@ -85,7 +85,7 @@ async fn a_full_volume_turns_it_off_and_it_is_not_restarted() {
     });
     let starts = w.fake.calls("start").len();
     w.tick().await;
-    tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+    w.advance(1_100);
     w.tick().await;
     assert_eq!(
         w.fake.calls("start").len(),

@@ -17,6 +17,7 @@ use crate::http::connector_host::lifecycle::{self, NOT_SET_UP, UNAVAILABLE};
 use crate::http::connector_host::{Health, HostRun};
 use crate::http::error::ApiError;
 use crate::http::extract::{Authed, Json, Query, enforce, require_manage_server};
+use crate::ids::UserId;
 use crate::ratelimit::Class;
 use crate::store::{EgressHost, HostRunSpec};
 
@@ -386,11 +387,20 @@ pub(super) async fn before_uninstall(
 }
 
 /// An update that drops `host_run` removes the container and keeps the volume.
-pub(super) async fn no_longer_host_run(state: &AppState, id: &str) -> Result<(), ApiError> {
+/// Answers whether it had one, since then the container's token is revoked and a new one is due.
+pub(super) async fn no_longer_host_run(
+    state: &AppState,
+    id: &str,
+    actor: UserId,
+) -> Result<Option<String>, ApiError> {
     if state.store.host_run(id).await?.is_none() {
-        return Ok(());
+        return Ok(None);
     }
     before_uninstall(state, id, true).await?;
     state.store.delete_host_run(id).await?;
-    Ok(())
+    let reissued = state.store.reissue_connector_token(id, actor).await?;
+    Ok(reissued.map(|(token, revoked)| {
+        super::dock_connector::close_sessions(state, revoked);
+        token
+    }))
 }
