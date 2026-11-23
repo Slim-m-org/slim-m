@@ -250,6 +250,7 @@ class SettingsSubPageHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
                 child: back,
               ),
+        titleSpacing: 0,
         title: Text(title),
         actions: actions,
       );
