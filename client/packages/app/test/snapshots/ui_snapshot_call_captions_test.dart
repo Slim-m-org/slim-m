@@ -124,7 +124,7 @@ void _expectClear(
 
 Future<void> _expectBelowStageAboveDock(WidgetTester tester) async {
   final captions = tester.getRect(find.byKey(callCaptionsKey));
-  expect(find.textContaining('the build list'), findsOneWidget);
+  expect(find.textContaining('after this'), findsOneWidget);
   expect(
     find.textContaining('Before the captions'),
     findsNothing,
@@ -146,7 +146,7 @@ Future<void> _expectBelowStageAboveDock(WidgetTester tester) async {
 /// so the fitted board and the tiles on it stay above the captions.
 Future<void> _expectAboveCanvasDock(WidgetTester tester) async {
   final captions = tester.getRect(find.byKey(callCaptionsKey));
-  expect(find.textContaining('the build list'), findsOneWidget);
+  expect(find.textContaining('after this'), findsOneWidget);
   final dock = tester.getRect(find.byKey(canvasCallDockKey));
   expect(captions.overlaps(dock), isFalse, reason: 'captions cover the dock');
   expect(captions.bottom, lessThanOrEqualTo(dock.top));
