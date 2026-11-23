@@ -51,6 +51,9 @@ const double _kYouLabelMinWidth = 112;
 /// Room the name label and its padding take at the tile's bottom edge.
 const double _kCallTileLabelBand = 36;
 
+/// Room the state caption takes at the tile's top edge when it has its own row.
+const double _kCallTileCaptionRow = AppSpacing.s8 + 16;
+
 /// One participant as a tile: a large avatar with the speaking ring, the
 /// name beneath, and the mute or share state as a small badge - or, once a
 /// camera is actually on, the live feed in place of the avatar. [cameraView]
@@ -145,7 +148,7 @@ class CallParticipantTile extends StatelessWidget {
   bool get _showsCamera => cameraView != null && participant.isCameraOn;
 
   // The name gives way before "(you)" does, so a long name still says whose tile it is.
-  Widget _label(Color colour, {required bool onVideo}) {
+  Widget _label(Color colour, {required bool onVideo, Widget? caption}) {
     final nameStyle = AppText.ui.copyWith(color: colour);
     final name = Row(
       mainAxisSize: MainAxisSize.min,
@@ -161,6 +164,10 @@ class CallParticipantTile extends StatelessWidget {
         ),
         if (participant.isLocal && width >= _kYouLabelMinWidth)
           Text(' (you)', style: nameStyle),
+        if (caption != null) ...[
+          const SizedBox(width: AppSpacing.s8),
+          Flexible(child: caption),
+        ],
       ],
     );
     if (!onVideo) return name;
@@ -178,94 +185,112 @@ class CallParticipantTile extends StatelessWidget {
     double avatarSize,
     Color fill, {
     bool feed = false,
-  }) => Stack(
-    children: [
-      if (_showsCamera)
-        Positioned.fill(
-          child: CameraFitScope(
-            fit: CameraFit.coverUnlessPortrait,
-            child: cameraView!,
-          ),
-        ),
-      if (_showsCamera && !feed)
-        Positioned.fill(child: ColoredBox(color: fill)),
-      if (!feed)
-        Positioned(
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: _kCallTileLabelBand,
-          child: Center(
-            child: UserAvatar(
-              key: callTileAvatarKey,
-              name: participant.name,
-              userId: participant.identity,
-              size: avatarSize,
+    bool captionInLabel = false,
+  }) {
+    final caption = _stateCaption(onFace, feed: feed);
+    final captionTop = caption == null || captionInLabel
+        ? 0.0
+        : _kCallTileCaptionRow;
+    return Stack(
+      children: [
+        if (_showsCamera)
+          Positioned.fill(
+            child: CameraFitScope(
+              fit: CameraFit.coverUnlessPortrait,
+              child: cameraView!,
             ),
           ),
-        ),
-      if (_presenceCaption case final caption?)
+        if (_showsCamera && !feed)
+          Positioned.fill(child: ColoredBox(color: fill)),
+        if (!feed)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: captionTop,
+            bottom: _kCallTileLabelBand,
+            child: Center(
+              child: UserAvatar(
+                key: callTileAvatarKey,
+                name: participant.name,
+                userId: participant.identity,
+                size: avatarSize,
+              ),
+            ),
+          ),
+        if (caption != null && !captionInLabel)
+          Positioned(
+            left: AppSpacing.s8,
+            top: AppSpacing.s8,
+            width: width - 4 * AppSpacing.s8 - AppSpacing.s16,
+            child: caption,
+          ),
         Positioned(
           left: AppSpacing.s8,
-          top: AppSpacing.s8,
-          width: width - 4 * AppSpacing.s8 - AppSpacing.s16,
-          child: Text(
-            caption,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.caption.copyWith(color: onFace),
-          ),
-        )
-      else if (_showsCamera && !feed)
-        Positioned(
-          left: AppSpacing.s8,
-          top: AppSpacing.s8,
-          width: width - 4 * AppSpacing.s8 - AppSpacing.s16,
-          child: _CameraCaption(
-            local: participant.isLocal,
-            style: AppText.caption.copyWith(color: onFace),
-          ),
-        ),
-      Positioned(
-        left: AppSpacing.s8,
-        right: AppSpacing.s8,
-        bottom: AppSpacing.s12,
-        child: _label(
-          _showsCamera ? tokens.textPrimary : onFace,
-          onVideo: _showsCamera,
-        ),
-      ),
-      // Top corner, so the name keeps the tile's whole width and its "(you)".
-      if (!_pending)
-        Positioned(
           right: AppSpacing.s8,
-          top: AppSpacing.s8,
-          child: TileStateBadges(
-            participant: participant,
-            shareHidden: shareHidden,
-            stacked: !feed && badgesReachAvatar(width, avatarSize, participant),
+          bottom: AppSpacing.s12,
+          child: _label(
+            _showsCamera ? tokens.textPrimary : onFace,
+            onVideo: _showsCamera,
+            caption: captionInLabel ? caption : null,
           ),
         ),
-      // Last, so the sentence it opens paints over the state badges.
-      if (poorConnection && !participant.isLocal && !_pending)
-        Positioned(
-          left: AppSpacing.s8,
-          top: AppSpacing.s8,
-          child: PoorConnectionBadge(
-            participant: participant,
-            maxTextWidth: width - 2 * AppSpacing.s8,
+        // Top corner, so the name keeps the tile's whole width and its "(you)".
+        if (!_pending)
+          Positioned(
+            right: AppSpacing.s8,
+            top: AppSpacing.s8,
+            child: TileStateBadges(
+              participant: participant,
+              shareHidden: shareHidden,
+              stacked:
+                  !feed && badgesReachAvatar(width, avatarSize, participant),
+            ),
           ),
-        ),
-    ],
-  );
+        // Last, so the sentence it opens paints over the state badges.
+        if (poorConnection && !participant.isLocal && !_pending)
+          Positioned(
+            left: AppSpacing.s8,
+            top: AppSpacing.s8,
+            child: PoorConnectionBadge(
+              participant: participant,
+              maxTextWidth: width - 2 * AppSpacing.s8,
+            ),
+          ),
+      ],
+    );
+  }
 
-  Widget _body(AppTokens tokens, double avatarSize) {
+  /// What the tile says about its own state, or null when it has nothing to say.
+  Widget? _stateCaption(Color onFace, {required bool feed}) {
+    final style = AppText.caption.copyWith(color: onFace);
+    if (_presenceCaption case final caption?) {
+      return Text(
+        caption,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      );
+    }
+    if (_showsCamera && !feed) {
+      return _CameraCaption(local: participant.isLocal, style: style);
+    }
+    return null;
+  }
+
+  Widget _body(AppTokens tokens, double avatarSize, {required bool inLabel}) {
     // Dimmed, not hidden: they are probably there, but nothing this device hears says so.
     Widget backdrop({required bool feed}) => CallTileBackdrop(
       identity: participant.identity,
       builder: (_, onFace, fill) => Opacity(
         opacity: participant.presence == CallPresence.live ? 1 : 0.55,
-        child: _face(tokens, onFace, avatarSize, fill, feed: feed),
+        child: _face(
+          tokens,
+          onFace,
+          avatarSize,
+          fill,
+          feed: feed,
+          captionInLabel: inLabel,
+        ),
       ),
     );
     if (!_showsCamera) return backdrop(feed: false);
@@ -276,8 +301,14 @@ class CallParticipantTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final height = this.height ?? width * _kCallTileAspect;
+    final hasCaption = _presenceCaption != null || _showsCamera;
+    final roomWithRow = height - _kCallTileLabelBand - _kCallTileCaptionRow;
+    // A tile too short for the caption row above a smallest avatar carries it in the name pill.
+    final captionInLabel = hasCaption && roomWithRow < AppAvatarSize.s32;
     final avatarSize = AppAvatarSize.largestWithin(
-      height - _kCallTileLabelBand - AppSpacing.s8,
+      hasCaption && !captionInLabel
+          ? roomWithRow
+          : height - _kCallTileLabelBand - AppSpacing.s8,
     );
     // This build's own context, so a popover anchors to this tile - see [onTap]'s doc.
     final onTapHere = onTap == null ? null : () => onTap!(context);
@@ -324,7 +355,11 @@ class CallParticipantTile extends StatelessWidget {
                       child: SizedBox(
                         width: width,
                         height: height,
-                        child: _body(tokens, avatarSize),
+                        child: _body(
+                          tokens,
+                          avatarSize,
+                          inLabel: captionInLabel,
+                        ),
                       ),
                     ),
                   ),
