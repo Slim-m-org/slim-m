@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# Host-run connectors for the slim-m self-host example (decision 0134): the
+# connector supervisor, the only service that holds the container runtime's
+# socket. The server never mounts that socket, here or anywhere.
+#
+# This is an overlay on docker-compose.yml. Turn it on with one line in .env:
+#
+#     COMPOSE_FILE=docker-compose.yml:docker-compose.connectors.yml
+#
+# and set SLIMM_SUPERVISOR_SECRET first (`openssl rand -hex 32`); the
+# supervisor refuses to start without it. docs/connectors/operating.md has the
+# rest: the runtime socket, the registries, the ceilings and the deny list.
+
+services:
+  supervisor:
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    image: ghcr.io/slim-m-org/slim-m-supervisor:${SLIMM_VERSION:-latest}
+    restart: unless-stopped
+    # Root for the runtime socket, the server's group (65532) for its own socket.
+    user: "0:65532"
+    network_mode: none
+    environment:
+      SLIMM_SUPERVISOR_SECRET: ${SLIMM_SUPERVISOR_SECRET:?set SLIMM_SUPERVISOR_SECRET in .env (openssl rand -hex 32)}
+      SLIMM_SUPERVISOR_SOCKET: /run/slimm-supervisor/supervisor.sock
+      SLIMM_SUPERVISOR_SERVER_UID: "65532"
+      SLIMM_RUNTIME_SOCKET: /run/runtime.sock
+      SLIMM_SUPERVISOR_IMAGE: ghcr.io/slim-m-org/slim-m-supervisor:${SLIMM_VERSION:-latest}
+      SLIMM_SUPERVISOR_SERVER_URL: http://server:8080
+      SLIMM_SUPERVISOR_EGRESS_NETWORK: slimm_connectors_egress
+      SLIMM_SUPERVISOR_STATE_DIR: /var/lib/slimm-supervisor
+      SLIMM_SUPERVISOR_REGISTRIES: ${SLIMM_SUPERVISOR_REGISTRIES:-ghcr.io/slim-m-org/}
+      SLIMM_SUPERVISOR_MAX_CONNECTORS: ${SLIMM_SUPERVISOR_MAX_CONNECTORS:-8}
+      SLIMM_SUPERVISOR_MAX_MEMORY_MIB: ${SLIMM_SUPERVISOR_MAX_MEMORY_MIB:-512}
+      SLIMM_SUPERVISOR_MAX_CPUS: ${SLIMM_SUPERVISOR_MAX_CPUS:-1.0}
+      SLIMM_SUPERVISOR_MAX_PIDS: ${SLIMM_SUPERVISOR_MAX_PIDS:-256}
+      # Put the docker host's own LAN address here if admins may grant connectors the Private network.
+      SLIMM_SUPERVISOR_LAN_DENY: ${SLIMM_SUPERVISOR_LAN_DENY:-}
+    volumes:
+      - ${SLIMM_RUNTIME_SOCKET:-/var/run/docker.sock}:/run/runtime.sock
+      - slimm_supervisor_state:/var/lib/slimm-supervisor
+      - slimm_supervisor_run:/run/slimm-supervisor
+
+  server:
+    environment:
+      SLIMM_CONNECTOR_SUPERVISOR_SOCKET: /run/slimm-supervisor/supervisor.sock
+      SLIMM_SUPERVISOR_SECRET: ${SLIMM_SUPERVISOR_SECRET:?set SLIMM_SUPERVISOR_SECRET in .env (openssl rand -hex 32)}
+      SLIMM_CONNECTOR_API_URL: http://server:8080
+    volumes:
+      - slimm_supervisor_run:/run/slimm-supervisor
+    networks:
+      - default
+      - connectors_egress
+    depends_on:
+      - supervisor
+
+networks:
+  # The gateways' way out; the server joins it so connectors reach its API through their gateway.
+  connectors_egress:
+    name: slimm_connectors_egress
+
+volumes:
+  slimm_supervisor_state:
+  slimm_supervisor_run:
