@@ -283,6 +283,15 @@ pub enum Event {
         audience: Arc<[UserId]>,
         line: Arc<crate::store::TranscriptLine>,
     },
+    /// A mark or note kept on a running call's transcript, or `mark: None` when one was removed;
+    /// the same `audience` and gate as [`Event::CallTranscriptLine`].
+    CallTranscriptMarkChanged {
+        channel_id: ChannelId,
+        transcript_id: crate::ids::CallTranscriptId,
+        mark_id: crate::ids::CallTranscriptMarkId,
+        mark: Option<Arc<crate::store::TranscriptMark>>,
+        audience: Arc<[UserId]>,
+    },
     /// Ringing was started for a DM call: `caller_id` is calling whoever the
     /// other side of the `channel_id` DM is. `ring_id` names this specific
     /// attempt so a receiving client can tell it apart from an immediate

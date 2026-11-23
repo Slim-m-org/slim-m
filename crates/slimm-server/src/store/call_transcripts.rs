@@ -333,9 +333,15 @@ impl Store {
         Ok(rows.into_iter().map(|r| (r.id, r.started_at)).collect())
     }
 
-    /// Removes a transcript with its lines and index rows; false when there was none.
+    /// Removes a transcript with its lines, marks and index rows; false when there was none.
     pub async fn delete_call_transcript(&self, id: CallTranscriptId) -> anyhow::Result<bool> {
         let mut tx = self.begin_write().await?;
+        sqlx::query!(
+            "DELETE FROM call_transcript_marks WHERE transcript_id = ?",
+            id
+        )
+        .execute(&mut *tx)
+        .await?;
         sqlx::query!(
             "DELETE FROM call_transcript_lines WHERE transcript_id = ?",
             id

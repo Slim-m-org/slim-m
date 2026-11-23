@@ -1,0 +1,28 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) AS \"count!: i64\",\n                      (SELECT MAX(created_at) FROM call_transcript_marks\n                        WHERE transcript_id = ?1 AND author_id = ?2) AS \"last: i64\"\n               FROM call_transcript_marks WHERE transcript_id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "count!: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "last: i64",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "6d802c60586ccdc467fa69e56ea6ae0c0d0fbc72612a96f741e4517a931bf825"
+}

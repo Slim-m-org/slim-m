@@ -133,3 +133,16 @@ To know which transcript is running without waiting for `call.transcript_changed
 The consent text's purpose now reads "Writes down what is said in this call and shows it to the people in it."
 
 Marks, notes and spoken commands are not part of this amendment.
+
+## Amendment 2026-11-22: marks and notes
+
+Someone in a transcribed call can mark the moment, or leave a short note, with the Mark control in the call, the Mark call moment shortcut, or an opt-in global hotkey.
+A mark is a side row on the transcript (`call_transcript_marks`, migration 0208): who made it, when, the newest line kept at that time, and the note's text, up to 500 characters.
+It records no audio; a mark is only a point on the transcript's timeline.
+
+Marks follow the transcript's own audience and retention.
+Whoever may read the transcript (`VIEW_CHANNEL` and `VIEW_TRANSCRIPTS` at read time) may read its marks, and notes are not private to their author.
+Only people in the call add them, and only while it is transcribed; afterwards they can only be removed, by their author or by someone with `MANAGE_MESSAGES` on the channel.
+Live, a kept or removed mark goes as `call.transcript_mark` to the same people the live lines go to.
+Deleting the transcript, its retention sweep, and the author's account deletion remove the marks, and a member's export holds their own (`transcript_marks.jsonl`).
+Nothing changes in a Space with transcription off: there is no running transcript to mark.

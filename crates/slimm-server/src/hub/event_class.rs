@@ -73,6 +73,7 @@ pub(crate) fn moves_permissions(event: &Event) -> bool {
         | Event::CallTranscriptChanged { .. }
         | Event::ModuleRoomChanged(_)
         | Event::CallTranscriptLine { .. }
+        | Event::CallTranscriptMarkChanged { .. }
         // Ringing, and how a ring ended, changes no permission's answer either.
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }
@@ -196,6 +197,7 @@ pub(super) fn is_ephemeral(event: &Event) -> bool {
         | Event::ModuleRoomChanged(_)
         // Durable so a lagging reader resyncs; the client fills a gap in `seq` over REST.
         | Event::CallTranscriptLine { .. }
+        | Event::CallTranscriptMarkChanged { .. }
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }
         | Event::DmChanged { .. }

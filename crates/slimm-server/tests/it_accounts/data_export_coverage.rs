@@ -53,6 +53,11 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
         Fate::Exported("transcript_lines.jsonl"),
     ),
     (
+        "call_transcript_marks",
+        "author_id",
+        Fate::Exported("transcript_marks.jsonl"),
+    ),
+    (
         "call_transcripts",
         "started_by",
         Fate::Excluded("who asked for a transcript is a fact about the call, which others share"),

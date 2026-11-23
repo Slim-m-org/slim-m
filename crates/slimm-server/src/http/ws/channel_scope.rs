@@ -39,6 +39,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         Event::CallTranscriptChanged { channel_id, .. } => *channel_id,
         Event::ModuleRoomChanged(change) => change.channel_id,
         Event::CallTranscriptLine { channel_id, .. } => *channel_id,
+        Event::CallTranscriptMarkChanged { channel_id, .. } => *channel_id,
         Event::CallRinging { channel_id, .. } => *channel_id,
         Event::CallRingEnded { channel_id, .. } => *channel_id,
         Event::DmChanged { channel_id } => *channel_id,

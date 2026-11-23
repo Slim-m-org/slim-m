@@ -8598,6 +8598,133 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /voice/transcripts/{transcriptId}/marks:
+    parameters:
+      - name: transcriptId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listVoiceTranscriptMarks
+      tags: [voice]
+      summary: List the marks and notes on a call's transcript.
+      description: >
+        Needs what reading the transcript needs: `VIEW_CHANNEL` and
+        `VIEW_TRANSCRIPTS` on its channel at read time (decision 0113). 404
+        when the transcript does not exist or the reader lacks either
+        permission. Oldest first, at most 500.
+      responses:
+        "200":
+          description: The transcript's marks.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [marks]
+                properties:
+                  marks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/VoiceTranscriptMark"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /voice/transcripts/{transcriptId}/marks/{markId}:
+    parameters:
+      - name: transcriptId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: markId
+        in: path
+        required: true
+        description: A UUIDv7 the client mints, so a retry is the same mark.
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: putVoiceTranscriptMark
+      tags: [voice]
+      summary: Mark the current moment of a transcribed call, optionally with a note.
+      description: >
+        Needs `VIEW_CHANNEL` and `VIEW_TRANSCRIPTS` (404 otherwise), being in
+        the call (403), and the transcript still running (409). The server
+        stamps the time and points the mark at the newest line kept. A repeat
+        with the same id answers 200 with the mark as kept. One person may mark
+        a call once every 2 s (429). The people in the call who may read the
+        transcript get a `call.transcript_mark` frame.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind]
+              properties:
+                kind:
+                  type: string
+                  enum: [mark, note]
+                text:
+                  type: [string, "null"]
+                  maxLength: 500
+                  description: The note; required for `note`, absent for `mark`.
+      responses:
+        "200":
+          description: A repeat of a mark already kept.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceTranscriptMark"
+        "201":
+          description: Kept.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceTranscriptMark"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: deleteVoiceTranscriptMark
+      tags: [voice]
+      summary: Remove a mark or note from a call's transcript.
+      description: >
+        The author, or someone with `MANAGE_MESSAGES` on the channel, may
+        remove it, during the call or after. 404 when the reader cannot read
+        the transcript or there is no such mark on it.
+      responses:
+        "204":
+          description: Removed.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /search/transcripts:
     get:
       operationId: searchVoiceTranscripts
@@ -22123,6 +22250,7 @@ components:
         - $ref: "#/components/schemas/ModuleRoomChanged"
         - $ref: "#/components/schemas/VoiceCallTranscriptChanged"
         - $ref: "#/components/schemas/VoiceCallTranscriptLine"
+        - $ref: "#/components/schemas/VoiceCallTranscriptMark"
         - $ref: "#/components/schemas/WatchTick"
         - $ref: "#/components/schemas/CallRinging"
         - $ref: "#/components/schemas/CallRingEnded"
@@ -23974,6 +24102,38 @@ components:
               keeps:
                 type: string
 
+    VoiceTranscriptMark:
+      type: object
+      required: [id, transcript_id, author_id, at, line_seq, kind, text, source]
+      properties:
+        id:
+          type: string
+          format: uuid
+        transcript_id:
+          type: string
+          format: uuid
+        author_id:
+          type: string
+          format: uuid
+        at:
+          type: integer
+          format: int64
+          description: When it was marked, in epoch milliseconds.
+        line_seq:
+          type: [integer, "null"]
+          format: int64
+          description: The newest line kept when it was marked; null before the first line.
+        kind:
+          type: string
+          enum: [mark, note]
+        text:
+          type: [string, "null"]
+          description: The note; null on a plain mark.
+        source:
+          type: string
+          enum: [manual, voice]
+          description: "`manual` for the Mark button or a hotkey, `voice` for the spoken command."
+
     VoiceTranscriptLine:
       type: object
       required: [seq, speaker_id, at, text]
@@ -24097,6 +24257,32 @@ components:
           format: uuid
         line:
           $ref: "#/components/schemas/VoiceTranscriptLine"
+
+    VoiceCallTranscriptMark:
+      type: object
+      required: [type, channel_id, transcript_id, mark_id, mark]
+      description: >
+        A mark or note was kept on a running call's transcript, or removed
+        when `mark` is null. Sent to the same people as `call.transcript_line`:
+        those in the call who hold `VIEW_CHANNEL` and `VIEW_TRANSCRIPTS`.
+        Anyone else reads listVoiceTranscriptMarks.
+      properties:
+        type:
+          type: string
+          enum: [call.transcript_mark]
+        channel_id:
+          type: string
+          format: uuid
+        transcript_id:
+          type: string
+          format: uuid
+        mark_id:
+          type: string
+          format: uuid
+        mark:
+          oneOf:
+            - $ref: "#/components/schemas/VoiceTranscriptMark"
+            - type: "null"
 
     ModuleRoomChanged:
       type: object

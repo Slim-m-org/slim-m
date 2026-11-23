@@ -149,6 +149,18 @@ const TRANSCRIPT_LINES: &str = concat!(
     " ORDER BY l.at, l.id"
 );
 
+// The marks and notes the member made on calls, with the call's channel.
+const TRANSCRIPT_MARKS: &str = concat!(
+    "SELECT m.id, t.id AS transcript_id, t.channel_id, m.at, m.line_seq, m.kind, m.text, m.source
+     FROM call_transcript_marks m
+     JOIN call_transcripts t ON t.id = m.transcript_id
+     JOIN channels c ON c.id = t.channel_id ",
+    parent_joins!(),
+    " WHERE m.author_id = ?1 AND ",
+    live_channel!(),
+    " ORDER BY m.at, m.id"
+);
+
 // Files the member uploaded and still has on a live message of their own.
 const ATTACHMENTS: &str = concat!(
     "SELECT lower(hex(a.sha256)) AS sha256, a.size, a.content_type,
@@ -236,6 +248,10 @@ impl Store {
 
     pub fn export_member_transcript_lines(&self, user: UserId) -> RowStream {
         self.stream_rows(TRANSCRIPT_LINES, user.0)
+    }
+
+    pub fn export_member_transcript_marks(&self, user: UserId) -> RowStream {
+        self.stream_rows(TRANSCRIPT_MARKS, user.0)
     }
 
     pub fn export_member_attachments(&self, user: UserId) -> RowStream {

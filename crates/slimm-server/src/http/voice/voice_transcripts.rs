@@ -32,6 +32,7 @@ pub fn routes() -> Router<AppState> {
             get(show).delete(remove),
         )
         .route("/search/transcripts", get(search))
+        .merge(super::voice_transcript_marks::routes())
 }
 
 /// One line as a reader sees it, read back or sent live.
