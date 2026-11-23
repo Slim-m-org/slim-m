@@ -20,6 +20,7 @@ import '../../../members/widgets/user_avatar.dart';
 import '../../../settings/providers/display_preferences.dart';
 import '../../providers/call_transcript.dart';
 import '../../providers/voice_call_history.dart';
+import '../../widgets/your_talk_line.dart';
 import 'call_fold_link.dart';
 
 /// Lines shown before "Show all".
@@ -146,6 +147,7 @@ class _CallTranscriptSectionState extends ConsumerState<CallTranscriptSection> {
             ],
           ),
         ),
+        YourTalkLine(transcriptId: widget.transcriptId),
         for (final line in shown)
           _LineRow(
             key: _keyFor(line.seq),

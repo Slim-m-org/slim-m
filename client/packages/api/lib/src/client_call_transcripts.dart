@@ -73,4 +73,23 @@ extension SlimmApiCallTranscripts on SlimmApi {
   /// Records that the caller saw the notice, on every device. Idempotent.
   Future<void> ackTranscriptionNotice() =>
       send('POST', '/voice/transcription-notice/ack', expectNoContent: true);
+
+  /// The caller's own talk statistics, never anyone else's. [days] limits the
+  /// window, [timezone] sets the day buckets and [transcriptId] counts one call.
+  Future<CallStats> myCallStats({
+    int? days,
+    String? timezone,
+    String? transcriptId,
+  }) async {
+    final json = await send(
+      'GET',
+      '/me/call-stats',
+      query: {
+        if (days != null) 'days': '$days',
+        if (timezone != null) 'tz': timezone,
+        if (transcriptId != null) 'transcript_id': transcriptId,
+      },
+    );
+    return CallStats.fromJson(json as Map<String, dynamic>);
+  }
 }

@@ -292,7 +292,7 @@ impl<R: RoomSource> Session<R> {
                     session: self.id.clone(),
                     identity: next.identity,
                     start_ms: next.utterance.start_ms,
-                    end_ms: next.utterance.end_ms,
+                    end_ms: next.utterance.voiced_end_ms,
                 },
                 pcm: next.utterance.pcm,
                 language: self.language.clone(),

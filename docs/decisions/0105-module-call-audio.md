@@ -258,6 +258,7 @@ They need no `subscriptions` entry and do not count toward its 8.
 | `call.audio.stopped` | `session_id`, `channel_id`, `stopped_at_ms`, `reason`, `segments_sent` |
 
 - `start_ms` and `end_ms` are wall-clock milliseconds, made from the session's start and the listener's offsets.
+  `end_ms` is the end of speech, not of the silence that closed it.
 - `reason` is one of `stopped`, `declined`, `call_ended`, `time_limit`, `overload`, `module_disabled`, `channel_removed`, `listener_unavailable`.
   It never names a person.
 - Event ids are `call-audio:<session_id>:<n>`, minted once, never redelivered.

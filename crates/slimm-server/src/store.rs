@@ -103,6 +103,7 @@ mod reports;
 mod roles;
 use roles::{role_hierarchy, role_reorder, role_update};
 mod attachment_originals;
+mod call_stats;
 mod call_transcripts;
 mod favorites;
 mod hold_music;
