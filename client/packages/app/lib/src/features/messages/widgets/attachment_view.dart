@@ -23,6 +23,7 @@ import '../providers/attachment_preview_bytes.dart';
 import '../providers/attachment_preview_quality.dart';
 import '../providers/media_preferences.dart';
 import 'attachment_chip.dart';
+import 'cover_resize_image.dart';
 import '../../../format.dart';
 import 'attachment_image_states.dart';
 import 'attachment_reveal.dart';
@@ -170,7 +171,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     final bytesAsync = ref.watch(
       attachmentPreviewBytesProvider((
         id: attachment.id,
-        bucket: attachmentPreviewBucket(decodeWidth),
+        bucket: _previewBucket(decodeWidth),
       )),
     );
     return bytesAsync.when(
@@ -252,10 +253,17 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
               ),
               if (_hovered)
                 Positioned.fill(
-                  child: Image.memory(
-                    playBytes,
+                  child: Image(
+                    image: tile == null
+                        ? ResizeImage(
+                            MemoryImage(playBytes),
+                            width: decodeWidth,
+                          )
+                        : CoverResizeImage(
+                            MemoryImage(playBytes),
+                            edge: decodeWidth,
+                          ),
                     fit: fit,
-                    cacheWidth: decodeWidth,
                   ),
                 ),
             ],
@@ -384,11 +392,12 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
   Widget _bitmap(Uint8List bytes, {required int decodeWidth}) {
     final tile = widget.tileEdge;
     final fit = tile == null ? BoxFit.scaleDown : BoxFit.cover;
-    return Image.memory(
-      bytes,
+    return Image(
+      image: tile == null
+          ? ResizeImage(MemoryImage(bytes), width: decodeWidth)
+          : CoverResizeImage(MemoryImage(bytes), edge: decodeWidth),
       fit: fit,
       semanticLabel: attachment.filename,
-      cacheWidth: decodeWidth,
       // The still stays drawn while the original decodes, so the box never collapses in between.
       gaplessPlayback: true,
       // Bytes can decode-fail after a successful fetch; without this it paints as Flutter's raw error box.
@@ -402,12 +411,17 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     );
   }
 
+  /// A cover tile needs its shorter side, and the server sizes the longer one, so ask for room up to 3:2.
+  int _previewBucket(int decodeWidth) => attachmentPreviewBucket(
+    widget.tileEdge == null ? decodeWidth : (decodeWidth * 1.5).ceil(),
+  );
+
   void _refetch(int decodeWidth) {
     ref.invalidate(attachmentBytesProvider(attachment.id));
     ref.invalidate(
       attachmentPreviewBytesProvider((
         id: attachment.id,
-        bucket: attachmentPreviewBucket(decodeWidth),
+        bucket: _previewBucket(decodeWidth),
       )),
     );
   }

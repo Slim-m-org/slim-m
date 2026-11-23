@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../routing/modal_page.dart' show kScrimColor;
+import 'cover_resize_image.dart';
 import 'message_row_parts.dart' show AttachmentPlaceholder;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
@@ -180,7 +181,7 @@ class AttachmentFirstFrame extends StatefulWidget {
 
   final Uint8List bytes;
 
-  /// The widest it decodes to; a smaller gif keeps its own size.
+  /// The widest it decodes to, or the shorter side under a cover fit; a smaller gif keeps its own size.
   final int cacheWidth;
 
   /// Cover in a gallery tile, as the revealed tile's image is.
@@ -224,10 +225,15 @@ class _AttachmentFirstFrameState extends State<AttachmentFirstFrame> {
 
   /// Shrinks to [AttachmentFirstFrame.cacheWidth] but never stretches, as
   /// `Image.memory`'s `cacheWidth` does, so the frame is the size it plays at.
-  ui.TargetImageSize _noUpscale(int width, int height) =>
-      width > widget.cacheWidth
-      ? ui.TargetImageSize(width: widget.cacheWidth)
-      : ui.TargetImageSize(width: width, height: height);
+  ui.TargetImageSize _noUpscale(int width, int height) {
+    if (widget.fit == BoxFit.cover) {
+      return coverTargetSize(width, height, widget.cacheWidth) ??
+          ui.TargetImageSize(width: width, height: height);
+    }
+    return width > widget.cacheWidth
+        ? ui.TargetImageSize(width: widget.cacheWidth)
+        : ui.TargetImageSize(width: width, height: height);
+  }
 
   @override
   void dispose() {
