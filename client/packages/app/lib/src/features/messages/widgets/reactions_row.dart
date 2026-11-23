@@ -149,7 +149,7 @@ class _ReactionsRowState extends State<ReactionsRow> {
       glyph: switch (customId) {
         final String id => CustomEmojiImage(
           emojiId: id,
-          size: _reactionEmojiSize,
+          size: MediaQuery.textScalerOf(context).scale(_reactionEmojiSize),
         ),
         null => null,
       },
