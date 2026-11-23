@@ -60,6 +60,25 @@ class _Lines extends CallTranscriptController {
       state = state.copyWith(lines: [...state.lines, _line(seq)]);
 }
 
+/// A running call whose first page left more behind it, read on after the strip opens.
+class _Paged extends _Lines {
+  @override
+  CallTranscriptModel build(String arg) {
+    transcriptId = arg;
+    return CallTranscriptModel(
+      lines: [_line(1)],
+      loaded: true,
+      ongoing: true,
+      hasMore: true,
+    );
+  }
+
+  void readOn(Iterable<int> seqs) => state = state.copyWith(
+    lines: [...state.lines, for (final seq in seqs) _line(seq)],
+    hasMore: false,
+  );
+}
+
 api.TranscriptLine _line(int seq) =>
     api.TranscriptLine(seq: seq, speakerId: 'kiki', at: seq, text: 'line $seq');
 
@@ -75,10 +94,11 @@ List<Override> _overrides({
   api.CallAudioState? session,
   int bits = Perm.viewChannel | Perm.viewTranscripts,
   bool captionsOn = true,
+  CallTranscriptController Function()? transcript,
 }) => [
   callAudioProvider.overrideWith(() => _Audio(session)),
   channelPermissionsProvider.overrideWith((ref, id) async => bits),
-  callTranscriptProvider.overrideWith(_Lines.new),
+  callTranscriptProvider.overrideWith(transcript ?? _Lines.new),
   userProfileProvider.overrideWith((ref, id) async => null),
   if (captionsOn) voiceSettingsControllerProvider.overrideWith(_CaptionsOn.new),
 ];
@@ -114,6 +134,25 @@ Future<ProviderContainer> _pump(
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues(const {}));
+
+  testWidgets('lines read after the strip opened are history, not captions', (
+    tester,
+  ) async {
+    final container = await _pump(
+      tester,
+      _overrides(session: _session(), transcript: _Paged.new),
+    );
+    final lines =
+        container.read(callTranscriptProvider('t1').notifier) as _Paged;
+
+    lines.readOn([2, 3, 4]);
+    await tester.pump();
+    expect(find.textContaining('line 4'), findsNothing);
+
+    lines.say(5);
+    await tester.pump();
+    expect(find.textContaining('line 5'), findsOneWidget);
+  });
 
   testWidgets('only lines said after the strip opened show, then clear', (
     tester,

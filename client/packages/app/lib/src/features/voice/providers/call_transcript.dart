@@ -116,8 +116,12 @@ class CallTranscriptController
 
   /// Appends [line] when it is the next one; a gap reads the missing lines instead.
   void _apply(api.TranscriptLine line) {
-    // Not shown yet, or past pages not read yet: reading on will reach it.
-    if (!state.loaded || state.hasMore || state.error != null) return;
+    if (!state.loaded) return;
+    if (state.hasMore || state.error != null) {
+      _held.add(line);
+      unawaited(loadMore());
+      return;
+    }
     final last = state.lines.isEmpty ? 0 : state.lines.last.seq;
     if (line.seq <= last) return;
     if (line.seq == last + 1 || _gapReadAfter == last) {
@@ -169,6 +173,8 @@ class CallTranscriptController
         busy: false,
       );
       _applyHeld();
+      // A running call is read to its end, so a live line has a last line to follow.
+      if (page.ongoing && page.nextAfterSeq != null) _again = true;
       if (_again && !state.busy) {
         _again = false;
         unawaited(loadMore());

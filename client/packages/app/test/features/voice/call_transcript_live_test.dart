@@ -50,6 +50,9 @@ class _Rig {
   /// While set, a read waits for it before answering.
   Completer<void>? gate;
 
+  /// How many of the next reads answer 500.
+  int failReads = 0;
+
   CallTranscriptModel get model => container.read(callTranscriptProvider('t1'));
   List<int> get seqs => [for (final line in model.lines) line.seq];
   NoopSyncController get sync =>
@@ -82,6 +85,10 @@ Future<_Rig> _open(Iterable<int> held, {int pageSize = 50}) async {
           );
           rig.reads.add(after);
           await rig.gate?.future;
+          if (rig.failReads > 0) {
+            rig.failReads--;
+            return http.Response('{}', 500);
+          }
           final rest = rig.stored.where((l) => l.seq > (after ?? 0)).toList();
           final page = rest.take(pageSize).toList();
           return http.Response(
@@ -186,16 +193,34 @@ void main() {
     expect(rig.seqs, [1, 2, 3, 4]);
   });
 
-  test('a line past pages not read yet waits for paging to reach it', () async {
-    final rig = await _open([1, 2, 3], pageSize: 2);
-    expect(rig.seqs, [1, 2]);
-    expect(rig.model.hasMore, isTrue);
+  test(
+    'a running call is read to its end so a live line shows at once',
+    () async {
+      final rig = await _open([for (var i = 1; i <= 7; i++) i], pageSize: 3);
+      expect(rig.seqs, [1, 2, 3, 4, 5, 6, 7]);
+      expect(rig.model.hasMore, isFalse);
 
+      rig.push(_line(8));
+      await pumpEventQueue();
+
+      expect(rig.seqs, [1, 2, 3, 4, 5, 6, 7, 8]);
+    },
+  );
+
+  test('a failed read is retried by the next live line', () async {
+    final rig = await _open([1, 2]);
+    rig.failReads = 1;
+    rig.store([3]);
     rig.push(_line(4));
     await pumpEventQueue();
+    expect(rig.model.error, isNotNull);
 
-    expect(rig.seqs, [1, 2]);
-    expect(rig.reads, [null]);
+    rig.store([4]);
+    rig.push(_line(5));
+    await pumpEventQueue();
+
+    expect(rig.model.error, isNull);
+    expect(rig.seqs, [1, 2, 3, 4, 5]);
   });
 
   test('a change that lands during a read reads again after it', () async {
