@@ -117,6 +117,7 @@ pub(crate) fn create_body<'a>(
             memory_mib: record.spec.memory_mib,
             cpus: record.spec.cpus,
             pids: record.spec.pids,
+            volume_mib: record.spec.volume_mib,
         },
         egress: &record.spec.egress,
         egress_private: record.spec.egress_private,

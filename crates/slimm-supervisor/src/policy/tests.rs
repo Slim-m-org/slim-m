@@ -129,6 +129,20 @@ fn env_keys_outside_slimm_are_refused() {
 
 #[test]
 fn limits_above_a_ceiling_are_refused_not_clamped() {
+    assert_eq!(
+        code(json!({"image": IMAGE, "volume": true, "limits": {"volume_mib": 1025}})),
+        crate::error::Code::Limit
+    );
+    assert_eq!(
+        code(json!({"image": IMAGE, "volume": true, "limits": {"volume_mib": 0}})),
+        crate::error::Code::BadRequest
+    );
+    assert_eq!(
+        parse(json!({"image": IMAGE, "volume": true}))
+            .unwrap()
+            .volume_mib,
+        256
+    );
     use crate::error::Code::{BadRequest, Limit};
     assert_eq!(
         code(json!({"image": IMAGE, "limits": {"memory_mib": 513}})),

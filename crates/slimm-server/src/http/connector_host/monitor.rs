@@ -108,6 +108,9 @@ async fn reconcile_one(
         }
         return;
     }
+    if let Some(full) = listed.filter(|l| l.volume_over_limit) {
+        return disable_for_volume(state, runner, record, full).await;
+    }
     if let Some(exited) = listed.filter(|l| l.state == "exited") {
         let finished = exited.finished_at.clone().unwrap_or_default();
         let decision = runner
@@ -136,6 +139,27 @@ async fn reconcile_one(
     runner.note(state, &record.module_id, &result).await;
 }
 
+/// Turned off with the crash breaker's alert and audit row, and refused until an admin
+/// frees space or approves more: the supervisor already stopped it.
+async fn disable_for_volume(
+    state: &AppState,
+    runner: &HostRun,
+    record: &HostRunRecord,
+    listed: &Listed,
+) {
+    let limit = record
+        .spec
+        .volume_mib
+        .map_or_else(|| "its".to_owned(), |m| format!("its {m} MiB"));
+    let reason = format!("Turned off because its data volume passed {limit} limit.");
+    let marked = state
+        .store
+        .set_host_run_error(&record.module_id, Some(&reason), true)
+        .await;
+    let detail = json!({ "volume_bytes": listed.volume_bytes, "volume_mib": record.spec.volume_mib, "host_run": true });
+    turn_off(state, runner, record, marked.map(|()| reason), detail).await;
+}
+
 /// The same alert and audit row the module breaker sends (decision 0091), with the
 /// connector's own principal as the actor, since no person turned it off.
 async fn disable_for_crashes(
@@ -146,10 +170,6 @@ async fn disable_for_crashes(
 ) {
     let reason = format!("Turned off after {crashes} crashes within 10 minutes.");
     let now = crate::store::now_ms();
-    let disabled = state
-        .store
-        .disable_module_for_failures(&record.module_id, &reason)
-        .await;
     let marked = state
         .store
         .set_host_run_crash_disabled(&record.module_id, Some(now))
@@ -158,12 +178,41 @@ async fn disable_for_crashes(
         .store
         .set_host_run_error(&record.module_id, Some(&reason), false)
         .await;
-    if let Err(err) = disabled.and(marked).and(noted) {
-        tracing::warn!(%err, module = %record.module_id, "could not turn off a crashing connector");
+    let detail = json!({ "crashes": crashes, "host_run": true });
+    turn_off(
+        state,
+        runner,
+        record,
+        marked.and(noted).map(|()| reason),
+        detail,
+    )
+    .await;
+}
+
+async fn turn_off(
+    state: &AppState,
+    runner: &HostRun,
+    record: &HostRunRecord,
+    marked: anyhow::Result<String>,
+    detail: serde_json::Value,
+) {
+    let reason = match marked {
+        Ok(reason) => reason,
+        Err(err) => {
+            tracing::warn!(%err, module = %record.module_id, "could not turn off a connector");
+            return;
+        }
+    };
+    if let Err(err) = state
+        .store
+        .disable_module_for_failures(&record.module_id, &reason)
+        .await
+    {
+        tracing::warn!(%err, module = %record.module_id, "could not turn off a connector");
         return;
     }
     let _ = runner.client.stop(&record.run_id).await;
-    tracing::warn!(module = %record.module_id, crashes, "turned off a host-run connector that kept crashing");
+    tracing::warn!(module = %record.module_id, %reason, "turned off a host-run connector");
     let name = state
         .store
         .installed_module(&record.module_id)
@@ -175,15 +224,14 @@ async fn disable_for_crashes(
         .raise(
             crate::admin_alerts::AlertKind::ModuleBreaker,
             &record.module_id,
-            &format!("{name} was turned off after {crashes} crashes within 10 minutes."),
+            &format!("{name}: {reason}"),
         )
         .await;
     if let Some(actor) = record.principal {
-        let detail = json!({ "crashes": crashes, "host_run": true }).to_string();
         let action = crate::http::module_breaker::AUTO_DISABLE_ACTION;
         if let Err(err) = state
             .store
-            .record_admin_change(actor, action, Some(&record.module_id), &detail)
+            .record_admin_change(actor, action, Some(&record.module_id), &detail.to_string())
             .await
         {
             tracing::warn!(%err, module = %record.module_id, "could not record a connector's automatic disable");

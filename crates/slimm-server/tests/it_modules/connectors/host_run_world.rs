@@ -27,7 +27,7 @@ pub fn host_run_manifest() -> Value {
         "egress": [{"host": "api.example.com", "port": 443}, {"host": "jellyfin.lan", "port": 8096}],
         "egress_private": true,
         "volume": true,
-        "limits": {"memory_mib": 64, "pids": 32}
+        "limits": {"memory_mib": 64, "pids": 32, "volume_mib": 64}
     });
     doc
 }

@@ -38,6 +38,7 @@ struct RawLimits {
     memory_mib: Option<i64>,
     cpus: Option<f64>,
     pids: Option<i64>,
+    volume_mib: Option<i64>,
 }
 
 /// What the manifest asks the host to run; the admin approves the egress at install.
@@ -75,13 +76,15 @@ pub(in crate::http::dock::manifest) fn validate(
         memory_mib: None,
         cpus: None,
         pids: None,
+        volume_mib: None,
     });
     let positive = limits.memory_mib.is_none_or(|m| m >= 16)
         && limits.cpus.is_none_or(|c| c.is_finite() && c >= 0.01)
-        && limits.pids.is_none_or(|p| p >= 1);
+        && limits.pids.is_none_or(|p| p >= 1)
+        && limits.volume_mib.is_none_or(|v| v >= 1);
     if !positive {
         return Err(malformed(
-            "connector.host_run.limits must be at least 16 MiB, 0.01 CPU and 1 process",
+            "connector.host_run.limits must be at least 16 MiB, 0.01 CPU, 1 process and a 1 MiB volume",
         ));
     }
     Ok(HostRunSpec {
@@ -92,6 +95,7 @@ pub(in crate::http::dock::manifest) fn validate(
         memory_mib: limits.memory_mib,
         cpus: limits.cpus,
         pids: limits.pids,
+        volume_mib: limits.volume_mib,
     })
 }
 

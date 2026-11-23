@@ -20,6 +20,7 @@ use crate::sandbox::{
 
 mod gateway_plan;
 mod objects;
+pub mod volumes;
 
 pub struct Supervisor {
     pub config: Config,
@@ -27,6 +28,7 @@ pub struct Supervisor {
     pub runtime: Runtime,
     readiness: RwLock<Option<Readiness>>,
     verbs: Mutex<()>,
+    volumes: RwLock<std::collections::HashMap<String, volumes::Usage>>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -38,6 +40,10 @@ pub struct ConnectorState {
     pub started_at: Option<String>,
     pub finished_at: Option<String>,
     pub image: Option<String>,
+    /// The data volume's size at the last measurement, when it has one.
+    pub volume_bytes: Option<u64>,
+    /// The supervisor stopped it, or refuses to start it, because its volume is over the ceiling.
+    pub volume_over_limit: bool,
 }
 
 impl Supervisor {
@@ -49,6 +55,7 @@ impl Supervisor {
             runtime,
             readiness: RwLock::new(None),
             verbs: Mutex::new(()),
+            volumes: RwLock::new(Default::default()),
         })
     }
 
@@ -160,12 +167,20 @@ impl Supervisor {
         let _guard = self.verbs.lock().await;
         self.require_ready().await?;
         let names = self.names(id);
-        if self
+        let Some(existing) = self
             .owned_container(&names.container, &names, "connector")
             .await?
-            .is_none()
-        {
+        else {
             return Err(ApiError::new(Code::NotFound, "no such connector"));
+        };
+        if let Some(usage) = self.measure(id, &existing).await?
+            && usage.over()
+        {
+            return Err(ApiError::limit(format!(
+                "the connector's data volume holds {} MiB, over its {} MiB limit",
+                usage.bytes.div_ceil(1024 * 1024),
+                usage.limit_mib
+            )));
         }
         self.recreate_gateway(&names).await?;
         self.start_container(&names.gateway).await?;
@@ -195,6 +210,7 @@ impl Supervisor {
 
     pub async fn remove(&self, id: &str, keep_volume: bool) -> Result<(), ApiError> {
         let _guard = self.verbs.lock().await;
+        self.remember_usage(id, None).await;
         self.teardown(&self.names(id), keep_volume).await
     }
 
@@ -229,7 +245,12 @@ impl Supervisor {
                     .get(&format!("/containers/{name}/json"))
                     .await?
                     .json();
-                found.insert(id.clone(), state_of(&id, &inspected));
+                let mut state = state_of(&id, &inspected);
+                if let Some(usage) = self.usage(&id).await {
+                    state.volume_bytes = Some(usage.bytes);
+                    state.volume_over_limit = usage.over();
+                }
+                found.insert(id.clone(), state);
             } else if role == "gateway" {
                 found.entry(id.clone()).or_insert_with(|| missing(&id));
             }
@@ -276,6 +297,8 @@ fn missing(id: &str) -> ConnectorState {
         started_at: None,
         finished_at: None,
         image: None,
+        volume_bytes: None,
+        volume_over_limit: false,
     }
 }
 
@@ -314,6 +337,8 @@ pub fn state_of(id: &str, inspected: &Value) -> ConnectorState {
             .pointer("/Config/Image")
             .and_then(Value::as_str)
             .map(str::to_owned),
+        volume_bytes: None,
+        volume_over_limit: false,
     }
 }
 

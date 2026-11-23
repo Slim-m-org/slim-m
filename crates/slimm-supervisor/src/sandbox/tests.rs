@@ -18,6 +18,7 @@ fn spec(volume: bool) -> Spec {
         egress: vec![HostPort::new("api.example.com", 443)],
         egress_private: false,
         volume,
+        volume_mib: 256,
     }
 }
 

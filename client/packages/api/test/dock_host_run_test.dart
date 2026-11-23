@@ -33,7 +33,7 @@ void main() {
         ],
         'egress_private': true,
         'volume': true,
-        'limits': {'memory_mib': 64, 'cpus': 1},
+        'limits': {'memory_mib': 64, 'cpus': 1, 'volume_mib': 32},
       },
     }));
     final ask = m.hostRun!;
@@ -43,6 +43,7 @@ void main() {
     expect(ask.egressPrivate, isTrue);
     expect(ask.volume, isTrue);
     expect((ask.memoryMib, ask.cpus, ask.pids), (64, 1.0, null));
+    expect(ask.volumeMib, 32);
   });
 
   test('an admin-started connector has no host-run ask', () {

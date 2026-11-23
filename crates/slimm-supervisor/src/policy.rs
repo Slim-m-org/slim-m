@@ -15,6 +15,7 @@ pub const DEFAULT_MEMORY_MIB: u64 = 128;
 pub const DEFAULT_CPUS: f64 = 0.5;
 pub const DEFAULT_PIDS: u64 = 64;
 pub const MIN_MEMORY_MIB: u64 = 16;
+pub const DEFAULT_VOLUME_MIB: u64 = 256;
 pub const MAX_EGRESS: usize = 32;
 pub const MAX_ENV_VALUE: usize = 4 * 1024;
 pub const MAX_ENV_TOTAL: usize = 16 * 1024;
@@ -41,6 +42,7 @@ pub struct LimitsRequest {
     pub memory_mib: Option<u64>,
     pub cpus: Option<f64>,
     pub pids: Option<u64>,
+    pub volume_mib: Option<u64>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -71,6 +73,8 @@ pub struct Spec {
     pub egress: Vec<HostPort>,
     pub egress_private: bool,
     pub volume: bool,
+    /// The data volume's byte ceiling in MiB, which the supervisor's volume watch enforces.
+    pub volume_mib: u64,
 }
 
 impl std::fmt::Debug for Spec {
@@ -128,6 +132,7 @@ pub fn validate(
     check_env(&req.env)?;
     let (memory_mib, cpus, pids) = check_limits(&req.limits, ceilings)?;
     let egress = check_egress(req.egress)?;
+    let volume_mib = check_volume(&req.limits, ceilings)?;
     Ok(Spec {
         image: req.image,
         env: req.env,
@@ -137,7 +142,23 @@ pub fn validate(
         egress,
         egress_private: req.egress_private,
         volume: req.volume,
+        volume_mib,
     })
+}
+
+/// Defaults like the other limits; a value above the ceiling is `limit`, never clamped.
+pub fn check_volume(limits: &LimitsRequest, ceilings: &Ceilings) -> Result<u64, ApiError> {
+    let volume = limits.volume_mib.unwrap_or(DEFAULT_VOLUME_MIB);
+    if volume == 0 {
+        return Err(ApiError::bad_request("volume_mib must be at least 1"));
+    }
+    if volume > ceilings.max_volume_mib {
+        return Err(ApiError::limit(format!(
+            "volume_mib {volume} is over the ceiling of {}",
+            ceilings.max_volume_mib
+        )));
+    }
+    Ok(volume)
 }
 
 /// `<registry>/<path>@sha256:<64 hex>` with no tag, under an allowed prefix.

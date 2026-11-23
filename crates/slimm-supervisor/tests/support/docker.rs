@@ -19,6 +19,7 @@ pub struct Stage {
     pub egress_network: String,
     pub server_name: String,
     pub instances: Vec<String>,
+    pub handles: Vec<std::sync::Arc<slimm_supervisor::supervisor::Supervisor>>,
 }
 
 pub fn docker(args: &[&str]) -> String {
@@ -65,6 +66,7 @@ impl Stage {
             egress_network: format!("slimm-test-egress-{run}"),
             server_name: format!("slimm-test-server-{run}"),
             instances: Vec::new(),
+            handles: Vec::new(),
             run,
             dir,
         };
@@ -167,7 +169,7 @@ impl Stage {
         let mut config = config(&sub, &keys);
         config.requirements.lsm = daemon_has_lsm();
         let client = Client::new(&config.socket);
-        start(config, &instance).await;
+        self.handles.push(start(config, &instance).await);
         self.instances.push(instance.clone());
         (client, instance)
     }

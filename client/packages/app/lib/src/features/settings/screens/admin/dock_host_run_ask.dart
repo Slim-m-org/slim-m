@@ -19,7 +19,12 @@ List<(String, String)> dockHostRunLines(api.HostRunAsk ask) => [
   ),
   if (ask.egressPrivate) ('Home network', 'Can reach devices on your network'),
   ('Ports', 'None open to the outside'),
-  ('Storage', ask.volume ? 'Its own data folder' : 'None'),
+  (
+    'Storage',
+    ask.volume
+        ? 'Its own data folder, up to ${ask.volumeMib ?? 256} MB'
+        : 'None',
+  ),
   ('Limits', dockHostRunLimits(ask)),
 ];
 

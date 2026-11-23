@@ -53,5 +53,10 @@ for n in $SLIMM_PROBE_DNS; do
   esac
   echo "dns $n => $r"
 done
+if [ -n "$SLIMM_PROBE_FILL_MIB" ]; then
+  dd if=/dev/zero of=/data/fill bs=1048576 count="$SLIMM_PROBE_FILL_MIB" 2>/dev/null
+  sync
+  echo "filled=$(du -sm /data | cut -f1)"
+fi
 echo "probe=done"
 exec sleep "${SLIMM_PROBE_SLEEP:-3600}"

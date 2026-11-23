@@ -8,7 +8,9 @@
       "oom_killed": true,
       "started_at": "2026-11-22T10:00:00.000000000Z",
       "finished_at": "2026-11-22T10:05:00.000000000Z",
-      "image": "ghcr.io/slim-m-org/example-connector@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "image": "ghcr.io/slim-m-org/example-connector@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "volume_bytes": 1048576,
+      "volume_over_limit": false
     }
   ]
 }

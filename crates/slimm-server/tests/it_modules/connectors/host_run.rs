@@ -51,7 +51,10 @@ async fn the_dock_shows_the_image_egress_and_limits_it_asks_for() {
         (ask["egress_private"].clone(), ask["volume"].clone()),
         (json!(true), json!(true))
     );
-    assert_eq!(ask["limits"], json!({"memory_mib": 64, "pids": 32}));
+    assert_eq!(
+        ask["limits"],
+        json!({"memory_mib": 64, "pids": 32, "volume_mib": 64})
+    );
     let (_, runtime) = w
         .as_owner("GET", "/space/dock/connector-runtime", None)
         .await;
@@ -115,7 +118,10 @@ async fn install_creates_with_only_what_was_approved_and_never_shows_the_token()
         "the Private network was not approved"
     );
     assert_eq!(body["volume"], json!(true));
-    assert_eq!(body["limits"], json!({"memory_mib": 64, "pids": 32}));
+    assert_eq!(
+        body["limits"],
+        json!({"memory_mib": 64, "pids": 32, "volume_mib": 64})
+    );
     assert_eq!(body["env"]["SLIMM_API_URL"], json!("http://server:8080"));
     let keys: Vec<&String> = body["env"].as_object().unwrap().keys().collect();
     assert!(keys.iter().all(|k| k.starts_with("SLIMM_")), "{keys:?}");

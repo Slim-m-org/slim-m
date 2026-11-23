@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO connector_host_runs\n                 (module_id, run_id, image, egress, egress_private, volume, memory_mib, cpus, pids,\n                  volume_mib, created_at)\n             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n             ON CONFLICT(module_id) DO UPDATE SET\n                 image = excluded.image, egress = excluded.egress,\n                 egress_private = excluded.egress_private, volume = excluded.volume,\n                 memory_mib = excluded.memory_mib, cpus = excluded.cpus, pids = excluded.pids,\n                 volume_mib = excluded.volume_mib,\n                 refused = 0, last_error = NULL, crash_disabled_at = NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 11
+    },
+    "nullable": []
+  },
+  "hash": "4150e44d9200300583e3033b0cd083d36e1fb562e64d815aac044da471a98062"
+}

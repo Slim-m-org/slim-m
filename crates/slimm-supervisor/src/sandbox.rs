@@ -16,6 +16,7 @@ pub const SPEC: &str = "org.slim-m.spec";
 pub const EGRESS: &str = "org.slim-m.egress";
 pub const EGRESS_PRIVATE: &str = "org.slim-m.egress-private";
 pub const VOLUME: &str = "org.slim-m.volume";
+pub const VOLUME_MIB: &str = "org.slim-m.volume-mib";
 
 pub const CONNECTOR_USER: &str = "65532:65532";
 pub const GATEWAY_ALIAS: &str = "slimm-gateway";
@@ -142,6 +143,7 @@ pub fn connector_container(names: &Names, spec: &Spec) -> Value {
         if spec.egress_private { "1" } else { "0" }.into(),
     );
     labels.insert(VOLUME.into(), if spec.volume { "1" } else { "0" }.into());
+    labels.insert(VOLUME_MIB.into(), spec.volume_mib.to_string().into());
     json!({
         "Image": spec.image,
         "User": CONNECTOR_USER,

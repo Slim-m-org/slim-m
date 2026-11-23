@@ -119,7 +119,7 @@ async fn hello(State(fake): State<Fake>, headers: HeaderMap) -> Response {
     let hello = inner.hello.clone().unwrap_or_else(|| {
         json!({"v": 1, "protocol": "supervisor/1", "version": "test", "runtime": "docker", "rootless": false,
                "ready": true, "problems": [], "registries": ["ghcr.io/slim-m-org/"],
-               "ceilings": {"max_connectors": 8, "max_memory_mib": 512, "max_cpus": 1.0, "max_pids": 256},
+               "ceilings": {"max_connectors": 8, "max_memory_mib": 512, "max_cpus": 1.0, "max_pids": 256, "max_volume_mib": 1024},
                "connectors": inner.containers.len()})
     });
     axum::Json(hello).into_response()
@@ -144,7 +144,8 @@ async fn list(State(fake): State<Fake>, headers: HeaderMap) -> Response {
         .containers
         .iter()
         .map(|(id, c)| json!({"id": id, "state": c["state"], "exit_code": c["exit_code"], "oom_killed": false,
-                              "started_at": "2026-11-22T10:00:00Z", "finished_at": c["finished_at"], "image": "img"}))
+                              "started_at": "2026-11-22T10:00:00Z", "finished_at": c["finished_at"], "image": "img",
+                              "volume_bytes": c.get("volume_bytes"), "volume_over_limit": c.get("volume_over_limit").unwrap_or(&json!(false))}))
         .collect();
     axum::Json(json!({"v": 1, "connectors": connectors})).into_response()
 }
