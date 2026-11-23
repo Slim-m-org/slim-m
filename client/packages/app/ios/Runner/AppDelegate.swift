@@ -42,6 +42,7 @@ import UserNotifications
   private var broadcastChannel: FlutterMethodChannel?
   private var appBadgeChannel: FlutterMethodChannel?
   private var holdMusicChannel: FlutterMethodChannel?
+  private var soundClipChannel: FlutterMethodChannel?
   private var clipboardImageChannel: FlutterMethodChannel?
   private var appLockWindowChannel: FlutterMethodChannel?
   private let voiceCallChannel = VoiceCallChannel()
@@ -187,6 +188,12 @@ import UserNotifications
       HoldMusicChannel.handle(call, result: result)
     }
     holdMusicChannel = holdMusic
+
+    let soundClip = FlutterMethodChannel(name: SoundClipChannel.name, binaryMessenger: messenger)
+    soundClip.setMethodCallHandler { call, result in
+      SoundClipChannel.handle(call, result: result)
+    }
+    soundClipChannel = soundClip
 
     engineBridge.applicationRegistrar.register(
       RoutePickerFactory(), withId: RoutePickerFactory.viewType)

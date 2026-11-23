@@ -86,7 +86,10 @@ Clips play through the same quiet, no-focus audio configuration as other interfa
 ## Known gap
 
 On iPhone, interface sounds are skipped while a call holds the audio session, because playing one can switch the microphone off or move the call to the speaker (`sound_audio_context.dart`).
-Clips follow the same rule, so an iPhone in a call does not hear them until a playback path that coexists with WebRTC's session is verified on a real device.
+Other interface sounds keep that rule, but clips do not: in a call an iPhone plays them on the app's own `AVAudioEngine` (`SoundClipChannel.swift`), inside the call's already active `playAndRecord` session.
+audioplayers cannot be used there, because its Darwin plugin calls `setCategory` on every play and `setActive(false)` when the last player stops.
+The engine path never writes the session, and refuses to play unless the category is already `playAndRecord`.
+It is not verified on a real device yet (docs/OPEN-QUESTIONS.md, question 23).
 Playing a clip from an iPhone still works, since the signal goes through the server.
 
 ## Permission
