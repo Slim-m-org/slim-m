@@ -152,7 +152,9 @@ void main() {
       ),
     );
     await tester.pump();
-    final button = tester.getRect(find.byType(EmojiCreateButton));
+    final button = tester.getRect(
+      find.byWidgetPredicate((w) => w is EmojiCreateButton),
+    );
     expect(390 - button.right, AppSpacing.s16);
   });
 }

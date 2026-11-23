@@ -32,7 +32,12 @@ final _card = find.byWidgetPredicate(
 );
 
 Rect _button(WidgetTester tester, String label) => tester.getRect(
-  find.ancestor(of: find.text(label), matching: find.byType(AppButton)).first,
+  find
+      .ancestor(
+        of: find.text(label),
+        matching: find.byWidgetPredicate((w) => w is AppButton),
+      )
+      .first,
 );
 
 void main() {

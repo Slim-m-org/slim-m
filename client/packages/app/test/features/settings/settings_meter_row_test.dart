@@ -87,7 +87,9 @@ void main() {
         ),
       ),
     );
-    final row = tester.getRect(find.byType(SettingsMeterRow));
+    final row = tester.getRect(
+      find.byWidgetPredicate((w) => w is SettingsMeterRow),
+    );
     final label = tester.getRect(find.text('Members'));
     expect(label.center.dy, closeTo(row.center.dy, 1));
   });

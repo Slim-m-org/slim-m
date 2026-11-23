@@ -303,7 +303,7 @@ void main() {
     final button = tester.getRect(
       find.ancestor(
         of: find.text('Let back in'),
-        matching: find.byType(AppButton),
+        matching: find.byWidgetPredicate((w) => w is AppButton),
       ),
     );
     expect(button.top - text.bottom, greaterThanOrEqualTo(AppSpacing.s8));

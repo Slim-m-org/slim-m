@@ -265,8 +265,10 @@ void main() {
     await _pump(tester, permissions: 0);
 
     expect(find.byType(SettingsNotice), findsOneWidget);
-    final body = tester.getRect(find.byType(Scaffold));
-    final notice = tester.getRect(find.byType(SettingsNotice));
+    final body = tester.getRect(find.byWidgetPredicate((w) => w is Scaffold));
+    final notice = tester.getRect(
+      find.byWidgetPredicate((w) => w is SettingsNotice),
+    );
     expect(
       notice.center.dy,
       closeTo(body.center.dy, 80),
@@ -304,11 +306,13 @@ void main() {
     await _pump(tester, permissions: -1);
     final title = tester.getRect(
       find.descendant(
-        of: find.byType(SettingsPaneHeading),
+        of: find.byWidgetPredicate((w) => w is SettingsPaneHeading),
         matching: find.text('Reports'),
       ),
     );
-    final tabs = tester.getRect(find.byType(AppSegmentedControl).first);
+    final tabs = tester.getRect(
+      find.byWidgetPredicate((w) => w is AppSegmentedControl).first,
+    );
     expect(tabs.top - title.bottom, greaterThanOrEqualTo(AppSpacing.s16));
   });
 }

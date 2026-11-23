@@ -95,7 +95,9 @@ void main() {
     'the consequence note shares the card edge with the tray above it',
     (tester) async {
       await _pump(tester, 90);
-      final card = tester.getRect(find.byType(SettingsSectionCard).first);
+      final card = tester.getRect(
+        find.byWidgetPredicate((w) => w is SettingsSectionCard).first,
+      );
       final note = tester.getRect(find.textContaining('Prunes anything'));
       expect(note.left - card.left, closeTo(AppSpacing.s16, 1));
     },
