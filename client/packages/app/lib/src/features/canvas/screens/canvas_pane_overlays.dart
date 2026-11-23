@@ -98,6 +98,8 @@ class CanvasPeerStrip extends StatelessWidget {
   ).where((t) => t.id == userId).firstOrNull?.name;
 }
 
+const canvasCallDockKey = Key('canvas-call-dock');
+
 /// The widest the captions strip grows over a canvas, a comfortable reading line.
 const canvasCaptionsMaxWidth = 720.0;
 
@@ -170,6 +172,7 @@ class _CanvasDockOverlayState extends State<CanvasDockOverlay> {
                   if (widget.call case final call?)
                     _CanvasCaptions(channelId: call.channelId),
                   CanvasCallDock(
+                    key: canvasCallDockKey,
                     call: widget.call,
                     canvas: canvas(),
                     compact: widget.compact,

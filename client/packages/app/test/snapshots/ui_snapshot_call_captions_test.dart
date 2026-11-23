@@ -23,9 +23,8 @@ import 'package:slimm_app/src/features/voice/screens/voice_text_surface.dart';
 import 'package:slimm_app/src/features/voice/widgets/transcript_line_row.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_captions_strip.dart';
 import 'package:slimm_app/src/providers/dock_reservation.dart';
-import 'package:slimm_app/src/widgets/floating_dock_card.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_pane_overlays.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_voice_canvas/voice_canvas.dart' show CanvasSurface;
 
 import '../features/voice/voice_snapshot_fixtures.dart'
     show SnapshotVoiceController, connectedCallState, gridCallState;
@@ -148,17 +147,16 @@ Future<void> _expectBelowStageAboveDock(WidgetTester tester) async {
 Future<void> _expectAboveCanvasDock(WidgetTester tester) async {
   final captions = tester.getRect(find.byKey(callCaptionsKey));
   expect(find.textContaining('the build list'), findsOneWidget);
-  final cards = find.byType(FloatingDockCard);
-  expect(cards, findsWidgets);
-  _expectClear(tester, captions, cards, 'the dock');
-  for (var i = 0; i < cards.evaluate().length; i++) {
-    expect(captions.bottom, lessThanOrEqualTo(tester.getRect(cards.at(i)).top));
-  }
+  final dock = tester.getRect(find.byKey(canvasCallDockKey));
+  expect(captions.overlaps(dock), isFalse, reason: 'captions cover the dock');
+  expect(captions.bottom, lessThanOrEqualTo(dock.top));
   final container = ProviderScope.containerOf(
     tester.element(find.byKey(callCaptionsKey)),
   );
   final reserved = container.read(bottomDockReservationProvider);
-  final paneBottom = tester.getRect(find.byType(CanvasSurface)).bottom;
+  final paneBottom = tester
+      .getRect(find.byKey(const ValueKey('canvas-surface')))
+      .bottom;
   expect(
     captions.top,
     greaterThanOrEqualTo(paneBottom - reserved - AppSpacing.s12 - 0.5),
