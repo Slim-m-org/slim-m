@@ -311,6 +311,55 @@ jobs:
           gh_token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
 
+  # The signed flatpak remote on GitHub Pages; inert without FLATPAK_GPG_KEY and required by nothing. See docs/ci.md.
+  flatpak-remote:
+    needs: [release-please, linux-client, verify-client-ci]
+    if: needs.verify-client-ci.result == 'success' && needs.linux-client.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: read
+      pages: read
+    outputs:
+      ready: ${{ steps.gate.outputs.ready }}
+    env:
+      FLATPAK_GPG_KEY: ${{ secrets.FLATPAK_GPG_KEY }}
+    steps:
+      - name: check secret
+        id: gate
+        run: |
+          if [ -n "$FLATPAK_GPG_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::FLATPAK_GPG_KEY is not configured. Add it and set GitHub Pages to deploy from Actions to publish the signed flatpak remote. Skipping."
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          ref: ${{ needs.release-please.outputs.client_ref }}
+
+      - uses: ./.github/actions/release-flatpak-remote
+        if: steps.gate.outputs.ready == 'true'
+
+  # Deploys what flatpak-remote signed; Pages wants its own environment and an OIDC token.
+  flatpak-pages:
+    needs: [flatpak-remote]
+    if: needs.flatpak-remote.outputs.ready == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
   # Rewrites SHA256SUMS from the release's actual assets once the Linux, Android and (through desktop-clients) Windows and macOS downloads are attached; linux-client's own partial file is only the first draft.
   client-checksums:
     name: client checksums

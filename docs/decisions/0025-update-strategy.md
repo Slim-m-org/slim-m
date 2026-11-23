@@ -173,3 +173,42 @@ The terms checkbox stays; the update question goes.
 - A saved answer of either kind is kept, so an install that already chose off stays off.
 - The switch in Settings, under About, is the one place the choice is made or changed.
 - A signed-out desktop install now also checks on launch, because the default no longer waits for an account.
+
+## Addendum 2026-11-22 - phase 3: Play in-app updates and the flatpak remote
+
+Phase 3's third piece, the signed tarball self-apply, shipped through decision 0041 with an ed25519 signed manifest instead of minisign, and the Play upload already runs when `PLAY_SERVICE_ACCOUNT_JSON` is set.
+This addendum covers the other two.
+
+### Play in-app updates
+
+- A copy counts as a Play install when Play is its installer (`com.android.vending`), or when it is the Play build itself.
+- A Play install never asks GitHub; the update watcher asks Play through `in_app_update` (MIT, the official Play Core library underneath) and offers Play's flexible flow.
+- The banner says "An update is available." with Update, shows the download, then "The update is ready." with Restart, which hands the install to Play.
+- A decline, a cancel or a failure offers the update again; a dismissed offer comes back once the download is ready.
+- The Play build is the appbundle, built with `SLIMM_PLAY_BUILD=true`: the sideload apk updater is compiled out of it, the native installer channel is not registered, and the bundle has no `REQUEST_INSTALL_PACKAGES`.
+- A sideloaded apk keeps the signed-manifest updater from the 2026-11-20 amendment.
+
+### The flatpak remote
+
+- Every client release can publish a GPG-signed flatpak repo to GitHub Pages, with `slim-m.flatpakrepo` and `top.npcserver.slimm.flatpakref` beside it; `docs/ci-details.md` has the job.
+- The sandbox cannot run `flatpak update`, so the update sheet for a flatpak opens `appstream://top.npcserver.slimm` in the software center, and falls back to the release page when nothing handles that link.
+- A bundle installed from a `.flatpak` file has no remote, so it moves to updates by installing once from the `.flatpakref`.
+
+### Update trust rules
+
+Every self-updating path follows these, and a change that breaks one needs a new decision.
+The app trusts no download because of where it came from; only a signature over it counts.
+A desktop or sideload update is applied only when the manifest verifies against a public key compiled into the app (decision 0041).
+Nothing fetched can add a trusted key; a new key arrives only in a release signed by an old one.
+The manifest's version must be strictly newer than the running build, so a validly signed old release is refused.
+Each artifact must match the size and sha256 the verified manifest names before it is unpacked.
+An archive entry that would land outside its target directory, through `..` or a symlink, is never written.
+A store or package-managed install never self-updates; Play, TestFlight, dnf or the flatpak remote does it, and each checks its own signature.
+The flatpak remote is never published unsigned, and its signing job proves a client can verify it before it deploys.
+The Play build carries no code that can install an apk.
+A missing signing secret skips the publish with a warning and never fails the release.
+
+### Owner items for phase 3
+
+- `PLAY_SERVICE_ACCOUNT_JSON`: a Google Cloud service account invited in Play Console with release rights for this app only; it turns on the internal-track upload, and Play installs then get the in-app update.
+- `FLATPAK_GPG_KEY`: an armored secret key with no passphrase, used only for the remote; it turns on the signed remote once GitHub Pages is set to deploy from Actions.

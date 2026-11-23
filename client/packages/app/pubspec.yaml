@@ -82,6 +82,7 @@ dependencies:
   # Camera capture for the profile photo menu; see docs/dependencies.md.
   image_picker: ^1.1.2
   record: ^7.2.0
+  in_app_update: ^5.0.0
 dev_dependencies:
   slimm_test_support:
   # Only imported from test/, for the XFile a fake PlatformFile must declare.

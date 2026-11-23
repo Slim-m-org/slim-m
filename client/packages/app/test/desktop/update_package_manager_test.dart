@@ -33,6 +33,7 @@ Future<List<Uri>> _pump(
   double width = 1280,
   bool autoUpdate = false,
   Brightness brightness = Brightness.light,
+  bool softwareCenter = true,
 }) async {
   SharedPreferences.setMockInitialValues({autoUpdateKey: autoUpdate});
   tester.view.physicalSize = Size(width, 800);
@@ -45,6 +46,10 @@ Future<List<Uri>> _pump(
         inSessionUpdateProvider.overrideWith((ref) => _update(format)),
         releaseLauncherProvider.overrideWithValue((uri) async {
           launched.add(uri);
+        }),
+        softwareCenterLauncherProvider.overrideWithValue((uri) async {
+          launched.add(uri);
+          return softwareCenter;
         }),
       ],
       child: MaterialApp(
@@ -110,6 +115,42 @@ void main() {
     await tester.tap(find.widgetWithText(AppButton, 'Check GitHub'));
     await tester.pump();
     expect(launched, [Uri.parse(_releaseUrl)]);
+  });
+
+  testWidgets('flatpak: hands the update to the software center', (
+    tester,
+  ) async {
+    final launched = await _pump(tester, InstallFormat.flatpak);
+    await _tapChip(tester);
+
+    await tester.tap(find.text('Open software center'));
+    await tester.pump();
+    expect(launched, [Uri.parse('appstream://top.npcserver.slimm')]);
+  });
+
+  testWidgets('flatpak: no software center falls back to the release page', (
+    tester,
+  ) async {
+    final launched = await _pump(
+      tester,
+      InstallFormat.flatpak,
+      softwareCenter: false,
+    );
+    await _tapChip(tester);
+
+    await tester.tap(find.text('Open software center'));
+    await tester.pump();
+    expect(launched, [
+      Uri.parse('appstream://top.npcserver.slimm'),
+      Uri.parse(_releaseUrl),
+    ]);
+  });
+
+  testWidgets('rpm: offers no software center', (tester) async {
+    await _pump(tester, InstallFormat.rpm);
+    await _tapChip(tester);
+
+    expect(find.text('Open software center'), findsNothing);
   });
 
   testWidgets('chip tooltip and semantics name the package manager', (

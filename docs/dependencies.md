@@ -390,6 +390,13 @@ It is used for the camera source only, because `photo_manager` above cannot capt
 Permissions: iOS reuses `NSCameraUsageDescription` (its text now also names profile photos) and Android reuses the `CAMERA` permission already declared for calls, so the two plugins add no new keys.
 Real-camera capture on a phone is untested here and needs a device.
 
+### `in_app_update`, for Play's flexible update
+
+`self_update/play_update.dart` wraps it behind `PlayUpdatePort` so tests fake it; only a Play install ever calls it (decision 0025, phase 3).
+It is MIT, from a verified publisher, Android only, and wraps Google's own Play Core `app-update` 2.1.0; 5.0.0 (July 2026) is the release that moved to Flutter's built-in Kotlin, which this app's Gradle setup needs.
+It adds no permission, and `completeFlexibleUpdate` never resolves its future, so the app fires it without awaiting.
+A real Play-side update is untested here: it needs the Play upload credential and a device installed from the internal track.
+
 ### The in-app YouTube player: `webview_flutter` on phones, hand-written hosts on desktop
 
 Decision 0128 has the design; this records what each platform links and why the obvious plugins were turned down.
