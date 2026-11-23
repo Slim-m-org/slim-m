@@ -32,18 +32,16 @@ import 'canvas_view_relay.dart';
 import 'canvas_object_context_menu.dart';
 import 'canvas_tool_wheel_layer.dart';
 import '../providers/canvas_pen_style.dart';
+import 'canvas_pane_board_stack.dart';
 import 'canvas_pane_hints.dart';
 import 'canvas_pane_overlays.dart';
 import 'canvas_pane_surface.dart';
 import 'canvas_pane_surface_actions.dart';
-import 'canvas_short_toggle.dart';
 import 'canvas_presence_frame.dart';
 import 'canvas_presence_layer.dart';
-import 'canvas_speaking_sync.dart';
 import 'canvas_summary.dart';
 import 'canvas_summon_request.dart' show leaveFullscreenThenSettle;
 import 'canvas_board_pager.dart' show CanvasPaging;
-import 'canvas_paging_indicator.dart';
 import 'canvas_notice.dart';
 import 'canvas_stamp_placement.dart';
 
@@ -424,72 +422,29 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                 ),
                 // Canvas content panned past the top edge must never paint over the header above it.
                 child: _withPeerStrip(
-                  ClipRect(
-                    // Tab goes banner action, board, dock, call tiles, view controls: reading order put the board's corners first.
-                    child: FocusTraversalGroup(
-                      policy: OrderedTraversalPolicy(),
-                      child: Stack(
-                        children: [
-                          FocusTraversalOrder(
-                            key: const ValueKey('canvas-surface'),
-                            order: const NumericFocusOrder(1),
-                            child: _activityLogOpen
-                                ? _panel()
-                                : _surface(tokens),
-                          ),
-                          CanvasSpeakingSync(cursors: widget.cursors),
-                          if (!_activityLogOpen)
-                            FocusTraversalOrder(
-                              key: const ValueKey('canvas-peer-controls'),
-                              order: const NumericFocusOrder(4),
-                              child: CanvasPeerControls(
-                                participants: widget.callParticipants,
-                                cursors: widget.cursors,
-                                relay: widget.viewRelay,
-                                selfId: widget.selfId,
-                                onAcceptSummon: _acceptSummon,
-                              ),
-                            ),
-                          if (widget.paging case final paging?)
-                            CanvasPagingIndicator(paging: paging),
-                          FocusTraversalOrder(
-                            key: const ValueKey('canvas-notice'),
-                            order: const NumericFocusOrder(0),
-                            child: CanvasNotice(
-                              callError: widget.callError,
-                              onRetryCall: widget.onRetryCall,
-                              error: widget.error,
-                              onDismissError: widget.onDismissError,
-                              onRetryError: widget.onRetryError,
-                              unsavedInk: widget.document.unsavedInk.count,
-                            ),
-                          ),
-                          FocusTraversalOrder(
-                            key: const ValueKey('canvas-dock'),
-                            order: const NumericFocusOrder(2),
-                            child: CanvasDockOverlay(
-                              call: widget.callDock,
-                              canvas: _dockData,
-                              tileOverrides: widget.tileOverrides,
-                              compact: compact,
-                            ),
-                          ),
-                          if (shortWindow && !widget.fullscreen)
-                            FocusTraversalOrder(
-                              key: const ValueKey('canvas-short-toggle'),
-                              order: const NumericFocusOrder(3),
-                              child: CanvasShortToggle(
-                                channelId: widget.channelId,
-                              ),
-                            ),
-                          const FocusTraversalOrder(
-                            key: ValueKey('canvas-music-badge'),
-                            order: NumericFocusOrder(5),
-                            child: CanvasMusicBadge(),
-                          ),
-                        ],
-                      ),
+                  CanvasBoardStack(
+                    surface: _activityLogOpen ? _panel() : _surface(tokens),
+                    channelId: widget.channelId,
+                    cursors: widget.cursors,
+                    callParticipants: widget.callParticipants,
+                    viewRelay: widget.viewRelay,
+                    selfId: widget.selfId,
+                    onAcceptSummon: _acceptSummon,
+                    paging: widget.paging,
+                    notice: CanvasNotice(
+                      callError: widget.callError,
+                      onRetryCall: widget.onRetryCall,
+                      error: widget.error,
+                      onDismissError: widget.onDismissError,
+                      onRetryError: widget.onRetryError,
+                      unsavedInk: widget.document.unsavedInk.count,
                     ),
+                    callDock: widget.callDock,
+                    dockData: _dockData,
+                    tileOverrides: widget.tileOverrides,
+                    compact: compact,
+                    showShortToggle: shortWindow && !widget.fullscreen,
+                    showPeerControls: !_activityLogOpen,
                   ),
                 ),
               ),
