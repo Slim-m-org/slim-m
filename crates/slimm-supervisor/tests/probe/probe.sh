@@ -35,13 +35,9 @@ done
 if [ -n "$SLIMM_PROBE_FORGE" ]; then
   s=$SLIMM_PROBE_FORGE
   forge='X-Forwarded-For: 6.6.6.6\r\nForwarded: for=6.6.6.6\r\nX-Real-IP: 6.6.6.6\r\n'
-  inner="GET /cgi-bin/h HTTP/1.1\r\nHost: $s\r\n${forge}Connection: keep-alive\r\n\r\n"
-  plain=$(printf "GET http://$s/cgi-bin/h HTTP/1.1\r\nHost: $s\r\n${forge}\r\n" | nc -w 3 slimm-gateway 3128)
-  tunnel=$(printf "CONNECT $s HTTP/1.1\r\nHost: $s\r\n\r\n$inner" | nc -w 3 slimm-gateway 3128)
-  for kind in plain tunnel; do
-    eval "out=\$$kind"
-    echo "forge $kind => seen=$(echo "$out" | grep -c HTTP_HOST) forged=$(echo "$out" | grep -c 6.6.6.6)"
-  done
+  report() { echo "forge $1 => seen=$(echo "$2" | grep -c HTTP_HOST) forged=$(echo "$2" | grep -c 6.6.6.6)"; }
+  report plain "$(printf 'GET http://%s/cgi-bin/h HTTP/1.1\r\nHost: %s\r\n%b\r\n' "$s" "$s" "$forge" | nc -w 3 slimm-gateway 3128)"
+  report tunnel "$(printf 'CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\nGET /cgi-bin/h HTTP/1.1\r\nHost: %s\r\n%bConnection: keep-alive\r\n\r\n' "$s" "$s" "$s" "$forge" | nc -w 3 slimm-gateway 3128)"
 fi
 for n in $SLIMM_PROBE_DNS; do
   out=$(nslookup "$n" 2>&1)
