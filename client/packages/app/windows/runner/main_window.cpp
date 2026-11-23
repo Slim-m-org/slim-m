@@ -185,11 +185,11 @@ void HandleCall(const flutter::MethodCall<flutter::EncodableValue>& call,
     RequestReveal();
   } else if (method == "background") {
     const auto* argb = std::get_if<int64_t>(call.arguments());
-    const auto* small = std::get_if<int32_t>(call.arguments());
+    const auto* narrow = std::get_if<int32_t>(call.arguments());
     if (argb != nullptr) {
       SetBackground(*argb);
-    } else if (small != nullptr) {
-      SetBackground(static_cast<uint32_t>(*small));
+    } else if (narrow != nullptr) {
+      SetBackground(static_cast<uint32_t>(*narrow));
     }
   } else {
     result->NotImplemented();
