@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/screens/admin/retention_section.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_section_header.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -89,4 +90,14 @@ void main() {
 
     expect(control.options[control.selectedIndex].label, 'Never');
   });
+
+  testWidgets(
+    'the consequence note shares the card edge with the tray above it',
+    (tester) async {
+      await _pump(tester, 90);
+      final card = tester.getRect(find.byType(SettingsSectionCard).first);
+      final note = tester.getRect(find.textContaining('Prunes anything'));
+      expect(note.left - card.left, closeTo(AppSpacing.s16, 1));
+    },
+  );
 }

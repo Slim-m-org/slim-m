@@ -191,6 +191,7 @@ class SettingsSubRow extends StatelessWidget {
     this.onTap,
     this.semanticLabel,
     this.stackTrailing = false,
+    this.indented = true,
   });
 
   final String label;
@@ -201,6 +202,9 @@ class SettingsSubRow extends StatelessWidget {
 
   static const _trailingShare = 0.62;
 
+  /// False for a note under a control that has no label of its own, so it shares the card's 16dp edge.
+  final bool indented;
+
   /// Puts [trailing] on its own line under the label, at the full row width.
   final bool stackTrailing;
 
@@ -209,7 +213,12 @@ class SettingsSubRow extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final row = Container(
       constraints: const BoxConstraints(minHeight: 44),
-      padding: const EdgeInsets.fromLTRB(32, 6, AppSpacing.s16, 6),
+      padding: EdgeInsets.fromLTRB(
+        indented ? 32 : AppSpacing.s16,
+        6,
+        AppSpacing.s16,
+        6,
+      ),
       color: Color.lerp(tokens.surfaceBase, tokens.surfaceRaised, 0.5),
       child: stackTrailing && trailing != null
           ? Column(

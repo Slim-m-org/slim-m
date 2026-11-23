@@ -173,7 +173,10 @@ class _RetentionSectionState extends ConsumerState<RetentionSection>
               disabled: saving,
               onSelected: (i) => _setDays(options[i].$2, current: current),
             ),
-            SettingsSubRow(label: retentionConsequence(current, stats)),
+            SettingsSubRow(
+              label: retentionConsequence(current, stats),
+              indented: false,
+            ),
           ],
         ),
         SettingsSaveFeedback(

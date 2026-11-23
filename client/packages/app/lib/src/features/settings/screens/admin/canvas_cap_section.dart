@@ -100,7 +100,10 @@ class _CanvasCapSectionState extends ConsumerState<CanvasCapSection>
                 disabled: saving,
                 onSelected: (i) => _setCap(_canvasCapOptions[i].$2),
               ),
-              SettingsSubRow(label: canvasCapConsequence(current)),
+              SettingsSubRow(
+                label: canvasCapConsequence(current),
+                indented: false,
+              ),
             ] else
               SettingsCardBlock(
                 children: [
