@@ -40,6 +40,9 @@ class PopOutWindowSet<F, W> {
         final window = open(feed);
         if (window != null) adopt(key, window);
       }
+    } catch (_) {
+      _rerun = null;
+      rethrow;
     } finally {
       _syncing = false;
     }
