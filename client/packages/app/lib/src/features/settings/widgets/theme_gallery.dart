@@ -118,39 +118,42 @@ class _ThemeGalleryPageState extends ConsumerState<ThemeGalleryPage> {
               sheetHeader: (_) => menu.sheetHeader(entry),
               menuKey: menuKey,
             );
-        return CustomScrollView(
-          key: const Key('themes-page-list'),
+        return _ScrolledUnderRule(
           controller: _scroll,
-          slivers: [
-            if (status.error case final error?)
-              _box(
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.s8),
-                  child: AppErrorState(
-                    key: const Key('themes-page-error'),
-                    message: error.message,
-                    detail: error.detail,
-                    onDismiss: ref
-                        .read(themeGalleryStatusProvider.notifier)
-                        .dismiss,
+          child: CustomScrollView(
+            key: const Key('themes-page-list'),
+            controller: _scroll,
+            slivers: [
+              if (status.error case final error?)
+                _box(
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.s8),
+                    child: AppErrorState(
+                      key: const Key('themes-page-error'),
+                      message: error.message,
+                      detail: error.detail,
+                      onDismiss: ref
+                          .read(themeGalleryStatusProvider.notifier)
+                          .dismiss,
+                    ),
                   ),
                 ),
-              ),
-            _box(_filter(filter, wide: layout.columns == 3)),
-            if (filter.shows(ThemeGalleryFilter.builtIn)) ...[
-              _box(const ThemeGallerySectionHeader(title: 'Built in')),
-              _grid(
-                layout,
-                gallery.builtIn,
-                (e) => card(e, Key('theme-builtin-${e.choice!.name}')),
-              ),
+              _box(_filter(filter, wide: layout.columns == 3)),
+              if (filter.shows(ThemeGalleryFilter.builtIn)) ...[
+                _box(const ThemeGallerySectionHeader(title: 'Built in')),
+                _grid(
+                  layout,
+                  gallery.builtIn,
+                  (e) => card(e, Key('theme-builtin-${e.choice!.name}')),
+                ),
+              ],
+              if (filter.shows(ThemeGalleryFilter.mine))
+                ..._mine(gallery, layout, menu, enabled, card),
+              if (filter.shows(ThemeGalleryFilter.space))
+                ..._space(gallery, layout, card),
+              _box(SizedBox(height: SettingsSubPages.bottomInsetOf(context))),
             ],
-            if (filter.shows(ThemeGalleryFilter.mine))
-              ..._mine(gallery, layout, menu, enabled, card),
-            if (filter.shows(ThemeGalleryFilter.space))
-              ..._space(gallery, layout, card),
-            _box(SizedBox(height: SettingsSubPages.bottomInsetOf(context))),
-          ],
+          ),
         );
       },
     );
@@ -327,4 +330,36 @@ class _ThemeGalleryPageState extends ConsumerState<ThemeGalleryPage> {
       ),
     },
   ];
+}
+
+/// A hairline along the top edge while the list is scrolled, so cards passing under the app bar are cut at a line and not mid-card.
+class _ScrolledUnderRule extends StatelessWidget {
+  const _ScrolledUnderRule({required this.controller, required this.child});
+
+  final ScrollController controller;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Stack(
+      children: [
+        child,
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(
+            child: ListenableBuilder(
+              listenable: controller,
+              builder: (context, _) =>
+                  controller.hasClients && controller.offset > 0
+                  ? Divider(height: 1, thickness: 1, color: tokens.borderSubtle)
+                  : const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }

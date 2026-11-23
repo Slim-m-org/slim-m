@@ -200,6 +200,10 @@ class SyncEventApplier {
     } else if (row != null) {
       final deleted = _ref.read(deletedChannelsProvider.notifier);
       deleted.state = {...deleted.state, channelId: row.name};
+      if (row.isGroupDm) {
+        final groups = _ref.read(deletedGroupDmsProvider.notifier);
+        groups.state = {...groups.state, channelId};
+      }
     }
     // A channel already known to be gone; no round trip needed for that.
     await store.removeChannel(channelId);

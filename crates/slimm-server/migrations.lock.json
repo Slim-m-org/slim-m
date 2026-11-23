@@ -195,5 +195,6 @@
   "0208_call_transcript_marks.sql": "361c5bebc6c8a91d09a4d14743351744f6955a51be0baf1ba5d7c5ce85a4c3b196b1c50f3116d259e55b67fd7cc2ba81",
   "0209_voice_commands.sql": "fcea9c9a0f5daac31e909c2b6e8c82214e3b1cb053799423755e88e39a50506aa6d568dc112966179fea3ee928afe615",
   "0211_connector_host_runs.sql": "cbd0ce8bba38cfd9467aa0ec030220e3b7071eb0458e2971b563192e109603193e7758d7cccf783804a51a61b16c7bce",
-  "0212_connector_review_fixes.sql": "d5c418f941a0563744a6651ada7ef5c280fd8e5fcd12d3c2bf25fa4ed1ed4825188440e7bbdde9b255ea82d1fd27a1fa"
+  "0212_connector_review_fixes.sql": "d5c418f941a0563744a6651ada7ef5c280fd8e5fcd12d3c2bf25fa4ed1ed4825188440e7bbdde9b255ea82d1fd27a1fa",
+  "0213_call_transcript_lines_speaker_at.sql": "671da152d7e65fda42adbfbdf6aa4a7a65d96bc825c72f0ea4829881ec0a6489d581a3cdfb357580fa917ed22a8c17fe"
 }

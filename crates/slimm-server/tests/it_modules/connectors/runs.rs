@@ -4,13 +4,13 @@
 //! answer a WASM module gives. The connector sees the opaque caller id, only
 //! the channels it may view, and nothing at all while it is off or gone.
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 
 use super::harness::ID;
-use super::runs_world::{Live, SEND, VIEW, live, next_run};
+use super::runs_world::{Live, SEND, VIEW, live, live_waiting, next_run};
 use crate::support;
 
 const SCENE: &str = r#"{"$slim":"scene/1","width":4,"height":4,"ops":[]}"#;
@@ -107,41 +107,48 @@ async fn the_panel_and_slash_command_are_listed_and_the_panel_paints_the_scene()
 }
 
 #[tokio::test]
-async fn an_offline_connector_answers_unavailable_at_once() {
-    let l = live("slimm-conn-offline", VIEW).await;
-    let started = Instant::now();
+async fn an_offline_connector_answers_unavailable_without_waiting_for_it() {
+    let l = live_waiting("slimm-conn-offline", VIEW, Some(Duration::from_secs(600))).await;
     let (status, ran) = l.run(json!({"input": ""})).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(ran, json!({"ok": false, "error": "Jellyfin is offline"}));
-    assert!(started.elapsed() < Duration::from_secs(2));
 }
 
 #[tokio::test]
-async fn a_silent_connector_times_out_and_a_member_cannot_stack_runs_on_it() {
-    let l = live("slimm-conn-slow", VIEW).await;
+async fn a_silent_connector_times_out() {
+    let l = live_waiting("slimm-conn-slow", VIEW, Some(Duration::from_millis(100))).await;
     let _ws = l.connect().await;
-    let started = Instant::now();
-    let held = async { tokio::join!(l.run(json!({"input": "a"})), l.run(json!({"input": "b"}))) };
-    let third = async {
-        tokio::time::sleep(Duration::from_millis(500)).await;
-        let quick = Instant::now();
-        let turned = l.run(json!({"input": "c"})).await;
-        (turned, quick.elapsed())
-    };
-    let ((first, second), ((_, turned), turned_after)) = tokio::join!(held, third);
-    assert_eq!(turned["error"], "Jellyfin is busy; try again in a moment");
-    assert!(turned_after < Duration::from_secs(1), "turned away at once");
-    for (_, ran) in [first, second] {
-        assert_eq!(
-            ran,
-            json!({"ok": false, "error": "Jellyfin did not answer in time"})
-        );
-    }
-    let waited = started.elapsed();
-    assert!(
-        waited >= Duration::from_secs(6) && waited < Duration::from_secs(9),
-        "{waited:?}"
+    let (_, ran) = l.run(json!({"input": "a"})).await;
+    assert_eq!(
+        ran,
+        json!({"ok": false, "error": "Jellyfin did not answer in time"})
     );
+}
+
+#[tokio::test]
+async fn a_member_cannot_stack_runs_on_a_connector_that_has_not_answered() {
+    let l = live("slimm-conn-stack", VIEW).await;
+    let mut ws = l.connect().await;
+    let held = async { tokio::join!(l.run(json!({"input": "a"})), l.run(json!({"input": "b"}))) };
+    let meanwhile = async {
+        let first = next_run(&mut ws).await.expect("the first run is sent");
+        let second = next_run(&mut ws).await.expect("the second run is sent");
+        let (_, turned) = l.run(json!({"input": "c"})).await;
+        for frame in [first, second] {
+            let run_id = frame["run_id"].as_str().unwrap();
+            let answer = json!({"ok": true, "output": "done"});
+            assert_eq!(
+                l.answer(&l.token, run_id, answer).await,
+                StatusCode::NO_CONTENT
+            );
+        }
+        turned
+    };
+    let ((first, second), turned) = tokio::join!(held, meanwhile);
+    assert_eq!(turned["error"], "Jellyfin is busy; try again in a moment");
+    for (_, ran) in [first, second] {
+        assert_eq!(ran, json!({"ok": true, "output": "done"}));
+    }
 }
 
 #[tokio::test]

@@ -12,7 +12,7 @@ import '../../../diagnostics/debug_log.dart';
 import '../../../diagnostics/debug_log_filter.dart';
 
 /// Search and level share a row from this width up.
-const double _sideBySideWidth = 560;
+const double _sideBySideWidth = 700;
 
 const _levels = <LogLevel?>[
   null,
@@ -55,7 +55,7 @@ class _DebugLogToolbarState extends ConsumerState<DebugLogToolbar> {
       controller: _search,
       placeholder: 'Search the log',
       semanticLabel: 'Search the log',
-      size: AppInputSize.sm,
+      size: AppInputSize.md,
       icon: const Icon(AppIcons.search, size: AppSizes.icon16),
       onChanged: (v) => _update(filter.withQuery(v)),
     );

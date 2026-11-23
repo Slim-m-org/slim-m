@@ -62,6 +62,7 @@ Future<void> clearSessionState(Ref ref) async {
   ref.invalidate(lastTextChannelProvider);
   ref.invalidate(previousTextChannelProvider);
   ref.invalidate(deletedChannelsProvider);
+  ref.invalidate(deletedGroupDmsProvider);
   ref.invalidate(lostChannelsProvider);
   ref.read(messageExtrasProvider.notifier).clear();
   ref.read(dmCallRingControllerProvider.notifier).clear();

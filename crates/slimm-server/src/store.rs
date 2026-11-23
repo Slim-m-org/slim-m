@@ -51,6 +51,7 @@ mod dms;
 mod dock_sources;
 mod emoji;
 mod forward_cascade;
+mod group_dm_delete;
 mod group_dms;
 mod interactions;
 mod invite_reuse;
@@ -252,7 +253,7 @@ pub use modules::{
     HostRun, HostRunSpec, InstallModuleRequest, InstalledConnector, InstalledModule,
     ModuleExtensionPoint, ModuleExtensionPointSpec, ModuleHook, ModulePermissionSpec,
     ModulePlatform, ModuleRuntimeLimits, ModuleSchedule, ModuleSettingDef, ModuleSlot,
-    SettingChoice, SettingKind, TimerSpec,
+    SettingChoice, SettingKind, TimerSpec, TurnedOff,
 };
 pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;

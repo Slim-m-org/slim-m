@@ -33,6 +33,8 @@ pub struct Supervisor {
     readiness: RwLock<Option<Readiness>>,
     verbs: Mutex<()>,
     volumes: RwLock<std::collections::HashMap<String, volumes::Usage>>,
+    /// Volume checks in a row that could not read the sizes; see `volumes::check_volumes`.
+    blind_checks: std::sync::atomic::AtomicU32,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -60,6 +62,7 @@ impl Supervisor {
             readiness: RwLock::new(None),
             verbs: Mutex::new(()),
             volumes: RwLock::new(Default::default()),
+            blind_checks: std::sync::atomic::AtomicU32::new(0),
         })
     }
 
@@ -187,7 +190,6 @@ impl Supervisor {
     }
 
     pub async fn start(&self, id: &str) -> Result<(), ApiError> {
-        let _guard = self.verbs.lock().await;
         self.require_ready().await?;
         let names = self.names(id);
         let Some(existing) = self
@@ -205,6 +207,7 @@ impl Supervisor {
                 usage.limit_mib
             )));
         }
+        let _guard = self.verbs.lock().await;
         self.recreate_gateway(&names).await?;
         self.start_container(&names.gateway).await?;
         self.start_container(&names.container).await

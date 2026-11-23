@@ -12,6 +12,9 @@ import '../providers/voice_flags.dart';
 /// Fixed height; the width is the menu's content width.
 const cameraMenuPreviewHeight = 96.0;
 
+/// The preview's box, for tests to measure.
+const cameraMenuPreviewKey = Key('camera-menu-preview');
+
 class CameraMenuPreview extends ConsumerWidget {
   const CameraMenuPreview({super.key, required this.controller});
 
@@ -25,17 +28,25 @@ class CameraMenuPreview extends ConsumerWidget {
         .where((p) => p.isLocal)
         .firstOrNull;
     return SizedBox(
+      key: cameraMenuPreviewKey,
       height: cameraMenuPreviewHeight,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadii.control),
         child: ColoredBox(
           color: tokens.surfaceSunken,
-          child: self == null
-              ? null
-              : controller.cameraViewFor(
-                  self.identity,
-                  declaresInterest: false,
+          child:
+              (self == null
+                  ? null
+                  : controller.cameraViewFor(
+                      self.identity,
+                      declaresInterest: false,
+                    )) ??
+              Center(
+                child: Text(
+                  'No preview',
+                  style: AppText.caption.copyWith(color: tokens.textSecondary),
                 ),
+              ),
         ),
       ),
     );

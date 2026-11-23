@@ -127,7 +127,7 @@ class VoiceConnecting extends ConsumerWidget {
             const SizedBox(height: AppSpacing.s16),
             AppButton(
               label: 'Cancel',
-              variant: AppButtonVariant.ghost,
+              variant: AppButtonVariant.secondary,
               onPressed: onCancel,
             ),
           ],

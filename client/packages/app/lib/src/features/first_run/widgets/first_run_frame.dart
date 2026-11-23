@@ -28,6 +28,7 @@ class FirstRunFrame extends StatelessWidget {
     this.secondaryLabel,
     this.onSecondary,
     this.cardWidth = kFirstRunCardWidth,
+    this.cardHeight,
   });
 
   final int step;
@@ -45,6 +46,9 @@ class FirstRunFrame extends StatelessWidget {
   /// Width of the card on a wide window; a step with wide sections asks for more.
   final double cardWidth;
 
+  /// Pins the card's height on a wide window so a wizard's footer stays put from step to step.
+  final double? cardHeight;
+
   /// Why the last save was refused, shown above the actions until the next try.
   final String? error;
 
@@ -61,13 +65,15 @@ class FirstRunFrame extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final page = FocusTraversalGroup(
       child: Column(
-        mainAxisSize: compact ? MainAxisSize.max : MainAxisSize.min,
+        mainAxisSize: compact || cardHeight != null
+            ? MainAxisSize.max
+            : MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _header(tokens, compact),
           // Tight on a phone so the actions sit on the bottom edge.
           Flexible(
-            fit: compact ? FlexFit.tight : FlexFit.loose,
+            fit: compact || cardHeight != null ? FlexFit.tight : FlexFit.loose,
             child: _scrollingBody(tokens, compact),
           ),
           _actions(tokens, compact),
@@ -84,7 +90,10 @@ class FirstRunFrame extends StatelessWidget {
       color: Colors.black54,
       child: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: cardWidth, maxHeight: 680),
+          constraints: BoxConstraints(
+            maxWidth: cardWidth,
+            maxHeight: cardHeight ?? 680,
+          ),
           child: Material(
             color: tokens.surfaceRaised,
             elevation: 0,
@@ -102,8 +111,15 @@ class FirstRunFrame extends StatelessWidget {
 
   Widget _header(AppTokens tokens, bool compact) {
     final gutter = compact ? AppSpacing.s16 : AppSpacing.s24;
+    // The ghost button's own padding and border sit between its label and its edge.
+    final skipBleed = (compact ? AppSpacing.s20 : AppSpacing.s16) + 1;
     return Padding(
-      padding: EdgeInsets.fromLTRB(gutter, AppSpacing.s16, gutter, 0),
+      padding: EdgeInsets.fromLTRB(
+        gutter,
+        AppSpacing.s16,
+        (gutter - skipBleed).clamp(0, gutter),
+        0,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -189,7 +205,10 @@ class FirstRunFrame extends StatelessWidget {
         border: Border(top: BorderSide(color: tokens.borderSubtle)),
       ),
       child: Padding(
-        padding: EdgeInsets.all(inset),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? AppSpacing.s16 : AppSpacing.s24,
+          vertical: inset,
+        ),
         child: Row(
           spacing: AppSpacing.s8,
           children: [

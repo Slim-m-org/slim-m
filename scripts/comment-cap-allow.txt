@@ -116,7 +116,7 @@ client/packages/design_system/lib/src/components/core/button.dart 2
 client/packages/design_system/lib/src/components/core/status_dot.dart 3
 client/packages/design_system/lib/src/components/forms/chip.dart 1
 client/packages/design_system/lib/src/components/forms/focusable_tap_target.dart 2
-client/packages/design_system/lib/src/components/forms/input.dart 3
+client/packages/design_system/lib/src/components/forms/input.dart 2
 client/packages/design_system/lib/src/components/forms/segmented_control.dart 1
 client/packages/design_system/lib/src/components/forms/slider.dart 3
 client/packages/design_system/lib/src/components/surfaces/callout.dart 2

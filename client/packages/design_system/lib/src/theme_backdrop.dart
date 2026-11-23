@@ -57,12 +57,15 @@ class HalloweenWebsPainter extends CustomPainter {
   static const _ink = Color(0xFFF4EADB);
   static const _threadAlpha = 0.09;
   static const _speckAlpha = 0.07;
+
+  /// Small enough to stay inside a corner, clear of the header actions and composer controls.
+  static const maxReach = 56.0;
   static const _threads = 7;
   static const _rings = 5;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final reach = math.min(240.0, size.shortestSide * 0.6);
+    final reach = math.min(maxReach, size.shortestSide * 0.6);
     if (reach <= 0) return;
     _web(canvas, Offset(size.width, 0), reach, math.pi / 2, math.pi);
     _web(canvas, Offset(0, size.height), reach * 0.8, -math.pi / 2, 0);

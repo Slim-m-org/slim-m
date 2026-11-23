@@ -98,7 +98,10 @@ class _ScreenShareCapSectionState extends ConsumerState<ScreenShareCapSection>
               onSelected: (i) => _setMaxHeight(options[i].$2),
             ),
             if (current != null)
-              SettingsSubRow(label: screenShareCapConsequence(current)),
+              SettingsSubRow(
+                label: screenShareCapConsequence(current),
+                indented: false,
+              ),
             if (ceiling.hasError && current == null)
               LoadErrorBlock(
                 message: 'Could not load the current ceiling.',

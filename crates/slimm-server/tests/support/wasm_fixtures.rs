@@ -38,10 +38,24 @@ pub fn canned_ok_wasm(output: &str) -> Vec<u8> {
 /// `"` and `\` in the request replaced by `'` so the response stays valid JSON.
 #[allow(dead_code)]
 pub fn echo_request_wasm() -> Vec<u8> {
-    let prefix = r#"{"ok":true,"output":""#;
+    echo_request_in_wasm(r#"{"ok":true,"output":""#, r#""}"#)
+}
+
+/// [`echo_request_wasm`] with its own `prefix` and `suffix` around the echoed request.
+#[allow(dead_code)]
+pub fn echo_request_in_wasm(prefix: &str, suffix: &str) -> Vec<u8> {
     let data = escape_wat_string(prefix.as_bytes());
     let plen = prefix.len();
-    let tail = plen + 2;
+    let tail = plen + suffix.len();
+    let closing: String = suffix
+        .bytes()
+        .enumerate()
+        .map(|(i, b)| {
+            format!(
+                "(i32.store8 (i32.add (local.get $out) (i32.add (local.get $in_len) (i32.const {i}))) (i32.const {b}))\n"
+            )
+        })
+        .collect();
     let text = format!(
         r#"(module
             (memory (export "memory") 1)
@@ -60,8 +74,7 @@ pub fn echo_request_wasm() -> Vec<u8> {
                         (i32.store8 (i32.add (local.get $out) (local.get $i)) (local.get $b))
                         (local.set $i (i32.add (local.get $i) (i32.const 1)))
                         (br $loop)))
-                (i32.store8 (i32.add (local.get $out) (local.get $in_len)) (i32.const 34))
-                (i32.store8 (i32.add (local.get $out) (i32.add (local.get $in_len) (i32.const 1))) (i32.const 125))
+                {closing}
                 (i64.or (i64.shl (i64.const 1024) (i64.const 32))
                     (i64.extend_i32_u (i32.add (local.get $in_len) (i32.const {tail}))))))"#
     );

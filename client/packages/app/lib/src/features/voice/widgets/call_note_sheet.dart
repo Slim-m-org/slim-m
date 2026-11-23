@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../ids.dart';
 import '../providers/call_mark_actions.dart';
 
 /// The longest note the server keeps.
@@ -31,6 +32,7 @@ class _CallNoteSheet extends ConsumerStatefulWidget {
 
 class _CallNoteSheetState extends ConsumerState<_CallNoteSheet> {
   final _text = TextEditingController();
+  final _markId = RetryId(newCallMarkId);
   bool _saving = false;
   String? _error;
 
@@ -52,7 +54,9 @@ class _CallNoteSheetState extends ConsumerState<_CallNoteSheet> {
       _saving = true;
       _error = null;
     });
-    final failed = await ref.read(callMarkActionsProvider).mark(note: _note);
+    final failed = await ref
+        .read(callMarkActionsProvider)
+        .mark(note: _note, id: _markId.forRequest(_note));
     if (!mounted) return;
     if (failed == null) {
       Navigator.of(context).pop();

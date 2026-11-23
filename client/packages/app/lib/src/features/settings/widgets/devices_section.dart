@@ -253,7 +253,7 @@ String? deviceDetailLine(api.Device device) {
     client,
     active,
     signedIn,
-  ].map((part) => part.replaceAll(' ', '\u00A0')).join(' · ');
+  ].map((part) => part.replaceAll(' ', '\u00A0')).join('\u00A0· ');
 }
 
 /// One signed-in device, with its own "sign out" failure: a revoke that

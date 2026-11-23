@@ -289,7 +289,7 @@ class FailedRow extends StatelessWidget {
                 AppButton(
                   label: 'Retry',
                   size: AppButtonSize.sm,
-                  variant: AppButtonVariant.ghost,
+                  variant: AppButtonVariant.soft,
                   onPressed: onRetry,
                 ),
                 if (onEdit != null)

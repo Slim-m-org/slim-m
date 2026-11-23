@@ -158,6 +158,7 @@ While the delay runs, sign-in for that account answers 401 like any wrong passwo
 A second count per account, across every address, allows 30 wrong passwords before the account itself is slowed, with the same doubling delay capped at 5 minutes.
 A correct password clears both counts, and so does 15 minutes without a wrong one.
 If `SLIMM_TRUST_PROXY_HOPS` looks wrong for the traffic, the server logs one warning the first time it sees it.
+The same goes for a request that carries `X-Forwarded-For` from a peer outside `SLIMM_TRUSTED_PROXIES`: the header is ignored, and the warning names the peer address to add.
 The delay is capped on purpose: somebody who knows a username can slow its owner down but cannot lock them out for good.
 
 ### When someone loses their authenticator

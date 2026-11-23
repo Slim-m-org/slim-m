@@ -161,7 +161,9 @@ class _Wordmark extends StatelessWidget {
           ? MainAxisAlignment.center
           : MainAxisAlignment.start,
       children: [
-        AppBrandMark(size: compact ? 24 : 30),
+        AppBrandMark(
+          size: MediaQuery.textScalerOf(context).scale(compact ? 24 : 30),
+        ),
         const SizedBox(width: AppSpacing.s12),
         // A large OS text size shrinks the name to the rail rather than overflowing it.
         Flexible(

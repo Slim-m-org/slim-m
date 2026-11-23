@@ -213,7 +213,12 @@ class CameraSwitching {
     }
     final track =
         await _createTrack(options ?? const lk.CameraCaptureOptions());
-    await local.publishVideoTrack(track, publishOptions: publishOptions);
+    try {
+      await local.publishVideoTrack(track, publishOptions: publishOptions);
+    } catch (_) {
+      await track.stop();
+      rethrow;
+    }
   }
 
   /// Reads how tall the camera's frames really are, for [localCameraReach].

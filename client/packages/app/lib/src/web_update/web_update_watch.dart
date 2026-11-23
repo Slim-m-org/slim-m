@@ -44,6 +44,9 @@ final liveWebBuildProvider = StateProvider<String?>((ref) => null);
 /// The live id the user dismissed the pill for; a newer deploy shows it again.
 final dismissedWebBuildProvider = StateProvider<String?>((ref) => null);
 
+/// True while the shell's banner stack carries the notice, so the overlay pill stands down.
+final webUpdateDockedProvider = StateProvider<bool>((ref) => false);
+
 final webUpdateAvailableProvider = Provider<bool>((ref) {
   if (!ref.watch(webUpdateSupportedProvider)) return false;
   final live = ref.watch(liveWebBuildProvider);

@@ -141,6 +141,59 @@ void main() {
     expect(_board(rig), 'x...o....');
   });
 
+  test('a read that a frame raced still brings the call scenes', () async {
+    final reply = Completer<void>();
+    final rig = await _rig((_) async {
+      await reply.future;
+      return _json({
+        'rooms': [_room(1, 'x........')],
+        'call_scenes': [
+          {'module_id': 'noughts', 'title': 'Noughts'},
+        ],
+      });
+    });
+    rig.events.add(_frame(2, 'x...o....'));
+    await Future<void>.delayed(Duration.zero);
+    reply.complete();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    expect(_board(rig), 'x...o....');
+    expect(rig.model.callScenes.map((s) => s.moduleId), ['noughts']);
+  });
+
+  test('a room that ended during a read stays gone', () async {
+    final reply = Completer<void>();
+    final rig = await _rig((_) async {
+      await reply.future;
+      return _json({
+        'rooms': [_room(1, 'x........')],
+      });
+    });
+    rig.events.add(_frame(2, null, ended: 'call_ended'));
+    await Future<void>.delayed(Duration.zero);
+    reply.complete();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    expect(rig.model.room('noughts'), isNull);
+  });
+
+  test('a failed read keeps the rooms and scenes already held', () async {
+    var fail = false;
+    final rig = await _rig((_) async {
+      if (fail) return _json({'error': 'down'}, 503);
+      return _json({
+        'rooms': [_room(2, 'x...o....')],
+        'call_scenes': [
+          {'module_id': 'noughts', 'title': 'Noughts'},
+        ],
+      });
+    });
+    fail = true;
+    await rig.controller.refresh();
+    expect(_board(rig), 'x...o....');
+    expect(rig.model.callScenes, hasLength(1));
+  });
+
   test('a server without room state reads as no rooms', () async {
     final rig = await _rig((_) async => _json({'error': 'not found'}, 404));
     expect(rig.model.rooms, isEmpty);

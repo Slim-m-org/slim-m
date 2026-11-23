@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:slimm_design_system/design_system.dart';
 
 class BannerHostLayout extends StatelessWidget {
   const BannerHostLayout({
@@ -22,9 +23,12 @@ class BannerHostLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      // Outside every Scaffold, so a Text here has no Material of its own to take a style from.
+      // Outside every Scaffold: opaque so a translucent fill never composites over the window, with its own Material for Text styles.
       if (banner != null)
-        Material(type: MaterialType.transparency, child: banner),
+        ColoredBox(
+          color: Theme.of(context).extension<AppTokens>()!.surfaceBase,
+          child: Material(type: MaterialType.transparency, child: banner),
+        ),
       Expanded(
         child: MediaQuery.removePadding(
           context: context,

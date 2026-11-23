@@ -105,7 +105,8 @@ class _ServerLoggingSectionState extends ConsumerState<ServerLoggingSection>
               disabled: saving || current == null,
               onSelected: (i) => _set(_modes[i].$2),
             ),
-            if (current != null) SettingsSubRow(label: _consequence(current)),
+            if (current != null)
+              SettingsSubRow(label: _consequence(current), indented: false),
             if (settings.hasError && current == null)
               LoadErrorBlock(
                 message: 'Could not load this setting.',

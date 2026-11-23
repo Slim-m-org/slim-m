@@ -166,5 +166,39 @@ void main() {
         ),
       );
     });
+
+    testWidgets('the delete confirm at $viewport fits its viewport', (
+      tester,
+    ) async {
+      await renderSurface(
+        tester,
+        '/channels/c-group',
+        viewport,
+        darkAndLight,
+        'group-dm-delete-$viewport-$darkAndLight',
+        overrides: _overrides(),
+        afterSettle: (tester) => _openSheet(
+          tester,
+          (context) => showGroupDmMembersSheet(
+            context,
+            'c-group',
+            intent: GroupDmSheetIntent.delete,
+          ),
+        ),
+      );
+    });
+
+    testWidgets('a DM whose person left at $viewport fits its viewport', (
+      tester,
+    ) async {
+      await renderSurface(
+        tester,
+        '/channels/c-dm-ada',
+        viewport,
+        darkAndLight,
+        'dm-left-space-$viewport-$darkAndLight',
+        overrides: _overrides(),
+      );
+    });
   }
 }

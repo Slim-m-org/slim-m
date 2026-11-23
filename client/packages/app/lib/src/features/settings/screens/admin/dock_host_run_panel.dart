@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../../providers/app_lifecycle.dart';
 import '../../providers/dock_host_run_providers.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_info_line.dart';
@@ -64,7 +65,7 @@ class _DockHostRunPanelState extends ConsumerState<DockHostRunPanel> {
   void initState() {
     super.initState();
     _refresh = Timer.periodic(_refreshEvery, (_) {
-      if (widget.installed == null) return;
+      if (widget.installed == null || !mounted || !isSeenNow(context)) return;
       ref.invalidate(connectorHostRunProvider(widget.moduleId));
       ref.invalidate(connectorHostRunLogsProvider(widget.moduleId));
     });

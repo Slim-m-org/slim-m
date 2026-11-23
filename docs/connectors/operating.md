@@ -35,6 +35,7 @@ The supervisor fixes every security setting itself; the server can choose only t
 - There are no bind mounts, devices or published ports; the only mount is the connector's own volume at `/data`.
 - The volume has a ceiling the manifest asks for (default 256 MiB, at most `SLIMM_SUPERVISOR_MAX_VOLUME_MIB`, default 1024).
   A named volume has no size limit of its own, so the supervisor measures every connector volume every 30 seconds and stops a connector past its ceiling, and the server turns it off with an admin alert and an audit row.
+  The runtime reports every volume on the host, not only the connectors', so the cost follows the host's total volume size; if the report keeps failing, the supervisor logs why and, after three failed checks, stops connectors that have a volume.
   Between two measurements a connector can write past the ceiling for up to 30 seconds; if that matters on your host, keep Docker's data on its own filesystem.
 - Each connector gets an internal network in gateway mode `isolated`, so it has no route out and the host has no address on it, and a gateway next to it that forwards only to your server's API and the `host:port` pairs the admin approved.
   The gateway refuses loopback, link-local and metadata addresses, every runtime network, your deny list, and LAN addresses unless the admin granted the Private network.
@@ -71,6 +72,8 @@ Run one supervisor per deployment: a supervisor binds to the first server that n
 
 - If the supervisor or the runtime is down, running connectors keep running; the Dock says the runtime is unavailable and refuses install and start until it is back.
 - The server reconciles every 5 seconds: it creates what is missing with a new token, starts what should run, stops what is disabled, and removes labelled containers it has no record of, keeping their volumes.
+- Uninstalling with "delete data" waits for the supervisor: if it cannot remove the container and its volume, the server answers 503, leaves the connector installed and turned off, and the admin tries again once the supervisor is back.
+  Uninstalling and keeping the data never waits; a container the supervisor could not remove then is removed by the next pass, with its volume kept.
 - A crashing connector is started again after 1 second, doubling to 5 minutes, and turned off after 5 crashes within 10 minutes with an admin alert and an audit row.
 
 ## Logs

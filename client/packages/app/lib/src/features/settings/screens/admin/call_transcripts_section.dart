@@ -102,9 +102,10 @@ class _ModeCardState extends ConsumerState<_ModeCard>
                 label:
                     'Needs the call listener, which this server is not '
                     'running.',
+                indented: false,
               )
             else if (current != null)
-              SettingsSubRow(label: _modeConsequence(current)),
+              SettingsSubRow(label: _modeConsequence(current), indented: false),
             if (settings.hasError && current == null)
               LoadErrorBlock(
                 message: 'Could not load this setting.',

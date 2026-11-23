@@ -4,6 +4,7 @@
 /// once with a way to make a new one.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -70,15 +71,23 @@ http.Response _json(Object body) => http.Response(
 
 class _Server {
   bool installed = false;
+  Completer<void>? installGate;
+  late final GoRouter router;
   final installs = <Map<String, dynamic>>[];
   int reissues = 0;
 }
 
-Future<_Server> _pump(WidgetTester tester, {bool installed = false}) async {
+Future<_Server> _pump(
+  WidgetTester tester, {
+  bool installed = false,
+  Completer<void>? installGate,
+}) async {
   tester.view.physicalSize = const Size(900, 1400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final server = _Server()..installed = installed;
+  final server = _Server()
+    ..installed = installed
+    ..installGate = installGate;
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -91,6 +100,7 @@ Future<_Server> _pump(WidgetTester tester, {bool installed = false}) async {
         }
         if (path == '/space/dock/modules/jellyfin') return _json(_manifest());
         if (path == '/space/dock/modules/jellyfin/install') {
+          await server.installGate?.future;
           server.installs.add(jsonDecode(request.body) as Map<String, dynamic>);
           server.installed = true;
           return _json(_installed(token: 'slimbot_first'));
@@ -115,9 +125,10 @@ Future<_Server> _pump(WidgetTester tester, {bool installed = false}) async {
       container: container,
       child: MaterialApp.router(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
-        routerConfig: GoRouter(
+        routerConfig: server.router = GoRouter(
           initialLocation: '${Routes.adminDock}/jellyfin',
           routes: [
+            GoRoute(path: '/away', builder: (_, _) => const SizedBox()),
             GoRoute(
               path: '${Routes.adminDock}/:moduleId',
               builder: (context, state) =>
@@ -170,6 +181,26 @@ void main() {
     expect(find.text('Can'), findsOneWidget);
     expect(toastMessages(tester), ['Jellyfin installed']);
     await expireToasts(tester);
+  });
+
+  testWidgets('a token minted after the admin left is still there on return', (
+    tester,
+  ) async {
+    final gate = Completer<void>();
+    final server = await _pump(tester, installGate: gate);
+    await tester.tap(find.text('Install v0.1.0'));
+    await _settle(tester);
+    await tester.tap(find.widgetWithText(AppButton, 'Install'));
+    await tester.pump();
+
+    server.router.go('/away');
+    await _settle(tester);
+    gate.complete();
+    await _settle(tester);
+    server.router.go('${Routes.adminDock}/jellyfin');
+    await _settle(tester);
+
+    expect(find.text('slimbot_first'), findsOneWidget);
   });
 
   testWidgets('declining the consent installs nothing', (tester) async {

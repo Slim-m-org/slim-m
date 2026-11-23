@@ -279,4 +279,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(fill(), target);
   });
+
+  testWidgets('labelled actions on a phone sit under the text, not beside it', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _harness(
+        SettingsEntityRow(
+          key: _row,
+          headline: 'Grace Hopper',
+          details: const [SettingsEntityDetail('Posted an invite link')],
+          actions: [
+            AppButton(label: 'Let back in', onPressed: () {}),
+            AppButton(label: 'Delete', onPressed: () {}),
+          ],
+        ),
+      ),
+    );
+    final text = tester.getRect(find.text('Posted an invite link'));
+    final button = tester.getRect(
+      find.ancestor(
+        of: find.text('Let back in'),
+        matching: find.byWidgetPredicate((w) => w is AppButton),
+      ),
+    );
+    expect(button.top - text.bottom, greaterThanOrEqualTo(AppSpacing.s8));
+    final delete = tester.getRect(find.text('Delete'));
+    expect(delete.left - button.right, greaterThanOrEqualTo(AppSpacing.s8));
+  });
 }

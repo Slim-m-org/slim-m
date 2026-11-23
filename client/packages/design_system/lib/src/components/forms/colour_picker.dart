@@ -172,11 +172,7 @@ class _AppColourPickerState extends State<AppColourPicker> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(top: _inputRing),
-              child:
-                  _PreviewChip(colour: colour, surface: tokens.surfaceRaised),
-            ),
+            _PreviewChip(colour: colour, surface: tokens.surfaceRaised),
             const SizedBox(width: AppSpacing.s12),
             Expanded(
               child: AppInput(
@@ -256,9 +252,6 @@ class _AppColourPickerState extends State<AppColourPicker> {
 
 /// Matches the hex field beside it.
 const double _inputHeight = 38;
-
-/// The focus ring `AppInput` reserves outside the border the chip lines up with.
-const double _inputRing = 4;
 
 class _PreviewChip extends StatelessWidget {
   const _PreviewChip({required this.colour, required this.surface});

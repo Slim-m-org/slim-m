@@ -67,30 +67,49 @@ class AppSegmentedControl extends StatelessWidget {
   /// The trough's padding and border on both sides, so a filled control on touch totals a full touch row.
   static const double _troughInset = 8;
 
+  /// What each segment's focus ring reserves around its box.
+  static const double _ringExtent = 2 * (focusRingGap + focusRingWidth);
+
   /// The width an [AppSegmentedControl.inline] takes when nothing wraps it, for a row deciding whether the control fits beside its label.
   static double inlineWidth(
+    BuildContext context,
+    List<AppSegmentedOption> options,
+  ) =>
+      _naturalWidth(context, options, AppSpacing.s12);
+
+  static double _naturalWidth(
+    BuildContext context,
+    List<AppSegmentedOption> options,
+    double padding,
+  ) {
+    var width = 2 * (3 + 1) + AppSpacing.s4 * (options.length - 1);
+    for (final label in _labelWidths(context, options)) {
+      width += label + 2 * padding + 2 + _ringExtent;
+    }
+    return width;
+  }
+
+  static List<double> _labelWidths(
     BuildContext context,
     List<AppSegmentedOption> options,
   ) {
     final scaler = MediaQuery.textScalerOf(context);
     final direction = Directionality.of(context);
-    var width = 2 * (3 + 1) + AppSpacing.s4 * (options.length - 1);
-    for (final option in options) {
-      final painter = TextPainter(
-        text: TextSpan(
-          text: option.label,
-          style: AppText.caption.copyWith(
-            fontFamily: AppFonts.sans,
-            fontWeight: AppWeights.medium,
+    return [
+      for (final option in options)
+        (TextPainter(
+          text: TextSpan(
+            text: option.label,
+            style: AppText.caption.copyWith(
+              fontFamily: AppFonts.sans,
+              fontWeight: AppWeights.medium,
+            ),
           ),
-        ),
-        textDirection: direction,
-        textScaler: scaler,
-      )..layout();
-      width += painter.width + 2 * AppSpacing.s12 + 2;
-      painter.dispose();
-    }
-    return width;
+          textDirection: direction,
+          textScaler: scaler,
+        )..layout())
+            .width,
+    ];
   }
 
   final List<AppSegmentedOption> options;
@@ -114,33 +133,76 @@ class AppSegmentedControl extends StatelessWidget {
           border: Border.all(color: tokens.borderSubtle),
           borderRadius: BorderRadius.circular(AppRadii.control),
         ),
-        child: fill ? _filled(context, tokens) : _wrapped(context, tokens),
+        child: fill
+            ? _filled(context, tokens, AppSpacing.s4, measured: false)
+            : LayoutBuilder(
+                builder: (context, box) => _inline(context, tokens, box),
+              ),
       ),
     );
   }
 
-  Widget _filled(BuildContext context, AppTokens tokens) => Row(
+  /// The narrowest a segment may get before the row scrolls instead of ellipsizing every label.
+  static const double _segmentFloor = 72;
+
+  /// One row, never wrapped: natural widths when they fit, equal shares when the parent fixes the width or the labels only fit tighter, a scroll past that.
+  Widget _inline(BuildContext context, AppTokens tokens, BoxConstraints box) {
+    final room = box.maxWidth;
+    if (!room.isFinite) return _natural(context, tokens);
+    final natural = _naturalWidth(context, options, AppSpacing.s12);
+    if (natural <= room) {
+      return box.hasTightWidth
+          ? _filled(context, tokens, AppSpacing.s12)
+          : _natural(context, tokens);
+    }
+    final compact = _naturalWidth(context, options, AppSpacing.s4);
+    if (compact <= room || room / options.length >= _segmentFloor) {
+      return _filled(context, tokens, AppSpacing.s4);
+    }
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: _natural(context, tokens),
+    );
+  }
+
+  Widget _natural(BuildContext context, AppTokens tokens) => Row(
+        mainAxisSize: MainAxisSize.min,
         spacing: AppSpacing.s4,
         children: [
           for (var i = 0; i < options.length; i++)
-            Expanded(
-              flex: options[i].label.length + 4,
-              child: _inlineSegment(context, tokens, i),
-            ),
+            _inlineSegment(context, tokens, i, AppSpacing.s12, ellipsis: false),
         ],
       );
 
-  /// Wrap, not Row: a segment keeps its natural width and the whole segment drops to the next line when short of room, so no label breaks mid-word.
-  Widget _wrapped(BuildContext context, AppTokens tokens) => Wrap(
-        spacing: AppSpacing.s4,
-        runSpacing: AppSpacing.s4,
-        children: [
-          for (var i = 0; i < options.length; i++)
-            IntrinsicWidth(child: _inlineSegment(context, tokens, i)),
-        ],
-      );
+  Widget _filled(
+    BuildContext context,
+    AppTokens tokens,
+    double padding, {
+    bool measured = true,
+  }) {
+    // Shares follow the measured labels, so a short word is never ellipsized beside a long one.
+    final widths = _labelWidths(context, options);
+    return Row(
+      spacing: AppSpacing.s4,
+      children: [
+        for (var i = 0; i < options.length; i++)
+          Expanded(
+            flex: measured
+                ? ((widths[i] + 2 * padding + _ringExtent) * 10).round()
+                : options[i].label.length + 4,
+            child: _inlineSegment(context, tokens, i, padding, ellipsis: true),
+          ),
+      ],
+    );
+  }
 
-  Widget _inlineSegment(BuildContext context, AppTokens tokens, int index) {
+  Widget _inlineSegment(
+    BuildContext context,
+    AppTokens tokens,
+    int index,
+    double padding, {
+    required bool ellipsis,
+  }) {
     final option = options[index];
     final selected = index == selectedIndex;
 
@@ -163,7 +225,7 @@ class AppSegmentedControl extends StatelessWidget {
           ),
           alignment: Alignment.center,
           padding: EdgeInsets.symmetric(
-            horizontal: fill ? AppSpacing.s4 : AppSpacing.s12,
+            horizontal: padding,
           ),
           decoration: BoxDecoration(
             color: selected ? tokens.surfaceRaised : Colors.transparent,
@@ -178,8 +240,8 @@ class AppSegmentedControl extends StatelessWidget {
             child: Text(
               option.label,
               textAlign: TextAlign.center,
-              maxLines: fill ? 1 : null,
-              overflow: fill ? TextOverflow.ellipsis : null,
+              maxLines: ellipsis ? 1 : null,
+              overflow: ellipsis ? TextOverflow.ellipsis : null,
               style: AppText.caption.copyWith(
                 color: switch ((option.disabled, selected)) {
                   (true, _) => tokens.textDisabled,

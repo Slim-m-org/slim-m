@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_call_dock.dart';
+import 'package:slimm_app/src/features/voice/widgets/camera_menu_preview.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -86,6 +87,9 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
       }
       await checkDarkThenLight(tester, build, (theme) async {
+        final slot = tester.getRect(find.byKey(cameraMenuPreviewKey));
+        final label = tester.getCenter(find.text('No preview'));
+        expect((label - slot.center).distance, lessThan(1));
         await writeSnapshot(tester, 'camera-menu-${entry.key}-$theme');
         expect(tester.takeException(), isNull);
       });

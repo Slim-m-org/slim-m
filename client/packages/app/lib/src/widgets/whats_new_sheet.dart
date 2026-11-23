@@ -178,6 +178,24 @@ class _ScrollWithEdgeState extends State<_ScrollWithEdge> {
     return false;
   }
 
+  /// Fades the last line out while more waits below, so a cut bullet reads as scrolling.
+  Widget _fadeBelow(Widget scroll) => ShaderMask(
+    blendMode: BlendMode.dstIn,
+    shaderCallback: (rect) => LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        Colors.white,
+        Colors.white,
+        _moreBelow ? Colors.transparent : Colors.white,
+      ],
+      stops: [0, 1 - _fadeHeight / rect.height, 1],
+    ).createShader(rect),
+    child: scroll,
+  );
+
+  static const double _fadeHeight = AppSpacing.s24;
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -191,9 +209,13 @@ class _ScrollWithEdgeState extends State<_ScrollWithEdge> {
               child: Scrollbar(
                 controller: _controller,
                 thumbVisibility: _moreBelow,
-                child: SingleChildScrollView(
-                  controller: _controller,
-                  child: widget.child,
+                child: _fadeBelow(
+                  SingleChildScrollView(
+                    controller: _controller,
+                    // A gutter, so the scrollbar thumb never sits on a trailing chevron.
+                    padding: const EdgeInsets.only(right: AppSpacing.s12),
+                    child: widget.child,
+                  ),
                 ),
               ),
             ),

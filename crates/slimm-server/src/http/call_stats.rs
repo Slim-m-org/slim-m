@@ -23,6 +23,32 @@ use crate::store::TranscriptionMode;
 const MAX_DAYS: i64 = 3650;
 const DAY_MS: i64 = 86_400_000;
 
+/// Members whose stats are being worked out; a second request from one waits its turn as a 429.
+static READING: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashSet<crate::ids::UserId>>,
+> = std::sync::LazyLock::new(Default::default);
+
+/// Holds one member's place in [`READING`] until dropped, so one member never holds two scans of their history.
+struct Reading(crate::ids::UserId);
+
+impl Reading {
+    fn start(user: crate::ids::UserId) -> Option<Self> {
+        let mut busy = READING
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        busy.insert(user).then(|| Self(user))
+    }
+}
+
+impl Drop for Reading {
+    fn drop(&mut self) {
+        READING
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&self.0);
+    }
+}
+
 /// The call-stats route, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new().route("/me/call-stats", get(read))
@@ -157,6 +183,7 @@ async fn read(
             Some(CallTranscriptId(parse_uuid(raw)?))
         }
     };
+    let _reading = Reading::start(ctx.user_id).ok_or(ApiError::TooManyRequests)?;
     let retention = state.store.call_transcript_retention_days().await?;
     let now = crate::store::now_ms();
     let mut tally = Tally::new(zone);
@@ -178,4 +205,19 @@ fn spans_weeks(tally: &Tally, now: i64) -> bool {
     tally
         .first_line_at()
         .is_some_and(|at| (now - at) / DAY_MS > DAY_BUCKET_LIMIT_DAYS)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_member_holds_one_scan_of_their_history_at_a_time() {
+        let user = crate::ids::UserId::generate();
+        let first = Reading::start(user).expect("the first scan starts");
+        assert!(Reading::start(user).is_none());
+        assert!(Reading::start(crate::ids::UserId::generate()).is_some());
+        drop(first);
+        assert!(Reading::start(user).is_some());
+    }
 }

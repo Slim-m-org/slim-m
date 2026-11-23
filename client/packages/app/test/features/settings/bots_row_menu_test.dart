@@ -98,6 +98,18 @@ Future<List<String>> _pump(WidgetTester tester, {required double width}) async {
 }
 
 void main() {
+  testWidgets('a phone row puts the handle and note on a second line', (
+    tester,
+  ) async {
+    await _pump(tester, width: 390);
+    final line = find.textContaining('@warns');
+    expect(line, findsOneWidget);
+    expect(
+      tester.getRect(line).top,
+      greaterThan(tester.getRect(find.text('warns')).bottom - 1),
+    );
+  });
+
   for (final width in [390.0, 1280.0]) {
     testWidgets('at $width wide each bot is one row of the card row height', (
       tester,

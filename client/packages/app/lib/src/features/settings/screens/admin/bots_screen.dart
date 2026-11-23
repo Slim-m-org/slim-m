@@ -217,16 +217,21 @@ class _BotsPaneState extends ConsumerState<BotsPane>
                     onSubmitted: (_) => _busy ? null : _create(),
                   ),
                 ),
-                SettingsDisclosure(
-                  title: 'Permissions',
-                  summary: _permissionsSummary(),
-                  children: [
-                    BotPermissionToggles(
-                      value: _permissions,
-                      onChanged: (v) => setState(() => _permissions = v),
-                    ),
-                  ],
+              ],
+            ),
+            SettingsDisclosure(
+              title: 'Permissions',
+              summary: _permissionsSummary(),
+              children: [
+                BotPermissionToggles(
+                  value: _permissions,
+                  onChanged: (v) => setState(() => _permissions = v),
                 ),
+              ],
+            ),
+            SettingsCardBlock(
+              gap: AppSpacing.s12,
+              children: [
                 Align(
                   alignment: Alignment.centerLeft,
                   child: AppButton(

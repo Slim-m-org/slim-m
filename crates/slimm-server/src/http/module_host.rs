@@ -366,7 +366,8 @@ impl ChannelPoster {
         }
         let expanded =
             super::module_mentions::expand(state, &self.module_id, channel_id, content).await;
-        let content = &*validate_content(&expanded, false)
+        let tokened = expanded.named;
+        let content = &*validate_content(&expanded.text, false)
             .map_err(|_| PostRefused("content is empty or too long"))?;
         let slow_mode_window_ms = enforce_slow_mode(state, channel_id, self.user_id)
             .await
@@ -403,12 +404,12 @@ impl ChannelPoster {
 
         intercepted.save_annotations(state, id).await;
         // Committed with its attribution; nothing below may fail the call, or a retry duplicates it.
-        self.fan_out(&sent.message).await;
+        self.fan_out(&sent.message, &tokened).await;
         Ok(id)
     }
 
     /// Best-effort delivery of a message that is already stored and attributed.
-    async fn fan_out(&self, message: &crate::store::Message) {
+    async fn fan_out(&self, message: &crate::store::Message, tokened: &[UserId]) {
         let state = &self.state;
         let id = message.id;
         let embeds = match state.store.embeds_for_messages(&[id]).await {
@@ -424,7 +425,7 @@ impl ChannelPoster {
             (self.user_id, self.mass_authority),
             id,
             &message.content,
-            None,
+            (None, tokened),
         )
         .await
         {

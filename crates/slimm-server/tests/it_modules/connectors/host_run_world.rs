@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! A deployment whose Dock offers one host-run connector and talks to a fake supervisor.
 
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use axum::Router;
@@ -39,6 +40,9 @@ pub struct HostWorld {
     pub router: Router,
     pub owner: Account,
     pub fake: Fake,
+    pub served: Arc<Mutex<Value>>,
+    /// The monitor's clock, which only [`HostWorld::advance`] moves.
+    clock: Arc<AtomicI64>,
     pub socket: std::path::PathBuf,
     _socket: SocketGuard,
     _guard: support::TestDbGuard,
@@ -58,7 +62,13 @@ pub async fn host_world(name: &str, supervisor: bool, serving: bool) -> HostWorl
     }
     let client = SupervisorClient::new(&socket, SECRET.to_owned());
     client.set_deployment(store.connector_deployment_id().await.unwrap());
-    let runner = supervisor.then(|| HostRunner::new(client, "http://server:8080".into()));
+    let clock = Arc::new(AtomicI64::new(real_now_ms()));
+    let runner = supervisor.then(|| {
+        let clock = clock.clone();
+        HostRunner::with_clock(client, "http://server:8080".into(), move || {
+            clock.load(Ordering::SeqCst)
+        })
+    });
     let state = support::app::builder(store.clone())
         .dock(Dock::for_test(&base).with_connector_runtime(runner))
         .build();
@@ -70,6 +80,8 @@ pub async fn host_world(name: &str, supervisor: bool, serving: bool) -> HostWorl
         state,
         owner,
         fake,
+        served,
+        clock,
         socket: socket.clone(),
         _socket: SocketGuard(socket),
         _guard: guard,
@@ -137,6 +149,11 @@ impl HostWorld {
         body
     }
 
+    /// Lets `ms` pass for the monitor's backoffs and crash windows.
+    pub fn advance(&self, ms: i64) {
+        self.clock.fetch_add(ms, Ordering::SeqCst);
+    }
+
     pub async fn tick(&self) {
         slimm_server::http::connector_host::tick(&self.state).await;
     }
@@ -147,4 +164,11 @@ impl HostWorld {
         let (_, body) = creates.last().expect("a create");
         body["env"]["SLIMM_TOKEN"].as_str().unwrap().to_owned()
     }
+}
+
+fn real_now_ms() -> i64 {
+    let since = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap();
+    i64::try_from(since.as_millis()).unwrap()
 }

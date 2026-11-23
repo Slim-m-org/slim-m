@@ -30,6 +30,13 @@ extension AttachmentPreviewQualityX on AttachmentPreviewQuality {
     AttachmentPreviewQuality.sharp => 1.0,
   };
 
+  /// How many times the painted pixels a preview decodes to before the GPU shrinks it.
+  /// The engine's decode-time downscale aliases, so Sharp decodes past the tile and lets the draw minify.
+  double get decodeOversample => switch (this) {
+    AttachmentPreviewQuality.sharp => 2.0,
+    _ => 1.0,
+  };
+
   /// The picker label, with the default marked the way the image-cache row is.
   String get label => switch (this) {
     AttachmentPreviewQuality.dataSaver => 'Data saver',
@@ -40,8 +47,8 @@ extension AttachmentPreviewQualityX on AttachmentPreviewQuality {
 
 const attachmentPreviewQualityKey = 'slimm.performance.preview_quality';
 
-/// Sharp: the full-resolution decode this app has always done, so leaving the
-/// setting alone changes nothing.
+/// Sharp: decodes past the painted size so the draw minifies; leaving the
+/// setting alone is the crispest.
 const defaultAttachmentPreviewQuality = AttachmentPreviewQuality.sharp;
 
 class AttachmentPreviewQualityController

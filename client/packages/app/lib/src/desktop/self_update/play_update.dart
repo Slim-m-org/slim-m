@@ -89,7 +89,9 @@ class PlayUpdateController extends Notifier<PlayUpdateStage> {
     if (_starting) return;
     try {
       final stage = playStageFor(await _port.checkForUpdate());
-      if (!_starting) state = stage;
+      if (_starting) return;
+      state = stage;
+      if (stage == PlayUpdateStage.downloading) _followStatuses();
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
@@ -100,12 +102,7 @@ class PlayUpdateController extends Notifier<PlayUpdateStage> {
     }
   }
 
-  /// Starts Play's background download of an [PlayUpdateStage.available]
-  /// update; a decline or a failure offers it again.
-  Future<void> start() async {
-    if (state != PlayUpdateStage.available || _starting) return;
-    _starting = true;
-    state = PlayUpdateStage.downloading;
+  void _followStatuses() {
     _statuses ??= _port.installStatus.listen(
       (status) => state = playStageAfter(status, state),
       onError: (Object error, StackTrace stack) => AppLog.swallowed(
@@ -115,6 +112,15 @@ class PlayUpdateController extends Notifier<PlayUpdateStage> {
         stack,
       ),
     );
+  }
+
+  /// Starts Play's background download of an [PlayUpdateStage.available]
+  /// update; a decline or a failure offers it again.
+  Future<void> start() async {
+    if (state != PlayUpdateStage.available || _starting) return;
+    _starting = true;
+    state = PlayUpdateStage.downloading;
+    _followStatuses();
     try {
       final result = await _port.startFlexibleUpdate();
       state = result == AppUpdateResult.success

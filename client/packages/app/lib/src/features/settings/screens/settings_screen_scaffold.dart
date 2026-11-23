@@ -64,6 +64,7 @@ class SettingsScreenScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
+      titleSpacing: 0,
       title: Text(title),
       leading: BackToButton(
         tooltip: backTooltip,

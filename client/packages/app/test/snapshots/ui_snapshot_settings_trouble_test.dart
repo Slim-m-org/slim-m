@@ -49,6 +49,11 @@ Future<void> _openDebugLogAndExpand(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 350));
 }
 
+Future<void> _expandFirstEntry(WidgetTester tester) async {
+  await tester.tap(find.byWidgetPredicate((w) => w is DebugLogEntry).first);
+  await tester.pump(const Duration(milliseconds: 350));
+}
+
 void main() {
   setUpAll(loadRealFonts);
 
@@ -85,21 +90,26 @@ void main() {
     for (final c in cases.entries) {
       for (final viewport in const ['desktop', 'phone-portrait']) {
         testWidgets('settings ${c.key} at $viewport ($theme)', (tester) async {
+          final phoneLog =
+              viewport != 'desktop' && c.key.startsWith('debuglog');
           await renderSurface(
             tester,
-            Routes.personalSettingsPane(c.value.pane),
+            phoneLog
+                ? Routes.debugLog
+                : Routes.personalSettingsPane(c.value.pane),
             viewport,
             theme,
             'settings-${c.key}-$viewport-$theme',
             overrides: c.value.overrides(),
-            afterSettle: viewport == 'desktop'
-                ? c.value.after
-                : (t) => _openPane(
-                    t,
-                    c.value.pane == 'about'
-                        ? 'About slim-m'
-                        : 'Troubleshooting',
-                  ),
+            afterSettle: switch ((viewport, phoneLog, c.key)) {
+              ('desktop', _, _) => c.value.after,
+              (_, true, 'debuglog-entries') => _expandFirstEntry,
+              (_, true, _) => null,
+              _ => (t) => _openPane(
+                t,
+                c.value.pane == 'about' ? 'About slim-m' : 'Troubleshooting',
+              ),
+            },
           );
         });
       }

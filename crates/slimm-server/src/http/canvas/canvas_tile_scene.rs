@@ -249,6 +249,10 @@ async fn redraw(state: &AppState, channel_id: ChannelId, object_id: CanvasObject
         .await
         .ok()??
         .ran_by?;
+    canvas_read_access(state, person, channel_id).await.ok()?;
+    if state.store.timed_out_until(person).await.ok()?.is_some() {
+        return None;
+    }
     let (ok, payload) = run_once(
         state,
         (channel_id, object_id),

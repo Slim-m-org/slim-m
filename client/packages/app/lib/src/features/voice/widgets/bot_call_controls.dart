@@ -2,9 +2,9 @@
 /// Controls a bot puts in a call, shown in the call's dock only while that bot
 /// is on the call. See docs/decisions/0045-bot-contributed-ui.md.
 ///
-/// Every width gets the same shape (docs/design/desktop-vs-mobile.md, law 2:
-/// tokens and type never scale with width): a bot is one row, its name as a
-/// small label, then an icon chip per control, the same chip the call's own
+/// A bot is its name as a small label, beside its icon chips on a wide window
+/// and above them below the compact width (docs/design/desktop-vs-mobile.md,
+/// law 1), then an icon chip per control, the same chip the call's own
 /// controls use, labelled by tooltip and semantics. The chips grow to the
 /// touch floor by themselves and wrap rather than scroll. A control that
 /// offers options opens them as a menu, a sheet on a compact window, the same
@@ -208,30 +208,42 @@ class _CompactRow extends StatelessWidget {
   final _OnUse onUse;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: _compactNameMaxWidth),
-        child: name,
-      ),
-      const SizedBox(width: AppSpacing.s8),
-      Expanded(
-        child: Wrap(
-          alignment: WrapAlignment.end,
-          runAlignment: WrapAlignment.end,
-          children: [
-            for (final control in controls)
-              _ControlChip(
-                control: control,
-                pending: uses[control.id]?.pending ?? false,
-                offline: offline,
-                onUse: onUse,
-              ),
-          ],
+  Widget build(BuildContext context) {
+    final stacked = MediaQuery.sizeOf(context).width < kCompactWidth;
+    final chips = Wrap(
+      alignment: stacked ? WrapAlignment.start : WrapAlignment.end,
+      runAlignment: WrapAlignment.end,
+      children: [
+        for (final control in controls)
+          _ControlChip(
+            control: control,
+            pending: uses[control.id]?.pending ?? false,
+            offline: offline,
+            onUse: onUse,
+          ),
+      ],
+    );
+    if (stacked) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          name,
+          const SizedBox(height: AppSpacing.s4),
+          chips,
+        ],
+      );
+    }
+    return Row(
+      children: [
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _compactNameMaxWidth),
+          child: name,
         ),
-      ),
-    ],
-  );
+        const SizedBox(width: AppSpacing.s8),
+        Expanded(child: chips),
+      ],
+    );
+  }
 }
 
 /// One control's chip. A plain control is used on press; one that offers

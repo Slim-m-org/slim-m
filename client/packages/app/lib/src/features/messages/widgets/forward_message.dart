@@ -154,10 +154,7 @@ class _ForwardSheetState extends ConsumerState<_ForwardSheet>
                     ),
             ),
             Padding(
-              // Inset by AppInput's focus-ring gap so its edges line up with the fields.
-              padding: _sidePadding.add(
-                const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
-              ),
+              padding: _sidePadding,
               child: _ForwardPreview(message: widget.message),
             ),
             const SizedBox(height: AppSpacing.s8),

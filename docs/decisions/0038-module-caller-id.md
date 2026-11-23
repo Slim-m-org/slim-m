@@ -90,3 +90,5 @@ It is a snapshot, not an identity: it is not stable, it is not unique, and a mod
   The username is sent only as the fallback when there is no display name.
 - A module that uses it must keep working without it: a host below add-on level 7 never sends it, and the host leaves it out when the account cannot be read.
 - Mentioning a caller back goes through the same opacity rule: a module writes `{{mention:<caller id>}}` in a `message.post`, and the host expands only ids it computed for this module (see docs/modules/building-modules.md), so the id still never reveals a user id or an `@username`.
+
+A run in a shared module room (decision 0131) never carries `name`: the room's state is shown to everyone in it, so seating players by name would be a way to learn who they are.

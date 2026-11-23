@@ -260,15 +260,11 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
                 ),
               ),
             if (_notFound case final notFound?)
-              // Inset like AppInput's own error line, so it starts under the border and not the focus ring.
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
-                child: Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    notFound,
-                    style: AppText.caption.copyWith(color: tokens.dangerText),
-                  ),
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  notFound,
+                  style: AppText.caption.copyWith(color: tokens.dangerText),
                 ),
               ),
             if (_error case final error?)

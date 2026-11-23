@@ -79,7 +79,12 @@ Map<ShortcutActivator, VoidCallback> shellShortcutBindings(
     if (shareCall != null) shareCall: () => call()?.toggleShare(),
     if (leaveCall != null) leaveCall: () => call()?.leave(),
     if (markCall != null)
-      markCall: () => unawaited(ref.read(callMarkActionsProvider).mark()),
+      markCall: () => ref
+          .read(pushToTalkGateProvider)
+          .markCall(
+            HoldSource.inWindow,
+            () => unawaited(ref.read(callMarkActionsProvider).mark()),
+          ),
     ...serverSwitchBindings(ref),
     ...callOverlayShortcutBindings(ref),
   };

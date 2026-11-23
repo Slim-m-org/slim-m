@@ -24,6 +24,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/reports_screen.dar
 import 'package:slimm_app/src/features/settings/screens/admin/roles_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/space_settings_screen.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_notice.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_panes_chrome.dart';
 import 'package:slimm_app/src/features/settings/screens/space_settings_section.dart'
     show spaceSettingsReachable;
 import 'package:slimm_design_system/design_system.dart';
@@ -264,6 +265,15 @@ void main() {
     await _pump(tester, permissions: 0);
 
     expect(find.byType(SettingsNotice), findsOneWidget);
+    final body = tester.getRect(find.byWidgetPredicate((w) => w is Scaffold));
+    final notice = tester.getRect(
+      find.byWidgetPredicate((w) => w is SettingsNotice),
+    );
+    expect(
+      notice.center.dy,
+      closeTo(body.center.dy, 80),
+      reason: 'the empty state is centred in its page, not pinned to the top',
+    );
     expect(
       find.textContaining('None of your roles grant access'),
       findsOneWidget,
@@ -288,5 +298,21 @@ void main() {
     await tester.tap(find.text('Who can join'));
     await tester.pumpAndSettle();
     expect(find.text('Anyone with the address'), findsOneWidget);
+  });
+
+  testWidgets('a pane that scrolls itself keeps a gap between title and tabs', (
+    tester,
+  ) async {
+    await _pump(tester, permissions: -1);
+    final title = tester.getRect(
+      find.descendant(
+        of: find.byWidgetPredicate((w) => w is SettingsPaneHeading),
+        matching: find.text('Reports'),
+      ),
+    );
+    final tabs = tester.getRect(
+      find.byWidgetPredicate((w) => w is AppSegmentedControl).first,
+    );
+    expect(tabs.top - title.bottom, greaterThanOrEqualTo(AppSpacing.s16));
   });
 }

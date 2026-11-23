@@ -106,26 +106,25 @@ impl Store {
     }
 
     /// Queues the next redraw of a stored tile frame; `extend` renews the window, as a person's press does.
+    /// Without `extend` it continues a running chain only, so a press that just ended it stays ended.
     pub async fn schedule_canvas_tile_refresh(
         &self,
         object_id: CanvasObjectId,
         (due_at, until_at): (i64, i64),
         extend: bool,
     ) -> anyhow::Result<()> {
-        let until = if extend {
-            "?"
+        let (until, chain) = if extend {
+            ("?", "")
         } else {
-            "COALESCE(refresh_until_at, ?)"
+            ("refresh_until_at", " AND refresh_until_at IS NOT NULL")
         };
-        sqlx::query(AssertSqlSafe(format!(
+        let sql = format!(
             "UPDATE canvas_tile_scenes SET refresh_due_at = ?, refresh_until_at = {until} \
-             WHERE object_id = ?"
-        )))
-        .bind(due_at)
-        .bind(until_at)
-        .bind(object_id)
-        .execute(&self.pool)
-        .await?;
+             WHERE object_id = ?{chain}"
+        );
+        let query = sqlx::query(AssertSqlSafe(sql)).bind(due_at);
+        let query = if extend { query.bind(until_at) } else { query };
+        query.bind(object_id).execute(&self.pool).await?;
         Ok(())
     }
 

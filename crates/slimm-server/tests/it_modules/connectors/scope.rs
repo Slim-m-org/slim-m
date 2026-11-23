@@ -260,3 +260,16 @@ async fn a_principal_without_its_module_row_holds_nothing() {
         .await;
     assert_eq!(status, StatusCode::FORBIDDEN, "no bit survives the row");
 }
+
+#[tokio::test]
+async fn head_on_a_get_route_meets_the_same_gate_as_get() {
+    let w = world("slimm-conn-head", &["send_messages"]).await;
+    let token = w.installed(Permissions::SEND_MESSAGES.bits()).await;
+
+    for uri in ["/members", "/channels", "/categories"] {
+        let (get, _) = w.as_token(&token, "GET", uri, None).await;
+        let (head, _) = w.as_token(&token, "HEAD", uri, None).await;
+        assert_eq!(get, StatusCode::FORBIDDEN, "GET {uri}");
+        assert_eq!(head, StatusCode::FORBIDDEN, "HEAD {uri}");
+    }
+}

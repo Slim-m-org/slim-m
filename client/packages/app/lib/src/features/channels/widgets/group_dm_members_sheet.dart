@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A group DM's people and what any of them can do about it: rename it, add
-/// someone, or leave.
+/// someone, leave, or delete it for everyone. Every member has the same powers.
 ///
 /// Rule 3 of `docs/design/desktop-vs-mobile.md`: information about a thing
 /// plus its actions, so a bottom sheet under 600 and a dialog above it.
@@ -18,18 +18,26 @@ import '../../../providers/providers.dart';
 import '../../../routing/routes.dart';
 import '../../members/widgets/user_avatar.dart';
 import '../providers/group_dm.dart';
+import 'channel_rail.dart' show channelIdInPath;
 import 'group_dm_people_list.dart';
 
-Future<void> showGroupDmMembersSheet(BuildContext context, String channelId) =>
-    showAppSheet<void>(
-      context,
-      builder: (_) => _GroupDmMembersSheet(channelId: channelId),
-    );
+/// What the row menu asked for, so the sheet opens already on it.
+enum GroupDmSheetIntent { members, rename, leave, delete }
+
+Future<void> showGroupDmMembersSheet(
+  BuildContext context,
+  String channelId, {
+  GroupDmSheetIntent intent = GroupDmSheetIntent.members,
+}) => showAppSheet<void>(
+  context,
+  builder: (_) => _GroupDmMembersSheet(channelId: channelId, intent: intent),
+);
 
 class _GroupDmMembersSheet extends ConsumerStatefulWidget {
-  const _GroupDmMembersSheet({required this.channelId});
+  const _GroupDmMembersSheet({required this.channelId, required this.intent});
 
   final String channelId;
+  final GroupDmSheetIntent intent;
 
   @override
   ConsumerState<_GroupDmMembersSheet> createState() =>
@@ -40,7 +48,7 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
   final _name = TextEditingController();
   String? _seededFor;
   bool _busy = false;
-  bool _confirmingLeave = false;
+  late GroupDmSheetIntent _confirming = widget.intent;
   String? _error;
 
   @override
@@ -71,18 +79,40 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
     }
   }
 
-  Future<void> _leave() async {
+  Future<void> _leave() => _depart(
+    'leave the group',
+    () => leaveGroupDm(_container, widget.channelId),
+  );
+
+  Future<void> _delete() => _depart(
+    'delete the group',
+    () => deleteGroupDm(_container, widget.channelId),
+  );
+
+  /// Closes the sheet and, if this group is the open view, the view with it.
+  Future<void> _depart(
+    String whatFailed,
+    Future<void> Function() action,
+  ) async {
     final router = GoRouter.of(context);
     final navigator = Navigator.of(context);
-    var left = false;
-    await _run('leave the group', () async {
-      await leaveGroupDm(_container, widget.channelId);
-      left = true;
+    var done = false;
+    await _run(whatFailed, () async {
+      await action();
+      done = true;
     });
-    if (!left) return;
+    if (!done) return;
     navigator.pop();
-    router.go(Routes.channels);
+    final viewing = channelIdInPath(
+      router.routerDelegate.currentConfiguration.uri.path,
+    );
+    if (viewing == null || viewing == widget.channelId) {
+      router.go(Routes.channels);
+    }
   }
+
+  void _cancelConfirm() =>
+      setState(() => _confirming = GroupDmSheetIntent.members);
 
   ProviderContainer get _container =>
       ProviderScope.containerOf(context, listen: false);
@@ -126,9 +156,9 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
+        AppSpacing.s8,
         0,
-        AppSpacing.s16,
+        AppSpacing.s8,
         AppSpacing.s16,
       ),
       child: SingleChildScrollView(
@@ -138,36 +168,49 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
           children: [
             AppSheetHeader(
               shownName,
-              padding: const EdgeInsets.only(bottom: AppSpacing.s12),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s8,
+                AppSpacing.s12,
+                AppSpacing.s8,
+                AppSpacing.s12,
+              ),
             ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: AppInput(
-                    counterMax: entityNameMaxChars,
-                    controller: _name,
-                    placeholder: defaultName,
-                    semanticLabel: 'Group name',
-                    onChanged: (_) => setState(() {}),
+            _inset(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: AppInput(
+                      counterMax: entityNameMaxChars,
+                      controller: _name,
+                      autofocus: widget.intent == GroupDmSheetIntent.rename,
+                      placeholder: defaultName,
+                      semanticLabel: 'Group name',
+                      onChanged: (_) => setState(() {}),
+                    ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.s8),
-                AppButton(
-                  label: 'Save',
-                  disabled: _busy || !nameChanged || !nameOk,
-                  onPressed: () => _run(
-                    'rename the group',
-                    () =>
-                        renameGroupDm(_container, widget.channelId, _name.text),
+                  const SizedBox(width: AppSpacing.s8),
+                  AppButton(
+                    label: 'Save',
+                    disabled: _busy || !nameChanged || !nameOk,
+                    onPressed: () => _run(
+                      'rename the group',
+                      () => renameGroupDm(
+                        _container,
+                        widget.channelId,
+                        _name.text,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: AppSpacing.s12),
-            Text(
-              '${info.members.length} of $groupDmMaxPeople people',
-              style: AppText.label.copyWith(color: tokens.textSecondary),
+            _inset(
+              Text(
+                '${info.members.length} of $groupDmMaxPeople people',
+                style: AppText.label.copyWith(color: tokens.textSecondary),
+              ),
             ),
             const SizedBox(height: AppSpacing.s4),
             for (final m in info.members)
@@ -185,14 +228,18 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
               ),
             const SizedBox(height: AppSpacing.s12),
             if (full)
-              Text(
-                'This group is full.',
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
+              _inset(
+                Text(
+                  'This group is full.',
+                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+                ),
               )
             else ...[
-              Text(
-                'Add someone',
-                style: AppText.label.copyWith(color: tokens.textSecondary),
+              _inset(
+                Text(
+                  'Add someone',
+                  style: AppText.label.copyWith(color: tokens.textSecondary),
+                ),
               ),
               const SizedBox(height: AppSpacing.s4),
               GroupDmPeopleList(
@@ -207,48 +254,118 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
             ],
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.s8),
-              AppErrorState(message: _error!),
+              _inset(AppErrorState(message: _error!)),
             ],
             const SizedBox(height: AppSpacing.s12),
-            if (_confirmingLeave) ...[
-              Text(
-                'You lose this conversation and its calls. The others keep it, '
-                'and someone in it has to add you back to rejoin.',
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-              const SizedBox(height: AppSpacing.s8),
-              Row(
+            _inset(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: AppButton(
-                      label: 'Cancel',
-                      full: true,
-                      disabled: _busy,
-                      onPressed: () => setState(() => _confirmingLeave = false),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.s8),
-                  Expanded(
-                    child: AppButton(
-                      label: 'Leave $shownName',
+                  if (_confirming == GroupDmSheetIntent.leave)
+                    _Confirm(
+                      message:
+                          'You lose this conversation and its calls. The others keep it, '
+                          'and someone in it has to add you back to rejoin.',
+                      action: 'Leave group',
+                      busy: _busy,
+                      onCancel: _cancelConfirm,
+                      onConfirm: _leave,
+                    )
+                  else if (_confirming == GroupDmSheetIntent.delete)
+                    _Confirm(
+                      message:
+                          'This deletes $shownName and all its messages for everyone '
+                          'in it. It cannot be undone.',
+                      action: 'Delete group',
+                      busy: _busy,
+                      onCancel: _cancelConfirm,
+                      onConfirm: _delete,
+                    )
+                  else ...[
+                    AppButton(
+                      label: 'Leave group',
                       variant: AppButtonVariant.danger,
                       full: true,
-                      disabled: _busy,
-                      onPressed: _leave,
+                      onPressed: () => setState(
+                        () => _confirming = GroupDmSheetIntent.leave,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: AppSpacing.s8),
+                    AppButton(
+                      label: 'Delete group',
+                      variant: AppButtonVariant.danger,
+                      full: true,
+                      onPressed: () => setState(
+                        () => _confirming = GroupDmSheetIntent.delete,
+                      ),
+                    ),
+                  ],
                 ],
               ),
-            ] else
-              AppButton(
-                label: 'Leave group',
-                variant: AppButtonVariant.danger,
-                full: true,
-                onPressed: () => setState(() => _confirmingLeave = true),
-              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Rows carry their own 8dp inset, so everything else steps in to meet their content edge.
+  Widget _inset(Widget child) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+    child: child,
+  );
+}
+
+/// A destructive act's plain warning with Cancel beside the button that does it.
+class _Confirm extends StatelessWidget {
+  const _Confirm({
+    required this.message,
+    required this.action,
+    required this.busy,
+    required this.onCancel,
+    required this.onConfirm,
+  });
+
+  final String message;
+  final String action;
+  final bool busy;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          message,
+          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.s8),
+        Row(
+          children: [
+            Expanded(
+              child: AppButton(
+                label: 'Cancel',
+                full: true,
+                disabled: busy,
+                onPressed: onCancel,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.s8),
+            Expanded(
+              child: AppButton(
+                label: action,
+                variant: AppButtonVariant.danger,
+                full: true,
+                disabled: busy,
+                onPressed: onConfirm,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

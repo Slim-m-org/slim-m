@@ -240,8 +240,17 @@ class _NotificationScheduleSectionState
         shown?.days.map((d) => d.weekday).toSet() ?? const {};
 
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final touch = AppTouchTargets.of(context);
+    Widget day(int weekday) => _DayToggle(
+      label: _dayLabels[weekday],
+      semanticLabel: _dayFullNames[weekday],
+      active: activeWeekdays.contains(weekday),
+      onTap: () => _toggleDay(weekday, current!, start, end),
+    );
     final hours = Text(
       '${start.format(context)} - ${end.format(context)}',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       style: AppText.caption.copyWith(
         fontFamily: AppFonts.mono,
         color: tokens.textPrimary,
@@ -259,25 +268,26 @@ class _NotificationScheduleSectionState
         if (enabled) ...[
           SettingsSubRow(
             label: 'Days',
-            // Scaled down rather than clipped: seven chips overflow a phone-width card.
-            trailing: Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerRight,
-                child: Row(
-                  spacing: 6,
-                  children: [
-                    for (var weekday = 0; weekday < 7; weekday++)
-                      _DayToggle(
-                        label: _dayLabels[weekday],
-                        semanticLabel: _dayFullNames[weekday],
-                        active: activeWeekdays.contains(weekday),
-                        onTap: () => _toggleDay(weekday, current, start, end),
-                      ),
-                  ],
-                ),
-              ),
-            ),
+            stackTrailing: touch,
+            trailing: touch
+                ? Row(
+                    children: [
+                      for (var weekday = 0; weekday < 7; weekday++)
+                        Expanded(child: day(weekday)),
+                    ],
+                  )
+                // Scaled down rather than clipped: seven chips overflow a narrow pane.
+                : FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      spacing: 6,
+                      children: [
+                        for (var weekday = 0; weekday < 7; weekday++)
+                          day(weekday),
+                      ],
+                    ),
+                  ),
           ),
           SettingsSubRow(
             label: 'Hours',
@@ -287,7 +297,7 @@ class _NotificationScheduleSectionState
               mainAxisSize: MainAxisSize.min,
               spacing: AppSpacing.s8,
               children: [
-                hours,
+                Flexible(child: hours),
                 Icon(
                   AppIcons.chevronDown,
                   size: AppSizes.icon16,

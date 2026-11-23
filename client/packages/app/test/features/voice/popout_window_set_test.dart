@@ -51,6 +51,30 @@ void main() {
     expect(set.windows, hasLength(2));
   });
 
+  test('a failed open leaves no stale request for the next sync', () {
+    var fail = true;
+    final failing = PopOutWindowSet<String, _Window>(
+      open: (feed) {
+        if (fail) {
+          fail = false;
+          duringOpen?.call();
+          throw StateError('the OS refused the window');
+        }
+        final window = _Window(feed);
+        opened.add(window);
+        return window;
+      },
+      close: (window) => window.closed = true,
+    );
+    duringOpen = () => failing.sync({'screen': 'screen', 'camera': 'camera'});
+    expect(() => failing.sync({'screen': 'screen'}), throwsStateError);
+
+    failing.sync({'screen': 'screen'});
+
+    expect(opened.map((w) => w.feed), ['screen']);
+    expect(failing.windows, hasLength(1));
+  });
+
   test('a superseded window is destroyed', () {
     set.sync({'screen': 'screen'});
     final first = opened.single;

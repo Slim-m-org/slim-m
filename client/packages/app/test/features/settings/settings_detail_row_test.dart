@@ -33,9 +33,29 @@ void main() {
     expect(tester.getSize(find.byType(SettingsIconTile)), const Size(32, 32));
   });
 
-  testWidgets('a dimmed row is drawn at reduced opacity', (tester) async {
-    await _pump(tester, const SettingsDetailRow(title: 'Old', dimmed: true));
-    expect(tester.widget<Opacity>(find.byType(Opacity)).opacity, 0.6);
+  testWidgets('a dimmed row fades only its icon, never its text', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const SettingsDetailRow(
+        title: 'Old',
+        icon: AppIcons.revoke,
+        dimmed: true,
+      ),
+    );
+    final faded = find.ancestor(
+      of: find.byWidgetPredicate((w) => w is SettingsIconTile),
+      matching: find.byWidgetPredicate((w) => w is Opacity),
+    );
+    expect(tester.widget<Opacity>(faded).opacity, 0.5);
+    expect(
+      find.ancestor(
+        of: find.text('Old'),
+        matching: find.byWidgetPredicate((w) => w is Opacity),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('the group label is uppercased', (tester) async {

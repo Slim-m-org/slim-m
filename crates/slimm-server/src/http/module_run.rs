@@ -268,12 +268,16 @@ pub(super) async fn wire_request(
         .module_run_settings(module_id, &module.settings_schema)
         .await?;
     let caller_key = state.store.module_caller_key().await?;
+    let name = match request.kind {
+        RunKind::Room => None,
+        _ => super::module_caller::caller_name(&state.store, request.caller).await,
+    };
     serde_json::to_string(&ModuleWireRequest {
         command: request.command,
         input: request.input,
         caller: ModuleCaller {
             id: super::module_caller::module_caller_id(&caller_key, module_id, request.caller),
-            name: super::module_caller::caller_name(&state.store, request.caller).await,
+            name,
         },
         entropy: run_entropy(),
         now_ms: now_ms(),

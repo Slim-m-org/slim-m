@@ -203,4 +203,50 @@ impl Store {
         .await?;
         Ok(())
     }
+
+    /// Turns a host-run connector off for `why` in one transaction: its row says why and the
+    /// module is disabled, so a failure between the two cannot leave it half off.
+    /// `false` when the module was already off.
+    pub async fn turn_off_host_run(
+        &self,
+        module_id: &str,
+        reason: &str,
+        why: TurnedOff,
+    ) -> anyhow::Result<bool> {
+        let mut tx = self.begin_write().await?;
+        match why {
+            TurnedOff::Crashes { at } => {
+                sqlx::query!(
+                    "UPDATE connector_host_runs SET crash_disabled_at = ?, last_error = ?, refused = 0
+                     WHERE module_id = ?",
+                    at,
+                    reason,
+                    module_id
+                )
+                .execute(&mut *tx)
+                .await?;
+            }
+            TurnedOff::VolumeFull => {
+                sqlx::query!(
+                    "UPDATE connector_host_runs SET last_error = ?, refused = 1 WHERE module_id = ?",
+                    reason,
+                    module_id
+                )
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+        let disabled =
+            super::module_health::disable_for_failures_in(&mut tx, module_id, reason).await?;
+        tx.commit().await?;
+        self.touch_modules();
+        Ok(disabled)
+    }
+}
+
+/// Why the server turned a host-run connector off by itself.
+#[derive(Debug, Clone, Copy)]
+pub enum TurnedOff {
+    Crashes { at: i64 },
+    VolumeFull,
 }

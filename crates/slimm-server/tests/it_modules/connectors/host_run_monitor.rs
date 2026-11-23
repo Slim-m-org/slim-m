@@ -22,7 +22,7 @@ async fn a_crash_is_restarted_after_its_backoff() {
         "the first restart waits a second"
     );
     assert_eq!(w.status().await["state"], json!("crashed"));
-    tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+    w.advance(1_100);
     w.tick().await;
     assert_eq!(w.fake.calls("start").len(), starts + 1);
     assert_eq!(w.fake.state(&run_id).as_deref(), Some("running"));
@@ -85,7 +85,7 @@ async fn a_full_volume_turns_it_off_and_it_is_not_restarted() {
     });
     let starts = w.fake.calls("start").len();
     w.tick().await;
-    tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+    w.advance(1_100);
     w.tick().await;
     assert_eq!(
         w.fake.calls("start").len(),
@@ -207,4 +207,38 @@ async fn a_disabled_connector_left_running_is_stopped() {
     w.store.set_module_enabled(ID, false).await.unwrap();
     w.tick().await;
     assert_eq!(w.fake.state(&run_id).as_deref(), Some("exited"));
+}
+
+#[tokio::test]
+async fn a_failed_auto_disable_leaves_nothing_half_applied_and_is_retried() {
+    let w = host_world("slimm-hostrun-half-off", true, true).await;
+    let run_id = w.running().await;
+    sqlx::query(
+        "CREATE TRIGGER busy BEFORE UPDATE OF enabled ON installed_modules
+         BEGIN SELECT RAISE(ABORT, 'database is busy'); END",
+    )
+    .execute(&w.pool)
+    .await
+    .unwrap();
+    for i in 0..5 {
+        w.fake
+            .set_state(&run_id, "exited", &format!("2026-11-22T10:00:0{i}Z"));
+        w.tick().await;
+    }
+    let record = w.store.host_run(ID).await.unwrap().unwrap();
+    assert!(
+        record.crash_disabled_at.is_none() && record.last_error.is_none(),
+        "the row must not say it was turned off while the module is still on: {record:?}"
+    );
+
+    sqlx::query("DROP TRIGGER busy")
+        .execute(&w.pool)
+        .await
+        .unwrap();
+    w.fake.set_state(&run_id, "exited", "2026-11-22T10:00:09Z");
+    w.tick().await;
+
+    let module = w.store.installed_module(ID).await.unwrap().unwrap();
+    assert!(!module.enabled, "the next pass turned it off");
+    assert_eq!(w.status().await["state"], json!("disabled_after_crashes"));
 }

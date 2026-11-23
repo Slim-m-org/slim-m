@@ -27,6 +27,7 @@ class WebUpdatePill extends ConsumerWidget {
     if (!ref.watch(webUpdateSupportedProvider)) return const SizedBox.shrink();
     ref.watch(webUpdateWatcherProvider);
     if (!ref.watch(webUpdateAvailableProvider)) return const SizedBox.shrink();
+    if (ref.watch(webUpdateDockedProvider)) return const SizedBox.shrink();
 
     // Below the app bar on a narrow window, so it never covers the header's actions.
     final clearOfHeader = MediaQuery.sizeOf(context).width < kCompactWidth

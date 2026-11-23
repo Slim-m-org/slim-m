@@ -279,8 +279,8 @@ Widget _besideTheField(Widget child) => SizedBox(
   child: Center(child: child),
 );
 
-/// The field's height plus the focus ring it reserves around itself.
-const double _fieldBoxHeight = AppSizes.controlLg + AppSpacing.s4;
+/// The field's own height.
+const double _fieldBoxHeight = AppSizes.controlLg;
 
 /// What a row without a problem takes in the list, to start from before any is built.
 const double _rowExtent = _fieldBoxHeight + AppSpacing.s8;

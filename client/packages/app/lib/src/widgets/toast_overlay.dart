@@ -42,9 +42,11 @@ class ToastOverlay extends ConsumerWidget {
       child: Align(
         alignment: alignment,
         child: Padding(
-          padding: const EdgeInsets.all(
-            AppSpacing.s16,
-          ).copyWith(bottom: AppSpacing.s16 + lift),
+          padding: const EdgeInsets.all(AppSpacing.s16).copyWith(
+            // On a phone the toast clears the app bar, so it never covers the screen's title.
+            top: compact ? kToolbarHeight : AppSpacing.s16,
+            bottom: AppSpacing.s16 + lift,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: compact

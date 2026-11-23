@@ -4,6 +4,7 @@
 /// token, and the state, output and start or stop admins see once installed.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -12,8 +13,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/desktop/desktop_window_port.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_app/src/permissions.dart';
+import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -83,12 +86,14 @@ class _Server {
   bool configured = true;
   final installs = <Map<String, dynamic>>[];
   final toggles = <String>[];
+  int statusReads = 0;
 }
 
 Future<_Server> _pump(
   WidgetTester tester, {
   bool installed = false,
   bool configured = true,
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = const Size(900, 1600);
   tester.view.devicePixelRatio = 1;
@@ -98,6 +103,7 @@ Future<_Server> _pump(
     ..configured = configured;
   final container = ProviderContainer(
     overrides: [
+      ...overrides,
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       mockApiOverride((request) async {
@@ -121,6 +127,7 @@ Future<_Server> _pump(
           return _json(_installed(enabled: false));
         }
         if (path == '/space/dock/modules/jellyfin/host-run') {
+          server.statusReads++;
           return _json({
             ..._hostRun,
             'state': 'disabled_after_crashes',
@@ -179,6 +186,31 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('the status is not polled while the window is minimised', (
+    tester,
+  ) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final events = StreamController<DesktopWindowEventKind>(sync: true);
+    addTearDown(events.close);
+    final window = AppLifecycleNotifier(
+      mobile: false,
+      windowEvents: events.stream,
+    );
+    final server = await _pump(
+      tester,
+      installed: true,
+      overrides: [appLifecycleProvider.overrideWith((ref) => window)],
+    );
+    await tester.pump(const Duration(seconds: 6));
+    expect(server.statusReads, greaterThan(1), reason: 'it polls in view');
+
+    events.add(DesktopWindowEventKind.minimize);
+    await tester.pump();
+    final hidden = server.statusReads;
+    await tester.pump(const Duration(seconds: 11));
+    expect(server.statusReads, hidden);
+  });
+
   testWidgets('before install the page shows what the host would run', (
     tester,
   ) async {

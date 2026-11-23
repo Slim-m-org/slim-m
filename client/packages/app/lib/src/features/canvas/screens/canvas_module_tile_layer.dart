@@ -42,6 +42,9 @@ class _CanvasModuleTileLayerState extends State<CanvasModuleTileLayer> {
   List<({String id, Rect rect, String tileKey})> _tiles = const [];
   Camera? _camera;
 
+  /// Each tile's content as last built, so a pan reuses it instead of reparsing its scene.
+  final _contents = <String, _ModuleTile>{};
+
   @override
   void initState() {
     super.initState();
@@ -103,12 +106,27 @@ class _CanvasModuleTileLayerState extends State<CanvasModuleTileLayer> {
     return true;
   }
 
+  _ModuleTile _content(String channelId, String objectId, ModuleTileRef tile) {
+    final held = _contents[objectId];
+    if (held != null &&
+        held.channelId == channelId &&
+        held.tile.key == tile.key) {
+      return held;
+    }
+    return _contents[objectId] = _ModuleTile(
+      channelId: channelId,
+      objectId: objectId,
+      tile: tile,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final channelId = CanvasModuleTileScope.maybeOf(context)?.channelId;
     if (channelId == null || _tiles.isEmpty) return const SizedBox.shrink();
     final camera = widget.document.camera;
     final selected = widget.document.selectedObjectId.value;
+    _contents.removeWhere((id, _) => !_tiles.any((tile) => tile.id == id));
     return CanvasBoardClip(
       document: widget.document,
       child: Stack(
@@ -127,11 +145,7 @@ class _CanvasModuleTileLayerState extends State<CanvasModuleTileLayer> {
                     child: SizedBox(
                       width: tile.rect.width,
                       height: tile.rect.height,
-                      child: _ModuleTile(
-                        channelId: channelId,
-                        objectId: tile.id,
-                        tile: tileRef,
-                      ),
+                      child: _content(channelId, tile.id, tileRef),
                     ),
                   ),
                 ),

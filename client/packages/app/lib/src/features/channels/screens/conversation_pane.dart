@@ -162,9 +162,10 @@ class ConversationPane extends ConsumerWidget {
       return _LeaveRemovedRoom(fallback: fallback);
     }
     if (deleted[channelId] case final name?) {
+      final group = ref.watch(deletedGroupDmsProvider).contains(channelId);
       return _LeaveRemovedRoom(
         fallback: fallback,
-        notice: '#$name was deleted',
+        notice: group ? 'The group $name was deleted' : '#$name was deleted',
       );
     }
     if (lost[channelId] case final name?) {

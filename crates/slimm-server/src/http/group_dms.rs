@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Group DM routes (docs/decisions/0095): start a group, add a person, leave,
-//! and rename. A group is a DM channel, so messages, calls and sync use the
+//! rename, and delete for everyone. A group is a DM channel, so messages, calls and sync use the
 //! ordinary `/channels/{channelId}/...` routes; the roster is what lives here.
 
 use axum::Router;
@@ -27,7 +27,7 @@ const BODY_LIMIT: usize = 4 * 1024;
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/dms/groups", post(create))
-        .route("/dms/groups/{channel_id}", patch(rename))
+        .route("/dms/groups/{channel_id}", patch(rename).delete(delete))
         .route("/dms/groups/{channel_id}/members", post(add_member))
         .route("/dms/groups/{channel_id}/leave", post(leave))
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
@@ -209,6 +209,29 @@ async fn leave(
     }
     if outcome == LeftGroup::Remains {
         state.hub.publish(Event::DmChanged { channel_id });
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Deletes the group for everyone in it; any participant may, and a retry is a no-op.
+async fn delete(
+    Authed(ctx): Authed,
+    parts: Parts,
+    Path(channel_id): Path<String>,
+    State(state): State<AppState>,
+) -> Result<StatusCode, ApiError> {
+    enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    let channel_id = ChannelId(parse_uuid(&channel_id)?);
+    let deleted = state.store.delete_group_dm(ctx.user_id, channel_id).await?;
+    super::channels::end_voice_room(&state, channel_id).await;
+    super::module_rooms::end_channel(&state, channel_id);
+    if deleted {
+        state.hub.publish(Event::ChannelDeleted { channel_id });
+        // Prune now rather than at the next 6 hourly tick: the conversation is meant to be gone.
+        let (store, media, hub) = (state.store.clone(), state.media.clone(), state.hub.clone());
+        tokio::spawn(async move {
+            crate::run_message_retention_sweep_pass(&store, &media, &hub).await;
+        });
     }
     Ok(StatusCode::NO_CONTENT)
 }

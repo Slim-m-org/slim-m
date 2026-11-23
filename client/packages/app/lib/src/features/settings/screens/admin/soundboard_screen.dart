@@ -42,7 +42,7 @@ class SoundboardScreen extends StatelessWidget {
     backFallback: Routes.spaceSettings,
     actions: [
       SoundboardCreateButton(),
-      SizedBox(width: AppSpacing.s8),
+      SizedBox(width: AppSpacing.s16),
     ],
     child: SoundboardPane(),
   );

@@ -276,6 +276,7 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
     if (page != null && page.ownsHeader) return Scaffold(body: body);
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 0,
         title: Text(page?.title ?? pane.label),
         leading: IconButton(
           icon: const Icon(AppIcons.back),
@@ -333,6 +334,7 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
     if (!wide) {
       return Scaffold(
         appBar: AppBar(
+          titleSpacing: 0,
           title: Text(widget.title),
           leading: BackToButton(
             tooltip: widget.backTooltip,

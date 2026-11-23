@@ -55,7 +55,13 @@ impl Room {
     }
 
     /// Stores the module's next state unless the room ended meanwhile; the stored copy on success.
-    pub(crate) fn commit(&self, next: Next, now: i64) -> Option<Held> {
+    /// `announce` runs before the room can end, so no state frame follows an `ended` one.
+    pub(crate) fn commit(
+        &self,
+        next: Next,
+        now: i64,
+        announce: impl FnOnce(&Held),
+    ) -> Option<Held> {
         let mut held = self.held.lock().unwrap_or_else(PoisonError::into_inner);
         if held.ended {
             return None;
@@ -64,17 +70,23 @@ impl Room {
         held.state = Some(next.state);
         held.scene = next.scene;
         held.touched_at = now;
+        announce(&held);
         Some(held.clone())
     }
 
     /// Marks the room over; the state it held, or `None` when it had none or was already over.
-    fn finish(&self) -> Option<Held> {
+    /// `announce` runs while no commit can slip in after it.
+    fn finish(&self, announce: impl FnOnce(&Held)) -> Option<Held> {
         let mut held = self.held.lock().unwrap_or_else(PoisonError::into_inner);
         if held.ended {
             return None;
         }
         held.ended = true;
-        held.state.is_some().then(|| held.clone())
+        let had_state = held.state.is_some();
+        if had_state {
+            announce(&held);
+        }
+        had_state.then(|| held.clone())
     }
 }
 
@@ -173,6 +185,7 @@ impl Rooms {
     pub(crate) fn end_where(
         &self,
         which: impl Fn(&RoomKey, &Held) -> bool,
+        mut announce: impl FnMut(&RoomKey, &Held),
     ) -> Vec<(RoomKey, Held)> {
         let mut live = self.live();
         let picked: Vec<RoomKey> = live
@@ -184,7 +197,8 @@ impl Rooms {
             .into_iter()
             .filter_map(|key| {
                 let room = live.remove(&key)?;
-                room.finish().map(|held| (key, held))
+                room.finish(|held| announce(&key, held))
+                    .map(|held| (key, held))
             })
             .collect()
     }

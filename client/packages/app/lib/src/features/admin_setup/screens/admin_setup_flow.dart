@@ -17,6 +17,9 @@ import 'admin_setup_steps.dart';
 /// Wider than the member welcome card: the sections are settings panes.
 const double kAdminSetupCardWidth = 640;
 
+/// The tallest step fits without scrolling; every step uses it so the footer never jumps.
+const double kAdminSetupCardHeight = 640;
+
 class AdminSetupFlow extends ConsumerStatefulWidget {
   const AdminSetupFlow({super.key});
 
@@ -64,6 +67,7 @@ class _AdminSetupFlowState extends ConsumerState<AdminSetupFlow> {
       title: _step.title,
       subtitle: _step.subtitle,
       cardWidth: kAdminSetupCardWidth,
+      cardHeight: kAdminSetupCardHeight,
       continueLabel: last ? 'Finish' : 'Continue',
       busy: _busy,
       onContinue: _next,

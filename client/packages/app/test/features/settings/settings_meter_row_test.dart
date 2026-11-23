@@ -74,4 +74,23 @@ void main() {
     expect(colorOf('8'), AppTokens.light.dangerText);
     expect(colorOf('2'), AppTokens.light.textPrimary);
   });
+
+  testWidgets('a row with no bar centres its text in the minimum height', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const SizedBox(
+        height: 200,
+        child: Column(
+          children: [SettingsMeterRow(label: 'Members', value: '3')],
+        ),
+      ),
+    );
+    final row = tester.getRect(
+      find.byWidgetPredicate((w) => w is SettingsMeterRow),
+    );
+    final label = tester.getRect(find.text('Members'));
+    expect(label.center.dy, closeTo(row.center.dy, 1));
+  });
 }

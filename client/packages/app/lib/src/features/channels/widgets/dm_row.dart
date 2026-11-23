@@ -2,8 +2,8 @@
 /// One direct-message row in the rail: open on tap, and a right-click or
 /// long-press menu to close it, mute it, narrow it to mentions only, or
 /// report or block the person on the other end of it. A group DM shows
-/// stacked avatars and offers its members sheet instead of close, report
-/// and block.
+/// stacked avatars and offers its members sheet, rename, leave and delete
+/// instead of close, report and block.
 ///
 /// Also the in-app half of `docs/IMPLIED-GAPS.md` #2: a call already
 /// happening in this DM shows as an icon, and tapping the row while it is
@@ -39,6 +39,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import '../../voice/providers/dm_call_activity.dart';
+import '../providers/dm_departure.dart';
 import '../providers/dms.dart';
 import '../../../providers/providers.dart' show sessionProvider;
 import 'group_avatar_stack.dart';
@@ -61,6 +62,23 @@ class DmRow extends ConsumerWidget {
 
   final Channel channel;
   final bool selected;
+
+  AppMenuItem _groupItem(
+    BuildContext context,
+    VoidCallback close,
+    String label,
+    IconData icon, {
+    GroupDmSheetIntent intent = GroupDmSheetIntent.members,
+    bool danger = false,
+  }) => AppMenuItem(
+    label: label,
+    leading: icon,
+    tone: danger ? AppMenuItemTone.danger : AppMenuItemTone.normal,
+    onTap: () {
+      close();
+      unawaited(showGroupDmMembersSheet(context, channel.id, intent: intent));
+    },
+  );
 
   /// Read fresh every time the menu opens rather than watched: the row
   /// itself already rebuilds on a live block change, and a menu that is
@@ -87,15 +105,16 @@ class DmRow extends ConsumerWidget {
     );
 
     return [
-      if (channel.isGroupDm)
-        AppMenuItem(
-          label: 'Group members',
-          leading: AppIcons.members,
-          onTap: () {
-            close();
-            unawaited(showGroupDmMembersSheet(context, channel.id));
-          },
+      if (channel.isGroupDm) ...[
+        _groupItem(context, close, 'Group members', AppIcons.members),
+        _groupItem(
+          context,
+          close,
+          'Rename group',
+          AppIcons.edit,
+          intent: GroupDmSheetIntent.rename,
         ),
+      ],
       if (peerId != null)
         AppMenuItem(
           label: 'Close DM',
@@ -111,6 +130,25 @@ class DmRow extends ConsumerWidget {
         close,
         muteLabel: 'Mute',
       ),
+      if (channel.isGroupDm) ...[
+        const AppMenuDivider(),
+        _groupItem(
+          context,
+          close,
+          'Leave group',
+          AppIcons.signOut,
+          intent: GroupDmSheetIntent.leave,
+          danger: true,
+        ),
+        _groupItem(
+          context,
+          close,
+          'Delete group',
+          AppIcons.delete,
+          intent: GroupDmSheetIntent.delete,
+          danger: true,
+        ),
+      ],
       if (peerId != null) ...[
         const AppMenuDivider(),
         AppMenuItem(
@@ -158,6 +196,7 @@ class DmRow extends ConsumerWidget {
       ),
     );
     final muted = override == api.NotificationPreference.nothing;
+    final departure = ref.watch(dmDepartureProvider(dmPeersOf(channel)));
     // Mentions-only leaves a DM loud: somebody writing here is addressing this account directly.
     final indicator = unreadIndicatorForChannel(
       channel,
@@ -178,7 +217,9 @@ class DmRow extends ConsumerWidget {
           selected: selected,
           unread: indicator.unread,
           mentioned: indicator.mentioned,
-          muted: muted,
+          muted: muted || departure != null,
+          labelColor: departure == null ? null : tokens.textSecondary,
+          subtitle: departure?.label,
           leading: channel.isGroupDm
               ? GroupAvatarStack(
                   memberIds: [
@@ -205,7 +246,9 @@ class DmRow extends ConsumerWidget {
                   color: tokens.textSecondary,
                 )
               : null,
-          stateDescription: inCall ? 'call in progress' : null,
+          stateDescription: inCall
+              ? 'call in progress'
+              : departure?.label.toLowerCase(),
           onTap: () {
             // Opens straight into the call pane, the same double action RailCallSummary uses.
             if (inCall) {
