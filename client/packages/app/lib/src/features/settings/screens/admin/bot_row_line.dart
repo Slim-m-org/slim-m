@@ -2,8 +2,6 @@
 /// The single line a bot takes in the Bots pane: avatar, name, connection dot and handle.
 library;
 
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
@@ -66,16 +64,13 @@ class BotRowLine extends StatelessWidget {
   }
 }
 
-/// The name keeps what it needs and the dot always shows; the handle, then the last-seen note, ellipsize first.
+/// The name and the dot on one line, the handle and last-seen note under them, so neither is cut to a fragment.
 class _BotName extends StatelessWidget {
   const _BotName({required this.bot});
 
   final api.Bot bot;
 
   static const double _dot = 8;
-
-  /// Narrower than this the handle would read as a fragment, so it is left out.
-  static const double _minHandle = 48;
 
   @override
   Widget build(BuildContext context) {
@@ -84,23 +79,14 @@ class _BotName extends StatelessWidget {
     final nameStyle = AppText.ui.copyWith(
       color: revoked ? tokens.textSecondary : tokens.textPrimary,
     );
-    final handle = ['@${bot.username}', ?_note(bot)].join('  ');
-    final measured = _width(context, bot.displayName, nameStyle);
-    return LayoutBuilder(
-      builder: (context, box) {
-        final dotWidth = revoked ? 0.0 : AppSpacing.s8 + _dot;
-        final nameMax = math.max(0.0, box.maxWidth - dotWidth);
-        final handleMax =
-            box.maxWidth -
-            math.min(measured, nameMax) -
-            dotWidth -
-            AppSpacing.s8 -
-            1;
-        return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
           spacing: AppSpacing.s8,
           children: [
-            ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: nameMax),
+            Flexible(
               child: Text(
                 bot.displayName,
                 maxLines: 1,
@@ -115,36 +101,16 @@ class _BotName extends StatelessWidget {
                 size: _dot,
                 backgroundColor: tokens.surfaceRaised,
               ),
-            if (handleMax >= _minHandle)
-              ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: handleMax),
-                child: Text(
-                  handle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
-              ),
           ],
-        );
-      },
+        ),
+        Text(
+          ['@${bot.username}', ?_note(bot)].join('  '),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        ),
+      ],
     );
-  }
-
-  /// The width [text] takes on one line, so the handle can be given exactly what the name leaves.
-  static double _width(BuildContext context, String text, TextStyle style) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: DefaultTextStyle.of(context).style.merge(style),
-      ),
-      textDirection: Directionality.of(context),
-      textScaler: MediaQuery.textScalerOf(context),
-      maxLines: 1,
-    )..layout();
-    final width = painter.width.ceilToDouble();
-    painter.dispose();
-    return width;
   }
 }
 
