@@ -86,12 +86,12 @@ pub(crate) fn limit_key(
         return format!("u:{}", ctx.user_id);
     }
     let trusted_hops = limiter.trusted_hops();
-    super::proxy_hint::observe(parts, trusted_hops);
     let peer = parts
         .extensions
         .get::<ConnectInfo<SocketAddr>>()
         .map(|ConnectInfo(addr)| addr.ip());
     let from_proxy = peer.is_some_and(|ip| limiter.trusted_proxies().trusts(ip));
+    super::proxy_hint::observe(parts, trusted_hops, peer.map(|ip| (ip, from_proxy)));
     if trusted_hops > 0
         && from_proxy
         && let Some(addr) = forwarded_for(parts, trusted_hops)

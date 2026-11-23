@@ -328,3 +328,48 @@ async fn every_supervisor_call_names_the_deployment() {
     assert!(!named.is_empty());
     assert!(named.iter().all(|d| *d == id), "{named:?}");
 }
+
+#[tokio::test]
+async fn deleting_the_data_waits_for_a_supervisor_that_cannot_remove_it() {
+    let w = host_world("slimm-hostrun-uninstall-busy", true, true).await;
+    let run_id = w.running().await;
+    let uri = format!("/space/dock/modules/{ID}/install?delete_data=true");
+    w.fake.with(|f| f.fail_remove = true);
+
+    let (status, body) = w.as_owner("DELETE", &uri, None).await;
+
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
+    assert!(
+        w.store.host_run(ID).await.unwrap().is_some(),
+        "still installed"
+    );
+    let creates = w.fake.calls("create").len();
+    slimm_server::http::connector_host::tick(&w.state).await;
+    assert_eq!(
+        w.fake.calls("create").len(),
+        creates,
+        "the monitor does not bring a connector back that is being deleted"
+    );
+    w.fake.with(|f| f.fail_remove = false);
+    let (status, body) = w.as_owner("DELETE", &uri, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
+    let removes = w.fake.calls("remove");
+    let (id, last) = removes.last().unwrap();
+    assert_eq!(
+        (id.as_str(), last["keep_volume"].clone()),
+        (run_id.as_str(), json!(false))
+    );
+}
+
+#[tokio::test]
+async fn keeping_the_data_uninstalls_even_when_the_container_will_not_go_yet() {
+    let w = host_world("slimm-hostrun-uninstall-keep", true, true).await;
+    w.running().await;
+    w.fake.with(|f| f.fail_remove = true);
+    let uri = format!("/space/dock/modules/{ID}/install?delete_data=false");
+
+    let (status, body) = w.as_owner("DELETE", &uri, None).await;
+
+    assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
+    assert!(w.store.host_run(ID).await.unwrap().is_none());
+}

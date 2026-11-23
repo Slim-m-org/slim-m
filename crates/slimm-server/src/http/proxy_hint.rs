@@ -16,11 +16,21 @@ pub(super) enum Mismatch {
     ProxyNotTrusted,
     /// Fewer forwarded entries than trusted hops: callers fall back to the peer address.
     TooFewEntries,
+    /// The header is there but its sender is not a trusted proxy, so it is ignored.
+    PeerNotTrusted,
 }
 
-pub(super) fn mismatch(forwarded_entries: usize, trusted_hops: usize) -> Option<Mismatch> {
+/// What the traffic shows about the setting; `peer_trusted` is `None` when the peer is unknown.
+pub(super) fn mismatch(
+    forwarded_entries: usize,
+    trusted_hops: usize,
+    peer_trusted: Option<bool>,
+) -> Option<Mismatch> {
     match (trusted_hops, forwarded_entries) {
         (0, entries) if entries > 0 => Some(Mismatch::ProxyNotTrusted),
+        (hops, entries) if hops > 0 && entries > 0 && peer_trusted == Some(false) => {
+            Some(Mismatch::PeerNotTrusted)
+        }
         (hops, entries) if hops > 0 && entries < hops => Some(Mismatch::TooFewEntries),
         _ => None,
     }
@@ -28,9 +38,10 @@ pub(super) fn mismatch(forwarded_entries: usize, trusted_hops: usize) -> Option<
 
 static WARNED_NOT_TRUSTED: AtomicBool = AtomicBool::new(false);
 static WARNED_TOO_FEW: AtomicBool = AtomicBool::new(false);
+static WARNED_PEER: AtomicBool = AtomicBool::new(false);
 
 /// Logs the first request whose forwarding header contradicts the configured hop count.
-pub(super) fn observe(parts: &Parts, trusted_hops: usize) {
+pub(super) fn observe(parts: &Parts, trusted_hops: usize, peer: Option<(std::net::IpAddr, bool)>) {
     let entries = parts
         .headers
         .get("x-forwarded-for")
@@ -38,7 +49,7 @@ pub(super) fn observe(parts: &Parts, trusted_hops: usize) {
         .map_or(0, |header| {
             header.split(',').filter(|e| !e.trim().is_empty()).count()
         });
-    let Some(found) = mismatch(entries, trusted_hops) else {
+    let Some(found) = mismatch(entries, trusted_hops, peer.map(|(_, trusted)| trusted)) else {
         return;
     };
     let (flag, advice) = match found {
@@ -50,9 +61,14 @@ pub(super) fn observe(parts: &Parts, trusted_hops: usize) {
             &WARNED_TOO_FEW,
             "a request carried fewer X-Forwarded-For entries than SLIMM_TRUST_PROXY_HOPS, so it was keyed by its TCP peer; check the setting against the proxy chain",
         ),
+        Mismatch::PeerNotTrusted => (
+            &WARNED_PEER,
+            "requests carry X-Forwarded-For but their sender is not in SLIMM_TRUSTED_PROXIES, so the header is ignored and every caller behind that proxy shares one rate-limit and sign-in throttle key; add the proxy's address (peer) to SLIMM_TRUSTED_PROXIES",
+        ),
     };
     if !flag.swap(true, Ordering::Relaxed) {
-        tracing::warn!(trusted_hops, forwarded_entries = entries, "{advice}");
+        let peer = peer.map(|(ip, _)| ip.to_string());
+        tracing::warn!(trusted_hops, forwarded_entries = entries, ?peer, "{advice}");
     }
 }
 
@@ -62,15 +78,23 @@ mod tests {
 
     #[test]
     fn a_forwarding_proxy_with_no_trusted_hops_is_flagged() {
-        assert_eq!(mismatch(1, 0), Some(Mismatch::ProxyNotTrusted));
-        assert_eq!(mismatch(0, 0), None);
+        assert_eq!(mismatch(1, 0, None), Some(Mismatch::ProxyNotTrusted));
+        assert_eq!(mismatch(0, 0, None), None);
     }
 
     #[test]
     fn a_header_shorter_than_the_trusted_hops_is_flagged() {
-        assert_eq!(mismatch(0, 1), Some(Mismatch::TooFewEntries));
-        assert_eq!(mismatch(1, 2), Some(Mismatch::TooFewEntries));
-        assert_eq!(mismatch(2, 2), None);
-        assert_eq!(mismatch(5, 2), None);
+        assert_eq!(mismatch(0, 1, None), Some(Mismatch::TooFewEntries));
+        assert_eq!(mismatch(1, 2, Some(true)), Some(Mismatch::TooFewEntries));
+        assert_eq!(mismatch(2, 2, Some(true)), None);
+        assert_eq!(mismatch(5, 2, Some(true)), None);
+    }
+
+    #[test]
+    fn a_header_from_a_peer_outside_the_trusted_proxies_is_flagged() {
+        assert_eq!(mismatch(1, 1, Some(false)), Some(Mismatch::PeerNotTrusted));
+        assert_eq!(mismatch(1, 1, Some(true)), None);
+        assert_eq!(mismatch(1, 1, None), None);
+        assert_eq!(mismatch(0, 1, Some(false)), Some(Mismatch::TooFewEntries));
     }
 }

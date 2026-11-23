@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE connector_host_runs SET crash_disabled_at = ?, last_error = ?, refused = 0\n                     WHERE module_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "ccdd0cc0ae9253eeec84e91c5fde57668fe5f207276c89608dbe1a337695666a"
+}

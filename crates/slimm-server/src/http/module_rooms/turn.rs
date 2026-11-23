@@ -84,13 +84,14 @@ pub(crate) async fn take(
             return Ok(Outcome::Failed(held, ran.payload));
         }
         return Ok(match contract::answer(&ran.payload) {
-            Ok(Answer::Next(next)) => match entered.room.commit(next, now_ms()) {
-                Some(stored) => {
-                    super::lifecycle::announce(state, &key, &stored, None);
-                    Outcome::Applied(stored)
+            Ok(Answer::Next(next)) => {
+                let announce =
+                    |stored: &Held| super::lifecycle::announce(state, &key, stored, None);
+                match entered.room.commit(next, now_ms(), announce) {
+                    Some(stored) => Outcome::Applied(stored),
+                    None => Outcome::Ended,
                 }
-                None => Outcome::Ended,
-            },
+            }
             Ok(Answer::Reject(reason)) => Outcome::Rejected(held, reason),
             Ok(Answer::End) => {
                 super::lifecycle::end_where(state, |k, _| *k == key, "ended");

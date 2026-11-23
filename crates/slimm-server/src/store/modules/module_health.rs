@@ -104,25 +104,10 @@ impl Store {
         reason: &str,
     ) -> anyhow::Result<bool> {
         let mut tx = self.begin_write().await?;
-        let disabled = sqlx::query!(
-            "UPDATE installed_modules SET enabled = 0 WHERE id = ? AND enabled = 1",
-            module_id
-        )
-        .execute(&mut *tx)
-        .await?
-        .rows_affected();
-        if disabled > 0 {
-            sqlx::query!(
-                "UPDATE module_health SET disabled_reason = ? WHERE module_id = ?",
-                reason,
-                module_id
-            )
-            .execute(&mut *tx)
-            .await?;
-        }
+        let disabled = disable_for_failures_in(&mut tx, module_id, reason).await?;
         tx.commit().await?;
         self.touch_modules();
-        Ok(disabled > 0)
+        Ok(disabled)
     }
 
     /// Turns an enabled module off because this server cannot run it, and records why.
@@ -185,4 +170,29 @@ impl Store {
         .await?;
         Ok(())
     }
+}
+
+/// [`Store::disable_module_for_failures`] inside a transaction the caller owns.
+pub(super) async fn disable_for_failures_in(
+    tx: &mut sqlx::SqliteConnection,
+    module_id: &str,
+    reason: &str,
+) -> anyhow::Result<bool> {
+    let disabled = sqlx::query!(
+        "UPDATE installed_modules SET enabled = 0 WHERE id = ? AND enabled = 1",
+        module_id
+    )
+    .execute(&mut *tx)
+    .await?
+    .rows_affected();
+    if disabled > 0 {
+        sqlx::query!(
+            "UPDATE module_health SET disabled_reason = ? WHERE module_id = ?",
+            reason,
+            module_id
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+    Ok(disabled > 0)
 }

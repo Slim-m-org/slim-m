@@ -71,6 +71,8 @@ Run one supervisor per deployment: a supervisor binds to the first server that n
 
 - If the supervisor or the runtime is down, running connectors keep running; the Dock says the runtime is unavailable and refuses install and start until it is back.
 - The server reconciles every 5 seconds: it creates what is missing with a new token, starts what should run, stops what is disabled, and removes labelled containers it has no record of, keeping their volumes.
+- Uninstalling with "delete data" waits for the supervisor: if it cannot remove the container and its volume, the server answers 503, leaves the connector installed and turned off, and the admin tries again once the supervisor is back.
+  Uninstalling and keeping the data never waits; a container the supervisor could not remove then is removed by the next pass, with its volume kept.
 - A crashing connector is started again after 1 second, doubling to 5 minutes, and turned off after 5 crashes within 10 minutes with an admin alert and an audit row.
 
 ## Logs

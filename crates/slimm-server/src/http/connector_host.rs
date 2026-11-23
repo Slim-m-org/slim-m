@@ -39,6 +39,8 @@ pub struct HostRunner {
     /// Connectors the supervisor last reported as not running, by module id.
     down: Mutex<HashSet<String>>,
     pub(crate) wake: Notify,
+    /// Held by a monitor pass, and by an uninstall that must not meet one halfway.
+    pass_gate: tokio::sync::Mutex<()>,
 }
 
 pub type HostRun = Arc<HostRunner>;
@@ -53,6 +55,7 @@ impl HostRunner {
             retries: Mutex::default(),
             down: Mutex::default(),
             wake: Notify::new(),
+            pass_gate: tokio::sync::Mutex::new(()),
         })
     }
 
@@ -93,6 +96,11 @@ impl HostRunner {
             Health::Down(reason) => Some(reason),
             Health::Unknown => Some("the connector supervisor has not answered yet".to_owned()),
         }
+    }
+
+    /// Waits for a running monitor pass to finish and keeps the next from starting until dropped.
+    pub(crate) async fn pause_monitor(&self) -> tokio::sync::MutexGuard<'_, ()> {
+        self.pass_gate.lock().await
     }
 
     /// Asks the monitor to reconcile now instead of at its next tick.

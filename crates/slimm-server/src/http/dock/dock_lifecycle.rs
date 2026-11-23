@@ -34,7 +34,12 @@ pub(in crate::http) async fn uninstall(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let module = state.store.installed_module(&id).await?;
-    super::dock_host_run::before_uninstall(&state, &id, !query.delete_data).await;
+    let runner = state.dock.host_run();
+    let _no_pass = match &runner {
+        Some(runner) => Some(runner.pause_monitor().await),
+        None => None,
+    };
+    super::dock_host_run::before_uninstall(&state, &id, !query.delete_data).await?;
     let uninstalled = match module.as_ref().is_some_and(InstalledModule::is_connector) {
         true => uninstall_connector(&state, &id, ctx.user_id).await?,
         false => {

@@ -374,9 +374,14 @@ pub(super) async fn after_enabled(
 }
 
 /// Removes the container before the module row and its host-run row go.
-pub(super) async fn before_uninstall(state: &AppState, id: &str, keep_volume: bool) {
-    if let Some(runner) = state.dock.host_run() {
-        lifecycle::before_uninstall(state, &runner, id, keep_volume).await;
+pub(super) async fn before_uninstall(
+    state: &AppState,
+    id: &str,
+    keep_volume: bool,
+) -> Result<(), ApiError> {
+    match state.dock.host_run() {
+        Some(runner) => lifecycle::before_uninstall(state, &runner, id, keep_volume).await,
+        None => Ok(()),
     }
 }
 
@@ -385,7 +390,7 @@ pub(super) async fn no_longer_host_run(state: &AppState, id: &str) -> Result<(),
     if state.store.host_run(id).await?.is_none() {
         return Ok(());
     }
-    before_uninstall(state, id, true).await;
+    before_uninstall(state, id, true).await?;
     state.store.delete_host_run(id).await?;
     Ok(())
 }
