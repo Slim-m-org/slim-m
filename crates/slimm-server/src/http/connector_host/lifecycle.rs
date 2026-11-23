@@ -182,17 +182,33 @@ pub(crate) async fn after_disable(state: &AppState, runner: &HostRun, module_id:
 }
 
 /// Removes the container, gateway and network, and the volume unless `keep_volume`.
+/// Asking for the volume to go is refused while the supervisor cannot do it, with the connector
+/// turned off so the monitor does not bring it back; keeping it only logs, the monitor finishes.
 pub(crate) async fn before_uninstall(
     state: &AppState,
     runner: &HostRun,
     module_id: &str,
     keep_volume: bool,
-) {
+) -> Result<(), ApiError> {
     let Ok(Some(record)) = state.store.host_run(module_id).await else {
-        return;
+        return Ok(());
     };
-    if let Err(err) = runner.client.remove(&record.run_id, keep_volume).await {
-        tracing::warn!(module = module_id, run = %record.run_id, reason = err.detail(),
-            "could not remove an uninstalled connector's container; the monitor removes it later and keeps its volume");
+    if !keep_volume {
+        runner.require_available()?;
+        state.store.set_module_enabled(module_id, false).await?;
+        runner.set_running(module_id, false);
+    }
+    match runner.client.remove(&record.run_id, keep_volume).await {
+        Ok(()) => Ok(()),
+        Err(err) if keep_volume => {
+            tracing::warn!(module = module_id, run = %record.run_id, reason = err.detail(),
+                "could not remove an uninstalled connector's container; the monitor removes it later and keeps its volume");
+            Ok(())
+        }
+        Err(err) => {
+            tracing::warn!(module = module_id, run = %record.run_id, reason = err.detail(),
+                "could not remove a connector's container and volume; the uninstall waits");
+            Err(UNAVAILABLE)
+        }
     }
 }

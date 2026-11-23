@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 use serde_json::{Value, json};
 use slimm_server::permissions::Permissions;
 
-use super::harness::{ID, World, manifest, world};
+use super::harness::{ID, World, manifest, world_with};
 use crate::support;
 use support::app::{Account, call};
 use support::ws::Client;
@@ -37,7 +37,21 @@ pub struct Live {
 
 /// Installs the connector approving `approved`, and a member allowed to run its command.
 pub async fn live(name: &str, approved: i64) -> Live {
-    let w = world(name, &["view_channel", "send_messages"]).await;
+    live_waiting(name, approved, None).await
+}
+
+/// [`live`] where a member's run waits `deadline` for the connector instead of the real one.
+pub async fn live_waiting(
+    name: &str,
+    approved: i64,
+    deadline: Option<std::time::Duration>,
+) -> Live {
+    let permissions = ["view_channel", "send_messages"];
+    let w = world_with(name, &permissions, |dock| match deadline {
+        Some(deadline) => dock.with_connector_run_deadline(deadline),
+        None => dock,
+    })
+    .await;
     *w.served.lock().unwrap() = with_surfaces();
     let token = w.installed(approved).await;
     let member = support::app::register_account(&w.store, "member").await;

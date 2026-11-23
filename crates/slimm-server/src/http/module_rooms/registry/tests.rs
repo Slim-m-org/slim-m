@@ -25,7 +25,7 @@ fn a_room_that_never_got_a_state_is_not_kept() {
     assert!(rooms.live().is_empty());
 
     let entered = rooms.enter(&key("game", channel)).unwrap();
-    entered.room.commit(state("1"), 10).unwrap();
+    entered.room.commit(state("1"), 10, |_| {}).unwrap();
     drop(entered);
     let held = rooms.in_channel(channel);
     assert_eq!(held.len(), 1);
@@ -38,7 +38,13 @@ fn every_commit_moves_the_seq_by_one() {
     let rooms = Rooms::default();
     let entered = rooms.enter(&key("game", ChannelId::generate())).unwrap();
     let seqs: Vec<u64> = (0..3)
-        .map(|n| entered.room.commit(state(&n.to_string()), n).unwrap().seq)
+        .map(|n| {
+            entered
+                .room
+                .commit(state(&n.to_string()), n, |_| {})
+                .unwrap()
+                .seq
+        })
         .collect();
     assert_eq!(seqs, [1, 2, 3]);
 }
@@ -48,7 +54,7 @@ fn one_module_holds_a_bounded_number_of_rooms() {
     let rooms = Rooms::default();
     for _ in 0..MAX_ROOMS_PER_MODULE {
         let entered = rooms.enter(&key("game", ChannelId::generate())).unwrap();
-        entered.room.commit(state("{}"), 0).unwrap();
+        entered.room.commit(state("{}"), 0, |_| {}).unwrap();
     }
     let next = rooms.enter(&key("game", ChannelId::generate()));
     assert_eq!(next.err(), Some(Refused::TooManyRooms));
@@ -72,10 +78,10 @@ fn an_ended_room_takes_no_more_state_and_is_listed_no_more() {
     let rooms = Rooms::default();
     let channel = ChannelId::generate();
     let entered = rooms.enter(&key("game", channel)).unwrap();
-    entered.room.commit(state("1"), 0).unwrap();
-    let ended = rooms.end_where(|k, _| k.channel_id == channel);
+    entered.room.commit(state("1"), 0, |_| {}).unwrap();
+    let ended = rooms.end_where(|k, _| k.channel_id == channel, |_, _| {});
     assert_eq!(ended.len(), 1);
-    assert!(entered.room.commit(state("2"), 0).is_none());
+    assert!(entered.room.commit(state("2"), 0, |_| {}).is_none());
     assert!(rooms.in_channel(channel).is_empty());
     drop(entered);
     let fresh = rooms.enter(&key("game", channel)).unwrap();
@@ -88,8 +94,28 @@ fn ending_reports_only_rooms_that_held_a_state() {
     let channel = ChannelId::generate();
     let _empty = rooms.enter(&key("quiet", channel)).unwrap();
     let busy = rooms.enter(&key("game", channel)).unwrap();
-    busy.room.commit(state("1"), 0).unwrap();
-    let ended = rooms.end_where(|_, _| true);
+    busy.room.commit(state("1"), 0, |_| {}).unwrap();
+    let ended = rooms.end_where(|_, _| true, |_, _| {});
     assert_eq!(ended.len(), 1);
     assert_eq!(ended[0].0.module_id, "game");
+}
+
+/// Viewers are told in the order the room changed: a state frame never trails its `ended` frame.
+#[test]
+fn a_room_ending_while_a_state_is_announced_is_announced_after_it() {
+    let rooms = Arc::new(Rooms::default());
+    let channel = ChannelId::generate();
+    let entered = rooms.enter(&key("game", channel)).unwrap();
+    let told = Arc::new(Mutex::new(Vec::new()));
+    let mut ender = None;
+    entered.room.commit(state("1"), 0, |_| {
+        let (rooms, ended_told) = (Arc::clone(&rooms), Arc::clone(&told));
+        ender = Some(std::thread::spawn(move || {
+            rooms.end_where(|_, _| true, |_, _| ended_told.lock().unwrap().push("ended"));
+        }));
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        told.lock().unwrap().push("state");
+    });
+    ender.unwrap().join().unwrap();
+    assert_eq!(*told.lock().unwrap(), ["state", "ended"]);
 }

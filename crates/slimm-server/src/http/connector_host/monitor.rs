@@ -14,6 +14,7 @@ use super::crashes::Decision;
 use super::{Health, HostRun};
 use crate::http::AppState;
 use crate::store::HostRun as HostRunRecord;
+use crate::store::TurnedOff;
 
 const TICK: Duration = Duration::from_secs(5);
 const FIRST_RETRY: Duration = Duration::from_secs(1);
@@ -68,6 +69,7 @@ pub(crate) async fn reconcile(state: &AppState, runner: &HostRun) {
     if runner.unavailable_reason().is_some() {
         return;
     }
+    let _pass = runner.pause_monitor().await;
     let (Ok(records), Ok(listed)) = (state.store.host_runs().await, runner.client.list().await)
     else {
         return;
@@ -119,7 +121,7 @@ async fn reconcile_one(
             .map(|mut c| {
                 c.entry(record.module_id.clone())
                     .or_default()
-                    .on_exited(&finished, crate::store::now_ms())
+                    .on_exited(&finished, runner.now())
             })
             .unwrap_or(Decision::Wait);
         match decision {
@@ -130,7 +132,7 @@ async fn reconcile_one(
             Decision::StartNow => {}
         }
     }
-    let now = crate::store::now_ms();
+    let now = runner.now();
     if running || !runner.retry_due(&record.module_id, now) {
         return;
     }
@@ -152,12 +154,15 @@ async fn disable_for_volume(
         .volume_mib
         .map_or_else(|| "its".to_owned(), |m| format!("its {m} MiB"));
     let reason = format!("Turned off because its data volume passed {limit} limit.");
-    let marked = state
-        .store
-        .set_host_run_error(&record.module_id, Some(&reason), true)
-        .await;
     let detail = json!({ "volume_bytes": listed.volume_bytes, "volume_mib": record.spec.volume_mib, "host_run": true });
-    turn_off(state, runner, record, marked.map(|()| reason), detail).await;
+    turn_off(
+        state,
+        runner,
+        record,
+        (&reason, TurnedOff::VolumeFull),
+        detail,
+    )
+    .await;
 }
 
 /// The same alert and audit row the module breaker sends (decision 0091), with the
@@ -169,21 +174,13 @@ async fn disable_for_crashes(
     crashes: usize,
 ) {
     let reason = format!("Turned off after {crashes} crashes within 10 minutes.");
-    let now = crate::store::now_ms();
-    let marked = state
-        .store
-        .set_host_run_crash_disabled(&record.module_id, Some(now))
-        .await;
-    let noted = state
-        .store
-        .set_host_run_error(&record.module_id, Some(&reason), false)
-        .await;
+    let at = runner.now();
     let detail = json!({ "crashes": crashes, "host_run": true });
     turn_off(
         state,
         runner,
         record,
-        marked.and(noted).map(|()| reason),
+        (&reason, TurnedOff::Crashes { at }),
         detail,
     )
     .await;
@@ -193,26 +190,19 @@ async fn turn_off(
     state: &AppState,
     runner: &HostRun,
     record: &HostRunRecord,
-    marked: anyhow::Result<String>,
+    (reason, why): (&str, TurnedOff),
     detail: serde_json::Value,
 ) {
-    let reason = match marked {
-        Ok(reason) => reason,
-        Err(err) => {
-            tracing::warn!(%err, module = %record.module_id, "could not turn off a connector");
-            return;
-        }
-    };
     if let Err(err) = state
         .store
-        .disable_module_for_failures(&record.module_id, &reason)
+        .turn_off_host_run(&record.module_id, reason, why)
         .await
     {
         tracing::warn!(%err, module = %record.module_id, "could not turn off a connector");
         return;
     }
     let _ = runner.client.stop(&record.run_id).await;
-    tracing::warn!(module = %record.module_id, %reason, "turned off a host-run connector");
+    tracing::warn!(module = %record.module_id, reason, "turned off a host-run connector");
     let name = state
         .store
         .installed_module(&record.module_id)

@@ -14,7 +14,7 @@ use tower::ServiceExt;
 
 use super::livekit_webhook::webhook_request;
 use super::module_world::{World, world_with};
-use super::wasm_fixtures::{canned_raw_wasm, sha256_hex};
+use super::wasm_fixtures::{canned_raw_wasm, echo_request_in_wasm, sha256_hex};
 
 const API_KEY: &str = "APItestkey";
 const API_SECRET: &str = "a-test-secret-of-at-least-32-characters";
@@ -28,6 +28,14 @@ pub fn noughts_wasm() -> Vec<u8> {
         "tests/fixtures/noughts-0.2.0.wasm is not slim-addons' noughts 0.2.0"
     );
     wasm
+}
+
+/// A module whose room state is `{"r": "<the request it was run with>"}`, quotes read as `'`.
+pub fn echo_room_wasm() -> Vec<u8> {
+    echo_request_in_wasm(
+        r#"{"ok":true,"output":"{\"$slim\":\"room/1\",\"state\":{\"r\":\""#,
+        r#"\"}}"}"#,
+    )
 }
 
 /// A module that answers `output` as its room reply every time.

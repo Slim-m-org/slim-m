@@ -24,6 +24,8 @@ pub struct Inner {
     pub containers: BTreeMap<String, Value>,
     pub runtime_down: bool,
     pub refuse_create: Option<(String, String)>,
+    /// Answers every `remove` with a runtime error and keeps the container.
+    pub fail_remove: bool,
     pub hello: Option<Value>,
     /// The `X-Slimm-Deployment` every verb call named.
     pub deployments: Vec<String>,
@@ -217,6 +219,13 @@ async fn verb(
             None => return error(StatusCode::NOT_FOUND, "not_found", "no such connector"),
         },
         "remove" => {
+            if inner.fail_remove {
+                return error(
+                    StatusCode::BAD_GATEWAY,
+                    "runtime_error",
+                    "the volume is busy",
+                );
+            }
             inner.containers.remove(&id);
         }
         _ => return error(StatusCode::NOT_FOUND, "not_found", "no such route"),

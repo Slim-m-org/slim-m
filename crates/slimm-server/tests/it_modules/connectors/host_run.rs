@@ -6,7 +6,7 @@ use axum::http::StatusCode;
 use serde_json::{Value, json};
 
 use super::harness::ID;
-use super::host_run_world::{IMAGE, host_world};
+use super::host_run_world::{HostWorld, IMAGE, host_world};
 use crate::support::app::call;
 
 fn all_egress() -> Value {
@@ -327,4 +327,120 @@ async fn every_supervisor_call_names_the_deployment() {
     let named = w.fake.with(|f| f.deployments.clone());
     assert!(!named.is_empty());
     assert!(named.iter().all(|d| *d == id), "{named:?}");
+}
+
+#[tokio::test]
+async fn deleting_the_data_waits_for_a_supervisor_that_cannot_remove_it() {
+    let w = host_world("slimm-hostrun-uninstall-busy", true, true).await;
+    let run_id = w.running().await;
+    let uri = format!("/space/dock/modules/{ID}/install?delete_data=true");
+    w.fake.with(|f| f.fail_remove = true);
+
+    let (status, body) = w.as_owner("DELETE", &uri, None).await;
+
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
+    assert!(
+        w.store.host_run(ID).await.unwrap().is_some(),
+        "still installed"
+    );
+    let creates = w.fake.calls("create").len();
+    slimm_server::http::connector_host::tick(&w.state).await;
+    assert_eq!(
+        w.fake.calls("create").len(),
+        creates,
+        "the monitor does not bring a connector back that is being deleted"
+    );
+    w.fake.with(|f| f.fail_remove = false);
+    let (status, body) = w.as_owner("DELETE", &uri, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
+    let removes = w.fake.calls("remove");
+    let (id, last) = removes.last().unwrap();
+    assert_eq!(
+        (id.as_str(), last["keep_volume"].clone()),
+        (run_id.as_str(), json!(false))
+    );
+}
+
+#[tokio::test]
+async fn keeping_the_data_uninstalls_even_when_the_container_will_not_go_yet() {
+    let w = host_world("slimm-hostrun-uninstall-keep", true, true).await;
+    w.running().await;
+    w.fake.with(|f| f.fail_remove = true);
+    let uri = format!("/space/dock/modules/{ID}/install?delete_data=false");
+
+    let (status, body) = w.as_owner("DELETE", &uri, None).await;
+
+    assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
+    assert!(w.store.host_run(ID).await.unwrap().is_none());
+}
+
+/// The Dock's next offer of the connector: `edit` changes the manifest it serves.
+fn republish(w: &HostWorld, edit: impl FnOnce(&mut Value)) {
+    let mut served = w.served.lock().unwrap();
+    served["version"] = json!("0.2.0");
+    edit(&mut served);
+}
+
+#[tokio::test]
+async fn an_update_that_stops_asking_to_be_host_run_removes_the_container_and_keeps_the_volume() {
+    let w = host_world("slimm-hostrun-update-forwarded", true, true).await;
+    let run_id = w.running().await;
+    let old_token = w.last_token();
+    republish(&w, |doc| {
+        doc["connector"].as_object_mut().unwrap().remove("host_run");
+    });
+
+    let (status, body) = w.install(json!(null)).await;
+
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let removes = w.fake.calls("remove");
+    let (removed, last) = removes.last().unwrap();
+    assert_eq!(
+        (removed.as_str(), last["keep_volume"].clone()),
+        (run_id.as_str(), json!(true))
+    );
+    assert_eq!(w.fake.state(&run_id), None, "the container is gone");
+    assert!(w.store.host_run(ID).await.unwrap().is_none());
+    let (status, _) = call(&w.router, "GET", "/connectors/me", Some(&old_token), None).await;
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "the removed container's token no longer works"
+    );
+    assert!(
+        body["connector_token"].is_string(),
+        "an admin-started connector is handed its token once: {body}"
+    );
+}
+
+#[tokio::test]
+async fn an_update_with_a_new_image_and_egress_replaces_the_container_with_what_was_approved() {
+    let w = host_world("slimm-hostrun-update-changed", true, true).await;
+    let run_id = w.running().await;
+    let image = IMAGE.replace("0123456789abcdef", "fedcba9876543210");
+    republish(&w, |doc| {
+        let ask = &mut doc["connector"]["host_run"];
+        ask["image"] = json!(image);
+        ask["egress"] = json!([{"host": "api.example.com", "port": 443}]);
+        ask["egress_private"] = json!(false);
+    });
+
+    let approval =
+        json!({"egress": [{"host": "api.example.com", "port": 443}], "egress_private": false});
+    let (status, body) = w.install(approval).await;
+
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let (_, create) = w.fake.calls("create").last().cloned().unwrap();
+    assert_eq!(create["image"], json!(image));
+    assert_eq!(
+        create["egress"],
+        json!([{"host": "api.example.com", "port": 443}])
+    );
+    assert_eq!(create["egress_private"], json!(false));
+    let removes = w.fake.calls("remove");
+    assert!(
+        removes.iter().any(|(id, _)| *id == run_id),
+        "the old one went first"
+    );
+    assert_eq!(w.store.host_run(ID).await.unwrap().unwrap().run_id, run_id);
 }

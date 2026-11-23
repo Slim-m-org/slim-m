@@ -137,6 +137,7 @@ The **request** the host writes is a JSON object:
 - `caller.id` is an opaque, stable id for whoever ran the command.
 - `caller.name` (add-on API 7, optional) is the name other members see for them in this space: their nickname here, else their display name, else their username.
   It is a snapshot taken when the run started, it is not unique and it changes, so show it but never key on it; a host below level 7 never sends it, and it is left out when the account cannot be read.
+  A run in a shared room (`room.state`) never carries it, so a room module cannot learn who is playing.
 - `entropy` is 32 hex characters of fresh randomness, new for every run and unrelated to who ran it.
   A module has no random source, so mix it into your seed when a command should vary, such as a die roll.
 - `now_ms` is the host's wall clock when the run started: UTC, milliseconds since the Unix epoch.
@@ -692,6 +693,8 @@ Posts a message as the person who ran the module, into the channel they ran it f
   A malformed token (not exactly 64 hex characters between `{{mention:` and `}}`) stays literal text.
   The usual rules then apply to the mention: `@everyone`, `@here` and roles are never reachable through a token, and Do Not Disturb, mutes and notification settings decide who is notified.
   The host puts a space after the name when the next character would read as part of it.
+  A member whose username cannot be written as a mention (it ends in `.` or `-`) is written as the name others see for them, with every `@` shown as a full-width `＠` so that name can never read as a mention of someone else.
+  The member the token names is still mentioned, because the host mentions exactly the ids the tokens held and nobody the expanded text happens to name.
 - Runs started from a code block (`code-block-runner`) get no `message.post`, because the input there is whoever wrote the message, not whoever clicked Run.
 - The text a slash command *returns* is posted the same way: the client asks the host to post it, and it carries the same host-written marker.
   A module cannot make its output pass for the member's own words, whether it posts with `message.post` or just prints.

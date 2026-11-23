@@ -49,9 +49,17 @@ pub fn routes() -> Router<AppState> {
         .layer(DefaultBodyLimit::max(MAX_ANSWER_BYTES))
 }
 
-/// The runs waiting on connectors, and how many each connector and member holds.
-#[derive(Default)]
-pub struct ConnectorRuns(Mutex<Waiting>);
+/// The runs waiting on connectors, how many each connector and member holds, and how long one waits.
+pub struct ConnectorRuns {
+    waiting: Mutex<Waiting>,
+    deadline: Duration,
+}
+
+impl Default for ConnectorRuns {
+    fn default() -> Self {
+        Self::with_deadline(RUN_DEADLINE)
+    }
+}
 
 #[derive(Default)]
 struct Waiting {
@@ -74,6 +82,14 @@ struct InFlight<'a> {
 }
 
 impl ConnectorRuns {
+    /// A run waits `deadline` for its answer; a test shortens it instead of waiting [`RUN_DEADLINE`].
+    pub fn with_deadline(deadline: Duration) -> Self {
+        Self {
+            waiting: Mutex::default(),
+            deadline,
+        }
+    }
+
     /// A slot for `caller`'s run on `module_id`, and where its answer arrives; `None` when either cap is full.
     fn admit(
         &self,
@@ -119,7 +135,7 @@ impl ConnectorRuns {
     }
 
     fn lock(&self) -> MutexGuard<'_, Waiting> {
-        self.0.lock().unwrap_or_else(PoisonError::into_inner)
+        self.waiting.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
 
@@ -190,10 +206,10 @@ async fn forward(
             principal,
             run_id: in_flight.run_id,
             module_id: module.id.clone(),
-            deadline_ms: u64::try_from(RUN_DEADLINE.as_millis()).unwrap_or(u64::MAX),
+            deadline_ms: u64::try_from(runs.deadline.as_millis()).unwrap_or(u64::MAX),
             request: RoomJson::new(request),
         })));
-    let answer = tokio::time::timeout(RUN_DEADLINE, answered).await;
+    let answer = tokio::time::timeout(runs.deadline, answered).await;
     drop(in_flight);
     match answer {
         Ok(Ok(bytes)) => Ok(bytes),

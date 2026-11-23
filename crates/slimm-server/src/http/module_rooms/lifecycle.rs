@@ -43,9 +43,10 @@ pub(super) fn end_where(
     which: impl Fn(&RoomKey, &Held) -> bool,
     why: &'static str,
 ) {
-    for (key, held) in state.dock.rooms().end_where(which) {
-        announce(state, &key, &held, Some(why));
-    }
+    state
+        .dock
+        .rooms()
+        .end_where(which, |key, held| announce(state, key, held, Some(why)));
 }
 
 /// Ends every room `module_id` keeps: it was turned off, uninstalled or installed again.
@@ -65,13 +66,10 @@ pub(crate) fn end_channel(state: &AppState, channel: ChannelId) {
 
 /// Drops rooms that went [`IDLE_MS`] without an input; returns how many held a state.
 pub fn end_idle(state: &AppState, now: i64) -> usize {
-    let ended = state
-        .dock
-        .rooms()
-        .end_where(|_, held| held.state.is_some() && now - held.touched_at >= IDLE_MS);
-    for (key, held) in &ended {
-        announce(state, key, held, Some("idle"));
-    }
+    let ended = state.dock.rooms().end_where(
+        |_, held| held.state.is_some() && now - held.touched_at >= IDLE_MS,
+        |key, held| announce(state, key, held, Some("idle")),
+    );
     ended.len()
 }
 

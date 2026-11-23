@@ -64,6 +64,29 @@ async fn a_run_resumed_after_a_fuel_slice_reaches_its_indirect_call() {
     }
 }
 
+/// The wasmi version the ignored test below was last run against.
+const LAZY_CHECKED_WITH: &str = "2.0.2";
+
+/// Fails on a wasmi upgrade until the ignored lazy test has been run against the new version.
+#[test]
+fn the_lazy_compilation_check_names_the_wasmi_the_lockfile_pins() {
+    let lock = include_str!("../../../../Cargo.lock");
+    let pinned = lock
+        .split("[[package]]")
+        .find_map(|package| {
+            let mut lines = package.lines().map(str::trim).filter(|l| !l.is_empty());
+            let name = lines.next()?.strip_prefix("name = ")?.trim_matches('"');
+            let version = lines.next()?.strip_prefix("version = ")?.trim_matches('"');
+            (name == "wasmi").then_some(version)
+        })
+        .expect("Cargo.lock pins wasmi");
+    assert_eq!(
+        pinned, LAZY_CHECKED_WITH,
+        "wasmi is now {pinned}: run `cargo test a_lazy_engine_survives -- --ignored`, then set \
+         LAZY_CHECKED_WITH and the ignore reason below to {pinned}, and drop `Eager` in compiled.rs if it passes"
+    );
+}
+
 /// Run by hand after a wasmi upgrade: when it passes, lazy translation is safe and `compiled.rs` can drop `Eager`.
 #[test]
 #[ignore = "wasmi 2.0.2 fails a lazily translated call whose slice ends mid-translation"]

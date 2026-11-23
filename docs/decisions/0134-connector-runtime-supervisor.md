@@ -277,3 +277,16 @@ A review of the built supervisor and server found the following, and each is now
 - Posted command output reaches `@everyone` only when both the member who ran it and the module's principal hold `mention_everyone`.
 - Gateways and the volume helper run the supervisor's own image by its content id, and the bare-metal unit gains a system call filter.
 - The supervisor image is built natively per architecture, merged by digest and cosign-signed with the server's images under the same tags, release-please bumps the supervisor crate with the server, and the compose overlay needs `SLIMM_VERSION` instead of following `latest`.
+
+## Amendment, 2026-11-23: the pre-1.0 audit
+
+- Uninstalling a host-run connector with its data deleted is refused with 503 while the supervisor cannot remove the container and its volume.
+  The connector is turned off first, so the monitor does not create it again, and the monitor never runs a pass while an uninstall holds the gate.
+  The orphan sweep still keeps volumes, so a delete-data request can no longer be turned into a kept volume by a failed removal.
+- A connector turned off for crashes or a full volume is marked and disabled in one transaction, so a database error cannot leave a connector that says it was turned off while the module stays enabled.
+- The server logs one warning when a request carries `X-Forwarded-For` from a peer outside `SLIMM_TRUSTED_PROXIES`, naming the peer, since the header is then ignored and every caller shares the proxy's rate-limit key.
+- An update that makes a host-run connector admin-started removes its container, keeps its volume, and revokes the container's token: the admin is shown a new one once, as for any admin-started install.
+- The runtime cannot report one volume's size: `/system/df` ignores filters and `/volumes/{name}` carries no usage, so every volume on the host is read, at most every 30 seconds, with a 20 second limit.
+- A start measures before it takes the supervisor's verb lock, so a slow report never holds other verbs back.
+- A check that cannot read the sizes logs why; after three in a row the supervisor stops every running connector that has a volume, since its ceiling can no longer be enforced.
+

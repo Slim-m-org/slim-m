@@ -117,8 +117,9 @@ pub(super) async fn install(
         super::dock_host_run::after_store_install(state, &runner, &manifest.id, &spec).await?;
         return Ok(InstalledModuleDto::from(installed.module));
     }
-    super::dock_host_run::no_longer_host_run(state, &manifest.id).await?;
-    Ok(InstalledModuleDto::from(installed.module).with_connector_token(installed.token))
+    let switched = super::dock_host_run::no_longer_host_run(state, &manifest.id, actor).await?;
+    let token = switched.or(installed.token);
+    Ok(InstalledModuleDto::from(installed.module).with_connector_token(token))
 }
 
 /// Refuses a WASM install over a connector of the same id, which would leave its principal uncapped.
