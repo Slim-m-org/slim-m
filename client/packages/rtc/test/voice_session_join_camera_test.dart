@@ -72,6 +72,7 @@ void main() {
       micPort: CountingMic(),
       audioDevices: NoDevices(),
       cameraDevices: _OneCamera(),
+      cameraTrackFactory: fakeCameraTrack,
       liveOutput: (room, device) async {},
       inputGate: InputGateMonitor.disabled(),
       cameraJoinTimeout: timeout,
@@ -116,6 +117,7 @@ void main() {
 
   test('a camera that cannot open is reported and the call stays up', () async {
     await join();
+    await pumpEventQueue();
     gate.completeError(StateError('no webcam'));
     await pumpEventQueue();
 
@@ -188,6 +190,7 @@ void main() {
       micPort: CountingMic(),
       audioDevices: NoDevices(),
       cameraDevices: _OneCamera(),
+      cameraTrackFactory: fakeCameraTrack,
       liveOutput: (room, device) async {},
       inputGate: InputGateMonitor.disabled(),
     )..setCameraQuality(CameraQuality.high);
@@ -228,6 +231,7 @@ void main() {
         micPort: CountingMic(),
         audioDevices: NoDevices(),
         cameraDevices: _OneCamera(),
+        cameraTrackFactory: fakeCameraTrack,
         liveOutput: (room, device) async {},
         inputGate: InputGateMonitor.disabled(),
       );

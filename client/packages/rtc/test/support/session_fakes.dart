@@ -5,6 +5,7 @@ library;
 import 'dart:collection';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' as webrtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_rtc/src/voice_log.dart';
@@ -24,6 +25,23 @@ class _LiveShare extends Fake
   bool get muted => false;
 }
 
+class _Stream extends Fake implements webrtc.MediaStream {}
+
+class _Capture extends Fake implements webrtc.MediaStreamTrack {
+  @override
+  webrtc.StreamTrackCallback? onEnded;
+}
+
+/// Opens a camera "track" with no native plugin, for a session's `cameraTrackFactory`.
+// ignore: invalid_use_of_internal_member
+Future<lk.LocalVideoTrack> fakeCameraTrack(
+        lk.CameraCaptureOptions options) async =>
+    // ignore: invalid_use_of_internal_member
+    lk.LocalVideoTrack(lk.TrackSource.camera, _Stream(), _Capture(), options);
+
+class _Published extends Fake
+    implements lk.LocalTrackPublication<lk.LocalVideoTrack> {}
+
 class _Me extends Fake implements lk.LocalParticipant {
   _Me(this.identity, this.videos, this.camera, this.sharing, this.level);
 
@@ -33,6 +51,15 @@ class _Me extends Fake implements lk.LocalParticipant {
   @override
   final String identity;
   final CameraHook? camera;
+
+  @override
+  Future<lk.LocalTrackPublication<lk.LocalVideoTrack>> publishVideoTrack(
+    lk.LocalVideoTrack track, {
+    lk.VideoPublishOptions? publishOptions,
+  }) async {
+    await camera?.call(true, track.currentOptions as lk.CameraCaptureOptions);
+    return _Published();
+  }
 
   @override
   Future<lk.LocalTrackPublication?> setCameraEnabled(
