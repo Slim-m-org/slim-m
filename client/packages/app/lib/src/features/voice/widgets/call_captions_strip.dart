@@ -19,8 +19,15 @@ import '../providers/call_transcript.dart';
 import '../providers/live_call_transcript.dart';
 import '../providers/voice_settings_controller.dart';
 
-/// Lines the strip has room for.
+/// Lines the strip has room for on a tall window.
 const captionLines = 3;
+
+/// Below this window height the strip keeps two lines, so the stage keeps its room.
+const double _shortWindow = 500;
+
+/// How many text lines the strip shows in this window.
+int captionLinesFor(BuildContext context) =>
+    MediaQuery.sizeOf(context).height < _shortWindow ? 2 : captionLines;
 
 /// How long the strip keeps its lines once nobody has said anything new.
 const captionHold = Duration(seconds: 8);
@@ -35,7 +42,8 @@ bool captionsShown(WidgetRef ref, String channelId) =>
 /// The strip's fixed height at this text scale.
 double captionsHeight(BuildContext context) {
   final line = MediaQuery.textScalerOf(context).scale(AppText.body.fontSize!);
-  return line * AppText.body.height! * captionLines + AppSpacing.s8 * 2;
+  return line * AppText.body.height! * captionLinesFor(context) +
+      AppSpacing.s8 * 2;
 }
 
 class CallCaptionsStrip extends ConsumerWidget {
@@ -131,6 +139,52 @@ class _CaptionsState extends ConsumerState<_Captions> {
     unawaited(SemanticsService.sendAnnouncement(view, text, direction));
   }
 
+  TextSpan _span(api.TranscriptLine line) => TextSpan(
+    children: [
+      TextSpan(
+        text: '${_name(line.speakerId)}: ',
+        style: const TextStyle(fontWeight: AppWeights.medium),
+      ),
+      TextSpan(text: line.text),
+    ],
+  );
+
+  /// The newest lines that fit whole, each with its speaker, so nothing starts mid-sentence.
+  List<Widget> _wholeEntries(
+    BuildContext context,
+    double width,
+    AppTokens tokens,
+  ) {
+    final style = AppText.body.copyWith(color: tokens.textPrimary);
+    final scaler = MediaQuery.textScalerOf(context);
+    final room = captionLinesFor(context);
+    var used = 0;
+    final shown = <Widget>[];
+    for (final line in _shown.reversed) {
+      final painter = TextPainter(
+        text: TextSpan(style: style, children: [_span(line)]),
+        textDirection: Directionality.of(context),
+        textScaler: scaler,
+      )..layout(maxWidth: width);
+      final lines = painter.computeLineMetrics().length;
+      painter.dispose();
+      if (used + lines > room && shown.isNotEmpty) break;
+      used += lines;
+      shown.insert(
+        0,
+        Text.rich(
+          _span(line),
+          key: ValueKey('caption-${line.seq}'),
+          maxLines: room,
+          overflow: TextOverflow.ellipsis,
+          style: style,
+        ),
+      );
+      if (used >= room) break;
+    }
+    return shown;
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen(
@@ -153,30 +207,19 @@ class _CaptionsState extends ConsumerState<_Captions> {
           color: tokens.surfaceSunken,
           borderRadius: BorderRadius.circular(AppRadii.card),
         ),
-        // Older lines leave by the top edge as newer ones arrive at the bottom.
-        child: ClipRect(
-          child: OverflowBox(
-            maxHeight: double.infinity,
-            alignment: Alignment.bottomLeft,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final line in _shown)
-                  Text.rich(
-                    key: ValueKey('caption-${line.seq}'),
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '${_name(line.speakerId)}: ',
-                          style: const TextStyle(fontWeight: AppWeights.medium),
-                        ),
-                        TextSpan(text: line.text),
-                      ],
-                    ),
-                    style: AppText.body.copyWith(color: tokens.textPrimary),
-                  ),
-              ],
+        child: SizedBox(
+          width: double.infinity,
+          child: LayoutBuilder(
+            builder: (context, box) => ClipRect(
+              child: OverflowBox(
+                maxHeight: double.infinity,
+                alignment: Alignment.bottomLeft,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: _wholeEntries(context, box.maxWidth, tokens),
+                ),
+              ),
             ),
           ),
         ),
