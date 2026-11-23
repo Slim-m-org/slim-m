@@ -92,12 +92,19 @@ class _GroupDmPeopleListState extends ConsumerState<GroupDmPeopleList> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppInput(
-          controller: _search,
-          placeholder: 'Search people',
-          icon: const Icon(AppIcons.search),
-          semanticLabel: 'Search people',
-          onChanged: (_) => setState(() {}),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+          child: AppInput(
+            controller: _search,
+            placeholder: 'Search people',
+            icon: Icon(
+              AppIcons.search,
+              size: AppSizes.icon16,
+              color: tokens.textSecondary,
+            ),
+            semanticLabel: 'Search people',
+            onChanged: (_) => setState(() {}),
+          ),
         ),
         const SizedBox(height: AppSpacing.s4),
         ConstrainedBox(

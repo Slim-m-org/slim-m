@@ -156,9 +156,9 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
+        AppSpacing.s8,
         0,
-        AppSpacing.s16,
+        AppSpacing.s8,
         AppSpacing.s16,
       ),
       child: SingleChildScrollView(
@@ -168,37 +168,49 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
           children: [
             AppSheetHeader(
               shownName,
-              padding: const EdgeInsets.only(bottom: AppSpacing.s12),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s8,
+                AppSpacing.s12,
+                AppSpacing.s8,
+                AppSpacing.s12,
+              ),
             ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: AppInput(
-                    counterMax: entityNameMaxChars,
-                    controller: _name,
-                    autofocus: widget.intent == GroupDmSheetIntent.rename,
-                    placeholder: defaultName,
-                    semanticLabel: 'Group name',
-                    onChanged: (_) => setState(() {}),
+            _inset(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: AppInput(
+                      counterMax: entityNameMaxChars,
+                      controller: _name,
+                      autofocus: widget.intent == GroupDmSheetIntent.rename,
+                      placeholder: defaultName,
+                      semanticLabel: 'Group name',
+                      onChanged: (_) => setState(() {}),
+                    ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.s8),
-                AppButton(
-                  label: 'Save',
-                  disabled: _busy || !nameChanged || !nameOk,
-                  onPressed: () => _run(
-                    'rename the group',
-                    () =>
-                        renameGroupDm(_container, widget.channelId, _name.text),
+                  const SizedBox(width: AppSpacing.s8),
+                  AppButton(
+                    label: 'Save',
+                    disabled: _busy || !nameChanged || !nameOk,
+                    onPressed: () => _run(
+                      'rename the group',
+                      () => renameGroupDm(
+                        _container,
+                        widget.channelId,
+                        _name.text,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: AppSpacing.s12),
-            Text(
-              '${info.members.length} of $groupDmMaxPeople people',
-              style: AppText.label.copyWith(color: tokens.textSecondary),
+            _inset(
+              Text(
+                '${info.members.length} of $groupDmMaxPeople people',
+                style: AppText.label.copyWith(color: tokens.textSecondary),
+              ),
             ),
             const SizedBox(height: AppSpacing.s4),
             for (final m in info.members)
@@ -216,14 +228,18 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
               ),
             const SizedBox(height: AppSpacing.s12),
             if (full)
-              Text(
-                'This group is full.',
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
+              _inset(
+                Text(
+                  'This group is full.',
+                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+                ),
               )
             else ...[
-              Text(
-                'Add someone',
-                style: AppText.label.copyWith(color: tokens.textSecondary),
+              _inset(
+                Text(
+                  'Add someone',
+                  style: AppText.label.copyWith(color: tokens.textSecondary),
+                ),
               ),
               const SizedBox(height: AppSpacing.s4),
               GroupDmPeopleList(
@@ -238,51 +254,66 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
             ],
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.s8),
-              AppErrorState(message: _error!),
+              _inset(AppErrorState(message: _error!)),
             ],
             const SizedBox(height: AppSpacing.s12),
-            if (_confirming == GroupDmSheetIntent.leave)
-              _Confirm(
-                message:
-                    'You lose this conversation and its calls. The others keep it, '
-                    'and someone in it has to add you back to rejoin.',
-                action: 'Leave $shownName',
-                busy: _busy,
-                onCancel: _cancelConfirm,
-                onConfirm: _leave,
-              )
-            else if (_confirming == GroupDmSheetIntent.delete)
-              _Confirm(
-                message:
-                    'This deletes $shownName and all its messages for everyone '
-                    'in it. It cannot be undone.',
-                action: 'Delete $shownName',
-                busy: _busy,
-                onCancel: _cancelConfirm,
-                onConfirm: _delete,
-              )
-            else ...[
-              AppButton(
-                label: 'Leave group',
-                variant: AppButtonVariant.danger,
-                full: true,
-                onPressed: () =>
-                    setState(() => _confirming = GroupDmSheetIntent.leave),
+            _inset(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_confirming == GroupDmSheetIntent.leave)
+                    _Confirm(
+                      message:
+                          'You lose this conversation and its calls. The others keep it, '
+                          'and someone in it has to add you back to rejoin.',
+                      action: 'Leave $shownName',
+                      busy: _busy,
+                      onCancel: _cancelConfirm,
+                      onConfirm: _leave,
+                    )
+                  else if (_confirming == GroupDmSheetIntent.delete)
+                    _Confirm(
+                      message:
+                          'This deletes $shownName and all its messages for everyone '
+                          'in it. It cannot be undone.',
+                      action: 'Delete $shownName',
+                      busy: _busy,
+                      onCancel: _cancelConfirm,
+                      onConfirm: _delete,
+                    )
+                  else ...[
+                    AppButton(
+                      label: 'Leave group',
+                      variant: AppButtonVariant.danger,
+                      full: true,
+                      onPressed: () => setState(
+                        () => _confirming = GroupDmSheetIntent.leave,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.s8),
+                    AppButton(
+                      label: 'Delete group',
+                      variant: AppButtonVariant.danger,
+                      full: true,
+                      onPressed: () => setState(
+                        () => _confirming = GroupDmSheetIntent.delete,
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(height: AppSpacing.s8),
-              AppButton(
-                label: 'Delete group',
-                variant: AppButtonVariant.danger,
-                full: true,
-                onPressed: () =>
-                    setState(() => _confirming = GroupDmSheetIntent.delete),
-              ),
-            ],
+            ),
           ],
         ),
       ),
     );
   }
+
+  /// Rows carry their own 8dp inset, so everything else steps in to meet their content edge.
+  Widget _inset(Widget child) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+    child: child,
+  );
 }
 
 /// A destructive act's plain warning with Cancel beside the button that does it.
