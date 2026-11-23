@@ -67,6 +67,9 @@ class AppSegmentedControl extends StatelessWidget {
   /// The trough's padding and border on both sides, so a filled control on touch totals a full touch row.
   static const double _troughInset = 8;
 
+  /// What each segment's focus ring reserves around its box.
+  static const double _ringExtent = 2 * (focusRingGap + focusRingWidth);
+
   /// The width an [AppSegmentedControl.inline] takes when nothing wraps it, for a row deciding whether the control fits beside its label.
   static double inlineWidth(
     BuildContext context,
@@ -79,25 +82,34 @@ class AppSegmentedControl extends StatelessWidget {
     List<AppSegmentedOption> options,
     double padding,
   ) {
-    final scaler = MediaQuery.textScalerOf(context);
-    final direction = Directionality.of(context);
     var width = 2 * (3 + 1) + AppSpacing.s4 * (options.length - 1);
-    for (final option in options) {
-      final painter = TextPainter(
-        text: TextSpan(
-          text: option.label,
-          style: AppText.caption.copyWith(
-            fontFamily: AppFonts.sans,
-            fontWeight: AppWeights.medium,
-          ),
-        ),
-        textDirection: direction,
-        textScaler: scaler,
-      )..layout();
-      width += painter.width + 2 * padding + 2;
-      painter.dispose();
+    for (final label in _labelWidths(context, options)) {
+      width += label + 2 * padding + 2 + _ringExtent;
     }
     return width;
+  }
+
+  static List<double> _labelWidths(
+    BuildContext context,
+    List<AppSegmentedOption> options,
+  ) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final direction = Directionality.of(context);
+    return [
+      for (final option in options)
+        (TextPainter(
+          text: TextSpan(
+            text: option.label,
+            style: AppText.caption.copyWith(
+              fontFamily: AppFonts.sans,
+              fontWeight: AppWeights.medium,
+            ),
+          ),
+          textDirection: direction,
+          textScaler: scaler,
+        )..layout())
+            .width,
+    ];
   }
 
   final List<AppSegmentedOption> options;
@@ -122,7 +134,7 @@ class AppSegmentedControl extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadii.control),
         ),
         child: fill
-            ? _filled(context, tokens, AppSpacing.s4)
+            ? _filled(context, tokens, AppSpacing.s4, measured: false)
             : LayoutBuilder(
                 builder: (context, box) => _inline(context, tokens, box),
               ),
@@ -162,17 +174,27 @@ class AppSegmentedControl extends StatelessWidget {
         ],
       );
 
-  Widget _filled(BuildContext context, AppTokens tokens, double padding) => Row(
-        spacing: AppSpacing.s4,
-        children: [
-          for (var i = 0; i < options.length; i++)
-            Expanded(
-              flex: options[i].label.length + 4,
-              child:
-                  _inlineSegment(context, tokens, i, padding, ellipsis: true),
-            ),
-        ],
-      );
+  Widget _filled(
+    BuildContext context,
+    AppTokens tokens,
+    double padding, {
+    bool measured = true,
+  }) {
+    // Shares follow the measured labels, so a short word is never ellipsized beside a long one.
+    final widths = _labelWidths(context, options);
+    return Row(
+      spacing: AppSpacing.s4,
+      children: [
+        for (var i = 0; i < options.length; i++)
+          Expanded(
+            flex: measured
+                ? ((widths[i] + 2 * padding + _ringExtent) * 10).round()
+                : options[i].label.length + 4,
+            child: _inlineSegment(context, tokens, i, padding, ellipsis: true),
+          ),
+      ],
+    );
+  }
 
   Widget _inlineSegment(
     BuildContext context,

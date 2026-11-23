@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -105,5 +106,43 @@ void main() {
       expect(tops, hasLength(1));
       expect(find.byType(SingleChildScrollView), findsOneWidget);
     });
+  });
+
+  testWidgets('a tray that fits every label shows none of them ellipsized', (
+    tester,
+  ) async {
+    const options = [
+      AppSegmentedOption(label: 'Never'),
+      AppSegmentedOption(label: '30 days'),
+      AppSegmentedOption(label: '90 days'),
+      AppSegmentedOption(label: '365 days'),
+    ];
+    late double room;
+    await tester.pumpWidget(
+      Builder(
+        builder: (context) => _host(
+          Builder(
+            builder: (inner) {
+              room = AppSegmentedControl.inlineWidth(inner, options) + 2;
+              return SizedBox(
+                width: room,
+                child: AppSegmentedControl.inline(
+                  options: options,
+                  selectedIndex: 0,
+                  onSegmentSelected: (_) {},
+                ),
+              );
+            },
+          ),
+          width: 1200,
+        ),
+      ),
+    );
+    for (final option in options) {
+      final paragraph = tester.renderObject<RenderParagraph>(
+        find.text(option.label),
+      );
+      expect(paragraph.didExceedMaxLines, isFalse, reason: option.label);
+    }
   });
 }
