@@ -182,7 +182,9 @@ class _SettingsSearchAreaState extends State<SettingsSearchArea> {
                 size: AppSizes.icon16,
                 color: tokens.textSecondary,
               ),
-              size: AppInputSize.sm,
+              size: AppTouchTargets.of(context)
+                  ? AppInputSize.lg
+                  : AppInputSize.sm,
               semanticLabel: 'Search settings',
               onChanged: _search,
             ),

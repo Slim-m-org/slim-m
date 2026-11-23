@@ -67,6 +67,20 @@ void main() {
     );
   });
 
+  testWidgets('Debug log and Send debug log line up with Call stats', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pumpPersonalSettings(tester, 0, scrollToBottom: false);
+    await tester.tap(find.text('Troubleshooting'));
+    await tester.pump(const Duration(milliseconds: 400));
+    final stats = tester.getTopLeft(find.text('Call stats')).dx;
+    expect(tester.getTopLeft(find.text('Debug log')).dx, stats);
+    expect(tester.getTopLeft(find.text('Send debug log')).dx, stats);
+  });
+
   testWidgets('the header actions sit on the right edge of the content', (
     tester,
   ) async {
