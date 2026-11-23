@@ -72,7 +72,7 @@ void main() {
     await pumpEventQueue();
     events
       ..add(
-        api.CallTranscriptMarkChanged(
+        const api.CallTranscriptMarkChanged(
           channelId: 'v1',
           transcriptId: 't1',
           markId: 'b',

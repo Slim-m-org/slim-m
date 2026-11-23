@@ -243,7 +243,7 @@ class _CountingMarks extends CallMarkActions {
   final List<int> calls;
 
   @override
-  Future<String?> mark({String? note}) async {
+  Future<String?> mark({String? note, String? id}) async {
     calls.add(calls.length + 1);
     return null;
   }
