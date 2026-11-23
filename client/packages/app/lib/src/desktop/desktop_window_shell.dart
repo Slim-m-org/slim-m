@@ -12,6 +12,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
+import 'package:flutter/widgets.dart' show Color;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/accounts/providers/account_host.dart';
@@ -21,6 +22,7 @@ import '../providers/providers.dart';
 import 'close_behavior.dart';
 import 'desktop_window_controller.dart';
 import 'desktop_window_port.dart';
+import 'popout/popout_windowing.dart' show NativeMainWindow;
 import 'providers/close_to_tray_preference.dart';
 import 'display_server.dart';
 import 'first_run_tray_notice.dart';
@@ -64,6 +66,24 @@ class DesktopWindowShell {
   /// Shared by every step here, and the one port [TitleBar] drags, minimizes
   /// and maximizes through; the native listener must be registered only once.
   final DesktopWindowPort port;
+
+  /// The main window Dart created, on Windows: held hidden by the runner
+  /// until [lockSplashChrome] reveals the finished splash.
+  NativeMainWindow? nativeWindow;
+  Color? _nativeBackground;
+
+  /// Gives the native window the splash's colour for anything a resize
+  /// exposes before Flutter paints it; asked again only when it changes.
+  void useNativeBackground(Color color) {
+    final window = nativeWindow;
+    if (window == null || color == _nativeBackground) return;
+    _nativeBackground = color;
+    unawaited(
+      window.setBackground(color.toARGB32()).catchError((Object error) {
+        AppLog.swallowed(LogTag.platform, 'No window background', error);
+      }),
+    );
+  }
 
   /// How long a native window or tray call may take before startup proceeds
   /// regardless, so a hung call never leaves the startup screen up forever.
@@ -193,6 +213,34 @@ class DesktopWindowShell {
         stack: stack,
       );
     }
+    await _revealNativeWindow();
+  }
+
+  /// Uncloaks the native main window once the frame after a size or frame
+  /// change has painted.
+  Future<void> _revealNativeWindow() async {
+    final window = nativeWindow;
+    if (window == null) return;
+    try {
+      await SchedulerBinding.instance.endOfFrame.timeout(_setupTimeout);
+    } on TimeoutException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'No frame before the reveal',
+        error,
+        stack,
+      );
+    }
+    try {
+      await window.reveal();
+    } catch (error, stack) {
+      AppLog.warning(
+        LogTag.platform,
+        'Could not show the main window',
+        error: error,
+        stack: stack,
+      );
+    }
   }
 
   Future<void> _lockSplashChrome() async {
@@ -207,8 +255,9 @@ class DesktopWindowShell {
   }
 
   /// Hides the window, then applies the real saved-or-default geometry while
-  /// nothing is on screen to see it change. Pair with [revealAfterHandoff],
-  /// called once the real UI has painted.
+  /// nothing is on screen to see it change; on Windows it grows in place (see
+  /// [_applyFinalGeometry]). Pair with [revealAfterHandoff], called once the
+  /// real UI has painted.
   ///
   /// Bounded and swallowed like [applyInitialGeometry], so a hang here cannot
   /// strand the app hidden. Persistence stays off until the reveal settles.
@@ -240,14 +289,22 @@ class DesktopWindowShell {
     }
   }
 
+  /// On Windows the window grows in place: the engine holds a resize until a
+  /// frame of the new size is drawn, so the splash goes straight to the full
+  /// window with nothing hidden in between.
   Future<void> _applyFinalGeometry(ProviderContainer container) async {
     final prefs = await container.read(preferencesProvider.future);
+    final inPlace =
+        (_chromePlatform ?? currentDesktopPlatform()) ==
+        DesktopPlatform.windows;
+    final inset = inPlace ? splashFrameInset(currentViewSize()) : null;
     await applyFinalGeometry(
       port,
       WindowGeometryStore(prefs),
       positionSupported: _positionSupported(),
+      hideFirst: !inPlace,
       onTarget: (target) {
-        _handoffTargetSize = target.size;
+        _handoffTargetSize = viewSizeFor(target.size, inset);
         _handoffFillsDisplay = target.fillsDisplay;
       },
     );

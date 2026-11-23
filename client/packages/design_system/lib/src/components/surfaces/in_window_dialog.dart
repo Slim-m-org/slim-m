@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The one place the app pushes a modal dialog route.
 ///
-/// With Flutter's `windowing` flag on, which the Linux build enables for the
-/// pop-out, `showDialog` opens a native OS window and drops its route builder,
+/// With Flutter's `windowing` flag on, which the Linux and Windows builds enable
+/// for the pop-out, `showDialog` opens a native OS window and drops its route builder,
 /// so every sheet, select and picker became a floating window. Pushing
 /// [DialogRoute] directly keeps them inside the main window. Nothing else in
 /// `client/packages/*/lib` may call `showDialog`; a gate enforces it.
@@ -14,11 +14,19 @@ import 'package:flutter/material.dart';
 
 import '../../app_motion.dart';
 
+/// Whether this build turns Flutter's windowing on, so `showDialog` would open
+/// an OS window; elsewhere it stays reachable (see [showInWindowDialog]).
+bool get buildsWithWindowing =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.windows);
+
 /// Pushes [builder] as an in-window Material dialog on the root navigator.
 ///
-/// Only the Linux build turns windowing on, so other platforms keep calling
-/// Flutter's `showDialog`: with no call to it the macOS AOT build crashed the
-/// snapshot generator ("Class with illegal cid", `_window_macos.dart`) in 0.91.0.
+/// Only the Linux and Windows builds turn windowing on, so other platforms keep
+/// calling Flutter's `showDialog`: with no call to it the macOS AOT build
+/// crashed the snapshot generator ("Class with illegal cid",
+/// `_window_macos.dart`) in 0.91.0.
 Future<T?> showInWindowDialog<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -26,8 +34,7 @@ Future<T?> showInWindowDialog<T>({
   AnimationStyle? animationStyle,
   RouteSettings? routeSettings,
 }) {
-  // Linux only: elsewhere showDialog stays reachable (see this function's doc).
-  if (kIsWeb || defaultTargetPlatform != TargetPlatform.linux) {
+  if (!buildsWithWindowing) {
     return showDialog<T>(
       context: context,
       builder: builder,

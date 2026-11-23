@@ -4,6 +4,7 @@
 #include "screen_overlay_win_panel.h"
 #include "screen_overlay_win_png.h"
 #include "screen_overlay_win_stamps.h"
+#include "main_window_identity.h"
 
 #include <windows.h>
 
@@ -460,9 +461,7 @@ void SetPanel(Panel panel) {
 }
 
 BOOL CALLBACK FindAppWindow(HWND window, LPARAM data) {
-  wchar_t name[64] = {};
-  GetClassNameW(window, name, 64);
-  if (wcscmp(name, L"FLUTTER_RUNNER_WIN32_WINDOW") != 0) return TRUE;
+  if (!slimm::IsMainAppWindow(window)) return TRUE;
   *reinterpret_cast<HWND*>(data) = window;
   return FALSE;
 }

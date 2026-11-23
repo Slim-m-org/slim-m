@@ -2,6 +2,8 @@
 /// Applying the saved-or-default window geometry once bootstrap has finished.
 library;
 
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
+
 import 'desktop_window_port.dart';
 import 'window_geometry.dart';
 import 'window_geometry_store.dart';
@@ -9,7 +11,9 @@ import 'window_geometry_store.dart';
 /// What the handoff reveal must wait for: a windowed size, or a display fill.
 typedef HandoffTarget = ({WindowSize? size, bool fillsDisplay});
 
-/// Hides the window, then applies the saved geometry while nothing is visible.
+/// Hides the window, then applies the saved geometry while nothing is visible;
+/// with [hideFirst] off it resizes in place, for an embedder that holds the
+/// resize until a frame of the new size is drawn (Windows).
 ///
 /// [onTarget] fires before the maximize or fullscreen await, so a call that
 /// hangs past the startup timeout still leaves the reveal its target.
@@ -22,17 +26,22 @@ Future<void> applyFinalGeometry(
   WindowGeometryStore store, {
   required bool positionSupported,
   required void Function(HandoffTarget target) onTarget,
+  bool hideFirst = true,
 }) async {
-  await port.hide();
+  if (hideFirst) await port.hide();
 
   final saved = store.read() ?? WindowGeometry.fallback;
-  final sized = clampToAttachedDisplays(
-    clampSizeToMinimum(saved),
-    await port.allDisplays(),
-  );
+  final displays = await port.allDisplays();
+  final sized = clampToAttachedDisplays(clampSizeToMinimum(saved), displays);
   final geometry = positionSupported
       ? sized
       : sized.copyWith(clearPosition: true);
+  AppLog.info(
+    LogTag.platform,
+    'Window geometry: saved ${_describe(saved)}, displays '
+    '${displays.map((d) => '${d.x},${d.y} ${d.width}x${d.height}').join('; ')}, '
+    'applying ${_describe(geometry)}',
+  );
 
   await port.setResizable(true);
   // After the splash, which is deliberately smaller than this floor.
@@ -62,4 +71,11 @@ Future<void> applyFinalGeometry(
     case WindowRunState.windowed:
       onTarget((size: geometry.windowedSize, fillsDisplay: false));
   }
+}
+
+String _describe(WindowGeometry geometry) {
+  final position = geometry.position;
+  final size = geometry.windowedSize;
+  final at = position == null ? 'unplaced' : 'at ${position.x},${position.y}';
+  return '${size.width}x${size.height} $at ${geometry.runState.name}';
 }

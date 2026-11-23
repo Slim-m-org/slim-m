@@ -4,7 +4,9 @@
 library;
 
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/main.dart' show appChromeBuilder;
@@ -98,6 +100,7 @@ VoiceState _call(List<VoiceParticipant> who) => VoiceState(
 class _Rig {
   final session = FakeSession();
   final windows = <_FakeWindow>[];
+  final openedInPhase = <SchedulerPhase>[];
   late final ProviderContainer container;
   late final SlimmDatabase db;
   FixedVoiceController get voice =>
@@ -108,6 +111,7 @@ Future<_Rig> _pump(
   WidgetTester tester, {
   required bool supported,
   List<VoiceParticipant> who = const [_ada],
+  PopOutWindowFactory? factory,
 }) async {
   final rig = _Rig();
   final fixture = await fixtureContainer(
@@ -116,22 +120,26 @@ Future<_Rig> _pump(
         (ref) => FixedVoiceController(ref, _call(who), rig.session),
       ),
       popOutWindowFactoryProvider.overrideWithValue(
-        supported
-            ? ({
-                required title,
-                required size,
-                required decorated,
-                required onCloseRequested,
-              }) {
-                final w = _FakeWindow(
-                  onCloseRequested,
-                  decorated: decorated,
-                  title: title,
-                );
-                rig.windows.add(w);
-                return w;
-              }
-            : null,
+        factory ??
+            (supported
+                ? ({
+                    required title,
+                    required size,
+                    required decorated,
+                    required onCloseRequested,
+                  }) {
+                    final w = _FakeWindow(
+                      onCloseRequested,
+                      decorated: decorated,
+                      title: title,
+                    );
+                    rig.windows.add(w);
+                    rig.openedInPhase.add(
+                      SchedulerBinding.instance.schedulerPhase,
+                    );
+                    return w;
+                  }
+                : null),
       ),
     ],
   );
@@ -184,6 +192,35 @@ void main() {
     final rig = await _pump(tester, supported: false);
     expect(find.byKey(miniPlayerKey), findsOneWidget);
     expect(_popOutButton, findsNothing);
+    await teardownFixture(tester, rig.container, rig.db);
+  });
+
+  testWidgets('Windows offers the pop-out control', (tester) async {
+    final rig = await _pump(
+      tester,
+      supported: true,
+      factory: nativePopOutWindowFactory(
+        windowing: true,
+        linux: false,
+        windows: true,
+      ),
+    );
+    expect(_popOutButton, findsOneWidget);
+    await teardownFixture(tester, rig.container, rig.db);
+  });
+
+  testWidgets('on Windows the window opens between frames, not inside one', (
+    tester,
+  ) async {
+    final rig = await _pump(tester, supported: true);
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    await tester.tap(_popOutButton);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump();
+    debugDefaultTargetPlatformOverride = null;
+    expect(rig.windows, hasLength(1));
+    expect(rig.openedInPhase, [SchedulerPhase.idle]);
     await teardownFixture(tester, rig.container, rig.db);
   });
 

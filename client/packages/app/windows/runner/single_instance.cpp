@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "link_handoff.h"
+#include "main_window_identity.h"
 #include "utils.h"
 
 namespace {
@@ -18,8 +19,6 @@ namespace {
 // Local\ scopes the name to this login session, so two users never collide.
 constexpr wchar_t kMutexName[] = L"Local\\top.npcserver.slimm.instance";
 constexpr wchar_t kMessageName[] = L"top.npcserver.slimm.second_instance";
-// The class every Flutter runner window registers; see win32_window.cpp.
-constexpr wchar_t kRunnerWindowClass[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
 // Tags a forwarded link's WM_COPYDATA; app_links uses WM_USER + 2 for its own.
 constexpr ULONG_PTR kForwardedLinkId = 0x534C4D4C;
 constexpr DWORD kMaxLinkBytes = 16 * 1024;
@@ -57,9 +56,7 @@ struct InstanceSearch {
 
 BOOL CALLBACK MatchInstanceWindow(HWND window, LPARAM lparam) {
   auto* search = reinterpret_cast<InstanceSearch*>(lparam);
-  wchar_t name[64] = {};
-  ::GetClassNameW(window, name, 64);
-  if (std::wcscmp(name, kRunnerWindowClass) != 0) return TRUE;
+  if (!slimm::IsMainAppWindow(window)) return TRUE;
   DWORD pid = 0;
   ::GetWindowThreadProcessId(window, &pid);
   if (pid == ::GetCurrentProcessId() ||

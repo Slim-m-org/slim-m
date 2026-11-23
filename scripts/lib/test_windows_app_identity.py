@@ -106,7 +106,7 @@ class RunnerClaimsTheIdFirst(unittest.TestCase):
         body = wwinmain_body()
         self.assertIn("RepairShortcuts();", body)
         self.assertLess(body.index("CoInitializeEx("), body.index("RepairShortcuts();"))
-        self.assertLess(body.index("RepairShortcuts();"), body.index("window.Create("))
+        self.assertLess(body.index("RepairShortcuts();"), body.index("engine->Run()"))
 
     def test_the_repair_covers_start_menu_desktop_and_taskbar_pins(self):
         source = strip_c_comments((RUNNER_DIR / "app_identity.cpp").read_text())

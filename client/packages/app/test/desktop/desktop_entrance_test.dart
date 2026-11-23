@@ -63,6 +63,24 @@ void main() {
     expect(find.byType(AppBrandMark), findsNothing);
   });
 
+  testWidgets('a background is painted under the content until it has '
+      'faded in', (tester) async {
+    const background = Color(0xFFF5F5F7);
+    Finder painted() =>
+        find.byWidgetPredicate((w) => w is ColoredBox && w.color == background);
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: DesktopEntrance(background: background, child: Text('content')),
+      ),
+    );
+    expect(painted(), findsOneWidget);
+    await tester.pump();
+    await tester.pump(kDesktopEntranceDuration + AppMotion.base);
+    await tester.pump();
+    expect(painted(), findsNothing);
+  });
+
   testWidgets('reduced motion shows the window at once', (tester) async {
     await tester.pumpWidget(
       const MediaQuery(

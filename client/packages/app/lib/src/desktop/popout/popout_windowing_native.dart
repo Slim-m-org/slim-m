@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The one file that touches Flutter's experimental windowing API.
+/// The Linux pop-out over Flutter's experimental windowing API, and the
+/// factory that picks each platform's pop-out.
 ///
 /// Everything else in the app sees [PopOutWindowHandle], so a breaking change
-/// in the framework's `_window.dart` lands here and nowhere else. The API only
-/// works when the Linux build injects the `windowing` feature flag; see
-/// `linux/flutter/CMakeLists.txt` and docs/decisions/0040.
+/// in the framework's `_window.dart` lands here and in its Windows half,
+/// `popout_windowing_win32.dart`. The API only works when the build injects the
+/// `windowing` feature flag; see `linux/flutter/CMakeLists.txt`,
+/// `windows/flutter/CMakeLists.txt` and docs/decisions/0040.
 library;
 
 // ignore_for_file: invalid_use_of_internal_member, implementation_imports
@@ -21,17 +23,27 @@ import 'package:slimm_platform/platform.dart'
         isLinuxHost,
         kwinAboveFullScreen,
         kwinKeepAbove,
+        isWindowsHost,
         kwinRemoveAboveFullScreen;
 
 import '../desktop_window_port.dart' show ResizeEdge;
 import 'popout_gtk_drag.dart';
 import 'popout_windowing.dart' show PopOutWindowFactory, PopOutWindowHandle;
+import 'popout_windowing_win32.dart';
 
-/// Null wherever a pop-out cannot be offered: web, every platform whose build
-/// does not carry the windowing flag, and a Linux build made without it.
-PopOutWindowFactory? nativePopOutWindowFactory() {
-  if (kIsWeb || !isWindowingEnabled) return null;
-  return isLinuxHost ? _NativePopOutWindow.new : null;
+export 'popout_windowing_win32.dart' show claimNativeMainWindow;
+
+/// Null wherever a pop-out cannot be offered: web, macOS, and any build made
+/// without the windowing flag. The arguments stand in for the host in tests.
+PopOutWindowFactory? nativePopOutWindowFactory({
+  bool? windowing,
+  bool? linux,
+  bool? windows,
+}) {
+  if (kIsWeb || !(windowing ?? isWindowingEnabled)) return null;
+  if (linux ?? isLinuxHost) return _NativePopOutWindow.new;
+  if (windows ?? isWindowsHost) return openWin32PopOutWindow;
+  return null;
 }
 
 const _minSize = Size(240, 160);

@@ -269,7 +269,6 @@ client/packages/app/linux/runner/my_application.cc 5
 client/packages/app/macos/RunnerTests/RunnerTests.swift 1
 client/packages/app/windows/runner/clipboard_image_channel.cpp 2
 client/packages/app/windows/runner/clipboard_image_channel.h 1
-client/packages/app/windows/runner/flutter_window.cpp 2
 client/packages/app/windows/runner/global_hotkeys_channel.cpp 1
 client/packages/app/windows/runner/global_hotkeys_channel.h 1
 client/packages/app/windows/runner/main.cpp 2
@@ -281,8 +280,6 @@ client/packages/app/windows/runner/screen_overlay_win.h 4
 client/packages/app/windows/runner/single_instance.h 3
 client/packages/app/windows/runner/utils.cpp 2
 client/packages/app/windows/runner/utils.h 3
-client/packages/app/windows/runner/win32_window.cpp 4
-client/packages/app/windows/runner/win32_window.h 6
 client/packages/platform/android/src/main/kotlin/top/npcserver/slimm/platform/IncomingCallNotifier.kt 1
 client/packages/platform/android/src/main/kotlin/top/npcserver/slimm/platform/SlimmConnection.kt 1
 client/packages/platform/android/src/main/kotlin/top/npcserver/slimm/platform/SlimmConnectionService.kt 1

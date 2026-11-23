@@ -8,6 +8,9 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart' show VideoShapeScope;
@@ -17,6 +20,7 @@ import '../providers/call_mini_player.dart';
 import '../providers/picture_in_picture.dart' show pictureInPictureTileKey;
 import '../providers/popout_window.dart';
 import '../providers/voice_controller.dart';
+import 'popout_window_set.dart';
 import 'popout_window_view.dart';
 
 const _windowSize = Size(640, 400);
@@ -44,7 +48,11 @@ class _OpenWindow {
 }
 
 class _PopOutHostState extends ConsumerState<PopOutHost> {
-  final _windows = <String, _OpenWindow>{};
+  late final _windows = PopOutWindowSet<MiniPlayerFeed, _OpenWindow>(
+    open: _open,
+    close: (window) => window.dispose(),
+  );
+  bool _syncScheduled = false;
 
   @override
   void initState() {
@@ -56,9 +64,7 @@ class _PopOutHostState extends ConsumerState<PopOutHost> {
 
   @override
   void dispose() {
-    for (final window in _windows.values) {
-      window.dispose();
-    }
+    _windows.closeAll();
     super.dispose();
   }
 
@@ -85,17 +91,20 @@ class _PopOutHostState extends ConsumerState<PopOutHost> {
   }
 
   void _sync(List<MiniPlayerFeed> live) {
-    final wanted = {
+    // Windows sizes a new window's view by waiting on frames, which stalls inside a frame; so windows open between frames.
+    if (defaultTargetPlatform == TargetPlatform.windows &&
+        SchedulerBinding.instance.schedulerPhase != SchedulerPhase.idle) {
+      if (_syncScheduled) return;
+      _syncScheduled = true;
+      Timer.run(() {
+        _syncScheduled = false;
+        if (mounted) _sync(ref.read(popOutLiveFeedsProvider));
+      });
+      return;
+    }
+    _windows.sync({
       for (final feed in live) pictureInPictureTileKey(feed): feed,
-    };
-    for (final key in _windows.keys.toList()) {
-      if (!wanted.containsKey(key)) _windows.remove(key)!.dispose();
-    }
-    for (final MapEntry(:key, value: feed) in wanted.entries) {
-      if (_windows.containsKey(key)) continue;
-      final window = _open(feed);
-      if (window != null) _windows[key] = window;
-    }
+    });
     ref.read(popOutFeedsProvider.notifier).keepOnly(live);
     setState(() {});
   }
@@ -108,7 +117,7 @@ class _PopOutHostState extends ConsumerState<PopOutHost> {
     ]) {
       Timer(wait, () {
         if (mounted &&
-            _windows.values.any((w) => identical(w.handle, handle))) {
+            _windows.windows.any((w) => identical(w.handle, handle))) {
           unawaited(handle.keepAbove());
         }
       });

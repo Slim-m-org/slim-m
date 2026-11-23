@@ -92,9 +92,22 @@ A pop-out is a `RegularWindow` hosted through `ViewAnchor`, so it renders the sa
 There is no second subscription, no second decode and no server token route, which is why `desktop_multi_window` (second engine) was not taken.
 - The gate is `isWindowingEnabled`, read from the compile-time define `FLUTTER_ENABLED_FEATURE_FLAGS`, and it is not guarded by `kDebugMode`, so a release build honours it.
 - The flutter tool only sets that define on the master channel and rejects it from `--dart-define`, so `client/packages/app/linux/flutter/CMakeLists.txt` appends it to `FLUTTER_TOOL_ENVIRONMENT`.
-- `popout_windowing.dart` is the one file that imports the internal API, so a framework change lands there.
+- `popout_windowing_native.dart` and `popout_windowing_win32.dart` are the only files that import the internal API, so a framework change lands there.
 - The API is marked unstable, so a Flutter upgrade can break the build; treat a bump as needing a pop-out check.
-- Windows and macOS builds do not carry the flag yet, so `popOutSupportedProvider` is false there and no button shows.
+- macOS builds do not carry the flag yet, so `popOutSupportedProvider` is false there and no button shows.
+- Since 2026-11-22 Windows carries it too (`client/packages/app/windows/flutter/CMakeLists.txt`).
+  The Windows engine renders only windows made from Dart: a pop-out beside the runner's own `FlutterViewController` window opened blank on the win11 VM.
+  So the runner now runs a bare `FlutterEngine`, as Flutter's `examples/multiple_windows` does, and `claimNativeMainWindow` creates the main window first thing in `main`.
+  The runner registers the plugins and its own channels only when Dart reports that window (`windows/runner/main_window.cpp`), because window_manager, tray_manager and media_kit look the window up when they are registered.
+  The engine's windowing hears `WM_CLOSE` before window_manager does, so the main window's delegate hands a close to `WindowManagerDesktopWindowPort.onNativeCloseRequested`.
+  The Win32 pop-out has no undecorated option, so it keeps the OS title bar; it is kept above with `SetWindowPos(HWND_TOPMOST)` (`popout_windowing_win32.dart`).
+  On Windows a pop-out opens between frames, never inside one: the engine sizes a new view by waiting on a frame of that size, which cannot come while a frame is being built.
+  The engine shows a Dart-made window on its first frame, before window_manager has sized it and taken its title bar, so the runner holds the main window hidden until `lockSplashChrome` asks for it, then shows it with a plain `ShowWindow` on the next drawn frame, as the old runner did on its first frame.
+  Cloaking it instead showed black on uncloak and, on the win11 VM, opened behind the focused app.
+  The handoff to the saved geometry grows the window in place on Windows, since the engine holds a resize until a frame of the new size is drawn; the handoff's view-size wait subtracts the frameless window's resize borders, measured on the splash, which it used to wait out for its whole five seconds.
+  The main window's class brush is the splash colour (sent from the app's theme) and the window clips its children, so an area a resize exposes before Flutter paints it shows that colour, not Windows' white.
+  Opening a pop-out can run Dart again while Windows sizes the new view, so `PopOutWindowSet` folds a sync asked for meanwhile into a rerun; the first round opened a second, hidden window that way.
+  The flag also turns `showDialog` into OS windows on Windows, so `showInWindowDialog` keeps dialogs in the main window there as on Linux.
 - Web never offers it.
 - Always-on-top is not requested: the controller exposes no such call, and on KDE the user can set "keep above" from the window menu.
 - Since 2026-10-08 the window opens undecorated (`RegularWindowControllerLinux(decorated: false)`): the app draws its own drag area, resize edges and close button, and moving or resizing goes to GTK over FFI (`popout_gtk_drag.dart`). With no OS title bar, "keep above" is no longer one click away on KDE; it is still in the window's Alt+F3 menu.

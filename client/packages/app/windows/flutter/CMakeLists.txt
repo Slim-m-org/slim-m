@@ -83,6 +83,15 @@ target_include_directories(flutter_wrapper_app PUBLIC
 )
 add_dependencies(flutter_wrapper_app flutter_assemble)
 
+# Enables Flutter's experimental windowing (the main window and the pop-out are made from Dart; see runner/main_window.h). The tool refuses this define on stable, so it is appended to the tool's environment here; the value is base64 of FLUTTER_ENABLED_FEATURE_FLAGS=windowing.
+set(SLIMM_WINDOWING_DEFINE "RkxVVFRFUl9FTkFCTEVEX0ZFQVRVUkVfRkxBR1M9d2luZG93aW5n")
+# Windows cannot run without it, since Dart then never creates the main window, so a build with no defines of its own still gets it.
+if(FLUTTER_TOOL_ENVIRONMENT MATCHES "DART_DEFINES=")
+  list(TRANSFORM FLUTTER_TOOL_ENVIRONMENT REPLACE "^(DART_DEFINES=.*)$" "\\1,${SLIMM_WINDOWING_DEFINE}")
+else()
+  list(APPEND FLUTTER_TOOL_ENVIRONMENT "DART_DEFINES=${SLIMM_WINDOWING_DEFINE}")
+endif()
+
 # === Flutter tool backend ===
 # _phony_ is a non-existent file to force this command to run every time,
 # since currently there's no way to get a full input/output list from the

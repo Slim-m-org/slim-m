@@ -43,7 +43,10 @@ import 'src/providers/app_lock_controller.dart';
 import 'src/desktop/close_behavior.dart';
 import 'src/desktop/desktop_chrome.dart';
 import 'src/desktop/desktop_quit_shortcut.dart';
+import 'src/desktop/desktop_window_port.dart'
+    show WindowManagerDesktopWindowPort;
 import 'src/desktop/desktop_window_shell.dart';
+import 'src/desktop/popout/popout_windowing.dart' show claimNativeMainWindow;
 import 'src/desktop/providers/desktop_splash_preference.dart';
 import 'src/desktop/splash_floor.dart';
 import 'src/desktop/startup_screen.dart';
@@ -112,6 +115,8 @@ import 'src/widgets/toast_overlay.dart';
 /// size. Waiting for the real first frame avoids that race entirely.
 Future<void> main([List<String> args = const []]) async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
+  // First: on Windows no plugin is registered until the main window exists.
+  final mainWindow = await claimNativeMainWindow();
   SemanticsTapOncePerFrame.install(binding.platformDispatcher, binding);
   if (isAndroidHost) unawaited(drawUnderSystemBars());
   // Before the first SharedPreferences read, which countLaunch makes.
@@ -130,6 +135,10 @@ Future<void> main([List<String> args = const []]) async {
   MediaKit.ensureInitialized();
   await initAndroidPush();
   final shell = DesktopWindowShell();
+  shell.nativeWindow = mainWindow;
+  if (shell.port case final WindowManagerDesktopWindowPort port) {
+    mainWindow?.onCloseRequested = port.onNativeCloseRequested;
+  }
   await shell.applyInitialGeometry();
   shell.registerSecondInstanceHandler();
   DesktopQuitShortcut(shell).register();
@@ -364,6 +373,7 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
           hasFailedSinceLive: ref.watch(hasFailedSinceLiveProvider),
         );
     final theme = _theme();
+    if (_onDesktop) _paintNativeBackground(theme);
     final splash = StartupApp(
       status: ref.watch(startupStatusProvider),
       prompt: ref.watch(startupPromptProvider),
@@ -398,6 +408,20 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
       applyHighContrast(theme.dark),
       theme.mode,
     );
+  }
+
+  /// The splash's colour behind the window, for an area a resize exposes.
+  void _paintNativeBackground(ResolvedTheme theme) {
+    final dark = switch (theme.mode) {
+      ThemeMode.dark => true,
+      ThemeMode.light => false,
+      ThemeMode.system =>
+        MediaQuery.platformBrightnessOf(context) == Brightness.dark,
+    };
+    final tokens = dark ? theme.dark : theme.light;
+    ref
+        .read(desktopWindowShellProvider)
+        .useNativeBackground(tokens.surfaceRaised);
   }
 
   Widget _app() {

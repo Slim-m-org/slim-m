@@ -83,3 +83,24 @@ Size? currentViewSize() {
   if (ratio <= 0) return null;
   return view.physicalSize / ratio;
 }
+
+/// How much smaller than its outer size the view of a frameless Windows
+/// window is: window_manager keeps the resize borders outside the view, so the
+/// view never reports the outer size it was given. Measured on the splash,
+/// whose outer size is known; null when [splashView] does not look like one.
+WindowSize? splashFrameInset(Size? splashView) {
+  if (splashView == null) return null;
+  final width = kSplashWindowSize.width - splashView.width;
+  final height = kSplashWindowSize.height - splashView.height;
+  if (width < 0 || height < 0 || width > 64 || height > 64) return null;
+  return WindowSize(width: width, height: height);
+}
+
+/// The view size a window of outer [size] reports, given its frame [inset].
+WindowSize? viewSizeFor(WindowSize? size, WindowSize? inset) {
+  if (size == null || inset == null) return size;
+  return WindowSize(
+    width: size.width - inset.width,
+    height: size.height - inset.height,
+  );
+}
