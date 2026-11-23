@@ -2792,6 +2792,9 @@ dependencies = [
  "flate2",
  "futures-util",
  "hmac 0.12.1",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
  "image",
  "jiff",
  "jpeg-decoder",
@@ -2822,6 +2825,23 @@ dependencies = [
  "wasmi",
  "wat",
  "zune-heic",
+]
+
+[[package]]
+name = "slimm-supervisor"
+version = "0.116.0"
+dependencies = [
+ "axum",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

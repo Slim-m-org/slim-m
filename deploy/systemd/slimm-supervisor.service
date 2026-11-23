@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+# The connector supervisor on bare metal (decision 0134). It is the only thing
+# that holds the container runtime's socket; the server reaches it through
+# /run/slimm-supervisor/supervisor.sock. docs/connectors/operating.md says how
+# to install it. For a rootless runtime, run it as the runtime's own user
+# instead and point SLIMM_RUNTIME_SOCKET at that user's socket.
+[Unit]
+Description=slim-m connector supervisor
+After=docker.service podman.socket
+Wants=docker.service
+
+[Service]
+Type=simple
+User=slimm-supervisor
+# The server's group, so the socket (mode 0660) is the server's to open.
+Group=slimm
+# The runtime's group is root-equivalent, which is exactly why only this service is in it.
+SupplementaryGroups=docker
+EnvironmentFile=/etc/slimm/supervisor.env
+Environment=SLIMM_SUPERVISOR_SOCKET=/run/slimm-supervisor/supervisor.sock
+Environment=SLIMM_SUPERVISOR_STATE_DIR=/var/lib/slimm-supervisor
+Environment=SLIMM_RUNTIME_SOCKET=/var/run/docker.sock
+ExecStart=/usr/local/bin/slimm-supervisor
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=slimm-supervisor
+RuntimeDirectoryMode=0750
+StateDirectory=slimm-supervisor
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0007
+
+[Install]
+WantedBy=multi-user.target

@@ -40,6 +40,7 @@ import '../settings_screen_scaffold.dart';
 import 'dock_module_view.dart';
 import 'dock_host_access_card.dart';
 import 'dock_connector_consent.dart';
+import 'dock_host_run_ask.dart' show dockApproveAll;
 import 'dock_file_install.dart';
 import 'dock_install_access_sheet.dart';
 import 'dock_install_consent.dart';
@@ -225,6 +226,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
                     reviewedDigest: manifest.reviewDigest,
                     source: widget.source,
                     approvedConnectorPermissions: manifest.connectorPermissions,
+                    approvedHostRun: dockApproveAll(manifest.hostRun),
                   ))
               .connectorToken,
     );

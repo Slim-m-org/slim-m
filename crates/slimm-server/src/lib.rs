@@ -222,6 +222,7 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
     http::module_timers::spawn_sweep(state.clone());
     http::scene_refresh::spawn_sweep(state.clone());
     http::module_rooms::spawn_sweep(state.clone());
+    http::connector_host::spawn_monitor(state.clone());
     let _module_events = http::spawn_module_events(state.clone());
     let _call_audio = call_audio::runtime::spawn(state.clone());
     http::spawn_voice_access_watch(state.clone());

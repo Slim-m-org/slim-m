@@ -17,6 +17,7 @@ use super::Store;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 
+mod connector_host_run;
 mod connectors;
 pub(super) mod hooks;
 pub(super) mod module_artifacts;
@@ -32,6 +33,7 @@ pub(super) mod module_timers;
 pub(super) mod platform;
 
 use self::module_metadata::insert_module_metadata;
+pub use connector_host_run::{EgressHost, HostRun, HostRunSpec};
 pub use connectors::{ConnectorInstall, InstalledConnector};
 pub use hooks::{HookChange, HookDecl, HookKind, ModuleHook};
 pub use module_timers::{DueTimer, TimerSpec};

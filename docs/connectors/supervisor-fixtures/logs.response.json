@@ -1,0 +1,7 @@
+{
+  "v": 1,
+  "lines": [
+    {"ts": "2026-11-22T10:00:00.000000000Z", "stream": "stdout", "text": "connected"},
+    {"ts": "2026-11-22T10:00:01.000000000Z", "stream": "stderr", "text": "retrying"}
+  ]
+}

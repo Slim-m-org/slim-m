@@ -11,6 +11,7 @@ library;
 import 'models_dock_activity.dart';
 import 'models_dock_changelog.dart';
 import 'models_dock_connector.dart';
+import 'models_dock_host_run.dart';
 import 'models_dock_runtime.dart';
 import 'models_dock_platform.dart';
 
@@ -223,7 +224,11 @@ class DockManifest {
     this.reviewDigest,
     this.callAudio,
     this.connectorPermissions,
+    this.hostRun,
   });
+
+  /// For a connector the host runs, the image, egress and limits it asks for (decision 0134).
+  final HostRunAsk? hostRun;
 
   /// For a connector, the core permission bits its token asks for; null for a WASM module.
   final int? connectorPermissions;
@@ -328,6 +333,7 @@ class DockManifest {
             : DockCallAudio.fromJson(
                 json['call_audio'] as Map<String, dynamic>),
         connectorPermissions: dockConnectorAsk(json),
+        hostRun: dockHostRunAsk(json),
       );
 }
 

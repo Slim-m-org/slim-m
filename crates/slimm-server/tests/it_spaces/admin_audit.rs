@@ -45,6 +45,8 @@ const EXEMPT_PREFIXES: &[&str] = &[
     "/channels/{channel_id}/voice",
     "/channels/{channel_id}/unread",
     "/channels/{channelId}/",
+    // A connector answering a member's run with its own token, never an admin change.
+    "/connectors/me/runs/",
     "/debug-logs",
     "/devices",
     "/diagnostics/",

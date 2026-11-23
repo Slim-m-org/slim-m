@@ -10,6 +10,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import 'dock_connector_card.dart' show dockConnectorLabels;
+import 'dock_host_run_ask.dart';
 import 'dock_install_consent.dart' show DockVerifiedBadge;
 
 /// Resolves true once the admin agrees to everything the connector asks for.
@@ -83,8 +84,11 @@ class _ConnectorConsentState extends State<_ConnectorConsent> {
                   _standing(tokens),
                   const SizedBox(height: AppSpacing.s12),
                   Text(
-                    'This connector runs outside your server, as a bot with '
-                    'its own token. The token can:',
+                    widget.manifest.hostRun == null
+                        ? 'This connector runs outside your server, as a bot '
+                              'with its own token. The token can:'
+                        : 'This server runs this connector in a sandbox, as a '
+                              'bot with its own token. The token can:',
                     style: AppText.body.copyWith(color: tokens.textPrimary),
                   ),
                   const SizedBox(height: AppSpacing.s8),
@@ -97,6 +101,10 @@ class _ConnectorConsentState extends State<_ConnectorConsent> {
                       color: tokens.textSecondary,
                     ),
                   ),
+                  if (widget.manifest.hostRun case final ask?) ...[
+                    const SizedBox(height: AppSpacing.s12),
+                    DockHostRunAsk(ask: ask),
+                  ],
                 ],
               ),
             ),

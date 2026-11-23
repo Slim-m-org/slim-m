@@ -11947,6 +11947,12 @@ paths:
           $ref: "#/components/responses/TooManyRequests"
         "502":
           $ref: "#/components/responses/UpstreamInvalid"
+        "501":
+          description: The connector asks to be run by the host and the operator has not set up the connector supervisor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "503":
           $ref: "#/components/responses/Unavailable"
     delete:
@@ -12118,6 +12124,14 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: The connector asks to be run by the host and the operator has not set up the connector supervisor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/Unavailable"
   /space/dock/modules/{moduleId}/connector-token:
     parameters:
       - name: moduleId
@@ -12147,8 +12161,110 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/dock/connector-runtime:
+    get:
+      operationId: getConnectorRuntime
+      tags: [space]
+      summary: Whether this server can run connectors. Requires MANAGE_SERVER.
+      description: >
+        Off unless the operator set up the connector supervisor (decision
+        0134); the Dock offers host-run installs only when it is available.
+      responses:
+        "200":
+          description: The runtime's state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorRuntime"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/dock/modules/{moduleId}/host-run:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getConnectorHostRun
+      tags: [space]
+      summary: A host-run connector's state. Requires MANAGE_SERVER.
+      description: >
+        Running, stopped, crashed, turned off after crashes, refused by the
+        supervisor, starting, or runtime unavailable, with what it was
+        approved (decision 0134). 404 for a connector the host does not run.
+      responses:
+        "200":
+          description: Its state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorHostRun"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/dock/modules/{moduleId}/host-run/logs:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getConnectorHostRunLogs
+      tags: [space]
+      summary: A host-run connector's recent output. Requires MANAGE_SERVER.
+      description: >
+        Read from the container runtime on demand and never stored, at most
+        1000 lines (decision 0134). 503 while the runtime is unavailable.
+      parameters:
+        - name: tail
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+      responses:
+        "200":
+          description: The newest lines.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorHostRunLogs"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: The operator has not set up the connector supervisor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/Unavailable"
   /connectors/me:
     get:
       operationId: getConnectorSelf
@@ -16230,6 +16346,8 @@ components:
               type: integer
               format: int64
               description: The core permission bits it asks the admin to approve.
+            host_run:
+              $ref: "#/components/schemas/HostRunAsk"
         subscriptions:
           type: array
           description: The events it subscribes to.
@@ -16620,6 +16738,22 @@ components:
             one the manifest asks for and the admin holds. Required for a
             connector (400 without it, so an app that cannot show the ask
             cannot install one); ignored for a WASM module.
+        approved_host_run:
+          type: object
+          additionalProperties: false
+          description: >
+            For a connector that asks to be run by the host (decision 0134),
+            the egress hosts the admin approved, each one it asks for, and the
+            Private network approval, only if it asks for one. Required for such
+            a connector (400 without it). A host-run install answers no
+            connector_token: the host hands the token to the container itself.
+          properties:
+            egress:
+              type: array
+              items:
+                $ref: "#/components/schemas/EgressHost"
+            egress_private:
+              type: boolean
     DockPackage:
       type: object
       required: ["$slim", manifest, artifact]
@@ -17846,6 +17980,110 @@ components:
           description: >-
             Replaces what the bot's managed role grants. Same guards as
             `CreateBotRequest.permissions`.
+    EgressHost:
+      type: object
+      required: [host, port]
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+    HostRunAsk:
+      type: object
+      description: >
+        What a host-run connector asks the host to run (add-on API 7, decision
+        0134): its image pinned by digest, the hosts it may reach, whether it
+        asks for the Private network and a data volume, and its limits. It never
+        publishes a port.
+      required: [image, egress, egress_private, volume, limits]
+      properties:
+        image:
+          type: string
+        egress:
+          type: array
+          items:
+            $ref: "#/components/schemas/EgressHost"
+        egress_private:
+          type: boolean
+        volume:
+          type: boolean
+        limits:
+          type: object
+          description: Absent fields take the supervisor's defaults.
+          properties:
+            memory_mib:
+              type: integer
+            cpus:
+              type: number
+            pids:
+              type: integer
+    ConnectorRuntime:
+      type: object
+      required: [configured, available]
+      properties:
+        configured:
+          type: boolean
+          description: Whether the operator set up the connector supervisor.
+        available:
+          type: boolean
+          description: Whether it answers and its runtime can enforce the sandbox.
+        detail:
+          type: string
+          description: Why it is unavailable.
+        runtime:
+          type: string
+          description: docker or podman.
+        registries:
+          type: array
+          description: The image prefixes the operator allows.
+          items:
+            type: string
+        ceilings:
+          type: object
+          description: The most a connector may ask for.
+          additionalProperties: true
+    ConnectorHostRun:
+      allOf:
+        - $ref: "#/components/schemas/HostRunAsk"
+        - type: object
+          required: [state, oom_killed, restarts]
+          properties:
+            state:
+              type: string
+              enum: [running, stopped, crashed, disabled_after_crashes, refused, starting, runtime_unavailable]
+            exit_code:
+              type: integer
+            oom_killed:
+              type: boolean
+            started_at:
+              type: string
+            finished_at:
+              type: string
+            restarts:
+              type: integer
+              description: Crashes in the last 10 minutes.
+            last_error:
+              type: string
+              description: Why it is not running, for the admin.
+    ConnectorHostRunLogs:
+      type: object
+      required: [lines]
+      properties:
+        lines:
+          type: array
+          items:
+            type: object
+            required: [ts, stream, text]
+            properties:
+              ts:
+                type: string
+              stream:
+                type: string
+                enum: [stdout, stderr]
+              text:
+                type: string
     ConnectorToken:
       type: object
       required: [token]

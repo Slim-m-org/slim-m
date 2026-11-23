@@ -176,7 +176,8 @@ async fn forward(
     (principal, caller): (UserId, UserId),
     request: Box<RawValue>,
 ) -> Result<Vec<u8>, String> {
-    if !state.hub.presence().is_connected(principal) {
+    let gone = !state.hub.presence().is_connected(principal);
+    if gone || super::connector_host::known_offline(state, &module.id).await {
         return Err(offline(module));
     }
     let runs = state.dock.connector_runs();

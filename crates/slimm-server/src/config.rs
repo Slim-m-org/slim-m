@@ -194,6 +194,15 @@ pub struct Config {
     #[serde(default, deserialize_with = "blank_as_none")]
     pub code_runner_url: Option<String>,
 
+    /// The connector supervisor's socket (decision 0134); with `supervisor_secret`, turns on host-run connectors.
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub connector_supervisor_socket: Option<String>,
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub supervisor_secret: Option<String>,
+    /// Where a host-run connector reaches this server's API; `http://server:8080` when unset.
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub connector_api_url: Option<String>,
+
     /// The `ws://` or `wss://` address of the optional call-audio listener
     /// (decision 0105). Unset leaves call audio off, like the other sidecars.
     #[serde(default, deserialize_with = "blank_as_none")]
@@ -326,6 +335,9 @@ impl Default for Config {
             addons_repo: default_addons_repo(),
             dev_module_dir: None,
             code_runner_url: None,
+            connector_supervisor_socket: None,
+            supervisor_secret: None,
+            connector_api_url: None,
             listener_url: None,
             listener_secret: None,
             listener_livekit_url: None,

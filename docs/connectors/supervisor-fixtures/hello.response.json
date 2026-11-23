@@ -1,0 +1,12 @@
+{
+  "v": 1,
+  "protocol": "supervisor/1",
+  "version": "0.116.0",
+  "runtime": "docker",
+  "rootless": false,
+  "ready": true,
+  "problems": [],
+  "ceilings": {"max_connectors": 8, "max_memory_mib": 512, "max_cpus": 1.0, "max_pids": 256},
+  "registries": ["ghcr.io/slim-m-org/"],
+  "connectors": 1
+}
