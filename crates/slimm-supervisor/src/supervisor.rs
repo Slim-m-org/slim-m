@@ -96,8 +96,13 @@ impl Supervisor {
         )))
     }
 
+    /// Probes the runtime only until it is ready; afterwards a down runtime shows as `list` failing.
     pub async fn hello(&self) -> Result<Value, ApiError> {
-        let readiness = self.refresh_readiness().await?;
+        let cached = self.readiness.read().await.clone();
+        let readiness = match cached {
+            Some(r) if r.ready() => r,
+            _ => self.refresh_readiness().await?,
+        };
         let connectors = self.list().await?.len();
         Ok(json!({
             "v": 1,
