@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 library;
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -61,5 +63,43 @@ void main() {
       applyHighContrast(AppTokens.halloween).backdrop,
       AppBackdrop.halloweenWebs,
     );
+  });
+
+  testWidgets('the cobwebs stay inside their corners', (tester) async {
+    const size = Size(390, 844);
+    final rec = ui.PictureRecorder();
+    const HalloweenWebsPainter().paint(Canvas(rec), size);
+    final image = await tester.runAsync(
+      () => rec.endRecording().toImage(390, 844),
+    );
+    final data = (await tester.runAsync(() => image!.toByteData()))!;
+    const reach = 56.0;
+    const specks = [
+      Offset(0.12, 0.18),
+      Offset(0.31, 0.07),
+      Offset(0.58, 0.13),
+      Offset(0.83, 0.34),
+      Offset(0.94, 0.62),
+      Offset(0.72, 0.9),
+      Offset(0.44, 0.82),
+      Offset(0.21, 0.57),
+    ];
+    var stray = 0;
+    for (var y = 0; y < 844; y++) {
+      for (var x = 0; x < 390; x++) {
+        if (data.getUint8((y * 390 + x) * 4 + 3) == 0) continue;
+        final inTopRight = x >= 390 - reach && y <= reach;
+        final inBottomLeft = x <= reach && y >= 844 - reach;
+        final nearSpeck = specks.any(
+          (s) =>
+              (Offset(x.toDouble(), y.toDouble()) -
+                      Offset(s.dx * size.width, s.dy * size.height))
+                  .distance <=
+              3,
+        );
+        if (!inTopRight && !inBottomLeft && !nearSpeck) stray++;
+      }
+    }
+    expect(stray, 0);
   });
 }
