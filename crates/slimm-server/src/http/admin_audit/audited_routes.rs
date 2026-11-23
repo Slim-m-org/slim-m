@@ -273,6 +273,12 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         MODULE,
     ),
     route(
+        Method::POST,
+        "/space/dock/modules/{id}/connector-token",
+        "module.connector_token",
+        MODULE,
+    ),
+    route(
         Method::PUT,
         "/space/dock/modules/{id}/schedule-channel",
         "module.schedule_channel",

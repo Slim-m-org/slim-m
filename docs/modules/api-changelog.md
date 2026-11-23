@@ -10,6 +10,10 @@ The policy behind the levels is decision [0100](../decisions/0100-module-safety-
 - `DockManifest` gains `provider` and `connector.permissions` (bits); a connector's `artifact` and `runtime` read as kind and backend `connector` with an empty path and sha256, so an older app still parses the listing.
 - `POST /space/dock/modules/{id}/install` takes `approved_connector_permissions` and refuses a connector without it, so an app that cannot show the ask cannot install one. `InstalledDockModule` gains `provider`, `connector_permissions` and, in the install answer that created it, `connector_token`.
 - New routes: `POST /space/dock/modules/{id}/connector-token` and `GET /connectors/me`.
+- Adds host-run connectors inside level 7, before its release (decision [0134](../decisions/0134-connector-runtime-supervisor.md)): `connector.host_run` is `{"image": "<registry>/<path>@sha256:<digest>", "egress": [{"host", "port"}], "egress_private", "volume", "limits": {"memory_mib", "cpus", "pids"}}`, every field but `image` optional and no other field allowed. The host runs the image through the operator's supervisor; a server without one answers 501 to such an install.
+- `DockManifest.connector` gains `host_run`, and `POST /space/dock/modules/{id}/install` takes `approved_host_run` (`{"egress", "egress_private"}`, each within the ask) and refuses a host-run connector without it. Its install answer carries no `connector_token`: the host hands the token to the container, and `POST .../connector-token` answers 409 for it.
+- New routes: `GET /space/dock/connector-runtime`, `GET /space/dock/modules/{id}/host-run` and `GET /space/dock/modules/{id}/host-run/logs`. Enabling a host-run connector answers 503 while the runtime is unavailable.
+- The container gets `SLIMM_API_URL`, `SLIMM_URL`, `SLIMM_TOKEN`, `SLIMM_BOT_TOKEN` and `SLIMM_CONNECTOR=1`, and reaches the network only through `HTTPS_PROXY`/`HTTP_PROXY`.
 - Nothing is removed or changed in meaning. A module that declares `addon_api_max` of 6 must be updated to run on a level 7 server, as at every level.
 
 ## Level 6

@@ -48,7 +48,7 @@ pub struct World {
     _guard: support::TestDbGuard,
 }
 
-async fn registry(served: Arc<Mutex<Value>>) -> String {
+pub async fn registry(served: Arc<Mutex<Value>>) -> String {
     let router = Router::new()
         .route(
             "/index.json",

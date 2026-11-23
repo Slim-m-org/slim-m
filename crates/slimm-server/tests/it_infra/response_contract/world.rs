@@ -45,6 +45,7 @@ pub struct Contract {
     pub upstream: String,
     /// Held, not read: its drop removes the temp database.
     _db: crate::support::TestDbGuard,
+    _supervisor: super::fake_supervisor::Guard,
 }
 
 impl Contract {
@@ -65,6 +66,14 @@ impl Contract {
 
         let tenor_base = spawn_fake_tenor().await;
         let dock_base = spawn_fake_dock_registry().await;
+        let supervisor = super::fake_supervisor::spawn().await;
+        let host_run = slimm_server::http::connector_host::HostRunner::new(
+            slimm_server::http::connector_host::SupervisorClient::new(
+                &supervisor.0,
+                super::fake_supervisor::SECRET.to_owned(),
+            ),
+            "http://server:8080".to_owned(),
+        );
 
         Contract {
             state: AppState {
@@ -81,7 +90,8 @@ impl Contract {
                 gifs: GifSearch::for_test("tenor", &tenor_base, "test-key"),
                 link_previews: slimm_server::http::link_preview::LinkPreviews::for_test(),
                 // Also configured, against a fake local registry, for the same reason.
-                dock: slimm_server::http::dock::Dock::for_test(&dock_base),
+                dock: slimm_server::http::dock::Dock::for_test(&dock_base)
+                    .with_connector_runtime(Some(host_run)),
                 code_runner: slimm_server::code_runner::CodeRunner::disabled(),
                 call_audio: slimm_server::call_audio::CallAudio::disabled(),
             },
@@ -90,6 +100,7 @@ impl Contract {
             problems: Vec::new(),
             upstream: tenor_base,
             _db: db_guard,
+            _supervisor: supervisor,
         }
     }
 
@@ -298,7 +309,8 @@ async fn spawn_fake_dock_registry() -> String {
             "schema": 1,
             "modules": [
                 {"id": "code-exec", "name": "Code Blocks", "version": "0.1.0", "summary": "runs code"},
-                {"id": "jellyfin", "name": "Jellyfin", "version": "0.1.0", "summary": "a connector"}
+                {"id": "jellyfin", "name": "Jellyfin", "version": "0.1.0", "summary": "a connector"},
+                {"id": "media-relay", "name": "Media Relay", "version": "0.1.0", "summary": "a host-run connector"}
             ]
         }))
     }
@@ -363,6 +375,10 @@ async fn spawn_fake_dock_registry() -> String {
         .route("/index.json", get(index))
         .route("/modules/code-exec/manifest.json", get(manifest))
         .route("/modules/jellyfin/manifest.json", get(connector))
+        .route(
+            "/modules/media-relay/manifest.json",
+            get(|| async { axum::Json(super::fake_supervisor::host_run_manifest()) }),
+        )
         .route("/modules/code-exec/0.1.0/module.wasm", get(artifact));
     tokio::spawn(async move {
         axum::serve(listener, router).await.unwrap();

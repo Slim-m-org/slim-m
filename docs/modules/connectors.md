@@ -3,7 +3,7 @@
 A connector is a module whose logic is an external program instead of a WASM artifact (decision [0090](../decisions/0090-modules-as-the-extension-surface.md)).
 It is a bot with a manifest: the Dock installs it, the admin approves what its token may do, and its settings render in the app like any module's.
 This page covers an admin-started connector: the admin runs the program themselves and gives it the token.
-A host-run connector, started by the host in a sandbox, is decision [0134](../decisions/0134-connector-runtime-supervisor.md) and is not built yet.
+A host-run connector, started by the host in a sandbox, is decision [0134](../decisions/0134-connector-runtime-supervisor.md) and has its own section below.
 
 ## The manifest
 
@@ -65,3 +65,36 @@ Secret values are in plain text here and nowhere else: the admin's settings view
 Any other caller gets 403, and a disabled connector gets 409.
 The answer is not pushed when an admin changes a setting, so a connector reads it again when it needs to.
 The slimbots library reads it at start for a bot run with `SLIMM_CONNECTOR=1` (`slimbots.connector`).
+
+## Host-run connectors
+
+A connector can ask the host to run its image instead (decision [0134](../decisions/0134-connector-runtime-supervisor.md)).
+This needs the operator's connector supervisor ([docs/connectors/operating.md](../connectors/operating.md)); a server without one answers 501 to the install.
+
+```json
+"connector": {
+  "permissions": ["view_channel", "send_messages"],
+  "host_run": {
+    "image": "ghcr.io/slim-m-org/jellyfin-connector@sha256:<64 hex>",
+    "egress": [{"host": "jellyfin.lan", "port": 8096}],
+    "egress_private": true,
+    "volume": true,
+    "limits": {"memory_mib": 128, "cpus": 0.5, "pids": 64}
+  }
+}
+```
+
+- `image` must be pinned by digest, with no tag, under a registry prefix the operator allows.
+- `egress` lists the `host:port` pairs it asks to reach, at most 32; the admin approves some or all of them.
+  `egress_private` asks for the Private network approval, which a LAN address needs.
+- `volume` asks for a data volume at `/data`; `limits` fall back to the supervisor's defaults.
+- Nothing else may be declared: no ports, mounts, users or capabilities.
+
+The install takes `approved_host_run: {"egress": [...], "egress_private": bool}` beside the permissions.
+The token never reaches the admin: the host puts it in the container's environment as `SLIMM_TOKEN` and `SLIMM_BOT_TOKEN`, with `SLIMM_API_URL` and `SLIMM_URL` for the server and `SLIMM_CONNECTOR=1`.
+A container the host has to create again gets a new token.
+
+Enable starts the container and disable stops it.
+A crash is restarted after 1 second, doubling to 5 minutes, and 5 crashes within 10 minutes turn the connector off with an admin alert and a `module.auto_disable` audit row; enabling it again re-arms it.
+Uninstall removes the container and its network, and the volume unless the admin keeps the data.
+`GET /space/dock/modules/{id}/host-run` shows its state to admins and `.../host-run/logs` its recent output, which the host reads from the runtime and does not store.

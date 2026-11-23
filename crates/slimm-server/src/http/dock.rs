@@ -13,6 +13,7 @@
 
 mod capabilities;
 mod dock_connector;
+mod dock_host_run;
 mod dock_install;
 mod dock_package;
 mod fetch;
@@ -82,6 +83,8 @@ pub struct Dock {
     hooks: Arc<super::module_hooks::Registry>,
     /// Modules' shared room states; see `module_rooms`.
     rooms: Arc<super::module_rooms::Rooms>,
+    /// The connector supervisor's client, when the operator set it up (decision 0134).
+    host_run: Option<super::connector_host::HostRun>,
 }
 
 struct Enabled {
@@ -142,6 +145,21 @@ impl Dock {
             .expect("a fixed host is always a valid URL");
         Self::rooted_at(root, config.addons_repos(), false)
             .with_dev_dir(config.dev_module_dir.as_deref())
+            .with_connector_runtime(super::connector_host::HostRunner::from_config(config))
+    }
+
+    /// Host-run connectors through this supervisor client; `None` keeps them off.
+    pub fn with_connector_runtime(
+        mut self,
+        runner: Option<super::connector_host::HostRun>,
+    ) -> Self {
+        self.host_run = runner;
+        self
+    }
+
+    /// The connector supervisor's client, when the operator configured one.
+    pub fn host_run(&self) -> Option<super::connector_host::HostRun> {
+        self.host_run.clone()
     }
 
     /// Reads the operator's `dev_module_dir`, if it names a directory.
@@ -191,6 +209,7 @@ impl Dock {
             module_data: Arc::default(),
             event_queues: new_event_queues(&queue_depths),
             queue_depths,
+            host_run: None,
             inner: Some(Arc::new(Enabled {
                 client: ssrf::build_client(allow_private),
                 official_bases,
@@ -215,6 +234,7 @@ impl Dock {
             module_data: Arc::default(),
             event_queues: new_event_queues(&queue_depths),
             queue_depths,
+            host_run: None,
         }
     }
 
@@ -273,6 +293,7 @@ pub fn routes() -> Router<AppState> {
             post(dock_connector::reissue_token),
         )
         .route("/space/dock/installed", get(list_installed))
+        .merge(dock_host_run::routes())
         .route("/space/dock/sources", get(list_sources).post(add_source))
         .route(
             "/space/dock/sources/{sourceId}",

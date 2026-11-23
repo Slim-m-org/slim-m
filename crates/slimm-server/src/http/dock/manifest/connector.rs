@@ -26,12 +26,16 @@ const WASM: &str = "wasm";
 pub(super) struct RawConnector {
     /// Core permission names, such as `send_messages`.
     permissions: Vec<String>,
+    #[serde(default)]
+    host_run: Option<host_run::RawHostRun>,
 }
 
 /// What a connector asks the admin to approve for its token.
 #[derive(Debug, Clone)]
 pub(in crate::http) struct ManifestConnector {
     pub(in crate::http) permissions: Permissions,
+    /// The image the host runs for it, when it asks to be host-run (decision 0134).
+    pub(in crate::http) host_run: Option<host_run::ManifestHostRun>,
 }
 
 /// `Some` for a connector manifest, after refusing anything a connector cannot declare.
@@ -50,6 +54,7 @@ pub(super) fn validate(raw: &mut RawManifest) -> Result<Option<ManifestConnector
                 .ok_or_else(|| malformed("a connector must declare connector.permissions"))?;
             Ok(Some(ManifestConnector {
                 permissions: permissions(&connector.permissions)?,
+                host_run: connector.host_run.map(host_run::validate).transpose()?,
             }))
         }
         other => Err(malformed(&format!(
@@ -135,5 +140,6 @@ pub(super) fn no_runtime() -> ManifestRuntime {
     }
 }
 
+pub(in crate::http) mod host_run;
 #[cfg(test)]
 mod tests;

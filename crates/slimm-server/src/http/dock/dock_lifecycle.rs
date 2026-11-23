@@ -34,6 +34,7 @@ pub(in crate::http) async fn uninstall(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let module = state.store.installed_module(&id).await?;
+    super::dock_host_run::before_uninstall(&state, &id, !query.delete_data).await;
     let uninstalled = match module.as_ref().is_some_and(InstalledModule::is_connector) {
         true => uninstall_connector(&state, &id, ctx.user_id).await?,
         false => state.store.uninstall_module(&id).await?,
@@ -143,6 +144,7 @@ async fn apply_enabled(
         crate::http::module_compat::require_compatible(&module)?;
         let keywords = keywords::slash_keywords(&module.extension_points);
         ensure_slash_keywords_free(state, id, keywords).await?;
+        super::dock_host_run::before_enable(state, id).await?;
     }
     if !state.store.set_module_enabled(id, enabled).await? {
         return Err(ApiError::NotFound("module not installed"));
@@ -151,6 +153,7 @@ async fn apply_enabled(
     if !enabled {
         crate::http::module_rooms::end_module(state, id);
     }
+    super::dock_host_run::after_enabled(state, id, enabled).await?;
     let installed = state
         .store
         .installed_module(id)

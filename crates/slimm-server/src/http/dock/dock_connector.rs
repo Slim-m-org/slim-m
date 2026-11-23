@@ -51,6 +51,14 @@ pub(super) async fn install(
             "a connector can only be approved permissions it asks for",
         ));
     }
+    let host_run = match &connector.host_run {
+        Some(asked) => Some(super::dock_host_run::approve(
+            state,
+            asked,
+            req.approved_host_run.as_ref(),
+        )?),
+        None => None,
+    };
     if state
         .store
         .installed_module(&manifest.id)
@@ -89,6 +97,11 @@ pub(super) async fn install(
         })
         .await?;
     state.dock.slot_cache().invalidate_module(&manifest.id);
+    if let Some((runner, spec)) = host_run {
+        super::dock_host_run::after_store_install(state, &runner, &manifest.id, &spec).await?;
+        return Ok(InstalledModuleDto::from(installed.module));
+    }
+    super::dock_host_run::no_longer_host_run(state, &manifest.id).await?;
     Ok(InstalledModuleDto::from(installed.module).with_connector_token(installed.token))
 }
 
@@ -120,6 +133,11 @@ pub(super) async fn reissue_token(
     require_manage_server(&state, ctx.user_id).await?;
     require_human(&state, ctx.user_id).await?;
     validate_module_id(&id)?;
+    if state.store.host_run(&id).await?.is_some() {
+        return Err(ApiError::Conflict(
+            "the host holds this connector's token, which never leaves it",
+        ));
+    }
     let (token, revoked) = state
         .store
         .reissue_connector_token(&id, ctx.user_id)
@@ -148,6 +166,8 @@ pub(in crate::http) struct ConnectorAskDto {
 #[derive(Serialize)]
 struct AskedDto {
     permissions: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    host_run: Option<super::dock_host_run::HostRunAskDto>,
 }
 
 impl ConnectorAskDto {
@@ -157,6 +177,10 @@ impl ConnectorAskDto {
                 provider: Some(super::manifest::connector::CONNECTOR),
                 connector: Some(AskedDto {
                     permissions: c.permissions.bits(),
+                    host_run: c
+                        .host_run
+                        .as_ref()
+                        .map(super::dock_host_run::HostRunAskDto::of),
                 }),
             },
             None => Self::default(),

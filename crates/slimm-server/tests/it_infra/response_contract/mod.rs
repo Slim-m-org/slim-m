@@ -42,6 +42,7 @@
 //! A refusal deliberately does not count toward `covered`; see
 //! `Contract::refuses` for why counting it would let a happy path lapse.
 
+mod fake_supervisor;
 mod openapi;
 mod script;
 mod verdict;
