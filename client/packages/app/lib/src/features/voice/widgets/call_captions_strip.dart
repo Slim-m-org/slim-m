@@ -39,9 +39,16 @@ double captionsHeight(BuildContext context) {
 }
 
 class CallCaptionsStrip extends ConsumerWidget {
-  const CallCaptionsStrip({super.key, required this.channelId});
+  const CallCaptionsStrip({
+    super.key,
+    required this.channelId,
+    this.gap = const EdgeInsets.only(top: AppSpacing.s8),
+  });
 
   final String channelId;
+
+  /// Space kept from what sits beside the strip, only while it shows.
+  final EdgeInsets gap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -50,7 +57,7 @@ class CallCaptionsStrip extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.s8),
+      padding: gap,
       child: _Captions(key: ValueKey(transcriptId), transcriptId: transcriptId),
     );
   }

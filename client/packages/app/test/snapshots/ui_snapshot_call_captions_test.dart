@@ -7,8 +7,10 @@ library;
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/canvas/providers/canvas_open.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
 import 'package:slimm_app/src/features/voice/providers/call_audio.dart';
 import 'package:slimm_app/src/features/voice/providers/call_transcript.dart';
@@ -20,6 +22,10 @@ import 'package:slimm_app/src/features/voice/screens/voice_text_pane.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_text_surface.dart';
 import 'package:slimm_app/src/features/voice/widgets/transcript_line_row.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_captions_strip.dart';
+import 'package:slimm_app/src/providers/dock_reservation.dart';
+import 'package:slimm_app/src/widgets/floating_dock_card.dart';
+import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart' show CanvasSurface;
 
 import '../features/voice/voice_snapshot_fixtures.dart'
     show SnapshotVoiceController, connectedCallState, gridCallState;
@@ -137,6 +143,29 @@ Future<void> _expectBelowStageAboveDock(WidgetTester tester) async {
   }
 }
 
+/// Over a canvas the strip sits on the dock, inside the height it reserves,
+/// so the fitted board and the tiles on it stay above the captions.
+Future<void> _expectAboveCanvasDock(WidgetTester tester) async {
+  final captions = tester.getRect(find.byKey(callCaptionsKey));
+  expect(find.textContaining('the build list'), findsOneWidget);
+  final cards = find.byType(FloatingDockCard);
+  expect(cards, findsWidgets);
+  _expectClear(tester, captions, cards, 'the dock');
+  for (var i = 0; i < cards.evaluate().length; i++) {
+    expect(captions.bottom, lessThanOrEqualTo(tester.getRect(cards.at(i)).top));
+  }
+  final container = ProviderScope.containerOf(
+    tester.element(find.byKey(callCaptionsKey)),
+  );
+  final reserved = container.read(bottomDockReservationProvider);
+  final paneBottom = tester.getRect(find.byType(CanvasSurface)).bottom;
+  expect(
+    captions.top,
+    greaterThanOrEqualTo(paneBottom - reserved - AppSpacing.s12 - 0.5),
+    reason: 'the captions are inside the dock height the board is fitted above',
+  );
+}
+
 void main() {
   setUpAll(loadRealFonts);
 
@@ -165,6 +194,29 @@ void main() {
         );
       });
     }
+  }
+
+  for (final shape in ['phone-portrait', 'phone-landscape', 'laptop-1280']) {
+    testWidgets('captions over a canvas call at $shape', (tester) async {
+      await renderSurfaceThemes(
+        tester,
+        '/channels/c-main',
+        shape,
+        const ['dark', 'light'],
+        (t) => 'voice-in-call-captions-canvas-$shape-$t',
+        overrides: [
+          voiceControllerProvider.overrideWith(
+            (ref) => SnapshotVoiceController(ref, gridCallState),
+          ),
+          canvasOpenProvider.overrideWith((ref) => 'c-main'),
+          callAudioProvider.overrideWith(_Transcribing.new),
+          callTranscriptProvider.overrideWith(_Speaking.new),
+          channelPermissionsProvider.overrideWith((ref, id) async => -1),
+          voiceSettingsControllerProvider.overrideWith(_CaptionsOn.new),
+        ],
+        afterSettle: _expectAboveCanvasDock,
+      );
+    });
   }
 
   for (final shape in ['phone-portrait', 'laptop-1280']) {

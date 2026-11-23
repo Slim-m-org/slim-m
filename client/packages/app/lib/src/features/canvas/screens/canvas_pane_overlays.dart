@@ -13,6 +13,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../providers/dock_reservation.dart';
 import '../../../widgets/dock_height_reporter.dart';
+import '../../voice/widgets/call_captions_strip.dart';
 import '../../voice/widgets/hold_music_badge.dart';
 import 'canvas_call_dock.dart';
 import '../../../widgets/dock_collapse.dart';
@@ -97,6 +98,9 @@ class CanvasPeerStrip extends StatelessWidget {
   ).where((t) => t.id == userId).firstOrNull?.name;
 }
 
+/// The widest the captions strip grows over a canvas, a comfortable reading line.
+const canvasCaptionsMaxWidth = 720.0;
+
 /// The dock pinned to the bottom edge, height-reported so the surface can
 /// keep its own controls clear of it.
 class CanvasDockOverlay extends StatefulWidget {
@@ -159,13 +163,44 @@ class _CanvasDockOverlayState extends State<CanvasDockOverlay> {
             // Nothing else here rebuilds for a tile hide or show.
             child: ListenableBuilder(
               listenable: _hidden,
-              builder: (context, _) => CanvasCallDock(
-                call: widget.call,
-                canvas: canvas(),
-                compact: widget.compact,
+              builder: (context, _) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Inside the reported height, so the fitted board and its tiles stay above the captions.
+                  if (widget.call case final call?)
+                    _CanvasCaptions(channelId: call.channelId),
+                  CanvasCallDock(
+                    call: widget.call,
+                    canvas: canvas(),
+                    compact: widget.compact,
+                  ),
+                ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Captions over the dock at a reading width, laid out only while they show,
+/// so the dock keeps its own width the rest of the time.
+class _CanvasCaptions extends ConsumerWidget {
+  const _CanvasCaptions({required this.channelId});
+
+  final String channelId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!captionsShown(ref, channelId)) return const SizedBox.shrink();
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: canvasCaptionsMaxWidth),
+      child: SizedBox(
+        width: double.infinity,
+        child: CallCaptionsStrip(
+          channelId: channelId,
+          gap: const EdgeInsets.only(bottom: AppSpacing.s8),
         ),
       ),
     );
