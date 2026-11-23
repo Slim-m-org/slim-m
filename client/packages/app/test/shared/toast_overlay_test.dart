@@ -92,7 +92,7 @@ void main() {
     final phone = await centerAt(400);
     expect(phone.dy, lessThan(400), reason: 'top on a phone');
     expect(
-      tester.getTopLeft(find.byType(AppToast)).dy,
+      tester.getTopLeft(find.byWidgetPredicate((w) => w is AppToast)).dy,
       greaterThanOrEqualTo(kToolbarHeight),
       reason: 'below the app bar, so it never covers the screen title',
     );

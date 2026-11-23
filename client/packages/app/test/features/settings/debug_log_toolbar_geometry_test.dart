@@ -34,12 +34,17 @@ void main() {
     ) async {
       await _pump(tester, width);
       final tops = {
-        for (final e in find.byType(AnimatedContainer).evaluate())
+        for (final e
+            in find.byWidgetPredicate((w) => w is AnimatedContainer).evaluate())
           tester.getTopLeft(find.byWidget(e.widget)).dy.round(),
       };
       expect(tops, hasLength(1), reason: 'five levels on one row');
-      final search = tester.getRect(find.byType(AppInput));
-      final levels = tester.getRect(find.byType(AppSegmentedControl));
+      final search = tester.getRect(
+        find.byWidgetPredicate((w) => w is AppInput),
+      );
+      final levels = tester.getRect(
+        find.byWidgetPredicate((w) => w is AppSegmentedControl),
+      );
       expect(levels.top, greaterThanOrEqualTo(search.bottom));
       expect(levels.left, closeTo(search.left, 0.5));
       expect(levels.right, closeTo(search.right, 0.5));
@@ -48,8 +53,10 @@ void main() {
 
   testWidgets('at 900 the search and the levels share a row', (tester) async {
     await _pump(tester, 900);
-    final search = tester.getRect(find.byType(AppInput));
-    final levels = tester.getRect(find.byType(AppSegmentedControl));
+    final search = tester.getRect(find.byWidgetPredicate((w) => w is AppInput));
+    final levels = tester.getRect(
+      find.byWidgetPredicate((w) => w is AppSegmentedControl),
+    );
     expect(levels.left, greaterThan(search.right));
   });
 }

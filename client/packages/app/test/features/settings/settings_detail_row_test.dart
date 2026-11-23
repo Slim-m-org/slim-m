@@ -45,12 +45,15 @@ void main() {
       ),
     );
     final faded = find.ancestor(
-      of: find.byType(SettingsIconTile),
-      matching: find.byType(Opacity),
+      of: find.byWidgetPredicate((w) => w is SettingsIconTile),
+      matching: find.byWidgetPredicate((w) => w is Opacity),
     );
     expect(tester.widget<Opacity>(faded).opacity, 0.5);
     expect(
-      find.ancestor(of: find.text('Old'), matching: find.byType(Opacity)),
+      find.ancestor(
+        of: find.text('Old'),
+        matching: find.byWidgetPredicate((w) => w is Opacity),
+      ),
       findsNothing,
     );
   });

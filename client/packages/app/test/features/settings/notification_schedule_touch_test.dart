@@ -17,6 +17,7 @@ import 'package:slimm_app/src/features/settings/widgets/notification_schedule_se
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
@@ -85,7 +86,7 @@ Future<void> _pump(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  await pumpFrames(tester);
 }
 
 void main() {
@@ -102,7 +103,7 @@ void main() {
 
     final chips = find.ancestor(
       of: find.text('S'),
-      matching: find.byType(FocusableTapTarget),
+      matching: find.byWidgetPredicate((w) => w is FocusableTapTarget),
     );
     expect(chips, findsNWidgets(2));
     for (final chip in chips.evaluate()) {

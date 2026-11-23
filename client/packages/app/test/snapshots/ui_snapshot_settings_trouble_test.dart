@@ -50,7 +50,7 @@ Future<void> _openDebugLogAndExpand(WidgetTester tester) async {
 }
 
 Future<void> _expandFirstEntry(WidgetTester tester) async {
-  await tester.tap(find.byType(DebugLogEntry).first);
+  await tester.tap(find.byWidgetPredicate((w) => w is DebugLogEntry).first);
   await tester.pump(const Duration(milliseconds: 350));
 }
 

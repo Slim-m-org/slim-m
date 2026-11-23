@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
 import 'voice_settings_screen_harness.dart';
 
 void main() {
@@ -23,7 +24,7 @@ void main() {
       await tester.pumpWidget(
         wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
       );
-      await tester.pumpAndSettle();
+      await pumpFrames(tester);
 
       expect(find.text('Input level'), findsOneWidget);
       final textLeft = tester

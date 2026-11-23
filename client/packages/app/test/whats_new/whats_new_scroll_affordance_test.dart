@@ -58,12 +58,14 @@ void main() {
     tester,
   ) async {
     await _open(tester, const Size(390, 600), 2.0);
-    final viewport = tester.getRect(find.byType(Scrollable));
+    final viewport = tester.getRect(
+      find.byWidgetPredicate((w) => w is Scrollable),
+    );
     final column = tester.getRect(
       find
           .descendant(
-            of: find.byType(SingleChildScrollView),
-            matching: find.byType(Column),
+            of: find.byWidgetPredicate((w) => w is SingleChildScrollView),
+            matching: find.byWidgetPredicate((w) => w is Column),
           )
           .first,
     );
