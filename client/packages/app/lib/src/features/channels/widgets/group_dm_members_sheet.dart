@@ -266,7 +266,7 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
                       message:
                           'You lose this conversation and its calls. The others keep it, '
                           'and someone in it has to add you back to rejoin.',
-                      action: 'Leave $shownName',
+                      action: 'Leave group',
                       busy: _busy,
                       onCancel: _cancelConfirm,
                       onConfirm: _leave,
@@ -276,7 +276,7 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
                       message:
                           'This deletes $shownName and all its messages for everyone '
                           'in it. It cannot be undone.',
-                      action: 'Delete $shownName',
+                      action: 'Delete group',
                       busy: _busy,
                       onCancel: _cancelConfirm,
                       onConfirm: _delete,

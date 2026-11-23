@@ -4,10 +4,12 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../ui_snapshot_fonts.dart';
 import 'group_dm_harness.dart';
 
 Finder _avatarIn(String key) => find.descendant(
@@ -16,6 +18,7 @@ Finder _avatarIn(String key) => find.descendant(
 );
 
 void main() {
+  setUpAll(loadRealFonts);
   for (final size in const [Size(390, 844), Size(1280, 900)]) {
     testWidgets('members sheet shares one left edge at ${size.width}', (
       tester,
@@ -40,4 +43,18 @@ void main() {
       );
     });
   }
+
+  testWidgets('the delete confirm names its action in full at 390', (
+    tester,
+  ) async {
+    await openMembersSheet(tester, size: const Size(390, 844));
+    await tester.ensureVisible(find.text('Delete group'));
+    await tester.tap(find.text('Delete group'));
+    await tester.pump(const Duration(seconds: 1));
+
+    final action = tester.renderObject<RenderParagraph>(
+      find.text('Delete group'),
+    );
+    expect(action.didExceedMaxLines, isFalse);
+  });
 }

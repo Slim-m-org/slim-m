@@ -96,7 +96,7 @@ void main() {
     final container = await openMenuItem(tester, 'Leave group', server: server);
     expect(server.requests.where((r) => r.endsWith('/leave')), isEmpty);
 
-    await tester.tap(find.textContaining('Leave Person1'));
+    await tester.tap(find.text('Leave group'));
     await _settle(tester);
 
     expect(server.requests, contains('POST /dms/groups/g1/leave'));
@@ -121,7 +121,7 @@ void main() {
     expect(find.textContaining('Person1 and Person2'), findsWidgets);
     expect(server.requests.where((r) => r.startsWith('DELETE')), isEmpty);
 
-    await tester.tap(find.text('Delete Person1 and Person2'));
+    await tester.tap(find.text('Delete group'));
     await _settle(tester);
 
     expect(server.requests, contains('DELETE /dms/groups/g1'));
@@ -140,7 +140,7 @@ void main() {
       'Delete group',
       server: server,
     );
-    await tester.tap(find.text('Delete Person1 and Person2'));
+    await tester.tap(find.text('Delete group'));
     await _settle(tester);
 
     expect(find.textContaining('Could not delete the group'), findsOneWidget);
