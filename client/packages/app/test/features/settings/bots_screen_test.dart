@@ -355,6 +355,17 @@ void main() {
     expect(find.byType(AppToggle), findsAtLeast(2));
   });
 
+  testWidgets(
+    'the create form fields and its Permissions row share a left edge',
+    (tester) async {
+      await _pump(tester, (request) => http.Response('[]', 200));
+
+      final field = tester.getRect(find.text('Username')).left;
+      final permissions = tester.getRect(find.text('Permissions')).left;
+      expect(permissions, closeTo(field, 1));
+    },
+  );
+
   AppToggle toggle(WidgetTester tester, String label) => tester
       .widgetList<AppToggle>(find.byType(AppToggle))
       .firstWhere((t) => t.semanticLabel == label);
