@@ -4,7 +4,7 @@
 
 use std::time::Instant;
 
-use wasmi::core::TrapCode;
+use wasmi::TrapCode;
 use wasmi::{AsContextMut, Store, TypedFunc, TypedResumableCall, WasmParams, WasmResults};
 
 use super::host::RunError;
@@ -98,7 +98,7 @@ pub fn classify_trap(err: wasmi::Error) -> RunError {
         Some(TrapCode::OutOfFuel) => {
             RunError::ResourceLimited("exceeded its fuel (CPU) budget".to_owned())
         }
-        Some(TrapCode::GrowthOperationLimited) => {
+        Some(TrapCode::GrowthOperationLimited | TrapCode::OutOfSystemMemory) => {
             RunError::ResourceLimited("exceeded its memory budget".to_owned())
         }
         Some(code) => RunError::Trap(trap_sentence(code).to_owned()),
@@ -119,5 +119,6 @@ fn trap_sentence(code: TrapCode) -> &'static str {
         TrapCode::BadSignature => "it called a function through the wrong signature",
         TrapCode::OutOfFuel => "it ran out of fuel",
         TrapCode::GrowthOperationLimited => "it tried to grow past a limit",
+        TrapCode::OutOfSystemMemory => "the server had no memory left for it",
     }
 }
