@@ -300,8 +300,13 @@ void main() {
       ),
     );
     final text = tester.getRect(find.text('Posted an invite link'));
-    final button = tester.getRect(find.text('Let back in'));
-    expect(button.top, greaterThanOrEqualTo(text.bottom));
+    final button = tester.getRect(
+      find.ancestor(
+        of: find.text('Let back in'),
+        matching: find.byType(AppButton),
+      ),
+    );
+    expect(button.top - text.bottom, greaterThanOrEqualTo(AppSpacing.s8));
     final delete = tester.getRect(find.text('Delete'));
     expect(delete.left - button.right, greaterThanOrEqualTo(AppSpacing.s8));
   });

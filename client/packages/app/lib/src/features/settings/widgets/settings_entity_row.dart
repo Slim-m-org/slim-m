@@ -188,7 +188,10 @@ class _SettingsEntityRowState extends State<SettingsEntityRow> {
             if (widget.actions.isNotEmpty && !stacked) actions,
           ],
         ),
-        if (stacked) Align(alignment: Alignment.centerRight, child: actions),
+        if (stacked) ...[
+          const SizedBox(height: AppSpacing.s8),
+          Align(alignment: Alignment.centerRight, child: actions),
+        ],
       ],
     );
   }
