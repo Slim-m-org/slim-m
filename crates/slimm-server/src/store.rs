@@ -242,10 +242,11 @@ pub use module_permissions::{
 };
 pub use module_stats::{ModuleRunStat, RunResult, RunTiming, StorageUsage};
 pub use modules::{
-    DockProvenance, DueTimer, HookChange, HookDecl, HookKind, InstallModuleRequest,
-    InstalledModule, ModuleExtensionPoint, ModuleExtensionPointSpec, ModuleHook,
-    ModulePermissionSpec, ModulePlatform, ModuleRuntimeLimits, ModuleSchedule, ModuleSettingDef,
-    ModuleSlot, SettingChoice, SettingKind, TimerSpec,
+    ConnectorInstall, DockProvenance, DueTimer, HookChange, HookDecl, HookKind,
+    InstallModuleRequest, InstalledConnector, InstalledModule, ModuleExtensionPoint,
+    ModuleExtensionPointSpec, ModuleHook, ModulePermissionSpec, ModulePlatform,
+    ModuleRuntimeLimits, ModuleSchedule, ModuleSettingDef, ModuleSlot, SettingChoice, SettingKind,
+    TimerSpec,
 };
 pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;

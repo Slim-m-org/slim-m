@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT CASE WHEN m.enabled = 1 THEN COALESCE(m.connector_permissions, 0) ELSE 0 END\n                      AS \"cap!: Permissions\"\n               FROM installed_modules m\n               WHERE m.bot_user_id = ? AND m.provider = 'connector'",
+  "describe": {
+    "columns": [
+      {
+        "name": "cap!: Permissions",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "322e5a4c57b64e8a95b66a61b0f9a5eda42e3a6a79184c3a9fe4d7bb255a6f54"
+}

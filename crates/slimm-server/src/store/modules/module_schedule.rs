@@ -142,7 +142,7 @@ impl Store {
 
 /// Unique by construction (the id's tail), so it can never collide with a
 /// person's name; the display name is what members read.
-fn principal_username(module_id: &str, id: UserId) -> String {
+pub(in crate::store) fn principal_username(module_id: &str, id: UserId) -> String {
     let tail = id.0.simple().to_string();
     let tail = &tail[tail.len() - 8..];
     let room = MAX_USERNAME_CHARS - "module--".len() - tail.len();

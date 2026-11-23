@@ -30,6 +30,7 @@ mod code_runner_broker;
 mod code_runner_languages;
 mod code_runs_on_message_delete;
 mod code_runs_on_message_edit;
+mod connectors;
 mod dock;
 mod dock_artifact_fetch;
 mod dock_consent;

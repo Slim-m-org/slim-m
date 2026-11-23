@@ -52,6 +52,7 @@ use channels::{
     channel_slow_mode, channel_validation,
 };
 mod code_runs;
+mod connectors;
 mod debug_logs;
 mod device_client_info;
 mod dms;
@@ -335,6 +336,7 @@ pub fn router(state: AppState) -> Router {
         .merge(diagnostics::ping_routes())
         .merge(direct_route::routes())
         .merge(dock::routes())
+        .merge(connectors::routes())
         .merge(module_panels::routes())
         .merge(module_slots::routes())
         .merge(emoji::routes())

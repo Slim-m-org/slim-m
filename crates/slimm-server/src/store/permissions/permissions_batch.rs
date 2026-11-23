@@ -16,6 +16,7 @@ use uuid::Uuid;
 use super::super::Store;
 use super::super::member_gate::MemberGate;
 use super::super::timeouts::TIMEOUT_DENY;
+use super::connector_cap::{CAP_COLUMN, effective};
 use super::{ChannelOverwrite, RoleContext};
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::{Permissions, evaluate, mask_unless_viewable};
@@ -120,14 +121,14 @@ impl Store {
         let owner = self.space_owner().await?;
 
         // One built query (no array binding in SQLite), joined from `users` so a webhook is recognised too.
-        let mut builder = sqlx::QueryBuilder::new(
-            "SELECT u.id AS user_id, u.is_webhook AS is_webhook, \
+        let mut builder = sqlx::QueryBuilder::new(format!(
+            "SELECT u.id AS user_id, u.is_webhook AS is_webhook, {CAP_COLUMN} AS cap, \
                     r.id AS role_id, r.permissions AS permissions \
              FROM users u \
              LEFT JOIN member_roles mr ON mr.user_id = u.id \
              LEFT JOIN roles r ON r.id = mr.role_id AND r.is_everyone = 0 \
-             WHERE u.id IN (",
-        );
+             WHERE u.id IN ("
+        ));
         let mut separated = builder.separated(", ");
         for id in candidates {
             separated.push_bind(*id);
@@ -146,6 +147,7 @@ impl Store {
                 owner: owner == Some(UserId(user_id)),
                 ..RoleContext::none()
             });
+            context.cap = effective(row.try_get::<Option<Permissions>, _>("cap")?);
             // A webhook holds no roles at all, `@everyone` included; see `load_roles`.
             if row.try_get::<i64, _>("is_webhook")? != 0 {
                 *context = RoleContext::none();
