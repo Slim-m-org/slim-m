@@ -4,6 +4,8 @@
 /// remap.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -134,6 +136,14 @@ void main() {
       GlobalHotkeyPhase.released,
     );
     expect(marks, [1]);
+    harness.container
+        .read(pushToTalkGateProvider)
+        .markCall(
+          HoldSource.inWindow,
+          () =>
+              unawaited(harness.container.read(callMarkActionsProvider).mark()),
+        );
+    expect(marks, [1], reason: 'the window shortcut saw the same press');
     await c.voice.leave();
   });
 
@@ -233,7 +243,7 @@ class _CountingMarks extends CallMarkActions {
   final List<int> calls;
 
   @override
-  Future<String?> mark({String? note}) async {
+  Future<String?> mark({String? note, String? id}) async {
     calls.add(calls.length + 1);
     return null;
   }

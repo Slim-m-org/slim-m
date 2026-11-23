@@ -54,8 +54,10 @@ class ModuleRoomsController
   late String channelId;
   bool _disposed = false;
 
-  /// Bumped by every read and every frame, so a read that left before a newer frame is dropped.
   int _version = 0;
+
+  /// The version each module's room last changed at by a frame or an input.
+  final _changedAt = <String, int>{};
 
   api.SlimmApi get _api => ref.read(apiProvider);
 
@@ -80,7 +82,7 @@ class ModuleRoomsController
     if (event is! api.ModuleRoomChanged || event.channelId != channelId) {
       return;
     }
-    _version++;
+    _changedAt[event.moduleId] = ++_version;
     if (event.state == null) {
       _forget(event.moduleId);
       return;
@@ -107,25 +109,45 @@ class ModuleRoomsController
     state = state.copyWith(rooms: {...state.rooms}..remove(moduleId));
   }
 
-  /// Reads every room again; a server without room state reads as none.
+  /// Reads every room again; a server without room state reads as none, any other failure keeps what is held.
   Future<void> refresh() async {
-    final version = ++_version;
-    api.ModuleRooms rooms;
+    final started = ++_version;
+    final api.ModuleRooms read;
     try {
-      rooms = await _api.moduleRooms(channelId);
-    } on api.ApiException catch (error, stack) {
+      read = await _api.moduleRooms(channelId);
+    } on api.NotFoundException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.data,
         'Module rooms are not available for this channel',
         error,
         stack,
       );
-      rooms = const api.ModuleRooms();
+      _settleRead(const api.ModuleRooms(), started);
+      return;
+    } on api.ApiException catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.data,
+        'Module rooms could not be read, keeping the ones held',
+        error,
+        stack,
+      );
+      return;
     }
-    if (_disposed || version != _version) return;
+    _settleRead(read, started);
+  }
+
+  /// Takes [read] for every room no frame or input changed since [started].
+  void _settleRead(api.ModuleRooms read, int started) {
+    if (_disposed) return;
+    bool newer(String moduleId) => (_changedAt[moduleId] ?? 0) > started;
     state = state.copyWith(
-      rooms: {for (final r in rooms.rooms) r.moduleId: r},
-      callScenes: rooms.callScenes,
+      rooms: {
+        for (final room in state.rooms.values)
+          if (newer(room.moduleId)) room.moduleId: room,
+        for (final room in read.rooms)
+          if (!newer(room.moduleId)) room.moduleId: room,
+      },
+      callScenes: read.callScenes,
     );
   }
 
@@ -157,7 +179,7 @@ class ModuleRoomsController
       notices: why == null ? null : {...state.notices, moduleId: why},
     );
     if (result == null || !result.applied) return;
-    _version++;
+    _changedAt[moduleId] = ++_version;
     if (result.ended) {
       _forget(moduleId);
     } else {

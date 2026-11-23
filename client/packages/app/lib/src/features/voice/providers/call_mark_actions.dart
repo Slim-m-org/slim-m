@@ -23,9 +23,9 @@ class CallMarkActions {
 
   final Ref _ref;
 
-  /// Marks the moment, with [note] when given. Null once kept, else the
+  /// Marks the moment, with [note] when given; a retry passes the same [id] so it is the same mark. Null once kept, else the
   /// sentence that says why not, which the chip also shows.
-  Future<String?> mark({String? note}) async {
+  Future<String?> mark({String? note, String? id}) async {
     final channelId = _ref.read(voiceFlagsProvider).channelId;
     if (channelId == null) return notTranscribedNotice;
     final chip = _ref.read(callMarkChipProvider(channelId).notifier);
@@ -37,7 +37,11 @@ class CallMarkActions {
     try {
       final kept = await _ref
           .read(apiProvider)
-          .putCallTranscriptMark(transcriptId, newCallMarkId(), note: note);
+          .putCallTranscriptMark(
+            transcriptId,
+            id ?? newCallMarkId(),
+            note: note,
+          );
       chip.shown(kept);
       if (_ref.exists(transcriptMarksProvider(transcriptId))) {
         _ref.read(transcriptMarksProvider(transcriptId).notifier).keep(kept);

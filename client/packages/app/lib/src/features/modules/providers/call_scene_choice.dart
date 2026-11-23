@@ -7,6 +7,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
+import '../../voice/providers/voice_flags.dart';
 import 'module_rooms.dart';
 
 /// What this viewer opened and closed in one call.
@@ -20,7 +21,16 @@ class CallSceneChoice {
 class CallSceneChoiceController
     extends FamilyNotifier<CallSceneChoice, String> {
   @override
-  CallSceneChoice build(String arg) => const CallSceneChoice();
+  CallSceneChoice build(String arg) {
+    // The choice is for one call; the next one in this channel starts clean.
+    ref.listen(voiceFlagsProvider.select((flags) => flags.channelId), (
+      previous,
+      next,
+    ) {
+      if (previous == arg && next != arg) state = const CallSceneChoice();
+    });
+    return const CallSceneChoice();
+  }
 
   void open(String moduleId) => state = CallSceneChoice(
     opened: moduleId,

@@ -34,6 +34,7 @@ class PushToTalkGate {
   (HoldSource, DateTime)? _lastMute;
   (HoldSource, DateTime)? _lastDeafen;
   (HoldSource, DateTime)? _lastOverlay;
+  (HoldSource, DateTime)? _lastMark;
 
   bool get _focused => _windowFocused?.call() ?? _ref.read(appFocusedProvider);
 
@@ -92,6 +93,13 @@ class PushToTalkGate {
     if (_isDuplicate(source, _lastOverlay)) return;
     _lastOverlay = (source, _now());
     toggle();
+  }
+
+  /// [toggleMute] for the mark shortcut, with its own press to dedupe.
+  void markCall(HoldSource source, VoidCallback mark) {
+    if (_isDuplicate(source, _lastMark)) return;
+    _lastMark = (source, _now());
+    mark();
   }
 
   bool _isDuplicate(HoldSource source, (HoldSource, DateTime)? last) =>

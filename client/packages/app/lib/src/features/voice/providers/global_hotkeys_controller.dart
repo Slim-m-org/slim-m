@@ -191,7 +191,10 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
         }
       case GlobalHotkeyId.markCall:
         if (event.phase == GlobalHotkeyPhase.pressed) {
-          unawaited(_ref.read(callMarkActionsProvider).mark());
+          gate.markCall(
+            HoldSource.global,
+            () => unawaited(_ref.read(callMarkActionsProvider).mark()),
+          );
         }
       case null:
         return;

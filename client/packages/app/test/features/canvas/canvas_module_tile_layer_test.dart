@@ -16,6 +16,7 @@ import 'package:slimm_app/src/features/canvas/providers/canvas_module_tiles.dart
 import 'package:slimm_app/src/features/canvas/providers/canvas_object_inputs.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_module_tile_layer.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_module_tile_scope.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_command_output.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -170,6 +171,32 @@ void main() {
     await tester.pump();
     final zoomed = _tileRect(tester, 'Board');
     expect(zoomed, const Rect.fromLTWH(200, 100, 640, 480));
+  });
+
+  testWidgets('panning does not rebuild or reparse a tile whose frame held', (
+    tester,
+  ) async {
+    final rig = _Rig();
+    final c = rig.container();
+    addTearDown(c.dispose);
+    addTearDown(rig.events.close);
+    rig.document.setCamera(const Camera(zoom: 1));
+    rig.place(_tileObject('t1', const Rect.fromLTWH(20, 20, 400, 300)));
+    await _pump(tester, rig, c);
+
+    var outputBuilds = 0;
+    debugOnRebuildDirtyWidget = (element, _) {
+      if (element.widget is ModuleCommandOutput) outputBuilds++;
+    };
+    addTearDown(() => debugOnRebuildDirtyWidget = null);
+    for (var i = 1; i <= 10; i++) {
+      rig.document
+        ..setCamera(Camera(x: i * 3.0, zoom: 1))
+        ..refresh();
+      await tester.pump();
+    }
+
+    expect(outputBuilds, 0);
   });
 
   testWidgets('a frame another viewer stored replaces the scene', (

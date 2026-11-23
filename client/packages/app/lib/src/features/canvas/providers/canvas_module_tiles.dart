@@ -6,12 +6,15 @@
 /// once when a tile first shows and launched when it has none yet.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../api_failure.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/sync_controller.dart';
 
 /// Which module and which of its tiles a `module` canvas object names.
 class ModuleTileRef {
@@ -78,8 +81,19 @@ class CanvasTileFrames
       _disposed = true;
       sub.cancel();
     });
+    // A frame sent while the socket was down never arrives; read every held one again.
+    ref.listen(syncControllerProvider, (previous, next) {
+      if (next == SyncStatus.live && previous != SyncStatus.live) {
+        for (final id in state.keys.toList()) {
+          unawaited(_refresh(id));
+        }
+      }
+    });
     return const {};
   }
+
+  /// The count of live frames per object, so a read that left before one can tell.
+  final _liveFrames = <String, int>{};
 
   /// A fetch can answer after the last tile on screen went away.
   bool _disposed = false;
@@ -92,6 +106,7 @@ class CanvasTileFrames
       :final objectId,
       :final output,
     ) when channelId == this.channelId) {
+      _liveFrames[objectId] = (_liveFrames[objectId] ?? 0) + 1;
       _set(objectId, CanvasTileFrame.shown(output));
     }
   }
@@ -108,11 +123,13 @@ class CanvasTileFrames
     final current = state[objectId];
     if (current != null && !(retry && current.error != null)) return;
     _set(objectId, const CanvasTileFrame.loading());
+    final liveBefore = _liveFrames[objectId];
     try {
       final stored = await _client.canvasTileScene(
         channelId: channelId,
         objectId: objectId,
       );
+      if (_liveFrames[objectId] != liveBefore) return;
       if (stored != null) {
         _set(objectId, CanvasTileFrame.shown(stored.output));
         return;
@@ -129,6 +146,26 @@ class CanvasTileFrames
       _set(
         objectId,
         CanvasTileFrame.failed(describeApiFailure('show this tile', e)),
+      );
+    }
+  }
+
+  /// Reads [objectId]'s stored frame again, keeping what is shown until it lands or when it fails.
+  Future<void> _refresh(String objectId) async {
+    final liveBefore = _liveFrames[objectId];
+    try {
+      final stored = await _client.canvasTileScene(
+        channelId: channelId,
+        objectId: objectId,
+      );
+      if (stored == null || _liveFrames[objectId] != liveBefore) return;
+      _set(objectId, CanvasTileFrame.shown(stored.output));
+    } on api.ApiException catch (e, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'Could not refresh a module tile after reconnecting',
+        e,
+        stack,
       );
     }
   }

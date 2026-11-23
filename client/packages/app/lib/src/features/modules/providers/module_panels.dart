@@ -146,7 +146,7 @@ class ModulePanelRuns extends Notifier<Map<String, ModulePanelRun>> {
       if (result.ok && identical(state[panel.key], current)) {
         _put(panel.key, ModulePanelRun.answered(result, lastPressAt: pressed));
       }
-    } on api.ApiException catch (e, stack) {
+    } catch (e, stack) {
       api.reportFailure(api.LogTag.ui, 'redraw a panel', e, stack);
     }
   }

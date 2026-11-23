@@ -19,9 +19,11 @@ import 'package:slimm_app/src/features/voice/providers/call_mark_actions.dart';
 import 'package:slimm_app/src/features/voice/providers/call_mark_chip.dart';
 import 'package:slimm_app/src/features/voice/providers/call_transcript.dart';
 import 'package:slimm_app/src/features/voice/providers/call_transcript_marks.dart';
+import 'package:slimm_app/src/features/voice/providers/live_call_transcript.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_idle/call_marks_list.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_mark_chip.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_note_sheet.dart';
 import 'package:slimm_app/src/features/voice/widgets/captions_button.dart';
 import 'package:slimm_app/src/features/voice/widgets/mark_button.dart';
 import 'package:slimm_app/src/permissions.dart';
@@ -98,6 +100,7 @@ Future<_Rig> _pump(
   bool transcribed = true,
   int bits = Perm.viewChannel | Perm.viewTranscripts,
   List<Map<String, Object?>> marks = const [],
+  int failPuts = 0,
 }) async {
   final events = StreamController<api.ServerEvent>.broadcast();
   addTearDown(events.close);
@@ -120,6 +123,10 @@ Future<_Rig> _pump(
         final client = testApi((request) async {
           requests.add('${request.method} ${request.url.path} ${request.body}');
           if (request.method == 'DELETE') return http.Response('', 204);
+          if (request.method == 'PUT' && failPuts > 0) {
+            failPuts--;
+            return _json({'error': 'down'}, 503);
+          }
           if (request.method == 'PUT') {
             final body = jsonDecode(request.body) as Map<String, dynamic>;
             final id = request.url.pathSegments.last;
@@ -179,6 +186,42 @@ void main() {
     expect(find.text('Marked'), findsOneWidget);
     await tester.pump(callMarkChipFor);
     expect(find.text('Marked'), findsNothing, reason: 'the chip clears');
+  });
+
+  testWidgets('a note retried after a failure is the same mark', (
+    tester,
+  ) async {
+    final rig = await _pump(
+      tester,
+      Consumer(
+        builder: (context, ref, _) => TextButton(
+          onPressed: () => unawaited(showCallNoteSheet(context)),
+          child: const Text('open'),
+        ),
+      ),
+      failPuts: 1,
+    );
+    final held = rig.container.listen(
+      liveCallTranscriptIdProvider('voice-1'),
+      (_, _) {},
+    );
+    addTearDown(held.close);
+    await tester.tap(find.text('open'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.enterText(find.byKey(callNoteFieldKey), 'remember this');
+    await tester.pump();
+
+    await tester.tap(find.byKey(callNoteSaveKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.byKey(callNoteSaveKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final ids = [for (final r in rig.requests) r.split(' ')[1]];
+    expect(ids, hasLength(2));
+    expect(ids.first, ids.last, reason: 'a retry is the same mark');
   });
 
   testWidgets('no button without VIEW_TRANSCRIPTS or a running transcript', (

@@ -13,6 +13,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:web/web.dart' as web;
 
+import 'web_capture_chain_processor.dart';
 import 'web_capture_chain_settings.dart';
 
 /// Both files sit next to index.html; tool/fetch_web_assets.sh copies them from the fork.
@@ -23,12 +24,18 @@ const _processorName = 'slimm-capture-chain';
 /// A worklet that has not answered by then is suspended; the poll skips a beat.
 const _readTimeout = Duration(milliseconds: 300);
 
+/// How long a failed load waits before the next microphone tries it again.
+const _retryPause = Duration(seconds: 30);
+
 bool get webCaptureChainAvailable =>
     web.window.isSecureContext &&
     globalContext.has('AudioWorkletNode') &&
     globalContext.has('WebAssembly');
 
 final _settings = WebCaptureChainSettings();
+
+/// What the poll reports once the chain failed to load: the mic is raw, so Strong reads as not running.
+const _unavailableReading = {'voice': false, 'strongNoiseSuppression': false};
 
 Future<Object?> invokeWebCaptureChain(String method, [Object? args]) async {
   switch (method) {
@@ -37,13 +44,18 @@ Future<Object?> invokeWebCaptureChain(String method, [Object? args]) async {
       _Chain._loaded?._configure();
       return null;
     case 'getInputGate':
-      return _Chain._loaded?._read();
+      return _Chain._loaded?._read() ??
+          (_Chain.failed ? _unavailableReading : null);
   }
   throw UnsupportedError('$method has no web capture chain equivalent');
 }
 
 lk.TrackProcessor<lk.AudioProcessorOptions>? webCaptureProcessor() =>
-    _WebCaptureProcessor();
+    WebCaptureProcessor(
+      name: _processorName,
+      attach: attachWebCaptureChain,
+      detach: detachWebCaptureChain,
+    );
 
 Future<rtc.MediaStreamTrack> attachWebCaptureChain(
   rtc.MediaStreamTrack track,
@@ -61,8 +73,19 @@ class _Chain {
   static _Chain? _loaded;
   static Future<_Chain?>? _loading;
 
-  /// Loaded once, on the first microphone that needs it; a failure is not retried.
-  static Future<_Chain?> shared() => _loading ??= _load();
+  static DateTime? _retryAfter;
+
+  static bool get failed => _loaded == null && _retryAfter != null;
+
+  /// Loaded once, on the first microphone that needs it; a failure is tried again after a pause.
+  static Future<_Chain?> shared() {
+    final retryAfter = _retryAfter;
+    if (retryAfter != null && DateTime.now().isAfter(retryAfter)) {
+      _retryAfter = null;
+      _loading = null;
+    }
+    return _loading ??= _load();
+  }
 
   final web.AudioContext _context;
   final web.AudioWorkletNode _node;
@@ -98,8 +121,10 @@ class _Chain {
         ),
       );
       final chain = _Chain._(context, node).._configure();
+      _retryAfter = null;
       return _loaded = chain;
     } on Object catch (error, stack) {
+      _retryAfter = DateTime.now().add(_retryPause);
       AppLog.swallowed(
         LogTag.voice,
         'The browser capture chain did not load; the mic is sent unprocessed',
@@ -155,60 +180,5 @@ class _Chain {
     _destination = null;
     _output = null;
     await _context.suspend().toDart;
-  }
-}
-
-/// Runs a LiveKit microphone track through the chain before it is published.
-class _WebCaptureProcessor
-    implements lk.TrackProcessor<lk.AudioProcessorOptions> {
-  rtc.MediaStreamTrack? _processed;
-  lk.Room? _room;
-
-  @override
-  String get name => _processorName;
-
-  @override
-  rtc.MediaStreamTrack? get processedTrack => _processed;
-
-  @override
-  Future<void> init(lk.AudioProcessorOptions options) async {
-    final processed = await attachWebCaptureChain(options.track);
-    _processed = identical(processed, options.track) ? null : processed;
-    await _sendProcessed();
-  }
-
-  @override
-  Future<void> restart(lk.AudioProcessorOptions options) => init(options);
-
-  @override
-  Future<void> destroy() async {
-    final processed = _processed;
-    _processed = null;
-    if (processed == null) return;
-    await detachWebCaptureChain(processed);
-    await processed.stop();
-  }
-
-  @override
-  Future<void> onPublish(lk.Room room) async => _room = room;
-
-  @override
-  Future<void> onUnpublish() async => _room = null;
-
-  /// `LocalTrack.restartTrack` hands the sender the raw capture before it sets
-  /// the processor again, so a restarted track would go out unprocessed.
-  Future<void> _sendProcessed() async {
-    final processed = _processed;
-    final room = _room;
-    if (processed == null || room == null) return;
-    for (final publication
-        in room.localParticipant?.audioTrackPublications ?? const []) {
-      final track = publication.track;
-      if (track == null || !identical(track.processor, this)) continue;
-      final sender = track.sender;
-      if (sender != null && sender.track?.id != processed.id) {
-        await sender.replaceTrack(processed);
-      }
-    }
   }
 }

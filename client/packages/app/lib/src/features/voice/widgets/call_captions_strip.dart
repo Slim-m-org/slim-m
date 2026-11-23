@@ -90,8 +90,12 @@ class _CaptionsState extends ConsumerState<_Captions> {
   void initState() {
     super.initState();
     final model = ref.read(callTranscriptProvider(widget.transcriptId));
-    if (model.loaded) _seen = model.lines.isEmpty ? 0 : model.lines.last.seq;
+    if (_history(model)) _seen = model.lines.isEmpty ? 0 : model.lines.last.seq;
   }
+
+  /// All that was said before now is read, so what comes after it is a caption.
+  bool _history(CallTranscriptModel model) =>
+      model.loaded && !model.hasMore && model.error == null;
 
   @override
   void dispose() {
@@ -100,7 +104,7 @@ class _CaptionsState extends ConsumerState<_Captions> {
   }
 
   void _onModel(CallTranscriptModel next) {
-    if (!next.loaded) return;
+    if (!_history(next)) return;
     final seen = _seen;
     if (seen == null) {
       // What was said before the strip opened is the pane's to show, not a caption.

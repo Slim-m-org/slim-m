@@ -33,6 +33,7 @@ import '../../../modules/providers/code_block_runner.dart';
 import '../../../composer/providers/slash_command.dart';
 import '../../../../providers/providers.dart';
 import '../../../../providers/toasts.dart';
+import '../../providers/dock_connector_token.dart';
 import '../../../../widgets/confirm_dialog.dart';
 import '../../../../routing/routes.dart';
 import '../../../../widgets/run_guarded.dart';
@@ -62,11 +63,11 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     with GuardedActionState<DockModuleScreen> {
   bool _busy = false;
 
+  StateController<String?> get _tokenSlot =>
+      ref.read(dockConnectorTokenProvider(widget.moduleId).notifier);
+
   /// Set by a first install, so the role switches open at once.
   bool _rolesOpen = false;
-
-  /// A connector's token from the answer that minted it, until dismissed.
-  String? _connectorToken;
 
   /// The switches the admin has flipped, or null to show what is installed.
   Set<String>? _hostApproved;
@@ -211,6 +212,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
       isUpdate: wasInstalled,
     );
     if (!agreed || !mounted) return;
+    final tokenSlot = _tokenSlot;
     setState(() => _busy = true);
     String? token;
     final ok = await guard(
@@ -232,11 +234,9 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
                   ))
               .connectorToken,
     );
+    if (token != null) tokenSlot.state = token;
     if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _connectorToken = token ?? _connectorToken;
-    });
+    setState(() => _busy = false);
     if (ok) await _afterInstall(manifest, wasInstalled);
   }
 
@@ -250,6 +250,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
       confirmLabel: 'New token',
     );
     if (!confirmed || !mounted) return;
+    final tokenSlot = _tokenSlot;
     setState(() => _busy = true);
     String? token;
     await guard(
@@ -258,11 +259,9 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
           .read(apiProvider)
           .reissueConnectorToken(widget.moduleId),
     );
+    if (token != null) tokenSlot.state = token;
     if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _connectorToken = token ?? _connectorToken;
-    });
+    setState(() => _busy = false);
   }
 
   /// False when the admin declined or left the screen; true when no consent was due.
@@ -459,9 +458,11 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
           onScheduleChannel: _setScheduleChannel,
           onClearStorage: () => _clearStorage(m.name),
           rolesOpen: _rolesOpen,
-          connectorToken: _connectorToken,
+          connectorToken: ref.watch(
+            dockConnectorTokenProvider(widget.moduleId),
+          ),
           serverUrl: ref.read(serverUrlProvider),
-          onDismissConnectorToken: () => setState(() => _connectorToken = null),
+          onDismissConnectorToken: () => _tokenSlot.state = null,
           onNewConnectorToken: () => _newConnectorToken(m.name),
           onDiscardAccess: () => setState(() {
             _hostApproved = null;
