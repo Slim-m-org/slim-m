@@ -2,5 +2,6 @@ crates/
 Cargo.toml
 Cargo.lock
 rust-toolchain.toml
+.cargo/
 docker/server.Dockerfile
 .sqlx/
