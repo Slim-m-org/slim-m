@@ -18,17 +18,25 @@ import 'upload_send_stream.dart';
 ///
 /// Any client but the browser's own (a test's fake, say) keeps the streamed
 /// path, so what it sees is what it saw before.
+///
+/// Completing [abortTrigger] aborts the request in the browser.
 Future<http.StreamedResponse> sendUpload(
   http.Client client,
   http.StreamedRequest request,
   Stream<List<int>> body, {
   void Function(int sent)? onProgress,
+  Future<void>? abortTrigger,
 }) async {
   if (client is! BrowserClient || onProgress == null) {
     return sendStreamingUpload(client, request, body, onProgress: onProgress);
   }
   final bytes = await _collect(body);
-  return _send(request, bytes, onProgress);
+  return sendXhrUpload(
+    request,
+    bytes,
+    onProgress,
+    abortTrigger: abortTrigger,
+  );
 }
 
 Future<Uint8List> _collect(Stream<List<int>> body) async {
@@ -37,12 +45,15 @@ Future<Uint8List> _collect(Stream<List<int>> body) async {
   return builder.takeBytes();
 }
 
-Future<http.StreamedResponse> _send(
+/// Sends [bytes] over [createXhr]'s request; a test hands in a stand-in.
+Future<http.StreamedResponse> sendXhrUpload(
   http.StreamedRequest request,
   Uint8List bytes,
-  void Function(int sent) onProgress,
-) {
-  final xhr = web.XMLHttpRequest()
+  void Function(int sent) onProgress, {
+  Future<void>? abortTrigger,
+  web.XMLHttpRequest Function()? createXhr,
+}) {
+  final xhr = (createXhr?.call() ?? web.XMLHttpRequest())
     ..open(request.method, '${request.url}')
     ..responseType = 'arraybuffer';
   request.headers.forEach((name, value) {
@@ -60,7 +71,7 @@ Future<http.StreamedResponse> _send(
   }
 
   xhr.upload.onprogress = ((web.ProgressEvent event) {
-    onProgress(event.loaded);
+    if (!done.isCompleted) onProgress(event.loaded);
   }).toJS;
   xhr.onload = ((web.Event _) {
     if (done.isCompleted) return;
@@ -83,6 +94,9 @@ Future<http.StreamedResponse> _send(
   xhr.onabort = fail.toJS;
   xhr.ontimeout = fail.toJS;
   xhr.send(bytes.toJS);
+  unawaited(abortTrigger?.then((_) {
+    if (!done.isCompleted) xhr.abort();
+  }));
   return done.future;
 }
 

@@ -2,6 +2,7 @@
 /// Runs the connection test on request and holds what it found.
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
@@ -17,6 +18,16 @@ final connectionProbesProvider =
 final connectionLanInUseProvider = Provider<bool Function()>(
   (ref) =>
       () => ref.read(apiProvider).usesDirectRoute,
+);
+
+/// How much one measured transfer may move on this device; phones are likely on a data plan.
+final connectionTestMaxBytesProvider = Provider<int>(
+  (ref) =>
+      !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS)
+      ? kMobileMaxTransferBytes
+      : kMaxTransferBytes,
 );
 
 class ConnectionTestState {
@@ -57,6 +68,7 @@ class ConnectionTestController extends StateNotifier<ConnectionTestState> {
       final results = await runConnectionTest(
         probes,
         cancel: cancel,
+        maxTransferBytes: _ref.read(connectionTestMaxBytesProvider),
         onProgress: (progress) {
           if (mounted) {
             state = ConnectionTestState(running: true, progress: progress);

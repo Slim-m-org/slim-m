@@ -104,6 +104,7 @@ extension SlimmApiEmoji on SlimmApi {
             {'name': image.name, 'data': base64Encode(image.bytes)},
         ],
       },
+      deadline: transferDeadline,
     );
     return (json as List<dynamic>)
         .map((e) => CustomEmoji.fromJson(e as Map<String, dynamic>))

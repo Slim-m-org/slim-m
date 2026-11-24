@@ -4,6 +4,7 @@
 @TestOn('vm')
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -86,6 +87,20 @@ void main() {
       final fast = _FakeProbe(pings: [1], bytesPerSecond: 500e6);
       await runConnectionTest([(ConnectionRoute.lan, fast)]);
       expect(fast.asked[1], 'down ${64 * 1024 * 1024}');
+    });
+
+    test('a lower cap keeps every measured transfer under it', () async {
+      final probe = _FakeProbe(pings: [1], bytesPerSecond: 500e6);
+      await runConnectionTest(
+        [(ConnectionRoute.lan, probe)],
+        maxTransferBytes: kMobileMaxTransferBytes,
+      );
+      expect(probe.asked, [
+        'down 1048576',
+        'down $kMobileMaxTransferBytes',
+        'up 1048576',
+        'up $kMobileMaxTransferBytes',
+      ]);
     });
 
     test('the warm-up is dropped once a measured transfer follows', () async {
@@ -220,12 +235,14 @@ void main() {
     late List<String> seen;
     var proxied = true;
     var uploadReply = <String, Object>{'duration_ms': 3};
+    var stalls = false;
 
     setUp(() async {
       server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       seen = [];
       proxied = true;
       uploadReply = {'duration_ms': 3};
+      stalls = false;
       server.listen((request) async {
         seen.add('${request.method} ${request.uri.path}');
         expect(request.headers.value('authorization'), 'Bearer a');
@@ -239,11 +256,22 @@ void main() {
             final n = int.parse(request.uri.queryParameters['bytes']!);
             request.response
               ..headers.contentLength = n
-              ..add(List.filled(n, 1));
+              ..add(List.filled(stalls ? 10 : n, 1));
+            if (stalls) {
+              await request.response.flush();
+              return;
+            }
           case '/diagnostics/upload':
             var n = 0;
             await for (final chunk in request) {
               n += chunk.length;
+            }
+            if (stalls) {
+              request.response
+                ..headers.contentLength = 100
+                ..add([1]);
+              await request.response.flush();
+              return;
             }
             request.response
               ..headers.contentType = ContentType.json
@@ -331,6 +359,44 @@ void main() {
       final probe = api.connectionProbes().single.$2;
       await server.close(force: true);
       await expectLater(probe.ping(), throwsA(isA<TransportException>()));
+      probe.close();
+    });
+
+    test('a download that stalls after its headers fails instead of hanging',
+        () async {
+      stalls = true;
+      final probe = api
+          .connectionProbes(stall: const Duration(milliseconds: 100))
+          .single
+          .$2;
+      await expectLater(
+        probe.download(300000),
+        throwsA(isA<TransportException>()),
+      );
+      probe.close();
+    });
+
+    test('cancelling stops a download that has no chunk coming', () async {
+      stalls = true;
+      final cancel = UploadCancelToken();
+      final probe = api.connectionProbes().single.$2;
+      final result = probe.download(300000, cancel: cancel);
+      Timer(const Duration(milliseconds: 100), cancel.cancel);
+      await expectLater(result, throwsA(isA<UploadCancelled>()));
+      probe.close();
+    });
+
+    test('an upload whose answer never finishes fails instead of hanging',
+        () async {
+      stalls = true;
+      final probe = api
+          .connectionProbes(stall: const Duration(milliseconds: 100))
+          .single
+          .$2;
+      await expectLater(
+        probe.upload(200000),
+        throwsA(isA<TransportException>()),
+      );
       probe.close();
     });
   });

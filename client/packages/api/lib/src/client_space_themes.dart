@@ -15,7 +15,12 @@ extension SlimmApiSpaceThemes on SlimmApi {
 
   /// Publishes a theme file; a 400 names every problem the server found.
   Future<SpaceTheme> publishSpaceTheme(Map<String, dynamic> file) async {
-    final json = await send('POST', '/space/themes', body: file);
+    final json = await send(
+      'POST',
+      '/space/themes',
+      body: file,
+      deadline: transferDeadline,
+    );
     return SpaceTheme.fromJson(json as Map<String, dynamic>);
   }
 

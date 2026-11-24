@@ -5,6 +5,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -200,4 +201,25 @@ void main() {
     expect(formatLatency(const Duration(microseconds: 400)), 'under 1 ms');
     expect(formatLatency(const Duration(milliseconds: 31)), '31 ms');
   });
+
+  for (final (platform, capped) in [
+    (TargetPlatform.android, true),
+    (TargetPlatform.iOS, true),
+    (TargetPlatform.linux, false),
+    (TargetPlatform.windows, false),
+  ]) {
+    test(
+      'the test moves ${capped ? 'less' : 'full-size'} data on $platform',
+      () {
+        debugDefaultTargetPlatformOverride = platform;
+        addTearDown(() => debugDefaultTargetPlatformOverride = null);
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        expect(
+          container.read(connectionTestMaxBytesProvider),
+          capped ? kMobileMaxTransferBytes : kMaxTransferBytes,
+        );
+      },
+    );
+  }
 }

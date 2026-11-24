@@ -17,10 +17,17 @@ class UploadCancelled implements Exception {
 /// Lets a caller stop a resumable upload between and inside its parts.
 class UploadCancelToken {
   bool _cancelled = false;
+  final Completer<void> _signal = Completer<void>();
 
   bool get isCancelled => _cancelled;
 
-  void cancel() => _cancelled = true;
+  /// Completes when [cancel] is called, so a transfer waiting on the network can stop at once.
+  Future<void> get whenCancelled => _signal.future;
+
+  void cancel() {
+    _cancelled = true;
+    if (!_signal.isCompleted) _signal.complete();
+  }
 
   void throwIfCancelled() {
     if (_cancelled) throw const UploadCancelled();
