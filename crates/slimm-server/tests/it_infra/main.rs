@@ -51,6 +51,7 @@ mod post_commit_failures;
 mod private_surface;
 mod rate_limit_coverage;
 mod refresh_token_index_plan;
+mod request_log_noise;
 mod request_query_costs;
 mod resource_bounds;
 mod response_contract;

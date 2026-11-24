@@ -66,7 +66,7 @@ fn write_route_latency(out: &mut String, timings: &RouteTimings) {
     );
     out.push_str("# TYPE slimm_http_request_duration_seconds histogram\n");
     for route in timings.snapshot() {
-        let method = route.method.as_str();
+        let method = route.method;
         let path = &route.route;
         for (bound, count) in route_timing::BUCKET_BOUNDS_SECONDS
             .iter()
