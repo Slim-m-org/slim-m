@@ -17,6 +17,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../../audio/call_start_yields.dart';
 import '../../../audio/sound_session_release.dart';
 import '../../../push/providers/push_channel_providers.dart';
+import '../../../providers/sync_controller.dart';
 import 'call_foreground_keeper.dart';
 import 'call_recap.dart';
 import 'join_timings_provider.dart';
@@ -263,6 +264,9 @@ class VoiceController extends StateNotifier<VoiceState> {
     final keepMic = _keepMicNextJoin || state.channelId == channelId;
     _keepMicNextJoin = false;
     final callStarts = state.channelId == null;
+    if (callStarts && _ref.exists(syncControllerProvider)) {
+      _ref.read(syncControllerProvider.notifier).callStarted();
+    }
     final switching = !callStarts && state.channelId != channelId;
     // A recap belongs to the call that just ended, never to this new one.
     _activity.reset();

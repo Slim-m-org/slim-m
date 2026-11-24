@@ -98,9 +98,6 @@ class SyncController extends StateNotifier<SyncStatus> {
     });
     _lastSignedIn = session.isSignedIn;
     _ref.listen(appLifecycleProvider, _reconnector.onLifecycle);
-    _ref.listen(voiceFlagsProvider, (previous, next) {
-      if (!_isInCall(previous) && _isInCall(next)) _reconnector.onCallStarted();
-    });
     if (_lastSignedIn) unawaited(start());
   }
 
@@ -425,13 +422,15 @@ class SyncController extends StateNotifier<SyncStatus> {
     await _applier.apply(generation ?? _generation, api, store, event);
   }
 
-  bool _inCall() => _isInCall(_ref.read(voiceFlagsProvider));
+  bool _inCall() {
+    final flags = _ref.read(voiceFlagsProvider);
+    return flags.rejoining ||
+        flags.state == VoiceSessionState.connected ||
+        flags.state == VoiceSessionState.connecting;
+  }
 
-  static bool _isInCall(VoiceFlags? flags) =>
-      flags != null &&
-      (flags.rejoining ||
-          flags.state == VoiceSessionState.connected ||
-          flags.state == VoiceSessionState.connecting);
+  /// A call is starting: bring the socket back even from the background, where retries had stopped.
+  void callStarted() => _reconnector.onCallStarted();
 
   void _onDropped() {
     if (_disposed || state == SyncStatus.connecting) return;

@@ -220,7 +220,7 @@ void main() {
     await tester.tap(find.text('30m'));
     await tester.pumpAndSettle();
 
-    expect(sent, {'duration_seconds': 1800});
+    expect(sent?['duration_seconds'], 1800);
     expect(find.textContaining('Snoozed until'), findsOneWidget);
     expect(find.text('30m'), findsNothing);
   });

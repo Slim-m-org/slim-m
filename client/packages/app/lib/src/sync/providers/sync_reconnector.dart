@@ -62,8 +62,8 @@ class SyncReconnector {
   /// A call that begins while the socket is down needs it back, though a backgrounded phone stopped retrying before the call existed.
   void onCallStarted() {
     if (!wantsConnection() || status() != SyncStatus.offline) return;
-    if (_retry?.isActive ?? false) return;
-    scheduleRetry();
+    if (isDisposed() || (_retry?.isActive ?? false)) return;
+    _retry = Timer(backoff.next(), start);
   }
 
   /// A connect went live: forget the failures and the overflow restarts.
