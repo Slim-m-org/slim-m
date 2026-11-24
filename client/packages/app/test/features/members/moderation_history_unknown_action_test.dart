@@ -85,6 +85,7 @@ const _beyondModeration = [
   'nickname_set',
   'nickname_clear',
   'voice_move',
+  'voice_kick',
   'owner_handoff',
   'owner_timeout_ended',
   'message_pin_changed',

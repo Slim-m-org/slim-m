@@ -160,12 +160,13 @@ Joining a channel's voice room, and seeing who else already has.
 Most of these routes are almost entirely the check in front: the token this hands back is a bearer credential the SFU trusts, so what a caller may do in a room is decided here, once, from their permissions in that channel.
 
 Eviction is the other half of that.
-A minted token cannot be revoked, so its TTL bounds how long a removed participant could walk back in; removing them from the room is what makes a kick take effect now rather than in two minutes.
+A minted token cannot be revoked, and the SFU renews the token of everyone it accepts, so removing someone from the room is what makes a kick take effect, and a join with no token minted in the last 120 s is checked again when its webhook arrives (a locked room, a module's join hook, a removed member).
+Speak and Use Canvas are grants fixed at mint, so a change while someone is in the call is pushed to the SFU with `UpdateParticipant` rather than waiting for a rejoin.
 
 The roster is read-only: `VIEW_CHANNEL` is the gate, the same bit that lets a member read a text channel's messages without also being able to send into it.
 A participant who chose to appear offline is dropped from every viewer's roster but their own, the same treatment [`crate::presence`] gives every other surface; see [`roster`]'s doc comment for why that is a deliberate call rather than an oversight.
 
-The heartbeat pair is the exception to "the check in front": `heartbeat` is gated the same way minting a token is, but `forget_heartbeat` is not gated at all beyond authentication, because forgetting a caller's own liveness marker exposes nothing about the channel it names.
+The heartbeat pair is the exception to "the check in front": `heartbeat` is gated the same way minting a token is (a first one also meets the lock and join hook unless a token was just minted or the SFU already lists the member), but `forget_heartbeat` is not gated at all beyond authentication, because forgetting a caller's own liveness marker exposes nothing about the channel it names.
 
 The heartbeat pair is also where [`Event::VoiceActivityChanged`] is published: on the first heartbeat for a `(user, channel)` pair (a join) and on a real forget (a clean hangup), each a single lock-held check-and-write against [`crate::voice::VoiceService::record_heartbeat_reporting_new`] / [`crate::voice::VoiceService::forget_heartbeat_reporting_removed`] so a routine refresh never republishes and two concurrent first heartbeats cannot both publish either.
 The third publish site, the stale-heartbeat sweep, lives in `lib.rs` rather than here.
@@ -378,7 +379,7 @@ A quick restart had both clients back in about 2 s with mute state intact.
 Down for 70 s, longer than the SDK's own 44 s of retries, both clients came back through the automatic rejoin about 27 s after the SFU did, which is the 30 s tail of `VoiceAutoRejoin.defaultDelays`.
 
 An SFU token outlives its 120 s: the SFU renews the token of everyone it accepts.
-A client holding a renewed token can rejoin after losing Connect without asking the server, so the join webhook checks View and Connect for every join it reports.
+A client holding a renewed token can rejoin after losing Connect without asking the server, so the join webhook checks View and Connect for every join it reports, and the lock and a module's join hook for one with no token minted in the last 120 s.
 
 On Android the call foreground service must stay up from a drop until the rejoin settles.
 Android refuses to start it from the background, so a call that dropped and came back off screen had no microphone.

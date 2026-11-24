@@ -136,3 +136,22 @@ async fn participants(state: &AppState, id: ChannelId) -> Result<Vec<UserId>, Ap
         }
     }
 }
+
+/// Writes the kick into the moderation history; kicking yourself is leaving, not moderation.
+pub(super) async fn record_kick(
+    state: &AppState,
+    actor: UserId,
+    target: UserId,
+    channel_id: ChannelId,
+) -> Result<(), ApiError> {
+    if actor == target {
+        return Ok(());
+    }
+    let channel = state.store.channel(channel_id).await?;
+    let name = channel.as_ref().map(|c| c.name.as_str());
+    state
+        .store
+        .record_voice_kick(actor, target, name.filter(|n| !n.is_empty()))
+        .await?;
+    Ok(())
+}

@@ -170,12 +170,15 @@ impl Store {
         Ok(done.rows_affected() > 0)
     }
 
-    /// Everything withheld from this member: a timeout, and the gate.
+    /// Everything withheld from this member: a removal from the space, a timeout, and the gate.
     pub(super) async fn member_deny(
         &self,
         user_id: UserId,
         channel: Option<ChannelId>,
     ) -> anyhow::Result<Permissions> {
+        if self.is_removed(user_id).await? {
+            return Ok(Permissions::ALL);
+        }
         let gate = self.member_gate(user_id).await?.deny_in(channel);
         Ok(self.timeout_deny(user_id).await?.union(gate))
     }

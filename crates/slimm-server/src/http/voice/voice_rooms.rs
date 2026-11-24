@@ -174,6 +174,18 @@ async fn with_restricted(state: &AppState, channel: Channel) -> Result<ChannelDt
     Ok(ChannelDto::with_restricted(channel, restricted))
 }
 
+/// Whether the room is locked against `user`, which turns away everyone but its owner and managers.
+pub(crate) async fn locked_against(
+    state: &AppState,
+    channel: &Channel,
+    user: UserId,
+) -> Result<bool, ApiError> {
+    if !channel.room.is_room() || !channel.room.locked {
+        return Ok(false);
+    }
+    Ok(!manages(state, channel, user).await?)
+}
+
 /// Refuses a voice token when a lock or a user limit says so. Someone
 /// already in the call can always rejoin it, and the room's owner and
 /// anyone with MANAGE_CHANNELS are never turned away.

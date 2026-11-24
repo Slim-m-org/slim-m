@@ -18303,6 +18303,7 @@ components:
             - nickname_set
             - nickname_clear
             - voice_move
+            - voice_kick
             - owner_handoff
             - owner_timeout_ended
             - message_pin_changed
@@ -18314,7 +18315,8 @@ components:
             they became the owner. `message_pin_changed` and
             `message_preview_removed` are a moderator's act on another
             member's message, which is the subject; `webhook_rename`'s
-            reason is the new label.
+            reason is the new label. `voice_kick`'s reason is the name of the
+            channel whose call the subject was disconnected from.
         reason:
           type: [string, "null"]
         until:
