@@ -63,12 +63,19 @@ if (Test-Path $currentFile) {
   $before = (Get-Content $currentFile -Raw).Trim()
   if ($before -and $before -ne $version) { Set-Pointer 'previous' $before }
 }
+# A leftover marker from an earlier install would count this fresh start against the new files.
+foreach ($stale in 'pending', 'pending.tries', 'pending.started') {
+  $marker = Join-Path $root $stale
+  if (Test-Path $marker) { Remove-Item -Force $marker }
+}
 Set-Pointer 'current' $version
+
+Copy-Item (Join-Path $here 'uninstall.ps1') (Join-Path $root 'uninstall.ps1') -Force
 
 $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut(
   (Join-Path ([Environment]::GetFolderPath('Programs')) 'slim-m.lnk'))
 $shortcut.TargetPath = Join-Path $root 'slim-m.exe'
 $shortcut.Save()
 
-Write-Host "installed slim-m $version in $root"
+Write-Host "installed slim-m $version in $root; remove it with $root\uninstall.ps1"
 Start-Process (Join-Path $root 'slim-m.exe')

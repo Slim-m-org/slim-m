@@ -62,6 +62,7 @@ class XdgAutostart implements Autostart {
     return '[Desktop Entry]\n'
         'Type=Application\n'
         'Name=slim-m\n'
+        'TryExec=$executable\n'
         'Exec=$quoted $autostartArgument\n'
         'Icon=$linuxAppId\n'
         'X-GNOME-Autostart-enabled=true\n';

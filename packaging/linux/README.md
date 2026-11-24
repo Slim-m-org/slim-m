@@ -27,8 +27,20 @@ An install laid out this way updates itself.
 slim-m downloads the next release, checks its signature and sha256, unpacks it into a new version directory and moves `current` over with a rename.
 The previous version stays until the new one has run cleanly once.
 If the new version fails to start twice, the launcher moves `current` back and slim-m tells you on the next start.
+A start counts as failed only when the app never got far enough to write its `pending.started` marker, so quitting a working new version quickly never rolls it back.
 The launcher is part of each version directory and `~/.local/bin/slim-m` links through `current`, so an update replaces the launcher along with the app with no extra step.
 A tarball run from anywhere else, the rpm and the flatpak never replace themselves.
+
+### Removing it
+
+```bash
+~/.local/share/slim-m/uninstall.sh
+```
+
+This removes the versions, the `~/.local/bin/slim-m` link, the desktop entry, the icons and the start-on-login entry in `~/.config/autostart`.
+Your data stays unless you add `--remove-data`.
+The app keeps it under `~/.local/share/top.npcserver.slimm`, and a remembered sign-in lives in your Secret Service keyring (gnome-keyring, KWallet), which you can clear from its own manager.
+The start-on-login entry also names the executable in `TryExec`, so a session skips it once the binary is gone.
 
 ## What it needs from the system
 

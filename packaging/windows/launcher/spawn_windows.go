@@ -51,6 +51,12 @@ func osProcessAlive(pid int) bool {
 	return code == stillActive
 }
 
+// osProcessIsApp confirms the pid runs slimm_app.exe, not an unrelated program that reused it.
+func osProcessIsApp(pid int) bool {
+	image, ok := imagePath(uint32(pid), make([]uint16, syscall.MAX_LONG_PATH))
+	return ok && isAppImage(image)
+}
+
 // fail shows the reason, because a windowsgui program has no console to print to.
 func fail(message string) {
 	user32 := syscall.NewLazyDLL("user32.dll")

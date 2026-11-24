@@ -58,6 +58,7 @@ Future<void> installLinuxUpdate({
     }
     File(layout.path(LayoutNames.pending)).writeAsStringSync(update.version);
     safeDelete(File(layout.path(LayoutNames.pendingTries)));
+    safeDelete(File(layout.path(LayoutNames.pendingStarted)));
     _swapLink(layout, LayoutNames.current, update.version);
     safeDelete(update.file);
   } on IOException catch (error) {
@@ -113,6 +114,7 @@ void _swapLink(LinuxInstallLayout layout, String name, String version) {
 void confirmCleanStart(LinuxInstallLayout layout) {
   safeDelete(File(layout.path(LayoutNames.pending)));
   safeDelete(File(layout.path(LayoutNames.pendingTries)));
+  safeDelete(File(layout.path(LayoutNames.pendingStarted)));
   final keep = {
     layout.linkedVersion(LayoutNames.current),
     layout.linkedVersion(LayoutNames.previous),
