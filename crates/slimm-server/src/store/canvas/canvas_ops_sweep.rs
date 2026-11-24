@@ -172,6 +172,14 @@ impl Passes {
     }
 }
 
+/// One failing step must not skip the steps after it for the tick, so its error is logged and counts as nothing swept.
+fn logged_or_zero(step: &str, result: anyhow::Result<u64>) -> u64 {
+    result.unwrap_or_else(|error| {
+        tracing::warn!(%error, step, "canvas sweep step failed");
+        0
+    })
+}
+
 impl Store {
     /// Deletes canvas ops old enough, and no longer needed to undo anything,
     /// across every channel, a batch at a time until every pass runs dry or
@@ -197,11 +205,16 @@ impl Store {
                 break;
             }
         }
-        swept.audit = self
-            .sweep_canvas_audit(now - CANVAS_AUDIT_RETENTION_MS)
-            .await?;
-        swept.purged = self.purge_erased_canvas_objects().await?
-            + self.purge_deleted_channel_canvas(None).await?;
+        swept.audit = logged_or_zero(
+            "audit",
+            self.sweep_canvas_audit(now - CANVAS_AUDIT_RETENTION_MS)
+                .await,
+        );
+        swept.purged = logged_or_zero("erased objects", self.purge_erased_canvas_objects().await)
+            + logged_or_zero(
+                "deleted channels",
+                self.purge_deleted_channel_canvas(None).await,
+            );
         Ok(swept)
     }
 
