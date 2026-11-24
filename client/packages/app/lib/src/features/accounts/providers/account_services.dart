@@ -16,6 +16,8 @@ import '../../../providers/media_disk_caches.dart';
 import '../../../providers/providers.dart';
 import '../../../push/providers/push_controller.dart';
 import '../../messages/providers/retention_sweep.dart';
+import 'account_providers.dart';
+import 'account_slot.dart';
 import '../../../providers/sync_controller.dart';
 import '../../../providers/viewing_reporter.dart';
 import '../../messages/providers/attachment_preview_bytes.dart';
@@ -82,7 +84,12 @@ typedef ProviderReader = T Function<T>(ProviderListenable<T> provider);
 Future<void> signOutVia(ProviderReader read) async {
   await read(voiceControllerProvider.notifier).leave();
   await read(syncControllerProvider.notifier).stop();
-  await read(pushControllerProvider.notifier).unregister();
+  final host = read(accountHostProvider);
+  final keepKey =
+      host?.otherAccountSignedIn(read(accountSlotProvider)) ?? false;
+  await read(
+    pushControllerProvider.notifier,
+  ).unregister(keepDeviceKey: keepKey);
   try {
     await read(apiProvider).logout();
   } on api.ApiException catch (error, stack) {

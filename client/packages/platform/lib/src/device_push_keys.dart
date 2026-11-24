@@ -43,7 +43,20 @@ class DevicePushKeys {
   /// This device's public key, base64-encoded the way `PUT /push` expects it.
   /// Generates and persists a keypair the first time this is called; every
   /// later call, including after a restart, reuses the stored one.
-  Future<String> publicKeyBase64() async {
+  Future<String> publicKeyBase64() {
+    final inFlight = _inFlight[_handle];
+    if (inFlight != null) return inFlight;
+    final created = _publicKeyBase64().whenComplete(() {
+      _inFlight.remove(_handle);
+    });
+    return _inFlight[_handle] = created;
+  }
+
+  /// One load-or-create per handle in this process: every signed-in account
+  /// has its own container and so its own instance, over one device-wide key.
+  static final _inFlight = <String, Future<String>>{};
+
+  Future<String> _publicKeyBase64() async {
     final keyPair = await _loadOrCreate();
     final publicKey = await keyPair.extractPublicKey();
     return base64Encode(publicKey.bytes);
