@@ -49,7 +49,8 @@ pub struct Monitor {
     settings: MonitorSettings,
     livekit: LivekitWatch,
     open: HashSet<(AlertKind, String)>,
-    first_pass: bool,
+    /// Conditions this process has confirmed closed, so only the first look writes a resolve.
+    closed: HashSet<(AlertKind, String)>,
 }
 
 impl Monitor {
@@ -62,7 +63,7 @@ impl Monitor {
             settings,
             livekit: LivekitWatch::default(),
             open: HashSet::new(),
-            first_pass: true,
+            closed: HashSet::new(),
         }
     }
 
@@ -85,11 +86,12 @@ impl Monitor {
         self.settle(AlertKind::PushRelay, "", relay).await;
 
         self.settle_modules().await;
-        self.first_pass = false;
     }
 
     async fn settle_sweeps(&mut self, now: i64, uptime: Duration) {
-        let recorded = self.store.sweep_statuses().await.unwrap_or_default();
+        let Ok(recorded) = self.store.sweep_statuses().await else {
+            return;
+        };
         let failing = watch::failing_sweeps(&RECORDED_SWEEPS, &recorded, now, uptime);
         for (name, _) in RECORDED_SWEEPS {
             let problem = failing
@@ -120,21 +122,35 @@ impl Monitor {
         }
     }
 
+    /// Moves the alert to match `problem`; the remembered state follows only a write that landed.
     async fn settle(&mut self, kind: AlertKind, subject: &str, problem: Option<String>) {
         let key = (kind, subject.to_owned());
         match problem {
-            Some(detail) => {
-                if self.open.insert(key) {
-                    self.notifier.raise(kind, subject, &detail).await;
+            Some(detail) if !self.open.contains(&key) => {
+                match self.notifier.try_raise(kind, subject, &detail).await {
+                    Ok(()) => {
+                        self.closed.remove(&key);
+                        self.open.insert(key);
+                    }
+                    Err(err) => warn_unsettled(kind, "raise", &err),
                 }
             }
-            None => {
-                if self.open.remove(&key) || self.first_pass {
-                    self.notifier.resolve(kind, subject).await;
+            None if !self.closed.contains(&key) => {
+                match self.notifier.try_resolve(kind, subject).await {
+                    Ok(()) => {
+                        self.open.remove(&key);
+                        self.closed.insert(key);
+                    }
+                    Err(err) => warn_unsettled(kind, "resolve", &err),
                 }
             }
+            _ => {}
         }
     }
+}
+
+fn warn_unsettled(kind: AlertKind, action: &str, err: &anyhow::Error) {
+    tracing::warn!(error = %err, kind = kind.as_str(), action, "admin alert write failed; retrying next tick");
 }
 
 /// Runs the monitor for the life of the process, first look after one [`TICK`].

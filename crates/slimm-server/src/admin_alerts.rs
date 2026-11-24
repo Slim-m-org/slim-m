@@ -75,47 +75,56 @@ impl Notifier {
         Self::new(state.store.clone(), state.hub.clone(), state.push.clone())
     }
 
-    /// Opens the condition. A condition that is already open changes nothing visible.
+    /// Opens the condition, logging a failed write. See [`Self::try_raise`].
     pub async fn raise(&self, kind: AlertKind, subject: &str, detail: &str) {
-        let now = now_ms();
-        match self
-            .store
-            .raise_admin_alert(kind.as_str(), subject, detail, now)
-            .await
-        {
-            Ok(Raised::AlreadyOpen) => {}
-            Ok(Raised::Opened) => {
-                self.hub.publish(Event::AdminAlertsChanged);
-                self.push_if_allowed(kind, subject, kind.title(), detail, now)
-                    .await;
-            }
-            Err(err) => {
-                tracing::warn!(error = %err, kind = kind.as_str(), "could not raise an admin alert")
-            }
+        if let Err(err) = self.try_raise(kind, subject, detail).await {
+            tracing::warn!(error = %err, kind = kind.as_str(), "could not raise an admin alert");
         }
     }
 
-    /// Closes the condition and, when its opening was pushed, says it recovered.
+    /// Closes the condition, logging a failed write. See [`Self::try_resolve`].
     pub async fn resolve(&self, kind: AlertKind, subject: &str) {
+        if let Err(err) = self.try_resolve(kind, subject).await {
+            tracing::warn!(error = %err, kind = kind.as_str(), "could not resolve an admin alert");
+        }
+    }
+
+    /// Opens the condition. A condition that is already open changes nothing visible.
+    pub async fn try_raise(
+        &self,
+        kind: AlertKind,
+        subject: &str,
+        detail: &str,
+    ) -> anyhow::Result<()> {
         let now = now_ms();
-        match self
+        let raised = self
+            .store
+            .raise_admin_alert(kind.as_str(), subject, detail, now)
+            .await?;
+        if matches!(raised, Raised::Opened) {
+            self.hub.publish(Event::AdminAlertsChanged);
+            self.push_if_allowed(kind, subject, kind.title(), detail, now)
+                .await;
+        }
+        Ok(())
+    }
+
+    /// Closes the condition and, when its opening was pushed, says it recovered.
+    pub async fn try_resolve(&self, kind: AlertKind, subject: &str) -> anyhow::Result<()> {
+        let now = now_ms();
+        let resolved = self
             .store
             .resolve_admin_alert(kind.as_str(), subject, now)
-            .await
-        {
-            Ok(None) => {}
-            Ok(Some(resolved)) => {
-                self.hub.publish(Event::AdminAlertsChanged);
-                if resolved.notified {
-                    let title = format!("Recovered: {}", kind.title());
-                    self.push_to_recipients(&title, &resolved.alert.detail)
-                        .await;
-                }
-            }
-            Err(err) => {
-                tracing::warn!(error = %err, kind = kind.as_str(), "could not resolve an admin alert")
+            .await?;
+        if let Some(resolved) = resolved {
+            self.hub.publish(Event::AdminAlertsChanged);
+            if resolved.notified {
+                let title = format!("Recovered: {}", kind.title());
+                self.push_to_recipients(&title, &resolved.alert.detail)
+                    .await;
             }
         }
+        Ok(())
     }
 
     async fn push_if_allowed(

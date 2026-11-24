@@ -143,6 +143,16 @@ impl Store {
         Ok(())
     }
 
+    /// Folds the write-ahead log into the database file and truncates it, so it does not stay
+    /// at the size of the largest transaction. Returns without error when readers hold it back.
+    pub async fn checkpoint_wal(&self) -> anyhow::Result<()> {
+        sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
+            .execute(&self.pool)
+            .await
+            .context("checkpoint the write-ahead log")?;
+        Ok(())
+    }
+
     /// Every sweep that has recorded at least one run, in no particular
     /// order - the client sorts or labels these for display.
     pub async fn sweep_statuses(&self) -> anyhow::Result<Vec<SweepStatus>> {

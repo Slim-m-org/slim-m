@@ -21,6 +21,10 @@ pub(crate) const ACQUIRE_TIMEOUT: Duration = Duration::from_secs(10);
 /// SQLite's recommended cap on the rows `PRAGMA optimize` reads per index, so analysing a big table stays cheap.
 const ANALYSIS_LIMIT: u32 = 400;
 
+/// Cap on the write-ahead log file kept after a checkpoint, so one large transaction does not
+/// leave the data volume inflated until restart.
+const WAL_SIZE_LIMIT_BYTES: u64 = 64 * 1024 * 1024;
+
 /// Opens the SQLite pool, creating the database and its parent directory if
 /// needed, then runs forward-only migrations to the current schema.
 pub async fn connect(config: &Config) -> anyhow::Result<SqlitePool> {
@@ -38,6 +42,7 @@ pub async fn connect(config: &Config) -> anyhow::Result<SqlitePool> {
         .synchronous(SqliteSynchronous::Normal)
         .busy_timeout(Duration::from_secs(5))
         .foreign_keys(true)
+        .pragma("journal_size_limit", WAL_SIZE_LIMIT_BYTES.to_string())
         .optimize_on_close(true, ANALYSIS_LIMIT);
 
     let pool = SqlitePoolOptions::new()

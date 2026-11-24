@@ -41,6 +41,7 @@ mod durable;
 mod exports;
 mod image_header;
 mod linked_avatar;
+mod listing;
 mod names;
 pub mod originals;
 pub mod preview;
@@ -291,7 +292,7 @@ impl Media {
 
     /// Every file in the avatars directory with when it was last written.
     pub async fn profile_files(&self) -> io::Result<Vec<(String, std::time::SystemTime)>> {
-        list_files(self.avatars_dir.clone()).await
+        listing::list_files(self.avatars_dir.clone()).await
     }
 
     /// Removes one file of the avatars directory by name.
@@ -305,7 +306,7 @@ impl Media {
     /// Every file in the attachments directory with when it was last
     /// written, for the leak scan in `crate::blobs`.
     pub async fn attachment_files(&self) -> io::Result<Vec<(String, std::time::SystemTime)>> {
-        list_files(self.attachments_dir.clone()).await
+        listing::list_files(self.attachments_dir.clone()).await
     }
 
     /// Removes a leftover temp file by name; anything else is refused.
@@ -444,25 +445,6 @@ impl Media {
     pub async fn delete_space_icon(&self) -> io::Result<()> {
         remove(self.avatar_path(SPACE_ICON_KEY)).await
     }
-}
-
-/// Every plain file of `dir` with when it was last written.
-async fn list_files(dir: PathBuf) -> io::Result<Vec<(String, std::time::SystemTime)>> {
-    tokio::task::spawn_blocking(move || {
-        let mut files = Vec::new();
-        for entry in std::fs::read_dir(dir)? {
-            let entry = entry?;
-            let meta = entry.metadata()?;
-            if meta.is_file()
-                && let Some(name) = entry.file_name().to_str()
-            {
-                files.push((name.to_owned(), meta.modified()?));
-            }
-        }
-        Ok(files)
-    })
-    .await
-    .unwrap_or_else(|e| Err(io::Error::other(e)))
 }
 
 /// [`durable::write_atomic`] on the blocking pool, so a concurrent reader of `path` never observes a partial write.
