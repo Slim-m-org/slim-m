@@ -64,7 +64,7 @@ class _PresenceStatusFieldState extends ConsumerState<PresenceStatusField>
   /// resolves rather than waiting on the next unrelated roster refetch. See
   /// `memberProfileOverridesProvider`'s own doc comment for why the roster
   /// provider itself cannot just be patched in place.
-  Future<void> _apply(String text) async {
+  Future<bool> _apply(String text) async {
     final container = ProviderScope.containerOf(context, listen: false);
     final ok = await guard(
       whatFailed: text.isEmpty ? 'clear your status' : 'update your status',
@@ -79,25 +79,28 @@ class _PresenceStatusFieldState extends ConsumerState<PresenceStatusField>
       },
     );
     if (ok && mounted) widget.onDone();
+    return ok;
   }
 
-  Future<void> _submit() {
+  Future<void> _submit() async {
     final text = _controller.text.trim();
     final refusal = statusTextRefusal(text);
     if (refusal != null) {
       setActionError(refusal);
-      return Future.value();
+      return;
     }
-    return _apply(text);
+    await _apply(text);
   }
 
   /// The owner's own ask: a small clear affordance inline in the field
   /// itself rather than a separate always-there-when-set "Clear status" menu
   /// row below it, the standard clearable-field pattern this app's other
   /// search inputs do not need only because none of them writes anywhere.
-  Future<void> _clear() {
+  Future<void> _clear() async {
+    final previous = _controller.text;
     setState(_controller.clear);
-    return _apply('');
+    final ok = await _apply('');
+    if (!ok && mounted) setState(() => _controller.text = previous);
   }
 
   @override

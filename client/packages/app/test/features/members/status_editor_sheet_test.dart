@@ -194,4 +194,19 @@ void main() {
     );
     expect(find.text('Set a status'), findsOneWidget);
   });
+
+  testWidgets('a refused Clear leaves the old status in the field', (
+    tester,
+  ) async {
+    final wired = _wire(currentStatus: 'afk', patchStatus: 500);
+    await _pump(tester, wired.container);
+
+    await _openEditor(tester);
+    await tester.tap(find.widgetWithText(AppButton, 'Clear'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Set a status'), findsOneWidget);
+    expect(find.text('afk'), findsOneWidget);
+  });
 }

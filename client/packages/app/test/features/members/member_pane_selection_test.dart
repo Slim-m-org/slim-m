@@ -63,6 +63,8 @@ Future<ProviderContainer> _pump(
   WidgetTester tester, {
   required int mine,
   double? width,
+  Me? me,
+  List<UserProfile>? roster,
 }) async {
   if (width != null) {
     tester.view.physicalSize = Size(width, 800);
@@ -79,11 +81,14 @@ Future<ProviderContainer> _pump(
         return api;
       }),
       membersProvider.overrideWith(
-        (ref) async => [_profile('1', 'Priya'), _profile('2', 'Kess')],
+        (ref) async =>
+            roster ?? [_profile('1', 'Priya'), _profile('2', 'Kess')],
       ),
       channelMembersProvider.overrideWith(
-        (ref, _) async => [_profile('1', 'Priya'), _profile('2', 'Kess')],
+        (ref, _) async =>
+            roster ?? [_profile('1', 'Priya'), _profile('2', 'Kess')],
       ),
+      if (me != null) meProvider.overrideWith((ref) async => me),
       myPermissionsProvider.overrideWithValue(mine),
     ],
   );
@@ -302,6 +307,50 @@ void main() {
       isFalse,
       reason: 'a mode with no verb left in it should not stay open',
     );
+  });
+
+  testWidgets('a member who outranks the viewer cannot be picked', (
+    tester,
+  ) async {
+    final container = await _pump(
+      tester,
+      mine: Perm.banMembers,
+      me: const Me(
+        id: 'self',
+        username: 'self',
+        displayName: 'Self',
+        createdAt: 0,
+        permissions: Perm.banMembers,
+        topRolePosition: 5,
+        reportsRoleLadder: true,
+      ),
+      roster: const [
+        UserProfile(
+          id: '1',
+          username: 'priya',
+          displayName: 'Priya',
+          createdAt: 0,
+          topRolePosition: 9,
+        ),
+        UserProfile(
+          id: '2',
+          username: 'kess',
+          displayName: 'Kess',
+          createdAt: 0,
+          topRolePosition: 1,
+        ),
+      ],
+    );
+    await tester.tap(find.bySemanticsLabel(_selectLabel));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('Priya'));
+    await tester.tap(find.text('Kess'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final picked = container.read(memberSelectionProvider);
+    expect(picked.contains('1'), isFalse);
+    expect(picked.contains('2'), isTrue);
   });
 }
 

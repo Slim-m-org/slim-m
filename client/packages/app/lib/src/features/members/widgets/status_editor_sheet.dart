@@ -64,7 +64,7 @@ class _StatusEditorSheetState extends ConsumerState<_StatusEditorSheet>
   /// Applies [text] and pops the sheet on success; a refusal leaves it open
   /// with [actionError] rendered inline, the same as every other guarded
   /// write in this app, rather than closing over a change that never landed.
-  Future<void> _apply(String text) async {
+  Future<bool> _apply(String text) async {
     setState(() => _saving = true);
     final container = ProviderScope.containerOf(context, listen: false);
     final ok = await guard(
@@ -79,24 +79,27 @@ class _StatusEditorSheetState extends ConsumerState<_StatusEditorSheet>
             .applyKnown(profile);
       },
     );
-    if (!mounted) return;
+    if (!mounted) return ok;
     setState(() => _saving = false);
     if (ok) Navigator.of(context).pop();
+    return ok;
   }
 
-  Future<void> _save() {
+  Future<void> _save() async {
     final text = _controller.text.trim();
     final refusal = statusTextRefusal(text);
     if (refusal != null) {
       setActionError(refusal);
-      return Future.value();
+      return;
     }
-    return _apply(text);
+    await _apply(text);
   }
 
-  Future<void> _clear() {
+  Future<void> _clear() async {
+    final previous = _controller.text;
     _controller.clear();
-    return _apply('');
+    final ok = await _apply('');
+    if (!ok && mounted) _controller.text = previous;
   }
 
   @override

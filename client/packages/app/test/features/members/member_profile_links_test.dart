@@ -104,6 +104,50 @@ void main() {
     await _unmount(tester);
   });
 
+  testWidgets('on a phone the row is tappable a full touch target tall', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await _pump(
+      tester,
+      (_) => _links([
+        {
+          'provider': 'discord',
+          'username': 'maya_d',
+          'display_name': null,
+          'linked_at': 1,
+        },
+      ]),
+    );
+
+    final row = tester.getCenter(find.textContaining('maya_d'));
+    // Well below the 16dp row, inside the 44dp target around it.
+    await tester.tapAt(row + const Offset(0, 14));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(copied, 'maya_d');
+    await tester.pump(const Duration(seconds: 5));
+    await _unmount(tester);
+  });
+
   testWidgets('no link, or a failed fetch, draws nothing', (tester) async {
     await _pump(tester, (_) => _links([]));
     expect(find.byType(InkWell), findsNothing);
