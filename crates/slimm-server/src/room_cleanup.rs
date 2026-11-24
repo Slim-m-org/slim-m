@@ -11,8 +11,8 @@ use crate::voice::{VoiceError, VoiceService};
 /// before its owner's client has joined it.
 pub const ROOM_GRACE_MS: i64 = 60_000;
 
-/// Deletes `channel_id` when it is a room and LiveKit reports nobody in its
-/// call. Never deletes on doubt: an SFU that cannot answer keeps the room.
+/// Deletes `channel_id` when it is a room, LiveKit reports nobody in its call
+/// and no join token was minted within the join grace. Never deletes on doubt: an SFU that cannot answer keeps the room.
 pub async fn remove_if_empty(
     store: &Store,
     voice: &VoiceService,
@@ -25,6 +25,9 @@ pub async fn remove_if_empty(
     if !channel.room.is_room() {
         return;
     }
+    if voice.recent_joins().pending_at(channel_id, now_ms()) {
+        return;
+    }
     match voice.list_participants(channel_id).await {
         Ok(list) if list.is_empty() => {}
         Ok(_) | Err(VoiceError::Unavailable) => return,
@@ -32,6 +35,9 @@ pub async fn remove_if_empty(
             tracing::warn!(%err, "could not check whether a voice room is empty");
             return;
         }
+    }
+    if voice.recent_joins().pending_at(channel_id, now_ms()) {
+        return;
     }
     match store.delete_channel(channel_id).await {
         Ok(true) => {
