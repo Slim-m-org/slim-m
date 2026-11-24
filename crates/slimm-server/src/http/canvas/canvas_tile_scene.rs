@@ -25,7 +25,7 @@ use super::super::scene_refresh::requested_ms;
 use super::super::surface_lock::lock_canvas_tile;
 use super::super::surface_state::with_held_state;
 use super::canvas_module_tiles::runnable_tile;
-use super::canvas_write::canvas_read_access;
+use super::canvas_write::{canvas_read_access, ensure_may_draw};
 use crate::hub::{CanvasEvent, Event};
 use crate::ids::{CanvasObjectId, ChannelId, UserId};
 use crate::store::{ModuleTileRef, now_ms};
@@ -35,6 +35,12 @@ const BODY_LIMIT: usize = 16 * 1024;
 
 /// How long a redraw chain runs after the last press, as for a message's app surface.
 const REFRESH_WINDOW_MS: i64 = 30 * 60_000;
+
+/// Redraw chains one member may keep running at once; a press past it shows the frame but starts no chain.
+const MAX_CHAINS_PER_PRESSER: i64 = 4;
+
+/// Chains redrawn per sweep pass, shared round-robin between pressers.
+const REDRAWS_PER_PASS: i64 = 16;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -131,7 +137,7 @@ async fn press(
     Json(req): Json<PressRequest>,
 ) -> Result<Json<PressResponse>, ApiError> {
     let (channel_id, object_id) = ids(&channel_id, &object_id)?;
-    canvas_read_access(&state, ctx.user_id, channel_id).await?;
+    ensure_may_draw(&state, ctx.user_id, channel_id).await?;
     let tile = live_tile(&state, channel_id, object_id).await?;
     let (module, command) = runnable_tile(&state, &tile).await?;
 
@@ -148,8 +154,10 @@ async fn press(
     }
     publish(&state, (channel_id, object_id), &payload, ctx.user_id).await?;
     match requested_ms(&payload) {
-        Some(ms) => note_refresh(&state, object_id, ms, None).await,
-        None => stop_refresh(&state, object_id).await,
+        Some(ms) if may_start_chain(&state, ctx.user_id, object_id).await => {
+            note_refresh(&state, object_id, ms, None).await;
+        }
+        _ => stop_refresh(&state, object_id).await,
     }
     Ok(Json(PressResponse::answered(true, payload)))
 }
@@ -190,6 +198,21 @@ async fn publish(
     Ok(())
 }
 
+/// Whether `user_id` is under its chain cap, not counting `object_id`'s own chain.
+async fn may_start_chain(state: &AppState, user_id: UserId, object_id: CanvasObjectId) -> bool {
+    match state
+        .store
+        .running_canvas_tile_chains(user_id, object_id, now_ms())
+        .await
+    {
+        Ok(running) => running < MAX_CHAINS_PER_PRESSER,
+        Err(err) => {
+            tracing::warn!(%err, "could not count a presser's tile redraws");
+            false
+        }
+    }
+}
+
 /// Queues the next redraw; `until_at` is a running chain's end, `None` a person's press.
 async fn note_refresh(state: &AppState, object_id: CanvasObjectId, ms: i64, until_at: Option<i64>) {
     let now = now_ms();
@@ -215,7 +238,11 @@ async fn stop_refresh(state: &AppState, object_id: CanvasObjectId) {
 /// Redraws every tile whose time has come, as the person who last pressed it; returns how many were redrawn.
 pub(in crate::http) async fn run_due(state: &AppState, now: i64) -> anyhow::Result<usize> {
     let mut redrawn = 0;
-    for (object_id, channel_id, until_at) in state.store.due_canvas_tile_refreshes(now, 16).await? {
+    for (object_id, channel_id, until_at) in state
+        .store
+        .due_canvas_tile_refreshes(now, REDRAWS_PER_PASS)
+        .await?
+    {
         if now >= until_at {
             stop_refresh(state, object_id).await;
             continue;
@@ -246,10 +273,7 @@ async fn redraw(state: &AppState, channel_id: ChannelId, object_id: CanvasObject
         .await
         .ok()??
         .ran_by?;
-    canvas_read_access(state, person, channel_id).await.ok()?;
-    if state.store.timed_out_until(person).await.ok()?.is_some() {
-        return None;
-    }
+    ensure_may_draw(state, person, channel_id).await.ok()?;
     let (ok, payload) = run_once(
         state,
         (channel_id, object_id),

@@ -3,7 +3,7 @@
 
 use serde_json::Value;
 
-use crate::hidden_chars::is_hidden_char;
+use crate::hidden_chars::{is_hidden_char, is_hidden_in_prose};
 
 /// Longest text box, in characters; the 4 KiB props ceiling bounds the bytes.
 pub const MAX_TEXT_CHARS: usize = 500;
@@ -22,6 +22,20 @@ pub fn is_colour(c: &str) -> bool {
         && c.len() <= MAX_COLOR_BYTES
         && c.bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
+/// Refuses a `props.text` that holds a direction override or other hidden character, as a message's text cannot.
+///
+/// Line breaks and tabs stay, and an absent or empty text passes: a note may be blank.
+pub fn check_prose_text(props: &Value) -> Result<(), &'static str> {
+    let hidden = props
+        .get("text")
+        .and_then(Value::as_str)
+        .is_some_and(|text| text.chars().any(is_hidden_in_prose));
+    if hidden {
+        return Err("props.text holds hidden characters");
+    }
+    Ok(())
 }
 
 /// Refuses props a client could not have produced: wrong types, an empty or oversized text, hidden characters, an unknown size.
