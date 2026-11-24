@@ -11,8 +11,8 @@ use crate::store::{Interaction, SessionContext, Store};
 
 /// `None` when `event` is not an interaction event. A click goes to the owning
 /// bot's connections only and its answer to the clicker's only, and both need
-/// the recipient to still see the channel. A store error withholds: neither
-/// frame has a catch-up path, and the clicker's client times out visibly.
+/// the recipient to still see the channel. A store error is `Unknown`: neither
+/// frame has a catch-up path, so the connection resyncs rather than losing it.
 pub(super) async fn authorize(
     store: &Store,
     ctx: &SessionContext,
@@ -78,19 +78,40 @@ async fn deliver_to(
     if ctx.user_id != recipient {
         return Authorization::Withhold;
     }
-    let can_view = matches!(
-        store
-            .has_permission(
-                ctx.user_id,
-                interaction.channel_id,
-                Permissions::VIEW_CHANNEL
-            )
-            .await,
-        Ok(true)
-    );
-    if can_view {
-        Authorization::Deliver(Box::new(frame()))
-    } else {
-        Authorization::Withhold
+    let can_view = store
+        .has_permission(
+            ctx.user_id,
+            interaction.channel_id,
+            Permissions::VIEW_CHANNEL,
+        )
+        .await;
+    decide(can_view, frame)
+}
+
+/// A failed read is `Unknown`, never `Withhold`, so the event is not lost for good.
+fn decide(can_view: anyhow::Result<bool>, frame: impl FnOnce() -> ServerFrame) -> Authorization {
+    match can_view {
+        Ok(true) => Authorization::Deliver(Box::new(frame())),
+        Ok(false) => Authorization::Withhold,
+        Err(_) => Authorization::Unknown,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_store_error_resyncs_instead_of_dropping_the_frame() {
+        let outcome = decide(Err(anyhow::anyhow!("busy")), || ServerFrame::ReportsChanged);
+        assert!(matches!(outcome, Authorization::Unknown));
+    }
+
+    #[test]
+    fn a_denied_view_withholds_and_an_allowed_one_delivers() {
+        let denied = decide(Ok(false), || ServerFrame::ReportsChanged);
+        assert!(matches!(denied, Authorization::Withhold));
+        let allowed = decide(Ok(true), || ServerFrame::ReportsChanged);
+        assert!(matches!(allowed, Authorization::Deliver(_)));
     }
 }

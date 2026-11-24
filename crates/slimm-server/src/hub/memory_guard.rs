@@ -83,27 +83,28 @@ fn discover_usage() -> Option<u64> {
 /// The cgroup v2 directory that bounds this process, and its limit.
 fn v2_limited_dir() -> Option<(PathBuf, u64)> {
     let self_cgroup = std::fs::read_to_string("/proc/self/cgroup").unwrap_or_default();
-    nearest_v2_limit(Path::new(CGROUP_V2_ROOT), &self_cgroup)
+    tightest_v2_limit(Path::new(CGROUP_V2_ROOT), &self_cgroup)
 }
 
 /// Walks from the process's own cgroup (the `0::<path>` line of
-/// `/proc/self/cgroup`) up to `root`, returning the first directory with a
-/// numeric `memory.max`. Inside a container with its own cgroup namespace the
-/// path is `/` and this reads the root, as before; on a host or under a
-/// systemd slice the limit lives further down, where reading only the root
-/// found nothing.
-fn nearest_v2_limit(root: &Path, self_cgroup: &str) -> Option<(PathBuf, u64)> {
+/// `/proc/self/cgroup`) up to `root`, returning the directory with the smallest
+/// numeric `memory.max`, since the kernel kills at the tightest ancestor, not the nearest.
+/// Inside a container with its own cgroup namespace the path is `/` and this reads the root.
+fn tightest_v2_limit(root: &Path, self_cgroup: &str) -> Option<(PathBuf, u64)> {
     let relative = self_cgroup
         .lines()
         .find_map(|line| line.strip_prefix("0::"))
         .map_or("", |path| path.trim().trim_start_matches('/'));
     let mut dir = root.join(relative);
+    let mut tightest: Option<(PathBuf, u64)> = None;
     loop {
-        if let Some(limit) = read_v2_limit(&dir) {
-            return Some((dir, limit));
+        if let Some(limit) = read_v2_limit(&dir)
+            && tightest.as_ref().is_none_or(|(_, best)| limit < *best)
+        {
+            tightest = Some((dir.clone(), limit));
         }
         if dir == root || !dir.pop() || !dir.starts_with(root) {
-            return None;
+            return tightest;
         }
     }
 }
@@ -348,9 +349,9 @@ mod tests {
     }
 
     #[test]
-    fn the_limit_is_found_on_the_nearest_ancestor_of_the_process_cgroup() {
+    fn a_limit_on_an_ancestor_of_the_process_cgroup_is_found() {
         let root = fake_tree("slimm-cgroup-nested");
-        let found = nearest_v2_limit(&root, "0::/user.slice/app.scope\n");
+        let found = tightest_v2_limit(&root, "0::/user.slice/app.scope\n");
         std::fs::remove_dir_all(&root).unwrap();
         assert_eq!(found, Some((root.join("user.slice"), 1_073_741_824)));
     }
@@ -358,8 +359,30 @@ mod tests {
     #[test]
     fn a_namespaced_process_reads_the_root_and_unlimited_is_none() {
         let root = fake_tree("slimm-cgroup-root");
-        let found = nearest_v2_limit(&root, "0::/\n");
+        let found = tightest_v2_limit(&root, "0::/\n");
         std::fs::remove_dir_all(&root).unwrap();
         assert_eq!(found, None);
+    }
+
+    #[test]
+    fn the_tightest_limit_wins_over_a_looser_nearer_one() {
+        let root = fake_tree("slimm-cgroup-tightest");
+        std::fs::write(root.join("user.slice/app.scope/memory.max"), "8589934592\n").unwrap();
+        std::fs::write(root.join("user.slice/app.scope/memory.current"), "1\n").unwrap();
+        let found = tightest_v2_limit(&root, "0::/user.slice/app.scope\n");
+        std::fs::remove_dir_all(&root).unwrap();
+        assert_eq!(found, Some((root.join("user.slice"), 1_073_741_824)));
+    }
+
+    #[test]
+    fn a_tighter_nearer_limit_still_wins() {
+        let root = fake_tree("slimm-cgroup-nearer");
+        std::fs::write(root.join("user.slice/app.scope/memory.max"), "536870912\n").unwrap();
+        let found = tightest_v2_limit(&root, "0::/user.slice/app.scope\n");
+        std::fs::remove_dir_all(&root).unwrap();
+        assert_eq!(
+            found,
+            Some((root.join("user.slice/app.scope"), 536_870_912))
+        );
     }
 }

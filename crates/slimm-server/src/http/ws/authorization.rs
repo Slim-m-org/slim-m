@@ -85,7 +85,7 @@ pub(super) async fn authorize_unstamped(
     cache: &mut PermissionCache,
     event: Event,
 ) -> Authorization {
-    let event = match super::deployment_frames::authorize(store, hub, ctx, event).await {
+    let event = match super::deployment_frames::authorize(store, hub, ctx, cache, event).await {
         Ok(decision) => return decision,
         Err(event) => *event,
     };
