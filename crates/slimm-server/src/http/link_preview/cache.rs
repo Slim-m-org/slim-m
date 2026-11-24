@@ -24,6 +24,9 @@ use super::video::VideoInfo;
 const CACHE_TTL_MS: i64 = 30 * 60 * 1000;
 const MAX_ENTRIES: usize = 5_000;
 
+/// Longest URL held as a cache key or minted into an image token; longer ones are served uncached.
+const MAX_URL_CHARS: usize = 2_048;
+
 /// Total image bytes held at once; the count bound alone allowed 5 MiB x 5000.
 const MAX_IMAGE_BYTES: usize = 64 * 1024 * 1024;
 
@@ -141,6 +144,7 @@ impl Cache {
         let image_token = preview
             .image
             .as_ref()
+            .filter(|image_url| image_url.chars().count() <= MAX_URL_CHARS)
             .map(|image_url| self.image_token_for(image_url));
         let cached = CachedPreview {
             title: preview.title,
@@ -153,9 +157,11 @@ impl Cache {
             duration_s: preview.duration_s,
             inserted_at: now,
         };
-        let mut previews = lock(&self.previews);
-        sweep(&mut previews, |c| c.inserted_at, now);
-        previews.insert(url.to_owned(), cached.clone());
+        if url.chars().count() <= MAX_URL_CHARS {
+            let mut previews = lock(&self.previews);
+            sweep(&mut previews, |c| c.inserted_at, now, MAX_ENTRIES);
+            previews.insert(url.to_owned(), cached.clone());
+        }
         cached
     }
 
@@ -180,7 +186,7 @@ impl Cache {
         }
         let now = now_ms();
         let mut images = lock(&self.images);
-        sweep(&mut images, |c| c.inserted_at, now);
+        sweep(&mut images, |c| c.inserted_at, now, MAX_ENTRIES);
         images.insert(
             token.to_owned(),
             CachedImage {
@@ -214,9 +220,9 @@ fn evict_over_byte_budget(images: &mut HashMap<String, CachedImage>) {
 
 /// Drops expired entries, then, if still over the cap, the oldest half in one
 /// pass - the same bounded eviction `gifs::cache` uses.
-fn sweep<V>(map: &mut HashMap<String, V>, age_of: impl Fn(&V) -> i64, now: i64) {
+fn sweep<V>(map: &mut HashMap<String, V>, age_of: impl Fn(&V) -> i64, now: i64, cap: usize) {
     map.retain(|_, v| now - age_of(v) < CACHE_TTL_MS);
-    if map.len() >= MAX_ENTRIES {
+    if map.len() >= cap {
         let mut by_age: Vec<(String, i64)> =
             map.iter().map(|(k, v)| (k.clone(), age_of(v))).collect();
         by_age.sort_by_key(|(_, at)| *at);
@@ -264,6 +270,28 @@ mod tests {
             cache.image_url(&token).as_deref(),
             Some("https://cdn.example.com/a.png")
         );
+    }
+
+    #[test]
+    fn an_image_url_past_the_cap_mints_no_token() {
+        let cache = Cache::new([7; 32]);
+        let long = format!("https://cdn.example.com/{}", "a".repeat(MAX_URL_CHARS));
+        let cached = cache.insert(
+            "https://example.com",
+            Preview {
+                image: Some(long),
+                ..Preview::default()
+            },
+        );
+        assert!(cached.image_token.is_none());
+    }
+
+    #[test]
+    fn a_url_past_the_cap_is_served_but_not_cached() {
+        let cache = Cache::new([7; 32]);
+        let long = format!("https://example.com/{}", "a".repeat(MAX_URL_CHARS));
+        cache.insert(&long, preview_with_image());
+        assert!(cache.preview(&long).is_none());
     }
 
     #[test]

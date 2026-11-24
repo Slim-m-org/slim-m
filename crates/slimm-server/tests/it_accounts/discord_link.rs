@@ -316,10 +316,41 @@ async fn only_the_member_who_started_the_link_can_finish_it() {
     assert_eq!(links_of(&app, &bob_token).await, json!([]));
     assert_eq!(links_of(&app, &ada_token).await, json!([]));
 
-    // Refusing dropped the pending link, so the right bearer cannot use it afterwards either.
+    // Refusing left the pending link alone, so the starter can still finish it.
     let by_ada = complete(&app, &ada_token, &handoff).await;
-    assert_eq!(by_ada.status(), StatusCode::NOT_FOUND);
-    assert_eq!(links_of(&app, &ada_token).await, json!([]));
+    assert_eq!(by_ada.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn finishing_a_link_takes_a_small_body_only() {
+    let Pair {
+        app,
+        ada_token,
+        _guard,
+        ..
+    } = two_members("slimm-discord-body-limit").await;
+    for provider in ["discord", "steam"] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/me/links/{provider}/complete"))
+                    .header("authorization", format!("Bearer {ada_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        json!({ "code": "A".repeat(64 * 1024) }).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            response.status(),
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "{provider}"
+        );
+    }
 }
 
 #[tokio::test]

@@ -50,6 +50,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use axum::Router;
 use axum::body::Bytes;
 use axum::extract::{Path, State};
+use axum::http::request::Parts;
 use axum::http::{HeaderValue, header};
 use axum::response::Response;
 use axum::routing::get;
@@ -57,9 +58,10 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{ASSET, AuthedLimited, LINK_PREVIEW, Query};
+use super::extract::{ASSET, AuthedLimited, LINK_PREVIEW, Query, enforce};
 use crate::config::Config;
 use crate::media;
+use crate::ratelimit::Class;
 
 use cache::{Cache, CachedPreview};
 use fetch::{FetchError, build_client, fetch_image, fetch_preview};
@@ -297,11 +299,15 @@ async fn preview(
 }
 
 async fn image(
-    AuthedLimited(_ctx): AuthedLimited<ASSET>,
+    AuthedLimited(ctx): AuthedLimited<ASSET>,
+    parts: Parts,
     State(state): State<AppState>,
     Path(token): Path<String>,
 ) -> Result<Response, ApiError> {
     let service = state.link_previews.enabled()?;
+    if service.cache.image_bytes(&token).is_none() {
+        enforce(&state, &parts, Some(&ctx), Class::LinkPreview)?;
+    }
     serve_image(load_image(service, &token).await?)
 }
 
