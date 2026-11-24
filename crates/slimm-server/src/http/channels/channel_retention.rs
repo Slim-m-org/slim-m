@@ -13,7 +13,9 @@ use serde::{Deserialize, Serialize};
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, Query, enforce, require_manage_server};
+use super::super::extract::{
+    Authed, AuthedLimited, Json, Query, WRITE, enforce, require_manage_server,
+};
 use super::super::messages::parse_uuid;
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
@@ -109,12 +111,10 @@ async fn read(
 
 async fn update(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
     Json(body): Json<UpdateChannelRetention>,
 ) -> Result<Json<ChannelRetentionDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = retention_channel(&state, ctx.user_id, &channel_id).await?;
     if let Some(days) = body.retention_days {
         check_days(days)?;

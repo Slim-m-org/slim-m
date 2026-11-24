@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::require_manage_server;
-use super::extract::{Authed, Json, Query, enforce};
+use super::extract::{Authed, AuthedLimited, Json, Query, WRITE, enforce};
 use crate::process_metrics::current_rss_bytes;
 use crate::ratelimit::Class;
 use crate::store::{
@@ -159,11 +159,9 @@ async fn read(
 
 async fn update(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(body): Json<UpdateAnalyticsDto>,
 ) -> Result<Json<AnalyticsDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     state.store.set_analytics_enabled(body.enabled).await?;
     Ok(Json(current_analytics(&state).await?))
@@ -247,11 +245,9 @@ async fn preview_retention(
 /// typo cannot silently land on whichever bound the code happens to pick.
 async fn update_retention(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(body): Json<RetentionDto>,
 ) -> Result<Json<RetentionDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     if !(0..=MAX_MESSAGE_RETENTION_DAYS).contains(&body.retention_days) {
         return Err(ApiError::BadRequest("retention_days out of range"));
@@ -290,11 +286,9 @@ async fn read_canvas_cap(
 /// rule [`update_retention`] follows.
 async fn update_canvas_cap(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(body): Json<CanvasCapDto>,
 ) -> Result<Json<CanvasCapDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     if !(MIN_CANVAS_OBJECT_CAP..=MAX_CANVAS_OBJECT_CAP).contains(&body.object_cap) {
         return Err(ApiError::BadRequest("object_cap out of range"));
@@ -331,11 +325,9 @@ async fn read_screen_share_cap(
 /// the same rule [`update_canvas_cap`] follows.
 async fn update_screen_share_cap(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(body): Json<ScreenShareCapDto>,
 ) -> Result<Json<ScreenShareCapDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     if !(MIN_SCREEN_SHARE_MAX_HEIGHT..=MAX_SCREEN_SHARE_MAX_HEIGHT).contains(&body.max_height) {
         return Err(ApiError::BadRequest("max_height out of range"));

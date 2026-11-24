@@ -504,6 +504,20 @@ Comments and string literals are stripped first (`dart_source`, shared with that
 Each entry is a ceiling on how many unscoped calls the file may hold, the ratchet shape `check-comment-cap.sh` uses, and not a line number, which drifts with every edit above it.
 Listing a file used to exempt the whole of it, so a second unrelated unscoped call in an already-listed file was never flagged.
 
+### The ref-after-await gate
+
+`scripts/check-ref-after-await.py` fails a PR that adds a `ref.<member>` or `setState(` after an `await` in a widget function with no `mounted` check in between.
+A sheet, menu or row that is dismissed while its request is in flight is unmounted when the request answers, and `WidgetRef` and `setState` both throw then, so the redirect, the invalidate or the local store write that was meant to follow is skipped.
+The fix is to take a `ProviderContainer` (`ProviderScope.containerOf(context, listen: false)`) or the notifiers needed before the first await and use those afterwards, or to check `mounted` first.
+
+The gate reads each tracked widget file under `client/packages/app/lib` with comments and strings stripped (`dart_source`), and follows each function body on its own.
+An await counts once its statement ends, so `await ref.read(x)` is clean; a `mounted` token clears it, and a block that ends in `return` or `throw` leaves the state as it found it.
+Provider files (`providers/`, `sync/`, `push/`) are out of scope, since their `ref` has its own lifetime.
+A helper that guards with its own predicate, such as `dropped()`, is not recognised and sits in the allowlist.
+An entry that lists more than its file now holds also fails, so the list cannot go stale.
+
+`scripts/ref-after-await-allow.txt` lists the files that still hold a use, each as a ceiling count that only goes down, the same ratchet shape as the MediaQuery gate.
+
 ### The native launch screens follow the splash surface
 
 `scripts/lib/test_launch_screen_color_drift.py` fails when a pre-Flutter launch surface drifts from the colour the startup splash paints.

@@ -147,18 +147,16 @@ async fn list_devices(
 }
 
 /// Signs a device out. Only ever your own: a device on someone else's account
-/// is reported as missing, so this cannot be used to probe for or evict others.
+/// answers the same 204 as one already gone, so this cannot probe for or evict others.
 async fn remove_device(
     AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(device_id): Path<String>,
     State(state): State<AppState>,
 ) -> Result<StatusCode, ApiError> {
     let device_id = DeviceId(parse_uuid(&device_id)?);
-    let revoked = state
-        .store
-        .remove_device(ctx.user_id, device_id)
-        .await?
-        .ok_or(ApiError::NotFound("device not found"))?;
+    let Some(revoked) = state.store.remove_device(ctx.user_id, device_id).await? else {
+        return Ok(StatusCode::NO_CONTENT);
+    };
 
     super::session_revocation::sessions_revoked(&state, ctx.user_id, &revoked);
     Ok(StatusCode::NO_CONTENT)
@@ -263,15 +261,13 @@ async fn unblock(
 /// Files a report for a human to review. Nothing here inspects content
 /// automatically; the whole point is that a person decides.
 async fn file_report(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<ReportRequest>,
 ) -> Result<Json<ReportFiled>, ApiError> {
     // Charged like any other write: intake was unthrottled while triage was
     // rate-limited, so one account could fill the queue with a fresh random
     // subject id per request faster than a moderator was allowed to clear it.
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
 
     let reason = validate_reason(Some(&req.reason), true)?
         .expect("a required reason is Some or the call above returned");

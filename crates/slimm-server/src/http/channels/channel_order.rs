@@ -14,20 +14,18 @@ use std::sync::Arc;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::extract::State;
-use axum::http::request::Parts;
 use axum::routing::put;
 use serde::Deserialize;
 
 use super::super::AppState;
 use super::super::category_sight::CategorySight;
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{AuthedLimited, Json, WRITE};
 use super::super::messages::parse_uuid;
 use super::ChannelDto;
 use crate::hub::Event;
 use crate::ids::{ChannelCategoryId, ChannelId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{CategoryReach, ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
 
 /// Every body here is a small JSON document; refused well before axum's 2 MB default.
@@ -68,12 +66,10 @@ struct ReorderRequest {
 /// no-op submission answers 200 with nothing published, or every other
 /// connection would be told its cache is stale for nothing.
 async fn reorder(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<ReorderRequest>,
 ) -> Result<Json<Vec<ChannelDto>>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     if !state
         .store
         .base_permissions(ctx.user_id)

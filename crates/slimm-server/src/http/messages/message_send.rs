@@ -5,14 +5,13 @@
 use std::sync::Arc;
 
 use axum::extract::{Path, State};
-use axum::http::request::Parts;
 
 use super::super::AppState;
 use super::super::attachment_ids::parse_attachment_ids;
 use super::super::channel_slow_mode::enforce_slow_mode;
 use super::super::embeds;
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{AuthedLimited, Json, WRITE};
 use super::super::module_hooks::{Draft, HookPoint, guard_write};
 use super::super::post_commit::after_commit;
 use super::message_requests::SendRequest;
@@ -20,7 +19,6 @@ use super::{AttachmentDto, MessageDto, parse_uuid, validate_content};
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::NewMessage;
 
 /// Sends a message, idempotent by the client-generated message id.
@@ -51,13 +49,11 @@ use crate::store::NewMessage;
 /// that already landed must never be refused for arriving "too soon".
 /// `embeds` is honoured only from a bot, discarded otherwise.
 pub(super) async fn send(
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
-    parts: Parts,
     State(state): State<AppState>,
     Json(req): Json<SendRequest>,
 ) -> Result<Json<MessageDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let attachment_ids = parse_attachment_ids(&req.attachment_ids)?;
     let spoiler_ids = parse_attachment_ids(&req.spoiler_attachment_ids)?;

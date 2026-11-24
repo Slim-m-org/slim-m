@@ -3,6 +3,7 @@
 /// landing channel, skipping, and the empty pane's guidance.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'dart:ui' show Size;
@@ -10,11 +11,37 @@ import 'dart:ui' show Size;
 import 'package:flutter/material.dart' show Material;
 import 'package:flutter/widgets.dart' show EditableText;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/providers/providers.dart'
+    show preferencesProvider;
 import 'package:slimm_design_system/design_system.dart' show AppInput;
 
 import 'package:slimm_app/src/features/first_run/widgets/first_run_frame.dart';
 
 import 'first_run_harness.dart';
+
+/// Preferences whose write of the done flag waits for [gate].
+class SlowDonePrefs implements SharedPreferences {
+  SlowDonePrefs(this.gate, {this.failure});
+
+  final Future<void> gate;
+  final Object? failure;
+  bool written = false;
+
+  @override
+  bool? getBool(String key) => null;
+
+  @override
+  Future<bool> setBool(String key, bool value) async {
+    await gate;
+    if (failure case final error?) throw error;
+    written = true;
+    return true;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
 
 Future<void> _tap(WidgetTester tester, String label) async {
   await tester.tap(find.text(label));
@@ -104,6 +131,47 @@ void main() {
     await _tap(tester, 'Continue');
     await _tap(tester, 'Back');
     expect(find.text('Welcome'), findsOneWidget);
+  });
+
+  testWidgets('finishing still lands on the channel while the done flag is '
+      'being written', (tester) async {
+    final gate = Completer<void>();
+    final prefs = SlowDonePrefs(gate.future);
+    await pumpFirstRun(
+      tester,
+      overrides: [preferencesProvider.overrideWith((ref) async => prefs)],
+    );
+    for (var i = 0; i < 3; i++) {
+      await _tap(tester, 'Continue');
+    }
+    await tester.tap(find.text('Finish'));
+    await settle(tester);
+    expect(find.text('Skip setup'), findsNothing, reason: 'the flow closed');
+    gate.complete();
+    await settle(tester);
+
+    expect(find.text('channel:general'), findsOneWidget);
+    expect(prefs.written, isTrue);
+  });
+
+  testWidgets('a failed done-flag write does not escape', (tester) async {
+    final gate = Completer<void>()..complete();
+    await pumpFirstRun(
+      tester,
+      overrides: [
+        preferencesProvider.overrideWith(
+          (ref) async =>
+              SlowDonePrefs(gate.future, failure: StateError('disk full')),
+        ),
+      ],
+    );
+    for (var i = 0; i < 3; i++) {
+      await _tap(tester, 'Continue');
+    }
+    await _tap(tester, 'Finish');
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('channel:general'), findsOneWidget);
   });
 
   testWidgets('finishing lands on the first text channel with no hint', (

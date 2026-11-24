@@ -133,11 +133,9 @@ async fn remove(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let id = parse_id(&theme_id)?;
-    let theme = state
-        .store
-        .space_theme(id)
-        .await?
-        .ok_or(ApiError::NotFound("theme not found"))?;
+    let Some(theme) = state.store.space_theme(id).await? else {
+        return Ok(StatusCode::NO_CONTENT);
+    };
     if theme.author_id != Some(UserId(ctx.user_id.0)) {
         require_manage_server(&state, ctx.user_id).await?;
     }
@@ -165,12 +163,10 @@ async fn picture(
 }
 
 async fn set_default(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(body): Json<SetDefaultRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let id = body.theme_id.as_deref().map(parse_id).transpose()?;
     if let Some(id) = id

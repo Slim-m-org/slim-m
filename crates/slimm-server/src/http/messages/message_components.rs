@@ -7,13 +7,12 @@ use std::sync::Arc;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
-use axum::http::request::Parts;
 use axum::routing::put;
 use serde::{Deserialize, Serialize};
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{AuthedLimited, Json, WRITE};
 use super::super::interactions::{answer, own_interaction};
 use super::super::module_hooks::{Draft, Field, HookPoint, guard_write};
 use super::parse_uuid;
@@ -21,7 +20,6 @@ use crate::components::{self, ComponentRow};
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, InteractionId, MessageId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 
 /// Every body here is a small JSON document; refused well before axum's 2 MB default.
 const BODY_LIMIT: usize = 64 * 1024;
@@ -116,13 +114,11 @@ struct ComponentsDto {
 /// A bot replaces the buttons on a message it authored, for example to disable
 /// them once a choice is made. Every viewer is told over the socket.
 async fn set_components(
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path((channel_id, message_id)): Path<(String, String)>,
-    parts: Parts,
     State(state): State<AppState>,
     Json(req): Json<SetComponentsRequest>,
 ) -> Result<Json<ComponentsDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let message_id = MessageId(parse_uuid(&message_id)?);
     let interaction_id = req

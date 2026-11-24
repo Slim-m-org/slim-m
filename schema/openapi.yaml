@@ -1862,17 +1862,16 @@ paths:
       summary: Sign a device out.
       description: >
         Only ever the caller's own device: a device id on someone else's
-        account is reported as missing, so this cannot be used to probe for or
-        evict others. Closes any live WebSocket on the revoked sessions.
+        account answers 204 like one that is already gone, so this cannot be
+        used to probe for or evict others. Closes any live WebSocket on the
+        revoked sessions.
       responses:
         "204":
-          description: The device was signed out.
+          description: The device was signed out, or was already gone.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -3763,15 +3762,13 @@ paths:
         The Space owner holds every permission whatever their roles, so counts as an administrator here.
       responses:
         "204":
-          description: The role was deleted.
+          description: The role was deleted, or was already gone.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
         "429":
@@ -4398,20 +4395,18 @@ paths:
         Refused on yourself - delete your own account with `deleteAccount`,
         so that an administrator can leave without needing another one to do
         it for them - and on the last administrator. An account that is
-        already deleted, or never existed, answers 404. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`, the equal-rank case with the reason `you cannot act on someone of equal rank`.
+        already deleted, or never existed, answers 204. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`, the equal-rank case with the reason `you cannot act on someone of equal rank`.
         Deleting the Space owner's own account passes ownership to the
         earliest-joined remaining administrator, else the earliest-joined member.
       responses:
         "204":
-          description: The account is deleted.
+          description: The account is deleted, or already was.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
         "429":
@@ -4482,15 +4477,13 @@ paths:
         A removed member keeps their roles, so restoring one is gated like removing them: their granted permissions must be within the caller's. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`.
       responses:
         "204":
-          description: The member may sign in again.
+          description: The member may sign in again, or was not removed.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -9007,7 +9000,7 @@ paths:
         the transcript or there is no such mark on it.
       responses:
         "204":
-          description: Removed.
+          description: Removed, or already gone.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -11552,13 +11545,11 @@ paths:
       description: Gated on MANAGE_SERVER.
       responses:
         "204":
-          description: The log was deleted.
+          description: The log was deleted, or was already gone.
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/alerts:
@@ -12949,8 +12940,10 @@ paths:
       description: >
         Gated on MANAGE_SERVER. Needs the module's schedule capability
         approved (409 otherwise). The module's principal is allowed to view
-        and post in the chosen text channel, and loses that in the channel it
-        had before. null stops scheduled runs. The caller must be able to post
+        and post in the chosen text channel, keeping any other overwrite it
+        has there, and loses that grant in the channel it had before unless
+        an admin changed it since. A channel where the principal is denied
+        posting answers 409. null stops scheduled runs. The caller must be able to post
         in the chosen channel themselves: one they cannot see answers the 400
         a missing one does, one they can see but not post in answers 403.
       requestBody:
@@ -13211,15 +13204,13 @@ paths:
         added again (decision 0046). The official source cannot be removed.
       responses:
         "204":
-          description: The source was removed.
+          description: The source was removed, or was already gone.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /modules/{moduleId}/commands/{command}:
@@ -13610,15 +13601,13 @@ paths:
             type: string
       responses:
         "204":
-          description: Removed.
+          description: Removed, or already gone.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/themes/{theme_id}/picture:

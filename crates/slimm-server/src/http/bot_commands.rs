@@ -6,18 +6,16 @@
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, put};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json};
+use super::extract::{AUTHED_READ, AuthedLimited, Json, WRITE};
 use super::messages::parse_uuid;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{BotCommand, BotCommandOption, SetBotCommandsError, VisibleBotCommand};
 
 /// Lists newly added command names left out because another bot holds them.
@@ -87,11 +85,9 @@ struct RegisteredCommandDto {
 /// Bulk-overwrites the caller's own registration; refused for a non-bot.
 async fn set_commands(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(body): Json<SetBotCommandsRequest>,
 ) -> Result<Response, ApiError> {
-    super::extract::enforce(&state, &parts, Some(&ctx), Class::Write)?;
     if !state.store.is_bot(ctx.user_id).await? {
         return Err(ApiError::Forbidden);
     }

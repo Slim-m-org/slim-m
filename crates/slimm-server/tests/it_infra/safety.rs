@@ -71,8 +71,8 @@ async fn devices_list_and_sign_out_only_your_own() {
             .is_none()
     );
 
-    // Alice cannot touch bob's device, and it reads as missing rather than
-    // forbidden, so she cannot even confirm it exists.
+    // Alice cannot touch bob's device, and it answers like one already
+    // gone, so she cannot even confirm it exists.
     let other = app
         .clone()
         .oneshot(request(
@@ -83,7 +83,7 @@ async fn devices_list_and_sign_out_only_your_own() {
         ))
         .await
         .unwrap();
-    assert_eq!(other.status(), StatusCode::NOT_FOUND);
+    assert_eq!(other.status(), StatusCode::NO_CONTENT);
     assert!(
         store
             .authenticate(&bob_device.access_token)

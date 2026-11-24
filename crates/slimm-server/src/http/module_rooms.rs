@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{Authed, AuthedLimited, Json, MODULE, enforce};
 use super::messages::parse_uuid;
 use super::module_commands::CommandOutcome;
 use super::module_host::effective_capabilities;
@@ -180,12 +180,10 @@ fn call_scene(module: &InstalledModule) -> Option<CallSceneDto> {
 
 async fn send_input(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<MODULE>,
     Path((channel, module_id)): Path<(String, String)>,
     Json(req): Json<InputRequest>,
 ) -> Result<Json<InputResultDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Module)?;
     if req.input.len() > contract::MAX_INPUT_BYTES {
         return Err(ApiError::BadRequest("input is longer than 1024 bytes"));
     }

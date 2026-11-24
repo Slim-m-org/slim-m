@@ -20,7 +20,8 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use axum::routing::{get, patch};
+use axum::middleware::from_fn;
+use axum::routing::{get, patch, post};
 use serde::Deserialize;
 
 pub(crate) use self::channel_dto::ChannelDto;
@@ -32,8 +33,9 @@ use self::channel_validation::{
 use super::AppState;
 use super::category_sight::CategorySight;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce};
 use super::messages::parse_uuid;
+use super::post_commit::run_to_completion;
 use crate::hub::Event;
 use crate::ids::{ChannelCategoryId, ChannelId, UserId};
 use crate::permissions::Permissions;
@@ -56,7 +58,10 @@ const CHANNEL_BODY_LIMIT: usize = 4 * 1024;
 /// The channel routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/channels", get(list).post(create))
+        .route(
+            "/channels",
+            get(list).merge(post(create).layer(from_fn(run_to_completion))),
+        )
         .route("/channels/{channel_id}", patch(update).delete(delete))
         .layer(DefaultBodyLimit::max(CHANNEL_BODY_LIMIT))
 }
@@ -174,14 +179,12 @@ async fn list(
 /// the privilege-escalation case `set_role_overwrite`'s callers otherwise
 /// guard against.
 async fn create(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<CreateRequest>,
 ) -> Result<Json<ChannelDto>, ApiError> {
     // Charged like rename and delete, which both do; create was the one write
     // in this file that was not, so it could be looped without limit.
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let base_permissions = state.store.base_permissions(ctx.user_id).await?;
     if !base_permissions.contains(Permissions::MANAGE_CHANNELS) {
         return Err(ApiError::Forbidden);
@@ -307,13 +310,11 @@ async fn sees_channel(
 /// Requires [`require_manager_who_sees`] - the same gate `delete` uses, not a
 /// new one for the topic or slow-mode half of this route.
 async fn update(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<UpdateChannelRequest>,
 ) -> Result<Json<ChannelDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     require_manager_who_sees(&state, ctx.user_id, channel_id).await?;
 

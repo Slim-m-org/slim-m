@@ -5,17 +5,15 @@
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
-use axum::http::request::Parts;
 use axum::routing::{get, put};
 use serde::{Deserialize, Serialize};
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use super::super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::super::extract::{AUTHED_READ, AuthedLimited, Json, WRITE};
 use super::super::messages::parse_uuid;
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::voice_notify::{JoinMode, VoiceNotifyChoice};
 
 /// Every body here is one tiny JSON document.
@@ -57,13 +55,11 @@ async fn list(
 /// Replaces the caller's choice for one voice channel; off with no streaming clears it.
 /// Needs `VIEW_CHANNEL`, the same bar the call's own roster sets.
 async fn set(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<SetRequest>,
 ) -> Result<Json<ChoiceDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let joins = JoinMode::parse(&req.joins)
         .ok_or(ApiError::BadRequest("joins must be off, first or every"))?;

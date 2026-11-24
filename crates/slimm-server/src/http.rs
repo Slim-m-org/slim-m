@@ -74,6 +74,7 @@ mod screen_stamps;
 mod soundboard;
 pub(crate) use crate::hidden_chars;
 pub use version::capability_names;
+mod connector_limited;
 mod identity_proof;
 mod interaction_forms;
 mod interactions;

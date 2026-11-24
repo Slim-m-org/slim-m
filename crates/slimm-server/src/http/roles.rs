@@ -33,15 +33,17 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use axum::routing::{get, patch, put};
+use axum::middleware::from_fn;
+use axum::routing::{get, patch, post, put};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
 use super::escalation::escalation_guard;
 use super::extract::require_manage_roles;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce};
 use super::messages::parse_uuid;
+use super::post_commit::run_to_completion;
 use super::space::present;
 use crate::hub::{Event, RoleChange};
 use crate::ids::{RoleId, UserId};
@@ -62,7 +64,10 @@ const BODY_LIMIT: usize = 4 * 1024;
 /// The role management routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/roles", get(list).post(create))
+        .route(
+            "/roles",
+            get(list).merge(post(create).layer(from_fn(run_to_completion))),
+        )
         .route("/roles/{role_id}", patch(update).delete(delete))
         .route(
             "/members/{user_id}/roles/{role_id}",
@@ -175,12 +180,10 @@ async fn list(
 /// asks for `true` on a genuinely fresh create, this makes a second write to
 /// set it, so a retry of an already-succeeded create never reapplies it.
 async fn create(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<CreateRoleRequest>,
 ) -> Result<Json<RoleDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let caller_permissions = require_manage_roles(&state, ctx.user_id).await?;
     // A new role starts at the bottom; a caller must be able to manage it once it exists.
     Ladder::of(&state, ctx.user_id).await?.reach_role(0)?;
@@ -232,13 +235,11 @@ async fn create(
 }
 
 async fn update(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(role_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<UpdateRoleRequest>,
 ) -> Result<Json<RoleDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let caller_permissions = require_manage_roles(&state, ctx.user_id).await?;
     let role_id = RoleId(parse_uuid(&role_id)?);
 
@@ -291,7 +292,8 @@ async fn update(
     }
 }
 
-/// Deletes a role. Refuses `@everyone` and refuses to take the deployment
+/// Deletes a role. A role already gone answers 204, so the client's replay of
+/// a delete whose reply was lost succeeds. Refuses `@everyone` and refuses to take the deployment
 /// below one administrator; both come back as 409, since either way the
 /// request collided with an invariant rather than a permission the caller
 /// simply lacks.
@@ -323,7 +325,7 @@ async fn delete(
             });
             Ok(StatusCode::NO_CONTENT)
         }
-        Ok(None) => Err(ApiError::NotFound("role not found")),
+        Ok(None) => Ok(StatusCode::NO_CONTENT),
         Err(guard_err) => Err(role_guard_error(guard_err)),
     }
 }

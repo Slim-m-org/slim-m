@@ -67,11 +67,9 @@ String _whereContentsGo(String? parentName, bool hasSubCategories) {
 /// drift, so leaving the row behind would keep the header on screen until the
 /// next sync told it otherwise.
 Future<void> deleteCategoryAndForget(
-  WidgetRef ref,
+  ChannelActions actions,
   ChannelCategoryRow category,
-) async {
-  await ref.read(channelActionsProvider).deleteCategory(category);
-}
+) => actions.deleteCategory(category);
 
 /// Confirms, then deletes, without opening the sheet on the way.
 ///
@@ -87,6 +85,7 @@ Future<void> confirmAndDeleteCategory(
   String? parentName,
   bool hasSubCategories = false,
 }) async {
+  final actions = ref.read(channelActionsProvider);
   final confirmed = await confirmCategoryDeletion(
     context,
     category,
@@ -96,7 +95,7 @@ Future<void> confirmAndDeleteCategory(
   if (!confirmed) return;
   final failure = await runGuarded(
     whatFailed: _deleteCategoryAction,
-    action: () => deleteCategoryAndForget(ref, category),
+    action: () => deleteCategoryAndForget(actions, category),
   );
   if (failure != null && context.mounted) showMenuFailure(context, failure);
 }
@@ -135,6 +134,6 @@ Future<void> showRenameCategorySheet(
   initial: category.name,
   maxChars: entityNameMaxChars,
   whatFailed: 'rename the category',
-  onSave: (ref, name) =>
-      ref.read(channelActionsProvider).renameCategory(category.id, name),
+  onSave: (container, name) =>
+      container.read(channelActionsProvider).renameCategory(category.id, name),
 );

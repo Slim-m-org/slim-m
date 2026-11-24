@@ -5,19 +5,17 @@
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::extract::State;
-use axum::http::request::Parts;
 use axum::routing::patch;
 use serde::Deserialize;
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, enforce, require_manage_roles};
+use super::super::extract::{AuthedLimited, Json, WRITE, require_manage_roles};
 use super::super::messages::parse_uuid;
 use super::super::role_ladder::Ladder;
 use super::RoleDto;
 use crate::hub::Event;
 use crate::ids::RoleId;
-use crate::ratelimit::Class;
 use crate::store::ReorderRolesError;
 
 /// Every body here is a small JSON document; refused well before axum's 2 MB default.
@@ -45,12 +43,10 @@ struct ReorderRolesRequest {
 /// `RoleChanged` for every role the store reports actually moved, so a
 /// no-op resubmission (the list unchanged) publishes nothing.
 async fn reorder(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<ReorderRolesRequest>,
 ) -> Result<Json<Vec<RoleDto>>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_roles(&state, ctx.user_id).await?;
 
     let ordered = req

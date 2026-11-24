@@ -3,19 +3,17 @@
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use serde::Deserialize;
 
 use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::escalation::escalation_guard;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{AuthedLimited, Json, WRITE};
 use super::super::messages::parse_uuid;
 use super::super::role_ladder::Ladder;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::Channel;
 use crate::voice::VoiceError;
 
@@ -28,13 +26,11 @@ pub(super) struct MoveRequest {
 /// to be on the source call and allowed into the destination. Moving someone
 /// else takes them out of their call, so it is gated like a voice kick.
 pub(super) async fn move_participant(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path((channel_id, user_id)): Path<(String, String)>,
     State(state): State<AppState>,
     Json(req): Json<MoveRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let from_id = ChannelId(parse_uuid(&channel_id)?);
     let target = UserId(parse_uuid(&user_id)?);
     let to_id = ChannelId(parse_uuid(&req.to_channel_id)?);

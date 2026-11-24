@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use super::super::AppState;
 use super::super::dock::manifest::call_audio::declared_in;
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{Authed, AuthedLimited, Json, WRITE, enforce};
 use super::super::messages::parse_uuid;
 use super::super::module_host::call_audio_approved;
 use crate::call_audio::session::{Consumer, Refused, Subject};
@@ -213,12 +213,10 @@ pub(super) async fn people_in_call(state: &AppState, channel: ChannelId) -> Vec<
 
 async fn ask(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel): Path<String>,
     Json(req): Json<AskRequest>,
 ) -> Result<Json<CallAudioDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel = voice_channel(&state, ctx.user_id, &channel).await?;
     if !state.call_audio.is_enabled() {
         return Err(ApiError::NotConfigured(
@@ -274,12 +272,10 @@ pub(super) fn request_error(err: RequestError) -> ApiError {
 
 async fn consent(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel): Path<String>,
     Json(req): Json<ConsentRequest>,
 ) -> Result<Json<CallAudioDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel = voice_channel(&state, ctx.user_id, &channel).await?;
     refuse_if_automatic(&state, channel)?;
     let outcome = state

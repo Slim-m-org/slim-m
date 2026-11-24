@@ -233,3 +233,74 @@ async fn a_target_with_no_dms_is_evicted_with_no_extra_calls() {
     // bootstrap seeds no voice channel and bob has no DM, so nothing is evicted.
     assert!(recorder.removed.lock().unwrap().is_empty());
 }
+
+/// A replay of a timeout whose first eviction never landed still evicts.
+#[tokio::test]
+async fn a_replayed_timeout_evicts_again() {
+    let recorder = RecordingRoomService::default();
+    let sfu_url = spawn_sfu(recorder.clone()).await;
+    let (store, _guard) = support::new_store("slimm-moderation-evicts-dm-test").await;
+    let app = app(
+        store.clone(),
+        VoiceService::for_test(&sfu_url, "key", "a-secret-at-least-32-chars-long!"),
+    );
+    let (admin_token, _alice_id, _alice_token, bob_id) = people(&store).await;
+    store.create_channel("lounge", "voice").await.unwrap();
+    let put = || {
+        request(
+            "PUT",
+            &format!("/members/{bob_id}/timeout"),
+            &admin_token,
+            Some(json!({ "duration_seconds": 300, "reason": "calm" })),
+        )
+    };
+    assert_eq!(
+        app.clone().oneshot(put()).await.unwrap().status(),
+        StatusCode::OK
+    );
+    recorder.removed.lock().unwrap().clear();
+
+    assert_eq!(app.oneshot(put()).await.unwrap().status(), StatusCode::OK);
+
+    assert!(
+        !recorder.removed.lock().unwrap().is_empty(),
+        "the replay must repeat the eviction"
+    );
+}
+
+/// A replay of a removal whose first eviction never landed still evicts.
+#[tokio::test]
+async fn a_replayed_removal_evicts_again() {
+    let recorder = RecordingRoomService::default();
+    let sfu_url = spawn_sfu(recorder.clone()).await;
+    let (store, _guard) = support::new_store("slimm-moderation-evicts-dm-test").await;
+    let app = app(
+        store.clone(),
+        VoiceService::for_test(&sfu_url, "key", "a-secret-at-least-32-chars-long!"),
+    );
+    let (admin_token, _alice_id, _alice_token, bob_id) = people(&store).await;
+    store.create_channel("lounge", "voice").await.unwrap();
+    let put = || {
+        request(
+            "PUT",
+            &format!("/members/{bob_id}/removal"),
+            &admin_token,
+            Some(json!({ "reason": "spam" })),
+        )
+    };
+    assert_eq!(
+        app.clone().oneshot(put()).await.unwrap().status(),
+        StatusCode::NO_CONTENT
+    );
+    recorder.removed.lock().unwrap().clear();
+
+    assert_eq!(
+        app.oneshot(put()).await.unwrap().status(),
+        StatusCode::NO_CONTENT
+    );
+
+    assert!(
+        !recorder.removed.lock().unwrap().is_empty(),
+        "the replay must repeat the eviction"
+    );
+}

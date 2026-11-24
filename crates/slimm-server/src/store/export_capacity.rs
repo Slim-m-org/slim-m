@@ -26,7 +26,13 @@ impl Store {
         ceiling: u64,
     ) -> anyhow::Result<bool> {
         let stored: i64 = sqlx::query_scalar(STORED).fetch_one(&self.pool).await?;
-        let files: i64 = match kind {
+        let files = self.export_files_bytes(kind, user).await?;
+        Ok(stored.saturating_add(files) <= i64::try_from(ceiling).unwrap_or(i64::MAX))
+    }
+
+    /// An upper bound on the attachment bytes this archive will copy.
+    pub async fn export_files_bytes(&self, kind: ExportKind, user: UserId) -> anyhow::Result<i64> {
+        Ok(match kind {
             ExportKind::Space => {
                 sqlx::query_scalar(SPACE_FILES)
                     .fetch_one(&self.pool)
@@ -38,8 +44,6 @@ impl Store {
                     .fetch_one(&self.pool)
                     .await?
             }
-        };
-        let needed = u64::try_from(stored.saturating_add(files)).unwrap_or(0);
-        Ok(needed <= ceiling)
+        })
     }
 }
