@@ -430,3 +430,27 @@ async fn the_message_head_is_reported_past_a_deleted_tail() {
     assert_eq!(scope["has_more"], false);
     assert_eq!(scope["latest_seq"], 2);
 }
+
+#[tokio::test]
+async fn spellings_of_one_channel_come_back_as_one_canonical_scope() {
+    let (store, app, _guard) = world().await;
+    let (token, user) = register(&store, "root").await;
+    let channel = store.list_channels().await.unwrap()[0].id;
+    send(&store, channel, user, "hello").await;
+
+    let canonical = channel.to_string();
+    let (status, body) = sync(
+        &app,
+        &token,
+        json!([
+            { "channel_id": canonical.to_uppercase(), "after_seq": 0 },
+            { "channel_id": canonical.replace('-', ""), "after_seq": 0 },
+            { "channel_id": canonical, "after_seq": 0 },
+        ]),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let scopes = body["scopes"].as_array().unwrap();
+    assert_eq!(scopes.len(), 1, "{body}");
+    assert_eq!(scopes[0]["channel_id"], channel.to_string());
+}

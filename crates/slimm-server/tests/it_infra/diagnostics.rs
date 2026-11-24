@@ -193,3 +193,48 @@ async fn transfers_are_rate_limited_per_account() {
         "another account has its own budget"
     );
 }
+
+#[tokio::test]
+async fn a_third_open_transfer_from_one_member_is_refused() {
+    let (store, auth, _guard) = new_store("slimm-diag-concurrent").await;
+    let router = app(store.clone(), auth.clone());
+    let (token, _) = member(&store, &auth, "alice").await;
+    let (other, _) = member(&store, &auth, "bob").await;
+    let stalled = |token: &str| {
+        Request::builder()
+            .method("POST")
+            .uri("/diagnostics/upload")
+            .header("authorization", format!("Bearer {token}"))
+            .body(Body::from_stream(futures_util::stream::pending::<
+                Result<Vec<u8>, std::io::Error>,
+            >()))
+            .unwrap()
+    };
+    let mut held = Vec::new();
+    for _ in 0..2 {
+        let router = router.clone();
+        let request = stalled(&token);
+        held.push(tokio::spawn(async move { router.oneshot(request).await }));
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+
+    let third = router.clone().oneshot(stalled(&token)).await.unwrap();
+    assert_eq!(third.status(), StatusCode::TOO_MANY_REQUESTS);
+    let download = router
+        .clone()
+        .oneshot(request(
+            "GET",
+            "/diagnostics/download?bytes=1024",
+            Some(&token),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(download.status(), StatusCode::TOO_MANY_REQUESTS);
+
+    let elsewhere = router.oneshot(upload_request(&other, 16)).await.unwrap();
+    assert_eq!(elsewhere.status(), StatusCode::OK);
+    for task in held {
+        task.abort();
+    }
+}

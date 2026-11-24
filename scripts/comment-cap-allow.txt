@@ -160,7 +160,7 @@ crates/slimm-server/src/http/polls.rs 2
 crates/slimm-server/src/http/recovery.rs 1
 crates/slimm-server/src/http/roles.rs 1
 crates/slimm-server/src/http/safety.rs 4
-crates/slimm-server/src/http/sync.rs 3
+crates/slimm-server/src/http/sync.rs 2
 crates/slimm-server/src/http/ws.rs 5
 crates/slimm-server/src/http/ws/signals.rs 1
 crates/slimm-server/src/identity.rs 1

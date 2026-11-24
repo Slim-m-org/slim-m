@@ -204,3 +204,30 @@ async fn a_run_is_stored_audited_and_rate_limited() {
             .contains("space.uplink_test")
     );
 }
+
+#[tokio::test]
+async fn a_failed_run_holds_the_gap_too() {
+    let dead = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}/", dead.local_addr().unwrap());
+    drop(dead);
+    // SAFETY: this binary's other tests never read this variable.
+    unsafe { std::env::set_var("SLIMM_UPLINK_TEST_URL", url) };
+    let (s, _guard) = harness("slimm-uplink-failed").await;
+    let admin = register(&s, "root").await;
+    let session = s.open_session(admin, "laptop").await.unwrap();
+    let router = app(s);
+    let token = &session.access_token;
+
+    let first = router
+        .clone()
+        .oneshot(request("POST", "/space/uplink-test", token, None))
+        .await
+        .unwrap();
+    assert_eq!(first.status(), StatusCode::SERVICE_UNAVAILABLE);
+
+    let again = router
+        .oneshot(request("POST", "/space/uplink-test", token, None))
+        .await
+        .unwrap();
+    assert_eq!(again.status(), StatusCode::TOO_MANY_REQUESTS);
+}

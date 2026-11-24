@@ -223,18 +223,8 @@ async fn sync(
         return Err(ApiError::BadRequest("too many scopes"));
     }
 
-    // Collapse duplicate channels so a request padded with repeats cannot
-    // multiply the per-scope database work.
-    let cursors = dedupe_scopes(req.scopes);
-
-    // Parse every id up front, so a malformed one still fails the whole request as it did when parsing was inside the loop.
-    let parsed: Vec<(ScopeCursor, ChannelId)> = cursors
-        .into_iter()
-        .map(|cursor| {
-            let channel_id = ChannelId(parse_uuid(&cursor.channel_id)?);
-            Ok::<_, ApiError>((cursor, channel_id))
-        })
-        .collect::<Result<_, _>>()?;
+    // Parse every id up front, so a malformed one fails the whole request, and collapse duplicate channels so a request padded with repeats cannot multiply the per-scope database work.
+    let parsed = dedupe_scopes(req.scopes)?;
 
     // One batched permission fetch, not four-to-five queries per channel in the loop; permissions_in_channels resolves up to MAX_SCOPES channels against one roles/timeout load, as the rail, report and saved-messages paths already do.
     let channel_ids: Vec<ChannelId> = parsed.iter().map(|(_, id)| *id).collect();
@@ -293,7 +283,7 @@ async fn sync(
             (Vec::new(), true, true)
         } else {
             let limit = PER_SCOPE_LIMIT.min(budget);
-            if limit <= 0 {
+            if limit <= 0 || bytes == 0 {
                 // The aggregate budget is spent; report more remains here.
                 (Vec::new(), true, false)
             } else {
@@ -378,7 +368,7 @@ fn trim_messages_to_budget(dtos: &mut Vec<MessageDto>, budget: &mut usize) -> bo
     trimmed
 }
 
-/// Collapses repeated channels, keeping the cursor that asks for the most (the
+/// Parses every scope's channel id and collapses repeated channels, whatever their spelling, keeping the cursor that asks for the most (the
 /// smallest `after_seq`), so the request cannot be padded to inflate work.
 ///
 /// The op cursor reconciles the same way: two `Some`s keep the smaller, and a
@@ -388,26 +378,31 @@ fn trim_messages_to_budget(dtos: &mut Vec<MessageDto>, budget: &mut usize) -> bo
 /// entirely - latent, since the real client never sends duplicates, but a
 /// dedupe that quietly discards half a cursor is wrong on its own terms.
 /// Either duplicate asking for the mention marker asks for it.
-fn dedupe_scopes(scopes: Vec<ScopeCursor>) -> Vec<ScopeCursor> {
-    let mut deduped: Vec<ScopeCursor> = Vec::new();
-    let mut index: HashMap<String, usize> = HashMap::new();
-    for cursor in scopes {
-        match index.get(&cursor.channel_id) {
+///
+/// The kept cursor carries the canonical hyphenated id, so the delta echoes one spelling.
+fn dedupe_scopes(scopes: Vec<ScopeCursor>) -> Result<Vec<(ScopeCursor, ChannelId)>, ApiError> {
+    let mut deduped: Vec<(ScopeCursor, ChannelId)> = Vec::new();
+    let mut index: HashMap<ChannelId, usize> = HashMap::new();
+    for mut cursor in scopes {
+        let channel_id = ChannelId(parse_uuid(&cursor.channel_id)?);
+        match index.get(&channel_id) {
             Some(&at) => {
-                deduped[at].after_seq = deduped[at].after_seq.min(cursor.after_seq);
-                deduped[at].after_op_seq = match (deduped[at].after_op_seq, cursor.after_op_seq) {
-                    (Some(kept), Some(dup)) => Some(kept.min(dup)),
-                    (kept, dup) => kept.or(dup),
+                let kept = &mut deduped[at].0;
+                kept.after_seq = kept.after_seq.min(cursor.after_seq);
+                kept.after_op_seq = match (kept.after_op_seq, cursor.after_op_seq) {
+                    (Some(held), Some(dup)) => Some(held.min(dup)),
+                    (held, dup) => held.or(dup),
                 };
-                deduped[at].check_mention |= cursor.check_mention;
+                kept.check_mention |= cursor.check_mention;
             }
             None => {
-                index.insert(cursor.channel_id.clone(), deduped.len());
-                deduped.push(cursor);
+                index.insert(channel_id, deduped.len());
+                cursor.channel_id = channel_id.to_string();
+                deduped.push((cursor, channel_id));
             }
         }
     }
-    deduped
+    Ok(deduped)
 }
 
 #[cfg(test)]
@@ -458,6 +453,9 @@ mod tests {
         assert_eq!(dtos.len(), 2);
     }
 
+    const A: &str = "0190a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2b";
+    const B: &str = "0190a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2c";
+
     fn sc(id: &str, after_seq: i64, after_op_seq: Option<i64>) -> ScopeCursor {
         ScopeCursor {
             channel_id: id.to_owned(),
@@ -469,10 +467,12 @@ mod tests {
 
     #[test]
     fn distinct_channels_pass_through_in_order() {
-        let out = dedupe_scopes(vec![sc("a", 5, None), sc("b", 3, Some(1))]);
+        let out = dedupe_scopes(vec![sc(A, 5, None), sc(B, 3, Some(1))])
+            .ok()
+            .unwrap();
         assert_eq!(out.len(), 2);
-        assert_eq!(out[0].channel_id, "a");
-        assert_eq!(out[1].channel_id, "b");
+        assert_eq!(out[0].0.channel_id, A);
+        assert_eq!(out[1].0.channel_id, B);
     }
 
     /// A channel named twice collapses to the *smaller* seq, never the larger:
@@ -480,19 +480,25 @@ mod tests {
     /// later one would skip everything between the two - silent message loss.
     #[test]
     fn a_repeated_channel_keeps_the_smaller_seq() {
-        let out = dedupe_scopes(vec![sc("a", 10, None), sc("a", 3, None)]);
+        let out = dedupe_scopes(vec![sc(A, 10, None), sc(A, 3, None)])
+            .ok()
+            .unwrap();
         assert_eq!(out.len(), 1);
-        assert_eq!(out[0].after_seq, 3);
+        assert_eq!(out[0].0.after_seq, 3);
 
         // Order of arrival does not matter; the minimum still wins.
-        let swapped = dedupe_scopes(vec![sc("a", 3, None), sc("a", 10, None)]);
-        assert_eq!(swapped[0].after_seq, 3);
+        let swapped = dedupe_scopes(vec![sc(A, 3, None), sc(A, 10, None)])
+            .ok()
+            .unwrap();
+        assert_eq!(swapped[0].0.after_seq, 3);
     }
 
     #[test]
     fn two_op_cursors_keep_the_smaller() {
-        let out = dedupe_scopes(vec![sc("a", 5, Some(9)), sc("a", 5, Some(4))]);
-        assert_eq!(out[0].after_op_seq, Some(4));
+        let out = dedupe_scopes(vec![sc(A, 5, Some(9)), sc(A, 5, Some(4))])
+            .ok()
+            .unwrap();
+        assert_eq!(out[0].0.after_op_seq, Some(4));
     }
 
     /// One side holding no op cursor must not erase the side that does: a
@@ -500,19 +506,49 @@ mod tests {
     #[test]
     fn a_present_op_cursor_survives_a_missing_one() {
         assert_eq!(
-            dedupe_scopes(vec![sc("a", 5, None), sc("a", 5, Some(7))])[0].after_op_seq,
+            dedupe_scopes(vec![sc(A, 5, None), sc(A, 5, Some(7))])
+                .ok()
+                .unwrap()[0]
+                .0
+                .after_op_seq,
             Some(7)
         );
         assert_eq!(
-            dedupe_scopes(vec![sc("a", 5, Some(7)), sc("a", 5, None)])[0].after_op_seq,
+            dedupe_scopes(vec![sc(A, 5, Some(7)), sc(A, 5, None)])
+                .ok()
+                .unwrap()[0]
+                .0
+                .after_op_seq,
             Some(7)
         );
     }
 
     #[test]
     fn two_missing_op_cursors_stay_missing() {
-        let out = dedupe_scopes(vec![sc("a", 5, None), sc("a", 8, None)]);
-        assert_eq!(out[0].after_op_seq, None);
-        assert_eq!(out[0].after_seq, 5);
+        let out = dedupe_scopes(vec![sc(A, 5, None), sc(A, 8, None)])
+            .ok()
+            .unwrap();
+        assert_eq!(out[0].0.after_op_seq, None);
+        assert_eq!(out[0].0.after_seq, 5);
+    }
+
+    #[test]
+    fn spellings_of_one_channel_collapse_to_one_canonical_scope() {
+        let out = dedupe_scopes(vec![
+            sc(A, 9, None),
+            sc(&A.to_uppercase(), 4, None),
+            sc(&A.replace('-', ""), 6, Some(2)),
+        ])
+        .ok()
+        .unwrap();
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0.channel_id, A);
+        assert_eq!(out[0].0.after_seq, 4);
+        assert_eq!(out[0].0.after_op_seq, Some(2));
+    }
+
+    #[test]
+    fn a_malformed_channel_id_fails_the_request() {
+        assert!(dedupe_scopes(vec![sc(A, 1, None), sc("nope", 1, None)]).is_err());
     }
 }
