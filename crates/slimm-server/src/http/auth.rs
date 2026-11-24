@@ -498,8 +498,7 @@ async fn delete_account(
     }
     super::linked_accounts::purge_avatar_files(&state, ctx.user_id).await;
     super::dock::purge_module_member_data(&state, ctx.user_id).await;
-    super::members::announce_member_gone(&state, ctx.user_id).await;
-    super::space_owner::announce_handoff(&state, deleted.handoff);
+    super::members::deleted_account::announce_deleted_account(&state, ctx.user_id, deleted).await;
     Ok(StatusCode::NO_CONTENT)
 }
 

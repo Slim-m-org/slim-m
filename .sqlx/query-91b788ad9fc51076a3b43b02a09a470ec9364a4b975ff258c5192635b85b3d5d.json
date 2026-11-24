@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO blocked_author_messages (message_id, author_id)\n             SELECT id, author_id FROM messages\n             WHERE author_id = ? AND EXISTS (SELECT 1 FROM user_blocks WHERE blocked_id = ?)\n             ORDER BY fts_rowid LIMIT 500",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "91b788ad9fc51076a3b43b02a09a470ec9364a4b975ff258c5192635b85b3d5d"
+}

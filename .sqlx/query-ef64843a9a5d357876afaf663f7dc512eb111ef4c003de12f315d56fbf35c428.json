@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM user_blocks WHERE blocker_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "ef64843a9a5d357876afaf663f7dc512eb111ef4c003de12f315d56fbf35c428"
+}

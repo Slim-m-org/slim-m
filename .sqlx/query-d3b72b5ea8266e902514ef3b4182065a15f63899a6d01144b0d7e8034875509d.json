@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM message_mentions WHERE user_id = ? AND message_id IN\n           (SELECT message_id FROM message_mentions WHERE user_id = ? LIMIT 500)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "d3b72b5ea8266e902514ef3b4182065a15f63899a6d01144b0d7e8034875509d"
+}

@@ -23,7 +23,7 @@ use super::CanvasObjectDto;
 use super::canvas_write::canvas_read_access;
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
-use crate::store::{CanvasOpBody, CanvasOpEntry};
+use crate::store::{CanvasObject, CanvasOpBody, CanvasOpEntry};
 
 /// Default and maximum ops returned for one page of the feed.
 ///
@@ -216,9 +216,21 @@ pub(in crate::http) async fn list_ops(
     let limit = params.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
     let moderates = permissions.contains(Permissions::MANAGE_CANVAS);
 
-    let page = state
+    let mut page = state
         .store
         .list_canvas_ops(channel_id, params.after_seq, limit)
+        .await?;
+    let mut placed: Vec<&mut CanvasObject> = page
+        .ops
+        .iter_mut()
+        .filter_map(|op| match &mut op.body {
+            CanvasOpBody::Place(Some(object)) => Some(object),
+            _ => None,
+        })
+        .collect();
+    state
+        .store
+        .restore_blocked_canvas_authors(ctx.user_id, &mut placed)
         .await?;
     Ok(Json(CanvasOpsPageDto {
         ops: page

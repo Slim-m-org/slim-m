@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM call_transcript_lines WHERE id IN\n           (SELECT id FROM call_transcript_lines WHERE speaker_id = ? LIMIT 500)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "bd9c16e8972e65b845851d15e97ec12a13c421063d74e1e78fbc71d7b5ecd31c"
+}

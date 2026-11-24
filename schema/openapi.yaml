@@ -19925,7 +19925,9 @@ components:
         author_id:
           type: [string, "null"]
           format: uuid
-          description: Null once the author's account has been deleted.
+          description: >-
+            Null once the author's account has been deleted, except to a member
+            who had blocked that account: they keep its id, so the block still hides it.
         seq:
           type: integer
           format: int64
@@ -20359,7 +20361,9 @@ components:
         author_id:
           type: [string, "null"]
           format: uuid
-          description: Null once the author's account has been deleted.
+          description: >-
+            Null once the author's account has been deleted, except to a member
+            who had blocked that account: they keep its id, so the block still hides it.
         author_display_name:
           type: [string, "null"]
           description: >-

@@ -84,6 +84,9 @@ where
 /// from growing without bound for the life of a deployment.
 const TOKEN_SWEEP_INTERVAL: std::time::Duration = std::time::Duration::from_secs(6 * 60 * 60);
 
+/// Long past any deletion still running in this process, so the sweep never races one.
+const INTERRUPTED_PURGE_AFTER_MS: i64 = 10 * 60 * 1000;
+
 /// Runs the token sweep in the background for the life of the process; see
 /// [`spawn_sweep`] for the model all six follow.
 pub(crate) fn spawn_token_sweep(store: store::Store) {
@@ -95,6 +98,14 @@ pub(crate) fn spawn_token_sweep(store: store::Store) {
 
 /// One pass of the token sweep, callable without the timer.
 pub async fn run_token_sweep_pass(store: &store::Store) {
+    match store
+        .finish_interrupted_account_purges(INTERRUPTED_PURGE_AFTER_MS)
+        .await
+    {
+        Ok(0) => {}
+        Ok(finished) => tracing::info!(finished, "finished interrupted account deletions"),
+        Err(err) => tracing::warn!(error = %err, "finishing interrupted account deletions failed"),
+    }
     // Same schedule and reasoning as the token sweep: a spent challenge grants nothing.
     match store.sweep_expired_totp_challenges().await {
         Ok(0) => {}

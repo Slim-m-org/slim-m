@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE canvas_objects SET author_id = NULL WHERE rt_id IN\n               (SELECT rt_id FROM canvas_objects WHERE author_id = ? ORDER BY rt_id LIMIT 500)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "baad1402916a28b9412f082320aa250b1ce25505666aea0b3cd5266f582157da"
+}

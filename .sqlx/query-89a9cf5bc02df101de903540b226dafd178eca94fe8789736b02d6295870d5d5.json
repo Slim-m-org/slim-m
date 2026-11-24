@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO blocked_author_canvas_objects (object_id, author_id)\n             SELECT id, author_id FROM canvas_objects\n             WHERE author_id = ? AND EXISTS (SELECT 1 FROM user_blocks WHERE blocked_id = ?)\n             ORDER BY rt_id LIMIT 500",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "89a9cf5bc02df101de903540b226dafd178eca94fe8789736b02d6295870d5d5"
+}

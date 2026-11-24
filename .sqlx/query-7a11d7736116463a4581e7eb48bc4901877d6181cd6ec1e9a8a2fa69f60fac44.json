@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM reactions WHERE user_id = ? AND (message_id, emoji) IN\n             (SELECT message_id, emoji FROM reactions WHERE user_id = ? LIMIT 500)\n           RETURNING (SELECT channel_id FROM messages WHERE id = message_id) AS \"channel_id?: ChannelId\",\n                     message_id AS \"message_id!: MessageId\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id?: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "name": "message_id!: MessageId",
+        "ordinal": 1,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "reactions",
+            "name": "message_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "7a11d7736116463a4581e7eb48bc4901877d6181cd6ec1e9a8a2fa69f60fac44"
+}

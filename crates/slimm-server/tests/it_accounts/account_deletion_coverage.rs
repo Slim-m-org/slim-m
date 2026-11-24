@@ -42,6 +42,11 @@ enum OnDelete {
     CascadesFrom(&'static str),
 }
 
+const BLOCKER_OWNS: &str =
+    "the blocker's own choice, which keeps hiding what the deleted account left behind";
+const KEPT_FOR_BLOCKERS: &str = "written by the deletion itself, only while a member still \
+     blocks the account, and dropped with the last block";
+
 const STAMP_ROW: &str =
     "swept 24 h after it is made; a reported row stays while its report is open";
 
@@ -51,12 +56,23 @@ const STAMP_ROW: &str =
 /// test below. That is the whole point: the failure is the prompt to decide,
 /// and the entry is the record that somebody did.
 const DECISIONS: &[(&str, &str, OnDelete)] = &[
+    ("account_purges", "user_id", OnDelete::Purge),
     (
         "access_tokens",
         "user_id",
         OnDelete::CascadesFrom("devices"),
     ),
     ("app_surfaces", "created_by", OnDelete::Anonymize),
+    (
+        "blocked_author_canvas_objects",
+        "author_id",
+        OnDelete::Keep(KEPT_FOR_BLOCKERS),
+    ),
+    (
+        "blocked_author_messages",
+        "author_id",
+        OnDelete::Keep(KEPT_FOR_BLOCKERS),
+    ),
     ("attachment_uploaders", "uploaded_by", OnDelete::Purge),
     ("bot_command_registrations", "bot_user_id", OnDelete::Purge),
     ("bot_commands", "bot_user_id", OnDelete::Purge),
@@ -72,19 +88,20 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ("canvas_object_locks", "locked_by", OnDelete::Anonymize),
     ("canvas_objects", "author_id", OnDelete::Anonymize),
     ("canvas_ops", "actor_id", OnDelete::Anonymize),
+    (
+        "canvas_ops",
+        "clear_author_id",
+        OnDelete::Keep(
+            "the scope of a past clear, swept with the op log; nulling it would \
+             turn a clear of one person's strokes into a clear of the whole canvas \
+             on replay, and the id names only the tombstone",
+        ),
+    ),
     ("canvas_tile_scenes", "ran_by", OnDelete::Anonymize),
     ("code_runs", "ran_by", OnDelete::Anonymize),
     ("category_mutes", "user_id", OnDelete::Purge),
     ("channel_notification_prefs", "user_id", OnDelete::Purge),
-    (
-        "channels",
-        "room_owner_id",
-        OnDelete::Keep(
-            "a temporary room is a channel other people are in, removed once \
-             its call empties; the id points at the tombstoned account, which \
-             names nobody",
-        ),
-    ),
+    ("channels", "room_owner_id", OnDelete::Anonymize),
     ("custom_emoji", "uploader_id", OnDelete::Anonymize),
     ("soundboard_clips", "uploader_id", OnDelete::Anonymize),
     ("screen_stamps", "sender_id", OnDelete::Keep(STAMP_ROW)),
@@ -111,6 +128,8 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ("dm_hides", "user_id", OnDelete::Purge),
     ("group_dm_members", "user_id", OnDelete::Purge),
     ("group_dm_members", "added_by", OnDelete::Anonymize),
+    ("interactions", "bot_id", OnDelete::Purge),
+    ("interactions", "clicker_id", OnDelete::Purge),
     ("invite_redemptions", "user_id", OnDelete::Purge),
     (
         "installed_modules",
@@ -162,10 +181,20 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
         "allowed_user_id",
         OnDelete::Purge,
     ),
+    (
+        "notification_schedule_days",
+        "user_id",
+        OnDelete::CascadesFrom("notification_schedules"),
+    ),
     ("notification_schedules", "user_id", OnDelete::Purge),
     ("password_reset_codes", "issued_by", OnDelete::Anonymize),
     ("password_reset_codes", "user_id", OnDelete::Purge),
     ("pinned_messages", "pinned_by", OnDelete::Anonymize),
+    (
+        "poll_rankings",
+        "user_id",
+        OnDelete::CascadesFrom("poll_votes"),
+    ),
     ("poll_votes", "user_id", OnDelete::Purge),
     ("polls", "created_by", OnDelete::Anonymize),
     ("reactions", "user_id", OnDelete::Purge),
@@ -206,7 +235,7 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ),
     ("totp_challenges", "user_id", OnDelete::Purge),
     ("totp_recovery_codes", "user_id", OnDelete::Purge),
-    ("user_blocks", "blocked_id", OnDelete::Purge),
+    ("user_blocks", "blocked_id", OnDelete::Keep(BLOCKER_OWNS)),
     ("user_blocks", "blocker_id", OnDelete::Purge),
     ("user_totp_factors", "user_id", OnDelete::Purge),
     ("username_collision_renames", "user_id", OnDelete::Purge),
@@ -229,44 +258,9 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ("ws_tickets", "user_id", OnDelete::CascadesFrom("devices")),
 ];
 
-/// Every `(table, column)` in the migrated schema that points at `users`.
+/// Every `(table, column)` in the migrated schema that holds a user id.
 async fn user_references() -> Vec<(String, String)> {
-    let (path, _guard) = support::TestDbGuard::new("slimm-deletion-coverage");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-
-    let tables: Vec<String> = sqlx::query(
-        "SELECT name FROM sqlite_master WHERE type = 'table' \
-         AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_sqlx%' ORDER BY name",
-    )
-    .fetch_all(&pool)
-    .await
-    .expect("list tables")
-    .into_iter()
-    .map(|row| row.get::<String, _>("name"))
-    .collect();
-
-    let mut found = Vec::new();
-    for table in tables {
-        let fks = sqlx::query(AssertSqlSafe(format!("PRAGMA foreign_key_list({table})")))
-            .fetch_all(&pool)
-            .await
-            .expect("foreign keys");
-        for fk in fks {
-            if fk.get::<String, _>("table") == "users" {
-                found.push((table.clone(), fk.get::<String, _>("from")));
-            }
-        }
-    }
-    // users.id is what every other reference points at, and has no foreign key of its own to be found.
-    found.push(("users".to_owned(), "id".to_owned()));
-    found.sort();
-    found
+    crate::user_columns::user_columns("slimm-deletion-coverage").await
 }
 
 #[tokio::test]
@@ -341,10 +335,11 @@ async fn seed_reference(
     for col in info {
         let name: String = col.get("name");
         let declared: String = col.get::<String, _>("type").to_uppercase();
-        let required = col.get::<i64, _>("notnull") == 1
-            && col.get::<Option<String>, _>("dflt_value").is_none();
         let integer_key =
             key_columns == 1 && col.get::<i64, _>("pk") > 0 && declared.contains("INT");
+        // A WITHOUT ROWID key reads as nullable in table_info, yet refuses a NULL.
+        let required = (col.get::<i64, _>("notnull") == 1 || col.get::<i64, _>("pk") > 0)
+            && col.get::<Option<String>, _>("dflt_value").is_none();
         if name == column {
             names.push(name);
             literals.push("?".to_owned());
