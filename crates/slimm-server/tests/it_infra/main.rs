@@ -68,6 +68,7 @@ mod startup_error_log;
 mod storage;
 mod storage_ceiling;
 mod store_audit_counts;
+mod store_poll_outcome_lock;
 mod store_slow_mode_poll_and_app;
 mod sweep_passes;
 mod sweeps_and_history;
