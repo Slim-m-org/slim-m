@@ -64,6 +64,7 @@ async fn try_post(state: &AppState, user_id: UserId) -> anyhow::Result<()> {
         sent.message.id,
         &sent.message.content,
         (None, &[user_id]),
+        None,
     )
     .await
     {

@@ -216,7 +216,7 @@ async fn forward_poll_and_embed_text_is_searchable() {
         ..NewEmbed::default()
     };
     store
-        .replace_message_embeds(planted[2], &[embed])
+        .replace_message_embeds(planted[2], author.id, &[embed])
         .await
         .unwrap();
 
@@ -237,7 +237,10 @@ async fn forward_poll_and_embed_text_is_searchable() {
         assert_eq!(ids, [expected.to_string()], "q={q}");
     }
 
-    store.replace_message_embeds(planted[2], &[]).await.unwrap();
+    store
+        .replace_message_embeds(planted[2], author.id, &[])
+        .await
+        .unwrap();
     assert!(contents(&app, &token, "quokka").await.is_empty());
     sqlx::query("UPDATE message_forwards SET origin_content = '' WHERE message_id = ?")
         .bind(planted[0])
