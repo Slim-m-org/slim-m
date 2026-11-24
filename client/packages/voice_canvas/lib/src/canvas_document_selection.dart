@@ -16,6 +16,7 @@ extension CanvasDocumentSelection on CanvasDocument {
   CanvasObjectKind? kindOf(String id) {
     final slot = _slotById[id];
     final stroke = slot == null ? null : _strokes[slot];
+    if (slot == null && edges.isAlive(id)) return CanvasObjectKind.edge;
     return (stroke != null && stroke.alive) ? stroke.kind : null;
   }
 
@@ -38,6 +39,7 @@ extension CanvasDocumentSelection on CanvasDocument {
   String? authorIdOf(String id) {
     final slot = _slotById[id];
     final stroke = slot == null ? null : _strokes[slot];
+    if (slot == null) return edges.liveEdge(id)?.authorId;
     return (stroke != null && stroke.alive) ? stroke.authorId : null;
   }
 
@@ -46,6 +48,7 @@ extension CanvasDocumentSelection on CanvasDocument {
   int? zIndexOf(String id) {
     final slot = _slotById[id];
     final stroke = slot == null ? null : _strokes[slot];
+    if (slot == null) return edges.liveEdge(id)?.zIndex;
     return (stroke != null && stroke.alive) ? stroke.zIndex : null;
   }
 
@@ -55,8 +58,9 @@ extension CanvasDocumentSelection on CanvasDocument {
   /// if [id] is unknown or has been removed.
   bool setZIndex(String id, int zIndex) {
     final slot = _slotById[id];
-    final stroke = slot == null ? null : _strokes[slot];
-    if (slot == null || stroke == null || !stroke.alive) return false;
+    if (slot == null) return edges.setZIndex(id, zIndex);
+    final stroke = _strokes[slot];
+    if (stroke == null || !stroke.alive) return false;
     stroke.zIndex = zIndex;
     _paintOrder.reordered(slot);
     _changed();
@@ -91,6 +95,28 @@ extension CanvasDocumentSelection on CanvasDocument {
       return false;
     }
     stroke.text = text;
+    _changed(stroke);
+    return true;
+  }
+
+  /// A live note's style, or null when [id] is unknown, removed, or not a note.
+  CanvasNoteStyle? noteStyleOf(String id) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    if (stroke == null || !stroke.alive) return null;
+    return stroke.kind == CanvasObjectKind.note ? stroke.noteStyle : null;
+  }
+
+  /// Restyles a live note in place; false if [id] is not one. The caller repaints with [CanvasDocument.refresh].
+  bool setNoteStyle(String id, CanvasNoteStyle style) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    if (stroke == null ||
+        !stroke.alive ||
+        stroke.kind != CanvasObjectKind.note) {
+      return false;
+    }
+    stroke.noteStyle = style;
     _changed(stroke);
     return true;
   }

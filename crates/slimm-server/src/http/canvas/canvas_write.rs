@@ -63,7 +63,7 @@ use crate::store::{MODULE_TILE_KIND, ModuleTileRef, PlaceError};
 /// of them, so this is what stops a canvas burst from costing more resident
 /// memory than the whole process budget. A stroke is split by the client on
 /// this byte budget, not on a point count.
-pub(in crate::http) const MAX_PROPS_BYTES: usize = 4 * 1024;
+pub(in crate::http) const MAX_PROPS_BYTES: usize = crate::canvas_text::MAX_PROPS_BYTES;
 
 /// The whole request body, which is `props` plus a small fixed envelope.
 pub(in crate::http) const MAX_BODY_BYTES: usize = 8 * 1024;
@@ -80,7 +80,7 @@ pub(in crate::http) const MAX_BODY_BYTES: usize = 8 * 1024;
 /// inside the opaque `props` every other kind's fields already do. `emoji` is a
 /// board stamp (decision 0121), and its `props.emoji` is the second field read here.
 /// `module` is a module's tile, and its `props.module_id` and `props.tile` are authorized at place.
-pub(super) const KINDS: [&str; 7] = [
+pub(super) const KINDS: [&str; 8] = [
     "stroke",
     "image",
     "note",
@@ -88,6 +88,7 @@ pub(super) const KINDS: [&str; 7] = [
     "text",
     "emoji",
     MODULE_TILE_KIND,
+    "edge",
 ];
 
 /// The only kind-specific field this server reads out of an otherwise opaque
@@ -141,6 +142,10 @@ pub(super) struct ValidatedPlace {
 }
 
 impl ValidatedPlace {
+    pub(super) fn is_edge(&self) -> bool {
+        self.kind == "edge"
+    }
+
     pub(super) fn request(&self) -> crate::store::PlaceRequest<'_> {
         crate::store::PlaceRequest {
             kind: &self.kind,
@@ -168,10 +173,18 @@ pub(super) fn validate_place(params: PlaceParams) -> Result<ValidatedPlace, ApiE
     }
     if params.kind == "note" {
         crate::canvas_text::check_prose_text(&params.props).map_err(ApiError::BadRequest)?;
+        crate::canvas_text::check_note_props(&params.props).map_err(ApiError::BadRequest)?;
     }
     if params.kind == "emoji" {
         check_emoji_key(&params.props)?;
     }
+    // The server derives an edge's box from its ends, so the placeholder only has to be valid.
+    let bounds = if params.kind == "edge" {
+        crate::canvas_edge::check_edge_props(&params.props).map_err(ApiError::BadRequest)?;
+        (0.0, 0.0, 0.0, 0.0)
+    } else {
+        (params.x, params.y, params.w, params.h)
+    };
     let attachment = if params.kind == "image" {
         Some(image_attachment(&params.props)?)
     } else {
@@ -188,7 +201,7 @@ pub(super) fn validate_place(params: PlaceParams) -> Result<ValidatedPlace, ApiE
     };
     Ok(ValidatedPlace {
         kind: params.kind,
-        bounds: (params.x, params.y, params.w, params.h),
+        bounds,
         props,
         attachment,
         module_tile,
@@ -210,6 +223,11 @@ pub(super) fn place_error_api(error: PlaceError) -> ApiError {
         PlaceError::NotAPicture => {
             ApiError::BadRequest("an image object must name a picture attachment")
         }
+        PlaceError::EdgeEndMissing => ApiError::NotFound("that id is not in this channel"),
+        PlaceError::EdgeEndNotAttachable => {
+            ApiError::BadRequest("a connection cannot attach to that kind of object")
+        }
+        PlaceError::EdgeLimit => ApiError::Conflict("that object has too many connections"),
         PlaceError::Internal(err) => err.into(),
     }
 }

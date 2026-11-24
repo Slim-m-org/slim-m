@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The five tool buttons in decision 0047's order. The selected pen or shape
-/// gains a caret (and a long-press) for its options, through the same
-/// controls-with-options pattern the call dock's share button uses.
+/// The tool buttons in two groups: pan, pen and eraser, then what places an object.
+/// The selected pen, note, shape, connect or stamp gains a caret (and a long-press)
+/// for its options, through the same controls-with-options pattern the call dock uses.
 library;
 
 import 'package:flutter/material.dart';
@@ -12,10 +12,15 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart';
 import '../providers/armed_stamp.dart';
+import '../providers/canvas_edge_style.dart';
+import '../providers/canvas_note_style.dart';
 import '../providers/canvas_pen_style.dart';
+import '../widgets/canvas_edge_controls.dart';
 import '../widgets/canvas_custom_colours.dart';
+import '../widgets/canvas_note_style_options.dart';
 import '../widgets/stamp_picker.dart';
 import '../widgets/stamp_tool_button.dart';
+import 'canvas_dock_group.dart';
 import 'canvas_shape_icons.dart';
 import 'canvas_tool_model.dart';
 import 'canvas_tool_options.dart';
@@ -63,11 +68,10 @@ class CanvasToolButtons extends ConsumerWidget {
               : _pick(CanvasTool.stamp),
   );
 
-  /// The picker's caret keeps its slot while the tool is down, like the pen's and the shape's.
+  /// The picker's caret only exists while the tool is down, like the pen's and the shape's.
   Widget _stampWithCaret(WidgetRef ref) => Builder(
     builder: (anchor) => AppControlWithOptions(
       active: true,
-      reserveSlot: true,
       visualHeight: AppSizes.icon28,
       optionsLabel: 'Choose a stamp',
       onOpenOptions: tool == CanvasTool.stamp
@@ -85,6 +89,17 @@ class CanvasToolButtons extends ConsumerWidget {
   ) {
     if (tool != forTool || !forTool.isAvailable(canDraw: canDraw)) {
       return const [];
+    }
+    if (forTool == CanvasTool.connect) return _edgeOptions(context, ref);
+    if (forTool == CanvasTool.note) {
+      if (!ref.watch(canvasNoteStyleSupportedProvider)) return const [];
+      return canvasNoteStyleOptions(
+        context: context,
+        ref: ref,
+        style: ref.watch(canvasLastNoteStyleProvider),
+        onChanged: (next) =>
+            ref.read(canvasLastNoteStyleProvider.notifier).state = next,
+      );
     }
     void choose(String key) => onPenChanged(pen.copyWith(colorKey: key));
     return canvasToolOptions(
@@ -108,6 +123,25 @@ class CanvasToolButtons extends ConsumerWidget {
     );
   }
 
+  List<ControlOptionEntry> _edgeOptions(BuildContext context, WidgetRef ref) {
+    final style = ref.watch(canvasActiveEdgeStyleProvider);
+    void set(CanvasEdgeStyle next) =>
+        ref.read(canvasActiveEdgeStyleProvider.notifier).state = next;
+    return canvasEdgeControls(
+      context: context,
+      ref: ref,
+      tokens: Theme.of(context).extension<AppTokens>()!,
+      colorKey: style.colorKey,
+      arrow: style.arrow,
+      onColour: (key) => set(
+        key == null
+            ? style.copyWith(clearColor: true)
+            : style.copyWith(colorKey: key),
+      ),
+      onArrow: (arrow) => set(style.copyWith(arrow: arrow)),
+    );
+  }
+
   /// The caret only exists once the tool is selected, so the hint says what is true now.
   String get _shapeHint {
     final armed = 'Shape (S) · ${canvasShapeKindLabel(shapeKind)} armed, ';
@@ -121,12 +155,13 @@ class CanvasToolButtons extends ConsumerWidget {
     WidgetRef ref,
     CanvasTool forTool,
     String label,
-    Widget child,
-  ) => ControlOptionsMenu(
+    Widget child, {
+    bool showCaret = true,
+  }) => ControlOptionsMenu(
     active: true,
+    showCaret: showCaret,
     menuWidth: _toolMenuWidth,
     caretHeight: AppSizes.icon28,
-    reserveCaretSlot: true,
     opensAbove: true,
     optionsLabel: label,
     options: _optionsFor(context, ref, forTool),
@@ -135,90 +170,110 @@ class CanvasToolButtons extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Six touch-sized tools plus the armed caret only fit a 360dp dock when they touch.
-    final gap = SizedBox(
-      width: AppTouchTargets.of(context) ? 0 : AppSpacing.s4,
+    final pan = AppIconButton(
+      icon: AppIcons.pan,
+      semanticLabel: 'Pan',
+      tooltip:
+          'Pan (H) · pan the canvas, move an object, or select a stroke '
+          'to reorder it · hold Shift while resizing to flip '
+          'the aspect lock',
+      active: tool == CanvasTool.pan,
+      onPressed: () => onToolChanged(CanvasTool.pan),
+    );
+    final penButton = _withOptions(
+      context,
+      ref,
+      CanvasTool.pen,
+      'Pen options',
+      _PenButton(
+        pen: pen,
+        active: tool == CanvasTool.pen,
+        canDraw: canDraw,
+        onPressed: CanvasTool.pen.isAvailable(canDraw: canDraw)
+            ? () => _pick(CanvasTool.pen)
+            : null,
+      ),
+    );
+    final eraser = AppIconButton(
+      icon: AppIcons.eraser,
+      semanticLabel: 'Eraser',
+      tooltip:
+          'Eraser (E) · erases ink and shapes. Right-click or long-press a '
+          'note or image, then Delete',
+      active: tool == CanvasTool.eraser,
+      onPressed: () => _pick(CanvasTool.eraser),
+    );
+    final note = _withOptions(
+      context,
+      ref,
+      CanvasTool.note,
+      'Note options',
+      AppIconButton(
+        icon: AppIcons.note,
+        semanticLabel: 'Note',
+        tooltip: canDraw ? 'Note (N)' : _cannotDrawTooltip,
+        active: tool == CanvasTool.note,
+        onPressed: CanvasTool.note.isAvailable(canDraw: canDraw)
+            ? () => _pick(CanvasTool.note)
+            : null,
+      ),
+      // A long press or right click opens it: a caret would not fit the dock at 360dp.
+      showCaret: false,
+    );
+    final text = AppIconButton(
+      icon: AppIcons.textBox,
+      semanticLabel: 'Text',
+      tooltip: canDraw ? 'Text (T)' : _cannotDrawTooltip,
+      active: tool == CanvasTool.text,
+      onPressed: CanvasTool.text.isAvailable(canDraw: canDraw)
+          ? () => _pick(CanvasTool.text)
+          : null,
+    );
+    final shape = _withOptions(
+      context,
+      ref,
+      CanvasTool.shape,
+      'Shape options',
+      AppIconButton(
+        // The armed kind's own glyph, not a generic one - state must be visible, not just remembered.
+        icon: canvasShapeKindIcon(shapeKind),
+        semanticLabel: 'Shape',
+        tooltip: canDraw ? _shapeHint : _cannotDrawTooltip,
+        active: tool == CanvasTool.shape,
+        onPressed: CanvasTool.shape.isAvailable(canDraw: canDraw)
+            ? () => _pick(CanvasTool.shape)
+            : null,
+      ),
+    );
+    final connect = _withOptions(
+      context,
+      ref,
+      CanvasTool.connect,
+      'Connection options',
+      AppIconButton(
+        icon: AppIcons.connect,
+        semanticLabel: 'Connect',
+        tooltip: canDraw
+            ? 'Connect (C) \u00b7 drag from one object to another'
+            : _cannotDrawTooltip,
+        active: tool == CanvasTool.connect,
+        onPressed: CanvasTool.connect.isAvailable(canDraw: canDraw)
+            ? () => _pick(CanvasTool.connect)
+            : null,
+      ),
     );
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: [
-        AppIconButton(
-          icon: AppIcons.pan,
-          semanticLabel: 'Pan',
-          tooltip:
-              'Pan (H) · pan the canvas, move an object, or select a stroke '
-              'to reorder it · hold Shift while resizing to flip '
-              'the aspect lock',
-          active: tool == CanvasTool.pan,
-          onPressed: () => onToolChanged(CanvasTool.pan),
-        ),
-        gap,
-        _withOptions(
-          context,
-          ref,
-          CanvasTool.pen,
-          'Pen options',
-          _PenButton(
-            pen: pen,
-            active: tool == CanvasTool.pen,
-            canDraw: canDraw,
-            onPressed: CanvasTool.pen.isAvailable(canDraw: canDraw)
-                ? () => _pick(CanvasTool.pen)
-                : null,
-          ),
-        ),
-        gap,
-        AppIconButton(
-          icon: AppIcons.note,
-          semanticLabel: 'Note',
-          tooltip: canDraw ? 'Note (N)' : _cannotDrawTooltip,
-          active: tool == CanvasTool.note,
-          onPressed: CanvasTool.note.isAvailable(canDraw: canDraw)
-              ? () => _pick(CanvasTool.note)
-              : null,
-        ),
-        gap,
-        AppIconButton(
-          icon: AppIcons.textBox,
-          semanticLabel: 'Text',
-          tooltip: canDraw ? 'Text (T)' : _cannotDrawTooltip,
-          active: tool == CanvasTool.text,
-          onPressed: CanvasTool.text.isAvailable(canDraw: canDraw)
-              ? () => _pick(CanvasTool.text)
-              : null,
-        ),
-        gap,
-        _withOptions(
-          context,
-          ref,
-          CanvasTool.shape,
-          'Shape options',
-          AppIconButton(
-            // The armed kind's own glyph, not a generic one - state must be visible, not just remembered.
-            icon: canvasShapeKindIcon(shapeKind),
-            semanticLabel: 'Shape',
-            tooltip: canDraw ? _shapeHint : _cannotDrawTooltip,
-            active: tool == CanvasTool.shape,
-            onPressed: CanvasTool.shape.isAvailable(canDraw: canDraw)
-                ? () => _pick(CanvasTool.shape)
-                : null,
-          ),
-        ),
-        if (ref.watch(canvasStampsSupportedProvider)) ...[
-          gap,
-          _stampWithCaret(ref),
+      children: canvasDockGroups(context, [
+        [pan, penButton, eraser],
+        [
+          note,
+          text,
+          shape,
+          if (ref.watch(canvasEdgesSupportedProvider)) connect,
+          if (ref.watch(canvasStampsSupportedProvider)) _stampWithCaret(ref),
         ],
-        gap,
-        AppIconButton(
-          icon: AppIcons.eraser,
-          semanticLabel: 'Eraser',
-          tooltip:
-              'Eraser (E) · erases ink and shapes. Right-click or long-press a '
-              'note or image, then Delete',
-          active: tool == CanvasTool.eraser,
-          onPressed: () => _pick(CanvasTool.eraser),
-        ),
-      ],
+      ]),
     );
   }
 }

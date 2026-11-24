@@ -11,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/action_labels.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_note_sheet.dart';
 import 'package:slimm_app/src/features/composer/widgets/poll_composer_sheet.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_picker.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_context_menu.dart';
@@ -150,24 +149,6 @@ void main() {
       final barriers = _barriers.evaluate().length;
 
       await tester.tap(find.bySemanticsLabel('Insert emoji in the question'));
-      await pumpFrames(tester, frames: 30);
-
-      expect(_panel, findsOneWidget);
-      expect(_barriers, findsNWidgets(barriers));
-    });
-
-    testWidgets('a canvas note picks an emoji without a second modal at '
-        '$width', (tester) async {
-      await _pump(
-        tester,
-        size,
-        _opener((context) => showCanvasNoteSheet(context)),
-      );
-      await tester.tap(find.text('open'));
-      await pumpFrames(tester, frames: 30);
-      final barriers = _barriers.evaluate().length;
-
-      await tester.tap(find.bySemanticsLabel('Insert emoji'));
       await pumpFrames(tester, frames: 30);
 
       expect(_panel, findsOneWidget);

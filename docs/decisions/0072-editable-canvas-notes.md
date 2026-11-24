@@ -21,6 +21,8 @@ A live edit goes out as the `canvas.object.edited` frame, carrying the object id
 
 ## Client
 
+Superseded by [0138](0138-canvas-note-style-and-in-place-editing.md): the note is edited in place and a new note is placed in place.
+
 Double click (or tap on touch) on a note you may edit opens it in place.
 The editor reuses the composer's mention autocomplete and emoji picker, and the note renders markdown and mentions.
 A locked note, or one you may not edit, never opens the editor.

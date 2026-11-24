@@ -86,12 +86,34 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
     ref: ref,
     channelId: () => widget.channelId,
     boardFocus: _boardFocusNode,
-    editing: () => _editingNoteId != null,
+    editing: () => _editingNoteId != null || _notes.active,
     touch: () => AppTouchTargets.of(context) || _fingerReach,
     spectating: () => _spectating,
     editNote: _onEditNote,
     changed: _refresh,
+    tool: () => _tool,
+    noteSpans: () => _ops.noteSpans,
+    mayRestyle: (id) => _mayRestyleHere(id),
   );
+
+  CanvasNoteEditing get _notes => _notesHelper ??= CanvasNoteEditing(
+    engine: _engine,
+    placement: () => _quickPlacement,
+    ref: ref,
+    changed: _refresh,
+    onPlaced: (id, tool) => _selectPlaced(id, startedWith: tool),
+    focusBoard: _boardFocusNode.requestFocus,
+    spectating: () => _spectating,
+    currentTool: () => _tool,
+  );
+
+  /// Tells the places that size a note how the board lays its text out.
+  NoteSpanBuilder _useNoteSpans(NoteSpanStyle style) {
+    InlineSpan builder(String text, TextStyle base) =>
+        buildNoteSpans(text, base, style);
+    _ops.noteSpans = _quickPlacement.noteSpans = builder;
+    return builder;
+  }
 
   CanvasStampPlacement get _stampPlacement =>
       _stampPlacementHelper ??= CanvasStampPlacement(
@@ -104,11 +126,12 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
 
   CanvasQuickPlacement get _quickPlacement =>
       _quickPlacementHelper ??= CanvasQuickPlacement(
-        client: ref.read(apiProvider),
+        client: _container.read(apiProvider),
         channelId: widget.channelId,
         document: _document,
-        timedOutUntil: () => ref.read(meProvider).valueOrNull?.timedOutUntil,
-        authorId: () => ref.read(meProvider).valueOrNull?.id,
+        timedOutUntil: () =>
+            _container.read(meProvider).valueOrNull?.timedOutUntil,
+        authorId: () => _container.read(meProvider).valueOrNull?.id,
         clearedSincePlacement: _engine.sync.clearedSincePlacement,
       );
 

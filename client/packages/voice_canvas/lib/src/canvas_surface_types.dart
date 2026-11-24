@@ -37,7 +37,10 @@ enum CanvasTool {
   eraser,
 
   /// An emoji or a picture (decision 0121).
-  stamp;
+  stamp,
+
+  /// Draws an edge between objects (decision 0137). The surface runs it as the select gesture and the app decides what that press means.
+  connect;
 
   /// Whether a press starts a new mark, as opposed to selecting or erasing.
   bool get placesInk =>

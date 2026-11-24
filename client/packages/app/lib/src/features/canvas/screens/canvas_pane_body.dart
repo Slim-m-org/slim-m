@@ -127,6 +127,7 @@ class CanvasPaneBody extends StatefulWidget {
     this.onSelectTap,
     this.grabsHandleAt,
     this.onEditNote,
+    this.onStyleNote,
     this.noteSpans,
     this.noteSpansRevision = 0,
     this.noteEditor,
@@ -195,6 +196,7 @@ class CanvasPaneBody extends StatefulWidget {
   /// [CanvasSurface.grabsHandleAt].
   final bool Function(Offset world, PointerDeviceKind kind)? grabsHandleAt;
   final ValueChanged<String>? onEditNote;
+  final ValueChanged<String>? onStyleNote;
 
   /// Styles a note's text, and the revision that says when it changed.
   final NoteSpanBuilder? noteSpans;

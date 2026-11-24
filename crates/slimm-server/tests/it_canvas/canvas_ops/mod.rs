@@ -20,6 +20,7 @@ mod http_gate;
 mod index_plan;
 mod lock;
 mod r#move;
+mod note_props;
 mod purge;
 mod reorder;
 mod reorder_bounds;

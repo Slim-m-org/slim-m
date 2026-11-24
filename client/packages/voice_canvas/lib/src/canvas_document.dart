@@ -17,7 +17,9 @@ import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/painting.dart';
 
 import 'canvas_board.dart';
+import 'canvas_edges.dart';
 import 'canvas_external_pointers.dart';
+import 'canvas_note_style.dart';
 import 'canvas_paint_order.dart';
 import 'canvas_removed_ids.dart';
 import 'canvas_scene.dart';
@@ -28,6 +30,7 @@ import 'canvas_text_box.dart';
 import 'canvas_unsaved_ink.dart';
 import 'spatial_grid.dart' show CullResult;
 
+export 'canvas_note_style.dart';
 export 'canvas_stroke.dart';
 
 part 'canvas_document_board.dart';
@@ -44,9 +47,13 @@ class CanvasDocument extends ChangeNotifier {
   CanvasDocument() {
     // A drag that starts and ends between two frames must still invalidate the cached ink.
     elevatedObjectId.addListener(_changed);
+    editingObjectId.addListener(_changed);
   }
 
   final CanvasScene scene = CanvasScene();
+
+  /// Connections between objects, kept out of the scene; see `CanvasEdges`.
+  late final CanvasEdges edges = CanvasEdges(this);
 
   /// Null past a removal or a clear: the slot address stays reserved
   /// ([UniformGrid] never renumbers) but the stroke itself is freed, which is
@@ -73,11 +80,7 @@ class CanvasDocument extends ChangeNotifier {
   ui.Rect? _sharedArea;
   bool _atFit = true;
 
-  /// True for exactly as long as [setCamera] is actively pinning the camera
-  /// to `worldLimit` - the only feedback a person gets that panning or
-  /// zooming stopped because the bounded world ended, not because
-  /// something broke. Never flips for [setViewport]'s own re-clamp on a
-  /// resize, which is not a gesture anyone is pushing against.
+  /// True while [setCamera] is pinning the camera to `worldLimit`: the feedback that the bounded world ended.
   final ValueNotifier<bool> worldEdgeHit = ValueNotifier<bool>(false);
 
   /// Strokes drawn here whose save is being retried; they paint faded until the server has them.
@@ -102,22 +105,14 @@ class CanvasDocument extends ChangeNotifier {
   final ValueNotifier<int> outsideBoardCount = ValueNotifier<int>(0);
   final Set<String> _outsideIds = {};
 
-  /// The one object currently selected for a resize or reorder, or null.
-  /// A document-level notifier rather than caller-held state, the same
-  /// reason [objectCount] is: the selection painter needs to repaint on a
-  /// change here with no widget rebuild in between, the render-loop rule
-  /// this whole package exists to keep.
+  /// The one object selected for a resize or reorder, or null; a notifier so the selection painter repaints with no widget rebuild.
   final ValueNotifier<String?> selectedObjectId = ValueNotifier<String?>(null);
 
-  /// The one object this client's own pointer is currently dragging or
-  /// resizing, or null - a narrower, shorter-lived thing than
-  /// [selectedObjectId], which stays set for as long as the Move tool holds
-  /// a selection. `StrokePainter` reads this to decide which image earns
-  /// the app layer's `AppShadows.float` treatment (named here only, this
-  /// package carries no design-system dependency, so the shadow itself
-  /// arrives as a plain value), a shadow only while an object is literally
-  /// off the plane rather than for as long as it merely sits selected.
+  /// The one object this client's own pointer is dragging or resizing, shorter-lived than [selectedObjectId]; the painter gives it the elevation shadow.
   final ValueNotifier<String?> elevatedObjectId = ValueNotifier<String?>(null);
+
+  /// The note whose text is being typed in place, drawn without its text so the field is the only copy.
+  final ValueNotifier<String?> editingObjectId = ValueNotifier<String?>(null);
 
   /// Objects a remote preview is moving; the cached ink leaves them out and paints them live (see [holdLive]).
   final Set<String> _heldLive = <String>{};
@@ -285,6 +280,7 @@ class CanvasDocument extends ChangeNotifier {
         flipY: input.flipY,
         fontSize: input.fontSize,
         tileKey: input.tileKey,
+        noteStyle: input.noteStyle,
       ),
     );
     if (input.groupId case final group?) {
@@ -380,6 +376,7 @@ class CanvasDocument extends ChangeNotifier {
   /// A no-op for an id already removed or never placed, so a replayed batch costs nothing.
   void removeObject(String id, {int? seq}) {
     _removed.add(id, seq: seq);
+    edges.objectRemoved(id, seq);
     final slot = _slotById[id];
     if (slot != null) _freeSlot(slot);
   }
@@ -393,6 +390,7 @@ class CanvasDocument extends ChangeNotifier {
     int? opSeq,
     Set<String> spare = const {},
   }) {
+    final cleared = <String>{};
     for (var slot = 0; slot < _strokes.length; slot++) {
       final stroke = _strokes[slot];
       if (stroke == null || stroke.seq <= 0 || stroke.seq > beforeSeq) continue;
@@ -400,8 +398,10 @@ class CanvasDocument extends ChangeNotifier {
       if (authorId != null && stroke.authorId != authorId) continue;
       if (spare.contains(stroke.id)) continue;
       _removed.add(stroke.id, seq: opSeq);
+      cleared.add(stroke.id);
       _freeSlot(slot);
     }
+    edges.cleared(cleared, beforeSeq, kinds, authorId, opSeq, spare);
   }
 
   /// Everyone who authored an object still on the board.
@@ -421,6 +421,7 @@ class CanvasDocument extends ChangeNotifier {
     final restored = ids.toSet();
     if (restored.isEmpty) return;
     _removed.removeAll(restored);
+    edges.forgetRemoved(restored);
     // A live or killed stroke keeps its address, or the next read would add a second copy.
     _slotById.removeWhere(
       (id, slot) => restored.contains(id) && _strokes[slot] == null,
@@ -439,6 +440,7 @@ class CanvasDocument extends ChangeNotifier {
     _slotsByGroup.clear();
     _paintOrder.clear();
     _removed.clear();
+    edges.reset();
     unsavedInk.clear();
     scene.reset();
     _outsideIds.clear();
@@ -512,10 +514,12 @@ class CanvasDocument extends ChangeNotifier {
     outsideBoardCount.dispose();
     selectedObjectId.dispose();
     elevatedObjectId.dispose();
+    editingObjectId.dispose();
     snapGuides.dispose();
     snapToGrid.dispose();
     worldEdgeHit.dispose();
     unsavedInk.dispose();
+    edges.dispose();
     scene.dispose();
     super.dispose();
   }

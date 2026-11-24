@@ -9,6 +9,9 @@
 
 use sqlx::QueryBuilder;
 
+use super::canvas_edges::{
+    cascade_erase, cascades_of, edges_to_skip, hull_of, refresh_hulls, set_hull,
+};
 use super::canvas_move::move_canvas_object_query;
 use super::canvas_object_locks::locked_among;
 use super::canvas_ops_write::SubmitOpError;
@@ -33,6 +36,7 @@ pub(in crate::store) struct ExistingOp {
 }
 
 struct ObjectAuth {
+    kind: String,
     author_id: Option<UserId>,
     is_dead: bool,
     /// The exact moment this object was last soft-deleted, or `None` if
@@ -53,6 +57,7 @@ pub(in crate::store) async fn apply_remove(
     may_moderate: bool,
     object_ids: &[CanvasObjectId],
     now: i64,
+    cascaded: &mut Vec<CanvasObjectId>,
 ) -> Result<(&'static str, i64, Vec<CanvasObjectId>, Option<i64>), SubmitOpError> {
     let found_by_id = fetch_objects_for_op(tx, channel_id, object_ids).await?;
     let mut to_remove = Vec::with_capacity(object_ids.len());
@@ -77,6 +82,8 @@ pub(in crate::store) async fn apply_remove(
         .into_iter()
         .filter(|id| flipped.contains(id))
         .collect();
+    // The edges stay out of `touched`: a remove names what was erased, and clients cascade locally.
+    *cascaded = cascade_erase(tx, channel_id, &touched, now).await?;
 
     let affected = touched.len() as i64;
     Ok(("remove", affected, touched, None))
@@ -122,6 +129,11 @@ pub(in crate::store) async fn apply_move(
     if !locked_among(tx, &[object_id]).await?.is_empty() {
         return Err(SubmitOpError::Locked);
     }
+    if found.kind == "edge" {
+        return Err(SubmitOpError::BadProps(
+            "a connection follows its ends and cannot be moved",
+        ));
+    }
     if found.is_dead {
         return Ok(("move", 0, Vec::new(), None));
     }
@@ -129,6 +141,7 @@ pub(in crate::store) async fn apply_move(
     if !moved {
         return Ok(("move", 0, Vec::new(), None));
     }
+    refresh_hulls(tx, &[object_id]).await?;
     Ok(("move", 1, vec![object_id], None))
 }
 
@@ -227,10 +240,11 @@ pub(in crate::store) async fn apply_restore(
     }
 
     let candidates = restore_candidates(tx, channel_id, &target).await?;
+    let cascaded = cascades_of(tx, channel_id, target.seq).await?;
 
     // `restore_candidates`'s own `clear` query already proves each id dead.
-    let dead = if target.kind == "clear" {
-        candidates
+    let mut dead = if target.kind == "clear" {
+        candidates.clone()
     } else {
         let found_by_id = fetch_objects_for_op(tx, channel_id, &candidates).await?;
         let mut dead = Vec::with_capacity(candidates.len());
@@ -251,6 +265,21 @@ pub(in crate::store) async fn apply_restore(
         }
         dead
     };
+    // The edges that fell with the op were never the actor's to authorize: they fell with their end.
+    let direct: std::collections::HashSet<CanvasObjectId> = dead.iter().copied().collect();
+    let cascade_found = fetch_objects_for_op(tx, channel_id, &cascaded).await?;
+    for id in &cascaded {
+        let fell_here = cascade_found
+            .get(id)
+            .is_some_and(|found| found.deleted_at == Some(target.created_at));
+        if fell_here && !direct.contains(id) {
+            dead.push(*id);
+        }
+    }
+    // An edge comes back only with every attached end live; a dangling one stays erased.
+    let all: std::collections::HashSet<CanvasObjectId> = dead.iter().copied().collect();
+    let skip = edges_to_skip(tx, channel_id, target.created_at, &all).await?;
+    dead.retain(|id| !skip.contains(id));
 
     let live = sqlx::query_scalar!(
         r#"SELECT COUNT(*) AS "count!: i64" FROM canvas_objects
@@ -266,9 +295,41 @@ pub(in crate::store) async fn apply_restore(
     }
 
     let touched = undelete_batch(tx, channel_id, &dead).await?;
+    refresh_revived_hulls(tx, &touched).await?;
 
     let affected = touched.len() as i64;
     Ok(("restore", affected, touched, None))
+}
+
+/// Recomputes the hull of each revived edge, since its ends may have moved while it was erased.
+async fn refresh_revived_hulls(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    revived: &[CanvasObjectId],
+) -> Result<(), sqlx::Error> {
+    for chunk in revived.chunks(RESTORE_UNDELETE_BATCH) {
+        let mut builder = QueryBuilder::new(
+            "SELECT o.id AS id, p.props AS props FROM canvas_objects o
+             JOIN canvas_object_props p ON p.object_id = o.id
+             WHERE o.kind = 'edge' AND o.id IN (",
+        );
+        let mut separated = builder.separated(", ");
+        for id in chunk {
+            separated.push_bind(*id);
+        }
+        builder.push(")");
+        for row in builder.build().fetch_all(&mut **tx).await? {
+            use sqlx::Row;
+            let id: CanvasObjectId = row.try_get("id")?;
+            let props: String = row.try_get("props")?;
+            let Ok(props) = serde_json::from_str::<serde_json::Value>(&props) else {
+                continue;
+            };
+            if let Some(hull) = hull_of(tx, &props).await? {
+                set_hull(tx, id, hull).await?;
+            }
+        }
+    }
+    Ok(())
 }
 
 /// [`undelete_batch`]'s mirror for `remove`: soft-deletes every id in
@@ -394,7 +455,7 @@ async fn fetch_objects_for_op(
     let mut found = std::collections::HashMap::with_capacity(ids.len());
     for chunk in ids.chunks(RESTORE_UNDELETE_BATCH) {
         let mut builder = QueryBuilder::new(
-            "SELECT id, author_id, deleted_at FROM canvas_objects WHERE channel_id = ",
+            "SELECT id, kind, author_id, deleted_at FROM canvas_objects WHERE channel_id = ",
         );
         builder.push_bind(channel_id);
         builder.push(" AND id IN (");
@@ -407,11 +468,13 @@ async fn fetch_objects_for_op(
         for row in rows {
             use sqlx::Row;
             let id: CanvasObjectId = row.try_get("id")?;
+            let kind: String = row.try_get("kind")?;
             let author_id: Option<UserId> = row.try_get("author_id")?;
             let deleted_at: Option<i64> = row.try_get("deleted_at")?;
             found.insert(
                 id,
                 ObjectAuth {
+                    kind,
                     author_id,
                     is_dead: deleted_at.is_some(),
                     deleted_at,
@@ -428,7 +491,7 @@ async fn fetch_object_for_op(
     id: CanvasObjectId,
 ) -> Result<Option<ObjectAuth>, sqlx::Error> {
     let row = sqlx::query!(
-        r#"SELECT author_id AS "author_id: UserId", deleted_at AS "deleted_at: i64"
+        r#"SELECT kind AS "kind!", author_id AS "author_id: UserId", deleted_at AS "deleted_at: i64"
            FROM canvas_objects WHERE id = ? AND channel_id = ?"#,
         id,
         channel_id
@@ -436,6 +499,7 @@ async fn fetch_object_for_op(
     .fetch_optional(&mut **tx)
     .await?;
     Ok(row.map(|r| ObjectAuth {
+        kind: r.kind,
         author_id: r.author_id,
         is_dead: r.deleted_at.is_some(),
         deleted_at: r.deleted_at,

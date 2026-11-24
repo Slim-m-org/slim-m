@@ -3,6 +3,7 @@
 //! A clear that finds nothing unlocked takes the locked ones too, so a second
 //! clear (decision 0085) is the way to empty a board with pinned items.
 
+use super::canvas_edges::cascade_after_clear;
 use super::canvas_ops_write::ClearScope;
 use crate::ids::{CanvasObjectId, ChannelId};
 
@@ -10,6 +11,8 @@ use crate::ids::{CanvasObjectId, ChannelId};
 pub(in crate::store) struct ClearOutcome {
     pub(in crate::store) cleared: Vec<CanvasObjectId>,
     pub(in crate::store) spared: Vec<CanvasObjectId>,
+    /// Newer edges that lost an end to the sweep and fell with it; an undo revives them.
+    pub(in crate::store) cascaded: Vec<CanvasObjectId>,
 }
 
 pub(in crate::store) async fn apply_clear(
@@ -22,13 +25,21 @@ pub(in crate::store) async fn apply_clear(
     let cleared = clear_matching(tx, channel_id, before_seq, scope, now, true).await?;
     if cleared.is_empty() {
         let cleared = clear_matching(tx, channel_id, before_seq, scope, now, false).await?;
+        let cascaded = cascade_after_clear(tx, channel_id, now).await?;
         return Ok(ClearOutcome {
             cleared,
             spared: Vec::new(),
+            cascaded,
         });
     }
-    let spared = locked_matching(tx, channel_id, before_seq, scope).await?;
-    Ok(ClearOutcome { cleared, spared })
+    let cascaded = cascade_after_clear(tx, channel_id, now).await?;
+    let mut spared = locked_matching(tx, channel_id, before_seq, scope).await?;
+    spared.retain(|id| !cascaded.contains(id));
+    Ok(ClearOutcome {
+        cleared,
+        spared,
+        cascaded,
+    })
 }
 
 async fn clear_matching(

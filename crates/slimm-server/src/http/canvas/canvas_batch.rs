@@ -78,6 +78,12 @@ pub(in crate::http) async fn place_batch(
                 index,
             ));
         }
+        if place.is_edge() {
+            return Err(indexed(
+                ApiError::BadRequest("a connection is placed on its own, not in a batch"),
+                index,
+            ));
+        }
         ids.push(id);
         validated.push(place);
     }

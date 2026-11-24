@@ -18,10 +18,11 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../ids.dart';
 import 'canvas_commit_queue.dart';
-import 'canvas_note_sizing.dart';
+import '../widgets/canvas_note_sizing.dart';
 import 'canvas_object_op_chain.dart';
 import '../providers/canvas_object_inputs.dart';
 import '../providers/canvas_text_props.dart';
+import '../widgets/canvas_note_blocks.dart' show toggleNoteTask;
 import '../widgets/canvas_text_content.dart';
 import 'canvas_retry.dart';
 
@@ -135,6 +136,9 @@ class CanvasOpsController {
   bool _disposed = false;
   bool _historyBusy = false;
 
+  /// How the board lays a note's text out, so a note grows to the room its rendered Markdown takes.
+  NoteSpanBuilder? noteSpans;
+
   Offset? _lastErase;
 
   /// Stops retries and any batch still walking, once the pane is gone.
@@ -218,6 +222,10 @@ class CanvasOpsController {
   }) async {
     bool pinned(String id) => !manageCanvas && isLocked(id);
     if (pinned(objectId)) return;
+    if (document.edges.knows(objectId)) {
+      await eraseEdge(objectId);
+      return;
+    }
     final mark = document.groupOf(objectId);
     final members = mark.length > 1 ? mark : [objectId];
     final immediate = <String>[];
@@ -289,6 +297,11 @@ class CanvasOpsController {
       objectId,
       from,
     ),
+    _EdgeEditEntry(:final objectId, :final inverse) => _undoEdgeEdit(
+      objectId,
+      inverse,
+    ),
+    _StyleEntry(:final objectId, :final from) => _undoStyle(objectId, from),
     _NoUndo() => Future.value(const _NoRedo()),
   };
 
@@ -330,6 +343,11 @@ class CanvasOpsController {
     ),
     _RedoEdit(:final objectId, :final toText) => _redoEdit(objectId, toText),
     _RedoTextEdit(:final objectId, :final to) => _redoTextEdit(objectId, to),
+    _RedoEdgeEdit(:final objectId, :final change) => _redoEdgeEdit(
+      objectId,
+      change,
+    ),
+    _RedoStyle(:final objectId, :final to) => _redoStyle(objectId, to),
     _NoRedo() || _Skipped() => Future.value(const _NoUndo()),
   };
 

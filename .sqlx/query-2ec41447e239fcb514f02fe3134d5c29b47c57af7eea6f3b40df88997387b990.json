@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT object_id AS \"object_id!: CanvasObjectId\" FROM canvas_op_cascades\n           WHERE channel_id = ? AND seq = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "object_id!: CanvasObjectId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_op_cascades",
+            "name": "object_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2ec41447e239fcb514f02fe3134d5c29b47c57af7eea6f3b40df88997387b990"
+}

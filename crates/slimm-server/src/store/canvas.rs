@@ -40,6 +40,7 @@ pub(super) mod canvas_audit;
 pub(super) mod canvas_batch;
 use self::canvas_batch::{ensure_room, existing_placement, insert_object};
 pub(super) mod canvas_clear;
+pub(super) mod canvas_edges;
 pub(super) mod canvas_edit;
 pub(super) mod canvas_geometry;
 pub(super) mod canvas_media_slots;
@@ -124,7 +125,25 @@ pub enum PlaceError {
     AttachmentNotFound,
     /// An `image` object named an attachment that is not a picture, such as a PDF or a video.
     NotAPicture,
+    /// An `edge` object is attached to an object that is not live in this channel.
+    EdgeEndMissing,
+    /// An `edge` object is attached to a stroke, an edge or a media tile.
+    EdgeEndNotAttachable,
+    /// An `edge` object would be the sixty-fifth on one object.
+    EdgeLimit,
     Internal(anyhow::Error),
+}
+
+impl From<canvas_edges::EdgeError> for PlaceError {
+    fn from(err: canvas_edges::EdgeError) -> Self {
+        use canvas_edges::EdgeError;
+        match err {
+            EdgeError::EndMissing => PlaceError::EdgeEndMissing,
+            EdgeError::EndNotAttachable => PlaceError::EdgeEndNotAttachable,
+            EdgeError::TooManyEdges => PlaceError::EdgeLimit,
+            EdgeError::Db(err) => err.into(),
+        }
+    }
 }
 
 impl From<sqlx::Error> for PlaceError {
@@ -186,7 +205,11 @@ impl Store {
             return Ok(existing);
         }
         ensure_room(&mut tx, channel_id, 1).await?;
-        let placement = insert_object(&mut tx, channel_id, author_id, id, &request).await?;
+        let placement = if request.kind == "edge" {
+            place_edge(&mut tx, channel_id, author_id, id, &request).await?
+        } else {
+            insert_object(&mut tx, channel_id, author_id, id, &request).await?
+        };
         tx.commit().await?;
         Ok(placement)
     }
@@ -217,6 +240,28 @@ impl Store {
         tx.commit().await?;
         Ok((latest_seq, objects))
     }
+}
+
+/// Places an `edge`: its ends are resolved first and the stored box is the hull the server derives, whatever the client sent.
+async fn place_edge(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    channel_id: ChannelId,
+    author_id: UserId,
+    id: CanvasObjectId,
+    request: &PlaceRequest<'_>,
+) -> Result<Placement, PlaceError> {
+    let props: serde_json::Value = serde_json::from_str(request.props)
+        .map_err(|_| PlaceError::Internal(anyhow::anyhow!("edge props are not JSON")))?;
+    let resolved = canvas_edges::resolve_edge(tx, channel_id, id, &props).await?;
+    let with_hull = PlaceRequest {
+        kind: request.kind,
+        bounds: resolved.hull,
+        props: request.props,
+        attachment: None,
+    };
+    let placement = insert_object(tx, channel_id, author_id, id, &with_hull).await?;
+    canvas_edges::write_ends(tx, id, &resolved).await?;
+    Ok(placement)
 }
 
 /// The R-tree stores 32-bit floats, which round a coordinate this close to zero down to zero; the exact test after it decides.

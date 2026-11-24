@@ -1,0 +1,37 @@
+[
+  {
+    "name": "two boxes side by side",
+    "ends": [{"box": [0, 0, 100, 50]}, {"box": [300, 100, 80, 40]}],
+    "hull": [0, 0, 380, 140]
+  },
+  {
+    "name": "one box and one free point",
+    "ends": [{"box": [10, 20, 100, 60]}, {"point": [400, -50]}],
+    "hull": [10, -50, 390, 130]
+  },
+  {
+    "name": "free point inside the box stays the box",
+    "ends": [{"box": [0, 0, 100, 100]}, {"point": [50, 50]}],
+    "hull": [0, 0, 100, 100]
+  },
+  {
+    "name": "overlapping boxes",
+    "ends": [{"box": [0, 0, 100, 100]}, {"box": [50, 50, 100, 100]}],
+    "hull": [0, 0, 150, 150]
+  },
+  {
+    "name": "negative coordinates",
+    "ends": [{"box": [-500, -400, 20, 20]}, {"box": [-100, -50, 10, 10]}],
+    "hull": [-500, -400, 410, 360]
+  },
+  {
+    "name": "wider than the object extent ceiling is not clamped",
+    "ends": [{"box": [0, 0, 10, 10]}, {"box": [20000, 30000, 10, 10]}],
+    "hull": [0, 0, 20010, 30010]
+  },
+  {
+    "name": "fractional boxes",
+    "ends": [{"box": [0.5, 0.25, 10.5, 4.5]}, {"point": [20.75, 9.5]}],
+    "hull": [0.5, 0.25, 20.25, 9.25]
+  }
+]

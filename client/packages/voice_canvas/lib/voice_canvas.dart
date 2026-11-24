@@ -13,24 +13,29 @@ export 'src/canvas_board_clip.dart';
 export 'src/canvas_camera_wheel.dart';
 export 'src/canvas_cursors.dart';
 export 'src/canvas_document.dart';
+export 'src/canvas_edge_hits.dart';
+export 'src/canvas_edge_painter.dart';
+export 'src/canvas_edge_route.dart';
+export 'src/canvas_edge_spec.dart';
+export 'src/canvas_edges.dart';
 export 'src/canvas_external_pointers.dart';
 export 'src/canvas_grid_layer.dart';
 export 'src/canvas_ink.dart';
 export 'src/canvas_hit_test.dart';
+export 'src/canvas_note_layout.dart';
 export 'src/canvas_object_previews.dart';
 export 'src/canvas_painters.dart'
     show
         CursorPainter,
         DraftStroke,
-        NoteSpanBuilder,
         RemoteDraftPainter,
         StrokePainter,
         noteFontSizeFor,
         noteFontSizeForWidth,
+        noteMaxLines,
         noteReferenceFontSize,
         noteReferenceHeight,
-        noteReferenceWidth,
-        noteWorldFontSize;
+        noteReferenceWidth;
 export 'src/canvas_personal_layout.dart';
 export 'src/canvas_presence_layout.dart';
 export 'src/canvas_presence_tile_overrides.dart';

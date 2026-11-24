@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_dock_group.dart';
 import 'canvas_overflow_menu.dart';
 import '../providers/canvas_pen_style.dart';
 import 'canvas_tool_buttons.dart';
@@ -226,60 +227,66 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
     if (part == CanvasToolsRowPart.toolsOnly) {
       return tools ? _toolStrip(tokens) : const SizedBox.shrink();
     }
+    final edit = [
+      if (!widget.readOnly) ...[
+        AppIconButton(
+          icon: AppIcons.undo,
+          semanticLabel: 'Undo',
+          tooltip: widget.canUndo ? 'Undo' : 'Nothing to undo yet',
+          onPressed: widget.canUndo ? widget.onUndo : null,
+        ),
+        AppIconButton(
+          icon: AppIcons.redo,
+          semanticLabel: 'Redo',
+          tooltip: widget.canRedo ? 'Redo' : 'Nothing to redo yet',
+          onPressed: widget.canRedo ? widget.onRedo : null,
+        ),
+      ],
+    ];
+    final overflow = _overflowMenu();
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (tools) ...[
           Flexible(child: _toolStrip(tokens)),
-          const SizedBox(width: AppSpacing.s8),
+          const CanvasDockGroupDivider(),
         ],
-        if (!widget.readOnly) ...[
-          AppIconButton(
-            icon: AppIcons.undo,
-            semanticLabel: 'Undo',
-            tooltip: widget.canUndo ? 'Undo' : 'Nothing to undo yet',
-            onPressed: widget.canUndo ? widget.onUndo : null,
-          ),
-          const SizedBox(width: AppSpacing.s4),
-          AppIconButton(
-            icon: AppIcons.redo,
-            semanticLabel: 'Redo',
-            tooltip: widget.canRedo ? 'Redo' : 'Nothing to redo yet',
-            onPressed: widget.canRedo ? widget.onRedo : null,
-          ),
-          const SizedBox(width: AppSpacing.s4),
-        ],
-        CanvasOverflowMenu(
-          onAddImageFile: widget.onAddImageFile,
-          canDraw: widget.canDraw,
-          canManage: widget.canManage,
-          onClear: widget.onClear,
-          scopedClear: widget.scopedClear,
-          selection: widget.selection,
-          onBringToFront: widget.onBringToFront,
-          onSendToBack: widget.onSendToBack,
-          onDeleteSelected: widget.onDeleteSelected,
-          activityLogOpen: widget.activityLogOpen,
-          onToggleActivityLog: widget.onToggleActivityLog,
-          tool: widget.tool,
-          shapeKind: widget.shapeKind,
-          onShapeKindChanged: widget.onShapeKindChanged,
-          hasSelfBubble: widget.hasSelfBubble,
-          selfBubbleHidden: widget.selfBubbleHidden,
-          onToggleSelfBubbleHidden: widget.onToggleSelfBubbleHidden,
-          hiddenTiles: widget.hiddenTiles,
-          onShowTile: widget.onShowTile,
-          onToggleFullscreen: widget.onToggleFullscreen,
-          fullscreen: widget.fullscreen,
-          opensBelow: widget.overflowOpensBelow,
-          chatChannelId: widget.chatChannelId,
-          toolsHidden: widget.toolsHidden,
-          onToggleToolsHidden: widget.onToggleToolsHidden,
-          readOnly: widget.readOnly,
-        ),
+        ...canvasDockGroups(context, [
+          edit,
+          [overflow],
+        ]),
       ],
     );
   }
+
+  Widget _overflowMenu() => CanvasOverflowMenu(
+    onAddImageFile: widget.onAddImageFile,
+    canDraw: widget.canDraw,
+    canManage: widget.canManage,
+    onClear: widget.onClear,
+    scopedClear: widget.scopedClear,
+    selection: widget.selection,
+    onBringToFront: widget.onBringToFront,
+    onSendToBack: widget.onSendToBack,
+    onDeleteSelected: widget.onDeleteSelected,
+    activityLogOpen: widget.activityLogOpen,
+    onToggleActivityLog: widget.onToggleActivityLog,
+    tool: widget.tool,
+    shapeKind: widget.shapeKind,
+    onShapeKindChanged: widget.onShapeKindChanged,
+    hasSelfBubble: widget.hasSelfBubble,
+    selfBubbleHidden: widget.selfBubbleHidden,
+    onToggleSelfBubbleHidden: widget.onToggleSelfBubbleHidden,
+    hiddenTiles: widget.hiddenTiles,
+    onShowTile: widget.onShowTile,
+    onToggleFullscreen: widget.onToggleFullscreen,
+    fullscreen: widget.fullscreen,
+    opensBelow: widget.overflowOpensBelow,
+    chatChannelId: widget.chatChannelId,
+    toolsHidden: widget.toolsHidden,
+    onToggleToolsHidden: widget.onToggleToolsHidden,
+    readOnly: widget.readOnly,
+  );
 
   Widget _toolStrip(AppTokens tokens) => Stack(
     alignment: Alignment.center,

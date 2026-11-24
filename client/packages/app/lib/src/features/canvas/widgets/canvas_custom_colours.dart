@@ -18,14 +18,16 @@ import '../providers/canvas_recent_colours.dart';
 List<ControlSwatch> canvasPenColourSwatches({
   required String selectedKey,
   required ValueChanged<String> onChoose,
+  Set<String> without = const {},
 }) => [
   for (final choice in canvasPenColors)
-    ControlSwatch(
-      label: choice.label,
-      color: choice.color,
-      selected: selectedKey == choice.key,
-      onSelected: () => onChoose(choice.key),
-    ),
+    if (!without.contains(choice.key))
+      ControlSwatch(
+        label: choice.label,
+        color: choice.color,
+        selected: selectedKey == choice.key,
+        onSelected: () => onChoose(choice.key),
+      ),
 ];
 
 /// [defaults] with the newest custom colours in place of its last entries,

@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) AS \"count!: i64\" FROM canvas_edge_ends e\n           JOIN canvas_objects o ON o.id = e.edge_id\n           WHERE e.object_id = ? AND e.edge_id != ? AND o.deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "count!: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "45681ba4b43bd0de7873a8c7053db10332e9715fa68488bf02f344bac6be242e"
+}

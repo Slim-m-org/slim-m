@@ -41,7 +41,11 @@ class EmojiPickerButton extends StatefulWidget {
     this.triggerBuilder,
     this.focusNode,
     this.alignEnd = false,
+    this.tapGroupId,
   });
+
+  /// The tap group of the field this picker types into, so a tap on the panel is not an outside tap for it.
+  final Object? tapGroupId;
 
   /// Opens the panel with its right edge on the button's, for a button at a field's end.
   final bool alignEnd;
@@ -75,6 +79,7 @@ class _EmojiPickerButtonState extends State<EmojiPickerButton> {
       key: _picker,
       alignEnd: widget.alignEnd,
       onSelect: widget.onSelect,
+      tapGroupId: widget.tapGroupId,
       child: switch (widget.triggerBuilder) {
         final build? => build(context, _toggle),
         null => AppIconButton(
@@ -102,9 +107,11 @@ class EmojiPickerAnchor extends StatefulWidget {
     required this.onSelect,
     required this.child,
     this.alignEnd = false,
+    this.tapGroupId,
   });
 
   final bool alignEnd;
+  final Object? tapGroupId;
   final ValueChanged<String> onSelect;
   final Widget child;
 
@@ -131,7 +138,13 @@ class EmojiPickerAnchorState extends State<EmojiPickerAnchor> {
   /// Opens at [at], in the overlay's coordinates, or under [EmojiPickerAnchor.child].
   void open({Offset? at}) {
     if (LayoutClass.of(context) == LayoutClass.compact) {
-      unawaited(showEmojiPickerSheet(context, onSelect: widget.onSelect));
+      unawaited(
+        showEmojiPickerSheet(
+          context,
+          onSelect: widget.onSelect,
+          tapGroupId: widget.tapGroupId,
+        ),
+      );
       return;
     }
     final child = at == null ? _childEdges() : null;
@@ -183,6 +196,10 @@ class EmojiPickerAnchorState extends State<EmojiPickerAnchor> {
     widget.onSelect(emoji);
   }
 
+  Widget _inGroup(Widget panel) => widget.tapGroupId == null
+      ? panel
+      : TapRegion(groupId: widget.tapGroupId, child: panel);
+
   @override
   Widget build(BuildContext context) {
     return OverlayPortal(
@@ -201,9 +218,11 @@ class EmojiPickerAnchorState extends State<EmojiPickerAnchor> {
             controller: _controller,
             child: TapRegion(
               onTapOutside: (_) => _setOpen(false),
-              child: EmojiPickerPanel(
-                onSelect: _select,
-                onClose: () => _setOpen(false),
+              child: _inGroup(
+                EmojiPickerPanel(
+                  onSelect: _select,
+                  onClose: () => _setOpen(false),
+                ),
               ),
             ),
           ),

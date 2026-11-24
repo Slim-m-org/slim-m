@@ -3,7 +3,7 @@
 /// simply fits, rather than a fixed box a long note quietly clips inside.
 ///
 /// The font metrics here (1.3 line height, 8px padding, `AppFonts.sans`; the size comes from the note)
-/// must match `paintNote`'s own literals in `canvas_object_painter.dart` -
+/// must match `paintNote`'s own constants in `canvas_note_layout.dart` -
 /// this is a prediction of what that painter will do, not a second opinion
 /// about it, and the two would silently disagree if either changed alone.
 library;
@@ -11,10 +11,16 @@ library;
 import 'package:flutter/painting.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart'
-    show maxObjectExtent, noteWorldFontSize;
+    show
+        NoteSpanBuilder,
+        layoutNoteText,
+        maxObjectExtent,
+        noteLineHeight,
+        noteWorldFontSize,
+        noteWorldPad;
 
-const double _noteLineHeight = 1.3;
-const double _notePad = 8;
+const double _noteLineHeight = noteLineHeight;
+const double _notePad = noteWorldPad;
 
 /// One line's own height, and a fudge factor past a whole extra one: the
 /// painter's `noteMaxLines` (`canvas_object_painter.dart`) derives its own
@@ -25,6 +31,8 @@ const double _notePad = 8;
 /// function before this margin was added, not assumed.
 double _lineBudgetMargin(double fontSize) => fontSize * _noteLineHeight * 1.5;
 
+/// [spans] lays the text out as the board will draw it, so headings and task boxes get the room they take.
+///
 /// A note's box: fixed at [width] - a comfortable reading measure, not
 /// something a long note should widen past - with [height] grown to fit
 /// [text] wrapped at that width, never below [minHeight] so a short note
@@ -39,8 +47,9 @@ double _lineBudgetMargin(double fontSize) => fontSize * _noteLineHeight * 1.5;
   double minHeight = 140,
   Size? fit,
   double fontSize = noteWorldFontSize,
+  NoteSpanBuilder? spans,
 }) {
-  var box = _boxAt(text, width, minHeight, fontSize);
+  var box = _boxAt(text, width, minHeight, fontSize, spans);
   if (fit == null) return box;
   final widest = fit.width;
   while (box.height > fit.height && box.width < widest) {
@@ -49,6 +58,7 @@ double _lineBudgetMargin(double fontSize) => fontSize * _noteLineHeight * 1.5;
       (box.width * _widenStep).clamp(0.0, widest).toDouble(),
       minHeight,
       fontSize,
+      spans,
     );
   }
   return box;
@@ -61,18 +71,18 @@ const double _widenStep = 1.25;
   double width,
   double minHeight,
   double fontSize,
+  NoteSpanBuilder? spans,
 ) {
-  final painter = TextPainter(
-    text: TextSpan(
-      text: text,
-      style: TextStyle(
-        fontFamily: AppFonts.sans,
-        fontSize: fontSize,
-        height: _noteLineHeight,
-      ),
-    ),
-    textDirection: TextDirection.ltr,
-  )..layout(maxWidth: width - _notePad * 2);
+  final base = TextStyle(
+    fontFamily: AppFonts.sans,
+    fontSize: fontSize,
+    height: _noteLineHeight,
+  );
+  final painter = layoutNoteText(
+    spans?.call(text, base) ?? TextSpan(text: text, style: base),
+    fontSize: fontSize,
+    width: width - _notePad * 2,
+  );
   final textHeight = painter.height;
   painter.dispose();
   final needed = textHeight + _notePad * 2 + _lineBudgetMargin(fontSize);

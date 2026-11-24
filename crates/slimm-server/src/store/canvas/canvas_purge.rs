@@ -5,6 +5,7 @@
 use sqlx::QueryBuilder;
 
 use super::super::{Store, now_ms};
+use super::canvas_edges::dead_edges_on;
 use super::canvas_ops_sweep::raise_swept_watermark;
 use super::{CanvasObject, fetch_object};
 use crate::ids::{CanvasObjectId, ChannelId};
@@ -54,8 +55,26 @@ async fn delete_where_in(
     Ok(())
 }
 
-/// Hard-deletes erased `ids` of one channel inside the caller's write transaction.
+/// Hard-deletes erased `ids` of one channel inside the caller's write transaction, and with them
+/// the dead edges attached to those objects, which would otherwise name an object that is gone.
 pub(super) async fn hard_delete(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    channel_id: ChannelId,
+    ids: &[CanvasObjectId],
+) -> Result<(), sqlx::Error> {
+    let mut all = ids.to_vec();
+    for edge in dead_edges_on(tx, ids).await? {
+        if !all.contains(&edge) {
+            all.push(edge);
+        }
+    }
+    for chunk in all.chunks(PURGE_BATCH) {
+        hard_delete_chunk(tx, channel_id, chunk).await?;
+    }
+    Ok(())
+}
+
+async fn hard_delete_chunk(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     ids: &[CanvasObjectId],

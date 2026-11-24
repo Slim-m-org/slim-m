@@ -37,7 +37,7 @@ use crate::store::{
 };
 
 /// The object kinds a scoped clear may name; the same set `place` accepts.
-const CLEAR_KINDS: [&str; 7] = super::canvas_write::KINDS;
+const CLEAR_KINDS: [&str; 8] = super::canvas_write::KINDS;
 
 /// Widest `z_index` a reorder may carry: a client adds one for "bring to front", so it stays far inside the 2^53 integers every client holds exactly.
 const Z_INDEX_LIMIT: i64 = 1 << 52;
@@ -141,8 +141,11 @@ pub(in crate::http) async fn submit_op(
         }
         Err(SubmitOpError::NotEditable) => {
             return Err(ApiError::BadRequest(
-                "only a note or a text box can be edited",
+                "only a note, a text box or a connection can be edited",
             ));
+        }
+        Err(SubmitOpError::EdgeLimit) => {
+            return Err(ApiError::Conflict("that object has too many connections"));
         }
         Err(SubmitOpError::BadProps(reason)) => return Err(ApiError::BadRequest(reason)),
         Err(SubmitOpError::Internal(err)) => return Err(err.into()),

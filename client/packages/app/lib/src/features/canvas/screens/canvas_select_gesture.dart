@@ -4,6 +4,7 @@
 /// for editing on a double click or a second tap.
 library;
 
+import 'dart:async';
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:clock/clock.dart';
@@ -16,7 +17,9 @@ import '../../../permissions.dart';
 import '../../../providers/effective_me.dart';
 import '../../channels/providers/channel_permissions.dart';
 import 'canvas_drag_pan.dart';
+import 'canvas_edge_gesture.dart';
 import 'canvas_engine.dart';
+import 'canvas_note_taps.dart';
 import 'canvas_ops_controller.dart';
 
 /// How close a tap must land to someone's cursor to follow them, in screen pixels.
@@ -36,7 +39,28 @@ class CanvasSelectGesture {
     required this.spectating,
     required this.editNote,
     required this.changed,
-  });
+    required CanvasTool Function() tool,
+    this.noteSpans,
+    this.mayRestyle,
+  }) : _tool = tool {
+    edges = CanvasEdgeGesture(
+      engine: engine,
+      ref: ref,
+      channelId: channelId,
+      tool: tool,
+      touch: touch,
+      manageCanvas: () => ref
+          .read(myChannelPermissionsProvider(channelId()))
+          .hasPermission(Perm.manageCanvas),
+    );
+  }
+
+  final CanvasTool Function() _tool;
+
+  /// Connections: the side dots, end handles and the Connect tool's drag.
+  late final CanvasEdgeGesture edges;
+
+  void dispose() => edges.dispose();
 
   final CanvasEngine engine;
   final WidgetRef ref;
@@ -56,6 +80,12 @@ class CanvasSelectGesture {
   /// Rebuilds the pane.
   final VoidCallback changed;
 
+  /// How the board lays a note's text out, so a tap can find the box or link it hit.
+  final NoteSpanBuilder? Function()? noteSpans;
+
+  /// Whether this person may change the note, which a task box needs.
+  final bool Function(String id)? mayRestyle;
+
   final _dragPan = CanvasDragPan();
 
   /// The last mouse click on a note, so a second one soon after is a double click.
@@ -71,7 +101,12 @@ class CanvasSelectGesture {
   /// a mouse, or a single tap with a finger or a pen, on the selected note.
   void tap(Offset world, PointerDeviceKind kind) {
     final id = _document.selectedObjectId.value;
+    if (id != null && _document.edges.isAlive(id)) {
+      edges.tap(world, kind, _selectedBeforeDown);
+      return;
+    }
     if (id == null && _followCursorAt(world)) return;
+    if (_noteContentTapped(world)) return;
     final bounds = id == null ? null : _document.objectBounds(id);
     final onNote =
         id != null &&
@@ -98,6 +133,41 @@ class CanvasSelectGesture {
       _lastNoteClick = null;
     }
     editNote(id);
+  }
+
+  /// A task box or a link in a note's text was hit; true when it took the tap.
+  bool _noteContentTapped(Offset world) {
+    final spans = noteSpans?.call();
+    if (spans == null) return false;
+    final tapped = noteTapAt(
+      _document,
+      world,
+      spans,
+      canToggle: mayToggle(world),
+    );
+    switch (tapped) {
+      case NoteCheckTap(:final objectId, :final line):
+        unawaited(_ops.toggleTask(objectId, line).then((_) => changed()));
+      case NoteLinkTap(:final url):
+        // A tap that only selects the note must not leave the app.
+        if (hitTestTopmost(_document, world) != _selectedBeforeDown) {
+          return false;
+        }
+        openNoteLink(ref.context, ref, url);
+      case null:
+        return false;
+    }
+    _lastNoteClick = null;
+    return true;
+  }
+
+  /// Task boxes answer only a person who may edit the note under the tap, and never a locked one.
+  bool mayToggle(Offset world) {
+    final id = hitTestTopmost(_document, world);
+    return id != null &&
+        !_ops.isLocked(id) &&
+        !spectating() &&
+        (mayRestyle?.call(id) ?? false);
   }
 
   /// A tap on someone's cursor follows them instead of selecting under it.
@@ -133,6 +203,12 @@ class CanvasSelectGesture {
     // A spectator moves nothing but the camera.
     if (spectating()) return _dragPan.begin(world);
     _selectedBeforeDown = _document.selectedObjectId.value;
+    if (edges.start(world)) {
+      // A press that only selected a connection is still a pan if it moves.
+      if (!edges.active) _dragPan.begin(world);
+      return;
+    }
+    if (_tool() == CanvasTool.connect) return _dragPan.begin(world);
     final me = ref.read(meProvider).valueOrNull;
     // A safe read, not a cold one: build() already watches this same family instance every frame.
     final manageCanvas = ref
@@ -151,6 +227,7 @@ class CanvasSelectGesture {
   /// Images keep their aspect and notes or shapes resize freely; Shift flips either, Alt moves freely, touch always snaps.
   /// Read on every drag point so releasing a key mid-drag takes effect at once.
   void drag(Offset world) {
+    if (edges.active) return edges.drag(world);
     if (_dragPan.active) {
       _dragPan.drag(world, _document);
       // A stroke is selected by a tap; a drag across it is a pan.
@@ -178,6 +255,11 @@ class CanvasSelectGesture {
 
   Future<void> cancel() async {
     _dragPan.end();
+    if (edges.active) {
+      edges.cancel();
+      changed();
+      return;
+    }
     final restored = _ops.cancelSelect();
     engine.objectPreviewRelay.endLocal(restored?.box);
     changed();
@@ -185,6 +267,11 @@ class CanvasSelectGesture {
 
   Future<void> end() async {
     _dragPan.end();
+    if (edges.active) {
+      await edges.end();
+      changed();
+      return;
+    }
     engine.objectPreviewRelay.endLocal(_ops.activeMove?.box);
     await _ops.endSelect();
     changed();

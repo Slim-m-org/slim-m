@@ -391,6 +391,14 @@ class Client(PageInputMixin):
                              "nativeVirtualKeyCode": 27})
         time.sleep(settle)
 
+    def press_ctrl_enter(self, settle=1.0):
+        """Ctrl+Enter, which commits a note typed in place."""
+        for kind in ("keyDown", "keyUp"):
+            self.send(_KEY, {"type": kind, "key": "Enter", "code": "Enter",
+                             "modifiers": 2, "windowsVirtualKeyCode": 13,
+                             "nativeVirtualKeyCode": 13})
+        time.sleep(settle)
+
     def hover(self, x, y, settle=1.2):
         self.send(_MOUSE,
                   {"type": "mouseMoved", "x": x, "y": y})

@@ -20,10 +20,14 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/context_menu_focus.dart';
+import '../providers/canvas_edge_style.dart';
+import 'canvas_edge_menu.dart';
+import 'canvas_edge_gesture.dart' show canvasEdgeAttachable;
 import 'canvas_object_locks.dart';
 import 'canvas_tool_wheel_layer.dart';
 import '../../../widgets/message_context_menu_layout.dart';
@@ -61,6 +65,7 @@ class CanvasObjectContextMenu extends StatefulWidget {
     required this.onRecenter,
     required this.onToolChanged,
     this.onEditNote,
+    this.onStyleNote,
     this.canDraw = true,
     this.readOnly = false,
     this.wheel,
@@ -108,9 +113,11 @@ class CanvasObjectContextMenu extends StatefulWidget {
   /// A right-click on bare canvas under a drawing tool returns to Move through this.
   final ValueChanged<CanvasTool> onToolChanged;
 
-  /// The object menu's "Edit note" item, shown over a note only: the touch
-  /// and keyboard-free route to the editor a double click opens.
+  /// The object menu's "Edit note" item, shown over a note only: the touch and keyboard-free route to the editor a double click opens.
   final ValueChanged<String>? onEditNote;
+
+  /// The object menu's "Style" item over a note: puts the keyboard on its style bar.
+  final ValueChanged<String>? onStyleNote;
 
   @override
   State<CanvasObjectContextMenu> createState() =>
@@ -122,10 +129,7 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
   Offset _anchor = Offset.zero;
   String? _target;
 
-  /// Non-null exactly while the open overlay is the empty-space menu rather
-  /// than the object one - the world point a paste or a note lands at once
-  /// its item is picked. `_target` and this are never both non-null: every
-  /// path that sets one clears the other first.
+  /// Non-null exactly while the empty-space menu is open: where a note lands once picked. Never set with `_target`.
   Offset? _emptySpaceWorld;
 
   @override
@@ -195,8 +199,7 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
         selfId: widget.selfId,
       );
 
-  /// The topmost object, the same one `beginSelect` would pick, so a
-  /// right-click resolves to the target a left-click select would have.
+  /// The topmost object, the one `beginSelect` would pick.
   String? _hitTest(Offset world, {bool touch = false}) =>
       hitTestTopmost(widget.document, world, touch: touch, allowed: _allowed);
 
@@ -208,14 +211,11 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     );
   }
 
-  /// Hit-test decides which menu this click opens, never both: an object
-  /// under the cursor always wins, and only a genuine miss - the same
-  /// "nothing here" result that used to end this gesture with no menu at
-  /// all - opens the empty-space one instead.
+  /// An object under the cursor opens its menu; only a miss opens the empty-space one.
   void _onSecondaryTapUp(TapUpDetails details) {
     if (widget.wheel?.suppressSecondaryTap ?? false) return;
     final world = _toWorld(details.localPosition);
-    final id = _hitTest(world);
+    final id = _hitTest(world) ?? edgeUnder(widget.document, world);
     if (id != null) {
       _openFor(id, pointerGlobal: details.globalPosition);
     } else if (widget.tool != CanvasTool.pan) {
@@ -230,7 +230,9 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
   void _onLongPress(Offset local, Offset global) {
     if (widget.tool != CanvasTool.pan) return;
     final world = _toWorld(local);
-    final id = _hitTest(world, touch: true);
+    final id =
+        _hitTest(world, touch: true) ??
+        edgeUnder(widget.document, world, touch: true);
     if (id != null) {
       _openFor(id, pointerGlobal: global);
     } else {
@@ -251,10 +253,7 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     _controller.show();
   }
 
-  /// The empty-space menu always has a real pointer position behind it -
-  /// unlike [_openFor], nothing reaches this without a right-click already
-  /// in hand - so the anchor is a plain global-to-local conversion, the same
-  /// one [_anchorOffset]'s own pointer branch performs for the object menu.
+  /// Always has a pointer behind it, so the anchor is a plain global-to-local conversion.
   void _openEmptySpace(Offset world, Offset pointerGlobal) {
     final overlayObject = Overlay.of(context).context.findRenderObject();
     final overlay = overlayObject is RenderBox ? overlayObject : null;
@@ -266,13 +265,7 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     _controller.show();
   }
 
-  /// Overlay-local, matching what [MessageMenuLayout] expects: a real
-  /// pointer position converts global-to-local against the overlay itself,
-  /// the same conversion `ContextMenuRegion` uses for a right-click; a
-  /// keyboard-driven request with no pointer instead anchors at the
-  /// selected object's own on-screen centre, converted through this
-  /// widget's own box rather than a fixed corner, since unlike a message
-  /// row this widget always knows exactly which object it is opening for.
+  /// Overlay-local, as [MessageMenuLayout] expects: the pointer, or the object's own centre for a keyboard request.
   Offset _anchorOffset(String id, Offset? pointerGlobal) {
     final overlayObject = Overlay.of(context).context.findRenderObject();
     final overlay = overlayObject is RenderBox ? overlayObject : null;
@@ -308,6 +301,28 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     final id = _target;
     _close();
     if (id != null) widget.onEditNote?.call(id);
+  }
+
+  bool _mayConnect(String? id) =>
+      id != null &&
+      widget.canDraw &&
+      canvasEdgeAttachable(widget.document.kindOf(id)) &&
+      (context
+              .getInheritedWidgetOfExactType<UncontrolledProviderScope>()
+              ?.container
+              .read(canvasEdgesSupportedProvider) ??
+          false);
+
+  /// Hands the keyboard a connection to finish: the bracket keys pick the target.
+  void _connect(String id) {
+    _close();
+    widget.document.edges.connectFrom.value = id;
+  }
+
+  void _style() {
+    final id = _target;
+    _close();
+    if (id != null) widget.onStyleNote?.call(id);
   }
 
   void _delete() {
@@ -399,6 +414,17 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
   Widget _objectMenu() {
     final locks = CanvasObjectLocksScope.maybeOf(context);
     final id = _target;
+    if (id != null && widget.document.edges.isAlive(id)) {
+      return canvasEdgeMenu(
+        id: id,
+        canEdit: widget.canDraw && _mayLock(id),
+        onEditLabel: () {
+          _close();
+          widget.document.edges.labelEdit.value = id;
+        },
+        onDelete: _delete,
+      );
+    }
     final locked = id != null && (locks?.isLocked(id) ?? false);
     final mayLock = locks != null && id != null && _mayLock(id);
     final isNote = _isNote(id);
@@ -412,6 +438,18 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
                 : 'Edit note',
             leading: AppIcons.edit,
             onTap: locked || !widget.canDraw ? null : _editNote,
+          ),
+        if (_mayConnect(id))
+          AppMenuItem(
+            label: 'Connect to...',
+            leading: AppIcons.connect,
+            onTap: locked ? null : () => _connect(id!),
+          ),
+        if (isNote && widget.onStyleNote != null)
+          AppMenuItem(
+            label: 'Style',
+            leading: AppIcons.appearance,
+            onTap: locked || !widget.canDraw ? null : _style,
           ),
         // A locked object refuses a restack or an erase, so those wait for Unlock.
         AppMenuItem(

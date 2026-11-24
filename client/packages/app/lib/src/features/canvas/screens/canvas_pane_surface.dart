@@ -9,6 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_edge_layer.dart';
 import 'canvas_focused_fit.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_board_keys.dart';
@@ -16,6 +17,7 @@ import 'canvas_board_object_semantics.dart';
 import 'canvas_module_tile_layer.dart';
 import 'canvas_object_context_menu.dart';
 import 'canvas_pane_surface_actions.dart';
+import '../providers/canvas_note_style.dart';
 import '../providers/canvas_pen_style.dart';
 import 'canvas_presence_frame.dart';
 import 'canvas_presence_layer.dart';
@@ -31,6 +33,7 @@ class CanvasPaneSurface extends StatelessWidget {
   const CanvasPaneSurface({
     super.key,
     required this.actions,
+    required this.channelId,
     required this.callParticipants,
     required this.canManage,
     required this.cursorColors,
@@ -59,6 +62,7 @@ class CanvasPaneSurface extends StatelessWidget {
   });
 
   final CanvasPaneSurfaceActions actions;
+  final String channelId;
   final List<VoiceParticipant> callParticipants;
   final bool canManage;
   final List<Color> cursorColors;
@@ -98,6 +102,7 @@ class CanvasPaneSurface extends StatelessWidget {
     document: document,
     tool: tool,
     onOpenActions: menuRequests.request,
+    onEditObject: readOnly ? null : actions.onEditNote,
     onOpenToolWheel: readOnly ? () {} : toolWheel.requestOpen,
     onPlaceNote: actions.onNotePlace,
     onPlaceText: actions.onTextPlace,
@@ -148,8 +153,10 @@ class CanvasPaneSurface extends StatelessWidget {
           selectionHandleBorder: tokens.accentFill,
           touchHandles: AppTouchTargets.of(context),
           noteColor: AppCanvasColors.note,
+          edgeInk: tokens.textSecondary,
+          edgeLabelFill: tokens.surfaceRaised,
           shapeColor: AppCanvasColors.shape,
-          noteTextInk: tokens.textPrimary,
+          notePalette: canvasNotePalette(tokens),
           noteSpans: noteSpans,
           noteSpansRevision: noteSpansRevision,
           onStroke: actions.onStroke,
@@ -194,12 +201,20 @@ class CanvasPaneSurface extends StatelessWidget {
           onDeleteSelected: actions.onDeleteSelected,
           onAddNoteAt: actions.onNotePlace,
           onEditNote: actions.onEditNote,
+          onStyleNote: actions.onStyleNote,
           canDraw: !readOnly && !canvasErrorBlocksDrawing(error),
           readOnly: readOnly,
           onRecenter: actions.onRecenter,
           onToolChanged: actions.onToolChanged,
           wheel: toolWheel,
         ),
+        if (!readOnly)
+          CanvasEdgeLayer(
+            channelId: channelId,
+            document: document,
+            canManage: canManage,
+            selfId: selfId,
+          ),
         // Above the menu's hit catcher, so a tile's scene takes its own taps; its header lets them through to the board.
         CanvasModuleTileLayer(document: document),
         if (actions.stamping case final stamping?)
@@ -253,7 +268,6 @@ class CanvasPaneSurface extends StatelessWidget {
           onPointerMoved: actions.onPointerMoved,
           readOnly: readOnly,
         ),
-        ?noteEditor,
         // Topmost and non-interactive - see its own doc for why a pan or a tile drag stopping at worldLimit otherwise looks like nothing happened.
         CanvasWorldEdgeGlow(
           document: document,
@@ -268,6 +282,8 @@ class CanvasPaneSurface extends StatelessWidget {
           onBringIn: actions.onBringIntoBoard,
           truncated: truncated,
         ),
+        // Above the readouts: a style bar slid to the top left would otherwise sit under them.
+        ?noteEditor,
       ],
     ),
   );

@@ -5,7 +5,10 @@ library;
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart' show StringCharacters;
+import 'package:flutter/widgets.dart'
+    show StringCharacters, TextEditingController;
+
+import '../../../widgets/text_insert.dart';
 
 /// The exact wire cost of a note's `props`: `text` JSON-escaped inside
 /// `{"text":"..."}` and UTF-8 encoded, the same bytes the server's
@@ -109,4 +112,13 @@ int _toBoundary(String text, int index, {bool up = false}) {
   final lowSurrogate = unit >= 0xDC00 && unit <= 0xDFFF;
   if (!lowSurrogate) return index;
   return up ? index + 1 : index - 1;
+}
+
+/// Inserts [emoji] at the selection of [controller] unless the note would pass its cap; false when it was refused.
+bool insertEmojiWithinNoteCap(TextEditingController controller, String emoji) {
+  final before = controller.value;
+  insertAtSelection(controller, emoji);
+  if (noteWireBytes(controller.text) <= maxNoteTextBytes) return true;
+  controller.value = before;
+  return false;
 }

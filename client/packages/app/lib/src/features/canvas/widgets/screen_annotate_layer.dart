@@ -139,7 +139,7 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
     CanvasTool.shape => ScreenAnnotateTool.ellipse,
     CanvasTool.note || CanvasTool.text => ScreenAnnotateTool.note,
     CanvasTool.stamp => ScreenAnnotateTool.stamp,
-    CanvasTool.pan || CanvasTool.eraser => null,
+    CanvasTool.pan || CanvasTool.eraser || CanvasTool.connect => null,
   };
 
   late final _stamps = ScreenStampTools(

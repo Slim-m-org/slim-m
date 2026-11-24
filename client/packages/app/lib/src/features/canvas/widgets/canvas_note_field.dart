@@ -13,7 +13,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/admin_providers.dart';
-import '../../../widgets/text_insert.dart';
 import '../../composer/widgets/composer_autocomplete.dart';
 import '../../composer/widgets/composer_autocomplete_items.dart';
 import '../../composer/widgets/composer_autocomplete_query.dart';
@@ -34,6 +33,10 @@ class CanvasNoteField extends ConsumerStatefulWidget {
     this.hintText,
     this.minLines = 3,
     this.maxLines = 8,
+    this.inPlaceStyle,
+    this.tapRegionGroupId,
+    this.onTapOutside,
+    this.refusals,
   });
 
   final TextEditingController controller;
@@ -46,6 +49,16 @@ class CanvasNoteField extends ConsumerStatefulWidget {
   final int minLines;
   final int maxLines;
 
+  /// Set when the field is the note itself: borderless, filling its box in this style, with its suggestions floated above it and no emoji button.
+  final TextStyle? inPlaceStyle;
+
+  /// The group a tap on the note's own bar belongs to, so it is not an outside tap.
+  final Object? tapRegionGroupId;
+  final VoidCallback? onTapOutside;
+
+  /// Bumped when an insert from outside the field was refused at the cap.
+  final Listenable? refusals;
+
   @override
   ConsumerState<CanvasNoteField> createState() => _CanvasNoteFieldState();
 }
@@ -55,6 +68,8 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
   AutocompleteQuery? _query;
   int _selected = 0;
   bool _full = false;
+  final _suggestionsLink = LayerLink();
+  final _suggestionsPortal = OverlayPortalController();
 
   /// The text's length at the last change: a cut paste lands at the cap, so
   /// only taking something out makes room again.
@@ -64,6 +79,7 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
   void initState() {
     super.initState();
     widget.controller.addListener(_onChange);
+    widget.refusals?.addListener(_markFull);
     // The field's own node: text editing handles the arrows above it, so an ancestor would run too late.
     widget.focusNode.onKeyEvent = _onKey;
   }
@@ -85,6 +101,7 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
   void dispose() {
     widget.focusNode.onKeyEvent = null;
     widget.controller.removeListener(_onChange);
+    widget.refusals?.removeListener(_markFull);
     super.dispose();
   }
 
@@ -217,18 +234,121 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
 
   void _insertEmoji(String emoji) {
     widget.focusNode.requestFocus();
-    final before = widget.controller.value;
-    insertAtSelection(widget.controller, emoji);
-    if (!_fits(widget.controller.text)) {
-      widget.controller.value = before;
-      _markFull();
-    }
+    if (!insertEmojiWithinNoteCap(widget.controller, emoji)) _markFull();
   }
+
+  Widget _inPlace(AppTokens tokens, List<AutocompleteSuggestion> suggestions) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final show = suggestions.isNotEmpty;
+      if (show && !_suggestionsPortal.isShowing) _suggestionsPortal.show();
+      if (!show && _suggestionsPortal.isShowing) _suggestionsPortal.hide();
+    });
+    return OverlayPortal(
+      controller: _suggestionsPortal,
+      overlayChildBuilder: (_) => CompositedTransformFollower(
+        link: _suggestionsLink,
+        targetAnchor: Alignment.topLeft,
+        followerAnchor: Alignment.bottomLeft,
+        child: Align(
+          alignment: Alignment.bottomLeft,
+          child: SizedBox(
+            width: 280,
+            child: TextFieldTapRegion(
+              groupId: widget.tapRegionGroupId ?? EditableText,
+              child: Material(
+                type: MaterialType.transparency,
+                child: ComposerAutocomplete(
+                  suggestions: suggestions,
+                  selected: _selected,
+                  onPick: _accept,
+                  onHover: (i) => setState(() => _selected = i),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      child: CompositedTransformTarget(
+        link: _suggestionsLink,
+        child: Stack(
+          clipBehavior: Clip.none,
+          fit: StackFit.expand,
+          children: [
+            _inPlaceField(tokens),
+            if (_full)
+              Align(
+                alignment: Alignment.bottomLeft,
+                child: FractionalTranslation(
+                  translation: const Offset(0, 1),
+                  child: Text(
+                    noteFullSentence,
+                    style: AppText.caption.copyWith(color: tokens.dangerText),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _inPlaceField(AppTokens tokens) {
+    return ComposerShortcodes(
+      controller: widget.controller,
+      expand: true,
+      child: CallbackShortcuts(
+        bindings: _bindings(),
+        child: Semantics(
+          label: widget.hintText,
+          child: TextField(
+            controller: widget.controller,
+            focusNode: widget.focusNode,
+            groupId: widget.tapRegionGroupId ?? EditableText,
+            onTapOutside: (_) => widget.onTapOutside?.call(),
+            expands: true,
+            minLines: null,
+            maxLines: null,
+            textAlignVertical: TextAlignVertical.top,
+            keyboardType: TextInputType.multiline,
+            inputFormatters: [NoteByteLimitFormatter(onRefused: _markFull)],
+            style: widget.inPlaceStyle,
+            cursorColor: tokens.accent,
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              filled: false,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+              hintText: widget.hintText,
+              hintStyle: widget.inPlaceStyle?.copyWith(
+                color: tokens.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Map<ShortcutActivator, VoidCallback> _bindings() => {
+    ...emphasisShortcuts(widget.controller),
+    if (widget.onSave != null) ...{
+      const SingleActivator(LogicalKeyboardKey.enter, control: true):
+          widget.onSave!,
+      const SingleActivator(LogicalKeyboardKey.enter, meta: true):
+          widget.onSave!,
+    },
+    if (widget.onCancel != null)
+      const SingleActivator(LogicalKeyboardKey.escape): widget.onCancel!,
+  };
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final suggestions = _suggestions();
+    if (widget.inPlaceStyle != null) return _inPlace(tokens, suggestions);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -242,18 +362,7 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
         ComposerShortcodes(
           controller: widget.controller,
           child: CallbackShortcuts(
-            bindings: {
-              ...emphasisShortcuts(widget.controller),
-              if (widget.onSave != null) ...{
-                const SingleActivator(LogicalKeyboardKey.enter, control: true):
-                    widget.onSave!,
-                const SingleActivator(LogicalKeyboardKey.enter, meta: true):
-                    widget.onSave!,
-              },
-              if (widget.onCancel != null)
-                const SingleActivator(LogicalKeyboardKey.escape):
-                    widget.onCancel!,
-            },
+            bindings: _bindings(),
             child: EmojiFieldPicker(
               semanticLabel: 'Insert emoji',
               onSelect: _insertEmoji,

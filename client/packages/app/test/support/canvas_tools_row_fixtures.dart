@@ -7,6 +7,7 @@
 /// edge-fade behaviour at a phone width).
 library;
 
+import 'package:slimm_app/src/features/canvas/providers/canvas_edge_style.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +34,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 /// not a real one - production never renders this row anywhere but there.
 Widget wrapCanvasToolsRow(Widget child, {double width = 800, bool? touch}) =>
     ProviderScope(
+      overrides: [canvasEdgesSupportedProvider.overrideWithValue(false)],
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
         home: Scaffold(

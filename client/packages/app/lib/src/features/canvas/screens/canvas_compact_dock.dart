@@ -21,6 +21,7 @@ import '../../voice/widgets/bot_call_chips.dart';
 import '../../voice/widgets/call_leave_button.dart';
 import '../../voice/screens/dock_solo_controls.dart';
 import 'canvas_call_dock.dart';
+import 'canvas_dock_group.dart';
 import 'canvas_dock_toggle.dart';
 import 'canvas_dock_tools.dart';
 import 'canvas_tools_row.dart';
@@ -59,7 +60,7 @@ class CanvasCompactDock extends StatelessWidget {
                         canvas: canvas,
                         part: CanvasToolsRowPart.editOnly,
                       ),
-                      const SizedBox(width: AppSpacing.s8),
+                      const CanvasDockGroupDivider(),
                       CanvasDockExitFullscreen(
                         onPressed: canvas.onToggleFullscreen,
                       ),
@@ -120,7 +121,7 @@ class CanvasCompactEditGroup extends StatelessWidget {
         overflowOpensBelow: true,
         chatChannelId: chatChannelId,
       ),
-      const SizedBox(width: AppSpacing.s4),
+      const CanvasDockGroupDivider(),
       CanvasDockToggle(open: true, onPressed: canvas.onClose),
     ],
   );

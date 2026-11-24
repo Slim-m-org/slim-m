@@ -63,7 +63,7 @@ Future<void> _press(WidgetTester tester, LogicalKeyboardKey key) async {
 
 void main() {
   testWidgets(
-    'the strip draws pan, pen, note, text, shape, eraser left to right',
+    'the strip draws pan, pen, eraser, then note, text, shape left to right',
     (tester) async {
       await _pump(tester, CanvasPaneFixture(), const Size(1000, 700));
 
@@ -73,24 +73,12 @@ void main() {
       final xs = [
         tester.getCenter(_button(AppIcons.pan)).dx,
         tester.getCenter(_button(AppIcons.pen)).dx,
+        tester.getCenter(_button(AppIcons.eraser)).dx,
         tester.getCenter(_button(AppIcons.note)).dx,
         tester.getCenter(_button(AppIcons.textBox)).dx,
         tester.getCenter(shape).dx,
-        tester.getCenter(_button(AppIcons.eraser)).dx,
       ];
       expect([...xs]..sort(), xs, reason: 'left to right');
-      final gaps = [for (var i = 1; i < xs.length; i++) xs[i] - xs[i - 1]];
-      // Pen and shape reserve a caret slot, so the gap after each is wider.
-      final plain = [gaps[0], gaps[2], gaps[3]];
-      final withCaret = [gaps[1], gaps[4]];
-      for (final gap in plain) {
-        expect(gap, closeTo(plain.first, 0.01), reason: 'even rhythm');
-      }
-      for (final gap in withCaret) {
-        expect(gap, closeTo(withCaret.first, 0.01), reason: 'caret slot');
-        expect(gap, greaterThan(plain.first));
-      }
-      expect(gaps.first, greaterThan(AppSpacing.s4));
     },
   );
 

@@ -43,6 +43,13 @@ Future<void> _mouseClick(WidgetTester tester, Offset at) async {
 
 const _onNote = Offset(415, 15);
 
+Future<void> _commitWithKeys(WidgetTester tester) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+  await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  await tester.pumpAndSettle();
+}
+
 /// A finger's first tap selects the note and its second opens the editor.
 Future<void> _fingerTapTwice(WidgetTester tester) async {
   final at = screenFor(tester, _onNote);
@@ -122,7 +129,7 @@ void main() {
     expect(find.byType(CanvasNoteEditor), findsNothing);
   });
 
-  testWidgets('Save posts one edit op, and undo and redo reverse it', (
+  testWidgets('Ctrl+Enter posts one edit op, and undo and redo reverse it', (
     tester,
   ) async {
     final fixture = await _openPane(tester);
@@ -135,8 +142,7 @@ void main() {
       ),
       'after **bold**',
     );
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+    await _commitWithKeys(tester);
 
     expect(find.byType(CanvasNoteEditor), findsNothing);
     final edits = fixture.postedOps.where((op) => op['kind'] == 'edit');
@@ -156,9 +162,7 @@ void main() {
     expect(surfaceDocument(tester).noteTextOf('note'), 'after **bold**');
   });
 
-  testWidgets('Escape and Cancel keep the old text and post nothing', (
-    tester,
-  ) async {
+  testWidgets('Escape keeps the old text and posts nothing', (tester) async {
     final fixture = await _openPane(tester);
     await _fingerTapTwice(tester);
     await tester.enterText(

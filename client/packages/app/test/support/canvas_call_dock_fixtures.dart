@@ -6,6 +6,7 @@
 /// canvas section, reused rather than duplicated.
 library;
 
+import 'package:slimm_app/src/features/canvas/providers/canvas_edge_style.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -62,6 +63,7 @@ pumpCanvasCallDock(
   final session = withCall ? FakeSession(canFlipCamera: canFlipCamera) : null;
   final container = ProviderContainer(
     overrides: [
+      canvasEdgesSupportedProvider.overrideWithValue(false),
       ...overrides,
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       channelBotUiProvider.overrideWith((ref, _) async => bots),

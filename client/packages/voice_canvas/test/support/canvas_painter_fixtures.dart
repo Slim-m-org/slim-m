@@ -56,6 +56,9 @@ class RecordingCanvas implements Canvas {
   /// note's own corner treatment can be compared against each other.
   final List<double> roundedRectRadii = <double>[];
 
+  /// The colour of every rounded-rect draw, in call order: a note's fill, then its outline.
+  final List<Color> roundedRectColors = <Color>[];
+
   /// A shape's own draw calls, one kind of primitive at a time: a rectangle
   /// or an ellipse each draw once, a line draws once via [drawLine], and an
   /// arrow draws the same line plus two more via [drawLine] for its head.
@@ -134,6 +137,7 @@ class RecordingCanvas implements Canvas {
   void drawRRect(RRect rrect, Paint paint) {
     roundedRectCalls++;
     roundedRectRadii.add(rrect.tlRadiusX);
+    roundedRectColors.add(paint.color);
   }
 
   @override

@@ -40,7 +40,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.bySemanticsLabel('Eraser'), warnIfMissed: false);
+      await tester.tap(find.bySemanticsLabel('Shape'), warnIfMissed: false);
       await tester.pump();
       expect(
         chosen,
@@ -55,9 +55,9 @@ void main() {
       await tester.drag(_strip, const Offset(-1000, 0));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.bySemanticsLabel('Eraser'));
+      await tester.tap(find.bySemanticsLabel('Shape'));
       await tester.pump();
-      expect(chosen, CanvasTool.eraser);
+      expect(chosen, CanvasTool.shape);
     },
   );
 

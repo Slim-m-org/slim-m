@@ -145,3 +145,5 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0134](0134-connector-runtime-supervisor.md) | Host-run connectors go through a separate supervisor that owns the container runtime socket | accepted |
 | [0135](0135-copr-follows-main.md) | The Fedora COPR channel follows main, and only main publishes | accepted |
 | [0136](0136-do-not-disturb-silences-chat.md) | Do not disturb silences chat pushes, chimes and banners too, not only calls | accepted |
+| [0137](0137-canvas-edges.md) | Canvas edges: connections between objects | accepted |
+| [0138](0138-canvas-note-style-and-in-place-editing.md) | Canvas notes are edited in place, styled with four optional props the server merges, and rendered as Markdown | accepted |

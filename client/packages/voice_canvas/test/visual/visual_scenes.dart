@@ -44,7 +44,10 @@ void paintCanvasComposite(
     ink: VisualCanvasColors.annotation,
     noteColor: VisualCanvasColors.note,
     shapeColor: VisualCanvasColors.shape,
-    textInk: theme.textPrimary,
+    notePalette: NotePalette(
+      textInk: theme.textPrimary,
+      boardBackground: theme.surfaceBase,
+    ),
     textFontFamily: visualSansFamily,
     placeholderFill: theme.stripe,
     placeholderIcon: theme.textDisabled,

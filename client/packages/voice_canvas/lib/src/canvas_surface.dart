@@ -94,7 +94,9 @@ class CanvasSurface extends StatefulWidget {
     this.touchHandles = false,
     this.noteColor,
     this.shapeColor,
-    this.noteTextInk = const Color(0xFF1A1A1A),
+    this.edgeInk,
+    this.edgeLabelFill,
+    this.notePalette = const NotePalette(),
     this.noteSpans,
     this.noteSpansRevision = 0,
     this.remoteDrafts,
@@ -116,7 +118,15 @@ class CanvasSurface extends StatefulWidget {
   /// Null falls all the way back to [ink] - see [StrokePainter]'s own doc.
   final Color? noteColor;
   final Color? shapeColor;
-  final Color noteTextInk;
+
+  /// What an edge with no colour of its own draws in; null falls back to [ink].
+  final Color? edgeInk;
+
+  /// The chip behind an edge's label; null falls back to [placeholderFill].
+  final Color? edgeLabelFill;
+
+  /// The colours a note and a text box are drawn with, their default text ink included.
+  final NotePalette notePalette;
 
   /// See [StrokePainter.noteSpans] and [StrokePainter.noteSpansRevision].
   final NoteSpanBuilder? noteSpans;
@@ -433,6 +443,9 @@ class _CanvasSurfaceState extends State<CanvasSurface>
                       fit: StackFit.expand,
                       children: [
                         RepaintBoundary(
+                          child: CustomPaint(painter: _painters.edges),
+                        ),
+                        RepaintBoundary(
                           child: CustomPaint(painter: _painters.strokes),
                         ),
                         if (_painters.remoteDrafts case final remoteDrafts?)
@@ -450,6 +463,8 @@ class _CanvasSurfaceState extends State<CanvasSurface>
                   ),
                   if (_painters.selection case final selection?)
                     RepaintBoundary(child: CustomPaint(painter: selection)),
+                  if (_painters.edgeOverlay case final overlay?)
+                    RepaintBoundary(child: CustomPaint(painter: overlay)),
                   if (_painters.cursors case final cursors?)
                     RepaintBoundary(child: CustomPaint(painter: cursors)),
                 ],

@@ -23,7 +23,7 @@ import '../../screen_overlay/providers/stamp_content.dart';
 import 'canvas_forbidden_message.dart';
 import '../providers/canvas_text_props.dart';
 import '../widgets/canvas_text_content.dart';
-import 'canvas_note_sizing.dart';
+import '../widgets/canvas_note_sizing.dart';
 import 'canvas_retry.dart';
 import 'canvas_sync.dart';
 
@@ -65,6 +65,9 @@ class CanvasQuickPlacement {
 
   bool _inFlight = false;
 
+  /// How the board lays a note's text out, so a new note is as tall as its rendered Markdown.
+  NoteSpanBuilder? noteSpans;
+
   final api.SlimmApi client;
   final String channelId;
   final CanvasDocument document;
@@ -83,6 +86,7 @@ class CanvasQuickPlacement {
     Offset world,
     String text, {
     Size? draggedSize,
+    CanvasNoteStyle style = const CanvasNoteStyle(),
     required void Function(String message) onError,
   }) {
     final width = draggedSize?.width ?? defaultNoteWidth;
@@ -92,14 +96,20 @@ class CanvasQuickPlacement {
       width: width,
       minHeight: draggedSize?.height ?? defaultNoteHeight,
       fit: document.board?.size,
-      fontSize: fontSize,
+      fontSize: noteTextSizeOf(fontSize, style),
+      spans: noteSpans,
     );
     return _place(
       kind: 'note',
       world: world,
       w: box.width,
       h: box.height,
-      props: {'text': text, 'font_size': fontSize},
+      props: {
+        'text': text,
+        'font_size': fontSize,
+        for (final entry in style.toWire().entries)
+          if (entry.value != null) entry.key: entry.value,
+      },
       onError: onError,
     );
   }
@@ -206,6 +216,7 @@ class CanvasQuickPlacement {
           props: props,
         ),
       );
+      if (document.isDisposed) return placed;
       final input = canvasStrokeInputFrom(placed);
       if (clearedSincePlacement(placed)) {
         document
@@ -218,6 +229,7 @@ class CanvasQuickPlacement {
       }
       return placed;
     } on api.ApiException catch (error) {
+      if (document.isDisposed) return null;
       document
         ..kill(id)
         ..refresh();
