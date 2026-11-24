@@ -11,6 +11,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../external_link.dart';
 import '../../../format.dart';
+import '../../../providers/bounded_image_decode.dart';
 import '../providers/attachment_preview_quality.dart';
 import '../../settings/providers/display_preferences.dart';
 import '../providers/link_preview.dart';
@@ -323,10 +324,9 @@ class _EmbedImageState extends ConsumerState<_EmbedImage> {
             border: Border.all(color: tokens.borderSubtle),
           ),
           child: AnimationGate(
-            child: Image.memory(
-              bytes,
+            child: Image(
+              image: ResizeImage(BoundedMemoryImage(bytes), width: decodeWidth),
               fit: BoxFit.cover,
-              cacheWidth: decodeWidth,
               errorBuilder: (context, error, stackTrace) =>
                   const SizedBox.shrink(),
             ),

@@ -13,6 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../routing/modal_page.dart' show kScrimColor;
 import 'attachment_tap_target.dart';
+import '../../../providers/bounded_image_decode.dart';
 import 'cover_resize_image.dart';
 import 'message_row_parts.dart' show AttachmentPlaceholder;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -194,8 +195,15 @@ class _AttachmentFirstFrameState extends State<AttachmentFirstFrame> {
 
   Future<void> _decode() async {
     try {
+      final buffer = await ui.ImmutableBuffer.fromUint8List(widget.bytes);
+      try {
+        await checkDeclaredSize(buffer);
+      } catch (_) {
+        buffer.dispose();
+        rethrow;
+      }
       final codec = await ui.instantiateImageCodecWithSize(
-        await ui.ImmutableBuffer.fromUint8List(widget.bytes),
+        buffer,
         getTargetSize: _noUpscale,
       );
       final frame = await codec.getNextFrame();
