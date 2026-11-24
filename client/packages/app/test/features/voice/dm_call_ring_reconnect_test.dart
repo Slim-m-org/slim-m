@@ -62,9 +62,17 @@ class _Rig {
 class _Server {
   List<Map<String, Object>> incoming = [];
   List<String> blocked = [];
+  bool failIncoming = false;
 
   http.Response answer(http.Request request) {
     final path = request.url.path;
+    if (failIncoming && path.endsWith('/voice/rings/incoming')) {
+      return http.Response(
+        '{"error":"down"}',
+        500,
+        headers: {'content-type': 'application/json'},
+      );
+    }
     Object? body;
     if (path.endsWith('/voice/rings/incoming')) {
       body = {'rings': incoming};
@@ -142,6 +150,17 @@ void main() {
     rig.ring.holdForReconnect();
     expect(rig.state.visibleIncoming?.ringId, 'ring-1', reason: 'no flicker');
     rig.server.incoming = [_outstanding('ring-1', 'caller-1')];
+    await rig.ring.restoreAfterLive();
+
+    expect(rig.state.visibleIncoming?.ringId, 'ring-1');
+  });
+
+  test('a ring stays when reading the outstanding rings fails', () async {
+    final rig = await _rig();
+    await rig.emit(_ringing);
+    rig.ring.holdForReconnect();
+
+    rig.server.failIncoming = true;
     await rig.ring.restoreAfterLive();
 
     expect(rig.state.visibleIncoming?.ringId, 'ring-1');

@@ -71,12 +71,14 @@ class DmCallRingReconnect {
       );
     }
     if (!_host.isMounted() || generation != _generation) return;
+    // A failed read proves nothing; the carried ring settles by its expiry.
+    if (rings == null) return;
     final carried = _incoming;
     _incoming = null;
     final current = _host.read().incoming;
     // A ring that arrived on the live socket is newer than this read.
     if (current != null && current.ringId != carried) return;
-    final outstanding = rings?.where(_host.restorable).toList() ?? const [];
+    final outstanding = rings.where(_host.restorable).toList();
     if (outstanding.isEmpty) {
       if (current != null) _host.dropIncoming();
       return;
