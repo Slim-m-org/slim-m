@@ -18,6 +18,7 @@ import 'package:slimm_api/api.dart';
 
 import '../../../providers/admin_providers.dart';
 import 'emoji_image_cache.dart';
+import '../../../providers/cache_for.dart';
 import '../../../providers/providers.dart';
 
 /// Emoji name (already lower-case, the server normalises it) to emoji id, for
@@ -139,16 +140,19 @@ var emojiImageTombstoneCooldown = const Duration(seconds: 10);
 @visibleForTesting
 var emojiImageRetryDelay = const Duration(milliseconds: 250);
 
+/// The most recently used emoji images whose bytes stay in memory unwatched.
+final _recentEmojiImagesProvider = Provider<KeepAliveCache>(
+  (ref) => KeepAliveCache(96),
+);
+
 /// One emoji's image bytes, by emoji id.
 ///
-/// Not `autoDispose`, for the reason above and because the same emoji recurs
-/// down a transcript: evicting it the moment it scrolls out would refetch it
-/// on the way back. Bounded rather than unbounded, unlike an attachment cache:
-/// the set is capped at 500 (`MAX_CUSTOM_EMOJI`, `store/emoji.rs:15`) and each
-/// image at 1 MiB (`MAX_IMAGE_BYTES`, `emoji.rs:34`). Once fetched, an emoji's
-/// bytes stay cached on this provider for the rest of the session, so
-/// scrolling the picker back over cells it already realised decodes nothing
-/// new.
+/// A fetched image is held after its last cell goes away, but only the most
+/// recent [_recentEmojiImagesProvider] of them: the same emoji recurs down a
+/// transcript, so evicting it at once would refetch it on the way back, while
+/// a catalog of 500 images at up to 1 MiB each (`MAX_CUSTOM_EMOJI`,
+/// `MAX_IMAGE_BYTES`) must not sit in memory for the whole session. An
+/// evicted image comes back from [emojiImageCacheProvider], not the network.
 ///
 /// [emojiImageCacheProvider] is checked first, so a repeat visit - including
 /// one on a later app launch, where this provider itself starts cold - can
@@ -176,10 +180,19 @@ var emojiImageRetryDelay = const Duration(milliseconds: 250);
 /// schedules one more attempt after [emojiImageTombstoneCooldown] rather than
 /// leaving this emoji's answer permanently broken for a cell still on screen.
 /// The same holds for a dropped connection or a 5xx, see [_isTransient].
-final customEmojiImageProvider = FutureProvider.family<Uint8List, String>((
-  ref,
-  emojiId,
-) async {
+final customEmojiImageProvider = FutureProvider.autoDispose
+    .family<Uint8List, String>((ref, emojiId) async {
+      final recent = ref.read(_recentEmojiImagesProvider);
+      recent.hold(ref, emojiId);
+      try {
+        return await _loadEmojiImage(ref, emojiId);
+      } catch (_) {
+        recent.release(emojiId);
+        rethrow;
+      }
+    });
+
+Future<Uint8List> _loadEmojiImage(Ref ref, String emojiId) async {
   final cache = ref.watch(emojiImageCacheProvider);
   final cached = await cache.read(emojiId);
   if (cached != null) return cached;
@@ -209,7 +222,7 @@ final customEmojiImageProvider = FutureProvider.family<Uint8List, String>((
     await Future<void>.delayed(retryAfter ?? delay);
     delay *= 2;
   }
-});
+}
 
 /// Whether [e] is the kind of failure that passes by itself: a rate limit, a
 /// dropped connection or a server that is briefly down. A refusal, a missing
@@ -227,10 +240,8 @@ bool _isTransient(ApiException e) =>
 /// [emojiImageTombstoneCooldown]'s own doc for why a wait, not an immediate
 /// retry.
 ///
-/// The provider is never manually disposed (it is deliberately not
-/// `autoDispose`), so the only reason [Ref.invalidateSelf] would fail here is
-/// the whole container going down with it, and there is nothing left for a
-/// self-heal to do at that point either way.
+/// An unwatched, evicted entry is disposed, so [Ref.invalidateSelf] can fail
+/// here, and there is nothing left for a self-heal to do at that point either way.
 void _healAfterCooldown(Ref ref) {
   Future<void>.delayed(emojiImageTombstoneCooldown, () {
     try {

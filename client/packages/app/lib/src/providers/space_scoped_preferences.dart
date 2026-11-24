@@ -41,10 +41,13 @@ const Set<String> spaceScopedKeys = {
 /// Where [key] is stored for the Space at [origin].
 String spaceScopedKey(String origin, String key) => 'slimm.space.$origin.$key';
 
+String _removedMarker(String scoped) => '$scoped.removed';
+
 /// Reads and writes [spaceScopedKeys] under the current Space's own key.
 ///
 /// A Space that has not stored a value yet reads the device-level one, which is
 /// how values saved before preferences were per Space carry over to every Space.
+/// A removal leaves a marker so that fallback does not bring the value back.
 class SpaceScopedPreferences implements SharedPreferences {
   SpaceScopedPreferences(this._base, this._origin);
 
@@ -62,11 +65,16 @@ class SpaceScopedPreferences implements SharedPreferences {
   T? _read<T>(String key, T? Function(String key) get) {
     final scoped = _scopedKey(key);
     if (scoped == null) return get(key);
-    return _base.containsKey(scoped) ? get(scoped) : get(key);
+    if (_base.containsKey(scoped)) return get(scoped);
+    return _base.containsKey(_removedMarker(scoped)) ? null : get(key);
   }
 
-  Future<bool> _write(String key, Future<bool> Function(String key) set) =>
-      set(_scopedKey(key) ?? key);
+  Future<bool> _write(String key, Future<bool> Function(String key) set) async {
+    final scoped = _scopedKey(key);
+    if (scoped == null) return set(key);
+    await _base.remove(_removedMarker(scoped));
+    return set(scoped);
+  }
 
   @override
   Set<String> getKeys() => _base.getKeys();
@@ -92,8 +100,9 @@ class SpaceScopedPreferences implements SharedPreferences {
   @override
   bool containsKey(String key) {
     final scoped = _scopedKey(key);
-    return (scoped != null && _base.containsKey(scoped)) ||
-        _base.containsKey(key);
+    if (scoped == null) return _base.containsKey(key);
+    if (_base.containsKey(scoped)) return true;
+    return !_base.containsKey(_removedMarker(scoped)) && _base.containsKey(key);
   }
 
   @override
@@ -117,7 +126,13 @@ class SpaceScopedPreferences implements SharedPreferences {
       _write(key, (k) => _base.setStringList(k, value));
 
   @override
-  Future<bool> remove(String key) => _base.remove(_scopedKey(key) ?? key);
+  Future<bool> remove(String key) async {
+    final scoped = _scopedKey(key);
+    if (scoped == null) return _base.remove(key);
+    final removed = await _base.remove(scoped);
+    if (!_base.containsKey(key)) return removed;
+    return _base.setBool(_removedMarker(scoped), true);
+  }
 
   // ignore: deprecated_member_use
   @override

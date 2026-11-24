@@ -49,8 +49,8 @@ class _Rig {
 
   Future<void> start() async {
     SharedPreferences.setMockInitialValues({
-      shareListeningKey: true,
-      shareSpotifyKey: true,
+      activitySwitchStorageKey(shareListeningKey, 'self'): true,
+      activitySwitchStorageKey(shareSpotifyKey, 'self'): true,
     });
     container = ProviderContainer(
       overrides: [

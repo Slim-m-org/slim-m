@@ -10,7 +10,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/settings/providers/mic_sample_controller.dart';
 import 'package:slimm_app/src/features/settings/widgets/mic_sample_row.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/voice/providers/mic_preview.dart';
+import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -46,13 +49,15 @@ Future<_Harness> _pump(
   bool supported = true,
   bool inCall = false,
   bool silent = false,
+  List<Override> extra = const [],
 }) async {
   final harness = _Harness();
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         micSampleSupportedProvider.overrideWithValue(supported),
-        micPreviewBlockedProvider.overrideWithValue(inCall),
+        if (extra.isEmpty) micPreviewBlockedProvider.overrideWithValue(inCall),
+        ...extra,
         micSampleClockProvider.overrideWithValue(() => DateTime(2026, 11, 2)),
         micSampleRecorderFactoryProvider.overrideWithValue(
           () => MicSampleRecorder(
@@ -146,5 +151,62 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(find.textContaining('s left'), findsNothing);
     expect(harness.saved, isEmpty);
+  });
+
+  group('a recording that is still running', () {
+    final inCall = StateProvider<bool>((ref) => false);
+
+    Future<(_Harness, ProviderContainer)> record(WidgetTester tester) async {
+      final harness = await _pump(
+        tester,
+        extra: [
+          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+          micPreviewBlockedProvider.overrideWith((ref) => ref.watch(inCall)),
+        ],
+      );
+      final container = ProviderScope.containerOf(
+        tester.element(find.text('Record')),
+      );
+      container
+          .read(sessionProvider)
+          .set(
+            const api.TokenPair(
+              userId: 'alice',
+              accessToken: 'a',
+              refreshToken: 'r',
+              accessExpiresAt: 0,
+            ),
+          );
+      await tester.pump();
+      await tester.tap(find.text('Record'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Stop'), findsOneWidget);
+      return (harness, container);
+    }
+
+    testWidgets('stops when a call connects', (tester) async {
+      final (harness, container) = await record(tester);
+      container.read(inCall.notifier).state = true;
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 4));
+      expect(harness.saved, isEmpty);
+      expect(find.textContaining('s left'), findsNothing);
+    });
+
+    testWidgets('stops when the account signs out', (tester) async {
+      final (harness, container) = await record(tester);
+      container.read(sessionProvider).set(null);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 4));
+      expect(harness.saved, isEmpty);
+      expect(find.textContaining('s left'), findsNothing);
+    });
+
+    testWidgets('stops when the pane is left', (tester) async {
+      final (harness, _) = await record(tester);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 4));
+      expect(harness.saved, isEmpty);
+    });
   });
 }

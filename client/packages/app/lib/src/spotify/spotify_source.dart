@@ -104,9 +104,10 @@ class SpotifyNowPlayingSource implements NowPlayingSource {
   /// rather than retried forever.
   Future<SpotifyTokens?> _refresh(SpotifyTokens tokens) async {
     try {
+      final seenClears = _store.clears;
       final fresh = await _client.refresh(tokens.refreshToken);
-      await _store.save(fresh);
-      return fresh;
+      final kept = await _store.saveRefreshed(fresh, seenClears: seenClears);
+      return kept ? fresh : null;
     } on SpotifyAuthException catch (error, stack) {
       reportFailure(LogTag.ui, 'refresh the Spotify sign-in', error, stack);
       await _store.clear();

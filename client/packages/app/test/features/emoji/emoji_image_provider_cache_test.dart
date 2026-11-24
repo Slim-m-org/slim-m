@@ -76,6 +76,34 @@ void _quickRetries() {
 }
 
 void main() {
+  test('only the most recent unwatched images stay in memory', () async {
+    var requests = 0;
+    final container = _container(
+      cache: NoopEmojiImageCache(),
+      httpClient: MockClient((request) async {
+        requests++;
+        return http.Response.bytes(
+          _png,
+          200,
+          headers: {'content-type': 'image/png'},
+        );
+      }),
+    );
+    addTearDown(container.dispose);
+
+    for (var i = 0; i < 120; i++) {
+      await container.read(customEmojiImageProvider('e-$i').future);
+    }
+    expect(requests, 120);
+
+    await container.read(customEmojiImageProvider('e-119').future);
+    expect(requests, 120, reason: 'a recent image stays held');
+
+    await pumpEventQueue();
+    await container.read(customEmojiImageProvider('e-0').future);
+    expect(requests, 121, reason: 'the oldest was dropped, not kept for good');
+  });
+
   test('a cache hit resolves without ever calling the network', () async {
     final cache = _FakeCache()..store['e-1'] = _png;
     var requests = 0;

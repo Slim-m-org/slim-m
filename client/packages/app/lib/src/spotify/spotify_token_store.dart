@@ -98,6 +98,21 @@ class SpotifyTokenStore {
   Future<void> save(SpotifyTokens tokens) =>
       _tokenStore.put(_tokensHandle, jsonEncode(tokens.toJson()));
 
+  int _clears = 0;
+
+  /// Moves on every [clear], so work that started before one can tell.
+  int get clears => _clears;
+
+  /// Keeps [tokens] from a refresh unless the link was cleared since [seenClears] was read.
+  Future<bool> saveRefreshed(
+    SpotifyTokens tokens, {
+    required int seenClears,
+  }) async {
+    if (_clears != seenClears) return false;
+    await save(tokens);
+    return true;
+  }
+
   Future<String?> loadAccount() => _keys.read(spotifyAccountHandle);
 
   Future<void> saveAccount(String name) =>
@@ -124,6 +139,7 @@ class SpotifyTokenStore {
 
   /// Forgets the link entirely: tokens, name and any attempt in flight.
   Future<void> clear() async {
+    _clears++;
     await _keys.delete(spotifyTokensHandle);
     await _background?.delete(spotifyBackgroundTokensHandle);
     await _keys.delete(spotifyAccountHandle);

@@ -14,14 +14,33 @@ import '../providers/mic_sample_controller.dart';
 import 'settings_detail_row.dart';
 import 'settings_result_inset.dart';
 
-class MicSampleRow extends ConsumerWidget {
+class MicSampleRow extends ConsumerStatefulWidget {
   const MicSampleRow({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MicSampleRow> createState() => _MicSampleRowState();
+}
+
+class _MicSampleRowState extends ConsumerState<MicSampleRow> {
+  late final MicSampleController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ref.read(micSampleControllerProvider.notifier);
+  }
+
+  @override
+  void dispose() {
+    _controller.stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     if (!ref.watch(micSampleSupportedProvider)) return const SizedBox.shrink();
     final sample = ref.watch(micSampleControllerProvider);
-    final controller = ref.read(micSampleControllerProvider.notifier);
+    final controller = _controller;
     final inCall = ref.watch(micPreviewBlockedProvider);
     return Column(
       mainAxisSize: MainAxisSize.min,

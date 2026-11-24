@@ -99,8 +99,8 @@ class _Harness {
 
   Future<void> start({bool a = false, bool b = false}) async {
     SharedPreferences.setMockInitialValues({
-      if (a) _keyA: true,
-      if (b) _keyB: true,
+      if (a) activitySwitchStorageKey(_keyA, 'self'): true,
+      if (b) activitySwitchStorageKey(_keyB, 'self'): true,
     });
     container.read(activityPublisherProvider);
     await container.read(preferencesProvider.future);

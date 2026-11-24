@@ -96,6 +96,7 @@ extension SlimmApiAttachments on SlimmApi {
   }) async {
     await awaitTrust();
     final token = session.tokens?.accessToken;
+    final sentBy = session.tokens?.userId;
     if (token == null) throw const UnauthorizedException('not signed in');
     final request = http.StreamedRequest(method, requestUri(path, query))
       ..contentLength = length
@@ -119,7 +120,7 @@ extension SlimmApiAttachments on SlimmApi {
       throw TransportException('$method $path failed: $e');
     }
     if (response.statusCode == 401 && !isRetry && session.tokens != null) {
-      await refreshUnlessRotated(token);
+      await refreshUnlessRotated(token, sentBy: sentBy);
       return sendStreamed(
         method,
         path,
@@ -178,6 +179,7 @@ extension SlimmApiAttachments on SlimmApi {
   }) async {
     await awaitTrust();
     final token = session.tokens?.accessToken;
+    final sentBy = session.tokens?.userId;
     if (token == null) throw const UnauthorizedException('not signed in');
     final uri = requestUri(path, query);
     Future<http.StreamedResponse> attempt() async {
@@ -197,7 +199,7 @@ extension SlimmApiAttachments on SlimmApi {
     final response = await replayingDroppedSocket('GET', attempt);
     if (response.statusCode == 401 && !isRetry && session.tokens != null) {
       await response.stream.drain<void>();
-      await refreshUnlessRotated(token);
+      await refreshUnlessRotated(token, sentBy: sentBy);
       return openDownload(path, query, isRetry: true);
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {

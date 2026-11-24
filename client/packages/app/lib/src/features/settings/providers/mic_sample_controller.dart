@@ -11,6 +11,8 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../downloads/download_target.dart';
+import '../../../providers/app_lifecycle.dart';
+import '../../../providers/providers.dart';
 import '../../voice/providers/mic_preview.dart';
 import '../../voice/providers/voice_settings_controller.dart';
 
@@ -67,7 +69,17 @@ class MicSampleState {
 
 class MicSampleController extends Notifier<MicSampleState> {
   @override
-  MicSampleState build() => const MicSampleState();
+  MicSampleState build() {
+    ref.listen(micPreviewBlockedProvider, (_, blocked) {
+      if (blocked) stop();
+    });
+    ref.listen(sessionProvider, (_, _) => stop());
+    ref.listen(appVisibleProvider, (_, visible) {
+      if (!visible) stop();
+    });
+    ref.onDispose(stop);
+    return const MicSampleState();
+  }
 
   MicSampleRecorder? _recorder;
   bool _stopped = false;

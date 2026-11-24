@@ -91,7 +91,7 @@ class _Harness {
 
   Future<void> start({bool enabled = false}) async {
     SharedPreferences.setMockInitialValues({
-      if (enabled) shareListeningKey: true,
+      if (enabled) activitySwitchStorageKey(shareListeningKey, 'self'): true,
     });
     container.read(activityPublisherProvider);
     await container.read(preferencesProvider.future);

@@ -195,7 +195,11 @@ void main() {
       await tester.ensureVisible(toggle);
       await tester.tap(toggle);
       await tester.pumpAndSettle();
-      expect(prefs.getBool(entry.value), isTrue, reason: entry.key);
+      expect(
+        prefs.getBool(activitySwitchStorageKey(entry.value, 'self')),
+        isTrue,
+        reason: entry.key,
+      );
     }
 
     expect(
