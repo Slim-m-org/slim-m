@@ -3,6 +3,7 @@
 /// keeping what is shown, and deleting the last loaded row.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,13 +46,19 @@ http.Response _json(Object body, [int status = 200]) => http.Response(
 );
 
 class _Rig {
-  _Rig(http.Response Function(http.Request) answer) {
+  _Rig(
+    http.Response Function(http.Request) answer, {
+    Future<void>? holdPaging,
+  }) {
     container = ProviderContainer(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
         mockApiOverride((request) async {
           queries.add(request.method == 'GET' ? request.url.query : 'delete');
+          if (request.url.queryParameters.containsKey('before')) {
+            await holdPaging;
+          }
           return answer(request);
         }),
       ],
@@ -75,8 +82,11 @@ class _Rig {
   }
 }
 
-Future<_Rig> _rig(http.Response Function(http.Request) answer) async {
-  final rig = _Rig(answer);
+Future<_Rig> _rig(
+  http.Response Function(http.Request) answer, {
+  Future<void>? holdPaging,
+}) async {
+  final rig = _Rig(answer, holdPaging: holdPaging);
   addTearDown(rig.container.dispose);
   await rig.settled();
   return rig;
@@ -131,4 +141,25 @@ void main() {
 
     expect(rig.state.items.map((e) => e.id), [50, 49, 48, 47, 46]);
   });
+
+  test(
+    'a delete during a load more is not undone when the page lands',
+    () async {
+      final gate = Completer<void>();
+      final rig = await _rig((request) {
+        if (request.method == 'DELETE') return http.Response('', 204);
+        return request.url.queryParameters.containsKey('before')
+            ? _json(_page(50, 3))
+            : _json(_page(100, debugLogsPageSize));
+      }, holdPaging: gate.future);
+      final later = rig.controller.loadMore();
+      await rig.controller.delete(60);
+      gate.complete();
+      await later;
+      await rig.settled();
+
+      expect(rig.state.items.map((e) => e.id), isNot(contains(60)));
+      expect(rig.state.items, hasLength(debugLogsPageSize - 1 + 3));
+    },
+  );
 }

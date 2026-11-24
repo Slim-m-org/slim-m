@@ -50,6 +50,14 @@ class DebugLogsController extends AutoDisposeNotifier<DebugLogsState> {
   /// A response that lands after a newer load started is dropped.
   int _generation = 0;
 
+  /// Ids deleted this session, so a page that was already in flight cannot bring one back.
+  final _deleted = <int>{};
+
+  List<api.DebugLogEntry> _alive(Iterable<api.DebugLogEntry> entries) => [
+    for (final e in entries)
+      if (!_deleted.contains(e.id)) e,
+  ];
+
   Future<void> refresh() async {
     state = DebugLogsState(items: state.items, more: state.more);
     await _load(before: null, onto: const []);
@@ -59,15 +67,15 @@ class DebugLogsController extends AutoDisposeNotifier<DebugLogsState> {
   Future<void> delete(int id) async {
     await ref.read(apiProvider).deleteDebugLog(id);
     if (_disposed) return;
+    _deleted.add(id);
     state = DebugLogsState(
-      items: [
-        for (final e in state.items)
-          if (e.id != id) e,
-      ],
-      loading: false,
+      items: _alive(state.items),
+      loading: state.loading,
+      error: state.error,
+      failure: state.failure,
       more: state.more,
     );
-    if (state.items.isEmpty && state.more) await refresh();
+    if (state.items.isEmpty && state.more && !state.loading) await refresh();
   }
 
   Future<void> loadMore() async {
@@ -89,7 +97,7 @@ class DebugLogsController extends AutoDisposeNotifier<DebugLogsState> {
           .listDebugLogs(before: before, limit: debugLogsPageSize);
       if (_disposed || generation != _generation) return;
       state = DebugLogsState(
-        items: [...onto, ...page],
+        items: _alive([...onto, ...page]),
         loading: false,
         more: page.length >= debugLogsPageSize,
       );
