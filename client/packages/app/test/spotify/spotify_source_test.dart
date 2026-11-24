@@ -4,6 +4,7 @@
 /// leave the last answer standing.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
@@ -94,6 +95,29 @@ void main() {
     expect(rig.requests.first, 'POST accounts.spotify.com');
     expect((await rig.store.load())?.accessToken, 'new');
   });
+
+  test(
+    'a refresh that lands after the link was cleared saves nothing',
+    () async {
+      final rig = _Rig();
+      await rig.signIn(validFor: const Duration(seconds: 10));
+      final inFlight = Completer<http.Response>();
+      rig.respond = (request) => request.url.host == 'accounts.spotify.com'
+          ? inFlight.future
+          : Future.value(http.Response(_playing, 200));
+      final read = rig.source.watch().first.timeout(
+        const Duration(milliseconds: 300),
+        onTimeout: () => null,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      await rig.store.clear();
+      inFlight.complete(_refreshed());
+      await read;
+
+      expect(await rig.store.load(), isNull);
+    },
+  );
 
   test('a 401 refreshes once and retries', () async {
     final rig = _Rig();

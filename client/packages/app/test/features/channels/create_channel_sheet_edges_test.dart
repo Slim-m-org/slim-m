@@ -12,6 +12,13 @@ import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+const _tokens = api.TokenPair(
+  userId: 'user-1',
+  accessToken: 'access',
+  refreshToken: 'refresh',
+  accessExpiresAt: 0,
+);
+
 Future<void> _open(WidgetTester tester, double width) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1.0;
@@ -19,6 +26,7 @@ Future<void> _open(WidgetTester tester, double width) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         meProvider.overrideWith(
           (ref) async => const api.Me(
             id: 'user-1',

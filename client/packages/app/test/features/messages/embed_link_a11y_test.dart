@@ -54,4 +54,11 @@ void main() {
     expect(node.getSemanticsData().flagsCollection.isLink, isTrue);
     handle.dispose();
   });
+
+  testWidgets('a linked title and author show where they really go', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_card());
+    expect(find.text('example.com'), findsNWidgets(2));
+  });
 }

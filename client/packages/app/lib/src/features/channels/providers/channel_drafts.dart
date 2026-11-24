@@ -64,6 +64,7 @@ class ChannelDraftsController {
   /// empty draft and no draft have to read the same way, or every channel a
   /// member ever opens and leaves empty grows the map forever.
   void save(String channelId, String text) {
+    if (_account == null) return;
     if (text.isEmpty) {
       _drafts.remove(channelId);
     } else {
@@ -75,6 +76,7 @@ class ChannelDraftsController {
   /// Forgets [channelId]'s draft outright, called once its text has been
   /// sent rather than left to [save] with an empty string a rebuild later.
   void clear(String channelId) {
+    if (_account == null) return;
     _drafts.remove(channelId);
     unawaited(_persist(channelId, ''));
   }

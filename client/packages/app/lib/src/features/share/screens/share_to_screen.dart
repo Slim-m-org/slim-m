@@ -25,6 +25,10 @@ class ShareToScreen extends ConsumerWidget {
   static const unreadableMessage =
       'The app that shared this did not let slim-m read it.';
 
+  /// What the person is told when everything shared was too large to take in.
+  static const tooLargeMessage =
+      'What you shared is too large for slim-m to take in.';
+
   void _cancel(BuildContext context, WidgetRef ref) {
     // Cleared first: the router sends the person back here while a share is pending.
     ref.read(pendingShareProvider.notifier).state = null;
@@ -66,7 +70,7 @@ class ShareToScreen extends ConsumerWidget {
       return Padding(
         padding: const EdgeInsets.all(AppSpacing.s16),
         child: AppErrorState(
-          message: unreadableMessage,
+          message: share.tooLarge > 0 ? tooLargeMessage : unreadableMessage,
           dismissLabel: 'Close',
           onDismiss: () => _cancel(context, ref),
         ),

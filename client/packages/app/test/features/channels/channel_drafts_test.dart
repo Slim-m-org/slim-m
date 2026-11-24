@@ -110,6 +110,20 @@ void main() {
     },
   );
 
+  test('a save or clear after sign-out is ignored', () async {
+    final drafts = container.read(channelDraftsProvider);
+    drafts.save('c1', 'hello there');
+    session.set(null);
+    await Future<void>.value();
+
+    drafts.save('c1', 'saved by a disposing screen');
+    drafts.clear('c2');
+    session.set(_bob);
+    await Future<void>.value();
+
+    expect(drafts.draftFor('c1'), isEmpty);
+  });
+
   test('a token rotation for the same account keeps its drafts', () async {
     final drafts = container.read(channelDraftsProvider);
     drafts.save('c1', 'hello there');

@@ -49,7 +49,7 @@ class _ShareDestinationStepState extends ConsumerState<ShareDestinationStep> {
       );
     }
     if (!mounted) return;
-    if (share.hasFiles || share.unreadable > 0) {
+    if (share.hasFiles || share.unreadable > 0 || share.tooLarge > 0) {
       ref.read(shareHandoffProvider.notifier).state = (
         channelId: target.channelId,
         share: share,

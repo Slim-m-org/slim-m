@@ -44,7 +44,9 @@ class _Rig {
   late final ProviderContainer container;
 
   Future<void> start() async {
-    SharedPreferences.setMockInitialValues({shareListeningKey: true});
+    SharedPreferences.setMockInitialValues({
+      activitySwitchStorageKey(shareListeningKey, 'self'): true,
+    });
     container = ProviderContainer(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),

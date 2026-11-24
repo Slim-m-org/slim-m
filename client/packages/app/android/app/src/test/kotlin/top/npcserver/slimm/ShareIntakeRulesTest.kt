@@ -5,6 +5,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 
 class ShareIntakeRulesTest {
   private val ownPackage = "top.npcserver.slimm"
@@ -144,5 +146,45 @@ class ShareIntakeRulesTest {
   fun capNameBytesDoesNotProtectAnImplausiblyLongExtension() {
     val capped = ShareIntakeRules.capNameBytes("e".repeat(250) + "." + "x".repeat(20))
     assertEquals("e".repeat(ShareIntakeRules.MAX_NAME_BYTES), capped)
+  }
+
+  @Test
+  fun clipboardRefusesEverySchemeButContent() {
+    assertFalse(ShareIntakeRules.clipboardUriAllowed("file", null, "data", ownPackage))
+    assertFalse(ShareIntakeRules.clipboardUriAllowed(null, "x", "a", ownPackage))
+    assertTrue(ShareIntakeRules.clipboardUriAllowed("content", "com.example.provider", "a", ownPackage))
+  }
+
+  @Test
+  fun clipboardRefusesOwnProviderOutsideItsClipboardFolder() {
+    assertFalse(ShareIntakeRules.clipboardUriAllowed("content", "$ownPackage.files", "updates", ownPackage))
+    assertFalse(ShareIntakeRules.clipboardUriAllowed("content", "0@$ownPackage.files", null, ownPackage))
+    assertTrue(ShareIntakeRules.clipboardUriAllowed("content", "$ownPackage.files", "clipboard_images", ownPackage))
+  }
+
+  @Test
+  fun copyCappedStopsPastTheLimit() {
+    val out = ByteArrayOutputStream()
+    assertFalse(ShareIntakeRules.copyCapped(ByteArrayInputStream(ByteArray(100)), out, 99))
+    assertTrue(ShareIntakeRules.copyCapped(ByteArrayInputStream(ByteArray(100)), ByteArrayOutputStream(), 100))
+  }
+
+  @Test
+  fun allowedBytesIsTheTightestOfTheCaps() {
+    val gib = 1024L * 1024 * 1024
+    assertEquals(ShareIntakeRules.MAX_FILE_BYTES, ShareIntakeRules.allowedBytes(0, 100 * gib))
+    assertEquals(gib, ShareIntakeRules.allowedBytes(3 * gib, 100 * gib))
+    assertEquals(0L, ShareIntakeRules.allowedBytes(0, 1024))
+  }
+
+  @Test
+  fun mergedSharesKeepEveryFileAndCount() {
+    val first = mapOf("files" to listOf("a"), "text" to "one", "unreadable" to 1, "tooLarge" to 0)
+    val second = mapOf("files" to listOf("b"), "text" to null, "unreadable" to 0, "tooLarge" to 2)
+    val merged = ShareIntakeRules.mergeShares(listOf(first, second))
+    assertEquals(listOf("a", "b"), merged["files"])
+    assertEquals("one", merged["text"])
+    assertEquals(1, merged["unreadable"])
+    assertEquals(2, merged["tooLarge"])
   }
 }

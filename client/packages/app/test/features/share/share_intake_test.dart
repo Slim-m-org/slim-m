@@ -93,6 +93,16 @@ void main() {
       );
     });
 
+    test('a share where every item was too large is still reported', () {
+      final share = IncomingShare.fromWire({
+        'files': <Object>[],
+        'tooLarge': 1,
+      })!;
+
+      expect(share.hasFiles, isFalse);
+      expect(share.tooLarge, 1);
+    });
+
     test('a share where every item was unreadable is still reported', () {
       final share = IncomingShare.fromWire({
         'files': <Object>[],

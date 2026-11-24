@@ -8,7 +8,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
 import '../../features/channels/providers/channel_history.dart';
+import '../../features/channels/providers/category_nesting.dart';
 import '../../features/channels/providers/last_text_channel.dart';
+import '../../features/channels/providers/slow_mode_controller.dart';
+import '../../features/channels/providers/threads.dart';
+import '../../features/settings/providers/stored_theme.dart';
 import '../../features/members/providers/member_presence.dart';
 import '../../features/members/providers/presence_activity.dart';
 import '../../features/members/providers/presence_controller.dart';
@@ -64,6 +68,18 @@ Future<void> clearSessionState(Ref ref) async {
   ref.invalidate(deletedChannelsProvider);
   ref.invalidate(deletedGroupDmsProvider);
   ref.invalidate(lostChannelsProvider);
+  ref.invalidate(removedRoomsProvider);
+  ref.invalidate(dockedThreadsProvider);
+  ref.invalidate(slowModeLastSentProvider);
+  ref.invalidate(categoriesNestProvider);
+  unawaited(
+    ref
+        .read(spaceDefaultThemeProvider.notifier)
+        .set(null)
+        .catchError(
+          ignoreError(LogTag.data, 'Could not clear the saved Space theme'),
+        ),
+  );
   ref.read(messageExtrasProvider.notifier).clear();
   ref.read(dmCallRingControllerProvider.notifier).clear();
   ref.read(dmCallActivityProvider.notifier).clear();

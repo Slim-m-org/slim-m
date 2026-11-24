@@ -56,7 +56,7 @@ async fn page(
 
 /// The scheme and host the visitor used, or None when the Host header is not
 /// a plain host[:port]. Only ever echoed back to the same visitor.
-fn request_origin(parts: &Parts) -> Option<String> {
+pub(super) fn request_origin(parts: &Parts) -> Option<String> {
     let host = parts.headers.get(header::HOST)?.to_str().ok()?;
     let plain = !host.is_empty()
         && host

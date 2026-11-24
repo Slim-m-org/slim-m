@@ -81,12 +81,13 @@ A signed release manifest, not signed individual artifacts, because the manifest
   Any failure aborts before staging and the current install is untouched.
 - Private key: a PKCS8 PEM stored as the `UPDATE_SIGNING_KEY` repository Actions secret.
   It is used only by `update-manifest.yml`, which skips with a warning while the secret is unset.
+  Amended: it is a secret of the `release` environment (deployment rules for `main` and `client-v*`), not a repository secret, so a workflow on any other ref cannot read it.
 - Key rotation: the manifest carries no key id today.
   A rotation ships as a client release signed by the old key that embeds both public keys, then the next manifests are signed by the new one.
   The client design must accept a list of keys from the start, even while the list has one entry.
 
 `scripts/update-manifest.py` builds, signs and verifies; `scripts/lib/test_update_manifest.py` covers it against a throwaway key.
-The workflow signs with `openssl pkeyutl` because python's standard library has no ed25519, and immediately verifies its own output against the key's public half so a bad secret fails in CI and not on a user's machine.
+The workflow signs with `openssl pkeyutl` because python's standard library has no ed25519, and immediately verifies its own output against the keys in `update_keys.dart`, so a secret no installed client trusts fails in CI and not on a user's machine.
 
 ### Owner's one-time steps
 

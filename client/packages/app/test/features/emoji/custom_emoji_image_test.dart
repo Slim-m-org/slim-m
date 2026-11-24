@@ -157,38 +157,41 @@ void main() {
       expect(find.text('1'), findsOneWidget);
     });
 
-    testWidgets('one emoji\'s bytes outlive the row that drew them, so the '
-        'same emoji further down refetches nothing', (tester) async {
+    test('one emoji\'s bytes outlive the row that drew them, so the same '
+        'emoji further down refetches nothing', () async {
       var fetches = 0;
-      final overrides = [
-        customEmojiImageProvider.overrideWith((ref, id) async {
-          fetches++;
-          return _png;
-        }),
-      ];
-
-      await tester.pumpWidget(
-        _app(overrides, const CustomEmojiImage(emojiId: 'e-party_parrot')),
+      final container = ProviderContainer(
+        overrides: [
+          sessionProvider.overrideWithValue(
+            api.SessionStore(
+              tokens: const api.TokenPair(
+                userId: 'u1',
+                accessToken: 'a',
+                refreshToken: 'r',
+                accessExpiresAt: 9999999999999,
+              ),
+            ),
+          ),
+          mockApiOverride((request) async {
+            fetches++;
+            return http.Response.bytes(
+              _png,
+              200,
+              headers: {'content-type': 'image/png'},
+            );
+          }),
+        ],
       );
-      await tester.pumpAndSettle();
-      expect(fetches, 1);
+      addTearDown(container.dispose);
+      final provider = customEmojiImageProvider('e-party_parrot');
 
-      await tester.pumpWidget(_app(overrides, const SizedBox.shrink()));
-      await tester.pumpAndSettle();
+      final row = container.listen(provider, (_, _) {});
+      await container.read(provider.future);
+      row.close();
+      await pumpEventQueue();
+      await container.read(provider.future);
 
-      await tester.pumpWidget(
-        _app(overrides, const CustomEmojiImage(emojiId: 'e-party_parrot')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(
-        fetches,
-        1,
-        reason:
-            'customEmojiImageProvider must not be autoDispose: the same '
-            'emoji recurs down a transcript',
-      );
-      expect(find.byType(Image), findsOneWidget);
+      expect(fetches, 1, reason: 'a recent emoji image stays held');
     });
   });
 

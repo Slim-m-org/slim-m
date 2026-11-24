@@ -10,6 +10,8 @@ import 'package:slimm_app/src/features/accounts/providers/account.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_unread.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
+import 'package:slimm_app/src/features/voice/providers/jellyfin_credential_store.dart';
+import 'package:slimm_app/src/features/voice/providers/jellyfin_direct_client.dart';
 import 'package:slimm_app/src/providers/disk_byte_cache.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
@@ -367,6 +369,25 @@ void main() {
 
       expect(cache.entries, {'$other-x-320'});
     });
+
+    test(
+      'removing an account deletes its Jellyfin direct-play login',
+      () async {
+        h = AccountHarness();
+        await h.seed(_a, user: 'ann', active: true);
+        await h.seed(_b, user: 'bea');
+        await h.boot();
+        const login = JellyfinSession(token: 'tok', userId: 'u');
+        final logins = JellyfinCredentialStore(h.keys);
+        await logins.save('ann', 'http://jelly', login);
+        await logins.save('bea', 'http://jelly', login);
+
+        await h.host.removeAccount(_a);
+
+        expect(await logins.load('ann', 'http://jelly'), isNull);
+        expect(await logins.load('bea', 'http://jelly'), isNotNull);
+      },
+    );
 
     test('the last account stays as a signed-out entry', () async {
       h = AccountHarness();

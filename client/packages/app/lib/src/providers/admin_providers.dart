@@ -34,13 +34,22 @@ import 'providers.dart';
 /// here reads as "show nothing" rather than "show everything" until proven
 /// otherwise.
 final myPermissionsProvider = Provider<int>(
-  (ref) => ref.watch(meProvider).valueOrNull?.heldPermissions ?? 0,
+  (ref) => ref.watch(_sessionMeProvider)?.heldPermissions ?? 0,
 );
+
+/// [meProvider]'s answer only while it is the signed-in account's own: a
+/// failed refetch keeps the previous value, which after an account change is
+/// somebody else's.
+final _sessionMeProvider = Provider<api.Me?>((ref) {
+  final me = ref.watch(meProvider).valueOrNull;
+  final self = ref.watch(sessionProvider).tokens?.userId;
+  return me != null && me.id == self ? me : null;
+});
 
 /// Where the caller stands on the role ladder; see [RoleLadder.of].
 final roleLadderProvider = Provider<RoleLadder>(
   (ref) => RoleLadder.of(
-    ref.watch(meProvider).valueOrNull,
+    ref.watch(_sessionMeProvider),
     permissions: ref.watch(myPermissionsProvider),
   ),
 );
