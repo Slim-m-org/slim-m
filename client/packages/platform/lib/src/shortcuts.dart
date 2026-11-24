@@ -82,9 +82,17 @@ enum AppAction {
 /// The primary modifier: command on Apple platforms, control elsewhere. Using
 /// control on macOS would collide with the system's own conventions and feel
 /// wrong to anyone who uses a Mac.
-bool get _useMeta =>
-    defaultTargetPlatform == TargetPlatform.macOS ||
-    defaultTargetPlatform == TargetPlatform.iOS;
+bool get _useMeta => _isApple(defaultTargetPlatform);
+
+bool _isApple(TargetPlatform platform) =>
+    platform == TargetPlatform.macOS || platform == TargetPlatform.iOS;
+
+/// What the meta key is called on [platform]: Cmd on Apple, Win on Windows, Super elsewhere.
+String metaKeyLabel([TargetPlatform? platform]) {
+  final host = platform ?? defaultTargetPlatform;
+  if (_isApple(host)) return 'Cmd';
+  return host == TargetPlatform.windows ? 'Win' : 'Super';
+}
 
 SingleActivator _primary(LogicalKeyboardKey key, {bool shift = false}) =>
     SingleActivator(
@@ -212,7 +220,7 @@ List<String> describeAppAction(
   );
   if (activator is! SingleActivator) return const [];
   return [
-    if (activator.meta) 'Cmd',
+    if (activator.meta) metaKeyLabel(),
     if (activator.control) 'Ctrl',
     if (activator.alt) 'Alt',
     if (activator.shift) 'Shift',

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The call shortcuts a person remapped, kept on this device.
 ///
-/// Off on a desktop until the person turns them on. An absent entry means the
+/// Off on a desktop or in a browser until the person turns them on. An absent entry means the
 /// default; the effective map is mirrored into [userShortcutOverrides].
 library;
 
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show ChangeNotifier;
+import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show SingleActivator, ShortcutActivator;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,8 +43,8 @@ bool sameChord(SingleActivator a, SingleActivator b) =>
     a.meta == b.meta;
 
 /// `Ctrl+Shift+M`, the way a key cap or a message names [activator].
-String chordLabel(SingleActivator activator) => [
-  if (activator.meta) 'Cmd',
+String chordLabel(SingleActivator activator, {TargetPlatform? platform}) => [
+  if (activator.meta) metaKeyLabel(platform),
   if (activator.control) 'Ctrl',
   if (activator.alt) 'Alt',
   if (activator.shift) 'Shift',
@@ -77,11 +77,16 @@ bool _isFunctionKey(LogicalKeyboardKey key) =>
 ///
 /// A bare letter would be swallowed while typing, so a modifier or a function
 /// key is required.
-String? shortcutRuleViolation(SingleActivator chord) {
+String? shortcutRuleViolation(
+  SingleActivator chord, {
+  TargetPlatform? platform,
+}) {
   if (_isModifierKey(chord.trigger)) return null;
   final hasModifier = chord.control || chord.alt || chord.meta;
   if (hasModifier || _isFunctionKey(chord.trigger)) return null;
-  return 'Hold Ctrl, Alt or Cmd with the key, or use an F key.';
+  final meta = metaKeyLabel(platform);
+  final held = meta == 'Cmd' ? 'Ctrl, Alt or Cmd' : 'Ctrl or Alt';
+  return 'Hold $held with the key, or use an F key.';
 }
 
 /// Whether the captured key is only a modifier going down, so capture keeps waiting.
@@ -189,7 +194,7 @@ class CallKeybinds {
   final bool enabled;
   final Map<AppAction, SingleActivator?> overrides;
 
-  /// False where no shortcut is grabbed system-wide, so the switch does not apply.
+  /// False on phones, where no chord can clash, so the switch does not apply.
   final bool optIn;
 
   /// What every hint and binding reads: all call actions unbound while off.
@@ -207,8 +212,10 @@ class CallKeybinds {
   );
 }
 
-/// Only a desktop build grabs keys system-wide, so only there are call keybinds opt-in.
-final callKeybindsOptInProvider = Provider<bool>((ref) => isDesktopHost);
+/// Desktop and web bind call chords that can clash with other apps or the browser, so the switch applies there.
+final callKeybindsOptInProvider = Provider<bool>(
+  (ref) => isDesktopHost || kIsWeb,
+);
 
 /// This device's call keybinds, one instance for every signed-in server.
 class CallKeybindsStore extends ChangeNotifier {
