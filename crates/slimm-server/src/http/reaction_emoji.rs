@@ -41,7 +41,7 @@ pub(crate) fn canonical(text: &str) -> Cow<'_, str> {
 }
 
 /// The picker's shortcodes, sorted; generated from `tests/fixtures/picker_emoji.json`.
-static PICKER_SHORTCODES: LazyLock<std::collections::HashSet<&'static str>> =
+static PICKER_SHORTCODES: LazyLock<std::collections::HashSet<&str>> =
     LazyLock::new(|| include_str!("picker_shortcodes.txt").lines().collect());
 
 /// Standard shortcodes bots send that the picker spells differently.

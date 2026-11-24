@@ -12,6 +12,13 @@
 //! access away. That one deliberately leaves authorship intact; this one is
 //! the account holder's own act and is the thing that anonymizes.
 
+/// One checked statement run on the deletion transaction.
+macro_rules! exec {
+    ($tx:expr, $sql:literal $(, $arg:expr)* $(,)?) => {
+        sqlx::query!($sql $(, $arg)*).execute(&mut **$tx).await?
+    };
+}
+
 mod anonymize;
 mod blocked_authorship;
 mod bounded;

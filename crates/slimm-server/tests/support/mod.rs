@@ -392,7 +392,7 @@ pub fn query_literals(source: &str) -> Vec<String> {
         .collect()
 }
 
-/// Offsets just past the `(` of every `query*!(` macro call and `QueryBuilder::new(` call, in source order.
+/// Offsets of the SQL literal in every `query*!(` call, `QueryBuilder::new(` call and `exec!(tx, ` statement, in source order.
 fn query_call_args(code: &str) -> Vec<usize> {
     const BUILDER: &str = "QueryBuilder::new(";
     let mut found: Vec<usize> = code
@@ -413,6 +413,13 @@ fn query_call_args(code: &str) -> Vec<usize> {
                 .all(|c| c.is_alphanumeric() || c == '_');
         if macro_call {
             found.push(at + paren + 1);
+        }
+    }
+    const EXEC: &str = "exec!(";
+    for (at, _) in code.match_indices(EXEC) {
+        let after = at + EXEC.len();
+        if let Some(comma) = code[after..].find(',') {
+            found.push(after + comma + 1);
         }
     }
     found.sort_unstable();
