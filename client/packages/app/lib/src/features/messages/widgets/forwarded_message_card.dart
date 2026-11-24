@@ -71,17 +71,20 @@ class ForwardedMessageCard extends ConsumerWidget {
     if (forwarded.removed) return const _RemovedCard();
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final use24Hour = watchUse24Hour(ref, context);
-    final name = forwarded.authorDisplayName ?? 'Unknown user';
     final time = formatMessageTime(forwarded.createdAt, use24Hour: use24Hour);
-    // Live-resolved: isBot/isWebhook are not on the ForwardedMessage snapshot.
+    // Live-resolved: isBot/isWebhook are not on the ForwardedMessage snapshot, and a deleted author's name must not outlive them.
     resolveAuthorProfiles(ref, [forwarded.authorId]);
-    final authorProfile = ref
-        .watch(
-          batchProfilesControllerProvider.select(
-            (m) => authorResolution(m, forwarded.authorId ?? ''),
-          ),
-        )
-        .profile;
+    final resolution = ref.watch(
+      batchProfilesControllerProvider.select(
+        (m) => authorResolution(m, forwarded.authorId ?? ''),
+      ),
+    );
+    final authorProfile = resolution.profile;
+    final name = authorLabelResolved(
+      authorId: forwarded.authorId,
+      cachedDisplayName: forwarded.authorDisplayName,
+      resolution: resolution,
+    );
     final origin = ref.watch(channelByIdProvider(forwarded.channelId));
     final originLabel = channelDisplayLabel(origin.valueOrNull);
     // On tap, not on build: eager lookup would demand a router from every surface a message renders on.

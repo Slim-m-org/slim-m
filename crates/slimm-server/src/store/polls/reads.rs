@@ -3,11 +3,37 @@
 
 use sqlx::QueryBuilder;
 
-use super::{Poll, PollOption, Store};
+use super::{Poll, PollOption, Store, VoteOutcome, fetch_tally, option_positions};
 use crate::ids::{MessageId, UserId};
 use crate::store::poll_runoff::instant_runoff;
 
 impl Store {
+    /// A poll's whole current count, as a vote publishes it; `None` if the message carries no poll.
+    pub async fn poll_outcome(&self, message_id: MessageId) -> anyhow::Result<Option<VoteOutcome>> {
+        let ranked = sqlx::query_scalar!(
+            r#"SELECT ranked AS "ranked: bool" FROM polls WHERE message_id = ?"#,
+            message_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        let Some(ranked) = ranked else {
+            return Ok(None);
+        };
+        let tally = fetch_tally(&self.pool, message_id).await?;
+        let runoff = if ranked {
+            let positions = option_positions(&self.pool, message_id).await?;
+            let ballots: Vec<Vec<i64>> = fetch_ballots(&self.pool, &[message_id])
+                .await?
+                .into_iter()
+                .map(|(_, _, ballot)| ballot)
+                .collect();
+            Some(instant_runoff(&positions, &ballots))
+        } else {
+            None
+        };
+        Ok(Some(VoteOutcome { tally, runoff }))
+    }
+
     /// A single message's poll, from one viewer's point of view. `None` if the
     /// message carries no poll.
     pub async fn poll_for_message(

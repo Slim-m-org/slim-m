@@ -13,10 +13,14 @@
 //! the account holder's own act and is the thing that anonymizes.
 
 mod anonymize;
+mod blocked_authorship;
+mod bounded;
+mod personal;
 
-use crate::ids::{SessionId, UserId};
+pub(super) use blocked_authorship::forget_unblocked_author;
 
-use super::dropped_refresh::{DropCause, keep_dropped_refresh_tokens};
+use crate::ids::{ChannelId, MessageId, SessionId, UserId};
+
 use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::space_owner::Handoff;
 use super::{Store, now_ms};
@@ -28,6 +32,12 @@ pub struct DeletedAccount {
     pub revoked: Vec<SessionId>,
     /// Set when the account owned the Space and ownership passed on.
     pub handoff: Option<Handoff>,
+    /// Messages whose reaction tallies lost this account's reactions.
+    pub reactions_changed: Vec<(ChannelId, MessageId)>,
+    /// Polls whose tallies lost this account's vote.
+    pub polls_changed: Vec<(ChannelId, MessageId)>,
+    /// Temporary rooms this account owned, now ownerless and renamed.
+    pub rooms_renamed: Vec<ChannelId>,
 }
 
 /// Why deleting an account was refused.
@@ -62,14 +72,12 @@ impl Store {
     /// that were revoked so the caller can close their live sockets, and any
     /// ownership hand-off for it to announce.
     ///
-    /// Concurrency: the first statement is a write, so the transaction takes the
-    /// write lock immediately (no stale-snapshot race) and a login racing this
-    /// deletion serializes against it (see [`Store::open_session`]). A request
-    /// already in flight on a still-valid token could commit one write just after
-    /// this transaction; that content stays attributed to the now-anonymized
-    /// tombstone, so it carries no identity, and the session is revoked so no
-    /// further writes follow. Closing that last-write window fully would need a
-    /// liveness check inside every write verb, left for later.
+    /// Concurrency: the account is closed first, in one short transaction whose
+    /// first statement is a write, so a login racing it serializes against it
+    /// (see [`Store::open_session`]). Everything it authored is then cleared in
+    /// bounded steps, each its own transaction, so other writers interleave; a
+    /// write that lands from an in-flight request before those steps is
+    /// cleared with the rest. A restart finishes a purge that stopped part way.
     ///
     /// Every authorship column is cleared here by hand, including
     /// `reports.reporter_id` and `reports.resolved_by`. Those two carry
@@ -116,6 +124,60 @@ impl Store {
         user_id: UserId,
         audited_by: Option<UserId>,
     ) -> Result<DeletedAccount, DeleteAccountError> {
+        let (revoked, handoff) = self.close_account(user_id, audited_by).await?;
+        // The account is already closed, so a failed clean-up is left to the sweep rather than reported as a failed delete.
+        let cleared = match self.clear_closed_account(user_id).await {
+            Ok(cleared) => cleared,
+            Err(err) => {
+                tracing::warn!(error = %err, "account clean-up stopped part way; the sweep will finish it");
+                bounded::Cleared::default()
+            }
+        };
+        Ok(DeletedAccount {
+            revoked,
+            handoff,
+            reactions_changed: cleared.reactions_changed,
+            polls_changed: cleared.polls_changed,
+            rooms_renamed: cleared.rooms_renamed,
+        })
+    }
+
+    /// Finishes every purge a stopped server left part way, once it has sat for `stale_ms`.
+    pub async fn finish_interrupted_account_purges(&self, stale_ms: i64) -> anyhow::Result<usize> {
+        let before = now_ms() - stale_ms;
+        let pending = sqlx::query_scalar!(
+            r#"SELECT user_id AS "user_id!: UserId" FROM account_purges WHERE started_at <= ?"#,
+            before
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        for user_id in &pending {
+            self.clear_closed_account(*user_id).await?;
+        }
+        Ok(pending.len())
+    }
+
+    /// The bounded clean-up after [`Self::close_account`]; idempotent, so a resumed run repeats it safely.
+    async fn clear_closed_account(&self, user_id: UserId) -> anyhow::Result<bounded::Cleared> {
+        let mut cleared = bounded::clear_authored_content(self, user_id).await?;
+        let mut tx = self.begin_write().await?;
+        cleared.rooms_renamed = anonymize::anonymize_authored_content(&mut tx, user_id).await?;
+        personal::purge_personal_data(&mut tx, user_id).await?;
+        sqlx::query!("DELETE FROM account_purges WHERE user_id = ?", user_id)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(cleared)
+    }
+
+    /// Closes the account in one short transaction: sessions and credentials
+    /// gone, the user row tombstoned, ownership passed on, and the purge recorded
+    /// as pending.
+    async fn close_account(
+        &self,
+        user_id: UserId,
+        audited_by: Option<UserId>,
+    ) -> Result<(Vec<SessionId>, Option<Handoff>), DeleteAccountError> {
         let now = now_ms();
         let mut tx = self.begin_write().await?;
 
@@ -142,225 +204,7 @@ impl Store {
         .map(|row| row.id)
         .collect();
 
-        anonymize::anonymize_authored_content(&mut tx, user_id).await?;
-
-        // Purge personal data. Deleting devices cascades sessions and their tokens.
-        keep_dropped_refresh_tokens(&mut tx, user_id, None, DropCause::AccountDeleted).await?;
-        sqlx::query!("DELETE FROM devices WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!("DELETE FROM reactions WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        // A mention marker names the account it was mentioning, not the message's own content - nothing left to anonymize.
-        sqlx::query!("DELETE FROM message_mentions WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!("DELETE FROM read_states WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        // A slot names the participant, not who arranged it - nothing to anonymize once they are gone.
-        sqlx::query!("DELETE FROM canvas_media_slots WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!("DELETE FROM member_roles WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        // A note is the author's own data, so it leaves with them; the subject's own deletion never touches it.
-        sqlx::query!("DELETE FROM user_notes WHERE author_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        // Which DMs this account had closed out of its own sidebar is its own preference, not the other side's.
-        sqlx::query!("DELETE FROM dm_hides WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        // No group should keep naming a tombstone; the rest of each group keeps its history.
-        Self::leave_all_group_dms(&mut tx, user_id).await?;
-        sqlx::query!("DELETE FROM linked_accounts WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!("DELETE FROM link_states WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!("DELETE FROM link_handoffs WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!("DELETE FROM pending_members WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        // Who was on which call, and when, is this person's own presence history (decision 0066).
-        sqlx::query!("DELETE FROM voice_call_events WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        // What someone said on a call is theirs; the rest of each transcript stays readable.
-        sqlx::query!(
-            "DELETE FROM call_transcript_lines WHERE speaker_id = ?",
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "DELETE FROM call_transcript_marks WHERE author_id = ?",
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "UPDATE call_transcripts SET started_by = NULL WHERE started_by = ?",
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!("DELETE FROM voice_sessions WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!("DELETE FROM saved_messages WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!("DELETE FROM user_favorites WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        // How somebody voted is theirs, like the emoji they reacted with; the tally moves as a reaction count would.
-        sqlx::query!("DELETE FROM poll_votes WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        // Both directions: a deleted account cannot come back to be blocked again.
-        sqlx::query!(
-            "DELETE FROM user_blocks WHERE blocker_id = ? OR blocked_id = ?",
-            user_id,
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        // A real DELETE, so notification_schedule_days genuinely cascades from it.
-        sqlx::query!(
-            "DELETE FROM notification_schedules WHERE user_id = ?",
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        // Both directions, like user_blocks above.
-        sqlx::query!(
-            "DELETE FROM notification_schedule_allowed_users WHERE user_id = ? OR allowed_user_id = ?",
-            user_id,
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "DELETE FROM notification_schedule_allowed_channels WHERE user_id = ?",
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "DELETE FROM channel_notification_prefs WHERE user_id = ?",
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!("DELETE FROM category_mutes WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!("DELETE FROM voice_notify_prefs WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        // Which inviter's code this account joined with is theirs to forget too; the tombstone never fires its CASCADE.
-        sqlx::query!("DELETE FROM invite_redemptions WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!(
-            "DELETE FROM attachment_uploaders WHERE uploaded_by = ?",
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        // A deleted bot's credential goes with it, or its hash outlives the account.
-        sqlx::query!("DELETE FROM bot_tokens WHERE bot_user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        // A deleted bot's own registration: its own data, nobody else's, purged with it.
-        sqlx::query!("DELETE FROM bot_commands WHERE bot_user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!(
-            "DELETE FROM bot_command_registrations WHERE bot_user_id = ?",
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        // Their archives go with the rows; the export sweep removes the files.
-        sqlx::query("DELETE FROM data_exports WHERE user_id = ?")
-            .bind(user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM debug_logs WHERE user_id = ?")
-            .bind(user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM bot_ui_entries WHERE bot_user_id = ?")
-            .bind(user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM watch_sessions WHERE bot_user_id = ?")
-            .bind(user_id)
-            .execute(&mut *tx)
-            .await?;
-        // A controller hint naming a departed member would outlive them for the session's life.
-        sqlx::query(
-            "UPDATE watch_sessions SET controller_user_id = NULL WHERE controller_user_id = ?",
-        )
-        .bind(user_id)
-        .execute(&mut *tx)
-        .await?;
-        // The role itself stays; it may be shared with a human.
-        sqlx::query!(
-            "UPDATE roles SET managed_bot_id = NULL WHERE managed_bot_id = ?",
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        // Same shape as bot_tokens.bot_user_id above: its own data, purged with it.
-        sqlx::query!("DELETE FROM webhooks WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!(
-            "DELETE FROM channel_overwrites WHERE target_type = 'member' AND target_id = ?",
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "DELETE FROM category_overwrites WHERE target_type = 'member' AND target_id = ?",
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "DELETE FROM password_reset_codes WHERE user_id = ?",
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!("DELETE FROM login_throttle WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        // The factor row holds its secret in the clear; a tombstone fires no cascade.
-        sqlx::query!("DELETE FROM totp_challenges WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!("DELETE FROM totp_recovery_codes WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!("DELETE FROM user_totp_factors WHERE user_id = ?", user_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!(
-            "DELETE FROM username_collision_renames WHERE user_id = ?",
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
+        personal::purge_credentials(&mut tx, user_id).await?;
 
         // The live-username index excludes tombstones, so the name frees up.
         let tombstone = format!("deleted-{user_id}");
@@ -410,7 +254,15 @@ impl Store {
             .await?;
         }
 
+        sqlx::query!(
+            "INSERT INTO account_purges (user_id, started_at) VALUES (?, ?)
+             ON CONFLICT (user_id) DO UPDATE SET started_at = excluded.started_at",
+            user_id,
+            now
+        )
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
-        Ok(DeletedAccount { revoked, handoff })
+        Ok((revoked, handoff))
     }
 }

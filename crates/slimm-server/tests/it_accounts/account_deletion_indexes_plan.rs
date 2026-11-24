@@ -32,10 +32,85 @@ fn source_of(relative: &str) -> String {
         .unwrap_or_else(|_| panic!("read {relative}"))
 }
 
-/// The deletion statements live in the module and its `anonymize` child.
+/// The deletion statements live in the module and its children.
 fn deletion_source() -> String {
-    source_of("src/store/account_deletion.rs")
-        + &source_of("src/store/account_deletion/anonymize.rs")
+    let mut source = source_of("src/store/account_deletion.rs");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/store/account_deletion");
+    let mut children: Vec<_> = fs::read_dir(&dir)
+        .expect("list account_deletion")
+        .map(|entry| entry.expect("entry").path())
+        .collect();
+    children.sort();
+    for child in children {
+        source += &fs::read_to_string(&child).expect("read a deletion module");
+    }
+    source
+}
+
+/// Tables a deletion may scan, because nothing makes them grow with use.
+const SMALL_TABLES: &[(&str, &str)] = &[
+    ("access_tokens", "one per live session, swept once expired"),
+    ("account_purges", "one row per deletion still running"),
+    ("bot_tokens", "one per bot"),
+    (
+        "canvas_object_locks",
+        "one per locked object, released by hand",
+    ),
+    ("category_overwrites", "configuration"),
+    ("channels", "configuration"),
+    (
+        "interactions",
+        "swept a quarter of an hour after each press",
+    ),
+    ("invite_redemptions", "one per member who joined"),
+    ("link_handoffs", "one per sign-in handoff in flight"),
+    ("link_states", "one per linking attempt in flight"),
+    ("member_nicknames", "one per member"),
+    (
+        "password_reset_codes",
+        "one per reset issued, swept on expiry",
+    ),
+    ("soundboard_clips", "capped per space"),
+    ("users", "one per member"),
+    ("webhooks", "configuration"),
+    ("ws_tickets", "lives seconds, swept once expired"),
+];
+
+/// Every table an `EXPLAIN QUERY PLAN` step reads by scanning.
+fn scanned_tables(plan: &[String]) -> Vec<String> {
+    plan.iter()
+        .filter(|step| {
+            step.starts_with("SCAN") || (step.contains("USING PRIMARY KEY") && !step.contains('('))
+        })
+        .filter_map(|step| step.split_whitespace().nth(1).map(str::to_owned))
+        .collect()
+}
+
+/// A long-lived account's deletion must not scan anything that grows with use,
+/// or it holds the writer for as long as the table is big.
+#[tokio::test]
+async fn no_deletion_statement_scans_a_table_that_grows() {
+    let (pool, _guard) = new_pool("slimm-deletion-plan-all").await;
+    let mut scans = Vec::new();
+    let literals = support::query_literals(&deletion_source());
+    assert!(
+        literals.len() > 50,
+        "found only {} statements",
+        literals.len()
+    );
+    for sql in literals {
+        let plan = plan_of(&pool, &sql, sql.matches('?').count()).await;
+        for table in scanned_tables(&plan) {
+            if !SMALL_TABLES.iter().any(|(small, _)| *small == table) {
+                scans.push(format!("{table}: {sql}"));
+            }
+        }
+    }
+    assert!(
+        scans.is_empty(),
+        "these deletion statements scan a table that grows with use; index the \
+         column, or add the table to SMALL_TABLES with the reason it stays small: {scans:#?}"
+    );
 }
 
 /// A 16-byte blob per placeholder, matching the affinity of the id columns

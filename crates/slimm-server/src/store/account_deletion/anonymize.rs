@@ -3,40 +3,26 @@
 
 use sqlx::{Sqlite, Transaction};
 
-use crate::ids::UserId;
+use crate::ids::{ChannelId, UserId};
 use crate::store::now_ms;
 
+/// What a temporary room is called once its owner's account is gone.
+const OWNERLESS_ROOM_NAME: &str = "Voice room";
+
 /// Clears the deleted account's id from rows others still see, so the content
-/// survives without pointing at a person.
+/// survives without pointing at a person. Returns the temporary rooms renamed.
 pub(super) async fn anonymize_authored_content(
     tx: &mut Transaction<'_, Sqlite>,
     user_id: UserId,
-) -> Result<(), sqlx::Error> {
-    // Anonymize authored content that stays visible to others.
-    sqlx::query!(
-        "UPDATE messages SET author_id = NULL WHERE author_id = ?",
+) -> Result<Vec<ChannelId>, sqlx::Error> {
+    // A room's name was built from its owner's display name, so both go.
+    let rooms = sqlx::query_scalar!(
+        r#"UPDATE channels SET room_owner_id = NULL, name = ?
+           WHERE room_owner_id = ? RETURNING id AS "id!: ChannelId""#,
+        OWNERLESS_ROOM_NAME,
         user_id
     )
-    .execute(&mut **tx)
-    .await?;
-    // A forward's snapshot stays visible to whoever it reached, so its author id goes the way a message's does.
-    sqlx::query!(
-        "UPDATE message_forwards SET origin_author_id = NULL WHERE origin_author_id = ?",
-        user_id
-    )
-    .execute(&mut **tx)
-    .await?;
-    sqlx::query!(
-        "UPDATE canvas_objects SET author_id = NULL WHERE author_id = ?",
-        user_id
-    )
-    .execute(&mut **tx)
-    .await?;
-    sqlx::query!(
-        "UPDATE canvas_ops SET actor_id = NULL WHERE actor_id = ?",
-        user_id
-    )
-    .execute(&mut **tx)
+    .fetch_all(&mut **tx)
     .await?;
     sqlx::query!(
         "UPDATE canvas_object_locks SET locked_by = NULL WHERE locked_by = ?",
@@ -58,12 +44,6 @@ pub(super) async fn anonymize_authored_content(
     .await?;
     sqlx::query!(
         "UPDATE admin_audit_log SET actor_id = NULL WHERE actor_id = ?",
-        user_id
-    )
-    .execute(&mut **tx)
-    .await?;
-    sqlx::query!(
-        "UPDATE message_ops SET actor_id = NULL WHERE actor_id = ?",
         user_id
     )
     .execute(&mut **tx)
@@ -174,6 +154,12 @@ pub(super) async fn anonymize_authored_content(
     )
     .execute(&mut **tx)
     .await?;
+    sqlx::query!(
+        "UPDATE call_transcripts SET started_by = NULL WHERE started_by = ?",
+        user_id
+    )
+    .execute(&mut **tx)
+    .await?;
     // A call stays in the transcript the way any other message does; who placed it goes the way a launched app surface's creator does.
     sqlx::query!(
         "UPDATE call_records SET caller_id = NULL WHERE caller_id = ?",
@@ -209,5 +195,5 @@ pub(super) async fn anonymize_authored_content(
     .bind(user_id)
     .execute(&mut **tx)
     .await?;
-    Ok(())
+    Ok(rooms)
 }

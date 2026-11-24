@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT ranked AS \"ranked: bool\" FROM polls WHERE message_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "ranked: bool",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "polls",
+            "name": "ranked"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5751940f5e70222c3696916e1192a747d00abc52f5cc8a78ffc9db5bf7c63263"
+}

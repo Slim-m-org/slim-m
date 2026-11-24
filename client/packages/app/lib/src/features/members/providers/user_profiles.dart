@@ -77,6 +77,8 @@ class BatchProfilesController
     _sub = _ref.read(liveEventsProvider).listen((event) {
       switch (event) {
         case api.ProfileChanged(:final userId):
+        // A deleted account re-resolves to gone, so its cached name stops showing.
+        case api.MemberRemoved(:final userId):
           _evict(userId);
         case api.MemberRoleChanged(:final userId):
         // An invite redeemed by someone already here can grant them a role.

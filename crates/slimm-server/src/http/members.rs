@@ -39,6 +39,7 @@ use crate::store::{
 };
 use crate::voice::VoiceError;
 
+pub(super) mod deleted_account;
 pub(super) mod member_activity;
 pub(super) mod member_nicknames;
 pub(super) mod members_bulk;
@@ -325,8 +326,7 @@ async fn delete_member_account(
     }
     super::linked_accounts::purge_avatar_files(&state, target).await;
     super::dock::purge_module_member_data(&state, target).await;
-    announce_member_gone(&state, target).await;
-    super::space_owner::announce_handoff(&state, deleted.handoff);
+    deleted_account::announce_deleted_account(&state, target, deleted).await;
     Ok(StatusCode::NO_CONTENT)
 }
 

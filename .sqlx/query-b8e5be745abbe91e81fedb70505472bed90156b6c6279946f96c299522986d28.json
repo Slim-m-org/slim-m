@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE messages SET author_id = NULL WHERE fts_rowid IN\n               (SELECT fts_rowid FROM messages WHERE author_id = ? ORDER BY fts_rowid LIMIT 500)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "b8e5be745abbe91e81fedb70505472bed90156b6c6279946f96c299522986d28"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM blocked_author_canvas_objects WHERE author_id = ?\n           AND NOT EXISTS (SELECT 1 FROM user_blocks WHERE blocked_id = ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "5ff02855bcbc2f78ff3286ab93b14aa534d231fd8908da36e455d96e755d371b"
+}

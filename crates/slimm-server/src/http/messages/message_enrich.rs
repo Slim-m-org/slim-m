@@ -25,8 +25,12 @@ use crate::store::Message;
 pub(crate) async fn with_reactions(
     state: &AppState,
     viewer: UserId,
-    messages: Vec<Message>,
+    mut messages: Vec<Message>,
 ) -> anyhow::Result<Vec<MessageDto>> {
+    state
+        .store
+        .restore_blocked_message_authors(viewer, &mut messages)
+        .await?;
     let ids: Vec<MessageId> = messages.iter().map(|m| m.id).collect();
     // Four reads at a time: a page's reads are independent, but all of them at once would take most of the 8-connection pool.
     let (

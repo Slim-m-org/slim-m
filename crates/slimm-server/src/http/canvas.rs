@@ -32,7 +32,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::{AuthedLimited, CANVAS, Json, Query};
 use super::messages::parse_uuid;
-use crate::ids::ChannelId;
+use crate::ids::{ChannelId, UserId};
 use crate::store::{CanvasObject, Rect, ViewportQuery, WORLD_LIMIT};
 
 pub(super) mod canvas_batch;
@@ -187,7 +187,7 @@ async fn viewport(
                 "cursor_seq cannot be combined with the previous viewport or after_seq",
             ));
         }
-        return page_by_seq(&state, channel_id, view, cursor_seq, limit).await;
+        return page_by_seq(&state, ctx.user_id, channel_id, view, cursor_seq, limit).await;
     }
     let query = ViewportQuery {
         view,
@@ -210,6 +210,10 @@ async fn viewport(
         objects.drain(0..(objects.len() - limit as usize));
     }
     has_more |= trim_to_byte_budget(&mut objects, true);
+    state
+        .store
+        .restore_blocked_canvas_authors(ctx.user_id, &mut objects)
+        .await?;
 
     Ok(Json(ViewportDto {
         objects: objects.into_iter().map(CanvasObjectDto::from).collect(),
@@ -255,6 +259,7 @@ fn trim_to_byte_budget(objects: &mut Vec<CanvasObject>, drop_front: bool) -> boo
 /// A page of the region in `seq` order, so a client can load the rest of a big board in the background.
 async fn page_by_seq(
     state: &AppState,
+    viewer: UserId,
     channel_id: ChannelId,
     view: Rect,
     cursor_seq: i64,
@@ -267,6 +272,10 @@ async fn page_by_seq(
     let mut has_more = objects.len() as i64 > limit;
     objects.truncate(limit as usize);
     has_more |= trim_to_byte_budget(&mut objects, false);
+    state
+        .store
+        .restore_blocked_canvas_authors(viewer, &mut objects)
+        .await?;
     let next_cursor = if has_more {
         objects.last().map(|object| object.seq.0)
     } else {

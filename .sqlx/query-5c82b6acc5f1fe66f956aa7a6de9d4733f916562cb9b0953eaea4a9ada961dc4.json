@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE canvas_ops SET actor_id = NULL WHERE (channel_id, seq) IN\n           (SELECT channel_id, seq FROM canvas_ops WHERE actor_id = ? LIMIT 500)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "5c82b6acc5f1fe66f956aa7a6de9d4733f916562cb9b0953eaea4a9ada961dc4"
+}

@@ -186,6 +186,40 @@ void main() {
     expect(tester.getRect(find.byType(AppBadge)).width, greaterThan(0));
   });
 
+  testWidgets('a deleted author is named as one, not by the name the forward '
+      'cached', (tester) async {
+    late BatchProfilesController controller;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          channelByIdProvider(
+            'c-origin',
+          ).overrideWith((ref) => Stream.value(_channel(name: 'general'))),
+          batchProfilesControllerProvider.overrideWith((ref) {
+            controller = BatchProfilesController(ref);
+            return controller;
+          }),
+        ],
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: const Scaffold(
+            body: ForwardedMessageCard(
+              forwarded: _forwarded,
+              body: Text('the original text'),
+              attachments: [],
+              currentChannelId: 'c-here',
+            ),
+          ),
+        ),
+      ),
+    );
+    controller.state = {'u-alice': null};
+    await tester.pump();
+
+    expect(find.text('Deleted user'), findsOneWidget);
+    expect(find.text('Alice'), findsNothing);
+  });
+
   testWidgets('what was forwarded stays readable to a screen reader', (
     tester,
   ) async {

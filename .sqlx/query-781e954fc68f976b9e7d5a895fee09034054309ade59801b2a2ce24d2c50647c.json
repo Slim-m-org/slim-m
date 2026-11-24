@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM attachment_uploaders WHERE uploaded_by = ? AND sha256 IN\n           (SELECT sha256 FROM attachment_uploaders WHERE uploaded_by = ? LIMIT 500)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "781e954fc68f976b9e7d5a895fee09034054309ade59801b2a2ce24d2c50647c"
+}
