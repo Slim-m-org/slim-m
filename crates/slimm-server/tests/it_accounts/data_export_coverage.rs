@@ -266,6 +266,7 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
         Fate::Excluded(BOT_CONFIG),
     ),
     ("webhooks", "created_by", Fate::Excluded(BOT_CONFIG)),
+    ("webhooks", "token_issued_by", Fate::Excluded(BOT_CONFIG)),
     ("webhooks", "user_id", Fate::Excluded(BOT_CONFIG)),
     ("ws_tickets", "user_id", Fate::Excluded(CREDENTIAL)),
 ];
