@@ -22,7 +22,6 @@ use super::module_host::{schedule_approved, scheduled_surface};
 use super::module_run::{RunContext, RunKind, RunRequest, run_installed};
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{InstalledModule, ModuleSchedule, ScheduleMove};
 
 pub fn routes() -> Router<AppState> {
