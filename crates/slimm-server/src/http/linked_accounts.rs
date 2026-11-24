@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Router;
-use axum::extract::{Extension, Path, Query, State};
+use axum::extract::{Extension, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
 use axum::response::Response;
@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{Authed, Json, Query, enforce};
 use super::link_handoff::{self, handoff_page};
 use super::linked_avatar;
 use super::messages::parse_uuid;

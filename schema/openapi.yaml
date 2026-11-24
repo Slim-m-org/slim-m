@@ -18440,6 +18440,10 @@ components:
         in_reply_to_id:
           type: string
           format: uuid
+          description: >
+            The message this answers, or, for a reply anchored to a button
+            press, the interaction id (not a message id, so it names nothing
+            to fetch).
         created_at:
           type: integer
           format: int64
@@ -19458,7 +19462,7 @@ components:
           format: int64
           description: >
             The place among its siblings, the new ones when `parent_id`
-            moves it.
+            moves it. From 0 to 100000; anything else is a 400.
         parent_id:
           type: [string, "null"]
           format: uuid

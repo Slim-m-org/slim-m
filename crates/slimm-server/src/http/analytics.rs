@@ -12,7 +12,7 @@
 //! does, so they stay on `AuthedRead`.
 
 use axum::Router;
-use axum::extract::{DefaultBodyLimit, Query, State};
+use axum::extract::{DefaultBodyLimit, State};
 use axum::http::request::Parts;
 use axum::routing::get;
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::require_manage_server;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{Authed, Json, Query, enforce};
 use crate::process_metrics::current_rss_bytes;
 use crate::ratelimit::Class;
 use crate::store::{

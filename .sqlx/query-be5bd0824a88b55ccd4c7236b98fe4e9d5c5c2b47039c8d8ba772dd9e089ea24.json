@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT COALESCE(MAX(position), -1) + 1 AS \"next!: i64\" FROM channel_categories\n           WHERE deleted_at IS NULL AND parent_id IS ? AND id IS NOT ?",
+  "query": "SELECT MIN(COALESCE(MAX(position), -1), 1000000) + 1 AS \"next!: i64\" FROM channel_categories\n           WHERE deleted_at IS NULL AND parent_id IS ? AND id IS NOT ?",
   "describe": {
     "columns": [
       {
@@ -14,8 +14,8 @@
       "Right": 2
     },
     "nullable": [
-      false
+      true
     ]
   },
-  "hash": "a24d4e91939d4fb8ba5a362efcca598e40eef01ec04aabf057833d6a20af48bd"
+  "hash": "be5bd0824a88b55ccd4c7236b98fe4e9d5c5c2b47039c8d8ba772dd9e089ea24"
 }
