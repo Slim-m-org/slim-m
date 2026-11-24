@@ -7,6 +7,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -34,10 +35,26 @@ Future<void> _untilLive(ProviderContainer container, {bool live = true}) async {
 }
 
 void main() {
-  testWidgets('a reconnect hands its catch-up messages to alerts', (
-    tester,
-  ) async {
+  testWidgets('a reconnect hands its catch-up messages to alerts', (tester) {
+    return _reconnectHandsOver(tester, failTicketOnce: false);
+  });
+
+  testWidgets(
+    'messages stored by a failed attempt reach the retry that works',
+    (tester) {
+      return _reconnectHandsOver(tester, failTicketOnce: true);
+    },
+  );
+}
+
+Future<void> _reconnectHandsOver(
+  WidgetTester tester, {
+  required bool failTicketOnce,
+}) async {
+  {
     var missed = false;
+    var failTicket = false;
+    var served = 0;
     final db = SlimmDatabase(NativeDatabase.memory());
     final store = MessageStore(db);
     await store.upsertChannels([
@@ -61,7 +78,7 @@ void main() {
             {
               'channel_id': 'c1',
               'messages': [
-                if (missed)
+                if (missed && !(failTicketOnce && served++ > 0))
                   {
                     'id': 'm1',
                     'channel_id': 'c1',
@@ -79,11 +96,13 @@ void main() {
           ],
         }),
       )
-      ..on(
-        'POST',
-        '/auth/ws-ticket',
-        (_) => jsonResponse({'ticket': 'tix', 'expires_at': 0}),
-      );
+      ..on('POST', '/auth/ws-ticket', (_) {
+        if (failTicket) {
+          failTicket = false;
+          return http.Response('{}', 503);
+        }
+        return jsonResponse({'ticket': 'tix', 'expires_at': 0});
+      });
     final container = ProviderContainer(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -115,6 +134,7 @@ void main() {
     expect(batches, isEmpty);
 
     missed = true;
+    failTicket = failTicketOnce;
     await tester.runAsync(() async {
       await server.dropSockets();
       await _untilLive(container, live: false);
@@ -130,5 +150,5 @@ void main() {
     await tester.pump();
     await tester.runAsync(server.close);
     await db.close();
-  });
+  }
 }

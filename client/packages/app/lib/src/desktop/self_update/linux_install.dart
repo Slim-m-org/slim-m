@@ -114,6 +114,15 @@ void _swapLink(LinuxInstallLayout layout, String name, String version) {
   temp.renameSync(layout.path(name));
 }
 
+/// Clears the pending-start markers when they name the running version, leaving every folder alone.
+void confirmRunningProven(LinuxInstallLayout layout, String runningExecutable) {
+  final running = runningFolderName(layout.root.path, runningExecutable);
+  if (running == null || _readPending(layout) != running) return;
+  safeDelete(File(layout.path(LayoutNames.pending)));
+  safeDelete(File(layout.path(LayoutNames.pendingTries)));
+  safeDelete(File(layout.path(LayoutNames.pendingStarted)));
+}
+
 /// Run once the new version has stayed up: clears the pending-start marker so
 /// the launcher stops counting, and prunes every version directory except
 /// `current`, `previous` (the one kept for rollback) and the one running.

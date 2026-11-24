@@ -132,7 +132,14 @@ class _DesktopMessageNotifier {
     if (_watching) return;
     final missed = <String, List<api.Message>>{};
     final mentioned = <String>{};
+    final store = await _ref.read(storeProvider.future);
+    final readThrough = <String, int>{};
     for (final message in messages) {
+      // Read on another device already: the server marker was hydrated before catch-up.
+      final read = readThrough[message.channelId] ??=
+          (await store.channelRow(message.channelId))?.lastReadSeq ?? 0;
+      if (disposed) return;
+      if (message.seq <= read) continue;
       final alert = await _ref
           .read(messageAlertPolicyProvider)
           .evaluate(message);

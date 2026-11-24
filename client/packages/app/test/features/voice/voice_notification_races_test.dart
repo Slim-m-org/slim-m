@@ -65,6 +65,35 @@ void main() {
     },
   );
 
+  test(
+    'a refresh in flight still lands for the channels nobody edited',
+    () async {
+      final listing = Completer<http.Response>();
+      final container = _container((request) {
+        if (request.method == 'GET') return listing.future;
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        return Future.value(
+          _json({'channel_id': request.url.pathSegments.last, ...body}),
+        );
+      });
+      container.listen(voiceNotificationProvider, (_, _) {});
+      await pumpEventQueue();
+      final notifier = container.read(voiceNotificationProvider.notifier);
+
+      await notifier.setStreams('lounge', streams: true);
+      listing.complete(
+        _json([
+          {'channel_id': 'ops', 'joins': 'every', 'streams': false},
+        ]),
+      );
+      await pumpEventQueue();
+
+      final state = container.read(voiceNotificationProvider);
+      expect(state.forChannel('lounge').streams, isTrue);
+      expect(state.forChannel('ops').joins, api.VoiceJoinMode.every);
+    },
+  );
+
   test('a failed save rolls back only its own channel', () async {
     final failing = Completer<http.Response>();
     final container = _container((request) {

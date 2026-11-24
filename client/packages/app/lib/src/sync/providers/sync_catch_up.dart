@@ -46,8 +46,8 @@ class SyncCatchUp {
   /// Messages a reconnect's catch-up stored, which no live frame announced.
   Stream<List<Message>> get reconnectBatches => _batches.stream;
 
-  /// Starts collecting the messages the coming catch-up stores.
-  void beginBatch() => _held.clear();
+  /// Drops what was held. A failed connect keeps it, so the retry that succeeds still announces it.
+  void discardBatch() => _held.clear();
 
   /// Hands the collected messages to [reconnectBatches] after a reconnect, or drops them on a first connect.
   void endBatch({required bool reconnect}) {

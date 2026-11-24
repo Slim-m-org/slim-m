@@ -22,6 +22,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_rtc/rtc.dart';
 
+import 'package:slimm_app/src/features/voice/providers/voice_call_heartbeat.dart';
+
 import 'voice_controller_harness.dart';
 
 void main() {
@@ -189,5 +191,32 @@ void main() {
     await pumpEventQueue();
 
     expect(events, ['POST sent', 'beat answered', 'DELETE sent']);
+  });
+
+  test('a hung heartbeat delays the leave request only briefly', () {
+    fakeAsync((async) {
+      final requests = <http.Request>[];
+      final session = FakeSession();
+      final controller = harness.controllerWith(
+        session,
+        voiceApi(
+          holdHeartbeat: Completer<void>().future,
+          onRequest: requests.add,
+        ),
+        voiceHeartbeatInterval: interval,
+      );
+
+      unawaited(controller.join('channel-1'));
+      async.flushMicrotasks();
+      session.emitState(VoiceSessionState.connected);
+      async.flushMicrotasks();
+      unawaited(controller.leave());
+      async.flushMicrotasks();
+      expect(forgetsIn(requests), isEmpty);
+
+      async.elapse(VoiceCallHeartbeat.forgetWait);
+
+      expect(forgetsIn(requests), isNotEmpty);
+    });
   });
 }

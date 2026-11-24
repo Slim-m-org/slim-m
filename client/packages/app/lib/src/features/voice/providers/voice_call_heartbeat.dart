@@ -35,6 +35,9 @@ class VoiceCallHeartbeat {
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
 
+  /// How long a leave waits for a beat on the wire before telling the server anyway.
+  static const forgetWait = Duration(seconds: 2);
+
   final Ref _ref;
   final Duration interval;
   final DateTime Function() _now;
@@ -111,7 +114,9 @@ class VoiceCallHeartbeat {
   Future<void> forget(String channelId) async {
     if (_toldLive == channelId) _toldLive = null;
     // A beat still on the wire would otherwise be recorded after this and re-register the member.
-    await Future.wait(_inFlight.toList());
+    await Future.wait(
+      _inFlight.toList(),
+    ).timeout(forgetWait, onTimeout: () => const <void>[]);
     try {
       await _ref.read(apiProvider).forgetVoiceHeartbeat(channelId);
     } catch (e) {

@@ -16,4 +16,15 @@ void main() {
     tab.setUnread(0);
     expect(web.document.title, 'slim-m');
   });
+
+  test('a title the app sets later keeps the count', () async {
+    web.document.title = 'slim-m';
+    final tab = BrowserAttention();
+    tab.setUnread(3);
+    web.document.title = 'slim-m';
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(web.document.title, '(3) slim-m');
+    tab.setUnread(0);
+    expect(web.document.title, 'slim-m');
+  });
 }

@@ -302,6 +302,10 @@ class SelfUpdateController {
     await Future<void>.delayed(settle);
     // An install that outlived startup owns the staging folders; the next launch cleans up.
     if (ref.read(selfUpdateInstallingProvider)) {
+      // This run has proved its own version even though the install keeps the folders.
+      target.confirmRunningProven(
+        resolvedExecutable ?? Platform.resolvedExecutable,
+      );
       await _running?.future;
     } else {
       target.confirmCleanStart(

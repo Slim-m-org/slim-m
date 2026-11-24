@@ -73,6 +73,7 @@ class _SpyPlugin implements FlutterLocalNotificationsPlugin {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(registerAndroidLocalNotificationsPluginForTest);
+  setUp(LocalNotifications.resetLaunchPayloadTakenForTest);
 
   group('channel constants', () {
     test('the messages channel id carries an explicit version', () {
@@ -197,6 +198,30 @@ void main() {
 
       expect(await notifications.launchPayload(), 'where');
       expect(plugin.initSettings, isNotNull);
+    });
+
+    test('the launching tap is reported once per process', () async {
+      final plugin = _SpyPlugin()
+        ..launchDetails = const NotificationAppLaunchDetails(
+          true,
+          notificationResponse: NotificationResponse(
+            notificationResponseType:
+                NotificationResponseType.selectedNotification,
+            payload: 'where',
+          ),
+        );
+
+      expect(
+        await LocalNotifications(plugin: plugin, isAndroid: true)
+            .launchPayload(),
+        'where',
+      );
+      expect(
+        await LocalNotifications(plugin: plugin, isAndroid: true)
+            .launchPayload(),
+        isNull,
+        reason: 'a second account container must not replay the launch tap',
+      );
     });
 
     test('an ordinary launch, or another platform, has no launch payload',

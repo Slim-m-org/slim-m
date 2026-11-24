@@ -71,13 +71,16 @@ String _executableToRun() {
 List<String> _launchArguments = const [];
 
 /// Remembers the arguments `main` received, so a relaunch passes them on
-/// (a login start stays hidden in the tray, a `slimm://` link survives).
+/// (a login start stays hidden in the tray, a `slimm://` link survives) until [forgetLaunchArguments].
 void rememberLaunchArguments(List<String> args) {
   _launchArguments = [
     for (final arg in args)
       if (arg != windowsRelaunchArgument) arg,
   ];
 }
+
+/// Forgets the launch arguments once startup is done, so a later restart opens normally.
+void forgetLaunchArguments() => _launchArguments = const [];
 
 /// The command that relaunches this process with the arguments it started with.
 ({String program, List<String> arguments})? thisProcessRelaunchCommand([

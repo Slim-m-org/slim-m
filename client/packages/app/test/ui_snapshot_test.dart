@@ -378,13 +378,14 @@ void main() {
                 canvasOpenProvider.overrideWith(
                   (ref) => surface.value.channelId,
                 ),
-                if (surface.value.withVoice)
+                if (surface.value.withVoice) ...[
                   channelJoinMutedProvider.overrideWithValue(
                     (_) async => false,
                   ),
-                voiceControllerProvider.overrideWith(
-                  (ref) => SnapshotVoiceController(ref, connectedCallState),
-                ),
+                  voiceControllerProvider.overrideWith(
+                    (ref) => SnapshotVoiceController(ref, connectedCallState),
+                  ),
+                ],
               ],
             );
           },

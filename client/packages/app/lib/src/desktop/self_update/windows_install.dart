@@ -133,6 +133,24 @@ void writeWindowsPointer(
   temp.renameSync(layout.path(name));
 }
 
+/// Clears the pending-start markers when they name the running version, leaving every folder alone.
+void confirmWindowsRunningProven(
+  WindowsInstallLayout layout,
+  String runningExecutable,
+) {
+  final folder = runningFolderName(layout.root.path, runningExecutable);
+  final running = folder == null
+      ? null
+      : WindowsInstallLayout.versionOfFolder(folder);
+  if (running == null ||
+      layout.pointedVersion(LayoutNames.pending) != running) {
+    return;
+  }
+  safeDelete(File(layout.path(LayoutNames.pending)));
+  safeDelete(File(layout.path(LayoutNames.pendingTries)));
+  safeDelete(File(layout.path(LayoutNames.pendingStarted)));
+}
+
 /// Run once the new version has stayed up: clears the pending-start marker so
 /// the launcher stops counting, and prunes every version folder except
 /// `current`, `previous` (the one kept for rollback) and the one running.

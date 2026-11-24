@@ -288,7 +288,6 @@ class SyncController extends StateNotifier<SyncStatus> {
     _identityHold.follow();
     _applier.unlistedChannels.clear();
     resetEphemeralSessionState(_ref);
-    _catchUp.beginBatch();
     try {
       final api = _ref.read(apiProvider);
       final store = await _ref.read(storeProvider.future);
@@ -461,6 +460,8 @@ class SyncController extends StateNotifier<SyncStatus> {
   /// The session ended, whichever way: stop syncing, then clear what belongs to it.
   Future<void> _endSession() async {
     await stop();
+    _wasLive = false;
+    _catchUp.discardBatch();
     await clearSessionState(_ref);
   }
 
@@ -489,6 +490,7 @@ class SyncController extends StateNotifier<SyncStatus> {
         if (generation != _generation) return;
         try {
           await _catchUp.run(generation, api, store);
+          _catchUp.discardBatch();
         } catch (error, stack) {
           reportFailure(LogTag.sync, 'catch up with the server', error, stack);
           if (generation == _generation) _onDropped();

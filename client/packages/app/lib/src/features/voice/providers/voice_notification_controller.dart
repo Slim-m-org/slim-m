@@ -30,7 +30,7 @@ class VoiceNotificationState {
 
 class VoiceNotificationController extends Notifier<VoiceNotificationState> {
   var _disposed = false;
-  var _edits = 0;
+  final _editedChannels = <String>[];
 
   @override
   VoiceNotificationState build() {
@@ -40,12 +40,19 @@ class VoiceNotificationController extends Notifier<VoiceNotificationState> {
   }
 
   Future<void> refresh() async {
-    final editsAtStart = _edits;
+    final editsAtStart = _editedChannels.length;
     try {
       final choices = await ref.read(apiProvider).listVoiceNotifications();
-      if (_disposed || _edits != editsAtStart) return;
+      if (_disposed) return;
+      // A channel edited while this was in flight keeps the edit; every other one takes the server's answer.
+      final edited = _editedChannels.skip(editsAtStart).toSet();
       state = VoiceNotificationState(
-        byChannel: {for (final c in choices) c.channelId: c},
+        byChannel: {
+          for (final c in choices)
+            if (!edited.contains(c.channelId)) c.channelId: c,
+          for (final id in edited)
+            if (state.byChannel[id] case final mine?) id: mine,
+        },
       );
     } catch (error, stack) {
       api.reportFailure(
@@ -68,7 +75,7 @@ class VoiceNotificationController extends Notifier<VoiceNotificationState> {
     api.VoiceJoinMode? joins,
     bool? streams,
   }) async {
-    _edits++;
+    _editedChannels.add(channelId);
     final before = state.byChannel[channelId];
     final current = state.forChannel(channelId);
     final next = api.VoiceNotification(

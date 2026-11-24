@@ -230,6 +230,12 @@ class LocalNotifications {
   final AndroidPermissionRequester? _permissionRequester;
   bool _ready = false;
 
+  /// The launching tap belongs to the process, not to any one account container.
+  static bool _launchPayloadTaken = false;
+
+  @visibleForTesting
+  static void resetLaunchPayloadTakenForTest() => _launchPayloadTaken = false;
+
   /// Creates every [LocalAlertChannel] and initializes the plugin. Every
   /// call here is idempotent on the native side, so calling this more than
   /// once - including once per background isolate, which cannot remember it
@@ -394,6 +400,8 @@ class LocalNotifications {
   Future<String?> launchPayload() async {
     if (!_isAndroid) return null;
     await _ensureReady();
+    if (_launchPayloadTaken) return null;
+    _launchPayloadTaken = true;
     final details = await _plugin.getNotificationAppLaunchDetails();
     if (details == null || !details.didNotificationLaunchApp) return null;
     return details.notificationResponse?.payload;

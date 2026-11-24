@@ -107,6 +107,30 @@ void main() {
     await setup.dispose();
   });
 
+  test('catch-up skips what another device already read', () async {
+    if (!isDesktopHost) return;
+    final setup = await twoChannels();
+    await MessageStore(setup.db).setReadMarker('dm-1', 5);
+    setup.caughtUp.add([
+      notifierMessage(id: 'm1', authorId: 'alice', channelId: 'dm-1'),
+      notifierMessage(
+        id: 'm2',
+        authorId: 'bob',
+        channelId: 'group-1',
+        mentionsMe: true,
+      ),
+    ]);
+    await settleNotifier(
+      setup,
+      until: () => setup.notifications.shown.isNotEmpty,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    expect(setup.notifications.shown.length, 1);
+    expect(setup.notifications.shown.single, contains('bob'));
+    await setup.dispose();
+  });
+
   test('a notification that throws is logged, not unhandled', () async {
     if (!isDesktopHost) return;
     final setup = await twoChannels();

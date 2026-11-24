@@ -21,7 +21,13 @@ Future<DownloadTarget?> openPlatformDownloadTarget(String filename) async {
   }
   final downloads = await getDownloadsDirectory();
   if (downloads != null) {
-    return FileDownloadTarget.open(await freeDownloadFile(downloads, filename));
+    final chosen = await freeDownloadFile(downloads, filename);
+    try {
+      return await FileDownloadTarget.open(chosen);
+    } on Object {
+      _reserved.remove(chosen.path);
+      rethrow;
+    }
   }
   // No Downloads folder: ask, and give the picker an empty list, which makes it claim the path.
   final saved = await FilePicker.saveFile(
@@ -32,9 +38,12 @@ Future<DownloadTarget?> openPlatformDownloadTarget(String filename) async {
   return FileDownloadTarget.open(File.fromUri(saved));
 }
 
+/// Names handed out and not yet written: held in memory so a quit leaves nothing under the real name.
+final _reserved = <String>{};
+
 /// A file in [directory] for [filename] that nothing occupies, as
 /// `name (2).ext` when the plain name is taken, so a save never overwrites.
-/// The empty file is created exclusively, so concurrent saves get distinct names.
+/// Nothing is created: the name is reserved until its target finishes or is discarded.
 Future<File> freeDownloadFile(Directory directory, String filename) async {
   final name = safeFileName(filename, windows: Platform.isWindows);
   final dot = name.lastIndexOf('.');
@@ -45,12 +54,10 @@ Future<File> freeDownloadFile(Directory directory, String filename) async {
       '${directory.path}${Platform.pathSeparator}'
       '${n == 1 ? name : '$stem ($n)$extension'}',
     );
-    try {
-      await candidate.create(exclusive: true);
-      return candidate;
-    } on FileSystemException {
-      if (!await candidate.exists()) rethrow;
-    }
+    if (_reserved.contains(candidate.path) || await candidate.exists())
+      continue;
+    // Added after the await, so two saves racing for one name cannot both win it.
+    if (_reserved.add(candidate.path)) return candidate;
   }
 }
 
@@ -138,7 +145,11 @@ class FileDownloadTarget implements DownloadTarget {
     _closed = true;
     await _inFlight;
     await _file.close();
-    await _moveIntoPlace();
+    try {
+      await _moveIntoPlace();
+    } finally {
+      _reserved.remove(_chosen.path);
+    }
     return true;
   }
 
@@ -155,6 +166,7 @@ class FileDownloadTarget implements DownloadTarget {
   @override
   Future<void> discard() async {
     _closed = true;
+    _reserved.remove(_chosen.path);
     await _inFlight;
     try {
       await _file.close();

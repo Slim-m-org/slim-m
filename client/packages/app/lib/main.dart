@@ -41,7 +41,8 @@ import 'src/desktop/desktop_chrome.dart';
 import 'src/desktop/desktop_quit_shortcut.dart';
 import 'src/desktop/desktop_window_shell.dart';
 import 'src/desktop/platform_startup.dart';
-import 'src/desktop/relaunch.dart' show rememberLaunchArguments;
+import 'src/desktop/relaunch.dart'
+    show forgetLaunchArguments, rememberLaunchArguments;
 import 'src/desktop/providers/desktop_splash_preference.dart';
 import 'src/desktop/splash_floor.dart';
 import 'src/desktop/startup_screen.dart';
@@ -200,6 +201,7 @@ Future<void> _bootstrapApp(
   // Revealed before the flip: a window reports its real size only once shown, and the real UI must not build at the splash's 380px.
   await shell.revealAfterHandoff();
   container.read(appReadyProvider.notifier).state = true;
+  forgetLaunchArguments();
   // A login launch goes where a close would, the tray or the taskbar, instead of covering what the user opened first.
   if (launchedAtLogin) unawaited(shell.requestClose());
   unawaited(container.read(selfUpdateProvider).confirmStart());

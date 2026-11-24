@@ -97,6 +97,17 @@ void main() {
     expect(await b.readAsBytes(), [2]);
   });
 
+  test('a reserved name leaves nothing on disk and frees on discard', () async {
+    final a = await freeDownloadFile(dir, 'r.pdf');
+    expect(a.existsSync(), isFalse, reason: 'a quit now must leave no file');
+    expect((await freeDownloadFile(dir, 'r.pdf')).path, endsWith('r (2).pdf'));
+
+    final target = await FileDownloadTarget.open(a, partDirectory: parts);
+    await target.discard();
+
+    expect((await freeDownloadFile(dir, 'r.pdf')).path, a.path);
+  });
+
   test('discard waits for a write in flight and leaves no partial', () async {
     final target = await FileDownloadTarget.open(chosen, partDirectory: parts);
     final write = target.write(List.filled(4 << 20, 7));

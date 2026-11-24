@@ -32,6 +32,9 @@ abstract interface class SelfUpdateTarget {
   Future<void> install(VerifiedUpdate update, {linux.Unpack? unpack});
   void confirmCleanStart(String runningExecutable);
 
+  /// Stops counting this run as a pending start without pruning, for a run whose install is still going.
+  void confirmRunningProven(String runningExecutable);
+
   /// Records that this run reached the app, for launchers that count failed starts.
   void markStarted();
   String? takeRollbackNotice();
@@ -106,6 +109,10 @@ class _LinuxTarget implements SelfUpdateTarget {
       linux.confirmCleanStart(layout, runningExecutable);
 
   @override
+  void confirmRunningProven(String runningExecutable) =>
+      linux.confirmRunningProven(layout, runningExecutable);
+
+  @override
   void markStarted() => markStartedIn(layout.path);
 
   @override
@@ -147,6 +154,10 @@ class _WindowsTarget implements SelfUpdateTarget {
       windows.confirmWindowsCleanStart(layout, runningExecutable);
 
   @override
+  void confirmRunningProven(String runningExecutable) =>
+      windows.confirmWindowsRunningProven(layout, runningExecutable);
+
+  @override
   void markStarted() => markStartedIn(layout.path);
 
   @override
@@ -186,6 +197,9 @@ class _MacosTarget implements SelfUpdateTarget {
   @override
   void confirmCleanStart(String runningExecutable) =>
       macos.confirmMacosCleanStart(layout);
+
+  @override
+  void confirmRunningProven(String runningExecutable) {}
 
   @override
   void markStarted() {}
