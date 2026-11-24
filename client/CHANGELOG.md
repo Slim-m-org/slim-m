@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.137.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.136.0...client-v0.137.0) (2026-11-24)
+
+
+### Features
+
+* **client:** show a badge instead of a second line for DMs with people who left ([#2485](https://github.com/Slim-m-org/slim-m/issues/2485)) ([4c8e553](https://github.com/Slim-m-org/slim-m/commit/4c8e553482def9b4dd1ddb4a44738331e4d3ff71))
+
+
+### Bug Fixes
+
+* audit batches 19, 20, 22 and 23, calls, tallies, client, server limits and packaging ([#2483](https://github.com/Slim-m-org/slim-m/issues/2483)) ([42b2e86](https://github.com/Slim-m-org/slim-m/commit/42b2e86ea6f0bd99a587c8850a794e40ff7064ad))
+* audit round 3, privacy, search, modules, client sessions and desktop ([#2486](https://github.com/Slim-m-org/slim-m/issues/2486)) ([c3fe07a](https://github.com/Slim-m-org/slim-m/commit/c3fe07a3fa7b45dc2eb0eccb1cc0c27b8c1d2bf1))
+
 ## [0.136.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.135.0...client-v0.136.0) (2026-11-24)
 
 
