@@ -22,6 +22,10 @@ import '../../../providers/live_events.dart';
 import 'hydrated_ranges.dart';
 import 'message_extras_model.dart';
 import 'poll_local_vote.dart';
+import 'poll_vote_failure.dart' show pollVotesInFlightProvider;
+import 'reaction_tally.dart';
+import 'reaction_toggle_queue.dart' show reactionTogglesInFlightProvider;
+import 'tally_versions.dart';
 import 'voice_transcripts.dart' show voiceTranscriptProgress;
 
 export 'message_extras_model.dart';
@@ -36,6 +40,8 @@ class MessageExtrasController
   late final StreamSubscription<api.ServerEvent> _sub;
   final _hydrated = <String, HydratedRanges>{};
   final _pinned = <String, int>{};
+  final _reactionVersions = TallyVersions();
+  final _pollVersions = TallyVersions();
 
   MessageExtras extrasFor(String messageId) =>
       state[messageId] ?? MessageExtras.empty;
@@ -46,14 +52,22 @@ class MessageExtrasController
         applyMessage(message);
       case api.MessageEdited(:final message):
         applyMessage(message);
-      case api.ReactionsChanged(:final messageId, :final reactions):
-        _applyReactionsChanged(messageId, reactions);
+      case api.ReactionsChanged(
+        :final messageId,
+        :final reactions,
+        :final version,
+      ):
+        if (_reactionVersions.isNewer(messageId, version)) {
+          _applyReactionsChanged(messageId, reactions);
+        }
       case api.CodeRunChanged(:final messageId, :final run):
         applyCodeRun(messageId, run);
       case api.CodeRunsCleared(:final messageId):
         _applyCodeRunsCleared(messageId);
-      case api.PollVoted(:final messageId, :final options, :final runoff):
-        _applyPollTally(messageId, options, runoff);
+      case api.PollVoted(:final messageId, :final version):
+        if (_pollVersions.isNewer(messageId, version)) {
+          _applyPollTally(event);
+        }
       case api.MessageVoiceTranscript(
         :final messageId,
         :final attachmentId,
@@ -257,23 +271,18 @@ class MessageExtrasController
     return known ?? const [];
   }
 
-  /// Replaces the cached tallies from a broadcast, carrying `reacted` over from
-  /// what this client already knew: it is per-viewer and never broadcast (see
-  /// [api.ReactionTally]'s own doc), so it has to be preserved, not guessed.
+  /// Replaces the cached tallies from a broadcast; see [reactionsFromFrame]
+  /// for the viewer's own flag while one of their toggles is still out.
   void _applyReactionsChanged(
     String messageId,
     List<api.ReactionTally> tallies,
   ) {
+    final pending = {
+      for (final key in _ref.read(reactionTogglesInFlightProvider).keys)
+        if (key.messageId == messageId) key.emoji,
+    };
     final known = extrasFor(messageId).reactions;
-    // any() rather than firstWhere(orElse:): a covariant List<Never> here threw on the orElse closure (iOS log, 2026-10-22).
-    final next = [
-      for (final tally in tallies)
-        api.ReactionSummary(
-          emoji: tally.emoji,
-          count: tally.count,
-          reacted: known.any((r) => r.emoji == tally.emoji && r.reacted),
-        ),
-    ];
+    final next = reactionsFromFrame(tallies, known, pending: pending);
     _set(messageId, extrasFor(messageId).copyWith(reactions: next));
   }
 
@@ -330,65 +339,22 @@ class MessageExtrasController
   /// by calling this again with [active] flipped.
   void applyLocalReactionToggle(String messageId, String emoji, bool active) {
     final existing = extrasFor(messageId).reactions;
-    final index = existing.indexWhere((r) => r.emoji == emoji);
-    final next = active
-        ? _withReaction(existing, emoji, index)
-        : _withoutReaction(existing, index);
+    final next = reactionsAfterToggle(existing, emoji, active: active);
     _set(messageId, extrasFor(messageId).copyWith(reactions: next));
-  }
-
-  List<api.ReactionSummary> _withReaction(
-    List<api.ReactionSummary> existing,
-    String emoji,
-    int index,
-  ) {
-    final next = [...existing];
-    if (index < 0) {
-      return next
-        ..add(api.ReactionSummary(emoji: emoji, count: 1, reacted: true));
-    }
-    final current = next[index];
-    if (current.reacted) return next;
-    next[index] = api.ReactionSummary(
-      emoji: emoji,
-      count: current.count + 1,
-      reacted: true,
-    );
-    return next;
-  }
-
-  List<api.ReactionSummary> _withoutReaction(
-    List<api.ReactionSummary> existing,
-    int index,
-  ) {
-    final next = [...existing];
-    if (index < 0) return next;
-    final current = next[index];
-    final count = current.reacted ? current.count - 1 : current.count;
-    if (count <= 0) {
-      next.removeAt(index);
-    } else {
-      next[index] = api.ReactionSummary(
-        emoji: current.emoji,
-        count: count,
-        reacted: false,
-      );
-    }
-    return next;
   }
 
   /// Merges a broadcast tally into the cached poll, dropping it when no poll is
   /// known yet: a bare tally carries neither the question nor the option
   /// labels, so there is nothing to merge it into until some REST fetch has
   /// taught this cache those. The next fetch including this message picks it up.
-  void _applyPollTally(
-    String messageId,
-    List<api.PollOptionTally> tallies,
-    api.PollRunoff? runoff,
-  ) {
+  /// The viewer's own vote from the frame applies unless a vote of theirs is still out.
+  void _applyPollTally(api.PollVoted frame) {
+    final messageId = frame.messageId;
     final poll = extrasFor(messageId).poll;
     if (poll == null) return;
-    final byPosition = {for (final t in tallies) t.position: t.votes};
+    final voting = _ref.read(pollVotesInFlightProvider).containsKey(messageId);
+    final ownVote = voting ? null : frame.votedOption;
+    final byPosition = {for (final t in frame.options) t.position: t.votes};
     final options = [
       for (final option in poll.options)
         api.PollOption(
@@ -403,16 +369,16 @@ class MessageExtrasController
         poll: poll.copyWith(
           options: options,
           totalVotes: options.fold<int>(0, (sum, o) => sum + o.votes),
-          runoff: runoff,
+          runoff: frame.runoff,
+          votedOption: ownVote,
+          votedRanking: ownVote == null ? null : frame.votedRanking,
         ),
       ),
     );
   }
 
   /// Records the caller's own vote immediately, ahead of the `poll.voted`
-  /// broadcast: that event never reports back who cast a vote, only the
-  /// refreshed tally, so [Poll.votedOption] (per-viewer, never broadcast)
-  /// would otherwise never update on the voter's own screen at all.
+  /// frame that confirms it.
   void applyLocalVote(String messageId, int option, {List<int>? ranking}) {
     final poll = extrasFor(messageId).poll;
     if (poll == null) return;
@@ -446,6 +412,8 @@ class MessageExtrasController
   void clear() {
     _hydrated.clear();
     _pinned.clear();
+    _reactionVersions.clear();
+    _pollVersions.clear();
     if (state.isEmpty) return;
     state = const {};
   }
@@ -478,6 +446,8 @@ class MessageExtrasController
       (channelId, _) => !openChannelIds.contains(channelId),
     );
     bool kept(String id) => reachable.contains(id) || _pinned.containsKey(id);
+    _reactionVersions.retainWhere(kept);
+    _pollVersions.retainWhere(kept);
     if (state.keys.every(kept)) return;
     state = {
       for (final entry in state.entries)
