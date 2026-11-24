@@ -76,6 +76,7 @@ pub(crate) async fn take(
             command: contract::COMMAND,
             input: &input,
             kind: RunKind::Room,
+            hook: None,
             context: place.context(),
         };
         let surface = surface_for(state, module, sender, None);

@@ -35,12 +35,29 @@ pub async fn disable_incompatible(state: &AppState) {
             continue;
         };
         tracing::warn!(module = %module.id, %reason, "disabled a module outside the add-on API range");
-        if let Err(err) = state
+        match state
             .store
             .disable_module_incompatible(&module.id, &reason)
             .await
         {
-            tracing::warn!(%err, module = %module.id, "could not disable an incompatible module");
+            Ok(true) => record_disable(state, &module.id).await,
+            Ok(false) => {}
+            Err(err) => {
+                tracing::warn!(%err, module = %module.id, "could not disable an incompatible module");
+            }
         }
+    }
+}
+
+/// The audit action for a module the server turned off because it is outside the add-on API range.
+pub(crate) const INCOMPATIBLE_DISABLE_ACTION: &str = "module.incompatible_disable";
+
+async fn record_disable(state: &AppState, module_id: &str) {
+    if let Err(err) = state
+        .store
+        .record_admin_change_by(None, INCOMPATIBLE_DISABLE_ACTION, Some(module_id), "{}")
+        .await
+    {
+        tracing::warn!(%err, module = %module_id, "could not record an incompatible disable");
     }
 }

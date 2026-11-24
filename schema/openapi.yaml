@@ -12877,7 +12877,9 @@ paths:
       description: >
         Every interceptor and permission hook of every installed module, in
         the order they run, with the admin's priority and fail mode and how
-        each has been doing.
+        each has been doing. The run counts, fuel and last error belong to
+        that one hook. The last error is a fixed description of the failure
+        kind, never text the module supplied.
       responses:
         "200":
           description: The hooks in chain order.
@@ -17004,6 +17006,7 @@ components:
         last_error:
           type: string
           nullable: true
+          description: A fixed description of the failure kind, never text the module supplied.
         last_error_at:
           type: integer
           format: int64

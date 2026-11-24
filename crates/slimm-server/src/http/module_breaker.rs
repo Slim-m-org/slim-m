@@ -26,14 +26,14 @@ pub(super) async fn note_background_run(
     state: &AppState,
     module: &InstalledModule,
     result: &RunResult,
-    outcome: Option<&CommandOutcome>,
+    (outcome, keep_on): (Option<&CommandOutcome>, bool),
 ) {
     if outcome.is_some_and(was_turned_away) {
         return;
     }
     let noted = match result {
         RunResult::Ok => state.store.record_module_background_ok(&module.id).await,
-        RunResult::Failed(error) => count_failure(state, module, error).await,
+        RunResult::Failed(error) => count_failure(state, module, error, keep_on).await,
     };
     if let Err(err) = noted {
         tracing::warn!(%err, module = %module.id, "could not update a module's failure count");
@@ -44,12 +44,17 @@ async fn count_failure(
     state: &AppState,
     module: &InstalledModule,
     error: &str,
+    keep_on: bool,
 ) -> anyhow::Result<()> {
     let streak = state
         .store
         .record_module_background_failure(&module.id)
         .await?;
     if streak < FAILURE_LIMIT {
+        return Ok(());
+    }
+    if keep_on {
+        raise_alert(state, module, &format!("{} keeps failing its checks ({streak} in a row). It stays on because its hook refuses what it cannot check.", module.name)).await;
         return Ok(());
     }
     let reason = disabled_reason(streak, error);
@@ -61,16 +66,11 @@ async fn count_failure(
         return Ok(());
     }
     tracing::warn!(module = %module.id, streak, "disabled a module after repeated failed runs");
-    crate::admin_alerts::Notifier::from_state(state)
-        .raise(
-            crate::admin_alerts::AlertKind::ModuleBreaker,
-            &module.id,
-            &format!(
-                "{} was turned off after {streak} failed runs in a row.",
-                module.name
-            ),
-        )
-        .await;
+    let said = format!(
+        "{} was turned off after {streak} failed runs in a row.",
+        module.name
+    );
+    raise_alert(state, module, &said).await;
     super::module_rooms::end_module(state, &module.id);
     crate::call_audio::runtime::end_module_sessions(
         state,
@@ -78,14 +78,27 @@ async fn count_failure(
         crate::call_audio::session::EndReason::ModuleDisabled,
     )
     .await;
-    if let Some(actor) = module.bot_user_id {
-        let detail = json!({ "consecutive_failures": streak }).to_string();
-        state
-            .store
-            .record_admin_change(actor, AUTO_DISABLE_ACTION, Some(&module.id), &detail)
-            .await?;
-    }
+    let detail = json!({ "consecutive_failures": streak }).to_string();
+    state
+        .store
+        .record_admin_change_by(
+            module.bot_user_id,
+            AUTO_DISABLE_ACTION,
+            Some(&module.id),
+            &detail,
+        )
+        .await?;
     Ok(())
+}
+
+async fn raise_alert(state: &AppState, module: &InstalledModule, detail: &str) {
+    crate::admin_alerts::Notifier::from_state(state)
+        .raise(
+            crate::admin_alerts::AlertKind::ModuleBreaker,
+            &module.id,
+            detail,
+        )
+        .await;
 }
 
 fn disabled_reason(streak: i64, error: &str) -> String {

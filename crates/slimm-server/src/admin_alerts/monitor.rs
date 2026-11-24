@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use super::backup_status::BackupReport;
 use super::watch::{self, LivekitWatch};
 use super::{AlertKind, Notifier};
+use crate::http::FAILURE_LIMIT;
 use crate::push::PushSender;
 use crate::state::AppState;
 use crate::store::{Store, now_ms};
@@ -100,13 +101,18 @@ impl Monitor {
         }
     }
 
-    /// A tripped breaker is raised where it trips; here it closes once the module runs again.
+    /// A tripped breaker is raised where it trips; here it closes once the module runs again, not while a kept-on hook still fails.
     async fn settle_modules(&mut self) {
         let kind = AlertKind::ModuleBreaker.as_str();
         let Ok(subjects) = self.store.open_admin_alert_subjects(kind).await else {
             return;
         };
+        let health = self.store.module_health().await.unwrap_or_default();
         for module_id in subjects {
+            let streak = health.get(&module_id).map_or(0, |h| h.consecutive_failures);
+            if streak >= FAILURE_LIMIT {
+                continue;
+            }
             let running = match self.store.installed_module(&module_id).await {
                 Ok(Some(module)) => module.enabled,
                 Ok(None) => true,
