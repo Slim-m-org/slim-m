@@ -19,6 +19,7 @@ const (
 	versionPrefix   = "app-"
 	maxFailedStarts = 2
 	pendingTries    = "pending.tries"
+	pendingStarted  = "pending.started"
 	currentFile     = "current"
 	pendingFile     = "pending"
 	previousFile    = "previous"
@@ -97,7 +98,7 @@ func choose(root string, relaunch bool) (string, error) {
 	if !relaunch && instanceRunning(root) {
 		return versionDir(root, current), nil
 	}
-	tries, _ := strconv.Atoi(read(root, pendingTries))
+	tries := failedStarts(root)
 	if tries >= maxFailedStarts && isComplete(root, read(root, previousFile)) {
 		return rollBack(root, current)
 	}
@@ -105,6 +106,19 @@ func choose(root string, relaunch bool) (string, error) {
 		return "", err
 	}
 	return versionDir(root, current), nil
+}
+
+// failedStarts is how many earlier starts of the pending version never reached
+// the app's ready marker; a run that did reach it is not a failure.
+func failedStarts(root string) int {
+	tries, _ := strconv.Atoi(read(root, pendingTries))
+	if _, err := os.Stat(filepath.Join(root, pendingStarted)); err == nil {
+		remove(root, pendingStarted)
+		if tries > 0 {
+			tries--
+		}
+	}
+	return tries
 }
 
 // rollBack makes `previous` current again and leaves a `rolled-back` marker
@@ -118,16 +132,25 @@ func rollBack(root, failed string) (string, error) {
 		return "", err
 	}
 	_ = write(root, "rolled-back", failed)
-	remove(root, pendingFile, pendingTries, previousFile)
+	remove(root, pendingFile, pendingTries, pendingStarted, previousFile)
 	return versionDir(root, previous), nil
 }
 
 // processAlive is replaced in tests; the real one asks the OS.
 var processAlive = osProcessAlive
 
+// processIsApp is replaced in tests; the real one reads the pid's image path.
+var processIsApp = osProcessIsApp
+
+// isAppImage matches the app's executable by name, ignoring case and directory.
+func isAppImage(path string) bool {
+	return strings.EqualFold(filepath.Base(strings.ReplaceAll(path, `\`, "/")), appExecutable)
+}
+
 // instanceRunning reports whether the app this launcher started last is
-// still alive, going by the pid it left in running.pid.
+// still alive, going by the pid it left in running.pid. A reused pid that now
+// names some other program does not count.
 func instanceRunning(root string) bool {
 	pid, err := strconv.Atoi(read(root, "running.pid"))
-	return err == nil && pid > 0 && processAlive(pid)
+	return err == nil && pid > 0 && processAlive(pid) && processIsApp(pid)
 }

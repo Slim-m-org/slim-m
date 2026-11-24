@@ -41,7 +41,7 @@ RestartApplications=no
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; Flags: unchecked
 
 [Files]
-Source: "{#SourceDir}\*"; DestDir: "{app}\app-{#AppVersion}"; Excludes: "install.cmd,install.ps1,*.lib,*.exp"; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "{#SourceDir}\*"; DestDir: "{app}\app-{#AppVersion}"; Excludes: "install.cmd,install.ps1,uninstall.ps1,*.lib,*.exp"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "{#SourceDir}\slim-m.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
@@ -187,8 +187,10 @@ begin
     DeleteMatching('failed-version');
     DeleteMatching('.*.new');
     DeleteMatching('.*.launcher');
+    DeleteMatching('uninstall.ps1');
     DeleteMatching('running.pid');
     DeleteMatching('.launcher.lock');
+    DeleteMatching('.launcher-*');
     RemoveLoginStart;
     RemoveDir(ExpandConstant('{app}'));
     OfferToRemoveData;

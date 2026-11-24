@@ -52,5 +52,5 @@ runs:
         mkdir -p "stage/${name}" dist
         cp -a "${bundle}/." "stage/${name}/"
         cp LICENSES/LicenseRef-PolyForm-Noncommercial-1.0.0.txt "stage/${name}/LICENSE"
-        cp packaging/linux/README.md packaging/linux/slim-m packaging/linux/install.sh packaging/rpm/top.npcserver.slimm.desktop "stage/${name}/" && mkdir -p "stage/${name}/icons" && cp packaging/linux/icons/top.npcserver.slimm* "stage/${name}/icons/"
+        cp packaging/linux/README.md packaging/linux/slim-m packaging/linux/install.sh packaging/linux/uninstall.sh packaging/rpm/top.npcserver.slimm.desktop "stage/${name}/" && mkdir -p "stage/${name}/icons" && cp packaging/linux/icons/top.npcserver.slimm* "stage/${name}/icons/"
         tar -C stage -czf "dist/${name}-linux-amd64.tar.gz" "${name}"

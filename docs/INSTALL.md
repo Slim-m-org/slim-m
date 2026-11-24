@@ -148,8 +148,8 @@ Per-user installs keep their own update path.
 | Fedora COPR rpm | `sudo dnf upgrade --refresh slim-m-client`; never replaced by the app | `sudo dnf remove slim-m-client` |
 | Flatpak | Download the new bundle and install it over the old one; there is no remote | `flatpak uninstall top.npcserver.slimm` |
 | Linux tarball, run in place | Not updated; download the next one | Delete the folder |
-| Linux tarball via `install.sh` | In the app, from a signed manifest | Delete `~/.local/share/slim-m`, `~/.local/bin/slim-m`, `~/.local/share/applications/top.npcserver.slimm.desktop` and the `top.npcserver.slimm` icons under `~/.local/share/icons/hicolor` |
-| Windows via setup or `install.cmd` | In the app, from a signed manifest | Uninstall in Apps & Features (setup; it closes a running slim-m and asks whether to remove your data in `%APPDATA%\top.npcserver\slim-m` too), or delete `%LOCALAPPDATA%\slim-m`, the Start menu shortcut and that data folder |
+| Linux tarball via `install.sh` | In the app, from a signed manifest | Run `~/.local/share/slim-m/uninstall.sh` (add `--remove-data` to delete your data in `~/.local/share/top.npcserver.slimm` too) |
+| Windows via setup or `install.cmd` | In the app, from a signed manifest | Uninstall in Apps & Features (setup; it closes a running slim-m and asks whether to remove your data in `%APPDATA%\top.npcserver\slim-m` too), or, for the zip, run `%LOCALAPPDATA%\slim-m\uninstall.ps1` (`-RemoveData` also deletes that data folder) |
 | Windows, run from the unzipped folder | Not updated until you choose "Install for automatic updates" in Settings > About | Delete the folder |
 | macOS app in `~/Applications` | In the app, from a signed manifest; never run on a real Mac yet, so treat it as unconfirmed | Drag the app to the bin |
 | Android from Google Play | By Play | Uninstall as any app |

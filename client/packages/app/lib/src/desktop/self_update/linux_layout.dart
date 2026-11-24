@@ -19,6 +19,7 @@ abstract final class LayoutNames {
   static const previous = 'previous';
   static const pending = 'pending';
   static const pendingTries = 'pending.tries';
+  static const pendingStarted = 'pending.started';
   static const rolledBack = 'rolled-back';
   static const failedVersion = 'failed-version';
   static const staging = '.staging';

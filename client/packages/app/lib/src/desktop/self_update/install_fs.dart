@@ -20,6 +20,21 @@ void safeDelete(FileSystemEntity entity) {
   }
 }
 
+/// Tells the launcher this run reached the app, so it is not counted as a failed start.
+void markStarted(File pending, File started) {
+  if (!pending.existsSync()) return;
+  try {
+    started.writeAsStringSync('');
+  } on FileSystemException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.platform,
+      'Could not mark this start',
+      error,
+      stack,
+    );
+  }
+}
+
 /// One attempt at moving a directory; injectable so tests can fake a lock.
 typedef RenameDirectory = Future<void> Function(Directory from, String to);
 

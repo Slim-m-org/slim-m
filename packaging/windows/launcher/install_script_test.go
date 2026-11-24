@@ -71,3 +71,20 @@ func TestInstallScriptRetriesALauncherThatIsStillRunning(t *testing.T) {
 		t.Fatal("copying slim-m.exe must retry: a launcher waiting on a restart keeps it in use for up to about 47 s")
 	}
 }
+
+func TestInstallScriptClearsPendingStateBeforeWritingCurrent(t *testing.T) {
+	script := installScript(t)
+	currentAt := strings.Index(script, "Set-Pointer 'current' $version")
+	for _, name := range []string{"'pending'", "'pending.tries'", "'pending.started'"} {
+		clearAt := strings.Index(script, name)
+		if clearAt < 0 || clearAt > currentAt {
+			t.Fatalf("%s must be cleared before current points at the new version", name)
+		}
+	}
+}
+
+func TestInstallScriptLeavesAnUninstaller(t *testing.T) {
+	if !strings.Contains(installScript(t), "'uninstall.ps1'") {
+		t.Fatal("the zip install must copy uninstall.ps1 into the install root")
+	}
+}

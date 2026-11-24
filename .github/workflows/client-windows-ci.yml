@@ -179,7 +179,7 @@ jobs:
           $release = "client/packages/app/build/windows/x64/runner/Release"
           Move-Item packaging/windows/launcher/slim-m.exe $release
           Remove-Item "$release/*.lib", "$release/*.exp"
-          Copy-Item packaging/windows/install.ps1, packaging/windows/install.cmd, packaging/windows/README.md $release
+          Copy-Item packaging/windows/install.ps1, packaging/windows/uninstall.ps1, packaging/windows/install.cmd, packaging/windows/README.md $release
           Set-Content -Path "$release/VERSION" -Value $env:VERSION -NoNewline
           Compress-Archive -Path "$release/*" -DestinationPath "slim-m-client-$env:VERSION-windows-x64.zip"
 
