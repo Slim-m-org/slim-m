@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/message_editing.dart';
+import 'package:slimm_app/src/features/messages/providers/message_extras.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_data/data.dart';
@@ -173,4 +174,41 @@ void main() {
       await unmountAndFlush(tester);
     },
   );
+
+  testWidgets('Up skips an own call record for the message before it', (
+    tester,
+  ) async {
+    const call = api.Message(
+      id: 'm4',
+      channelId: 'c1',
+      authorId: 'bob',
+      authorDisplayName: 'bob',
+      seq: 4,
+      content: '',
+      createdAt: 4000,
+      editedAt: null,
+      call: api.CallRecord(outcome: api.CallOutcome.answered, durationMs: 5),
+    );
+    await store.applyMessages([_message('m2', 'bob', 2), call]);
+    await tester.pumpWidget(
+      composerHarness(
+        controller: controller,
+        sends: sends,
+        platform: TargetPlatform.linux,
+        extraOverrides: overridesFor(store),
+        extra: watchEditing('c1'),
+      ),
+    );
+    final container = containerOf(tester);
+    container.read(messageExtrasProvider.notifier).applyMessage(call);
+
+    await tester.tap(find.byWidgetPredicate((w) => w is TextField));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+
+    expect(container.read(editingMessageIdProvider('c1')), 'm2');
+    await unmountAndFlush(tester);
+  });
 }

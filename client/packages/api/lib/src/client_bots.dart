@@ -97,11 +97,14 @@ extension SlimmApiBots on SlimmApi {
   }
 
   /// Creates a bot and returns it with its token, shown only this once.
+  ///
+  /// [password] is the caller's own, required when the bot will hold ADMINISTRATOR.
   Future<NewBot> createBot(
     String username, {
     String? displayName,
     int permissions = 0,
     String? prefix,
+    String? password,
   }) async {
     final json = await send(
       'POST',
@@ -111,6 +114,7 @@ extension SlimmApiBots on SlimmApi {
         if (displayName != null) 'display_name': displayName,
         'permissions': permissions,
         if (prefix != null) 'prefix': prefix,
+        if (password != null) 'password': password,
       },
     );
     return NewBot.fromJson(json as Map<String, dynamic>);
@@ -134,17 +138,32 @@ extension SlimmApiBots on SlimmApi {
       send('POST', '/bots/$botUserId/revoke', expectNoContent: true);
 
   /// Replaces a bot's token and returns the new one, shown only this once.
-  Future<NewBot> reissueBotToken(String botUserId) async {
-    final json = await send('POST', '/bots/$botUserId/token');
+  ///
+  /// [password] is the caller's own, required when the bot holds ADMINISTRATOR.
+  Future<NewBot> reissueBotToken(String botUserId, {String? password}) async {
+    final json = await send(
+      'POST',
+      '/bots/$botUserId/token',
+      body: password == null ? null : {'password': password},
+    );
     return NewBot.fromJson(json as Map<String, dynamic>);
   }
 
   /// Replaces what a bot's managed role grants.
-  Future<Bot> setBotPermissions(String botUserId, int permissions) async {
+  ///
+  /// [password] is the caller's own, required when the result holds ADMINISTRATOR.
+  Future<Bot> setBotPermissions(
+    String botUserId,
+    int permissions, {
+    String? password,
+  }) async {
     final json = await send(
       'PATCH',
       '/bots/$botUserId/permissions',
-      body: {'permissions': permissions},
+      body: {
+        'permissions': permissions,
+        if (password != null) 'password': password,
+      },
     );
     return Bot.fromJson(json as Map<String, dynamic>);
   }

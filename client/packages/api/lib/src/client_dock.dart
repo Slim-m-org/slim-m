@@ -70,6 +70,7 @@ extension SlimmApiDock on SlimmApi {
         if (reviewedDigest != null) 'reviewed_digest': reviewedDigest,
         if (connector?.permissions != null)
           'approved_connector_permissions': connector!.permissions,
+        if (connector?.password != null) 'password': connector!.password,
         if (connector?.hostRun != null)
           'approved_host_run': connector!.hostRun!.toJson(),
       },
@@ -136,10 +137,16 @@ extension SlimmApiDock on SlimmApi {
       );
 
   /// Replaces a connector's lost token; the new one is shown only in this answer.
-  Future<String> reissueConnectorToken(String moduleId) async {
+  ///
+  /// [password] is the caller's own, required when the connector holds ADMINISTRATOR.
+  Future<String> reissueConnectorToken(
+    String moduleId, {
+    String? password,
+  }) async {
     final json = await send(
       'POST',
       '/space/dock/modules/$moduleId/connector-token',
+      body: password == null ? null : {'password': password},
     );
     return (json as Map<String, dynamic>)['token'] as String;
   }

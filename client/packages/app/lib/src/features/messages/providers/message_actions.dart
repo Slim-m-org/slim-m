@@ -175,17 +175,29 @@ bool canOpenThreadFor(
 }) => !channelIsThread && canReplyToMessage(message, myPermissions);
 
 /// Own message only, matching the server: nobody edits another's message,
-/// moderators and administrators included.
-bool canEditMessage(Message message, String? myUserId) =>
-    !message.pending && !message.failed && _isAuthor(message, myUserId);
+/// moderators and administrators included, and a poll, app launch or call
+/// record (its [extras]) is never edited.
+bool canEditMessage(
+  Message message,
+  String? myUserId, [
+  MessageExtras? extras,
+]) =>
+    !message.pending &&
+    !message.failed &&
+    _isAuthor(message, myUserId) &&
+    !(extras?.isCard ?? false);
 
 /// The caller's own most recent editable message in [messages] (oldest
 /// first, [MessageStore.watchChannel]'s own order), or null if there isn't
 /// one. Backs "Up in an empty composer edits your last message": scanning
 /// from the end finds the newest match without sorting by `seq` again.
-Message? lastEditableOwnMessage(List<Message> messages, String? myUserId) {
+Message? lastEditableOwnMessage(
+  List<Message> messages,
+  String? myUserId, [
+  Map<String, MessageExtras> extras = const {},
+]) {
   for (final message in messages.reversed) {
-    if (canEditMessage(message, myUserId)) return message;
+    if (canEditMessage(message, myUserId, extras[message.id])) return message;
   }
   return null;
 }
@@ -199,10 +211,11 @@ Message? lastEditableOwnMessage(List<Message> messages, String? myUserId) {
 Future<Message?> lastOwnMessageInChannel(
   MessageStore store,
   String channelId,
-  String? myUserId,
-) async {
+  String? myUserId, [
+  Map<String, MessageExtras> extras = const {},
+]) async {
   final messages = await store.channelSnapshot(channelId);
-  return lastEditableOwnMessage(messages, myUserId);
+  return lastEditableOwnMessage(messages, myUserId, extras);
 }
 
 /// Own message, or MANAGE_MESSAGES. A pending or failed send was never

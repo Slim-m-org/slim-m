@@ -26,6 +26,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../message_link.dart';
 import '../../messages/providers/message_actions.dart';
 import '../../messages/providers/message_editing.dart';
+import '../../messages/providers/message_extras.dart';
 import '../../messages/providers/message_selection.dart';
 import '../providers/pins_controller.dart';
 import '../../../providers/providers.dart';
@@ -331,7 +332,11 @@ MessageActions messageActionsFor(
   return MessageActions(
     canReply: canReplyToMessage(message, myPermissions),
     onReply: () => onReply(message),
-    canEdit: canEditMessage(message, myId),
+    canEdit: canEditMessage(
+      message,
+      myId,
+      ref.read(messageExtrasProvider)[message.id],
+    ),
     onEdit: () => onEdit(message),
     canDelete: canDeleteMessage(message, myId, myPermissions),
     onDelete: () => unawaited(confirmAndDeleteMessage(context, message)),

@@ -18,6 +18,7 @@ import '../../../../providers/providers.dart';
 import '../../../../widgets/confirm_dialog.dart';
 import '../../../../widgets/context_menu_region.dart';
 import '../../../../widgets/run_guarded.dart';
+import '../../widgets/admin_token_password.dart';
 import '../../widgets/settings_section_header.dart';
 import 'bot_permissions_sheet.dart';
 import 'bot_prefix_sheet.dart';
@@ -84,15 +85,31 @@ class _BotRowState extends ConsumerState<BotRow>
 
     setState(() => _busy = true);
     api.NewBot? issued;
+    final client = ref.read(apiProvider);
+    var done = false;
     final ok = await guard(
       whatFailed: 'issue ${widget.bot.username} a new token',
       action: () async {
-        issued = await ref.read(apiProvider).reissueBotToken(widget.bot.userId);
+        done = await runWithAdminPassword(
+          context,
+          needed: holdsAdministrator(widget.bot.permissions),
+          title: 'Confirm with your password',
+          description:
+              'An Administrator bot keeps its power past any password change.',
+          submitLabel: 'Re-issue',
+          whatFailed: 'issue ${widget.bot.username} a new token',
+          run: (password) async {
+            issued = await client.reissueBotToken(
+              widget.bot.userId,
+              password: password,
+            );
+          },
+        );
       },
     );
     if (!mounted) return;
     setState(() => _busy = false);
-    if (!ok) return;
+    if (!ok || !done) return;
     ref.invalidate(botsProvider);
     widget.onReissued(issued!);
   }
