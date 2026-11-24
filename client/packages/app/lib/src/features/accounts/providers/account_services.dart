@@ -35,6 +35,7 @@ import '../../settings/providers/notification_schedule_zone_sync.dart';
 import '../../settings/providers/notification_sound_controller.dart';
 import '../../voice/providers/hold_music_controller.dart';
 import '../../voice/providers/hold_music_sync.dart';
+import '../../voice/providers/jellyfin_credential_store.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../../providers/admin_providers.dart';
 
@@ -80,7 +81,9 @@ typedef ProviderReader = T Function<T>(ProviderListenable<T> provider);
 /// A live call is left first for the same reason: nothing else would stop it
 /// POSTing a heartbeat, on a cleared session, for the rest of the process's life.
 Future<void> signOutVia(ProviderReader read) async {
+  final userId = read(sessionProvider).tokens?.userId;
   await read(voiceControllerProvider.notifier).leave();
+  await JellyfinCredentialStore(read(keyStoreProvider)).forgetAll(userId);
   await read(syncControllerProvider.notifier).stop();
   await read(pushControllerProvider.notifier).unregister();
   try {

@@ -12,9 +12,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../providers/providers.dart'
-    show sessionProvider, sessionRestoreNoteProvider;
+    show keyStoreProvider, sessionProvider, sessionRestoreNoteProvider;
 import '../../../providers/media_disk_caches.dart';
 import '../../messages/providers/attachment_preview_bytes.dart';
+import '../../voice/providers/jellyfin_credential_store.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import 'account.dart';
@@ -351,6 +352,9 @@ class AccountHost extends ChangeNotifier {
     if (runtime == null || account == null) return;
     final others = accounts.where((r) => r != runtime).toList();
     _index = _index.without(origin);
+    await JellyfinCredentialStore(
+      runtime.container.read(keyStoreProvider),
+    ).forgetAll(runtime.container.read(sessionProvider).tokens?.userId);
     try {
       await store.deleteSession(account);
     } catch (error, stack) {
