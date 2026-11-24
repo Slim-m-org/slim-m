@@ -386,17 +386,19 @@ pub(super) async fn before_uninstall(
     }
 }
 
-/// An update that drops `host_run` removes the container and keeps the volume.
+/// An update that drops `host_run` removes the container and its volume.
 /// Answers whether it had one, since then the container's token is revoked and a new one is due.
 pub(super) async fn no_longer_host_run(
     state: &AppState,
     id: &str,
     actor: UserId,
 ) -> Result<Option<String>, ApiError> {
-    if state.store.host_run(id).await?.is_none() {
+    let Some(record) = state.store.host_run(id).await? else {
         return Ok(None);
+    };
+    if let Some(runner) = state.dock.host_run() {
+        lifecycle::remove_dropped(&runner, &record).await;
     }
-    before_uninstall(state, id, true).await?;
     state.store.delete_host_run(id).await?;
     let reissued = state.store.reissue_connector_token(id, actor).await?;
     Ok(reissued.map(|(token, revoked)| {

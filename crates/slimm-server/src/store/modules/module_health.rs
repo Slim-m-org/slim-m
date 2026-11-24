@@ -187,9 +187,10 @@ pub(super) async fn disable_for_failures_in(
     .rows_affected();
     if disabled > 0 {
         sqlx::query!(
-            "UPDATE module_health SET disabled_reason = ? WHERE module_id = ?",
-            reason,
-            module_id
+            "INSERT INTO module_health (module_id, disabled_reason) VALUES (?, ?)
+             ON CONFLICT(module_id) DO UPDATE SET disabled_reason = excluded.disabled_reason",
+            module_id,
+            reason
         )
         .execute(&mut *tx)
         .await?;

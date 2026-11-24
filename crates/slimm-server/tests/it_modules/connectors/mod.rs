@@ -7,6 +7,7 @@ mod fake_supervisor;
 mod harness;
 mod host_run;
 mod host_run_monitor;
+mod host_run_races;
 mod host_run_runs;
 mod host_run_world;
 mod install;
