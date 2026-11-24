@@ -216,7 +216,7 @@ fn the_listener_dials_the_servers_livekit_unless_told_otherwise() {
     let mut config = listener_config(Some("ws://listener:9400"), Some(GOOD_SECRET));
     config.livekit_url = Some("wss://lk.example.com".into());
     config.livekit_api_key = Some("k".into());
-    config.livekit_api_secret = Some("s".into());
+    config.livekit_api_secret = Some(GOOD_SECRET.into());
     let settings = config.listener_settings().unwrap().unwrap();
     assert_eq!(
         settings.livekit_url.as_deref(),
@@ -269,4 +269,19 @@ fn listener_settings_debug_hides_the_secret() {
     let text = format!("{settings:?}");
     assert!(!text.contains("VALUE"), "{text}");
     assert!(text.contains("wss://listener.example"), "{text}");
+}
+
+#[test]
+fn a_short_livekit_secret_is_refused() {
+    let mut config = listener_config(None, None);
+    config.livekit_url = Some("wss://lk.example.com".into());
+    config.livekit_api_key = Some("k".into());
+    config.livekit_api_secret = Some("sixteen-chars-xx".into());
+    let error = config.livekit_settings().unwrap_err().to_string();
+    assert!(error.contains("generate-keys"), "{error}");
+    config.livekit_api_secret = Some(GOOD_SECRET.into());
+    assert!(config.livekit_settings().unwrap().is_some());
+    config.livekit_api_key = None;
+    config.livekit_api_secret = Some("short".into());
+    assert!(config.livekit_settings().unwrap().is_none());
 }

@@ -23,6 +23,7 @@ node_modules/
 # Env
 .env
 .env.local
+.env.dev
 
 # Load test session tokens and results; they default to ~/.cache, and --cache-dir can still point here.
 loadtest-tokens-*.json

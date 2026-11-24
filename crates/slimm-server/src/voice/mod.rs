@@ -189,7 +189,7 @@ impl VoiceService {
     /// Builds a service from config. Disabled unless the URL, key, and secret
     /// are all present, and logs which of the two it is once at startup.
     pub fn new(config: &Config) -> anyhow::Result<Self> {
-        let inner = match config.livekit_settings() {
+        let inner = match config.livekit_settings()? {
             Some((url, key, secret)) => {
                 let service_url = match config.livekit_service_url() {
                     Some(internal) => http_url_for(&internal)?,

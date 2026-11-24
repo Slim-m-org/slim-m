@@ -48,7 +48,7 @@ TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/target}"
 PIDS="$WORK/pids"
 # LiveKit's dev-mode key pair for a throwaway container; overridable.
 export LIVEKIT_API_KEY="${LIVEKIT_API_KEY:-devkey}"
-export LIVEKIT_API_SECRET="${LIVEKIT_API_SECRET:-secret}"
+export LIVEKIT_API_SECRET="${LIVEKIT_API_SECRET:-e2e-livekit-secret-at-least-32-chars}"
 
 # What was actually built, since a stale tree passes and reads as thorough.
 say_commit() {

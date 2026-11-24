@@ -34,7 +34,7 @@ export E2E_FIXTURES="$WORK/fixtures"
 export E2E_SCHEMA="$ROOT/schema/openapi.yaml"
 # LiveKit's dev-mode key pair for a throwaway container; overridable.
 export LIVEKIT_API_KEY="${LIVEKIT_API_KEY:-devkey}"
-export LIVEKIT_API_SECRET="${LIVEKIT_API_SECRET:-secret}"
+export LIVEKIT_API_SECRET="${LIVEKIT_API_SECRET:-e2e-livekit-secret-at-least-32-chars}"
 
 stop_stale_browsers() {
   python3 "$ROOT/scripts/lib/e2e_browsers.py" stop-stale || true
