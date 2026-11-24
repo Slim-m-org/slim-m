@@ -101,13 +101,11 @@ pub async fn sweep_stale_voice_calls_at(
         .map(|(user_id, channel_id)| async move {
             match voice.remove_stale_participant(channel_id, user_id).await {
                 Ok(true) => tracing::info!(
-                    %user_id,
                     %channel_id,
                     "removed a voice participant with no recent heartbeat"
                 ),
                 Ok(false) => {
                     tracing::info!(
-                        %user_id,
                         %channel_id,
                         "kept a stale voice participant who rejoined before the removal"
                     );
@@ -236,7 +234,6 @@ pub async fn sweep_stale_call_rings_at(
         match voice.remove_participant(channel_id, caller_id).await {
             Ok(()) => tracing::info!(
                 %channel_id,
-                %caller_id,
                 "released a dm call room nobody answered before the ring timed out"
             ),
             Err(voice::VoiceError::Unavailable) => {}

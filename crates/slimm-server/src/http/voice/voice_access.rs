@@ -200,7 +200,7 @@ fn forget_call(state: &AppState, user_id: UserId, channel_id: ChannelId) -> bool
 async fn remove_from_room(state: &AppState, user_id: UserId, channel_id: ChannelId) {
     match state.voice.remove_participant(channel_id, user_id).await {
         Ok(()) => {
-            tracing::info!(%user_id, %channel_id, "removed a voice participant who lost access")
+            tracing::info!(%channel_id, "removed a voice participant who lost access")
         }
         Err(VoiceError::Unavailable) => {}
         Err(VoiceError::Internal(err)) => {

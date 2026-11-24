@@ -111,9 +111,8 @@ impl Drop for PresenceGuard {
 /// frame, arriving exactly when a user who chose to appear offline went quiet
 /// and again when they came back. An observer timestamping frames learns
 /// their activity pattern from that alone, however correct the derived status
-/// is. Publishing on connect and disconnect is a narrower version of the same
-/// thing and predates this; widening it to every idle transition is what this
-/// avoids.
+/// is. Connects and disconnects are withheld for the same reason, in
+/// `change_status`.
 async fn watch_idle(hub: Hub, store: Store, user_id: UserId) {
     let mut ticks = tokio::time::interval(hub.idle_poll_interval());
     ticks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -153,19 +152,30 @@ pub(super) async fn presence_status(
     Ok(visibility.map(|v| status_given(hub, viewer, target, v)))
 }
 
-/// [`presence_status`] for a published change: a cache miss shares one store read with every other connection.
-pub(super) async fn change_status(
+/// `target`'s visibility for a published change: a cache miss shares one store read with every other connection.
+pub(super) async fn change_visibility(
     store: &Store,
+    hub: &Hub,
+    change: &PresenceChange,
+) -> anyhow::Result<Option<Visibility>> {
+    match hub.presence().visibility(change.user_id) {
+        Some(cached) => Ok(Some(cached)),
+        None => change.stored_visibility(store).await,
+    }
+}
+
+/// What `viewer` is told for a published change, or `None` when it must be withheld: a hidden user's connects, disconnects and activity stay silent, and only their own visibility switch is announced.
+pub(super) fn change_status(
     hub: &Hub,
     viewer: UserId,
     change: &PresenceChange,
-) -> anyhow::Result<Option<Status>> {
+    visibility: Visibility,
+) -> Option<Status> {
     let target = change.user_id;
-    let visibility = match hub.presence().visibility(target) {
-        Some(cached) => Some(cached),
-        None => change.stored_visibility(store).await?,
-    };
-    Ok(visibility.map(|v| status_given(hub, viewer, target, v)))
+    if visibility == Visibility::Hidden && viewer != target && !change.visibility_switch {
+        return None;
+    }
+    Some(status_given(hub, viewer, target, visibility))
 }
 
 fn status_given(hub: &Hub, viewer: UserId, target: UserId, visibility: Visibility) -> Status {

@@ -245,8 +245,7 @@ fn apply(state: &AppState, event: WebhookEvent) -> Option<Presence> {
             let present_before =
                 live_state.present_before(channel_id, event.participant_joined_at_ms());
             if live_state.mark_joined(channel_id, user_id, sid) {
-                let activity = super::voice_notice::join_activity(&present_before, user_id);
-                super::voice_notice::announce(state, channel_id, user_id, activity);
+                super::voice_notice::announce_join(state, channel_id, user_id, present_before);
                 presence = Some((channel_id, user_id, true));
                 state.hub.publish(Event::VoiceParticipantJoined {
                     channel_id,

@@ -151,11 +151,11 @@ async fn hidden_user_activity_is_invisible_to_others_but_not_to_self() {
     presence_where(&mut bob_ws, &alice, |f| f["status"] == "offline").await;
 
     put_activity(&state, &alice_access, track("Secret")).await;
-    let frame = presence_where(&mut bob_ws, &alice, |_| true).await;
-    assert_eq!(frame["status"], "offline");
     assert!(
-        frame.get("activity").is_none(),
-        "hidden activity leaked over ws"
+        support::ws::wait_for_frame(&mut bob_ws, "presence.changed", Duration::from_millis(400))
+            .await
+            .is_none(),
+        "a hidden user's activity change must send no frame"
     );
     assert!(
         lookup(&state, &bob_access, &alice)
