@@ -95,7 +95,7 @@ pub(super) async fn move_participant(
         .record_voice_move(
             ctx.user_id,
             target,
-            &format!("{} to {}", from.name, to.name),
+            &format!("{} to {}", from.id.0, to.id.0),
         )
         .await?;
     state.hub.publish(Event::VoiceMoved {

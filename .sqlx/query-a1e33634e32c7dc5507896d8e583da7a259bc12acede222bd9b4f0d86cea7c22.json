@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO admin_audit_log (actor_id, action, target_id, detail, created_at)\n             SELECT ?, ?, ?, ?, ?\n             WHERE NOT EXISTS (\n                 SELECT 1 FROM admin_audit_log\n                 WHERE actor_id = ? AND action = ? AND target_id IS ? AND detail = ?\n                   AND created_at > ?\n             )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 10
+    },
+    "nullable": []
+  },
+  "hash": "a1e33634e32c7dc5507896d8e583da7a259bc12acede222bd9b4f0d86cea7c22"
+}

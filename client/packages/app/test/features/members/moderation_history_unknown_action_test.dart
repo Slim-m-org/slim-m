@@ -87,6 +87,9 @@ const _beyondModeration = [
   'voice_move',
   'owner_handoff',
   'owner_timeout_ended',
+  'message_pin_changed',
+  'message_preview_removed',
+  'webhook_rename',
 ];
 
 Future<ModerationHistoryState> _settle(List<Map<String, dynamic>> page) async {

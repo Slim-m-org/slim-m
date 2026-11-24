@@ -66,9 +66,9 @@ pub use attachment_text::WORKER_ARG as PDF_WORKER_ARG;
 pub use attachment_text::{Limit, PdfParse, PdfWorker, TextExtractor, run_pdf_worker};
 pub mod voice_transcripts;
 pub use sweeps::{
-    run_attachment_sweep_pass, run_message_retention_sweep_pass, run_token_sweep_pass,
-    run_transcript_retention_sweep_pass, sweep_stale_call_rings, sweep_stale_call_rings_at,
-    sweep_stale_voice_calls, sweep_stale_voice_calls_at,
+    run_attachment_sweep_pass, run_audit_log_sweep_pass, run_message_retention_sweep_pass,
+    run_token_sweep_pass, run_transcript_retention_sweep_pass, sweep_stale_call_rings,
+    sweep_stale_call_rings_at, sweep_stale_voice_calls, sweep_stale_voice_calls_at,
 };
 pub use voice_session_sweeps::{close_stale_sessions, reconcile_on_startup};
 
@@ -190,6 +190,7 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
     sweeps::spawn_call_sweep(store.clone(), voice.clone(), hub.clone());
     voice_session_sweeps::spawn_retention_sweep(store.clone());
     sweeps::spawn_call_history_sweep(store.clone());
+    sweeps::spawn_audit_log_sweep(store.clone());
     sweeps::spawn_room_sweep(store.clone(), voice.clone(), hub.clone());
     sweeps::spawn_ring_sweep(voice.clone(), hub.clone(), store.clone(), push.clone());
     sweeps::spawn_message_retention_sweep(store.clone(), media.clone(), hub.clone());

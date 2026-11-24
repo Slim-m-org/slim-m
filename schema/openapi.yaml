@@ -12093,7 +12093,7 @@ paths:
       tags: [space]
       summary: Download the newest server log lines.
       description: >
-        Gated on MANAGE_SERVER and audited. Streams the newest 16 MiB of the
+        Gated on ADMINISTRATOR and audited. Streams the newest 16 MiB of the
         rotating log files on the data volume (decision 0129) as plain text,
         oldest line first, so lines from before the last restart are
         included. When older lines exist the text starts with a line saying
@@ -18287,10 +18287,16 @@ components:
             - voice_move
             - owner_handoff
             - owner_timeout_ended
+            - message_pin_changed
+            - message_preview_removed
+            - webhook_rename
           description: >
             `owner_handoff` means ownership passed to the subject, and
             `owner_timeout_ended` that the subject's timeout ended because
-            they became the owner.
+            they became the owner. `message_pin_changed` and
+            `message_preview_removed` are a moderator's act on another
+            member's message, which is the subject; `webhook_rename`'s
+            reason is the new label.
         reason:
           type: [string, "null"]
         until:

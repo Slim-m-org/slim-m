@@ -11,6 +11,7 @@
 
 use anyhow::Context;
 
+use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::{Message, Store, now_ms};
 use crate::ids::{ChannelId, MessageId, Seq, UserId};
 
@@ -111,6 +112,9 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        if !already {
+            audit_pin(&mut tx, message.author_id, pinned_by, "pinned", now).await?;
+        }
 
         // Read back, never trusting `now`/`pinned_by`: a concurrent first pin
         // may have won the INSERT OR IGNORE race, and the event must name it.
@@ -138,14 +142,28 @@ impl Store {
         &self,
         channel_id: ChannelId,
         message_id: MessageId,
+        unpinned_by: UserId,
     ) -> anyhow::Result<()> {
-        sqlx::query!(
+        let mut tx = self.begin_write().await?;
+        let author = sqlx::query_scalar!(
+            r#"SELECT author_id AS "author_id: UserId" FROM messages WHERE id = ?"#,
+            message_id
+        )
+        .fetch_optional(&mut *tx)
+        .await?
+        .flatten();
+        let removed = sqlx::query!(
             "DELETE FROM pinned_messages WHERE channel_id = ? AND message_id = ?",
             channel_id,
             message_id
         )
-        .execute(&self.pool)
-        .await?;
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+        if removed > 0 {
+            audit_pin(&mut tx, author, unpinned_by, "unpinned", now_ms()).await?;
+        }
+        tx.commit().await?;
         Ok(())
     }
 
@@ -218,6 +236,31 @@ impl Store {
 /// Fetches a live message, but only if it belongs to `channel_id`. A message
 /// id from a different channel is treated as not found, so a pin can never
 /// be created under a channel it does not actually belong to.
+/// Writes the moderation row for a pin change on someone else's message, in the change's own transaction.
+async fn audit_pin(
+    conn: &mut sqlx::SqliteConnection,
+    author: Option<UserId>,
+    actor: UserId,
+    verb: &str,
+    created_at: i64,
+) -> Result<(), sqlx::Error> {
+    let Some(author) = author.filter(|author| *author != actor) else {
+        return Ok(());
+    };
+    record_moderation_audit(
+        conn,
+        ModerationAudit {
+            actor_id: actor,
+            subject_id: author,
+            action: ModerationAction::MessagePinChanged,
+            reason: Some(verb),
+            until: None,
+            created_at,
+        },
+    )
+    .await
+}
+
 async fn fetch_channel_message(
     executor: impl sqlx::SqliteExecutor<'_>,
     channel_id: ChannelId,
