@@ -156,7 +156,7 @@ impl Store {
         Ok(code)
     }
 
-    /// Spends [user_id]'s handoff: the pending link, once, while it is still
+    /// Spends `user_id`'s handoff: the pending link, once, while it is still
     /// valid. An unknown, replayed, expired or another member's code answers
     /// `None`, and the last leaves the code for its owner.
     pub async fn take_link_handoff(
