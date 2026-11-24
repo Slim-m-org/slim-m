@@ -25,7 +25,12 @@ class SharedFile {
 
 /// A share: files, text, or both.
 class IncomingShare {
-  const IncomingShare({this.files = const [], this.text, this.unreadable = 0});
+  const IncomingShare({
+    this.files = const [],
+    this.text,
+    this.unreadable = 0,
+    this.tooLarge = 0,
+  });
 
   /// Null when the platform sent nothing usable, so a stray intent opens no picker.
   static IncomingShare? fromWire(Object? wire) {
@@ -50,8 +55,16 @@ class IncomingShare {
         ? rawText
         : null;
     final unreadable = (wire['unreadable'] as num?)?.toInt() ?? 0;
-    if (files.isEmpty && text == null && unreadable == 0) return null;
-    return IncomingShare(files: files, text: text, unreadable: unreadable);
+    final tooLarge = (wire['tooLarge'] as num?)?.toInt() ?? 0;
+    if (files.isEmpty && text == null && unreadable == 0 && tooLarge == 0) {
+      return null;
+    }
+    return IncomingShare(
+      files: files,
+      text: text,
+      unreadable: unreadable,
+      tooLarge: tooLarge,
+    );
   }
 
   final List<SharedFile> files;
@@ -59,6 +72,9 @@ class IncomingShare {
 
   /// How many shared items the platform would not let the app read.
   final int unreadable;
+
+  /// How many shared items were over the size the app copies.
+  final int tooLarge;
 
   bool get hasFiles => files.isNotEmpty;
   bool get hasText => text != null;

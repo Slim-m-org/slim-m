@@ -67,7 +67,7 @@ class ClipboardImageChannel(private val context: Context) : MethodChannel.Method
   private fun readImage(result: MethodChannel.Result) {
     val clip = clipboardManager().primaryClip
     val uri = if (clip != null && clip.itemCount > 0) clip.getItemAt(0).uri else null
-    if (uri == null) {
+    if (uri == null || !isReadable(uri)) {
       result.success(null)
       return
     }
@@ -84,6 +84,14 @@ class ClipboardImageChannel(private val context: Context) : MethodChannel.Method
       }
     }
   }
+
+  private fun isReadable(uri: Uri): Boolean =
+    ShareIntakeRules.clipboardUriAllowed(
+      uri.scheme,
+      uri.authority,
+      uri.pathSegments.firstOrNull(),
+      context.packageName,
+    )
 
   private fun fail(result: MethodChannel.Result, message: String) {
     mainThread.post { result.error("read_failed", message, null) }

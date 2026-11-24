@@ -23,6 +23,11 @@ String unreadableNotice(int count) => count == 1
     ? 'One shared item could not be read, so it is left out.'
     : '$count shared items could not be read, so they are left out.';
 
+/// Said when shared items were over the size slim-m copies.
+String tooLargeNotice(int count) => count == 1
+    ? 'One shared item is too large, so it is left out.'
+    : '$count shared items are too large, so they are left out.';
+
 /// Stages [share]'s files through [target]. A refusal from the staging itself
 /// (a file over the server's limit) shows beside the notes set up front.
 Future<void> stageShare(
@@ -34,6 +39,8 @@ Future<void> stageShare(
     target.setError(
       'Only the first $kMaxSharedFiles files fit in one message.',
     );
+  } else if (share.tooLarge > 0) {
+    target.setError(tooLargeNotice(share.tooLarge));
   } else if (share.unreadable > 0) {
     target.setError(unreadableNotice(share.unreadable));
   } else {
