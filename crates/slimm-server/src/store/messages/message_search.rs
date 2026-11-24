@@ -12,11 +12,14 @@
 //! (`message_search_filters.rs`): every field is already resolved to what SQL
 //! needs, so this file never re-derives a username or a channel name.
 
-use sqlx::{QueryBuilder, Row};
+use sqlx::{AssertSqlSafe, QueryBuilder, Row};
 
 use super::super::voice_transcripts::TRANSCRIPT_TEXT_SHOWN;
 use super::super::{Message, Store};
 use super::message_search_filters::MessageSearchFilters;
+use super::message_search_terms::{
+    has_unsegmented, literal_fts_query, phrase, plain_words, prefix_terms_allowed, uses_fts_syntax,
+};
 use crate::ids::{ChannelId, MessageId, Seq, UserId};
 
 /// Why a full-text search failed.
@@ -57,11 +60,49 @@ const FTS5_PARSE_ERRORS: [&str; 4] = [
 /// An FTS5 expression [`Store::fts_query_for`] parsed or built from plain
 /// words, so [`Store::search_messages_prepared`] runs it without probing again.
 #[derive(Debug, Clone)]
-pub struct FtsQuery(String);
+pub struct FtsQuery {
+    expr: String,
+    unsegmented: Option<Unsegmented>,
+}
+
+/// The words of a plain query written without spaces between words, which
+/// `unicode61` indexes as one token and so only a substring match can find.
+#[derive(Debug, Clone)]
+struct Unsegmented {
+    words: Vec<String>,
+    /// The query's other words, an FTS5 expression; empty when there are none.
+    rest: String,
+}
 
 impl FtsQuery {
     pub fn as_str(&self) -> &str {
-        &self.0
+        &self.expr
+    }
+
+    fn syntax(expr: &str) -> Self {
+        Self {
+            expr: expr.to_owned(),
+            unsegmented: None,
+        }
+    }
+
+    fn plain(q: &str) -> Option<Self> {
+        let expr = literal_fts_query(q);
+        if expr.is_empty() {
+            return None;
+        }
+        let (words, others): (Vec<&str>, Vec<&str>) =
+            plain_words(q).partition(|w| has_unsegmented(w));
+        let unsegmented = (!words.is_empty()).then(|| Unsegmented {
+            words: words.into_iter().map(str::to_owned).collect(),
+            rest: others
+                .iter()
+                .enumerate()
+                .map(|(i, w)| phrase(w, i))
+                .collect::<Vec<_>>()
+                .join(" "),
+        });
+        Some(Self { expr, unsegmented })
     }
 }
 
@@ -87,6 +128,27 @@ impl Store {
         Ok(ids)
     }
 
+    /// Whether `id` is a message in one of `channel_ids`; a message elsewhere reads as missing.
+    async fn cursor_in_scope(
+        &self,
+        id: MessageId,
+        channel_ids: &[ChannelId],
+    ) -> Result<bool, SearchError> {
+        let mut builder = QueryBuilder::new("SELECT 1 FROM messages WHERE id = ");
+        builder.push_bind(id);
+        builder.push(" AND channel_id IN (");
+        let mut separated = builder.separated(", ");
+        for channel_id in channel_ids {
+            separated.push_bind(*channel_id);
+        }
+        builder.push(")");
+        let found: Option<i64> = builder
+            .build_query_scalar()
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(found.is_some())
+    }
+
     /// The FTS5 query to run for what the user typed. Plain words become prefix
     /// phrases ([`literal_fts_query`]), so `Win` finds `Win11_24H2.iso` and
     /// `Windows`, except a one-character word, which must match whole. Text
@@ -96,34 +158,47 @@ impl Store {
     pub async fn fts_query_for(&self, q: &str) -> Result<Option<FtsQuery>, SearchError> {
         let syntax_refused = uses_fts_syntax(q)
             && match self.probe_fts(q).await {
-                Ok(()) => return Ok(Some(FtsQuery(q.to_owned()))),
+                Ok(()) => return Ok(Some(FtsQuery::syntax(q))),
                 Err(SearchError::InvalidQuery) => true,
                 Err(e) => return Err(e),
             };
-        let words = literal_fts_query(q);
-        match (words.is_empty(), syntax_refused) {
-            (false, _) => Ok(Some(FtsQuery(words))),
-            (true, true) => Err(SearchError::InvalidQuery),
-            (true, false) => Ok(None),
+        match (FtsQuery::plain(q), syntax_refused) {
+            (Some(query), _) => Ok(Some(query)),
+            (None, true) => Err(SearchError::InvalidQuery),
+            (None, false) => Ok(None),
         }
     }
 
-    /// Join-free probe so FTS5 must parse `q`; not dead work, see [`Self::search_messages`].
+    /// Join-free probe so FTS5 must parse `q` against every index the search reads, so a column
+    /// filter only one of them has is refused here rather than mid-search; see [`Self::search_messages`].
     /// Any plain SQLite error here is the parser's, since the statement has nothing else to fail.
     async fn probe_fts(&self, q: &str) -> Result<(), SearchError> {
+        if !prefix_terms_allowed(q) {
+            return Err(SearchError::InvalidQuery);
+        }
         let probed = sqlx::query_scalar!(
             r#"SELECT 1 AS "one!: i64" FROM messages_fts WHERE messages_fts MATCH ? LIMIT 1"#,
             q
         )
         .fetch_optional(&self.pool)
         .await;
-        match probed {
-            Ok(_) => Ok(()),
-            Err(sqlx::Error::Database(e)) if e.code().as_deref() == Some(SQLITE_ERROR) => {
-                Err(SearchError::InvalidQuery)
+        let mut outcome = probe_outcome(probed);
+        for table in [
+            "attachment_text_fts",
+            "attachment_name_fts",
+            "message_extra_fts",
+        ] {
+            if outcome.is_err() {
+                break;
             }
-            Err(e) => Err(e.into()),
+            let sql = format!("SELECT 1 FROM {table} WHERE {table} MATCH ? LIMIT 1");
+            let probed = sqlx::query_scalar::<_, i64>(AssertSqlSafe(sql))
+                .bind(q)
+                .fetch_optional(&self.pool)
+                .await;
+            outcome = probe_outcome(probed);
         }
+        outcome
     }
 
     /// Full-text searches live messages across `channel_ids`, newest match
@@ -179,7 +254,8 @@ impl Store {
         {
             self.probe_fts(q).await?;
         }
-        self.run_message_search(channel_ids, query, filters, before_seq, limit)
+        let query = query.map(FtsQuery::syntax);
+        self.run_message_search(channel_ids, query.as_ref(), filters, before_seq, limit)
             .await
     }
 
@@ -193,7 +269,6 @@ impl Store {
         before_seq: Option<i64>,
         limit: i64,
     ) -> Result<Vec<Message>, SearchError> {
-        let query = query.map(FtsQuery::as_str);
         self.run_message_search(channel_ids, query, filters, before_seq, limit)
             .await
     }
@@ -201,7 +276,7 @@ impl Store {
     async fn run_message_search(
         &self,
         channel_ids: &[ChannelId],
-        query: Option<&str>,
+        query: Option<&FtsQuery>,
         filters: &MessageSearchFilters,
         before_seq: Option<i64>,
         limit: i64,
@@ -210,14 +285,10 @@ impl Store {
             return Ok(Vec::new());
         }
 
-        if let Some(before_id) = filters.before_id {
-            let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM messages WHERE id = ?")
-                .bind(before_id)
-                .fetch_optional(&self.pool)
-                .await?;
-            if exists.is_none() {
-                return Err(SearchError::UnknownCursor);
-            }
+        if let Some(before_id) = filters.before_id
+            && !self.cursor_in_scope(before_id, channel_ids).await?
+        {
+            return Err(SearchError::UnknownCursor);
         }
 
         let mut builder = QueryBuilder::new(
@@ -226,7 +297,11 @@ impl Store {
                FROM messages m"#,
         );
         builder.push(" LEFT JOIN users u ON u.id = m.author_id AND u.deleted_at IS NULL WHERE ");
-        if let Some(q) = query {
+        if let Some(query) = query {
+            let q = query.as_str();
+            if query.unsegmented.is_some() {
+                builder.push("(");
+            }
             // One IN over both id sets keeps the FTS-first plan; an OR with a correlated EXISTS walks the channel.
             builder
                 .push("m.fts_rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ");
@@ -250,7 +325,20 @@ impl Store {
                  (SELECT rowid FROM attachment_name_fts WHERE attachment_name_fts MATCH ",
             );
             builder.push_bind(q.to_owned());
-            builder.push(")) AND ");
+            builder.push(
+                ") UNION ALL SELECT em.fts_rowid FROM message_extra_text x \
+                 JOIN messages em ON em.id = x.message_id \
+                 WHERE em.is_encrypted = 0 AND x.id IN \
+                 (SELECT rowid FROM message_extra_fts WHERE message_extra_fts MATCH ",
+            );
+            builder.push_bind(q.to_owned());
+            builder.push("))");
+            if let Some(unsegmented) = &query.unsegmented {
+                builder.push(" OR ");
+                push_unsegmented(&mut builder, unsegmented);
+                builder.push(")");
+            }
+            builder.push(" AND ");
         }
         builder.push("m.channel_id IN (");
         {
@@ -293,106 +381,47 @@ impl Store {
     }
 }
 
-/// Whether `q` is written in FTS5's query language rather than being plain
-/// words: a quote, `*`, a bracket, a column filter or an upper-case operator.
-/// Lower-case `and`/`or`/`not` are words to FTS5 as well.
-fn uses_fts_syntax(q: &str) -> bool {
-    q.contains(['"', '*', '(', ')', ':', '^', '+', '{', '}'])
-        || q.split_whitespace()
-            .any(|w| matches!(w, "AND" | "OR" | "NOT"))
+fn probe_outcome<T>(probed: Result<T, sqlx::Error>) -> Result<(), SearchError> {
+    match probed {
+        Ok(_) => Ok(()),
+        Err(sqlx::Error::Database(e)) if e.code().as_deref() == Some(SQLITE_ERROR) => {
+            Err(SearchError::InvalidQuery)
+        }
+        Err(e) => Err(e.into()),
+    }
 }
+
+/// ANDs each unsegmented word as a substring of the message text, then the query's other words.
+fn push_unsegmented(builder: &mut QueryBuilder<sqlx::Sqlite>, query: &Unsegmented) {
+    builder.push("(");
+    for (i, word) in query.words.iter().enumerate() {
+        if i > 0 {
+            builder.push(" AND ");
+        }
+        if word.chars().count() >= TRIGRAM_CHARS {
+            builder.push(
+                "m.fts_rowid IN (SELECT rowid FROM message_trigram_fts \
+                 WHERE message_trigram_fts MATCH ",
+            );
+            builder.push_bind(format!("\"{word}\""));
+            builder.push(")");
+        } else {
+            builder.push("instr(m.content, ");
+            builder.push_bind(word.clone());
+            builder.push(") > 0");
+        }
+    }
+    if !query.rest.is_empty() {
+        builder
+            .push(" AND m.fts_rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ");
+        builder.push_bind(query.rest.clone());
+        builder.push(")");
+    }
+    builder.push(")");
+}
+
+/// The trigram tokenizer cannot match a phrase shorter than three characters.
+const TRIGRAM_CHARS: usize = 3;
 
 /// SQLite's generic result code, which FTS5 raises for every query it cannot parse.
 const SQLITE_ERROR: &str = "1";
-
-/// Words with fewer base characters than this match whole: with no `prefix=`
-/// index, `"w"*` walks every term starting with `w` in every channel.
-const MIN_PREFIX_CHARS: usize = 2;
-
-/// [q]'s words as FTS5 phrases, so text that is not query syntax still finds
-/// what it names: `.iso` becomes `"iso"*`, a one-character `a` stays `"a"`.
-/// Empty when no word remains.
-pub(crate) fn literal_fts_query(q: &str) -> String {
-    q.split(|c: char| !is_word_char(c))
-        .filter(|w| !w.is_empty())
-        .map(|w| match base_char_count(w) < MIN_PREFIX_CHARS {
-            true => format!("\"{w}\""),
-            false => format!("\"{w}\"*"),
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-/// A character FTS5's `unicode61` tokenizer keeps inside a word, including the
-/// combining accents it folds away, so a decomposed `é` is not a word break.
-fn is_word_char(c: char) -> bool {
-    c.is_alphanumeric() || is_combining_accent(c)
-}
-
-fn base_char_count(word: &str) -> usize {
-    word.chars().filter(|&c| !is_combining_accent(c)).count()
-}
-
-fn is_combining_accent(c: char) -> bool {
-    ('\u{0300}'..='\u{036F}').contains(&c)
-}
-
-#[cfg(test)]
-mod literal_tests {
-    use super::{literal_fts_query, uses_fts_syntax};
-
-    #[test]
-    fn punctuation_becomes_quoted_prefix_words() {
-        assert_eq!(literal_fts_query(".iso"), "\"iso\"*");
-        assert_eq!(
-            literal_fts_query("ubuntu-24.04"),
-            "\"ubuntu\"* \"24\"* \"04\"*"
-        );
-        assert_eq!(literal_fts_query("..."), "");
-    }
-
-    #[test]
-    fn a_one_character_word_matches_whole_instead_of_as_a_prefix() {
-        assert_eq!(literal_fts_query("a"), "\"a\"");
-        assert_eq!(literal_fts_query("w 7"), "\"w\" \"7\"");
-        assert_eq!(literal_fts_query("c ab"), "\"c\" \"ab\"*");
-        assert_eq!(literal_fts_query("e\u{301}"), "\"e\u{301}\"");
-    }
-
-    #[test]
-    fn a_combining_accent_stays_inside_its_word() {
-        assert_eq!(literal_fts_query("cafe\u{301}s"), "\"cafe\u{301}s\"*");
-    }
-
-    #[test]
-    fn plain_words_are_not_fts_syntax() {
-        for q in [
-            "Win",
-            "win11 english",
-            ".iso",
-            "ubuntu-24.04",
-            "war and peace",
-            "a or b",
-        ] {
-            assert!(!uses_fts_syntax(q), "q={q}");
-        }
-    }
-
-    #[test]
-    fn quotes_stars_brackets_filters_and_operators_are_fts_syntax() {
-        for q in [
-            "\"quick brown\"",
-            "wind*",
-            "NEAR(a b)",
-            "content:win",
-            "^win",
-            "a + b",
-            "{content} : win",
-            "win AND iso",
-            "win OR iso",
-            "win NOT iso",
-        ] {
-            assert!(uses_fts_syntax(q), "q={q}");
-        }
-    }
-}

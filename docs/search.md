@@ -8,7 +8,9 @@ This page is the query grammar and where each part lives.
 
 A query is free text plus any number of `key:value` filters, in any order.
 Free text matches whole words and word prefixes (`win` finds `Windows`); a word of one letter matches whole.
-`"an exact phrase"` in quotes matches those words together, and FTS5 syntax (`AND`, `OR`, `NOT`, `NEAR(...)`, `*`) keeps its meaning.
+Text written without spaces (Chinese, Japanese, Thai, Lao, Khmer, Myanmar) matches anywhere inside a message.
+The text of a forward, a poll and an embed is searched too.
+`"an exact phrase"` in quotes matches those words together, and FTS5 syntax (`AND`, `OR`, `NOT`, `NEAR(...)`, `*`) keeps its meaning, except that a `*` prefix needs two letters and a query may carry at most eight of them.
 A value with spaces is quoted too: `in:"team chat"`.
 
 | Filter | Value | Matches |
