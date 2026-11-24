@@ -119,15 +119,21 @@ void main() {
   testWidgets('a link to this server jumps to the message', (tester) async {
     final h = await _pump(
       tester,
-      'see ${buildMessageLink(server: Uri.parse(_here), channelId: 'c-target', messageId: 'm-9')} for that',
+      'see ${buildMessageLink(server: Uri.parse(_here), channelId: '018f0000-0000-7000-8000-0000000000c3', messageId: '018f0000-0000-7000-8000-0000000000a9')} for that',
     );
 
     _tapLink(tester);
     await tester.pumpAndSettle();
 
-    expect(h.location, Routes.channel('c-target', openChat: true));
+    expect(
+      h.location,
+      Routes.channel('018f0000-0000-7000-8000-0000000000c3', openChat: true),
+    );
     expect(h.jump.jumps, [
-      ('c-target', 'm-9'),
+      (
+        '018f0000-0000-7000-8000-0000000000c3',
+        '018f0000-0000-7000-8000-0000000000a9',
+      ),
     ], reason: 'the jump names the channel and message the link pointed at');
   });
 
@@ -137,7 +143,7 @@ void main() {
   ) async {
     final h = await _pump(
       tester,
-      'see ${buildMessageLink(server: Uri.parse(_elsewhere), channelId: 'c-target', messageId: 'm-9')} for that',
+      'see ${buildMessageLink(server: Uri.parse(_elsewhere), channelId: '018f0000-0000-7000-8000-0000000000c3', messageId: '018f0000-0000-7000-8000-0000000000a9')} for that',
     );
 
     _tapLink(tester);

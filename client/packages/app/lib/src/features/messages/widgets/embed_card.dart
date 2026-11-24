@@ -18,6 +18,7 @@ import '../providers/media_preferences.dart';
 import 'attachment_reveal.dart';
 import 'attachment_view.dart' show kInlineImageMax;
 import '../../../widgets/image_decode.dart';
+import '../../../widgets/link_destination.dart';
 import '../../../widgets/text_link.dart';
 import '../../../widgets/animation_gate.dart';
 
@@ -182,7 +183,14 @@ class _EmbedAuthorRow extends StatelessWidget {
     if (authorUrl == null) return row;
     return TextLink(
       onOpen: () => unawaited(openExternalHttpUrl(authorUrl)),
-      child: row,
+      child: Wrap(
+        spacing: AppSpacing.s8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          row,
+          LinkDestination(url: authorUrl),
+        ],
+      ),
     );
   }
 }
@@ -207,7 +215,14 @@ class _EmbedTitle extends StatelessWidget {
     if (targetUrl == null) return text;
     return TextLink(
       onOpen: () => unawaited(openExternalHttpUrl(targetUrl)),
-      child: text,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          text,
+          LinkDestination(url: targetUrl),
+        ],
+      ),
     );
   }
 }

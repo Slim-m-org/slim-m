@@ -102,18 +102,38 @@ _RecordingJump _jump(ProviderContainer c) =>
 
 void main() {
   test('the message route is the channel path plus a message id', () {
-    expect(Routes.message('c1', 'm1'), '/channels/c1/m/m1');
-    expect(Routes.channel('c1'), '/channels/c1');
+    expect(
+      Routes.message(
+        '018f0000-0000-7000-8000-0000000000c1',
+        '018f0000-0000-7000-8000-0000000000a1',
+      ),
+      '/channels/018f0000-0000-7000-8000-0000000000c1/m/018f0000-0000-7000-8000-0000000000a1',
+    );
+    expect(
+      Routes.channel('018f0000-0000-7000-8000-0000000000c1'),
+      '/channels/018f0000-0000-7000-8000-0000000000c1',
+    );
   });
 
   testWidgets('a cold link asks for the jump to that message', (tester) async {
     final (:container, :db, :router) = await _pump(
       tester,
-      Routes.message('c1', 'm1'),
+      Routes.message(
+        '018f0000-0000-7000-8000-0000000000c1',
+        '018f0000-0000-7000-8000-0000000000a1',
+      ),
     );
 
-    expect(_jump(container).jumps, [('c1', 'm1')]);
-    expect(router.state.matchedLocation, '/channels/c1/m/m1');
+    expect(_jump(container).jumps, [
+      (
+        '018f0000-0000-7000-8000-0000000000c1',
+        '018f0000-0000-7000-8000-0000000000a1',
+      ),
+    ]);
+    expect(
+      router.state.matchedLocation,
+      '/channels/018f0000-0000-7000-8000-0000000000c1/m/018f0000-0000-7000-8000-0000000000a1',
+    );
 
     await _teardown(tester, container, db);
   });
@@ -121,14 +141,23 @@ void main() {
   testWidgets('a second link on the open channel jumps again', (tester) async {
     final (:container, :db, :router) = await _pump(
       tester,
-      Routes.message('c1', 'm1'),
+      Routes.message(
+        '018f0000-0000-7000-8000-0000000000c1',
+        '018f0000-0000-7000-8000-0000000000a1',
+      ),
     );
 
-    router.go(Routes.message('c1', 'm2'));
+    router.go(Routes.message('018f0000-0000-7000-8000-0000000000c1', 'm2'));
     await tester.pump();
     await tester.pump();
 
-    expect(_jump(container).jumps, [('c1', 'm1'), ('c1', 'm2')]);
+    expect(_jump(container).jumps, [
+      (
+        '018f0000-0000-7000-8000-0000000000c1',
+        '018f0000-0000-7000-8000-0000000000a1',
+      ),
+      ('018f0000-0000-7000-8000-0000000000c1', 'm2'),
+    ]);
 
     await _teardown(tester, container, db);
   });
@@ -136,7 +165,7 @@ void main() {
   testWidgets('the plain channel route asks for no jump', (tester) async {
     final (:container, :db, router: _) = await _pump(
       tester,
-      Routes.channel('c1'),
+      Routes.channel('018f0000-0000-7000-8000-0000000000c1'),
     );
 
     expect(_jump(container).jumps, isEmpty);
@@ -150,7 +179,10 @@ void main() {
     late RecordingVoiceController voice;
     final (:container, :db, router: _) = await _pump(
       tester,
-      Routes.message('c1', 'm1'),
+      Routes.message(
+        '018f0000-0000-7000-8000-0000000000c1',
+        '018f0000-0000-7000-8000-0000000000a1',
+      ),
       extraOverrides: [
         voiceControllerProvider.overrideWith(
           (ref) => voice = RecordingVoiceController(ref),
@@ -158,7 +190,7 @@ void main() {
       ],
       seed: (db) => MessageStore(db).upsertChannels([
         const api.Channel(
-          id: 'c1',
+          id: '018f0000-0000-7000-8000-0000000000c1',
           name: 'lounge',
           kind: 'voice',
           createdAt: 0,

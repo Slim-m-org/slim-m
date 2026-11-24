@@ -22,10 +22,11 @@
 /// makes exactly this call for a link tapped inside the app; this is the same
 /// decision for one arriving from outside it.
 ///
-/// A *Discord link* hand-back (`discord-link?code=`) is neither: the browser
-/// page that finished Discord's approval opens it so the app can complete the
-/// link with its own session, and the server links only for the account that
-/// started it. See `discord_link_callback.dart`.
+/// A *Discord link* hand-back (`discord-link?code=&server=`) is neither: the
+/// browser page that finished Discord's approval opens it so the app can
+/// complete the link with its own session, and the server links only for the
+/// account that started it, so the link names the server. See
+/// `discord_link_callback.dart`.
 ///
 /// Windows note: the scheme lives in the user's registry. The setup writes
 /// it, and every copy points it at itself (or its launcher) when it starts,
@@ -46,9 +47,6 @@ import 'features/accounts/providers/account.dart' show originOf;
 import 'features/accounts/providers/account_providers.dart';
 import 'callback_route_guard.dart';
 import 'discord_link_callback.dart';
-import 'features/settings/providers/discord_link_finish.dart';
-import 'features/settings/providers/link_finish.dart' show linkCodeQuery;
-import 'features/settings/providers/steam_link_finish.dart';
 import 'invite_link.dart';
 import 'invite_pending.dart';
 import 'message_link.dart';
@@ -112,24 +110,8 @@ bool _routeAcrossAccounts(AccountHost host, Uri uri) {
   }
   final invite = parseInviteLink(uri.toString());
   if (invite == null) return false;
-  unawaited(_openInvite(host, invite));
+  unawaited(openInvite(host, invite, showJoin: showJoinFlow));
   return true;
-}
-
-Future<void> _openInvite(
-  AccountHost host,
-  ({Uri server, String code}) invite,
-) async {
-  final existing = host.runtimeFor(originOf(invite.server));
-  if (existing != null && existing.signedIn) {
-    await host.switchTo(existing.account!.origin);
-    return;
-  }
-  if (host.active?.signedIn ?? false) await host.beginAdd();
-  final container = host.active?.container;
-  if (container == null) return;
-  container.read(tappedInviteProvider.notifier).state = invite;
-  container.read(routerProvider).go(Routes.onboarding);
 }
 
 /// Listens for tapped links for the whole life of the app.
@@ -179,33 +161,36 @@ class DeepLinkListener {
     }
   }
 
+  /// Sends a hand-back to the account whose server it names, or the one on screen when it names none.
+  void _deliverHandBack(LinkHandBack handBack) {
+    var target = _host?.active?.container ?? _home;
+    final server = handBack.server;
+    final host = _host;
+    if (host != null && server != null) {
+      final runtime = host.runtimeFor(originOf(server));
+      if (runtime == null) {
+        AppLog.info(LogTag.platform, 'Ignored a link code for another server');
+        return;
+      }
+      target = runtime.container;
+      if (runtime.signedIn) unawaited(host.switchTo(runtime.account!.origin));
+    }
+    if (!target.read(sessionProvider).isSignedIn) {
+      target.read(pendingLinkHandBackProvider).hold(handBack);
+      return;
+    }
+    unawaited(_finishLink(target, handBack));
+  }
+
   void _deliver(Uri uri) {
     final onScreen = _host?.active?.container ?? _home;
     if (isSpotifyCallback(uri)) {
       unawaited(handleSpotifyCallback(onScreen, uri));
       return;
     }
-    if (isDiscordLinkDelivery(uri)) {
-      unawaited(
-        _finishLink(
-          onScreen,
-          uri,
-          (code) => onScreen
-              .read(discordLinkFinisherProvider)
-              .completeDelivered(code),
-        ),
-      );
-      return;
-    }
-    if (isSteamLinkDelivery(uri)) {
-      unawaited(
-        _finishLink(
-          onScreen,
-          uri,
-          (code) =>
-              onScreen.read(steamLinkFinisherProvider).completeDelivered(code),
-        ),
-      );
+    final handBack = uri.scheme == 'slimm' ? parseLinkHandBack(uri) : null;
+    if (handBack != null) {
+      _deliverHandBack(handBack);
       return;
     }
     final host = _host;
@@ -214,19 +199,17 @@ class DeepLinkListener {
   }
 }
 
-/// Completes a Discord or Steam link in the account on screen, with Settings showing the outcome.
+/// Completes a Discord or Steam link in [container], with Settings showing the outcome.
 Future<void> _finishLink(
   ProviderContainer container,
-  Uri uri,
-  Future<void> Function(String code) complete,
+  LinkHandBack handBack,
 ) async {
-  final code = uri.queryParameters[linkCodeQuery];
-  if (code == null || !container.read(sessionProvider).isSignedIn) return;
   final router = container.read(routerProvider);
-  if (router.state.uri.path != Routes.personalSettings) {
+  if (router.routeInformationProvider.value.uri.path !=
+      Routes.personalSettings) {
     unawaited(router.push<void>(Routes.personalSettingsPane('profile')));
   }
-  await complete(code);
+  await finishLinkHandBack(container.read, handBack);
 }
 
 /// Follows a link in one account's own session, when it names that session.

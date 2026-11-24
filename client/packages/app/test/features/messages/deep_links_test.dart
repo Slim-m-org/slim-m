@@ -75,8 +75,8 @@ void main() {
   final messageLink = Uri.parse(
     buildMessageLink(
       server: Uri.parse('https://chat.example:8443'),
-      channelId: 'c-1',
-      messageId: 'm-1',
+      channelId: '018f0000-0000-7000-8000-0000000000c2',
+      messageId: '018f0000-0000-7000-8000-0000000000a2',
     ),
   );
 
@@ -85,8 +85,8 @@ void main() {
 
     test('a link to this deployment yields what it points at', () {
       final message = messageFromDeepLink(messageLink, signedInTo: here);
-      expect(message?.channelId, 'c-1');
-      expect(message?.messageId, 'm-1');
+      expect(message?.channelId, '018f0000-0000-7000-8000-0000000000c2');
+      expect(message?.messageId, '018f0000-0000-7000-8000-0000000000a2');
     });
 
     test('signed out there is nowhere to land, so it is ignored', () {
@@ -201,12 +201,15 @@ void main() {
             .value
             .uri
             .path,
-        '/channels/c-1',
+        '/channels/018f0000-0000-7000-8000-0000000000c2',
         reason: 'the whole point of the link is landing in the transcript',
       );
       expect(
         h.jump.asked,
-        (channelId: 'c-1', messageId: 'm-1'),
+        (
+          channelId: '018f0000-0000-7000-8000-0000000000c2',
+          messageId: '018f0000-0000-7000-8000-0000000000a2',
+        ),
         reason: 'the channel alone is not the link; the message id is the link',
       );
       expect(

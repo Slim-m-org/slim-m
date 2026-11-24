@@ -5,6 +5,8 @@
 /// the call site instead of a string that silently stops matching.
 library;
 
+import '../link_query.dart';
+
 /// The query flag [Routes.channel] sets for `openChat`. Outside [Routes] on
 /// purpose: every static string there is a route `route_reachability_test`
 /// expects something to navigate to, and a query key is not one.
@@ -109,22 +111,25 @@ abstract final class Routes {
     bool openChat = false,
     bool openDetails = false,
   }) => switch ((openChat, openDetails)) {
-    (true, _) => '/channels/$id?$_openChatQuery=1',
-    (_, true) => '/channels/$id?$_openDetailsQuery=1',
-    _ => '/channels/$id',
+    (true, _) => '${_channelPath(id)}?$_openChatQuery=1',
+    (_, true) => '${_channelPath(id)}?$_openDetailsQuery=1',
+    _ => _channelPath(id),
   };
+
+  static String _channelPath(String id) =>
+      '/channels/${Uri.encodeComponent(id)}';
 
   /// One message in [channelId]: opens the channel scrolled to it and lit.
   /// Always reads rather than joins, like a jump from search (see `openChat`).
   static String message(String channelId, String messageId) =>
-      '/channels/$channelId/m/$messageId';
+      '${_channelPath(channelId)}/m/${Uri.encodeComponent(messageId)}';
 
   /// Whether [uri] was built by [channel] with `openChat`.
-  static bool opensChat(Uri uri) => uri.queryParameters[_openChatQuery] == '1';
+  static bool opensChat(Uri uri) => queryParam(uri, _openChatQuery) == '1';
 
   /// Whether [uri] was built by [channel] with `openDetails`.
   static bool opensDetails(Uri uri) =>
-      uri.queryParameters[_openDetailsQuery] == '1';
+      queryParam(uri, _openDetailsQuery) == '1';
 
   /// The pattern go_router matches, as distinct from a built path.
   static const channelPattern = '/channels/:channelId';
@@ -135,7 +140,7 @@ abstract final class Routes {
 
   /// A thread's own messages, opened from a message's context menu rather
   /// than from the rail - see docs/decisions/0005-threads.md.
-  static String thread(String id) => '/thread/$id';
+  static String thread(String id) => '/thread/${Uri.encodeComponent(id)}';
 
   static const threadPattern = '/thread/:channelId';
 

@@ -126,8 +126,8 @@ void main() {
         Uri.parse(
           buildMessageLink(
             server: Uri.parse(_b),
-            channelId: 'cb',
-            messageId: 'm1',
+            channelId: '018f0000-0000-7000-8000-0000000000c4',
+            messageId: '018f0000-0000-7000-8000-0000000000a1',
           ),
         ),
       );
