@@ -199,10 +199,7 @@ void main() {
       overrides: [_storeFails(const DatabaseUnopenable('denied'))],
     );
 
-    expect(
-      find.textContaining('could not be opened or replaced'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('could not be opened'), findsOneWidget);
 
     await _teardown(tester, container);
   });

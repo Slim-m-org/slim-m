@@ -26,6 +26,11 @@ const _sqliteCantOpen = 14;
 /// Windows reports a file another process has open without sharing as these.
 const _windowsSharingViolations = {32, 33};
 
+/// Failed opens in a row after which a file that is kept is set aside anyway.
+const _failedOpensBeforeReset = 3;
+
+final _failedOpens = <String, int>{};
+
 const _defaultBackoff = [
   Duration(milliseconds: 200),
   Duration(milliseconds: 500),
@@ -125,7 +130,9 @@ bool _isPlaintext(File file) {
 ///
 /// Throws [DatabaseInUseElsewhere] when a live process holds it,
 /// [DatabaseUnopenable] when a storage fault persists past the retries (the
-/// file is kept, so a retry can still open it) or a fresh file cannot be had.
+/// file is kept, so a retry can still open it, until a few retries in a row
+/// have failed and it is set aside like a damaged one) or a fresh file cannot
+/// be had.
 Future<PreparedDatabase> prepareOpenableDatabase({
   required File file,
   required DatabaseKeyStore keys,
@@ -136,9 +143,19 @@ Future<PreparedDatabase> prepareOpenableDatabase({
     prepared = await host.prepare(file: file, keys: keys);
     return host.probe(file, prepared.key);
   });
-  if (failure == null) return prepared;
+  if (failure == null) {
+    _failedOpens.remove(file.path);
+    return prepared;
+  }
   if (failure.heldByLock) throw DatabaseInUseElsewhere(failure.toString());
-  if (failure.transient) throw DatabaseUnopenable(failure.toString());
+  if (failure.transient) {
+    final failed =
+        _failedOpens.update(file.path, (n) => n + 1, ifAbsent: () => 1);
+    if (failed < _failedOpensBeforeReset) {
+      throw DatabaseUnopenable(failure.toString());
+    }
+  }
+  _failedOpens.remove(file.path);
   _setAside(file, failure, host);
   final fresh = await host.prepare(file: file, keys: keys);
   final again = host.probe(file, fresh.key);

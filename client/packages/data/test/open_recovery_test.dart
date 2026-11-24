@@ -211,6 +211,21 @@ void main() {
       });
     }
 
+    test('a fault that outlasts several retries sets the file aside', () async {
+      await seedEncrypted();
+      final recovery = host(probes: [for (var i = 0; i < 6; i++) _failure(14)]);
+      Future<PreparedDatabase> open() =>
+          prepareOpenableDatabase(file: file, keys: keys, host: recovery);
+
+      await expectLater(open(), throwsA(isA<DatabaseUnopenable>()));
+      await expectLater(open(), throwsA(isA<DatabaseUnopenable>()));
+      expect(File('${file.path}.unopenable').existsSync(), isFalse);
+
+      final prepared = await open();
+      expect(prepared.reset, DatabaseResetReason.unreadable);
+      expect(File('${file.path}.unopenable').existsSync(), isTrue);
+    });
+
     test('a plaintext file is deleted rather than set aside', () async {
       file.writeAsBytesSync([...'SQLite format 3\u0000'.codeUnits, 1, 2, 3]);
       File('${file.path}-wal').writeAsBytesSync([1]);
