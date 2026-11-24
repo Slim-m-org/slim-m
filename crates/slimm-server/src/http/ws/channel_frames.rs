@@ -338,6 +338,7 @@ pub(super) fn to_frame(
         | Event::VoiceMoved { .. }
         | Event::VoiceRemoved { .. }
         | Event::VoiceNotice { .. }
+        | Event::DmLeft { .. }
         | Event::SoundboardPlayed { .. }
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => return Ok(None),

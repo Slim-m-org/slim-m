@@ -98,6 +98,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::VoiceMoved { .. }
         | Event::VoiceRemoved { .. }
         | Event::VoiceNotice { .. }
+        | Event::DmLeft { .. }
         | Event::SoundboardPlayed { .. }
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => None,

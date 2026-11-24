@@ -177,7 +177,7 @@ async fn adding_someone_blocked_by_or_blocking_a_member_is_refused() {
 }
 
 #[tokio::test]
-async fn a_group_holds_ten_and_refuses_an_eleventh_or_a_repeat() {
+async fn a_group_holds_ten_and_refuses_an_eleventh() {
     let h = harness().await;
     let _admin = person(&h, "admin").await;
     let creator = person(&h, "creator").await;
@@ -197,7 +197,7 @@ async fn a_group_holds_ten_and_refuses_an_eleventh_or_a_repeat() {
         Some(json!({ "user_id": others[0].id })),
     )
     .await;
-    assert_eq!(status, StatusCode::CONFLICT, "already in the group");
+    assert_eq!(status, StatusCode::OK, "a repeat add succeeds");
     let (status, _) = call(
         &h,
         "POST",

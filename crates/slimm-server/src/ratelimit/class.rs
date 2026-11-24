@@ -395,6 +395,11 @@ classes! {
     /// Three at once, then one every two seconds: a person has at most three live stamps on a
     /// screen, so a faster rate would only replace their own.
     ScreenStamp,
+    /// Starting a group DM, charged per account on top of [`Class::Write`].
+    ///
+    /// Each group lands in every invitee's DM list, so a loop of creates is unwanted mail to chosen
+    /// people. Five at once, then one a minute.
+    GroupDmCreate,
 }
 
 impl Class {
@@ -424,6 +429,7 @@ impl Class {
             Class::LinkPreview => (10.0, 1.0),
             Class::Soundboard => (1.0, 1.0 / 3.0),
             Class::ScreenStamp => (3.0, 0.5),
+            Class::GroupDmCreate => (5.0, 1.0 / 60.0),
             // See this variant's own doc comment for how these were sized.
             Class::Ring => (5.0, 1.0 / 5.0),
             // See this variant's own doc comment for the roster and reconnect math.

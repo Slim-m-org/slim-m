@@ -101,3 +101,85 @@ async fn a_group_roster_change_is_announced_to_participants_only() {
         assert!(extra.is_empty(), "{who} heard {extra:?}");
     }
 }
+
+#[tokio::test]
+async fn leaving_on_one_device_removes_the_group_on_the_others() {
+    let h = harness().await;
+    let _admin = person(&h, "admin").await;
+    let (a, b, c) = (
+        person(&h, "alice").await,
+        person(&h, "bob").await,
+        person(&h, "carol").await,
+    );
+    let addr = serve(h.state.clone()).await;
+    let mut other_device = socket(&h, addr, &c).await;
+    let channel = group_of(&h, &a, &[&b, &c]).await;
+    assert_eq!(next_announcement(&mut other_device).await, channel);
+
+    call(
+        &h,
+        "POST",
+        &format!("/dms/groups/{channel}/leave"),
+        &c,
+        None,
+    )
+    .await;
+
+    let removed = async {
+        loop {
+            let frame: Value = read_frame(&mut other_device).await;
+            if frame["type"] == "channel.deleted" {
+                return frame["channel_id"].as_str().unwrap().to_owned();
+            }
+        }
+    };
+    let removed = tokio::time::timeout(Duration::from_secs(5), removed)
+        .await
+        .expect("the other device was never told");
+    assert_eq!(removed, channel);
+}
+
+#[tokio::test]
+async fn the_last_person_leaving_still_tells_their_other_devices() {
+    let h = harness().await;
+    let _admin = person(&h, "admin").await;
+    let (a, b, c) = (
+        person(&h, "alice").await,
+        person(&h, "bob").await,
+        person(&h, "carol").await,
+    );
+    let channel = group_of(&h, &a, &[&b, &c]).await;
+    for who in [&a, &b] {
+        call(
+            &h,
+            "POST",
+            &format!("/dms/groups/{channel}/leave"),
+            who,
+            None,
+        )
+        .await;
+    }
+    let addr = serve(h.state.clone()).await;
+    let mut other_device = socket(&h, addr, &c).await;
+
+    call(
+        &h,
+        "POST",
+        &format!("/dms/groups/{channel}/leave"),
+        &c,
+        None,
+    )
+    .await;
+
+    let removed = async {
+        loop {
+            let frame: Value = read_frame(&mut other_device).await;
+            if frame["type"] == "channel.deleted" {
+                return;
+            }
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(5), removed)
+        .await
+        .expect("the other device was never told");
+}

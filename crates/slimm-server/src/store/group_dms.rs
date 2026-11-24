@@ -34,8 +34,8 @@ pub enum GroupDmError {
     BadSize,
     /// The group already holds [`GROUP_DM_MAX_PARTICIPANTS`].
     Full,
-    /// The account is already in the group.
-    AlreadyMember,
+    /// One of the people involved is already in [`GROUP_DM_MAX_PER_ACCOUNT`] groups.
+    TooManyGroups,
     /// The client-chosen channel id belongs to something that is not the caller's group.
     IdTaken,
     Internal(anyhow::Error),
@@ -60,6 +60,8 @@ pub enum LeftGroup {
     Remains,
     /// The caller was the last participant, so the channel was deleted.
     Deleted,
+    /// The caller was not on the roster, as after a retry of a leave that went through.
+    AlreadyOut,
 }
 
 impl Store {
@@ -153,6 +155,13 @@ impl Store {
         let name = name.unwrap_or("");
         let now = now_ms();
         let mut tx = self.begin_write().await?;
+        // Probed again under the write lock: a concurrent create with this id may have just landed.
+        if let Some(existing) = self.replayed_group(creator, id).await? {
+            return Ok((existing, false));
+        }
+        for &person in &people {
+            Self::refuse_at_group_cap(&mut tx, person).await?;
+        }
         let inserted = sqlx::query!(
             "INSERT INTO channels (id, name, kind, created_at) VALUES (?, ?, 'dm', ?)",
             channel_id,
@@ -236,12 +245,14 @@ impl Store {
         if !members.contains(&actor) {
             return Err(GroupDmError::NotFound);
         }
+        // A retry of an add that went through is a success, not a conflict.
         if members.contains(&new_member) {
-            return Err(GroupDmError::AlreadyMember);
+            return Ok(());
         }
         if members.len() >= GROUP_DM_MAX_PARTICIPANTS {
             return Err(GroupDmError::Full);
         }
+        Self::refuse_at_group_cap(&mut tx, new_member).await?;
         let blockers = self.blockers_of(new_member).await?;
         if !self.blocked_among(new_member, &members).await?.is_empty()
             || members.iter().any(|member| blockers.contains(member))
@@ -279,7 +290,7 @@ impl Store {
         .await?
         .rows_affected();
         if removed == 0 {
-            return Err(GroupDmError::NotFound);
+            return Ok(LeftGroup::AlreadyOut);
         }
         let left = sqlx::query_scalar!(
             r#"SELECT COUNT(*) AS "n!: i64" FROM group_dm_members WHERE channel_id = ?"#,

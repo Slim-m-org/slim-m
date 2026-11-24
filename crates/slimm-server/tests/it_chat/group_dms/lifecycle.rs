@@ -48,7 +48,7 @@ async fn leaving_keeps_the_channel_and_history_for_everyone_else() {
         None,
     )
     .await;
-    assert_eq!(again, StatusCode::NOT_FOUND, "leaving twice finds nothing");
+    assert_eq!(again, StatusCode::NO_CONTENT, "a retried leave succeeds");
 }
 
 #[tokio::test]

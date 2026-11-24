@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) AS \"n!: i64\" FROM group_dm_members g\n               JOIN channels c ON c.id = g.channel_id AND c.deleted_at IS NULL\n               WHERE g.user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "n!: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b106f68cbd1049aefaf8fec4d906b4ac2d3c241373fbf77a5e738b9e45f50f69"
+}
