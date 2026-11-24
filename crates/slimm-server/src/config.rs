@@ -397,6 +397,9 @@ where
 /// The shortest listener secret accepted.
 pub const MIN_LISTENER_SECRET_CHARS: usize = 32;
 
+/// The shortest LiveKit API secret accepted.
+pub const MIN_LIVEKIT_SECRET_CHARS: usize = 32;
+
 /// Where the call-audio listener is and how to authenticate to it.
 #[derive(Clone, PartialEq, Eq)]
 pub struct ListenerSettings {
@@ -416,8 +419,9 @@ impl Config {
     /// empty strings would otherwise light up the enabled path and kill the
     /// process on a URL with no scheme. A text-only deployment must not be
     /// able to break itself by leaving voice alone, so the trimming lives
-    /// here rather than at the call site.
-    pub fn livekit_settings(&self) -> Option<(String, String, String)> {
+    /// here rather than at the call site. A configured secret under
+    /// `MIN_LIVEKIT_SECRET_CHARS` is refused, because it signs every LiveKit route.
+    pub fn livekit_settings(&self) -> anyhow::Result<Option<(String, String, String)>> {
         let present = |value: &Option<String>| {
             value
                 .as_deref()
@@ -425,11 +429,19 @@ impl Config {
                 .filter(|value| !value.is_empty())
                 .map(str::to_owned)
         };
-        Some((
-            present(&self.livekit_url)?,
-            present(&self.livekit_api_key)?,
-            present(&self.livekit_api_secret)?,
-        ))
+        let (Some(url), Some(key), Some(secret)) = (
+            present(&self.livekit_url),
+            present(&self.livekit_api_key),
+            present(&self.livekit_api_secret),
+        ) else {
+            return Ok(None);
+        };
+        if secret.chars().count() < MIN_LIVEKIT_SECRET_CHARS {
+            anyhow::bail!(
+                "SLIMM_LIVEKIT_API_SECRET must be at least {MIN_LIVEKIT_SECRET_CHARS} characters; generate one with `docker run --rm livekit/livekit-server generate-keys`"
+            );
+        }
+        Ok(Some((url, key, secret)))
     }
 
     /// The call-audio listener's address, secret and LiveKit address, or `None` when the URL is unset.
@@ -452,7 +464,7 @@ impl Config {
         }
         let livekit_url = match self.listener_livekit_url.as_deref() {
             Some(own) => Some(own.to_owned()),
-            None => self.livekit_settings().map(|(url, _, _)| url),
+            None => self.livekit_settings()?.map(|(url, _, _)| url),
         };
         Ok(Some(ListenerSettings {
             url: url.to_owned(),
