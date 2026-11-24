@@ -210,4 +210,4 @@ export 'src/limits.dart'
         usernameCharacters;
 export 'src/models.dart';
 export 'src/text_marks.dart'
-    show capCombiningMarks, foldMarks, kMaxMarksPerBase;
+    show capCombiningMarks, foldMarks, inCodeRanges, kMaxMarksPerBase;
