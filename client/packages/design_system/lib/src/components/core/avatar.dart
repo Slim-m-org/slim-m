@@ -9,17 +9,17 @@
 library;
 
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
 import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
 import '../../colour_contrast.dart';
 import '../../stable_index.dart';
+import 'avatar_badge.dart';
 import 'avatar_geometry.dart';
+import 'avatar_mark_slot.dart';
 import 'avatar_shaped_image.dart';
 import 'presence_phone_mark.dart';
 import 'speaking_ring.dart';
@@ -108,6 +108,7 @@ class AppAvatar extends StatelessWidget {
     this.shape = AppAvatarShape.circle,
     this.status,
     this.mobileOnly = false,
+    this.badge,
     this.speaking = false,
     this.ringColor,
     this.placeholder,
@@ -148,6 +149,9 @@ class AppAvatar extends StatelessWidget {
   /// keep their dot, whose shape is what tells those states apart.
   final bool mobileOnly;
 
+  /// Drawn in the dot's place when set, and [status] is then not drawn at all.
+  final AppAvatarBadge? badge;
+
   /// A live-speaking ring. Takes priority over [ringColor], matching the
   /// source design's own precedence.
   ///
@@ -180,9 +184,9 @@ class AppAvatar extends StatelessWidget {
 
   /// The name, then whatever the ring and the dot show, so a screen reader
   /// hears what a sighted viewer sees.
-  String _label(String? presenceWord) =>
+  String _label(String? markWord) =>
       '$name${speaking ? ', $speakingLabel' : ''}'
-      '${presenceWord == null ? '' : ', $presenceWord'}';
+      '${markWord == null ? '' : ', $markWord'}';
 
   Color get _tint => switch (tintColor) {
         final colour? => avatarTintFromColour(colour),
@@ -196,9 +200,11 @@ class AppAvatar extends StatelessWidget {
     final radius = round ? size / 2 : AppRadii.control;
     final initials = round ? initialsFor(name) : '';
     final presence = status;
-    final dot = presence != null && presence != AppPresence.unknown;
-    final phone = dot && mobileOnly && presence == AppPresence.online;
-    final geometry = AppAvatarGeometry(size, phone: phone);
+    final marked = badge != null;
+    final dot = marked || (presence != null && presence != AppPresence.unknown);
+    final phone =
+        !marked && dot && mobileOnly && presence == AppPresence.online;
+    final geometry = AppAvatarGeometry(size, phone: phone, badge: marked);
     final surface = surfaceColor ?? tokens.surfaceBase;
 
     Widget content = image == null
@@ -251,31 +257,18 @@ class AppAvatar extends StatelessWidget {
     }
 
     if (dot) {
-      final haloRadius = geometry.dotHaloRadius;
-      final center = geometry.dotCenter;
-      content = SizedBox(
-        width: size,
-        height: size,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // Cut out rather than painted over, so the gap shows whatever surface the avatar sits on.
-            _DotCutout(center: center, radius: haloRadius, child: content),
-            Positioned(
-              left: center.dx - haloRadius,
-              top: center.dy - haloRadius,
-              child: Padding(
-                padding: const EdgeInsets.all(AppAvatarGeometry.dotHalo),
-                child: phone
-                    ? AppPresencePhoneMark(size: geometry.markDiameter)
-                    : AppStatusDot(
-                        status: presence,
-                        size: geometry.dotDiameter,
-                        backgroundColor: surface),
-              ),
-            ),
-          ],
-        ),
+      content = AppAvatarMarkSlot(
+        geometry: geometry,
+        mark: switch (badge) {
+          final badge? =>
+            AppAvatarBadgeMark(badge: badge, size: geometry.markDiameter),
+          null when phone => AppPresencePhoneMark(size: geometry.markDiameter),
+          null => AppStatusDot(
+              status: presence!,
+              size: geometry.dotDiameter,
+              backgroundColor: surface),
+        },
+        child: content,
       );
     }
 
@@ -283,7 +276,8 @@ class AppAvatar extends StatelessWidget {
     // placeholder icon) from merging its own auto-label into this one.
     return Semantics(
       image: true,
-      label: semanticLabel ?? _label(dot ? presence.word : null),
+      label:
+          semanticLabel ?? _label(badge?.word ?? (dot ? presence?.word : null)),
       child: ExcludeSemantics(child: content),
     );
   }
@@ -362,78 +356,5 @@ class _Face extends StatelessWidget {
               ),
       ),
     );
-  }
-}
-
-/// The avatar minus the circle its presence mark sits in, masked rather than
-/// clipped: a stencil clip is not anti-aliased on desktop GL, which is why
-/// the avatar never clips.
-class _DotCutout extends SingleChildRenderObjectWidget {
-  const _DotCutout({
-    required this.center,
-    required this.radius,
-    required super.child,
-  });
-
-  final Offset center;
-  final double radius;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderDotCutout(center, radius);
-
-  @override
-  void updateRenderObject(BuildContext context, _RenderDotCutout renderObject) {
-    renderObject
-      ..center = center
-      ..radius = radius;
-  }
-}
-
-class _RenderDotCutout extends RenderProxyBox {
-  _RenderDotCutout(this._center, this._radius);
-
-  Offset _center;
-  double _radius;
-
-  set center(Offset value) {
-    if (value == _center) return;
-    _center = value;
-    markNeedsPaint();
-  }
-
-  set radius(double value) {
-    if (value == _radius) return;
-    _radius = value;
-    markNeedsPaint();
-  }
-
-  @override
-  bool get alwaysNeedsCompositing => child != null;
-
-  @override
-  ShaderMaskLayer? get layer => super.layer as ShaderMaskLayer?;
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    if (child == null) return;
-    // A one-pixel ramp at the circle's edge is what keeps the cut anti-aliased.
-    final outer = _center.distance + size.longestSide;
-    final shader = ui.Gradient.radial(
-      _center,
-      outer,
-      const [
-        Color(0x00000000),
-        Color(0x00000000),
-        Color(0xFF000000),
-        Color(0xFF000000),
-      ],
-      [0, (_radius - 0.5) / outer, (_radius + 0.5) / outer, 1],
-    );
-    layer = (layer ?? ShaderMaskLayer())
-      ..shader = shader
-      ..maskRect = offset & size
-      ..blendMode = BlendMode.dstIn;
-    context.pushLayer(layer!, super.paint, offset);
   }
 }

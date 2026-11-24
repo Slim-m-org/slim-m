@@ -39,6 +39,10 @@ Future<void> loadRealFonts({String? pubCacheOverride}) async {
   await loadFontFamily('packages/lucide_icons_flutter/Lucide300', [
     '$lucideDir/assets/build_font/LucideVariable-w300.ttf',
   ]);
+  // The presence marks (phone, left, deleted) use the heavier 500 stroke.
+  await loadFontFamily('packages/lucide_icons_flutter/Lucide500', [
+    '$lucideDir/assets/build_font/LucideVariable-w500.ttf',
+  ]);
   // A bare Scaffold's default BackButton reaches Icons.arrow_back, not AppIcons.
   await loadFontFamily('MaterialIcons', [
     'build/unit_test_assets/fonts/MaterialIcons-Regular.otf',

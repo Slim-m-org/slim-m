@@ -364,6 +364,10 @@ abstract final class AppIcons {
   /// would be under a pixel wide.
   static const IconData presencePhone = LucideIcons.smartphone500;
 
+  /// The mark for a person who left the Space, and for a deleted account; heavier for the same reason as [presencePhone].
+  static const IconData presenceLeft = LucideIcons.logOut500;
+  static const IconData presenceDeleted = LucideIcons.userRoundX500;
+
   /// The settings avatar's "tap to change" badge. Distinct from [camera]
   /// above, which is a video camera for call controls; this is a still one.
   static const IconData avatarCamera = LucideIcons.camera300;
