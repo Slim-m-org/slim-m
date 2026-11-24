@@ -106,24 +106,20 @@ async fn naming_yourself_or_repeating_someone_does_not_pad_the_count() {
 }
 
 #[tokio::test]
-async fn a_block_between_any_two_people_refuses_the_group_and_says_why() {
+async fn a_block_between_two_other_invitees_is_not_revealed_by_the_answer() {
     let h = harness().await;
     let _admin = person(&h, "admin").await;
-    let (a, b, c) = (
+    let (a, b, c, d) = (
         person(&h, "alice").await,
         person(&h, "bob").await,
         person(&h, "carol").await,
+        person(&h, "dave").await,
     );
-    // Two invitees who blocked each other, the creator blocked by neither.
-    block(&h, &b, &c).await;
-    let (status, body) = create(&h, &a, &[&b, &c]).await;
-    assert_eq!(status, StatusCode::FORBIDDEN);
-    let message = body["error"].as_str().or(body["message"].as_str());
-    assert!(
-        message.is_some_and(|m| m.contains("block")),
-        "the refusal must explain itself: {body}"
-    );
-    assert!(list(&h, &a).await.is_empty());
+    let (plain_status, _) = create(&h, &a, &[&b, &c]).await;
+    block(&h, &b, &d).await;
+    let (blocked_status, _) = create(&h, &a, &[&b, &d]).await;
+    assert_eq!(plain_status, StatusCode::CREATED);
+    assert_eq!(blocked_status, plain_status);
 }
 
 #[tokio::test]

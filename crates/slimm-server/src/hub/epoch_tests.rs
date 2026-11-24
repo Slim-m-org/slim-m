@@ -160,3 +160,12 @@ fn every_permission_shaped_event_moves_it() {
         assert!(hub.permissions_epoch() > before);
     }
 }
+
+/// A block changes the DM grant (the canvas included), so cached grants must go stale at once.
+#[test]
+fn a_block_change_moves_the_permissions_epoch() {
+    let hub = Hub::new();
+    let before = hub.permissions_epoch();
+    hub.blocks_changed();
+    assert!(hub.permissions_epoch() > before);
+}

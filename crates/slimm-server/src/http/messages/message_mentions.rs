@@ -59,6 +59,7 @@ pub(crate) async fn resolve_and_store_under(
             mentioned.push(*user);
         }
     }
+    crate::mentions::drop_blockers(&state.store, under.0, &mut mentioned).await?;
     let written = crate::push::recipients::directly_named(content);
     let mut direct = state.store.user_ids_for_usernames(&written).await?;
     for user in named {
@@ -66,6 +67,7 @@ pub(crate) async fn resolve_and_store_under(
             direct.push(*user);
         }
     }
+    crate::mentions::drop_blockers(&state.store, under.0, &mut direct).await?;
     state
         .store
         .set_message_mentions(message_id, &mentioned, reply_ping, &direct)

@@ -84,5 +84,20 @@ pub async fn mentioned_viewers_under(
     } else {
         mentioned = store.viewers_among(channel_id, &mentioned).await?;
     }
+    drop_blockers(store, author_id, &mut mentioned).await?;
     Ok(mentioned)
+}
+
+/// Removes everyone who blocked `author_id`: a blocked author never lights a mention for them.
+pub async fn drop_blockers(
+    store: &Store,
+    author_id: UserId,
+    mentioned: &mut Vec<UserId>,
+) -> anyhow::Result<()> {
+    if mentioned.is_empty() {
+        return Ok(());
+    }
+    let blockers: HashSet<UserId> = store.blockers_of(author_id).await?.into_iter().collect();
+    mentioned.retain(|id| !blockers.contains(id));
+    Ok(())
 }
