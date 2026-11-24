@@ -16,6 +16,7 @@ import '../../../../api_failure.dart';
 import '../../../../providers/admin_providers.dart';
 import '../../../../providers/providers.dart';
 import '../../../../action_labels.dart';
+import '../../../../ids.dart';
 
 Future<void> showCreateRoleSheet(BuildContext context) {
   return showAppSheet<void>(
@@ -33,6 +34,7 @@ class _CreateRoleSheet extends ConsumerStatefulWidget {
 
 class _CreateRoleSheetState extends ConsumerState<_CreateRoleSheet> {
   final TextEditingController _name = TextEditingController();
+  final String _id = newRoleId();
   bool _submitting = false;
   String? _error;
 
@@ -52,7 +54,7 @@ class _CreateRoleSheetState extends ConsumerState<_CreateRoleSheet> {
     try {
       final role = await ref
           .read(apiProvider)
-          .createRole(name: _name.text.trim(), permissions: 0);
+          .createRole(id: _id, name: _name.text.trim(), permissions: 0);
       if (context.mounted) ref.invalidate(rolesProvider);
       if (mounted) Navigator.of(context).pop(role.id);
     } on api.ApiException catch (e, stack) {

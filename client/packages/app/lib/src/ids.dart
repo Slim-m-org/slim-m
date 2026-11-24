@@ -45,6 +45,9 @@ String newChannelId() => _uuidV7();
 /// The same generator for a category create, minted once per sheet.
 String newCategoryId() => _uuidV7();
 
+/// The same generator for a role create, minted once per sheet.
+String newRoleId() => _uuidV7();
+
 /// The same generator for a theme kept in "Mine", which only names it on this device.
 String newThemeId() => _uuidV7();
 

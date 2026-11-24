@@ -24,16 +24,19 @@ extension SlimmApiRoles on SlimmApi {
   /// Creates a role. Requires MANAGE_ROLES. [permissions] must already be a
   /// subset of the caller's own effective permissions. [mentionable]
   /// defaults false, matching every other role's `@[Role Name]` waking
-  /// nobody until someone opts it in.
+  /// nobody until someone opts it in. [id] is a client UUIDv7 that makes a
+  /// retry after a lost reply idempotent.
   Future<Role> createRole({
     required String name,
     required int permissions,
     bool? mentionable,
+    String? id,
   }) async {
     final json = await send(
       'POST',
       '/roles',
       body: {
+        if (id != null) 'id': id,
         'name': name,
         'permissions': permissions,
         if (mentionable != null) 'mentionable': mentionable,
