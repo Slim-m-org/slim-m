@@ -26,6 +26,8 @@ use support::ws::{
     Client, assert_no_frame_of_type, connect, read_frame_of_type, serve, user_ticket,
 };
 
+mod gates;
+
 const TILE: &str = "Board";
 
 async fn install(store: &Store, wasm: Vec<u8>) {

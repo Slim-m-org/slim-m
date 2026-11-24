@@ -8,6 +8,7 @@ use tokio::sync::mpsc;
 use super::canvas_gate::{Frame, may_relay};
 use super::permission_cache::PermissionCache;
 use super::signals_canvas::valid_preview_color;
+use crate::hidden_chars::{draws_nothing, is_hidden_char};
 use crate::http::AppState;
 use crate::hub::{CanvasEvent, Event, Hub, ScreenAnnotationEvent, ScreenAnnotationKind};
 use crate::ids::{ChannelId, UserId};
@@ -168,7 +169,17 @@ fn checked_annotation(
     let text = frame
         .text
         .filter(|t| kind == ScreenAnnotationKind::Note && !t.is_empty())
-        .map(|t| t.chars().take(MAX_ANNOTATION_TEXT_CHARS).collect());
+        .map(|t| {
+            t.chars()
+                .take(MAX_ANNOTATION_TEXT_CHARS)
+                .collect::<String>()
+        });
+    if text
+        .as_deref()
+        .is_some_and(|t| t.chars().any(is_hidden_char) || draws_nothing(t))
+    {
+        return None;
+    }
     Some(ScreenAnnotationEvent {
         channel_id,
         user_id: sender,
@@ -248,6 +259,23 @@ mod screen_annotation_tests {
         let event = checked_annotation(who, f).unwrap();
         assert!(event.allowed);
         assert_eq!(event.aspect, Some(1.78));
+    }
+
+    #[test]
+    fn a_note_with_hidden_or_blank_text_is_dropped() {
+        for text in [
+            "ab\u{202E}cd",
+            "bell\u{7}",
+            "zero\u{200B}width",
+            "\u{3164}\u{3164}",
+        ] {
+            let mut f = frame("note");
+            f.text = Some(text.to_owned());
+            assert!(checked_annotation(sender(), f).is_none(), "{text:?}");
+        }
+        let mut f = frame("note");
+        f.text = Some("look here".to_owned());
+        assert!(checked_annotation(sender(), f).is_some());
     }
 
     #[test]

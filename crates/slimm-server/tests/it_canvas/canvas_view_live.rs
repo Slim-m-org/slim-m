@@ -200,3 +200,36 @@ async fn a_full_screen_tile_key_rides_the_view_and_an_oversized_one_is_dropped()
         assert_eq!(frame["tile"], expected);
     }
 }
+
+#[tokio::test]
+async fn a_timed_out_member_may_follow_but_not_summon() {
+    let (store, _guard) = support::new_store("slimm-canvas-view-live").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
+    store.bootstrap_deployment(alice_id).await.unwrap();
+    let channel = store.list_channels().await.unwrap()[0].id.to_string();
+    let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
+    let until = i64::try_from(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis(),
+    )
+    .unwrap()
+        + 3_600_000;
+    store
+        .set_member_timeout(bob_id, until, None, alice_id)
+        .await
+        .unwrap();
+
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
+    let addr = serve(state.clone()).await;
+    let mut alice_ws = connect(addr, &alice_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+
+    send_view(&mut bob_ws, &channel, [0.0, 0.0, 100.0, 100.0], true).await;
+    assert_no_frame_of_type(&mut alice_ws, VIEW).await;
+
+    send_view(&mut bob_ws, &channel, [0.0, 0.0, 100.0, 100.0], false).await;
+    let frame = read_frame_of_type(&mut alice_ws, VIEW).await;
+    assert_eq!(frame["summon"], false);
+}

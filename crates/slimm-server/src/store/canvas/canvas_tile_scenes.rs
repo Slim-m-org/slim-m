@@ -139,7 +139,30 @@ impl Store {
         Ok(())
     }
 
-    /// Tiles whose redraw is due at `now`, oldest first, with their channel and when each chain ends.
+    /// How many redraw chains `user_id` has running at `now`, not counting `except`'s own.
+    pub async fn running_canvas_tile_chains(
+        &self,
+        user_id: UserId,
+        except: CanvasObjectId,
+        now: i64,
+    ) -> anyhow::Result<i64> {
+        let row = sqlx::query(
+            "SELECT COUNT(*) AS running FROM canvas_tile_scenes \
+             WHERE ran_by = ? AND object_id <> ? \
+               AND refresh_due_at IS NOT NULL AND refresh_until_at > ?",
+        )
+        .bind(user_id)
+        .bind(except)
+        .bind(now)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row.try_get("running")?)
+    }
+
+    /// Tiles whose redraw is due at `now`, with their channel and when each chain ends.
+    ///
+    /// Round-robin by presser: each presser's oldest-due chain comes first, then each one's
+    /// second, so one member's many chains cannot crowd the others out of a pass.
     pub async fn due_canvas_tile_refreshes(
         &self,
         now: i64,
@@ -148,7 +171,8 @@ impl Store {
         let rows = sqlx::query(
             "SELECT object_id, channel_id, refresh_until_at FROM canvas_tile_scenes \
              WHERE refresh_due_at IS NOT NULL AND refresh_due_at <= ? \
-             ORDER BY refresh_due_at LIMIT ?",
+             ORDER BY ROW_NUMBER() OVER (PARTITION BY ran_by ORDER BY refresh_due_at), \
+                      refresh_due_at LIMIT ?",
         )
         .bind(now)
         .bind(limit)

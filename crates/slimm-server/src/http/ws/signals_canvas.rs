@@ -174,9 +174,9 @@ pub(super) struct ViewFrame {
 /// Longest tile key relayed; a longer one is dropped rather than echoed.
 const MAX_TILE_KEY_LEN: usize = 128;
 
-/// Relays the world rectangle a member is looking at. Gated exactly like a
-/// cursor (view plus `USE_CANVAS`, no timeout check) and silent on every
-/// rejection.
+/// Relays the world rectangle a member is looking at. A plain view is gated like
+/// a cursor (view plus `USE_CANVAS`); a summon also needs no timeout, since it
+/// puts a prompt in front of everyone. Silent on every rejection.
 pub(super) async fn handle_canvas_view(
     store: &Store,
     hub: &Hub,
@@ -204,7 +204,12 @@ pub(super) async fn handle_canvas_view(
     }
     hub.presence().touch(ctx.user_id);
 
-    if !may_relay(store, hub, ctx, cache, channel_id, Frame::Pointer).await {
+    let gate = if frame.summon {
+        Frame::Ink
+    } else {
+        Frame::Pointer
+    };
+    if !may_relay(store, hub, ctx, cache, channel_id, gate).await {
         return;
     }
 

@@ -151,7 +151,23 @@ async fn editing_a_text_box_validates_the_new_props_and_a_stroke_cannot_be_edite
     .await;
     assert_eq!(
         status,
+        StatusCode::BAD_REQUEST,
+        "a note takes the same hidden-character rule as a message"
+    );
+    let (status, _) = submit_op(
+        &app,
+        channel,
+        &bob,
+        edit_op(
+            &id(),
+            &sticky,
+            json!({ "shape": "free", "text": "plain\nnote" }),
+        ),
+    )
+    .await;
+    assert_eq!(
+        status,
         StatusCode::CREATED,
-        "a note keeps its own, looser props"
+        "a plain note edit still passes"
     );
 }
