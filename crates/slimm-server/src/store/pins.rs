@@ -233,9 +233,6 @@ impl Store {
     }
 }
 
-/// Fetches a live message, but only if it belongs to `channel_id`. A message
-/// id from a different channel is treated as not found, so a pin can never
-/// be created under a channel it does not actually belong to.
 /// Writes the moderation row for a pin change on someone else's message, in the change's own transaction.
 async fn audit_pin(
     conn: &mut sqlx::SqliteConnection,
@@ -261,6 +258,9 @@ async fn audit_pin(
     .await
 }
 
+/// Fetches a live message, but only if it belongs to `channel_id`. A message
+/// id from a different channel is treated as not found, so a pin can never
+/// be created under a channel it does not actually belong to.
 async fn fetch_channel_message(
     executor: impl sqlx::SqliteExecutor<'_>,
     channel_id: ChannelId,

@@ -74,41 +74,6 @@ impl Store {
         Ok(written.rows_affected() == 1)
     }
 
-    /// [`Self::record_admin_change`] unless `actor_id` already recorded the same `action`, target and
-    /// `detail` within `window_ms`, so a replayed idempotent write leaves one row; answers whether it wrote.
-    pub async fn record_admin_change_unless_repeated(
-        &self,
-        actor_id: UserId,
-        (action, target_id): (&str, Option<&str>),
-        detail: &str,
-        window_ms: i64,
-    ) -> anyhow::Result<bool> {
-        let created_at = now_ms();
-        let since = created_at - window_ms;
-        let written = sqlx::query!(
-            "INSERT INTO admin_audit_log (actor_id, action, target_id, detail, created_at)
-             SELECT ?, ?, ?, ?, ?
-             WHERE NOT EXISTS (
-                 SELECT 1 FROM admin_audit_log
-                 WHERE actor_id = ? AND action = ? AND target_id IS ? AND detail = ?
-                   AND created_at > ?
-             )",
-            actor_id,
-            action,
-            target_id,
-            detail,
-            created_at,
-            actor_id,
-            action,
-            target_id,
-            detail,
-            since
-        )
-        .execute(&self.pool)
-        .await?;
-        Ok(written.rows_affected() == 1)
-    }
-
     /// Deletes both audit logs' rows older than `cutoff_ms`; answers how many went.
     pub async fn prune_audit_logs(&self, cutoff_ms: i64) -> anyhow::Result<u64> {
         let admin = sqlx::query!(

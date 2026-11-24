@@ -423,3 +423,30 @@ async fn pruning_drops_rows_older_than_the_cutoff_from_both_logs() {
     assert!(audit_rows(&d.store).await.is_empty());
     let _ = author;
 }
+
+#[tokio::test]
+async fn two_different_puts_to_one_target_write_two_rows() {
+    let d = deployment("slimm-audit-different-puts").await;
+    let router = app(d.store.clone());
+    let role_id = new_role(&router, &d.admin_token).await;
+    let channel = d.store.create_channel("gated", "text").await.unwrap().id;
+    let uri = format!("/channels/{channel}/overwrites/role/{role_id}");
+
+    for allow in [4, 2, 2] {
+        let put = json_request(
+            "PUT",
+            &uri,
+            &d.admin_token,
+            &json!({ "allow": allow, "deny": 0 }),
+        );
+        let status = router.clone().oneshot(put).await.unwrap().status();
+        assert!(status.is_success(), "{status}");
+    }
+
+    let entries = log(&router, &d.admin_token).await;
+    let puts = entries
+        .iter()
+        .filter(|e| e["action"] == "channel.overwrite_set")
+        .count();
+    assert_eq!(puts, 2, "{entries:?}");
+}

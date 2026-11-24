@@ -25,6 +25,7 @@ use crate::store::AdminAuditEntry;
 
 mod audited_routes;
 mod redaction;
+mod replay;
 
 pub use audited_routes::{AUDITED_ROUTES, AuditedRoute};
 
@@ -34,8 +35,6 @@ const MAX_FIELDS: usize = 32;
 const MAX_NAME_CHARS: usize = 100;
 /// Well under the 4096 characters the table's CHECK allows, so a row is never refused for its detail.
 const MAX_DETAIL_CHARS: usize = 3500;
-/// A replayed write inside this window with the same detail is the same change.
-const REPLAY_WINDOW_MS: i64 = 30_000;
 const RECORD_ATTEMPTS: u32 = 3;
 const PAGE_DEFAULT: i64 = 50;
 const PAGE_MAX: i64 = 200;
@@ -85,7 +84,17 @@ pub async fn record(State(state): State<AppState>, request: Request, next: Next)
     if uninspected {
         detail = with_uninspected(&detail);
     }
-    write_row(&state, route, ctx.user_id, target.as_deref(), &detail).await;
+    let body = request_json
+        .as_ref()
+        .map(Value::to_string)
+        .unwrap_or_default();
+    let attempt = Attempt {
+        actor: ctx.user_id,
+        target: target.as_deref(),
+        detail: &detail,
+        body: (!uninspected).then_some(body.as_str()),
+    };
+    write_row(&state, route, &attempt).await;
     response
 }
 
@@ -94,43 +103,44 @@ fn is_replayable(method: &Method) -> bool {
     method == Method::PUT || method == Method::DELETE
 }
 
-/// Retries a failed insert, then falls back to an empty detail so the action and actor are always kept.
-async fn write_row(
-    state: &AppState,
-    route: &AuditedRoute,
+struct Attempt<'a> {
     actor: crate::ids::UserId,
-    target: Option<&str>,
-    detail: &str,
-) {
+    target: Option<&'a str>,
+    detail: &'a str,
+    /// The request values, when they were read; a write whose values are unknown is never a replay.
+    body: Option<&'a str>,
+}
+
+/// Retries a failed insert, then falls back to an empty detail so the action and actor are always kept.
+async fn write_row(state: &AppState, route: &AuditedRoute, attempt: &Attempt<'_>) {
+    let actor = attempt.actor.to_string();
+    let identity = replay::Write {
+        actor: &actor,
+        action: route.action,
+        target: attempt.target,
+        detail: attempt.detail,
+        body: attempt.body.unwrap_or_default(),
+    };
+    if is_replayable(&route.method) && attempt.body.is_some() && identity.is_replay() {
+        return;
+    }
     let mut last_error = None;
-    for attempt in 0..RECORD_ATTEMPTS {
-        let detail = if attempt + 1 == RECORD_ATTEMPTS {
+    for tries in 0..RECORD_ATTEMPTS {
+        let detail = if tries + 1 == RECORD_ATTEMPTS {
             "{}"
         } else {
-            detail
+            attempt.detail
         };
-        let written = if is_replayable(&route.method) {
-            state
-                .store
-                .record_admin_change_unless_repeated(
-                    actor,
-                    (route.action, target),
-                    detail,
-                    REPLAY_WINDOW_MS,
-                )
-                .await
-                .map(drop)
-        } else {
-            state
-                .store
-                .record_admin_change(actor, route.action, target, detail)
-                .await
-        };
-        match written {
+        match state
+            .store
+            .record_admin_change(attempt.actor, route.action, attempt.target, detail)
+            .await
+        {
             Ok(()) => return,
             Err(error) => last_error = Some(error),
         }
     }
+    identity.forget();
     if let Some(error) = last_error {
         tracing::error!(%error, action = route.action, "could not record an admin change");
     }
