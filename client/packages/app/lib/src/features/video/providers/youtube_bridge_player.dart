@@ -8,6 +8,7 @@ import 'dart:convert';
 
 import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart' show protected;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'embedded_video_player.dart';
 
@@ -29,7 +30,13 @@ abstract class YoutubeBridgePlayer implements EmbeddedVideoPlayer {
       reportHostFailure();
       return;
     }
-    if (!_disposed) await runScript(script);
+    if (_disposed) return;
+    try {
+      await runScript(script);
+    } on Object catch (error, stack) {
+      AppLog.swallowed(LogTag.media, 'A player command failed', error, stack);
+      reportHostFailure();
+    }
   }
 
   /// The host or its page never came up, so the panel shows why instead of

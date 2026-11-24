@@ -123,6 +123,35 @@ void ServeHostPage(ICoreWebView2WebResourceRequestedEventArgs* args) {
   }
 }
 
+// The player never saves a file or hands a link to another app.
+void DenyDownloadsAndSchemes(ICoreWebView2* webview) {
+  EventRegistrationToken token;
+  ComPtr<ICoreWebView2_4> webview4;
+  if (SUCCEEDED(webview->QueryInterface(IID_PPV_ARGS(&webview4)))) {
+    webview4->add_DownloadStarting(
+        Callback<ICoreWebView2DownloadStartingEventHandler>(
+            [](ICoreWebView2*, ICoreWebView2DownloadStartingEventArgs* args) {
+              args->put_Cancel(TRUE);
+              args->put_Handled(TRUE);
+              return S_OK;
+            })
+            .Get(),
+        &token);
+  }
+  ComPtr<ICoreWebView2_18> webview18;
+  if (SUCCEEDED(webview->QueryInterface(IID_PPV_ARGS(&webview18)))) {
+    webview18->add_LaunchingExternalUriScheme(
+        Callback<ICoreWebView2LaunchingExternalUriSchemeEventHandler>(
+            [](ICoreWebView2*,
+               ICoreWebView2LaunchingExternalUriSchemeEventArgs* args) {
+              args->put_Cancel(TRUE);
+              return S_OK;
+            })
+            .Get(),
+        &token);
+  }
+}
+
 void Wire(ICoreWebView2* webview) {
   EventRegistrationToken token;
   webview->AddWebResourceRequestedFilter(kHostFilter,
@@ -151,8 +180,12 @@ void Wire(ICoreWebView2* webview) {
   webview->add_NewWindowRequested(
       Callback<ICoreWebView2NewWindowRequestedEventHandler>(
           [](ICoreWebView2*, ICoreWebView2NewWindowRequestedEventArgs* args) {
+            // WebView2 has no popup blocker, so only a click may reach the browser.
+            BOOL user_initiated = FALSE;
+            args->get_IsUserInitiated(&user_initiated);
             LPWSTR uri = nullptr;
-            if (SUCCEEDED(args->get_Uri(&uri)) && uri != nullptr) {
+            if (user_initiated && SUCCEEDED(args->get_Uri(&uri)) &&
+                uri != nullptr) {
               OpenExternally(uri);
             }
             CoTaskMemFree(uri);
@@ -202,6 +235,7 @@ void Wire(ICoreWebView2* webview) {
           })
           .Get(),
       &token);
+  DenyDownloadsAndSchemes(webview);
   webview->add_ProcessFailed(
       Callback<ICoreWebView2ProcessFailedEventHandler>(
           [](ICoreWebView2*, ICoreWebView2ProcessFailedEventArgs*) {
@@ -404,6 +438,8 @@ SharedFrame Latest() {
   return capture ? capture->Latest() : SharedFrame{};
 }
 
+std::shared_ptr<void> HoldFrames() { return std::atomic_load(&g.capture); }
+
 void Run(const std::string& script) {
   if (g.webview) g.webview->ExecuteScript(Wide(script).c_str(), nullptr);
 }
@@ -419,6 +455,8 @@ void Destroy() {
     g.controller.Reset();
   }
   std::atomic_store(&g.capture, std::shared_ptr<VisualCapture>());
+  // A new view gets a new environment, so a crashed browser process or an updated runtime never leaves the player dead.
+  g.environment.Reset();
 }
 
 }  // namespace slimm_youtube

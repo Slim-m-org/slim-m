@@ -21,6 +21,8 @@ import '../../emoji/providers/emoji_image_cache.dart';
 import '../../messages/providers/attachment_preview_bytes.dart';
 import '../../../push/providers/notification_tap_router.dart';
 import '../../../push/providers/push_channel_providers.dart';
+import '../../video/providers/native_video_host.dart';
+import '../../video/providers/video_host_capability.dart';
 import '../../voice/providers/shortcut_overrides.dart';
 import 'account_host.dart';
 import 'account_providers.dart';
@@ -60,6 +62,8 @@ AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
   // The native callbacks and handlers are process-wide, so they cannot belong to a container that gets disposed.
   final apnsToken = ApnsTokenChannel();
   final notificationTaps = NotificationTapChannel();
+  // The runner has one native player, so every account's player shares one host to take turns on it.
+  final videoHost = NativeVideoHost();
   final notifications = LocalNotifications(
     onActivated: (payload) => openNotificationTarget(shell, host, payload),
   );
@@ -92,6 +96,7 @@ AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
         crossTabProvider.overrideWithValue(crossTab),
         officialServerProvider.overrideWithValue(official),
         desktopWindowShellProvider.overrideWithValue(shell),
+        nativeVideoHostProvider.overrideWithValue(videoHost),
         apnsTokenChannelProvider.overrideWithValue(apnsToken),
         notificationTapChannelProvider.overrideWithValue(notificationTaps),
         localNotificationsProvider.overrideWithValue(notifications),

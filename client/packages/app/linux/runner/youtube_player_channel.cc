@@ -159,7 +159,44 @@ void OpenExternally(const char* uri) {
   if (uri == nullptr) return;
   // Only a secure web link goes to the browser, never plain http, a file or a custom scheme.
   if (std::strncmp(uri, "https://", 8) != 0) return;
-  g_app_info_launch_default_for_uri(uri, nullptr, nullptr);
+  // Through the window, so the launch carries its activation token and the browser is raised.
+  GtkWidget* window = gtk_widget_get_toplevel(GTK_WIDGET(FlutterView()));
+  g_autoptr(GError) error = nullptr;
+  if (!gtk_show_uri_on_window(GTK_IS_WINDOW(window) ? GTK_WINDOW(window)
+                                                    : nullptr,
+                              uri, GDK_CURRENT_TIME, &error)) {
+    g_warning("youtube player: could not open a link: %s", error->message);
+  }
+}
+
+// Nothing the embed streams is ever saved to disk.
+void OnDownloadStarted(void* context, void* download, gpointer user_data) {
+  const slimm_webkit::Api* api = slimm_webkit::Load();
+  if (api->download_cancel != nullptr) api->download_cancel(download);
+}
+
+// The player asks for nothing but autoplay, which is a website policy and no prompt.
+gboolean OnPermissionRequest(GtkWidget* view, void* request,
+                             gpointer user_data) {
+  const slimm_webkit::Api* api = slimm_webkit::Load();
+  if (api->permission_request_deny != nullptr) {
+    api->permission_request_deny(request);
+  }
+  return TRUE;
+}
+
+// Before the first view, since WebKit refuses to change the sandbox once a web process runs.
+void ConfigureContext(const slimm_webkit::Api* api) {
+  static bool configured = false;
+  if (configured || api->web_context_get_default == nullptr) return;
+  configured = true;
+  void* context = api->web_context_get_default();
+  if (api->web_context_set_sandbox_enabled != nullptr &&
+      g_find_program_in_path("bwrap") != nullptr) {
+    api->web_context_set_sandbox_enabled(context, TRUE);
+  }
+  g_signal_connect(context, "download-started",
+                   G_CALLBACK(OnDownloadStarted), nullptr);
 }
 
 // WebKit fullscreens the window (FALSE lets it); Dart covers it with the texture and sizes the view to match.
@@ -207,6 +244,7 @@ int64_t Create(const char* html) {
     return -1;
   }
   Destroy();
+  ConfigureContext(api);
   SlimmVideoTexture* texture = slimm_video_texture_new();
   if (!fl_texture_registrar_register_texture(g_player.registrar,
                                              FL_TEXTURE(texture))) {
@@ -234,6 +272,8 @@ int64_t Create(const char* html) {
                "enable-fullscreen", TRUE,
                "enable-developer-extras", FALSE, nullptr);
   slimm_youtube::GuardNavigation(view, OpenExternally);
+  g_signal_connect(view, "permission-request",
+                   G_CALLBACK(OnPermissionRequest), nullptr);
   g_signal_connect(view, "enter-fullscreen", G_CALLBACK(OnEnterFullscreen), nullptr);
   g_signal_connect(view, "leave-fullscreen", G_CALLBACK(OnLeaveFullscreen), nullptr);
   g_signal_connect(view, "web-process-terminated",

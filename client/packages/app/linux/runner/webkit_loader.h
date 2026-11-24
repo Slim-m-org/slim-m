@@ -35,6 +35,12 @@ struct Api {
   void (*policy_decision_ignore)(void* decision) = nullptr;
   void* (*javascript_result_get_js_value)(void* result) = nullptr;
   char* (*jsc_value_to_string)(void* value) = nullptr;
+  /// Optional: null leaves the web process unsandboxed.
+  void* (*web_context_get_default)() = nullptr;
+  void (*web_context_set_sandbox_enabled)(void* context,
+                                          gboolean enabled) = nullptr;
+  void (*download_cancel)(void* download) = nullptr;
+  void (*permission_request_deny)(void* request) = nullptr;
   /// Optional: null leaves WebKit's default autoplay policy.
   GType (*website_policies_get_type)() = nullptr;
 };

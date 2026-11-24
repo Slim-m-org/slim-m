@@ -33,6 +33,9 @@ class FakeVideoPlayer implements DesktopVideoPlayer {
   Stream<VideoPlayerEvent> get events => _events.stream;
 
   @override
+  Stream<void> get displaced => const Stream.empty();
+
+  @override
   ValueListenable<int?> get texture => _texture;
 
   @override
