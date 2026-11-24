@@ -32,14 +32,15 @@ Future<ProviderContainer> _open(
   WidgetTester tester, {
   double width = 900,
   DebugLogFilter? filter,
+  DebugLog? log,
 }) async {
   tester.view.physicalSize = Size(width, 2400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final log = _log();
+  log ??= _log();
   final container = ProviderContainer(
     overrides: [
-      debugLogProvider.overrideWith((ref) => log),
+      debugLogProvider.overrideWith((ref) => log!),
       if (filter != null) debugLogFilterProvider.overrideWith((ref) => filter),
     ],
   );
@@ -113,11 +114,25 @@ void main() {
   testWidgets('a kept area keeps its chip row so it can be cleared', (
     tester,
   ) async {
-    await _open(tester, filter: const DebugLogFilter(tag: 'gone'));
+    final single = DebugLog()
+      ..write(
+        LogRecord(
+          at: DateTime(2026, 10, 18),
+          level: LogLevel.info,
+          tag: LogTag.voice,
+          message: 'voice joined',
+          context: const {},
+        ),
+      );
+    await _open(
+      tester,
+      filter: const DebugLogFilter(tag: LogTag.sync),
+      log: single,
+    );
     expect(find.byKey(const ValueKey('area-All')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('area-All')));
     await tester.pumpAndSettle();
-    expect(find.text('sync dropped'), findsOneWidget);
+    expect(find.text('voice joined'), findsOneWidget);
   });
 
   testWidgets('copy exports only what is shown, with secrets redacted', (

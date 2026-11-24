@@ -111,6 +111,8 @@ void main() {
     await tester.pump();
     await tester.tap(_save);
     await tester.pump();
+    await tester.pump();
+    expect(find.text('Saving...'), findsOneWidget, reason: 'still closing');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await pumpFrames(tester, frames: 20);
 

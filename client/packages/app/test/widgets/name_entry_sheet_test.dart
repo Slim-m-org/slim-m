@@ -44,6 +44,7 @@ void main() {
     await tester.pump();
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
+    expect(find.text('Creating...'), findsOneWidget, reason: 'still closing');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await pumpFrames(tester, frames: 20);
 
