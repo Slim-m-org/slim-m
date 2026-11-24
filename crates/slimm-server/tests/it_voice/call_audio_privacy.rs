@@ -136,3 +136,29 @@ async fn the_live_frame_leaves_a_hidden_member_out_for_everyone_else() {
     );
     assert_eq!(names(&to_viewer["state"]["pending"]), BTreeSet::new());
 }
+
+#[tokio::test]
+async fn a_hidden_asker_is_not_named_to_a_viewer_outside_the_call() {
+    let rig = Rig::start("call-audio-hidden-asker", 3).await;
+    let (asker, mate, outsider) = (&rig.people[0], &rig.people[1], &rig.people[2]);
+    let addr = serve(rig.state.clone()).await;
+    let mut outsider_ws = socket(&rig, addr, outsider).await;
+    let mut asker_ws = socket(&rig, addr, asker).await;
+    rig.join(asker).await;
+    rig.join(mate).await;
+    hide(&rig, asker).await;
+
+    let (status, body) = rig.ask(asker).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["session"]["asked_by"], asker.id.to_string());
+
+    let to_outsider = next_session_frame(&mut outsider_ws).await;
+    assert_eq!(to_outsider["state"]["asked_by"], "");
+    let to_asker = next_session_frame(&mut asker_ws).await;
+    assert_eq!(to_asker["state"]["asked_by"], asker.id.to_string());
+
+    let read = rig.status(outsider).await;
+    assert_eq!(read["session"]["asked_by"], "");
+    let mate_read = rig.status(mate).await;
+    assert_eq!(mate_read["session"]["asked_by"], "");
+}

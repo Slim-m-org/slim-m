@@ -188,11 +188,12 @@ async fn passes_presence_gates(
     | Event::VoiceScreenShareChanged { user_id, .. } = *event
         && user_id != ctx.user_id
     {
-        let hidden = matches!(
-            signals::visibility_of(store, hub, user_id).await,
-            Ok(Some(crate::presence::Visibility::Hidden))
-        );
-        if hidden {
+        let shown = match signals::visibility_of(store, hub, user_id).await {
+            Ok(Some(visibility)) => visibility != crate::presence::Visibility::Hidden,
+            Ok(None) => true,
+            Err(_) => false,
+        };
+        if !shown {
             return false;
         }
     }

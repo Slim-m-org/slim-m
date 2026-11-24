@@ -24,8 +24,10 @@ pub(super) async fn authorize(
     }
     if let Event::PresenceChanged(change) = event {
         // A gone account and a store blip both mean silence here, unlike below.
-        let Ok(Some(status)) = signals::change_status(store, hub, ctx.user_id, &change).await
-        else {
+        let Ok(Some(visibility)) = signals::change_visibility(store, hub, &change).await else {
+            return Ok(Authorization::Withhold);
+        };
+        let Some(status) = signals::change_status(hub, ctx.user_id, &change, visibility) else {
             return Ok(Authorization::Withhold);
         };
         let frame = signals::presence_frame(hub, change.user_id, status);

@@ -271,6 +271,25 @@ async fn a_hidden_members_join_announces_nobody() {
 }
 
 #[tokio::test]
+async fn a_hidden_member_already_on_the_call_does_not_stop_the_next_join_starting_it() {
+    let world = World::new().await;
+    let mut bob = world.member("bob", Some(FIRST)).await;
+    let alice = world.member("alice", None).await;
+    let carol = world.member("carol", None).await;
+    world
+        .store
+        .set_presence_visibility(carol.id, Visibility::Hidden)
+        .await
+        .unwrap();
+    world.join(carol.id).await;
+
+    world.join(alice.id).await;
+
+    let frame = notice(&mut bob.ws, HEARS).await.expect("bob is told");
+    assert_eq!(frame["activity"], "call_started");
+}
+
+#[tokio::test]
 async fn a_member_who_blocked_the_actor_is_not_told() {
     let world = World::new().await;
     let mut bob = world.member("bob", Some(EVERY)).await;

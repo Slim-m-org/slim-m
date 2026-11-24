@@ -429,8 +429,6 @@ async fn a_hidden_users_idle_transition_is_never_published() {
     let _ = next_presence_for(&mut bob_ws, &bob_id.to_string()).await;
 
     let _alice_ws = connect(addr, &alice_ticket).await;
-    // Her connect still publishes, which predates the idle watcher and is its own question.
-    let _ = next_presence_for(&mut bob_ws, &alice_id_str).await;
     let_the_first_tick_pass().await;
 
     let long_ago = Instant::now() - presence::IDLE_TIMEOUT - Duration::from_secs(1);
