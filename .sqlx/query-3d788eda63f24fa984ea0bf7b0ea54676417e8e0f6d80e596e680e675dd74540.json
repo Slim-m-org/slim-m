@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT user_id AS \"user_id!: UserId\", channel_id AS \"channel_id!: ChannelId\"\n               FROM webhooks WHERE id = ? AND token_hash = ?",
+  "query": "SELECT user_id AS \"user_id!: UserId\", channel_id AS \"channel_id!: ChannelId\"\n               FROM webhooks WHERE id = ? AND token_hash = ?\n                 AND NOT EXISTS (SELECT 1 FROM space_removals WHERE user_id = webhooks.user_id)",
   "describe": {
     "columns": [
       {
@@ -34,5 +34,5 @@
       false
     ]
   },
-  "hash": "ef895707de73660495909659cdca7f931ab347cc4c06678ad220f6401e7952e9"
+  "hash": "3d788eda63f24fa984ea0bf7b0ea54676417e8e0f6d80e596e680e675dd74540"
 }

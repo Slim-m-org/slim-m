@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::extract::{MatchedPath, Request};
+use axum::extract::Request;
 use axum::http::header::RETRY_AFTER;
 use axum::http::{HeaderValue, StatusCode};
 use axum::middleware::Next;
@@ -74,6 +74,7 @@ mod screen_stamps;
 mod soundboard;
 pub(crate) use crate::hidden_chars;
 pub use version::capability_names;
+mod identity_proof;
 mod interaction_forms;
 mod interactions;
 mod invite_page;
@@ -86,6 +87,7 @@ mod linked_avatar;
 mod manager_limited;
 mod member_permissions;
 mod members;
+mod participant;
 pub mod steam_api;
 pub mod steam_link;
 pub mod steam_presence;
@@ -153,6 +155,7 @@ mod data_exports;
 mod favorites;
 mod hold_music;
 mod media_compression;
+mod request_trace;
 mod route_timing;
 mod safety;
 mod saved_messages;
@@ -160,6 +163,7 @@ mod scene_limits;
 mod search;
 mod search_dates;
 mod server_logs;
+mod session_revocation;
 mod sign_in_alert;
 mod space;
 mod space_banner;
@@ -314,6 +318,7 @@ pub fn router(state: AppState) -> Router {
         .layer(RequestBodyTimeoutLayer::new(BODY_READ_TIMEOUT));
     let app = Router::new()
         .route("/version", get(version::version))
+        .merge(identity_proof::routes())
         .merge(admin_audit::routes())
         .merge(debug_logs::routes())
         .merge(analytics::routes())
@@ -446,15 +451,12 @@ pub fn router(state: AppState) -> Router {
         .merge(ws::routes());
     guard_panics(app)
         // Route-template span labeling; see this function's own doc comment.
+        .fallback(request_trace::unmatched)
         .layer(
-            TraceLayer::new_for_http().make_span_with(|request: &axum::extract::Request| {
-                let route = request
-                    .extensions()
-                    .get::<MatchedPath>()
-                    .map(MatchedPath::as_str)
-                    .unwrap_or("unmatched");
-                tracing::info_span!("http_request", method = %request.method(), route)
-            }),
+            TraceLayer::new_for_http()
+                .make_span_with(request_trace::make_span)
+                .on_request(request_trace::QuietOnRequest::default())
+                .on_response(request_trace::QuietOnResponse::default()),
         )
         .with_state(state)
 }

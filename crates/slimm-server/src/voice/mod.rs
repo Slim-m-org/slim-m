@@ -62,8 +62,8 @@ pub use live_state::RoomLiveState;
 pub use notice_windows::{NOTICE_WINDOW_MS, NoticeWindows};
 pub use ring::{CallRingOutcome, CallRings, Canceled, Declined, RING_TIMEOUT, StaleRing};
 pub use roster::{RoomParticipant, RosterCache};
-pub use token::VoiceDevice;
 use token::{Claims, VideoGrant, http_url_for, unix_secs};
+pub use token::{HOLDER_ATTRIBUTE, VoiceDevice};
 pub use webhook::{WebhookError, WebhookEvent, channel_for_room, is_screen_share_source};
 
 /// How long a join token is good for.
@@ -308,7 +308,10 @@ impl VoiceService {
         };
 
         let room = room_for_channel(channel_id);
-        let device = token::device_tag(&enabled.api_secret, channel_id, &device.into());
+        let device = device.into();
+        let holder = token::holder_tag(&enabled.api_secret, channel_id, device.device_id);
+        let device = token::device_tag(&enabled.api_secret, channel_id, &device);
+        let attributes = [(DEVICE_ATTRIBUTE, &*device), (HOLDER_ATTRIBUTE, &*holder)];
         let can_publish = permissions.contains(Permissions::SPEAK);
         let can_publish_data = permissions.contains(Permissions::USE_CANVAS);
         let now = unix_secs();
@@ -336,7 +339,7 @@ impl VoiceService {
                 nbf: now,
                 exp: expires,
                 video: grants,
-                attributes: Some([(DEVICE_ATTRIBUTE, device.as_str())].into()),
+                attributes: Some(attributes.into()),
             },
         )?;
 

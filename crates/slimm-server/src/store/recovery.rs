@@ -37,6 +37,13 @@ impl From<sqlx::Error> for IssueResetError {
     }
 }
 
+/// A spent reset code: whose account it was, and the sessions it revoked.
+#[derive(Debug)]
+pub struct ResetConsumed {
+    pub user_id: UserId,
+    pub revoked: Vec<SessionId>,
+}
+
 /// Why consuming a reset code failed. Deliberately one variant: an unknown,
 /// expired, and already-used code all answer the same way, so the endpoint
 /// cannot be used to mine which codes are still live.
@@ -153,7 +160,7 @@ impl Store {
         &self,
         code: &str,
         new_password_hash: &str,
-    ) -> Result<Vec<SessionId>, ConsumeResetError> {
+    ) -> Result<ResetConsumed, ConsumeResetError> {
         let hash = hash_secret(code);
         let now = now_ms();
         let mut tx = self.begin_write().await?;
@@ -184,7 +191,10 @@ impl Store {
             // The account went away between issue and consume. The code is
             // spent regardless and there is nothing left to secure.
             tx.commit().await?;
-            return Ok(Vec::new());
+            return Ok(ResetConsumed {
+                user_id: claimed.user_id,
+                revoked: Vec::new(),
+            });
         }
 
         let live_sessions: Vec<SessionId> = sqlx::query!(
@@ -201,7 +211,10 @@ impl Store {
             revoke_session_rows(&mut tx, *session_id, now).await?;
         }
         tx.commit().await?;
-        Ok(live_sessions)
+        Ok(ResetConsumed {
+            user_id: claimed.user_id,
+            revoked: live_sessions,
+        })
     }
 
     /// Sets a new password hash and revokes every live session except

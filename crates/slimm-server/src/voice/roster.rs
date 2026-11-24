@@ -41,6 +41,8 @@ pub struct RoomParticipant {
     pub joined_at_ms: Option<i64>,
     /// The device tag the token was minted for, the raw device id on older tokens, `None` on older still.
     pub device_id: Option<String>,
+    /// The token's [`super::HOLDER_ATTRIBUTE`]; `None` on a token minted before it existed.
+    pub holder: Option<String>,
     /// Whether the SFU reports this connection `ACTIVE`: signalling and media both up.
     pub is_active: bool,
     /// No unmuted audio track, the rule a joined client applies to the same participant.
@@ -235,6 +237,7 @@ impl VoiceService {
                     has_video,
                     joined_at_ms: joined_at_from(p.joined_at_ms, p.joined_at),
                     device_id: p.attributes.get(super::DEVICE_ATTRIBUTE).cloned(),
+                    holder: p.attributes.get(super::HOLDER_ATTRIBUTE).cloned(),
                     is_active: is_active_state(&p.state),
                     is_muted: has_no_live_audio(&p.tracks),
                     is_deafened: p

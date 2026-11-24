@@ -2,6 +2,7 @@
 //! Connectors (decision 0090): a module whose logic is an external program
 //! holding a bot token scoped to what the admin approved at install.
 
+mod escalation;
 mod fake_supervisor;
 mod harness;
 mod host_run;

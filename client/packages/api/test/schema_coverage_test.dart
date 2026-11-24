@@ -77,14 +77,14 @@ const Map<String, String> _allowlist = {
       'openAttachmentDownload, so there is no _send call to match',
   'GET /space/banner': 'reads raw bytes through SlimmApi._fetchBytes, the '
       'same as GET /attachments/{}',
-  'GET /invites/{}/banner': 'an unauthenticated picture an Image.network '
-      'loads straight from SlimmApi.inviteBannerUri, so no request is made '
-      'through _send',
+  'GET /invites/{}/banner': 'an unauthenticated picture read as raw bytes '
+      'through SlimmApi.fetchPublicBytes, under a byte cap, so there is no '
+      '_send call to match',
   'GET /space/icon': 'reads raw bytes through SlimmApi._fetchBytes, the '
       'same as GET /attachments/{}',
-  'GET /invites/{}/icon': 'an unauthenticated picture an Image.network '
-      'loads straight from SlimmApi.inviteIconUri, so no request is made '
-      'through _send',
+  'GET /invites/{}/icon': 'an unauthenticated picture read as raw bytes '
+      'through SlimmApi.fetchPublicBytes, under a byte cap, so there is no '
+      '_send call to match',
   'GET /invite/{}': 'an HTML page a browser loads from a shared https link, '
       'never this client',
   'GET /links/steam/callback': 'where Steam sends the member\'s browser '

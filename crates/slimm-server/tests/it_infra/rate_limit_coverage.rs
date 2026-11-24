@@ -135,12 +135,14 @@ fn no_authenticated_handler_charges_class_read() {
             let sig = signature(&body);
             let takes_authed = sig.contains(": Authed,")
                 || sig.contains(": Authed)")
-                || sig.contains(": AuthedLimited<");
+                || sig.contains(": AuthedLimited<")
+                || sig.contains(": Participant<");
             if !takes_authed {
                 continue;
             }
-            let charges_read =
-                sig.contains(": AuthedLimited<READ>") || body.contains("Class::Read)");
+            let charges_read = sig.contains(": AuthedLimited<READ>")
+                || sig.contains(": Participant<READ>")
+                || body.contains("Class::Read)");
             if charges_read {
                 offenders.push(format!("{file}::{name}"));
             }

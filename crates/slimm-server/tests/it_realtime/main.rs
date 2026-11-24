@@ -34,6 +34,7 @@ mod presence_reconnect;
 mod read_state_devices;
 mod read_state_sync;
 mod reports_changed_ws;
+mod revoked_session_sockets;
 mod space_settings_changed_event;
 mod sync_mentions;
 mod sync_message_ops;

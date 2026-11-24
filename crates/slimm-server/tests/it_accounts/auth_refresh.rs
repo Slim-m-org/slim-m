@@ -35,7 +35,7 @@ fn outcome_name(outcome: &RefreshOutcome) -> &'static str {
     match outcome {
         RefreshOutcome::Rotated(_) => "Rotated",
         RefreshOutcome::Denied(_) => "Denied",
-        RefreshOutcome::Reused => "Reused",
+        RefreshOutcome::Reused(_) => "Reused",
     }
 }
 
@@ -148,7 +148,7 @@ async fn confirming_a_rotation_retires_the_token_it_spent() {
     assert!(
         matches!(
             store.rotate_refresh(&original.refresh_token).await.unwrap(),
-            RefreshOutcome::Reused
+            RefreshOutcome::Reused(_)
         ),
         "a confirmed rotation closes the window its predecessor had"
     );
@@ -173,7 +173,7 @@ async fn stale_refresh_reuse_revokes_the_family() {
 
     assert!(matches!(
         store.rotate_refresh(&original.refresh_token).await.unwrap(),
-        RefreshOutcome::Reused
+        RefreshOutcome::Reused(_)
     ));
     // The whole family is dead: the good rotated token is denied and no longer authenticates.
     assert!(matches!(
@@ -237,7 +237,7 @@ async fn concurrent_refresh_of_same_token_never_errors() {
                 .rotate_refresh(&superseded[0].refresh_token)
                 .await
                 .unwrap(),
-            RefreshOutcome::Reused
+            RefreshOutcome::Reused(_)
         ),
         "the superseded pair is a second chain, and presenting it is reuse"
     );
@@ -265,7 +265,7 @@ async fn a_replay_after_confirmation_is_reuse_however_soon_it_lands() {
     assert!(
         matches!(
             store.rotate_refresh(&original.refresh_token).await.unwrap(),
-            RefreshOutcome::Reused
+            RefreshOutcome::Reused(_)
         ),
         "confirmed is confirmed, however few milliseconds ago it happened"
     );
@@ -382,7 +382,7 @@ async fn two_claimants_of_one_pending_token_end_with_one_live_chain() {
     assert!(
         matches!(
             store.rotate_refresh(&thief.refresh_token).await.unwrap(),
-            RefreshOutcome::Reused
+            RefreshOutcome::Reused(_)
         ),
         "the earlier claimant's chain is not a second live chain"
     );
@@ -400,7 +400,7 @@ async fn using_the_superseded_child_kills_the_family() {
 
     assert!(matches!(
         store.rotate_refresh(&thief.refresh_token).await.unwrap(),
-        RefreshOutcome::Reused
+        RefreshOutcome::Reused(_)
     ));
     assert!(
         store
@@ -434,7 +434,7 @@ async fn a_retry_also_retires_what_the_earlier_claimant_rotated_onward() {
     assert!(
         matches!(
             store.rotate_refresh(&onward.refresh_token).await.unwrap(),
-            RefreshOutcome::Reused
+            RefreshOutcome::Reused(_)
         ),
         "the branch grown from the superseded child is dead too"
     );

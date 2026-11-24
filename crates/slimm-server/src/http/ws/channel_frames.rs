@@ -301,6 +301,7 @@ pub(super) fn to_frame(
         }
         // The deployment-wide and channel-deletion cases already answered by `deployment_frames::authorize`.
         Event::SessionRevoked(_)
+        | Event::AccountSessionsRevoked { .. }
         | Event::PresenceChanged(_)
         | Event::MemberTimeoutChanged { .. }
         | Event::JoinGateChanged { .. }

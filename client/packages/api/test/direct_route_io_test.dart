@@ -78,7 +78,7 @@ void main() {
     return route;
   }
 
-  const lan = '127.0.0.1:$_port';
+  const lan = '10.0.0.1:$_port';
 
   Future<String> get(IoDirectRoute r, String path) async =>
       (await r.httpClient.get(Uri.parse('https://$_host:$_port$path'))).body;
@@ -126,8 +126,11 @@ void main() {
 
     final (direct, _) = await _server('direct', _host);
     directTarget = direct.port;
-    r.advertise(['127.0.0.1:$_port', '10.0.0.5:$_port']);
-    expect(await get(r, '/b'), 'direct', reason: 'new addresses reset it');
+    r.advertise(['10.0.0.1:$_port', '10.0.0.5:$_port']);
+    expect(await get(r, '/b'), 'public',
+        reason: 'a server re-advertising must not lift the back-off');
+    now = now.add(const Duration(minutes: 2));
+    expect(await get(r, '/c'), 'direct');
   });
 
   test('a switch between the routes is announced once each way', () async {
@@ -186,7 +189,7 @@ void main() {
     }
 
     expect(await open(), 'public');
-    r.advertise(['127.0.0.1:443']);
+    r.advertise(['10.0.0.1:443']);
     expect(await open(), 'public');
     expect(asked, [443, 443]);
   });

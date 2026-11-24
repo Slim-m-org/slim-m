@@ -2,7 +2,8 @@
 //! In Verbose, caps how many debug and trace lines one call site may write per
 //! second, so a hot loop cannot bury everything else. Info and above always
 //! pass, and the other modes are never capped: Compact's one per-request line
-//! comes from a single call site.
+//! comes from a single call site. The per-request finish line is never capped
+//! either, since a shared bucket would let junk requests hide real ones.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
@@ -14,6 +15,9 @@ use tracing::{Event, Level, Subscriber};
 use tracing_subscriber::layer::{Context, Layer};
 
 use super::LogMode;
+
+/// The target of tower_http's one line per finished request.
+const REQUEST_FINISHED_TARGET: &str = "tower_http::trace::on_response";
 
 const WINDOW: Duration = Duration::from_secs(1);
 
@@ -61,6 +65,9 @@ impl Throttle {
 impl<S: Subscriber> Layer<S> for Throttle {
     fn event_enabled(&self, event: &Event<'_>, _ctx: Context<'_, S>) -> bool {
         let metadata = event.metadata();
+        if metadata.target() == REQUEST_FINISHED_TARGET {
+            return true;
+        }
         if !matches!(*metadata.level(), Level::DEBUG | Level::TRACE)
             || LogMode::from_u8(self.mode.load(Ordering::Relaxed)) != LogMode::Verbose
         {

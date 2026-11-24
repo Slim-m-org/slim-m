@@ -31,13 +31,15 @@ class ServerIdentityGate {
   final Ref _ref;
   Future<void>? _chosen;
 
-  /// A gate for one client: its server's first identity answer, then any mismatch that stands.
-  /// An unreadable server, or one with nothing pinned, lets the session through.
+  /// A gate for one client: its server's identity answer, then any mismatch that stands.
+  /// A server nothing comes back from, or one with nothing pinned, lets the session through.
+  /// A new recheck epoch (a dropped plain-http connection) asks for a fresh answer first.
   api.TrustGate forClient() {
-    var answered = false;
+    int? answeredIn;
     return () {
-      if (answered && !_mismatched) return null;
-      return _hold(() => answered = true);
+      final epoch = _ref.read(identityRecheckEpochProvider);
+      if (answeredIn == epoch && !_mismatched) return null;
+      return _hold(() => answeredIn = epoch);
     };
   }
 

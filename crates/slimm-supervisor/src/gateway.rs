@@ -24,10 +24,24 @@ pub async fn run(config: GatewayConfig) -> std::io::Result<()> {
     serve(listener, Arc::new(config)).await
 }
 
-pub async fn serve(listener: TcpListener, config: Arc<GatewayConfig>) -> std::io::Result<()> {
+/// Where the gateway takes connections from; a seam so tests can inject accept errors.
+pub trait Accept {
+    fn accept(&self) -> impl Future<Output = std::io::Result<(TcpStream, SocketAddr)>> + Send;
+}
+
+impl Accept for TcpListener {
+    fn accept(&self) -> impl Future<Output = std::io::Result<(TcpStream, SocketAddr)>> + Send {
+        TcpListener::accept(self)
+    }
+}
+
+pub async fn serve(listener: impl Accept, config: Arc<GatewayConfig>) -> std::io::Result<()> {
     let slots = Arc::new(Semaphore::new(MAX_CONNECTIONS));
     loop {
-        let (stream, peer) = listener.accept().await?;
+        let Ok((stream, peer)) = Accept::accept(&listener).await else {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            continue;
+        };
         if !config.client_allowed(peer.ip()) {
             log(
                 "refused",
@@ -211,4 +225,54 @@ async fn refuse(client: &mut TcpStream, status: &str, reason: &str) {
 fn log(outcome: &str, target: &str, address: &str, reason: &str) {
     let line = serde_json::json!({"gateway": outcome, "target": target, "address": address, "reason": reason});
     println!("{line}");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct Flaky {
+        inner: TcpListener,
+        failures: AtomicUsize,
+    }
+
+    impl Accept for Flaky {
+        async fn accept(&self) -> std::io::Result<(TcpStream, SocketAddr)> {
+            if self.failures.fetch_add(1, Ordering::SeqCst) < 2 {
+                return Err(std::io::Error::other("too many open files"));
+            }
+            self.inner.accept().await
+        }
+    }
+
+    #[tokio::test]
+    async fn an_accept_error_does_not_stop_the_gateway() {
+        let inner = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = inner.local_addr().unwrap();
+        let config = GatewayConfig {
+            allow: vec![],
+            server: crate::net::HostPort::new("127.0.0.1", 9),
+            egress_private: false,
+            deny: vec![],
+            clients: vec![crate::net::Cidr::parse("127.0.0.0/8").unwrap()],
+            port: 0,
+        };
+        let task = tokio::spawn(serve(
+            Flaky {
+                inner,
+                failures: AtomicUsize::new(0),
+            },
+            Arc::new(config),
+        ));
+        let mut client = TcpStream::connect(addr).await.unwrap();
+        client
+            .write_all(b"GET http://x.com/ HTTP/1.1\r\n\r\n")
+            .await
+            .unwrap();
+        let mut reply = String::new();
+        client.read_to_string(&mut reply).await.unwrap();
+        assert!(reply.contains("403"), "{reply}");
+        assert!(!task.is_finished());
+    }
 }

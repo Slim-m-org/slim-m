@@ -176,6 +176,36 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /identity/proof:
+    post:
+      operationId: proveIdentity
+      tags: [system]
+      summary: Sign a client's challenge with the server's identity key.
+      description: >
+        The server signs the bytes `slim-m identity proof v1\n` followed by
+        the decoded challenge with the Ed25519 key whose public half `/version`
+        reports, so a client can check the signature against the key it pinned.
+        A host that copied the public key cannot produce it. A server older
+        than this route answers 404, and a client then compares the key alone.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityProofRequest"
+      responses:
+        "200":
+          description: The signature over the proof context and the challenge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityProof"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /metrics:
     get:
       operationId: getMetrics
@@ -771,6 +801,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is timed out (code `timed_out`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -980,6 +1016,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is timed out (code `timed_out`) or has not accepted the rules yet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -1024,6 +1066,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is timed out (code `timed_out`) or has not accepted the rules yet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -1116,6 +1164,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is timed out (code `timed_out`) or has not accepted the rules yet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -6744,7 +6798,8 @@ paths:
       summary: Remove the caller's own reaction of one emoji from a message.
       description: >
         Idempotent: removing a reaction that is not there succeeds, since the
-        caller's intent already holds.
+        caller's intent already holds. Needs only sight of the message, not
+        `ADD_REACTIONS`, so a timeout or an overwrite never strands a reaction.
       responses:
         "204":
           description: The reaction was removed (or was already absent).
@@ -6784,7 +6839,9 @@ paths:
         (message, block) and broadcast, so everyone viewing the message sees
         the latest run inline without rerunning it. Requires being able to
         view the message's channel (a hidden message answers as a missing one)
-        as well as the permission the named command declares. A re-run
+        and to post in it (`SEND_MESSAGES`, so a block or a read-only channel
+        refuses the run), as well as the permission the named command
+        declares. A re-run
         replaces the block's stored result. A resource-limit or module error
         still answers 200 with `ok: false`, the same as runModuleCommand.
 
@@ -10255,6 +10312,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The calling bot is timed out (code `timed_out`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -10795,6 +10858,12 @@ paths:
                 $ref: "#/components/schemas/DeliveredWebhookMessage"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "403":
+          description: The account the webhook posts as is timed out (code `timed_out`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           $ref: "#/components/responses/NotFound"
         "429":
@@ -11130,6 +11199,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller has not accepted the rules yet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
         "429":
@@ -14774,6 +14849,28 @@ components:
             same id replaces that install's session (the old refresh token is
             revoked) instead of adding a device. Optional; a client that sends
             none gets a new device per sign-in, and a malformed one is a 400.
+
+    IdentityProofRequest:
+      type: object
+      required: [challenge]
+      properties:
+        challenge:
+          type: string
+          format: byte
+          description: Standard base64 of 16 to 64 random bytes the client chose.
+
+    IdentityProof:
+      type: object
+      required: [public_key, signature]
+      properties:
+        public_key:
+          type: string
+          format: byte
+          description: Standard base64 of the 32-byte Ed25519 public key, as on `/version`.
+        signature:
+          type: string
+          format: byte
+          description: Standard base64 of the 64-byte Ed25519 signature.
 
     UsernameCheckRequest:
       type: object

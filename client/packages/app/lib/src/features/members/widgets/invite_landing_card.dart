@@ -32,6 +32,7 @@ class InviteLandingCard extends StatelessWidget {
     this.invitedBy,
     this.expiresAt,
     this.use24Hour = false,
+    this.host,
   });
 
   final String name;
@@ -46,6 +47,10 @@ class InviteLandingCard extends StatelessWidget {
   final String? invitedBy;
   final int? expiresAt;
   final bool use24Hour;
+
+  /// The address the card came from, shown under the name, since everything
+  /// else on it is what that server says about itself; null shows none.
+  final String? host;
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +102,24 @@ class InviteLandingCard extends StatelessWidget {
                         ),
                         const SizedBox(width: AppSpacing.s12),
                       ],
-                      Expanded(child: _title(tokens)),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _title(tokens),
+                            if (host case final host?)
+                              Text(
+                                host,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppText.code.copyWith(
+                                  color: tokens.textSecondary,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                   if (description.isNotEmpty) ...[

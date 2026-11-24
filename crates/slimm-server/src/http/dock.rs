@@ -12,6 +12,7 @@
 //! fixed host this Dock is configured with; `wire.rs` holds the DTOs.
 
 mod capabilities;
+mod connector_guard;
 mod dock_connector;
 mod dock_host_run;
 mod dock_install;

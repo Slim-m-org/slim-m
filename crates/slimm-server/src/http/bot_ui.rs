@@ -12,10 +12,11 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::extract::{AUTHED_READ, Authed, AuthedLimited, INTERACTION, Json, enforce};
 use super::hidden_chars::is_hidden_char;
 use super::interactions::{InteractionDto, record_and_publish};
 use super::messages::parse_uuid;
+use super::participant::Participant;
 use crate::bot_ui::{self, Surface, UiEntry, UiRegistration};
 use crate::hub::Event;
 use crate::ids::{ChannelId, InteractionId, MessageId, UserId};
@@ -94,9 +95,13 @@ async fn list_channel_ui(
         return Ok(Json(Vec::new()));
     }
     let bots = state.store.visible_bot_ui(channel_id, caller).await?;
+    let bot_ids: Vec<UserId> = bots.iter().map(|b| b.bot_user_id).collect();
+    // A timed-out bot keeps its registration but shows it to nobody, as a removed one does.
+    let timed_out = state.store.timed_out_among_until(&bot_ids).await?;
     let presence = state.hub.presence();
     Ok(Json(
         bots.into_iter()
+            .filter(|b| !timed_out.contains_key(&b.bot_user_id))
             .map(|b| {
                 let offline = !presence.is_connected(b.bot_user_id);
                 BotUiDto::new(b, offline)
@@ -123,13 +128,11 @@ struct UseEntryRequest {
 /// entry or the message is the same 404, so the route is not an oracle for
 /// what a channel holds.
 async fn use_entry(
-    Authed(ctx): Authed,
+    Participant(ctx): Participant<INTERACTION>,
     Path((channel_id, bot_id)): Path<(String, String)>,
-    parts: Parts,
     State(state): State<AppState>,
     Json(req): Json<UseEntryRequest>,
 ) -> Result<Json<InteractionDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Interaction)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let bot_id = UserId(parse_uuid(&bot_id)?);
     let id = InteractionId(parse_uuid(&req.id)?);

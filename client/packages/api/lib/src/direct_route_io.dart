@@ -90,12 +90,14 @@ class IoDirectRoute implements DirectRoute {
 
   @override
   void advertise(List<String> addresses) {
-    final parsed = parseDirectAddresses(addresses, publicPort: _base.port);
+    final parsed = parseDirectAddresses(
+      addresses,
+      publicPort: _base.port,
+      publicHost: _base.host,
+    );
     if (_same(parsed, _addresses)) return;
     _addresses = parsed;
     _next = 0;
-    _backoff.reset();
-    _siblingBackoff.reset();
     if (parsed.isEmpty) _isActive = false;
     _renewPool();
   }
@@ -148,6 +150,8 @@ class IoDirectRoute implements DirectRoute {
     final secure = url.isScheme('https');
     final direct = _candidate(url, secure);
     if (direct == null) {
+      // A back-off settles a fresh pool as public, so the next due request opens another.
+      if (url.host == _base.host) _probing = false;
       return ConnectionTask.fromSocket(_public(url, secure), () {});
     }
     return ConnectionTask.fromSocket(_viaDirect(direct, url), () {});

@@ -203,9 +203,15 @@ async fn list_channel_commands(
         .store
         .visible_bot_commands(channel_id, caller_permissions)
         .await?;
+    let mut bot_ids: Vec<UserId> = commands.iter().map(|c| c.bot_user_id).collect();
+    bot_ids.sort_unstable();
+    bot_ids.dedup();
+    // A timed-out bot keeps its registration but shows it to nobody, as a removed one does.
+    let timed_out = state.store.timed_out_among_until(&bot_ids).await?;
     Ok(Json(
         commands
             .into_iter()
+            .filter(|c| !timed_out.contains_key(&c.bot_user_id))
             .map(|c| {
                 let offline = !state.hub.presence().is_connected(c.bot_user_id);
                 ChannelBotCommandDto::new(c, offline)

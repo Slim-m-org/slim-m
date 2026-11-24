@@ -22,17 +22,17 @@ import '../../members/widgets/invite_landing_card.dart';
 import '../../members/widgets/invite_landing_view.dart';
 import '../../../widgets/image_decode.dart';
 import '../../../widgets/space_icon.dart';
+import '../widgets/invite_preview_image.dart';
 import 'invite_code_check.dart';
 
 const double _bannerDecodeWidth = 520;
 
-/// Decoded inside a bound the client picks, since this server is not vouched for yet.
-ImageProvider _boundedNetworkImage(Uri url, int edge) => ResizeImage(
-  NetworkImage(url.toString()),
-  width: edge,
-  height: edge,
-  policy: ResizeImagePolicy.fit,
-);
+/// The checked pair the landing card shows, and Join hands back.
+typedef _Landing = ({api.InviteCommunity community, Uri server, String code});
+
+/// The address a landing card names, with its port when one was given.
+String _hostLabel(Uri server) =>
+    server.hasPort ? '${server.host}:${server.port}' : server.host;
 
 /// Which part of the invite form a failure is about; [form] is for one neither field owns.
 enum _InviteField { server, code, form }
@@ -66,14 +66,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
 
   /// Set once the code checks out; the sheet then shows the landing card
   /// instead of the form, and Join hands the verified pair back.
-  ({
-    api.InviteCommunity community,
-    Uri banner,
-    Uri icon,
-    Uri server,
-    String code,
-  })?
-  _landing;
+  _Landing? _landing;
 
   /// True once a link has named the server, so the address is not asked for
   /// again; "Use a different server" brings the field back.
@@ -143,21 +136,22 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
 
     // Userinfo must never ride along on the probe or persist; see reduceServerAddress.
     final reduced = reduceServerAddress(address);
+    final code = _code.text.trim();
+    final serverText = _server.text;
     // The probe seam confirmServerIdentity uses, so a test can fake this untrusted transport the same way.
     final client = ref.read(probeApiProvider)(reduced);
     try {
-      final check = await client.checkInvite(_code.text.trim());
+      final check = await client.checkInvite(code);
       if (!mounted) return;
+      // An edit while the check was out makes its answer about another invite.
+      if (_code.text.trim() != code || _server.text != serverText) return;
       if (check is api.InviteUnusable) {
         return _fail(_InviteField.code, inviteUnusable);
       }
-      if (check is api.InviteUsable && mounted) {
-        final code = _code.text.trim();
+      if (check is api.InviteUsable) {
         setState(
           () => _landing = (
             community: check.community,
-            banner: client.inviteBannerUri(code),
-            icon: client.inviteIconUri(code),
             server: reduced,
             code: code,
           ),
@@ -179,17 +173,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
     }
   }
 
-  Widget _buildLanding(
-    ({
-      api.InviteCommunity community,
-      Uri banner,
-      Uri icon,
-      Uri server,
-      String code,
-    })
-    landing,
-  ) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
+  Widget _buildLanding(_Landing landing) {
     final community = landing.community;
     return InviteLandingView(
       fill: widget.fullScreen,
@@ -202,35 +186,30 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
         invitedBy: community.invitedBy,
         expiresAt: community.expiresAt,
         use24Hour: watchUse24Hour(ref, context),
+        host: _hostLabel(landing.server),
         icon: community.iconUpdatedAt == null
             ? null
             : SpaceIconFrame(
                 size: kInviteIconSize,
-                child: Image(
-                  image: _boundedNetworkImage(
-                    landing.icon,
-                    decodeEdge(
-                      context,
-                      kInviteIconSize,
-                      minRatio: 2,
-                      oversample: 3,
-                    ),
+                child: InvitePreviewImage(
+                  server: landing.server,
+                  fetch: (client, maxBytes) =>
+                      client.fetchInviteIcon(landing.code, maxBytes: maxBytes),
+                  maxSide: decodeEdge(
+                    context,
+                    kInviteIconSize,
+                    minRatio: 2,
+                    oversample: 3,
                   ),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) =>
-                      ColoredBox(color: tokens.surfaceSunken),
                 ),
               ),
         banner: community.bannerUpdatedAt == null
             ? null
-            : Image(
-                image: _boundedNetworkImage(
-                  landing.banner,
-                  decodeEdge(context, _bannerDecodeWidth),
-                ),
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) =>
-                    ColoredBox(color: tokens.surfaceSunken),
+            : InvitePreviewImage(
+                server: landing.server,
+                fetch: (client, maxBytes) =>
+                    client.fetchInviteBanner(landing.code, maxBytes: maxBytes),
+                maxSide: decodeEdge(context, _bannerDecodeWidth),
               ),
       ),
     );

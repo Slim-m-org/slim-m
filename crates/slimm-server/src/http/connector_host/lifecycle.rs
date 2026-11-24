@@ -48,11 +48,7 @@ impl HostRunner {
             .ok_or_else(|| {
                 SupervisorError::Unavailable("the connector is no longer installed".into())
             })?;
-        for session in revoked {
-            state
-                .hub
-                .publish(crate::hub::Event::SessionRevoked(session));
-        }
+        crate::http::session_revocation::sessions_revoked_by_id(state, revoked);
         let body = create_body(&self.api_url, record, token);
         self.client.create(&record.run_id, &body).await
     }

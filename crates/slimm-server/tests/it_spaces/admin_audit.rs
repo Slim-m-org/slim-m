@@ -32,6 +32,7 @@ const EXEMPT_PREFIXES: &[&str] = &[
     "/bots",
     "/calls",
     "/favorites",
+    "/identity/",
     "/channels/{channel_id}/canvas",
     "/channels/{channel_id}/messages",
     "/channels/{channel_id}/module-rooms",

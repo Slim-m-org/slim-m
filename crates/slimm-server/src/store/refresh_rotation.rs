@@ -33,8 +33,8 @@ pub enum RefreshOutcome {
     Rotated(IssuedTokens),
     /// Rejected for a benign reason, which the log records.
     Denied(RefreshDenial),
-    /// A spent token was replayed; the family and session were revoked.
-    Reused,
+    /// A spent token was replayed; the family and this session were revoked.
+    Reused(SessionId),
 }
 
 /// Why a refresh token was refused without revoking anything.
@@ -243,6 +243,7 @@ impl Store {
             user_id: session.user_id,
             device_id: session.device_id,
             known_install: false,
+            replaced: Vec::new(),
         }))
     }
 }
@@ -334,7 +335,7 @@ async fn classify_failed_refresh(
         retired_ms_ago = now - retired_at,
         "confirmed refresh token replayed; family and session revoked"
     );
-    Ok(RefreshOutcome::Reused)
+    Ok(RefreshOutcome::Reused(row.session_id))
 }
 
 /// Marks every not-yet-revoked token in a family revoked.

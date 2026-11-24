@@ -36,6 +36,11 @@ pub enum Event {
     Message(MessageEvent),
     /// A session was revoked; any live connection on it must close at once.
     SessionRevoked(SessionId),
+    /// Every session of an account but `kept` was revoked, including any revoked earlier.
+    AccountSessionsRevoked {
+        user_id: UserId,
+        kept: Option<SessionId>,
+    },
     /// A user's live connection count transitioned to or from zero, or their
     /// visibility preference changed while connected. Carries only the user
     /// id: each connection derives its own per-viewer status at delivery time

@@ -68,6 +68,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::DmChanged { .. }
         // Handled earlier in `authorize` and never reach this call.
         | Event::SessionRevoked(_)
+        | Event::AccountSessionsRevoked { .. }
         | Event::PresenceChanged(_)
         | Event::MemberTimeoutChanged { .. }
         | Event::JoinGateChanged { .. }

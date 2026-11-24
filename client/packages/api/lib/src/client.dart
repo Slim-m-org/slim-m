@@ -3,6 +3,7 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -39,6 +40,8 @@ export 'client_favorites.dart' show SlimmApiFavorites;
 export 'client_gifs.dart' show SlimmApiGifs;
 export 'client_interactions.dart' show SlimmApiInteractions;
 export 'client_join_gate.dart' show JoinGate, SlimmApiJoinGate, SpaceRules;
+export 'client_identity_proof.dart'
+    show IdentityProof, SlimmApiIdentityProof, identityProofContext;
 export 'client_link_preview.dart' show SlimmApiLinkPreview;
 export 'client_messages.dart' show SlimmApiMessages;
 export 'client_metrics.dart'
@@ -110,6 +113,7 @@ class SlimmApi {
     http.Client? httpClient,
     DirectRoute? directRoute,
     TrustGate? trustGate,
+    bool unvouched = false,
   }) : this._(
           baseUrl: baseUrl,
           session: session ?? SessionStore(),
@@ -117,6 +121,7 @@ class SlimmApi {
           route:
               directRoute ?? (httpClient == null ? DirectRoute(baseUrl) : null),
           trustGate: trustGate,
+          unvouched: unvouched,
         );
 
   SlimmApi._({
@@ -125,6 +130,7 @@ class SlimmApi {
     required http.Client? httpClient,
     required DirectRoute? route,
     required this.trustGate,
+    required this.unvouched,
   }) : link = ApiLink(
           client: httpClient ?? route?.httpClient ?? http.Client(),
           route: route,
@@ -138,6 +144,10 @@ class SlimmApi {
 
   /// Keeps the tokens off this server until the person has vouched for it.
   final TrustGate? trustGate;
+
+  /// A server nobody has vouched for yet: no redirect is followed and no
+  /// reply is read past [unvouchedReplyBytes].
+  final bool unvouched;
 
   /// Completes once the session may be sent to this server.
   Future<void> awaitTrust() async {
@@ -384,11 +394,13 @@ class SlimmApi {
     return InviteCheck.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Where the landing card's banner for [code] is served, without a session.
-  Uri inviteBannerUri(String code) => requestUri('/invites/$code/banner', null);
+  /// The landing card's banner for [code], without a session, refused past [maxBytes].
+  Future<Uint8List> fetchInviteBanner(String code, {required int maxBytes}) =>
+      fetchPublicBytes('/invites/$code/banner', maxBytes: maxBytes);
 
-  /// Where the landing card's icon for [code] is served, without a session.
-  Uri inviteIconUri(String code) => requestUri('/invites/$code/icon', null);
+  /// The landing card's icon for [code], without a session, refused past [maxBytes].
+  Future<Uint8List> fetchInviteIcon(String code, {required int maxBytes}) =>
+      fetchPublicBytes('/invites/$code/icon', maxBytes: maxBytes);
 
   /// Spends an invite for the signed-in account.
   Future<void> redeemInvite(String code) =>
