@@ -90,6 +90,9 @@ impl Provider {
 /// passed in.
 pub(super) const MAX_LIMIT: u32 = 50;
 
+/// A provider's search or trending page is read this far and no further.
+const MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
+
 /// `base_url` overrides each provider's real endpoint host, `None` in every
 /// real deployment. It exists so a test can point this at a fake local
 /// server rather than a live provider - production code never sets it, and

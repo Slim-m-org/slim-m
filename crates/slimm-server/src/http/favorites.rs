@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{ASSET, AUTHED_READ, Authed, AuthedLimited, GIF, Json, enforce};
-use super::gifs::store_gif;
+use super::gifs::{charge_select, download_cap, store_gif};
 use super::messages::{AttachmentDto, parse_uuid};
 use super::screen_stamps::STAMP_ANIMATED_BYTES;
 use super::viewable_message::viewable_message;
@@ -307,13 +307,15 @@ async fn select(
     match row.kind {
         FavoriteKind::Gif => {
             let url = row.gif_full_url.ok_or(ApiError::Internal)?;
-            let mut bytes = state.gifs.download_full_from(&url).await?;
+            charge_select(&state, ctx.user_id)?;
+            let max_bytes = download_cap(&state).await?;
+            let mut bytes = state.gifs.download_full_from(&url, max_bytes).await?;
             // A favorite keeps only the full and preview renditions, so a stamp too heavy to animate takes the preview.
             if req.for_stamp
                 && bytes.len() as u64 > STAMP_ANIMATED_BYTES as u64
                 && let Some(preview) = row.gif_preview_url.as_deref()
             {
-                bytes = state.gifs.download_full_from(preview).await?;
+                bytes = state.gifs.download_full_from(preview, max_bytes).await?;
             }
             let attachment = store_gif(&state, ctx.user_id, bytes, &row.title).await?;
             Ok((StatusCode::CREATED, Json(attachment)))

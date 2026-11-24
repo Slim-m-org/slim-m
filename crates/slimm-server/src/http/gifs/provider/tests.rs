@@ -75,3 +75,86 @@ async fn a_provider_sentence_that_is_not_a_transport_error_passes_through() {
     assert!(err.to_string().contains("klipy answered 429"), "{err}");
     assert_scrubbed(&err);
 }
+
+async fn serving(
+    status: axum::http::StatusCode,
+    body: impl Fn(String) -> Vec<u8> + Clone + Send + Sync + 'static,
+) -> String {
+    let router = axum::Router::new().fallback(move |uri: axum::http::Uri| {
+        let body = body.clone();
+        async move { (status, body(uri.to_string())) }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    format!("http://{addr}")
+}
+
+#[tokio::test]
+async fn klipys_error_body_naming_the_key_is_scrubbed_and_capped() {
+    let base = serving(axum::http::StatusCode::NOT_FOUND, |uri| {
+        format!("no route for {uri} {}", "x".repeat(10_000)).into_bytes()
+    })
+    .await;
+    let err = search(
+        &reqwest::Client::new(),
+        Provider::Klipy,
+        Some(&base),
+        KEY,
+        WORDS,
+        5,
+    )
+    .await
+    .expect_err("a 404 is an error");
+    assert_scrubbed(&err);
+    assert!(err.to_string().contains("[redacted]"), "{err}");
+    assert!(err.to_string().chars().count() < 300, "{err}");
+}
+
+#[tokio::test]
+async fn a_provider_body_past_the_read_cap_is_refused() {
+    let big = vec![b' '; MAX_RESPONSE_BYTES + 1];
+    for provider in [Provider::Tenor, Provider::Klipy] {
+        let body = big.clone();
+        let base = serving(axum::http::StatusCode::OK, move |_| body.clone()).await;
+        let err = search(
+            &reqwest::Client::new(),
+            provider,
+            Some(&base),
+            KEY,
+            WORDS,
+            5,
+        )
+        .await
+        .expect_err("an oversized body is refused");
+        assert!(err.to_string().contains("oversized"), "{err}");
+    }
+}
+
+#[tokio::test]
+async fn one_malformed_result_costs_only_that_result() {
+    let klipy = serde_json::json!({"data": {"data": [
+        {"title": "bad", "file": {"xs": {"gif": {"url": 5, "width": "x", "height": 1}}}},
+        {"title": "good", "file": {"hd": {"gif": {"url": "https://k.example/a.gif", "width": 4, "height": 4}}}},
+    ]}});
+    let tenor = serde_json::json!({"results": [
+        {"content_description": "bad", "media_formats": {"gif": {"url": "https://t.example/a.gif", "dims": "none"}}},
+        {"content_description": "good", "media_formats": {"gif": {"url": "https://t.example/b.gif", "dims": [4, 4], "size": 9}}},
+    ]});
+    for (provider, page) in [(Provider::Klipy, klipy), (Provider::Tenor, tenor)] {
+        let body = page.to_string().into_bytes();
+        let base = serving(axum::http::StatusCode::OK, move |_| body.clone()).await;
+        let hits = search(
+            &reqwest::Client::new(),
+            provider,
+            Some(&base),
+            KEY,
+            WORDS,
+            5,
+        )
+        .await
+        .expect("the page survives one bad item");
+        assert_eq!(hits.len(), 1, "{provider:?}");
+        assert_eq!(hits[0].title, "good");
+    }
+}
