@@ -37,6 +37,10 @@ class MessageStore {
 
   final SlimmDatabase db;
 
+  /// Told the ids of messages whose rows were deleted, so what is cached for
+  /// them elsewhere on disk can go too.
+  void Function(List<String> messageIds)? onMessagesDropped;
+
   /// The edits and deletes applied so far, which an older copy must not undo.
   final recentOps = RecentOps();
 
@@ -286,8 +290,11 @@ class MessageStore {
   /// channel removed on the server would otherwise sit in the local list
   /// forever; this is the direct path for one already-known id.
   /// [replaceChannels] is the other, for a full server refresh.
-  Future<void> removeChannel(String channelId) =>
-      db.transaction(() => channels_impl.deleteChannelRows(db, channelId));
+  Future<void> removeChannel(String channelId) async {
+    final dropped = await db
+        .transaction(() => channels_impl.deleteChannelRows(db, channelId));
+    onMessagesDropped?.call(dropped);
+  }
 
   /// Drops everything this device has cached: every channel, every message,
   /// every cursor and read marker, including pending sends.
@@ -384,6 +391,7 @@ class MessageStore {
   Future<void> _drop(String id, {required bool serverDeleted}) async {
     await pending_impl.forgetPendingAttachments(this, id);
     await cursors_impl.discardRowHelper(this, id, serverDeleted: serverDeleted);
+    onMessagesDropped?.call([id]);
   }
 
   /// The attachment ids a send was queued with, for a retry to carry again.

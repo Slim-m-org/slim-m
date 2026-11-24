@@ -18,6 +18,14 @@ enum AppBadgeChannel {
       }
       return
     }
+    if call.method == "clearDelivered" {
+      let args = call.arguments as? [String: Any]
+      clearDelivered(
+        channelIds: Set(args?["channelIds"] as? [String] ?? []),
+        all: args?["all"] as? Bool ?? false)
+      result(nil)
+      return
+    }
     guard call.method == "sync", let args = call.arguments as? [String: Any],
       let count = args["count"] as? Int
     else {
@@ -42,6 +50,22 @@ enum AppBadgeChannel {
       let stale = delivered.filter { readChannelIds.contains($0.request.content.threadIdentifier) }
       if !stale.isEmpty {
         center.removeDeliveredNotifications(withIdentifiers: stale.map { $0.request.identifier })
+      }
+    }
+  }
+
+  /// Removes the banners of a signed-out account, so the next person holding
+  /// the phone does not read them; every banner when no account remains.
+  private static func clearDelivered(channelIds: Set<String>, all: Bool) {
+    let center = UNUserNotificationCenter.current()
+    if all {
+      center.removeAllDeliveredNotifications()
+      return
+    }
+    center.getDeliveredNotifications { delivered in
+      let ours = delivered.filter { channelIds.contains($0.request.content.threadIdentifier) }
+      if !ours.isEmpty {
+        center.removeDeliveredNotifications(withIdentifiers: ours.map { $0.request.identifier })
       }
     }
   }

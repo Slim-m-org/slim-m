@@ -16,6 +16,7 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.dart';
 import 'package:slimm_app/src/features/emoji/providers/emoji_image_cache.dart';
+import 'package:slimm_app/src/providers/media_disk_caches.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 
 final _png = Uint8List.fromList(
@@ -37,7 +38,14 @@ class _FakeCache implements EmojiImageCache {
   Future<void> write(String emojiId, Uint8List bytes) async {
     store[emojiId] = bytes;
   }
+
+  @override
+  Future<void> removeWithPrefix(String prefix) async =>
+      store.removeWhere((key, _) => key.startsWith(prefix));
 }
+
+String _scoped(String id) =>
+    serverScopedKey(Uri.parse('http://localhost:8080'), id);
 
 ProviderContainer _container({
   required EmojiImageCache cache,
@@ -76,8 +84,37 @@ void _quickRetries() {
 }
 
 void main() {
+  test(
+    'an emoji cached for another server is not served for this one',
+    () async {
+      final cache = _FakeCache()
+        ..store[serverScopedKey(Uri.parse('https://other.example'), 'e-1')] =
+            Uint8List.fromList([9, 9, 9]);
+      var requests = 0;
+      final container = _container(
+        cache: cache,
+        httpClient: MockClient((request) async {
+          requests++;
+          return http.Response.bytes(
+            _png,
+            200,
+            headers: {'content-type': 'image/png'},
+          );
+        }),
+      );
+      addTearDown(container.dispose);
+
+      final bytes = await container.read(
+        customEmojiImageProvider('e-1').future,
+      );
+
+      expect(bytes, _png);
+      expect(requests, 1);
+    },
+  );
+
   test('a cache hit resolves without ever calling the network', () async {
-    final cache = _FakeCache()..store['e-1'] = _png;
+    final cache = _FakeCache()..store[_scoped('e-1')] = _png;
     var requests = 0;
     final container = _container(
       cache: cache,
@@ -110,7 +147,7 @@ void main() {
 
     await container.read(customEmojiImageProvider('e-1').future);
 
-    expect(cache.store['e-1'], _png);
+    expect(cache.store[_scoped('e-1')], _png);
   });
 
   test('a 429 carrying Retry-After waits that long instead of the fixed '

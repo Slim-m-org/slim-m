@@ -28,6 +28,9 @@ abstract interface class EmojiImageCache {
   /// the emoji to refetch next launch, which is the same as never having
   /// cached it, not a reason to break the fetch that just succeeded.
   Future<void> write(String emojiId, Uint8List bytes);
+
+  /// Drops every entry whose key starts with [prefix].
+  Future<void> removeWithPrefix(String prefix);
 }
 
 /// Total bytes [DiskEmojiImageCache] keeps before it starts evicting.
@@ -66,6 +69,10 @@ class DiskEmojiImageCache implements EmojiImageCache {
   @override
   Future<void> write(String emojiId, Uint8List bytes) =>
       _cache.write(emojiId, bytes);
+
+  @override
+  Future<void> removeWithPrefix(String prefix) =>
+      _cache.removeWithPrefix(prefix);
 }
 
 /// A no-op cache: every read misses, every write is dropped after one debug
@@ -104,6 +111,9 @@ class NoopEmojiImageCache implements EmojiImageCache {
       'no persistent emoji cache for this session; images refetch next time',
     );
   }
+
+  @override
+  Future<void> removeWithPrefix(String prefix) async {}
 }
 
 /// The real, on-disk backend for whichever platform can open one: everything

@@ -9,16 +9,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../desktop/providers/desktop_call_notifier.dart';
+import '../../../diagnostics/debug_log.dart' show debugLogProvider;
 import '../../../diagnostics/debug_log_detail.dart';
 import '../../../desktop/providers/desktop_message_notifier.dart';
 import '../../../providers/direct_route_controller.dart';
-import '../../../providers/media_disk_caches.dart';
 import '../../../providers/providers.dart';
 import '../../../push/providers/push_controller.dart';
 import '../../messages/providers/retention_sweep.dart';
 import '../../../providers/sync_controller.dart';
 import '../../../providers/viewing_reporter.dart';
-import '../../messages/providers/attachment_preview_bytes.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
 import '../../members/providers/activity_publisher.dart';
 import '../../members/providers/presence_activity_reporter.dart';
@@ -90,13 +89,5 @@ Future<void> signOutVia(ProviderReader read) async {
     // The session may already be gone; clear locally either way.
     read(sessionProvider).clear();
   }
-  await clearAttachmentPreviews(
-    read(attachmentPreviewCacheProvider),
-    read(serverUrlProvider),
-  );
-  await clearMediaDiskCaches(
-    read(serverUrlProvider),
-    avatars: read(avatarCacheProvider),
-    originals: read(attachmentOriginalCacheProvider),
-  );
+  await read(debugLogProvider.notifier).erase();
 }

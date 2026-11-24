@@ -18,6 +18,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../features/messages/providers/attachment_cache_prune.dart';
 import '../backoff.dart';
 import '../features/accounts/providers/account_slot.dart';
 import '../features/auth/providers/database_key_store.dart';
@@ -322,6 +323,7 @@ final databaseProvider = FutureProvider<SlimmDatabase>((ref) async {
 final storeProvider = FutureProvider<MessageStore>((ref) async {
   final db = await ref.watch(databaseProvider.future);
   final store = MessageStore(db);
+  store.onMessagesDropped = (ids) => unawaited(pruneAttachmentCaches(ref, ids));
   try {
     // Any row still pending belongs to a run that ended; see failInterruptedSends.
     await failInterruptedSends(store);

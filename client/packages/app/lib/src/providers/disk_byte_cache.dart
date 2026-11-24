@@ -28,7 +28,7 @@ abstract interface class ByteCache {
   Future<void> removeWithPrefix(String prefix);
 }
 
-/// Keeps [ceilingBytes] of files under [dirName] in the application support
+/// Keeps [ceilingBytes] of files under [dirName] in the application cache
 /// directory (or [directory], for a test), evicting the stalest first.
 class DiskByteCache implements ByteCache {
   DiskByteCache({
@@ -51,14 +51,33 @@ class DiskByteCache implements ByteCache {
   Future<Directory>? _dir;
   var _writesSinceTrim = 0;
   var _trimmedOnce = false;
+  var _partCounter = 0;
 
   Future<Directory> _cacheDir() => _dir ??= _open();
 
   Future<Directory> _open() async {
-    final base = _directory ?? await getApplicationSupportDirectory();
+    final base = _directory ?? await getApplicationCacheDirectory();
+    if (_directory == null) unawaited(_dropBackedUpCopy());
     final dir = Directory(p.join(base.path, dirName));
     if (!await dir.exists()) await dir.create(recursive: true);
     return dir;
+  }
+
+  /// Earlier builds kept this cache where iOS backs it up; it only refetches, so it is deleted.
+  Future<void> _dropBackedUpCopy() async {
+    try {
+      final old = Directory(
+        p.join((await getApplicationSupportDirectory()).path, dirName),
+      );
+      if (await old.exists()) await old.delete(recursive: true);
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.media,
+        'Could not remove the old backed-up cache directory',
+        error,
+        stack,
+      );
+    }
   }
 
   /// Escaped so a key built from any external string stays inside [dirName].
@@ -100,9 +119,14 @@ class DiskByteCache implements ByteCache {
     try {
       final dir = await _cacheDir();
       final file = _fileFor(dir, key);
-      final partial = File('${file.path}.part');
-      await partial.writeAsBytes(bytes);
-      await partial.rename(file.path);
+      final partial = File('${file.path}.${_partCounter++}.part');
+      try {
+        await partial.writeAsBytes(bytes);
+        await partial.rename(file.path);
+      } catch (_) {
+        await partial.delete().catchError((_) => partial);
+        rethrow;
+      }
       if (_dueForTrim()) await _evictOverCeiling(dir);
     } catch (error, stack) {
       AppLog.swallowed(

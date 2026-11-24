@@ -96,15 +96,24 @@ Future<void> replaceChannels(MessageStore store, List<api.Channel> channels,
     final keep = {...channels.map((c) => c.id), ...threadIds, ...alsoKeep};
     final stale =
         await (db.select(db.channels)..where((c) => c.id.isNotIn(keep))).get();
+    final dropped = <String>[];
     for (final row in stale) {
-      await deleteChannelRows(db, row.id);
+      dropped.addAll(await deleteChannelRows(db, row.id));
     }
+    store.onMessagesDropped?.call(dropped);
   });
 }
 
 /// A channel's row and everything keyed to it: its messages, its draft and its
 /// personal canvas layout, which would otherwise sit unreachable behind an id nothing lists.
-Future<void> deleteChannelRows(SlimmDatabase db, String channelId) async {
+///
+/// Returns the ids of the messages it dropped.
+Future<List<String>> deleteChannelRows(
+    SlimmDatabase db, String channelId) async {
+  final dropped = await (db.select(db.messages)
+        ..where((m) => m.channelId.equals(channelId)))
+      .map((m) => m.id)
+      .get();
   await (db.delete(db.messages)..where((m) => m.channelId.equals(channelId)))
       .go();
   await (db.delete(db.channelDrafts)
@@ -114,4 +123,5 @@ Future<void> deleteChannelRows(SlimmDatabase db, String channelId) async {
         ..where((l) => l.channelId.equals(channelId)))
       .go();
   await (db.delete(db.channels)..where((c) => c.id.equals(channelId))).go();
+  return dropped;
 }
