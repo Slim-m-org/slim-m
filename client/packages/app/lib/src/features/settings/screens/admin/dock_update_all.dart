@@ -93,6 +93,7 @@ Future<DockUpdateReport?> updateAllDockModules({
         failures.add(turn.failure!);
       case _Outcome.updated:
         updated++;
+        if (turn.failure case final note?) failures.add(note);
         if (turn.declined.isNotEmpty) {
           withoutAccess.add((entry: item.entry, lost: turn.declined));
         }
@@ -190,7 +191,20 @@ Future<_Turn?> _updateOne(
     if (held != null) {
       final regained = {...held.approvedHostCapabilities, ...lost};
       final grant = _grantFor(manifest, held, regained, lost);
-      await _install(context, ref, item, manifest, grant);
+      try {
+        await _install(context, ref, item, manifest, grant);
+      } catch (error, stack) {
+        return _Turn(
+          _Outcome.updated,
+          declined: lost,
+          failure: reportFailureSentence(
+            api.LogTag.ui,
+            'give ${item.entry.name} its access back',
+            error,
+            stack,
+          ),
+        );
+      }
     }
     return const _Turn(_Outcome.updated);
   } catch (error, stack) {
