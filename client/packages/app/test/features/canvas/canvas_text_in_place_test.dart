@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_design_system/design_system.dart' show AppTokens;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../support/async_wait.dart';
@@ -52,6 +53,15 @@ void main() {
         );
       });
     }
+
+    testWidgets('the default colour is typed in the theme text colour', (
+      tester,
+    ) async {
+      await openBox(tester);
+
+      final style = tester.widget<TextField>(field).style!;
+      expect(style.color, AppTokens.dark.textPrimary);
+    });
 
     testWidgets('the board leaves the box text out while it is typed', (
       tester,

@@ -194,7 +194,9 @@ class ObjectPainter {
           style: TextStyle(
             fontFamily: textFontFamily,
             fontSize: fontSize,
-            color: resolveCanvasInk(inkColors, stroke.colorKey, ink),
+            color: stroke.colorKey == canvasDefaultTextColor
+                ? textInk
+                : resolveCanvasInk(inkColors, stroke.colorKey, ink),
             height: canvasTextLineHeight,
           ),
         ),

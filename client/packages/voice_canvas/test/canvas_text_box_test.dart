@@ -181,11 +181,31 @@ void main() {
       expect(await _hasPixelNear(tester, image, blue), isTrue);
     });
 
-    testWidgets('an unknown colour key paints in the theme ink',
+    testWidgets('the default colour key paints in the text ink',
         (tester) async {
       final document = CanvasDocument()
         ..setViewport(const Size(300, 100))
         ..applyPlaced(_text('t', color: 'ink'))
+        ..refresh();
+      addTearDown(document.dispose);
+      const textInk = Color(0xFF123456);
+      final painter = StrokePainter(
+        document: document,
+        ink: const Color(0xFFE86A5C),
+        textInk: textInk,
+      );
+      addTearDown(painter.dispose);
+      expect(
+        await _hasPixelNear(tester, await _render(tester, painter), textInk),
+        isTrue,
+      );
+    });
+
+    testWidgets('an unknown colour key paints in the theme ink',
+        (tester) async {
+      final document = CanvasDocument()
+        ..setViewport(const Size(300, 100))
+        ..applyPlaced(_text('t', color: 'nope'))
         ..refresh();
       addTearDown(document.dispose);
       const ink = Color(0xFFE86A5C);

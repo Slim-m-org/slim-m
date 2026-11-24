@@ -149,11 +149,13 @@ class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
 
   Widget _field(BuildContext context, Camera camera) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final ink = resolveCanvasInk(
-      canvasPenInkByKey,
-      _colorKey,
-      AppCanvasColors.annotation,
-    );
+    final ink = _colorKey == canvasDefaultTextColor
+        ? tokens.textPrimary
+        : resolveCanvasInk(
+            canvasPenInkByKey,
+            _colorKey,
+            AppCanvasColors.annotation,
+          );
     return TextFieldTapRegion(
       key: const ValueKey('canvas-text-editor-rect'),
       groupId: canvasTextTapGroup,
