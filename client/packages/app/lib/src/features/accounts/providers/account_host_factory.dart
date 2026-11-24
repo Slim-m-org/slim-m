@@ -27,6 +27,13 @@ import 'account_services.dart';
 import 'account_slot.dart';
 import 'account_store.dart';
 
+/// Runs [body] so every record it logs belongs to the account [container] serves.
+T scopedToAccount<T>(ProviderContainer container, T Function() body) =>
+    AppLog.scoped(
+      () => container.read(accountSlotProvider)?.account?.origin,
+      body,
+    );
+
 /// One shared key store and emoji cache, then a container per account built on them.
 ///
 /// See emojiImageCacheProvider's own doc for why the cache is opted into here rather than left as its default.
@@ -37,15 +44,17 @@ AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
   final avatarCache = createAvatarCache();
   final originalCache = createAttachmentOriginalCache();
   final accounts = AccountStore(keyStore);
+  late final AccountHost host;
   // The error hooks are global, so one router hands each record to its own account's log.
-  final debugLogs = DebugLogRouter();
+  final debugLogs = DebugLogRouter(
+    onScreenOrigin: () => host.active?.account?.origin,
+  );
   // One for every account, so a call joined in any of them makes the others' sounds give way.
   final callStartYields = CallStartYields();
   // The keybinds switch is per device, so a server not on screen drops its system-wide grabs too.
   final callKeybinds = CallKeybindsStore(optIn: isDesktopHost);
   // One per tab: each claims the tab's id, and a second claim in one tab reads as a duplicated tab.
   final crossTab = CrossTab();
-  late final AccountHost host;
   host = AccountHost(
     store: accounts,
     createContainer: (slot) => ProviderContainer(

@@ -16,7 +16,7 @@ void main() {
   tearDown(() => AppLog.install(null));
 
   test('a record stamped for one account never reaches another', () {
-    final router = DebugLogRouter();
+    final router = DebugLogRouter(onScreenOrigin: () => 'https://a.example');
     final a = _log('https://a.example');
     final b = _log('https://b.example');
     router
@@ -33,6 +33,7 @@ void main() {
     expect(a.asReport(), isNot(contains('b.example')));
     expect(a.asReport(), contains('shared record'));
     expect(b.asReport(), contains('b.example'));
+    expect(b.asReport(), isNot(contains('shared record')));
   });
 
   test('background work started inside a scope keeps its account', () async {
@@ -51,6 +52,17 @@ void main() {
 
     expect(a.state, isEmpty);
     expect(b.state, hasLength(1));
+  });
+
+  test('records logged before any log exists reach the first one added', () {
+    final router = DebugLogRouter();
+    AppLog.install(router);
+    AppLog.error(LogTag.auth, 'read the saved accounts failed');
+
+    final a = _log('https://a.example');
+    router.add(a);
+
+    expect(a.asReport(), contains('read the saved accounts failed'));
   });
 
   test('a removed log stops receiving records', () {
