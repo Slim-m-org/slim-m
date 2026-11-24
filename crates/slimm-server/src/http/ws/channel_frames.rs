@@ -329,6 +329,8 @@ pub(super) fn to_frame(
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
         | Event::CategoryMuteChanged { .. }
+        | Event::BlocksChanged { .. }
+        | Event::AccountNotificationsChanged { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
@@ -338,6 +340,7 @@ pub(super) fn to_frame(
         | Event::VoiceMoved { .. }
         | Event::VoiceRemoved { .. }
         | Event::VoiceNotice { .. }
+        | Event::DmLeft { .. }
         | Event::SoundboardPlayed { .. }
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => return Ok(None),

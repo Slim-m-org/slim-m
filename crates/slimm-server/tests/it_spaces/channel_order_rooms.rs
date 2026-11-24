@@ -46,9 +46,10 @@ impl World {
     async fn room(&self, owner: &str) -> Channel {
         let owner = self.store.create_user(owner, owner).await.unwrap();
         self.store
-            .create_voice_room(&self.lobby, owner.id, "a room")
+            .open_voice_room(&self.lobby, owner.id, "a room")
             .await
             .unwrap()
+            .0
     }
 
     async fn listed(&self) -> Vec<Value> {

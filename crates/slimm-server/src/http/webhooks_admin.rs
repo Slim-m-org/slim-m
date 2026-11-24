@@ -26,7 +26,9 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::auth::validate_label;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce, require_base_permission, require_manage_server};
+use super::extract::{
+    Authed, AuthedLimited, Json, WRITE, enforce, require_base_permission, require_manage_server,
+};
 use super::messages::parse_uuid;
 use crate::ids::{ChannelId, UserId, WebhookId};
 use crate::permissions::Permissions;
@@ -169,11 +171,9 @@ async fn reachable(
 /// bespoke check, so a webhook's name is held to the same bar a person's is.
 async fn create(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(body): Json<CreateWebhookDto>,
 ) -> Result<(StatusCode, Json<NewWebhookDto>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
 
     let label = body.label.trim();
@@ -209,12 +209,10 @@ async fn create(
 /// answer delivery gives an unknown id.
 async fn rename(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(webhook_id): Path<String>,
     Json(body): Json<RenameWebhookDto>,
 ) -> Result<Json<WebhookDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let webhook_id = WebhookId(parse_uuid(&webhook_id)?);
 
@@ -222,7 +220,11 @@ async fn rename(
     validate_label(label, "label must be 1 to 64 characters")?;
     reachable(&state, ctx.user_id, webhook_id).await?;
 
-    match state.store.rename_webhook(webhook_id, label).await? {
+    match state
+        .store
+        .rename_webhook(webhook_id, label, ctx.user_id)
+        .await?
+    {
         Some(webhook) => Ok(Json(webhook.into())),
         None => Err(ApiError::NotFound("no such webhook")),
     }

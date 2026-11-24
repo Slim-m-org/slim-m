@@ -129,7 +129,10 @@ async fn unpin(
     let message_id = MessageId(parse_uuid(&message_id)?);
     authorize_manage(&state, ctx.user_id, channel_id).await?;
 
-    state.store.unpin_message(channel_id, message_id).await?;
+    state
+        .store
+        .unpin_message(channel_id, message_id, ctx.user_id)
+        .await?;
     state.hub.publish(Event::Message(MessageEvent::Unpinned {
         channel_id,
         message_id,

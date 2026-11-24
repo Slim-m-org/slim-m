@@ -95,7 +95,7 @@ class PerformanceSettingsSection extends ConsumerWidget {
               sheetTitle: 'Image cache limit',
               value: ref.watch(imageCacheLimitControllerProvider),
               choices: [
-                for (final mb in imageCacheLimitChoicesMb)
+                for (final mb in imageCacheLimitChoices())
                   SettingsChoice(value: mb, label: imageCacheLimitLabel(mb)),
               ],
               description: 'How much memory recent images may use.',

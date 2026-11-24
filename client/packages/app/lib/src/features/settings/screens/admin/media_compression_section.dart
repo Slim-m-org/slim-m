@@ -64,22 +64,29 @@ class _MediaCompressionSectionState
     List<String>? extensions,
     String? metadata,
     bool? keepOriginal,
-  }) => saveOptimistic(
-    next,
-    whatFailed: 'change photo compression',
-    action: () async {
-      final saved = await ref
-          .read(apiProvider)
-          .setSpaceMediaCompression(
-            enabled: enabled,
-            extensions: extensions,
-            metadata: metadata,
-            keepOriginal: keepOriginal,
-          );
-      if (mounted) _types.text = saved.extensions.join(', ');
-    },
-    refresh: spaceMediaCompressionProvider,
-  );
+  }) {
+    final hadPendingTypes = _typesDiffer(
+      ref.read(spaceMediaCompressionProvider).valueOrNull ?? next,
+    );
+    return saveOptimistic(
+      next,
+      whatFailed: 'change photo compression',
+      action: () async {
+        final saved = await ref
+            .read(apiProvider)
+            .setSpaceMediaCompression(
+              enabled: enabled,
+              extensions: extensions,
+              metadata: metadata,
+              keepOriginal: keepOriginal,
+            );
+        if (mounted && (extensions != null || !hadPendingTypes)) {
+          _types.text = saved.extensions.join(', ');
+        }
+      },
+      refresh: spaceMediaCompressionProvider,
+    );
+  }
 
   bool _typesDiffer(api.SpaceMediaCompression current) {
     final typed = parseExtensions(_types.text.toLowerCase());

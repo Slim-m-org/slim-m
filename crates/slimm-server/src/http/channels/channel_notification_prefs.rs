@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use super::super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce};
 use super::super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
@@ -78,13 +78,11 @@ async fn list(
 /// through this route than through any other (see
 /// `docs/decisions/0011-per-channel-permissions.md`).
 async fn set(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<SetRequest>,
 ) -> Result<Json<ChannelPreferenceDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let preference = NotificationPreference::parse(&req.preference).ok_or(ApiError::BadRequest(
         "preference must be everything, mentions or nothing",

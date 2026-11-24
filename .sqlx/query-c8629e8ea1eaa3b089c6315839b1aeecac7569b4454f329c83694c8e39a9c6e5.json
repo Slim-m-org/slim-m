@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT o.id AS \"id!: CanvasObjectId\", o.channel_id AS \"channel_id!: ChannelId\"\n                   FROM channels c CROSS JOIN canvas_objects o ON o.channel_id = c.id\n                   WHERE c.deleted_at IS NOT NULL AND (?1 IS NULL OR c.id = ?1)\n                   LIMIT ?2",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CanvasObjectId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 1,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "channel_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "c8629e8ea1eaa3b089c6315839b1aeecac7569b4454f329c83694c8e39a9c6e5"
+}

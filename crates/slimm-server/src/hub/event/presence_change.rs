@@ -14,6 +14,8 @@ use crate::store::Store;
 #[derive(Debug, Clone)]
 pub struct PresenceChange {
     pub user_id: UserId,
+    /// Set only by the visibility switch itself, the one change a hidden user's viewers are still told about.
+    pub visibility_switch: bool,
     stored_visibility: Arc<OnceCell<Option<Visibility>>>,
 }
 
@@ -21,7 +23,15 @@ impl PresenceChange {
     pub fn of(user_id: UserId) -> Self {
         Self {
             user_id,
+            visibility_switch: false,
             stored_visibility: Arc::default(),
+        }
+    }
+
+    pub fn switch(user_id: UserId) -> Self {
+        Self {
+            visibility_switch: true,
+            ..Self::of(user_id)
         }
     }
 

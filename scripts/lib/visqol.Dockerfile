@@ -1,7 +1,7 @@
 # ViSQOL (google/visqol) built with bazel, for voice_quality_mos.py. About four minutes with 3 jobs.
-FROM ubuntu:22.04
+FROM ubuntu:22.04@sha256:b000e69a50ff940390233025e7a337fb8469b509e2334fa4d018ac30f3e18cdb
 ENV DEBIAN_FRONTEND=noninteractive
-ADD --chmod=755 https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-linux-amd64 /usr/local/bin/bazelisk
+ADD --chmod=755 --checksum=sha256:d28b588ac0916abd6bf02defb5433f6eddf7cba35ffa808eabb65a44aab226f7 https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-linux-amd64 /usr/local/bin/bazelisk
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \

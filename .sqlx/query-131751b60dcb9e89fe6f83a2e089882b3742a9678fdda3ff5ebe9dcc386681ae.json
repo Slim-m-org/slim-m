@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT t.id AS \"id!: CallTranscriptId\" FROM call_transcripts t\n               JOIN channels c ON c.id = t.channel_id\n               WHERE c.deleted_at IS NOT NULL ORDER BY t.id LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CallTranscriptId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "call_transcripts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "131751b60dcb9e89fe6f83a2e089882b3742a9678fdda3ff5ebe9dcc386681ae"
+}

@@ -14,7 +14,11 @@ import '../../../providers/providers.dart';
 import 'device_timezone.dart';
 import 'notification_schedule_controller.dart';
 
-/// Re-saves the schedule with the device zone whenever the two differ, on load and on resume.
+const _syncedZoneKey = 'notification_schedule_synced_zone';
+
+/// Re-saves the schedule when this device's own zone changed since it last synced it.
+///
+/// Comparing with the saved zone instead would make two devices in different zones undo each other.
 final notificationScheduleZoneSyncProvider = Provider<void>((ref) {
   var running = false;
 
@@ -25,7 +29,14 @@ final notificationScheduleZoneSyncProvider = Provider<void>((ref) {
     running = true;
     try {
       final zone = await ref.read(deviceTimezoneProvider.future);
-      if (zone == schedule.timezone) return;
+      final prefs = await ref.read(preferencesProvider.future);
+      final userId = ref.read(sessionProvider).tokens?.userId ?? '';
+      final key = '$_syncedZoneKey.$userId';
+      final lastSynced = prefs.getString(key) ?? schedule.timezone;
+      if (zone == lastSynced) {
+        await prefs.setString(key, zone);
+        return;
+      }
       await ref
           .read(apiProvider)
           .setNotificationSchedule(
@@ -33,6 +44,7 @@ final notificationScheduleZoneSyncProvider = Provider<void>((ref) {
             offHoursMode: schedule.offHoursMode,
             days: schedule.days,
           );
+      await prefs.setString(key, zone);
       ref.invalidate(notificationScheduleProvider);
     } on Object catch (error, stack) {
       api.reportFailure(

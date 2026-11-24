@@ -456,7 +456,7 @@ async fn serve(
                                     break "send failed";
                                 }
                             }
-                            // Withheld or undecidable: a lost cursor/preview costs nothing either way.
+                            // Undecidable after the in-authorizer retry: a resync cannot replay an ephemeral frame, so it is dropped.
                             Authorization::Withhold | Authorization::Unknown => {}
                         }
                     }

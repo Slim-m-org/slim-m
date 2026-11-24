@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/animation_gate.dart';
+import '../../../providers/bounded_image_decode.dart';
 import '../../../widgets/image_decode.dart';
 import '../providers/attachment_preview_quality.dart';
 import '../providers/link_preview.dart';
@@ -76,10 +77,12 @@ class LinkPreviewThumbnail extends ConsumerWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(radius),
           child: AnimationGate(
-            child: Image.memory(
-              bytes,
+            child: Image(
+              image: ResizeImage(
+                BoundedMemoryImage(bytes),
+                height: decodeEdge(context, box.height, scale: previewScale),
+              ),
               fit: BoxFit.contain,
-              cacheHeight: decodeEdge(context, box.height, scale: previewScale),
               frameBuilder: (context, child, frame, synchronous) =>
                   frame == null && !synchronous ? placeholder : child,
               errorBuilder: (context, error, stackTrace) => placeholder,
@@ -102,14 +105,16 @@ class LinkPreviewThumbnail extends ConsumerWidget {
             border: Border.all(color: tokens.borderSubtle),
           ),
           child: AnimationGate(
-            child: Image.memory(
-              bytes,
-              fit: BoxFit.cover,
-              cacheWidth: decodeEdge(
-                context,
-                kInlineImageMax,
-                scale: previewScale,
+            child: Image(
+              image: ResizeImage(
+                BoundedMemoryImage(bytes),
+                width: decodeEdge(
+                  context,
+                  kInlineImageMax,
+                  scale: previewScale,
+                ),
               ),
+              fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) =>
                   const SizedBox.shrink(),
             ),
@@ -167,12 +172,14 @@ class _CoverFill extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: AnimationGate(
-        child: Image.memory(
-          data,
+        child: Image(
+          image: ResizeImage(
+            BoundedMemoryImage(data),
+            width: decodeEdge(context, kInlineImageMax, scale: decodeScale),
+          ),
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
-          cacheWidth: decodeEdge(context, kInlineImageMax, scale: decodeScale),
           errorBuilder: (context, error, stackTrace) => sunken,
         ),
       ),

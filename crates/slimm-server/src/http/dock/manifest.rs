@@ -468,7 +468,10 @@ fn bounded(value: &str, max_len: usize, field: &str) -> Result<String, ManifestE
 }
 
 fn is_sha256_hex(value: &str) -> bool {
-    value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit())
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_digit() || matches!(b, b'a'..=b'f'))
 }
 
 mod artifact_path;

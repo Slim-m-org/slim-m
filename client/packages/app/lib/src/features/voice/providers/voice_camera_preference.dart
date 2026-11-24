@@ -3,8 +3,8 @@
 /// call is open.
 ///
 /// `VoiceState.cameraEnabled` is the live truth in a call and the carried
-/// preference between calls. A setting changed mid-call is held here until
-/// the call ends, the way [VoiceJoinMuted] holds its mic preference.
+/// preference between calls. The saved setting lives here, so a call that
+/// ends hands back the setting rather than the camera it ended with.
 ///
 /// Its own file to keep `voice_controller.dart` under the line budget.
 library;
@@ -12,21 +12,15 @@ library;
 import 'voice_state.dart';
 
 class VoiceCameraPreference {
-  bool? _heldForLeave;
+  bool _preference = false;
 
-  /// [call] with [enabled] applied, or held for [atLeave] when a call is open.
+  /// [call] with [enabled] applied, or held until the call ends when one is open.
   VoiceState apply(VoiceState call, bool enabled) {
-    if (call.channelId != null) {
-      _heldForLeave = enabled;
-      return call;
-    }
+    _preference = enabled;
+    if (call.channelId != null) return call;
     return call.copyWith(cameraEnabled: enabled);
   }
 
-  /// The camera preference to carry out of a call that ends with [current].
-  bool atLeave(bool current) {
-    final held = _heldForLeave ?? current;
-    _heldForLeave = null;
-    return held;
-  }
+  /// The saved preference, which a call that ends carries into the next one.
+  bool atLeave() => _preference;
 }

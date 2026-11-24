@@ -15,13 +15,14 @@ use super::harness::{ID, World, world};
 use crate::support::app::call;
 
 /// What a connector approved nothing may still do: read itself, open its socket and register
-/// what its commands are, and read the directory a bot library starts from.
+/// what its commands are, read the directory a bot library starts from, and delete a theme that is already gone.
 const WITHOUT_BITS: &[(&str, &str)] = &[
     ("GET", "/connectors/me"),
     ("GET", "/me"),
     ("POST", "/auth/ws-ticket"),
     ("PUT", "/bots/commands"),
     ("PUT", "/bots/ui"),
+    ("DELETE", "/space/themes/{theme_id}"),
 ];
 
 /// Routes that answer anyone, signed in or not, so a token changes nothing.

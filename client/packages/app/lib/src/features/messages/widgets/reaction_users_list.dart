@@ -125,7 +125,9 @@ class ReactionUsersBody extends ConsumerWidget {
       padding: const EdgeInsets.all(AppSpacing.s8),
       child: AppErrorState(
         message: 'Could not load more.',
-        onRetry: controller.loadMore,
+        onRetry: state.nextCursor == null
+            ? controller.refresh
+            : controller.loadMore,
       ),
     );
   }

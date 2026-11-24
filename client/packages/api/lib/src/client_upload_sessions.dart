@@ -19,6 +19,7 @@ const kUploadPartBytes = 16 * 1024 * 1024;
 
 const _uploadSessionCapability = 'upload_sessions';
 const _partSendDeadline = Duration(minutes: 5);
+
 const _discardFailedMessage =
     'Could not discard an unfinished upload on the server; it will expire on its own';
 
@@ -109,6 +110,7 @@ extension SlimmApiUploadSessions on SlimmApi {
         filename: filename,
         channelId: channelId,
         onProgress: onProgress,
+        cancel: cancel,
       );
     }
     return _uploadResumable(
@@ -179,7 +181,16 @@ extension SlimmApiUploadSessions on SlimmApi {
         );
     final kept =
         resumeKey == null ? null : link.resumableUploads.remove(resumeKey);
-    var session = await _resumeOrCreate(kept, length, create);
+    final first = await _resumeOrCreate(
+      kept,
+      length,
+      create,
+      resumeKey: resumeKey,
+      cancel: cancel,
+      backoff: backoff,
+      stallLimit: stallLimit,
+    );
+    var session = first;
     var restarted = false;
     try {
       while (true) {
@@ -222,20 +233,34 @@ extension SlimmApiUploadSessions on SlimmApi {
   }
 
   /// The kept session when the server still holds it for a file this size,
-  /// else a fresh one.
+  /// else a fresh one. A failure that could recover is retried and then
+  /// thrown with the session untouched, so a blip never costs the upload.
   Future<UploadSession> _resumeOrCreate(
     String? kept,
     int length,
-    Future<UploadSession> Function() create,
-  ) async {
+    Future<UploadSession> Function() create, {
+    required String? resumeKey,
+    required UploadCancelToken? cancel,
+    required Duration Function(int attempt) backoff,
+    required Duration stallLimit,
+  }) async {
     if (kept != null) {
       try {
-        final held = await _getUploadSession(kept);
+        final held = await _patiently(
+          () => _getUploadSession(kept),
+          cancel: cancel,
+          backoff: backoff,
+          stallLimit: stallLimit,
+        );
         if (held.size == length) return held;
       } on ApiException catch (error, stack) {
+        if (_classify(error) == _PartFailure.transient) {
+          if (resumeKey != null) link.resumableUploads[resumeKey] = kept;
+          rethrow;
+        }
         AppLog.swallowed(
             LogTag.auth,
-            'The earlier upload is gone or unreachable; starting a fresh one',
+            'The earlier upload is gone or unusable; starting a fresh one',
             error,
             stack);
       }
@@ -304,6 +329,7 @@ extension SlimmApiUploadSessions on SlimmApi {
       () => source.part(from, take, cancel: cancel),
       take,
       (sent) => onProgress?.call(from + sent),
+      cancel,
     );
     if (after.offset <= from) {
       throw const TransportException('the server did not take the part');
@@ -379,6 +405,7 @@ extension SlimmApiUploadSessions on SlimmApi {
     Stream<List<int>> Function() open,
     int length,
     void Function(int sent) onProgress,
+    UploadCancelToken? cancel,
   ) async {
     final response = await sendStreamed(
       'PUT',
@@ -388,6 +415,7 @@ extension SlimmApiUploadSessions on SlimmApi {
       query: {'offset': '$offset'},
       onProgress: onProgress,
       sendDeadline: _partSendDeadline,
+      cancel: cancel,
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw errorFor(response);
@@ -408,6 +436,7 @@ extension SlimmApiUploadSessions on SlimmApi {
       'POST',
       '/attachments/uploads/$id/complete',
       query: channelId == null ? null : {'channel_id': channelId},
+      deadline: uploadAnswerDeadline,
     );
     return decodeShape(
       json,

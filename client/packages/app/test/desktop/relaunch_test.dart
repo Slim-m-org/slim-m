@@ -6,8 +6,14 @@
 /// exists.
 library;
 
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/relaunch.dart';
+
+// These two read the real process, which the web has none of.
+final bool _skipHere = kIsWeb || Platform.environment.containsKey('FLATPAK_ID');
 
 ({String program, List<String> arguments})? _command({
   String os = 'linux',
@@ -69,4 +75,27 @@ void main() {
     );
     expect(_command(os: 'fuchsia'), isNull);
   });
+
+  test('a relaunch passes on the arguments the app started with', () {
+    rememberLaunchArguments(['--autostart', 'slimm://invite/x', '--relaunch']);
+    addTearDown(() => rememberLaunchArguments(const []));
+
+    final command = thisProcessRelaunchCommand('/usr/lib/slim-m/slim-m');
+
+    expect(command, isNotNull);
+    expect(command!.arguments, contains('--autostart'));
+    expect(command.arguments, contains('slimm://invite/x'));
+    expect(command.arguments, isNot(contains('--relaunch')));
+  }, skip: _skipHere);
+
+  test('a restart after startup carries neither login flag nor link', () {
+    rememberLaunchArguments(['--autostart', 'slimm://invite/x']);
+    forgetLaunchArguments();
+    addTearDown(() => rememberLaunchArguments(const []));
+
+    final command = thisProcessRelaunchCommand('/usr/lib/slim-m/slim-m');
+
+    expect(command?.arguments, isNot(contains('--autostart')));
+    expect(command?.arguments, isNot(contains('slimm://invite/x')));
+  }, skip: _skipHere);
 }

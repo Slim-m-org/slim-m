@@ -45,7 +45,7 @@ async fn local_approval_does_not_reach_loopback_or_the_metadata_address() {
         ),
         (
             "meta",
-            "169.254.169.254".to_owned(),
+            "169.254.169.254:80".to_owned(),
             "http://169.254.169.254/latest/meta-data".to_owned(),
         ),
     ] {

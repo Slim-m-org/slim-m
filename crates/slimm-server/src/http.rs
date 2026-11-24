@@ -74,6 +74,7 @@ mod screen_stamps;
 mod soundboard;
 pub(crate) use crate::hidden_chars;
 pub use version::capability_names;
+mod connector_limited;
 mod identity_proof;
 mod interaction_forms;
 mod interactions;
@@ -120,6 +121,7 @@ mod module_slot_nodes;
 mod module_slots;
 pub(crate) mod module_timers;
 pub(crate) mod scene_refresh;
+pub(crate) use module_breaker::FAILURE_LIMIT;
 pub use module_events::{EventConsumer, spawn_module_events};
 pub use module_schedule::run_due as run_scheduled_modules;
 pub use module_timers::run_due as run_module_timers;
@@ -189,6 +191,7 @@ mod users;
 mod version;
 mod viewable_message;
 mod voice;
+pub(crate) use voice::voice_transcription::resume_always;
 use voice::{
     voice_call_audio, voice_calls, voice_notify_prefs, voice_ring, voice_rooms,
     voice_transcription, voice_transcripts, voice_webhook,
@@ -214,6 +217,12 @@ pub(crate) const PROTOCOL_VERSION: u32 = 1;
 /// An attachment upload gets [`Media::upload_timeout`] instead: a gigabyte over
 /// a home uplink needs minutes.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// The routes that take a base64 package or image pack as JSON get this instead.
+///
+/// The client waits as long for the body to go out over a slow uplink, so a
+/// shorter server window would answer 504 before the client gave up.
+pub const SLOW_BODY_TIMEOUT: Duration = Duration::from_secs(180);
 
 /// How long a request body may trickle in before it is abandoned.
 ///
@@ -304,6 +313,11 @@ pub fn guard_panics<S: Clone + Send + Sync + 'static>(router: Router<S>) -> Rout
 /// "which route" beats "which exact URL" for grepping. See
 /// `docs/decisions/0030-incoming-webhooks.md`'s "Leak" section.
 pub fn router(state: AppState) -> Router {
+    router_with_slow_body_timeout(state, SLOW_BODY_TIMEOUT)
+}
+
+/// [`router`] with the timeout of the large-JSON-body routes spelled out, so a test need not wait minutes.
+pub fn router_with_slow_body_timeout(state: AppState, slow_body_timeout: Duration) -> Router {
     // Fresh per call, like `state.limiter`; see `route_timing`'s own doc.
     let route_timings = route_timing::RouteTimings::new();
     let uploads = attachments::upload_routes()
@@ -314,6 +328,22 @@ pub fn router(state: AppState) -> Router {
         .layer(TimeoutLayer::with_status_code(
             StatusCode::GATEWAY_TIMEOUT,
             state.media.upload_timeout(),
+        ))
+        .layer(RequestBodyTimeoutLayer::new(BODY_READ_TIMEOUT));
+    let slow_bodies = Router::new()
+        .merge(emoji::bulk_routes())
+        .merge(dock::package_routes())
+        .merge(space_themes::publish_routes())
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            admin_audit::record,
+        ))
+        .route_layer(axum::middleware::from_fn(route_timing::record))
+        .layer(Extension(route_timings.clone()));
+    let slow_bodies = cap_inflight(slow_bodies, MAX_INFLIGHT_REQUESTS, INFLIGHT_WAIT)
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::GATEWAY_TIMEOUT,
+            slow_body_timeout,
         ))
         .layer(RequestBodyTimeoutLayer::new(BODY_READ_TIMEOUT));
     let app = Router::new()
@@ -447,6 +477,7 @@ pub fn router(state: AppState) -> Router {
         ))
         .layer(RequestBodyTimeoutLayer::new(BODY_READ_TIMEOUT))
         .merge(uploads)
+        .merge(slow_bodies)
         .merge(liveness_route())
         .merge(ws::routes());
     guard_panics(app)

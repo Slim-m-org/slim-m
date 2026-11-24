@@ -8,21 +8,21 @@
 //! A prune is an ordinary soft delete, the same shape [`Store::delete_message`]
 //! already uses (`deleted_at` set, attachments released, a `message_ops`
 //! `'delete'` row written) - just run in a batch, under one system actor,
-//! rather than one call per caller. Content is left in place: text is small
-//! next to attachment bytes, and the disk this feature actually reclaims is
-//! whatever `release_message_attachments` frees.
+//! rather than one call per caller. The row stays as a tombstone; the
+//! `messages_scrub_on_delete` trigger (migration 0216) drops its text, earlier
+//! versions and search terms in the same statement.
 //!
 //! The half worth reading closely is what happens to the *op stream* a
 //! pruned message leaves behind. `message_ops`'s own doc says a floor
 //! sweep "can be added later with no wire change" - this is that sweep.
-//! [`Store::reclaim_message_ops_before`] deletes `message_ops` rows older
-//! than the same cutoff, which advances [`Store::earliest_message_op_seq`]'s
+//! [`Store::reclaim_message_ops`] deletes `message_ops` rows older than their
+//! channel's own window, which advances [`Store::earliest_message_op_seq`]'s
 //! floor. A client whose op cursor now sits behind that floor gets `reset`
 //! from `ops_for_scope` with no code written here at all: the mechanism
 //! already existed, waiting for something to move the floor. Content pruning
 //! runs first in the same tick as a matter of sequence, not because order is
 //! load-bearing here: the delete op a fresh prune just wrote carries `now`,
-//! and `cutoff` sits a whole retention window behind it, so no ordering of
+//! and the cutoff sits a whole retention window behind it, so no ordering of
 //! these two passes could make the reclaim treat that op as stale.
 
 use std::collections::HashMap;
@@ -48,8 +48,10 @@ const CONTENT_SWEEP_BATCH: i64 = 200;
 /// the batch's bound-variable count stays far under SQLite's limit; the rest
 /// are found as orphans on the next tick.
 const COPY_SWEEP_CAP: usize = 2_000;
-/// Bounds the op-log reclaim pass.
+/// Bounds one op-log reclaim statement.
 const OP_FLOOR_SWEEP_BATCH: i64 = 2_000;
+/// How many reclaim statements one tick may run, each releasing the write lock when it ends.
+const OP_FLOOR_BATCHES_PER_TICK: usize = 500;
 /// How many content batches one tick may run, each in its own transaction so
 /// the write lock is released between them: 50 batches is 10,000 messages a
 /// tick, past which the rest wait six hours rather than stall writers.
@@ -83,6 +85,8 @@ pub struct SweptMessageRetention {
     pub detached: Vec<DetachedForward>,
     /// Stale `message_ops` rows the same tick reclaimed; see the module doc.
     pub ops_reclaimed: u64,
+    /// Resolved reports whose quoted text the same tick dropped.
+    pub reports_cleared: u64,
 }
 
 impl Store {
@@ -152,10 +156,8 @@ impl Store {
                 break;
             }
         }
-        if space_days > 0 {
-            let cutoff = now_ms() - space_days * DAY_MS;
-            swept.ops_reclaimed = self.reclaim_message_ops_before(cutoff).await?;
-        }
+        swept.ops_reclaimed = self.reclaim_message_ops(space_days).await?;
+        swept.reports_cleared = self.clear_old_report_snapshots(space_days).await?;
         Ok(swept)
     }
 
@@ -172,6 +174,7 @@ impl Store {
     ) -> anyhow::Result<(Vec<PrunedMessage>, Vec<DetachedForward>)> {
         use sqlx::Row;
 
+        let has_orphans = self.has_orphaned_copies().await?;
         let mut tx = self.begin_write().await?;
         let now = now_ms();
         let mut candidates =
@@ -179,7 +182,9 @@ impl Store {
         // Copies of this batch and leftovers from a capped earlier tick; those with a note are detached, the rest join the delete.
         let mut copies = live_copies_of(&mut tx, &candidates).await?;
         copies.truncate(COPY_SWEEP_CAP);
-        copies.extend(orphaned_copies(&mut tx, CONTENT_SWEEP_BATCH).await?);
+        if has_orphans {
+            copies.extend(orphaned_copies(&mut tx, CONTENT_SWEEP_BATCH).await?);
+        }
         let (noted, bare): (Vec<Copy>, Vec<Copy>) = copies.into_iter().partition(|c| c.has_note);
         candidates.extend(bare.iter().map(|c| c.message_id));
         candidates.sort_unstable_by_key(|id| id.0);
@@ -286,7 +291,6 @@ impl Store {
 
         // One attachment release for the whole batch.
         let message_ids: Vec<MessageId> = ordered.iter().map(|(id, _)| *id).collect();
-        prune_edit_history(&mut tx, &message_ids).await?;
         let mut freed_of: HashMap<MessageId, Vec<String>> = HashMap::new();
         for (message_id, hex) in release_message_attachments_batch(&mut tx, &message_ids).await? {
             freed_of.entry(message_id).or_default().push(hex);
@@ -307,22 +311,71 @@ impl Store {
         Ok((pruned, detached))
     }
 
-    /// Deletes up to [`OP_FLOOR_SWEEP_BATCH`] `message_ops` rows older than
-    /// `cutoff`, advancing the floor for every channel with one. One
-    /// statement, so no `begin_write` is needed - see `canvas_ops_sweep.rs`
-    /// for the same reasoning on its own single-statement passes.
-    async fn reclaim_message_ops_before(&self, cutoff: i64) -> anyhow::Result<u64> {
-        let reclaimed = sqlx::query!(
-            r#"DELETE FROM message_ops WHERE (channel_id, seq) IN (
-                   SELECT channel_id, seq FROM message_ops WHERE created_at < ? LIMIT ?
-               )"#,
-            cutoff,
-            OP_FLOOR_SWEEP_BATCH
+    /// Deletes `message_ops` rows older than the window of the channel they
+    /// belong to (its own, a thread's parent's, else the Space's; `0` keeps
+    /// forever), advancing each channel's floor. Runs batch by batch, each one
+    /// statement so no `begin_write` is needed - see `canvas_ops_sweep.rs` for
+    /// the same reasoning - until a batch comes back short. One channel at a
+    /// time, through its `(channel_id, seq)` key, so a keep-forever channel's
+    /// old ops are never walked on the way to another channel's deletable ones.
+    async fn reclaim_message_ops(&self, space_days: i64) -> anyhow::Result<u64> {
+        let now = now_ms();
+        let windowed = sqlx::query!(
+            r#"SELECT c.id AS "channel_id!: ChannelId",
+                      COALESCE(cr.retention_days, ?1) AS "days!: i64"
+               FROM channels c
+               LEFT JOIN messages pm ON pm.id = c.parent_message_id
+               LEFT JOIN channel_retention cr
+                      ON cr.channel_id = COALESCE(pm.channel_id, c.id)
+               WHERE COALESCE(cr.retention_days, ?1) > 0"#,
+            space_days
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        let mut reclaimed = 0u64;
+        let mut batches = 0;
+        for channel in windowed {
+            let cutoff = now - channel.days * DAY_MS;
+            while batches < OP_FLOOR_BATCHES_PER_TICK {
+                batches += 1;
+                let batch = sqlx::query!(
+                    r#"DELETE FROM message_ops WHERE (channel_id, seq) IN (
+                           SELECT channel_id, seq FROM message_ops
+                           WHERE channel_id = ?1 AND created_at < ?2
+                           LIMIT ?3
+                       )"#,
+                    channel.channel_id,
+                    cutoff,
+                    OP_FLOOR_SWEEP_BATCH
+                )
+                .execute(&self.pool)
+                .await?
+                .rows_affected();
+                reclaimed += batch;
+                if batch < OP_FLOOR_SWEEP_BATCH as u64 {
+                    break;
+                }
+            }
+        }
+        Ok(reclaimed)
+    }
+
+    /// Drops the quoted text of reports resolved before the Space window, which a
+    /// report keeps only so a moderator can read what was said after it was removed.
+    async fn clear_old_report_snapshots(&self, space_days: i64) -> anyhow::Result<u64> {
+        if space_days <= 0 {
+            return Ok(0);
+        }
+        let cutoff = now_ms() - space_days * DAY_MS;
+        let cleared = sqlx::query!(
+            "UPDATE reports SET snapshot = NULL
+             WHERE snapshot IS NOT NULL AND resolved_at IS NOT NULL AND resolved_at < ?",
+            cutoff
         )
         .execute(&self.pool)
         .await?
         .rows_affected();
-        Ok(reclaimed)
+        Ok(cleared)
     }
 }
 
@@ -395,19 +448,4 @@ async fn release_message_attachments_batch(
         freed.push((*message_id, crate::media::to_hex(sha256)));
     }
     Ok(freed)
-}
-
-/// Edit history is only readable while the message is live, so retention drops it with the message.
-async fn prune_edit_history(
-    tx: &mut sqlx::SqliteConnection,
-    message_ids: &[MessageId],
-) -> Result<(), sqlx::Error> {
-    let mut delete = QueryBuilder::new("DELETE FROM message_edits WHERE message_id IN (");
-    let mut separated = delete.separated(", ");
-    for id in message_ids {
-        separated.push_bind(*id);
-    }
-    delete.push(")");
-    delete.build().execute(tx).await?;
-    Ok(())
 }

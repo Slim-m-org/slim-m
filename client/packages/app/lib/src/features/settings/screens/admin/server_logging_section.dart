@@ -10,6 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../../permissions.dart';
+import '../../../../providers/admin_providers.dart';
 import '../../../../providers/providers.dart';
 import '../../../../widgets/load_error_block.dart';
 import '../../../../widgets/optimistic_setting_state.dart';
@@ -69,25 +71,15 @@ class _ServerLoggingSectionState extends ConsumerState<ServerLoggingSection>
     final api = ref.read(apiProvider);
     final save = ref.read(themeFileSaverProvider);
     var noFiles = false;
-    try {
-      await guard(
-        whatFailed: 'download the server logs',
-        action: () async {
-          final log = await api.serverLogs();
-          noFiles = log == null;
-          if (log == null) return;
-          await save(_fileName(DateTime.now()), log);
-        },
-      );
-    } catch (error, stack) {
-      AppLog.swallowed(
-        LogTag.ui,
-        'Saving the server logs failed',
-        error,
-        stack,
-      );
-      setActionError('Could not save the server logs.');
-    }
+    await guard(
+      whatFailed: 'download the server logs',
+      action: () async {
+        final log = await api.serverLogs();
+        noFiles = log == null;
+        if (log == null) return;
+        await save(_fileName(DateTime.now()), log);
+      },
+    );
     if (!mounted) return;
     setState(() {
       _downloading = false;
@@ -99,6 +91,9 @@ class _ServerLoggingSectionState extends ConsumerState<ServerLoggingSection>
   Widget build(BuildContext context) {
     final settings = ref.watch(spaceSettingsProvider);
     ref.listen(spaceSettingsProvider, (_, next) => retireOptimistic(next));
+    final canDownload = ref.watch(
+      myPermissionsProvider.select((p) => p.hasPermission(Perm.administrator)),
+    );
     final current = optimistic ?? settings.valueOrNull?.debugLogging;
 
     return Column(
@@ -122,19 +117,20 @@ class _ServerLoggingSectionState extends ConsumerState<ServerLoggingSection>
                 message: 'Could not load this setting.',
                 onRetry: () => ref.invalidate(spaceSettingsProvider),
               ),
-            SettingsActionRow(
-              message: _noFiles
-                  ? 'This server keeps no log files.'
-                  : 'Newest lines, kept across restarts.',
-              action: AppButton(
-                label: 'Download',
-                icon: AppIcons.download,
-                size: AppButtonSize.sm,
-                busy: _downloading,
-                semanticLabel: 'Download server logs',
-                onPressed: () => unawaited(_download()),
+            if (canDownload)
+              SettingsActionRow(
+                message: _noFiles
+                    ? 'This server keeps no log files.'
+                    : 'Newest lines, kept across restarts.',
+                action: AppButton(
+                  label: 'Download',
+                  icon: AppIcons.download,
+                  size: AppButtonSize.sm,
+                  busy: _downloading,
+                  semanticLabel: 'Download server logs',
+                  onPressed: () => unawaited(_download()),
+                ),
               ),
-            ),
           ],
         ),
         SettingsSaveFeedback(

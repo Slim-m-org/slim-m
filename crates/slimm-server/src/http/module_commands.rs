@@ -267,6 +267,7 @@ async fn execute_gated(
         command,
         input,
         kind: super::module_run::RunKind::Command,
+        hook: None,
         context,
     };
     super::module_run::run_installed(state, &module, &request, surface).await

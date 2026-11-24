@@ -30,6 +30,7 @@ class VoiceNotificationState {
 
 class VoiceNotificationController extends Notifier<VoiceNotificationState> {
   var _disposed = false;
+  final _editedChannels = <String>[];
 
   @override
   VoiceNotificationState build() {
@@ -39,11 +40,19 @@ class VoiceNotificationController extends Notifier<VoiceNotificationState> {
   }
 
   Future<void> refresh() async {
+    final editsAtStart = _editedChannels.length;
     try {
       final choices = await ref.read(apiProvider).listVoiceNotifications();
       if (_disposed) return;
+      // A channel edited while this was in flight keeps the edit; every other one takes the server's answer.
+      final edited = _editedChannels.skip(editsAtStart).toSet();
       state = VoiceNotificationState(
-        byChannel: {for (final c in choices) c.channelId: c},
+        byChannel: {
+          for (final c in choices)
+            if (!edited.contains(c.channelId)) c.channelId: c,
+          for (final id in edited)
+            if (state.byChannel[id] case final mine?) id: mine,
+        },
       );
     } catch (error, stack) {
       api.reportFailure(
@@ -66,14 +75,15 @@ class VoiceNotificationController extends Notifier<VoiceNotificationState> {
     api.VoiceJoinMode? joins,
     bool? streams,
   }) async {
-    final before = state.byChannel;
+    _editedChannels.add(channelId);
+    final before = state.byChannel[channelId];
     final current = state.forChannel(channelId);
     final next = api.VoiceNotification(
       channelId: channelId,
       joins: joins ?? current.joins,
       streams: streams ?? current.streams,
     );
-    final after = {...before};
+    final after = {...state.byChannel};
     if (next.joins == api.VoiceJoinMode.off && !next.streams) {
       after.remove(channelId);
     } else {
@@ -89,9 +99,24 @@ class VoiceNotificationController extends Notifier<VoiceNotificationState> {
             streams: next.streams,
           );
     } catch (_) {
-      if (!_disposed) state = VoiceNotificationState(byChannel: before);
+      if (!_disposed) _rollBack(channelId, from: after[channelId], to: before);
       rethrow;
     }
+  }
+
+  void _rollBack(
+    String channelId, {
+    required api.VoiceNotification? from,
+    required api.VoiceNotification? to,
+  }) {
+    if (state.byChannel[channelId] != from) return;
+    final restored = {...state.byChannel};
+    if (to == null) {
+      restored.remove(channelId);
+    } else {
+      restored[channelId] = to;
+    }
+    state = VoiceNotificationState(byChannel: restored);
   }
 }
 

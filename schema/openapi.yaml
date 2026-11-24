@@ -1862,17 +1862,16 @@ paths:
       summary: Sign a device out.
       description: >
         Only ever the caller's own device: a device id on someone else's
-        account is reported as missing, so this cannot be used to probe for or
-        evict others. Closes any live WebSocket on the revoked sessions.
+        account answers 204 like one that is already gone, so this cannot be
+        used to probe for or evict others. Closes any live WebSocket on the
+        revoked sessions.
       responses:
         "204":
-          description: The device was signed out.
+          description: The device was signed out, or was already gone.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -3338,7 +3337,10 @@ paths:
         the message says a block is the reason without saying whose. Pass a
         UUIDv7 as `id` to make the request safe to retry: a replay by a
         participant returns the group already made with 200, and an id
-        belonging to anything else is a 409. Participants are announced with
+        belonging to anything else is a 409. An account may be in at most 100
+        groups, and a creation that would pass that for anyone involved is a
+        409; creations are also rate limited per account. Naming a group
+        takes the right to send messages. Participants are announced with
         a `dm.changed` event.
       requestBody:
         required: true
@@ -3462,8 +3464,9 @@ paths:
         Any participant may. Refused with 403 if the person has a block, in
         either direction, with anyone already in the group (the message says
         a block is the reason, not whose), with 409 if the group already has
-        10 people or the person is already in it, and with 404 if the caller
-        is not in the group. Announced with a `dm.changed` event.
+        10 people or the person is already in too many groups, and with 404 if
+        the caller is not in the group. Adding someone already in the group
+        succeeds, so a retry is safe. Announced with a `dm.changed` event.
       requestBody:
         required: true
         content:
@@ -3508,7 +3511,8 @@ paths:
         The group and its history stay for everyone else; the caller loses
         access to all of it, and is removed from its call. The last person to
         leave deletes the group. Announced to the people left with a
-        `dm.changed` event. A caller outside the group gets 404.
+        `dm.changed` event, and the caller's other devices are told to drop
+        the group. A caller who is already out gets 204, so a retry is safe.
       responses:
         "204":
           description: The caller is no longer in the group.
@@ -3758,15 +3762,13 @@ paths:
         The Space owner holds every permission whatever their roles, so counts as an administrator here.
       responses:
         "204":
-          description: The role was deleted.
+          description: The role was deleted, or was already gone.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
         "429":
@@ -4393,20 +4395,18 @@ paths:
         Refused on yourself - delete your own account with `deleteAccount`,
         so that an administrator can leave without needing another one to do
         it for them - and on the last administrator. An account that is
-        already deleted, or never existed, answers 404. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`, the equal-rank case with the reason `you cannot act on someone of equal rank`.
+        already deleted, or never existed, answers 204. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`, the equal-rank case with the reason `you cannot act on someone of equal rank`.
         Deleting the Space owner's own account passes ownership to the
         earliest-joined remaining administrator, else the earliest-joined member.
       responses:
         "204":
-          description: The account is deleted.
+          description: The account is deleted, or already was.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
         "429":
@@ -4477,15 +4477,13 @@ paths:
         A removed member keeps their roles, so restoring one is gated like removing them: their granted permissions must be within the caller's. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`.
       responses:
         "204":
-          description: The member may sign in again.
+          description: The member may sign in again, or was not removed.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -7763,10 +7761,12 @@ paths:
       tags: [push]
       summary: Pause notifications until a deadline (Slack's 30m / 1h / until tomorrow).
       description: >
-        `until_ms` is an absolute epoch-millisecond deadline the client
-        computes for whichever option was chosen - only the client knows the
-        account's own local midnight for "until tomorrow". Must be in the
-        future and no more than a week out. While active, the schedule reads
+        Send `duration_seconds`: the server counts it from its own clock, so a
+        device with a wrong clock still gets the span it chose (the client works
+        out the seconds to its own local midnight for "until tomorrow"). The older
+        absolute `until_ms` is still accepted, and is ignored when both are sent so
+        a client can serve older servers too. Either must end
+        in the future and no more than a week out. While active, the schedule reads
         as off hours in `nothing` mode regardless of the configured window
         or mode, still subject to both allow-lists.
       requestBody:
@@ -9002,7 +9002,7 @@ paths:
         the transcript or there is no such mark on it.
       responses:
         "204":
-          description: Removed.
+          description: Removed, or already gone.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -11095,7 +11095,13 @@ paths:
         none gets ordinary at-least-once delivery: a genuine retry of a
         request whose response never arrived can post a duplicate, which is
         treated as the honest case it is rather than something to silently
-        deduplicate by content.
+        deduplicate by content. A retry of a delivery whose first attempt
+        stored only part of it completes the missing embeds, label and
+        mentions.
+
+
+        The body must be JSON. A missing body or any other
+        content type answers 400 with the usual error shape.
       requestBody:
         required: false
         content:
@@ -11547,13 +11553,11 @@ paths:
       description: Gated on MANAGE_SERVER.
       responses:
         "204":
-          description: The log was deleted.
+          description: The log was deleted, or was already gone.
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/alerts:
@@ -12093,7 +12097,7 @@ paths:
       tags: [space]
       summary: Download the newest server log lines.
       description: >
-        Gated on MANAGE_SERVER and audited. Streams the newest 16 MiB of the
+        Gated on ADMINISTRATOR and audited. Streams the newest 16 MiB of the
         rotating log files on the data volume (decision 0129) as plain text,
         oldest line first, so lines from before the last restart are
         included. When older lines exist the text starts with a line saying
@@ -12877,7 +12881,9 @@ paths:
       description: >
         Every interceptor and permission hook of every installed module, in
         the order they run, with the admin's priority and fail mode and how
-        each has been doing.
+        each has been doing. The run counts, fuel and last error belong to
+        that one hook. The last error is a fixed description of the failure
+        kind, never text the module supplied.
       responses:
         "200":
           description: The hooks in chain order.
@@ -12942,8 +12948,10 @@ paths:
       description: >
         Gated on MANAGE_SERVER. Needs the module's schedule capability
         approved (409 otherwise). The module's principal is allowed to view
-        and post in the chosen text channel, and loses that in the channel it
-        had before. null stops scheduled runs. The caller must be able to post
+        and post in the chosen text channel, keeping any other overwrite it
+        has there, and loses that grant in the channel it had before unless
+        an admin changed it since. A channel where the principal is denied
+        posting answers 409. null stops scheduled runs. The caller must be able to post
         in the chosen channel themselves: one they cannot see answers the 400
         a missing one does, one they can see but not post in answers 403.
       requestBody:
@@ -13204,15 +13212,13 @@ paths:
         added again (decision 0046). The official source cannot be removed.
       responses:
         "204":
-          description: The source was removed.
+          description: The source was removed, or was already gone.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /modules/{moduleId}/commands/{command}:
@@ -13603,15 +13609,13 @@ paths:
             type: string
       responses:
         "204":
-          description: Removed.
+          description: Removed, or already gone.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/themes/{theme_id}/picture:
@@ -16657,6 +16661,14 @@ components:
           description: >
             True when another source already owns this id, so it cannot be
             installed from the source being listed.
+        withdrawn:
+          type: array
+          items:
+            type: string
+          description: Versions the registry withdrew, for example after a security fix.
+        withdrawn_reason:
+          type: string
+          description: The registry's reason for withdrawing those versions.
     DockSource:
       type: object
       required: [id, repo, official]
@@ -17004,6 +17016,7 @@ components:
         last_error:
           type: string
           nullable: true
+          description: A fixed description of the failure kind, never text the module supplied.
         last_error_at:
           type: integer
           format: int64
@@ -17480,6 +17493,11 @@ components:
           description: >
             The fuel one run may burn, which `last_fuel_used` and
             `max_fuel_used` on its run stats are read against.
+        withdrawn_reason:
+          type: string
+          description: >
+            Why the registry withdrew the installed version. Only the
+            installed listing carries it, and only for the official source.
     DockRunStat:
       type: object
       required:
@@ -18287,10 +18305,16 @@ components:
             - voice_move
             - owner_handoff
             - owner_timeout_ended
+            - message_pin_changed
+            - message_preview_removed
+            - webhook_rename
           description: >
             `owner_handoff` means ownership passed to the subject, and
             `owner_timeout_ended` that the subject's timeout ended because
-            they became the owner.
+            they became the owner. `message_pin_changed` and
+            `message_preview_removed` are a moderator's act on another
+            member's message, which is the subject; `webhook_rename`'s
+            reason is the new label.
         reason:
           type: [string, "null"]
         until:
@@ -19438,7 +19462,7 @@ components:
         A Discord incoming-webhook body. The promise is acceptance, not
         fidelity: an unrecognised field never refuses the request, since the
         caller here is somebody else's program and a loud refusal would hide
-        their bug rather than ours. Only `content`, `username` and `embeds`
+        their bug rather than ours. Only `content`, `username`, `embeds` and `allowed_mentions`
         are honoured; every other property below is accepted and silently
         discarded, field by field, rather than refused.
       properties:
@@ -19490,7 +19514,8 @@ components:
             A string that does not parse, or any other type, drops the
             timestamp and the delivery still posts. A null `embeds` or a null
             embed `fields` reads as empty. `SendMessageRequest.embeds` is
-            unchanged and still refuses a string timestamp with 400.
+            unchanged and still refuses a string timestamp with 400. An
+            integer timestamp outside 1970 through 9999 is dropped.
         avatar_url:
           description: >-
             Accepted and discarded, permanently. Honouring it would mean
@@ -19517,9 +19542,11 @@ components:
             unauthenticated writer.
         allowed_mentions:
           description: >-
-            Accepted and discarded in this build. Intended to later narrow,
-            never widen, which of a message's mentions resolve; not yet
-            wired in.
+            Honoured as a restriction only: it narrows which mentions
+            resolve and never widens them. Without `users` in `parse`, no
+            member is mentioned except those listed in `users`, so
+            `{"parse": []}` mentions nobody. `everyone` and `roles` in
+            `parse` grant nothing a webhook does not already have.
     DeliveredWebhookMessage:
       type: object
       description: >-
@@ -20528,7 +20555,10 @@ components:
         props:
           type: object
           additionalProperties: true
-          description: The whole props an `edit` wrote to a note or text box.
+          description: >-
+            The note's or text box's props after an `edit`. A reader without
+            MANAGE_CANVAS gets the object's current props, and an empty
+            object once it is erased; a moderator gets what the edit wrote.
 
     CanvasOpPage:
       type: object
@@ -20926,6 +20956,15 @@ components:
             A webhook post's own `username` label, or null on every other
             message. A label only: `author_display_name` stays the webhook's
             name and clients keep the Webhook badge beside it.
+        repost_of_author_id:
+          type: [string, "null"]
+          format: uuid
+          description: >-
+            The member whose words a bot re-posted in this message, or null on
+            every other one. A viewer's blocks cover the message as they cover
+            that member's own, in the transcript and in push. Null once that
+            member's account has been deleted, except to a viewer who had
+            blocked it, exactly as `author_id` is.
         via_module:
           type: [object, "null"]
           description: >-
@@ -21885,6 +21924,15 @@ components:
             exists. See the `Embed` schema for what a caller gets back.
           items:
             $ref: "#/components/schemas/RequestEmbed"
+        repost_of_author_id:
+          type: string
+          format: uuid
+          description: >-
+            The member whose words a bot is re-posting, so a viewer who blocked
+            that member does not see or get pushed the repost. Honoured only
+            from a bot and ignored from a person; a bot naming anyone who is
+            not a live member gets a 400. Optional and additive: a server
+            without it ignores the field.
         components:
           type: array
           description: >-
@@ -22283,6 +22331,10 @@ components:
               format: int64
             - type: "null"
           description: Epoch-millisecond deadline; while in the future the schedule reads as off hours in `nothing` mode regardless of the window or mode.
+        server_now:
+          type: integer
+          format: int64
+          description: The server's clock in epoch milliseconds when this was read; compare `snooze_until` with it, not with the device clock.
         allowed_user_ids:
           type: array
           items:
@@ -22322,12 +22374,15 @@ components:
 
     SetSnoozeRequest:
       type: object
-      required: [until_ms]
       properties:
         until_ms:
           type: integer
           format: int64
-          description: Epoch-millisecond deadline, in the future and no more than a week out.
+          description: Epoch-millisecond deadline, in the future and no more than a week out. Prefer `duration_seconds`.
+        duration_seconds:
+          type: integer
+          format: int64
+          description: Seconds from the server's now, at most a week.
 
     SnoozeResponse:
       type: object
@@ -23213,6 +23268,8 @@ components:
         - $ref: "#/components/schemas/ReadStateChanged"
         - $ref: "#/components/schemas/NotificationOverrideChanged"
         - $ref: "#/components/schemas/CategoryMuteChanged"
+        - $ref: "#/components/schemas/BlocksChanged"
+        - $ref: "#/components/schemas/AccountNotificationsChanged"
         - $ref: "#/components/schemas/MessageEphemeral"
         - $ref: "#/components/schemas/MessageComponents"
         - $ref: "#/components/schemas/MessageEmbeds"
@@ -24306,6 +24363,10 @@ components:
         status:
           type: string
           enum: [online, away, dnd, offline]
+        visibility:
+          type: string
+          enum: [online, away, dnd, hidden]
+          description: The account's own chosen visibility. Present only on a frame about the receiving account itself, so its other devices need not refetch `/me`.
         activity:
           $ref: "#/components/schemas/PresenceActivity"
         devices:
@@ -24788,6 +24849,21 @@ components:
             `everything`, `mentions` or `nothing`; null once the channel follows the account
             default.
 
+    AccountNotificationsChanged:
+      type: object
+      required: [type, scope]
+      description: >
+        This account's notification schedule, snooze, allow-lists or account
+        default changed on one of its devices. Delivered only to the account's
+        own connections; refetch the named state.
+      properties:
+        type:
+          type: string
+          enum: [account_notifications.changed]
+        scope:
+          type: string
+          description: "`schedule` or `preference`; ignore any other value."
+
     CategoryMuteChanged:
       type: object
       required: [type, category_id, muted]
@@ -24804,6 +24880,18 @@ components:
           format: uuid
         muted:
           type: boolean
+
+    BlocksChanged:
+      type: object
+      required: [type]
+      description: >
+        This account's block list changed from one of its devices, by a block
+        or an unblock. Delivered only to the account's own connections. It
+        names nobody: read the list back with `GET /blocks`.
+      properties:
+        type:
+          type: string
+          enum: [blocks.changed]
 
     NewDeviceSignIn:
       type: object

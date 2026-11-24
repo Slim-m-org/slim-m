@@ -241,7 +241,8 @@ The manage routes that take a channel or category id now also need VIEW_CHANNEL 
 A category's grant ceiling is what the caller holds under the category's own rows, the same ceiling a channel's rows always had, in place of the deployment-wide set.
 Decision 0125's flow still works, because the row that keeps the caller in is written in the same save that makes the category private.
 
-Not changed, and left to the owner: `GET /categories` still lists every category to a channel manager (decision 0120), the audit log still names what was changed to anyone with MANAGE_SERVER, and a manager can still file a channel under, reorder, rename or delete a category whose channels they cannot see.
+Not changed, and left to the owner: `GET /categories` still lists every category to a channel manager (decision 0120), and a manager can still file a channel under, reorder, rename or delete a category whose channels they cannot see.
+The audit log, which did name what was changed to anyone with MANAGE_SERVER, now hides the detail of a row about a channel or category its reader cannot view.
 
 ### The same day, second pass: settings that name a channel
 

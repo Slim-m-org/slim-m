@@ -26,13 +26,16 @@ class ModuleSoundSettingsController extends StateNotifier<bool> {
   }
 
   final Ref _ref;
+  var _touched = false;
 
   Future<void> _load() async {
     final prefs = await _ref.read(preferencesProvider.future);
+    if (!mounted || _touched) return;
     state = prefs.getBool(moduleSoundEnabledKey) ?? true;
   }
 
   Future<void> setEnabled(bool enabled) async {
+    _touched = true;
     state = enabled;
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(moduleSoundEnabledKey, enabled);

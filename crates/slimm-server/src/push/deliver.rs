@@ -15,7 +15,7 @@ use crate::store::{Store, now_ms};
 
 use super::attention::{SkipReason, SkipSummary, narrow_with_reasons};
 use super::debounce::Debounce;
-use super::recipients::message_audience;
+use super::recipients::{MentionReach, message_audience};
 use super::{Enabled, SentMessage, dispatch, envelope};
 
 /// How long a device's `foreground` report counts as still current, the same
@@ -110,15 +110,19 @@ async fn deliver_inner(
         presence,
         reply_ping,
         mass_authority,
+        mention_only,
     } = sent;
-    let (recipients, mentioned) = match message_audience(
+    let (mut recipients, mut mentioned) = match message_audience(
         &store,
         channel_id,
         author_id,
         &content,
         &presence,
-        reply_ping,
-        mass_authority,
+        MentionReach {
+            reply_ping,
+            mass_authority,
+            only: mention_only,
+        },
     )
     .await
     {
@@ -128,6 +132,23 @@ async fn deliver_inner(
             return;
         }
     };
+    match store.repost_author(message_id).await {
+        Ok(Some(reposted)) => match store.blockers_of(reposted).await {
+            Ok(blockers) => {
+                recipients.retain(|user_id| !blockers.contains(user_id));
+                mentioned.retain(|user_id| !blockers.contains(user_id));
+            }
+            Err(err) => {
+                tracing::warn!(error = %err, %channel_id, "push: failed to read blocks");
+                return;
+            }
+        },
+        Ok(None) => {}
+        Err(err) => {
+            tracing::warn!(error = %err, %channel_id, "push: failed to read repost author");
+            return;
+        }
+    }
     let narrowed =
         match narrow_with_reasons(&store, channel_id, seq, &presence.viewing(), recipients).await {
             Ok(narrowed) => narrowed,

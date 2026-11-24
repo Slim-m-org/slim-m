@@ -12,7 +12,7 @@ use crate::ids::{ChannelId, UserId};
 use crate::notification_schedule::degrade_for_off_hours;
 use crate::notifications::NotificationPreference;
 use crate::permissions::Permissions;
-use crate::presence::PresenceTracker;
+use crate::presence::{PresenceTracker, Visibility};
 use crate::store::{NotificationChoice, Store, ThreadParent};
 
 use super::mention_grammar::{mentioned_role_names, mentioned_usernames};
@@ -77,26 +77,59 @@ pub async fn message_recipients(
         author_id,
         content,
         presence,
-        None,
-        Some(author_id),
+        MentionReach {
+            mass_authority: Some(author_id),
+            ..MentionReach::default()
+        },
     )
     .await?;
     Ok(recipients)
 }
 
+/// [`message_recipients`] for a message whose mentions are limited to `only`, as a webhook's `allowed_mentions` does.
+pub async fn message_recipients_limited_to(
+    store: &Store,
+    channel_id: ChannelId,
+    author_id: UserId,
+    content: &str,
+    only: Vec<UserId>,
+) -> anyhow::Result<Vec<UserId>> {
+    let (recipients, _mentioned) = message_audience(
+        store,
+        channel_id,
+        author_id,
+        content,
+        &PresenceTracker::new(),
+        MentionReach {
+            only: Some(only),
+            ..MentionReach::default()
+        },
+    )
+    .await?;
+    Ok(recipients)
+}
+
+/// How far a message's mentions reach beyond the names written in it.
+#[derive(Default)]
+pub(crate) struct MentionReach {
+    /// The replied-to author a reply chose to ping.
+    pub reply_ping: Option<UserId>,
+    /// Whose [`Permissions::MENTION_EVERYONE`] decides how far a mass or role mention goes: the
+    /// author for what they typed, someone else or `None` for text they did not.
+    pub mass_authority: Option<UserId>,
+    /// When set, only these members can end up mentioned; it narrows and never adds.
+    pub only: Option<Vec<UserId>>,
+}
+
 /// [`message_recipients`] plus who among everyone the message mentions, so a mention can be
 /// pushed as one.
-///
-/// `mass_authority` is whose [`Permissions::MENTION_EVERYONE`] decides how far a mass or role
-/// mention goes: the author for what they typed, someone else or `None` for text they did not.
 pub(crate) async fn message_audience(
     store: &Store,
     channel_id: ChannelId,
     author_id: UserId,
     content: &str,
     presence: &PresenceTracker,
-    reply_ping: Option<UserId>,
-    mass_authority: Option<UserId>,
+    reach: MentionReach,
 ) -> anyhow::Result<(Vec<UserId>, HashSet<UserId>)> {
     // A lobby's own chat is never on screen (decision 0065), so nothing in it wakes anyone.
     if store
@@ -117,14 +150,17 @@ pub(crate) async fn message_audience(
     let mut mentioned = resolved_mentions(
         store,
         channel_id,
-        mass_authority,
+        reach.mass_authority,
         content,
         &viewers,
         presence,
     )
     .await?;
     // A reply's ping was already checked against the channel at send; it still needs a device and no block.
-    mentioned.extend(reply_ping.filter(|pinged| viewers.contains(pinged)));
+    mentioned.extend(reach.reply_ping.filter(|pinged| viewers.contains(pinged)));
+    if let Some(only) = &reach.only {
+        mentioned.retain(|user| only.contains(user));
+    }
     // Resolved once: both steps below ask the same "is this a thread, and whose" question.
     let parent = store.thread_parent(channel_id).await?;
     let viewers =
@@ -334,6 +370,10 @@ async fn narrow_for_thread(
 /// see `store/notification_schedule.rs`'s own doc comment for why that is a
 /// distinct state from a schedule with every day empty.
 ///
+/// A recipient on Do not disturb is dropped first, for every message, mention
+/// and `@everyone` alike (decision 0136); only rings and security alerts, which
+/// never come through here, still reach them.
+///
 /// A channel the recipient can read but not post in (a feed, an announcement
 /// channel) wakes them only for mentions unless they chose otherwise for that
 /// channel: [`read_only_default`] has the rule.
@@ -371,10 +411,14 @@ async fn narrow_for_notification_preference(
     let author_allowed = store
         .viewers_allowing_author_off_hours(&viewers, author_id)
         .await?;
+    let visibility = store.presence_visibility_many(&viewers).await?;
     let now_ms = crate::store::now_ms();
     Ok(viewers
         .into_iter()
         .filter(|user_id| {
+            if visibility.get(user_id) == Some(&Visibility::Dnd) {
+                return false;
+            }
             let choice = choices.get(user_id).copied().unwrap_or(NotificationChoice {
                 preference: NotificationPreference::default(),
                 overridden: false,

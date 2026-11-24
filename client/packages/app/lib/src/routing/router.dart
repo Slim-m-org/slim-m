@@ -17,6 +17,7 @@ import 'package:slimm_design_system/design_system.dart'
 
 import '../discord_link_callback.dart';
 import '../invite_pending.dart';
+import '../link_query.dart';
 import '../providers/overlay_cover.dart';
 import '../providers/providers.dart';
 import '../features/channels/providers/threads.dart';
@@ -108,9 +109,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     // sign-out and revocation take effect immediately.
     refreshListenable: _RedirectListenable(ref),
     redirect: (context, state) =>
+        claimLinkHandBack(ref, state.uri, signedIn: session.isSignedIn) ??
         (session.isSignedIn
-            ? (claimWebDiscordLink(ref, state.uri) ??
-                  claimWebSteamLink(ref, state.uri))
+            ? claimWebInviteSignedIn(ref, state.uri, showJoin: showJoinFlow)
             : claimWebInvite(ref, state.uri)) ??
         _redirect(
           signedIn: session.isSignedIn,
@@ -272,7 +273,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           context,
           DockModuleScreen(
             moduleId: state.pathParameters['moduleId']!,
-            source: state.uri.queryParameters['source'],
+            source: queryParam(state.uri, 'source'),
           ),
         ),
       ),
@@ -338,6 +339,10 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
   return router;
 });
+
+/// Hands the join flow to the account that now holds a tapped invite.
+void showJoinFlow(ProviderContainer container) =>
+    container.read(routerProvider).go(Routes.onboarding);
 
 String? _redirect({
   required bool signedIn,

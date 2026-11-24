@@ -12,6 +12,7 @@ api.NotificationSchedule _schedule({
   required List<api.NotificationScheduleDay> days,
   api.OffHoursMode mode = api.OffHoursMode.mentions,
   int? snoozeUntil,
+  int clockOffsetMs = 0,
 }) => api.NotificationSchedule(
   timezone: 'UTC',
   days: days,
@@ -19,6 +20,7 @@ api.NotificationSchedule _schedule({
   snoozeUntil: snoozeUntil,
   allowedUserIds: const [],
   allowedChannelIds: const [],
+  clockOffsetMs: clockOffsetMs,
 );
 
 api.NotificationScheduleDay _day(int weekday, int start, int end) =>
@@ -119,6 +121,24 @@ void main() {
       );
       expect(
         evaluateNotificationSchedule(schedule, now: DateTime(2024, 3, 8, 12)),
+        OffHoursState.offNothing,
+      );
+    });
+
+    test('a snooze is judged on the server clock, not a fast device clock', () {
+      final deviceNow = DateTime(2024, 3, 8, 12);
+      const hourFast = 3600 * 1000;
+      final snoozeUntil =
+          deviceNow.millisecondsSinceEpoch - hourFast + 30 * 60 * 1000;
+      final schedule = _schedule(
+        days: [for (var d = 0; d < 7; d++) _day(d, 0, 1440)],
+        snoozeUntil: snoozeUntil,
+        clockOffsetMs: -hourFast,
+      );
+
+      expect(schedule.isSnoozed, isFalse, reason: 'device clock is outside');
+      expect(
+        evaluateNotificationSchedule(schedule, now: deviceNow),
         OffHoursState.offNothing,
       );
     });

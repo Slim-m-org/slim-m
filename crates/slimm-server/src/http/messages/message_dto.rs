@@ -170,6 +170,10 @@ pub(crate) struct MessageDto {
     /// drop it. Set by the read enrichment and the live frames, never by this
     /// conversion.
     pub(crate) via_module: Option<ViaModuleDto>,
+    /// The member whose words a bot re-posted, so a viewer's blocks cover it as
+    /// they cover that member's own messages; `null` on every other message.
+    /// Set by the read enrichment and the live frames, never by this conversion.
+    pub(crate) repost_of_author_id: Option<String>,
     /// Buttons a bot attached; see decision 0039. A bot may replace them.
     #[serde(default)]
     pub(crate) components: Vec<crate::components::ComponentRow>,
@@ -340,6 +344,7 @@ impl From<Message> for MessageDto {
             embeds: Vec::new(),
             webhook_username: None,
             via_module: None,
+            repost_of_author_id: None,
             components: Vec::new(),
         }
     }

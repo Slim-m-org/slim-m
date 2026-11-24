@@ -9,17 +9,18 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError, TryLockError};
 use std::time::{Duration, Instant};
 
-use serde_json::{Map, Value};
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteRow};
+use serde_json::Map;
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{AssertSqlSafe, ConnectOptions, Connection, Row, SqlitePool};
 use tokio::runtime::Handle;
 
 use super::data::{DataBackend, DataError, Outcome};
 use super::data_migrate::{newly_unique, plan};
-use super::data_schema::{ColumnType, DataSchema};
+use super::data_rows::{Overflow, decode_scalar, read_rows};
+use super::data_schema::DataSchema;
 use super::data_sql::{Bind, Shape, Statement};
 
 const BUSY_TIMEOUT: Duration = Duration::from_secs(2);
@@ -228,15 +229,29 @@ impl DataBackend for SqliteData {
         budget: Duration,
     ) -> Result<Outcome, DataError> {
         self.with_opened(module_id, |o| {
-            let _turn = o
-                .statement_turn
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner);
-            o.interrupt.set(budget);
+            let started = Instant::now();
+            let _turn = take_turn(&o.statement_turn, budget).ok_or(DataError::TooSlow)?;
+            o.interrupt.set(budget.saturating_sub(started.elapsed()));
             let outcome = self.handle.block_on(run(&o.pool, statement));
             o.interrupt.clear();
             outcome
         })
+    }
+}
+
+/// How often a waiting statement looks again for its turn.
+const TURN_POLL: Duration = Duration::from_millis(2);
+
+/// The statement turn, waited for at most `wait`; `None` when another statement still holds it.
+fn take_turn(turn: &Mutex<()>, wait: Duration) -> Option<MutexGuard<'_, ()>> {
+    let give_up = Instant::now() + wait;
+    loop {
+        match turn.try_lock() {
+            Ok(guard) => return Some(guard),
+            Err(TryLockError::Poisoned(poisoned)) => return Some(poisoned.into_inner()),
+            Err(TryLockError::WouldBlock) if Instant::now() >= give_up => return None,
+            Err(TryLockError::WouldBlock) => std::thread::sleep(TURN_POLL),
+        }
     }
 }
 
@@ -292,12 +307,20 @@ async fn stored_schema(path: &Path) -> Result<Option<DataSchema>, String> {
         .fetch_optional(&mut conn)
         .await;
     let _ = conn.close().await;
-    // A file without the meta table has simply not been migrated yet.
-    let Ok(Some(row)) = row else {
-        return Ok(None);
+    let row = match row {
+        Ok(Some(row)) => row,
+        Ok(None) => return Ok(None),
+        Err(err) if is_missing_meta_table(&err) => return Ok(None),
+        Err(err) => return Err(unreadable(err)),
     };
     let text: String = row.try_get(0).map_err(unreadable)?;
     serde_json::from_str(&text).map(Some).map_err(unreadable)
+}
+
+/// A file without the meta table has simply not been migrated yet; any other failure is real.
+fn is_missing_meta_table(err: &sqlx::Error) -> bool {
+    err.as_database_error()
+        .is_some_and(|db| db.message().contains("no such table"))
 }
 
 async fn open_existing(path: &Path) -> Result<Option<Opened>, DataError> {
@@ -387,7 +410,7 @@ async fn refuse_duplicates(path: &Path, columns: &[(String, String)]) -> Result<
     result
 }
 
-fn classify(err: &sqlx::Error) -> DataError {
+pub(super) fn classify(err: &sqlx::Error) -> DataError {
     let Some(db) = err.as_database_error() else {
         return DataError::Unavailable;
     };
@@ -413,24 +436,16 @@ async fn run(pool: &SqlitePool, statement: &Statement) -> Result<Outcome, DataEr
     let map = |e: sqlx::Error| classify(&e);
     match &statement.shape {
         Shape::Rows(columns) => {
-            let rows = query.fetch_all(pool).await.map_err(map)?;
-            let rows = rows
-                .iter()
-                .map(|row| decode_row(row, columns))
-                .collect::<Result<_, _>>()?;
+            let (rows, _) = read_rows(query, pool, columns, Overflow::Refuse).await?;
             Ok(Outcome {
                 rows,
                 ..Outcome::default()
             })
         }
         Shape::Returning(columns) => {
-            let rows = query.fetch_all(pool).await.map_err(map)?;
-            let rows: Vec<_> = rows
-                .iter()
-                .map(|row| decode_row(row, columns))
-                .collect::<Result<_, _>>()?;
+            let (rows, changed) = read_rows(query, pool, columns, Overflow::Drop).await?;
             Ok(Outcome {
-                changed: rows.len() as u64,
+                changed,
                 rows,
                 scalar: None,
             })
@@ -454,40 +469,11 @@ async fn run(pool: &SqlitePool, statement: &Statement) -> Result<Outcome, DataEr
         }
         Shape::Scalar(ty) => {
             let row = query.fetch_one(pool).await.map_err(map)?;
-            let value = decode(&row, 0, *ty)?;
+            let value = decode_scalar(&row, *ty)?;
             Ok(Outcome {
                 scalar: Some(value),
                 ..Outcome::default()
             })
         }
     }
-}
-
-fn decode_row(
-    row: &SqliteRow,
-    columns: &[(String, ColumnType)],
-) -> Result<Map<String, Value>, DataError> {
-    let mut out = Map::new();
-    for (i, (name, ty)) in columns.iter().enumerate() {
-        out.insert(name.clone(), decode(row, i, *ty)?);
-    }
-    Ok(out)
-}
-
-fn decode(row: &SqliteRow, index: usize, ty: ColumnType) -> Result<Value, DataError> {
-    let bad = |_| DataError::Unavailable;
-    Ok(match ty {
-        ColumnType::Int => row.try_get::<Option<i64>, _>(index).map_err(bad)?.into(),
-        ColumnType::Real => match row.try_get::<Option<f64>, _>(index).map_err(bad)? {
-            None => Value::Null,
-            Some(x) => {
-                Value::Number(serde_json::Number::from_f64(x).ok_or(DataError::Unavailable)?)
-            }
-        },
-        ColumnType::Text => row.try_get::<Option<String>, _>(index).map_err(bad)?.into(),
-        ColumnType::Bool => row
-            .try_get::<Option<i64>, _>(index)
-            .map_err(bad)?
-            .map_or(Value::Null, |n| Value::Bool(n != 0)),
-    })
 }

@@ -69,6 +69,11 @@ pub(crate) async fn with_reactions(
             .thread_unread_counts(&thread_channel_ids, viewer),
     )?;
     let previews_removed = state.store.link_preview_suppressed_among(&ids).await?;
+    let mut repost_authors = state.store.repost_authors_for_messages(&ids).await?;
+    state
+        .store
+        .anonymize_deleted_repost_authors(viewer, &mut repost_authors)
+        .await?;
 
     let mut dtos: Vec<MessageDto> = Vec::with_capacity(messages.len());
     for message in messages {
@@ -129,6 +134,7 @@ pub(crate) async fn with_reactions(
         dto.link_previews_removed = previews_removed.contains(&id);
         dto.webhook_username = webhook_usernames.remove(&id);
         dto.via_module = module_origins.remove(&id).map(ViaModuleDto::from);
+        dto.repost_of_author_id = repost_authors.remove(&id).map(|author| author.to_string());
         if let Some(pos) = embeds_by_message.iter().position(|(mid, _)| *mid == id) {
             let (_, stored) = embeds_by_message.swap_remove(pos);
             dto.embeds = embeds::dtos_from_stored(&state.link_previews, stored);

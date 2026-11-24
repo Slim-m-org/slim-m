@@ -126,8 +126,8 @@ void main() {
         Uri.parse(
           buildMessageLink(
             server: Uri.parse(_b),
-            channelId: 'cb',
-            messageId: 'm1',
+            channelId: '018f0000-0000-7000-8000-0000000000c4',
+            messageId: '018f0000-0000-7000-8000-0000000000a1',
           ),
         ),
       );
@@ -234,6 +234,11 @@ void main() {
     final back = NotificationTarget.decode(target.encode())!;
     expect((back.origin, back.channelId), (_b, 'cb'));
     expect(NotificationTarget.decode(null), isNull);
+    final channelOnly = NotificationTarget.decode(
+      const NotificationTarget(channelId: 'cb').encode(),
+    )!;
+    expect(channelOnly.channelId, 'cb');
+    expect(channelOnly.origin, isNull);
     expect(NotificationTarget.decode('opaque-envelope'), isNull);
     expect(NotificationTarget.decode('{"o":"x"}'), isNull);
   });

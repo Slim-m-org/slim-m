@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/features/voice/providers/settled_double_writes.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -41,6 +42,7 @@ Future<FakeSettingsSession> _pump(WidgetTester tester) async {
           ref.onDispose(api.close);
           return api;
         }),
+        channelJoinMutedProvider.overrideWithValue((_) async => false),
         voiceControllerProvider.overrideWith(
           (ref) => VoiceController(ref, session: session),
         ),

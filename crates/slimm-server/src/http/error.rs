@@ -365,6 +365,9 @@ impl From<SendError> for ApiError {
     fn from(err: SendError) -> Self {
         match err {
             SendError::IdConflict => ApiError::Conflict("message id already used"),
+            SendError::ForwardSourceGone => {
+                ApiError::BadRequest("forwarded_from_id must name a live message you can see")
+            }
             SendError::AttachmentNotFound => {
                 ApiError::BadRequest("attachment not found; upload it first")
             }

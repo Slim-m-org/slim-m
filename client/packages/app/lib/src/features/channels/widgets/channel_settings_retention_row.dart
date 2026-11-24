@@ -9,8 +9,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/confirm_dialog.dart';
+import '../../../widgets/load_error_block.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_select_row.dart';
 import '../../settings/widgets/settings_save_feedback.dart';
@@ -86,10 +88,20 @@ class _ChannelRetentionRowState extends ConsumerState<ChannelRetentionRow>
 
   @override
   Widget build(BuildContext context) {
-    final current = ref
-        .watch(channelRetentionProvider(widget.channelId))
-        .valueOrNull;
-    if (current == null) return const SizedBox.shrink();
+    final retention = ref.watch(channelRetentionProvider(widget.channelId));
+    final current = retention.valueOrNull;
+    if (current == null) {
+      return retention.hasError && !retention.isLoading
+          ? LoadErrorBlock(
+              message: 'Could not load this channel\'s message retention.',
+              onRetry: () =>
+                  ref.invalidate(channelRetentionProvider(widget.channelId)),
+            )
+          : const Padding(
+              padding: EdgeInsets.all(AppSpacing.s16),
+              child: Center(child: AppSpinner()),
+            );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

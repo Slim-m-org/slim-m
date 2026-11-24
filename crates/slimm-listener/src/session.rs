@@ -74,6 +74,8 @@ struct Session<R> {
     in_flight: usize,
     results: UnboundedSender<Done>,
     heard: HashMap<String, Heard>,
+    /// Bumped each time a speaker leaves the include set, so work dispatched before is known stale.
+    consent: HashMap<String, u64>,
 }
 
 /// What one speaker's audio looked like, so a silent transcript can be told apart from a quiet one.
@@ -120,6 +122,7 @@ pub async fn run<R: RoomSource>(
         in_flight: 0,
         results,
         heard: HashMap::new(),
+        consent: HashMap::new(),
     };
     tracing::info!(session = %session.id, included = session.include.len(), "listening to a call");
     let _ = session.reports.send(Report::Started {
@@ -201,6 +204,7 @@ impl<R: RoomSource> Session<R> {
         for gone in self.include.difference(&set).cloned().collect::<Vec<_>>() {
             self.endpoints.remove(&gone);
             self.backlog.forget(&gone, now);
+            *self.consent.entry(gone).or_default() += 1;
         }
         self.include = set;
         self.reconcile();
@@ -260,7 +264,7 @@ impl<R: RoomSource> Session<R> {
             .endpoints
             .entry(identity.to_owned())
             .or_insert_with(|| Endpointer::new(origin));
-        let utterances = endpoint.push(samples);
+        let utterances = endpoint.push_at(samples, origin);
         let too_short = endpoint.too_short();
         self.note_heard(identity, samples, utterances.len(), too_short);
         self.queue_all(identity, utterances);
@@ -287,9 +291,11 @@ impl<R: RoomSource> Session<R> {
                 return;
             };
             self.in_flight += 1;
+            let generation = self.generation(&next.identity);
             self.pool.submit(Work {
                 meta: Meta {
                     session: self.id.clone(),
+                    generation,
                     identity: next.identity,
                     start_ms: next.utterance.start_ms,
                     end_ms: next.utterance.voiced_end_ms,
@@ -297,8 +303,13 @@ impl<R: RoomSource> Session<R> {
                 pcm: next.utterance.pcm,
                 language: self.language.clone(),
                 reply: self.results.clone(),
+                cancel: None,
             });
         }
+    }
+
+    fn generation(&self, identity: &str) -> u64 {
+        self.consent.get(identity).copied().unwrap_or(0)
     }
 
     fn on_done(&mut self, finished: Done) {
@@ -313,7 +324,9 @@ impl<R: RoomSource> Session<R> {
             }
         };
         // Consent can be withdrawn while an utterance is being transcribed.
-        if !self.include.contains(&meta.identity) {
+        if !self.include.contains(&meta.identity)
+            || meta.generation != self.generation(&meta.identity)
+        {
             return;
         }
         let heard = self.heard.entry(meta.identity.clone()).or_default();

@@ -20,6 +20,10 @@ import 'package:slimm_platform/platform.dart';
 
 import '../../features/accounts/providers/account_host.dart';
 import '../../features/accounts/providers/account_providers.dart';
+import '../../features/accounts/providers/notification_target.dart';
+import 'push_channel_providers.dart' show localNotificationsProvider;
+import '../../features/accounts/providers/account_slot.dart'
+    show accountActiveProvider;
 import '../../routing/routes.dart';
 import '../../providers/providers.dart' show storeProvider;
 import '../../routing/router.dart';
@@ -99,7 +103,9 @@ Future<AccountRuntime?> _ownerOf(AccountHost host, String channelId) async {
 final notificationTapRouterProvider = Provider<void>((ref) {
   final channel = ref.watch(notificationTapChannelProvider);
 
-  void go(String? channelId) {
+  void go(String? channelId, {String? origin}) {
+    // The channel is shared by every account's container; only the one on screen acts on a tap.
+    if (!ref.read(accountActiveProvider)) return;
     final route = channelRouteForTap(channelId);
     if (route == null) return;
     final host = ref.read(accountHostProvider);
@@ -107,13 +113,19 @@ final notificationTapRouterProvider = Provider<void>((ref) {
       ref.read(routerProvider).go(route);
       return;
     }
-    unawaited(openChannelOnOwner(host, channelId!));
+    unawaited(openChannelOnOwner(host, channelId!, origin: origin));
   }
 
   final subscription = channel.taps.listen(go);
   ref.onDispose(subscription.cancel);
 
   unawaited(channel.takeInitial().then(go));
+  unawaited(
+    ref.read(localNotificationsProvider).launchPayload().then((payload) {
+      final target = NotificationTarget.decode(payload);
+      if (target != null) go(target.channelId, origin: target.origin);
+    }),
+  );
 });
 
 /// The platform seam, overridable in tests.

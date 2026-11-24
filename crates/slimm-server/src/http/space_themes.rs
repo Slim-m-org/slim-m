@@ -19,8 +19,9 @@ use super::AppState;
 use super::attachments::serve;
 use super::error::ApiError;
 use super::extract::{
-    ASSET, AUTHED_READ, Authed, AuthedLimited, Json, enforce, require_manage_server,
+    ASSET, AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce, require_manage_server,
 };
+use super::participant::Participant;
 use crate::hub::Event;
 use crate::ids::{ThemeId, UserId};
 use crate::ratelimit::Class;
@@ -31,10 +32,15 @@ use crate::store::{PublishError, SpaceTheme};
 /// larger than the bytes it carries.
 const BODY_LIMIT_BYTES: usize = (MAX_PICTURE_BYTES / 3) * 4 + 65_536;
 
-pub fn routes() -> Router<AppState> {
+/// Listing and publishing, mounted apart from [`routes`] because a picture needs a longer request timeout.
+pub fn publish_routes() -> Router<AppState> {
     Router::new()
         .route("/space/themes", get(list).post(publish))
         .route_layer(DefaultBodyLimit::max(BODY_LIMIT_BYTES))
+}
+
+pub fn routes() -> Router<AppState> {
+    Router::new()
         .route("/space/themes/{theme_id}", axum::routing::delete(remove))
         .route("/space/themes/{theme_id}/picture", get(picture))
         .route("/space/default-theme", put(set_default))
@@ -94,12 +100,10 @@ async fn list(
 }
 
 async fn publish(
-    Authed(ctx): Authed,
-    parts: Parts,
+    Participant(ctx): Participant<WRITE>,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> Result<(StatusCode, Json<SpaceThemeDto>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let valid = space_theme::validate(&body)
         .map_err(|problems| ApiError::BadRequestDetail(problems.join("; ")))?;
     let author_name = state
@@ -134,11 +138,9 @@ async fn remove(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let id = parse_id(&theme_id)?;
-    let theme = state
-        .store
-        .space_theme(id)
-        .await?
-        .ok_or(ApiError::NotFound("theme not found"))?;
+    let Some(theme) = state.store.space_theme(id).await? else {
+        return Ok(StatusCode::NO_CONTENT);
+    };
     if theme.author_id != Some(UserId(ctx.user_id.0)) {
         require_manage_server(&state, ctx.user_id).await?;
     }
@@ -166,12 +168,10 @@ async fn picture(
 }
 
 async fn set_default(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(body): Json<SetDefaultRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let id = body.theme_id.as_deref().map(parse_id).transpose()?;
     if let Some(id) = id

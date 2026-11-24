@@ -28,6 +28,8 @@ import '../../channels/providers/slow_mode_controller.dart';
 
 export 'reaction_actions.dart' show hasReacted, setReaction;
 
+const _sendAction = 'send the message';
+
 /// Casts (or changes) a vote, applied optimistically like a reaction, so the
 /// poll responds before the `poll.voted` frame confirms it.
 ///
@@ -385,11 +387,15 @@ Future<void> sendOptimistically(
 }) async {
   // Before the first await, so a local write that has to retry cannot let a later send overtake this one.
   final slot = read(channelSendQueueProvider).reserve(channelId);
+  final sender = read(sessionProvider).tokens?.userId;
+  bool stillSender() => read(sessionProvider).tokens?.userId == sender;
   try {
     final store = await read(storeProvider.future);
+    if (!stillSender()) return;
     final me = read(effectiveMeProvider);
     await _keepLocally(
       'queue the message',
+      stillSender,
       () => store.addPending(
         id: id,
         channelId: channelId,
@@ -406,19 +412,23 @@ Future<void> sendOptimistically(
     try {
       final client = read(apiProvider);
       final sent = await slot.run(
-        () => client.sendMessage(
-          channelId: channelId,
-          id: id,
-          content: content,
-          attachmentIds: attachmentIds,
-          spoilerAttachmentIds: spoilerIds,
-          replyToId: replyToId,
-          mentionReply: mentionReply,
-        ),
+        () async => stillSender()
+            ? await client.sendMessage(
+                channelId: channelId,
+                id: id,
+                content: content,
+                attachmentIds: attachmentIds,
+                spoilerAttachmentIds: spoilerIds,
+                replyToId: replyToId,
+                mentionReply: mentionReply,
+              )
+            : null,
       );
+      if (sent == null || !stillSender()) return;
       // Lands on the same row, because it carries the same id.
       await _keepLocally(
         'store the sent message',
+        stillSender,
         () => store.applyMessage(sent),
       );
       read(messageExtrasProvider.notifier).applyMessage(sent);
@@ -427,8 +437,18 @@ Future<void> sendOptimistically(
         slowModeLastSentProvider.notifier,
       ).recordSent(channelId, DateTime.now());
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'send the message', e, stack);
-      await store.markFailed(id, reason: _sendFailureReason(e));
+      api.reportFailure(api.LogTag.ui, _sendAction, e, stack);
+      if (stillSender()) {
+        await store.markFailed(id, reason: _sendFailureReason(e));
+      }
+    } on Object catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, _sendAction, e, stack);
+      if (stillSender()) {
+        await store.markFailed(
+          id,
+          reason: 'Could not send the message. Retry it.',
+        );
+      }
     }
   } finally {
     slot.release();
@@ -439,14 +459,18 @@ Future<void> sendOptimistically(
 /// dropped request leaves the socket up with no reconnect coming, so it points to Retry too.
 String _sendFailureReason(api.ApiException e) => e is api.TransportException
     ? 'Could not reach the server. Retry, or it is sent again when you reconnect.'
-    : describeApiFailure('send the message', e);
+    : describeApiFailure(_sendAction, e);
 
 /// Retries a local write that lost a lock race, then logs and goes on: the
 /// server copy is what counts, and sync fills the row in when the write
 /// never lands.
-Future<void> _keepLocally(String what, Future<void> Function() write) async {
+Future<void> _keepLocally(
+  String what,
+  bool Function() stillWanted,
+  Future<void> Function() write,
+) async {
   const attempts = 3;
-  for (var attempt = 1; ; attempt++) {
+  for (var attempt = 1; stillWanted(); attempt++) {
     try {
       return await write();
     } on Object catch (error, stack) {

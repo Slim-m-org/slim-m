@@ -78,3 +78,6 @@ Nothing about a group assumes the server can read the roster in the clear foreve
 - No join or leave notice in the transcript yet; the roster change shows in the members sheet.
 - No per-viewer hide for a group (a pair has one); leaving is the way to remove a group from the list.
 - Cross-deployment group DMs stay out, as for pairs (0002).
+- The 100-group cap per account counts groups other people add a person to, so several accounts can fill someone's places with unwanted groups until they leave them one at a time.
+  Blocking does not remove the blocker from existing groups.
+  This is an accepted limitation for now; a later fix may count only groups the person created or accepted.

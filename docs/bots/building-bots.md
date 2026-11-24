@@ -153,6 +153,17 @@ The `id` is yours, and it makes the send idempotent within the channel: retrying
 So a retry after a timeout is safe.
 Never vary the content between attempts under one id - the server replays what it first stored, whatever the retry carried.
 
+### Quoting a member
+
+A bot that re-posts or quotes a member's words can say whose they are with `repost_of_author_id` (a member's id) on the send.
+The server then treats the message like that member's own for blocks: a viewer who blocked them does not see it and gets no push for it.
+It is honoured only from a bot, a person's value is ignored, and an id that is not a live member is a 400.
+A server that predates the field ignores it, so the message simply shows to everyone.
+A post that quotes several members at once, such as a digest, cannot name one and is not covered.
+
+Blocks do not stretch to a bot's own pings.
+A message that mentions a member by name, such as the tickets bot's opening message naming the opener and the staff role, still reaches a staff member who blocked the opener; that is deliberate, because answering tickets is a staff duty.
+
 ## Answering privately
 
 A refusal, a balance or a validation error does not have to be posted for everyone to read past:

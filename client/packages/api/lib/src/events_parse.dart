@@ -161,6 +161,9 @@ ServerEvent? overlayFrame(Map<String, dynamic> decoded) {
             ? NotificationPreference.parse(decoded['preference'] as String)
             : null,
       ),
+    'blocks.changed' => const BlocksChanged(),
+    'account_notifications.changed' when decoded['scope'] is String =>
+      AccountNotificationsChanged(scope: decoded['scope'] as String),
     'category_mute.changed'
         when decoded['category_id'] is String && decoded['muted'] is bool =>
       CategoryMuteChanged(
@@ -241,6 +244,7 @@ ServerEvent? rosterFrame(Map<String, dynamic> decoded) {
         status: presenceStateOf(decoded['status'])!,
         activity: PresenceActivity.tryFromJson(decoded['activity']),
         devices: PresenceDevice.parseAll(decoded['devices']),
+        visibility: decoded['visibility'] as String?,
       ),
     'member.timeout' when decoded['user_id'] is String => MemberTimeoutChanged(
         userId: decoded['user_id'] as String,

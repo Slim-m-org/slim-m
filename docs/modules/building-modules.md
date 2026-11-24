@@ -668,9 +668,14 @@ A key-value store private to the module, durable across runs.
 ```json
 { "capability": "kv.store", "op": "set", "key": "streak", "value": "7" }
 { "capability": "kv.store", "op": "get", "key": "streak" }
+{ "capability": "kv.store", "op": "cas", "key": "streak", "expect": "7", "value": "8" }
 { "capability": "kv.store", "op": "delete", "key": "streak" }
 { "capability": "kv.store", "op": "list" }
 ```
+
+- `cas` stores `value` only if the key holds `expect` right now, and answers `{ "ok": true, "swapped": true|false }`.
+  Leave `expect` out to write only when the key is absent.
+  Two runs that race on a counter or an index use it so exactly one of them wins; the loser reads again and retries.
 
 - Keys are at most 256 bytes and values 4 KiB.
 - A module holds at most 256 entries and 64 KiB (keys plus values), shared by everyone who uses it.
@@ -694,7 +699,7 @@ Posts a message as the person who ran the module, into the channel they ran it f
   The id is the 64 hex characters of a `caller.id` this module was handed in an earlier run; the host can recognise only those, so a module cannot mention a member it has not been given.
   A well-formed token that is not one of those ids, belongs to another module, names a member who cannot view the channel, or comes after the tenth in the message, is written as the plain words "a member": no name and no mention.
   A malformed token (not exactly 64 hex characters between `{{mention:` and `}}`) stays literal text.
-  The usual rules then apply to the mention: `@everyone`, `@here` and roles are never reachable through a token, and Do Not Disturb, mutes and notification settings decide who is notified.
+  The usual rules then apply to the mention: `@everyone`, `@here` and roles are never reachable through a token, and Do Not Disturb, mutes and notification settings decide who is notified: a member on Do Not Disturb gets no push, chime or banner for the mention (decision 0136).
   The host puts a space after the name when the next character would read as part of it.
   A member whose username cannot be written as a mention (it ends in `.` or `-`) is written as the name others see for them, with every `@` shown as a full-width `＠` so that name can never read as a mention of someone else.
   The member the token names is still mentioned, because the host mentions exactly the ids the tokens held and nobody the expanded text happens to name.
@@ -716,7 +721,7 @@ The manifest names where it may go:
 ```
 
 - `hosts` entries are lowercase `name` or `name:port`.
-  A bare name admits only the scheme's default port (443 for https, 80 for http), and `name:port` admits exactly that port, so `api.example.com:443` also admits https on the default port.
+  A bare name admits only https on port 443, `name:port` admits exactly that port, and plain http needs the port spelled, as `name:80`, so a secret header never leaves unencrypted by accident.
   At most 16 entries.
 - `net.fetch` and a non-empty `hosts` come together; one without the other is refused when the manifest is read.
 - `"local": true` asks for the second, separate approval described below.

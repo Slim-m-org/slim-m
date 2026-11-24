@@ -48,6 +48,10 @@ impl DataKey {
         }
         let path = key_file_path(database_path);
         match std::fs::read_to_string(&path) {
+            Ok(text) if text.trim().is_empty() => {
+                std::fs::remove_file(&path).with_context(|| path.display().to_string())?;
+                create_key_file(&path)
+            }
             Ok(text) => parse_key(text.trim()).with_context(|| path.display().to_string()),
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => create_key_file(&path),
             Err(err) => Err(err).with_context(|| path.display().to_string()),
@@ -65,7 +69,7 @@ impl DataKey {
     ) -> anyhow::Result<Self> {
         let has_env = env_key.is_some_and(|raw| !raw.trim().is_empty());
         let path = key_file_path(database_path);
-        if sealed_rows_exist && !allow_new && !has_env && !path.exists() {
+        if sealed_rows_exist && !allow_new && !has_env && !key_file_present(&path) {
             bail!(
                 "two-factor or module secrets are sealed in the database but neither SLIMM_DATA_KEY nor {} \
                  exists; restore the key that was backed up with this database. If it is gone, \
@@ -169,22 +173,23 @@ fn parse_key(text: &str) -> anyhow::Result<DataKey> {
     Ok(DataKey::from_bytes(bytes))
 }
 
-/// Creates the key file exclusively, so two processes starting together agree on one key.
-fn create_key_file(path: &Path) -> anyhow::Result<DataKey> {
-    use std::io::Write;
-    use std::os::unix::fs::OpenOptionsExt;
+/// An empty file is what a failed write by an earlier version left, and holds no key.
+fn key_file_present(path: &Path) -> bool {
+    std::fs::metadata(path).is_ok_and(|meta| meta.len() > 0)
+}
 
+/// Creates the key file exclusively, so two processes starting together agree on one key.
+///
+/// The key is written and synced to a temp file first and then linked into place, so the key
+/// file is never visible half written and a failed write leaves nothing behind.
+fn create_key_file(path: &Path) -> anyhow::Result<DataKey> {
     let bytes: [u8; KEY_BYTES] = random_bytes();
-    let created = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(path);
-    match created {
-        Ok(mut file) => {
-            writeln!(file, "{}", BASE64.encode(bytes))
-                .and_then(|()| file.sync_all())
-                .with_context(|| path.display().to_string())?;
+    let temp = path.with_file_name(format!(".{KEY_FILE_NAME}.tmp-{}", uuid::Uuid::now_v7()));
+    let placed = write_private_synced(&temp, &BASE64.encode(bytes))
+        .and_then(|()| std::fs::hard_link(&temp, path));
+    let _ = std::fs::remove_file(&temp);
+    match placed {
+        Ok(()) => {
             tracing::info!(path = %path.display(), "created the data key file; back it up with the database");
             Ok(DataKey::from_bytes(bytes))
         }
@@ -194,6 +199,19 @@ fn create_key_file(path: &Path) -> anyhow::Result<DataKey> {
         }
         Err(err) => Err(err).with_context(|| path.display().to_string()),
     }
+}
+
+fn write_private_synced(path: &Path, text: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    use std::os::unix::fs::OpenOptionsExt;
+
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(path)?;
+    writeln!(file, "{text}")?;
+    file.sync_all()
 }
 
 #[cfg(test)]
@@ -260,6 +278,39 @@ mod tests {
         let sealed = first.seal("u", "secret").unwrap();
         let second = DataKey::load(None, db).unwrap();
         assert_eq!(second.open("u", &sealed).unwrap(), "secret");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_key_file_left_empty_by_an_earlier_failed_write_is_replaced() {
+        let dir = std::env::temp_dir().join(format!("slimm-data-key-{}", uuid::Uuid::now_v7()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = dir.join("slimm.db");
+        let db = db.to_str().unwrap();
+        std::fs::write(dir.join(KEY_FILE_NAME), b"").unwrap();
+
+        let refused = DataKey::load_guarded(None, db, true, false).err().unwrap();
+        assert!(refused.to_string().contains("SLIMM_DATA_KEY"), "{refused}");
+
+        let key = DataKey::load(None, db).expect("an empty key file does not block the start");
+        let sealed = key.seal("u", "secret").unwrap();
+        assert_eq!(
+            DataKey::load(None, db).unwrap().open("u", &sealed).unwrap(),
+            "secret"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_failed_key_write_leaves_no_key_file_and_no_temp_file() {
+        let dir = std::env::temp_dir().join(format!("slimm-data-key-{}", uuid::Uuid::now_v7()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(KEY_FILE_NAME);
+        let missing_dir = dir.join("gone").join(KEY_FILE_NAME);
+
+        assert!(create_key_file(&missing_dir).is_err());
+        assert!(!path.exists());
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

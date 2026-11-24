@@ -61,7 +61,7 @@ async fn restoring_a_removed_member_publishes_member_restored() {
     assert!(restored, "a real restore must publish MemberRestored");
 }
 
-/// The 404 path is a no-op and must say nothing: a frame for a member who
+/// A restore that changes nothing must say nothing: a frame for a member who
 /// was never removed would make every client refetch a roster that did not
 /// change.
 #[tokio::test]
@@ -77,7 +77,7 @@ async fn a_restore_of_an_unremoved_member_publishes_nothing() {
 
     let mut rx = hub.subscribe();
     let status = restore(&app, &admin_tokens.access_token, &bob.id.to_string()).await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(status, StatusCode::NO_CONTENT);
     assert!(
         rx.try_recv().is_err(),
         "a no-op restore must not publish anything"

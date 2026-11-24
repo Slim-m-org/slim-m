@@ -54,6 +54,9 @@ class CallService {
 
   bool get isSupported => _isAndroid;
 
+  /// Makes the next [update] send even when it repeats the last state.
+  void forgetLast() => _last = const CallServiceState();
+
   /// Moves the service to [state], starting or stopping it as needed; a
   /// repeat of the last state sends nothing.
   Future<void> update(CallServiceState state) async {

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce, require_manage_server};
+use super::extract::{Authed, AuthedLimited, Json, WRITE, enforce, require_manage_server};
 use crate::media::compress::{self, ExtensionError, Metadata};
 use crate::ratelimit::Class;
 use crate::store::{MediaCompression, MediaCompressionUpdate};
@@ -68,11 +68,9 @@ async fn read(
 
 async fn update(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(body): Json<MediaCompressionPatch>,
 ) -> Result<Json<MediaCompressionDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let extensions = body
         .extensions

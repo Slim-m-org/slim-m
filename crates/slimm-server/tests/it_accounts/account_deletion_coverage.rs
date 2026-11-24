@@ -58,6 +58,11 @@ const STAMP_ROW: &str =
 const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ("account_purges", "user_id", OnDelete::Purge),
     (
+        "module_data_purges",
+        "user_id",
+        OnDelete::Keep("pending until the modules' data is purged, then dropped by the sweep"),
+    ),
+    (
         "access_tokens",
         "user_id",
         OnDelete::CascadesFrom("devices"),
@@ -72,6 +77,13 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
         "blocked_author_messages",
         "author_id",
         OnDelete::Keep(KEPT_FOR_BLOCKERS),
+    ),
+    (
+        "message_repost_authors",
+        "author_id",
+        OnDelete::Keep(
+            "an id with no profile, so a blocker's block keeps covering a bot's re-post of the account",
+        ),
     ),
     ("attachment_uploaders", "uploaded_by", OnDelete::Purge),
     ("bot_command_registrations", "bot_user_id", OnDelete::Purge),

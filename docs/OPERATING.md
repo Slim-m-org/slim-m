@@ -281,6 +281,13 @@ Litestream, if you enable it, streams only the database.
 It exits non-zero on any problem.
 `scripts/restore.py` puts a backup back: with the server stopped, `docker compose run --rm restore` fills an empty data volume from the newest snapshot, and `--force` replaces an existing database after moving it aside.
 `--list` shows each snapshot with the migration it is at, `--before-migration N` picks the newest one an older server can open, and `--allow-missing-files` restores a backup that lacks some of the files its database references.
+The mirror only grows unless you pass `--prune-mirror`, which removes mirror files no retained snapshot references once the newest snapshot verifies.
+With it, the `--keep` window is the delay before a deleted attachment or account avatar leaves the backup disk; without `--keep` every snapshot is retained, so nothing is ever forgotten.
+The nightly container takes the same flag, copies each file through a `.partial` and rename so a cut-off run keeps the last good copy, and runs once at startup when `status.json` is missing or older than about 24 hours.
+`restore.py` compares attachments in an existing data directory by sha256 and replaces a damaged one from the mirror.
+With `--force` it also revokes every session and refresh token in the restored database (`--no-revoke-sessions` skips that), so members sign in again and a login revoked since the snapshot stays revoked; bot sessions end too and a bot cannot sign back in, so the restore lists the bots that need a new token in their environment.
+A restore returns the database to the snapshot, so re-run any account deletions and password changes made since it was taken.
+Run as a non-root user it warns with the `chown -R 65532:65532` command the server user needs.
 Neither script backs up `.env`, which holds your LiveKit and Litestream secrets, or `slimm-data.key`, the key that opens the stored two-factor secrets (see [The data key](#the-data-key)).
 The commands, the container invocation and the sensitivity of a snapshot are in [deploy/README.md](../deploy/README.md#backups-optional).
 Take a backup immediately before upgrading, because migrations only go forward.

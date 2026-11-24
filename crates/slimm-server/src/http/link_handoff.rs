@@ -122,14 +122,22 @@ navigator.clipboard.writeText(document.getElementById('code').textContent)\
 
 /// What the browser shows once the provider has approved: the way back into
 /// the app. `provider` is the lowercase wire name, `label` the display one.
-pub(super) fn handoff_page(provider: &str, label: &str, code: &str) -> String {
+pub(super) fn handoff_page(
+    provider: &str,
+    label: &str,
+    code: &str,
+    origin: Option<&str>,
+) -> String {
     let code_param = percent_encode(code);
+    let server_param = origin
+        .map(|origin| format!("&amp;server={}", percent_encode(origin)))
+        .unwrap_or_default();
     let inner = format!(
         "<h1>Finish in slim-m</h1>\
          <p class=\"muted\">{label} approved. Open slim-m on the account that started the link.</p>\
          <div class=\"actions\">\
-         <a class=\"btn primary\" href=\"slimm://{provider}-link?code={code_param}\">Open slim-m</a>\
-         <a class=\"btn\" id=\"web\" hidden href=\"/app/#/link/{provider}?code={code_param}\">Open in browser</a>\
+         <a class=\"btn primary\" href=\"slimm://{provider}-link?code={code_param}{server_param}\">Open slim-m</a>\
+         <a class=\"btn\" id=\"web\" hidden href=\"/app/#/link/{provider}?code={code_param}{server_param}\">Open in browser</a>\
          </div>\
          <p class=\"muted foot\">Or paste this code in Settings, Connections.</p>\
          <p class=\"code\" id=\"code\">{grouped}</p>\
@@ -150,15 +158,28 @@ mod tests {
 
     #[test]
     fn the_page_carries_the_code_three_ways() {
-        let html = handoff_page("discord", "Discord", "ABCDEFGHJKLMNPQRSTUVWXYZ2");
+        let html = handoff_page("discord", "Discord", "ABCDEFGHJKLMNPQRSTUVWXYZ2", None);
         assert!(html.contains("slimm://discord-link?code=ABCDEFGHJKLMNPQRSTUVWXYZ2"));
         assert!(html.contains("href=\"/app/#/link/discord?code=ABCDEFGHJKLMNPQRSTUVWXYZ2\""));
         assert!(html.contains("ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ2"));
     }
 
     #[test]
+    fn the_page_names_the_server_the_link_came_from() {
+        let html = handoff_page("discord", "Discord", "ABCDE", Some("https://chat.example"));
+        assert!(
+            html.contains(
+                "slimm://discord-link?code=ABCDE&amp;server=https%3A%2F%2Fchat.example\""
+            )
+        );
+        assert!(
+            html.contains("/app/#/link/discord?code=ABCDE&amp;server=https%3A%2F%2Fchat.example\"")
+        );
+    }
+
+    #[test]
     fn the_steam_page_points_at_the_steam_link() {
-        let html = handoff_page("steam", "Steam", "ABCDEFGHJKLMNPQRSTUVWXYZ2");
+        let html = handoff_page("steam", "Steam", "ABCDEFGHJKLMNPQRSTUVWXYZ2", None);
         assert!(html.contains("slimm://steam-link?code="));
         assert!(html.contains("Steam approved."));
     }

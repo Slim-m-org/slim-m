@@ -224,13 +224,24 @@ async fn the_orphaned_copy_lookup_never_scans_messages() {
     let tail = plain_literal_containing(&source, "JOIN messages o ON o.id = f.origin_message_id");
     let plan = plan_of(&pool, &format!("{columns}{tail}?"), &[200]).await;
     assert_never_scans_messages(&plan, "the orphaned-copy lookup");
+    assert!(
+        plan.iter()
+            .any(|step| step.contains("message_forwards_live_origin")),
+        "the orphaned-copy lookup no longer walks only the forwards still showing a snapshot; the plan is {plan:?}"
+    );
 }
 
 #[tokio::test]
-async fn the_op_log_reclaim_pass_never_scans_message_ops() {
+async fn the_op_log_reclaim_pass_seeks_one_channel_by_its_key() {
     let (pool, _guard) = new_pool("retention-op-plan").await;
     let source = read_source("src/store/messages/message_retention.rs");
     let sql = extract_containing(&source, "DELETE FROM message_ops");
-    let plan = plan_of(&pool, &sql, &[0, 2_000]).await;
+    let plan = plan_of(&pool, &sql, &[7, NOW - 7 * DAY_MS, 2_000]).await;
     assert_no_scan(&plan, "the op-log reclaim pass");
+    assert!(
+        !plan
+            .iter()
+            .any(|step| step.contains("message_ops_created_at")),
+        "the op-log reclaim pass walks the age index across every channel; the plan is {plan:?}"
+    );
 }

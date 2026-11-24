@@ -27,12 +27,13 @@ pub(crate) async fn resolve_and_store(
 ) -> anyhow::Result<()> {
     let under = (author_id, Some(author_id));
     let pings = (reply_ping, &[][..]);
-    resolve_and_store_under(state, channel_id, under, message_id, content, pings).await
+    resolve_and_store_under(state, channel_id, under, message_id, content, pings, None).await
 }
 
 /// [`resolve_and_store`] for text `author_id` did not write, where `mass_authority` decides how far
 /// `@everyone`, `@here` and role mentions reach; `None` gives them none.
 /// `pings` is the reply ping and the members the text named without a mention a reader could parse.
+/// `only`, when set, narrows who may end up mentioned to those members; it never adds anyone.
 pub(crate) async fn resolve_and_store_under(
     state: &AppState,
     channel_id: ChannelId,
@@ -40,6 +41,7 @@ pub(crate) async fn resolve_and_store_under(
     message_id: MessageId,
     content: &str,
     (reply_ping, named): (Option<UserId>, &[UserId]),
+    only: Option<&[UserId]>,
 ) -> anyhow::Result<()> {
     let mut mentioned = crate::mentions::mentioned_viewers_under(
         &state.store,
@@ -59,6 +61,7 @@ pub(crate) async fn resolve_and_store_under(
             mentioned.push(*user);
         }
     }
+    crate::mentions::drop_blockers(&state.store, under.0, &mut mentioned).await?;
     let written = crate::push::recipients::directly_named(content);
     let mut direct = state.store.user_ids_for_usernames(&written).await?;
     for user in named {
@@ -66,6 +69,11 @@ pub(crate) async fn resolve_and_store_under(
             direct.push(*user);
         }
     }
+    if let Some(only) = only {
+        mentioned.retain(|user| only.contains(user));
+        direct.retain(|user| only.contains(user));
+    }
+    crate::mentions::drop_blockers(&state.store, under.0, &mut direct).await?;
     state
         .store
         .set_message_mentions(message_id, &mentioned, reply_ping, &direct)

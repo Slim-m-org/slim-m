@@ -40,6 +40,7 @@ class DockCallAudioCard extends ConsumerWidget {
         if (c.kind == 'voice') c,
     ];
     final ids = armed.valueOrNull?.ids ?? const <String>[];
+    final saving = armed.valueOrNull?.saving ?? false;
     return SettingsSectionCard(
       title: 'Calls it can hear',
       children: [
@@ -56,7 +57,7 @@ class DockCallAudioCard extends ConsumerWidget {
           SettingsToggleRow(
             label: channel.name,
             value: ids.contains(channel.id),
-            onChanged: enabled && armed.hasValue
+            onChanged: enabled && armed.hasValue && !saving
                 ? (on) => ref
                       .read(dockCallAudioChannelsProvider(moduleId).notifier)
                       .toggle(channel.id, armed: on)

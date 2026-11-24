@@ -87,14 +87,17 @@ final class OutgoingCallLifecycle {
   /// `call_system_event.dart` for the shape and the words.
   var onEvent: (([String: Any]) -> Void)?
 
-  /// Asks CallKit to start reporting [id] as an outgoing call. A second call
-  /// while one is already active is a no-op: this app holds one call at a
-  /// time (`voice_controller.dart`'s own doc comment says so), so a repeat
-  /// request here would ask CallKit to track a call it already tracks.
+  /// Asks CallKit to start reporting [id] as an outgoing call. A repeat for
+  /// the call already active is a no-op, since CallKit tracks it already. A
+  /// different id means the app moved the call to another account, so the
+  /// older call is ended first and its own late end is then ignored.
   func callStarted(id: UUID, displayName: String) {
-    guard activeCallId == nil else {
-      report("start", result: "skipped")
-      return
+    if let current = activeCallId {
+      guard current != id else {
+        report("start", result: "skipped")
+        return
+      }
+      callEnded()
     }
     activeCallId = id
     let action = CXStartCallAction(call: id, handle: CXHandle(type: .generic, value: displayName))
@@ -116,9 +119,9 @@ final class OutgoingCallLifecycle {
     report("startAction")
   }
 
-  /// The room actually connected.
-  func callConnected() {
-    guard let id = activeCallId else {
+  /// The room actually connected; [callId] names the call, so a late report for a replaced call is dropped.
+  func callConnected(callId: UUID? = nil) {
+    guard let id = activeCallId, callId == nil || callId == id else {
       report("connected", result: "noCall")
       return
     }
@@ -131,8 +134,15 @@ final class OutgoingCallLifecycle {
   /// A hangup on this device is a user action, so it goes to CallKit as an
   /// end request; `reportCall(endedAt:)` is only for a call ended elsewhere,
   /// and reporting it as remote-ended showed the wrong thing in Recents.
-  func callEnded() {
+  ///
+  /// [callId] names the call that ended: an end for any call but the active
+  /// one is stale (the app has moved on to another) and is ignored.
+  func callEnded(callId: UUID? = nil) {
     guard let id = activeCallId else { return }
+    if let callId, callId != id {
+      report("end", result: "stale")
+      return
+    }
     activeCallId = nil
     endingLocally.insert(id)
     controller.requestEnd(CXEndCallAction(call: id)) { [weak self] error in
@@ -287,16 +297,21 @@ final class VoiceCallChannel: NSObject, CXProviderDelegate {
     case "callStarted":
       handleCallStarted(call, result: result)
     case "callConnected":
-      lifecycle.callConnected()
+      lifecycle.callConnected(callId: Self.callId(from: call))
       result(nil)
     case "callEnded":
-      lifecycle.callEnded()
+      lifecycle.callEnded(callId: Self.callId(from: call))
       result(nil)
     case "audioSession":
       result(AudioSessionObserver.snapshot())
     default:
       result(FlutterMethodNotImplemented)
     }
+  }
+
+  private static func callId(from call: FlutterMethodCall) -> UUID? {
+    guard let args = call.arguments as? [String: Any], let id = args["callId"] as? String else { return nil }
+    return UUID(uuidString: id)
   }
 
   private func handleCallStarted(_ call: FlutterMethodCall, result: @escaping FlutterResult) {

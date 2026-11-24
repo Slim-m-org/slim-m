@@ -165,3 +165,31 @@ fn refuses_an_artifact_kind_the_host_cannot_run() {
     let reason = refusal(&GOOD_MANIFEST.replace(r#""kind": "wasm""#, r#""kind": "oci-image""#));
     assert!(reason.contains("artifact.kind"), "{reason}");
 }
+
+#[test]
+fn an_uppercase_sha256_is_refused_at_validation() {
+    let upper = GOOD_MANIFEST.replace(&"0".repeat(64), &format!("A{}", "0".repeat(63)));
+    assert!(refusal(&upper).contains("sha256"));
+}
+
+#[test]
+fn an_index_past_the_per_manifest_list_cap_still_parses() {
+    let rows: Vec<String> = (0..200)
+        .map(|n| format!(r#"{{"id": "m{n}", "name": "M", "version": "0.1.0", "summary": "s"}}"#))
+        .collect();
+    let index = format!(r#"{{"schema": 1, "modules": [{}]}}"#, rows.join(","));
+    assert_eq!(parse_index(index.as_bytes()).unwrap().len(), 200);
+}
+
+#[test]
+fn an_index_row_carries_the_versions_the_registry_withdrew() {
+    let row = r#"{"id": "m", "name": "M", "version": "0.2.0", "summary": "s",
+        "withdrawn": ["0.1.0"], "withdrawn_reason": "fixed in 0.2.0"}"#;
+    let index = format!(r#"{{"schema": 1, "modules": [{row}]}}"#);
+    let entry = &parse_index(index.as_bytes()).unwrap()[0];
+    assert_eq!(
+        entry.withdrawal_of("0.1.0").as_deref(),
+        Some("fixed in 0.2.0")
+    );
+    assert_eq!(entry.withdrawal_of("0.2.0"), None);
+}

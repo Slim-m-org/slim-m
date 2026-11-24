@@ -13,8 +13,18 @@ import '../../../providers/providers.dart';
 
 const shareListeningKey = 'slimm.presence.share_listening';
 
+/// Where a switch is stored: per account, so the next person to sign in on
+/// this device never inherits the last one's opt-in.
+String activitySwitchStorageKey(String key, String? userId) =>
+    userId == null ? key : '$key.$userId';
+
 class ActivitySwitchController extends StateNotifier<bool> {
-  ActivitySwitchController(this._ref, this._key) : super(false) {
+  ActivitySwitchController(this._ref, String key)
+    : _key = activitySwitchStorageKey(
+        key,
+        _ref.read(sessionProvider).tokens?.userId,
+      ),
+      super(false) {
     _load();
   }
 
@@ -40,8 +50,12 @@ class ActivitySwitchController extends StateNotifier<bool> {
 
 /// The switch stored under a preference key.
 final activitySwitchProvider =
-    StateNotifierProvider.family<ActivitySwitchController, bool, String>(
-      (ref, key) => ActivitySwitchController(ref, key),
-    );
+    StateNotifierProvider.family<ActivitySwitchController, bool, String>((
+      ref,
+      key,
+    ) {
+      ref.watch(sessionProvider);
+      return ActivitySwitchController(ref, key);
+    });
 
 final shareListeningProvider = activitySwitchProvider(shareListeningKey);

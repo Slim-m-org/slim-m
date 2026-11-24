@@ -5,6 +5,7 @@
 /// it: this never touches connection state either.
 library;
 
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_data/data.dart';
 
 import 'message_actions.dart' show retryMessage;
@@ -33,6 +34,15 @@ Future<void> retryFailedSends(
   final failed = await store.failedMessages();
   for (final message in failed) {
     if (!isCurrent()) return;
-    await retryMessage(read, message);
+    try {
+      await retryMessage(read, message);
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.sync,
+        'Could not resend an unsent message',
+        error,
+        stack,
+      );
+    }
   }
 }

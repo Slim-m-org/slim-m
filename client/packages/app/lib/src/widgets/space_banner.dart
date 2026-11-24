@@ -10,6 +10,8 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/providers.dart';
+import '../providers/bounded_image_decode.dart';
+import 'image_decode.dart';
 
 /// Null when the Space has no banner; a failed fetch also reads as none, since it only decorates.
 final spaceBannerBytesProvider = FutureProvider.autoDispose<Uint8List?>((
@@ -39,7 +41,15 @@ class SpaceBanner extends ConsumerWidget {
       borderRadius: BorderRadius.circular(AppRadii.card),
       child: AspectRatio(
         aspectRatio: aspect,
-        child: ExcludeSemantics(child: Image.memory(bytes, fit: BoxFit.cover)),
+        child: ExcludeSemantics(
+          child: Image(
+            image: ResizeImage(
+              BoundedMemoryImage(bytes),
+              width: decodeEdge(context, MediaQuery.sizeOf(context).width),
+            ),
+            fit: BoxFit.cover,
+          ),
+        ),
       ),
     );
   }

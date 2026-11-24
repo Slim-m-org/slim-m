@@ -356,7 +356,7 @@ class FakeSession extends DeadVoiceSession {
     if (generation != _generation) return;
     _state = VoiceSessionState.idle;
     // The real session emits this transition too, and a fake that did not was untested here.
-    _states.add(_state);
+    if (!_states.isClosed) _states.add(_state);
   }
 
   @override

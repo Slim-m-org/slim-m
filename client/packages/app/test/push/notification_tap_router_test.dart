@@ -19,7 +19,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:slimm_app/src/features/accounts/providers/notification_target.dart';
+import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
 import 'package:slimm_app/src/push/providers/notification_tap_router.dart';
+import 'package:slimm_app/src/push/providers/push_channel_providers.dart';
 import 'package:slimm_app/src/routing/router.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_platform/platform.dart';
@@ -63,11 +66,24 @@ GoRouter _router() => GoRouter(
 String _where(GoRouter router) =>
     router.routerDelegate.currentConfiguration.uri.toString();
 
-ProviderContainer _container(GoRouter router, _FakeTaps taps) {
+class _LaunchedBy extends LocalNotifications {
+  _LaunchedBy(this.payload);
+  final String? payload;
+
+  @override
+  Future<String?> launchPayload() async => payload;
+}
+
+ProviderContainer _container(
+  GoRouter router,
+  _FakeTaps taps, {
+  String? launchPayload,
+}) {
   final container = ProviderContainer(
     overrides: [
       routerProvider.overrideWithValue(router),
       notificationTapChannelProvider.overrideWithValue(taps),
+      localNotificationsProvider.overrideWithValue(_LaunchedBy(launchPayload)),
     ],
   );
   addTearDown(container.dispose);
@@ -138,6 +154,24 @@ void main() {
     expect(taps.initialTaken, 1);
   });
 
+  testWidgets(
+    'a local notification tap that launched the app opens its channel',
+    (tester) async {
+      final router = _router();
+      final container = _container(
+        router,
+        _FakeTaps(),
+        launchPayload: const NotificationTarget(
+          channelId: 'channel-4',
+        ).encode(),
+      );
+      container.read(notificationTapRouterProvider);
+      await _mount(tester, container, router);
+
+      expect(_where(router), Routes.channel('channel-4', openChat: true));
+    },
+  );
+
   testWidgets('no tap leaves the app where it was', (tester) async {
     final router = _router();
     final taps = _FakeTaps();
@@ -167,5 +201,48 @@ void main() {
     await tester.pump();
 
     expect(_where(router), '/');
+  });
+
+  testWidgets('a container that is not on screen ignores a shared tap', (
+    tester,
+  ) async {
+    final router = _router();
+    final background = _router();
+    final taps = _FakeTaps();
+    final container = _container(router, taps);
+    final other = ProviderContainer(
+      overrides: [
+        routerProvider.overrideWithValue(background),
+        notificationTapChannelProvider.overrideWithValue(taps),
+        accountActiveProvider.overrideWith((ref) => false),
+      ],
+    );
+    addTearDown(other.dispose);
+    container.read(notificationTapRouterProvider);
+    other.read(notificationTapRouterProvider);
+    await tester.pumpWidget(
+      Column(
+        children: [
+          for (final (c, r) in [(container, router), (other, background)])
+            Expanded(
+              child: UncontrolledProviderScope(
+                container: c,
+                child: MaterialApp.router(routerConfig: r),
+              ),
+            ),
+        ],
+      ),
+    );
+    await tester.pump();
+
+    taps.emit('channel-4');
+    await tester.pump();
+
+    expect(_where(router), Routes.channel('channel-4', openChat: true));
+    expect(
+      _where(background),
+      isNot(Routes.channel('channel-4', openChat: true)),
+      reason: 'one tap must not be handled once per account container',
+    );
   });
 }

@@ -35,6 +35,7 @@ import '../../messages/providers/message_actions.dart';
 import '../../messages/providers/message_editing.dart';
 import '../../messages/providers/message_context_window.dart';
 import '../../messages/providers/message_jump.dart';
+import '../../messages/providers/repost_blocks.dart';
 import '../providers/pins_controller.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/sync_controller.dart';
@@ -156,6 +157,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
     );
     final customEmoji = ref.watch(customEmojiIndexProvider);
     final blocked = ref.watch(blocksProvider.select((state) => state.ids));
+    final hiddenReposts = ref.watch(blockedRepostIdsProvider).ids;
     final history = ref.watch(channelHistoryProvider(channelId));
     final paging = ref.read(channelHistoryProvider(channelId).notifier);
     final syncStatus = ref.watch(syncControllerProvider);
@@ -182,7 +184,11 @@ class ChannelTranscriptPane extends ConsumerWidget {
           : streams.transcript(store, channelId, history.window),
       builder: (context, snapshot) {
         final rows = snapshot.data ?? const <Message>[];
-        final transcript = visibleTranscript(rows, blocked);
+        final transcript = visibleTranscript(
+          rows,
+          blocked,
+          hiddenReposts: hiddenReposts,
+        );
         final oldest = oldestDeliveredSeq(rows);
         if (contextWindow == null) paging.syncOldest(oldest);
         resolveAuthorProfiles(ref, [
@@ -252,8 +258,18 @@ class ChannelTranscriptPane extends ConsumerWidget {
             onEdit: (m) => _startEdit(ref, m),
             botUi: botUi,
           ),
-          onRetry: (m) => unawaited(retryMessage(ref.read, m)),
-          onDiscard: (m) => unawaited(discardMessage(ref.read, m)),
+          onRetry: (m) => unawaited(
+            retryMessage(
+              ProviderScope.containerOf(context, listen: false).read,
+              m,
+            ),
+          ),
+          onDiscard: (m) => unawaited(
+            discardMessage(
+              ProviderScope.containerOf(context, listen: false).read,
+              m,
+            ),
+          ),
           // Failed text lands back in the composer to fix and resend; the row is then discarded, so nothing typed is lost.
           onEditFailed: (m) => _onEditFailed(ref, m),
           onPickReaction: (m, emoji) => unawaited(

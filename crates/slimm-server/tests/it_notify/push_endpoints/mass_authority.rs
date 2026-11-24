@@ -50,6 +50,7 @@ async fn pushes_to_bob(mass_authority_is_alice: bool) -> Vec<String> {
             presence: Hub::new().presence(),
             reply_ping: None,
             mass_authority: mass_authority_is_alice.then_some(alice),
+            mention_only: None,
         },
     );
 

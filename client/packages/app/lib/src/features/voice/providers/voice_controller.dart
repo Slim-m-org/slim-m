@@ -17,7 +17,11 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../../audio/call_start_yields.dart';
 import '../../../audio/sound_session_release.dart';
 import '../../../push/providers/push_channel_providers.dart';
+import '../../../providers/sync_controller.dart';
 import 'call_foreground_keeper.dart';
+import 'call_owner.dart';
+import '../../accounts/providers/account_providers.dart'
+    show accountHostProvider;
 import 'call_recap.dart';
 import 'join_timings_provider.dart';
 import 'level_display.dart';
@@ -67,6 +71,7 @@ class VoiceController extends StateNotifier<VoiceState> {
              requestNotifications: () async {
                await _ref.read(localNotificationsProvider).requestPermission();
              },
+             mayUpdate: () => !otherAccountInCall(_ref),
            ),
        _heartbeat = VoiceCallHeartbeat(
          _ref,
@@ -117,8 +122,9 @@ class VoiceController extends StateNotifier<VoiceState> {
       log: _log,
     );
     addListener((s) => _foreground.rejoining(s.rejoining));
+    _watchCallOwnership();
     _endCallRequests = _callLifecycle.endCallRequests.listen((_) {
-      unawaited(leave());
+      if (state.channelId != null) unawaited(leave());
     });
     _session.audioSessionReader = _callLifecycle.audioSessionLine;
     _callSystemEvents = _callLifecycle.systemEvents.listen(
@@ -191,6 +197,7 @@ class VoiceController extends StateNotifier<VoiceState> {
   late final VoiceReconnectDisplay _reconnectDisplay;
 
   final CallLifecycleChannel _callLifecycle;
+  void Function()? _stopWatchingOwnership;
   final CallForegroundKeeper _foreground;
   final VoiceCallHeartbeat _heartbeat;
   final VoiceAutoRejoin _autoRejoin;
@@ -263,6 +270,9 @@ class VoiceController extends StateNotifier<VoiceState> {
     final keepMic = _keepMicNextJoin || state.channelId == channelId;
     _keepMicNextJoin = false;
     final callStarts = state.channelId == null;
+    if (callStarts && _ref.exists(syncControllerProvider)) {
+      _ref.read(syncControllerProvider.notifier).callStarted();
+    }
     final switching = !callStarts && state.channelId != channelId;
     // A recap belongs to the call that just ended, never to this new one.
     _activity.reset();
@@ -310,6 +320,7 @@ class VoiceController extends StateNotifier<VoiceState> {
   /// Supersedes any in-flight [join], and is superseded the same way: a leave
   /// overtaken by a newer call writes nothing (see docs/internals.md, voice call generations).
   Future<void> leave() {
+    if (!mounted) return Future.value();
     final pending = _leaving;
     // A second hang-up while nothing joined since is the same leave, so its recap and rejoin guard stay.
     if (pending != null && state.channelId == null) return pending;
@@ -347,8 +358,8 @@ class VoiceController extends StateNotifier<VoiceState> {
     // The mic/camera preference survives the reset (no lobby left to re-set them on); justLeftChannelId/justLeftAt are set only here, see VoiceState.rejoinGuardWindow.
     final left = VoiceState(
       microphoneEnabled: _joinMuted.preferenceAtLeave(state.microphoneEnabled),
-      // The live camera is still on here; a call never hands its camera to the next one, only a held preference.
-      cameraEnabled: _cameraPreference.atLeave(false),
+      // A call never hands its live camera to the next one, only the saved preference.
+      cameraEnabled: _cameraPreference.atLeave(),
       recap: recap,
       justLeftChannelId: channelId,
       justLeftAt: channelId == null ? null : _now(),
@@ -357,7 +368,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     _rosterHeld = true;
     state = left;
     await _session.leave();
-    if (generation != _callGeneration) return;
+    if (generation != _callGeneration || !mounted) return;
     // Best-effort and fire-and-forget: this client already disconnected.
     if (!theirs) unawaited(_heartbeat.forgetLeft(channelId));
     // Only what the teardown itself could have moved, so a choice made on the left screen meanwhile stays.
@@ -481,8 +492,23 @@ class VoiceController extends StateNotifier<VoiceState> {
     api.LogLevel level = api.LogLevel.warning,
   }) => api.AppLog.at(level, api.LogTag.voice, message, error: detail);
 
+  void _watchCallOwnership() {
+    final host = _ref.read(accountHostProvider);
+    if (host == null) return;
+    var blocked = otherAccountInCall(_ref);
+    void changed() {
+      final was = blocked;
+      blocked = otherAccountInCall(_ref);
+      if (was && !blocked && state.channelId != null) _foreground.takeOver();
+    }
+
+    host.addListener(changed);
+    _stopWatchingOwnership = () => host.removeListener(changed);
+  }
+
   @override
   void dispose() {
+    _stopWatchingOwnership?.call();
     share.cancelBroadcastDeadline();
     volumes.dispose();
     _heartbeat.stop();

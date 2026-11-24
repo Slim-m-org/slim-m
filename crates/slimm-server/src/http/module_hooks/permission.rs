@@ -87,7 +87,7 @@ pub(crate) async fn check_permission(
 fn denial(verdict: Verdict) -> Result<Option<String>, String> {
     let reply = match verdict {
         Verdict::Unavailable => return Err("no time left to run it".into()),
-        Verdict::Failed(why) => return Err(why),
+        Verdict::Failed(why) => return Err(why.into()),
         Verdict::Reply(reply) => reply,
     };
     let value: Value = serde_json::from_str(&reply).map_err(|_| "reply is not JSON")?;

@@ -16,6 +16,8 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/message_extras.dart'
     show MessageExtras;
+import 'package:slimm_app/src/features/messages/providers/reaction_users.dart'
+    show reactionUsersProvider;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_names.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
@@ -26,6 +28,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
 import 'message_row_harness.dart' as row;
+import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
 import '../../support/toast_host.dart';
 
@@ -295,6 +298,31 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Ada'), findsOneWidget);
     expect(find.text('Could not load who reacted.'), findsNothing);
+  });
+
+  testWidgets('Retry after a failed refresh of a complete list reloads it', (
+    tester,
+  ) async {
+    final server = _ada();
+    await _pump(tester, _Fixture(server), phone);
+    await tester.longPress(_chip);
+    await pumpFrames(tester);
+    expect(find.text('Ada'), findsOneWidget);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.text('Ada')),
+    );
+    const key = (messageId: 'm1', emoji: _thumb);
+    server.status = 500;
+    await container.read(reactionUsersProvider(key).notifier).refresh();
+    await pumpFrames(tester);
+    expect(find.text('Could not load more.'), findsOneWidget);
+
+    server.status = 200;
+    await tester.tap(find.text('Retry'));
+    await pumpFrames(tester);
+
+    expect(find.text('Could not load more.'), findsNothing);
   });
 
   testWidgets('a failing next page is asked for once, then waits for Retry', (

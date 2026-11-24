@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
+import 'package:slimm_app/src/features/members/providers/presence_controller.dart';
 import 'package:slimm_app/src/features/messages/providers/message_alert_policy.dart';
 import 'package:slimm_app/src/features/settings/providers/notification_schedule_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -60,7 +61,11 @@ class AlertRig {
     this.parentFails = false,
     this.makeStore = MessageStore.new,
     this.framesApplied,
+    this.visibility,
   });
+
+  /// The presence the account chose, for the Do not disturb rule.
+  final api.PresenceVisibility? visibility;
 
   /// Stands in for sync applying the frames already received; idle by default.
   final Future<void> Function()? framesApplied;
@@ -148,6 +153,7 @@ class AlertRig {
         syncFramesAppliedProvider.overrideWithValue(
           framesApplied ?? () async {},
         ),
+        ownVisibilityProvider.overrideWithValue(visibility),
         mockApiOverride(_answer),
       ],
     );

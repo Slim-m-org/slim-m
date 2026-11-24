@@ -41,9 +41,11 @@ pub(super) mod message_mentions;
 pub(super) mod message_module_origins;
 pub(super) mod message_ops;
 pub(super) mod message_reads;
+pub(super) mod message_repost_authors;
 pub(super) mod message_retention;
 pub(super) mod message_search;
 pub(super) mod message_search_filters;
+mod message_search_terms;
 pub(super) mod messages_bulk;
 pub(super) mod messages_bulk_window;
 mod retention_candidates;
@@ -73,6 +75,8 @@ pub enum SendError {
     /// different channel from this send. A parent that exists in this
     /// channel but is already soft-deleted is still a valid target.
     InvalidReplyTarget,
+    /// The message being forwarded, or the original behind it, was deleted before the send committed.
+    ForwardSourceGone,
     /// The author's last send in this channel is still inside the slow-mode window.
     SlowMode {
         retry_after_seconds: i64,

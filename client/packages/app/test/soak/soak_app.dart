@@ -183,6 +183,9 @@ class _CountedNotifications implements LocalNotifications {
   }) async => shown++;
 
   @override
+  Future<String?> launchPayload() async => null;
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 

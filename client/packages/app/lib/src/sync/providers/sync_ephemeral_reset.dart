@@ -51,5 +51,7 @@ void refreshDmCallsOnLive(Ref ref) {
 /// first connect of a launch is no exception, since the roster seeds first.
 void refreshPresenceOnLive(Ref ref) {
   if (!ref.exists(presenceControllerProvider)) return;
-  unawaited(ref.read(presenceControllerProvider.notifier).resync());
+  final presence = ref.read(presenceControllerProvider.notifier);
+  unawaited(presence.refreshOwnVisibility());
+  unawaited(presence.resync());
 }

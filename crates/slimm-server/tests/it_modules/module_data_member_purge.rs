@@ -215,3 +215,37 @@ async fn one_failing_table_does_not_stop_the_purge_of_the_rest() {
     let xp = rig.ok(json!({ "op": "count", "table": "xp" }));
     assert_eq!(xp["count"], json!(1), "the failing table keeps its row");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_purge_that_never_ran_is_finished_by_the_retry_and_then_forgotten() {
+    let (path, _db) = TestDbGuard::new("slimm-member-purge-retry");
+    let (dir, _dir) = TestDirGuard::new("slimm-member-purge-retry-files");
+    let config = Config {
+        port: 0,
+        database_path: path,
+        hash_concurrency: 2,
+        ..Config::default()
+    };
+    let store = Store::new(db::connect(&config).await.unwrap()).with_modules_dir(dir.clone());
+    let admin = store.create_account("root", "Root", "x").await.unwrap();
+    store.bootstrap_deployment(admin.id).await.unwrap();
+    let gone = store.create_account("gone", "Gone", "x").await.unwrap().id;
+    files(&dir)
+        .apply_schema("scores", &validate_data_schema(&schema()).unwrap())
+        .await
+        .unwrap();
+    let mut rig = Rig::attach(&dir, "scores", &["data.store"]);
+    rig.ok(json!({ "op": "insert", "table": "xp", "values": { "user_id": gone.to_string(), "points": 1 } }));
+
+    store.close_account_for_deletion(gone, None).await.unwrap();
+    assert_eq!(store.pending_module_data_purges().await.unwrap(), [gone]);
+
+    let state = support::app::state(store.clone());
+    let tried = http::dock::retry_member_purges(&state).await.unwrap();
+
+    assert_eq!(tried, 1);
+    rig.renew();
+    let xp = rig.ok(json!({ "op": "count", "table": "xp" }));
+    assert_eq!(xp["count"], json!(0));
+    assert!(store.pending_module_data_purges().await.unwrap().is_empty());
+}

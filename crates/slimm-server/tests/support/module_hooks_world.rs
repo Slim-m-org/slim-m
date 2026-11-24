@@ -228,12 +228,15 @@ impl World {
         )
     }
 
-    /// How many times `command` has run for `module`, as the run stats count them.
+    /// How many times `command` has run for `module`, summed over the hooks that keep their own stats.
     pub async fn runs_of(&self, module: &str, command: &str) -> i64 {
         let stats = self.store.module_run_stats().await.unwrap();
-        stats
-            .get(module)
-            .and_then(|all| all.iter().find(|s| s.command == command))
-            .map_or(0, |s| s.run_count)
+        let own = format!("{command}:");
+        stats.get(module).map_or(0, |all| {
+            all.iter()
+                .filter(|s| s.command == command || s.command.starts_with(&own))
+                .map(|s| s.run_count)
+                .sum()
+        })
     }
 }

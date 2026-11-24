@@ -22,6 +22,36 @@ pub(super) fn join_activity(present_before: &[UserId], joiner: UserId) -> Activi
     }
 }
 
+/// [`announce`] for a join, with the activity read against only the people the call roster shows: a hidden member already there must not turn the first visible join into a plain one.
+pub(super) fn announce_join(
+    state: &AppState,
+    channel_id: ChannelId,
+    joiner: UserId,
+    present_before: Vec<UserId>,
+) {
+    let present = state.voice.live_state().present(channel_id);
+    let state = state.clone();
+    tokio::spawn(async move {
+        let result = async {
+            let visible = visible_among(&state, &present_before).await?;
+            let activity = join_activity(&visible, joiner);
+            run(&state, channel_id, joiner, activity, &present).await
+        };
+        if let Err(err) = result.await {
+            tracing::warn!(%err, %channel_id, "could not announce voice activity");
+        }
+    });
+}
+
+async fn visible_among(state: &AppState, users: &[UserId]) -> anyhow::Result<Vec<UserId>> {
+    let visibility = state.store.presence_visibility_many(users).await?;
+    Ok(users
+        .iter()
+        .copied()
+        .filter(|user| visibility.get(user) != Some(&crate::presence::Visibility::Hidden))
+        .collect())
+}
+
 /// Works out who to tell and tells them, off the caller's task.
 pub(super) fn announce(state: &AppState, channel_id: ChannelId, actor: UserId, activity: Activity) {
     let present = state.voice.live_state().present(channel_id);

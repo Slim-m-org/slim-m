@@ -97,6 +97,31 @@ final threadParentProvider = FutureProvider.autoDispose
       return parent;
     });
 
+/// Drops a cached thread this account can no longer read, answered by the
+/// server's masked reply; an unreachable server leaves the cache as it is.
+final threadAccessProvider = FutureProvider.autoDispose.family<void, String>((
+  ref,
+  channelId,
+) async {
+  final api.ThreadParent parent;
+  try {
+    parent = await ref.watch(threadParentProvider(channelId).future);
+  } on api.ApiException catch (error, stack) {
+    api.AppLog.swallowed(
+      api.LogTag.ui,
+      'Could not check access to a cached thread',
+      error,
+      stack,
+    );
+    return;
+  }
+  if (parent.isThread) return;
+  final store = await ref.read(storeProvider.future);
+  if ((await store.channelRow(channelId))?.parentMessageId != null) {
+    await store.removeChannel(channelId);
+  }
+});
+
 /// Every live thread hanging off a message in [channelId], newest activity
 /// first - the listing docs/IMPLIED-GAPS.md named as missing entirely:
 /// before this, the only way to find a thread was from the message it hangs

@@ -231,12 +231,13 @@ pub(crate) async fn after_edit(
     state: &AppState,
     channel_id: ChannelId,
     message_id: MessageId,
+    actor_id: UserId,
     replacement: Option<Vec<NewEmbed>>,
 ) -> anyhow::Result<Vec<EmbedDto>> {
     if let Some(embeds) = &replacement {
         state
             .store
-            .replace_message_embeds(message_id, embeds)
+            .replace_message_embeds(message_id, actor_id, embeds)
             .await?;
     }
     let stored = store_and_reload(state, message_id, false, &[]).await?;

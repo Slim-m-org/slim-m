@@ -45,18 +45,19 @@ Future<bool> launchApp({
   required api.App app,
   void Function(String message)? onError,
 }) async {
+  final actions = ref.read(moduleActionsProvider);
+  final storeReady = ref.read(storeProvider.future);
+  final extras = ref.read(messageExtrasProvider.notifier);
   try {
-    final sent = await ref
-        .read(moduleActionsProvider)
-        .launchAppMessage(
-          channelId: channelId,
-          id: id,
-          moduleId: app.moduleId,
-          command: app.command,
-        );
-    final store = await ref.read(storeProvider.future);
+    final sent = await actions.launchAppMessage(
+      channelId: channelId,
+      id: id,
+      moduleId: app.moduleId,
+      command: app.command,
+    );
+    final store = await storeReady;
     await store.applyMessage(sent);
-    ref.read(messageExtrasProvider.notifier).applyMessage(sent);
+    extras.applyMessage(sent);
     return true;
   } on api.ApiException catch (e, stack) {
     api.reportFailure(api.LogTag.ui, 'open the app', e, stack);

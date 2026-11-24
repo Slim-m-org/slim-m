@@ -33,6 +33,17 @@ async fn migrator() -> Migrator {
         .expect("resolve migrations")
 }
 
+/// Stops at the migration under test, so later ones do not change the rows it is judged on.
+async fn apply_0024(pool: &SqlitePool) {
+    let mut through = migrator().await;
+    through.migrations = through
+        .iter()
+        .filter(|m| m.version <= VERSION)
+        .cloned()
+        .collect();
+    through.run(pool).await.expect("apply 0024");
+}
+
 async fn pool_at_0023() -> (SqlitePool, support::TestDbGuard) {
     let (pool, guard) = support::migration_db::empty_pool("slimm-rowid-alias").await;
 
@@ -206,7 +217,7 @@ async fn the_rebuild_keeps_every_row_and_every_reference() {
         "an encrypted message is never indexed"
     );
 
-    migrator().await.run(&pool).await.expect("apply 0024");
+    apply_0024(&pool).await;
 
     assert_eq!(
         message_rows(&pool).await,

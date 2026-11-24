@@ -99,6 +99,22 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
   Future<void> jumpTo(String channelId, String messageId) async {
     final token = ++_token;
     state = MessageJumpSeeking(channelId, messageId, token);
+    try {
+      await _seek(channelId, messageId, token);
+    } on Object catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'Could not jump to a message',
+        error,
+        stack,
+      );
+      if (mounted && _token == token) {
+        state = MessageJumpFailed(channelId, messageId, token);
+      }
+    }
+  }
+
+  Future<void> _seek(String channelId, String messageId, int token) async {
     final store = await _ref.read(storeProvider.future);
     final history = _ref.read(channelHistoryProvider(channelId).notifier);
     final maxPages = _maxPages;
@@ -109,21 +125,12 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
       final depth = await store.transcriptDepthOf(channelId, messageId);
       if (_token != token) return;
       if (depth != null) {
-        final arrived = await _reach(
-          history,
-          store,
+        final next = await _settle(history, store, (
           channelId,
           messageId,
-          depth,
           token,
-        );
-        if (_token != token) return;
-        final next = switch (arrived) {
-          _Reach.arrived => _arriveLive(channelId, messageId, token),
-          _Reach.tooFar => await _openContext(channelId, messageId, token),
-          _Reach.failed => MessageJumpFailed(channelId, messageId, token),
-        };
-        if (_token == token) state = next;
+        ), depth);
+        if (next != null) state = next;
         return;
       }
       if (page == maxPages) break;
@@ -136,6 +143,31 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
         ? MessageJumpFailed(channelId, messageId, token)
         : await _openContext(channelId, messageId, token);
     if (_token == token) state = next;
+  }
+
+  /// The state a reached message ends in, or null once a newer jump replaced this one.
+  Future<MessageJumpState?> _settle(
+    ChannelHistoryController history,
+    MessageStore store,
+    (String, String, int) target,
+    int depth,
+  ) async {
+    final (channelId, messageId, token) = target;
+    final arrived = await _reach(
+      history,
+      store,
+      channelId,
+      messageId,
+      depth,
+      token,
+    );
+    if (_token != token) return null;
+    final next = switch (arrived) {
+      _Reach.arrived => _arriveLive(channelId, messageId, token),
+      _Reach.tooFar => await _openContext(channelId, messageId, token),
+      _Reach.failed => MessageJumpFailed(channelId, messageId, token),
+    };
+    return _token == token ? next : null;
   }
 
   /// A message the live window holds: any context window over it gives way.

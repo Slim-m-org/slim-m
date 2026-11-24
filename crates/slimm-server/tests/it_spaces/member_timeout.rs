@@ -307,3 +307,24 @@ async fn a_timeout_changes_nothing_about_a_channel_that_does_not_exist() {
         NONE
     );
 }
+
+/// A bot can ask for a few seconds; a second ask after the first lapsed is a new timeout, not a replay.
+#[tokio::test]
+async fn re_issuing_after_the_first_lapsed_applies_again() {
+    let (s, _guard) = store().await;
+    let user = s.create_user("pia", "Pia").await.unwrap();
+    let moderator = s.create_user("mo", "Mo").await.unwrap();
+    s.set_member_timeout(user.id, now() - 10_000, Some("calm"), moderator.id)
+        .await
+        .unwrap();
+
+    let changed = s
+        .set_member_timeout(user.id, now() - 10_000, Some("calm"), moderator.id)
+        .await
+        .unwrap();
+
+    assert!(
+        changed,
+        "an elapsed timeout is not in force, so it is re-applied"
+    );
+}

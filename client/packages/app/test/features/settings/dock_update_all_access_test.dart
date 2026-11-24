@@ -195,6 +195,7 @@ void main() {
       expect(world.installed['a']!['version'], '2.0.0');
       expect(find.text('UPDATE'), findsNothing, reason: 'a is current');
       expect(find.textContaining('Could not'), findsOneWidget);
+      expect(find.textContaining('Updated 1 of 1.'), findsOneWidget);
     });
 
     eachDockUpdateSize('is read again when the walk ends in a skip', (

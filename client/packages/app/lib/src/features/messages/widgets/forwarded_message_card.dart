@@ -27,6 +27,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../../settings/providers/display_preferences.dart' show watchUse24Hour;
+import '../../members/providers/blocks_controller.dart';
 import '../../members/providers/user_profiles.dart';
 import 'attachment_gallery.dart';
 import 'author_label.dart';
@@ -68,7 +69,13 @@ class ForwardedMessageCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (forwarded.removed) return const _RemovedCard();
+    if (forwarded.removed) {
+      return const _RemovedCard('Original message was deleted');
+    }
+    final author = forwarded.authorId;
+    if (ref.watch(blocksProvider.select((s) => s.contains(author)))) {
+      return const _RemovedCard('Message from someone you blocked');
+    }
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final use24Hour = watchUse24Hour(ref, context);
     final time = formatMessageTime(forwarded.createdAt, use24Hour: use24Hour);
@@ -153,13 +160,15 @@ class ForwardedMessageCard extends ConsumerWidget {
 /// What stands where the snapshot was once its original is deleted or aged
 /// out. The forwarder's own note, drawn by the message row, is untouched.
 class _RemovedCard extends StatelessWidget {
-  const _RemovedCard();
+  const _RemovedCard(this.message);
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Semantics(
-      label: 'Forwarded message. The original message was deleted.',
+      label: 'Forwarded message. $message.',
       child: ExcludeSemantics(
         child: Container(
           decoration: BoxDecoration(
@@ -175,7 +184,7 @@ class _RemovedCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.s8),
               Flexible(
                 child: Text(
-                  'Original message was deleted',
+                  message,
                   style: AppText.caption.copyWith(
                     color: tokens.textSecondary,
                     fontStyle: FontStyle.italic,

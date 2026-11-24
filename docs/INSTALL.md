@@ -40,6 +40,8 @@ sudo dnf install slim-m-client
 
 This pulls in the tray-icon and screen-share dependencies for you and puts slim-m in the application launcher.
 It is the best desktop experience and the one to prefer if you are on Fedora.
+The COPR project follows `main`, so it also delivers builds that are not released yet.
+A release is a build that has passed the release checks and has a what's new entry; the repository does not wait for one.
 
 One oddity worth knowing: `dnf upgrade` can answer "Nothing to do" for up to 48 hours after a release, because dnf caches repository metadata that long.
 `sudo dnf upgrade --refresh slim-m-client` skips the cache.

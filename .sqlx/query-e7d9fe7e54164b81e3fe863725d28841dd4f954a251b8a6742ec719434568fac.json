@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT allow AS \"allow!: Permissions\", deny AS \"deny!: Permissions\"\n           FROM channel_overwrites\n           WHERE channel_id = ? AND target_type = 'member' AND target_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "allow!: Permissions",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "channel_overwrites",
+            "name": "allow"
+          }
+        }
+      },
+      {
+        "name": "deny!: Permissions",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "channel_overwrites",
+            "name": "deny"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "e7d9fe7e54164b81e3fe863725d28841dd4f954a251b8a6742ec719434568fac"
+}

@@ -4,7 +4,8 @@
 release-please rebases both release PRs onto every push to main, so each merge used to start
 these workflows three times at once and fill the runner queue main's own run waited in.
 The release gates read the release commit's push run, never the PR's, so the PR runs bought nothing.
-Every job here must skip on a `release-please--` head branch, directly or through a job it needs.
+Every job here must skip on a `release-please--` head branch of this repository, directly or through a job it needs.
+A fork's branch of that name is not the release PR, so it must run everything.
 
 One kind of test is not main-tested: a test that reads the version the release PR bumps.
 `whats_new_freshness_test.dart` failed 47 release PR runs with main green, by design.
@@ -20,8 +21,9 @@ from test_every_workflow_job_has_a_timeout import job_blocks
 
 WORKFLOWS = Path(__file__).resolve().parents[2] / ".github" / "workflows"
 CLIENT = Path(__file__).resolve().parents[2] / "client"
-GUARD = "!startsWith(github.head_ref, 'release-please--')"
-CLIENT_RELEASE_PR = "startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--client')"
+SAME_REPO = "github.event.pull_request.head.repo.full_name == github.repository"
+GUARD = f"!(startsWith(github.head_ref, 'release-please--') && {SAME_REPO})"
+CLIENT_RELEASE_PR = f"startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--client') && {SAME_REPO}"
 
 # Open a pubspec.yaml for its asset list or to find the workspace root, or only name it in a message.
 VERSION_BLIND = {
@@ -99,6 +101,13 @@ class ReleasePrsSkipMainTestedCiTest(unittest.TestCase):
             with self.subTest(workflow=name):
                 text = (WORKFLOWS / f"{name}.yml").read_text()
                 self.assertEqual(unguarded_jobs(text, exempt), [])
+
+    def test_a_fork_branch_named_like_the_release_pr_is_not_skipped(self):
+        for path in sorted(WORKFLOWS.glob("*.yml")):
+            for line in path.read_text().splitlines():
+                if "startsWith(github.head_ref, 'release-please--')" in line and line.lstrip().startswith("if:"):
+                    with self.subTest(workflow=path.name):
+                        self.assertIn(SAME_REPO, line)
 
     def test_exemptions_name_real_jobs(self):
         for name, exempt in HEAVY.items():

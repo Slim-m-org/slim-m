@@ -10,6 +10,7 @@ use tokio::runtime::Handle;
 use crate::ids::{ChannelId, UserId};
 use crate::module_runtime::{LogBackend, LogError, LogPage, VoiceSessionRow};
 use crate::permissions::Permissions;
+use crate::presence::Visibility;
 use crate::store::{Store, VoiceSession};
 
 pub(super) struct SqliteLogs {
@@ -41,16 +42,29 @@ impl SqliteLogs {
     }
 }
 
+impl SqliteLogs {
+    /// Members who chose to appear hidden, from one batched lookup (decisions 0066 and 0109).
+    async fn hidden_members(&self, members: &[UserId]) -> anyhow::Result<HashSet<UserId>> {
+        let visibility = self.store.presence_visibility_many(members).await?;
+        Ok(members
+            .iter()
+            .filter(|m| visibility.get(m) == Some(&Visibility::Hidden))
+            .copied()
+            .collect())
+    }
+}
+
 impl LogBackend for SqliteLogs {
     fn voice_sessions(&self, after: i64, limit: i64) -> Result<LogPage, LogError> {
-        let (sessions, visible, bots) = self
+        let (sessions, visible, bots, hidden) = self
             .handle
             .block_on(async {
                 let sessions = self.store.closed_voice_sessions_after(after, limit).await?;
                 let visible = self.visible_channels(&sessions).await?;
                 let members: Vec<UserId> = sessions.iter().map(|s| s.user_id).collect();
                 let bots = self.store.bot_user_ids(&members).await?;
-                anyhow::Ok((sessions, visible, bots))
+                let hidden = self.hidden_members(&members).await?;
+                anyhow::Ok((sessions, visible, bots, hidden))
             })
             .map_err(|_| LogError)?;
         let next = sessions
@@ -59,6 +73,7 @@ impl LogBackend for SqliteLogs {
         let rows = sessions
             .into_iter()
             .filter(|s| visible.get(&s.channel_id).copied().unwrap_or(false))
+            .filter(|s| !hidden.contains(&s.user_id))
             .filter_map(|s| {
                 Some(VoiceSessionRow {
                     id: s.id,

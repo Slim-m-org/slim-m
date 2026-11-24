@@ -13,14 +13,20 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/admin_providers.dart';
+import '../../../providers/effective_me.dart' show meProvider;
+import '../../../widgets/load_error_block.dart';
 import '../../../routing/routes.dart';
 import '../widgets/settings_notice.dart';
 import '../widgets/settings_panes.dart';
 import 'space_settings_section.dart';
 import 'settings_screen_scaffold.dart';
 import '../providers/settings_index.dart';
+
+const _title = 'Space settings';
+const _backTooltip = 'Back to channels';
 
 class SpaceSettingsScreen extends ConsumerWidget {
   const SpaceSettingsScreen({
@@ -39,10 +45,25 @@ class SpaceSettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final permissions = ref.watch(myPermissionsProvider);
     if (!spaceSettingsReachable(permissions)) {
+      final me = ref.watch(meProvider);
+      if (me.valueOrNull == null) {
+        return SettingsScreenScaffold(
+          title: _title,
+          backTooltip: _backTooltip,
+          backFallback: Routes.channels,
+          scrollable: false,
+          child: me.hasError && !me.isLoading
+              ? LoadErrorBlock(
+                  message: 'Could not load your permissions.',
+                  onRetry: () => ref.invalidate(meProvider),
+                )
+              : const Center(child: AppSpinner(size: AppSpinnerSize.lg)),
+        );
+      }
       return const SettingsScreenScaffold(
-        title: 'Space settings',
+        title: _title,
         // Reached with go(), which replaces, so there is no stack to pop.
-        backTooltip: 'Back to channels',
+        backTooltip: _backTooltip,
         backFallback: Routes.channels,
         scrollable: false,
         child: SettingsNotice(
@@ -55,8 +76,8 @@ class SpaceSettingsScreen extends ConsumerWidget {
       searchEntries: spaceSettingsIndex,
       initialPaneId: initialPaneId,
       onPaneChanged: onPaneChanged,
-      title: 'Space settings',
-      backTooltip: 'Back to channels',
+      title: _title,
+      backTooltip: _backTooltip,
       backFallback: Routes.channels,
       groups: spaceSettingsPaneGroups(context, ref),
     );

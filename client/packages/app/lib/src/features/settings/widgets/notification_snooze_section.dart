@@ -26,20 +26,18 @@ class NotificationSnoozeSection extends ConsumerStatefulWidget {
 class _NotificationSnoozeSectionState
     extends ConsumerState<NotificationSnoozeSection>
     with GuardedActionState<NotificationSnoozeSection> {
-  Future<void> _snoozeFor(Duration duration) =>
-      _apply(DateTime.now().add(duration).millisecondsSinceEpoch);
-
   Future<void> _snoozeUntilTomorrow() {
     final now = DateTime.now();
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
-    return _apply(tomorrow.millisecondsSinceEpoch);
+    return _snoozeFor(
+      DateTime(now.year, now.month, now.day + 1).difference(now),
+    );
   }
 
-  Future<void> _apply(int untilMs) => writeNotificationSchedule(
+  Future<void> _snoozeFor(Duration duration) => writeNotificationSchedule(
     ProviderScope.containerOf(context, listen: false),
     guard,
     whatFailed: 'snooze your notifications',
-    write: (actions) => actions.setNotificationSnooze(untilMs).then((_) {}),
+    write: (actions) => actions.setNotificationSnooze(duration).then((_) {}),
   );
 
   Future<void> _cancel() => writeNotificationSchedule(

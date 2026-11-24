@@ -8,6 +8,9 @@ use super::{
     bounded, malformed, validate_slug,
 };
 
+/// A loose count bound; the fetch's byte cap is what actually limits an index.
+const MAX_INDEX_ENTRIES: usize = 4096;
+
 #[derive(Deserialize)]
 struct RawIndex {
     schema: i64,
@@ -23,6 +26,11 @@ struct RawIndexEntry {
     /// A commit sha or tag the module's files are read from, instead of `main`.
     #[serde(default, rename = "ref")]
     reference: Option<String>,
+    /// Versions the registry withdrew, for example after a security fix.
+    #[serde(default)]
+    withdrawn: Vec<String>,
+    #[serde(default)]
+    withdrawn_reason: Option<String>,
 }
 
 /// One row of the marketplace listing.
@@ -34,6 +42,21 @@ pub(in crate::http::dock) struct IndexEntry {
     pub(in crate::http::dock) summary: String,
     /// The immutable ref this version is read from; `None` reads `main`.
     pub(in crate::http::dock) reference: Option<String>,
+    /// Versions the registry withdrew; an install at one of them is flagged for the admin.
+    pub(in crate::http::dock) withdrawn: Vec<String>,
+    pub(in crate::http::dock) withdrawn_reason: Option<String>,
+}
+
+impl IndexEntry {
+    /// The registry's reason when `version` was withdrawn, or `None` when it was not.
+    pub(in crate::http::dock) fn withdrawal_of(&self, version: &str) -> Option<String> {
+        let hit = self.withdrawn.iter().any(|v| v == version);
+        hit.then(|| {
+            self.withdrawn_reason
+                .clone()
+                .unwrap_or_else(|| "withdrawn by the registry".to_owned())
+        })
+    }
 }
 
 /// A 40-hex commit sha or a plain tag name: one path segment, never `.` or `..`.
@@ -54,7 +77,7 @@ pub(in crate::http::dock) fn parse_index(bytes: &[u8]) -> Result<Vec<IndexEntry>
     if raw.schema != SUPPORTED_SCHEMA {
         return Err(malformed("unsupported index.json schema version"));
     }
-    if raw.modules.len() > MAX_LIST_ITEMS {
+    if raw.modules.len() > MAX_INDEX_ENTRIES {
         return Err(malformed("index.json lists too many modules"));
     }
     raw.modules.into_iter().map(validate_index_entry).collect()
@@ -70,11 +93,28 @@ fn validate_index_entry(raw: RawIndexEntry) -> Result<IndexEntry, ManifestError>
         Some(_) => return Err(malformed("index ref must be a commit sha or tag name")),
         None => None,
     };
+    if raw.withdrawn.len() > MAX_LIST_ITEMS {
+        return Err(malformed(
+            "index.json withdraws too many versions of one module",
+        ));
+    }
+    let withdrawn = raw
+        .withdrawn
+        .iter()
+        .map(|v| bounded(v, MAX_SLUG, "withdrawn version"))
+        .collect::<Result<Vec<_>, _>>()?;
+    let withdrawn_reason = raw
+        .withdrawn_reason
+        .as_deref()
+        .map(|r| bounded(r, MAX_LONG_FIELD, "withdrawn_reason"))
+        .transpose()?;
     Ok(IndexEntry {
         id: raw.id,
         name,
         version,
         summary,
         reference,
+        withdrawn,
+        withdrawn_reason,
     })
 }

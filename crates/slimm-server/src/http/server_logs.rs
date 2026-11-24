@@ -27,8 +27,9 @@ use tokio_util::io::ReaderStream;
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{Authed, enforce, require_manage_server};
+use super::extract::{Authed, enforce, require_base_permission};
 use crate::logging::{Segment, plan_recent};
+use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 
 /// The most log text one download carries; older lines stay in the files on the data volume.
@@ -61,7 +62,7 @@ async fn download(
     dir: Option<Extension<ServerLogsDir>>,
 ) -> Result<Response, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Upload)?;
-    require_manage_server(&state, ctx.user_id).await?;
+    require_base_permission(&state, ctx.user_id, Permissions::ADMINISTRATOR).await?;
     let Some(dir) = dir.and_then(|Extension(ServerLogsDir(dir))| dir) else {
         return Err(ApiError::NotConfigured("this server keeps no log files"));
     };

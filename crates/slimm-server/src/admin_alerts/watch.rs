@@ -54,8 +54,8 @@ pub fn disk_problem(free: u64, min_free_mb: u64) -> Option<String> {
 /// Names the recorded sweeps that have missed [`SWEEP_MISSED_TICKS`] ticks.
 ///
 /// A sweep records a run only when it succeeds, so missed ticks are failed passes. `uptime`
-/// keeps a server that was just started, or down for a while, from blaming a sweep that has
-/// not had its turns yet.
+/// keeps a server that was just started from blaming a sweep that never recorded a run and has
+/// not had its turns yet; a recorded run that is too old counts whatever the uptime.
 pub fn failing_sweeps(
     schedule: &[(&str, Duration)],
     recorded: &[SweepStatus],
@@ -66,13 +66,13 @@ pub fn failing_sweeps(
         .iter()
         .filter_map(|(name, interval)| {
             let allowance = *interval * SWEEP_MISSED_TICKS;
-            if uptime < allowance {
-                return None;
-            }
             let last = recorded
                 .iter()
                 .find(|sweep| sweep.name == *name)
                 .map(|sweep| sweep.last_run_at);
+            if last.is_none() && uptime < allowance {
+                return None;
+            }
             let overdue = last.is_none_or(|at| now_ms - at > allowance.as_millis() as i64);
             overdue.then(|| (*name).to_owned())
         })
@@ -147,6 +147,14 @@ mod tests {
         assert_eq!(failing_sweeps(&schedule, &stale, now, 30 * HOUR), ["token"]);
         let fresh = [ran("token", now - 17 * 3_600_000)];
         assert!(failing_sweeps(&schedule, &fresh, now, 30 * HOUR).is_empty());
+    }
+
+    #[test]
+    fn a_stale_recorded_run_is_failing_even_in_a_young_process() {
+        let schedule = [("token", 6 * HOUR)];
+        let now = 100 * 3_600_000;
+        let stale = [ran("token", now - 19 * 3_600_000)];
+        assert_eq!(failing_sweeps(&schedule, &stale, now, HOUR), ["token"]);
     }
 
     #[test]

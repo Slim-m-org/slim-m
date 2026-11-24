@@ -12,6 +12,7 @@ import 'package:slimm_data/data.dart' show Channel;
 
 import '../../../permissions.dart';
 import '../../members/providers/blocks_controller.dart';
+import '../../members/providers/presence_controller.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
 import '../../settings/providers/notification_preference_controller.dart';
@@ -90,8 +91,13 @@ class MessageAlertPolicy {
     if (!messageEarnsASound(
       authorId: message.authorId,
       selfId: selfId,
-      authorBlocked: _ref.read(blocksProvider).contains(message.authorId),
+      authorBlocked: _ref.read(blocksProvider).hides(message),
     )) {
+      return null;
+    }
+
+    // Do not disturb silences chat too (decision 0136); the server withholds the push the same way.
+    if (_ref.read(ownVisibilityProvider) == api.PresenceVisibility.dnd) {
       return null;
     }
 

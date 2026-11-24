@@ -26,6 +26,18 @@ impl Store {
         target_id: Option<&str>,
         detail: &str,
     ) -> anyhow::Result<()> {
+        self.record_admin_change_by(Some(actor_id), action, target_id, detail)
+            .await
+    }
+
+    /// [`Self::record_admin_change`] for a change nobody made, such as the server turning a module off.
+    pub async fn record_admin_change_by(
+        &self,
+        actor_id: Option<UserId>,
+        action: &str,
+        target_id: Option<&str>,
+        detail: &str,
+    ) -> anyhow::Result<()> {
         let created_at = now_ms();
         sqlx::query!(
             "INSERT INTO admin_audit_log (actor_id, action, target_id, detail, created_at)
@@ -72,6 +84,23 @@ impl Store {
         .execute(&self.pool)
         .await?;
         Ok(written.rows_affected() == 1)
+    }
+
+    /// Deletes both audit logs' rows older than `cutoff_ms`; answers how many went.
+    pub async fn prune_audit_logs(&self, cutoff_ms: i64) -> anyhow::Result<u64> {
+        let admin = sqlx::query!(
+            "DELETE FROM admin_audit_log WHERE created_at < ?",
+            cutoff_ms
+        )
+        .execute(&self.pool)
+        .await?;
+        let moderation = sqlx::query!(
+            "DELETE FROM moderation_audit_log WHERE created_at < ?",
+            cutoff_ms
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(admin.rows_affected() + moderation.rows_affected())
     }
 
     /// Up to `limit` changes older than `before` (an entry id), newest first.

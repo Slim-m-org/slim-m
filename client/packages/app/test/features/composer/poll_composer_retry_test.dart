@@ -4,10 +4,12 @@
 /// poll is a new one.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -50,6 +52,9 @@ class _Rig {
   /// The server takes the next poll but its reply never arrives.
   bool dropNextReply = true;
 
+  /// While set, the poll is received but not answered.
+  Completer<void>? hold;
+
   List<Object?> get ids => [for (final p in posts) p['id']];
 
   Future<http.Response> _handle(http.Request request) async {
@@ -58,6 +63,7 @@ class _Rig {
     }
     final body = jsonDecode(request.body) as Map<String, dynamic>;
     posts.add(body);
+    await hold?.future;
     if (dropNextReply) {
       dropNextReply = false;
       throw http.ClientException('connection closed');
@@ -159,5 +165,37 @@ void main() {
       reason: 'a replayed id would send the old options',
     );
     expect(rig.posts[1]['options'], ['Catan', 'Azul']);
+  });
+
+  testWidgets('a poll answered after the sheet was dismissed still lands in '
+      'the local store', (tester) async {
+    final rig = _Rig()..dropNextReply = false;
+    addTearDown(rig.dispose);
+    final hold = rig.hold = Completer<void>();
+    await _open(tester, rig);
+    await tester.ensureVisible(find.text('Send poll'));
+    await tester.tap(find.text('Send poll'));
+    await tester.runAsync(() async {
+      while (rig.posts.isEmpty) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    });
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await pumpFrames(tester);
+    expect(find.text('Send poll'), findsNothing, reason: 'the sheet closed');
+    hold.complete();
+    final store = data.MessageStore(rig.db);
+    final id = rig.posts.single['id'] as String;
+    var stored = false;
+    await tester.runAsync(() async {
+      for (var i = 0; i < 400 && !stored; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        stored = await store.hasMessage('c1', id);
+      }
+    });
+
+    expect(tester.takeException(), isNull);
+    expect(stored, isTrue, reason: 'the sent poll was applied locally');
   });
 }

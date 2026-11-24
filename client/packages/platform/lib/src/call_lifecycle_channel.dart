@@ -25,6 +25,7 @@ import 'package:flutter/services.dart';
 
 import 'call_system_event.dart';
 import 'host_platform.dart';
+import 'method_channel_hub.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/call_lifecycle';
@@ -36,13 +37,15 @@ class CallLifecycleChannel {
       : _channel = channel ?? const MethodChannel(_channelName),
         _isIOS = isIOS ?? isIOSHost {
     // Guarded, or a non-iOS test needs a binary messenger just to construct this.
-    if (_isIOS) _channel.setMethodCallHandler(_onCall);
+    if (_isIOS) _calls = MethodChannelHub.of(_channel).calls.listen(_onCall);
   }
 
   final MethodChannel _channel;
   final bool _isIOS;
   final _endCalls = StreamController<void>.broadcast();
   final _systemEvents = StreamController<String>.broadcast();
+  StreamSubscription<MethodCall>? _calls;
+  String? _reportedCallId;
 
   /// Fires whenever the system call UI ends this call (Dynamic Island, the
   /// lock screen, and so on). CallKit has already told the native side and
@@ -55,10 +58,10 @@ class CallLifecycleChannel {
   /// diagnostics; see [describeCallSystemEvent]. Only records, never acts.
   Stream<String> get systemEvents => _systemEvents.stream;
 
-  Future<void> _onCall(MethodCall call) async {
+  void _onCall(MethodCall call) {
     switch (call.method) {
       case 'endCall':
-        _endCalls.add(null);
+        if (!_endCalls.isClosed) _endCalls.add(null);
       case 'callEvent':
         final args = call.arguments;
         final line = args is Map ? describeCallSystemEvent(args) : null;
@@ -94,6 +97,7 @@ class CallLifecycleChannel {
     required String displayName,
   }) async {
     if (!_isIOS) return;
+    _reportedCallId = callId;
     try {
       await _channel.invokeMethod<void>('callStarted', {
         'callId': callId,
@@ -114,9 +118,10 @@ class CallLifecycleChannel {
 
   /// The room actually connected, following [callStarted].
   Future<void> callConnected() async {
-    if (!_isIOS) return;
+    final callId = _reportedCallId;
+    if (!_isIOS || callId == null) return;
     try {
-      await _channel.invokeMethod<void>('callConnected');
+      await _channel.invokeMethod<void>('callConnected', {'callId': callId});
     } on PlatformException catch (error, stack) {
       AppLog.swallowed(
           LogTag.voice,
@@ -130,11 +135,15 @@ class CallLifecycleChannel {
     }
   }
 
-  /// The call ended, from this side. Safe to call with nothing reported.
+  /// The call this instance reported ended, from this side. Sends nothing
+  /// when it reported none, and names the call so a stale end cannot close
+  /// another account's call.
   Future<void> callEnded() async {
-    if (!_isIOS) return;
+    final callId = _reportedCallId;
+    if (!_isIOS || callId == null) return;
+    _reportedCallId = null;
     try {
-      await _channel.invokeMethod<void>('callEnded');
+      await _channel.invokeMethod<void>('callEnded', {'callId': callId});
     } on PlatformException catch (error, stack) {
       AppLog.swallowed(
           LogTag.voice,
@@ -149,6 +158,7 @@ class CallLifecycleChannel {
   }
 
   void dispose() {
+    unawaited(_calls?.cancel());
     unawaited(_endCalls.close());
     unawaited(_systemEvents.close());
   }

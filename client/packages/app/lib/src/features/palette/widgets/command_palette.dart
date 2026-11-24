@@ -441,7 +441,9 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
 
   List<PaletteSection> _sections(_ResultInputs inputs) {
     final channelsById = {for (final c in inputs.channels) c.id: c};
-    final query = parsePaletteQuery(_query).text;
+    final parsed = parsePaletteQuery(_query);
+    final query = parsed.text;
+    final everything = parsed.scope == PaletteScope.all;
     return paletteSections((
       query: _query,
       filtering: _filtering,
@@ -466,15 +468,15 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
         selfDisplayName: inputs.me?.displayName,
         categoryNames: inputs.categoryNames,
         currentChannelId: widget.currentChannelId,
-        showAll: parsePaletteQuery(_query).scope == PaletteScope.all
-            ? () => _scopeTo('#')
-            : null,
+        showAll: everything ? () => _scopeTo('#') : null,
       ),
       people: buildMemberItems(
         inputs.members,
         query,
         inputs.me?.id,
         around: ref.watch(aroundUserIdsProvider),
+        limit: everything ? paletteResultLimit : palettePeopleScopeLimit,
+        showAll: everything ? () => _scopeTo('@') : null,
       ),
       transcripts: buildTranscriptItems(
         _transcriptResults,

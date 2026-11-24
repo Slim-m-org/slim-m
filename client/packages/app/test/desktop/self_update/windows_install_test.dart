@@ -125,6 +125,17 @@ void main() {
       },
     );
 
+    test(
+      'a second install before a restart keeps the proven rollback target',
+      () async {
+        await _install(root);
+        await _install(root, version: '0.90.0');
+
+        expect(_read(root, 'current'), '0.90.0');
+        expect(_read(root, 'previous'), '0.88.0');
+      },
+    );
+
     test('a zip without the app is not published', () async {
       Future<void> empty(File archive, Directory into) async =>
           File('${into.path}/readme.txt').writeAsStringSync('x');
@@ -144,6 +155,7 @@ void main() {
 
     test('a rewritten pointer is never a half-written file', () async {
       await _install(root);
+      File('${root.path}/pending').deleteSync();
       await _install(root, version: '0.90.0');
       for (final name in ['current', 'previous']) {
         expect(RegExp(r'^\d+\.\d+\.\d+$').hasMatch(_read(root, name)!), isTrue);
@@ -196,7 +208,7 @@ void main() {
       Directory('${root.path}/.staging').createSync();
       Directory('${root.path}/app').createSync();
 
-      confirmWindowsCleanStart(layout);
+      confirmWindowsCleanStart(layout, r'C:\elsewhere\x.exe');
 
       expect(_names(root), [
         'app',
@@ -206,6 +218,40 @@ void main() {
         'previous',
         'slim-m.exe',
       ]);
+    });
+
+    test('prunes nothing when the current pointer cannot be read', () {
+      _makeVersion(root, '0.80.0');
+      File('${root.path}/current').deleteSync();
+      Directory('${root.path}/current').createSync();
+
+      confirmWindowsCleanStart(layout, r'C:\elsewhere\x.exe');
+
+      expect(Directory('${root.path}/app-0.80.0').existsSync(), isTrue);
+      expect(Directory('${root.path}/app-0.88.0').existsSync(), isTrue);
+    });
+
+    test(
+      'prunes nothing when the previous pointer is there but unreadable',
+      () {
+        _makeVersion(root, '0.80.0');
+        Directory('${root.path}/previous').createSync();
+
+        confirmWindowsCleanStart(layout, r'C:\elsewhere\x.exe');
+
+        expect(Directory('${root.path}/app-0.80.0').existsSync(), isTrue);
+      },
+    );
+
+    test('never prunes the folder the running executable lives in', () {
+      _makeVersion(root, '0.80.0');
+      _makeVersion(root, '0.89.0');
+      _pointer(root, 'current', '0.89.0');
+
+      confirmWindowsCleanStart(layout, '${root.path}/app-0.80.0/slimm_app.exe');
+
+      expect(Directory('${root.path}/app-0.80.0').existsSync(), isTrue);
+      expect(Directory('${root.path}/app-0.88.0').existsSync(), isFalse);
     });
 
     test('takeWindowsRollbackNotice reports once and clears the marker', () {

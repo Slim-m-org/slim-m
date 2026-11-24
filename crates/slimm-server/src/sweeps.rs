@@ -22,6 +22,16 @@ pub use voice::{
 
 use crate::{hub, media, store};
 
+/// A cutoff for [`run_audit_log_sweep_pass`]; no background sweep runs it until the owner decides a retention.
+pub const AUDIT_LOG_RETENTION_MS: i64 = 730 * 24 * 60 * 60 * 1000;
+
+/// Deletes audit rows past [`AUDIT_LOG_RETENTION_MS`]; answers how many went.
+pub async fn run_audit_log_sweep_pass(store: &store::Store) -> anyhow::Result<u64> {
+    store
+        .prune_audit_logs(store::now_ms() - AUDIT_LOG_RETENTION_MS)
+        .await
+}
+
 /// The sweeps that record a run in `sweep_status`, with how often each one ticks.
 ///
 /// Lives beside the intervals so the admin alerts, which read a missed run as a failing sweep,
@@ -68,14 +78,95 @@ where
     F: Fn() -> Fut + Send + 'static,
     Fut: std::future::Future<Output = ()> + Send,
 {
+    spawn_sweep_after(std::future::ready(interval), interval, pass);
+}
+
+/// How long a sweep that is already overdue at boot waits before its first pass.
+///
+/// Short rather than zero so a crash loop still gets its work done between crashes without
+/// every boot starting a delete at once.
+const OVERDUE_START_DELAY: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// [`spawn_sweep`] for a sweep that records its runs under `name`: the first pass is timed from
+/// the recorded `last_run_at`, so a server that restarts more often than `interval` still
+/// sweeps. A recent run or started pass keeps the crash-loop protection, so a pass that crashes
+/// the process still waits its interval; an overdue or unrecorded one runs after [`OVERDUE_START_DELAY`].
+pub(crate) fn spawn_recorded_sweep<F, Fut>(
+    store: store::Store,
+    name: &'static str,
+    interval: std::time::Duration,
+    pass: F,
+) where
+    F: Fn() -> Fut + Send + 'static,
+    Fut: std::future::Future<Output = ()> + Send,
+{
+    let attempts = store.clone();
+    let first = async move {
+        let last_run_at = match store.last_sweep_activity(name).await {
+            Ok(last) => last,
+            Err(err) => {
+                tracing::warn!(error = %err, sweep = name, "could not read the last sweep run");
+                return interval;
+            }
+        };
+        first_delay(last_run_at, store::now_ms(), interval)
+    };
+    spawn_sweep_after(first, interval, move || {
+        let stamped = stamp_attempt(attempts.clone(), name);
+        let running = pass();
+        async move {
+            stamped.await;
+            running.await;
+        }
+    });
+}
+
+/// Stamps a pass as started, so a pass that crashes the process still waits its interval after the next boot.
+async fn stamp_attempt(store: store::Store, name: &'static str) {
+    if let Err(err) = store.record_sweep_attempt(name).await {
+        tracing::warn!(error = %err, sweep = name, "could not stamp a sweep attempt");
+    }
+}
+
+/// When the first pass is due given the last recorded run, if any.
+fn first_delay(
+    last_run_at: Option<i64>,
+    now_ms: i64,
+    interval: std::time::Duration,
+) -> std::time::Duration {
+    let Some(last) = last_run_at else {
+        return OVERDUE_START_DELAY;
+    };
+    let elapsed = std::time::Duration::from_millis(now_ms.saturating_sub(last).max(0) as u64);
+    interval
+        .saturating_sub(elapsed)
+        .max(OVERDUE_START_DELAY)
+        .min(interval)
+}
+
+fn spawn_sweep_after<F, Fut>(
+    first_delay: impl std::future::Future<Output = std::time::Duration> + Send + 'static,
+    interval: std::time::Duration,
+    pass: F,
+) where
+    F: Fn() -> Fut + Send + 'static,
+    Fut: std::future::Future<Output = ()> + Send,
+{
     tokio::spawn(async move {
-        let mut ticker = tokio::time::interval(interval);
-        ticker.tick().await;
+        let start = tokio::time::Instant::now() + first_delay.await;
+        let mut ticker = tokio::time::interval_at(start, interval);
         loop {
             ticker.tick().await;
             pass().await;
         }
     });
+}
+
+/// Folds the write-ahead log back into the database file so it can shrink to its size limit.
+async fn checkpoint_wal(store: &store::Store) {
+    if let Err(err) = store.checkpoint_wal().await {
+        tracing::warn!(error = %err, "WAL checkpoint failed");
+    }
 }
 
 /// How often expired token rows are swept. Long, because nothing depends on
@@ -90,7 +181,8 @@ const INTERRUPTED_PURGE_AFTER_MS: i64 = 10 * 60 * 1000;
 /// Runs the token sweep in the background for the life of the process; see
 /// [`spawn_sweep`] for the model all six follow.
 pub(crate) fn spawn_token_sweep(store: store::Store) {
-    spawn_sweep(TOKEN_SWEEP_INTERVAL, move || {
+    let sweep_store = store.clone();
+    spawn_recorded_sweep(sweep_store, "token", TOKEN_SWEEP_INTERVAL, move || {
         let store = store.clone();
         async move { run_token_sweep_pass(&store).await }
     });
@@ -145,6 +237,7 @@ pub async fn run_token_sweep_pass(store: &store::Store) {
     if let Err(err) = store.sweep_interactions().await {
         tracing::warn!(error = %err, "interaction sweep failed");
     }
+    checkpoint_wal(store).await;
 }
 
 /// How often an uploaded-but-never-attached attachment is swept. Uploading is
@@ -159,11 +252,17 @@ const ATTACHMENT_SWEEP_INTERVAL: std::time::Duration = std::time::Duration::from
 /// cleans up the backing files that removal freed, which is why it needs
 /// `media` and not just `store`.
 pub(crate) fn spawn_attachment_sweep(store: store::Store, media: media::Media) {
-    spawn_sweep(ATTACHMENT_SWEEP_INTERVAL, move || {
-        let store = store.clone();
-        let media = media.clone();
-        async move { run_attachment_sweep_pass(&store, &media).await }
-    });
+    let sweep_store = store.clone();
+    spawn_recorded_sweep(
+        sweep_store,
+        "attachments",
+        ATTACHMENT_SWEEP_INTERVAL,
+        move || {
+            let store = store.clone();
+            let media = media.clone();
+            async move { run_attachment_sweep_pass(&store, &media).await }
+        },
+    );
 }
 
 /// One pass of the orphaned-attachment sweep, callable without the timer.
@@ -202,6 +301,7 @@ pub async fn run_attachment_sweep_pass(store: &store::Store, media: &media::Medi
         Ok(count) => tracing::info!(count, "swept expired upload sessions"),
         Err(err) => tracing::warn!(error = %err, "upload session sweep failed"),
     }
+    checkpoint_wal(store).await;
 }
 
 /// How often the canvas op log is compacted. Long, the same reasoning
@@ -217,25 +317,33 @@ const CANVAS_OP_SWEEP_INTERVAL: std::time::Duration = std::time::Duration::from_
 
 /// Runs the canvas op compaction sweep in the background; see [`spawn_sweep`].
 pub(crate) fn spawn_canvas_op_sweep(store: store::Store) {
-    spawn_sweep(CANVAS_OP_SWEEP_INTERVAL, move || {
-        let store = store.clone();
-        async move {
-            match store.sweep_canvas_ops().await {
-                Ok(swept) => {
-                    if swept.total() > 0 {
-                        tracing::info!(
-                            restores = swept.restores,
-                            removes = swept.removes,
-                            clears = swept.clears,
-                            "compacted canvas op rows"
-                        );
+    let sweep_store = store.clone();
+    spawn_recorded_sweep(
+        sweep_store,
+        "canvas_ops",
+        CANVAS_OP_SWEEP_INTERVAL,
+        move || {
+            let store = store.clone();
+            async move {
+                match store.sweep_canvas_ops().await {
+                    Ok(swept) => {
+                        if swept.total() > 0 {
+                            tracing::info!(
+                                restores = swept.restores,
+                                removes = swept.removes,
+                                clears = swept.clears,
+                                edits = swept.edits,
+                                audit = swept.audit,
+                                "compacted canvas op rows"
+                            );
+                        }
+                        record_sweep_run(&store, "canvas_ops", swept.total() as i64).await;
                     }
-                    record_sweep_run(&store, "canvas_ops", swept.total() as i64).await;
+                    Err(err) => tracing::warn!(error = %err, "canvas op sweep failed"),
                 }
-                Err(err) => tracing::warn!(error = %err, "canvas op sweep failed"),
             }
-        }
-    });
+        },
+    );
 }
 
 /// How often the message retention window is applied. Long, the same
@@ -257,22 +365,36 @@ pub(crate) fn spawn_message_retention_sweep(
     media: media::Media,
     hub: hub::Hub,
 ) {
-    spawn_sweep(MESSAGE_RETENTION_SWEEP_INTERVAL, move || {
-        let store = store.clone();
-        let media = media.clone();
-        let hub = hub.clone();
-        async move { run_message_retention_sweep_pass(&store, &media, &hub).await }
-    });
+    let sweep_store = store.clone();
+    let name = "message_retention";
+    spawn_recorded_sweep(
+        sweep_store,
+        name,
+        MESSAGE_RETENTION_SWEEP_INTERVAL,
+        move || {
+            let store = store.clone();
+            let media = media.clone();
+            let hub = hub.clone();
+            async move { run_message_retention_sweep_pass(&store, &media, &hub).await }
+        },
+    );
 }
 
 /// Runs the call transcript retention sweep in the background; see [`spawn_sweep`].
 pub(crate) fn spawn_transcript_retention_sweep(store: store::Store) {
-    spawn_sweep(MESSAGE_RETENTION_SWEEP_INTERVAL, move || {
-        let store = store.clone();
-        async move {
-            run_transcript_retention_sweep_pass(&store).await;
-        }
-    });
+    let sweep_store = store.clone();
+    let name = "call_transcripts";
+    spawn_recorded_sweep(
+        sweep_store,
+        name,
+        MESSAGE_RETENTION_SWEEP_INTERVAL,
+        move || {
+            let store = store.clone();
+            async move {
+                run_transcript_retention_sweep_pass(&store).await;
+            }
+        },
+    );
 }
 
 /// One pass of the transcript retention sweep, callable without the timer.

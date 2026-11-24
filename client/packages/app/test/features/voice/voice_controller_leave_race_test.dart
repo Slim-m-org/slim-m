@@ -191,4 +191,35 @@ void main() {
       expect(session.askedForCameraOnJoin, isFalse);
     },
   );
+
+  test('camera on join applies to every call in a session', () async {
+    final session = FakeSession();
+    final controller = harness.controllerWith(session, voiceApi());
+    controller.setCameraPreference(true);
+
+    await controller.join('chan-1');
+    session.emitState(VoiceSessionState.connected);
+    await pumpEventQueue();
+    await controller.leave();
+    await pumpEventQueue();
+    expect(controller.state.cameraEnabled, isTrue);
+
+    session.askedForCameraOnJoin = false;
+    await controller.join('chan-2');
+
+    expect(session.askedForCameraOnJoin, isTrue);
+  });
+
+  test(
+    'a hang-up that arrives after the account was disposed is a no-op',
+    () async {
+      final session = FakeSession();
+      final controller = harness.controllerWith(session, voiceApi());
+
+      harness.container.dispose();
+
+      await controller.leave();
+      expect(session.leaveCalls, 0);
+    },
+  );
 }

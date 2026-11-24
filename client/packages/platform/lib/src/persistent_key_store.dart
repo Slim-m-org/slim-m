@@ -33,6 +33,9 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 /// and in both entitlements files; `hygiene.yml` fails when they disagree.
 const pushKeychainAccessGroup = '76S78SUWVM.top.npcserver.slimm.push';
 
+/// The app's default keychain group, where every secret but the push key sits.
+const legacyKeychainAccessGroup = '76S78SUWVM.top.npcserver.slimm';
+
 /// The platform keychain, through flutter_secure_storage. Use on iOS and
 /// Android, where the OS itself guarantees a secure backend.
 ///
@@ -76,6 +79,18 @@ class SecureKeyStore implements KeyStore {
               iOptions: IOSOptions(
                 groupId: pushKeychainAccessGroup,
                 accessibility: KeychainAccessibility.first_unlock_this_device,
+              ),
+            );
+
+  /// The ordinary store with its default group named outright, for the push
+  /// key's migration source: an unscoped delete matches an item in every group
+  /// the app can reach, so it would also remove the copy in the push group.
+  SecureKeyStore.forLegacyPushKey({FlutterSecureStorage? storage})
+      : _storage = storage ??
+            const FlutterSecureStorage(
+              iOptions: IOSOptions(
+                groupId: legacyKeychainAccessGroup,
+                accessibility: KeychainAccessibility.unlocked_this_device,
               ),
             );
 
@@ -425,6 +440,9 @@ bool get pushKeyHasItsOwnStore => isIOSHost;
 /// `DevicePushKeys` does the one-time move rather than silently generating a
 /// second keypair and orphaning every envelope sealed to the first.
 KeyStore createPushKeyStore() => SecureKeyStore.forPushKey();
+
+/// Where an earlier build left the push key; see [SecureKeyStore.forLegacyPushKey].
+KeyStore createLegacyPushKeyStore() => SecureKeyStore.forLegacyPushKey();
 
 /// Whether secrets a background poll reads live in their own store. iOS only:
 /// the keychain refuses a read while locked unless it was written readable

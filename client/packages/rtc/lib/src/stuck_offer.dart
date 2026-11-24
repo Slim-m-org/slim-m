@@ -58,12 +58,14 @@ class StuckOfferWatch {
   final Duration grace;
 
   Timer? _timer;
+  int _generation = 0;
 
   /// Escalates when the offer out now is still the one out after [grace].
   Future<void> watch() async {
     cancel();
+    final mine = _generation;
     final before = await pendingOffer();
-    if (before == null) return;
+    if (before == null || mine != _generation) return;
     _timer = Timer(grace, () async {
       _timer = null;
       // A dead signal connection means another reconnect is already under way.
@@ -73,6 +75,7 @@ class StuckOfferWatch {
   }
 
   void cancel() {
+    _generation++;
     _timer?.cancel();
     _timer = null;
   }

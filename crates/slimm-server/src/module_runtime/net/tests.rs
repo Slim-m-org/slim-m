@@ -59,6 +59,17 @@ fn a_bare_host_entry_admits_only_the_default_port() {
 }
 
 #[test]
+fn a_bare_host_entry_refuses_plain_http() {
+    let approved = hosts(&["api.example.com"]);
+    assert!(!host_allowed(&url("http://api.example.com/v1"), &approved));
+    assert!(!host_allowed(
+        &url("http://api.example.com:80/v1"),
+        &approved
+    ));
+    assert!(parse(br#"{"url":"http://api.example.com/x"}"#, &approved).is_err());
+}
+
+#[test]
 fn a_host_and_port_entry_admits_exactly_that_port() {
     let approved = hosts(&["jellyfin.lan:8096"]);
     assert!(host_allowed(

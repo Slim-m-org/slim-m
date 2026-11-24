@@ -11,6 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/animation_gate.dart';
+import '../../../providers/bounded_image_decode.dart';
 import '../../../widgets/image_decode.dart';
 import '../../messages/providers/attachment_preview_bytes.dart';
 import '../providers/favorite_preview_bytes.dart';
@@ -84,10 +85,12 @@ class FavoriteTile extends ConsumerWidget {
           );
     return switch (preview) {
       AsyncData(value: final Uint8List bytes) => AnimationGate(
-        child: Image.memory(
-          bytes,
+        child: Image(
+          image: ResizeImage(
+            BoundedMemoryImage(bytes),
+            width: decodeEdge(context, 160),
+          ),
           fit: BoxFit.cover,
-          cacheWidth: decodeEdge(context, 160),
           errorBuilder: (_, _, _) => const SizedBox.shrink(),
         ),
       ),

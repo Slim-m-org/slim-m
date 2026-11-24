@@ -211,7 +211,7 @@ impl Store {
     /// The lowest op seq still retained for a channel, `None` where the stream
     /// holds nothing.
     ///
-    /// The floor moves: `Store::reclaim_message_ops_before` (the message
+    /// The floor moves: `Store::reclaim_message_ops` (the message
     /// retention sweep) drops ops past the cutoff, so this is the sweep's
     /// high-water mark rather than the first op ever written. It was the
     /// latter when this was added, and the reset branch depending on it was

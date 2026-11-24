@@ -49,9 +49,12 @@ void main() {
         mockApiOverride((request) async {
           if (request.url.path == '/notifications/schedule/snooze') {
             await saved.future;
-            snoozeUntil =
-                (jsonDecode(request.body) as Map<String, dynamic>)['until_ms']
+            final seconds =
+                (jsonDecode(request.body)
+                        as Map<String, dynamic>)['duration_seconds']
                     as int;
+            snoozeUntil =
+                DateTime.now().millisecondsSinceEpoch + seconds * 1000;
             return _json({'snooze_until': snoozeUntil});
           }
           if (request.url.path == '/notifications/schedule') {

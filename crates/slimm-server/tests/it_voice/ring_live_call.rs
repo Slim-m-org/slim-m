@@ -28,7 +28,7 @@ async fn send(rig: &Rig, method: &str, uri: &str, who: &Person, body: Value) -> 
     json_body(response).await
 }
 
-async fn group(rig: &Rig, owner: &Person, others: &[&Person]) -> String {
+pub(crate) async fn group(rig: &Rig, owner: &Person, others: &[&Person]) -> String {
     let user_ids: Vec<&str> = others.iter().map(|p| p.id.as_str()).collect();
     let body = json!({ "id": uuid::Uuid::now_v7().to_string(), "user_ids": user_ids });
     send(rig, "POST", "/dms/groups", owner, body).await["channel_id"]

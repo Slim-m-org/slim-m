@@ -85,6 +85,8 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
         | Event::CategoryMuteChanged { .. }
+        | Event::BlocksChanged { .. }
+        | Event::AccountNotificationsChanged { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
@@ -94,6 +96,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::VoiceMoved { .. }
         | Event::VoiceRemoved { .. }
         | Event::VoiceNotice { .. }
+        | Event::DmLeft { .. }
         | Event::SoundboardPlayed { .. }
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => return None,

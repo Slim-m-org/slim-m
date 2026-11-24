@@ -81,6 +81,21 @@ impl Store {
         removed_by: UserId,
         reason: Option<&str>,
     ) -> Result<Vec<SessionId>, RemoveMemberError> {
+        Ok(self
+            .apply_removal(user_id, removed_by, reason)
+            .await?
+            .unwrap_or_default())
+    }
+
+    /// [`Self::remove_from_space`], answering `None` when the same moderator
+    /// had already removed them for the same reason: the client's replay of a
+    /// removal whose reply was lost, which writes no audit row and moves nothing.
+    pub async fn apply_removal(
+        &self,
+        user_id: UserId,
+        removed_by: UserId,
+        reason: Option<&str>,
+    ) -> Result<Option<Vec<SessionId>>, RemoveMemberError> {
         let now = now_ms();
         let mut tx = self.begin_write().await?;
         let revoked = remove_one(&mut tx, user_id, removed_by, reason, now).await?;
@@ -295,7 +310,7 @@ pub(super) async fn remove_one(
     removed_by: UserId,
     reason: Option<&str>,
     now: i64,
-) -> Result<Vec<SessionId>, RemoveMemberError> {
+) -> Result<Option<Vec<SessionId>>, RemoveMemberError> {
     let exists = sqlx::query_scalar!(
         r#"SELECT 1 AS "one!: i64" FROM users WHERE id = ? AND deleted_at IS NULL"#,
         user_id
@@ -304,6 +319,18 @@ pub(super) async fn remove_one(
     .await?;
     if exists.is_none() {
         return Err(RemoveMemberError::UserNotFound);
+    }
+
+    let standing = sqlx::query!(
+        "SELECT reason, removed_by AS \"removed_by: UserId\" FROM space_removals WHERE user_id = ?",
+        user_id
+    )
+    .fetch_optional(&mut *tx)
+    .await?;
+    if standing
+        .is_some_and(|row| row.reason.as_deref() == reason && row.removed_by == Some(removed_by))
+    {
+        return Ok(None);
     }
 
     sqlx::query!(
@@ -363,5 +390,5 @@ pub(super) async fn remove_one(
     )
     .await?;
 
-    Ok(revoked)
+    Ok(Some(revoked))
 }

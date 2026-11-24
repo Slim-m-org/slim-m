@@ -104,7 +104,7 @@ jobs:
   # since each can fail with the other green.
   analyze-format:
     name: analyze, format check
-    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    if: ${{ !(startsWith(github.head_ref, 'release-please--') && github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -135,7 +135,7 @@ jobs:
   # The tests whose answer the version bump changes; a release PR skips everything else here (docs/ci-details.md).
   release-version-gates:
     name: release version gates
-    if: ${{ startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--client') }}
+    if: ${{ startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--client') && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -181,7 +181,7 @@ jobs:
   # count, so the slowest shard stays near the mean.
   test-shards:
     name: client tests (${{ matrix.label }})
-    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    if: ${{ !(startsWith(github.head_ref, 'release-please--') && github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -312,7 +312,7 @@ jobs:
   # test shards so its compile and bundle-budget cost is not on the critical path.
   test-web:
     name: web build
-    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    if: ${{ !(startsWith(github.head_ref, 'release-please--') && github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -355,7 +355,7 @@ jobs:
   # Dart compiled to JavaScript, which the VM suites cannot see: see docs/ci-details.md, "Logic tests also run as JavaScript".
   test-chrome:
     name: logic tests compiled to javascript (chrome)
-    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    if: ${{ !(startsWith(github.head_ref, 'release-please--') && github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -396,7 +396,7 @@ jobs:
   # so it runs in parallel and its apt cost is not paid by every other check.
   linux-compiles:
     name: linux desktop compiles
-    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    if: ${{ !(startsWith(github.head_ref, 'release-please--') && github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

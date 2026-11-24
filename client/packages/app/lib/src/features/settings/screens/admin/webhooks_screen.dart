@@ -20,6 +20,7 @@ import '../../../../widgets/confirm_dialog.dart';
 import '../../../../widgets/labeled_field.dart';
 import '../../../../widgets/name_sheet.dart';
 import '../../../../widgets/run_guarded.dart';
+import '../../providers/secret_reveal.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_secret_reveal.dart';
@@ -53,11 +54,19 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
   Channel? _channel;
   bool _busy = false;
 
-  /// The one and only time this delivery URL is legible.
-  ({api.NewWebhook created, Uri url})? _justCreated;
+  @override
+  void initState() {
+    super.initState();
+    _label.addListener(_labelChanged);
+  }
+
+  void _labelChanged() => setState(() {});
+
+  bool get _ready => _channel != null && _label.text.trim().isNotEmpty;
 
   @override
   void dispose() {
+    _label.removeListener(_labelChanged);
     _label.dispose();
     super.dispose();
   }
@@ -70,7 +79,7 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
       context,
       builder: (context) => ChannelPickerSheet(channels: channels),
     );
-    if (picked == null) return;
+    if (picked == null || !mounted) return;
     setState(() => _channel = picked);
   }
 
@@ -80,36 +89,36 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
     if (channel == null || label.isEmpty) return;
     setState(() => _busy = true);
     api.NewWebhook? created;
+    final container = ProviderScope.containerOf(context, listen: false);
     final ok = await guard(
       whatFailed: 'create the webhook',
       action: () async {
-        created = await ref.read(apiProvider).createWebhook(channel.id, label);
+        created = await container
+            .read(apiProvider)
+            .createWebhook(channel.id, label);
       },
     );
+    final minted = created;
+    if (ok && minted != null) revealWebhookSecret(container, minted);
+    if (ok) container.invalidate(webhooksProvider);
     if (!mounted) return;
     setState(() {
       _busy = false;
-      if (ok && created != null) {
-        _reveal(created!);
+      if (ok && minted != null) {
         _label.clear();
         _channel = null;
       }
     });
-    if (ok) ref.invalidate(webhooksProvider);
-  }
-
-  void _reveal(api.NewWebhook created) {
-    final url = ref.read(apiProvider).baseUrl.resolve(created.deliveryPath);
-    setState(() => _justCreated = (created: created, url: url));
   }
 
   @override
   Widget build(BuildContext context) {
     final webhooks = ref.watch(webhooksProvider);
+    final justCreated = ref.watch(webhookSecretRevealProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_justCreated case final created?)
+        if (justCreated case final created?)
           SettingsSecretReveal(
             warning:
                 'This is the only time ${created.created.webhook.label}\'s URL '
@@ -120,7 +129,8 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
             valueSemanticsLabel:
                 'Webhook URL for ${created.created.webhook.label}',
             copyLabel: 'Copy URL',
-            onDismiss: () => setState(() => _justCreated = null),
+            onDismiss: () =>
+                ref.read(webhookSecretRevealProvider.notifier).state = null,
           ),
         SettingsSectionCard(
           title: ActionLabels.createWebhook,
@@ -147,7 +157,7 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
                     maxLength: api.InputLimits.name,
                     controller: _label,
                     semanticLabel: 'Webhook label',
-                    onSubmitted: (_) => _busy ? null : _create(),
+                    onSubmitted: (_) => _busy || !_ready ? null : _create(),
                   ),
                 ),
                 Align(
@@ -155,7 +165,7 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
                   child: AppButton(
                     label: ActionLabels.createWebhook,
                     variant: AppButtonVariant.primary,
-                    onPressed: _busy ? null : _create,
+                    onPressed: _busy || !_ready ? null : _create,
                   ),
                 ),
                 if (actionError case final error?)
@@ -182,8 +192,7 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
                   detail: 'Create one above to post into a channel from a URL.',
                 )
               else
-                for (final webhook in list)
-                  _WebhookRow(webhook: webhook, onRotated: _reveal),
+                for (final webhook in list) _WebhookRow(webhook: webhook),
             ],
           ),
         ),
@@ -193,10 +202,9 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
 }
 
 class _WebhookRow extends ConsumerStatefulWidget {
-  const _WebhookRow({required this.webhook, required this.onRotated});
+  const _WebhookRow({required this.webhook});
 
   final api.Webhook webhook;
-  final ValueChanged<api.NewWebhook> onRotated;
 
   @override
   ConsumerState<_WebhookRow> createState() => _WebhookRowState();
@@ -217,13 +225,14 @@ class _WebhookRowState extends ConsumerState<_WebhookRow>
     );
     if (!confirmed || !mounted) return;
     setState(() => _busy = true);
+    final container = ProviderScope.containerOf(context, listen: false);
     final ok = await guard(
       whatFailed: 'revoke ${widget.webhook.label}',
-      action: () => ref.read(apiProvider).revokeWebhook(widget.webhook.id),
+      action: () =>
+          container.read(apiProvider).revokeWebhook(widget.webhook.id),
     );
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (ok) ref.invalidate(webhooksProvider);
+    if (ok) container.invalidate(webhooksProvider);
+    if (mounted) setState(() => _busy = false);
   }
 
   Future<void> _rotate() async {
@@ -239,16 +248,19 @@ class _WebhookRowState extends ConsumerState<_WebhookRow>
     if (!confirmed || !mounted) return;
     setState(() => _busy = true);
     api.NewWebhook? rotated;
+    final container = ProviderScope.containerOf(context, listen: false);
     final ok = await guard(
       whatFailed: 'rotate ${widget.webhook.label}',
       action: () async {
-        rotated = await ref.read(apiProvider).rotateWebhook(widget.webhook.id);
+        rotated = await container
+            .read(apiProvider)
+            .rotateWebhook(widget.webhook.id);
       },
     );
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (ok && rotated != null) widget.onRotated(rotated!);
-    if (ok) ref.invalidate(webhooksProvider);
+    final minted = rotated;
+    if (ok && minted != null) revealWebhookSecret(container, minted);
+    if (ok) container.invalidate(webhooksProvider);
+    if (mounted) setState(() => _busy = false);
   }
 
   @override
@@ -308,8 +320,8 @@ Future<void> showRenameWebhookSheet(
   initial: webhook.label,
   maxChars: api.InputLimits.name,
   whatFailed: 'rename ${webhook.label}',
-  onSave: (ref, label) async {
-    await ref.read(apiProvider).renameWebhook(webhook.id, label);
-    ref.invalidate(webhooksProvider);
+  onSave: (container, label) async {
+    await container.read(apiProvider).renameWebhook(webhook.id, label);
+    container.invalidate(webhooksProvider);
   },
 );

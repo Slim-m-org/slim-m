@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../../preset_options.dart';
 import '../../../../providers/admin_providers.dart';
 import '../../../../providers/providers.dart';
 import '../../../canvas/widgets/canvas_memory_estimate.dart';
@@ -84,7 +85,10 @@ class _CanvasCapSectionState extends ConsumerState<CanvasCapSection>
     final cap = ref.watch(spaceCanvasCapProvider);
     ref.listen(spaceCanvasCapProvider, (_, next) => retireOptimistic(next));
     final current = optimistic ?? cap.valueOrNull;
-    final selectedIndex = _canvasCapOptions.indexWhere((o) => o.$2 == current);
+    final options = current == null
+        ? _canvasCapOptions
+        : presetsIncluding(_canvasCapOptions, current, _formatCount);
+    final selectedIndex = options.indexWhere((o) => o.$2 == current);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -95,10 +99,10 @@ class _CanvasCapSectionState extends ConsumerState<CanvasCapSection>
             if (current != null) ...[
               SettingsSegmentedBlock(
                 semanticLabel: 'Canvas object cap',
-                labels: [for (final option in _canvasCapOptions) option.$1],
+                labels: [for (final option in options) option.$1],
                 selectedIndex: selectedIndex,
                 disabled: saving,
-                onSelected: (i) => _setCap(_canvasCapOptions[i].$2),
+                onSelected: (i) => _setCap(options[i].$2),
               ),
               SettingsSubRow(
                 label: canvasCapConsequence(current),

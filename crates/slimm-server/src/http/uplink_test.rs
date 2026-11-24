@@ -3,7 +3,7 @@
 //! Mbit/s is kept, so voice settings can size share quality to what the host can send.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use anyhow::Context;
@@ -28,6 +28,8 @@ const MAX_DURATION: Duration = Duration::from_secs(20);
 const MIN_GAP_MS: i64 = 60_000;
 
 static RUNNING: AtomicBool = AtomicBool::new(false);
+/// When a run last started, so a failed attempt holds the gap too.
+static LAST_ATTEMPT_MS: AtomicI64 = AtomicI64::new(i64::MIN / 2);
 
 pub fn routes() -> Router<AppState> {
     Router::new().route("/space/uplink-test", get(list).post(run))
@@ -101,6 +103,11 @@ async fn run(
         return Err(ApiError::TooManyRequests);
     }
     let _guard = RunGuard::take().ok_or(ApiError::Conflict("a test is already running"))?;
+    let started = now_ms();
+    if started - LAST_ATTEMPT_MS.load(Ordering::Acquire) < MIN_GAP_MS {
+        return Err(ApiError::TooManyRequests);
+    }
+    LAST_ATTEMPT_MS.store(started, Ordering::Release);
     let target = std::env::var("SLIMM_UPLINK_TEST_URL").unwrap_or_else(|_| DEFAULT_TARGET.into());
     let measured = measure(&target, UPLOAD_BYTES, MAX_DURATION).await;
     let (mbit, bytes, millis) = measured.map_err(|error| {

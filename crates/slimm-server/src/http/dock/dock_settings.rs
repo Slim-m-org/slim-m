@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::require_manage_server;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{Authed, AuthedLimited, Json, WRITE, enforce};
 use crate::ratelimit::Class;
 use crate::store::{InstalledModule, ModuleSettingDef, SettingKind};
 
@@ -50,12 +50,10 @@ pub(in crate::http) async fn get_settings(
 
 pub(in crate::http) async fn put_settings(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(id): Path<String>,
     Json(req): Json<PutSettingsRequest>,
 ) -> Result<Json<SettingsResponse>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let module = installed(&state, &id).await?;
     let changes = validated_changes(&module.settings_schema, req.values)?;

@@ -17,7 +17,9 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, PRESENCE_ACTIVITY, Query, enforce};
+use super::extract::{
+    AUTHED_READ, Authed, AuthedLimited, Json, PRESENCE_ACTIVITY, Query, WRITE, enforce,
+};
 use super::messages::parse_uuid;
 use super::participant::Participant;
 use crate::hub::Event;
@@ -118,16 +120,15 @@ async fn list(
 /// appear-offline is only a real privacy control if it takes effect
 /// immediately.
 async fn set_visibility(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<VisibilityDto>,
 ) -> Result<Json<VisibilityDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let visibility = Visibility::parse(&req.visibility).ok_or(ApiError::BadRequest(
         "visibility must be online, away, dnd, or hidden",
     ))?;
 
+    let _serial = state.hub.presence().lock_visibility_writes().await;
     if !state
         .store
         .set_presence_visibility(ctx.user_id, visibility)
@@ -137,7 +138,7 @@ async fn set_visibility(
     }
     // Refresh the cache before announcing, so the fan-out reads the new choice.
     state.hub.presence().set_visibility(ctx.user_id, visibility);
-    state.hub.publish(Event::presence_changed(ctx.user_id));
+    state.hub.publish(Event::visibility_switched(ctx.user_id));
 
     Ok(Json(VisibilityDto {
         visibility: visibility.as_str().to_owned(),
@@ -170,9 +171,10 @@ async fn clear_activity(
 }
 
 /// Fans out through [`Event::PresenceChanged`], so each viewer's frame is
-/// resolved by the same rule as their status and a hidden user stays silent.
+/// resolved by the same rule as their status; a hidden user's changes reach only their own sockets.
 fn announce_if_changed(state: &AppState, user_id: UserId, activity: Option<Activity>) {
-    if state.hub.presence().set_client_activity(user_id, activity) {
+    let changed = state.hub.presence().set_client_activity(user_id, activity);
+    if changed {
         state.hub.publish(Event::presence_changed(user_id));
     }
 }

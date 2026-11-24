@@ -60,6 +60,17 @@ def _job_names(text: str) -> list[str]:
     return found
 
 
+MATRIX_LEG = re.compile(r"^(.+) \(.+\)$")
+
+
+def job_of(check: str, names) -> str | None:
+    """The job a check-run name comes from: the name itself, or a matrix job's name before its ` (leg)` suffix."""
+    if check in names:
+        return check
+    leg = MATRIX_LEG.match(check)
+    return leg.group(1) if leg and leg.group(1) in names else None
+
+
 def required_check_lists() -> list[str]:
     """Every `required_checks: "..."` handed to verify-release-checks, in any workflow."""
     return [
@@ -89,9 +100,8 @@ class ReleaseRequiredChecksExistTest(unittest.TestCase):
         self.assertTrue(self.lists, "no required_checks string found in .github/workflows/")
         for entries in self.lists:
             for check in entries.split("|"):
-                self.assertIn(
-                    check,
-                    self.names,
+                self.assertIsNotNone(
+                    job_of(check, self.names),
                     f"required_checks names {check!r}, which is no job's name in "
                     ".github/workflows/; the release gate would wait for a check "
                     "run that never appears",
@@ -102,7 +112,7 @@ class ReleaseRequiredChecksExistTest(unittest.TestCase):
         for entries in self.lists:
             for check in entries.split("|"):
                 self.assertEqual(
-                    self.all_names.count(check),
+                    self.all_names.count(job_of(check, self.names)),
                     1,
                     f"required_checks names {check!r}, which more than one job "
                     "in .github/workflows/ is called; give the others a distinct name:",

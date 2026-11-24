@@ -12,6 +12,8 @@
 /// raw download; those are bounded separately and by count.
 library;
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,6 +40,31 @@ const List<int> imageCacheLimitChoicesMb = [
   1000,
   imageCacheNoLimitMb,
 ];
+
+/// The largest cap a phone may pick: past it the OS kills the app for memory.
+const int phoneImageCacheMaxMb = 500;
+
+bool get _isPhonePlatform =>
+    defaultTargetPlatform == TargetPlatform.iOS ||
+    defaultTargetPlatform == TargetPlatform.android;
+
+/// The caps offered here, without the ones a phone cannot hold.
+List<int> imageCacheLimitChoices() => [
+  for (final mb in imageCacheLimitChoicesMb)
+    if (!_isPhonePlatform ||
+        (mb != imageCacheNoLimitMb && mb <= phoneImageCacheMaxMb))
+      mb,
+];
+
+/// [megabytes] brought inside what this device may hold, so a cap stored from
+/// a desktop or an older version never reaches a phone.
+int clampImageCacheLimitMb(int megabytes) {
+  if (!_isPhonePlatform) return megabytes;
+  if (megabytes == imageCacheNoLimitMb || megabytes > phoneImageCacheMaxMb) {
+    return phoneImageCacheMaxMb;
+  }
+  return megabytes;
+}
 
 /// How a cap reads in the picker.
 String imageCacheLimitLabel(int megabytes) => switch (megabytes) {
@@ -71,7 +98,7 @@ class ImageCacheLimitController extends StateNotifier<int>
       final prefs = await _ref.read(preferencesProvider.future);
       final stored = prefs.getInt(imageCacheLimitKey);
       if (stored != null && imageCacheLimitChoicesMb.contains(stored)) {
-        state = stored;
+        state = clampImageCacheLimitMb(stored);
       }
     } catch (error, stack) {
       AppLog.swallowed(
@@ -85,10 +112,11 @@ class ImageCacheLimitController extends StateNotifier<int>
   }
 
   Future<void> select(int megabytes) async {
-    state = megabytes;
-    _apply(megabytes);
+    final capped = clampImageCacheLimitMb(megabytes);
+    state = capped;
+    _apply(capped);
     final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setInt(imageCacheLimitKey, megabytes);
+    await prefs.setInt(imageCacheLimitKey, capped);
   }
 
   void _apply(int megabytes) {
