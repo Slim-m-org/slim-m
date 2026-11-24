@@ -280,9 +280,14 @@ fn authenticated(handler: &HandlerFn) -> bool {
     let sig = &handler.signature;
     sig.contains(": Authed,")
         || sig.contains(": Authed)")
-        || ["AuthedLimited<", "ManagerLimited<", "Participant<"]
-            .iter()
-            .any(|extractor| sig.contains(extractor))
+        || [
+            "AuthedLimited<",
+            "ManagerLimited<",
+            "ConnectorLimited<",
+            "Participant<",
+        ]
+        .iter()
+        .any(|extractor| sig.contains(extractor))
 }
 
 fn mutating(route: &RouterRoute) -> bool {

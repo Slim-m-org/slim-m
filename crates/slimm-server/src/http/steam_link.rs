@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{Authed, Json, Query, enforce};
+use super::extract::{Authed, AuthedLimited, Json, Query, WRITE, enforce};
 use super::link_handoff::handoff_page;
 use super::linked_accounts::{MAX_NAME_CHARS, STATE_LIFETIME_MS, STEAM, page};
 use super::page_shell::respond;
@@ -300,11 +300,9 @@ struct SharingBody {
 
 async fn set_sharing(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(body): Json<SharingBody>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     if !state
         .store
         .set_link_sharing(ctx.user_id, STEAM, body.enabled)

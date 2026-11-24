@@ -25,7 +25,7 @@ use self::message_send::send;
 use super::AppState;
 use super::embeds;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
+use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, WRITE, enforce};
 use super::module_hooks::{Draft, HookPoint, guard_write};
 use super::post_commit::{after_commit, run_to_completion};
 use crate::hub::{Event, MessageEvent};
@@ -206,13 +206,11 @@ const NOT_AUTHOR_CODE: &str = "not_author";
 /// Nobody else edits it, moderators and administrators included: words shown
 /// under someone's name are theirs, and a moderator removes a message instead.
 async fn edit(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path((channel_id, message_id)): Path<(String, String)>,
     State(state): State<AppState>,
     Json(req): Json<EditRequest>,
 ) -> Result<Json<MessageDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let message_id = MessageId(parse_uuid(&message_id)?);
 

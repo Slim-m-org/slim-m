@@ -19,7 +19,6 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
-use axum::http::request::Parts;
 use axum::middleware::from_fn;
 use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
@@ -27,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::channel_slow_mode::enforce_slow_mode;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::extract::{AUTHED_READ, AuthedLimited, Json, WRITE};
 use super::message_validation::validate_content;
 use super::messages::{MessageDto, parse_uuid};
 use super::module_commands::{ModuleInfoDto, reachable_extension_points};
@@ -36,7 +35,6 @@ use super::post_commit::{after_commit, run_to_completion};
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{AppLaunch, AppSurface as StoreAppSurface, CreateAppSurfaceError, Store};
 
 /// An app-launch body is tiny: which module and command, plus an optional
@@ -125,13 +123,11 @@ pub(crate) async fn attach_app_surfaces(
 // --- Handlers ---
 
 async fn create(
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
-    parts: Parts,
     State(state): State<AppState>,
     Json(req): Json<LaunchAppRequest>,
 ) -> Result<Json<MessageDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
 
     // Launching an app is a message send, gated exactly like one: view plus send, evaluated in this channel.

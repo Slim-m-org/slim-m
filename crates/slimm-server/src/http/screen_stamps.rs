@@ -11,14 +11,13 @@ use std::time::Instant;
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use axum::routing::{get, post};
 use serde::Serialize;
 
 use super::AppState;
 use super::canvas::canvas_write::ensure_may_draw;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::extract::{AUTHED_READ, AuthedLimited, Json, SCREEN_STAMP};
 use super::messages::parse_uuid;
 use crate::hub::{
     CanvasEvent, Event, ScreenAnnotationEvent, ScreenAnnotationKind, Stamp, StampContent,
@@ -26,7 +25,6 @@ use crate::hub::{
 use crate::ids::{ChannelId, UserId};
 use crate::media::{self, ImageHeader};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{NewScreenStamp, SCREEN_STAMP_TTL_MS, ScreenStamp, StampInsert, now_ms};
 use crate::voice::VoiceError;
 use stamp_checks::{Checked, Content, StampRequest, check, custom_emoji_id};
@@ -71,13 +69,11 @@ pub fn routes() -> Router<AppState> {
 /// A block relays nothing and still answers 204, as a reused id does, and the sender never
 /// hears its own stamp, so neither the answer nor the relay tells a block from a delivery.
 async fn place(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<SCREEN_STAMP>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<StampRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::ScreenStamp)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let stamp = check(req).map_err(ApiError::BadRequest)?;
     if let Content::Emoji(key) = &stamp.content {

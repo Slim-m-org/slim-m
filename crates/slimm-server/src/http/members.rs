@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::error::ApiError;
 use super::escalation::escalation_guard;
-use super::extract::{Authed, Bytes, Json, enforce};
+use super::extract::{Authed, AuthedLimited, Bytes, Json, WRITE, enforce};
 use super::messages::parse_uuid;
 use super::role_ladder::Ladder;
 use super::safety::validate_reason;
@@ -134,13 +134,11 @@ impl From<TimeoutError> for ApiError {
 /// already committed, and reporting it as failed would invite a retry that
 /// re-times-out somebody who is already timed out.
 async fn apply_timeout(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(user_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<TimeoutRequest>,
 ) -> Result<Json<TimeoutDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let target = UserId(parse_uuid(&user_id)?);
     authorize(&state, ctx.user_id, target, Permissions::KICK_MEMBERS).await?;
 
@@ -214,13 +212,11 @@ fn removal_request(body: &[u8]) -> Result<RemovalRequest, ApiError> {
 /// See the `space_removals` migration for why this has to be durable rather
 /// than a one-off session revocation.
 async fn remove_member(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(user_id): Path<String>,
     State(state): State<AppState>,
     Bytes(body): Bytes,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let req = removal_request(&body)?;
     let target = UserId(parse_uuid(&user_id)?);
     authorize(&state, ctx.user_id, target, Permissions::BAN_MEMBERS).await?;

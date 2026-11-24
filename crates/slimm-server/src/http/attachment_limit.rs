@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce, require_manage_server};
+use super::extract::{Authed, AuthedLimited, Json, WRITE, enforce, require_manage_server};
 use crate::hub::Event;
 use crate::ratelimit::Class;
 
@@ -61,11 +61,9 @@ async fn read_limit(
 /// Out of range is refused, not clamped, the rule the other Space limits follow.
 async fn update_limit(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(body): Json<AttachmentLimitUpdate>,
 ) -> Result<Json<AttachmentLimitDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let server_max_bytes = state.media.max_attachment_bytes();
     let settable = (MIN_ATTACHMENT_LIMIT_BYTES..=server_max_bytes).contains(&body.max_bytes);

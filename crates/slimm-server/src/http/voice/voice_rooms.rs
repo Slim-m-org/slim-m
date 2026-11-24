@@ -15,7 +15,7 @@ use super::super::AppState;
 use super::super::channel_validation::{validate_channel_name, validate_user_limit};
 use super::super::channels::ChannelDto;
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{Authed, AuthedLimited, Json, WRITE, enforce};
 use super::super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
@@ -92,13 +92,11 @@ struct UpdateRoomRequest {
 
 /// The owner's settings, also open to anyone with MANAGE_CHANNELS.
 async fn update_room(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<UpdateRoomRequest>,
 ) -> Result<Json<ChannelDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let permissions = state
         .store

@@ -4,15 +4,13 @@
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, State};
-use axum::http::request::Parts;
 use axum::routing::{get, put};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce, require_manage_server};
+use super::extract::{AUTHED_READ, AuthedLimited, Json, WRITE, require_manage_server};
 use crate::admin_alerts::RECOVERED_VISIBLE_MS;
-use crate::ratelimit::Class;
 use crate::store::{AdminAlert, now_ms};
 
 const BODY_LIMIT: usize = 1024;
@@ -81,12 +79,10 @@ async fn list(
 }
 
 async fn set_mute(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<SetMuteRequest>,
 ) -> Result<Json<AdminAlertsDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     state
         .store

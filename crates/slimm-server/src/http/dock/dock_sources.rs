@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, enforce, require_manage_server};
+use super::super::extract::{Authed, AuthedLimited, Json, WRITE, enforce, require_manage_server};
 use crate::ratelimit::Class;
 use crate::store::DockSource;
 
@@ -109,11 +109,9 @@ pub(in crate::http) struct AddSourceRequest {
 
 pub(in crate::http) async fn add_source(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(req): Json<AddSourceRequest>,
 ) -> Result<(StatusCode, Json<SourceDto>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let repo = req.repo.trim();
     validate_repo(repo)?;

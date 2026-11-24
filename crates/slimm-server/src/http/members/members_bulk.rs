@@ -27,14 +27,13 @@ use futures_util::stream::{self, StreamExt};
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use axum::routing::post;
 use serde::Deserialize;
 
 use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::escalation::escalation_guard;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{AuthedLimited, Json, WRITE};
 use super::super::messages::parse_uuid;
 use super::super::role_ladder::Ladder;
 use super::super::safety::validate_reason;
@@ -43,7 +42,6 @@ use super::{evict_from_rooms, require, voice_room_ids};
 use crate::hub::Event;
 use crate::ids::UserId;
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{MAX_TIMEOUT_MS, RemoveMemberError, now_ms};
 
 const BODY_LIMIT: usize = 4 * 1024;
@@ -86,12 +84,10 @@ pub fn routes() -> Router<AppState> {
 /// Removes several members at once. Requires BAN_MEMBERS, plus containment
 /// against each target, matching `PUT /members/{id}/removal`.
 async fn bulk_remove(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<BulkRemovalRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let targets = parse_targets(&req.user_ids, ctx.user_id)?;
     authorize_all(&state, ctx.user_id, &targets, Permissions::BAN_MEMBERS).await?;
 
@@ -125,12 +121,10 @@ async fn bulk_remove(
 /// Times several members out at once. Requires KICK_MEMBERS, plus containment
 /// against each target, matching `PUT /members/{id}/timeout`.
 async fn bulk_timeout(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<BulkTimeoutRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let targets = parse_targets(&req.user_ids, ctx.user_id)?;
     authorize_all(&state, ctx.user_id, &targets, Permissions::KICK_MEMBERS).await?;
 

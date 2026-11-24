@@ -17,7 +17,9 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, PRESENCE_ACTIVITY, Query, enforce};
+use super::extract::{
+    AUTHED_READ, Authed, AuthedLimited, Json, PRESENCE_ACTIVITY, Query, WRITE, enforce,
+};
 use super::messages::parse_uuid;
 use super::participant::Participant;
 use crate::hub::Event;
@@ -118,12 +120,10 @@ async fn list(
 /// appear-offline is only a real privacy control if it takes effect
 /// immediately.
 async fn set_visibility(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<VisibilityDto>,
 ) -> Result<Json<VisibilityDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let visibility = Visibility::parse(&req.visibility).ok_or(ApiError::BadRequest(
         "visibility must be online, away, dnd, or hidden",
     ))?;

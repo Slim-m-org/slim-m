@@ -17,7 +17,7 @@ use super::auth::{validate_label, validate_username};
 use super::error::ApiError;
 use super::escalation::escalation_guard;
 use super::extract::{
-    Authed, Bytes, Json, Query, WRITE, enforce, require_human, require_manage_server,
+    Authed, AuthedLimited, Bytes, Json, Query, WRITE, enforce, require_human, require_manage_server,
 };
 use super::messages::parse_uuid;
 use super::participant::Participant;
@@ -317,12 +317,10 @@ async fn reissue_token(
 /// `docs/decisions/0028-bot-accounts.md`.
 async fn set_permissions(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(bot_id): Path<String>,
     Json(req): Json<SetBotPermissionsRequest>,
 ) -> Result<Json<BotDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     require_human(&state, ctx.user_id).await?;
     let bot_id = UserId(parse_uuid(&bot_id)?);
@@ -360,12 +358,10 @@ async fn set_permissions(
 /// `docs/decisions/0069-bot-prefix-assignment.md`.
 async fn set_prefix(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(bot_id): Path<String>,
     Json(req): Json<SetBotPrefixRequest>,
 ) -> Result<Json<BotDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     require_human(&state, ctx.user_id).await?;
     let bot_id = UserId(parse_uuid(&bot_id)?);

@@ -6,7 +6,6 @@ use std::collections::HashSet;
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, State};
-use axum::http::request::Parts;
 use axum::routing::put;
 use serde::Deserialize;
 
@@ -14,11 +13,10 @@ use super::AppState;
 use super::categories::{CategoryDto, require_manage_channels};
 use super::category_sight::CategorySight;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{AuthedLimited, Json, WRITE};
 use super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::ChannelCategoryId;
-use crate::ratelimit::Class;
 use crate::store::{CategoryOrderGroup, CategoryOrderReach, ReorderCategoriesError};
 
 /// A small JSON document; refused well before axum's 2 MB default.
@@ -45,12 +43,10 @@ struct ReorderCategoriesRequest {
 /// Applies the arrangement in one transaction and answers every category the caller is listed,
 /// in tree order; the hidden ones and the headings they may not manage keep their places. Publishes one `CategoryChanged` only when something moved.
 async fn reorder(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<ReorderCategoriesRequest>,
 ) -> Result<Json<Vec<CategoryDto>>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_channels(&state, ctx.user_id).await?;
     let groups = parse_groups(&req.groups)?;
     let sight = CategorySight::of(&state, ctx.user_id).await?;
