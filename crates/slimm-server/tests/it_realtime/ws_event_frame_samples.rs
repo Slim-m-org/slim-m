@@ -184,6 +184,10 @@ pub fn more_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event>
             category_id: slimm_server::ids::ChannelCategoryId(id(20)),
             muted: true,
         },
+        Event::AccountNotificationsChanged {
+            user_id: alice,
+            scope: slimm_server::hub::AccountNotificationScope::Schedule,
+        },
         Event::NewDeviceSignIn {
             user_id: alice,
             device_id: slimm_server::ids::DeviceId(id(12)),

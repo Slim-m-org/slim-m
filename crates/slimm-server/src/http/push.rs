@@ -213,6 +213,12 @@ async fn set_preference(
     {
         return Err(ApiError::Unauthorized);
     }
+    state
+        .hub
+        .publish(crate::hub::Event::AccountNotificationsChanged {
+            user_id: ctx.user_id,
+            scope: crate::hub::AccountNotificationScope::Preference,
+        });
     Ok(Json(NotificationPreferenceDto {
         preference: preference.as_str().to_owned(),
     }))

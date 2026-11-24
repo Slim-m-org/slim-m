@@ -508,6 +508,14 @@ class NotificationOverrideChanged extends ServerEvent {
   final NotificationPreference? preference;
 }
 
+/// This account's notification schedule, snooze, allow-lists or account default changed on some device.
+/// Delivered only to the account's own sockets; [scope] is `schedule` or `preference`.
+class AccountNotificationsChanged extends ServerEvent {
+  const AccountNotificationsChanged({required this.scope});
+
+  final String scope;
+}
+
 /// This account muted or unmuted a category on some device. Delivered only to the account's own sockets.
 class CategoryMuteChanged extends ServerEvent {
   const CategoryMuteChanged({required this.categoryId, required this.muted});

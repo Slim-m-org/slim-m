@@ -203,12 +203,12 @@ void main() {
 
   testWidgets('snoozing for 30m shows the active-snooze row', (tester) async {
     int? snoozeUntil;
+    Map<String, dynamic>? sent;
     await _pump(tester, (request) async {
       if (request.url.path == '/notifications/schedule/snooze' &&
           request.method == 'PUT') {
-        snoozeUntil =
-            (jsonDecode(request.body) as Map<String, dynamic>)['until_ms']
-                as int;
+        sent = jsonDecode(request.body) as Map<String, dynamic>;
+        snoozeUntil = DateTime.now().millisecondsSinceEpoch + 1800 * 1000;
         return _json({'snooze_until': snoozeUntil});
       }
       if (request.url.path == '/notifications/schedule') {
@@ -220,7 +220,7 @@ void main() {
     await tester.tap(find.text('30m'));
     await tester.pumpAndSettle();
 
-    expect(snoozeUntil, isNotNull);
+    expect(sent, {'duration_seconds': 1800});
     expect(find.textContaining('Snoozed until'), findsOneWidget);
     expect(find.text('30m'), findsNothing);
   });
@@ -250,16 +250,20 @@ void main() {
     expect(caption.style?.color, tokens.textSecondary);
   });
 
-  testWidgets('the snooze buttons send their own deadlines', (tester) async {
+  testWidgets('the snooze buttons send their own durations', (tester) async {
     final sent = <int>[];
     await _pump(tester, (request) async {
       if (request.url.path == '/notifications/schedule/snooze' &&
           request.method == 'PUT') {
-        final ms =
-            (jsonDecode(request.body) as Map<String, dynamic>)['until_ms']
+        final seconds =
+            (jsonDecode(request.body)
+                    as Map<String, dynamic>)['duration_seconds']
                 as int;
-        sent.add(ms);
-        return _json({'snooze_until': ms});
+        sent.add(seconds);
+        return _json({
+          'snooze_until':
+              DateTime.now().millisecondsSinceEpoch + seconds * 1000,
+        });
       }
       if (request.url.path == '/notifications/schedule') {
         return _json({'schedule': _scheduleJson()});
@@ -270,14 +274,14 @@ void main() {
     final before = DateTime.now();
     await tester.tap(find.text('1h'));
     await tester.pumpAndSettle();
-    final hour = DateTime.fromMillisecondsSinceEpoch(sent.single);
-    expect(hour.difference(before).inMinutes, inInclusiveRange(59, 61));
+    expect(sent.single, 3600);
 
     sent.clear();
     await tester.tap(find.text('Until tomorrow'));
     await tester.pumpAndSettle();
-    final tomorrow = DateTime.fromMillisecondsSinceEpoch(sent.single);
-    expect(tomorrow, DateTime(before.year, before.month, before.day + 1));
+    final tomorrow = before.add(Duration(seconds: sent.single));
+    final midnight = DateTime(before.year, before.month, before.day + 1);
+    expect(tomorrow.difference(midnight).inSeconds.abs(), lessThan(5));
   });
 
   testWidgets('Cancel clears an active snooze', (tester) async {

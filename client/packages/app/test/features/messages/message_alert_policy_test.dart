@@ -70,6 +70,28 @@ void main() {
     });
   });
 
+  group('do not disturb', () {
+    test('silences a plain message, a mention and a direct message', () async {
+      await wire(AlertRig(visibility: api.PresenceVisibility.dnd));
+
+      expect(await alertsFor(rig, alertMessage('group-1', 'hi all')), isFalse);
+      expect(
+        await alertsFor(
+          rig,
+          alertMessage('group-1', 'hi @nick', mentionsMe: true),
+        ),
+        isFalse,
+      );
+      expect(await alertsFor(rig, alertMessage('dm-1', 'hello')), isFalse);
+    });
+
+    test('any other presence still alerts', () async {
+      await wire(AlertRig(visibility: api.PresenceVisibility.away));
+
+      expect(await alertsFor(rig, alertMessage('group-1', 'hi all')), isTrue);
+    });
+  });
+
   group('a channel override', () {
     test('beats an account that would allow it', () async {
       await wire(AlertRig(overrides: {'group-1': 'nothing'}));

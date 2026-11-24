@@ -694,7 +694,7 @@ Posts a message as the person who ran the module, into the channel they ran it f
   The id is the 64 hex characters of a `caller.id` this module was handed in an earlier run; the host can recognise only those, so a module cannot mention a member it has not been given.
   A well-formed token that is not one of those ids, belongs to another module, names a member who cannot view the channel, or comes after the tenth in the message, is written as the plain words "a member": no name and no mention.
   A malformed token (not exactly 64 hex characters between `{{mention:` and `}}`) stays literal text.
-  The usual rules then apply to the mention: `@everyone`, `@here` and roles are never reachable through a token, and Do Not Disturb, mutes and notification settings decide who is notified.
+  The usual rules then apply to the mention: `@everyone`, `@here` and roles are never reachable through a token, and Do Not Disturb, mutes and notification settings decide who is notified: a member on Do Not Disturb gets no push, chime or banner for the mention (decision 0135).
   The host puts a space after the name when the next character would read as part of it.
   A member whose username cannot be written as a mention (it ends in `.` or `-`) is written as the name others see for them, with every `@` shown as a full-width `＠` so that name can never read as a mention of someone else.
   The member the token names is still mentioned, because the host mentions exactly the ids the tokens held and nobody the expanded text happens to name.

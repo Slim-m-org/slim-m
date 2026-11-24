@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
 
+import '../../features/auth/providers/account_state_refresh.dart';
 import '../../features/channels/providers/arrival_readers.dart';
 import '../../features/channels/providers/channel_notification_overrides_controller.dart';
 import '../../features/channels/providers/channel_refresher.dart';
@@ -103,6 +104,8 @@ class SyncEventApplier {
               .read(channelNotificationOverridesProvider.notifier)
               .applyRemoteCategory(categoryId, muted: muted);
         }
+      case AccountNotificationsChanged(:final scope):
+        refreshAccountNotificationScope(_ref, scope);
       case ChannelCreated(:final channel):
       case ChannelUpdated(:final channel):
         await store.upsertChannels([channel]);

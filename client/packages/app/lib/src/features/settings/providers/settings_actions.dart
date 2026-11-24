@@ -33,8 +33,8 @@ class SettingsActions {
     NotificationPreference preference,
   ) => _api.setNotificationPreference(preference);
 
-  Future<int?> setNotificationSnooze(int untilMs) =>
-      _api.setNotificationSnooze(untilMs);
+  Future<int?> setNotificationSnooze(Duration duration) =>
+      _api.setNotificationSnooze(duration);
 
   Future<void> clearNotificationSnooze() => _api.clearNotificationSnooze();
 
