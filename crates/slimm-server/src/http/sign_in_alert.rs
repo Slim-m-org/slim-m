@@ -23,7 +23,7 @@ pub(super) async fn announce(
     }
     let unfamiliar = state
         .store
-        .is_unfamiliar_sign_in(tokens.user_id, tokens.device_id, device_name, client_kind)
+        .is_unfamiliar_sign_in(tokens.user_id, tokens.device_id)
         .await;
     match unfamiliar {
         Ok(true) => {}

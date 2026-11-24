@@ -150,7 +150,7 @@ impl Store {
             context.cap = effective(row.try_get::<Option<Permissions>, _>("cap")?);
             // A webhook holds no roles at all, `@everyone` included; see `load_roles`.
             if row.try_get::<i64, _>("is_webhook")? != 0 {
-                *context = RoleContext::none();
+                *context = RoleContext::webhook();
                 continue;
             }
             if let Some(role_id) = row.try_get::<Option<Uuid>, _>("role_id")? {

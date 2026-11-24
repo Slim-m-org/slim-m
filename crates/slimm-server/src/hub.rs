@@ -58,7 +58,7 @@ pub use event::{
 use event_class::is_ephemeral;
 pub(crate) use event_class::moves_permissions;
 pub use event_util::ReactionMoved;
-pub use handshake::PendingGuard;
+pub use handshake::{PendingGuard, UserSocketGuard};
 use memory_guard::MemoryGuard;
 pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading, RESERVE_BYTES, memory_limit_bytes};
 use moderation_seq::{ModerationClock, is_moderation};

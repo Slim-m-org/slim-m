@@ -44,11 +44,21 @@ pub(super) struct Replacement {
     hex_id: String,
     filename: String,
     original: Option<KeptOriginal>,
+    /// The kept original with its metadata removed, when removing it changed the bytes.
+    original_bytes: Option<Vec<u8>>,
 }
 
-/// The compressed version of the file at `path`, or `None` when compression is
-/// off, the file is not an eligible photo, or it would not get meaningfully
-/// smaller. `prefix` is the file's leading bytes, from the upload's own sniff.
+/// A stored file's replacement bytes, and the stripped original to keep beside them.
+struct Prepared {
+    compressed: Compressed,
+    original_bytes: Option<Vec<u8>>,
+}
+
+/// The file to store in place of the upload at `path`, or `None` to store it
+/// as sent: it is not a photo, it needs no change, or nothing could be done
+/// with it. Compression is tried when the space has it on; the metadata policy
+/// applies whether or not it ran or produced anything. `prefix` is the file's
+/// leading bytes, from the upload's own sniff.
 pub(super) async fn prepare(
     state: &AppState,
     path: &Path,
@@ -57,39 +67,72 @@ pub(super) async fn prepare(
     filename: &str,
 ) -> Result<Option<Replacement>, ApiError> {
     let settings = state.store.media_compression().await?;
-    if !settings.enabled || size > compress::MAX_SOURCE_BYTES {
-        return Ok(None);
-    }
     let policy = Policy {
         extensions: settings.extensions,
         metadata: settings.metadata,
     };
-    let Some(kind) = compress::eligible_kind(prefix, &policy) else {
-        return Ok(None);
+    let compressed = if settings.enabled && size <= compress::MAX_SOURCE_BYTES {
+        compress_upload(state, path, size, prefix, &policy, settings.keep_original).await
+    } else {
+        None
     };
+    let kept = compressed.is_some() && settings.keep_original;
+    let prepared = match compressed {
+        Some(prepared) => prepared,
+        None => match strip_only(state, path, size, prefix, policy.metadata).await {
+            Some(compressed) => Prepared {
+                compressed,
+                original_bytes: None,
+            },
+            None => return Ok(None),
+        },
+    };
+    let Prepared {
+        compressed,
+        original_bytes,
+    } = prepared;
+    let hex_id = media::to_hex(&Sha256::digest(&compressed.bytes));
+    let original = kept.then(|| KeptOriginal {
+        size: i64::try_from(original_bytes.as_ref().map_or(size, |b| b.len() as u64))
+            .unwrap_or(i64::MAX),
+        content_type: media::attachment_content_type(prefix).to_owned(),
+        filename: filename.to_owned(),
+    });
+    Ok(Some(Replacement {
+        filename: renamed(filename, &compressed, prefix),
+        compressed,
+        hex_id,
+        original,
+        original_bytes,
+    }))
+}
+
+async fn compress_upload(
+    state: &AppState,
+    path: &Path,
+    size: u64,
+    prefix: &[u8],
+    policy: &Policy,
+    keep_original: bool,
+) -> Option<Prepared> {
+    let kind = compress::eligible_kind(prefix, policy)?;
     let (slot, bytes) = match header_candidate(path, kind).await {
         Some(candidate) => {
             let estimate = compress::peak_bytes(candidate, size, &compress::DEFAULT_SETTINGS);
             let Some(slot) = state.media.admit_memory(estimate).await else {
                 refused(estimate);
-                return Ok(None);
+                return None;
             };
             (slot, read_upload(path).await)
         }
         None => {
             // The size is not known until the file is read, so the source bytes are reserved first.
-            let Some(slot) = state.media.admit_memory(size).await else {
-                return Ok(None);
-            };
+            let slot = state.media.admit_memory(size).await?;
             (slot, read_upload(path).await)
         }
     };
-    let Some(bytes) = bytes else {
-        return Ok(None);
-    };
-    let Some(candidate) = compress::inspect(kind, &bytes) else {
-        return Ok(None);
-    };
+    let bytes = bytes?;
+    let candidate = compress::inspect(kind, &bytes)?;
     let mut slot = slot;
     let estimate = compress::peak_bytes(candidate, size, &compress::DEFAULT_SETTINGS);
     let held = slot.num_permits() as u64 * MIB;
@@ -98,33 +141,56 @@ pub(super) async fn prepare(
             Some(rest) => slot.merge(rest),
             None => {
                 refused(estimate);
-                return Ok(None);
+                return None;
             }
         }
     }
     let _slot = slot;
-    let compressed = tokio::task::spawn_blocking(move || {
-        compress::compress(candidate, &bytes, &policy, &compress::DEFAULT_SETTINGS)
+    let policy = policy.clone();
+    tokio::task::spawn_blocking(move || {
+        let compressed =
+            compress::compress(candidate, &bytes, &policy, &compress::DEFAULT_SETTINGS)?;
+        let original_bytes = keep_original
+            .then(|| compress::strip_metadata(kind, &bytes, policy.metadata))
+            .flatten();
+        Some(Prepared {
+            compressed,
+            original_bytes,
+        })
     })
     .await
     .unwrap_or_else(|err| {
         tracing::error!(error = %err, "photo compression panicked; storing the upload as sent");
         None
-    });
-    Ok(compressed.map(|compressed| {
-        let hex_id = media::to_hex(&Sha256::digest(&compressed.bytes));
-        let original = settings.keep_original.then(|| KeptOriginal {
-            size: i64::try_from(size).unwrap_or(i64::MAX),
-            content_type: media::attachment_content_type(prefix).to_owned(),
-            filename: filename.to_owned(),
-        });
-        Replacement {
-            filename: renamed(filename, &compressed, prefix),
-            compressed,
-            hex_id,
-            original,
-        }
-    }))
+    })
+}
+
+/// The upload with only its metadata removed, for a photo that was not compressed.
+async fn strip_only(
+    state: &AppState,
+    path: &Path,
+    size: u64,
+    prefix: &[u8],
+    metadata: compress::Metadata,
+) -> Option<Compressed> {
+    let kind = compress::Kind::sniff(prefix)?;
+    if metadata == compress::Metadata::Keep || size > compress::MAX_SOURCE_BYTES {
+        return None;
+    }
+    let Some(_slot) = state.media.admit_memory(size.saturating_mul(2)).await else {
+        tracing::warn!(
+            size,
+            "no room to remove an upload's metadata; storing it as sent"
+        );
+        return None;
+    };
+    let bytes = read_upload(path).await?;
+    tokio::task::spawn_blocking(move || compress::strip_only(kind, &bytes, metadata))
+        .await
+        .unwrap_or_else(|err| {
+            tracing::error!(error = %err, "removing an upload's metadata panicked; storing it as sent");
+            None
+        })
 }
 
 const MIB: u64 = 1024 * 1024;
@@ -185,6 +251,7 @@ impl Replacement {
             hex_id,
             filename,
             original,
+            original_bytes,
         } = self;
         let size = i64::try_from(compressed.bytes.len()).unwrap_or(i64::MAX);
         let kept = original.as_ref().map_or(0, |o| o.size);
@@ -202,9 +269,13 @@ impl Replacement {
                 .media
                 .write_attachment(&hex_id, compressed.bytes)
                 .await?;
-            match &original {
-                Some(_) => received.keep_at(state.media.original_path(&hex_id)).await,
-                None => received.discard().await,
+            match (&original, original_bytes) {
+                (Some(_), Some(bytes)) => {
+                    state.media.write_original(&hex_id, bytes).await?;
+                    received.discard().await
+                }
+                (Some(_), None) => received.keep_at(state.media.original_path(&hex_id)).await,
+                (None, _) => received.discard().await,
             }
         }
         .await;

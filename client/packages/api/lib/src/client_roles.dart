@@ -102,12 +102,19 @@ extension SlimmApiRoles on SlimmApi {
   /// name exactly the live non-`@everyone` roles, top to bottom; `@everyone`
   /// never reorders. Refused unless every role that would actually move sits
   /// below the caller's own highest held role - an administrator bypasses
-  /// this.
-  Future<List<Role>> reorderRoles(List<String> roleIds) async {
+  /// this. [expectedRoleIds] is the order the caller started from; the server
+  /// answers 409 when another admin reordered in between.
+  Future<List<Role>> reorderRoles(
+    List<String> roleIds, {
+    List<String>? expectedRoleIds,
+  }) async {
     final json = await send(
       'PATCH',
       '/roles/reorder',
-      body: {'role_ids': roleIds},
+      body: {
+        'role_ids': roleIds,
+        if (expectedRoleIds != null) 'expected_role_ids': expectedRoleIds,
+      },
     );
     return (json as List<dynamic>)
         .map((r) => Role.fromJson(r as Map<String, dynamic>))

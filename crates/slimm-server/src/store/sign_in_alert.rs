@@ -8,21 +8,16 @@ impl Store {
     /// Whether the sign-in that just minted `device_id` should alert the
     /// account's other devices.
     ///
-    /// A login that sends no install id mints a fresh device row, so "a device
-    /// we have seen" cannot mean the same row: it means an earlier row (live or
-    /// long expired) with the same name and client kind, the pair a client
-    /// reports about itself. A login that replaced its own install's session is
-    /// known outright and never gets here (see `http::sign_in_alert`).
-    /// The first device of an account has no one to tell, so it needs another
-    /// *live* device to alert. The liveness clause matches
-    /// [`Store::list_devices`], so the alert never targets a device the owner
-    /// can no longer see or sign out.
+    /// The name and client kind a login reports are chosen by whoever signs in, so they never
+    /// make a sign-in familiar. Only a repeat install is known, and that is decided before this
+    /// runs (see `http::sign_in_alert`). The first device of an account has no one to tell, so
+    /// it needs another *live* device to alert. The liveness clause matches
+    /// [`Store::list_devices`], so the alert never targets a device the owner can no longer see
+    /// or sign out.
     pub async fn is_unfamiliar_sign_in(
         &self,
         user_id: UserId,
         device_id: DeviceId,
-        device_name: &str,
-        client_kind: Option<&str>,
     ) -> anyhow::Result<bool> {
         let now = now_ms();
         let unfamiliar = sqlx::query_scalar!(
@@ -40,19 +35,10 @@ impl Store {
                          AND r.expires_at > ?
                      )
                  )
-                 AND NOT EXISTS (
-                   SELECT 1 FROM devices d
-                   WHERE d.user_id = ? AND d.id != ?
-                     AND d.name = ? AND d.client_kind IS ?
-                 )
                ) AS "unfamiliar!: bool""#,
             user_id,
             device_id,
-            now,
-            user_id,
-            device_id,
-            device_name,
-            client_kind
+            now
         )
         .fetch_one(&self.pool)
         .await?;

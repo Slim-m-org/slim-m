@@ -338,3 +338,64 @@ fn a_drawing_is_told_from_a_photo() {
         photo(300, 200)
     )));
 }
+
+#[test]
+fn an_exif_entry_of_an_unknown_type_does_not_cost_the_photo_its_orientation() {
+    let mut block = sample_exif(6);
+    block[12..14].copy_from_slice(&129u16.to_le_bytes());
+    let source = jpeg_with(&photo(96, 64), 90, Some(&block));
+    let stripped = jpeg_segments::strip(&source, Metadata::RemoveLocation).unwrap();
+    assert!(!contains(&stripped, &GPS_RATIONALS));
+    let exif = jpeg_segments::exif_of(&stripped).unwrap();
+    assert_eq!(exif::orientation(&exif), Some(6));
+}
+
+fn riff_chunk(name: &[u8; 4], data: &[u8]) -> Vec<u8> {
+    let mut out = name.to_vec();
+    out.extend_from_slice(&(data.len() as u32).to_le_bytes());
+    out.extend_from_slice(data);
+    if data.len() % 2 == 1 {
+        out.push(0);
+    }
+    out
+}
+
+fn webp_with(chunks: &[Vec<u8>]) -> Vec<u8> {
+    let body: Vec<u8> = b"WEBP"
+        .iter()
+        .chain(chunks.concat().iter())
+        .copied()
+        .collect();
+    let mut out = b"RIFF".to_vec();
+    out.extend_from_slice(&(body.len() as u32).to_le_bytes());
+    out.extend_from_slice(&body);
+    out
+}
+
+#[test]
+fn a_webp_loses_its_position_and_its_exif_and_xmp_flags_follow_the_chunks() {
+    let canvas = [0x0C, 0, 0, 0, 9, 0, 0, 9, 0, 0];
+    let source = webp_with(&[
+        riff_chunk(b"VP8X", &canvas),
+        riff_chunk(b"VP8L", &[0x2F, 0, 0, 0, 0]),
+        riff_chunk(b"EXIF", &sample_exif(6)),
+        riff_chunk(b"XMP ", b"<x:xmpmeta/>"),
+    ]);
+    let stripped = container_strip::strip(Kind::Webp, &source, Metadata::RemoveLocation).unwrap();
+    assert!(!contains(&stripped, &GPS_RATIONALS));
+    assert!(!contains(&stripped, b"XMP "));
+    assert_eq!(stripped[..4], *b"RIFF");
+    assert_eq!(
+        u32::from_le_bytes(stripped[4..8].try_into().unwrap()) as usize,
+        stripped.len() - 8
+    );
+    assert_eq!(stripped[20] & 0x0C, 0x08, "only the EXIF flag stays");
+    let at = stripped.windows(4).position(|w| w == b"EXIF").unwrap();
+    assert_eq!(exif::orientation(&stripped[at + 8..]), Some(6));
+}
+
+#[test]
+fn a_webp_without_metadata_is_left_as_it_is() {
+    let source = webp_with(&[riff_chunk(b"VP8L", &[0x2F, 0, 0, 0, 0])]);
+    assert!(container_strip::strip(Kind::Webp, &source, Metadata::RemoveAll).is_none());
+}

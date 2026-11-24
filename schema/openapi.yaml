@@ -3518,6 +3518,11 @@ paths:
         order and any ties; only the roles below are renumbered, from 1 up. Only the
         Space owner bypasses it and renumbers every role; a refusal is a 403
         with `code` `role_hierarchy`.
+
+
+        A client that sends `expected_role_ids`, the order it last showed,
+        gets a 409 when the live order has changed since, instead of putting
+        back a move someone else just made.
       requestBody:
         required: true
         content:
@@ -3539,6 +3544,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -3794,6 +3801,7 @@ paths:
         way too. A bot's own role and the shared Bots role follow their bots
         and are never granted by hand (409, `code` `role_follows_bot`).
         Nobody but the Space owner gives the owner a role (a 403 with `code` `role_hierarchy`).
+        Every member holds `@everyone` already, so naming it is a 400.
       responses:
         "204":
           description: The role is assigned.
@@ -3820,7 +3828,8 @@ paths:
         below their highest this way, never their highest itself, and nobody
         but the owner takes a role away from the Space owner (403, `code`
         `role_hierarchy`). A bot's own role and the shared Bots role are never
-        revoked by hand (409, `code` `role_follows_bot`).
+        revoked by hand (409, `code` `role_follows_bot`). Naming `@everyone`,
+        which every member holds, is a 400.
       responses:
         "204":
           description: The role is no longer assigned (or never was).
@@ -4433,6 +4442,8 @@ paths:
         restriction, not a grant, and carries no such check. 409 on a
         temporary room, which holds its lobby's overwrites (decision 0065).
         Role ladder: a role target must sit strictly below the caller's own highest role (`@everyone` always does), and a member target must rank below the caller unless it is the caller; nobody but the Space owner targets the owner; refused as a 403 with `code` `role_hierarchy`.
+        An overwrite on the caller themselves may grant them only VIEW_CHANNEL and what `@everyone` holds, unless they are the Space owner (403, `code` `role_hierarchy`).
+        ADMINISTRATOR is never an overwrite bit, and a webhook is never a target; both are a 400.
       requestBody:
         required: true
         content:
@@ -19680,6 +19691,14 @@ components:
           description: >-
             Every non-`@everyone` role id, top to bottom. See reorderRoles's
             own description for the exact-set and hierarchy rules.
+        expected_role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: >-
+            Optional. The non-`@everyone` role order, top to bottom, that the
+            client started from; a 409 when it no longer matches the live order.
 
     SetOverwriteRequest:
       type: object

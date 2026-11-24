@@ -88,15 +88,41 @@ async fn a_locked_caller_is_refused_even_with_the_right_password_and_told_how_lo
 }
 
 #[tokio::test]
-async fn guessing_the_password_from_elsewhere_slows_the_account_for_reauth_too() {
+async fn guessing_the_password_from_elsewhere_does_not_stop_a_signed_in_owner_confirming() {
     let (store, _auth, router, token, alice, _guard) = signed_in("slimm-reauth-account").await;
-    for ip in 0..=ACCOUNT_FREE_FAILURES {
+    for ip in 0..=ACCOUNT_FREE_FAILURES * 2 {
         let source = format!("ip:203.0.113.{ip}");
         store.record_login_failure(alice, &source).await.unwrap();
     }
 
     let response = reauth(&router, &token, PASSWORD).await;
-    assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+/// Every attempt is counted before any password is hashed, so a parallel burst cannot all pass.
+#[tokio::test]
+async fn a_parallel_burst_of_guesses_is_throttled_after_the_budget() {
+    let (store, _auth, router, token, alice, _guard) = signed_in("slimm-reauth-burst").await;
+    let source = own_source(alice);
+    for _ in 0..FREE_FAILURES - 3 {
+        store.record_login_failure(alice, &source).await.unwrap();
+    }
+
+    let attempts = (0..10).map(|_| reauth(&router, &token, "wrong-password-2"));
+    let statuses: Vec<StatusCode> = futures_util::future::join_all(attempts)
+        .await
+        .iter()
+        .map(axum::http::Response::status)
+        .collect();
+
+    let checked = statuses
+        .iter()
+        .filter(|status| **status == StatusCode::FORBIDDEN)
+        .count();
+    assert!(
+        checked <= 4,
+        "{checked} guesses were checked past a budget with three left: {statuses:?}"
+    );
 }
 
 #[tokio::test]

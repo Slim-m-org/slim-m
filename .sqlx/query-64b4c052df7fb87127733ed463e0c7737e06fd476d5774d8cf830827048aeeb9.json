@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO member_roles (user_id, role_id)\n             SELECT ?, id FROM roles WHERE id = ? AND is_everyone = 0",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "64b4c052df7fb87127733ed463e0c7737e06fd476d5774d8cf830827048aeeb9"
+}

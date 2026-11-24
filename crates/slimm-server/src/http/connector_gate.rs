@@ -116,7 +116,8 @@ fn rule(method: &str, segments: &[&str]) -> Rule {
                 "permissions" | "thread-parent" | "bot-commands" | "bot-ui",
             ],
         )
-        | ("GET", ["bots", "{}", "commands"]) => VIEW,
+        | ("GET", ["bots", "{}", "commands"])
+        | (_, ["link-preview", ..]) => VIEW,
         _ => Rule::Handler,
     }
 }
@@ -151,5 +152,12 @@ mod tests {
             rule("POST", &seg("/dms")),
             Rule::Needs(Permissions::SEND_MESSAGES)
         );
+        for p in ["/link-preview", "/link-preview/image/{}"] {
+            assert_eq!(
+                rule("GET", &seg(p)),
+                Rule::Needs(Permissions::VIEW_CHANNEL),
+                "{p}"
+            );
+        }
     }
 }

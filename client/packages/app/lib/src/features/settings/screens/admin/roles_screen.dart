@@ -178,6 +178,10 @@ class _RoleNavState extends ConsumerState<_RoleNav>
   }
 
   Future<void> _reorder(List<String> reorderableIds) async {
+    final startedFrom = [
+      for (final r in widget.roles)
+        if (!r.isEveryone) r.id,
+    ];
     setState(
       () => _pendingOrder = [
         ...reorderableIds,
@@ -185,12 +189,14 @@ class _RoleNavState extends ConsumerState<_RoleNav>
           if (r.isEveryone) r.id,
       ],
     );
-    final ok = await guard(
+    await guard(
       whatFailed: 'reorder roles',
-      action: () => ref.read(apiProvider).reorderRoles(reorderableIds),
+      action: () => ref
+          .read(apiProvider)
+          .reorderRoles(reorderableIds, expectedRoleIds: startedFrom),
     );
     if (!mounted) return;
-    if (ok) await _refetchRoles();
+    await _refetchRoles();
     if (mounted) setState(() => _pendingOrder = null);
   }
 

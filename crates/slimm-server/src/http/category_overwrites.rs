@@ -15,7 +15,7 @@ use super::messages::parse_uuid;
 use super::overwrite_changes::{publish_changed, target_of, visible_before};
 use super::overwrites::{
     BatchSetRequest, MAX_BATCH_ENTRIES, OverwriteDto, OverwritesDto, Target, check_bits,
-    parse_target, reach_target, refuse_ungrantable, require_writable_here,
+    parse_target, reach_target, refuse_ungrantable, require_member_target, require_writable_here,
 };
 use super::role_ladder::Ladder;
 use crate::ids::{ChannelCategoryId, ChannelId, UserId};
@@ -125,18 +125,17 @@ async fn batch_set(
             Target::Role(role_id) if state.store.role(role_id).await?.is_none() => {
                 return Err(ApiError::NotFound("role not found"));
             }
-            Target::Member(user_id) if state.store.user_profile(user_id).await?.is_none() => {
-                return Err(ApiError::NotFound("user not found"));
-            }
-            _ => {}
+            Target::Member(user_id) => require_member_target(&state, user_id).await?,
+            Target::Role(_) => {}
         }
         let (old_allow, old_deny) = state
             .store
             .category_overwrite_for(id, target_type, target_id)
             .await?
             .unwrap_or((Permissions::NONE, Permissions::NONE));
-        refuse_ungrantable(caller, allow.remove(old_allow).union(old_deny.remove(deny)))?;
-        reach_target(&state, &ladder, target).await?;
+        let granted = allow.remove(old_allow).union(old_deny.remove(deny));
+        refuse_ungrantable(caller, granted)?;
+        reach_target(&state, &ladder, ctx.user_id, target, granted).await?;
         targets.push(target);
         entries.push(OverwriteBatchEntry {
             target_type,
@@ -243,8 +242,10 @@ async fn reach_sync_changes(
     own: &[ChannelOverwrite],
 ) -> Result<(), ApiError> {
     let ladder = Ladder::of(state, caller).await?;
+    // A sync copies rows a write already admitted, and `refuse_sync_escalation` bounds its grants.
     for o in changed_by_sync(parent, own) {
-        reach_target(state, &ladder, target_of(&o.target_type, o.target_id)).await?;
+        let target = target_of(&o.target_type, o.target_id);
+        reach_target(state, &ladder, caller, target, Permissions::NONE).await?;
     }
     Ok(())
 }

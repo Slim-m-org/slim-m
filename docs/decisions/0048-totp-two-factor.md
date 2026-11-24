@@ -83,7 +83,7 @@ A **wrong** code deliberately leaves the challenge live, so one mistyped digit c
 ## Two throttles, and why one is not enough
 
 `ratelimit::Class::Totp` bounds the rate a caller may present codes at.
-A persistent counter on the factor row bounds the total: five consecutive failures lock the factor for fifteen minutes, and the counter resets on success so a run of fumbles over a week never accumulates into a lock.
+A persistent counter on the factor row bounds the total: every fifth wrong code locks the factor, for fifteen minutes, then an hour, four hours and a day, and the counter resets only on success so a patient grind meets ever longer locks.
 
 Neither alone is sufficient.
 The limiter is in-process and keyed per address, so it resets on every deploy and an attacker with addresses to spare gets a fresh budget from each.

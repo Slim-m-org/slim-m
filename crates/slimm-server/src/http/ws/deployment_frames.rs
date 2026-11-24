@@ -19,6 +19,9 @@ pub(super) async fn authorize(
     ctx: &SessionContext,
     event: Event,
 ) -> Result<Authorization, Box<Event>> {
+    if connector_withholds(ctx, &event) {
+        return Ok(Authorization::Withhold);
+    }
     if let Event::PresenceChanged(change) = event {
         // A gone account and a store blip both mean silence here, unlike below.
         let Ok(Some(status)) = signals::change_status(store, hub, ctx.user_id, &change).await
@@ -83,6 +86,29 @@ pub(super) async fn authorize(
             )
         }
         other => broadcast_frame(other).map(|frame| Authorization::Deliver(Box::new(frame))),
+    }
+}
+
+/// A connector's socket gets what its token could read over REST: never presence, and the
+/// member directory only with `VIEW_CHANNEL` approved (see `http::connector_gate`).
+fn connector_withholds(ctx: &SessionContext, event: &Event) -> bool {
+    let Some(grant) = ctx.connector else {
+        return false;
+    };
+    match event {
+        Event::PresenceChanged(_) => true,
+        Event::MemberTimeoutChanged { .. }
+        | Event::JoinGateChanged { .. }
+        | Event::MemberRemoved(_)
+        | Event::MemberRestored(_)
+        | Event::MemberJoined(_)
+        | Event::OwnerChanged(_)
+        | Event::RoleChanged { .. }
+        | Event::MemberRoleChanged { .. }
+        | Event::ProfileChanged(_) => {
+            !grant.enabled || !grant.cap.contains(Permissions::VIEW_CHANNEL)
+        }
+        _ => false,
     }
 }
 

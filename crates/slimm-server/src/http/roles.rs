@@ -48,6 +48,7 @@ use crate::ids::{RoleId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{ROLE_COLOR_COUNT, Role, RoleChanges, RoleGuardError, RoleWithCount};
+pub(super) use role_names::ROLE_NAME_TAKEN;
 use role_names::{require_distinct_role_name, validate_role_name};
 
 mod role_names;
@@ -198,7 +199,7 @@ async fn create(
     // `Store::bootstrap_deployment`, and this endpoint cannot ask for it.
     let created = state
         .store
-        .create_role_with_id(id, name, permissions, false)
+        .create_distinct_role(id, name, permissions)
         .await?;
     // See this function's own doc comment for why this is a second write.
     if created.fresh && req.mentionable.unwrap_or(false) {
@@ -461,6 +462,7 @@ fn role_guard_error(err: RoleGuardError) -> ApiError {
         RoleGuardError::LastAdministrator => {
             ApiError::Conflict("this would leave the deployment with no administrator")
         }
+        RoleGuardError::NameTaken => ApiError::Conflict(ROLE_NAME_TAKEN),
         RoleGuardError::Internal(e) => e.into(),
     }
 }

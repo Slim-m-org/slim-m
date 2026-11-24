@@ -329,13 +329,7 @@ impl Store {
             }
         }
 
-        let connector = (row.connector_principal == 1).then(|| super::sessions::ConnectorGrant {
-            enabled: row.module_enabled == Some(1),
-            cap: match row.approved.unwrap_or(Permissions::NONE) {
-                cap if cap.contains(Permissions::ADMINISTRATOR) => Permissions::ALL,
-                cap => cap,
-            },
-        });
+        let connector = connector_grant(row.connector_principal, row.module_enabled, row.approved);
         Ok(Some(SessionContext {
             user_id: row.user_id,
             session_id: row.session_id,
@@ -405,6 +399,25 @@ impl Store {
             permissions,
             prefix: bot.bot_prefix,
         })
+    }
+
+    /// What this account's connector module was approved, or `None` when it is not a connector's principal.
+    pub(super) async fn connector_grant_for(
+        &self,
+        user_id: UserId,
+    ) -> anyhow::Result<Option<super::sessions::ConnectorGrant>> {
+        let row = sqlx::query!(
+            r#"SELECT u.connector_principal AS "connector_principal!: i64",
+                      (SELECT m.enabled FROM installed_modules m
+                       WHERE m.bot_user_id = u.id AND m.provider = 'connector') AS "module_enabled: i64",
+                      (SELECT m.connector_permissions FROM installed_modules m
+                       WHERE m.bot_user_id = u.id AND m.provider = 'connector') AS "approved: Permissions"
+               FROM users u WHERE u.id = ?"#,
+            user_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.and_then(|r| connector_grant(r.connector_principal, r.module_enabled, r.approved)))
     }
 
     /// Whether this user is a bot, for the badge the interface draws.
@@ -509,4 +522,18 @@ impl Store {
         tx.commit().await?;
         Ok(Some(revoked))
     }
+}
+
+fn connector_grant(
+    principal: i64,
+    module_enabled: Option<i64>,
+    approved: Option<Permissions>,
+) -> Option<super::sessions::ConnectorGrant> {
+    (principal == 1).then(|| super::sessions::ConnectorGrant {
+        enabled: module_enabled == Some(1),
+        cap: match approved.unwrap_or(Permissions::NONE) {
+            cap if cap.contains(Permissions::ADMINISTRATOR) => Permissions::ALL,
+            cap => cap,
+        },
+    })
 }

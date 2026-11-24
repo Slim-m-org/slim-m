@@ -112,6 +112,13 @@ fn the_provisioning_uri_names_the_issuer_and_account() {
     assert!(uri.contains("ada"), "{uri}");
 }
 
+#[test]
+fn an_issuer_with_a_colon_still_builds_a_uri() {
+    let uri = super::provisioning_uri(&super::generate_secret(), "Gaming: Wednesdays", "ada")
+        .expect("a Space name with a colon is a valid name");
+    assert!(uri.contains("issuer=Gaming%20%20Wednesdays"), "{uri}");
+}
+
 /// The URI carries no `algorithm`, `digits` or `period`, and that is the point
 /// rather than an omission: those three are exactly the otpauth defaults, and
 /// several authenticator apps mis-handle them when they are stated explicitly.
@@ -203,4 +210,15 @@ fn the_recovery_alphabet_is_fully_covered() {
         super::RECOVERY_ALPHABET.len(),
         "some characters are never drawn: {seen:?}"
     );
+}
+
+#[test]
+fn successive_locks_lengthen_up_to_a_day() {
+    let waits: Vec<i64> = (1..=6)
+        .map(|run| super::lockout_ms(run * MAX_FAILURES))
+        .collect();
+    assert_eq!(waits[0], 15 * 60_000);
+    assert!(waits.windows(2).all(|pair| pair[1] >= pair[0]), "{waits:?}");
+    assert_eq!(waits[3], 24 * 60 * 60_000);
+    assert_eq!(waits[5], waits[3], "the ladder ends at a day");
 }

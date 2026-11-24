@@ -121,3 +121,33 @@ async fn revoking_a_role_from_an_unknown_user_stays_idempotent() {
     let stranger = Uuid::now_v7().to_string();
     assert_eq!(w.call("DELETE", &stranger).await, StatusCode::NO_CONTENT);
 }
+
+#[tokio::test]
+async fn everyone_cannot_be_granted_or_revoked_by_hand() {
+    let mut w = world("slimm-role-assign-everyone").await;
+    let (_, bob) = register(&w.store, "bob").await;
+    let everyone: RoleId = sqlx::query_scalar("SELECT id FROM roles WHERE is_everyone = 1")
+        .fetch_one(&w.pool)
+        .await
+        .unwrap();
+    w.role = everyone;
+    assert_eq!(w.call("PUT", &bob).await, StatusCode::BAD_REQUEST);
+    assert!(!w.holds_role(&bob).await);
+    assert_eq!(w.call("DELETE", &bob).await, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn a_stored_everyone_row_does_not_lift_a_members_rank() {
+    let w = world("slimm-role-everyone-rank").await;
+    let (_, bob) = register(&w.store, "bob").await;
+    let bob = UserId(Uuid::parse_str(&bob).unwrap());
+    sqlx::query(
+        "INSERT INTO member_roles (user_id, role_id)
+         SELECT ?, id FROM roles WHERE is_everyone = 1",
+    )
+    .bind(bob)
+    .execute(&w.pool)
+    .await
+    .unwrap();
+    assert_eq!(w.store.highest_role_position(bob).await.unwrap(), None);
+}

@@ -168,6 +168,38 @@ async fn only_an_administrator_can_clear_a_factor() {
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
 
+/// A password and a token must not be enough to drop an administrator's own factor: the
+/// self-service disable asks for a current code, and this route has to be no softer.
+#[tokio::test]
+async fn an_administrator_cannot_clear_their_own_factor_with_only_a_password() {
+    let (store, auth, _guard) = new_store("slimm-totp-clear-self").await;
+    let router = app(store.clone(), auth.clone());
+    let (admin_token, admin_id) = member(&store, &auth, "alice").await;
+    enrol_and_confirm(&router, &admin_token).await;
+
+    let response = router
+        .clone()
+        .oneshot(request(
+            "DELETE",
+            &format!("/admin/users/{admin_id}/totp"),
+            Some(&admin_token),
+            Some(json!({ "password": PASSWORD })),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+    let status = json_body(
+        router
+            .clone()
+            .oneshot(request("GET", "/auth/totp", Some(&admin_token), None))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status["enabled"], json!(true), "the factor was cleared");
+}
+
 #[tokio::test]
 async fn clearing_a_factor_that_does_not_exist_is_not_found() {
     let (store, auth, _guard) = new_store("slimm-totp-clear-missing").await;

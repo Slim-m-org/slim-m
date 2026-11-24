@@ -37,7 +37,8 @@ To set one of those you need a compose override file that adds it to the `server
 | `SLIMM_CORS_ALLOWED_ORIGINS` | unset, no CORS | Comma-separated browser origins allowed cross-origin. `*` and malformed entries stop startup. | yes |
 | `SLIMM_MIN_CLIENT_VERSION` | unset, no floor | Oldest client version still served, as `X.Y.Z`. Older clients are stopped and offered an update. Empty is read as unset. | yes |
 | `SLIMM_DIRECT_ADDRESSES` | unset | Comma-separated `host:port` where native clients on your own network reach the same TLS endpoint directly, for example `10.0.0.100:443`, so they skip Cloudflare or another proxy. Clients verify the certificate against the public hostname, and only dial a private or loopback IP literal on the server's own port. Served to signed-in clients at `GET /direct-route`, never in the unauthenticated `/version`. A LiveKit URL on a host beside the public one (for example `livekit.example.com` next to `chat.example.com`) and on the same port also connects there, when the proxy at that address holds a certificate for it. | yes |
-| `SLIMM_MODULE_LAN_DENY` | unset | Comma-separated IPs or CIDRs (for example `10.0.0.50, 192.168.1.0/24`) that a module with the Private network approval may never reach. Always refused as well: this server's own addresses, the hosts in `SLIMM_DIRECT_ADDRESSES` (the docker host's LAN address), and every docker bridge network the container can see. Malformed entries are logged and ignored. | yes |
+| `SLIMM_MODULE_LAN_DENY` | unset | Comma-separated IPs or CIDRs (for example `10.0.0.50, 192.168.1.0/24`) that a module with the Private network approval may never reach. Always refused as well: this server's own addresses, every network the container is directly attached to (when it runs in a bridged container, whatever its range), the hosts in `SLIMM_DIRECT_ADDRESSES` and `SLIMM_DOCKER_HOST_ADDRESS`, and every docker bridge network it can see. Malformed entries are logged and ignored. | yes |
+| `SLIMM_DOCKER_HOST_ADDRESS` | unset | Comma-separated LAN IPs of the machine running docker, for example `192.168.1.50`. A module with the Private network approval may never reach them. Set it when you do not set `SLIMM_DIRECT_ADDRESSES`. | yes |
 | `SLIMM_LINK_PREVIEWS` | `false` | Unfurl pasted links into preview cards. Makes the server fetch member-supplied URLs behind an SSRF guard (decision 0019). | yes |
 | `SLIMM_GIF_PROVIDER` | unset | `tenor` or `klipy`. Set it with the key or neither. An unrecognised value stops startup. | yes |
 | `SLIMM_GIF_API_KEY` | unset | Your key for that provider. | yes |
@@ -238,7 +239,8 @@ The Dock labels a community module with its `owner/repo`.
 Approving a module means two separate things.
 Its own permissions are granted to roles by you, and nobody holds them implicitly, administrators included.
 Its host capabilities are approved per install, in switches that start off.
-The Private network switch lets `net.fetch` reach your whole home network, minus this server, its docker host, docker bridge networks and anything in `SLIMM_MODULE_LAN_DENY`.
+The Private network switch lets `net.fetch` reach your whole home network, minus this server, the container's own networks, docker bridge networks, your docker host once its LAN address is listed in `SLIMM_DOCKER_HOST_ADDRESS` or `SLIMM_DIRECT_ADDRESSES`, and anything in `SLIMM_MODULE_LAN_DENY`.
+The server cannot learn the docker host's LAN address from inside its container, so set `SLIMM_DOCKER_HOST_ADDRESS` before approving Private network.
 There are two, `kv.store` (private key-value storage, small and capped) and `message.post` (post as the person who ran the module, in the channel they ran it from).
 A new build of a module's wasm loses its `message.post` approval and needs it approved again; `kv.store` carries over.
 A module with no approval can compute from its input and nothing else.
@@ -264,6 +266,9 @@ So treat a bot token like an admin password if the bot holds a powerful role.
 If one leaks, revoke the bot: its WebSocket closes and its next request returns 401 immediately.
 Removing a bot from the Space also revokes its session, and restoring it brings the same token back unless you revoked the token yourself first.
 A bot cannot create another bot.
+If you upgraded across 0.128.0, check the channel and category permissions of each bot that had a role of its own with no permissions.
+That upgrade removed those roles together with their per-channel rows, so a channel that kept such a bot out may now let it in.
+Setting a bot's permissions to none today keeps every deny its role carried, as a deny on the bot itself.
 [bots/building-bots.md](bots/building-bots.md) covers what a bot can do, and the choice between webhook, bot and module is decision 0035.
 
 ## Backups and restore

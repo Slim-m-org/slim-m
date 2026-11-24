@@ -21,6 +21,7 @@ use super::extract::{
 };
 use super::invites::invite_code_key;
 use crate::hub::Event;
+use crate::ids::UserId;
 use crate::ratelimit::Class;
 use crate::store::DeleteAccountError;
 use crate::store::{IssuedTokens, JoinPolicy, RefreshOutcome, RegisterError};
@@ -302,6 +303,24 @@ async fn check_username(
     Ok(Json(UsernameCheckResponse { exists }))
 }
 
+/// A known install only meets its own source's delay, so strangers' guesses cannot keep the owner's device out.
+async fn login_throttled(
+    state: &AppState,
+    user_id: UserId,
+    source: &str,
+    install_id: Option<&str>,
+) -> Result<bool, ApiError> {
+    if let Some(install_id) = install_id
+        && state.store.is_known_install(user_id, install_id).await?
+    {
+        return Ok(state
+            .store
+            .login_throttled_own_source(user_id, source)
+            .await?);
+    }
+    Ok(state.store.login_throttled(user_id, source).await?)
+}
+
 /// Verifies a password, and then either opens a session or asks for the second
 /// factor.
 ///
@@ -330,7 +349,9 @@ async fn login(
     let source = limit_key(&parts, None, &state.limiter);
     // A throttled account still runs the decoy and answers like a wrong password.
     let throttled = match &credentials {
-        Some((user_id, _)) => state.store.login_throttled(*user_id, &source).await?,
+        Some((user_id, _)) => {
+            login_throttled(&state, *user_id, &source, install_id.as_deref()).await?
+        }
         None => false,
     };
     let verified = match &credentials {

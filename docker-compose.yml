@@ -97,6 +97,7 @@ services:
       SLIMM_ADDONS_REPO: ${SLIMM_ADDONS_REPO:-Slim-m-org/slim-addons}
       SLIMM_CODE_RUNNER_URL: ${SLIMM_CODE_RUNNER_URL:-}
       SLIMM_MODULE_LAN_DENY: ${SLIMM_MODULE_LAN_DENY:-}
+      SLIMM_DOCKER_HOST_ADDRESS: ${SLIMM_DOCKER_HOST_ADDRESS:-}
       SLIMM_MEMORY_LIMIT_BYTES: ${SLIMM_MEMORY_LIMIT_BYTES:-}
       # Only for recovery after every two-factor secret was cleared; docs/OPERATING.md, The data key.
       SLIMM_DATA_KEY_ALLOW_NEW: ${SLIMM_DATA_KEY_ALLOW_NEW:-}

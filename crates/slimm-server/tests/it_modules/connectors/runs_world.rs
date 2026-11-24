@@ -117,5 +117,24 @@ impl Live {
 
 /// The next `connector.run` frame on `ws`, or `None` when none comes in a short window.
 pub async fn next_run(ws: &mut Client) -> Option<Value> {
-    support::ws::wait_for_frame(ws, "connector.run", std::time::Duration::from_secs(3)).await
+    use futures_util::StreamExt;
+    let wait = async {
+        loop {
+            match ws.next().await {
+                Some(Ok(tokio_tungstenite::tungstenite::Message::Text(text))) => {
+                    let frame: Value = serde_json::from_str(text.as_str()).unwrap();
+                    if frame["type"] == "connector.run" {
+                        return Some(frame);
+                    }
+                }
+                Some(Ok(_)) => {}
+                // A socket the server closed will never be sent a run.
+                _ => return None,
+            }
+        }
+    };
+    tokio::time::timeout(std::time::Duration::from_secs(3), wait)
+        .await
+        .ok()
+        .flatten()
 }

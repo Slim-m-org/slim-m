@@ -37,7 +37,7 @@ use super::PROTOCOL_VERSION;
 use super::canvas::CanvasObjectDto;
 use super::channels::ChannelDto;
 use super::messages::{AttachmentDto, MessageDto};
-use crate::hub::{Event, PendingGuard};
+use crate::hub::{Event, PendingGuard, UserSocketGuard};
 use crate::ratelimit::Class;
 use crate::store::SessionContext;
 use authorization::{Authorization, authorize};
@@ -138,7 +138,7 @@ async fn serve(
     let mut events = state.hub.subscribe();
     let mut ephemeral_events = state.hub.subscribe_ephemeral();
 
-    let (ctx, reported_active) =
+    let (ctx, reported_active, _user_socket) =
         match authenticate(&mut sink, &mut stream, &state, pending.address()).await {
             Some(opened) => opened,
             None => return,
@@ -472,10 +472,15 @@ async fn authenticate(
     stream: &mut Stream,
     state: &AppState,
     address: &str,
-) -> Option<(SessionContext, Option<bool>)> {
+) -> Option<(SessionContext, Option<bool>, UserSocketGuard)> {
     let opening = tokio::time::timeout(state.hub.auth_deadline(), stream.next()).await;
     let text = match opening {
         Ok(Some(Ok(Message::Text(text)))) => text,
+        // Sitting on a socket without a hello costs the address a failed hello, like a bad ticket.
+        Err(_) => {
+            state.limiter.check(Class::HelloFailure, address);
+            return reject(sink, "expected a hello frame").await;
+        }
         _ => return reject(sink, "expected a hello frame").await,
     };
 
@@ -492,12 +497,29 @@ async fn authenticate(
     }
 
     match state.store.redeem_ws_ticket(&ticket).await {
-        Ok(Some(ctx)) => Some((ctx, active)),
+        Ok(Some(ctx)) => admit_account(sink, state, ctx, active).await,
         Ok(None) => {
             state.limiter.check(Class::HelloFailure, address);
             reject(sink, "invalid ticket").await
         }
         Err(_) => reject(sink, "invalid ticket").await,
+    }
+}
+
+/// Refuses a turned-off connector and an account already holding its share of sockets.
+async fn admit_account(
+    sink: &mut Sink,
+    state: &AppState,
+    ctx: SessionContext,
+    active: Option<bool>,
+) -> Option<(SessionContext, Option<bool>, UserSocketGuard)> {
+    if ctx.connector.is_some_and(|grant| !grant.enabled) {
+        return reject(sink, "an admin has turned this connector off").await;
+    }
+    let bot = ctx.connector.is_some() || state.store.is_bot(ctx.user_id).await.unwrap_or(false);
+    match state.hub.try_hold_user_socket(ctx.user_id, bot) {
+        Some(slot) => Some((ctx, active, slot)),
+        None => reject(sink, "too many open connections for this account").await,
     }
 }
 

@@ -32,6 +32,11 @@ impl Media {
         self
     }
 
+    /// Stores `bytes` as the kept original of attachment `sha256_hex`.
+    pub async fn write_original(&self, sha256_hex: &str, bytes: Vec<u8>) -> io::Result<()> {
+        super::write_atomic(self.original_path(sha256_hex), bytes).await
+    }
+
     /// Opens the kept original of an attachment for streaming.
     pub async fn open_original(&self, sha256_hex: &str) -> io::Result<(tokio::fs::File, u64)> {
         let file = tokio::fs::File::open(self.original_path(sha256_hex)).await?;

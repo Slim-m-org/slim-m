@@ -44,6 +44,15 @@ struct Bucket {
     last: Instant,
 }
 
+impl Bucket {
+    /// Whether waiting has restored the full burst, so forgetting the bucket loses nothing.
+    fn has_refilled(&self, class: Class, now: Instant) -> bool {
+        let (burst, refill) = class.budget();
+        let elapsed = now.duration_since(self.last).as_secs_f64();
+        self.tokens + elapsed * refill >= burst
+    }
+}
+
 /// How many requests a class has admitted and refused since the process
 /// started, for the `/metrics` counters. Lives beside the buckets rather
 /// than as its own `Mutex`, since every increment already happens under the
@@ -188,9 +197,9 @@ impl RateLimiter {
         };
 
         if now.duration_since(state.last_sweep) >= SWEEP_INTERVAL {
-            state
-                .buckets
-                .retain(|_, bucket| now.duration_since(bucket.last) < IDLE_TTL);
+            state.buckets.retain(|(class, _), bucket| {
+                now.duration_since(bucket.last) < IDLE_TTL || !bucket.has_refilled(*class, now)
+            });
             state.last_sweep = now;
         }
 
@@ -211,7 +220,7 @@ impl RateLimiter {
                 if state.buckets.len() >= MAX_BUCKETS
                     && now.duration_since(state.last_reclaim) >= RECLAIM_INTERVAL
                 {
-                    capacity::reclaim(&mut state.buckets, now, IDLE_TTL);
+                    capacity::reclaim(&mut state.buckets, now);
                     state.last_reclaim = now;
                 }
                 // Past the ceiling a fresh anonymous key is refused, so a flood cannot grow memory or buy requests.
@@ -427,6 +436,39 @@ mod tests {
         let later = start + IDLE_TTL + SWEEP_INTERVAL;
         assert!(limiter.check_at(Class::Write, "fresh", later));
         assert_eq!(limiter.tracked(), 1, "the idle bucket was swept");
+    }
+
+    #[test]
+    fn a_spent_slow_refill_bucket_survives_the_idle_sweep() {
+        let limiter = RateLimiter::new();
+        let start = Instant::now();
+        let (burst, _) = Class::SignInAlert.budget();
+        for _ in 0..burst as usize {
+            assert!(limiter.check_at(Class::SignInAlert, "u:a", start));
+        }
+        let later = start + IDLE_TTL + SWEEP_INTERVAL;
+        assert!(limiter.check_at(Class::Write, "other", later));
+        assert!(
+            !limiter.check_at(Class::SignInAlert, "u:a", later),
+            "the idle sweep handed back a spent budget"
+        );
+    }
+
+    #[test]
+    fn a_spent_slow_refill_bucket_survives_a_full_map_reclaim() {
+        let limiter = RateLimiter::new();
+        let start = Instant::now();
+        let (burst, _) = Class::SignInAlert.budget();
+        for _ in 0..burst as usize {
+            assert!(limiter.check_at(Class::SignInAlert, "u:a", start));
+        }
+        let mut buckets = std::mem::take(&mut limiter.state.lock().unwrap().buckets);
+        capacity::reclaim(&mut buckets, start + IDLE_TTL * 2);
+        assert_eq!(
+            buckets.len(),
+            1,
+            "reclaim dropped a bucket that was still spent"
+        );
     }
 
     /// `check_at` is `check_weighted_at` at cost 1.0, not a second code path,

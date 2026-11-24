@@ -337,11 +337,13 @@ impl Store {
         }
         tx.commit().await?;
 
+        // Read fresh at redemption, so a connector switched off since its ticket was minted is seen.
+        let connector = self.connector_grant_for(claimed.user_id).await?;
         Ok(Some(SessionContext {
             user_id: claimed.user_id,
             session_id: claimed.session_id,
             device_id: claimed.device_id,
-            connector: None,
+            connector,
         }))
     }
 
@@ -357,6 +359,19 @@ impl Store {
         .fetch_optional(&self.pool)
         .await?
         .is_some())
+    }
+
+    /// The ids of this account's sessions that are not revoked, for closing the sockets they hold.
+    pub async fn live_session_ids(&self, user_id: UserId) -> anyhow::Result<Vec<SessionId>> {
+        Ok(sqlx::query!(
+            r#"SELECT id AS "id!: SessionId" FROM sessions WHERE user_id = ? AND revoked_at IS NULL"#,
+            user_id
+        )
+        .fetch_all(&self.pool)
+        .await?
+        .into_iter()
+        .map(|row| row.id)
+        .collect())
     }
 
     /// Revokes one session immediately (logout). Its bearer tokens stop

@@ -29,6 +29,8 @@ pub(super) struct RoleContext {
     pub(super) owner: bool,
     /// The most this principal may hold, whatever its roles say; see `connector_cap`.
     pub(super) cap: Permissions,
+    /// A webhook's principal holds nothing, whatever an overwrite names it in (decision 0030).
+    pub(super) webhook: bool,
 }
 
 impl RoleContext {
@@ -41,6 +43,28 @@ impl RoleContext {
             role_ids: Vec::new(),
             owner: false,
             cap: Permissions::ALL,
+            webhook: false,
+        }
+    }
+
+    /// The context of a webhook's principal.
+    pub(super) fn webhook() -> Self {
+        Self {
+            webhook: true,
+            ..Self::none()
+        }
+    }
+
+    /// What `@everyone` and the roles grant together, under the cap, so a role's ADMINISTRATOR
+    /// bypasses overwrites only for a principal whose cap holds it.
+    fn granted(&self) -> Permissions {
+        let granted = self
+            .role_perms
+            .iter()
+            .fold(self.everyone_perms, |held, role| held.union(*role));
+        match self.cap.contains(Permissions::ADMINISTRATOR) {
+            true => granted,
+            false => granted.intersect(self.cap),
         }
     }
 
@@ -49,7 +73,10 @@ impl RoleContext {
         if self.owner {
             return self.cap;
         }
-        evaluate(self.everyone_perms, &self.role_perms, None, &[], None).intersect(self.cap)
+        if self.webhook {
+            return Permissions::NONE;
+        }
+        evaluate(self.granted(), &[], None, &[], None).intersect(self.cap)
     }
 
     /// Sorts `overwrites` into the tiers `user_id` is subject to and runs the
@@ -83,15 +110,10 @@ impl RoleContext {
                 _ => {}
             }
         }
-        let permissions = match self.owner {
-            true => Permissions::ALL,
-            false => evaluate(
-                self.everyone_perms,
-                &self.role_perms,
-                everyone,
-                &roles,
-                member,
-            ),
+        let permissions = match (self.owner, self.webhook) {
+            (true, _) => Permissions::ALL,
+            (false, true) => Permissions::NONE,
+            (false, false) => evaluate(self.granted(), &[], everyone, &roles, member),
         };
         Evaluated {
             permissions: permissions.intersect(self.cap),
@@ -108,10 +130,11 @@ pub(super) struct Evaluated {
 }
 
 impl Store {
-    /// Grants a role to a member. Idempotent.
+    /// Grants a role to a member. Idempotent, and never stores `@everyone`, which everyone holds.
     pub async fn assign_role(&self, user_id: UserId, role_id: RoleId) -> anyhow::Result<bool> {
         let inserted = sqlx::query!(
-            "INSERT OR IGNORE INTO member_roles (user_id, role_id) VALUES (?, ?)",
+            "INSERT OR IGNORE INTO member_roles (user_id, role_id)
+             SELECT ?, id FROM roles WHERE id = ? AND is_everyone = 0",
             user_id,
             role_id
         )
@@ -365,7 +388,7 @@ impl Store {
         .await?;
         let (is_webhook, cap) = principal.map_or((0, None), |p| (p.is_webhook, p.cap));
         if is_webhook != 0 {
-            return Ok(RoleContext::none());
+            return Ok(RoleContext::webhook());
         }
 
         let (everyone_id, everyone_perms) = self.everyone_role().await?;
@@ -391,6 +414,7 @@ impl Store {
             role_ids,
             owner,
             cap: connector_cap::effective(cap),
+            webhook: false,
         })
     }
 }
@@ -399,7 +423,7 @@ impl Store {
     /// The `@everyone` role's id and base permissions; at most one such role
     /// exists (a partial unique index enforces it), so `LIMIT 1` is
     /// deterministic. `(None, NONE)` before the deployment bootstraps.
-    pub(super) async fn everyone_role(&self) -> anyhow::Result<(Option<Uuid>, Permissions)> {
+    pub(crate) async fn everyone_role(&self) -> anyhow::Result<(Option<Uuid>, Permissions)> {
         let everyone = sqlx::query!(
             r#"SELECT id AS "id!: RoleId", permissions AS "permissions!: Permissions"
                FROM roles WHERE is_everyone = 1 LIMIT 1"#

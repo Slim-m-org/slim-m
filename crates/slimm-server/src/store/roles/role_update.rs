@@ -4,7 +4,7 @@
 use sqlx::QueryBuilder;
 
 use super::super::Store;
-use super::{Role, RoleGuardError, administrator_count};
+use super::{Role, RoleGuardError, administrator_count, role_name_guard};
 use crate::ids::RoleId;
 use crate::permissions::Permissions;
 
@@ -62,6 +62,11 @@ impl Store {
             color,
         } = changes;
         let mut tx = self.begin_write().await?;
+        if let Some(name) = name
+            && role_name_guard::name_taken(&mut tx, name, role_id).await?
+        {
+            return Err(RoleGuardError::NameTaken);
+        }
 
         let affected: u64 = if changes.is_empty() {
             let exists = sqlx::query_scalar!(

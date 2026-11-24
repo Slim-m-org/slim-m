@@ -7,6 +7,7 @@
 //! caller stores the result only when [`compress`] returns one.
 
 mod classify;
+mod container_strip;
 mod decode;
 mod exif;
 mod jpeg_out;
@@ -16,6 +17,7 @@ mod sniff;
 #[cfg(test)]
 mod tests;
 
+pub use container_strip::strip as strip_metadata;
 pub use jpeg_encoder::SamplingFactor;
 pub use jpeg_out::{DEFAULT as DEFAULT_SETTINGS, Settings, TableKind};
 pub use sniff::Kind;
@@ -221,6 +223,15 @@ pub fn compress(
             .or_else(|| strip_jpeg(bytes, policy.metadata)),
         _ => convert(candidate, bytes, policy, settings).filter(worth_storing),
     }
+}
+
+/// The upload with the policy's metadata removed and nothing else changed, or `None` when it has none to remove.
+pub fn strip_only(kind: Kind, bytes: &[u8], metadata: Metadata) -> Option<Compressed> {
+    container_strip::strip(kind, bytes, metadata).map(|bytes| Compressed {
+        bytes,
+        content_type: source_type(kind),
+        extension: kind.extensions()[0],
+    })
 }
 
 /// The most memory compressing this file can hold at once, in bytes: the
