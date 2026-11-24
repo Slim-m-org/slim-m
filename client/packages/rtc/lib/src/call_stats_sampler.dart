@@ -9,6 +9,7 @@ library;
 import 'dart:async';
 
 import 'call_stats.dart';
+import 'read_timeout.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// One track that can be sampled.
@@ -139,7 +140,7 @@ class CallStatsSampler {
 
   Future<void> _sample(CallStatsTarget t) async {
     try {
-      final entries = await t.fetch();
+      final entries = await t.fetch().timeout(kPollReadTimeout);
       if (!running) return;
       final key = t.key;
       final sample = parseVideoStats(

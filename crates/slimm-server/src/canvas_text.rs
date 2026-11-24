@@ -3,7 +3,7 @@
 
 use serde_json::Value;
 
-use crate::hidden_chars::is_hidden_char;
+use crate::hidden_chars::{is_hidden_char, is_reading_rewrite_in_prose};
 
 /// Largest serialized `props` one canvas object may carry, sized against the broadcast ring.
 pub const MAX_PROPS_BYTES: usize = 4 * 1024;
@@ -25,6 +25,20 @@ pub fn is_colour(c: &str) -> bool {
         && c.len() <= MAX_COLOR_BYTES
         && c.bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
+/// Refuses a `props.text` that holds a control character or direction override, the set a message's text loses.
+///
+/// Line breaks and tabs stay, and an absent or empty text passes: a note may be blank.
+pub fn check_prose_text(props: &Value) -> Result<(), &'static str> {
+    let hidden = props
+        .get("text")
+        .and_then(Value::as_str)
+        .is_some_and(|text| text.chars().any(is_reading_rewrite_in_prose));
+    if hidden {
+        return Err("props.text holds hidden characters");
+    }
+    Ok(())
 }
 
 /// Refuses props a client could not have produced: wrong types, an empty or oversized text, hidden characters, an unknown size.
@@ -98,6 +112,20 @@ pub fn merge_props(stored: &Value, edit: &Value) -> Value {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn a_note_keeps_joiners_in_emoji_and_words_but_refuses_overrides() {
+        for ok in [
+            "done \u{1F937}\u{200D}\u{2640}\u{FE0F}",
+            "\u{0645}\u{06CC}\u{200C}\u{062E}\u{0648}\u{0627}\u{0647}\u{0645}",
+            "a\nb\tc",
+        ] {
+            assert!(check_prose_text(&json!({"text": ok})).is_ok(), "{ok:?}");
+        }
+        for bad in ["a\u{202E}b", "a\u{0007}b"] {
+            assert!(check_prose_text(&json!({"text": bad})).is_err(), "{bad:?}");
+        }
+    }
 
     fn text_with(color: Value) -> Result<(), &'static str> {
         check_text_props(&json!({"text": "hi", "color": color}))

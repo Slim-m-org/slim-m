@@ -83,7 +83,7 @@ async fn a_member_sends_a_log_and_an_admin_reads_it_back() {
     let (_, list) = get(&w, "/debug-logs", &w.admin).await;
     assert_eq!(list.as_array().unwrap().len(), 0);
     let status = delete(&w, &format!("/debug-logs/{id}"), &w.admin).await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(status, StatusCode::NO_CONTENT);
 }
 
 #[tokio::test]

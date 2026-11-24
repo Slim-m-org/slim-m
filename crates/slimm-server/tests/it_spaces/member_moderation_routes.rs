@@ -242,10 +242,9 @@ async fn the_removals_listing_needs_the_ban_bit() {
     assert_eq!(allowed.status(), StatusCode::OK);
 }
 
-/// Restoring somebody who was never removed says so, so an undo can be told
-/// from a no-op rather than both reporting success.
+/// Restoring somebody who was never removed is a no-op success, so a replayed undo succeeds.
 #[tokio::test]
-async fn restoring_someone_who_was_not_removed_is_a_404() {
+async fn restoring_someone_who_was_not_removed_is_a_no_op() {
     let (store, _guard) = support::new_store("slimm-moderation-routes-test").await;
     let (admin_token, _admin_id, _mod_token, _mod_id, member_id) = people(&store).await;
     let app = app(store.clone());
@@ -260,7 +259,7 @@ async fn restoring_someone_who_was_not_removed_is_a_404() {
         ))
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
 /// The refutation that prompted this: a timed-out member whose SEND_MESSAGES

@@ -226,6 +226,9 @@ impl Store {
 
         if affected > 0 {
             tx.commit().await?;
+            if let Err(err) = self.purge_deleted_channel_canvas(Some(id)).await {
+                tracing::warn!(error = %err, channel = %id, "purging a deleted channel's canvas failed; the sweep retries");
+            }
             return Ok(true);
         }
 

@@ -21,6 +21,7 @@ import '../../channels/providers/threads.dart';
 import '../../channels/widgets/channel_rail.dart' show routedChannelId;
 import '../../../routing/breakpoints.dart';
 import '../../settings/providers/display_density.dart';
+import '../../members/providers/blocks_controller.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../../routing/routes.dart';
 import 'author_label.dart';
@@ -93,8 +94,14 @@ class _Body extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final forbidden = threads.error is api.ForbiddenException;
+    final blocked = ref.watch(blocksProvider.select((s) => s.ids));
     return AppAsyncView<List<api.ThreadListItem>>(
-      value: AppAsyncState(data: threads.valueOrNull, error: threads.error),
+      value: AppAsyncState(
+        data: threads.valueOrNull
+            ?.where((t) => !blocked.contains(t.parentAuthorId))
+            .toList(growable: false),
+        error: threads.error,
+      ),
       errorMessage: forbidden
           ? 'You do not have permission to see threads here.'
           : 'Could not load threads.',

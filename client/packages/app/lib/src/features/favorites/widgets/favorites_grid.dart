@@ -46,8 +46,9 @@ class _FavoritesGridState extends ConsumerState<FavoritesGrid> {
       _selectingId = favorite.id;
       _error = null;
     });
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
-      final attachment = await ref
+      final attachment = await container
           .read(composerActionsProvider)
           .selectFavorite(
             favorite.id,
@@ -58,7 +59,7 @@ class _FavoritesGridState extends ConsumerState<FavoritesGrid> {
       widget.onPicked(attachment);
     } on api.ConflictException catch (e, stack) {
       api.AppLog.swallowed(api.LogTag.media, 'Favorite unavailable', e, stack);
-      ref.invalidate(favoritesProvider);
+      container.invalidate(favoritesProvider);
       if (!mounted) return;
       setState(() {
         _error = 'That favorite is no longer available.';

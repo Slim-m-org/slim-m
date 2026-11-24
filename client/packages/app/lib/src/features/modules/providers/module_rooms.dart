@@ -165,6 +165,21 @@ class ModuleRoomsController
     } on api.ApiException catch (error) {
       if (!_disposed) _settle(moduleId, null, notice: error.message);
       return null;
+    } catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.data,
+        'Module room input got an answer it could not read',
+        error,
+        stack,
+      );
+      if (!_disposed) {
+        _settle(
+          moduleId,
+          null,
+          notice: 'The server sent an answer that could not be read.',
+        );
+      }
+      return null;
     }
   }
 

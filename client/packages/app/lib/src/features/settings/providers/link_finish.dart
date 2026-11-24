@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../api_failure.dart';
+import '../../../link_query.dart';
 
 /// The query key the `slimm://` and web forms carry the code under.
 const linkCodeQuery = 'code';
@@ -22,7 +23,11 @@ const linkCodeRefused =
 /// spaces or lower case from being read off the page; null when none is there.
 String? parseLinkCode(String raw) {
   final trimmed = raw.trim();
-  final linked = Uri.tryParse(trimmed)?.queryParameters[linkCodeQuery];
+  final parsed = Uri.tryParse(trimmed);
+  if (parsed != null && parsed.hasQuery && queryOrNull(parsed) == null) {
+    return null;
+  }
+  final linked = parsed == null ? null : queryParam(parsed, linkCodeQuery);
   final code = (linked ?? trimmed).toUpperCase().replaceAll(
     RegExp('[^A-Z0-9]'),
     '',

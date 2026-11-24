@@ -30,7 +30,7 @@ They are not declared as extension points, and the module routes on `command` li
 | command | when | `input` |
 | --- | --- | --- |
 | `@event` | a subscribed event happened | the JSON text `{"event","id","at_ms","data"}` |
-| `@slot` | a member opened a profile or a list that shows a badge | the JSON text `{"slot","name","user_ids","bot_ids","viewer_id"}` |
+| `@slot` | a member opened a profile or a list that shows a badge | the JSON text `{"slot","name","user_ids","bot_ids"}` |
 | `@room` | someone sent an input to the module's room (add-on API 6) | the JSON text `{"$slim":"room/1","room","seq","state","input"}` |
 
 A module with `subscriptions` that returns `{ok:false}` for `@event` counts every event as a failed run, so route it.
@@ -327,8 +327,8 @@ Slots need no capability.
 - At most 4 slots, each `kind` and `name` pair once, `name` at most 64 characters and `title` at most 40.
 - Only an enabled module with `"addon_api": 1` is asked.
 
-The host asks by running the module with `command: "@slot"` and `input` of `{"slot","name","user_ids","bot_ids","viewer_id"}`.
-`slot` is the kind, `name` is the slot's name, `user_ids` are the members to answer for (one run covers every member the cache lacks, up to 100), `bot_ids` are the ones among them that are bot accounts, and `viewer_id` is the member looking.
+The host asks by running the module with `command: "@slot"` and `input` of `{"slot","name","user_ids","bot_ids"}`.
+`slot` is the kind, `name` is the slot's name, `user_ids` are the members to answer for (one run covers every member the cache lacks, up to 100), `bot_ids` are the ones among them that are bot accounts, and the member looking is the run's `caller.id`; the input carries no user id for them.
 `caller.id` is the viewer's, the same as for any command that member runs.
 Answer with an output string of:
 

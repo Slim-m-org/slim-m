@@ -15,7 +15,7 @@ use serde::Deserialize;
 use super::super::AppState;
 use super::super::auth::validate_label;
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{Authed, AuthedLimited, Json, WRITE, enforce};
 use super::super::messages::parse_uuid;
 use super::authorize;
 use crate::hub::Event;
@@ -41,13 +41,11 @@ struct NicknameRequest {
 
 /// Sets the nickname, replacing any already on this member. Requires KICK_MEMBERS.
 async fn set_nickname(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(user_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<NicknameRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let target = UserId(parse_uuid(&user_id)?);
     authorize(&state, ctx.user_id, target, Permissions::KICK_MEMBERS).await?;
 

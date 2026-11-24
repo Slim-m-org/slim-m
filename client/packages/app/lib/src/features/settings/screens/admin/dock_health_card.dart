@@ -11,7 +11,8 @@ import 'package:slimm_design_system/design_system.dart';
 /// Whether [installed] has anything to report: a reason, a streak or drops.
 bool dockHasHealthNews(api.InstalledDockModule? installed) =>
     installed != null &&
-    ((installed.disabledReason != null && !installed.enabled) ||
+    (installed.withdrawnReason != null ||
+        (installed.disabledReason != null && !installed.enabled) ||
         installed.consecutiveFailures > 0 ||
         installed.eventsDropped > 0 ||
         installed.queueDepth > 0);
@@ -31,6 +32,8 @@ class DockHealthCard extends StatelessWidget {
   final bool enabled;
 
   List<String> _lines() => [
+    if (installed.withdrawnReason case final why?)
+      'The registry withdrew this version: $why',
     if (installed.consecutiveFailures > 0)
       installed.consecutiveFailures == 1
           ? '1 run failed in a row.'
@@ -53,7 +56,9 @@ class DockHealthCard extends StatelessWidget {
     final tripped = reason != null && !installed.enabled;
     final style = AppText.caption.copyWith(color: tokens.textPrimary);
     return AppCallout(
-      tone: tripped ? AppCalloutTone.warn : AppCalloutTone.info,
+      tone: tripped || installed.withdrawnReason != null
+          ? AppCalloutTone.warn
+          : AppCalloutTone.info,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,

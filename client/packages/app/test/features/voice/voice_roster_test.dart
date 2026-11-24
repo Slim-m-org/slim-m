@@ -351,6 +351,35 @@ void main() {
     });
   });
 
+  test('an unreadable roster body does not stop the poller', () {
+    fakeAsync((async) {
+      var calls = 0;
+      final container = _containerWith(
+        MockClient((_) async {
+          calls++;
+          if (calls == 1) return http.Response('{"participants": 5}', 200);
+          return _roster([
+            {'user_id': 'u1', 'display_name': 'Alice'},
+          ]);
+        }),
+      );
+      final sub = container.listen(voiceRosterProvider('general'), (_, __) {});
+      async.flushMicrotasks();
+      async.elapse(const Duration(seconds: 45));
+
+      expect(calls, greaterThan(1));
+      expect(
+        container
+            .read(voiceRosterProvider('general'))
+            .value
+            ?.single
+            .displayName,
+        'Alice',
+      );
+      sub.close();
+    });
+  });
+
   test('a voice.activity event for a different channel is ignored', () {
     fakeAsync((async) {
       var calls = 0;

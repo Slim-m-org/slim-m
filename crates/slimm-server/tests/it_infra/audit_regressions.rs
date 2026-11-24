@@ -270,6 +270,7 @@ async fn retrying_a_deleted_send_is_not_a_500() {
     assert_eq!(
         retry.status(),
         StatusCode::OK,
-        "a retry of a deleted message returns it, not a 500"
+        "a retry of a deleted message answers with its tombstone, not a 500"
     );
+    assert_eq!(json_body(retry).await["content"], "");
 }

@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_app/src/features/voice/providers/call_roster_gap.dart';
+import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_stage_layout.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -50,6 +51,7 @@ class _Roster {
   List<Map<String, Object>> rows = const [_bobRow, _aliceRow];
   bool failing = false;
   Duration delay = Duration.zero;
+  var reads = 0;
 
   http.Client client() {
     final base = voiceApi();
@@ -57,6 +59,7 @@ class _Roster {
       if (!request.url.path.endsWith('/voice/roster')) {
         return base.send(request).then(http.Response.fromStream);
       }
+      reads++;
       if (delay > Duration.zero) await Future<void>.delayed(delay);
       if (failing) return http.Response('', 503);
       return http.Response(
@@ -239,6 +242,33 @@ void main() {
       await tester.pump();
       await tester.pump();
       expect(find.textContaining('The call server lost you'), findsNothing);
+    } finally {
+      call.dispose();
+    }
+  });
+
+  testWidgets('a hidden window stops reading the call roster and reads once '
+      'when shown', (tester) async {
+    final roster = _Roster();
+    final call = _Call(tester, roster);
+    try {
+      await call.start(const [_me, _alice]);
+      final lifecycle = call.harness.container.read(
+        appLifecycleProvider.notifier,
+      );
+
+      lifecycle.didChangeAppLifecycleState(AppLifecycleState.hidden);
+      await tester.pump();
+      final hiddenAt = roster.reads;
+      for (var i = 0; i < 4; i++) {
+        await call.advance(kRosterGapPoll);
+      }
+      expect(roster.reads, hiddenAt);
+
+      lifecycle.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await tester.pump();
+      await tester.pump();
+      expect(roster.reads, hiddenAt + 1);
     } finally {
       call.dispose();
     }

@@ -6,13 +6,12 @@
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use axum::routing::{get, post, put};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, INTERACTION, Json, enforce};
+use super::extract::{AUTHED_READ, AuthedLimited, INTERACTION, Json, WRITE};
 use super::hidden_chars::is_hidden_char;
 use super::interactions::{InteractionDto, record_and_publish};
 use super::messages::parse_uuid;
@@ -21,7 +20,6 @@ use crate::bot_ui::{self, Surface, UiEntry, UiRegistration};
 use crate::hub::Event;
 use crate::ids::{ChannelId, InteractionId, MessageId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{Interaction, InteractionInput, InteractionKind, VisibleBotUi, now_ms};
 
 const BODY_LIMIT: usize = 16 * 1024;
@@ -41,11 +39,9 @@ pub fn routes() -> Router<AppState> {
 /// Bulk-overwrites the caller's own entries; refused for a non-bot.
 async fn set_ui(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(body): Json<UiRegistration>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     if !state.store.is_bot(ctx.user_id).await? {
         return Err(ApiError::Forbidden);
     }

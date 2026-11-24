@@ -68,7 +68,11 @@ class _ThreadScreenState extends ConsumerState<ThreadScreen> {
       // Best effort: the title stays "Thread" and the read marker stays unfixed for this session, same as today.
       return;
     }
-    if (!parent.isThread || !mounted) return;
+    if (!mounted) return;
+    if (!parent.isThread) {
+      await ref.read(threadAccessProvider(channelId).future);
+      return;
+    }
     final store = await ref.read(storeProvider.future);
     await store.upsertChannels([
       api.Channel(

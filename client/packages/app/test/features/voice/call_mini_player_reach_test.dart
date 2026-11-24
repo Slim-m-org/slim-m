@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_app/src/features/voice/providers/call_mini_player.dart';
@@ -84,6 +85,7 @@ void main() {
     late FixedVoiceController call;
     final container = ProviderContainer(
       overrides: [
+        channelJoinMutedProvider.overrideWithValue((_) async => false),
         voiceControllerProvider.overrideWith(
           (ref) => call = FixedVoiceController(ref, miniCall([remoteShare])),
         ),

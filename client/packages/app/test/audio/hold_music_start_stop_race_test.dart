@@ -39,6 +39,22 @@ void main() {
     expect(output.calls.last, 'stop');
   });
 
+  test('a stale start finishing late leaves a newer start playing', () async {
+    final first = Completer<void>();
+    final output = _Output()..gate = first;
+    final player = AudioPlayersHoldMusicPlayer(output: output);
+
+    final stale = player.start();
+    await player.stop();
+    output.gate = null;
+    await player.start();
+    final stopsBefore = output.calls.where((c) => c == 'stop').length;
+    first.complete();
+    await stale;
+
+    expect(output.calls.where((c) => c == 'stop'), hasLength(stopsBefore));
+  });
+
   test('start after a stop still plays', () async {
     final output = _Output();
     final player = AudioPlayersHoldMusicPlayer(output: output);

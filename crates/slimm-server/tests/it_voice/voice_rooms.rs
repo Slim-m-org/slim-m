@@ -24,6 +24,7 @@ use crate::support;
 use support::livekit_webhook::webhook_request;
 
 type Present = Arc<Mutex<Vec<String>>>;
+type Removed = Arc<Mutex<Vec<String>>>;
 
 const API_KEY: &str = "APItestkey";
 const API_SECRET: &str = "a-test-secret-of-at-least-32-characters";
@@ -38,7 +39,9 @@ struct World {
     voice: VoiceService,
     hub: Hub,
     present: Present,
+    removed: Removed,
     admin: String,
+    admin_id: String,
     alice: (String, String),
     bob: (String, String),
     lobby: String,
@@ -46,8 +49,8 @@ struct World {
 }
 
 /// A LiveKit room service whose participant list is whatever `present` holds.
-async fn fake_livekit(present: Present) -> String {
-    async fn list(State(present): State<Present>) -> Json<Value> {
+async fn fake_livekit(present: Present, removed: Removed) -> String {
+    async fn list(State((present, _)): State<(Present, Removed)>) -> Json<Value> {
         let ids = present.lock().unwrap().clone();
         let participants: Vec<Value> = ids
             .into_iter()
@@ -58,10 +61,21 @@ async fn fake_livekit(present: Present) -> String {
     async fn delete() -> Json<Value> {
         Json(json!({}))
     }
+    async fn remove(
+        State((_, removed)): State<(Present, Removed)>,
+        Json(body): Json<Value>,
+    ) -> Json<Value> {
+        removed
+            .lock()
+            .unwrap()
+            .push(body["identity"].as_str().unwrap_or_default().to_owned());
+        Json(json!({}))
+    }
     let router = Router::new()
         .route("/twirp/livekit.RoomService/ListParticipants", post(list))
         .route("/twirp/livekit.RoomService/DeleteRoom", post(delete))
-        .with_state(present);
+        .route("/twirp/livekit.RoomService/RemoveParticipant", post(remove))
+        .with_state((present, removed));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move {
@@ -94,13 +108,15 @@ async fn world(prefix: &str) -> World {
     };
     let store = Store::new(db::connect(&config).await.expect("connect + migrate"));
     let present: Present = Arc::default();
-    let voice = VoiceService::for_test(&fake_livekit(present.clone()).await, API_KEY, API_SECRET);
+    let removed: Removed = Arc::default();
+    let sfu = fake_livekit(present.clone(), removed.clone()).await;
+    let voice = VoiceService::for_test(&sfu, API_KEY, API_SECRET);
     let hub = Hub::new();
     let app = support::app::builder(store.clone())
         .hub(hub.clone())
         .voice(voice.clone())
         .router();
-    let (admin, _) = session(&store, "owner").await;
+    let (admin, admin_id) = session(&store, "owner").await;
     let alice = session(&store, "alice").await;
     let bob = session(&store, "bob").await;
     let mut w = World {
@@ -109,7 +125,9 @@ async fn world(prefix: &str) -> World {
         voice,
         hub,
         present,
+        removed,
         admin,
+        admin_id,
         alice,
         bob,
         lobby: String::new(),
@@ -421,4 +439,119 @@ async fn a_message_can_be_sent_in_a_temporary_room() {
     let body = json!({ "id": uuid::Uuid::now_v7().to_string(), "content": "hello room" });
     let (status, sent) = w.call("POST", &uri, &w.alice.0, body).await;
     assert_eq!(status, StatusCode::OK, "{sent}");
+}
+
+#[tokio::test]
+async fn concurrent_open_room_calls_for_one_owner_make_one_room() {
+    let w = world("slimm-rooms-concurrent").await;
+    let uri = format!("/channels/{}/voice/room", w.lobby);
+    let calls = (0..8).map(|_| {
+        let app = w.app.clone();
+        let (uri, token) = (uri.clone(), w.alice.0.clone());
+        tokio::spawn(async move {
+            let request = Request::builder()
+                .method("POST")
+                .uri(uri)
+                .header("authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap();
+            let response = app.oneshot(request).await.unwrap();
+            let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            serde_json::from_slice::<Value>(&bytes).unwrap()["id"].clone()
+        })
+    });
+    let ids = futures_util::future::join_all(calls).await;
+    let first = ids[0].as_ref().unwrap().clone();
+    assert!(ids.iter().all(|id| id.as_ref().unwrap() == &first));
+    let (_, list) = w.call("GET", "/channels", &w.alice.0, Value::Null).await;
+    let rooms = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|c| c["room_owner_id"] == json!(w.alice.1))
+        .count();
+    assert_eq!(rooms, 1);
+}
+
+#[tokio::test]
+async fn a_timed_out_owner_cannot_edit_their_room_but_a_manager_can() {
+    let w = world("slimm-rooms-timeout").await;
+    let room = w.open_room(&w.alice.0).await;
+    let uri = format!("/channels/{}/room", room["id"].as_str().unwrap());
+    let admin = slimm_server::ids::UserId(w.admin_id.parse().unwrap());
+    let alice = slimm_server::ids::UserId(w.alice.1.parse().unwrap());
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
+    let until = now + 60_000;
+    w.store
+        .set_member_timeout(alice, until, None, admin)
+        .await
+        .unwrap();
+    for body in [
+        json!({"name": "loud"}),
+        json!({"locked": true}),
+        json!({"user_limit": 1}),
+    ] {
+        let (status, _) = w.call("PATCH", &uri, &w.alice.0, body).await;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+    }
+    let (status, _) = w
+        .call("PATCH", &uri, &w.admin, json!({"name": "tidy"}))
+        .await;
+    assert_eq!(status, StatusCode::OK, "a channel manager still can");
+}
+
+#[tokio::test]
+async fn a_no_op_patch_publishes_nothing_and_a_rename_leaves_the_permissions_epoch() {
+    let w = world("slimm-rooms-quiet").await;
+    let room = w.open_room(&w.alice.0).await;
+    let uri = format!("/channels/{}/room", room["id"].as_str().unwrap());
+    let mut events = w.hub.subscribe();
+    let epoch = w.hub.permissions_epoch();
+
+    let same = json!({"name": room["name"], "locked": false, "user_limit": 0});
+    let (status, _) = w.call("PATCH", &uri, &w.alice.0, same).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(events.try_recv().is_err(), "nothing changed, nothing sent");
+
+    let (status, _) = w
+        .call("PATCH", &uri, &w.alice.0, json!({"name": "late night"}))
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(events.try_recv().is_ok(), "a rename still reaches clients");
+    assert_eq!(w.hub.permissions_epoch(), epoch, "and moves no permission");
+}
+
+#[tokio::test]
+async fn a_joiner_past_the_user_limit_is_removed_once_the_sfu_admits_them() {
+    let w = world("slimm-rooms-over-limit").await;
+    let room = w.open_room(&w.alice.0).await;
+    let id = room["id"].as_str().unwrap().to_owned();
+    let uri = format!("/channels/{id}/room");
+    w.call("PATCH", &uri, &w.alice.0, json!({"user_limit": 1}))
+        .await;
+    w.present
+        .lock()
+        .unwrap()
+        .extend([w.alice.1.clone(), w.bob.1.clone()]);
+    let joined = |who: &str| {
+        json!({
+            "event": "participant_joined",
+            "room": { "name": format!("channel-{id}") },
+            "participant": { "identity": who, "sid": format!("PA_{who}") },
+        })
+    };
+    for who in [&w.alice.1, &w.bob.1] {
+        let response = w.app.clone().oneshot(signed_webhook(&joined(who))).await;
+        assert_eq!(response.unwrap().status(), StatusCode::NO_CONTENT);
+    }
+    support::wait::wait_until_async("the extra joiner to be removed", || async {
+        w.removed.lock().unwrap().contains(&w.bob.1)
+    })
+    .await;
+    assert!(!w.removed.lock().unwrap().contains(&w.alice.1));
 }

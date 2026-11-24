@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../providers/providers.dart';
 import '../../messages/providers/message_search_query.dart';
 
 /// A conversation's last search: its text and every chip, its own `in:` first.
@@ -31,6 +32,12 @@ class ConversationSearchMemory {
   }
 }
 
-final conversationSearchMemoryProvider = Provider<ConversationSearchMemory>(
-  (ref) => ConversationSearchMemory(),
-);
+/// Rebuilt empty whenever the account or server changes; each account has its own container, so a switch keeps it.
+final conversationSearchMemoryProvider = Provider<ConversationSearchMemory>((
+  ref,
+) {
+  ref
+    ..watch(sessionProvider)
+    ..watch(serverUrlProvider);
+  return ConversationSearchMemory();
+});

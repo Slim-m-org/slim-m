@@ -141,6 +141,10 @@ async fn build_archive(store: &Store, media: &Media, job: Job) -> anyhow::Result
     {
         return Err(NoRoom.into());
     }
+    let files = store.export_files_bytes(job.kind, job.user_id).await?;
+    if media.below_free_floor(u64::try_from(files).unwrap_or(0), 0) {
+        return Err(NoRoom.into());
+    }
     let mut builder = build::Builder::new(store, media, job.id).await?;
     match job.kind {
         ExportKind::Member => member::collect(&mut builder, job.user_id).await?,

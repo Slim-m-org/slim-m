@@ -172,6 +172,7 @@ pub(super) fn validate_place(params: PlaceParams) -> Result<ValidatedPlace, ApiE
         crate::canvas_text::check_text_props(&params.props).map_err(ApiError::BadRequest)?;
     }
     if params.kind == "note" {
+        crate::canvas_text::check_prose_text(&params.props).map_err(ApiError::BadRequest)?;
         crate::canvas_text::check_note_props(&params.props).map_err(ApiError::BadRequest)?;
     }
     if params.kind == "emoji" {

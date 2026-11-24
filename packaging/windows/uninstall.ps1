@@ -31,10 +31,12 @@ foreach ($key in @(
 if (Test-Path $root) { Remove-Item -Recurse -Force $root }
 
 if ($RemoveData) {
-  $data = Join-Path $env:APPDATA 'top.npcserver\slim-m'
-  if (Test-Path $data) { Remove-Item -Recurse -Force $data }
-  $parent = Split-Path -Parent $data
-  if ((Test-Path $parent) -and -not (Get-ChildItem $parent -Force)) { Remove-Item -Force $parent }
+  foreach ($base in @($env:APPDATA, $env:LOCALAPPDATA)) {
+    $data = Join-Path $base 'top.npcserver\slim-m'
+    if (Test-Path $data) { Remove-Item -Recurse -Force $data }
+    $parent = Split-Path -Parent $data
+    if ((Test-Path $parent) -and -not (Get-ChildItem $parent -Force)) { Remove-Item -Force $parent }
+  }
 }
 
 Write-Host "removed slim-m from $root"

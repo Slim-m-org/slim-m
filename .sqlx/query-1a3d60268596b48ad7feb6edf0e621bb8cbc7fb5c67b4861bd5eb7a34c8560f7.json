@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE channels SET deleted_at = ?\n                 WHERE id = (SELECT c.id FROM channels c\n                             JOIN messages pm ON pm.id = c.parent_message_id\n                             WHERE pm.channel_id = ? AND pm.deleted_at IS NOT NULL\n                               AND c.deleted_at IS NULL\n                             ORDER BY c.created_at LIMIT 1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1a3d60268596b48ad7feb6edf0e621bb8cbc7fb5c67b4861bd5eb7a34c8560f7"
+}

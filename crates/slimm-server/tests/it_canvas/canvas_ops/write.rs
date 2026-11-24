@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::canvas_ops::fixtures::{
     app, clear, general, get_ops, id, member, new_store, new_store_and_pool, place, post_object,
-    register, remove, stroke, submit_op,
+    register, remove, restore, stroke, submit_op,
 };
 use crate::support::canvas::CanvasReads;
 
@@ -197,6 +197,31 @@ async fn a_timed_out_member_may_still_remove_their_own_object() {
         permissions.contains(Permissions::USE_CANVAS),
         "the timeout must not have blanked the canvas"
     );
+}
+
+/// A restore puts ink back, so a timeout freezes it like a placement.
+#[tokio::test]
+async fn a_timed_out_member_cannot_restore_their_own_removal() {
+    let (store, _guard) = new_store().await;
+    let (_root_token, root_id) = register(&store, "root").await;
+    let channel = general(&store).await;
+    let app = app(store.clone());
+    let (bob_token, bob_id) = member(&store, "bob").await;
+
+    let (_, placed) = post_object(&app, channel, &bob_token, stroke(&id())).await;
+    let placed_id = placed["id"].as_str().unwrap().to_owned();
+    let removal = id();
+    let (status, _) = submit_op(&app, channel, &bob_token, remove(&removal, &[&placed_id])).await;
+    assert_eq!(status, axum::http::StatusCode::CREATED);
+
+    let until = now_ms() + 60_000;
+    store
+        .set_member_timeout(bob_id, until, None, root_id)
+        .await
+        .unwrap();
+
+    let (status, body) = submit_op(&app, channel, &bob_token, restore(&id(), &removal)).await;
+    assert_eq!(status, axum::http::StatusCode::FORBIDDEN, "{body}");
 }
 
 /// The fence: a clear must not reach past `before_seq`.

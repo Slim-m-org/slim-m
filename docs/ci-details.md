@@ -504,6 +504,20 @@ Comments and string literals are stripped first (`dart_source`, shared with that
 Each entry is a ceiling on how many unscoped calls the file may hold, the ratchet shape `check-comment-cap.sh` uses, and not a line number, which drifts with every edit above it.
 Listing a file used to exempt the whole of it, so a second unrelated unscoped call in an already-listed file was never flagged.
 
+### The ref-after-await gate
+
+`scripts/check-ref-after-await.py` fails a PR that adds a `ref.<member>` or `setState(` after an `await` in a widget function with no `mounted` check in between.
+A sheet, menu or row that is dismissed while its request is in flight is unmounted when the request answers, and `WidgetRef` and `setState` both throw then, so the redirect, the invalidate or the local store write that was meant to follow is skipped.
+The fix is to take a `ProviderContainer` (`ProviderScope.containerOf(context, listen: false)`) or the notifiers needed before the first await and use those afterwards, or to check `mounted` first.
+
+The gate reads each tracked widget file under `client/packages/app/lib` with comments and strings stripped (`dart_source`), and follows each function body on its own.
+An await counts once its statement ends, so `await ref.read(x)` is clean; a `mounted` token clears it, and a block that ends in `return` or `throw` leaves the state as it found it.
+Provider files (`providers/`, `sync/`, `push/`) are out of scope, since their `ref` has its own lifetime.
+A helper that guards with its own predicate, such as `dropped()`, is not recognised and sits in the allowlist.
+An entry that lists more than its file now holds also fails, so the list cannot go stale.
+
+`scripts/ref-after-await-allow.txt` lists the files that still hold a use, each as a ceiling count that only goes down, the same ratchet shape as the MediaQuery gate.
+
 ### The native launch screens follow the splash surface
 
 `scripts/lib/test_launch_screen_color_drift.py` fails when a pre-Flutter launch surface drifts from the colour the startup splash paints.
@@ -754,7 +768,7 @@ The secret is set on this repository now, and the release PRs and the tags relea
 The PAT needs `contents: read and write` and `pull requests: read and write` on this repository, and nothing else.
 
 Since 2026-11-21 a release PR runs only the checks that read its own diff: `hygiene` (the commit-lint parse of its title and body), `licenses`, `schema-ci` and SonarCloud.
-The test, build, e2e, perf and publish-paths jobs skip on a `release-please--` head branch, because the PR is main plus a version bump and main's push run already tested that code.
+The test, build, e2e, perf and publish-paths jobs skip on a `release-please--` head branch of this repository (a fork's branch of that name runs everything), because the PR is main plus a version bump and main's push run already tested that code.
 release-please rebases both release PRs onto every push to main, so before this each merge started those workflows three times at once: in the 11 hours to 2026-11-21 07:00 the two release PRs used about 2,100 runner minutes, and a main push queued up to 23 minutes behind them on the 20-job limit.
 The release gates never read the PR's runs: `verify-release-checks` waits on the release commit's own push run, which still runs everything.
 One kind of test is not covered by main: a test that reads the version the release PR bumps.
@@ -789,7 +803,10 @@ It reads the newest run of each required name per check suite, so a rerun replac
 It shipped three separate incidents before anything tested it: a cancelled check read as success, the release-please path verified `github.sha` instead of the commit it actually released, and a tag was passed to an endpoint that only accepts a SHA.
 All three are now regression tests, not just fixed code.
 
-`verify-server-ci` requires `check` (server-ci), `hygiene`, `cargo dependency licenses` (licenses) and `breaking-change gate (additive-only, push to main)` (schema-ci).
+`verify-server-ci` requires `check` (server-ci), `docker-tests` and the two `supervisor image` legs (supervisor-ci, whose paths a server release commit touches through the supervisor's version bump), `hygiene`, `cargo dependency licenses` (licenses) and `breaking-change gate (additive-only, push to main)` (schema-ci).
+`web-image` additionally waits on `verify-web-ci`, a second call on the same commit that requires client-ci's `analyze, format check`, `test and web build` and `logic tests compiled to javascript (chrome)` (a server release bumps `schema/openapi.yaml`, which is in client-ci's path filter), because the web bundle it signs is the client's.
+Release jobs restore no Actions cache: the apt, native-hook and layer caches carry a `cache` switch the release callers set to false, and the COPR job builds from the tarball `linux-client` uploaded as an artifact rather than downloading the release asset again.
+The `fedora` and `ubuntu` images in release paths and `visqol.Dockerfile` are pinned by digest (`test_release_images_are_pinned.py`), and `server-release-assets` lists the local action it uses in its sparse checkout (`test_sparse_checkout_lists_local_actions.py`).
 `verify-client-ci` requires `analyze, format check`, `test and web build`, `linux desktop compiles` and `linux desktop shell smoke (Xvfb)` (all client-ci), `ios unit tests (callkit invariant)` and `ios sources are registered in project.pbxproj` (client-ios-ci), `hygiene`, `pub dependency licenses` (licenses) and the same schema-ci gate.
 
 Every name in that list comes from `client-ci` or `client-ios-ci`, so both must run on the release commit itself, which is why neither path-excludes a release-please version bump the way `main-builds` does.
@@ -1097,6 +1114,7 @@ And nothing compared a published release against the assets it should have, so t
 `scripts/lib/test_windows_builds_do_not_run_under_bash.py` refuses `flutter build` under `shell: bash` in any Windows job.
 That closes this exact door and no other.
 Before merging a change to this file, dispatch it from the branch against the newest existing tag (`gh workflow run desktop-clients.yml --ref <branch> -f tag=client-vX.Y.Z`): it rebuilds and re-attaches the same assets with `--clobber`, which is harmless, and it is the only way the change runs before a release depends on it.
+Both desktop jobs and the signing jobs name the `release` environment, whose deployment rules, once the owner sets them to `main`, `client-v*` and `server-v*` tags, mean a branch dispatch builds and attaches nothing until the owner allows that branch for the run; the manifest is not signed from a branch.
 
 ## main-builds
 

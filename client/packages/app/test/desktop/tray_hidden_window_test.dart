@@ -9,9 +9,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/tray/desktop_tray_controller.dart';
+import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../features/voice/voice_controller_harness.dart';
+import '../support/fake_sync.dart';
 import 'support/fake_desktop_window_port.dart';
 
 const _channel = MethodChannel('tray_manager');
@@ -50,7 +52,13 @@ void main() {
     final harness = VoiceHarness();
     addTearDown(harness.dispose);
     final session = FakeSession();
-    final voice = harness.controllerWith(session, voiceApi());
+    final voice = harness.controllerWith(
+      session,
+      voiceApi(),
+      extraOverrides: [
+        syncControllerProvider.overrideWith(NoopSyncController.new),
+      ],
+    );
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: harness.container,

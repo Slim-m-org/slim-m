@@ -96,14 +96,31 @@ Future<void> deleteReportedMessage(
     guard,
     reportId,
     whatFailed: 'delete the message',
-    action: () async {
-      await container
-          .read(apiProvider)
-          .deleteMessage(channelId: channelId, messageId: messageId);
-      final store = await container.read(storeProvider.future);
-      await store.discard(messageId);
-    },
+    action: () => deleteMessageEverywhere(container, channelId, messageId),
   );
+}
+
+/// Deletes on the server, then drops the local row best-effort: the sync delete event removes it anyway.
+@visibleForTesting
+Future<void> deleteMessageEverywhere(
+  ProviderContainer container,
+  String channelId,
+  String messageId,
+) async {
+  await container
+      .read(apiProvider)
+      .deleteMessage(channelId: channelId, messageId: messageId);
+  try {
+    final store = await container.read(storeProvider.future);
+    await store.discard(messageId);
+  } catch (error, stack) {
+    api.AppLog.swallowed(
+      api.LogTag.ui,
+      'Could not drop a deleted message from the local store',
+      error,
+      stack,
+    );
+  }
 }
 
 /// Times the reported author out. No confirmation, matching

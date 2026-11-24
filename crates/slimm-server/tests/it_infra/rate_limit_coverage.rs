@@ -278,3 +278,84 @@ fn the_gates_read_the_nested_route_families() {
         "no nested file taking Authed was scanned; the walk skips subdirectories"
     );
 }
+
+/// Extractors that charge a rate limit from the request head, so they may precede a body.
+const PRE_BODY_CHARGES: &[&str] = &[
+    ": AuthedLimited<",
+    ": ManagerLimited<",
+    ": ConnectorLimited<",
+    ": RateLimited<",
+    ": Participant<",
+];
+
+/// Body extractors, matched on the type so a `Json` response in the return type is not one.
+fn takes_a_body(sig: &str) -> bool {
+    ["Json<", "Bytes", "Multipart", "Form<"]
+        .iter()
+        .any(|ext| sig.contains(&format!(": {ext}")))
+}
+
+/// Handlers that read a body and legitimately charge nothing before it, each with the reason.
+const BODY_BEFORE_CHARGE_EXEMPT: &[(&str, &str)] = &[];
+
+/// A handler that takes the session and a body must charge before axum reads the body.
+///
+/// Axum runs every extractor before the handler body, so an `enforce` inside it runs only after
+/// the whole body is buffered, and a client that trickles its body in holds an in-flight slot
+/// without ever paying a token.
+#[test]
+fn no_authenticated_handler_reads_its_body_before_charging() {
+    let exempt: BTreeSet<&str> = BODY_BEFORE_CHARGE_EXEMPT.iter().map(|(n, _)| *n).collect();
+    let mut late = Vec::new();
+
+    for (file, scrubbed) in http_sources() {
+        for (name, body) in handlers(&scrubbed) {
+            let sig = signature(&body);
+            let label = format!("{file}::{name}");
+            if takes_a_body(sig) && !body_charged_first(sig) && !exempt.contains(label.as_str()) {
+                late.push(label);
+            }
+        }
+    }
+
+    assert!(
+        late.is_empty(),
+        "these handlers take a request body without an extractor that charges first; \
+         use AuthedLimited<CLASS> (or ManagerLimited / ConnectorLimited / RateLimited) ahead \
+         of the body:\n  {}",
+        late.join("\n  ")
+    );
+}
+
+fn body_charged_first(sig: &str) -> bool {
+    PRE_BODY_CHARGES.iter().any(|charge| sig.contains(charge))
+}
+
+#[test]
+fn the_body_gate_sees_a_handler_that_charges_after_its_body() {
+    let sample = r#"
+async fn charges_late(
+    Authed(ctx): Authed,
+    Json(req): Json<Request>,
+) -> Result<(), ApiError> { enforce(&state, &parts, Some(&ctx), Class::Write)?; Ok(()) }
+
+async fn charges_first(
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
+    Json(req): Json<Request>,
+) -> Result<Json<Reply>, ApiError> { Ok(Json(Reply)) }
+
+async fn reads_nothing(
+    Authed(ctx): Authed,
+) -> Result<Json<Reply>, ApiError> { Ok(Json(Reply)) }
+"#;
+    let scrubbed = support::code_only(sample);
+    let seen: Vec<String> = handlers(&scrubbed)
+        .into_iter()
+        .filter(|(_, body)| {
+            let sig = signature(body);
+            takes_a_body(sig) && !body_charged_first(sig)
+        })
+        .map(|(name, _)| name)
+        .collect();
+    assert_eq!(seen, vec!["charges_late".to_owned()]);
+}

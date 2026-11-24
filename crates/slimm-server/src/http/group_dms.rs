@@ -7,6 +7,7 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
+use axum::middleware::from_fn;
 use axum::routing::{patch, post};
 use serde::Deserialize;
 
@@ -14,10 +15,12 @@ use super::AppState;
 use super::channels::channel_validation::validate_channel_name;
 use super::dms::{DmConversationDto, with_nicknames};
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{Authed, AuthedLimited, Json, WRITE, enforce};
 use super::messages::parse_uuid;
+use super::post_commit::run_to_completion;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
+use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{GroupDmError, LeftGroup, MemberGate};
 use crate::voice::VoiceError;
@@ -26,7 +29,10 @@ const BODY_LIMIT: usize = 4 * 1024;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/dms/groups", post(create))
+        .route(
+            "/dms/groups",
+            post(create).layer(from_fn(run_to_completion)),
+        )
         .route("/dms/groups/{channel_id}", patch(rename).delete(delete))
         .route("/dms/groups/{channel_id}/members", post(add_member))
         .route("/dms/groups/{channel_id}/leave", post(leave))
@@ -70,7 +76,9 @@ impl From<GroupDmError> for ApiError {
                 ApiError::BadRequest("a group has 3 to 10 people, you included")
             }
             GroupDmError::Full => ApiError::Conflict("this group already has 10 people"),
-            GroupDmError::AlreadyMember => ApiError::Conflict("already in this group"),
+            GroupDmError::TooManyGroups => {
+                ApiError::Conflict("one of these people is already in too many groups")
+            }
             GroupDmError::IdTaken => ApiError::Conflict("that id is already in use"),
             GroupDmError::Internal(e) => e.into(),
         }
@@ -107,14 +115,20 @@ async fn conversation(
 
 /// Starts a group DM with 2 to 9 other people.
 async fn create(
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     parts: Parts,
     State(state): State<AppState>,
     Json(req): Json<CreateRequest>,
 ) -> Result<(StatusCode, Json<DmConversationDto>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    enforce(&state, &parts, Some(&ctx), Class::GroupDmCreate)?;
     require_member(&state, ctx.user_id).await?;
     let name = optional_name(req.name.as_deref())?;
+    // A timeout takes away naming a group too, since the name reaches everyone in it.
+    if name.is_some() && state.store.timed_out_until(ctx.user_id).await?.is_some() {
+        return Err(ApiError::ForbiddenBecause(
+            "you cannot name a group right now",
+        ));
+    }
     let id = req
         .id
         .as_deref()
@@ -149,13 +163,11 @@ async fn create(
 
 /// Adds one person to a group the caller is in.
 async fn add_member(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<AddRequest>,
 ) -> Result<Json<DmConversationDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_member(&state, ctx.user_id).await?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let new_member = UserId(parse_uuid(&req.user_id)?);
@@ -169,15 +181,21 @@ async fn add_member(
 
 /// Sets or clears the group's custom name; any participant may.
 async fn rename(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<RenameRequest>,
 ) -> Result<Json<DmConversationDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let name = optional_name(req.name.as_deref())?;
+    // Roster, timeout and join gate in one answer; anyone short of it gets the not-found a stranger gets.
+    if !state
+        .store
+        .has_permission(ctx.user_id, channel_id, Permissions::SEND_MESSAGES)
+        .await?
+    {
+        return Err(GroupDmError::NotFound.into());
+    }
     state
         .store
         .rename_group_dm(ctx.user_id, channel_id, name)
@@ -196,6 +214,9 @@ async fn leave(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let outcome = state.store.leave_group_dm(ctx.user_id, channel_id).await?;
+    if outcome == LeftGroup::AlreadyOut {
+        return Ok(StatusCode::NO_CONTENT);
+    }
     // Best effort: the roster change has committed, so a leaver must not stay on the call.
     match state
         .voice
@@ -210,6 +231,11 @@ async fn leave(
     if outcome == LeftGroup::Remains {
         state.hub.publish(Event::DmChanged { channel_id });
     }
+    // The leaver is off the roster now, so only this tells their other devices.
+    state.hub.publish(Event::DmLeft {
+        user_id: ctx.user_id,
+        channel_id,
+    });
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -221,12 +247,14 @@ async fn delete(
     State(state): State<AppState>,
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    require_member(&state, ctx.user_id).await?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let deleted = state.store.delete_group_dm(ctx.user_id, channel_id).await?;
     super::channels::end_voice_room(&state, channel_id).await;
     super::module_rooms::end_channel(&state, channel_id);
     if deleted {
         state.hub.publish(Event::ChannelDeleted { channel_id });
+        super::channels::forget_transcripts_in_background(&state, channel_id);
         // Prune now rather than at the next 6 hourly tick: the conversation is meant to be gone.
         let (store, media, hub) = (state.store.clone(), state.media.clone(), state.hub.clone());
         tokio::spawn(async move {

@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'providers.dart';
@@ -32,8 +33,17 @@ class AutoUpdateController extends StateNotifier<bool> {
   /// an answer made here and now is the newer truth, and letting the load
   /// land on top of it would silently undo the switch the user just moved.
   Future<void> _load() async {
-    final prefs = await _ref.read(preferencesProvider.future);
-    if (!_answered) state = loadAutoUpdatePreference(prefs);
+    try {
+      final prefs = await _ref.read(preferencesProvider.future);
+      if (!_answered && mounted) state = loadAutoUpdatePreference(prefs);
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.data,
+        'Could not read the auto-update preference; keeping it on',
+        error,
+        stack,
+      );
+    }
   }
 
   Future<void> set(bool enabled) async {

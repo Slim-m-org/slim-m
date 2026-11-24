@@ -102,8 +102,12 @@ const kPingSamples = 5;
 const _warmUpBytes = 1024 * 1024;
 
 /// Under the server's own 64 MiB cap on a diagnostics transfer.
-const _maxBytes = 64 * 1024 * 1024;
+const kMaxTransferBytes = 64 * 1024 * 1024;
+const _maxBytes = kMaxTransferBytes;
 const _targetSeconds = 2;
+
+/// The cap on one measured transfer where data is paid for: a phone on cellular.
+const kMobileMaxTransferBytes = 8 * 1024 * 1024;
 
 /// Below this the warm-up is all a slow link can afford, so it is the result.
 const _minMeasuredBytes = 2 * 1024 * 1024;
@@ -121,10 +125,14 @@ double capSpeed(double bitsPerSecond) =>
 /// A route that cannot be reached is reported as a failure of that route; it
 /// never stops the others. Cancelling through [cancel] throws
 /// [UploadCancelled].
+///
+/// No measured transfer passes [maxTransferBytes], which a caller on a metered
+/// link lowers.
 Future<List<RouteMeasurement>> runConnectionTest(
   List<(ConnectionRoute, ConnectionProbe)> probes, {
   UploadCancelToken? cancel,
   void Function(ConnectionTestProgress progress)? onProgress,
+  int maxTransferBytes = _maxBytes,
 }) async {
   const stepsPerRoute = kPingSamples + 1 + 2 + 2;
   final total = probes.length * stepsPerRoute;
@@ -144,10 +152,18 @@ Future<List<RouteMeasurement>> runConnectionTest(
           await _latency(probe, cancel, () => step('Checking latency'));
       step('Testing download', 0);
       final down = await _transfer(
-          probe.download, cancel, () => step('Testing download'));
+        probe.download,
+        cancel,
+        () => step('Testing download'),
+        maxTransferBytes,
+      );
       step('Testing upload', 0);
-      final up =
-          await _transfer(probe.upload, cancel, () => step('Testing upload'));
+      final up = await _transfer(
+        probe.upload,
+        cancel,
+        () => step('Testing upload'),
+        maxTransferBytes,
+      );
       results.add(RouteMeasurement(
         route: route,
         latency: latency,
@@ -209,11 +225,12 @@ Future<double> _transfer(
   _Transfer run,
   UploadCancelToken? cancel,
   void Function() tick,
+  int maxBytes,
 ) async {
   cancel?.throwIfCancelled();
   final warmUp = await run(_warmUpBytes, cancel: cancel);
   tick();
-  final fit = measuredBytes(warmUp.bitsPerSecond);
+  final fit = measuredBytes(warmUp.bitsPerSecond, maxBytes: maxBytes);
   if (fit < _minMeasuredBytes) {
     tick();
     return capSpeed(warmUp.bitsPerSecond);
@@ -226,7 +243,7 @@ Future<double> _transfer(
 
 /// How many bytes to move to keep a link of [bitsPerSecond] busy for the
 /// target time, under the server's cap.
-int measuredBytes(double bitsPerSecond) {
+int measuredBytes(double bitsPerSecond, {int maxBytes = _maxBytes}) {
   final fit = bitsPerSecond / 8 * _targetSeconds;
-  return math.min(fit, _maxBytes.toDouble()).floor();
+  return math.min(fit, maxBytes.toDouble()).floor();
 }

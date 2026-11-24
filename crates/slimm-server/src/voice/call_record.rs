@@ -68,6 +68,7 @@ pub(crate) async fn record_finished_call(
                 presence: hub.presence(),
                 reply_ping: None,
                 mass_authority: Some(caller_id),
+                mention_only: None,
             },
         );
     }

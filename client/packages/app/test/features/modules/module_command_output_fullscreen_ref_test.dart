@@ -15,8 +15,11 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_command_output.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_fullscreen.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
 import '../../support/module_scene_fixtures.dart';
 import '../../support/fake_api.dart';
 
@@ -90,5 +93,60 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     expect(tester.takeException(), isNull);
     expect(requests, 1, reason: 'the press should still reach the server');
+  });
+
+  testWidgets('full screen board shows a frame that arrives while it is open', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final container = ProviderContainer(
+      overrides: [
+        sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+        mockApiOverride((request) async => http.Response('{}', 200)),
+      ],
+    );
+    addTearDown(container.dispose);
+    final result = ValueNotifier(
+      api.RunModuleCommandResult(ok: true, output: sceneJson(0)),
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildTheme(Brightness.dark, AppTokens.dark),
+          home: Scaffold(
+            body: ValueListenableBuilder<api.RunModuleCommandResult>(
+              valueListenable: result,
+              builder: (_, r, __) => SingleChildScrollView(
+                child: ModuleCommandOutput(
+                  result: r,
+                  moduleId: 'mod1',
+                  command: 'step',
+                  messageId: 'm1',
+                  blockIndex: 0,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await pumpFrames(tester);
+    await tester.tap(find.bySemanticsLabel('Open full screen'));
+    await pumpFrames(tester);
+    ModuleScene shown() => tester
+        .widget<ModuleSceneView>(
+          find.descendant(
+            of: find.byWidgetPredicate((w) => w is ModuleSceneFullscreen),
+            matching: find.byWidgetPredicate((w) => w is ModuleSceneView),
+          ),
+        )
+        .initial;
+    expect(shown().state, 'g0');
+
+    result.value = api.RunModuleCommandResult(ok: true, output: sceneJson(1));
+    await pumpFrames(tester);
+
+    expect(shown().state, 'g1');
   });
 }

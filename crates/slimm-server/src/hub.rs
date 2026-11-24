@@ -52,8 +52,8 @@ mod screen_annotation;
 mod screen_consent;
 pub use created_lookups::{CreatedFacts, CreatedLookups};
 pub use event::{
-    CanvasEvent, ConnectorRunRequest, Event, MessageEvent, ModuleRoomChange, PresenceChange,
-    RoleChange, RoleLook, RoomJson, VoiceRemovalReason,
+    AccountNotificationScope, CanvasEvent, ConnectorRunRequest, Event, MessageEvent,
+    ModuleRoomChange, PresenceChange, RoleChange, RoleLook, RoomJson, VoiceRemovalReason,
 };
 use event_class::is_ephemeral;
 pub(crate) use event_class::moves_permissions;
@@ -207,6 +207,16 @@ impl Hub {
     /// are no subscribers on that channel; never blocks or errors from the
     /// caller's point of view.
     pub fn publish(&self, event: Event) {
+        self.publish_with(event, true);
+    }
+
+    /// Publishes like [`Self::publish`] but leaves the permissions epoch alone, for an
+    /// update the caller knows moves nobody's permissions.
+    pub fn publish_keeping_permissions(&self, event: Event) {
+        self.publish_with(event, false);
+    }
+
+    fn publish_with(&self, event: Event, may_move_permissions: bool) {
         let event = if is_moderation(&event) {
             Event::Stamped {
                 seq: self.moderation.advance(),
@@ -216,7 +226,7 @@ impl Hub {
             event
         };
         // Bumped before the send, so no subscriber can act on a stale answer.
-        if moves_permissions(&event) {
+        if may_move_permissions && moves_permissions(&event) {
             self.permissions_epoch.fetch_add(1, Ordering::Release);
         }
         if is_ephemeral(&event) {
@@ -266,8 +276,10 @@ impl Hub {
     }
 
     /// Called by the block and unblock handlers once the change has committed.
+    /// A block also rewrites the DM grant, so cached permissions go stale with it.
     pub fn blocks_changed(&self) {
         self.blocks_epoch.fetch_add(1, Ordering::Release);
+        self.permissions_epoch.fetch_add(1, Ordering::Release);
     }
 
     /// Subscribes a new connection to the durable event stream: messages,

@@ -73,6 +73,53 @@ impl Store {
         Ok(())
     }
 
+    /// Stores `value` at `key` only when the key currently holds `expect` (absent when
+    /// `None`), and says whether it did. The read and the write share one
+    /// `BEGIN IMMEDIATE` transaction, so of two concurrent callers exactly one swaps.
+    pub async fn module_kv_cas(
+        &self,
+        (module_id, key): (&str, &str),
+        expect: Option<&str>,
+        value: &str,
+        (max_entries, max_bytes): (i64, i64),
+    ) -> Result<bool, KvSetError> {
+        let mut tx = self.begin_write().await?;
+        let current = sqlx::query_scalar!(
+            "SELECT value FROM module_kv WHERE module_id = ? AND key = ?",
+            module_id,
+            key
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+        if current.as_deref() != expect {
+            return Ok(false);
+        }
+        let usage = sqlx::query!(
+            r#"SELECT COUNT(*) AS "entries!: i64",
+                      COALESCE(SUM(length(CAST(key AS BLOB)) + length(CAST(value AS BLOB))), 0) AS "bytes!: i64"
+               FROM module_kv WHERE module_id = ? AND key <> ?"#,
+            module_id,
+            key
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        let new_bytes = (key.len() + value.len()) as i64;
+        if usage.entries + 1 > max_entries || usage.bytes + new_bytes > max_bytes {
+            return Err(KvSetError::Full);
+        }
+        sqlx::query!(
+            "INSERT INTO module_kv (module_id, key, value) VALUES (?, ?, ?)
+             ON CONFLICT(module_id, key) DO UPDATE SET value = excluded.value",
+            module_id,
+            key,
+            value
+        )
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(true)
+    }
+
     pub async fn module_kv_delete(&self, module_id: &str, key: &str) -> anyhow::Result<()> {
         sqlx::query!(
             "DELETE FROM module_kv WHERE module_id = ? AND key = ?",

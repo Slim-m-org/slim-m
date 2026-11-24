@@ -53,6 +53,11 @@ pub fn routes() -> Router<AppState> {
         .route_layer(DefaultBodyLimit::max(emoji::MAX_IMAGE_BYTES as usize))
         .route("/emoji/{emoji_id}", delete(remove))
         .route("/emoji/{emoji_id}/image", get(image))
+}
+
+/// The pack import, mounted apart from [`routes`] because its body needs a longer request timeout.
+pub fn bulk_routes() -> Router<AppState> {
+    Router::new()
         .route("/emoji/bulk", post(bulk_upload))
         .route_layer(DefaultBodyLimit::max(BULK_BODY_LIMIT_BYTES))
 }

@@ -71,15 +71,17 @@ extension SlimmApiNotificationSchedule on SlimmApi {
         expectNoContent: true,
       );
 
-  /// Pauses notifications until [untilMs] (epoch milliseconds) - the
-  /// concrete deadline for whichever of Slack's 30m/1h/until-tomorrow was
-  /// chosen; only the caller knows the account's own local midnight for the
-  /// last of those.
-  Future<int?> setNotificationSnooze(int untilMs) async {
+  /// Pauses notifications for [duration], counted from the server's own clock
+  /// so a device whose clock is wrong still gets the span it asked for. The
+  /// device-clock deadline rides along only for servers that predate durations.
+  Future<int?> setNotificationSnooze(Duration duration) async {
     final json = await send(
       'PUT',
       '/notifications/schedule/snooze',
-      body: {'until_ms': untilMs},
+      body: {
+        'duration_seconds': duration.inSeconds,
+        'until_ms': DateTime.now().add(duration).millisecondsSinceEpoch,
+      },
     );
     return (json as Map<String, dynamic>)['snooze_until'] as int?;
   }

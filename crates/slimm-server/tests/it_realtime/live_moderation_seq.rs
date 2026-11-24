@@ -53,13 +53,18 @@ fn req(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Bod
     }
 }
 
-async fn timeout(state: &AppState, admin_token: &str, target: slimm_server::ids::UserId) {
+async fn timeout(
+    state: &AppState,
+    admin_token: &str,
+    target: slimm_server::ids::UserId,
+    seconds: u64,
+) {
     let response = http::router(state.clone())
         .oneshot(req(
             "PUT",
             &format!("/members/{target}/timeout"),
             admin_token,
-            Some(json!({ "duration_seconds": 60 })),
+            Some(json!({ "duration_seconds": seconds })),
         ))
         .await
         .unwrap();
@@ -89,7 +94,7 @@ async fn a_reconnect_after_a_missed_moderation_event_sees_a_later_head() {
         .expect("hello carries the head");
     drop(ws);
 
-    timeout(&state, &admin_token, victim.id).await;
+    timeout(&state, &admin_token, victim.id, 60).await;
 
     let (mut ws, second_hello) = connect(addr, &ticket_for(&store, bot.id).await).await;
     let head = second_hello["moderation_seq"].as_u64().unwrap();
@@ -98,7 +103,7 @@ async fn a_reconnect_after_a_missed_moderation_event_sees_a_later_head() {
         "a missed event must move the head: {head} vs {last_seen}"
     );
 
-    timeout(&state, &admin_token, victim.id).await;
+    timeout(&state, &admin_token, victim.id, 600).await;
     let frame = read_frame_skipping_presence_timed(&mut ws).await;
     assert_eq!(frame["type"], "member.timeout");
     assert!(

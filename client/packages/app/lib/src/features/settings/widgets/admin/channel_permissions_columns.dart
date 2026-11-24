@@ -44,7 +44,7 @@ GridColumn gridColumnWithCounts(
 /// Which overwrites the viewer may write, as the server's `reach_target` decides: `@everyone`
 /// and their own always, any other role or member only below them.
 class OverwriteReach {
-  const OverwriteReach({
+  OverwriteReach({
     required this.ladder,
     required this.selfId,
     required this.roles,
@@ -58,21 +58,29 @@ class OverwriteReach {
 
   bool reaches(String key) {
     final (kind, id) = parseOverwriteKey(key);
-    if (kind == api.OverwriteTarget.role) {
-      final role = roles.where((r) => r.id == id).firstOrNull;
-      return role == null || role.isEveryone || ladder.reachesRole(role);
-    }
-    if (id == selfId) return true;
-    final member = members.where((m) => m.id == id).firstOrNull;
-    return member == null || ladder.outranks(member);
+    if (kind == api.OverwriteTarget.role) return _reachesRole(_rolesById[id]);
+    return _reachesMember(id, _membersById[id]);
   }
+
+  bool _reachesRole(api.Role? role) =>
+      role == null || role.isEveryone || ladder.reachesRole(role);
+
+  bool _reachesMember(String id, api.UserProfile? member) =>
+      id == selfId || member == null || ladder.outranks(member);
+
+  late final Map<String, api.Role> _rolesById = {
+    for (final r in roles) r.id: r,
+  };
+  late final Map<String, api.UserProfile> _membersById = {
+    for (final m in members) m.id: m,
+  };
 
   /// Every role and member the viewer may not write, which the picker leaves out.
   Set<String> get outrankedKeys => {
     for (final r in roles)
-      if (!reaches('role:${r.id}')) 'role:${r.id}',
+      if (!_reachesRole(r)) 'role:${r.id}',
     for (final m in members)
-      if (!reaches('member:${m.id}')) 'member:${m.id}',
+      if (!_reachesMember(m.id, m)) 'member:${m.id}',
   };
 
   /// The names of those among [keys] the viewer may not write.

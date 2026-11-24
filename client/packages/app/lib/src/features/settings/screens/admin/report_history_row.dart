@@ -153,6 +153,12 @@ String? _systemAct(api.AuditLogAction action, String subject) =>
     AppBadgeVariant.tag,
     'Timeout ended',
   ),
+  api.AuditLogAction.messagePinChanged => (AppBadgeVariant.tag, 'Pin changed'),
+  api.AuditLogAction.messagePreviewRemoved => (
+    AppBadgeVariant.warn,
+    'Preview removed',
+  ),
+  api.AuditLogAction.webhookRename => (AppBadgeVariant.tag, 'Webhook renamed'),
   api.AuditLogAction.unknown => (AppBadgeVariant.tag, 'Other action'),
 };
 

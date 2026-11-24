@@ -3,13 +3,17 @@
 library;
 
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'download_target.dart';
+import 'safe_file_name.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
+
+const Duration _staleAfter = Duration(days: 1);
 
 Future<DownloadTarget?> openPlatformDownloadTarget(String filename) async {
   if (!(Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
@@ -17,7 +21,13 @@ Future<DownloadTarget?> openPlatformDownloadTarget(String filename) async {
   }
   final downloads = await getDownloadsDirectory();
   if (downloads != null) {
-    return FileDownloadTarget.open(await freeDownloadFile(downloads, filename));
+    final chosen = await freeDownloadFile(downloads, filename);
+    try {
+      return await FileDownloadTarget.open(chosen);
+    } on Object {
+      _reserved.remove(chosen.path);
+      rethrow;
+    }
   }
   // No Downloads folder: ask, and give the picker an empty list, which makes it claim the path.
   final saved = await FilePicker.saveFile(
@@ -28,13 +38,14 @@ Future<DownloadTarget?> openPlatformDownloadTarget(String filename) async {
   return FileDownloadTarget.open(File.fromUri(saved));
 }
 
-/// A path in [directory] for [filename] that nothing occupies yet, as
+/// Names handed out and not yet written: held in memory so a quit leaves nothing under the real name.
+final _reserved = <String>{};
+
+/// A file in [directory] for [filename] that nothing occupies, as
 /// `name (2).ext` when the plain name is taken, so a save never overwrites.
+/// Nothing is created: the name is reserved until its target finishes or is discarded.
 Future<File> freeDownloadFile(Directory directory, String filename) async {
-  final plain = filename.split(RegExp(r'[\\/]')).last;
-  final name = plain.isEmpty || plain == '.' || plain == '..'
-      ? 'download'
-      : plain;
+  final name = safeFileName(filename, windows: Platform.isWindows);
   final dot = name.lastIndexOf('.');
   final stem = dot > 0 ? name.substring(0, dot) : name;
   final extension = dot > 0 ? name.substring(dot) : '';
@@ -43,30 +54,80 @@ Future<File> freeDownloadFile(Directory directory, String filename) async {
       '${directory.path}${Platform.pathSeparator}'
       '${n == 1 ? name : '$stem ($n)$extension'}',
     );
-    if (!await candidate.exists() &&
-        !await File('${candidate.path}.part').exists()) {
-      return candidate;
+    if (_reserved.contains(candidate.path) || await candidate.exists()) {
+      continue;
     }
+    // Added after the await, so two saves racing for one name cannot both win it.
+    if (_reserved.add(candidate.path)) return candidate;
   }
 }
 
-/// Writes to `<chosen>.part` and renames over [chosen] only when complete, so
-/// a failure or quit never leaves a truncated file under the real name.
+/// Writes to a private partial file and moves it over [chosen] only when
+/// complete, so a failure or quit never leaves a truncated file under the real name.
 class FileDownloadTarget implements DownloadTarget {
   FileDownloadTarget._(this._chosen, this._part, this._file);
 
   final File _chosen;
   final File _part;
   final RandomAccessFile _file;
+  Future<void> _inFlight = Future<void>.value();
   bool _closed = false;
 
-  static Future<FileDownloadTarget> open(File chosen) async {
-    final part = File('${chosen.path}.part');
+  /// Partials live in [partDirectory] (the app cache by default), never in Downloads.
+  static Future<FileDownloadTarget> open(
+    File chosen, {
+    Directory? partDirectory,
+  }) async {
+    final directory = partDirectory ?? await _defaultPartDirectory(chosen);
+    await directory.create(recursive: true);
+    await _sweepStale(directory);
+    final part = File('${directory.path}/${_partName()}');
     return FileDownloadTarget._(
       chosen,
       part,
       await part.open(mode: FileMode.write),
     );
+  }
+
+  static String _partName() {
+    final random = Random.secure();
+    final id = List.generate(
+      16,
+      (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
+    return '$id.part';
+  }
+
+  static Future<Directory> _defaultPartDirectory(File chosen) async {
+    try {
+      final cache = await getApplicationCacheDirectory();
+      return Directory('${cache.path}/downloads');
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'No app cache folder, keeping partial downloads beside the target',
+        error,
+        stack,
+      );
+      return Directory('${chosen.parent.path}/.slimm-partial');
+    }
+  }
+
+  static Future<void> _sweepStale(Directory directory) async {
+    final cutoff = DateTime.now().subtract(_staleAfter);
+    try {
+      await for (final entry in directory.list()) {
+        if (entry is! File || !entry.path.endsWith('.part')) continue;
+        if ((await entry.lastModified()).isBefore(cutoff)) await entry.delete();
+      }
+    } on FileSystemException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'Could not sweep old partial downloads',
+        error,
+        stack,
+      );
+    }
   }
 
   @override
@@ -75,20 +136,39 @@ class FileDownloadTarget implements DownloadTarget {
   @override
   Future<void> write(List<int> chunk) async {
     if (_closed) throw const FileSystemException('download was discarded');
-    await _file.writeFrom(chunk);
+    final pending = _file.writeFrom(chunk);
+    _inFlight = pending.then<void>((_) {}, onError: (Object _) {});
+    await pending;
   }
 
   @override
   Future<bool> finish() async {
     _closed = true;
+    await _inFlight;
     await _file.close();
-    await _part.rename(_chosen.path);
+    try {
+      await _moveIntoPlace();
+    } finally {
+      _reserved.remove(_chosen.path);
+    }
     return true;
+  }
+
+  Future<void> _moveIntoPlace() async {
+    try {
+      await _part.rename(_chosen.path);
+    } on FileSystemException {
+      // Across file systems a rename cannot work, so copy and then drop the partial.
+      await _part.copy(_chosen.path);
+      await _part.delete();
+    }
   }
 
   @override
   Future<void> discard() async {
     _closed = true;
+    _reserved.remove(_chosen.path);
+    await _inFlight;
     try {
       await _file.close();
     } on FileSystemException catch (error, stack) {

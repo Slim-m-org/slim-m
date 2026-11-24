@@ -5,14 +5,13 @@
 use std::sync::Arc;
 
 use axum::extract::{Path, State};
-use axum::http::request::Parts;
 
 use super::super::AppState;
 use super::super::attachment_ids::parse_attachment_ids;
 use super::super::channel_slow_mode::enforce_slow_mode;
 use super::super::embeds;
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{AuthedLimited, Json, WRITE};
 use super::super::module_hooks::{Draft, HookPoint, guard_write};
 use super::super::post_commit::after_commit;
 use super::message_requests::SendRequest;
@@ -20,7 +19,6 @@ use super::{AttachmentDto, MessageDto, parse_uuid, validate_content};
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::NewMessage;
 
 /// Sends a message, idempotent by the client-generated message id.
@@ -51,13 +49,11 @@ use crate::store::NewMessage;
 /// that already landed must never be refused for arriving "too soon".
 /// `embeds` is honoured only from a bot, discarded otherwise.
 pub(super) async fn send(
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
-    parts: Parts,
     State(state): State<AppState>,
     Json(req): Json<SendRequest>,
 ) -> Result<Json<MessageDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let attachment_ids = parse_attachment_ids(&req.attachment_ids)?;
     let spoiler_ids = parse_attachment_ids(&req.spoiler_attachment_ids)?;
@@ -87,6 +83,9 @@ pub(super) async fn send(
         .map(|raw| parse_uuid(raw).map(MessageId))
         .transpose()?;
     let mention_reply = req.mention_reply;
+    let repost_author =
+        super::message_reposts::honored(&state, ctx.user_id, req.repost_of_author_id.as_deref())
+            .await?;
     // A retry must not re-authorize what already succeeded; the authoritative check still runs in the transaction.
     let stored_already = state.store.message_including_deleted(id).await?.is_some();
     // Never on a retry: see `enforce_slow_mode`'s own doc for why a second attempt at an id that already landed must not be refused.
@@ -138,8 +137,19 @@ pub(super) async fn send(
         )
         .await?;
 
+    if !sent.fresh && state.store.message_is_deleted(id).await? {
+        return Ok(Json(sent.message.into()));
+    }
+
     if sent.fresh {
         intercepted.save_annotations(&state, id).await;
+    }
+    // Also on a retry, which repairs a row its first attempt failed to store; before the live frame reads it.
+    if let Some(author) = repost_author {
+        after_commit(
+            "its repost author",
+            state.store.set_repost_author(id, author).await,
+        );
     }
 
     // Read once and used twice: the live frame and this response need the same summaries, and a fresh message can already have them.
@@ -214,6 +224,7 @@ pub(super) async fn send(
                 presence: state.hub.presence(),
                 reply_ping,
                 mass_authority: Some(ctx.user_id),
+                mention_only: None,
             },
         );
         // A no-op for an ordinary channel; see `threads::notify_reply`.
@@ -225,5 +236,6 @@ pub(super) async fn send(
     dto.forwarded = forwarded.map(Into::into);
     dto.embeds = embeds::dtos_from_stored(&state.link_previews, stored_embeds);
     dto.components = stored_components;
+    dto.repost_of_author_id = repost_author.map(|author| author.to_string());
     Ok(Json(dto))
 }

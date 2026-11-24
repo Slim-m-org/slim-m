@@ -284,6 +284,26 @@ impl KvBackend for SqliteKv {
         }
     }
 
+    fn cas(
+        &self,
+        module_id: &str,
+        key: &str,
+        expect: Option<&str>,
+        value: &str,
+    ) -> Result<bool, KvError> {
+        let outcome = self.handle.block_on(self.store.module_kv_cas(
+            (module_id, key),
+            expect,
+            value,
+            (MAX_ENTRIES as i64, MAX_TOTAL_BYTES as i64),
+        ));
+        match outcome {
+            Ok(swapped) => Ok(swapped),
+            Err(KvSetError::Full) => Err(KvError::Full),
+            Err(KvSetError::Internal(_)) => Err(KvError::Unavailable),
+        }
+    }
+
     fn delete(&self, module_id: &str, key: &str) -> Result<(), KvError> {
         self.handle
             .block_on(self.store.module_kv_delete(module_id, key))
@@ -444,6 +464,7 @@ impl ChannelPoster {
             id,
             &message.content,
             (None, tokened),
+            None,
         )
         .await
         {
@@ -473,6 +494,7 @@ impl ChannelPoster {
                 presence: state.hub.presence(),
                 reply_ping: None,
                 mass_authority,
+                mention_only: None,
             },
         );
         super::threads::notify_reply(state, message.channel_id).await;

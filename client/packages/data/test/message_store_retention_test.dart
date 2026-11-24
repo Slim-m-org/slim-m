@@ -10,10 +10,14 @@ library;
 
 import 'dart:io';
 
+import 'package:drift/drift.dart'
+    show ApplyInterceptor, QueryExecutor, QueryInterceptor;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
+import 'package:slimm_data/src/message_store_retention.dart'
+    show reclaimFreedPages;
 
 api.Message _message(String channelId, int seq) => api.Message(
       id: '$channelId-m$seq',
@@ -175,4 +179,40 @@ void main() {
       reason: 'the vacuum should hand the pruned pages back to the OS',
     );
   });
+
+  test('the vacuum never moves temp storage off memory (decision 0042)',
+      () async {
+    final dir = await Directory.systemTemp.createTemp('slimm-vacuum-pragma');
+    addTearDown(() => dir.delete(recursive: true));
+    final statements = <String>[];
+    final db = SlimmDatabase(
+      NativeDatabase(File('${dir.path}/s.sqlite'))
+          .interceptWith(_Recorder(statements)),
+    );
+    addTearDown(db.close);
+    await db.customStatement('PRAGMA temp_store = MEMORY');
+    await db.customStatement('CREATE TABLE junk (a TEXT)');
+    for (var i = 0; i < 600; i++) {
+      await db.customStatement('INSERT INTO junk VALUES (?)', ['x' * 4000]);
+    }
+    await db.customStatement('DROP TABLE junk');
+    statements.clear();
+
+    await reclaimFreedPages(db);
+
+    expect(statements, contains('VACUUM'));
+    expect(statements.where((s) => s.contains('temp_store')), isEmpty);
+  });
+}
+
+class _Recorder extends QueryInterceptor {
+  _Recorder(this.log);
+  final List<String> log;
+
+  @override
+  Future<void> runCustom(
+      QueryExecutor e, String statement, List<Object?> args) {
+    log.add(statement);
+    return e.runCustom(statement, args);
+  }
 }

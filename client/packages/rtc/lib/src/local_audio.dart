@@ -228,17 +228,24 @@ class LocalAudioState {
   Future<Object?> _drain() async {
     _busy = true;
     Object? result;
+    Completer<Object?>? waiting;
     try {
       do {
-        final waiting = _queued;
+        waiting = _queued;
         _queued = null;
         result = await _pass(_latestRefs);
         waiting?.complete(result);
+        waiting = null;
       } while (_queued != null);
+    } on Object catch (error) {
+      result = error;
+      waiting?.complete(error);
+      _queued?.complete(error);
+      _queued = null;
     } finally {
       _busy = false;
+      _planRetry();
     }
-    _planRetry();
     return result;
   }
 
@@ -340,9 +347,11 @@ class LocalAudioState {
   }
 
   final _loggedSkips = <String>{};
+  static const _loggedSkipsCap = 256;
 
   /// Once per track and gain, so a log shows a push the cache skipped without a line per room event.
   void _noteSkippedPush(LocalAudioRef ref, double volume) {
+    if (_loggedSkips.length >= _loggedSkipsCap) _loggedSkips.clear();
     if (!_loggedSkips.add('${ref.trackId}/$volume')) return;
     log?.call(
       'Volume x$volume for ${ref.channel.name} audio of ${ref.identity} '

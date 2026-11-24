@@ -209,6 +209,7 @@ class MessageExtrasController
     embeds: _list(message.embeds, existing?.embeds, replace: authoritative),
     webhookUsername: message.webhookUsername ?? existing?.webhookUsername,
     viaModule: message.viaModule ?? existing?.viaModule,
+    repostOfAuthorId: message.repostOfAuthorId ?? existing?.repostOfAuthorId,
     // Same rule as reactions: a REST fetch replaces, so buttons a bot cleared while this client was away go.
     components: _list(
       message.components,

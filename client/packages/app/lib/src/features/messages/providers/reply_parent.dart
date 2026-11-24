@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart' show Message;
 
+import '../../../providers/cache_for.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 import 'local_message_of.dart';
@@ -15,16 +16,23 @@ import 'message_extras.dart';
 /// The channel a reply sits in and the id of the message it answers.
 typedef ReplyParentKey = ({String channelId, String messageId});
 
+/// How many reply parents stay held once nothing is quoting them.
+const replyParentCacheCapacity = 64;
+
+final _recentParents = KeepAliveCache(replyParentCacheCapacity);
+
 /// The parent, or null when the server no longer has it for this reader:
 /// deleted, or in a channel they cannot see.
 ///
-/// Held in memory for the session, so scrolling back past a reply does not
-/// fetch again, and never written to the local store, which keeps the store's
-/// history contiguous. A delete or edit that arrives live reads it again, and a failed
-/// read is let go, so the next quote to ask tries again.
+/// Held in memory for the [replyParentCacheCapacity] most recent parents, so
+/// scrolling back past a reply does not fetch again, and never written to the
+/// local store, which keeps the store's history contiguous. A parent past that
+/// is let go, which cancels its live listener and unpins its extras. A delete
+/// or edit that arrives live reads it again, and a failed read is let go, so
+/// the next quote to ask tries again.
 final replyParentProvider = FutureProvider.autoDispose
     .family<Message?, ReplyParentKey>((ref, key) async {
-      final held = ref.keepAlive();
+      _recentParents.hold(ref, key);
       final changes = ref
           .watch(liveEventsProvider)
           .where(
@@ -49,7 +57,7 @@ final replyParentProvider = FutureProvider.autoDispose
       } on api.NotFoundException {
         return null;
       } catch (_) {
-        held.close();
+        _recentParents.release(key);
         rethrow;
       }
     });

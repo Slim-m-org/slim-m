@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
+import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -152,4 +153,66 @@ void main() {
     );
     expect((await store.allChannels()).single.manuallyUnread, isFalse);
   });
+
+  test(
+    'a block made on another device refetches the block list here',
+    () async {
+      var blocked = <String>[];
+      var listed = 0;
+      final container = _container(
+        events: const Stream.empty(),
+        handle: (request) async {
+          listed += 1;
+          return _json(blocked);
+        },
+        store: MessageStore(SlimmDatabase(NativeDatabase.memory())),
+      );
+      addTearDown(
+        () => container.read(storeProvider.future).then((s) => s.db.close()),
+      );
+      container.listen(blocksProvider, (_, _) {});
+      await _settle();
+      expect(container.read(blocksProvider).ids, isEmpty);
+
+      blocked = ['harasser'];
+      await container
+          .read(syncControllerProvider.notifier)
+          .applyServerEventForTest(const BlocksChanged());
+      await _settle();
+
+      expect(listed, greaterThan(1));
+      expect(container.read(blocksProvider).ids, {'harasser'});
+    },
+  );
+
+  test(
+    'a reply in a thread this device holds no row for is not stored',
+    () async {
+      final store = MessageStore(SlimmDatabase(NativeDatabase.memory()));
+      addTearDown(store.db.close);
+      final container = _container(
+        events: const Stream.empty(),
+        handle: (request) async => _json(<Object>[]),
+        store: store,
+      );
+      final controller = container.read(syncControllerProvider.notifier);
+
+      await controller.applyServerEventForTest(
+        const MessageCreated(
+          Message(
+            id: 'reply-1',
+            channelId: 'thread-1',
+            authorId: 'bob',
+            authorDisplayName: 'bob',
+            editedAt: null,
+            content: 'hi',
+            createdAt: 1,
+            seq: 1,
+          ),
+        ),
+      );
+
+      expect(await store.hasMessage('thread-1', 'reply-1'), isFalse);
+    },
+  );
 }

@@ -20,6 +20,8 @@ pub enum DataError {
     Conflict,
     /// The module has declared no data.
     NoSchema,
+    /// The rows it returned would not fit in a reply.
+    TooLarge,
     /// The statement ran past its time budget and was interrupted.
     TooSlow,
     /// The store failed; the module sees a refusal, never the cause.
@@ -83,6 +85,7 @@ fn error_text(err: &DataError) -> &'static str {
     match err {
         DataError::Full => "data.store is full for this module",
         DataError::Conflict => "a unique column already holds that value",
+        DataError::TooLarge => "data.store result is too large",
         DataError::TooSlow => "data call took too long",
         DataError::NoSchema => "this module declared no data",
         DataError::Unavailable => "data.store is unavailable",

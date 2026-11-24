@@ -21,6 +21,7 @@ class EventConnection {
   final WebSocketChannel _channel;
   final Stream<ServerEvent> _events;
   final SocketLiveness _liveness;
+  bool _closed = false;
 
   /// Events after a successful handshake.
   Stream<ServerEvent> get events => _events;
@@ -136,7 +137,7 @@ class EventConnection {
   /// on somebody else's screen. Call this repeatedly while the user types.
   /// Over-sending is safe - the server rate-limits it and drops the excess
   /// silently rather than erroring or closing the socket.
-  void typing(String channelId) => _channel.sink.add(
+  void typing(String channelId) => _send(
         jsonEncode({'type': 'typing', 'channel_id': channelId}),
       );
 
@@ -144,8 +145,7 @@ class EventConnection {
   /// previous report; empty clears it. [active] says the user has used this
   /// device recently, which skips message pushes to their other devices. The
   /// server lets a report lapse, so the caller re-sends it while it holds.
-  void viewing(Iterable<String> channelIds, {bool active = false}) =>
-      _channel.sink.add(
+  void viewing(Iterable<String> channelIds, {bool active = false}) => _send(
         jsonEncode({
           'type': 'viewing',
           'channel_ids': channelIds.toList(),
@@ -155,7 +155,7 @@ class EventConnection {
 
   /// Reports the canvases open on this device, replacing the previous report; empty says none.
   /// Until the first report the server sends live canvas frames for every channel.
-  void canvasWatch(Iterable<String> channelIds) => _channel.sink.add(
+  void canvasWatch(Iterable<String> channelIds) => _send(
         jsonEncode({
           'type': 'canvas.watch',
           'channel_ids': channelIds.toList(),
@@ -165,7 +165,7 @@ class EventConnection {
   /// Tells the server the person used this device recently. After the first
   /// one, this connection's pings stop counting as activity, so a client that
   /// sends it must keep sending it, about once a minute, while they are here.
-  void active() => _channel.sink.add(jsonEncode({'type': 'active'}));
+  void active() => _send(jsonEncode({'type': 'active'}));
 
   /// Reports this user's pointer position on a channel's canvas. Ephemeral like [typing]: unacknowledged, and the server rate-limits and drops the excess silently, so the caller should throttle.
   void canvasCursor(
@@ -174,7 +174,7 @@ class EventConnection {
     double y, {
     bool left = false,
   }) =>
-      _channel.sink.add(
+      _send(
         jsonEncode({
           'type': 'canvas.cursor',
           'channel_id': channelId,
@@ -195,7 +195,7 @@ class EventConnection {
     String? color,
     double? width,
   }) =>
-      _channel.sink.add(
+      _send(
         jsonEncode({
           'type': 'canvas.stroke_preview',
           'channel_id': channelId,
@@ -217,7 +217,7 @@ class EventConnection {
     ({double x, double y, double w, double h}) box, {
     bool ended = false,
   }) =>
-      _channel.sink.add(
+      _send(
         jsonEncode({
           'type': 'canvas.object_preview',
           'channel_id': channelId,
@@ -239,7 +239,7 @@ class EventConnection {
     ({double x, double y, double w, double h}) box, {
     bool ended = false,
   }) =>
-      _channel.sink.add(
+      _send(
         jsonEncode({
           'type': 'canvas.media_slot_preview',
           'channel_id': channelId,
@@ -270,7 +270,7 @@ class EventConnection {
     double? aspect,
     bool stamps = false,
   }) =>
-      _channel.sink.add(
+      _send(
         jsonEncode({
           'type': 'canvas.screen_annotation',
           'channel_id': channelId,
@@ -296,7 +296,7 @@ class EventConnection {
     bool summon = false,
     String? tile,
   }) =>
-      _channel.sink.add(
+      _send(
         jsonEncode({
           'type': 'canvas.view',
           'channel_id': channelId,
@@ -309,7 +309,18 @@ class EventConnection {
         }),
       );
 
+  /// Ephemeral frames are best effort: a socket this client already closed drops them instead of throwing.
+  void _send(String frame) {
+    if (_closed) return;
+    try {
+      _channel.sink.add(frame);
+    } on StateError {
+      _closed = true;
+    }
+  }
+
   Future<void> close() {
+    _closed = true;
     _liveness.stop();
     return _channel.sink.close();
   }

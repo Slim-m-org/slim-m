@@ -3,6 +3,7 @@
 /// Private switch and "Who can see this" tests mount in.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -78,9 +79,13 @@ class OverwriteServer {
   final writes = <String, List<Map<String, dynamic>>>{};
   final requests = <String>[];
 
+  /// While set, every write waits here before it is applied.
+  Completer<void>? holdWrites;
+
   Future<http.Response> handle(http.Request request) async {
     final path = request.url.path;
     requests.add('${request.method} $path');
+    if (request.method != 'GET') await holdWrites?.future;
     final base = path.replaceAll(RegExp(r'/overwrites.*$'), '');
     if (request.method == 'POST' && path.endsWith('/sync')) synced[base] = true;
     if (request.method == 'DELETE') {

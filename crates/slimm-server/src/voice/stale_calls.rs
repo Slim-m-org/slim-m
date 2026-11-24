@@ -75,7 +75,6 @@ fn kept_for_active_media(call: &StaleCall, active: &ActiveMembers, now: Instant)
             .is_some_and(|users| users.contains(&call.user_id));
     if kept {
         tracing::info!(
-            user_id = %call.user_id,
             channel_id = %call.channel_id,
             heartbeat_age_secs = age.as_secs(),
             "kept a call whose heartbeat is stale while the sfu still reports its media active"

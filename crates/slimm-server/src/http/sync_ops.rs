@@ -108,6 +108,15 @@ pub(super) async fn ops_for_scope(
         });
     }
 
+    if *byte_budget == 0 {
+        return Ok(OpsHalf {
+            ops: Vec::new(),
+            op_latest_seq: latest,
+            ops_has_more: true,
+            reset: false,
+        });
+    }
+
     let page = state
         .store
         .message_ops_since(channel_id, after, OPS_PER_SCOPE_LIMIT + 1)

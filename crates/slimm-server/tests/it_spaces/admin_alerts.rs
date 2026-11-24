@@ -401,6 +401,84 @@ async fn a_sweep_that_stopped_recording_is_an_alert_once_it_has_had_its_turns() 
 }
 
 #[tokio::test]
+async fn a_failed_raise_is_retried_on_the_next_tick() {
+    let (store, pool, _guard) = support::new_store_with_pool("slimm-alerts-monitor-retry").await;
+    let (admin, _) = admin_and_member(&store).await;
+    let state = support::app::state(store);
+    let router = http::router(state.clone());
+    let dir = StatusDir::new();
+    let now = now_ms();
+    let mut monitor = monitor_for(&state, &dir, u64::MAX / (1024 * 1024)).await;
+    sqlx::query(
+        "CREATE TRIGGER block_alerts BEFORE INSERT ON admin_alerts
+         BEGIN SELECT RAISE(ABORT, 'busy'); END",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    monitor.tick(now, Duration::from_secs(60)).await;
+    assert!(open_kinds(&list(&router, &admin).await).is_empty());
+
+    sqlx::query("DROP TRIGGER block_alerts")
+        .execute(&pool)
+        .await
+        .unwrap();
+    monitor.tick(now, Duration::from_secs(60)).await;
+    assert_eq!(open_kinds(&list(&router, &admin).await), vec!["disk_low:"]);
+}
+
+#[tokio::test]
+async fn a_failed_resolve_is_retried_on_the_next_tick() {
+    let (store, pool, _guard) =
+        support::new_store_with_pool("slimm-alerts-monitor-reresolve").await;
+    let (admin, _) = admin_and_member(&store).await;
+    let state = support::app::state(store);
+    let router = http::router(state.clone());
+    let dir = StatusDir::new();
+    let now = now_ms();
+    let mut impossible = monitor_for(&state, &dir, u64::MAX / (1024 * 1024)).await;
+    impossible.tick(now, Duration::from_secs(60)).await;
+    assert_eq!(open_kinds(&list(&router, &admin).await), vec!["disk_low:"]);
+    sqlx::query(
+        "CREATE TRIGGER block_resolve BEFORE UPDATE ON admin_alerts
+         BEGIN SELECT RAISE(ABORT, 'busy'); END",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let mut fine = monitor_for(&state, &dir, 1).await;
+
+    fine.tick(now, Duration::from_secs(60)).await;
+    assert_eq!(open_kinds(&list(&router, &admin).await), vec!["disk_low:"]);
+
+    sqlx::query("DROP TRIGGER block_resolve")
+        .execute(&pool)
+        .await
+        .unwrap();
+    fine.tick(now, Duration::from_secs(60)).await;
+    assert!(open_kinds(&list(&router, &admin).await).is_empty());
+}
+
+#[tokio::test]
+async fn a_sweep_status_read_error_raises_no_sweep_alert() {
+    let (store, pool, _guard) = support::new_store_with_pool("slimm-alerts-monitor-readerr").await;
+    let (admin, _) = admin_and_member(&store).await;
+    let state = support::app::state(store);
+    let router = http::router(state.clone());
+    let dir = StatusDir::new();
+    let mut monitor = monitor_for(&state, &dir, 0).await;
+    sqlx::query("ALTER TABLE sweep_status RENAME TO sweep_status_away")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    monitor.tick(now_ms(), Duration::from_secs(72 * 3600)).await;
+
+    assert!(open_kinds(&list(&router, &admin).await).is_empty());
+}
+
+#[tokio::test]
 async fn a_module_breaker_alert_closes_when_the_module_is_gone() {
     let (store, _guard) = seeded("slimm-alerts-monitor-module").await;
     let (admin, _) = admin_and_member(&store).await;

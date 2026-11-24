@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/features/voice/widgets/input_level_meter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/first_run/widgets/first_run_device_steps.dart';
@@ -21,6 +22,7 @@ import '../../support/fake_mic_preview.dart';
 import 'voice_settings_screen_harness.dart';
 
 List<Override> _overrides(FakeMicSource source, {bool gate = false}) => [
+  channelJoinMutedProvider.overrideWithValue((_) async => false),
   voiceControllerProvider.overrideWith(
     (ref) => VoiceController(
       ref,

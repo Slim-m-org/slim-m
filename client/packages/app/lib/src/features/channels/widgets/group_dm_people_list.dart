@@ -119,9 +119,11 @@ class _GroupDmPeopleListState extends ConsumerState<GroupDmPeopleList> {
                     ),
                   ),
                 )
-              : ListView(
+              : ListView.builder(
                   shrinkWrap: true,
-                  children: [for (final p in people) _row(p)],
+                  itemExtent: AppListRow.heightFor(context),
+                  itemCount: people.length,
+                  itemBuilder: (context, i) => _row(people[i]),
                 ),
         ),
       ],

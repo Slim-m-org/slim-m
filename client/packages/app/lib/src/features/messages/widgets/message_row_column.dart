@@ -29,7 +29,7 @@ import 'message_edit_field.dart';
 import 'message_row_callbacks.dart';
 import 'message_hover_toolbar.dart';
 import 'card_spacing.dart';
-import 'message_inline.dart' show extractLinkPreviewUrls;
+import 'message_parse_cache.dart' show cachedLinkPreviewUrls;
 import 'message_row_identity.dart';
 import 'message_row_parts.dart';
 import 'poll_vote_failure_line.dart';
@@ -174,7 +174,7 @@ class MessageRowColumn extends ConsumerWidget {
         !extras.linkPreviewsRemoved &&
         !message.linkPreviewsRemoved)
       LinkPreviewList(
-        urls: extractLinkPreviewUrls(message.content),
+        urls: cachedLinkPreviewUrls(message.content),
         message: message,
       ),
     if (!editing && extras.embeds.isNotEmpty) EmbedList(embeds: extras.embeds),

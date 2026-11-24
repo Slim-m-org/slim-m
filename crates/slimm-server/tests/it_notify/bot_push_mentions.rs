@@ -151,3 +151,28 @@ async fn a_bot_dm_still_wakes_the_member_on_the_default() {
 
     assert!(woken.contains(&bob), "got {woken:?}");
 }
+
+#[tokio::test]
+async fn a_webhook_post_limited_to_one_member_wakes_only_that_member() {
+    let (store, _guard, channel, [alice, bob]) = room("slimm-webhook-push-limited").await;
+    let (carol, _) = account(&store, "carol").await;
+    let hook = store
+        .create_webhook(channel, "ci", alice)
+        .await
+        .unwrap()
+        .webhook
+        .principal_id;
+
+    let woken = slimm_server::push::message_recipients_limited_to(
+        &store,
+        channel,
+        hook,
+        "@bob @carol",
+        vec![bob],
+    )
+    .await
+    .unwrap();
+
+    assert!(woken.contains(&bob), "got {woken:?}");
+    assert!(!woken.contains(&carol), "got {woken:?}");
+}

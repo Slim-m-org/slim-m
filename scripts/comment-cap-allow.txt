@@ -13,7 +13,7 @@
 .github/workflows/main-builds.yml 7
 .github/workflows/push-relay-contract.yml 6
 .github/workflows/release.yml 13
-.github/workflows/schema-ci.yml 8
+.github/workflows/schema-ci.yml 6
 .github/workflows/server-ci.yml 7
 Cargo.toml 11
 client/packages/api/lib/api.dart 1
@@ -160,7 +160,7 @@ crates/slimm-server/src/http/polls.rs 2
 crates/slimm-server/src/http/recovery.rs 1
 crates/slimm-server/src/http/roles.rs 1
 crates/slimm-server/src/http/safety.rs 4
-crates/slimm-server/src/http/sync.rs 3
+crates/slimm-server/src/http/sync.rs 2
 crates/slimm-server/src/http/ws.rs 5
 crates/slimm-server/src/http/ws/signals.rs 1
 crates/slimm-server/src/identity.rs 1

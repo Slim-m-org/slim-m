@@ -18,6 +18,7 @@ import '../../../../providers/providers.dart';
 import '../../../../widgets/confirm_dialog.dart';
 import '../../../../widgets/context_menu_region.dart';
 import '../../../../widgets/run_guarded.dart';
+import '../../providers/secret_reveal.dart';
 import '../../widgets/admin_token_password.dart';
 import '../../widgets/settings_section_header.dart';
 import 'bot_permissions_sheet.dart';
@@ -25,18 +26,10 @@ import 'bot_prefix_sheet.dart';
 import 'bot_row_line.dart';
 
 class BotRow extends ConsumerStatefulWidget {
-  const BotRow({
-    super.key,
-    required this.bot,
-    required this.onReissued,
-    required this.canReissue,
-  });
+  const BotRow({super.key, required this.bot, required this.canReissue});
 
   final api.Bot bot;
   final bool canReissue;
-
-  /// Hands the new token up to the pane, which shows it once.
-  final ValueChanged<api.NewBot> onReissued;
 
   @override
   ConsumerState<BotRow> createState() => _BotRowState();
@@ -63,13 +56,13 @@ class _BotRowState extends ConsumerState<BotRow>
     if (!confirmed || !mounted) return;
 
     setState(() => _busy = true);
+    final container = ProviderScope.containerOf(context, listen: false);
     final ok = await guard(
       whatFailed: 'revoke ${widget.bot.username}',
-      action: () => ref.read(apiProvider).revokeBot(widget.bot.userId),
+      action: () => container.read(apiProvider).revokeBot(widget.bot.userId),
     );
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (ok) ref.invalidate(botsProvider);
+    if (ok) container.invalidate(botsProvider);
+    if (mounted) setState(() => _busy = false);
   }
 
   Future<void> _reissue() async {
@@ -85,7 +78,8 @@ class _BotRowState extends ConsumerState<BotRow>
 
     setState(() => _busy = true);
     api.NewBot? issued;
-    final client = ref.read(apiProvider);
+    final container = ProviderScope.containerOf(context, listen: false);
+    final client = container.read(apiProvider);
     var done = false;
     final ok = await guard(
       whatFailed: 'issue ${widget.bot.username} a new token',
@@ -107,11 +101,11 @@ class _BotRowState extends ConsumerState<BotRow>
         );
       },
     );
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (!ok || !done) return;
-    ref.invalidate(botsProvider);
-    widget.onReissued(issued!);
+    if (ok && done) {
+      container.read(botSecretRevealProvider.notifier).state = issued;
+      container.invalidate(botsProvider);
+    }
+    if (mounted) setState(() => _busy = false);
   }
 
   /// Built with the row's own context: the sheets and dialogs these open must outlive the menu that opened them.

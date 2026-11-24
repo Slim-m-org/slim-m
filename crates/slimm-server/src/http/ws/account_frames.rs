@@ -48,6 +48,13 @@ pub(super) fn authorize(ctx: &SessionContext, event: &Event) -> Option<Authoriza
                 muted: *muted,
             },
         ),
+        Event::BlocksChanged { user_id } => (*user_id, ServerFrame::BlocksChanged {}),
+        Event::AccountNotificationsChanged { user_id, scope } => (
+            *user_id,
+            ServerFrame::AccountNotificationsChanged {
+                scope: scope.as_str(),
+            },
+        ),
         Event::VoiceMoved {
             user_id,
             from_channel_id,
@@ -100,6 +107,15 @@ pub(super) fn authorize(ctx: &SessionContext, event: &Event) -> Option<Authoriza
                 channel_id: channel_id.to_string(),
                 clip_id: clip_id.to_string(),
                 player_id: player_id.to_string(),
+            },
+        ),
+        Event::DmLeft {
+            user_id,
+            channel_id,
+        } => (
+            *user_id,
+            ServerFrame::ChannelDeleted {
+                channel_id: channel_id.to_string(),
             },
         ),
         Event::ConnectorRun(run) => (

@@ -42,7 +42,19 @@ const _senior = api.UserProfile(
 
 Future<ProviderContainer> _signedInAs(api.Me me) async {
   final container = ProviderContainer(
-    overrides: [meProvider.overrideWith((ref) async => me)],
+    overrides: [
+      sessionProvider.overrideWithValue(
+        api.SessionStore(
+          tokens: api.TokenPair(
+            userId: me.id,
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            accessExpiresAt: 0,
+          ),
+        ),
+      ),
+      meProvider.overrideWith((ref) async => me),
+    ],
   );
   addTearDown(container.dispose);
   container.listen(meProvider, (_, _) {});

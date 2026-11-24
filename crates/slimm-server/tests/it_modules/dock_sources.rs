@@ -461,7 +461,7 @@ async fn removing_a_source_leaves_its_modules_installed_and_enabled() {
             None,
         )
         .await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(status, StatusCode::NO_CONTENT);
     let (status, _) = w
         .call("DELETE", "/space/dock/sources/official", &w.admin, None)
         .await;

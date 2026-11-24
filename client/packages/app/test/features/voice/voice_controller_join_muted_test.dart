@@ -3,12 +3,15 @@
 /// member's own sticky mic preference must come out of it unchanged.
 library;
 
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_data/data.dart';
 
 import 'voice_controller_harness.dart';
@@ -41,7 +44,13 @@ void main() {
     final controller = harness.controllerWith(
       session,
       voiceApi(),
-      extraOverrides: [storeProvider.overrideWith((ref) async => store)],
+      extraOverrides: [
+        storeProvider.overrideWith((ref) async => store),
+        channelJoinMutedProvider.overrideWith(
+          (ref) =>
+              (channelId) => joinMutedFromStore(ref, channelId),
+        ),
+      ],
     );
     await harness.container.read(storeProvider.future);
     return (session, controller);
@@ -95,5 +104,40 @@ void main() {
     await controller.join('lounge');
 
     expect(session.askedForMicrophoneOnJoin, isFalse);
+  });
+
+  test('a join that beats the local store opening still joins muted', () async {
+    final store = MessageStore(SlimmDatabase(NativeDatabase.memory()));
+    addTearDown(store.db.close);
+    await store.upsertChannels([
+      const api.Channel(
+        id: 'stage',
+        name: 'stage',
+        kind: 'voice',
+        createdAt: 0,
+        joinMuted: true,
+      ),
+    ]);
+    final opening = Completer<MessageStore>();
+    final session = FakeSession();
+    final controller = harness.controllerWith(
+      session,
+      voiceApi(),
+      extraOverrides: [
+        storeProvider.overrideWith((ref) => opening.future),
+        channelJoinMutedProvider.overrideWith(
+          (ref) =>
+              (channelId) => joinMutedFromStore(ref, channelId),
+        ),
+      ],
+    );
+
+    final joining = controller.join('stage');
+    await pumpEventQueue();
+    opening.complete(store);
+    await joining;
+
+    expect(session.askedForMicrophoneOnJoin, isFalse);
+    expect(controller.state.joinedMuted, isTrue);
   });
 }

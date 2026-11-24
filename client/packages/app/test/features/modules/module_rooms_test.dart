@@ -260,4 +260,14 @@ void main() {
       expect(rig.model.room('noughts')!.seq, 4);
     },
   );
+
+  test('an answer that cannot be read ends the send with a notice', () async {
+    final rig = await _rig((request) async {
+      if (request.method == 'GET') return _json({'rooms': <Object>[]});
+      return _json({'applied': true, 'reason': 5});
+    });
+    expect(await rig.controller.send('noughts', '2'), isNull);
+    expect(rig.model.sending, isEmpty);
+    expect(rig.model.notices['noughts'], isNotNull);
+  });
 }

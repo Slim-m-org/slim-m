@@ -9,6 +9,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show AppLog, LogTag, reportFailure;
 
+import 'read_timeout.dart';
 import 'web_capture_chain.dart';
 
 /// Quietest level the meter and the threshold slider show.
@@ -91,6 +92,9 @@ class InputGateReading {
 /// How often the gate is read while a meter is on screen and the app is focused.
 const Duration kInputGateDisplayInterval = Duration(milliseconds: 50);
 
+/// Reads in a row that may fail before the monitor stops; one hiccup must not end it.
+const int kInputGateMaxFailures = 3;
+
 /// How fast the gate is read, as a multiple of the display interval.
 enum InputGateRate {
   /// A meter or speaking ring is on screen in a focused app.
@@ -142,6 +146,7 @@ class InputGateMonitor {
   Timer? _timer;
   bool _started = false;
   bool _polling = false;
+  int _failures = 0;
   bool _voice = false;
   InputGateRate _rate = InputGateRate.display;
   void Function()? _onVoiceChanged;
@@ -224,6 +229,7 @@ class InputGateMonitor {
   }
 
   void stop() {
+    _failures = 0;
     _timer?.cancel();
     _timer = null;
     _started = false;
@@ -231,12 +237,19 @@ class InputGateMonitor {
     _voice = false;
   }
 
+  void _giveUp(void Function() onVoiceChanged) {
+    final wasVoice = _voice;
+    stop();
+    if (wasVoice) onVoiceChanged();
+  }
+
   Future<void> _poll(void Function() onVoiceChanged) async {
     if (_polling) return;
     _polling = true;
     try {
-      final raw = await _invoke('getInputGate');
+      final raw = await _invoke('getInputGate').timeout(kPollReadTimeout);
       if (_timer == null || raw is! Map) return;
+      _failures = 0;
       final reading = InputGateReading(
         levelDb: (raw['levelDb'] as num?)?.toDouble() ?? kInputFloorDb,
         voice: raw['voice'] == true,
@@ -253,7 +266,7 @@ class InputGateMonitor {
     } on Object catch (error, stack) {
       reportFailure(LogTag.voice,
           'read the microphone level from the input gate', error, stack);
-      stop();
+      if (++_failures >= kInputGateMaxFailures) _giveUp(onVoiceChanged);
     } finally {
       _polling = false;
     }

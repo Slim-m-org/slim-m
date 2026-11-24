@@ -67,7 +67,7 @@ Deleted messages are never exported.
 | `favorites.jsonl` | `id`, `kind` (`gif` or `attachment`), `title`, `created_at`, in the member's order; `gif_url` for a GIF, `attachment_id` and `message_id` for media kept from a message. |
 | `notes.jsonl` | The member's private notes: `subject_id`, `subject_username`, `body`, times. |
 | `blocks.jsonl` | `blocked_id`, `blocked_username`, `created_at`. |
-| `poll_votes.jsonl` | `message_id`, `channel_id`, `position`, `voted_at`. |
+| `poll_votes.jsonl` | `message_id`, `channel_id`, `position`, `voted_at`, and for a ranked poll `ranking`, the option positions in the order the member ranked them. |
 | `call_events.jsonl` | `channel_id`, `at`, `kind` (`joined`, `left`, `share_started`, `share_stopped`). |
 | `transcript_lines.jsonl` | What the member said on transcribed calls: `transcript_id`, `channel_id`, `seq`, `at`, `end_at`, `language`, `text`. `end_at` and `language` are null on lines from before they were recorded. |
 | `profile/avatar`, `profile/banner` | The member's own images, when set. |

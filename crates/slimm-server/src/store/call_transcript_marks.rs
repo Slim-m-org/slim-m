@@ -9,6 +9,8 @@ use crate::ids::{CallTranscriptId, CallTranscriptMarkId, UserId};
 
 /// The most marks one transcript holds; a long call is not a notebook.
 pub const MAX_MARKS_PER_TRANSCRIPT: i64 = 500;
+/// The most of those one author holds, so one member cannot use up everyone's room.
+pub const MAX_MARKS_PER_AUTHOR: i64 = 100;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MarkKind {
@@ -138,6 +140,7 @@ impl Store {
         }
         let held = sqlx::query!(
             r#"SELECT COUNT(*) AS "count!: i64",
+                      COALESCE(SUM(author_id = ?2), 0) AS "mine!: i64",
                       (SELECT MAX(created_at) FROM call_transcript_marks
                         WHERE transcript_id = ?1 AND author_id = ?2) AS "last: i64"
                FROM call_transcript_marks WHERE transcript_id = ?1"#,
@@ -147,7 +150,7 @@ impl Store {
         .fetch_one(&mut *tx)
         .await
         .context("count call transcript marks")?;
-        if held.count >= MAX_MARKS_PER_TRANSCRIPT {
+        if held.count >= MAX_MARKS_PER_TRANSCRIPT || held.mine >= MAX_MARKS_PER_AUTHOR {
             return Ok(PutMark::Full);
         }
         if let Some(last) = held.last

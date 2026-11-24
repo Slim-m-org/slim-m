@@ -22,7 +22,7 @@ const presenceActiveInterval = Duration(minutes: 1);
 /// the server's ten-minute idle window, so a reconnect does not flip a reader to away.
 const presenceHelloWindow = Duration(minutes: 9);
 
-/// How long the machine may sit untouched before a call alone stops counting as here; speaking in it still does.
+/// How long the machine, or without a host idle source the app, may sit untouched before a call alone stops counting as here; speaking in it still does.
 const presenceCallIdleLimit = Duration(minutes: 10);
 
 class PresenceActivityReporter implements InputListener {
@@ -47,6 +47,7 @@ class PresenceActivityReporter implements InputListener {
   Timer? _timer;
   DateTime? _lastInput;
   DateTime? _lastSent;
+  DateTime? _callSince;
 
   void start() {
     _timer ??= Timer.periodic(_interval, (_) {
@@ -68,7 +69,18 @@ class PresenceActivityReporter implements InputListener {
     final idle = _systemIdle?.idleTime();
     if (idle != null && idle < window) return true;
     if (idle != null && idle >= presenceCallIdleLimit) return false;
-    return _inCall();
+    if (!_inCall()) {
+      _callSince = null;
+      return false;
+    }
+    return idle != null || _callAttended(now, input);
+  }
+
+  /// With no host idle source, a call counts only until [presenceCallIdleLimit] after it began or the last app input.
+  bool _callAttended(DateTime now, DateTime? input) {
+    final since = _callSince ??= now;
+    final latest = input != null && input.isAfter(since) ? input : since;
+    return now.difference(latest) < presenceCallIdleLimit;
   }
 
   /// Reports at once on the first input after a quiet interval, so coming

@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 package top.npcserver.slimm
 
+import java.io.InputStream
+import java.io.OutputStream
+
 /** What the share intake accepts from a sender, free of Android types so it can run anywhere. */
 internal object ShareIntakeRules {
   /** Kept under the 255 bytes a file system allows, since encrypted storage can pad a name. */
@@ -15,6 +18,62 @@ internal object ShareIntakeRules {
    */
   fun namesOwnProvider(authority: String?, packageName: String): Boolean =
     authority?.substringAfterLast('@')?.startsWith(packageName, ignoreCase = true) == true
+
+  /** One shared file past this is refused rather than copied; the server's own limit is checked later. */
+  const val MAX_FILE_BYTES = 2L * 1024 * 1024 * 1024
+
+  /** One share past this in total stops copying, so a batch cannot fill the cache. */
+  const val MAX_SHARE_BYTES = 4L * 1024 * 1024 * 1024
+
+  /** Free space that must stay after a copy, so a share cannot fill the phone. */
+  const val FREE_SPACE_RESERVE = 256L * 1024 * 1024
+
+  /** The folder of this app's provider that holds images copied by the composer. */
+  const val OWN_CLIPBOARD_FOLDER = "clipboard_images"
+
+  /**
+   * Whether the clipboard may name this URI. Only `content://` is read, and this
+   * app's own provider only for the folder the composer copies images into.
+   */
+  fun clipboardUriAllowed(
+    scheme: String?,
+    authority: String?,
+    firstSegment: String?,
+    packageName: String,
+  ): Boolean {
+    if (scheme != "content") return false
+    if (!namesOwnProvider(authority, packageName)) return true
+    return firstSegment == OWN_CLIPBOARD_FOLDER
+  }
+
+  /** How many more bytes one file may take: the per-file cap, what is left of the share, and free space. */
+  fun allowedBytes(copiedSoFar: Long, freeSpace: Long): Long =
+    minOf(MAX_FILE_BYTES, MAX_SHARE_BYTES - copiedSoFar, freeSpace - FREE_SPACE_RESERVE).coerceAtLeast(0)
+
+  /** Copies [input] to [output]; false as soon as more than [limit] bytes would be written. */
+  fun copyCapped(input: InputStream, output: OutputStream, limit: Long): Boolean {
+    val buffer = ByteArray(64 * 1024)
+    var total = 0L
+    while (true) {
+      val read = input.read(buffer)
+      if (read < 0) return true
+      total += read
+      if (total > limit) return false
+      output.write(buffer, 0, read)
+    }
+  }
+
+  /** Folds shares that arrived before the first was taken into one, so none is dropped. */
+  fun mergeShares(shares: List<Map<String, Any?>>): Map<String, Any?> {
+    val files = shares.flatMap { (it["files"] as? List<*>).orEmpty() }
+    val text = shares.mapNotNull { it["text"] as? String }.joinToString("\n").ifEmpty { null }
+    return mapOf(
+      "files" to files,
+      "text" to text,
+      "unreadable" to shares.sumOf { (it["unreadable"] as? Int) ?: 0 },
+      "tooLarge" to shares.sumOf { (it["tooLarge"] as? Int) ?: 0 },
+    )
+  }
 
   /** Keeps a sender-chosen name from escaping its folder. */
   fun safeFileName(raw: String): String {

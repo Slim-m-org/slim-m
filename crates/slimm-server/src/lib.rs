@@ -67,9 +67,9 @@ pub use attachment_text::WORKER_ARG as PDF_WORKER_ARG;
 pub use attachment_text::{Limit, PdfParse, PdfWorker, TextExtractor, run_pdf_worker};
 pub mod voice_transcripts;
 pub use sweeps::{
-    run_attachment_sweep_pass, run_message_retention_sweep_pass, run_token_sweep_pass,
-    run_transcript_retention_sweep_pass, sweep_stale_call_rings, sweep_stale_call_rings_at,
-    sweep_stale_voice_calls, sweep_stale_voice_calls_at,
+    run_attachment_sweep_pass, run_audit_log_sweep_pass, run_message_retention_sweep_pass,
+    run_token_sweep_pass, run_transcript_retention_sweep_pass, sweep_stale_call_rings,
+    sweep_stale_call_rings_at, sweep_stale_voice_calls, sweep_stale_voice_calls_at,
 };
 pub use voice_session_sweeps::{close_stale_sessions, reconcile_on_startup};
 
@@ -223,6 +223,7 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
     );
     http::module_compat::disable_incompatible(&state).await;
     http::module_schedule::spawn_sweep(state.clone());
+    http::dock::spawn_purge_sweep(state.clone());
     http::module_timers::spawn_sweep(state.clone());
     http::scene_refresh::spawn_sweep(state.clone());
     http::module_rooms::spawn_sweep(state.clone());

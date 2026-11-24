@@ -52,8 +52,8 @@ RailFailure localStoreRailFailure(Object error) => RailFailure(
       'Another copy of slim-m is using the saved channels. Quit it, '
           'including from the system tray, then retry.',
     DatabaseUnopenable() =>
-      'The saved channels could not be opened or replaced. Retry, or '
-          'restart your computer.',
+      'The saved channels could not be opened. Retry; if it keeps failing, '
+          'they are cleared and downloaded again.',
     // Named, so a screenshot of this is enough to know what failed.
     _ =>
       'The channel list saved on this device could not be opened '

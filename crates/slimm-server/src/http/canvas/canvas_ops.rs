@@ -122,6 +122,11 @@ impl CanvasOpDto {
     /// read and documented in the schema, so withholding it here would hide
     /// nothing while making two reads of the same fact disagree.
     ///
+    /// An `edit` answers with its target's current props for everyone but a
+    /// moderator, and with `{}` once the target is erased, so superseded and
+    /// erased text is not served; a replay still converges because the
+    /// final edit carries the current props.
+    ///
     /// `moderates` is the caller's own `MANAGE_CANVAS`, so a moderator still
     /// sees the full trail. That is the point of keeping the ops table
     /// uncompacted: the record of who removed what has to survive somewhere,
@@ -179,9 +184,21 @@ impl CanvasOpDto {
                 object_id: object_id.to_string(),
                 z_index,
             },
-            CanvasOpBody::Edit { object_id, props } => CanvasOpBodyDto::Edit {
+            CanvasOpBody::Edit {
+                object_id,
+                props,
+                current_props,
+            } => CanvasOpBodyDto::Edit {
                 object_id: object_id.to_string(),
-                props: serde_json::from_str(&props).unwrap_or(serde_json::Value::Null),
+                props: if moderates {
+                    Some(props)
+                } else {
+                    current_props
+                }
+                .map_or_else(
+                    || serde_json::json!({}),
+                    |raw| serde_json::from_str(&raw).unwrap_or(serde_json::Value::Null),
+                ),
             },
         };
         Self {

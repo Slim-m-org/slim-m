@@ -32,12 +32,14 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../../../routing/router.dart';
+import '../../accounts/providers/account_providers.dart';
 import '../../../routing/routes.dart';
 import 'dm_call.dart';
 import '../../channels/providers/ensure_dm_channel.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import 'dm_call_ring_elsewhere.dart';
 import 'dm_call_ring_reconnect.dart';
 import 'dm_call_ring_state.dart';
 import 'voice_controller.dart';
@@ -49,9 +51,12 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     _sub = _ref.read(liveEventsProvider).listen(_onEvent);
     final callKit = _ref.read(callKitIncomingChannelProvider);
     _callKitSub = callKit.events.listen(_onCallKit);
-    unawaited(
-      callKit.takePending().then((pending) => pending.forEach(_onCallKit)),
-    );
+    // Pending events are consumed by whoever asks, so only the container they belong to may.
+    if (_routesCallKitHere()) {
+      unawaited(
+        callKit.takePending().then((pending) => pending.forEach(_onCallKit)),
+      );
+    }
     _ref.listen<String?>(voiceControllerProvider.select((s) => s.channelId), (
       previous,
       next,
@@ -112,8 +117,28 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
         DateTime.now().difference(at) < _answerWindow;
   }
 
+  /// CallKit knows no account: the call's own account, else the one holding the ring, else the one on screen.
+  bool _routesCallKitHere() {
+    final host = _ref.read(accountHostProvider);
+    if (host == null) return true;
+    final inCall = host.callRuntime?.container;
+    if (inCall != null) return identical(inCall, _ref.container);
+    if (state.incoming != null) return true;
+    final elsewhere = host.accounts.any(
+      (r) =>
+          !identical(r.container, _ref.container) &&
+          r.container.exists(dmCallRingControllerProvider) &&
+          r.container.read(dmCallRingControllerProvider).incoming != null,
+    );
+    return !elsewhere && identical(host.active?.container, _ref.container);
+  }
+
   void _onCallKit(CallKitIncomingEvent event) {
     if (!mounted) return;
+    if (!_routesCallKitHere()) {
+      _dropForeignCallKit(event);
+      return;
+    }
     switch (event.kind) {
       case CallKitIncomingKind.ringing:
         _callKitCallId = event.callId;
@@ -133,6 +158,13 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       case CallKitIncomingKind.ended:
         _onCallKitEnded(event.callId);
     }
+  }
+
+  void _dropForeignCallKit(CallKitIncomingEvent event) {
+    if (event.kind == CallKitIncomingKind.ringing) return;
+    if (event.callId != _callKitCallId) return;
+    _forgetCallKit();
+    state = state.copyWith(callKit: CallKitPhase.none);
   }
 
   void _onCallKitEnded(String callId) {
@@ -170,18 +202,48 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
         state.callKit == CallKitPhase.answered;
     if (!stillWaiting) return;
     if (rings.isEmpty) {
+      if (await _handOffToAccountHoldingRing(callId)) return;
       state = state.copyWith(callKit: CallKitPhase.none);
       _endCallKit();
       return;
     }
-    final outstanding = rings.first;
-    final ring = IncomingDmCallRing(
-      channelId: outstanding.channelId,
-      ringId: outstanding.ringId,
-      callerId: outstanding.callerId,
+    await _answerOutstanding(rings.first);
+  }
+
+  Future<void> _answerOutstanding(api.OutstandingDmCallRing ring) {
+    final incoming = IncomingDmCallRing(
+      channelId: ring.channelId,
+      ringId: ring.ringId,
+      callerId: ring.callerId,
     );
-    state = state.copyWith(incoming: ring);
-    await _answerFromCallKit(ring);
+    state = state.copyWith(incoming: incoming);
+    return _answerFromCallKit(incoming);
+  }
+
+  /// CallKit names no account, so a ring this account does not hold may belong to another.
+  Future<bool> _handOffToAccountHoldingRing(String callId) async {
+    final host = _ref.read(accountHostProvider);
+    final found = host == null
+        ? null
+        : await findRingOnOtherAccount(host, _ref.container);
+    if (!mounted || _callKitCallId != callId) return true;
+    if (host == null || found == null) return false;
+    _forgetCallKit();
+    state = state.copyWith(callKit: CallKitPhase.none);
+    final there = found.account;
+    await there.container
+        .read(dmCallRingControllerProvider.notifier)
+        ._adoptAnswer(callId, found.ring);
+    await host.switchTo(there.account!.origin);
+    return true;
+  }
+
+  /// Another account's controller took the system call's answer; this one holds the ring.
+  Future<void> _adoptAnswer(String id, api.OutstandingDmCallRing ring) {
+    _callKitCallId = id;
+    _answeredAt = DateTime.now();
+    state = state.copyWith(callKit: CallKitPhase.answered);
+    return _answerOutstanding(ring);
   }
 
   /// The answer happened on the system call screen, so the ring is consumed

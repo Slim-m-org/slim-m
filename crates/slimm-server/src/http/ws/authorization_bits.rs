@@ -89,6 +89,8 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
         | Event::CategoryMuteChanged { .. }
+        | Event::BlocksChanged { .. }
+        | Event::AccountNotificationsChanged { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
@@ -98,6 +100,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::VoiceMoved { .. }
         | Event::VoiceRemoved { .. }
         | Event::VoiceNotice { .. }
+        | Event::DmLeft { .. }
         | Event::SoundboardPlayed { .. }
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => None,

@@ -84,15 +84,23 @@ class DiagnosticEvent {
   }
 }
 
-/// A bounded, newest-first list of [DiagnosticEvent] and the app's [LogSink].
+/// What [AppLog] writes to: one log, or a router over every account's.
+abstract interface class DebugLogSink implements LogSink {
+  /// Writes any unsaved change now; called when the app leaves the foreground.
+  void flush();
+}
+
+/// A bounded, newest-first list of [DiagnosticEvent], holding one account's records.
 ///
 /// Bounded so a plugin that throws every frame drops the oldest entry rather
 /// than growing without limit through a long session.
-class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
+class DebugLog extends StateNotifier<List<DiagnosticEvent>>
+    implements DebugLogSink {
   DebugLog({
     this.capacity = 200,
     this.detailedCapacity = 2000,
     this.persistence,
+    this.origin,
     this.echo = false,
     this.saveDelay = const Duration(minutes: 1),
     this.dedupeWindow = const Duration(minutes: 10),
@@ -105,6 +113,9 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
   /// The bound while any source asks for detail through [keepDetail].
   final int detailedCapacity;
   final DebugLogPersistence? persistence;
+
+  /// The account this log belongs to, or null while it has none.
+  final String? Function()? origin;
 
   /// Mirrors every record to the console, for a debug run with a terminal.
   final bool echo;
@@ -219,13 +230,22 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
     _scheduleSave();
   }
 
+  /// Empties the log and its saved copy at once, as a sign-out or removal must.
+  Future<void> erase() async {
+    _saveTimer?.cancel();
+    _saveTimer = null;
+    _dirty = false;
+    state = const [];
+    await persistence?.save(const []);
+  }
+
   void _scheduleSave() {
     if (persistence == null) return;
     _dirty = true;
     _saveTimer ??= Timer(saveDelay, flush);
   }
 
-  /// Writes any unsaved change now; called when the app leaves the foreground.
+  @override
   void flush() {
     _saveTimer?.cancel();
     _saveTimer = null;
@@ -248,6 +268,11 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
       .join('\n');
 }
 
+/// Where [AppLog] records go: this container's log unless a host routes by account.
+final debugLogSinkProvider = Provider<DebugLogSink>(
+  (ref) => ref.watch(debugLogProvider.notifier),
+);
+
 final debugLogProvider = StateNotifierProvider<DebugLog, List<DiagnosticEvent>>(
   (ref) => DebugLog(),
 );
@@ -260,7 +285,7 @@ final debugLogProvider = StateNotifierProvider<DebugLog, List<DiagnosticEvent>>(
 /// what stops an unhandled plugin teardown error from reaching the zone and
 /// killing the app, which is the specific crash it was added for.
 void installDiagnostics(ProviderContainer container) {
-  final log = container.read(debugLogProvider.notifier);
+  final log = container.read(debugLogSinkProvider);
   AppLog.install(log);
   container.listen(appLifecycleProvider, (_, state) {
     if (state != AppLifecycleState.resumed) log.flush();

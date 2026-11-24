@@ -30,6 +30,7 @@ class PersonalModuleDisplay extends Notifier<bool> {
 
   final String key;
   var _disposed = false;
+  var _touched = false;
 
   @override
   bool build() {
@@ -41,11 +42,12 @@ class PersonalModuleDisplay extends Notifier<bool> {
 
   Future<void> _load() async {
     final prefs = await ref.read(preferencesProvider.future);
-    if (_disposed) return;
+    if (_disposed || _touched) return;
     state = prefs.getBool(key) ?? true;
   }
 
   Future<void> setShown(bool shown) async {
+    _touched = true;
     state = shown;
     final prefs = await ref.read(preferencesProvider.future);
     await prefs.setBool(key, shown);

@@ -24,6 +24,7 @@ import restore_drill_lib
 
 STATUS_FILE = "status.json"
 MAX_ERROR_CHARS = 300
+CATCH_UP_AFTER_MS = 24 * 60 * 60 * 1000
 
 
 def parse_args(argv):
@@ -35,6 +36,8 @@ def parse_args(argv):
     parser.add_argument("--status-dir", required=True, help="where status.json is written")
     parser.add_argument("--keep", type=int, default=14, help="database snapshots to keep")
     parser.add_argument("--at-hour", type=int, default=3, help="UTC hour of the nightly run")
+    parser.add_argument("--prune-mirror", action="store_true",
+                        help="forget mirror files no retained snapshot references")
     parser.add_argument("--once", action="store_true", help="run one backup and exit")
     return parser.parse_args(argv)
 
@@ -61,6 +64,8 @@ def _backup_argv(args):
             "--backup-root", args.backup_root, "--keep", str(args.keep)]
     if args.modules_dir:
         argv += ["--modules-dir", args.modules_dir]
+    if args.prune_mirror:
+        argv.append("--prune-mirror")
     return argv
 
 
@@ -138,11 +143,19 @@ def seconds_until(now, hour):
     return (target - now).total_seconds()
 
 
+def needs_catch_up(status_dir, now_ms):
+    """Whether the last run is missing or too old for the nightly wait to be trusted."""
+    finished = _previous(status_dir).get("finished_at_ms")
+    if not isinstance(finished, (int, float)) or isinstance(finished, bool):
+        return True
+    return now_ms - finished > CATCH_UP_AFTER_MS
+
+
 def main(argv):
     args = parse_args(argv)
     if args.once:
         return 0 if run_once(args)["ok"] else 1
-    if not Path(args.status_dir, STATUS_FILE).exists():
+    if needs_catch_up(args.status_dir, int(time.time() * 1000)):
         run_once(args)
     while True:
         time.sleep(seconds_until(datetime.now(timezone.utc), args.at_hour))

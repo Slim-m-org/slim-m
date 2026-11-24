@@ -6,7 +6,13 @@ library;
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/accounts/providers/account_host.dart';
+import 'package:slimm_app/src/features/accounts/providers/account_providers.dart';
+import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
+import 'package:slimm_app/src/features/accounts/providers/account_store.dart';
+import 'package:slimm_platform/testing.dart' show InMemoryKeyStore;
 import 'package:slimm_app/src/features/voice/providers/call_foreground_keeper.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_platform/platform.dart';
@@ -124,4 +130,46 @@ void main() {
     expect(controller.state.screenSharing, isFalse);
     expect(controller.state.error, isNotNull);
   });
+
+  test(
+    'a call moving here from another account sends its state again',
+    () async {
+      final host = AccountHost(
+        store: AccountStore(InMemoryKeyStore()),
+        createContainer: (_) => throw UnimplementedError(),
+        startServices: (_) async {},
+        onActivate: (_) async {},
+        readSession: (_) async => true,
+        signOutRuntime: (_) async {},
+      );
+      addTearDown(host.dispose);
+      final otherContainer = ProviderContainer();
+      addTearDown(otherContainer.dispose);
+      final other = host.adoptFirst(
+        otherContainer,
+        AccountSlot(chooseServer: (_, _) => throw UnimplementedError()),
+      )..inCall = true;
+      final controller = harness.controllerWith(
+        session,
+        voiceApi(),
+        extraOverrides: [accountHostProvider.overrideWithValue(host)],
+        foreground: CallForegroundKeeper(
+          service: CallService(isAndroid: true),
+          mayUpdate: () => !other.inCall,
+        ),
+      );
+      unawaited(controller.join('channel-1'));
+      await Future<void>.delayed(Duration.zero);
+      session.emitState(VoiceSessionState.connected);
+      await Future<void>.delayed(Duration.zero);
+      expect(events, isEmpty, reason: 'the other account owns the service');
+
+      other.inCall = false;
+      // ignore: invalid_use_of_protected_member
+      host.notifyListeners();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(events, ['service call=true share=false']);
+    },
+  );
 }

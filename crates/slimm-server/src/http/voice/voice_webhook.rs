@@ -9,7 +9,7 @@
 
 use axum::Router;
 use axum::body::Bytes;
-use axum::extract::State;
+use axum::extract::{DefaultBodyLimit, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::routing::post;
 
@@ -22,8 +22,13 @@ use crate::voice::{self, RoomLiveState, WebhookError, WebhookEvent};
 use crate::voice_notify::Activity;
 use crate::voice_session_sweeps::publish_closed;
 
+/// A real delivery is a few KB; anything bigger is refused before the signature check.
+const MAX_WEBHOOK_BODY_BYTES: usize = 64 * 1024;
+
 pub fn routes() -> Router<AppState> {
-    Router::new().route("/voice/webhook", post(receive))
+    Router::new()
+        .route("/voice/webhook", post(receive))
+        .layer(DefaultBodyLimit::max(MAX_WEBHOOK_BODY_BYTES))
 }
 
 /// Verifies and applies one LiveKit webhook delivery.
@@ -245,8 +250,7 @@ fn apply(state: &AppState, event: WebhookEvent) -> Option<Presence> {
             let present_before =
                 live_state.present_before(channel_id, event.participant_joined_at_ms());
             if live_state.mark_joined(channel_id, user_id, sid) {
-                let activity = super::voice_notice::join_activity(&present_before, user_id);
-                super::voice_notice::announce(state, channel_id, user_id, activity);
+                super::voice_notice::announce_join(state, channel_id, user_id, present_before);
                 presence = Some((channel_id, user_id, true));
                 state.hub.publish(Event::VoiceParticipantJoined {
                     channel_id,

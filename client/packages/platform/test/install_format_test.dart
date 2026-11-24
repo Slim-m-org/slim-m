@@ -44,7 +44,13 @@ void main() {
   test('an executable under a system prefix sniffs as a package', () {
     expect(
         resolve(exe: '/usr/lib64/slim-m-client/slimm_app'), InstallFormat.rpm);
-    expect(resolve(exe: '/opt/slim-m/slimm_app'), InstallFormat.rpm);
+  });
+
+  test('a tarball extracted under /opt or /usr/local is still a tarball', () {
+    expect(resolve(exe: '/opt/slim-m/slimm_app'), InstallFormat.tarball);
+    expect(resolve(exe: '/usr/local/share/slim-m/slimm_app'),
+        InstallFormat.tarball);
+    expect(resolve(exe: '/usr/share/slim-m/slimm_app'), InstallFormat.tarball);
   });
 
   test('anything else off disk is treated as a portable tarball', () {

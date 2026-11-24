@@ -12,6 +12,8 @@ import 'package:slimm_design_system/design_system.dart'
     show AppDensity, AppTokens, ThemeDocument;
 import 'package:slimm_app/src/features/settings/providers/display_density.dart';
 import 'package:slimm_app/src/features/settings/providers/stored_theme.dart';
+import 'package:slimm_app/src/providers/providers.dart'
+    show preferencesProvider;
 import 'package:slimm_app/src/providers/space_scoped_preferences.dart';
 
 const _a = 'https://first.example';
@@ -103,6 +105,53 @@ void main() {
     expect(b.read(messageDensityControllerProvider), AppDensity.compact);
   });
 
+  test(
+    'removing a value keeps the device-level one from coming back',
+    () async {
+      SharedPreferences.setMockInitialValues({spaceDefaultThemeKey: '{}'});
+      final c = _containerFor(_a);
+      addTearDown(c.dispose);
+      final prefs = await c.read(preferencesProvider.future);
+      expect(prefs.getString(spaceDefaultThemeKey), '{}');
+
+      await prefs.remove(spaceDefaultThemeKey);
+      expect(prefs.getString(spaceDefaultThemeKey), isNull);
+      expect(prefs.containsKey(spaceDefaultThemeKey), isFalse);
+
+      final other = _containerFor(_b);
+      addTearDown(other.dispose);
+      final otherPrefs = await other.read(preferencesProvider.future);
+      expect(otherPrefs.getString(spaceDefaultThemeKey), '{}');
+
+      await prefs.setString(spaceDefaultThemeKey, '{"a":1}');
+      expect(prefs.getString(spaceDefaultThemeKey), '{"a":1}');
+    },
+  );
+
+  test('a write is visible to a read in the same turn', () async {
+    SharedPreferences.setMockInitialValues({});
+    final c = _containerFor(_a);
+    addTearDown(c.dispose);
+    final prefs = await c.read(preferencesProvider.future);
+
+    final pending = prefs.setString(spaceDefaultThemeKey, '{"a":1}');
+    expect(prefs.getString(spaceDefaultThemeKey), '{"a":1}');
+    await pending;
+  });
+
+  test('a write after a removal clears the removal marker', () async {
+    SharedPreferences.setMockInitialValues({spaceDefaultThemeKey: '{}'});
+    final c = _containerFor(_a);
+    addTearDown(c.dispose);
+    final prefs = await c.read(preferencesProvider.future);
+    await prefs.remove(spaceDefaultThemeKey);
+    await prefs.setString(spaceDefaultThemeKey, '{"a":1}');
+
+    final raw = await SharedPreferences.getInstance();
+    final scoped = spaceScopedKey(_a, spaceDefaultThemeKey);
+    expect(raw.containsKey('$scoped.removed'), isFalse);
+  });
+
   test('device-wide settings are one value for every Space', () async {
     SharedPreferences.setMockInitialValues({});
     final a = _containerFor(_a);
@@ -141,6 +190,8 @@ void main() {
 
 /// The device-wide counterpart of [spaceScopedKeys]; see decision 0070.
 const _deviceKeys = <String>{
+  'slimm.presence.share_listening',
+  'slimm.presence.share_spotify',
   'slimm.appearance.custom_theme',
   'slimm.appearance.custom_theme_source',
   'slimm.appearance.my_themes',

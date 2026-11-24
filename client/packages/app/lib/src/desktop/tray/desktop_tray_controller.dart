@@ -284,8 +284,9 @@ class DesktopTrayController with TrayListener {
     ),
     TrayMenuActionKind.quit => MenuItem(
       label: 'Quit slim-m',
-      onClick: (_) =>
-          unawaited(container.read(desktopWindowShellProvider).quit(port)),
+      onClick: (_) => unawaited(
+        _screenContainer.read(desktopWindowShellProvider).quit(port),
+      ),
     ),
   };
 

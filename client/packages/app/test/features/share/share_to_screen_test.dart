@@ -233,6 +233,13 @@ void main() {
     expect(container.read(pendingShareProvider), isNull);
   });
 
+  testWidgets('a share too large to take in says so', (tester) async {
+    await _pumpShare(tester, const IncomingShare(tooLarge: 1));
+
+    expect(find.text(ShareToScreen.tooLargeMessage), findsOneWidget);
+    expect(find.text(ShareToScreen.unreadableMessage), findsNothing);
+  });
+
   group('with several servers signed in', () {
     Future<AccountHarness> pumpTwoServers(WidgetTester tester) async {
       final h = await twoServers(tester, size: const Size(390, 800));

@@ -2,9 +2,10 @@
 //! The send half of the message write paths: idempotent insert, attachment linking, and the
 //! in-transaction slow-mode check. Edit and delete live in [`super`].
 
+use super::message_forwards::ForwardSource;
 use super::row::{IdProbe, NewRow, insert_message_row, probe_id};
 use super::{ModuleStamp, NewMessage, SendError, Sent};
-use crate::ids::ChannelId;
+use crate::ids::{ChannelId, MessageId};
 use crate::store::attachments::link_attachments;
 use crate::store::{Store, now_ms};
 
@@ -139,6 +140,14 @@ impl Store {
             }
         }
 
+        // The handler resolved the source before this lock; a delete that landed in between must not leave a copy.
+        if let Some(source) = &forward
+            && !forward_source_is_live(&mut tx, source).await?
+        {
+            tx.commit().await?;
+            return Err(SendError::ForwardSourceGone);
+        }
+
         let message = insert_message_row(
             &mut tx,
             &NewRow {
@@ -190,5 +199,35 @@ impl Store {
             message,
             fresh: true,
         })
+    }
+}
+
+async fn forward_source_is_live(
+    tx: &mut sqlx::SqliteConnection,
+    source: &ForwardSource,
+) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar!(
+        r#"SELECT EXISTS(SELECT 1 FROM messages m
+                         LEFT JOIN message_forwards f ON f.message_id = m.id
+                         WHERE m.id = ?1 AND m.deleted_at IS NULL AND f.origin_removed_at IS NULL)
+              AND EXISTS(SELECT 1 FROM messages WHERE id = ?2 AND deleted_at IS NULL)
+              AS "live!: bool""#,
+        source.named,
+        source.origin.message_id
+    )
+    .fetch_one(tx)
+    .await
+}
+
+impl Store {
+    /// Whether the message was soft-deleted, so a retried send of it can answer with its tombstone and do nothing else.
+    pub async fn message_is_deleted(&self, id: MessageId) -> anyhow::Result<bool> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT deleted_at IS NOT NULL AS "deleted!: bool" FROM messages WHERE id = ?"#,
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .unwrap_or(false))
     }
 }

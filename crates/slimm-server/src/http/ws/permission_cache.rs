@@ -29,6 +29,7 @@ pub(super) struct PermissionCache {
     timeout: Option<TimeoutEntry>,
     previewable: HashMap<(ChannelId, CanvasObjectId), Instant>,
     blocked: Option<BlockedEntry>,
+    base: Option<Entry>,
 }
 
 /// Who this member has blocked, as last read; see [`PermissionCache::blocked`].
@@ -59,7 +60,24 @@ impl PermissionCache {
             timeout: None,
             previewable: HashMap::new(),
             blocked: None,
+            base: None,
         }
+    }
+
+    /// The connection's channel-independent permissions, or `None` to go and ask; stale like [`Self::get`].
+    pub(super) fn base(&self, now: Instant, epoch: u64) -> Option<Permissions> {
+        let entry = self.base.as_ref()?;
+        let fresh = now.duration_since(entry.asked_at) < TTL && entry.epoch == epoch;
+        fresh.then_some(entry.permissions)
+    }
+
+    /// Records the base permissions against the epoch read before they were queried, never after.
+    pub(super) fn insert_base(&mut self, permissions: Permissions, now: Instant, epoch: u64) {
+        self.base = Some(Entry {
+            permissions,
+            asked_at: now,
+            epoch,
+        });
     }
 
     /// The members this viewer has blocked, or `None` to go and ask. Stale on the
@@ -233,6 +251,16 @@ mod tests {
         assert_eq!(cache.timeout_until(now, 7), Some(Some(5)));
         assert_eq!(cache.timeout_until(now, 8), None);
         assert_eq!(cache.timeout_until(now + TTL, 7), None);
+    }
+
+    #[test]
+    fn base_permissions_follow_the_same_epoch_and_window() {
+        let (mut cache, _, now) = cache();
+        assert_eq!(cache.base(now, 7), None);
+        cache.insert_base(VIEW, now, 7);
+        assert_eq!(cache.base(now, 7), Some(VIEW));
+        assert_eq!(cache.base(now, 8), None);
+        assert_eq!(cache.base(now + TTL, 7), None);
     }
 
     #[test]

@@ -176,21 +176,74 @@ class ModuleCommandOutput extends ConsumerWidget {
       unawaited(container.read(moduleSoundPlayerProvider).playNotes(played));
     }
 
-    return ModuleSceneView(
-      initial: scene,
+    return _SceneHost(
+      scene: scene,
       runCommand: run,
       onNotes: notes,
       fillAvailable: fillAvailable,
       // Only a shared board has a screen of its own to go to.
-      onExpand: shared && !fillAvailable
-          ? () => showModuleSceneFullscreen(
-              context,
-              initial: scene,
-              runCommand: run,
-              onNotes: notes,
-              title: moduleId,
-            )
-          : null,
+      canExpand: shared && !fillAvailable,
+      title: moduleId,
+    );
+  }
+}
+
+/// The inline board, which hands every newer frame it is given on to a full-screen view it opened.
+class _SceneHost extends StatefulWidget {
+  const _SceneHost({
+    required this.scene,
+    required this.runCommand,
+    required this.onNotes,
+    required this.fillAvailable,
+    required this.canExpand,
+    required this.title,
+  });
+
+  final ModuleScene scene;
+  final ModuleSceneRunner runCommand;
+  final void Function(List<SceneNote> notes) onNotes;
+  final bool fillAvailable;
+  final bool canExpand;
+  final String title;
+
+  @override
+  State<_SceneHost> createState() => _SceneHostState();
+}
+
+class _SceneHostState extends State<_SceneHost> {
+  // Not disposed: the route it feeds can outlive this widget.
+  ValueNotifier<ModuleScene>? _fullscreen;
+
+  @override
+  void didUpdateWidget(_SceneHost old) {
+    super.didUpdateWidget(old);
+    final live = _fullscreen;
+    if (live == null) return;
+    // A route listening cannot be marked dirty while this build runs.
+    final scene = widget.scene;
+    WidgetsBinding.instance.addPostFrameCallback((_) => live.value = scene);
+  }
+
+  Future<void> _expand() {
+    final live = _fullscreen = ValueNotifier(widget.scene);
+    return showModuleSceneFullscreen(
+      context,
+      initial: widget.scene,
+      updates: live,
+      runCommand: widget.runCommand,
+      onNotes: widget.onNotes,
+      title: widget.title,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ModuleSceneView(
+      initial: widget.scene,
+      runCommand: widget.runCommand,
+      onNotes: widget.onNotes,
+      fillAvailable: widget.fillAvailable,
+      onExpand: widget.canExpand ? _expand : null,
     );
   }
 }

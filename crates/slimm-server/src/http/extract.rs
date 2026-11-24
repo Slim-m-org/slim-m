@@ -224,6 +224,15 @@ pub(crate) const INTERACTION: u8 = 17;
 /// Setting a presence activity; see [`Class::PresenceActivity`].
 pub(crate) const PRESENCE_ACTIVITY: u8 = 18;
 
+/// Placing a canvas batch, charged for its first object before the body; see [`Class::CanvasBatch`].
+pub(crate) const CANVAS_BATCH: u8 = 19;
+
+/// Sending a screen stamp; see [`Class::ScreenStamp`].
+pub(crate) const SCREEN_STAMP: u8 = 20;
+
+/// A watch-together session update or tick; see [`Class::WatchTick`].
+pub(crate) const WATCH_TICK: u8 = 21;
+
 /// Panics on an unknown code rather than falling back.
 ///
 /// It used to end `_ => Class::Refresh`, which meant a new code compiled clean
@@ -252,6 +261,9 @@ fn class_of(code: u8) -> Class {
         LIVEKIT_WEBHOOK => Class::LiveKitWebhook,
         INTERACTION => Class::Interaction,
         PRESENCE_ACTIVITY => Class::PresenceActivity,
+        CANVAS_BATCH => Class::CanvasBatch,
+        SCREEN_STAMP => Class::ScreenStamp,
+        WATCH_TICK => Class::WatchTick,
         other => unreachable!("no rate-limit class for code {other}"),
     }
 }

@@ -256,3 +256,40 @@ async fn a_linked_account_carries_the_members_sharing_choice() {
     assert_eq!(linked[0]["provider"], "steam");
     assert_eq!(linked[0]["share_activity"], true);
 }
+
+#[tokio::test]
+async fn a_ranked_poll_vote_is_exported_with_the_full_ranking() {
+    let (store, _guard) = support::new_store("slimm-export-ranking").await;
+    let w = world(store.clone());
+    let (alice, _) = account(&store, "alice").await;
+    let general = general_channel_id(&store).await;
+    let (_, poll) = w
+        .call(
+            "POST",
+            &format!("/channels/{general}/messages/polls"),
+            &alice,
+            Some(json!({
+                "id": uuid::Uuid::now_v7().to_string(),
+                "question": "where to?",
+                "options": ["beach", "city", "hills"],
+                "ranked": true,
+            })),
+        )
+        .await;
+    let (status, _) = w
+        .call(
+            "PUT",
+            &format!("/messages/{}/polls/vote", poll["id"].as_str().unwrap()),
+            &alice,
+            Some(json!({ "ranking": [2, 0, 1] })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    let archive = w.archive(&alice, "member").await;
+
+    let votes = archive.lines("poll_votes.jsonl");
+    assert_eq!(votes.len(), 1);
+    assert_eq!(votes[0]["position"], 2);
+    assert_eq!(votes[0]["ranking"], json!([2, 0, 1]));
+}

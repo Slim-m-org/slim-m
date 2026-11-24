@@ -16,9 +16,8 @@
 /// the app is already running arrives on [taps] instead. Both are needed and
 /// neither subsumes the other.
 ///
-/// iOS only, and that is a limitation rather than a choice: on Android the
-/// envelope is still sealed to a key nothing on the device opens, so there is
-/// no channel id to route to. [taps] is simply empty there, and
+/// iOS only: on Android a tap arrives as the local notification's payload
+/// (see `LocalNotifications`). [taps] is simply empty there, and
 /// [takeInitial] answers null, so a caller needs no platform check of its
 /// own.
 library;
@@ -28,6 +27,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 import 'host_platform.dart';
+import 'method_channel_hub.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/push_tap';
@@ -37,17 +37,18 @@ class NotificationTapChannel {
   NotificationTapChannel({MethodChannel? channel, bool? isIOS})
       : _channel = channel ?? const MethodChannel(_channelName),
         _isIOS = isIOS ?? isIOSHost {
-    if (_isIOS) _channel.setMethodCallHandler(_onCall);
+    if (_isIOS) _calls = MethodChannelHub.of(_channel).calls.listen(_onCall);
   }
 
   final MethodChannel _channel;
   final bool _isIOS;
   final _taps = StreamController<String>.broadcast();
+  StreamSubscription<MethodCall>? _calls;
 
   /// Taps arriving while the app is already running.
   Stream<String> get taps => _taps.stream;
 
-  Future<void> _onCall(MethodCall call) async {
+  void _onCall(MethodCall call) {
     if (call.method != 'onNotificationTap') return;
     final channelId = call.arguments;
     if (channelId is String && channelId.isNotEmpty) _taps.add(channelId);
@@ -78,5 +79,8 @@ class NotificationTapChannel {
     }
   }
 
-  Future<void> dispose() => _taps.close();
+  Future<void> dispose() async {
+    await _calls?.cancel();
+    await _taps.close();
+  }
 }

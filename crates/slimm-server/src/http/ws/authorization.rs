@@ -49,6 +49,21 @@ pub(super) enum Authorization {
 /// outage still gives up promptly.
 const RESOLVE_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(25);
 
+/// Runs a store read, retrying once after [`RESOLVE_RETRY_DELAY`] when it fails.
+pub(super) async fn read_with_retry<T, F, Fut>(mut read: F) -> anyhow::Result<T>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = anyhow::Result<T>>,
+{
+    match read().await {
+        Ok(answer) => Ok(answer),
+        Err(_) => {
+            tokio::time::sleep(RESOLVE_RETRY_DELAY).await;
+            read().await
+        }
+    }
+}
+
 /// [`authorize_unstamped`], with a moderation event's number attached to the frame it delivers.
 pub(super) async fn authorize(
     store: &Store,
@@ -85,7 +100,7 @@ pub(super) async fn authorize_unstamped(
     cache: &mut PermissionCache,
     event: Event,
 ) -> Authorization {
-    let event = match super::deployment_frames::authorize(store, hub, ctx, event).await {
+    let event = match super::deployment_frames::authorize(store, hub, ctx, cache, event).await {
         Ok(decision) => return decision,
         Err(event) => *event,
     };
@@ -188,11 +203,12 @@ async fn passes_presence_gates(
     | Event::VoiceScreenShareChanged { user_id, .. } = *event
         && user_id != ctx.user_id
     {
-        let hidden = matches!(
-            signals::visibility_of(store, hub, user_id).await,
-            Ok(Some(crate::presence::Visibility::Hidden))
-        );
-        if hidden {
+        let shown = match signals::visibility_of(store, hub, user_id).await {
+            Ok(Some(visibility)) => visibility != crate::presence::Visibility::Hidden,
+            Ok(None) => true,
+            Err(_) => false,
+        };
+        if !shown {
             return false;
         }
     }

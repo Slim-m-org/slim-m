@@ -24,7 +24,8 @@ pub(crate) fn moves_permissions(event: &Event) -> bool {
         | Event::ChannelUpdated(..)
         | Event::ChannelDeleted { .. }
         // A roster change is a permission change for the person added or removed.
-        | Event::DmChanged { .. } => true,
+        | Event::DmChanged { .. }
+        | Event::DmLeft { .. } => true,
         Event::Message(MessageEvent::Created { .. })
         | Event::Message(MessageEvent::Edited { .. })
         | Event::Message(MessageEvent::Deleted { .. })
@@ -90,6 +91,8 @@ pub(crate) fn moves_permissions(event: &Event) -> bool {
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
         | Event::CategoryMuteChanged { .. }
+        | Event::BlocksChanged { .. }
+        | Event::AccountNotificationsChanged { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
@@ -205,12 +208,15 @@ pub(super) fn is_ephemeral(event: &Event) -> bool {
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }
         | Event::DmChanged { .. }
+        | Event::DmLeft { .. }
         | Event::ReportsChanged
         | Event::AdminAlertsChanged
         // Private notices and read markers move no permission and need no fan-out ordering.
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
         | Event::CategoryMuteChanged { .. }
+        | Event::BlocksChanged { .. }
+        | Event::AccountNotificationsChanged { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
         | Event::VoiceRemoved { .. }

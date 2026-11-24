@@ -14,6 +14,7 @@
 /// nesting at all, which is why this is a parser rather than a bigger regex.
 library;
 
+import 'message_fences.dart';
 import 'message_inline_nodes.dart';
 
 export 'message_inline_nodes.dart';
@@ -391,6 +392,8 @@ _Token? _linkToken(String s, int i) {
 /// the same trailing-punctuation trim - even one nested inside `**bold**` or
 /// similar.
 ///
+/// Fenced code is skipped, as the body renders it as code and not as links.
+///
 /// A URL in angle brackets, `<https://...>`, is skipped too: it is how a
 /// person asks for the link with no card.
 ///
@@ -402,22 +405,23 @@ List<String> extractLinkPreviewUrls(String content, {int max = 2}) {
   void walk(List<InlineNode> nodes) {
     for (final node in nodes) {
       if (urls.length >= max) return;
-      switch (node) {
-        case InlineLink(:final url, :final noPreview):
-          if (!noPreview && !urls.contains(url)) urls.add(url);
-        case InlineBold(:final children):
-          walk(children);
-        case InlineItalic(:final children):
-          walk(children);
-        case InlineStrikethrough(:final children):
-          walk(children);
-        default:
-          break;
+      if (node case InlineLink(:final url, :final noPreview)) {
+        if (!noPreview && !urls.contains(url)) urls.add(url);
+        continue;
       }
+      final inner = switch (node) {
+        InlineBold(:final children) ||
+        InlineItalic(:final children) ||
+        InlineStrikethrough(:final children) => children,
+        _ => null,
+      };
+      if (inner != null) walk(inner);
     }
   }
 
-  walk(parseInline(content));
+  for (final block in splitMessageBlocks(content)) {
+    if (block is TextBlock) walk(parseInline(block.text));
+  }
   return urls;
 }
 

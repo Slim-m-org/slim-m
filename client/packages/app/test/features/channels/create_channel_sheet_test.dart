@@ -19,6 +19,13 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/widgets/create_channel_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+const _tokens = api.TokenPair(
+  userId: 'user-1',
+  accessToken: 'access',
+  refreshToken: 'refresh',
+  accessExpiresAt: 0,
+);
+
 Future<void> _openSheet(
   WidgetTester tester, {
   int permissions = 0,
@@ -27,6 +34,7 @@ Future<void> _openSheet(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         meProvider.overrideWith(
           (ref) async => api.Me(
             id: 'user-1',

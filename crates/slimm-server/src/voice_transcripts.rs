@@ -77,6 +77,7 @@ impl ListenerEngine {
     pub fn new(url: String, secret: String) -> Self {
         let http = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
+            .redirect(reqwest::redirect::Policy::none())
             .build()
             .expect("an HTTP client with a timeout builds");
         Self { http, url, secret }
@@ -131,7 +132,7 @@ impl SpeechEngine for ListenerEngine {
     }
 }
 
-/// Statuses from a listener, or a proxy in front of it, that never looked at the clip.
+/// Statuses from a listener, or a proxy in front of it, that never looked at the clip; a redirect is never followed.
 fn not_taken(status: reqwest::StatusCode) -> bool {
     use reqwest::StatusCode;
     matches!(
@@ -144,7 +145,7 @@ fn not_taken(status: reqwest::StatusCode) -> bool {
             | StatusCode::BAD_GATEWAY
             | StatusCode::SERVICE_UNAVAILABLE
             | StatusCode::GATEWAY_TIMEOUT
-    )
+    ) || status.is_redirection()
 }
 
 /// The sweep's state: which clips are backing off, and whether the listener is.

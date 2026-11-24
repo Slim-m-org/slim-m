@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/members/providers/activity_sharing_settings.dart';
 import 'package:slimm_app/src/deep_links.dart';
 import 'package:slimm_app/src/features/members/providers/activity_feeds.dart';
 import 'package:slimm_app/src/features/members/providers/activity_publisher.dart';
@@ -108,7 +109,7 @@ class SpotifyRig {
 
   Future<void> start({bool enabled = false}) async {
     SharedPreferences.setMockInitialValues({
-      if (enabled) shareSpotifyKey: true,
+      if (enabled) activitySwitchStorageKey(shareSpotifyKey, 'self'): true,
     });
     await container.read(preferencesProvider.future);
     container.read(activityPublisherProvider);

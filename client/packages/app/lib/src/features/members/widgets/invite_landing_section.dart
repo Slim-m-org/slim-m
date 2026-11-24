@@ -15,6 +15,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/member_presence.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/server_info.dart';
+import '../../../providers/bounded_image_decode.dart';
+import '../../../widgets/image_decode.dart';
 import '../../messages/widgets/attachment_picker.dart';
 import 'avatar_crop_sheet.dart';
 import '../../messages/widgets/image_downscale.dart';
@@ -192,7 +194,13 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     if (updatedAt == null) return null;
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return switch (ref.watch(_bannerBytesProvider(updatedAt))) {
-      AsyncData(:final value) => Image.memory(value, fit: BoxFit.cover),
+      AsyncData(:final value) => Image(
+        image: ResizeImage(
+          BoundedMemoryImage(value),
+          width: decodeEdge(context, MediaQuery.sizeOf(context).width),
+        ),
+        fit: BoxFit.cover,
+      ),
       AsyncError() => ColoredBox(color: tokens.surfaceSunken),
       _ => ColoredBox(
         color: tokens.surfaceSunken,

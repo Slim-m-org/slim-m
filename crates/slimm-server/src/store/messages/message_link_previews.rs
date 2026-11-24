@@ -6,8 +6,40 @@ use std::collections::HashSet;
 
 use crate::ids::{ChannelId, MessageId, UserId};
 
+use super::super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::super::{Store, now_ms};
 use super::message_ops::insert_message_op;
+
+/// Writes the moderation row for removing someone else's previews, in the removal's own transaction.
+async fn audit_removal(
+    conn: &mut sqlx::SqliteConnection,
+    message_id: MessageId,
+    actor_id: UserId,
+    created_at: i64,
+) -> Result<(), sqlx::Error> {
+    let author = sqlx::query_scalar!(
+        r#"SELECT author_id AS "author_id: UserId" FROM messages WHERE id = ?"#,
+        message_id
+    )
+    .fetch_optional(&mut *conn)
+    .await?
+    .flatten();
+    let Some(author) = author.filter(|author| *author != actor_id) else {
+        return Ok(());
+    };
+    record_moderation_audit(
+        conn,
+        ModerationAudit {
+            actor_id,
+            subject_id: author,
+            action: ModerationAction::MessagePreviewRemoved,
+            reason: None,
+            until: None,
+            created_at,
+        },
+    )
+    .await
+}
 
 impl Store {
     /// Records that `message_id`'s link previews were removed, and files the
@@ -33,6 +65,7 @@ impl Store {
         .rows_affected()
             > 0;
         let op_seq = if inserted {
+            audit_removal(&mut tx, message_id, actor_id, now).await?;
             Some(
                 insert_message_op(&mut tx, channel_id, message_id, "edit", Some(actor_id), now)
                     .await?,

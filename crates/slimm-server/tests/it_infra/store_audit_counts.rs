@@ -6,7 +6,9 @@
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::ids::{ChannelId, MessageId, UserId};
-use slimm_server::store::{MAX_SAVED_MESSAGES, MAX_THREADS_PER_CHANNEL, NewMessage, Store};
+use slimm_server::store::{
+    MAX_SAVED_MESSAGES, MAX_THREADS_PER_CHANNEL, NewMessage, OpenThreadError, Store,
+};
 use sqlx::SqlitePool;
 
 use crate::support;
@@ -62,21 +64,31 @@ async fn saves_of_deleted_messages_do_not_hold_a_slot() {
 }
 
 #[tokio::test]
-async fn threads_under_deleted_parents_do_not_hold_a_slot() {
+async fn a_thread_under_a_deleted_parent_gives_its_slot_back_at_the_ceiling() {
     let (s, pool, user, channel, _guard) = store("slimm-audit-threads").await;
     let mut first = None;
+    let mut first_thread = None;
     for i in 0..MAX_THREADS_PER_CHANNEL {
         let id = send(&s, channel, user, &format!("p{i}")).await;
-        s.open_thread(channel, id).await.unwrap();
+        let opened = s.open_thread(channel, id).await.unwrap();
         first.get_or_insert(id);
+        first_thread.get_or_insert(opened.channel.id);
     }
+    let full = send(&s, channel, user, "no room").await;
+    assert!(
+        matches!(
+            s.open_thread(channel, full).await,
+            Err(OpenThreadError::TooMany)
+        ),
+        "live parents still hold every slot"
+    );
     soft_delete(&pool, first.unwrap()).await;
 
-    let parent = send(&s, channel, user, "one more").await;
     assert!(
-        s.open_thread(channel, parent).await.is_ok(),
-        "a thread the list hides still counted toward the ceiling"
+        s.open_thread(channel, full).await.is_ok(),
+        "a thread no list can show must not lock the channel out of new threads"
     );
+    assert!(s.channel(first_thread.unwrap()).await.unwrap().is_none());
 }
 
 #[tokio::test]

@@ -34,7 +34,19 @@ class _ManageSourcesSheet extends ConsumerStatefulWidget {
 
 class _ManageSourcesSheetState extends ConsumerState<_ManageSourcesSheet>
     with GuardedActionState<_ManageSourcesSheet> {
+  var _removing = false;
+
   Future<void> _remove(api.DockSource source) async {
+    if (_removing) return;
+    setState(() => _removing = true);
+    try {
+      await _confirmAndRemove(source);
+    } finally {
+      if (mounted) setState(() => _removing = false);
+    }
+  }
+
+  Future<void> _confirmAndRemove(api.DockSource source) async {
     final confirmed = await confirmDangerousAction(
       context,
       title: 'Remove ${source.repo}?',
@@ -51,15 +63,26 @@ class _ManageSourcesSheetState extends ConsumerState<_ManageSourcesSheet>
     if (ok && mounted) ref.invalidate(dockCatalogProvider);
   }
 
+  Widget _sourceRow(api.DockSource source) {
+    return SettingsDetailRow(
+      icon: AppIcons.dock,
+      title: source.local ? 'Local dev directory' : source.repo,
+      trailing: source.local
+          ? null
+          : AppButton(
+              label: 'Remove',
+              icon: AppIcons.delete,
+              variant: AppButtonVariant.danger,
+              size: AppButtonSize.sm,
+              semanticLabel: 'Remove source ${source.repo}',
+              onPressed: _removing ? null : () => unawaited(_remove(source)),
+            ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final sources = [
-      for (final s
-          in ref.watch(dockCatalogProvider).valueOrNull?.sections ??
-              const <DockSourceSection>[])
-        s.source,
-    ];
+    final catalog = ref.watch(dockCatalogProvider);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -79,31 +102,22 @@ class _ManageSourcesSheetState extends ConsumerState<_ManageSourcesSheet>
             AppErrorState(message: message, onDismiss: clearActionError),
             const SizedBox(height: AppSpacing.s12),
           ],
-          if (sources.isEmpty)
-            Text(
-              'No community sources yet.',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            )
-          else
-            SettingsSectionCard(
-              children: [
-                for (final source in sources)
-                  SettingsDetailRow(
-                    icon: AppIcons.dock,
-                    title: source.local ? 'Local dev directory' : source.repo,
-                    trailing: source.local
-                        ? null
-                        : AppButton(
-                            label: 'Remove',
-                            icon: AppIcons.delete,
-                            variant: AppButtonVariant.danger,
-                            size: AppButtonSize.sm,
-                            semanticLabel: 'Remove source ${source.repo}',
-                            onPressed: () => unawaited(_remove(source)),
-                          ),
-                  ),
-              ],
+          AppAsyncView<List<api.DockSource>>(
+            center: false,
+            value: AppAsyncState(
+              data: catalog.valueOrNull == null
+                  ? null
+                  : [for (final s in catalog.requireValue.sections) s.source],
+              error: catalog.error,
             ),
+            errorMessage: 'Could not load the community sources.',
+            onRetry: () => ref.invalidate(dockCatalogProvider),
+            isEmpty: (sources) => sources.isEmpty,
+            emptyMessage: 'No community sources yet.',
+            data: (context, sources) => SettingsSectionCard(
+              children: [for (final source in sources) _sourceRow(source)],
+            ),
+          ),
           const SizedBox(height: AppSpacing.s16),
           AppButton(
             label: 'Add a community source',

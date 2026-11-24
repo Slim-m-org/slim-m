@@ -118,7 +118,11 @@ const BLOCKS: &str = "SELECT b.blocked_id, u.username AS blocked_username, b.cre
      WHERE b.blocker_id = ?1 ORDER BY b.blocked_id";
 
 const POLL_VOTES: &str = concat!(
-    "SELECT v.message_id, p.channel_id, v.position, v.voted_at
+    "SELECT v.message_id, p.channel_id, v.position, v.voted_at,
+        (SELECT json_group_array(r.position) FROM
+            (SELECT position FROM poll_rankings
+              WHERE message_id = v.message_id AND user_id = v.user_id ORDER BY rank) r
+        ) AS ranking_json
      FROM poll_votes v JOIN polls p ON p.message_id = v.message_id
      JOIN messages m ON m.id = v.message_id AND m.deleted_at IS NULL
      JOIN channels c ON c.id = p.channel_id ",

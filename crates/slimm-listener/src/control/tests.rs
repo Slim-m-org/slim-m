@@ -35,6 +35,8 @@ struct Fake {
     linger: AtomicBool,
     release: tokio::sync::Notify,
     panic_on_launch: AtomicBool,
+    /// A started session reports a segment of this many bytes every 20 ms; 0 is quiet.
+    chatty: std::sync::atomic::AtomicUsize,
 }
 
 impl Launcher for Arc<Fake> {
@@ -56,7 +58,26 @@ impl Launcher for Arc<Fake> {
             let _ = reports.send(Report::Started {
                 session: session.clone(),
             });
-            while let Some(command) = feed.recv().await {
+            let mut chatter = tokio::time::interval(Duration::from_millis(20));
+            loop {
+                let command = tokio::select! {
+                    command = feed.recv() => command,
+                    _ = chatter.tick() => {
+                        let bytes = fake.chatty.load(Ordering::Acquire);
+                        if bytes > 0 {
+                            let _ = reports.send(Report::Segment {
+                                session: session.clone(),
+                                identity: "u1".into(),
+                                start_ms: 0,
+                                end_ms: 1,
+                                text: "x".repeat(bytes),
+                                language: None,
+                            });
+                        }
+                        continue;
+                    }
+                };
+                let Some(command) = command else { break };
                 let stop = command == SessionCommand::Stop;
                 fake.commands
                     .lock()
@@ -251,6 +272,51 @@ async fn a_quiet_server_counts_as_a_lost_connection() {
     }
     assert_eq!(fake.commands.lock().unwrap()[0].1, SessionCommand::Stop);
     drop(client);
+}
+
+async fn stopped(fake: &Fake, within: Duration) -> bool {
+    let deadline = tokio::time::Instant::now() + within;
+    while tokio::time::Instant::now() < deadline {
+        if !fake.commands.lock().unwrap().is_empty() {
+            return true;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    false
+}
+
+#[tokio::test]
+async fn reports_going_out_do_not_keep_a_silent_server_alive() {
+    let (url, fake) = start_with(2, Duration::from_millis(300)).await;
+    fake.chatty.store(16, Ordering::Release);
+    let mut client = connect(&url, SECRET).await.unwrap();
+    next_json(&mut client).await;
+    client.send(start_frame("s1", &["u1"])).await.unwrap();
+    let reader = tokio::spawn(async move { while client.next().await.is_some() {} });
+    assert!(
+        stopped(&fake, Duration::from_secs(3)).await,
+        "never gave up"
+    );
+    reader.abort();
+}
+
+#[tokio::test]
+async fn a_peer_that_stops_reading_is_a_lost_connection_even_while_it_pings() {
+    let (url, fake) = start_with(2, Duration::from_millis(300)).await;
+    fake.chatty.store(512 * 1024, Ordering::Release);
+    let mut client = connect(&url, SECRET).await.unwrap();
+    next_json(&mut client).await;
+    client.send(start_frame("s1", &["u1"])).await.unwrap();
+    let (mut tx, _unread) = client.split();
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(8);
+    while tokio::time::Instant::now() < deadline && fake.commands.lock().unwrap().is_empty() {
+        let _ = tx.send(Wire::Ping(Vec::new().into())).await;
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert!(
+        !fake.commands.lock().unwrap().is_empty(),
+        "stayed connected"
+    );
 }
 
 #[test]

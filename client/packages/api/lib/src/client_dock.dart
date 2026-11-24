@@ -195,6 +195,7 @@ extension SlimmApiDock on SlimmApi {
       'POST',
       '/space/dock/packages/preview',
       body: package,
+      deadline: transferDeadline,
     );
     return DockManifest.fromJson(json as Map<String, dynamic>);
   }
@@ -221,6 +222,7 @@ extension SlimmApiDock on SlimmApi {
           'approve_local_network': approveLocalNetwork,
         if (reviewedDigest != null) 'reviewed_digest': reviewedDigest,
       },
+      deadline: transferDeadline,
     );
     return InstalledDockModule.fromJson(json as Map<String, dynamic>);
   }

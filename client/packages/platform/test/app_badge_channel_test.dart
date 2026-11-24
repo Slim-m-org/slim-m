@@ -46,6 +46,22 @@ void main() {
     expect(calls, isEmpty);
   });
 
+  test('iOS asks the native side to clear an account\'s delivered banners',
+      () async {
+    await AppBadgeChannel(isIOS: true)
+        .clearDelivered(channelIds: ['a', 'b'], all: true);
+    expect(calls.single.method, 'clearDelivered');
+    expect(calls.single.arguments, {
+      'channelIds': ['a', 'b'],
+      'all': true,
+    });
+  });
+
+  test('clearing delivered banners is silent off iOS', () async {
+    await AppBadgeChannel(isIOS: false).clearDelivered(channelIds: ['a']);
+    expect(calls, isEmpty);
+  });
+
   test('a missing native side is swallowed', () async {
     messenger.setMockMethodCallHandler(const MethodChannel(_name), null);
     await AppBadgeChannel(isIOS: true).sync(count: 1, readChannelIds: []);

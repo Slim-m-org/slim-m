@@ -19,6 +19,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../providers/bounded_image_decode.dart';
 import '../../../widgets/animation_gate.dart';
 import '../providers/attachment_preview_bytes.dart';
 import '../../../widgets/image_decode.dart';
@@ -110,7 +111,7 @@ class _FullscreenImagePageState extends State<FullscreenImagePage> {
       decodeEdge(context, MediaQuery.sizeOf(context).longestSide);
 
   ImageProvider _decoded(BuildContext context) {
-    final source = MemoryImage(widget.bytes);
+    final source = BoundedMemoryImage(widget.bytes);
     final edge = fullscreenDecodeEdge(
       screen: _screenEdge(context),
       animated: looksAnimated(widget.bytes),

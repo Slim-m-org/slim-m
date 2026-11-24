@@ -338,6 +338,11 @@ pub enum Event {
     /// ordinary `VIEW_CHANNEL` check, so it is the roster as it is now that
     /// decides, and a person who just left learns from their own request.
     DmChanged { channel_id: ChannelId },
+    /// `user_id` left a group DM. Private to that account, so its other devices drop the group.
+    DmLeft {
+        user_id: UserId,
+        channel_id: ChannelId,
+    },
     /// A report was filed or resolved: the moderation queue changed and a
     /// moderator watching it should refetch.
     ///
@@ -384,6 +389,19 @@ pub enum Event {
         user_id: UserId,
         category_id: crate::ids::ChannelCategoryId,
         muted: bool,
+    },
+    /// One account's block list changed, from any of its devices.
+    ///
+    /// Private to `user_id`, delivered like [`Event::CategoryMuteChanged`]. It names no
+    /// target: the other devices read the list back.
+    BlocksChanged { user_id: UserId },
+    /// One account's notification schedule, snooze, allow-lists or account default changed.
+    ///
+    /// Private to `user_id`, delivered like [`Event::NotificationOverrideChanged`]. Says only
+    /// which state moved, so the account's other devices refetch it.
+    AccountNotificationsChanged {
+        user_id: UserId,
+        scope: AccountNotificationScope,
     },
     /// A bot answered a member privately.
     ///
@@ -490,6 +508,24 @@ impl VoiceRemovalReason {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::OtherDevice => "other_device",
+        }
+    }
+}
+
+/// Which of an account's notification state [`Event::AccountNotificationsChanged`] says moved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AccountNotificationScope {
+    /// The weekly windows, off-hours mode, snooze or either allow-list.
+    Schedule,
+    /// The account-wide `everything` / `mentions` / `nothing` default.
+    Preference,
+}
+
+impl AccountNotificationScope {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Schedule => "schedule",
+            Self::Preference => "preference",
         }
     }
 }

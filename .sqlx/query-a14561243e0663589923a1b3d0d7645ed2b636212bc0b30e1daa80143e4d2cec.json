@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM moderation_audit_log WHERE created_at < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "a14561243e0663589923a1b3d0d7645ed2b636212bc0b30e1daa80143e4d2cec"
+}

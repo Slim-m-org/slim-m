@@ -176,3 +176,66 @@ fn a_secrets_allowed_hosts_are_part_of_the_digest() {
     let other = digest(&secret(&["other.example.com"]));
     assert_ne!(one, other);
 }
+
+const IMAGE_A: &str =
+    "ghcr.io/slim-m-org/x@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const IMAGE_B: &str =
+    "ghcr.io/slim-m-org/x@sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
+
+fn connector(host_run: Value) -> Value {
+    json!({
+        "schema": 1, "id": "jellyfin", "name": "Jellyfin", "version": "0.1.0",
+        "summary": "posts what is playing", "provider": "connector", "addon_api": 7,
+        "connector": {"permissions": ["send_messages"], "host_run": host_run}
+    })
+}
+
+#[test]
+fn any_change_to_a_host_run_ask_changes_the_digest() {
+    let base = json!({"image": IMAGE_A, "egress": [{"host": "a.example.com", "port": 443}]});
+    let reference = digest(&connector(base.clone()));
+    let edits = [
+        json!({"image": IMAGE_B}),
+        json!({"volume": true}),
+        json!({"egress_private": true}),
+        json!({"egress": [{"host": "a.example.com", "port": 8443}]}),
+        json!({"limits": {"memory_mib": 512}}),
+        json!({"limits": {"cpus": 1.0}}),
+        json!({"limits": {"pids": 512}}),
+        json!({"limits": {"volume_mib": 512}}),
+    ];
+    for edit in edits {
+        let mut ask = base.clone();
+        ask.as_object_mut()
+            .unwrap()
+            .extend(edit.as_object().unwrap().clone());
+        assert_ne!(digest(&connector(ask)), reference, "{edit}");
+    }
+}
+
+#[test]
+fn a_host_run_egress_listed_in_another_order_keeps_the_digest() {
+    let a = json!({"image": IMAGE_A, "egress": [{"host": "a.example.com", "port": 443}, {"host": "b.example.com", "port": 443}]});
+    let b = json!({"image": IMAGE_A, "egress": [{"host": "b.example.com", "port": 443}, {"host": "a.example.com", "port": 443}]});
+    assert_eq!(digest(&connector(a)), digest(&connector(b)));
+}
+
+#[test]
+fn rewording_a_permission_or_an_extension_point_changes_the_digest() {
+    let reference = digest(&manifest(|_| {}));
+    let reworded = |from: &str, to: &str| {
+        let text = GOOD_MANIFEST.replace(from, to);
+        let mut m: Value = serde_json::from_str(&text).unwrap();
+        m.as_object_mut()
+            .unwrap()
+            .insert("addon_api".into(), json!(3));
+        m["capabilities"]
+            .as_array_mut()
+            .unwrap()
+            .extend(HOOK_CAPS.iter().map(|c| json!(c)));
+        digest(&m)
+    };
+    assert_ne!(reworded("Execute code blocks", "Read messages"), reference);
+    assert_ne!(reworded("run a snippet", "harmless"), reference);
+    assert_ne!(reworded("runs it", "does nothing"), reference);
+}

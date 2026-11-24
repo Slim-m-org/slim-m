@@ -39,6 +39,12 @@ const requestDeadline = Duration(seconds: 45);
 /// the hang it replaces.
 const transferDeadline = Duration(minutes: 3);
 
+/// How long a finished upload may wait for the server to answer.
+///
+/// The server may decode, re-encode and recompress an image, or hash the whole
+/// file, before it replies, so this outlasts [transferDeadline].
+const uploadAnswerDeadline = Duration(minutes: 10);
+
 /// Methods a repeat cannot double up: a POST might already have landed.
 const _replayable = {'GET', 'HEAD', 'PUT', 'DELETE'};
 
@@ -57,6 +63,8 @@ extension SlimmApiTransport on SlimmApi {
     void Function(Map<String, String> headers)? onHeaders,
     // One attempt only, never replayed or refreshed: a request timed as a sample of the path.
     bool once = false,
+    // For a JSON call whose body or work is large; defaults to the request or transfer deadline.
+    Duration? deadline,
   }) async {
     // Inline, not awaitTrust: a trusted server must not cost every request a turn.
     if (authenticated) {
@@ -64,6 +72,7 @@ extension SlimmApiTransport on SlimmApi {
       if (hold != null) await hold;
     }
     final sentWith = session.tokens?.accessToken;
+    final sentBy = session.tokens?.userId;
     Future<http.Response> attempt() => _perform(
           _buildRequest(
             method,
@@ -73,7 +82,8 @@ extension SlimmApiTransport on SlimmApi {
             authenticated: authenticated,
           ),
           '$method $path',
-          deadline: bytes == null ? requestDeadline : transferDeadline,
+          deadline:
+              deadline ?? (bytes == null ? requestDeadline : transferDeadline),
           over: over,
           maxBytes: unvouched ? unvouchedReplyBytes : null,
         );
@@ -89,7 +99,7 @@ extension SlimmApiTransport on SlimmApi {
         !isRetry &&
         !once &&
         session.tokens != null) {
-      await refreshUnlessRotated(sentWith);
+      await refreshUnlessRotated(sentWith, sentBy: sentBy);
       return send(
         method,
         path,
@@ -101,6 +111,7 @@ extension SlimmApiTransport on SlimmApi {
         onStatus: onStatus,
         over: over,
         onHeaders: onHeaders,
+        deadline: deadline,
         isRetry: true,
       );
     }
@@ -117,8 +128,19 @@ extension SlimmApiTransport on SlimmApi {
   /// Rotates the session for a 401 on a call sent with [sentWith], unless another call already did.
   ///
   /// Rotating again would void the token that call minted, so a late 401 only replays.
-  Future<void> refreshUnlessRotated(String? sentWith) async {
+  ///
+  /// Throws [UnauthorizedException] when the session now belongs to an account other than [sentBy], so a call
+  /// issued by one account is never replayed, or its refresh spent, under another's.
+  Future<void> refreshUnlessRotated(String? sentWith, {String? sentBy}) async {
+    _requireSameAccount(sentBy);
     if (session.tokens?.accessToken == sentWith) await refresh();
+    _requireSameAccount(sentBy);
+  }
+
+  void _requireSameAccount(String? sentBy) {
+    if (session.tokens?.userId != sentBy) {
+      throw const UnauthorizedException('the signed-in account changed');
+    }
   }
 
   /// Runs [attempt], and once more when it died on a dropped socket and [method] is safe to repeat.
@@ -197,6 +219,7 @@ extension SlimmApiTransport on SlimmApi {
     final hold = trustGate?.call();
     if (hold != null) await hold;
     final token = session.tokens?.accessToken;
+    final sentBy = session.tokens?.userId;
     if (token == null) {
       throw const UnauthorizedException('not signed in');
     }
@@ -213,7 +236,7 @@ extension SlimmApiTransport on SlimmApi {
     });
 
     if (response.statusCode == 401 && !isRetry && session.tokens != null) {
-      await refreshUnlessRotated(token);
+      await refreshUnlessRotated(token, sentBy: sentBy);
       return fetchBytes(path, query: query, isRetry: true);
     }
 

@@ -9,16 +9,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../desktop/providers/desktop_call_notifier.dart';
+import '../../../diagnostics/debug_log.dart' show debugLogProvider;
 import '../../../diagnostics/debug_log_detail.dart';
 import '../../../desktop/providers/desktop_message_notifier.dart';
 import '../../../providers/direct_route_controller.dart';
-import '../../../providers/media_disk_caches.dart';
 import '../../../providers/providers.dart';
 import '../../../push/providers/push_controller.dart';
 import '../../messages/providers/retention_sweep.dart';
+import 'account_providers.dart';
+import 'account_slot.dart';
 import '../../../providers/sync_controller.dart';
 import '../../../providers/viewing_reporter.dart';
-import '../../messages/providers/attachment_preview_bytes.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
 import '../../members/providers/activity_publisher.dart';
 import '../../members/providers/presence_activity_reporter.dart';
@@ -35,6 +36,7 @@ import '../../settings/providers/notification_schedule_zone_sync.dart';
 import '../../settings/providers/notification_sound_controller.dart';
 import '../../voice/providers/hold_music_controller.dart';
 import '../../voice/providers/hold_music_sync.dart';
+import '../../voice/providers/jellyfin_credential_store.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../../providers/admin_providers.dart';
 
@@ -74,15 +76,29 @@ void startAccountServices(ProviderContainer container) {
 /// Reads a provider; both a [WidgetRef] and a [ProviderContainer] offer it.
 typedef ProviderReader = T Function<T>(ProviderListenable<T> provider);
 
+/// Whether another signed-in account on this device still needs the device-wide push key.
+bool otherAccountNeedsPushKey(ProviderReader read) =>
+    read(
+      accountHostProvider,
+    )?.otherAccountSignedIn(read(accountSlotProvider)) ??
+    false;
+
+/// Unregisters this account's push, keeping the device-wide key while another account still uses it.
+Future<void> unregisterPushVia(ProviderReader read) => read(
+  pushControllerProvider.notifier,
+).unregister(keepDeviceKey: otherAccountNeedsPushKey(read));
+
 /// Push is unregistered before the session goes, or this device keeps waking
 /// for an account that is no longer signed in on it.
 ///
 /// A live call is left first for the same reason: nothing else would stop it
 /// POSTing a heartbeat, on a cleared session, for the rest of the process's life.
 Future<void> signOutVia(ProviderReader read) async {
+  final userId = read(sessionProvider).tokens?.userId;
   await read(voiceControllerProvider.notifier).leave();
+  await JellyfinCredentialStore(read(keyStoreProvider)).forgetAll(userId);
   await read(syncControllerProvider.notifier).stop();
-  await read(pushControllerProvider.notifier).unregister();
+  await unregisterPushVia(read);
   try {
     await read(apiProvider).logout();
   } on api.ApiException catch (error, stack) {
@@ -90,13 +106,5 @@ Future<void> signOutVia(ProviderReader read) async {
     // The session may already be gone; clear locally either way.
     read(sessionProvider).clear();
   }
-  await clearAttachmentPreviews(
-    read(attachmentPreviewCacheProvider),
-    read(serverUrlProvider),
-  );
-  await clearMediaDiskCaches(
-    read(serverUrlProvider),
-    avatars: read(avatarCacheProvider),
-    originals: read(attachmentOriginalCacheProvider),
-  );
+  await read(debugLogProvider.notifier).erase();
 }

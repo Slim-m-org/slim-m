@@ -19,6 +19,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../message_preview.dart';
 import '../providers/message_extras.dart';
 import '../providers/reply_parent.dart';
+import '../providers/repost_blocks.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../members/widgets/role_color.dart';
@@ -174,9 +175,13 @@ class ReplyQuote extends ConsumerWidget {
       replyParentProvider((channelId: channel, messageId: parent)),
     );
     final author = fetched.valueOrNull?.authorId;
-    final blocked = ref.watch(
-      blocksProvider.select((s) => author != null && s.ids.contains(author)),
-    );
+    final blocked =
+        ref.watch(
+          blocksProvider.select(
+            (s) => author != null && s.ids.contains(author),
+          ),
+        ) ||
+        ref.watch(blockedRepostIdsProvider).contains(parent);
     return blocked ? const AsyncData(null) : fetched;
   }
 

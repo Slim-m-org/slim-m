@@ -46,6 +46,50 @@ pub struct HookDecl {
     pub reads: Vec<String>,
 }
 
+/// The run-stats key of one hook, so each hook of a module keeps its own counts.
+pub fn hook_stats_key(command: &str, decl: &HookDecl) -> String {
+    if decl.phase.is_empty() {
+        format!("{command}:{}", decl.hook)
+    } else {
+        format!("{command}:{}:{}", decl.hook, decl.phase)
+    }
+}
+
+fn hook_command(kind: HookKind) -> &'static str {
+    match kind {
+        HookKind::Interceptor => "@intercept",
+        HookKind::Permission => "@allow",
+    }
+}
+
+/// Drops hook run stats no declared hook owns: the bare keys of older builds and keys of hooks since removed.
+async fn prune_hook_run_stats(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    id: &str,
+    decls: &[HookDecl],
+) -> anyhow::Result<()> {
+    let declared: Vec<String> = decls
+        .iter()
+        .map(|decl| hook_stats_key(hook_command(decl.kind), decl))
+        .collect();
+    let recorded: Vec<String> = sqlx::query_scalar(
+        "SELECT command FROM module_run_stats WHERE module_id = ?
+           AND (command IN ('@intercept', '@allow')
+                OR command LIKE '@intercept:%' OR command LIKE '@allow:%')",
+    )
+    .bind(id)
+    .fetch_all(&mut **tx)
+    .await?;
+    for command in recorded.iter().filter(|c| !declared.contains(c)) {
+        sqlx::query("DELETE FROM module_run_stats WHERE module_id = ? AND command = ?")
+            .bind(id)
+            .bind(command)
+            .execute(&mut **tx)
+            .await?;
+    }
+    Ok(())
+}
+
 /// A hook as installed: the declaration plus what the admin set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleHook {
@@ -103,6 +147,7 @@ pub(super) async fn write_hooks(
         .execute(&mut **tx)
         .await?;
     }
+    prune_hook_run_stats(tx, id, decls).await?;
     Ok(())
 }
 

@@ -185,17 +185,23 @@ class AudioPlayersHoldMusicPlayer implements HoldMusicPlayer {
   /// Bumped by every stop, so a start still opening its file can tell it lost.
   int _generation = 0;
 
+  /// The newest start; an older one that lost must leave the output to it.
+  int _latestStart = 0;
+
   @override
   Future<void> start() async {
     _active = true;
     final generation = _generation;
+    final mine = ++_latestStart;
     try {
       await _output.play(_track.asset);
     } catch (_) {
       // A stop that landed mid-start disposed the player under it.
       if (generation == _generation) rethrow;
     }
-    if (generation != _generation) await _output.stop();
+    if (generation != _generation && mine == _latestStart) {
+      await _output.stop();
+    }
   }
 
   @override

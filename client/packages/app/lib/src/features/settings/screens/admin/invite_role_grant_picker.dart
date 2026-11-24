@@ -63,9 +63,11 @@ class InviteRoleGrantPicker extends ConsumerWidget {
             // The server refuses a role at or above the caller's own highest, as it does a hand assignment.
             .where(ladder.reachesRole)
             .toList();
-        if (grantable.isEmpty) return const SizedBox.shrink();
-
         final chosen = grantable.where((r) => r.id == selected).firstOrNull;
+        if (selected != null && chosen == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => onChanged(null));
+        }
+        if (grantable.isEmpty) return const SizedBox.shrink();
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [

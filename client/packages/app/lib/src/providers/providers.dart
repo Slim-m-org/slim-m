@@ -18,6 +18,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../features/messages/providers/attachment_cache_prune.dart';
 import '../backoff.dart';
 import '../features/accounts/providers/account_slot.dart';
 import '../features/auth/providers/database_key_store.dart';
@@ -318,13 +319,22 @@ final databaseProvider = FutureProvider<SlimmDatabase>((ref) async {
   return db;
 });
 
+/// Says whether this tab may sweep abandoned sends; see `claimSoleTab`.
+final soleTabClaimProvider = Provider<Future<bool> Function(String database)>(
+  (ref) => claimSoleTab,
+);
+
 /// The local store, once the database is open.
 final storeProvider = FutureProvider<MessageStore>((ref) async {
   final db = await ref.watch(databaseProvider.future);
   final store = MessageStore(db);
+  store.onMessagesDropped = (ids) => unawaited(pruneAttachmentCaches(ref, ids));
   try {
-    // Any row still pending belongs to a run that ended; see failInterruptedSends.
-    await failInterruptedSends(store);
+    // A pending row belongs to a dead run only if no other tab shares the database.
+    final database = ref.read(accountSlotProvider)?.databaseFile ?? 'default';
+    if (await ref.watch(soleTabClaimProvider)(database)) {
+      await failInterruptedSends(store);
+    }
   } catch (error, stack) {
     // The isolate wraps the real cause in a DriftRemoteException that names nothing.
     AppLog.error(
@@ -433,8 +443,8 @@ final pushKeyStoreProvider = Provider<KeyStore>(
 /// Where a push key an earlier build wrote is still sitting, so the first read
 /// after an upgrade moves it rather than orphaning every envelope already
 /// sealed to it. Null wherever the key never moved, which is everywhere but
-/// iOS; where it did move, the place it moved *from* is exactly the ordinary
-/// store.
+/// iOS; where it did move, the place it moved *from* is the ordinary store's
+/// group, named explicitly so a delete there cannot reach the push group.
 final legacyPushKeyStoreProvider = Provider<KeyStore?>(
-  (ref) => pushKeyHasItsOwnStore ? ref.watch(keyStoreProvider) : null,
+  (ref) => pushKeyHasItsOwnStore ? createLegacyPushKeyStore() : null,
 );

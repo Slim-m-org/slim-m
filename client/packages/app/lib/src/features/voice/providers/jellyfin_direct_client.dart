@@ -19,6 +19,11 @@ class JellyfinSignInRefused implements Exception {
   const JellyfinSignInRefused();
 }
 
+/// Thrown when the media server no longer accepts the stored token.
+class JellyfinUnauthorized implements Exception {
+  const JellyfinUnauthorized();
+}
+
 class JellyfinSession {
   const JellyfinSession({required this.token, required this.userId});
 
@@ -86,7 +91,7 @@ class JellyfinDirectClient {
     );
   }
 
-  /// Whether the signed-in account's library holds [itemId]; false on a 404, an error otherwise.
+  /// Whether the signed-in account's library holds [itemId]; false on a 404, [JellyfinUnauthorized] on a 401, an error otherwise.
   Future<bool> canSee(
     String baseUrl,
     JellyfinSession session,
@@ -100,6 +105,7 @@ class JellyfinDirectClient {
         .timeout(_timeout);
     if (response.statusCode == 200) return true;
     if (response.statusCode == 404) return false;
+    if (response.statusCode == 401) throw const JellyfinUnauthorized();
     throw http.ClientException(
       'The media server answered ${response.statusCode}',
     );

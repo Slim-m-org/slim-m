@@ -7,12 +7,13 @@ import 'dart:convert';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 class NotificationTarget {
-  const NotificationTarget({required this.origin, required this.channelId});
+  const NotificationTarget({this.origin, required this.channelId});
 
-  final String origin;
+  /// Null when the push could not name the account; the channel's owner is looked up instead.
+  final String? origin;
   final String channelId;
 
-  String encode() => jsonEncode({'o': origin, 'c': channelId});
+  String encode() => jsonEncode({'o': ?origin, 'c': channelId});
 
   /// Null for a payload this client did not write, such as none at all.
   static NotificationTarget? decode(String? payload) {
@@ -22,9 +23,12 @@ class NotificationTarget {
       if (json is! Map) return null;
       final origin = json['o'];
       final channelId = json['c'];
-      if (origin is! String || channelId is! String) return null;
-      if (origin.isEmpty || channelId.isEmpty) return null;
-      return NotificationTarget(origin: origin, channelId: channelId);
+      if (channelId is! String || channelId.isEmpty) return null;
+      if (origin != null && (origin is! String || origin.isEmpty)) return null;
+      return NotificationTarget(
+        origin: origin as String?,
+        channelId: channelId,
+      );
     } on FormatException catch (error, stack) {
       AppLog.swallowed(
         LogTag.auth,

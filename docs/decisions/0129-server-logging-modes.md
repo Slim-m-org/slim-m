@@ -66,7 +66,7 @@ Verbose fills the budget fastest, so on a busy space it shortens how far back th
 
 ### Reading them
 
-- An admin downloads the newest 16 MiB from Space settings, Debug logs, through `GET /space/server-logs` (Manage server).
+- An admin downloads the newest 16 MiB from Space settings, Debug logs, through `GET /space/server-logs` (Administrator, since the lines carry session and call metadata that Manage server holders are kept from elsewhere; switching the mode stays Manage server).
   It streams plain text file by file from a plan made from the file sizes, so a file still growing cannot make it longer, runs one at a time, and is written to the audit log.
 - An operator reads `/data/logs` directly, for example `docker compose exec server ls /data/logs` or the volume path on the host.
 

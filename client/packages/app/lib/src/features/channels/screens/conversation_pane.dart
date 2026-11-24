@@ -11,6 +11,7 @@ import 'package:slimm_platform/platform.dart' show isDesktopHost;
 import '../providers/channel_by_id_provider.dart';
 import '../../auth/providers/database_key_store.dart';
 import '../providers/last_text_channel.dart';
+import '../providers/threads.dart' show threadAccessProvider;
 import '../../../providers/toasts.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/sync_controller.dart'
@@ -72,7 +73,7 @@ class ConversationPane extends ConsumerWidget {
           padding: const EdgeInsets.all(AppSpacing.s16),
           child: AppErrorState(
             message: localStoreErrorMessage(e),
-            onRetry: () => ref.invalidate(storeProvider),
+            onRetry: () => ref.invalidate(databaseProvider),
           ),
         ),
       ),
@@ -95,6 +96,7 @@ class ConversationPane extends ConsumerWidget {
                   name: channel.name,
                   topic: channel.topic,
                   restricted: channel.restricted,
+                  isThread: channel.parentMessageId != null,
                 ),
         );
       }),
@@ -106,6 +108,8 @@ class ConversationPane extends ConsumerWidget {
         ref.watch(initialSyncCompleteProvider)) {
       return _unresolved(ref);
     }
+    // A thread opened from a notification skips ThreadScreen, so the pane checks access itself.
+    if (channel?.isThread ?? false) ref.watch(threadAccessProvider(channelId));
     final isVoice = channel?.kind == 'voice';
     final isLobby = isVoice && channel?.createsRooms == true;
     final canvasOpen = ref.watch(canvasOpenProvider) == channelId;

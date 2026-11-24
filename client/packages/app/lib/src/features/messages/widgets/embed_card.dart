@@ -11,6 +11,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../external_link.dart';
 import '../../../format.dart';
+import '../../../providers/bounded_image_decode.dart';
 import '../providers/attachment_preview_quality.dart';
 import '../../settings/providers/display_preferences.dart';
 import '../providers/link_preview.dart';
@@ -18,6 +19,7 @@ import '../providers/media_preferences.dart';
 import 'attachment_reveal.dart';
 import 'attachment_view.dart' show kInlineImageMax;
 import '../../../widgets/image_decode.dart';
+import '../../../widgets/link_destination.dart';
 import '../../../widgets/text_link.dart';
 import '../../../widgets/animation_gate.dart';
 
@@ -182,7 +184,14 @@ class _EmbedAuthorRow extends StatelessWidget {
     if (authorUrl == null) return row;
     return TextLink(
       onOpen: () => unawaited(openExternalHttpUrl(authorUrl)),
-      child: row,
+      child: Wrap(
+        spacing: AppSpacing.s8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          row,
+          LinkDestination(url: authorUrl),
+        ],
+      ),
     );
   }
 }
@@ -207,7 +216,14 @@ class _EmbedTitle extends StatelessWidget {
     if (targetUrl == null) return text;
     return TextLink(
       onOpen: () => unawaited(openExternalHttpUrl(targetUrl)),
-      child: text,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          text,
+          LinkDestination(url: targetUrl),
+        ],
+      ),
     );
   }
 }
@@ -323,10 +339,9 @@ class _EmbedImageState extends ConsumerState<_EmbedImage> {
             border: Border.all(color: tokens.borderSubtle),
           ),
           child: AnimationGate(
-            child: Image.memory(
-              bytes,
+            child: Image(
+              image: ResizeImage(BoundedMemoryImage(bytes), width: decodeWidth),
               fit: BoxFit.cover,
-              cacheWidth: decodeWidth,
               errorBuilder: (context, error, stackTrace) =>
                   const SizedBox.shrink(),
             ),

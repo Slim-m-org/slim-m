@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO module_health (module_id, hook_failures) VALUES (?, 1)\n               ON CONFLICT (module_id) DO UPDATE SET hook_failures = hook_failures + 1\n               RETURNING hook_failures AS \"streak!: i64\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "streak!: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "module_health",
+            "name": "hook_failures"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e469a5c5ee23b8fc724e258b4cf472cd947fd795d65c47306951607a31de0a34"
+}

@@ -88,6 +88,16 @@ impl Store {
         Ok((inserted == 1, closed))
     }
 
+    /// The channels that have someone on a call right now, as far as the sessions say.
+    pub async fn channels_with_open_voice_sessions(&self) -> anyhow::Result<Vec<ChannelId>> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT DISTINCT channel_id AS "channel_id!: ChannelId" FROM voice_sessions
+               WHERE left_at IS NULL"#
+        )
+        .fetch_all(&self.pool)
+        .await?)
+    }
+
     /// Closes the open sessions in `scope` at `at`, returning each as closed.
     pub async fn close_voice_sessions(
         &self,

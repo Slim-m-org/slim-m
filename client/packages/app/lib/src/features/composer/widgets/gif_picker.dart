@@ -252,11 +252,10 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
   }
 
   Future<void> _addFavorite(api.GifResult result) async {
+    final toasts = ref.read(toastsProvider.notifier);
     try {
       await ref.read(favoritesProvider.notifier).addGif(result.id);
-      ref
-          .read(toastsProvider.notifier)
-          .show('Added to favorites.', severity: AppToastSeverity.success);
+      toasts.show('Added to favorites.', severity: AppToastSeverity.success);
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.media, 'favorite a GIF', e, stack);
       if (!mounted) return;
