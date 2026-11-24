@@ -41,6 +41,7 @@ pub(super) mod message_mentions;
 pub(super) mod message_module_origins;
 pub(super) mod message_ops;
 pub(super) mod message_reads;
+pub(super) mod message_repost_authors;
 pub(super) mod message_retention;
 pub(super) mod message_search;
 pub(super) mod message_search_filters;

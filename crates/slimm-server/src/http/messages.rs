@@ -45,6 +45,7 @@ pub(super) mod message_get;
 pub(super) mod message_history;
 mod message_kind;
 pub(super) mod message_mentions;
+mod message_reposts;
 pub(super) mod message_requests;
 mod message_send;
 pub(super) mod message_validation;
