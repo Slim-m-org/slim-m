@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 use slimm_server::http::run_scheduled_modules;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::ModuleSchedule;
+use sqlx::Connection;
 use tower::ServiceExt;
 
 use crate::support;
@@ -277,4 +278,151 @@ async fn removing_the_module_s_principal_stops_its_scheduled_posts() {
 
     let landed = w.store.list_messages(feed.id, None, 10).await.unwrap();
     assert!(landed.is_empty(), "a removed principal posts nothing");
+}
+
+async fn open_feed(w: &World, name: &str) -> slimm_server::ids::ChannelId {
+    let feed = w.store.create_channel(name, "text").await.unwrap();
+    w.store
+        .set_role_overwrite(
+            feed.id,
+            w.everyone,
+            Permissions::NONE,
+            Permissions::SEND_MESSAGES,
+        )
+        .await
+        .unwrap();
+    feed.id
+}
+
+#[tokio::test]
+async fn moving_the_channel_keeps_what_an_admin_set_for_the_module_elsewhere() {
+    let w = world("slimm-modsched-keeps").await;
+    let token = admin_token(&w).await;
+    let (first, second) = (open_feed(&w, "first").await, open_feed(&w, "second").await);
+    ticker(&w, &first.to_string(), &["schedule", "message.post"]).await;
+    let bot = w.store.ensure_module_bot("ticker", "Ticker").await.unwrap();
+    let post = Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES);
+    let react = Permissions::ADD_REACTIONS;
+    w.store
+        .set_member_overwrite(second, bot, react, Permissions::NONE)
+        .await
+        .unwrap();
+    let (status, _) = set_channel(&w, &token, "ticker", Some(first.to_string())).await;
+    assert_eq!(status, StatusCode::OK);
+    w.store
+        .set_member_overwrite(first, bot, post.union(react), Permissions::NONE)
+        .await
+        .unwrap();
+
+    let (status, _) = set_channel(&w, &token, "ticker", Some(second.to_string())).await;
+    assert_eq!(status, StatusCode::OK);
+    let on_second = w
+        .store
+        .overwrite_for(second, "member", bot.0)
+        .await
+        .unwrap();
+    assert_eq!(on_second, Some((post.union(react), Permissions::NONE)));
+    let on_first = w.store.overwrite_for(first, "member", bot.0).await.unwrap();
+    assert!(
+        on_first.is_some(),
+        "an overwrite changed by hand is left alone"
+    );
+}
+
+#[tokio::test]
+async fn a_deny_set_for_the_module_blocks_the_move_and_changes_nothing() {
+    let w = world("slimm-modsched-deny").await;
+    let token = admin_token(&w).await;
+    let (first, second) = (open_feed(&w, "first").await, open_feed(&w, "second").await);
+    ticker(&w, &first.to_string(), &["schedule", "message.post"]).await;
+    let bot = w.store.ensure_module_bot("ticker", "Ticker").await.unwrap();
+    set_channel(&w, &token, "ticker", Some(first.to_string())).await;
+    let denied = Permissions::SEND_MESSAGES;
+    w.store
+        .set_member_overwrite(second, bot, Permissions::NONE, denied)
+        .await
+        .unwrap();
+
+    let (status, _) = set_channel(&w, &token, "ticker", Some(second.to_string())).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    let on_second = w
+        .store
+        .overwrite_for(second, "member", bot.0)
+        .await
+        .unwrap();
+    assert_eq!(on_second, Some((Permissions::NONE, denied)));
+    let module = w.store.installed_module("ticker").await.unwrap().unwrap();
+    assert_eq!(module.schedule_channel_id, Some(first));
+    let on_first = w.store.overwrite_for(first, "member", bot.0).await.unwrap();
+    assert!(
+        on_first.is_some(),
+        "the old grant stays while the module still points at it"
+    );
+}
+
+#[tokio::test]
+async fn a_clock_moved_backwards_still_runs_the_schedule() {
+    let w = world("slimm-modsched-clock").await;
+    let token = admin_token(&w).await;
+    let feed = open_feed(&w, "feed").await;
+    ticker(&w, &feed.to_string(), &["schedule", "message.post"]).await;
+    w.store.ensure_module_bot("ticker", "Ticker").await.unwrap();
+    set_channel(&w, &token, "ticker", Some(feed.to_string())).await;
+    w.store
+        .record_module_schedule_run("ticker", "run", 10_000 * MINUTE)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        run_scheduled_modules(&w.state, 5 * MINUTE).await.unwrap(),
+        1
+    );
+    let runs = w.store.module_schedule_runs("ticker").await.unwrap();
+    assert_eq!(
+        runs.get("run"),
+        Some(&(5 * MINUTE)),
+        "the stored time follows the clock back"
+    );
+}
+
+#[tokio::test]
+async fn one_module_failing_its_store_write_does_not_skip_the_rest() {
+    let w = world("slimm-modsched-isolated").await;
+    let token = admin_token(&w).await;
+    let feed = open_feed(&w, "feed").await;
+    w.install(Install {
+        id: "aaa-broken",
+        wasm: host_call_loop_wasm(&post_request(&feed.to_string(), "never"), 1),
+        declared: &["schedule", "message.post"],
+        approved_host: &["schedule", "message.post"],
+    })
+    .await;
+    w.store
+        .set_module_schedules(
+            "aaa-broken",
+            &[ModuleSchedule {
+                command: "run".into(),
+                every_minutes: 5,
+            }],
+        )
+        .await
+        .unwrap();
+    ticker(&w, &feed.to_string(), &["schedule", "message.post"]).await;
+    for id in ["aaa-broken", "ticker"] {
+        w.store.ensure_module_bot(id, id).await.unwrap();
+        set_channel(&w, &token, id, Some(feed.to_string())).await;
+    }
+    let url = format!("sqlite://{}", w.db_path);
+    let mut conn = sqlx::sqlite::SqliteConnection::connect(&url).await.unwrap();
+    sqlx::query(
+        "CREATE TRIGGER refuse_broken BEFORE INSERT ON module_schedule_runs
+         WHEN NEW.module_id = 'aaa-broken' BEGIN SELECT RAISE(ABORT, 'broken'); END",
+    )
+    .execute(&mut conn)
+    .await
+    .unwrap();
+
+    assert_eq!(run_scheduled_modules(&w.state, 0).await.unwrap(), 1);
+    let landed = w.store.list_messages(feed, None, 10).await.unwrap();
+    assert_eq!(landed.len(), 1, "the module after the broken one still ran");
 }

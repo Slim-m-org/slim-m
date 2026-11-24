@@ -4,6 +4,7 @@
 
 use super::contract::{self, Answer, RoomKind};
 use super::registry::{Held, Refused, RoomKey};
+use super::room_state_approved;
 use crate::http::AppState;
 use crate::http::error::ApiError;
 use crate::http::module_host::surface_for;
@@ -60,12 +61,16 @@ pub(crate) async fn take(
     let rooms = state.dock.rooms();
     // A room that ends while this input waits gives way to a fresh one, once.
     for _ in 0..2 {
-        let entered = rooms.enter(&key).map_err(refusal)?;
+        let entered = rooms.enter(&key, sender).map_err(refusal)?;
         let _turn = entered.room.take_turn().await;
         let held = entered.room.held();
         if held.ended {
             continue;
         }
+        let Some(module) = still_running(state, module).await? else {
+            return Ok(Outcome::Ended);
+        };
+        let module = &module;
         let input = contract::input(
             (place.channel, place.kind),
             (held.seq, held.state.as_ref()),
@@ -103,9 +108,21 @@ pub(crate) async fn take(
     Ok(Outcome::Ended)
 }
 
+/// The module as installed now, unless it was turned off, lost its approval or changed artifact
+/// while the input waited for its turn.
+async fn still_running(
+    state: &AppState,
+    waited_with: &InstalledModule,
+) -> Result<Option<InstalledModule>, ApiError> {
+    let fresh = state.store.installed_module(&waited_with.id).await?;
+    Ok(fresh.filter(|m| {
+        m.enabled && room_state_approved(m) && m.artifact_sha256 == waited_with.artifact_sha256
+    }))
+}
+
 fn refusal(refused: Refused) -> ApiError {
     match refused {
-        Refused::Busy => ApiError::TooManyRequests,
+        Refused::Busy | Refused::TooManyOpened => ApiError::TooManyRequests,
         Refused::TooManyRooms => {
             ApiError::Conflict("this module already keeps as many rooms as it may")
         }

@@ -83,6 +83,7 @@ mod module_reinstall_keyword_collision;
 mod module_rooms;
 mod module_rooms_call_scene;
 mod module_rooms_failures;
+mod module_rooms_limits;
 mod module_run_context;
 mod module_run_fuel;
 mod module_runs;
