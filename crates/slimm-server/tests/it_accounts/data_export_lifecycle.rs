@@ -125,3 +125,51 @@ async fn an_unfinished_export_cannot_be_downloaded() {
 
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn an_export_cut_short_twice_fails_instead_of_looping() {
+    let (store, _guard) = support::new_store("slimm-export-crash-loop").await;
+    let (_alice, alice_id) = account(&store, "alice").await;
+    let alice_user = slimm_server::ids::UserId(alice_id.parse().unwrap());
+    let job = store
+        .create_data_export(alice_user, slimm_server::store::ExportKind::Member)
+        .await
+        .unwrap();
+    assert!(store.mark_export_running(job.id).await.unwrap());
+
+    let first = store.requeue_interrupted_exports().await.unwrap();
+    assert_eq!(first.len(), 1, "the first restart resumes it");
+    assert!(store.mark_export_running(job.id).await.unwrap());
+    let second = store.requeue_interrupted_exports().await.unwrap();
+
+    assert!(
+        second.is_empty(),
+        "a second restart must not resume it again"
+    );
+    let row = store.data_export(job.id).await.unwrap().unwrap();
+    assert_eq!(row.status.as_str(), "failed");
+}
+
+#[tokio::test]
+async fn a_restart_does_not_resume_an_export_past_the_staleness_window() {
+    let (store, pool, _guard) = support::new_store_with_pool("slimm-export-stale-resume").await;
+    let (_alice, alice_id) = account(&store, "alice").await;
+    let alice_user = slimm_server::ids::UserId(alice_id.parse().unwrap());
+    let job = store
+        .create_data_export(alice_user, slimm_server::store::ExportKind::Member)
+        .await
+        .unwrap();
+    assert!(store.mark_export_running(job.id).await.unwrap());
+    sqlx::query("UPDATE data_exports SET created_at = 1")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    assert!(
+        store
+            .requeue_interrupted_exports()
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}

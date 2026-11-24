@@ -426,3 +426,24 @@ async fn one_module_failing_its_store_write_does_not_skip_the_rest() {
     let landed = w.store.list_messages(feed, None, 10).await.unwrap();
     assert_eq!(landed.len(), 1, "the module after the broken one still ran");
 }
+
+#[tokio::test]
+async fn picking_the_same_channel_again_restores_a_lost_grant() {
+    let w = world("slimm-modsched-repair").await;
+    let token = admin_token(&w).await;
+    let feed = open_feed(&w, "feed").await;
+    ticker(&w, &feed.to_string(), &["schedule", "message.post"]).await;
+    let bot = w.store.ensure_module_bot("ticker", "Ticker").await.unwrap();
+    let post = Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES);
+    set_channel(&w, &token, "ticker", Some(feed.to_string())).await;
+    w.store
+        .set_member_overwrite(feed, bot, Permissions::NONE, Permissions::NONE)
+        .await
+        .unwrap();
+    assert!(!w.store.has_permission(bot, feed, post).await.unwrap());
+
+    let (status, _) = set_channel(&w, &token, "ticker", Some(feed.to_string())).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(w.store.has_permission(bot, feed, post).await.unwrap());
+}

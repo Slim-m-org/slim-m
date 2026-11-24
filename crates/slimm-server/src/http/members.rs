@@ -19,6 +19,7 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
+use axum::middleware::from_fn;
 use axum::routing::{delete, get, put};
 use futures_util::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -28,6 +29,7 @@ use super::error::ApiError;
 use super::escalation::escalation_guard;
 use super::extract::{Authed, AuthedLimited, Bytes, Json, WRITE, enforce};
 use super::messages::parse_uuid;
+use super::post_commit::run_to_completion;
 use super::role_ladder::Ladder;
 use super::safety::validate_reason;
 use crate::hub::Event;
@@ -52,11 +54,15 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route(
             "/members/{user_id}/timeout",
-            put(apply_timeout).delete(lift_timeout),
+            put(apply_timeout)
+                .layer(from_fn(run_to_completion))
+                .delete(lift_timeout),
         )
         .route(
             "/members/{user_id}/removal",
-            put(remove_member).delete(restore_member),
+            put(remove_member)
+                .layer(from_fn(run_to_completion))
+                .delete(restore_member),
         )
         .route("/members/removed", get(list_removed))
         .route("/members/{user_id}/account", delete(delete_member_account))
@@ -162,8 +168,9 @@ async fn apply_timeout(
             user_id: target,
             until: Some(applied.until),
         });
-        evict_from_voice(&state, target).await;
     }
+    // A replay re-evicts too: the first attempt may have died before the SFU call finished.
+    evict_from_voice(&state, target).await;
 
     Ok(Json(TimeoutDto {
         user_id: target.to_string(),
@@ -228,7 +235,12 @@ async fn remove_member(
         .await
     {
         Ok(Some(revoked)) => super::session_revocation::sessions_revoked_by_id(&state, revoked),
-        Ok(None) => return Ok(StatusCode::NO_CONTENT),
+        Ok(None) => {
+            // A replay repeats the side effects that may not have finished the first time.
+            super::session_revocation::account_sessions_revoked(&state, target, None);
+            announce_member_gone(&state, target, false).await;
+            return Ok(StatusCode::NO_CONTENT);
+        }
         Err(RemoveMemberError::UserNotFound) => return Err(ApiError::NotFound("no such member")),
         Err(RemoveMemberError::LastAdministrator) => {
             return Err(ApiError::Conflict(

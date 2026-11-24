@@ -107,7 +107,7 @@ impl Store {
         else {
             return Ok(ScheduleMove::NotInstalled);
         };
-        if let Some(new) = new.filter(|new| Some(*new) != old) {
+        if let Some(new) = new {
             let held = member_overwrite(&mut tx, new, bot).await?;
             let (allow, deny) = held.unwrap_or((Permissions::NONE, Permissions::NONE));
             if deny.intersects(post) {

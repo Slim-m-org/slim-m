@@ -64,24 +64,31 @@ async fn saves_of_deleted_messages_do_not_hold_a_slot() {
 }
 
 #[tokio::test]
-async fn threads_under_deleted_parents_still_hold_a_slot() {
+async fn a_thread_under_a_deleted_parent_gives_its_slot_back_at_the_ceiling() {
     let (s, pool, user, channel, _guard) = store("slimm-audit-threads").await;
     let mut first = None;
+    let mut first_thread = None;
     for i in 0..MAX_THREADS_PER_CHANNEL {
         let id = send(&s, channel, user, &format!("p{i}")).await;
-        s.open_thread(channel, id).await.unwrap();
+        let opened = s.open_thread(channel, id).await.unwrap();
         first.get_or_insert(id);
+        first_thread.get_or_insert(opened.channel.id);
     }
-    soft_delete(&pool, first.unwrap()).await;
-
-    let parent = send(&s, channel, user, "one more").await;
+    let full = send(&s, channel, user, "no room").await;
     assert!(
         matches!(
-            s.open_thread(channel, parent).await,
+            s.open_thread(channel, full).await,
             Err(OpenThreadError::TooMany)
         ),
-        "deleting a parent freed a slot the live thread still uses"
+        "live parents still hold every slot"
     );
+    soft_delete(&pool, first.unwrap()).await;
+
+    assert!(
+        s.open_thread(channel, full).await.is_ok(),
+        "a thread no list can show must not lock the channel out of new threads"
+    );
+    assert!(s.channel(first_thread.unwrap()).await.unwrap().is_none());
 }
 
 #[tokio::test]

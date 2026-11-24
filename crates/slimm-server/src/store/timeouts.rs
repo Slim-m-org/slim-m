@@ -283,7 +283,7 @@ pub(super) async fn timeout_one(
         let replay = row.issued_by == Some(issued_by)
             && now - row.issued_at <= REPLAY_WINDOW_MS
             && ((until - now) - (row.until - row.issued_at)).abs() <= REPLAY_LENGTH_SLACK_MS;
-        if row.until == until || replay {
+        if row.until > now && (row.until == until || replay) {
             return Ok(TimeoutApplied {
                 until: row.until,
                 changed: false,

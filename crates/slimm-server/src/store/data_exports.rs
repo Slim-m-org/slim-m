@@ -12,6 +12,8 @@ use crate::ids::{ExportId, UserId};
 pub const EXPORT_RETENTION_MS: i64 = 24 * 60 * 60 * 1000;
 /// The shortest gap between two exports of one kind by one account.
 const EXPORT_COOLDOWN_MS: i64 = 10 * 60 * 1000;
+/// Stored on a job a restart put back in the queue, so a second interruption can be told apart.
+const EXPORT_RESUMED_MARK: &str = "resumed after a restart";
 /// A queued or running row older than this is dead, whatever its status says.
 const EXPORT_STALE_MS: i64 = 6 * 60 * 60 * 1000;
 /// How long an expired or failed row stays listed before it is deleted.
@@ -256,7 +258,7 @@ impl Store {
         let done = sqlx::query(
             "UPDATE data_exports
              SET status = 'ready', size_bytes = ?, finished_at = ?, expires_at = ?,
-                 processed = total
+                 processed = total, error = NULL
              WHERE id = ? AND status = 'running'",
         )
         .bind(size_bytes)
@@ -315,13 +317,35 @@ impl Store {
     }
 
     /// Puts jobs a restart interrupted back in the queue and returns every queued job to run again.
+    ///
+    /// A job already resumed once that is running again was cut short twice, so it fails instead of
+    /// crash-looping the deployment; one past the staleness window is left for the expiry sweep.
     pub async fn requeue_interrupted_exports(&self) -> anyhow::Result<Vec<DataExport>> {
-        sqlx::query("UPDATE data_exports SET status = 'queued' WHERE status = 'running'")
-            .execute(&self.pool)
-            .await?;
-        let rows = sqlx::query(
-            "SELECT * FROM data_exports WHERE status = 'queued' ORDER BY created_at, id",
+        let now = now_ms();
+        sqlx::query(
+            "UPDATE data_exports SET status = 'failed', finished_at = ?, error = ?
+             WHERE status = 'running' AND error = ?",
         )
+        .bind(now)
+        .bind("the export was interrupted twice")
+        .bind(EXPORT_RESUMED_MARK)
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "UPDATE data_exports SET status = 'queued', error = ?
+             WHERE status = 'running' AND created_at > ? - ?",
+        )
+        .bind(EXPORT_RESUMED_MARK)
+        .bind(now)
+        .bind(EXPORT_STALE_MS)
+        .execute(&self.pool)
+        .await?;
+        let rows = sqlx::query(
+            "SELECT * FROM data_exports WHERE status = 'queued' AND created_at > ? - ?
+             ORDER BY created_at, id",
+        )
+        .bind(now)
+        .bind(EXPORT_STALE_MS)
         .fetch_all(&self.pool)
         .await?;
         Ok(rows.iter().map(DataExport::from_row).collect())

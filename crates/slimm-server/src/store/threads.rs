@@ -142,7 +142,23 @@ impl Store {
         .fetch_one(&mut *tx)
         .await?;
         if thread_count >= MAX_THREADS_PER_CHANNEL {
-            return Err(OpenThreadError::TooMany);
+            // A thread under a deleted parent is hidden from the list, so nobody could free its slot.
+            let reclaimed = sqlx::query!(
+                "UPDATE channels SET deleted_at = ?
+                 WHERE id = (SELECT c.id FROM channels c
+                             JOIN messages pm ON pm.id = c.parent_message_id
+                             WHERE pm.channel_id = ? AND pm.deleted_at IS NOT NULL
+                               AND c.deleted_at IS NULL
+                             ORDER BY c.created_at LIMIT 1)",
+                now_ms(),
+                channel_id
+            )
+            .execute(&mut *tx)
+            .await?
+            .rows_affected();
+            if reclaimed == 0 {
+                return Err(OpenThreadError::TooMany);
+            }
         }
 
         let id = ChannelId::generate();
