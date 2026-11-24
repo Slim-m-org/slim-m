@@ -8,8 +8,12 @@ library;
 
 import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/relaunch.dart';
+
+// These two read the real process, which the web has none of.
+final bool _skipHere = kIsWeb || Platform.environment.containsKey('FLATPAK_ID');
 
 ({String program, List<String> arguments})? _command({
   String os = 'linux',
@@ -82,7 +86,7 @@ void main() {
     expect(command!.arguments, contains('--autostart'));
     expect(command.arguments, contains('slimm://invite/x'));
     expect(command.arguments, isNot(contains('--relaunch')));
-  }, skip: Platform.environment.containsKey('FLATPAK_ID'));
+  }, skip: _skipHere);
 
   test('a restart after startup carries neither login flag nor link', () {
     rememberLaunchArguments(['--autostart', 'slimm://invite/x']);
@@ -93,5 +97,5 @@ void main() {
 
     expect(command?.arguments, isNot(contains('--autostart')));
     expect(command?.arguments, isNot(contains('slimm://invite/x')));
-  }, skip: Platform.environment.containsKey('FLATPAK_ID'));
+  }, skip: _skipHere);
 }
