@@ -247,3 +247,107 @@ async fn honest_reconnects_never_spend_the_failed_hello_budget() {
         assert_eq!(read_frame(&mut ws).await["type"], "hello");
     }
 }
+
+#[tokio::test]
+async fn unauthenticated_sockets_share_a_bounded_pool_that_authenticated_ones_do_not_draw_on() {
+    // A ceiling of 8 leaves a quarter of it, 2, for sockets that have not said hello.
+    let hub = Hub::with_connection_limit(8);
+    let (addr, store, _pool, _guard) = serve_with("slimm-ws-hs", hub).await;
+
+    let mut first = connect_from(addr, "1.1.1.1").await.unwrap();
+    let _second = connect_from(addr, "2.2.2.2").await.unwrap();
+    let refused = connect_from(addr, "3.3.3.3").await;
+    assert!(refused.is_err(), "a third pending socket got in");
+
+    let ticket = ticket_only(&store, "alice").await;
+    hello(&mut first, &ticket, 1).await;
+    assert_eq!(read_frame(&mut first).await["type"], "hello");
+    connect_from(addr, "3.3.3.3")
+        .await
+        .expect("an authenticated socket frees a pending slot");
+}
+
+#[tokio::test]
+async fn one_ipv6_prefix_cannot_hold_more_than_a_few_addresses_worth_of_pending_sockets() {
+    let hub = Hub::with_handshake_limits(1, DEADLINE);
+    let (addr, _store, _pool, _guard) = serve_with("slimm-ws-hs", hub).await;
+
+    let mut held = Vec::new();
+    for subnet in 1..=4 {
+        held.push(
+            connect_from(addr, &format!("2001:db8:1:{subnet}::1"))
+                .await
+                .expect("within the prefix share"),
+        );
+    }
+    let refused = connect_from(addr, "2001:db8:1:5::1").await;
+    assert!(refused.is_err(), "a fifth /64 of one /48 got in");
+    connect_from(addr, "2001:db8:2:1::1")
+        .await
+        .expect("another /48 is unaffected");
+}
+
+#[tokio::test]
+async fn sitting_on_a_socket_without_a_hello_counts_as_a_failed_hello() {
+    let hub = Hub::with_handshake_limits(16, Duration::from_millis(100));
+    let (addr, _store, _pool, _guard) = serve_with("slimm-ws-hs", hub).await;
+
+    let mut silent = Vec::new();
+    for _ in 0..10 {
+        silent.push(connect_from(addr, "1.1.1.1").await.unwrap());
+    }
+    for ws in &mut silent {
+        assert_error_frame(ws, "expected a hello frame").await;
+    }
+    let refused = connect_from(addr, "1.1.1.1").await;
+    assert!(refused.is_err(), "the address kept connecting for free");
+    connect_from(addr, "2.2.2.2")
+        .await
+        .expect("another address is unaffected");
+}
+
+async fn tickets_for(store: &slimm_server::store::Store, name: &str, count: usize) -> Vec<String> {
+    let user = store.create_user(name, name).await.unwrap();
+    let tokens = store.open_session(user.id, "device").await.unwrap();
+    let ctx = store
+        .authenticate(&tokens.access_token)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut tickets = Vec::new();
+    for _ in 0..count {
+        tickets.push(store.mint_ws_ticket(&ctx).await.unwrap().0);
+    }
+    tickets
+}
+
+#[tokio::test]
+async fn one_account_cannot_hold_every_slot() {
+    let (addr, store, _pool, _guard) = serve_with("slimm-ws-hs", Hub::new()).await;
+    let tickets = tickets_for(&store, "alice", 24).await;
+
+    let mut open = Vec::new();
+    for ticket in &tickets[..16] {
+        open.push(support::ws::connect(addr, ticket).await);
+    }
+    let mut over = connect_from(addr, "1.1.1.1").await.unwrap();
+    hello(&mut over, &tickets[16], 1).await;
+    assert_error_frame(&mut over, "too many open connections for this account").await;
+
+    let other = ticket_only(&store, "bob").await;
+    support::ws::connect(addr, &other).await;
+
+    // A closed socket gives its share back; the close is seen asynchronously, so retry briefly.
+    drop(open.pop());
+    let mut reconnected = false;
+    for ticket in &tickets[17..] {
+        let mut ws = connect_from(addr, "1.1.1.1").await.unwrap();
+        hello(&mut ws, ticket, 1).await;
+        if read_frame(&mut ws).await["type"] == "hello" {
+            reconnected = true;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    assert!(reconnected, "the share was never given back");
+}

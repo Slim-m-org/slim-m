@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT u.connector_principal AS \"connector_principal!: i64\",\n                      (SELECT m.enabled FROM installed_modules m\n                       WHERE m.bot_user_id = u.id AND m.provider = 'connector') AS \"module_enabled: i64\",\n                      (SELECT m.connector_permissions FROM installed_modules m\n                       WHERE m.bot_user_id = u.id AND m.provider = 'connector') AS \"approved: Permissions\"\n               FROM users u WHERE u.id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "connector_principal!: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "connector_principal"
+          }
+        }
+      },
+      {
+        "name": "module_enabled: i64",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "installed_modules",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "name": "approved: Permissions",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "installed_modules",
+            "name": "connector_permissions"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "416090d1dadb7dc458501a35339b1f9f4a0356f0e24e295c32ee67d0ee4e5546"
+}
