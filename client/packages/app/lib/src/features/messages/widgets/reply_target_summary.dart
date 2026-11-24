@@ -15,6 +15,7 @@ import '../providers/media_preferences.dart';
 import '../../../message_preview.dart';
 import '../../../providers/bounded_image_decode.dart';
 import '../../../widgets/animation_gate.dart';
+import 'cover_resize_image.dart';
 import 'attachment_view.dart' show isInlineImage, isVideo;
 import 'message_inline.dart' show rewriteMentions;
 import '../../../widgets/image_decode.dart';
@@ -105,11 +106,9 @@ class ReplyAttachmentThumb extends ConsumerWidget {
           .when(
             data: (bytes) => AnimationGate(
               child: Image(
-                image: ResizeImage(
+                image: CoverResizeImage(
                   BoundedMemoryImage(bytes),
-                  width: decodeEdge(context, edge),
-                  height: decodeEdge(context, edge),
-                  policy: ResizeImagePolicy.fit,
+                  edge: decodeEdge(context, edge),
                 ),
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => glyph(fallback),

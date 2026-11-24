@@ -13,6 +13,7 @@ import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.da
 import 'package:slimm_app/src/features/emoji/widgets/custom_emoji_image.dart';
 import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/features/messages/providers/link_preview.dart';
+import 'package:slimm_app/src/features/messages/widgets/cover_resize_image.dart';
 import 'package:slimm_app/src/features/messages/widgets/link_preview_thumbnail.dart';
 import 'package:slimm_app/src/features/messages/widgets/reply_target_summary.dart';
 import 'package:slimm_app/src/widgets/space_banner.dart';
@@ -122,5 +123,36 @@ void main() {
     await _settle(tester);
     expect(_drawsAPicture(tester), isFalse);
     expect(find.byIcon(AppIcons.image), findsOneWidget);
+  });
+
+  testWidgets('a reply thumbnail decodes by its shorter side, not squashed', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        [
+          attachmentPreviewBytesProvider.overrideWith(
+            (ref, key) async => solidPng(400, 100),
+          ),
+        ],
+        const ReplyAttachmentThumb(
+          attachments: [
+            api.Attachment(
+              id: 'a1',
+              filename: 'wide.png',
+              contentType: 'image/png',
+              size: 70,
+            ),
+          ],
+          edge: 40,
+        ),
+      ),
+    );
+    await _settle(tester);
+
+    final image = tester.widget<Image>(
+      find.byWidgetPredicate((w) => w is Image),
+    );
+    expect(image.image, isA<CoverResizeImage>());
   });
 }
