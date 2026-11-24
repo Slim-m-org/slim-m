@@ -53,7 +53,11 @@ pub fn spawn(state: AppState) -> Option<tokio::task::JoinHandle<()>> {
 async fn handle(state: &AppState, event: LinkEvent, ears: &mut Ears) {
     let now = now_ms();
     match event {
-        LinkEvent::Ready { max_sessions } => state.call_audio.listener_ready(max_sessions),
+        LinkEvent::Ready { max_sessions } => {
+            state.call_audio.listener_ready(max_sessions);
+            let state = state.clone();
+            tokio::spawn(async move { crate::http::resume_always(&state).await });
+        }
         LinkEvent::Disconnected => {
             for outcome in state.call_audio.listener_lost(now) {
                 apply(state, outcome).await;
@@ -80,6 +84,9 @@ async fn handle(state: &AppState, event: LinkEvent, ears: &mut Ears) {
             if let Some(outcome) = state.call_audio.end_by_id(&session, reason, now) {
                 apply(state, outcome).await;
             }
+        }
+        LinkEvent::Message(FromListener::Started { session }) => {
+            state.call_audio.listener_started(&session, now);
         }
         LinkEvent::Message(_) => {}
     }
@@ -146,10 +153,19 @@ pub async fn end_module_sessions(state: &AppState, module_id: &str, reason: EndR
 /// Carries out an outcome's effects, then tells the call what its session now looks like.
 /// False when the listener could not be started and the session was ended instead.
 pub async fn apply(state: &AppState, outcome: Outcome) -> bool {
+    let gate = state.call_audio.gate(outcome.channel);
+    let _one_at_a_time = gate.lock().await;
     let mut ended: Option<EndReason> = None;
     for effect in &outcome.effects {
         match effect {
             Effect::Start => {
+                if !state
+                    .call_audio
+                    .is_live(outcome.channel, outcome.session_id)
+                {
+                    // An outcome that ended this session was carried out first; it has nothing left to start.
+                    return true;
+                }
                 let transcribing = outcome.consumer == Consumer::Transcript;
                 if transcribing && !transcript::open(state, &outcome).await {
                     stop_unstartable(state, &outcome);

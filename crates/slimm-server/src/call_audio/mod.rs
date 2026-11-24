@@ -47,6 +47,8 @@ struct Live {
     /// The include set last sent to the listener; a segment from anyone else is dropped.
     sent: HashSet<String>,
     rate: SegmentRate,
+    /// When the listener said it started: the instant its segment times count from.
+    anchor_ms: Option<i64>,
 }
 
 #[derive(Default)]
@@ -64,6 +66,8 @@ struct Inner {
     link: Link,
     events: Mutex<Option<mpsc::UnboundedReceiver<LinkEvent>>>,
     state: Mutex<State>,
+    /// One lock per channel, so the effects of its outcomes run one outcome at a time.
+    gates: Mutex<HashMap<ChannelId, Arc<tokio::sync::Mutex<()>>>>,
 }
 
 /// The call-audio service; cheap to clone.
@@ -91,6 +95,7 @@ impl CallAudio {
                 link,
                 events: Mutex::new(Some(events)),
                 state: Mutex::default(),
+                gates: Mutex::default(),
             })),
         }
     }
@@ -202,6 +207,7 @@ impl CallAudio {
             ids,
             sent: HashSet::new(),
             rate: SegmentRate::default(),
+            anchor_ms: None,
         };
         let outcome = outcome_of(&live, effects);
         state.live.insert(channel, live);
@@ -312,6 +318,36 @@ impl CallAudio {
             .collect()
     }
 
+    /// The listener's clock for `session` has started; its segment times count from `now`.
+    pub fn listener_started(&self, session: &str, now: i64) {
+        let (Some(inner), Ok(id)) = (&self.inner, session.parse::<Uuid>()) else {
+            return;
+        };
+        if let Some((_, live)) = live_or_draining(&mut lock(&inner.state), id) {
+            live.anchor_ms.get_or_insert(now);
+        }
+    }
+
+    /// The lock that keeps one channel's outcomes from being carried out at the same time.
+    pub(crate) fn gate(&self, channel: ChannelId) -> Arc<tokio::sync::Mutex<()>> {
+        let Some(inner) = &self.inner else {
+            return Arc::default();
+        };
+        let mut gates = lock(&inner.gates);
+        gates.retain(|_, gate| Arc::strong_count(gate) > 1);
+        Arc::clone(gates.entry(channel).or_default())
+    }
+
+    /// Whether `session` is still the channel's running session.
+    pub fn is_live(&self, channel: ChannelId, session: Uuid) -> bool {
+        self.inner.as_ref().is_some_and(|inner| {
+            lock(&inner.state)
+                .live
+                .get(&channel)
+                .is_some_and(|live| live.ids.session == session)
+        })
+    }
+
     pub fn listener_ready(&self, max_sessions: u32) {
         if let Some(inner) = &self.inner {
             lock(&inner.state).ready = Some(max_sessions);
@@ -394,7 +430,7 @@ impl CallAudio {
         let inner = self.inner.as_ref()?;
         let mut state = lock(&inner.state);
         let (channel, live) = live_or_draining(&mut state, id)?;
-        let started = live.session.started_at_ms?;
+        let started = live.anchor_ms.or(live.session.started_at_ms)?;
         if !live.sent.contains(identity) {
             live.rate.count_drop();
             tracing::warn!(session, "dropped a segment from outside the include set");

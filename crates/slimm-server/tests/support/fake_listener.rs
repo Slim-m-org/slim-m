@@ -105,6 +105,10 @@ impl FakeListener {
         );
     }
 
+    pub fn started(&self, session: &str) {
+        self.say(json!({"type":"started","session":session}));
+    }
+
     pub fn ended(&self, session: &str, reason: &str) {
         self.say(json!({"type":"ended","session":session,"reason":reason}));
     }

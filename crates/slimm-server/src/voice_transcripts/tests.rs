@@ -106,3 +106,29 @@ async fn the_transcribe_address_sits_beside_the_control_address() {
     }
     assert!(CallAudio::disabled().transcribe_endpoint().is_none());
 }
+
+#[tokio::test]
+async fn a_redirect_from_the_listener_is_not_followed_with_the_clip_and_secret() {
+    let hits = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let elsewhere = {
+        let hits = Arc::clone(&hits);
+        stub(post(move || {
+            let hits = Arc::clone(&hits);
+            async move {
+                hits.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                StatusCode::OK
+            }
+        }))
+        .await
+    };
+    let url = stub(post(move || {
+        let to = elsewhere.clone();
+        async move { (StatusCode::TEMPORARY_REDIRECT, [("location", to)]) }
+    }))
+    .await;
+    let heard = ListenerEngine::new(url, "s".into())
+        .transcribe(b"clip".to_vec())
+        .await;
+    assert_eq!(heard, Err(Failure::Unavailable));
+    assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 0);
+}

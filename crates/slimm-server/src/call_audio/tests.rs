@@ -376,3 +376,21 @@ async fn a_line_finished_just_after_the_call_ended_is_still_kept() {
         "past the drain window nothing is taken"
     );
 }
+
+#[tokio::test]
+async fn segment_times_count_from_when_the_listener_started_not_from_consent() {
+    let call_audio = service(2);
+    let channel = ChannelId::generate();
+    let who = people(2);
+    let outcome = start(&call_audio, channel, &who, 1_000);
+    call_audio.send_start(channel, "t".into(), "ws://l".into());
+
+    call_audio.listener_started(&outcome.session_id.to_string(), 1_800);
+    call_audio.listener_started(&outcome.session_id.to_string(), 9_999);
+
+    let heard = call_audio
+        .accept_segment(&segment(outcome.session_id, who[1], "hello"), 2_000)
+        .expect("heard");
+    assert_eq!(heard.start_ms, 1_900);
+    assert_eq!(heard.end_ms, 2_700);
+}

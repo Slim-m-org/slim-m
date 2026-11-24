@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DISTINCT channel_id AS \"channel_id!: ChannelId\" FROM voice_sessions\n               WHERE left_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "voice_sessions",
+            "name": "channel_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e299b8689e4d4663af9f613b1d05c8a8add08dfa65ad2899392d18ae88e27f58"
+}
