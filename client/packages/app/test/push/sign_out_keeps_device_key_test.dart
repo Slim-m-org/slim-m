@@ -62,4 +62,15 @@ void main() {
 
     expect(await keys.read(devicePushKeyHandle), isNull);
   });
+
+  test('deleting one of two accounts keeps the device push key', () async {
+    final (harness, keys) = await twoAccounts();
+    addTearDown(harness.dispose);
+    await DevicePushKeys(keys).publicKeyBase64();
+
+    final runtime = harness.host.runtimeFor('https://second.example')!;
+    await unregisterPushVia(runtime.container.read);
+
+    expect(await keys.read(devicePushKeyHandle), isNotNull);
+  });
 }
