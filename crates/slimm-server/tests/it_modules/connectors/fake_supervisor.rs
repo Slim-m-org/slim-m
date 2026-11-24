@@ -26,6 +26,8 @@ pub struct Inner {
     pub refuse_create: Option<(String, String)>,
     /// Answers every `remove` with a runtime error and keeps the container.
     pub fail_remove: bool,
+    /// Answers every `list` with a runtime error.
+    pub fail_list: bool,
     pub hello: Option<Value>,
     /// The `X-Slimm-Deployment` every verb call named.
     pub deployments: Vec<String>,
@@ -137,7 +139,7 @@ async fn list(State(fake): State<Fake>, headers: HeaderMap) -> Response {
     inner
         .calls
         .push(("list".into(), String::new(), Value::Null));
-    if inner.runtime_down {
+    if inner.runtime_down || inner.fail_list {
         return error(
             StatusCode::SERVICE_UNAVAILABLE,
             "runtime_unavailable",

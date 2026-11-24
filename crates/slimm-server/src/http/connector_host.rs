@@ -122,7 +122,7 @@ impl HostRunner {
     }
 
     /// Waits for a running monitor pass to finish and keeps the next from starting until dropped.
-    pub(crate) async fn pause_monitor(&self) -> tokio::sync::MutexGuard<'_, ()> {
+    pub async fn pause_monitor(&self) -> tokio::sync::MutexGuard<'_, ()> {
         self.pass_gate.lock().await
     }
 

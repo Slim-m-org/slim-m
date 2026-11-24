@@ -125,6 +125,7 @@ pub(crate) fn create_body<'a>(
 /// if the connector is enabled. Failures are kept on the connector for the admin and the
 /// monitor retries what can be retried.
 pub(crate) async fn after_install(state: &AppState, runner: &HostRun, record: &HostRunRecord) {
+    let _pass = runner.pause_monitor().await;
     let result = async {
         runner.client.remove(&record.run_id, true).await?;
         runner.create(state, record).await?;
@@ -144,17 +145,20 @@ pub(crate) async fn after_enable(
     runner: &HostRun,
     module_id: &str,
 ) -> Result<(), ApiError> {
+    let _pass = runner.pause_monitor().await;
     runner.forget_crashes(module_id);
     state
         .store
         .set_host_run_crash_disabled(module_id, None)
         .await?;
     if let Some(record) = state.store.host_run(module_id).await? {
-        let listed = runner.client.list().await.ok();
-        let found = listed
-            .as_ref()
-            .and_then(|l| l.iter().find(|c| c.id == record.run_id));
-        let result = runner.ensure_running(state, &record, found).await;
+        let result = match runner.client.list().await {
+            Ok(listed) => {
+                let found = listed.iter().find(|c| c.id == record.run_id);
+                runner.ensure_running(state, &record, found).await
+            }
+            Err(err) => Err(err),
+        };
         runner.set_running(module_id, result.is_ok());
         runner.note(state, module_id, &result).await;
     }
@@ -186,7 +190,7 @@ pub(crate) async fn before_uninstall(
     module_id: &str,
     keep_volume: bool,
 ) -> Result<(), ApiError> {
-    let Ok(Some(record)) = state.store.host_run(module_id).await else {
+    let Some(record) = state.store.host_run(module_id).await? else {
         return Ok(());
     };
     if !keep_volume {
@@ -206,5 +210,14 @@ pub(crate) async fn before_uninstall(
                 "could not remove a connector's container and volume; the uninstall waits");
             Err(UNAVAILABLE)
         }
+    }
+}
+
+/// An update that stops asking for the host: the run id is about to be forgotten, so the
+/// volume goes with the container, since nothing could name it afterwards.
+pub(crate) async fn remove_dropped(runner: &HostRun, record: &HostRunRecord) {
+    if let Err(err) = runner.client.remove(&record.run_id, false).await {
+        tracing::warn!(module = %record.module_id, run = %record.run_id, reason = err.detail(),
+            "could not remove a connector that left the host; the monitor removes the container later and keeps its volume");
     }
 }
