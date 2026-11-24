@@ -388,6 +388,17 @@ class LocalNotifications {
     }
   }
 
+  /// The payload of the notification whose tap launched this process, or null when it was not launched by one.
+  ///
+  /// Android only. It also initializes the plugin in the main isolate, which is what makes later taps reach `onActivated`.
+  Future<String?> launchPayload() async {
+    if (!_isAndroid) return null;
+    await _ensureReady();
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    if (details == null || !details.didNotificationLaunchApp) return null;
+    return details.notificationResponse?.payload;
+  }
+
   /// Takes down the notifications this app is showing whose id is in [staleIds], leaving every other one up.
   Future<void> cancelShown(Set<int> staleIds) async {
     if (!_isAndroid || staleIds.isEmpty) return;

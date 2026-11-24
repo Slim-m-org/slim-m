@@ -16,9 +16,8 @@
 /// the app is already running arrives on [taps] instead. Both are needed and
 /// neither subsumes the other.
 ///
-/// iOS only, and that is a limitation rather than a choice: on Android the
-/// envelope is still sealed to a key nothing on the device opens, so there is
-/// no channel id to route to. [taps] is simply empty there, and
+/// iOS only: on Android a tap arrives as the local notification's payload
+/// (see `LocalNotifications`). [taps] is simply empty there, and
 /// [takeInitial] answers null, so a caller needs no platform check of its
 /// own.
 library;

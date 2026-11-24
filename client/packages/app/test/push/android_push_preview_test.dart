@@ -7,6 +7,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pinenacl/x25519.dart';
+import 'package:slimm_app/src/features/accounts/providers/notification_target.dart';
 import 'package:slimm_app/src/push/android_push_messages.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/testing.dart';
@@ -97,4 +98,162 @@ void main() {
     expect(await idOf('c1'), isNot(await idOf('c2')));
     expect(await idOf('c1'), greaterThanOrEqualTo(previewNotificationIdBase));
   });
+
+  test('a sealed admin alert opens with its own title and body', () async {
+    final data = {
+      'kind': 'admin_alert',
+      'payload': _payload({
+        'domain': 'slim-m.push.v1',
+        'version': 1,
+        'kind': 'security',
+        'event': 'admin_alert',
+        'sent_at': _now.millisecondsSinceEpoch,
+        'title': 'Disk almost full',
+        'body': 'Media volume is at 95%',
+      }),
+    };
+    final preview = await openPreview(data, await _store(), now: _now);
+
+    expect(previewTitle(preview!.text), 'Disk almost full');
+    expect(preview.text.body, 'Media volume is at 95%');
+  });
+
+  group('incomingCallFor', () {
+    Map<String, Object?> ring({String? name}) => {
+      'domain': 'slim-m.push.v1',
+      'version': 1,
+      'kind': 'call',
+      'channel_id': 'dm1',
+      'ring_id': 'ring-7',
+      'caller_id': 'u1',
+      'sent_at': _now.millisecondsSinceEpoch,
+      'caller_name': ?name,
+    };
+
+    test('names the caller and uses the ring id from the envelope', () async {
+      final data = {'kind': 'call', 'payload': _payload(ring(name: 'Ana'))};
+      final call = await incomingCallFor(data, await _store());
+
+      expect(call.callerName, 'Ana');
+      expect(call.callId, 'ring-7');
+    });
+
+    test('a content-free envelope keeps the ring id, not the name', () async {
+      final data = {'kind': 'call', 'payload': _payload(ring())};
+      final call = await incomingCallFor(data, await _store());
+
+      expect(call.callerName, unknownCaller);
+      expect(call.callId, 'ring-7');
+    });
+
+    test(
+      'an envelope that does not open keeps the current fallbacks',
+      () async {
+        final call = await incomingCallFor({
+          'kind': 'call',
+          'payload': 'garbage',
+        }, await _store());
+
+        expect(call.callerName, unknownCaller);
+        expect(call.callId, isNotEmpty);
+      },
+    );
+  });
+
+  group('showPush', () {
+    test('a message posts with the channel as its tap payload', () async {
+      final shown = _RecordingNotifications();
+      await showPush(
+        {'kind': 'message', 'payload': _payload(_envelope())},
+        keys: await _store(),
+        notifications: shown,
+        calls: _RecordingCalls(),
+      );
+
+      expect(
+        NotificationTarget.decode(shown.payload)?.channelId,
+        'c1',
+        reason: 'without it a tap only raises the app',
+      );
+    });
+
+    test('a ring shows the caller and the ring id', () async {
+      final calls = _RecordingCalls();
+      await showPush(
+        {
+          'kind': 'call',
+          'payload': _payload({
+            'domain': 'slim-m.push.v1',
+            'version': 1,
+            'kind': 'call',
+            'channel_id': 'dm1',
+            'ring_id': 'ring-7',
+            'caller_id': 'u1',
+            'caller_name': 'Ana',
+            'sent_at': _now.millisecondsSinceEpoch,
+          }),
+        },
+        keys: await _store(),
+        notifications: _RecordingNotifications(),
+        calls: calls,
+      );
+
+      expect(calls.shown, ('ring-7', 'Ana'));
+    });
+  });
+
+  group('tapPayloadFor', () {
+    test('a message envelope yields a channel-only target', () async {
+      final envelope = await openPushPayload(
+        _payload(_envelope(channelId: 'c9')),
+        await _store(),
+      );
+      final target = NotificationTarget.decode(tapPayloadFor(envelope));
+
+      expect(target!.channelId, 'c9');
+      expect(target.origin, isNull);
+    });
+
+    test('an envelope with no channel yields no payload', () async {
+      final envelope = await openPushPayload(
+        _payload({
+          'domain': 'slim-m.push.v1',
+          'version': 1,
+          'event': 'admin_alert',
+        }),
+        await _store(),
+      );
+
+      expect(tapPayloadFor(envelope), isNull);
+    });
+  });
+}
+
+class _RecordingNotifications implements LocalNotifications {
+  String? payload;
+
+  @override
+  Future<void> show(
+    String text, {
+    required LocalAlertChannel channel,
+    String? title,
+    String? payload,
+    int? id,
+  }) async => this.payload = payload;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
+class _RecordingCalls implements CallNotifications {
+  (String, String)? shown;
+
+  @override
+  Future<void> showIncomingCall({
+    required String callId,
+    required String callerName,
+  }) async => shown = (callId, callerName);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }

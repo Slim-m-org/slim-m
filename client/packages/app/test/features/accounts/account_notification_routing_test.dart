@@ -234,6 +234,11 @@ void main() {
     final back = NotificationTarget.decode(target.encode())!;
     expect((back.origin, back.channelId), (_b, 'cb'));
     expect(NotificationTarget.decode(null), isNull);
+    final channelOnly = NotificationTarget.decode(
+      const NotificationTarget(channelId: 'cb').encode(),
+    )!;
+    expect(channelOnly.channelId, 'cb');
+    expect(channelOnly.origin, isNull);
     expect(NotificationTarget.decode('opaque-envelope'), isNull);
     expect(NotificationTarget.decode('{"o":"x"}'), isNull);
   });
