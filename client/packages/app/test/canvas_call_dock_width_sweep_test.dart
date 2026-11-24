@@ -120,7 +120,7 @@ void main() {
     tester,
   ) async {
     expect(await _pumpAt(tester, 560, CanvasTool.pen), 2);
-    expect(await _pumpAt(tester, 400, CanvasTool.pen), 2);
+    expect(await _pumpAt(tester, 420, CanvasTool.pen), 2);
     expect(await _pumpAt(tester, 360, CanvasTool.pen), 3);
   });
 

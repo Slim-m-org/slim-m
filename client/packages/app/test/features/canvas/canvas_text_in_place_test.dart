@@ -140,7 +140,9 @@ void main() {
       await tester.pump();
       await fingerTapTwice(tester, const Offset(40, 75));
 
-      final bar = tester.getRect(find.byType(CanvasSelectionBar));
+      final bar = tester.getRect(
+        find.byWidgetPredicate((w) => w is CanvasSelectionBar),
+      );
       final chip = tester.getRect(
         find.bySemanticsLabel(RegExp('^Shared view')),
       );

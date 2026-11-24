@@ -57,6 +57,7 @@ import '../../voice/widgets/voice_call_controls.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../../widgets/floating_dock_card.dart';
+import '../providers/canvas_edge_style.dart';
 import 'canvas_compact_dock.dart';
 import 'canvas_dock_toggle.dart';
 import 'canvas_dock_group.dart';
@@ -197,17 +198,17 @@ CallDockData? callDockDataFor(
 
 /// Measured at desktop density (every pane the non-compact dock draws is in a
 /// window of at least [kCompactWidth], so never touch density): the one-row
-/// card is 768dp now that the pen and shape carets keep their slots whether or
-/// not they are armed. Anything narrower takes two rows.
+/// card is at most 773dp, with the widest case being one armed options caret.
+/// Anything narrower takes two rows.
 const _oneRowMinWidth = 774.0;
 
-/// Measured the same way: the stamp tool, its reserved caret slot and the gap before it, drawn only where the server takes stamps.
-const _stampToolExtent = 62.0;
+/// Measured the same way: one tool button and the gap before it, for each of the stamp and connect tools the server offers.
+const _optionalToolExtent = 34.0;
 
 /// Measured the same way: tools and undo, redo and more on one row; the call
 /// group beside it must also pass [callRowFitsFor]. Anything narrower gives
 /// the five tools a row of their own.
-const _twoRowMinWidth = 392.0;
+const _twoRowMinWidth = 410.0;
 
 enum _DockLayout { oneRow, twoRows, stacked }
 
@@ -271,9 +272,9 @@ class CanvasCallDock extends ConsumerWidget {
     final alone = soloMusicInDock(context, ref);
     final soundboard = canUseSoundboard(ref, call.voice.channelId);
     final captions = canUseCaptions(ref, call.voice.channelId);
-    final stamp = ref.watch(canvasStampsSupportedProvider)
-        ? _stampToolExtent
-        : 0.0;
+    final stamp =
+        (ref.watch(canvasStampsSupportedProvider) ? _optionalToolExtent : 0) +
+        (ref.watch(canvasEdgesSupportedProvider) ? _optionalToolExtent : 0);
     final extra =
         (alone ? dockExtraExtent(context) : 0.0) +
         (soundboard ? dockButtonExtent(context) : 0.0) +

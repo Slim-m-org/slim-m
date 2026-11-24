@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/providers/armed_stamp.dart';
 import 'package:slimm_app/src/features/canvas/providers/canvas_edge_style.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_dock_group.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_overflow_menu.dart';
 import 'package:slimm_app/src/widgets/floating_dock_card.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -63,7 +62,11 @@ void main() {
           ['Undo', 'Redo'],
         ])
           [for (final l in labels) _button(tester, l)],
-        [tester.getRect(find.byType(CanvasOverflowMenu))],
+        [
+          tester.getRect(
+            find.byWidgetPredicate((w) => w is CanvasOverflowMenu),
+          ),
+        ],
       ];
       final expectedGap = touch ? 0.0 : AppSpacing.s4;
       for (final group in groups) {
@@ -75,18 +78,18 @@ void main() {
         }
       }
 
-      final dividers = find.byType(DockVerticalDivider);
+      final dividers = find.byWidgetPredicate((w) => w is DockVerticalDivider);
       expect(dividers, findsNWidgets(groups.length - 1));
       for (var i = 0; i < groups.length - 1; i++) {
         final rule = tester.getRect(dividers.at(i));
         expect(
           rule.left - groups[i].last.right,
-          closeTo(canvasDockGroupPadding, 0.01),
+          closeTo(touch ? 0 : AppSpacing.s8, 0.01),
           reason: 'before divider $i',
         );
         expect(
           groups[i + 1].first.left - rule.right,
-          closeTo(canvasDockGroupPadding, 0.01),
+          closeTo(touch ? 0 : AppSpacing.s8, 0.01),
           reason: 'after divider $i',
         );
       }

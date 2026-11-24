@@ -9,8 +9,9 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/floating_dock_card.dart';
 
-/// Space on each side of a group divider.
-const double canvasDockGroupPadding = AppSpacing.s8;
+/// Space on each side of a group divider; touch buttons already carry their own room.
+double canvasDockGroupPadding(BuildContext context) =>
+    AppTouchTargets.of(context) ? 0 : AppSpacing.s8;
 
 /// Space between two buttons of one group; touch targets already carry their own room.
 double canvasDockButtonGap(BuildContext context) =>
@@ -21,14 +22,13 @@ class CanvasDockGroupDivider extends StatelessWidget {
   const CanvasDockGroupDivider({super.key});
 
   @override
-  Widget build(BuildContext context) => const Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      SizedBox(width: canvasDockGroupPadding),
-      DockVerticalDivider(),
-      SizedBox(width: canvasDockGroupPadding),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final pad = SizedBox(width: canvasDockGroupPadding(context));
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [pad, const DockVerticalDivider(), pad],
+    );
+  }
 }
 
 /// [groups] as one row's children: the button gap inside a group, a divider between groups.

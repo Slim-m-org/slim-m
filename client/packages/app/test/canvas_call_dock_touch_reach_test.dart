@@ -96,7 +96,7 @@ void main() {
         touch: true,
       );
 
-      await tester.tap(find.bySemanticsLabel('Eraser'), warnIfMissed: false);
+      await tester.tap(find.bySemanticsLabel('Shape'), warnIfMissed: false);
       await tester.pump();
       expect(
         placed,
@@ -110,7 +110,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.bySemanticsLabel('Eraser'));
+      await tester.tap(find.bySemanticsLabel('Shape'));
       await tester.pump();
       expect(placed, 1);
     },
