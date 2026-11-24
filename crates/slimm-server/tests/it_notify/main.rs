@@ -21,6 +21,7 @@ mod push_content_envelope;
 mod push_endpoints;
 mod push_envelope_fixture;
 mod push_preview_account;
+mod push_preview_masks;
 mod push_preview_migration;
 mod push_preview_without_text;
 mod push_relay_contract_fixture;

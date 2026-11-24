@@ -53,6 +53,7 @@ pub(crate) mod recipients;
 mod relay;
 mod sealing;
 mod security;
+mod spoiler_mask;
 mod voice_notice;
 
 use std::collections::HashSet;
