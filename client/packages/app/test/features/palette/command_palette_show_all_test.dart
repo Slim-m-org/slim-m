@@ -78,4 +78,21 @@ void main() {
     ];
     expect(capWithShowAll(items, noun: 'channels', showAll: () {}), items);
   });
+
+  test('the people scope says how many it cut instead of hiding them', () {
+    final members = [
+      for (var i = 0; i < palettePeopleScopeLimit + 7; i++)
+        profile('p$i', 'Person $i'),
+    ];
+    final items = buildMemberItems(
+      members,
+      '',
+      null,
+      limit: palettePeopleScopeLimit,
+    );
+
+    expect(items, hasLength(palettePeopleScopeLimit + 1));
+    expect(items.last.label, '7 more - type to narrow');
+    expect(items.last.showsAllOf, palettePeopleScopeLimit + 7);
+  });
 }

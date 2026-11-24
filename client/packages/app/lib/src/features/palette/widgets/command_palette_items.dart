@@ -279,8 +279,9 @@ const int palettePeopleScopeLimit = 100;
 /// Notes button - finding it under People by your own name would be the
 /// opposite of obvious.
 ///
-/// Only the first [limit] get a row, ending in one that calls [showAll] when
-/// there are more and it is given; no [limit] lists every match.
+/// Only the first [limit] get a row. When there are more, the last row calls
+/// [showAll] if it is given and otherwise says to type to narrow; no [limit]
+/// lists every match.
 List<PaletteResultItem> buildMemberItems(
   List<api.UserProfile> members,
   String query,
@@ -300,10 +301,19 @@ List<PaletteResultItem> buildMemberItems(
   final shown = limit == null ? matches : matches.take(limit);
   return [
     for (final (member, reason) in shown) _personItem(member, reason),
-    if (limit != null && showAll != null && matches.length > limit)
-      _showAllRow(matches.length, 'people', showAll),
+    if (limit != null && matches.length > limit)
+      showAll != null
+          ? _showAllRow(matches.length, 'people', showAll)
+          : _narrowRow(matches.length, matches.length - limit),
   ];
 }
+
+PaletteResultItem _narrowRow(int total, int hidden) => PaletteResultItem(
+  label: '$hidden more - type to narrow',
+  leading: AppIcons.search,
+  showsAllOf: total,
+  onSelect: (_, _) async {},
+);
 
 PaletteResultItem _personItem(api.UserProfile member, PaletteReason? reason) =>
     PaletteResultItem(
