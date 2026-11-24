@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// `DmCallActivityController` on its own: what each roster answer lights, the
-/// retry after a failed lookup, the live-event refetch, and `clear()`.
+/// retry after a failed lookup, the live-event refetch, `resync()` and `clear()`.
 library;
 
 import 'dart:async';
@@ -16,7 +16,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/rate_limit_retry.dart';
 import '../../support/fake_api.dart';
 
-typedef _Roster = http.Response Function(String channelId, int call);
+typedef _Roster = FutureOr<http.Response> Function(String channelId, int call);
 
 http.Response _roster(List<String> userIds) => http.Response(
   jsonEncode({
@@ -170,6 +170,70 @@ void main() {
       isNull,
       reason: 'never asked about, so not fetched',
     );
+  });
+
+  test('an older roster answering last never overwrites a newer one', () async {
+    final first = Completer<http.Response>();
+    final f = _fixture((_, call) => call == 1 ? first.future : _roster([]));
+    f.controller.ensureTracked('dm-1');
+    await _settle();
+
+    f.events.add(const api.VoiceActivityChanged(channelId: 'dm-1'));
+    await _settle();
+    first.complete(_roster(['other']));
+    await _settle();
+
+    expect(f.calls['dm-1'], 2);
+    expect(f.state['dm-1'], isFalse);
+  });
+
+  test('a burst of live events for one channel queues one lookup', () async {
+    final first = Completer<http.Response>();
+    final f = _fixture((_, call) => call == 1 ? first.future : _roster([]));
+    f.controller.ensureTracked('dm-1');
+    await _settle();
+
+    for (var i = 0; i < 3; i++) {
+      f.events.add(const api.VoiceActivityChanged(channelId: 'dm-1'));
+    }
+    await _settle();
+    first.complete(_roster(['other']));
+    await _settle();
+
+    expect(f.calls['dm-1'], 2, reason: 'one lookup after the one in flight');
+    expect(f.state['dm-1'], isFalse);
+  });
+
+  test('resync keeps what is shown and asks every channel again', () async {
+    var other = true;
+    final f = _fixture((_, _) => _roster(other ? ['other'] : []));
+    f.controller.ensureTracked('dm-1');
+    await _settle();
+
+    other = false;
+    f.controller.resync();
+    expect(f.state['dm-1'], isTrue, reason: 'no flicker before it answers');
+    await _settle();
+
+    expect(f.calls['dm-1'], 2);
+    expect(f.state['dm-1'], isFalse);
+  });
+
+  test('a failed lookup keeps the last answer and the tracking', () async {
+    final f = _fixture(
+      (_, call) => call == 2 ? _status(500) : _roster(call == 1 ? ['x'] : []),
+    );
+    f.controller.ensureTracked('dm-1');
+    await _settle();
+
+    f.events.add(const api.VoiceActivityChanged(channelId: 'dm-1'));
+    await _settle();
+    expect(f.state['dm-1'], isTrue, reason: 'unknown is not "no call"');
+    f.events.add(const api.VoiceActivityChanged(channelId: 'dm-1'));
+    await _settle();
+
+    expect(f.calls['dm-1'], 3);
+    expect(f.state['dm-1'], isFalse);
   });
 
   test(

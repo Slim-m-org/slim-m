@@ -53,8 +53,17 @@ class DmCallActivityController extends StateNotifier<Map<String, bool>> {
   /// Every channel this session has ever asked about, so a repeat call from
   /// a rebuilding row costs a set lookup rather than a second fetch.
   final _tracked = <String>{};
+
+  /// Tracked channels whose last lookup failed, so the next row that asks retries.
+  final _failed = <String>{};
   final _queue = Queue<String>();
-  int _inFlight = 0;
+
+  /// Channels with a lookup running, and whether a newer ask arrived meanwhile.
+  /// One lookup per channel at a time keeps an older answer from landing last.
+  final _running = <String, bool>{};
+
+  /// Bumped by [clear], so a lookup from before it never lands after it.
+  int _epoch = 0;
 
   /// Learns [channelId]'s current call state if not already known or
   /// already queued. Safe to call from every row's build: idempotent past
@@ -62,30 +71,43 @@ class DmCallActivityController extends StateNotifier<Map<String, bool>> {
   /// immediately so many rows asking at once become a bounded trickle of
   /// requests instead of one each, all at once.
   void ensureTracked(String channelId) {
-    if (!_tracked.add(channelId)) return;
+    final retry = _failed.remove(channelId);
+    if (!_tracked.add(channelId) && !retry) return;
     _enqueue(channelId);
   }
 
   void _enqueue(String channelId) {
+    if (_running.containsKey(channelId)) {
+      _running[channelId] = true;
+      return;
+    }
+    if (_queue.contains(channelId)) return;
     _queue.add(channelId);
     _pump();
   }
 
   void _pump() {
-    while (_inFlight < dmCallActivityMaxConcurrentFetches &&
+    while (_running.length < dmCallActivityMaxConcurrentFetches &&
         _queue.isNotEmpty) {
       final channelId = _queue.removeFirst();
-      _inFlight++;
+      _running[channelId] = false;
+      final epoch = _epoch;
       unawaited(
-        _fetch(channelId).whenComplete(() {
-          _inFlight--;
+        _fetch(channelId, epoch).whenComplete(() {
+          if (epoch != _epoch) return;
+          final askedAgain = _running.remove(channelId) ?? false;
+          if (askedAgain) _enqueue(channelId);
           _pump();
         }),
       );
     }
   }
 
-  Future<void> _fetch(String channelId) async {
+  /// Whether [channelId]'s running lookup still answers the latest ask.
+  bool _isLatest(String channelId, int epoch) =>
+      mounted && epoch == _epoch && _running[channelId] == false;
+
+  Future<void> _fetch(String channelId, int epoch) async {
     try {
       final client = _ref.read(apiProvider);
       final roster = await retryWhenRateLimited(
@@ -94,7 +116,9 @@ class DmCallActivityController extends StateNotifier<Map<String, bool>> {
       );
       final selfId = client.session.tokens?.userId;
       final inCall = roster.any((p) => p.userId != selfId);
-      if (mounted) state = {...state, channelId: inCall};
+      if (!_isLatest(channelId, epoch)) return;
+      _failed.remove(channelId);
+      state = {...state, channelId: inCall};
     } on api.NotConfiguredException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.voice,
@@ -109,22 +133,29 @@ class DmCallActivityController extends StateNotifier<Map<String, bool>> {
         error,
         stack,
       );
-      // Untracked again, so the next row that asks retries; waiting on a live event would leave a call already in progress unlit.
-      _tracked.remove(channelId);
+      // The last answer stays shown and live events still refetch; the next row that asks retries too.
+      if (epoch == _epoch) _failed.add(channelId);
     }
   }
 
-  /// Forgets every cached state and asks again about each tracked channel,
-  /// for a session that may have missed a [api.VoiceActivityChanged] frame
-  /// while disconnected: [SyncController.start] (`sync_controller.dart`)
-  /// calls this on every (re)connect. There is no cursor to catch up from, and
-  /// a row that already reads false never rebuilds to ask for itself.
+  /// Asks again about every tracked channel, keeping what is shown until each
+  /// answers. `afterSyncLive` (`sync_live_refresh.dart`) calls this once the
+  /// socket is subscribed: a [api.VoiceActivityChanged] frame missed while
+  /// disconnected is never replayed, and a row that already reads false never
+  /// rebuilds to ask for itself.
+  void resync() {
+    _failed.clear();
+    _tracked.forEach(_enqueue);
+  }
+
+  /// Forgets every channel and its state, for a session that ended.
   void clear() {
-    _queue
-      ..clear()
-      ..addAll(_tracked);
+    _epoch++;
+    _tracked.clear();
+    _failed.clear();
+    _queue.clear();
+    _running.clear();
     if (mounted) state = const {};
-    _pump();
   }
 
   @override

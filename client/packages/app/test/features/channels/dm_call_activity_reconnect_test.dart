@@ -116,12 +116,12 @@ void main() {
       expect(find.byIcon(AppIcons.startCall), findsNothing);
       final before = rosterCalls;
 
-      // What SyncController.start does on every (re)connect.
-      container.read(dmCallActivityProvider.notifier).clear();
       // The call began while the socket was down.
       rosterNow = [
         {'user_id': 'user-priya', 'display_name': 'Priya'},
       ];
+      // What afterSyncLive does on every (re)connect.
+      container.read(dmCallActivityProvider.notifier).resync();
       await tester.pump();
       await tester.pump();
       await tester.pump();
