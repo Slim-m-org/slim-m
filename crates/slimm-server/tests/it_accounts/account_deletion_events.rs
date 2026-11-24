@@ -150,9 +150,10 @@ async fn deleting_an_account_renames_and_releases_its_temporary_room() {
     let lobby = w.store.create_channel("lobby", "voice").await.unwrap();
     let room = w
         .store
-        .create_voice_room(&lobby, w.leaver, "Ben's room")
+        .open_voice_room(&lobby, w.leaver, "Ben's room")
         .await
-        .unwrap();
+        .unwrap()
+        .0;
 
     let events = delete_and_collect(&w).await;
 

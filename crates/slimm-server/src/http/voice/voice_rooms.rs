@@ -59,9 +59,6 @@ async fn open_room(
     if !lobby.room.creates_rooms {
         return Err(ApiError::BadRequest("this channel does not make rooms"));
     }
-    if let Some(room) = state.store.voice_room_of(lobby_id, ctx.user_id).await? {
-        return Ok(Json(with_restricted(&state, room).await?));
-    }
     let display_name = state
         .store
         .user_profile(ctx.user_id)
@@ -69,14 +66,16 @@ async fn open_room(
         .map(|u| u.display_name)
         .unwrap_or_else(|| "someone".to_owned());
     let short: String = display_name.chars().take(ROOM_NAME_PREFIX_CHARS).collect();
-    let room = state
+    let (room, created) = state
         .store
-        .create_voice_room(&lobby, ctx.user_id, &format!("{short}'s room"))
+        .open_voice_room(&lobby, ctx.user_id, &format!("{short}'s room"))
         .await?;
     let restricted = state.store.channel_restricted(room.id).await?;
-    state
-        .hub
-        .publish(Event::ChannelCreated(Arc::new(room.clone()), restricted));
+    if created {
+        state
+            .hub
+            .publish(Event::ChannelCreated(Arc::new(room.clone()), restricted));
+    }
     Ok(Json(ChannelDto::with_restricted(room, restricted)))
 }
 
@@ -113,13 +112,19 @@ async fn update_room(
         .await?
         .filter(|c| c.room.is_room())
         .ok_or(ApiError::NotFound("room not found"))?;
-    if !manages(&state, &room, ctx.user_id).await? {
+    if !may_edit(&state, &room, ctx.user_id).await? {
         return Err(ApiError::Forbidden);
     }
     let name = req.name.as_deref().map(validate_channel_name).transpose()?;
     let user_limit = req.user_limit.map(validate_user_limit).transpose()?;
     if name.is_none() && req.locked.is_none() && user_limit.is_none() {
         return Err(ApiError::BadRequest("nothing to update"));
+    }
+    let unchanged = name.is_none_or(|n| n == room.name)
+        && req.locked.is_none_or(|l| l == room.room.locked)
+        && user_limit.is_none_or(|l| l == room.room.user_limit);
+    if unchanged {
+        return Ok(Json(with_restricted(&state, room).await?));
     }
     let updated = state
         .store
@@ -135,9 +140,10 @@ async fn update_room(
         .await?
         .ok_or(ApiError::NotFound("room not found"))?;
     let restricted = state.store.channel_restricted(channel_id).await?;
+    // A name, lock or limit moves nobody's permissions, so the cache epoch stays.
     state
         .hub
-        .publish(Event::ChannelUpdated(Arc::new(updated.clone()), restricted));
+        .publish_keeping_permissions(Event::ChannelUpdated(Arc::new(updated.clone()), restricted));
     Ok(Json(ChannelDto::with_restricted(updated, restricted)))
 }
 
@@ -146,11 +152,23 @@ async fn manages(state: &AppState, channel: &Channel, user: UserId) -> Result<bo
     if channel.room.owner_id == Some(user) {
         return Ok(true);
     }
+    is_manager(state, user).await
+}
+
+async fn is_manager(state: &AppState, user: UserId) -> Result<bool, ApiError> {
     Ok(state
         .store
         .base_permissions(user)
         .await?
         .contains(Permissions::MANAGE_CHANNELS))
+}
+
+/// Who may change the room's settings: a manager, or the owner unless timed out.
+async fn may_edit(state: &AppState, room: &Channel, user: UserId) -> Result<bool, ApiError> {
+    if is_manager(state, user).await? {
+        return Ok(true);
+    }
+    Ok(room.room.owner_id == Some(user) && state.store.timed_out_until(user).await?.is_none())
 }
 
 async fn with_restricted(state: &AppState, channel: Channel) -> Result<ChannelDto, ApiError> {
@@ -189,4 +207,29 @@ pub(crate) async fn check_join(
         return Err(ApiError::Conflict("this call is full"));
     }
     Ok(())
+}
+
+/// Whether `user` is past the channel's user limit among those the SFU holds, which
+/// `check_join` cannot see when several tokens are minted at once. Earliest joiners keep
+/// their place, and the owner and managers never count as over.
+pub(crate) async fn past_user_limit(state: &AppState, channel_id: ChannelId, user: UserId) -> bool {
+    let channel = match state.store.channel(channel_id).await {
+        Ok(Some(channel)) if channel.room.user_limit > 0 => channel,
+        _ => return false,
+    };
+    match manages(state, &channel, user).await {
+        Ok(false) => {}
+        Ok(true) | Err(_) => return false,
+    }
+    let Ok(present) = state.voice.list_participants(channel_id).await else {
+        return false;
+    };
+    let mut order: Vec<_> = present
+        .iter()
+        .map(|p| (p.joined_at_ms.unwrap_or(0), p.sid.as_str(), p.user_id.0))
+        .collect();
+    order.sort_unstable();
+    order.dedup_by_key(|entry| entry.2);
+    let rank = order.iter().position(|entry| entry.2 == user.0);
+    rank.is_some_and(|rank| rank as i64 >= channel.room.user_limit)
 }
