@@ -13,6 +13,9 @@ use anyhow::Context;
 use super::super::{Store, now_ms};
 use crate::ids::{ChannelId, UserId};
 use crate::limits::MAX_USERNAME_CHARS;
+use crate::permissions::Permissions;
+use crate::store::category_overwrites::mark_unsynced;
+use crate::store::permissions::channel_overwrites::set_overwrite;
 
 impl Store {
     /// The module's principal, created on first need and kept across
@@ -83,6 +86,65 @@ impl Store {
         .await?
         .rows_affected();
         Ok(affected > 0)
+    }
+
+    /// Points the module's schedule at `new` (or at nothing), moving the bot's `post` grant with it
+    /// in one transaction; the grant on the old channel goes only if it is exactly what this wrote.
+    pub async fn move_module_schedule_channel(
+        &self,
+        module_id: &str,
+        bot: UserId,
+        new: Option<ChannelId>,
+        post: Permissions,
+    ) -> anyhow::Result<ScheduleMove> {
+        let mut tx = self.begin_write().await?;
+        let Some(old) = sqlx::query_scalar!(
+            r#"SELECT schedule_channel_id AS "id: ChannelId" FROM installed_modules WHERE id = ?"#,
+            module_id
+        )
+        .fetch_optional(&mut *tx)
+        .await?
+        else {
+            return Ok(ScheduleMove::NotInstalled);
+        };
+        if let Some(new) = new.filter(|new| Some(*new) != old) {
+            let held = member_overwrite(&mut tx, new, bot).await?;
+            let (allow, deny) = held.unwrap_or((Permissions::NONE, Permissions::NONE));
+            if deny.intersects(post) {
+                return Ok(ScheduleMove::Denied);
+            }
+            let allow = allow.union(post);
+            set_overwrite(&mut *tx, new, "member", bot.0, allow, deny).await?;
+            mark_unsynced(&mut *tx, new).await?;
+            super::super::voice_rooms::copy_lobby_overwrites_into_rooms(&mut tx, new).await?;
+        }
+        if let Some(old) = old.filter(|old| Some(*old) != new)
+            && member_overwrite(&mut tx, old, bot).await? == Some((post, Permissions::NONE))
+        {
+            {
+                let bot_id = bot.0;
+                sqlx::query!(
+                    "DELETE FROM channel_overwrites
+                     WHERE channel_id = ? AND target_type = 'member' AND target_id = ?",
+                    old,
+                    bot_id
+                )
+                .execute(&mut *tx)
+                .await?;
+                mark_unsynced(&mut *tx, old).await?;
+                super::super::voice_rooms::copy_lobby_overwrites_into_rooms(&mut tx, old).await?;
+            }
+        }
+        sqlx::query!(
+            "UPDATE installed_modules SET schedule_channel_id = ? WHERE id = ?",
+            new,
+            module_id
+        )
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        self.touch_modules();
+        Ok(ScheduleMove::Moved)
     }
 
     /// Replaces the module's recorded schedules, outside an install.
@@ -162,4 +224,31 @@ mod tests {
         let long = principal_username(&"x".repeat(64), id);
         assert_eq!(long.chars().count(), MAX_USERNAME_CHARS);
     }
+}
+
+/// How [`Store::move_module_schedule_channel`] ended.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ScheduleMove {
+    Moved,
+    NotInstalled,
+    /// The bot is denied posting on the new channel; nothing changed.
+    Denied,
+}
+
+async fn member_overwrite(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    channel: ChannelId,
+    user: UserId,
+) -> anyhow::Result<Option<(Permissions, Permissions)>> {
+    let user_id = user.0;
+    let row = sqlx::query!(
+        r#"SELECT allow AS "allow!: Permissions", deny AS "deny!: Permissions"
+           FROM channel_overwrites
+           WHERE channel_id = ? AND target_type = 'member' AND target_id = ?"#,
+        channel,
+        user_id
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+    Ok(row.map(|r| (r.allow, r.deny)))
 }

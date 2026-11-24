@@ -11,10 +11,12 @@ use tokio::sync::{Mutex as TurnLock, MutexGuard};
 
 use super::contract::Next;
 use crate::hub::RoomJson;
-use crate::ids::ChannelId;
+use crate::ids::{ChannelId, UserId};
 
 /// Rooms one module may hold at once, across every channel.
 pub(crate) const MAX_ROOMS_PER_MODULE: usize = 64;
+/// Rooms one member may have opened for one module, so one account cannot use up the module's share.
+pub(crate) const MAX_ROOMS_PER_OPENER: usize = 4;
 /// Inputs that may wait for one room's turn; the next is refused rather than queued.
 pub(crate) const MAX_WAITING: usize = 8;
 
@@ -37,6 +39,7 @@ pub(crate) struct Held {
 
 #[derive(Default)]
 pub(crate) struct Room {
+    opener: Option<UserId>,
     turn: TurnLock<()>,
     waiting: AtomicUsize,
     held: Mutex<Held>,
@@ -95,6 +98,8 @@ impl Room {
 pub(crate) enum Refused {
     /// The module already holds [`MAX_ROOMS_PER_MODULE`] rooms.
     TooManyRooms,
+    /// The member already opened [`MAX_ROOMS_PER_OPENER`] rooms for this module.
+    TooManyOpened,
     /// [`MAX_WAITING`] inputs are already waiting for this room.
     Busy,
 }
@@ -122,17 +127,23 @@ impl Rooms {
         self.live.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// Joins the queue for `key`'s turn, opening the room if it has none.
-    pub(crate) fn enter(&self, key: &RoomKey) -> Result<Entered<'_>, Refused> {
+    /// Joins the queue for `key`'s turn, opening the room for `opener` if it has none.
+    pub(crate) fn enter(&self, key: &RoomKey, opener: UserId) -> Result<Entered<'_>, Refused> {
         let mut live = self.live();
         let room = match live.get(key) {
             Some(room) => Arc::clone(room),
             None => {
-                let held = live.keys().filter(|k| k.module_id == key.module_id);
-                if held.count() >= MAX_ROOMS_PER_MODULE {
+                let held = live.iter().filter(|(k, _)| k.module_id == key.module_id);
+                if held.clone().count() >= MAX_ROOMS_PER_MODULE {
                     return Err(Refused::TooManyRooms);
                 }
-                let room = Arc::new(Room::default());
+                if held.filter(|(_, r)| r.opener == Some(opener)).count() >= MAX_ROOMS_PER_OPENER {
+                    return Err(Refused::TooManyOpened);
+                }
+                let room = Arc::new(Room {
+                    opener: Some(opener),
+                    ..Room::default()
+                });
                 live.insert(key.clone(), Arc::clone(&room));
                 room
             }

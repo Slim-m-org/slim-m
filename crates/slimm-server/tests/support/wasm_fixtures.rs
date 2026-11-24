@@ -263,6 +263,26 @@ pub fn busy_ok_wasm(rounds: u32) -> Vec<u8> {
     wat::parse_str(&text).expect("busy wasm fixture must parse")
 }
 
+/// A module that spins `rounds` loop turns, then answers `output` as its reply.
+#[allow(dead_code)]
+pub fn busy_canned_wasm(rounds: u32, output: &serde_json::Value) -> Vec<u8> {
+    let wire = serde_json::json!({ "ok": true, "output": output.to_string() }).to_string();
+    let (data, len) = (escape_wat_string(wire.as_bytes()), wire.len());
+    let text = format!(
+        r#"(module
+            (memory (export "memory") 1)
+            (data (i32.const 1024) "{data}")
+            (func (export "alloc") (param $len i32) (result i32) (i32.const 32768))
+            (func (export "run") (param $in_ptr i32) (param $in_len i32) (result i64)
+                (local $i i32)
+                (loop $spin
+                    (local.set $i (i32.add (local.get $i) (i32.const 1)))
+                    (br_if $spin (i32.lt_u (local.get $i) (i32.const {rounds}))))
+                (i64.or (i64.shl (i64.const 1024) (i64.const 32)) (i64.const {len}))))"#
+    );
+    wat::parse_str(&text).expect("busy canned wasm fixture must parse")
+}
+
 /// A module that fails every `member.joined` event and accepts any other: it
 /// reads the character after `member.` in the `{"event":"member.x"` it is sent.
 #[allow(dead_code)]

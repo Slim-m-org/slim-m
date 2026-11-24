@@ -12942,8 +12942,10 @@ paths:
       description: >
         Gated on MANAGE_SERVER. Needs the module's schedule capability
         approved (409 otherwise). The module's principal is allowed to view
-        and post in the chosen text channel, and loses that in the channel it
-        had before. null stops scheduled runs. The caller must be able to post
+        and post in the chosen text channel, keeping any other overwrite it
+        has there, and loses that grant in the channel it had before unless
+        an admin changed it since. A channel where the principal is denied
+        posting answers 409. null stops scheduled runs. The caller must be able to post
         in the chosen channel themselves: one they cannot see answers the 400
         a missing one does, one they can see but not post in answers 403.
       requestBody:

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT schedule_channel_id AS \"id: ChannelId\" FROM installed_modules WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "installed_modules",
+            "name": "schedule_channel_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "b93d72e36cf382d333b6b84709cc071a880d582c4f8079c06cf8525bbe689fd4"
+}

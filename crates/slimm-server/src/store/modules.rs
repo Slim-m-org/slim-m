@@ -27,6 +27,7 @@ pub(super) mod module_kv;
 mod module_metadata;
 pub(super) mod module_permissions;
 pub(super) mod module_schedule;
+pub use module_schedule::ScheduleMove;
 pub(super) mod module_settings;
 pub(super) mod module_stats;
 pub(super) mod module_timers;

@@ -24,7 +24,7 @@ use super::module_run::{RunContext, RunKind, RunRequest, run_installed};
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{InstalledModule, ModuleSchedule};
+use crate::store::{InstalledModule, ModuleSchedule, ScheduleMove};
 
 pub fn routes() -> Router<AppState> {
     Router::new().route(
@@ -63,22 +63,19 @@ async fn set_schedule_channel(
         Some(raw) => Some(text_channel(&state, ctx.user_id, raw).await?),
     };
     let post = Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES);
-    if let Some(old) = module
-        .schedule_channel_id
-        .filter(|old| Some(*old) != channel)
-    {
-        state.store.delete_member_overwrite(old, bot).await?;
-    }
-    if let Some(new) = channel {
-        state
-            .store
-            .set_member_overwrite(new, bot, post, Permissions::NONE)
-            .await?;
-    }
-    state
+    match state
         .store
-        .set_module_schedule_channel(&id, channel)
-        .await?;
+        .move_module_schedule_channel(&id, bot, channel, post)
+        .await?
+    {
+        ScheduleMove::Moved => {}
+        ScheduleMove::NotInstalled => return Err(ApiError::NotFound("module not installed")),
+        ScheduleMove::Denied => {
+            return Err(ApiError::Conflict(
+                "the module's principal is denied posting in that channel",
+            ));
+        }
+    }
     let updated = state
         .store
         .installed_module(&id)
@@ -137,7 +134,7 @@ pub(crate) async fn principal_may_act(state: &AppState, principal: UserId) -> an
 /// Whether `schedule` is due at `now`, given when it last ran.
 pub(crate) fn is_due(schedule: &ModuleSchedule, last_run_at: Option<i64>, now: i64) -> bool {
     let every_ms = i64::from(schedule.every_minutes) * 60_000;
-    last_run_at.is_none_or(|last| now - last >= every_ms)
+    last_run_at.is_none_or(|last| last > now || now - last >= every_ms)
 }
 
 /// Runs every due scheduled command once, one at a time so a busy tick
@@ -145,29 +142,44 @@ pub(crate) fn is_due(schedule: &ModuleSchedule, last_run_at: Option<i64>, now: i
 pub async fn run_due(state: &AppState, now: i64) -> anyhow::Result<usize> {
     let mut ran = 0;
     for module in state.store.list_installed_modules().await? {
-        let (Some(bot), Some(channel)) = (module.bot_user_id, module.schedule_channel_id) else {
-            continue;
-        };
-        if !module.enabled || !schedule_approved(&module) {
-            continue;
-        }
-        // A deleted or removed principal keeps its overwrite, so this is what stops it.
-        if !principal_may_act(state, bot).await? {
-            continue;
-        }
-        let last_runs = state.store.module_schedule_runs(&module.id).await?;
-        for schedule in &module.schedules {
-            if !is_due(schedule, last_runs.get(&schedule.command).copied(), now) {
-                continue;
+        match run_module_due(state, &module, now).await {
+            Ok(count) => ran += count,
+            Err(err) => {
+                tracing::warn!(module = %module.id, error = %err, "module schedule check failed")
             }
-            // Recorded first, so a run that crashes the tick is not retried every minute.
-            state
-                .store
-                .record_module_schedule_run(&module.id, &schedule.command, now)
-                .await?;
-            run_one(state, &module, bot, channel, &schedule.command).await;
-            ran += 1;
         }
+    }
+    Ok(ran)
+}
+
+async fn run_module_due(
+    state: &AppState,
+    module: &InstalledModule,
+    now: i64,
+) -> anyhow::Result<usize> {
+    let (Some(bot), Some(channel)) = (module.bot_user_id, module.schedule_channel_id) else {
+        return Ok(0);
+    };
+    if !module.enabled || !schedule_approved(module) {
+        return Ok(0);
+    }
+    // A deleted or removed principal keeps its overwrite, so this is what stops it.
+    if !principal_may_act(state, bot).await? {
+        return Ok(0);
+    }
+    let last_runs = state.store.module_schedule_runs(&module.id).await?;
+    let mut ran = 0;
+    for schedule in &module.schedules {
+        if !is_due(schedule, last_runs.get(&schedule.command).copied(), now) {
+            continue;
+        }
+        // Recorded first, so a run that crashes the tick is not retried every minute.
+        state
+            .store
+            .record_module_schedule_run(&module.id, &schedule.command, now)
+            .await?;
+        run_one(state, module, bot, channel, &schedule.command).await;
+        ran += 1;
     }
     Ok(ran)
 }
@@ -218,5 +230,10 @@ mod tests {
         assert!(is_due(&every(15), None, 0));
         assert!(!is_due(&every(15), Some(0), 15 * 60_000 - 1));
         assert!(is_due(&every(15), Some(0), 15 * 60_000));
+    }
+
+    #[test]
+    fn a_run_stamped_in_the_future_is_due_when_the_clock_moved_back() {
+        assert!(is_due(&every(15), Some(1_000_000), 10));
     }
 }
