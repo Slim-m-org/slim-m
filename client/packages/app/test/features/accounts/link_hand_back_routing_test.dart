@@ -83,17 +83,20 @@ void main() {
     },
   );
 
-  test('a code naming a server with no account is dropped', () async {
-    links.add(
-      Uri.parse(
-        'slimm://discord-link?code=ABCDE23456&server=https://third.example',
-      ),
-    );
-    await pumpEventQueueTimes();
+  test(
+    'a code naming a server with no account finishes on the account on screen',
+    () async {
+      links.add(
+        Uri.parse(
+          'slimm://discord-link?code=ABCDE23456&server=https://third.example',
+        ),
+      );
+      await pumpEventQueueTimes();
 
-    expect(finished, isEmpty);
-    expect(h.host.active!.account!.origin, _a);
-  });
+      expect(finished.map((f) => f.code), ['ABCDE23456']);
+      expect(Uri.parse(finished.single.origin).host, Uri.parse(_a).host);
+    },
+  );
 
   test(
     'an older link naming no server finishes on the account on screen',

@@ -70,8 +70,10 @@ class SpaceScopedPreferences implements SharedPreferences {
   Future<bool> _write(String key, Future<bool> Function(String key) set) async {
     final scoped = _scopedKey(key);
     if (scoped == null) return set(key);
-    await _base.remove(_removedMarker(scoped));
-    return set(scoped);
+    final marker = _removedMarker(scoped);
+    final written = set(scoped);
+    if (_base.containsKey(marker)) await _base.remove(marker);
+    return written;
   }
 
   @override

@@ -128,6 +128,30 @@ void main() {
     },
   );
 
+  test('a write is visible to a read in the same turn', () async {
+    SharedPreferences.setMockInitialValues({});
+    final c = _containerFor(_a);
+    addTearDown(c.dispose);
+    final prefs = await c.read(preferencesProvider.future);
+
+    final pending = prefs.setString(spaceDefaultThemeKey, '{"a":1}');
+    expect(prefs.getString(spaceDefaultThemeKey), '{"a":1}');
+    await pending;
+  });
+
+  test('a write after a removal clears the removal marker', () async {
+    SharedPreferences.setMockInitialValues({spaceDefaultThemeKey: '{}'});
+    final c = _containerFor(_a);
+    addTearDown(c.dispose);
+    final prefs = await c.read(preferencesProvider.future);
+    await prefs.remove(spaceDefaultThemeKey);
+    await prefs.setString(spaceDefaultThemeKey, '{"a":1}');
+
+    final raw = await SharedPreferences.getInstance();
+    final scoped = spaceScopedKey(_a, spaceDefaultThemeKey);
+    expect(raw.containsKey('$scoped.removed'), isFalse);
+  });
+
   test('device-wide settings are one value for every Space', () async {
     SharedPreferences.setMockInitialValues({});
     final a = _containerFor(_a);

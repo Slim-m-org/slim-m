@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/accounts/providers/account_slot.dart'
+    show accountActiveProvider;
 import 'package:slimm_app/src/features/channels/providers/category_nesting.dart';
 import 'package:slimm_app/src/features/channels/providers/last_text_channel.dart';
 import 'package:slimm_app/src/features/channels/providers/slow_mode_controller.dart';
@@ -118,6 +120,28 @@ void main() {
       expect(
         container.read(conversationSearchMemoryProvider).recall('dm-1'),
         isNull,
+      );
+    },
+  );
+
+  test(
+    'a remembered conversation search survives switching away and back',
+    () async {
+      final container = await _container(_alice);
+      const scope = SearchFilter(SearchKey.inChannel, 'dm', channelId: 'dm-1');
+      container.read(conversationSearchMemoryProvider).remember(
+        scope,
+        'kept',
+        const [scope],
+      );
+
+      container.read(accountActiveProvider.notifier).state = false;
+      container.read(accountActiveProvider.notifier).state = true;
+      await pumpEventQueue();
+
+      expect(
+        container.read(conversationSearchMemoryProvider).recall('dm-1'),
+        isNotNull,
       );
     },
   );

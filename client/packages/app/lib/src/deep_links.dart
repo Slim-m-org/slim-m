@@ -161,19 +161,19 @@ class DeepLinkListener {
     }
   }
 
-  /// Sends a hand-back to the account whose server it names, or the one on screen when it names none.
+  /// Sends a hand-back to the account whose server it names, or the one on screen when it names none or none matches.
+  ///
+  /// A proxy can rewrite the origin the handoff page names, and the server refuses a code bound to another user.
   void _deliverHandBack(LinkHandBack handBack) {
     var target = _host?.active?.container ?? _home;
     final server = handBack.server;
     final host = _host;
     if (host != null && server != null) {
       final runtime = host.runtimeFor(originOf(server));
-      if (runtime == null) {
-        AppLog.info(LogTag.platform, 'Ignored a link code for another server');
-        return;
+      if (runtime != null) {
+        target = runtime.container;
+        if (runtime.signedIn) unawaited(host.switchTo(runtime.account!.origin));
       }
-      target = runtime.container;
-      if (runtime.signedIn) unawaited(host.switchTo(runtime.account!.origin));
     }
     if (!target.read(sessionProvider).isSignedIn) {
       target.read(pendingLinkHandBackProvider).hold(handBack);
