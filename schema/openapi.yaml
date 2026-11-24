@@ -4173,12 +4173,27 @@ paths:
     get:
       operationId: getMemberPermissions
       tags: [bots]
-      summary: A member's effective deployment-wide permissions, for a bot.
+      summary: A member's effective permissions, deployment-wide or in one channel, for a bot.
       description: >-
         Bot-only, read-only: lets a permission-gated command resolve who may
         run it without the bot holding MANAGE_ROLES. Returns the same bitmask
         `Me.permissions` gives the caller about itself, with any timeout
         already subtracted. It cannot change a role.
+
+        With `channel_id`, returns the member's bitmask in that one channel
+        instead, the bits `getChannelPermissions` would give the member
+        there. It is all zeros unless both the member and the calling bot
+        can view the channel, so a hidden channel answers exactly like a
+        missing one, and the response echoes `channel_id`. A server that
+        predates this parameter ignores it and omits the echo.
+      parameters:
+        - name: channel_id
+          in: query
+          required: false
+          description: Scope the answer to this channel.
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: The member's permissions.
@@ -18468,7 +18483,13 @@ components:
         permissions:
           type: integer
           format: int64
-          description: The deployment-wide permission bitmask, timeout subtracted.
+          description: >-
+            The permission bitmask, timeout subtracted: deployment-wide, or in
+            `channel_id` when the request named one.
+        channel_id:
+          type: string
+          format: uuid
+          description: The channel the bitmask is scoped to; present only when the request named one.
     CreateBotRequest:
       type: object
       required: [username]

@@ -61,6 +61,12 @@ pub(crate) async fn bot_calls(c: &mut Contract, root: &str, channel: &str) {
         &bot_token,
     )
     .await;
+    c.get(
+        "getMemberPermissions",
+        &format!("/members/{bot_id}/permissions?channel_id={channel}"),
+        &bot_token,
+    )
+    .await;
     c.get("getBotCommands", &format!("/bots/{bot_id}/commands"), root)
         .await;
     c.get(
