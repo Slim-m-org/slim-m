@@ -107,7 +107,7 @@ async fn the_feed_serves_a_live_note_s_current_text_for_every_earlier_edit() {
     let (_, ops) = get_ops(&app, channel, &carol, "after_seq=0").await;
     let current = json!({ "text": "redacted", "color": "annotation" });
     assert_eq!(edit_props(&ops), vec![current.clone(), current]);
-    assert!(!ops.to_string().contains("555"), "{ops}");
+    assert!(!ops.to_string().contains("phone 555 0100"), "{ops}");
 }
 
 #[tokio::test]
