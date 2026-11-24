@@ -14,9 +14,6 @@ pub const MAX_TEXT_CHARS: usize = 500;
 /// The font steps a text box may name; the client maps each onto its type scale.
 pub const TEXT_SIZES: [&str; 3] = ["small", "medium", "large"];
 
-/// Largest serialized `props` one canvas object may carry.
-pub const MAX_PROPS_BYTES: usize = 4 * 1024;
-
 const MAX_COLOR_BYTES: usize = 32;
 
 /// A named colour key of identifier characters, or `#rrggbb`: the one rule for every canvas colour.
