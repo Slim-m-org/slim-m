@@ -33,19 +33,25 @@ const double _sheetInset = AppSpacing.s8;
 Future<void> showEmojiPickerSheet(
   BuildContext context, {
   required ValueChanged<String> onSelect,
+  Object? tapGroupId,
 }) {
   return _sheet(
     context,
     // The width the sheet has, not the desktop popup's 320, or a phone wastes a third of it.
-    (context, width) => EmojiPickerPanel(
-      autofocusSearch: false,
-      width: width,
-      onSelect: (emoji) {
-        Navigator.of(context).pop();
-        onSelect(emoji);
-      },
-      onClose: () => Navigator.of(context).pop(),
-    ),
+    (context, width) {
+      final panel = EmojiPickerPanel(
+        autofocusSearch: false,
+        width: width,
+        onSelect: (emoji) {
+          Navigator.of(context).pop();
+          onSelect(emoji);
+        },
+        onClose: () => Navigator.of(context).pop(),
+      );
+      return tapGroupId == null
+          ? panel
+          : TapRegion(groupId: tapGroupId, child: panel);
+    },
   );
 }
 

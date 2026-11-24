@@ -72,18 +72,24 @@ class CanvasSelectionBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.card),
         boxShadow: AppShadows.menu,
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final (i, entry) in entries.indexed) ...[
-              if (i > 0) const SizedBox(width: AppSpacing.s12),
-              _entry(context, entry, touch),
-            ],
-            ?trailing,
-          ],
-        ),
+      child: Row(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final (i, entry) in entries.indexed) ...[
+                    if (i > 0) const SizedBox(width: AppSpacing.s12),
+                    _entry(context, entry, touch),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          ?trailing,
+        ],
       ),
     );
     return Material(

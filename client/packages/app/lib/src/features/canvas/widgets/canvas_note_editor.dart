@@ -46,6 +46,9 @@ class CanvasNoteEditSession {
   final TextEditingController controller;
   final FocusNode focusNode;
 
+  /// Counts the inserts the note's cap refused, so its field can say why.
+  final refusals = ValueNotifier<int>(0);
+
   /// The height the note had before typing grew it, which a commit or cancel gives back.
   double baseHeight;
 
@@ -55,6 +58,7 @@ class CanvasNoteEditSession {
   void dispose() {
     controller.dispose();
     focusNode.dispose();
+    refusals.dispose();
   }
 }
 
@@ -273,6 +277,7 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor>
                       ),
                       tapRegionGroupId: canvasNoteTapGroup,
                       onTapOutside: _commit,
+                      refusals: _session.refusals,
                     ),
                   ),
                 ),

@@ -7,14 +7,14 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart'
-    show AppSizes, AppSpacing;
+    show AppIconButton, AppIcons, AppSizes, AppSpacing;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../providers/dock_reservation.dart';
-import '../../../widgets/text_insert.dart';
-import '../../emoji/widgets/emoji_field_picker.dart';
+import '../../emoji/widgets/emoji_picker.dart';
 import '../providers/canvas_edge_style.dart';
 import '../widgets/canvas_note_editor.dart';
+import '../widgets/canvas_note_limits.dart';
 import '../widgets/canvas_note_style_options.dart';
 import '../widgets/canvas_selection_bar.dart';
 import '../widgets/canvas_text_style_options.dart';
@@ -149,16 +149,26 @@ class _EmojiButton extends StatelessWidget {
 
   final CanvasNoteEditSession session;
 
+  void _insert(String emoji) {
+    session.focusNode.requestFocus();
+    if (!insertEmojiWithinNoteCap(session.controller, emoji)) {
+      session.refusals.value++;
+    }
+  }
+
   @override
   Widget build(BuildContext context) => SizedBox(
     width: AppSizes.rowTouch,
-    child: EmojiFieldPicker(
-      semanticLabel: 'Insert emoji',
-      onSelect: (emoji) {
-        session.focusNode.requestFocus();
-        insertAtSelection(session.controller, emoji);
-      },
-      builder: (context, button) => button,
+    child: EmojiPickerButton(
+      alignEnd: true,
+      tapGroupId: canvasNoteTapGroup,
+      onSelect: _insert,
+      triggerBuilder: (context, toggle) => AppIconButton(
+        icon: AppIcons.smile,
+        semanticLabel: 'Insert emoji',
+        tooltip: 'Insert emoji',
+        onPressed: toggle,
+      ),
     ),
   );
 }

@@ -7,7 +7,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_design_system/design_system.dart' show AppIconButton;
 import 'package:slimm_app/src/features/canvas/widgets/canvas_note_blocks.dart';
+import 'package:slimm_app/src/features/canvas/widgets/canvas_note_limits.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_note_spans.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_selection_bar.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -30,6 +32,9 @@ Map<String, dynamic> _note({
 
 const _onNote = Offset(300, 200);
 const _empty = Offset(700, 500);
+final _barEmoji = find.byWidgetPredicate(
+  (w) => w is AppIconButton && w.semanticLabel == 'Insert emoji',
+);
 final _editorRect = find.byKey(const ValueKey('canvas-note-editor-rect'));
 
 Future<CanvasPaneFixture> _pane(
@@ -39,8 +44,9 @@ Future<CanvasPaneFixture> _pane(
   int opsStatus = 201,
   String? tool,
   bool noteStyle = true,
+  Size size = const Size(1280, 800),
 }) async {
-  tester.view.physicalSize = const Size(1280, 800);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final fixture = CanvasPaneFixture(
@@ -334,6 +340,57 @@ void main() {
         find.byWidgetPredicate((w) => w is CanvasSelectionBar),
         findsNothing,
       );
+    });
+  });
+
+  group('the bar emoji button', () {
+    Future<TextEditingController> openCompact(
+      WidgetTester tester,
+      String text,
+    ) async {
+      await _pane(
+        tester,
+        note: _note(text: text),
+        size: const Size(390, 800),
+      );
+      await _openEditor(tester);
+      return tester
+          .widget<EditableText>(
+            find.descendant(
+              of: _editorRect,
+              matching: find.byWidgetPredicate((w) => w is EditableText),
+            ),
+          )
+          .controller;
+    }
+
+    testWidgets('on a phone opens a sheet and inserts what is picked', (
+      tester,
+    ) async {
+      final controller = await openCompact(tester, 'hi');
+
+      await tester.tap(_barEmoji);
+      await pumpFrames(tester, frames: 30);
+      await tester.tap(find.text('\u{1F600}').first);
+      await pumpFrames(tester, frames: 30);
+
+      expect(controller.text, contains('\u{1F600}'));
+      expect(_editorRect, findsOneWidget);
+    });
+
+    testWidgets('says the note is full when an emoji does not fit', (
+      tester,
+    ) async {
+      final controller = await openCompact(tester, 'a' * 3986);
+      expect(noteWireBytes(controller.text), lessThanOrEqualTo(4000));
+
+      await tester.tap(_barEmoji);
+      await pumpFrames(tester, frames: 30);
+      await tester.tap(find.text('\u{1F600}').first);
+      await pumpFrames(tester, frames: 30);
+
+      expect(controller.text, 'a' * 3986);
+      expect(find.text(noteFullSentence), findsOneWidget);
     });
   });
 
