@@ -23562,9 +23562,8 @@ components:
         held rather than describing a delta. Resolved per receiving connection
         the way PresenceChanged's status is: a reactor the viewer has blocked
         is excluded from the counts, and an emoji whose only reactors are
-        blocked is absent rather than present at zero. Carries no reactor ids
-        at all, so what the viewer themselves reacted with is not derivable
-        from this frame and has to come from a read.
+        blocked is absent rather than present at zero. Carries no reactor ids;
+        each row's `reacted` says only whether the receiving user is one of them.
       properties:
         type:
           type: string
@@ -23579,6 +23578,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ReactionCount"
+        version:
+          type: integer
+          format: int64
+          description: >
+            Rises with every change to this message's reactions. A client
+            keeps the frame with the larger version and ignores an older one
+            that arrives late.
 
     CodeRunChanged:
       type: object
@@ -23700,6 +23706,9 @@ components:
         count:
           type: integer
           format: int64
+        reacted:
+          type: boolean
+          description: Whether the receiving user is one of them.
 
     CodeRun:
       type: object
@@ -23812,7 +23821,8 @@ components:
       required: [type, channel_id, message_id, options]
       description: >
         The whole option set with current tallies, not the one option that
-        moved, so a client that missed a frame still converges.
+        moved, so a client that missed a frame still converges. The voter's
+        own connections also get their new choice; nobody else learns who voted.
       properties:
         type:
           type: string
@@ -23830,6 +23840,24 @@ components:
         runoff:
           $ref: "#/components/schemas/PollRunoff"
           description: Present on a ranked poll only.
+        version:
+          type: integer
+          format: int64
+          description: >
+            Rises with every vote on this poll. A client keeps the frame with
+            the larger version and ignores an older one that arrives late.
+        voted_option:
+          type: integer
+          format: int64
+          description: >
+            The receiving user's own pick (first choice on a ranked poll),
+            present only when their own vote caused this frame.
+        voted_ranking:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: The receiving user's own ranking, best first, alongside voted_option on a ranked poll.
 
     PollOptionCount:
       type: object

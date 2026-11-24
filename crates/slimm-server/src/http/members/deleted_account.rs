@@ -84,6 +84,8 @@ async fn announce_cleared_account(state: &AppState, cleared: Cleared) {
                 message_id,
                 options: outcome.tally,
                 runoff: outcome.runoff,
+                version: outcome.version,
+                cast: None,
             })),
             Ok(None) => {}
             Err(err) => tracing::warn!(?err, "could not announce a deleted account's poll vote"),

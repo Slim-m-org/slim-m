@@ -51,6 +51,7 @@ ServerEvent? messageFrame(Map<String, dynamic> decoded) {
         reactions: (decoded['reactions'] as List<dynamic>)
             .map((r) => ReactionTally.fromJson(r as Map<String, dynamic>))
             .toList(growable: false),
+        version: decoded['version'] as int?,
       ),
     // The frame's fields are a CodeRun plus the channel/message it belongs to.
     'code_run.changed'
@@ -119,6 +120,12 @@ ServerEvent? messageFrame(Map<String, dynamic> decoded) {
         runoff: decoded['runoff'] is Map<String, dynamic>
             ? PollRunoff.fromJson(decoded['runoff'] as Map<String, dynamic>)
             : null,
+        version: decoded['version'] as int?,
+        votedOption: decoded['voted_option'] as int?,
+        votedRanking: switch (decoded['voted_ranking']) {
+          final List<dynamic> ranking => List<int>.from(ranking),
+          _ => null,
+        },
       ),
     _ => null,
   };

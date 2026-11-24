@@ -24,10 +24,8 @@ class ReactionSummary {
   /// Whether the calling user is one of them, so a client can render the
   /// toggled state without a second request.
   ///
-  /// Per-viewer, and never broadcast: the live `reactions.changed` WebSocket
-  /// event carries a different, `reacted`-less shape
-  /// (`ReactionTally` in events.dart) rather than this one, so the two are
-  /// deliberately distinct types a caller cannot confuse.
+  /// Per-viewer. The live `reactions.changed` frame carries `ReactionTally`
+  /// (events.dart) instead, whose flag is null from an older server.
   final bool reacted;
 
   factory ReactionSummary.fromJson(Map<String, dynamic> json) =>

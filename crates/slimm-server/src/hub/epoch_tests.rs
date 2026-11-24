@@ -16,6 +16,7 @@ fn subscribers_share_a_large_payload_rather_than_copying_it() {
         message_id: crate::ids::MessageId::generate(),
         reactors: Arc::new(vec![("+1".to_owned(), vec![(UserId::generate(), 1)])]),
         moved: None,
+        version: 1,
     }));
     let reactors = |event| match event {
         Event::Message(MessageEvent::ReactionsChanged { reactors, .. }) => reactors,

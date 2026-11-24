@@ -97,6 +97,7 @@ fn reacted(
             user_id: moved.0,
             added: moved.1,
         })),
+        version: 1,
     })
 }
 
@@ -228,6 +229,8 @@ async fn a_poll_vote_carries_the_tally_and_no_voter() {
             message_id: message,
             options: vec![(0, 2), (1, 1)],
             runoff,
+            version: 1,
+            cast: None,
         })
     };
     w.hub.publish(vote(None));

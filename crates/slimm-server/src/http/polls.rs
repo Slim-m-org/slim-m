@@ -9,8 +9,8 @@
 //! routes closely: the same view-then-act permission gate, and a fan-out event
 //! carrying the whole public tally rather than a delta so a client that missed
 //! a frame cannot drift. Exactly like `ReactionsChanged`, the event never says
-//! who voted for what; only the voter's own request response (and their own
-//! later read) tells them their own choice.
+//! who voted for what to anyone but the voter, whose own other devices learn
+//! the new choice from it.
 
 use std::sync::Arc;
 
@@ -31,7 +31,7 @@ use super::messages::{MessageDto, parse_uuid};
 use super::module_hooks::{Draft, Field, HookPoint, guard_write};
 use super::post_commit::{after_commit, run_to_completion};
 use super::viewable_message::viewable_message;
-use crate::hub::{Event, MessageEvent};
+use crate::hub::{CastBallot, Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -432,6 +432,10 @@ async fn vote(
     let channel_id = authorize(&state, ctx.user_id, message_id).await?;
 
     let ballot = req.ballot()?;
+    let ranking = match &ballot {
+        Ballot::Single(option) => vec![*option],
+        Ballot::Ranked(ranking) => ranking.clone(),
+    };
     let outcome = match state.store.vote_poll(message_id, ctx.user_id, ballot).await {
         Ok(outcome) => outcome,
         Err(VoteError::UnknownPoll) => return Err(ApiError::NotFound("no such poll")),
@@ -453,6 +457,11 @@ async fn vote(
         message_id,
         options: outcome.tally,
         runoff: outcome.runoff,
+        version: outcome.version,
+        cast: Some(Arc::new(CastBallot {
+            user_id: ctx.user_id,
+            ranking,
+        })),
     }));
     Ok(StatusCode::NO_CONTENT)
 }

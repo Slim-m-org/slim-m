@@ -166,13 +166,15 @@ pub async fn rekey_stored_reactions(store: &crate::store::Store) -> anyhow::Resu
 /// reactors instead of a tally keeps that per-connection filtering step
 /// mandatory.
 ///
-/// `reacted` is likewise absent from the wire and derived per client, so one
-/// connection is never told what another user reacted with beyond the count.
+/// `reacted` is derived per connection too, so a connection learns only its
+/// own user's reactions beyond the count.
 pub(in crate::http) async fn publish(
     state: &AppState,
     (channel_id, message_id): (crate::ids::ChannelId, MessageId),
     moved: Option<ReactionMoved>,
 ) -> Result<(), ApiError> {
+    // Before the read, so a later version never describes an older snapshot.
+    let version = crate::store::next_tally_version();
     let reactors = state.store.reaction_reactors(message_id).await?;
     state
         .hub
@@ -181,6 +183,7 @@ pub(in crate::http) async fn publish(
             message_id,
             reactors: Arc::new(reactors),
             moved: moved.map(Arc::new),
+            version,
         }));
     Ok(())
 }

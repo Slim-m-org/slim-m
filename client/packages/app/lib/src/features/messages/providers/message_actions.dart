@@ -26,45 +26,10 @@ import 'message_search.dart' show ProviderReader;
 import '../../../providers/providers.dart';
 import '../../channels/providers/slow_mode_controller.dart';
 
-/// Toggles a reaction: off if [wasActive], on otherwise. Applied
-/// optimistically before the request, so a chip responds immediately; a
-/// failure reverts it, and the acting connection's own `reactions.changed`
-/// broadcast (it receives its own broadcasts too) reconciles the rest
-/// either way.
-Future<void> setReaction(
-  WidgetRef ref,
-  String messageId,
-  String emoji, {
-  required bool wasActive,
-}) async {
-  final extras = ref.read(messageExtrasProvider.notifier);
-  final activate = !wasActive;
-  extras.applyLocalReactionToggle(messageId, emoji, activate);
-  try {
-    final client = ref.read(apiProvider);
-    if (activate) {
-      await client.addReaction(messageId: messageId, emoji: emoji);
-    } else {
-      await client.removeReaction(messageId: messageId, emoji: emoji);
-    }
-  } on api.ApiException catch (error, stack) {
-    api.reportFailure(api.LogTag.ui, 'change a reaction', error, stack);
-    extras.applyLocalReactionToggle(messageId, emoji, wasActive);
-  }
-}
+export 'reaction_actions.dart' show hasReacted, setReaction;
 
-/// Whether the caller has already reacted to [messageId] with [emoji],
-/// according to whatever this session currently has cached.
-bool hasReacted(WidgetRef ref, String messageId, String emoji) => ref
-    .read(messageExtrasProvider.notifier)
-    .extrasFor(messageId)
-    .reactions
-    .any((r) => r.emoji == emoji && r.reacted);
-
-/// Casts (or changes) a vote, applied optimistically for the same reason
-/// reactions are: `poll.voted` never reports back who voted, only the
-/// refreshed tally, so the voter's own [api.Poll.votedOption] would
-/// otherwise never update on their own screen.
+/// Casts (or changes) a vote, applied optimistically like a reaction, so the
+/// poll responds before the `poll.voted` frame confirms it.
 ///
 /// A refusal takes the vote back off the screen and is left in
 /// [pollVoteFailureProvider], where the poll shows it with a way to retry.

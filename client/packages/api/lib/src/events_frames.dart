@@ -12,11 +12,15 @@ class ReactionsChanged extends ServerEvent {
     required this.channelId,
     required this.messageId,
     required this.reactions,
+    this.version,
   });
 
   final String channelId;
   final String messageId;
   final List<ReactionTally> reactions;
+
+  /// Larger for a later change to this message's reactions; null from an older server.
+  final int? version;
 }
 
 /// A fenced code block's shared run result changed: someone ran it, and the
@@ -124,6 +128,9 @@ class PollVoted extends ServerEvent {
     required this.messageId,
     required this.options,
     this.runoff,
+    this.version,
+    this.votedOption,
+    this.votedRanking,
   });
 
   final String channelId;
@@ -132,6 +139,15 @@ class PollVoted extends ServerEvent {
 
   /// The refreshed instant-runoff count, on a ranked poll only.
   final PollRunoff? runoff;
+
+  /// Larger for a later vote on this poll; null from an older server.
+  final int? version;
+
+  /// The receiving user's own new pick, set only when their own vote caused this frame.
+  final int? votedOption;
+
+  /// The receiving user's own new ranking, alongside [votedOption] on a ranked poll.
+  final List<int>? votedRanking;
 }
 
 /// A user's presence changed, from this receiving connection's point of view
@@ -498,63 +514,4 @@ class CategoryMuteChanged extends ServerEvent {
 
   final String categoryId;
   final bool muted;
-}
-
-/// Someone started a call, joined one or went live in a voice channel this account asked to
-/// hear about. Delivered only to that account, after the server applied every exclusion.
-class VoiceNotice extends ServerEvent {
-  const VoiceNotice({
-    required this.channelId,
-    required this.actorId,
-    required this.activity,
-  });
-
-  final String channelId;
-  final String actorId;
-  final VoiceActivity activity;
-}
-
-enum VoiceActivity {
-  /// The first person joined an empty channel.
-  callStarted,
-  joined,
-  streaming,
-}
-
-/// A moderator moved this account to another voice channel. Delivered only to
-/// the moved account's sockets.
-class VoiceMoved extends ServerEvent {
-  const VoiceMoved({
-    required this.fromChannelId,
-    required this.toChannelId,
-    required this.toChannelName,
-    required this.movedById,
-    required this.movedByName,
-  });
-
-  final String fromChannelId;
-  final String toChannelId;
-  final String toChannelName;
-  final String movedById;
-  final String movedByName;
-}
-
-/// A device this account has not used before just signed in. Delivered only
-/// to the account's other sockets, never to the device that signed in.
-class NewDeviceSignIn extends ServerEvent {
-  const NewDeviceSignIn({
-    required this.deviceId,
-    required this.deviceName,
-    required this.signedInAt,
-    this.clientKind,
-  });
-
-  final String deviceId;
-  final String deviceName;
-
-  /// "ios", "android", "desktop" or "web", or null when the device did not say.
-  final String? clientKind;
-
-  /// Unix milliseconds.
-  final int signedInAt;
 }

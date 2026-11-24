@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 part of 'events.dart';
 
-// The bot- and module-facing `ServerEvent` frames, split from `events_frames.dart` for the line budget.
+// The bot- and module-facing `ServerEvent` frames and those for one account's own sockets, split from `events_frames.dart` for the line budget.
 
 /// A bot answered this account privately. Delivered only to the account's own
 /// sockets and never replayed, so a receiver keeps it in memory and drops it
@@ -115,4 +115,63 @@ class ModuleRoomChanged extends ServerEvent {
   /// See [roomSceneText].
   final String? scene;
   final String? ended;
+}
+
+/// Someone started a call, joined one or went live in a voice channel this account asked to
+/// hear about. Delivered only to that account, after the server applied every exclusion.
+class VoiceNotice extends ServerEvent {
+  const VoiceNotice({
+    required this.channelId,
+    required this.actorId,
+    required this.activity,
+  });
+
+  final String channelId;
+  final String actorId;
+  final VoiceActivity activity;
+}
+
+enum VoiceActivity {
+  /// The first person joined an empty channel.
+  callStarted,
+  joined,
+  streaming,
+}
+
+/// A moderator moved this account to another voice channel. Delivered only to
+/// the moved account's sockets.
+class VoiceMoved extends ServerEvent {
+  const VoiceMoved({
+    required this.fromChannelId,
+    required this.toChannelId,
+    required this.toChannelName,
+    required this.movedById,
+    required this.movedByName,
+  });
+
+  final String fromChannelId;
+  final String toChannelId;
+  final String toChannelName;
+  final String movedById;
+  final String movedByName;
+}
+
+/// A device this account has not used before just signed in. Delivered only
+/// to the account's other sockets, never to the device that signed in.
+class NewDeviceSignIn extends ServerEvent {
+  const NewDeviceSignIn({
+    required this.deviceId,
+    required this.deviceName,
+    required this.signedInAt,
+    this.clientKind,
+  });
+
+  final String deviceId;
+  final String deviceName;
+
+  /// "ios", "android", "desktop" or "web", or null when the device did not say.
+  final String? clientKind;
+
+  /// Unix milliseconds.
+  final int signedInAt;
 }
