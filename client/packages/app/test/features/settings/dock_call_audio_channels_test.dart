@@ -103,4 +103,26 @@ void main() {
     expect(container.read(provider).requireValue.ids, ['b']);
     expect(container.read(provider).requireValue.saving, isFalse);
   });
+
+  test('a change after the list rebuilt still finishes saving', () async {
+    final container = _container((request) async {
+      if (request.method == 'GET') {
+        return jsonHttpResponse({'channel_ids': <String>[]});
+      }
+      return jsonHttpResponse({
+        'channel_ids': ['voice-1'],
+      });
+    });
+    final provider = dockCallAudioChannelsProvider('transcript');
+    container.listen(provider, (_, _) {});
+    await container.read(provider.future);
+    container.invalidate(provider);
+    await container.read(provider.future);
+
+    await container.read(provider.notifier).toggle('voice-1', armed: true);
+
+    final held = container.read(provider).requireValue;
+    expect(held.saving, isFalse);
+    expect(held.ids, ['voice-1']);
+  });
 }

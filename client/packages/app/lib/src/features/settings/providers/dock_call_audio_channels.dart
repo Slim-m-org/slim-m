@@ -30,6 +30,7 @@ class DockCallAudioChannelsController
     extends AutoDisposeFamilyAsyncNotifier<DockCallAudioChannels, String> {
   @override
   Future<DockCallAudioChannels> build(String moduleId) async {
+    _disposed = false;
     ref.onDispose(() => _disposed = true);
     final ids = await ref.watch(apiProvider).callAudioChannels(moduleId);
     return DockCallAudioChannels(ids: ids);
