@@ -11095,7 +11095,13 @@ paths:
         none gets ordinary at-least-once delivery: a genuine retry of a
         request whose response never arrived can post a duplicate, which is
         treated as the honest case it is rather than something to silently
-        deduplicate by content.
+        deduplicate by content. A retry of a delivery whose first attempt
+        stored only part of it completes the missing embeds, label and
+        mentions.
+
+
+        The body must be JSON. A missing body or any other
+        content type answers 400 with the usual error shape.
       requestBody:
         required: false
         content:
@@ -19457,7 +19463,7 @@ components:
         A Discord incoming-webhook body. The promise is acceptance, not
         fidelity: an unrecognised field never refuses the request, since the
         caller here is somebody else's program and a loud refusal would hide
-        their bug rather than ours. Only `content`, `username` and `embeds`
+        their bug rather than ours. Only `content`, `username`, `embeds` and `allowed_mentions`
         are honoured; every other property below is accepted and silently
         discarded, field by field, rather than refused.
       properties:
@@ -19509,7 +19515,8 @@ components:
             A string that does not parse, or any other type, drops the
             timestamp and the delivery still posts. A null `embeds` or a null
             embed `fields` reads as empty. `SendMessageRequest.embeds` is
-            unchanged and still refuses a string timestamp with 400.
+            unchanged and still refuses a string timestamp with 400. An
+            integer timestamp outside 1970 through 9999 answers 400.
         avatar_url:
           description: >-
             Accepted and discarded, permanently. Honouring it would mean
@@ -19536,9 +19543,11 @@ components:
             unauthenticated writer.
         allowed_mentions:
           description: >-
-            Accepted and discarded in this build. Intended to later narrow,
-            never widen, which of a message's mentions resolve; not yet
-            wired in.
+            Honoured as a restriction only: it narrows which mentions
+            resolve and never widens them. Without `users` in `parse`, no
+            member is mentioned except those listed in `users`, so
+            `{"parse": []}` mentions nobody. `everyone` and `roles` in
+            `parse` grant nothing a webhook does not already have.
     DeliveredWebhookMessage:
       type: object
       description: >-

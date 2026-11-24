@@ -392,6 +392,7 @@ async fn create(
                 presence: state.hub.presence(),
                 reply_ping: None,
                 mass_authority: Some(ctx.user_id),
+                mention_only: None,
             },
         );
         super::threads::notify_reply(&state, channel_id).await;

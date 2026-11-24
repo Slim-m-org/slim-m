@@ -70,7 +70,7 @@ use debounce::Debounce;
 
 pub use admin_alert::AdminAlertPush;
 pub use attention::{SkipReason, narrow_for_attention, skip_reasons};
-pub use recipients::message_recipients;
+pub use recipients::{message_recipients, message_recipients_limited_to};
 pub use security::NewDeviceSignIn;
 pub use voice_notice::VoiceNotice;
 
@@ -323,6 +323,8 @@ pub struct SentMessage {
     /// Whose `MENTION_EVERYONE` decides how far `@everyone`, `@here` and role mentions reach.
     /// The author for what they wrote; `None` gives text they did not write no mass reach.
     pub mass_authority: Option<UserId>,
+    /// When set, only these members are pushed as mentioned.
+    pub mention_only: Option<Vec<UserId>>,
 }
 
 #[cfg(test)]
