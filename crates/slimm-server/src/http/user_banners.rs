@@ -11,8 +11,9 @@ use axum::response::Response;
 use super::AppState;
 use super::attachments::serve;
 use super::error::ApiError;
-use super::extract::{ASSET, Authed, AuthedLimited, Bytes, Json, enforce};
+use super::extract::{ASSET, Authed, AuthedLimited, Bytes, Json, UPLOAD, enforce};
 use super::messages::parse_uuid;
+use super::participant::Participant;
 use super::users::{AVATAR_MAX_BYTES, UserDto, to_dto};
 use crate::hub::Event;
 use crate::ids::UserId;
@@ -21,12 +22,10 @@ use crate::ratelimit::Class;
 
 /// Uploads (or replaces) the caller's banner. The file is written before the row, as for an avatar.
 pub(super) async fn upload_banner(
-    Authed(ctx): Authed,
-    parts: Parts,
+    Participant(ctx): Participant<UPLOAD>,
     State(state): State<AppState>,
     Bytes(body): Bytes,
 ) -> Result<Json<UserDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Upload)?;
     if body.is_empty() {
         return Err(ApiError::BadRequest("banner is empty"));
     }

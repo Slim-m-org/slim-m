@@ -61,3 +61,20 @@ A reconnect after a drop still reconnects first and re-asks `/version` once it i
 A key change seen then stops sync and holds every later call from that point.
 Asking before each reconnect would cost a `/version` round trip per attempt and was not part of the decision.
 A native video already playing keeps the header it was opened with; only a new open waits.
+
+## Proof of the key and answers that are not slim-m (2026-11-23)
+
+An audit found that a host which copied the real public key out of `/version` passed the pin, and that a pinned address answering `/version` with an error page passed both the gate and sign-in.
+The pin now needs a proof, and only no answer at all still fails open.
+
+- The client sends a fresh random challenge to `POST /identity/proof`, and the server signs it with its Ed25519 identity key.
+  The client checks the signature against the key it pinned.
+- A server older than the route answers 404, and its key is compared alone as before.
+  Once an address has proven its key, the client remembers that, and a later answer without a proof counts as a change.
+- A pinned address that answers but not with a slim-m `/version` (any error status, a page from something else, an unreadable reply) is a change, shown as "It no longer proves who it is".
+  The session gate asks twice more, a few seconds apart, before deciding, so a proxy's error page during a restart does not raise the step.
+- Sign-in to a pinned address sends no password unless the address answered: no answer at all fails the sign-in with the connection error.
+- For a plain-http server only, a dropped connection now asks `/version` again before the reconnect carries the session, because another network can put a different host at the same private address.
+  https servers keep reconnect-first: the certificate already ties the host to its name.
+
+What this still does not stop: an attacker that drops the connection on `/version` or on the challenge gets the same fail-open as an unreachable server during a session, and a relay that forwards everything to the real server proves the real key.

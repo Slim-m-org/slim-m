@@ -6,7 +6,7 @@
 //! own signature already says whether it charges.
 //!
 //! A handler charges iff its signature takes a `RateLimited<C>`,
-//! `AuthedLimited<C>` or `ManagerLimited<C>` extractor, or its body calls
+//! `AuthedLimited<C>`, `ManagerLimited<C>` or `Participant<C>` extractor, or its body calls
 //! `enforce(` or answers `TOO_MANY_REQUESTS` itself (`/ws` reads a bucket
 //! with `exhausted` before the upgrade, where no extractor can run). That is exactly the convention `http/extract.rs`'s own doc
 //! comments describe, and the same rule `tests/it_infra/rate_limit_coverage.rs` already enforces for a
@@ -39,9 +39,9 @@ use support::openapi::{
 /// closing paren) and its body (the `{...}` block that follows). A handler
 /// always has a body; an empty one here would mean a semicolon-terminated
 /// declaration, which never applies to a route handler.
-struct HandlerFn {
-    signature: String,
-    body: String,
+pub(crate) struct HandlerFn {
+    pub(crate) signature: String,
+    pub(crate) body: String,
 }
 
 /// The `{ ... }` block opening at `start`, or an empty string when it never closes.
@@ -66,7 +66,7 @@ fn braced_block(scrubbed: &str, start: usize) -> String {
 /// Operates on already comment/string-stripped text (via [support::code_only])
 /// so a doc comment or string literal that merely mentions `fn foo(` can
 /// never be read as a definition.
-fn functions_in(scrubbed: &str) -> BTreeMap<String, HandlerFn> {
+pub(crate) fn functions_in(scrubbed: &str) -> BTreeMap<String, HandlerFn> {
     let bytes = scrubbed.as_bytes();
     let mut out = BTreeMap::new();
     for (idx, _) in scrubbed.match_indices("fn ") {
@@ -161,7 +161,10 @@ fn imported_with(scrubbed: &str, name: &str, prefix: &str) -> Option<String> {
 /// in the sibling `http/<module>.rs` the `use super::<module>::<name>;`
 /// names. `None` means neither found it, which the caller treats as a
 /// self-check failure rather than a route to silently skip.
-fn resolve_handler(manifest_dir: &Path, route: &RouterRoute) -> Option<(String, HandlerFn)> {
+pub(crate) fn resolve_handler(
+    manifest_dir: &Path,
+    route: &RouterRoute,
+) -> Option<(String, HandlerFn)> {
     let route_path = manifest_dir.join(&route.file);
     let route_source = std::fs::read_to_string(&route_path).ok()?;
     let scrubbed = code_only(&route_source);
@@ -189,13 +192,14 @@ fn resolve_handler(manifest_dir: &Path, route: &RouterRoute) -> Option<(String, 
     Some((target_rel, f))
 }
 
-/// The exact charge rule this gate enforces: a `RateLimited<C>`,
-/// `AuthedLimited<C>` or `ManagerLimited<C>` extractor in the signature, or an
+/// The exact charge rule this gate enforces: a `RateLimited<C>`, `AuthedLimited<C>`,
+/// `ManagerLimited<C>` or `Participant<C>` extractor in the signature, or an
 /// `enforce(` call or a `TOO_MANY_REQUESTS` answer in the body.
 fn charges(handler: &HandlerFn) -> bool {
     handler.signature.contains("RateLimited<")
         || handler.signature.contains("AuthedLimited<")
         || handler.signature.contains("ManagerLimited<")
+        || handler.signature.contains("Participant<")
         || handler.body.contains("enforce(")
         || handler.body.contains("TOO_MANY_REQUESTS")
 }
@@ -336,7 +340,7 @@ fn charging_routes_document_429() {
     assert!(
         reverse_findings.is_empty(),
         "\nthese operations document \"429\" but their handler does not charge by this gate's \
-         rule (RateLimited<C>/AuthedLimited<C>/ManagerLimited<C> in the signature, or an \
+         rule (RateLimited<C>/AuthedLimited<C>/ManagerLimited<C>/Participant<C> in the signature, or an \
          enforce( call or a TOO_MANY_REQUESTS answer in the body):\n\n{}\n",
         reverse_findings.join("\n")
     );
@@ -364,6 +368,10 @@ async fn charged_by_manager_limited(
     Json(req): Json<Body>,
 ) -> Result<(), ApiError> { Ok(()) }
 
+async fn charged_by_participant(
+    Participant(ctx): Participant<INTERACTION>,
+) -> Result<(), ApiError> { Ok(()) }
+
 async fn charged_by_enforce_call(
     Authed(ctx): Authed,
     State(state): State<AppState>,
@@ -381,11 +389,16 @@ async fn charges_nothing(
 "#;
     let scrubbed = code_only(sample);
     let fns = functions_in(&scrubbed);
-    assert_eq!(fns.len(), 6, "expected all six sample handlers to be found");
+    assert_eq!(
+        fns.len(),
+        7,
+        "expected all seven sample handlers to be found"
+    );
 
     assert!(charges(&fns["charged_by_rate_limited"]));
     assert!(charges(&fns["charged_by_authed_limited"]));
     assert!(charges(&fns["charged_by_manager_limited"]));
+    assert!(charges(&fns["charged_by_participant"]));
     assert!(charges(&fns["charged_by_enforce_call"]));
     assert!(charges(&fns["answers_too_many_requests"]));
     assert!(

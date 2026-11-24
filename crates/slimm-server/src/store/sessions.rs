@@ -23,6 +23,7 @@
 
 use sqlx::SqliteConnection;
 
+mod live_sessions;
 mod registration;
 mod token_sweep;
 pub use registration::{Account, RegisterError};
@@ -54,6 +55,8 @@ pub struct IssuedTokens {
     /// True when this sign-in replaced a session of an install the account
     /// already had, so it is a re-login and not a new device.
     pub known_install: bool,
+    /// The sessions this sign-in revoked: the install's earlier ones, and the oldest past the cap.
+    pub replaced: Vec<SessionId>,
 }
 
 /// Who a validated credential resolves to. Carries no secret.
@@ -120,6 +123,7 @@ impl Store {
     /// [`install_device_id`]): signing in again reuses it and revokes the
     /// sessions it already held, so one install is one row however often it
     /// signs in. Without one, every sign-in is a fresh device as it always was.
+    /// Past `MAX_LIVE_SESSIONS` (50) the account's oldest sessions are revoked as well.
     pub async fn open_session_as(
         &self,
         user_id: UserId,
@@ -171,16 +175,17 @@ impl Store {
                 OpenError::AccountGone
             });
         }
+        let mut replaced = Vec::new();
         if known_install {
-            let previous = sqlx::query_scalar!(
+            replaced = sqlx::query_scalar!(
                 r#"SELECT id AS "id!: SessionId" FROM sessions
                    WHERE device_id = ? AND revoked_at IS NULL"#,
                 device_id
             )
             .fetch_all(&mut *tx)
             .await?;
-            for old in previous {
-                revoke_session_rows(&mut tx, old, now)
+            for old in &replaced {
+                revoke_session_rows(&mut tx, *old, now)
                     .await
                     .map_err(OpenError::Internal)?;
             }
@@ -217,6 +222,10 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        let past_cap = live_sessions::revoke_past_cap(&mut tx, user_id, now)
+            .await
+            .map_err(OpenError::Internal)?;
+        replaced.extend(past_cap);
         tx.commit().await?;
 
         Ok(IssuedTokens {
@@ -228,6 +237,7 @@ impl Store {
             user_id,
             device_id,
             known_install,
+            replaced,
         })
     }
 

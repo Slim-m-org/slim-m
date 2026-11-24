@@ -19,6 +19,7 @@ import 'package:slimm_platform/platform.dart' show KeyStore;
 
 import '../../../providers/providers.dart';
 import '../../../routing/page_transitions.dart';
+import '../providers/server_identity_proof.dart';
 import 'server_identity_changed_step.dart';
 
 /// The handle a server's pinned public key is stored under, one per address:
@@ -51,34 +52,58 @@ void endFirstContact(StateController<Set<String>> firstContact, Uri server) {
   firstContact.update((handles) => {...handles}..remove(handle));
 }
 
-/// What `/version` said about a server's identity, read before deciding
-/// anything: [known] is false when it could not answer as a slim-m server.
-typedef ServerIdentityProbe = ({bool known, api.ServerIdentity? identity});
+/// What `/version` and the identity challenge said, read before deciding anything.
+typedef ServerIdentityProbe = IdentityReading;
 
 /// Reads [server]'s identity without pinning or navigating, so a dialog can
 /// show it is waiting and close before [settleServerIdentity] runs.
 ///
-/// [requireSlimServer] makes an address that answers without a slim-m
-/// `/version` throw [api.NotASlimServerException] instead of counting as unknown.
+/// [requireSlimServer] is for a caller about to send a password: an address
+/// that answers without a slim-m `/version` throws
+/// [api.NotASlimServerException], and a pinned one nothing comes back from
+/// rethrows that failure instead of counting as unknown.
 Future<ServerIdentityProbe> probeServerIdentity(
   WidgetRef ref,
   Uri server, {
   bool requireSlimServer = false,
 }) async {
+  final keyStore = ref.read(keyStoreProvider);
   final client = ref.read(probeApiProvider)(server);
   try {
-    return (known: true, identity: (await client.version()).identity);
-  } on api.NotASlimServerException {
-    if (requireSlimServer) rethrow;
-    return (known: false, identity: null);
-  } catch (error, stack) {
-    api.reportFailure(
-      api.LogTag.auth,
-      'confirm the server identity',
-      error,
-      stack,
-    );
-    return (known: false, identity: null);
+    final api.Version version;
+    try {
+      version = await client.version();
+    } on api.NotASlimServerException {
+      if (requireSlimServer) rethrow;
+      return (answer: IdentityAnswer.notSlim, identity: null);
+    } catch (error, stack) {
+      api.reportFailure(
+        api.LogTag.auth,
+        'confirm the server identity',
+        error,
+        stack,
+      );
+      if (serverAnswered(error)) {
+        return (answer: IdentityAnswer.notSlim, identity: null);
+      }
+      if (requireSlimServer && await pinnedIdentityCheck(keyStore)(server)) {
+        rethrow;
+      }
+      return (answer: IdentityAnswer.unanswered, identity: null);
+    }
+    final identity = version.identity;
+    if (identity == null) {
+      return (answer: IdentityAnswer.unproven, identity: null);
+    }
+    final answer = await challengeIdentity(client, identity);
+    if (answer == IdentityAnswer.unanswered &&
+        requireSlimServer &&
+        await pinnedIdentityCheck(keyStore)(server)) {
+      throw const api.TransportException(
+        'the server did not answer the identity challenge',
+      );
+    }
+    return (answer: answer, identity: identity);
   } finally {
     client.close();
   }
@@ -91,9 +116,10 @@ Future<ServerIdentityProbe> probeServerIdentity(
 /// Returns whether it is safe to continue with [server]. An unreachable one is
 /// treated as unknown rather than blocked: sign-in surfaces a real connection
 /// failure with more authority than a probe run during onboarding ever could.
-/// A server that reports no identity is unknown only while nothing is pinned
-/// for it; once a key is pinned, leaving the identity out is a change, and goes
-/// through the same warning as a different key.
+/// A server that answers without a slim-m `/version`, reports no identity, or
+/// cannot prove it holds its key is unknown only while nothing is pinned for
+/// it; once a key is pinned, each of those is a change, and goes through the
+/// same warning as a different key.
 Future<bool> confirmServerIdentity(
   BuildContext context,
   WidgetRef ref,
@@ -124,28 +150,36 @@ Future<bool> settleServerIdentity(
         .read(firstContactServersProvider.notifier)
         .update((handles) => {...handles, handle});
   }
-  if (!probe.known) return true;
+  if (probe.answer == IdentityAnswer.unanswered) return true;
   final identity = probe.identity;
 
-  if (identity == null && pinned == null) return true;
-  if (pinned != null && pinned == identity?.publicKey) return true;
-  if (!context.mounted) return false;
-
   if (pinned == null) {
-    await keyStore.put(handle, identity!.publicKey);
+    if (identity == null || probe.answer == IdentityAnswer.disproven) {
+      return true;
+    }
+    await keyStore.put(handle, identity.publicKey);
+    if (probe.answer == IdentityAnswer.proven) {
+      await keyStore.put(identityProofHandleFor(server), identity.publicKey);
+    }
     return true;
   }
+  if (await holdsPinnedKey(keyStore, server, pinned, probe)) return true;
+  if (!context.mounted) return false;
+  final presented =
+      identity?.publicKey == pinned || probe.answer == IdentityAnswer.disproven
+      ? null
+      : identity;
 
   final trusted = await Navigator.of(context).push<bool>(
     fadeThroughRoute<bool>(
       context,
       (context) =>
-          ServerIdentityChangedStep(address: server, identity: identity),
+          ServerIdentityChangedStep(address: server, identity: presented),
     ),
   );
 
   if (trusted != true) return false;
-  // Nothing to pin when the server reported nothing; the old key stays pinned.
-  if (identity != null) await keyStore.put(handle, identity.publicKey);
+  // Nothing new to pin when the server proved nothing; the old key stays pinned.
+  if (presented != null) await keyStore.put(handle, presented.publicKey);
   return true;
 }

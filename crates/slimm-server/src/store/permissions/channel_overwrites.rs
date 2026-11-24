@@ -91,6 +91,20 @@ impl Store {
         }))
     }
 
+    /// The channels where `user_id` holds an overwrite of its own.
+    pub async fn member_overwrite_channels(
+        &self,
+        user_id: UserId,
+    ) -> anyhow::Result<Vec<ChannelId>> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT channel_id AS "channel_id!: ChannelId" FROM channel_overwrites
+               WHERE target_type = 'member' AND target_id = ?"#,
+            user_id
+        )
+        .fetch_all(&self.pool)
+        .await?)
+    }
+
     /// Every overwrite set on a channel, role and member alike, so an editor
     /// can see the current allow/deny pairs before changing one rather than
     /// overwriting blind. Ordered stably for a deterministic response.

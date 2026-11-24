@@ -32,12 +32,25 @@ pub fn demux(raw: &[u8]) -> Vec<Line> {
             lines.push(Line {
                 ts: ts.to_owned(),
                 stream,
-                text: text.trim_end_matches('\r').to_owned(),
+                text: printable(text.trim_end_matches('\r')),
             });
         }
         rest = &rest[end..];
     }
     cap(lines)
+}
+
+/// Control characters other than tab become U+FFFD so JSON escaping cannot outgrow the byte cap.
+fn printable(text: &str) -> String {
+    text.chars()
+        .map(|c| {
+            if c.is_control() && c != '\t' {
+                '\u{FFFD}'
+            } else {
+                c
+            }
+        })
+        .collect()
 }
 
 fn cap(mut lines: Vec<Line>) -> Vec<Line> {
@@ -97,6 +110,16 @@ mod tests {
         raw.extend(frame(1, &format!("t {big}\n")));
         let lines = demux(&raw);
         assert_eq!(lines.len(), 1);
+    }
+
+    #[test]
+    fn control_characters_cannot_push_the_log_past_its_cap() {
+        let noisy = "\u{1}".repeat(50 * 1024);
+        let lines = demux(&frame(1, &format!("t {noisy}\nt ok\n")));
+        assert_eq!(lines.last().unwrap().text, "ok");
+        let serialized = serde_json::to_string(&lines).unwrap();
+        assert!(serialized.len() < MAX_BYTES, "{}", serialized.len());
+        assert!(lines[0].text.starts_with('\u{FFFD}'));
     }
 
     #[test]

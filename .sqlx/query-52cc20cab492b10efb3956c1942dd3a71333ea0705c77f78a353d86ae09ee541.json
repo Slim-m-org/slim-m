@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: SessionId\" FROM sessions\n           WHERE user_id = ? AND revoked_at IS NULL\n           ORDER BY created_at DESC, id DESC\n           LIMIT -1 OFFSET ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: SessionId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "sessions",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "52cc20cab492b10efb3956c1942dd3a71333ea0705c77f78a353d86ae09ee541"
+}

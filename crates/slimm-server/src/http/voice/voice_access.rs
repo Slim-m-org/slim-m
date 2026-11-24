@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Ends a call for whoever a role, member-role or overwrite change just took View or Connect from.
+//! Ends a call for whoever a role, member-role or overwrite change just took View or Connect from,
+//! and for a device whose sessions were all revoked.
 //! A LiveKit token cannot be revoked, so without this they stay in the room until the heartbeat sweep.
 
 use futures_util::StreamExt;
@@ -10,9 +11,9 @@ use tokio::task::JoinHandle;
 
 use super::super::AppState;
 use crate::hub::{Event, moves_permissions};
-use crate::ids::{ChannelId, UserId};
+use crate::ids::{ChannelId, DeviceId, UserId};
 use crate::permissions::Permissions;
-use crate::voice::VoiceError;
+use crate::voice::{RoomParticipant, VoiceError};
 
 /// What being on a channel's call needs, the same pair the heartbeat and the token require.
 const IN_CALL: Permissions = Permissions::VIEW_CHANNEL.union(Permissions::CONNECT);
@@ -90,29 +91,96 @@ pub(in crate::http) async fn evict_refused_heartbeat(
     remove_from_room(state, user_id, channel_id).await;
 }
 
-/// Removes someone the SFU just let in who holds no View and Connect in the channel, answering whether they stay.
+/// Removes someone the SFU just let in who holds no View and Connect in the channel, or whose
+/// token's device is signed out, answering whether they stay.
 ///
-/// The SFU renews every token it accepts, so one minted before the access went
+/// The SFU renews every token it accepts, so one minted before the access or the session went
 /// still joins; this is the check a join by that token never otherwise meets.
 pub(in crate::http) async fn evict_join_without_access(
     state: &AppState,
     user_id: UserId,
     channel_id: ChannelId,
+    holder: Option<&str>,
 ) -> bool {
-    match state
+    let stays = match state
         .store
         .permissions_in_channel(user_id, channel_id)
         .await
     {
-        Ok(held) if held.contains(IN_CALL) => true,
-        Ok(_) => {
-            evict_refused_heartbeat(state, user_id, channel_id).await;
-            false
-        }
+        Ok(held) if held.contains(IN_CALL) => match state.store.live_device_ids(user_id).await {
+            Ok(live) => held_by_live_device(state, channel_id, holder, &live),
+            Err(err) => {
+                tracing::warn!(%err, "could not check a voice participant's sessions as they joined");
+                true
+            }
+        },
+        Ok(_) => false,
         Err(err) => {
             tracing::warn!(%err, "could not check a voice participant's access as they joined");
             true
         }
+    };
+    if !stays {
+        evict_refused_heartbeat(state, user_id, channel_id).await;
+    }
+    stays
+}
+
+/// Ends each call of `user_id`'s that a device with no live session left joined.
+pub(in crate::http) async fn evict_calls_without_live_device(state: &AppState, user_id: UserId) {
+    let mut channels = state.voice.live_state().channels_of(user_id);
+    channels.extend(
+        state
+            .voice
+            .calls()
+            .into_iter()
+            .filter(|(user, _)| *user == user_id)
+            .map(|(_, channel)| channel),
+    );
+    channels.sort_unstable_by_key(|channel| channel.0);
+    channels.dedup();
+    if channels.is_empty() {
+        return;
+    }
+    let live = match state.store.live_device_ids(user_id).await {
+        Ok(live) => live,
+        Err(err) => {
+            tracing::warn!(%err, "could not read which devices are still signed in");
+            return;
+        }
+    };
+    for channel_id in channels {
+        let listed = match state.voice.list_participants(channel_id).await {
+            Ok(listed) => listed,
+            Err(VoiceError::Unavailable) => return,
+            Err(VoiceError::Internal(err)) => {
+                tracing::warn!(%err, %channel_id, "could not list a call to end a signed-out device's place in it");
+                continue;
+            }
+        };
+        let signed_out = |p: &RoomParticipant| {
+            p.user_id == user_id
+                && !held_by_live_device(state, channel_id, p.holder.as_deref(), &live)
+        };
+        if listed.iter().any(signed_out) {
+            evict_refused_heartbeat(state, user_id, channel_id).await;
+        }
+    }
+}
+
+/// Whether the token a participant joined with was minted on a device that still holds a session.
+fn held_by_live_device(
+    state: &AppState,
+    channel_id: ChannelId,
+    holder: Option<&str>,
+    live: &[DeviceId],
+) -> bool {
+    match holder {
+        Some(holder) => live
+            .iter()
+            .any(|device| state.voice.holder_tag(channel_id, *device).as_deref() == Some(holder)),
+        // A token from before holder tags names no device, so only a wholly signed-out account is refused.
+        None => !live.is_empty(),
     }
 }
 

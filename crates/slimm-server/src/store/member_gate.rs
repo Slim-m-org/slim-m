@@ -3,8 +3,9 @@
 //!
 //! With the gate on, an account that registers waits in `pending_members`
 //! until it accepts the Space's rules. A pending member's permissions are
-//! capped wherever the timeout mask is applied, so no route needs its own
-//! check: they can view the rules channel, and nothing else at all.
+//! capped wherever the timeout mask is applied, so they can view the rules
+//! channel and nothing else. A route that checks no permission bit gets no
+//! such cap, so it takes `http::participant::Participant` instead.
 //! `joins_paused` refuses every new registration, invite or not.
 
 use std::collections::HashSet;

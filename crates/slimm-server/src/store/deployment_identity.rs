@@ -25,6 +25,14 @@ impl Store {
         crate::identity::load_or_create(&self.pool).await
     }
 
+    /// Signs a client's identity challenge; see [`crate::identity::sign_proof`].
+    pub async fn sign_identity_proof(
+        &self,
+        challenge: &[u8],
+    ) -> anyhow::Result<(crate::identity::ServerIdentity, [u8; 64])> {
+        crate::identity::sign_proof(&self.pool, challenge).await
+    }
+
     /// The id this deployment names itself with to the connector supervisor, which binds to
     /// the first one it hears; derived, so it survives a restart and names nothing secret.
     pub async fn connector_deployment_id(&self) -> anyhow::Result<String> {

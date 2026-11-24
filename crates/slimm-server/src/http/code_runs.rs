@@ -7,8 +7,9 @@
 //!
 //! It reuses the exact module gating and execution of `module_commands`
 //! (`execute_command`); the only thing added here is the message-scoped
-//! authorization (mirroring `reactions.rs`: VIEW_CHANNEL, masked as 404) and
-//! the store-plus-broadcast that makes the output shared. slim still has no
+//! authorization (VIEW_CHANNEL masked as 404, as `reactions.rs` does, then
+//! SEND_MESSAGES, since the output is broadcast like a message) and the
+//! store-plus-broadcast that makes the output shared. slim still has no
 //! notion of what any command does.
 //!
 //! `req.module_id == CODE_RUNNER_MODULE_ID` is the one exception, handled the
@@ -40,18 +41,20 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AuthedLimited, Json, MODULE};
+use super::extract::{Json, MODULE};
 use super::hidden_chars::is_hidden_char;
 use super::messages::parse_uuid;
 use super::module_commands::{
     CODE_RUNNER_MODULE_ID, CommandOutcome, execute_code_runner, execute_command,
 };
+use super::participant::Participant;
 use super::surface_lock::lock_surface;
 use super::surface_state::with_held_state;
 use super::viewable_message::viewable_message;
 use crate::code_fences::code_block;
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
+use crate::permissions::Permissions;
 use crate::store::{CodeRunRecord, MAX_SHARED_OUTPUT_BYTES, clamp_output};
 
 /// A code block's input is a whole snippet, so this matches the run route's
@@ -98,7 +101,7 @@ struct RunResponse {
 }
 
 async fn run(
-    AuthedLimited(ctx): AuthedLimited<MODULE>,
+    Participant(ctx): Participant<MODULE>,
     State(state): State<AppState>,
     Path((message_id, block_index)): Path<(String, i64)>,
     Json(req): Json<RunRequest>,
@@ -110,9 +113,16 @@ async fn run(
 
     // See it before running in it, answering a hidden message as a missing one - the probe defense reactions.rs uses.
     let (message, permissions) = viewable_message(&state, ctx.user_id, message_id).await?;
-    // The run is stored and shown to the whole channel, so a timeout bars it like a message.
-    if state.store.timed_out_until(ctx.user_id).await?.is_some() {
-        return Err(ApiError::Forbidden);
+    // The output is broadcast like a message, so a block or a read-only channel bars it too.
+    if !permissions.contains(Permissions::SEND_MESSAGES) {
+        let missing = Permissions::SEND_MESSAGES;
+        return Err(super::write_refusal::refusal(
+            &state,
+            ctx.user_id,
+            message.channel_id,
+            missing,
+        )
+        .await?);
     }
 
     // An app surface owns its whole code-run surface; see this file's doc comment.

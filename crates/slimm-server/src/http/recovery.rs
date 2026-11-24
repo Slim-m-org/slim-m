@@ -23,7 +23,7 @@ use super::auth::validate_password;
 use super::error::ApiError;
 use super::extract::{AuthedLimited, Bytes, Json, PASSWORD, RateLimited};
 use super::messages::parse_uuid;
-use crate::hub::Event;
+use super::session_revocation::account_sessions_revoked;
 use crate::ids::UserId;
 use crate::permissions::Permissions;
 use crate::store::{ConsumeResetError, IssueResetError};
@@ -121,10 +121,8 @@ async fn reset(
     let hash = state.auth.hash_password(req.new_password).await?;
 
     match state.store.consume_reset_code(&req.code, &hash).await {
-        Ok(revoked) => {
-            for session_id in revoked {
-                state.hub.publish(Event::SessionRevoked(session_id));
-            }
+        Ok(consumed) => {
+            account_sessions_revoked(&state, consumed.user_id, None);
             Ok(StatusCode::NO_CONTENT)
         }
         // One answer whether the code was unknown, expired, or already used,
@@ -152,12 +150,10 @@ async fn change_password(
     super::reauth::require_current_code(&state, ctx.user_id, req.code.as_deref()).await?;
 
     let hash = state.auth.hash_password(req.new_password).await?;
-    let revoked = state
+    state
         .store
         .change_password(ctx.user_id, ctx.session_id, &hash)
         .await?;
-    for session_id in revoked {
-        state.hub.publish(Event::SessionRevoked(session_id));
-    }
+    account_sessions_revoked(&state, ctx.user_id, Some(ctx.session_id));
     Ok(StatusCode::NO_CONTENT)
 }

@@ -5,20 +5,21 @@
 //! the token once.
 
 use axum::extract::{Path, State};
-use axum::http::request::Parts;
 use serde::Serialize;
 
+use super::connector_guard::{
+    announce_roles_changed, guard_new_principal, guard_over_connector, managed_role,
+};
 use super::dock_install::InstallRequest;
 use super::manifest::Manifest;
 use super::validate_module_id;
 use super::wire::InstalledModuleDto;
 use crate::http::AppState;
 use crate::http::error::ApiError;
-use crate::http::extract::{Authed, Json, enforce, require_human, require_manage_server};
-use crate::hub::Event;
+use crate::http::extract::{Json, WRITE, require_human, require_manage_server};
+use crate::http::participant::Participant;
 use crate::ids::{SessionId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{
     ConnectorInstall, DockProvenance, InstallModuleRequest, InstalledModule,
     ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits,
@@ -43,10 +44,8 @@ pub(super) async fn install(
     let approved = req
         .approved_connector_permissions
         .ok_or(ApiError::BadRequest(UPDATE_THE_APP))?;
-    let approved = crate::http::roles::grantable(
-        state.store.granted_base_permissions(actor).await?,
-        approved,
-    )?;
+    let approved =
+        crate::http::roles::grantable(state.store.base_permissions(actor).await?, approved)?;
     if !connector.permissions.contains(approved) {
         return Err(ApiError::BadRequest(
             "a connector can only be approved permissions it asks for",
@@ -66,6 +65,12 @@ pub(super) async fn install(
             "a module with this id is installed; uninstall it before installing the connector",
         ));
     }
+    match &installed_before {
+        Some(existing) => guard_over_connector(state, actor, existing).await?,
+        None => guard_new_principal(state, actor).await?,
+    }
+    let role_before =
+        managed_role(state, installed_before.as_ref().and_then(|m| m.bot_user_id)).await?;
     if installed_before.is_some_and(|m| m.enabled) {
         let keywords = manifest
             .extension_points
@@ -113,6 +118,8 @@ pub(super) async fn install(
         })
         .await?;
     state.dock.slot_cache().invalidate_module(&manifest.id);
+    let role_after = managed_role(state, installed.module.bot_user_id).await?;
+    announce_roles_changed(state, role_before.into_iter().chain(role_after));
     if let Some((runner, spec)) = host_run {
         super::dock_host_run::after_store_install(state, &runner, &manifest.id, &spec).await?;
         return Ok(InstalledModuleDto::from(installed.module));
@@ -142,11 +149,9 @@ pub(super) struct ConnectorTokenDto {
 /// Replaces a connector's token for an admin who lost it; the new one is shown once.
 pub(super) async fn reissue_token(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    Participant(ctx): Participant<WRITE>,
     Path(id): Path<String>,
 ) -> Result<Json<ConnectorTokenDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     require_human(&state, ctx.user_id).await?;
     validate_module_id(&id)?;
@@ -154,6 +159,9 @@ pub(super) async fn reissue_token(
         return Err(ApiError::Conflict(
             "the host holds this connector's token, which never leaves it",
         ));
+    }
+    if let Some(connector) = state.store.installed_module(&id).await? {
+        guard_over_connector(&state, ctx.user_id, &connector).await?;
     }
     let (token, revoked) = state
         .store
@@ -166,9 +174,7 @@ pub(super) async fn reissue_token(
 
 /// Closes the sockets a revoked token held.
 pub(super) fn close_sessions(state: &AppState, revoked: Vec<SessionId>) {
-    for session_id in revoked {
-        state.hub.publish(Event::SessionRevoked(session_id));
-    }
+    crate::http::session_revocation::sessions_revoked_by_id(state, revoked);
 }
 
 /// The core permissions a connector manifest asks for, as the Dock shows them before install.

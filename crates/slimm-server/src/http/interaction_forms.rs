@@ -10,22 +10,21 @@ use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use axum::routing::post;
 use serde::Deserialize;
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{INTERACTION, Json, WRITE};
 use super::hidden_chars::is_hidden_char;
 use super::interactions::require_live_bot;
 use super::interactions::{InteractionDto, answer, own_interaction, record_and_publish};
 use super::messages::parse_uuid;
+use super::participant::Participant;
 use crate::components::form::{self, Form};
 use crate::hub::Event;
 use crate::ids::{ChannelId, InteractionId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{Interaction, InteractionInput, InteractionKind, SubmissionClaim, now_ms};
 
 /// Both bodies are a few short fields; refused well before axum's 2 MB default.
@@ -47,13 +46,11 @@ pub fn routes() -> Router<AppState> {
 /// The bot opens a form for the member whose press it received. That answers
 /// the press, so the member's button stops waiting.
 async fn open(
-    Authed(ctx): Authed,
+    Participant(ctx): Participant<WRITE>,
     Path((channel_id, interaction_id)): Path<(String, String)>,
-    parts: Parts,
     State(state): State<AppState>,
     Json(mut form): Json<Form>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let id = InteractionId(parse_uuid(&interaction_id)?);
     form::validate(&mut form, is_hidden_char).map_err(ApiError::BadRequest)?;
@@ -87,13 +84,11 @@ struct SubmitRequest {
 /// The member sends their answers to the form the bot opened for them. Any
 /// refusal that depends on the press, the form or the bot is the same 404.
 async fn submit(
-    Authed(ctx): Authed,
+    Participant(ctx): Participant<INTERACTION>,
     Path((channel_id, interaction_id)): Path<(String, String)>,
-    parts: Parts,
     State(state): State<AppState>,
     Json(req): Json<SubmitRequest>,
 ) -> Result<Json<InteractionDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Interaction)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let origin_id = InteractionId(parse_uuid(&interaction_id)?);
     let id = InteractionId(parse_uuid(&req.id)?);

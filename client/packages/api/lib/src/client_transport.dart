@@ -3,7 +3,9 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'bounded_reply.dart';
 import 'exceptions.dart';
 import 'logging/app_log.dart';
 import 'models.dart';
@@ -73,6 +75,7 @@ extension SlimmApiTransport on SlimmApi {
           '$method $path',
           deadline: bytes == null ? requestDeadline : transferDeadline,
           over: over,
+          maxBytes: unvouched ? unvouchedReplyBytes : null,
         );
 
     final response =
@@ -140,7 +143,7 @@ extension SlimmApiTransport on SlimmApi {
     List<int>? bytes,
     required bool authenticated,
   }) {
-    final request = http.Request(method, uri);
+    final request = http.Request(method, uri)..followRedirects = !unvouched;
     if (bytes != null) {
       // An upload (an attachment or an avatar): the request body is the raw
       // bytes, never JSON, though the response below still is.
@@ -224,6 +227,29 @@ extension SlimmApiTransport on SlimmApi {
     throw errorFor(response);
   }
 
+  /// An unauthenticated GET of raw bytes, such as an invite's icon, refused
+  /// once the reply passes [maxBytes] and never following a redirect when
+  /// [SlimmApi.unvouched].
+  Future<Uint8List> fetchPublicBytes(String path,
+      {required int maxBytes}) async {
+    final uri = requestUri(path, null);
+    final response = await replayingDroppedSocket('GET', () {
+      final abort = Completer<void>();
+      return _perform(
+        http.AbortableRequest('GET', uri, abortTrigger: abort.future)
+          ..followRedirects = !unvouched,
+        'GET $path',
+        deadline: requestDeadline,
+        abort: abort,
+        maxBytes: maxBytes,
+      );
+    });
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return response.bodyBytes;
+    }
+    throw errorFor(response);
+  }
+
   /// Sends [request] and reads its whole response under one [deadline],
   /// mapping every failure to a [TransportException] so a caller's existing
   /// `on ApiException` reaches it.
@@ -252,13 +278,17 @@ extension SlimmApiTransport on SlimmApi {
     required Duration deadline,
     http.Client? over,
     Completer<void>? abort,
+    int? maxBytes,
   }) async {
     try {
       // Chained, never `Future(() async { ... })`; see the note on this method.
       return await (over ?? link.client)
           .send(request)
-          .then(http.Response.fromStream)
+          .then((streamed) => readBoundedReply(streamed, maxBytes))
           .timeout(deadline);
+    } on UnreadableReplyException {
+      if (abort != null && !abort.isCompleted) abort.complete();
+      rethrow;
     } on TimeoutException {
       // Closes the connection too, so the server stops sending a transfer nobody reads.
       if (abort != null && !abort.isCompleted) abort.complete();

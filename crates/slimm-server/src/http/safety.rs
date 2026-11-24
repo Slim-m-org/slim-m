@@ -160,10 +160,7 @@ async fn remove_device(
         .await?
         .ok_or(ApiError::NotFound("device not found"))?;
 
-    // Close any live socket on those sessions at once, the same as logout.
-    for session_id in revoked {
-        state.hub.publish(Event::SessionRevoked(session_id));
-    }
+    super::session_revocation::sessions_revoked(&state, ctx.user_id, &revoked);
     Ok(StatusCode::NO_CONTENT)
 }
 

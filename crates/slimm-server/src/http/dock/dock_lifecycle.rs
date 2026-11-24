@@ -10,7 +10,10 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::require_manage_server;
 use super::super::extract::{Authed, Json, Query, enforce};
+use super::super::overwrite_changes;
+use super::super::overwrites::Target;
 use super::capabilities::held_hooks;
+use super::connector_guard;
 use super::keywords::{self, ensure_slash_keywords_free};
 use super::wire::InstalledModuleDto;
 use crate::module_runtime::valid_file_id;
@@ -40,6 +43,7 @@ pub(in crate::http) async fn uninstall(
         None => None,
     };
     super::dock_host_run::before_uninstall(&state, &id, !query.delete_data).await?;
+    let grants = connector_grants(&state, module.as_ref()).await?;
     let uninstalled = match module.as_ref().is_some_and(InstalledModule::is_connector) {
         true => uninstall_connector(&state, &id, ctx.user_id).await?,
         false => {
@@ -49,6 +53,9 @@ pub(in crate::http) async fn uninstall(
     };
     state.dock.slot_cache().invalidate_module(&id);
     crate::http::module_rooms::end_module(&state, &id);
+    if uninstalled && let Some(grants) = grants {
+        grants.announce(&state);
+    }
     if uninstalled && let Some(module) = module {
         retire_principal(&state, &module).await;
     }
@@ -61,6 +68,39 @@ pub(in crate::http) async fn uninstall(
         return Err(ApiError::NotFound("module not installed"));
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// What an uninstalled connector's principal held, read before the uninstall strips it.
+struct ConnectorGrants {
+    role: Option<crate::ids::RoleId>,
+    overwrites: Vec<(crate::ids::ChannelId, Vec<crate::ids::UserId>)>,
+}
+
+impl ConnectorGrants {
+    fn announce(self, state: &AppState) {
+        connector_guard::announce_roles_changed(state, self.role);
+        overwrite_changes::publish_changed(state, self.overwrites);
+        state.hub.publish(crate::hub::Event::CategoryChanged);
+    }
+}
+
+async fn connector_grants(
+    state: &AppState,
+    module: Option<&InstalledModule>,
+) -> Result<Option<ConnectorGrants>, ApiError> {
+    let Some(principal) = module
+        .filter(|m| m.is_connector())
+        .and_then(|m| m.bot_user_id)
+    else {
+        return Ok(None);
+    };
+    let channels = state.store.member_overwrite_channels(principal).await?;
+    let overwrites =
+        overwrite_changes::visible_before(state, &channels, &[Target::Member(principal)]).await?;
+    Ok(Some(ConnectorGrants {
+        role: connector_guard::managed_role(state, Some(principal)).await?,
+        overwrites,
+    }))
 }
 
 /// Revokes the connector's token and grants with its row, then closes the token's sockets.
@@ -158,6 +198,7 @@ async fn apply_enabled(
         return Err(ApiError::NotFound("module not installed"));
     }
     state.dock.slot_cache().invalidate_module(id);
+    announce_connector_grants(state, id).await?;
     if !enabled {
         crate::http::module_rooms::end_module(state, id);
         close_principal_sockets(state, id).await;
@@ -175,6 +216,18 @@ async fn apply_enabled(
             .with_health(health.unwrap_or_default())
             .with_hooks(&hooks),
     ))
+}
+
+/// A connector's cap follows its enabled flag, so its principal's grants moved with the switch.
+async fn announce_connector_grants(state: &AppState, id: &str) -> Result<(), ApiError> {
+    let Some(module) = state.store.installed_module(id).await? else {
+        return Ok(());
+    };
+    if module.is_connector() {
+        let role = connector_guard::managed_role(state, module.bot_user_id).await?;
+        connector_guard::announce_roles_changed(state, role);
+    }
+    Ok(())
 }
 
 /// Closes the sockets a disabled module's principal holds, so the off switch cuts its live feed.

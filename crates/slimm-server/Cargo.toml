@@ -57,8 +57,8 @@ oxipng.workspace = true
 # `util` for ServiceExt::oneshot (http/capability.rs); named explicitly, not via feature unification.
 tower = { version = "0.5", features = ["util"] }
 # The connector supervisor's client speaks HTTP/1.1 over its unix socket (decision 0134); both already ship with axum and reqwest.
-hyper = { version = "1", features = ["client", "http1"] }
-hyper-util = { version = "0.1", features = ["tokio"] }
+hyper = { version = "1", features = ["client", "server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio", "server-graceful", "service"] }
 http-body-util = "0.1"
 tikv-jemallocator = "0.7.0"
 

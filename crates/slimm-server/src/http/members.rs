@@ -217,12 +217,12 @@ async fn remove_member(
     authorize(&state, ctx.user_id, target, Permissions::BAN_MEMBERS).await?;
 
     let reason = validate_reason(req.reason.as_deref(), false)?;
-    let revoked = match state
+    match state
         .store
         .remove_from_space(target, ctx.user_id, reason.as_deref())
         .await
     {
-        Ok(revoked) => revoked,
+        Ok(_) => {}
         Err(RemoveMemberError::UserNotFound) => return Err(ApiError::NotFound("no such member")),
         Err(RemoveMemberError::LastAdministrator) => {
             return Err(ApiError::Conflict(
@@ -230,11 +230,9 @@ async fn remove_member(
             ));
         }
         Err(RemoveMemberError::Internal(err)) => return Err(err.into()),
-    };
-
-    for session_id in revoked {
-        state.hub.publish(Event::SessionRevoked(session_id));
     }
+
+    super::session_revocation::account_sessions_revoked(&state, target, None);
     announce_member_gone(&state, target).await;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -319,9 +317,7 @@ async fn delete_member_account(
         Err(DeleteAccountError::UserNotFound) => return Err(ApiError::NotFound("no such member")),
         Err(DeleteAccountError::Internal(e)) => return Err(e.into()),
     };
-    for session_id in deleted.revoked {
-        state.hub.publish(Event::SessionRevoked(session_id));
-    }
+    super::session_revocation::account_sessions_revoked(&state, target, None);
     if let Err(err) = state.media.delete_avatar(&target.to_string()).await {
         tracing::warn!(error = %err, "failed to delete an account's avatar file");
     }
