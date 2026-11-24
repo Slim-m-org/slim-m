@@ -6,6 +6,8 @@
 /// exists.
 library;
 
+import 'dart:io' show Platform;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/relaunch.dart';
 
@@ -69,4 +71,16 @@ void main() {
     );
     expect(_command(os: 'fuchsia'), isNull);
   });
+
+  test('a relaunch passes on the arguments the app started with', () {
+    rememberLaunchArguments(['--autostart', 'slimm://invite/x', '--relaunch']);
+    addTearDown(() => rememberLaunchArguments(const []));
+
+    final command = thisProcessRelaunchCommand('/usr/lib/slim-m/slim-m');
+
+    expect(command, isNotNull);
+    expect(command!.arguments, contains('--autostart'));
+    expect(command.arguments, contains('slimm://invite/x'));
+    expect(command.arguments, isNot(contains('--relaunch')));
+  }, skip: Platform.environment.containsKey('FLATPAK_ID'));
 }
