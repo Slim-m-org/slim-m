@@ -17,8 +17,8 @@ the live copy. Avatars are not content-addressed (one mutable file per
 account), so they are copied every run, which is cheap since they are
 capped and few. The space banner and icon, profile banners, linked-account
 pictures and kept originals are mirrored by backup_side_files.py.
-Nothing is ever deleted from the media mirror by this script - it grows
-by addition only, which is the safe direction for a backup to err in.
+The media mirror grows by addition only unless --prune-mirror is passed, which
+removes files no retained snapshot references (backup_prune_mirror.py).
 
 This module holds the logic; scripts/backup.py is the thin CLI entry point
 that imports it (see that file for the command-line usage and the docker
@@ -41,14 +41,15 @@ What this backup does NOT cover, and why that is not an oversight:
 import argparse
 import json
 import os
-import shutil
 import sqlite3
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import atomic_copy
 import backup_modules
+import backup_prune_mirror
 import backup_report
 import backup_side_files
 import file_digest
@@ -99,6 +100,12 @@ def parse_args(argv):
         default=None,
         help="prune database snapshots beyond this many, oldest first "
         "(default: keep every snapshot)",
+    )
+    parser.add_argument(
+        "--prune-mirror",
+        action="store_true",
+        help="after the newest snapshot verifies, remove mirror files no retained snapshot "
+        "references; the snapshot window is how long an erased file survives in the backup",
     )
     return parser.parse_args(argv)
 
@@ -194,8 +201,7 @@ def sync_avatars(snapshot_db, source_media_dir, mirror_dir):
 
 
 def _independent_copy(src, dest):
-    dest.unlink(missing_ok=True)
-    shutil.copy2(src, dest)
+    atomic_copy.copy(src, dest)
 
 
 def prune_snapshots(db_dir, keep):
@@ -211,6 +217,17 @@ def prune_snapshots(db_dir, keep):
         Path(str(snap) + ".manifest.json").unlink(missing_ok=True)
         removed.append(snap.name)
     return removed
+
+
+def _prune_mirror(args, backup_root, db_dir):
+    if not getattr(args, "prune_mirror", False):
+        return []
+    pruned = backup_prune_mirror.prune(backup_root, db_dir.glob("slimm-*.db"))
+    if pruned is None:
+        print("backup completed, but the mirror was not pruned: the newest snapshot did not "
+              "verify against it", file=sys.stderr)
+        return []
+    return pruned
 
 
 def take_backup(args):
@@ -253,6 +270,7 @@ def take_backup(args):
     modules_dir = getattr(args, "modules_dir", None) or str(source_db.parent / "modules")
     modules = backup_modules.backup_modules(modules_dir, backup_root)
     removed = prune_snapshots(db_dir, args.keep)
+    mirror_pruned = _prune_mirror(args, backup_root, db_dir)
 
     manifest = {
         "created_at": timestamp,
@@ -266,6 +284,7 @@ def take_backup(args):
         "side_files": side_files,
         "modules": modules,
         "pruned_snapshots": removed,
+        "pruned_mirror_files": mirror_pruned,
         "not_covered": [
             "operator secrets in deploy/.env (LiveKit, Litestream, ACME)",
         ],

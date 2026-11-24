@@ -11,9 +11,9 @@ A column an older server has not created yet is skipped, never an error: the
 scripts in a checkout can be newer than the image the deployment runs.
 """
 import re
-import shutil
 from pathlib import Path
 
+import atomic_copy
 import path_guard
 import sqlite_read_only
 
@@ -122,8 +122,7 @@ def sync(snapshot_db, source_media_dir, mirror_dir):
         if not src.is_file():
             missing_source.append(f"{directory}/{name}")
             continue
-        dest.unlink(missing_ok=True)
-        shutil.copy2(src, dest)
+        atomic_copy.copy(src, dest)
         copied += 1
     return {
         "total": len(expected),

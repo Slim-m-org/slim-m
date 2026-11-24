@@ -21,6 +21,7 @@ from pathlib import Path
 
 import restore_drill_lib
 import restore_plan
+import restore_sessions
 import snapshot_info
 
 try:
@@ -60,6 +61,9 @@ def parse_args(argv):
                         "the user the server image runs as)")
     parser.add_argument("--force", action="store_true",
                         help="restore over an existing database, which is moved aside first")
+    parser.add_argument("--revoke-sessions", action=argparse.BooleanOptionalAction, default=None,
+                        help="sign every member out of the restored database, so a login revoked "
+                        "after the snapshot stays revoked (default: on with --force)")
     parser.add_argument("--allow-missing-files", action="store_true",
                         help="restore the database and every file the backup does hold, and list "
                         "the files it lacks, instead of refusing")
@@ -150,6 +154,14 @@ def _give_to(owner, data_dir):
     return True
 
 
+def _ownership_warning(owner, data_dir):
+    """The chown a non-root restore needs, or None when the files are already the server's."""
+    if os.geteuid() == 0 or (os.geteuid(), os.getegid()) == tuple(owner):
+        return None
+    return (f"restored as uid {os.geteuid()}, so the files are not owned by the server user and "
+            f"it may fail to open them. Run: sudo chown -R {owner[0]}:{owner[1]} {data_dir}")
+
+
 def _open_elsewhere(database):
     """Whether another process has the database open, which a running server always does.
 
@@ -237,6 +249,9 @@ def run(args):
     modules, moved_modules = _copy_modules(plan, data_dir / "modules", stamp)
     if args.data_key_file:
         _place_key(args.data_key_file, data_dir)
+    revoke = args.force if args.revoke_sessions is None else args.revoke_sessions
+    if revoke:
+        restore_sessions.revoke_all(database)
     owned = _give_to(args.owner, data_dir)
 
     version = snapshot_info.describe(snapshot_info.schema_version(database))
@@ -256,6 +271,13 @@ def run(args):
         print(f"module data files that were here are kept in modules/ as {', '.join(moved_modules)}")
     if owned:
         print(f"owner set to {args.owner[0]}:{args.owner[1]}")
+    warning = None if owned else _ownership_warning(args.owner, data_dir)
+    if warning:
+        print(f"warning: {warning}", file=sys.stderr)
+    if revoke:
+        print("every session was revoked: members sign in again")
+    print("the database is as of the snapshot: re-run any account deletions and password "
+          "changes made since it was taken")
     if not args.data_key_file and not (data_dir / KEY_FILE).is_file():
         print(f"no {KEY_FILE} was restored: set SLIMM_DATA_KEY, or members with two-factor on "
               "cannot sign in until an administrator clears their factor")

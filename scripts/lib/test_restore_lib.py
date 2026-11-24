@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 import uuid
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -191,3 +192,98 @@ class RestoreTest(RestoreTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RestoreIntegrityTest(RestoreTestCase):
+    def test_a_same_size_corrupt_attachment_is_replaced_from_the_mirror(self):
+        self._back_up()
+        damaged = self.data_dir / "media" / "attachments" / self.sha.hex()
+        damaged.parent.mkdir(parents=True)
+        damaged.write_bytes(b"X" * len(self.photo))
+
+        code, _ = self._restore()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(damaged.read_bytes(), self.photo)
+
+    def test_an_intact_attachment_is_counted_in_place(self):
+        self._back_up()
+        kept = self.data_dir / "media" / "attachments" / self.sha.hex()
+        kept.parent.mkdir(parents=True)
+        kept.write_bytes(self.photo)
+
+        _, out = self._restore()
+
+        self.assertIn("1 already in place", out)
+
+
+class RestoreSessionsTest(RestoreTestCase):
+    def _sign_in(self):
+        conn = sqlite3.connect(str(self.live / "slimm.db"))
+        session = uuid.uuid4().bytes
+        conn.execute("INSERT INTO sessions (id, user_id, device_id, created_at) VALUES (?, ?, ?, 1)",
+                     (session, self.user, uuid.uuid4().bytes))
+        conn.execute("INSERT INTO access_tokens (token_hash, session_id, user_id, device_id, issued_at, expires_at) VALUES ('tok', ?, ?, ?, 1, 99)",
+                     (session, self.user, uuid.uuid4().bytes))
+        conn.execute("INSERT INTO refresh_tokens (token_hash, session_id, family_id, issued_at, expires_at) "
+                     "VALUES ('rt', ?, ?, 1, 99)", (session, uuid.uuid4().bytes))
+        conn.execute("INSERT INTO dropped_refresh_tokens VALUES ('old', 'device_removed', 99)")
+        conn.commit()
+        conn.close()
+
+    def _restored_rows(self, sql):
+        conn = sqlite3.connect(str(self.data_dir / "slimm.db"))
+        try:
+            return conn.execute(sql).fetchall()
+        finally:
+            conn.close()
+
+    def _back_up_signed_in(self):
+        self._back_up()
+        self._sign_in()
+        code, _ = quiet(backup_lib.run, backup_lib.parse_args([
+            "--database-path", str(self.live / "slimm.db"), "--media-dir", str(self.live / "media"),
+            "--backup-root", str(self.backup_root),
+        ]))
+        self.assertEqual(code, 0)
+
+    def _restore_over_existing(self, *extra):
+        self.data_dir.mkdir()
+        fixtures.build_database(self.data_dir / "slimm.db")
+        return self._restore("--force", *extra)
+
+    def test_a_forced_restore_leaves_no_session_that_can_authenticate(self):
+        self._back_up_signed_in()
+
+        code, out = self._restore_over_existing()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(self._restored_rows("SELECT count(*) FROM sessions WHERE revoked_at IS NULL"), [(0,)])
+        self.assertEqual(self._restored_rows("SELECT count(*) FROM access_tokens"), [(0,)])
+        self.assertEqual(self._restored_rows("SELECT count(*) FROM refresh_tokens WHERE revoked_at IS NULL"), [(0,)])
+        self.assertEqual(self._restored_rows("SELECT count(*) FROM dropped_refresh_tokens"), [(0,)])
+        self.assertIn("re-run any account deletions", out)
+
+    def test_opting_out_keeps_the_sessions(self):
+        self._back_up_signed_in()
+
+        self._restore_over_existing("--no-revoke-sessions")
+
+        self.assertEqual(self._restored_rows("SELECT count(*) FROM sessions WHERE revoked_at IS NULL"), [(1,)])
+
+    def test_a_restore_into_an_empty_directory_keeps_the_sessions_unless_asked(self):
+        self._back_up_signed_in()
+
+        self._restore()
+
+        self.assertEqual(self._restored_rows("SELECT count(*) FROM sessions WHERE revoked_at IS NULL"), [(1,)])
+
+
+class RestoreOwnershipTest(RestoreTestCase):
+    def test_a_non_root_restore_names_the_chown_to_run(self):
+        self._back_up()
+
+        with mock.patch("os.geteuid", return_value=1000), mock.patch("os.getegid", return_value=1000):
+            _, out = self._restore()
+
+        self.assertIn(f"chown -R 65532:65532 {self.data_dir}", out)
