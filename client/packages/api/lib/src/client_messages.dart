@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 import 'models.dart';
 import 'client.dart';
+import 'logging/app_log.dart';
 import 'client_transport.dart';
 
 /// The whole `messages` tag: sending, reading, editing, deleting,
@@ -31,9 +32,7 @@ extension SlimmApiMessages on SlimmApi {
       '/channels/$channelId/messages',
       query: query.isEmpty ? null : query,
     );
-    return (json as List<dynamic>)
-        .map((m) => Message.fromJson(m as Map<String, dynamic>))
-        .toList(growable: false);
+    return parseMessagePage(json as List<dynamic>);
   }
 
   /// Fetches one message, enriched exactly like a page from [listMessages] -
@@ -216,9 +215,7 @@ extension SlimmApiMessages on SlimmApi {
       '/channels/$channelId/messages/search',
       query: query,
     );
-    return (json as List<dynamic>)
-        .map((m) => Message.fromJson(m as Map<String, dynamic>))
-        .toList(growable: false);
+    return parseMessagePage(json as List<dynamic>);
   }
 
   /// [searchMessages], scoped to every channel the caller can view instead
@@ -260,9 +257,7 @@ extension SlimmApiMessages on SlimmApi {
       beforeId: beforeId,
     );
     final json = await send('GET', '/search/messages', query: query);
-    return (json as List<dynamic>)
-        .map((m) => Message.fromJson(m as Map<String, dynamic>))
-        .toList(growable: false);
+    return parseMessagePage(json as List<dynamic>);
   }
 
   /// Reacts to a message with one [emoji]. Idempotent: reacting twice with
@@ -280,7 +275,7 @@ extension SlimmApiMessages on SlimmApi {
   }) =>
       send(
         'PUT',
-        '/messages/$messageId/reactions/$emoji',
+        '/messages/$messageId/reactions/${Uri.encodeComponent(emoji)}',
         expectNoContent: true,
       );
 
@@ -293,7 +288,7 @@ extension SlimmApiMessages on SlimmApi {
   }) =>
       send(
         'DELETE',
-        '/messages/$messageId/reactions/$emoji',
+        '/messages/$messageId/reactions/${Uri.encodeComponent(emoji)}',
         expectNoContent: true,
       );
 
@@ -308,7 +303,7 @@ extension SlimmApiMessages on SlimmApi {
   }) async {
     final json = await send(
       'GET',
-      '/messages/$messageId/reactions/$emoji',
+      '/messages/$messageId/reactions/${Uri.encodeComponent(emoji)}',
       query: {
         if (limit != null) 'limit': '$limit',
         if (after != null) 'after': after,
@@ -540,3 +535,22 @@ Map<String, String> _searchQuery({
       if (beforeId != null) 'before_id': beforeId,
       'include_threads': 'true',
     };
+
+/// Parses a page of messages, skipping one this build cannot read so the
+/// rest of the page still loads.
+List<Message> parseMessagePage(List<dynamic> raw) {
+  final messages = <Message>[];
+  for (final item in raw) {
+    try {
+      messages.add(Message.fromJson(item as Map<String, dynamic>));
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.sync,
+        'Skipped a message this build cannot read',
+        error,
+        stack,
+      );
+    }
+  }
+  return messages;
+}

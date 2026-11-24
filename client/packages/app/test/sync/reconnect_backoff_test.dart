@@ -50,12 +50,12 @@ void main() {
         const Duration(seconds: 1),
         reason: 'a zero draw must add no jitter at all, not go negative',
       );
-      expect(zero.lastMax, 1000, reason: 'the draw is for [0, 1000) ms');
+      expect(zero.lastMax, 1000000, reason: 'the draw is for [0, 1000000) us');
 
-      final maxDraw = _FixedRandom(999);
+      final maxDraw = _FixedRandom(999999);
       expect(
         ReconnectBackoff(random: maxDraw).next(),
-        const Duration(seconds: 1, milliseconds: 999),
+        const Duration(seconds: 1, microseconds: 999999),
         reason:
             'the highest possible draw must still land under the next second',
       );

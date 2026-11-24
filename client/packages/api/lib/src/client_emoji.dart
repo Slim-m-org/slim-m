@@ -7,6 +7,8 @@ import 'exceptions.dart';
 import 'models.dart';
 import 'client.dart';
 import 'client_transport.dart';
+import 'list_equality.dart';
+import 'logging/app_log.dart';
 
 /// Custom emoji: the deployment's own named images. The `emoji` tag.
 ///
@@ -38,13 +40,45 @@ extension SlimmApiEmoji on SlimmApi {
     List<int> bytes, {
     required String name,
   }) async {
-    final json = await send(
-      'POST',
-      '/emoji',
-      bytes: bytes,
-      query: {'name': name},
-    );
-    return CustomEmoji.fromJson(json as Map<String, dynamic>);
+    try {
+      final json = await send(
+        'POST',
+        '/emoji',
+        bytes: bytes,
+        query: {'name': name},
+      );
+      return CustomEmoji.fromJson(json as Map<String, dynamic>);
+    } on ConflictException {
+      final landed = await _ownEmojiWithSameImage(bytes, name);
+      if (landed == null) rethrow;
+      return landed;
+    }
+  }
+
+  /// The caller's own emoji named [name] holding exactly [bytes]: an earlier
+  /// attempt of this same upload whose reply was lost.
+  Future<CustomEmoji?> _ownEmojiWithSameImage(
+    List<int> bytes,
+    String name,
+  ) async {
+    try {
+      final me = session.tokens?.userId;
+      for (final emoji in await listCustomEmoji()) {
+        if (emoji.uploaderId != me || emoji.name != name.toLowerCase()) {
+          continue;
+        }
+        final stored = await fetchCustomEmojiImage(emoji.id);
+        if (listEquals(stored.bytes, bytes)) return emoji;
+      }
+    } on ApiException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.media,
+        'Could not check whether the emoji upload already landed',
+        error,
+        stack,
+      );
+    }
+    return null;
   }
 
   /// Adds several emoji from one request. Requires MANAGE_SERVER.

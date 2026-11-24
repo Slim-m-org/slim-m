@@ -197,6 +197,9 @@ class UserProfile {
           username == other.username &&
           displayName == other.displayName &&
           nickname == other.nickname &&
+          accountDisplayName == other.accountDisplayName &&
+          isBot == other.isBot &&
+          isWebhook == other.isWebhook &&
           createdAt == other.createdAt &&
           avatarUpdatedAt == other.avatarUpdatedAt &&
           bannerUpdatedAt == other.bannerUpdatedAt &&
@@ -236,7 +239,13 @@ class UserProfile {
         Object.hashAll(roles),
         Object.hashAll(roleIds),
         Object.hashAll(roleColors),
-        Object.hash(topRolePosition, isOwner),
+        Object.hash(
+          topRolePosition,
+          isOwner,
+          accountDisplayName,
+          isBot,
+          isWebhook,
+        ),
       );
 }
 

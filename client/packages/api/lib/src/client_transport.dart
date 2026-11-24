@@ -312,15 +312,16 @@ extension SlimmApiTransport on SlimmApi {
   /// can walk the request off the endpoint that built it. Splitting on the
   /// literal `/` this file wrote and handing the pieces to `pathSegments`
   /// closes that for every segment: each piece is then one opaque value,
-  /// so an embedded `/`, `%`, or non-ASCII byte in it can never introduce a
-  /// new separator. `pathSegments` still resolves a piece that is *exactly*
-  /// `.` or `..` the same way `path` does, so [_withoutDotSegment] escapes
+  /// so a `/` a caller wrote as `%2F` (see [Uri.encodeComponent]) stays inside
+  /// its one segment, and a bare `%` or non-ASCII byte never adds a separator.
+  /// `pathSegments` still resolves a piece that is *exactly* `.` or `..` the same way `path` does, so [_withoutDotSegment] escapes
   /// only those two literal values; every other segment renders exactly as
   /// `pathSegments` already renders it today.
   Uri requestUri(String path, Map<String, String>? query) {
     final parts = path.split('/');
     final segments =
         (parts.isNotEmpty && parts.first.isEmpty ? parts.skip(1) : parts)
+            .map(_decodedSegment)
             .map(_withoutDotSegment)
             .toList(growable: false);
     return baseUrl.replace(pathSegments: segments, queryParameters: query);
@@ -407,6 +408,16 @@ extension SlimmApiTransport on SlimmApi {
 /// 3986, even when a segment arrives through `pathSegments` rather than a
 /// raw `path` string; escaping just their dots leaves every other segment
 /// exactly as `pathSegments` already renders it.
+/// Reads the `%XX` escapes a caller wrote for a value holding a `/`, so
+/// `pathSegments` renders them once instead of escaping the `%` again.
+String _decodedSegment(String segment) {
+  try {
+    return Uri.decodeComponent(segment);
+  } on FormatException {
+    return segment;
+  }
+}
+
 String _withoutDotSegment(String segment) => (segment == '.' || segment == '..')
     ? segment.replaceAll('.', '%2E')
     : segment;
