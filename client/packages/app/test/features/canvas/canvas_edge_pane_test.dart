@@ -347,4 +347,33 @@ void main() {
       expect(after.dy, isNot(before.dy));
     },
   );
+
+  for (final width in [390.0, 800.0]) {
+    testWidgets('the connection bar stays inside a $width wide pane', (
+      tester,
+    ) async {
+      tester.view.physicalSize = Size(width, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await _open(
+        tester,
+        extra: [
+          _note('d', width - 130, 300, 5),
+          _note('f', width - 130, 500, 6),
+          {..._edge('g', 'd', 'f', 7), 'x': width - 130, 'y': 300.0},
+        ],
+      );
+      final document = surfaceDocument(tester);
+      final route = document.edges.routeOf(document.edges.liveEdge('g')!)!;
+      await tester.tapAt(_at(tester, route.midpoint));
+      await tester.pump();
+      expect(document.selectedObjectId.value, 'g');
+
+      final left = _at(tester, Offset.zero).dx;
+      final bar = tester.getRect(find.bySemanticsLabel('Connection options'));
+      expect(bar.left, greaterThanOrEqualTo(left));
+      expect(bar.right, lessThanOrEqualTo(left + width));
+      expect(bar.width, greaterThan(100));
+    });
+  }
 }

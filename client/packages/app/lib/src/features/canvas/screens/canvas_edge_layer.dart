@@ -4,6 +4,8 @@
 /// At 600 and wider it floats above the connection, below it when there is no room. Under 600 it docks full width at the pane's foot above the dock and the keyboard, and scrolls sideways; a finger never has to reach a floating surface.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,16 +14,17 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/control_menu_entries.dart';
 import '../../../widgets/control_swatch_row.dart';
+import '../../../providers/dock_reservation.dart';
 import '../widgets/canvas_edge_controls.dart';
+import '../widgets/canvas_selection_bar.dart';
 import 'canvas_engine.dart';
 import 'canvas_ops_controller.dart';
 
 /// Names the label field, for tests that type into it.
 const canvasEdgeLabelFieldKey = ValueKey<String>('connection-label-field');
 
-/// How far above a connection a floating bar sits, and how wide the room it needs is.
-const double _gap = 12;
-const double _barHeight = 56;
+/// The height a label chip takes around a connection's midpoint, which a floating bar stays clear of.
+const double _chipClearance = 32;
 
 class CanvasEdgeLayer extends ConsumerStatefulWidget {
   const CanvasEdgeLayer({
@@ -122,14 +125,15 @@ class _CanvasEdgeLayerState extends ConsumerState<CanvasEdgeLayer> {
         }
         return LayoutBuilder(
           builder: (context, box) {
-            final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
-            final bar = _bar(context, edge, compact: compact);
-            return Stack(
-              children: [
-                compact
-                    ? _docked(context, bar)
-                    : _floating(box.biggest, route, bar),
-              ],
+            final compact = box.maxWidth < canvasSelectionBarDockWidth;
+            return Consumer(
+              builder: (context, ref, _) => CustomSingleChildLayout(
+                delegate: CanvasSelectionBarLayout(
+                  anchor: _anchor(route),
+                  bottomInset: _bottomInset(context, ref),
+                ),
+                child: _bar(context, edge, compact: compact),
+              ),
             );
           },
         );
@@ -137,32 +141,27 @@ class _CanvasEdgeLayerState extends ConsumerState<CanvasEdgeLayer> {
     ),
   );
 
-  Widget _docked(BuildContext context, Widget bar) {
-    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: widget.document.bottomInset + keyboard,
-      child: bar,
-    );
-  }
-
-  Widget _floating(Size pane, EdgeRoute route, Widget bar) {
+  /// The middle of the connection on screen, wide enough that a floating bar clears its label chip.
+  Rect _anchor(EdgeRoute route) {
     final camera = widget.document.camera;
     final at = Offset(
       (route.midpoint.dx - camera.x) * camera.zoom,
       (route.midpoint.dy - camera.y) * camera.zoom,
     );
-    final above = at.dy - _barHeight - _gap >= AppSpacing.s8;
-    final top = above ? at.dy - _barHeight - _gap : at.dy + _gap + 24;
-    return Positioned(
-      left: (at.dx - 190).clamp(
-        AppSpacing.s8,
-        pane.width - 380 - AppSpacing.s8,
-      ),
-      top: top.clamp(AppSpacing.s8, pane.height - _barHeight - AppSpacing.s8),
-      child: bar,
-    );
+    return Rect.fromCenter(center: at, width: 0, height: _chipClearance);
+  }
+
+  /// The most the foot of the pane is covered by: the keyboard, the call's own inset, or the floating dock with its margins.
+  double _bottomInset(BuildContext context, WidgetRef ref) {
+    final dock =
+        ref.watch(bottomDockReservationProvider) +
+        AppSpacing.s12 +
+        AppSpacing.s8;
+    return [
+      MediaQuery.viewInsetsOf(context).bottom,
+      widget.document.bottomInset,
+      dock,
+    ].reduce(math.max);
   }
 
   Widget _bar(BuildContext context, CanvasEdge edge, {required bool compact}) {
@@ -175,8 +174,8 @@ class _CanvasEdgeLayerState extends ConsumerState<CanvasEdgeLayer> {
       decoration: BoxDecoration(
         color: tokens.surfaceRaised,
         border: Border.all(color: tokens.borderSubtle),
-        borderRadius: BorderRadius.circular(compact ? 0 : AppRadii.card),
-        boxShadow: compact ? const [] : AppShadows.menu,
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        boxShadow: AppShadows.menu,
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.s8),
@@ -193,7 +192,10 @@ class _CanvasEdgeLayerState extends ConsumerState<CanvasEdgeLayer> {
       label: 'Connection options',
       child: TapRegion(
         onTapOutside: _editing == null ? null : (_) => _commit(),
-        child: surface,
+        child: UnconstrainedBox(
+          constrainedAxis: Axis.horizontal,
+          child: surface,
+        ),
       ),
     );
   }
