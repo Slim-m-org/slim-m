@@ -58,12 +58,13 @@ void main() {
   group('reading props', () {
     test('every key is optional and a legacy note reads as the default', () {
       expect(
-          CanvasNoteStyle.fromWire({'text': 'a', 'font_size': 14.0}).isDefault,
+          CanvasNoteStyle.fromWire(const {'text': 'a', 'font_size': 14.0})
+              .isDefault,
           isTrue);
     });
 
     test('a wrong type is ignored and an opacity is clamped', () {
-      final style = CanvasNoteStyle.fromWire({
+      final style = CanvasNoteStyle.fromWire(const {
         'fill': 3,
         'fill_opacity': 7,
         'color': '',

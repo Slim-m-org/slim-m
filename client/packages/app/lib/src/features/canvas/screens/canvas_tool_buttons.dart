@@ -132,12 +132,14 @@ class CanvasToolButtons extends ConsumerWidget {
     WidgetRef ref,
     CanvasTool forTool,
     String label,
-    Widget child,
-  ) => ControlOptionsMenu(
+    Widget child, {
+    bool showCaret = true,
+  }) => ControlOptionsMenu(
     active: true,
+    showCaret: showCaret,
     menuWidth: _toolMenuWidth,
     caretHeight: AppSizes.icon28,
-    reserveCaretSlot: true,
+    reserveCaretSlot: showCaret,
     opensAbove: true,
     optionsLabel: label,
     options: _optionsFor(context, ref, forTool),
@@ -193,6 +195,8 @@ class CanvasToolButtons extends ConsumerWidget {
                 ? () => _pick(CanvasTool.note)
                 : null,
           ),
+          // A long press or right click opens it: a caret would not fit the dock at 360dp.
+          showCaret: false,
         ),
         gap,
         AppIconButton(
