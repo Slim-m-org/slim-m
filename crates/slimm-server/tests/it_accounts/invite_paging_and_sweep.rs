@@ -134,3 +134,47 @@ async fn the_sweep_drops_long_dead_invites_and_keeps_the_rest() {
     assert!(!left.contains(&expired_long_ago.code));
     assert!(!left.contains(&expired_recently.code));
 }
+
+/// A member's registration invite stays theirs after the sweep, even once they spent a later one.
+#[tokio::test]
+async fn the_sweep_keeps_the_invite_a_member_registered_with() {
+    let (store, pool, _guard) = support::new_store_with_pool("slimm-invite-sweep-keeps").await;
+    let admin = store.create_account("admin", "Admin", "h").await.unwrap();
+    store.bootstrap_deployment(admin.id).await.unwrap();
+    let registered_with = store
+        .create_invite(admin.id, None, Some(1), None)
+        .await
+        .unwrap();
+    let carol = store
+        .register_account("carol", "Carol", "h", Some(&registered_with.code))
+        .await
+        .unwrap();
+    let later = store
+        .create_invite(admin.id, None, None, None)
+        .await
+        .unwrap();
+    store.redeem_invite(&later.code, carol.id).await.unwrap();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
+    sqlx::query("UPDATE invites SET revoked_at = ?")
+        .bind(now - 31 * DAY_MS)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    store.sweep_dead_invites().await.unwrap();
+
+    let codes = store.registration_invite_codes(&[carol.id]).await.unwrap();
+    assert_eq!(codes.get(&carol.id), Some(&registered_with.code));
+    let listed = store
+        .list_invites(slimm_server::store::InviteScope::all(), None, 100)
+        .await
+        .unwrap();
+    assert!(
+        listed.is_empty(),
+        "a long-dead invite leaves the list on schedule even when it is kept: {:?}",
+        listed.iter().map(|i| &i.code).collect::<Vec<_>>()
+    );
+}

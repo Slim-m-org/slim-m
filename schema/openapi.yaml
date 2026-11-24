@@ -2184,8 +2184,9 @@ paths:
         invite defaults to one use and 24 hours, may not exceed 10 uses or
         7 days, and may not grant a role. With `reuse`, the caller's live invite
         of the same limits and no role is returned instead of a new one. A
-        `role_grant` is checked as `assignRole` checks a grant, the role ladder
-        and the bot-role lock included.
+        `role_grant` is checked as `assignRole` checks a grant, the role ladder,
+        the bot-role lock and the two-factor policy included. A timed-out
+        caller is refused (code `timed_out`).
       requestBody:
         required: true
         content:
@@ -2254,7 +2255,8 @@ paths:
         Unauthenticated, since the caller does not have an account yet, and
         rate limited because of that. An unusable code answers with exactly
         `{"usable": false}`, byte for byte identical whether the code is
-        expired, already spent, revoked, or was never issued at all: this
+        expired, already spent, revoked, made by someone who can no longer
+        invite, or was never issued at all: this
         cannot be used to mine valid codes. A usable code additionally
         discloses community metadata (name, member count, who invited the
         caller, uses remaining, and expiry). That is a deliberate, narrower
@@ -15099,11 +15101,12 @@ components:
           type: [string, "null"]
           description: >
             The invite this member registered through, present only to
-            callers with MANAGE_ROLES - a moderation signal for spotting a
-            returning (ban-evading) account, never a public value. Absent
-            for any other caller, and for a member who registered without one.
-            MANAGE_ROLES, not BAN_MEMBERS: redeeming a code applies the role
-            it grants, so a caller who could not grant it must not read one.
+            callers with MANAGE_ROLES who would see that invite in
+            `listInvites` - a moderation signal for spotting a returning
+            (ban-evading) account, never a public value. Absent for any other
+            caller, and for a member who registered without one. Redeeming a
+            code applies the role it grants, so a caller who could not grant
+            that role by hand does not read it.
 
     MemberActivity:
       type: object
@@ -15143,7 +15146,8 @@ components:
           description: >
             The invite this member registered through, or null if they had
             none. Gated as `UserProfile.invite_code` is: the endpoint needs
-            BAN_MEMBERS, the code itself also needs MANAGE_ROLES.
+            BAN_MEMBERS, the code itself also needs MANAGE_ROLES and an invite
+            the caller would see in `listInvites`.
 
     Me:
       type: object

@@ -1,15 +1,24 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Redeeming and spending invites.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use sqlx::QueryBuilder;
+use sqlx::{QueryBuilder, SqliteConnection};
 
-use super::RedeemError;
+use super::{InviteScope, RedeemError};
 use crate::ids::{RoleId, UserId};
 use crate::permissions::{Permissions, evaluate};
 use crate::store::space_owner::live_owner;
 use crate::store::{Store, now_ms};
+
+/// What one redemption did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Redemption {
+    /// Whether this call spent a use; `false` for a retry by someone who already redeemed the code.
+    pub fresh: bool,
+    /// The role this call gave the redeemer, if it gave one.
+    pub granted: Option<RoleId>,
+}
 
 impl Store {
     /// Spends one use of an invite and applies any role it grants.
@@ -18,11 +27,13 @@ impl Store {
     /// concurrent redemptions: two people racing the last slot cannot both win,
     /// because only one UPDATE can match.
     ///
-    /// Returns whether this call actually spent a use: `false` for the
-    /// already-redeemed retry below, so the caller can publish
-    /// `Event::MemberJoined` only for a fresh redemption and not fan out a
-    /// join announcement on every idempotent retry.
-    pub async fn redeem_invite(&self, code: &str, user_id: UserId) -> Result<bool, RedeemError> {
+    /// Reports whether this call actually spent a use, so the caller announces only a fresh
+    /// redemption, and which role it gave, so the caller can announce that too.
+    pub async fn redeem_invite(
+        &self,
+        code: &str,
+        user_id: UserId,
+    ) -> Result<Redemption, RedeemError> {
         let now = now_ms();
         // BEGIN IMMEDIATE: reads whether the caller already redeemed before writing, so two retries cannot each spend a use.
         let mut tx = self.begin_write().await?;
@@ -39,7 +50,10 @@ impl Store {
         .is_some();
         if already_redeemed {
             tx.commit().await?;
-            return Ok(false);
+            return Ok(Redemption {
+                fresh: false,
+                granted: None,
+            });
         }
 
         let Some(role_grant) = spend_invite(&mut tx, code, now).await? else {
@@ -47,16 +61,20 @@ impl Store {
         };
         record_redemption(&mut tx, code, user_id, now).await?;
 
+        let mut granted = None;
         if let Some(role_id) = role_grant {
-            if redeemer_may_take(&mut tx, user_id, role_id).await? {
-                apply_role_grant(&mut tx, code, user_id, role_id).await?;
-            } else {
+            if !redeemer_may_take(&mut tx, user_id, role_id).await? {
                 tracing::info!(%role_id, "a manager redeemed an invite for a role they could not grant; joined without it");
+            } else if apply_role_grant(&mut tx, code, user_id, role_id).await? {
+                granted = Some(role_id);
             }
         }
 
         tx.commit().await?;
-        Ok(true)
+        Ok(Redemption {
+            fresh: true,
+            granted,
+        })
     }
 
     /// The invite each of `ids` first registered through, for surfacing to a
@@ -96,13 +114,87 @@ impl Store {
         }
         Ok(out)
     }
+
+    /// Which of `codes` name an invite within `scope`, the filter [`Store::list_invites`] applies.
+    pub async fn invite_codes_within(
+        &self,
+        codes: &[String],
+        scope: InviteScope,
+    ) -> anyhow::Result<HashSet<String>> {
+        use sqlx::Row;
+
+        let (creator, manager, below, holds) = scope.parts();
+        let mut out = HashSet::new();
+        for chunk in codes.chunks(crate::store::MAX_IDS_PER_QUERY) {
+            let mut builder = QueryBuilder::new("SELECT i.code FROM invites i WHERE i.code IN (");
+            let mut separated = builder.separated(", ");
+            for code in chunk {
+                separated.push_bind(code);
+            }
+            builder.push(")");
+            if let Some(creator) = creator {
+                builder.push(" AND i.created_by = ").push_bind(creator);
+            }
+            if let Some(manager) = manager {
+                builder
+                    .push(" AND (i.role_grant IS NULL OR i.created_by = ")
+                    .push_bind(manager)
+                    .push(
+                        " OR EXISTS (SELECT 1 FROM roles r WHERE r.id = i.role_grant \
+                         AND r.is_everyone = 0 AND r.is_bots_role = 0 \
+                         AND r.managed_bot_id IS NULL AND r.position < ",
+                    )
+                    .push_bind(below)
+                    .push(" AND (r.permissions & ")
+                    .push_bind(holds)
+                    .push(") = r.permissions))");
+            }
+            for row in builder.build().fetch_all(&self.pool).await? {
+                out.insert(row.try_get("code")?);
+            }
+        }
+        Ok(out)
+    }
+}
+
+/// Whether the maker of `code` may still invite: a code whose maker lost the right is dead
+/// whatever its row says. A code with no row, or no maker on record, is left to the spend itself.
+pub(in crate::store) async fn maker_still_invites(
+    conn: &mut SqliteConnection,
+    code: &str,
+) -> Result<bool, sqlx::Error> {
+    let row = sqlx::query!(
+        r#"SELECT i.created_by AS "maker: UserId",
+                  EXISTS (SELECT 1 FROM pending_members pm WHERE pm.user_id = i.created_by)
+                      AS "pending!: bool",
+                  COALESCE((SELECT s.members_can_invite FROM space_settings s WHERE s.id = 1), 0)
+                      AS "members_invite!: bool"
+           FROM invites i WHERE i.code = ?"#,
+        code
+    )
+    .fetch_optional(&mut *conn)
+    .await?;
+    let Some(row) = row else {
+        return Ok(true);
+    };
+    let Some(maker) = row.maker else {
+        return Ok(true);
+    };
+    if row.members_invite {
+        return Ok(true);
+    }
+    if row.pending {
+        return Ok(false);
+    }
+    let standing = Standing::of(conn, maker).await?;
+    Ok(standing.granted.contains(Permissions::CREATE_INVITE))
 }
 
 /// Spends one use of `code` inside an open transaction.
 ///
-/// `Ok(None)` means the code was unusable: expired, spent, revoked, or never
-/// there. `Ok(Some(grant))` means this caller won the use, and `grant` is the
-/// role the invite carries, if any.
+/// `Ok(None)` means the code was unusable: expired, spent, revoked, never
+/// there, or made by someone who can no longer invite. `Ok(Some(grant))` means
+/// this caller won the use, and `grant` is the role the invite carries, if any.
 ///
 /// A single conditional UPDATE is what makes the use limit hold under
 /// concurrency: two callers racing the last slot cannot both match. It lives
@@ -115,6 +207,9 @@ pub(in crate::store) async fn spend_invite(
     code: &str,
     now: i64,
 ) -> Result<Option<Option<RoleId>>, sqlx::Error> {
+    if !maker_still_invites(tx, code).await? {
+        return Ok(None);
+    }
     let claimed = sqlx::query!(
         r#"UPDATE invites SET uses = uses + 1
            WHERE code = ?
@@ -154,24 +249,25 @@ pub(in crate::store) async fn record_redemption(
 
 /// Gives `user_id` the role `code` grants, but only while its creator could still grant it by
 /// hand: a creator demoted or removed since the invite was made no longer hands out the role.
+/// Answers whether the member holds the role now and did not before.
 pub(in crate::store) async fn apply_role_grant(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     code: &str,
     user_id: UserId,
     role_id: RoleId,
-) -> Result<(), sqlx::Error> {
+) -> Result<bool, sqlx::Error> {
     if !creator_still_grants(tx, code, role_id).await? {
         tracing::info!(%role_id, "an invite's creator can no longer grant its role; joined without it");
-        return Ok(());
+        return Ok(false);
     }
-    sqlx::query!(
+    let inserted = sqlx::query!(
         "INSERT OR IGNORE INTO member_roles (user_id, role_id) VALUES (?, ?)",
         user_id,
         role_id
     )
     .execute(&mut **tx)
     .await?;
-    Ok(())
+    Ok(inserted.rows_affected() > 0)
 }
 
 /// The checks `http::invites::resolve_grant` ran at creation, against the creator as they are now.
@@ -230,11 +326,8 @@ struct Standing {
 }
 
 impl Standing {
-    async fn of(
-        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-        user_id: UserId,
-    ) -> Result<Self, sqlx::Error> {
-        let is_owner = live_owner(tx).await? == Some(user_id);
+    async fn of(conn: &mut SqliteConnection, user_id: UserId) -> Result<Self, sqlx::Error> {
+        let is_owner = live_owner(conn).await? == Some(user_id);
         let held = sqlx::query!(
             r#"SELECT permissions AS "permissions!: Permissions", position AS "position!: i64",
                   is_everyone AS "is_everyone!: bool"
@@ -243,7 +336,7 @@ impl Standing {
               OR id IN (SELECT role_id FROM member_roles WHERE user_id = ?)"#,
             user_id
         )
-        .fetch_all(&mut **tx)
+        .fetch_all(&mut *conn)
         .await?;
         let everyone = held
             .iter()

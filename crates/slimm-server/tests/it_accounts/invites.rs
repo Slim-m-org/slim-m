@@ -141,9 +141,9 @@ async fn concurrent_redemptions_cannot_exceed_the_limit() {
         .await
         .unwrap();
 
-    let creator = store.create_account("creator", "C", &hash).await.unwrap();
+    let creator = store.find_credentials("admin").await.unwrap().unwrap().0;
     let invite = store
-        .create_invite(creator.id, None, Some(2), None)
+        .create_invite(creator, None, Some(2), None)
         .await
         .unwrap();
 

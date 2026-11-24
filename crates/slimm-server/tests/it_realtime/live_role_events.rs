@@ -17,7 +17,9 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 use crate::support;
-use support::ws::{connect, read_frame_skipping_presence_timed, serve, user_ticket};
+use support::ws::{
+    connect, read_frame_of_type, read_frame_skipping_presence_timed, serve, user_ticket,
+};
 
 use support::app::json_body;
 
@@ -185,4 +187,57 @@ async fn member_role_changed_reaches_everyone() {
         assert_eq!(frame["granted"], false);
         assert_eq!(frame["role_name"], "perk");
     }
+}
+
+/// An existing member spending a role invite on one device sees the role land on their others.
+#[tokio::test]
+async fn a_role_invite_redeemed_by_a_member_reaches_their_other_sockets() {
+    let (store, _guard) = support::new_store("slimm-live-role-invite-test").await;
+    store
+        .create_role("everyone", Permissions::SEND_MESSAGES, true)
+        .await
+        .unwrap();
+    let state = support::app::state(store.clone());
+
+    let (alice_access, _alice_ticket, alice) = user_ticket(&store, "alice").await;
+    let (bob_access, bob_ticket, bob) = user_ticket(&store, "bob").await;
+    make_admin(&store, alice).await;
+    let perk_role = store
+        .create_role("perk", Permissions::ATTACH_FILES, false)
+        .await
+        .unwrap();
+
+    let addr = serve(state.clone()).await;
+    let mut bob_desktop = connect(addr, &bob_ticket).await;
+
+    let created = http::router(state.clone())
+        .oneshot(req(
+            "POST",
+            "/invites",
+            &alice_access,
+            Some(json!({ "role_grant": perk_role.to_string() })),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(created.status(), StatusCode::OK);
+    let code = json_body(created).await["code"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let redeemed = http::router(state.clone())
+        .oneshot(req(
+            "POST",
+            &format!("/invites/{code}/redeem"),
+            &bob_access,
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(redeemed.status(), StatusCode::NO_CONTENT);
+
+    let frame = read_frame_of_type(&mut bob_desktop, "member.role_changed").await;
+    assert_eq!(frame["user_id"], bob.to_string());
+    assert_eq!(frame["role_id"], perk_role.to_string());
+    assert_eq!(frame["granted"], true);
+    assert_eq!(frame["role_name"], "perk");
 }

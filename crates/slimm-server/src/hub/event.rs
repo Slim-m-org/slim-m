@@ -84,7 +84,8 @@ pub enum Event {
     /// Does not move `hub::moves_permissions`: unlike a restore, a new
     /// member's arrival changes no other connection's already-cached answer
     /// for any channel it holds, since nobody was ever told "no" for this
-    /// user first.
+    /// user first. An existing account spending a role invite gets
+    /// [`Event::MemberRoleChanged`] beside it, which does move it.
     MemberJoined(UserId),
     /// Space ownership passed to this member, who now holds every permission. Carries only the
     /// id; their profile's `is_owner` travels on the `ProfileChanged` published beside it.
