@@ -248,4 +248,13 @@ void main() {
     );
     expect((await freeDownloadFile(dir, '..')).path, endsWith('download'));
   });
+
+  test('two simultaneous saves of one name get distinct files', () async {
+    final dir = Directory.systemTemp.createTempSync('slimm-downloads');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final files = await Future.wait([
+      for (var i = 0; i < 5; i++) freeDownloadFile(dir, 'a.png'),
+    ]);
+    expect({for (final f in files) f.path}, hasLength(5));
+  });
 }

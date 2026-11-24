@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../downloads/download_target.dart';
+import '../../../downloads/safe_file_name.dart';
 
 class ThemeFilePick {
   const ThemeFilePick({required this.fileName, required this.bytes});
@@ -58,7 +59,10 @@ String themeFileName(String themeName) {
       .toLowerCase()
       .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
       .replaceAll(RegExp(r'^-+|-+$'), '');
-  return '${slug.isEmpty ? 'theme' : slug}.slimm-theme.json';
+  return safeFileName(
+    '${slug.isEmpty ? 'theme' : slug}.slimm-theme.json',
+    windows: true,
+  );
 }
 
 /// The file's theme, or every problem found reading it.
