@@ -59,6 +59,8 @@ List<ControlOptionEntry> canvasNoteStyleOptions({
           ...canvasPenColourSwatches(
             selectedKey: style.fill ?? '',
             onChoose: (key) => onChanged(style.copyWith(fill: () => key)),
+            // Default fill is already the amber.
+            without: const {'amber'},
           ),
         ],
         selectedKey: style.fill ?? '',

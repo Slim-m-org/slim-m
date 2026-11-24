@@ -300,6 +300,15 @@ void main() {
       expect(surfaceDocument(tester).noteStyleOf('note')!.fillOpacity, 1);
     });
 
+    testWidgets('offers the amber fill once', (tester) async {
+      await _pane(tester, note: _note());
+      await _click(tester, _onNote);
+
+      expect(find.bySemanticsLabel('Default fill'), findsOneWidget);
+      // The text colour row keeps its own amber.
+      expect(find.bySemanticsLabel('Amber'), findsOneWidget);
+    });
+
     testWidgets('a server that replaces edit props gets no style bar', (
       tester,
     ) async {
