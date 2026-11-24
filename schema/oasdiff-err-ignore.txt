@@ -18,3 +18,32 @@ POST /space/dock/modules/{moduleId}/install added the new `call.scene` enum valu
 PUT /space/dock/modules/{moduleId}/schedule-channel added the new `call.scene` enum value to the `slots/items/kind` response property for the response status `200`
 POST /space/dock/packages/install added the new `call.scene` enum value to the `slots/items/kind` response property for the response status `200`
 POST /space/dock/packages/preview added the new `call.scene` enum value to the `slots/items/kind` response property for the response status `200`
+POST /attachments/uploads the `size` request property `format` changed from `none` to `int64`
+PUT /attachments/uploads/{uploadId} for the `query` request parameter `offset`, the `format` was changed from `none` to `int64`
+GET /attachments/{attachmentId} for the `query` request parameter `w`, the `format` was changed from `none` to `int32`
+POST /channels/{channelId}/ephemeral-messages the `embeds/items/color` request property `format` changed from `none` to `int64`
+POST /channels/{channelId}/interactions/{interactionId}/form the `fields/items/max_length` request property `format` changed from `none` to `int64`
+POST /channels/{channelId}/messages the `components/items/select/max_values` request property `format` changed from `none` to `int32`
+POST /channels/{channelId}/messages the `components/items/select/min_values` request property `format` changed from `none` to `int32`
+POST /channels/{channelId}/messages the `embeds/items/color` request property `format` changed from `none` to `int64`
+PATCH /channels/{channelId}/messages/{messageId} the `embeds/items/color` request property `format` changed from `none` to `int64`
+PUT /channels/{channelId}/messages/{messageId}/components the `components/items/select/max_values` request property `format` changed from `none` to `int32`
+PUT /channels/{channelId}/messages/{messageId}/components the `components/items/select/min_values` request property `format` changed from `none` to `int32`
+GET /channels/{channelId}/voice/calls for the `query` request parameter `limit`, the `format` was changed from `none` to `int32`
+GET /debug-logs for the `query` request parameter `limit`, the `format` was changed from `none` to `int32`
+GET /gifs/search for the `query` request parameter `limit`, the `format` was changed from `none` to `int32`
+GET /gifs/trending for the `query` request parameter `limit`, the `format` was changed from `none` to `int32`
+GET /invites for the `query` request parameter `limit`, the `format` was changed from `none` to `int32`
+PATCH /me the `profile_color` request property `format` changed from `none` to `int64`
+PATCH /me the `profile_color_rgb` request property `format` changed from `none` to `int64`
+GET /messages/{messageId}/reactions/{emoji} for the `query` request parameter `limit`, the `format` was changed from `none` to `int32`
+GET /search/transcripts for the `query` request parameter `limit`, the `format` was changed from `none` to `int32`
+PATCH /space/attachment-limit the `max_bytes` request property `format` changed from `none` to `int64`
+GET /space/audit-log for the `query` request parameter `limit`, the `format` was changed from `none` to `int32`
+PATCH /space/canvas-cap the `object_cap` request property `format` changed from `none` to `int64`
+PUT /space/dock/modules/{moduleId}/hooks the `priority` request property `format` changed from `none` to `int64`
+PATCH /space/retention the `retention_days` request property `format` changed from `none` to `int64`
+PATCH /space/screen-share the `max_height` request property `format` changed from `none` to `int64`
+PATCH /space/settings the `call_transcript_retention_days` request property `format` changed from `none` to `int64`
+POST /space/themes the `version` request property `format` changed from `none` to `int64`
+GET /voice/transcripts/{transcriptId} for the `query` request parameter `limit`, the `format` was changed from `none` to `int32`

@@ -39,9 +39,6 @@ import 'screen_stamp_tools.dart';
 /// The narrowest tile, in logical pixels, that gets the toolbar.
 const screenAnnotateMinTileWidth = 220.0;
 
-/// Longest sticky note, matching the server's cap.
-const screenNoteMaxChars = 80;
-
 class ScreenAnnotateLayer extends ConsumerStatefulWidget {
   const ScreenAnnotateLayer({
     super.key,
@@ -432,7 +429,7 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
         child: AppInput(
           controller: _noteText,
           autofocus: true,
-          maxLength: screenNoteMaxChars,
+          maxLength: api.InputLimits.screenNote,
           placeholder: 'Say something',
           size: AppInputSize.sm,
           semanticLabel: "Note for ${widget.sharerName}'s screen",

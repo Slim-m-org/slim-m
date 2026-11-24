@@ -6,7 +6,8 @@
 //! custom `Query` extractor, and both answer `400 {"error": ...}` for a value
 //! that does not parse. An operation that takes either but lists no `"400"`
 //! leaves a generated or third-party client with no documented error shape for
-//! a malformed id.
+//! a malformed id. A request body is parsed the same way, so an operation that
+//! takes one lists a `"400"` too.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -16,6 +17,9 @@ use serde_json::Value;
 
 use crate::support;
 const METHODS: [&str; 5] = ["get", "post", "put", "patch", "delete"];
+
+/// LiveKit's signed delivery: a body that does not verify answers 403, never 400.
+const BODY_400_EXEMPT: [&str; 1] = ["receiveLiveKitWebhook"];
 
 fn load_schema() -> Value {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schema/openapi.yaml");
@@ -104,4 +108,44 @@ fn the_scanner_finds_the_operations_it_gates() {
         found.len()
     );
     assert!(found.iter().any(|(id, _)| id == "listMessages"));
+}
+
+/// Every operation that takes a request body, and whether it lists a `"400"`.
+fn body_operations(doc: &Value) -> Vec<(String, bool)> {
+    let paths = doc["paths"].as_object().expect("paths");
+    paths
+        .values()
+        .flat_map(|item| METHODS.iter().filter_map(|method| item.get(*method)))
+        .filter(|operation| operation.get("requestBody").is_some())
+        .map(|operation| {
+            let id = operation["operationId"].as_str().expect("operationId");
+            (id.to_string(), operation["responses"].get("400").is_some())
+        })
+        .collect()
+}
+
+#[test]
+fn every_operation_with_a_request_body_documents_a_400() {
+    let missing: BTreeSet<_> = body_operations(&load_schema())
+        .into_iter()
+        .filter(|(id, documented)| !documented && !BODY_400_EXEMPT.contains(&id.as_str()))
+        .map(|(id, _)| id)
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "these operations take a request body, which the server refuses with a \
+         400 when it does not parse, and list no \"400\" response: {missing:?}\n\
+         Add `\"400\": $ref: \"#/components/responses/BadRequest\"` to each.",
+    );
+}
+
+#[test]
+fn the_body_scanner_finds_the_operations_it_gates() {
+    let found = body_operations(&load_schema());
+    assert!(
+        found.len() >= 120,
+        "suspiciously few operations: {}",
+        found.len()
+    );
+    assert!(found.iter().any(|(id, _)| id == "refresh"));
 }

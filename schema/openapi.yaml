@@ -203,6 +203,8 @@ paths:
                 $ref: "#/components/schemas/IdentityProof"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -277,6 +279,8 @@ paths:
                 $ref: "#/components/schemas/Error"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "503":
@@ -318,6 +322,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "503":
@@ -349,6 +355,8 @@ paths:
                 $ref: "#/components/schemas/UsernameCheckResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -373,8 +381,12 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Tokens"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -436,6 +448,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -463,6 +477,8 @@ paths:
           description: The password was changed and every session revoked.
         "400":
           $ref: "#/components/responses/BadRequest"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "503":
           $ref: "#/components/responses/Unavailable"
         "429":
@@ -494,6 +510,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -548,6 +566,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -581,6 +601,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -609,6 +631,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -635,6 +659,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -666,6 +692,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "503":
@@ -710,6 +738,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -757,6 +787,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -813,6 +845,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -993,6 +1027,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -1028,6 +1064,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -1078,6 +1116,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -1176,6 +1216,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -1279,6 +1321,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -1417,6 +1461,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /me/links/discord:
@@ -1543,6 +1589,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /me/links/steam:
@@ -1581,10 +1629,14 @@ paths:
       responses:
         "204":
           description: Saved.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /links/steam/callback:
@@ -1771,6 +1823,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -1968,6 +2022,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -2093,6 +2149,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -2159,6 +2217,7 @@ paths:
           required: false
           schema:
             type: integer
+            format: int32
         - name: before
           in: query
           required: false
@@ -2214,6 +2273,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -2382,6 +2443,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -2505,6 +2568,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -2647,6 +2712,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -2686,6 +2753,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -2910,6 +2979,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -2983,6 +3054,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -3031,6 +3104,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -3104,6 +3179,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /categories/{categoryId}/overwrites/sync:
@@ -3192,6 +3269,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -3305,6 +3384,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -3342,6 +3423,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -3409,6 +3492,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -3559,6 +3644,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -3608,6 +3695,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -3653,6 +3742,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -3960,6 +4051,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -4012,6 +4105,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -4143,6 +4238,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -4226,6 +4323,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -4349,6 +4448,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -4441,6 +4542,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -4527,6 +4630,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -4636,6 +4741,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -4709,6 +4816,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -4834,6 +4943,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -4889,6 +5000,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -5072,6 +5185,7 @@ paths:
           description: Where this part starts, in bytes.
           schema:
             type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -5229,6 +5343,7 @@ paths:
           description: Preview width in pixels; see the operation description.
           schema:
             type: integer
+            format: int32
         - name: still
           in: query
           required: false
@@ -5255,7 +5370,8 @@ paths:
         "200":
           description: >-
             The attachment's raw bytes, served as the type sniffed from the
-            stored bytes rather than anything the uploader claimed.
+            stored bytes rather than anything the uploader claimed. A file of
+            no recognised type is served as `application/octet-stream`.
           content:
             image/png:
               schema:
@@ -5321,6 +5437,10 @@ paths:
               schema:
                 type: string
                 format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
         "206":
           description: >-
             The requested byte range, returned when the client sent a single
@@ -5363,9 +5483,9 @@ paths:
         Each result's `id` is an opaque token minted by this request, never
         the provider's own id or CDN URL. It is redeemable at
         `getGifPreview` and `selectGif` for a short time and then expires;
-        an expired or unknown token answers 503 rather than 404, the same
-        "try again" a provider hiccup gets, since a client's only remedy
-        either way is to search again.
+        an expired or unknown token answers 404 there, so a client searches
+        again. A 503 means only that the provider failed, so a retry may
+        succeed.
 
 
         A 501 means this deployment has no GIF provider configured at all
@@ -5383,6 +5503,7 @@ paths:
           description: Most results to return. Defaults to 20, capped at 50.
           schema:
             type: integer
+            format: int32
         - name: channel_id
           in: query
           required: false
@@ -5451,6 +5572,7 @@ paths:
           description: Most results to return. Defaults to 20, capped at 50.
           schema:
             type: integer
+            format: int32
         - name: channel_id
           in: query
           required: false
@@ -5741,6 +5863,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "501":
@@ -5793,6 +5917,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -5837,6 +5963,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -6017,6 +6145,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -6048,6 +6178,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -6170,6 +6302,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "503":
@@ -6748,6 +6882,7 @@ paths:
           in: query
           schema:
             type: integer
+            format: int32
         - name: after
           in: query
           schema:
@@ -6907,6 +7042,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -6950,6 +7087,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -6978,6 +7117,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -7022,6 +7163,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -7076,6 +7219,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -7114,8 +7259,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PushPreview"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -7177,6 +7326,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -7321,6 +7472,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -7429,6 +7582,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DiagnosticsUpload"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "413":
@@ -7482,6 +7637,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -7614,6 +7771,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -7666,6 +7825,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -8137,6 +8298,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -8339,6 +8502,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -8442,6 +8607,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -8587,6 +8754,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -8660,6 +8829,7 @@ paths:
           description: Page size; the server clamps it to 1 to 500.
           schema:
             type: integer
+            format: int32
             default: 200
       responses:
         "200":
@@ -8803,6 +8973,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -8876,6 +9048,7 @@ paths:
           description: Page size; the server clamps it to 1 to 100.
           schema:
             type: integer
+            format: int32
             default: 50
       responses:
         "200":
@@ -8914,7 +9087,7 @@ paths:
                 properties:
                   mode:
                     type: string
-                    enum: [off, on_request, always]
+                    enum: ["off", on_request, always]
                   acknowledged:
                     type: boolean
                   voice_commands:
@@ -8962,6 +9135,7 @@ paths:
           required: false
           schema:
             type: integer
+            format: int32
       responses:
         "200":
           description: The channel's recent calls.
@@ -9058,6 +9232,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /channels/{channelId}/voice/call-audio:
@@ -9133,6 +9309,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "503":
@@ -9202,6 +9380,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -9418,6 +9598,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "501":
@@ -9467,6 +9649,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "501":
@@ -9530,6 +9714,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "501":
@@ -9583,6 +9769,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "413":
+          description: The delivery is over the default 2 MiB body limit; the body is plain text.
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "501":
@@ -9779,6 +9967,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/join-gate:
@@ -9833,6 +10023,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/rules:
@@ -9945,6 +10137,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10048,6 +10242,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10107,6 +10303,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10164,6 +10362,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10214,6 +10414,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10264,6 +10466,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10340,6 +10544,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10388,6 +10594,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10461,6 +10669,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10558,6 +10768,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -10612,6 +10824,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10648,6 +10862,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10702,6 +10918,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10746,6 +10964,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10798,6 +11018,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10884,6 +11106,8 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10948,6 +11172,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10989,6 +11215,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -11119,6 +11347,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/audit-log:
@@ -11144,6 +11374,7 @@ paths:
           required: false
           schema:
             type: integer
+            format: int32
       responses:
         "200":
           description: A page of admin changes.
@@ -11248,6 +11479,7 @@ paths:
           required: false
           schema:
             type: integer
+            format: int32
       responses:
         "200":
           description: A page of submitted logs.
@@ -11358,6 +11590,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/retention:
@@ -11411,6 +11645,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/retention/preview:
@@ -11505,6 +11741,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /channels/{channelId}/retention/preview:
@@ -11594,6 +11832,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/attachment-limit:
@@ -11637,6 +11877,7 @@ paths:
               properties:
                 max_bytes:
                   type: integer
+                  format: int64
                   description: The new limit in bytes, or 0 for none.
       responses:
         "200":
@@ -11651,6 +11892,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/media-compression:
@@ -11721,6 +11964,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/screen-share:
@@ -11776,6 +12021,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/uplink-test:
@@ -11903,6 +12150,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/setup:
@@ -12070,6 +12319,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "502":
@@ -12093,7 +12344,12 @@ paths:
         earlier messages stay, still marked as the module's. The module's
         data file (decision 0091) is kept unless delete_data is true. If
         deleting the data fails, the module is already uninstalled, so a repeat
-        call with delete_data removes what is left and answers 204.
+        call with delete_data removes what is left and answers 204. A host-run
+        connector answers 503 with `code: connector_runtime_unavailable` when
+        its container and volume cannot be removed, which with delete_data
+        includes the connector runtime being down. The module then stays
+        installed, though it may be left disabled, so the same call succeeds
+        once the runtime is back.
       parameters:
         - name: delete_data
           in: query
@@ -12114,6 +12370,15 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+        "503":
+          description: >
+            The connector runtime could not remove a host-run connector's
+            container and volume (`code: connector_runtime_unavailable`), or
+            the server shed the request under load.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /space/dock/packages/preview:
     post:
       operationId: previewDockPackage
@@ -12144,6 +12409,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/dock/packages/install:
@@ -12183,6 +12450,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/dock/modules/{moduleId}/export:
@@ -12297,6 +12566,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/dock/connector-runtime:
@@ -12579,6 +12850,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/dock/hooks:
@@ -12636,6 +12909,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/dock/modules/{moduleId}/schedule-channel:
@@ -12684,6 +12959,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/dock/modules/{moduleId}/call-audio-channels:
@@ -12750,6 +13027,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/dock/installed:
@@ -12889,6 +13168,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/dock/sources/{sourceId}:
@@ -12977,6 +13258,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /modules/code-block-runners:
@@ -13172,6 +13455,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /sync:
@@ -13203,6 +13488,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -13281,6 +13568,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/themes/{theme_id}:
@@ -13371,6 +13660,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /emoji:
@@ -13628,6 +13919,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -13775,6 +14068,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "501":
@@ -13908,6 +14203,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "507":
@@ -13973,6 +14270,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -14011,6 +14310,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -14231,6 +14532,7 @@ components:
           description: Seconds to wait before retrying.
           schema:
             type: integer
+            format: int32
             minimum: 1
       content:
         application/json:
@@ -14245,6 +14547,7 @@ components:
           description: Seconds to wait before retrying. Sent when the shed was for lack of an in-flight request slot.
           schema:
             type: integer
+            format: int32
             minimum: 1
       content:
         application/json:
@@ -14294,7 +14597,7 @@ components:
       description: >-
         An emoji or a picture to place on `target_user_id`'s shared screen.
         Exactly one of `emoji` or `attachment_id` is present.
-      required: [id, target_user_id, x, y, size]
+      required: [id, target_user_id, x, "y", size]
       properties:
         id:
           type: string
@@ -14310,7 +14613,7 @@ components:
           minimum: 0
           maximum: 1
           description: The centre, 0 to 1 across the shared screen.
-        y:
+        "y":
           type: number
           format: double
           minimum: 0
@@ -14442,6 +14745,7 @@ components:
             does not hold.
         item_index:
           type: integer
+          format: int32
           description: >
             Present with `item_code` on the 400 or 409 of `bulkUploadCustomEmoji`
             that is about one image: its zero-based position in `images`.
@@ -14464,6 +14768,7 @@ components:
             properties:
               index:
                 type: integer
+                format: int32
                 description: Zero-based position in the request's list.
               code:
                 type: string
@@ -14487,7 +14792,9 @@ components:
             on. `dm_pins_unavailable` on a 403 from pinning or unpinning in a
             direct message. `not_author` on a 403 from editing a message the
             caller did not write. `on_call_elsewhere` on a 409 from
-            `mintVoiceToken` asked with `automatic=true`. A channel the caller cannot see, or one that does
+            `mintVoiceToken` asked with `automatic=true`. `connector_runtime_unavailable`
+            on a 503 from the Dock's host-run routes: the connector runtime
+            is down or could not act, so retry once it is back. A channel the caller cannot see, or one that does
             not exist, still answers the bare 403 with no code. Absent on every
             other error; read an unknown value as a refusal for another reason.
         timed_out_until:
@@ -14594,6 +14901,7 @@ components:
             on older servers, which a client reads as false.
         screen_share_max_height:
           type: integer
+          format: int64
           description: >
             The tallest resolution a screen share may publish at. Follows
             the deployment's screen-share ceiling. Rides on `/version`,
@@ -14639,7 +14947,7 @@ components:
             true.
         debug_logging:
           type: string
-          enum: [off, compact, verbose]
+          enum: ["off", compact, verbose]
           description: >
             The space's server log mode, so a member's client keeps a longer
             debug log of its own while it is not `off`. Absent on older
@@ -15070,6 +15378,7 @@ components:
             which a client must treat as unknown rather than "no about".
         profile_color:
           type: integer
+          format: int64
           description: >
             An index into the design system's closed categorical colour set
             (six hues). Always present: an account that never chose one reads
@@ -15078,6 +15387,7 @@ components:
             client must treat as unknown rather than defaulting to zero.
         profile_color_rgb:
           type: integer
+          format: int64
           nullable: true
           description: >
             A custom colour as 0xRRGGBB (0 to 16777215) that wins over
@@ -15235,9 +15545,11 @@ components:
           description: The caller's own about line; see `UserProfile.about`.
         profile_color:
           type: integer
+          format: int64
           description: The caller's own profile colour index; see `UserProfile.profile_color`.
         profile_color_rgb:
           type: integer
+          format: int64
           nullable: true
           description: The caller's own custom colour, or null; see `UserProfile.profile_color_rgb`.
         presence_visibility:
@@ -15303,6 +15615,7 @@ components:
             convention `status_text` uses.
         profile_color:
           type: integer
+          format: int64
           description: >
             An index into the design system's closed categorical colour set.
             There is no clearing this back to unset: every account always has
@@ -15310,6 +15623,7 @@ components:
             outside the set is a 400.
         profile_color_rgb:
           type: integer
+          format: int64
           description: >
             A custom colour as 0xRRGGBB (0 to 16777215; outside it is a 400).
             A `profile_color` sent without this drops any custom colour back to
@@ -15439,10 +15753,11 @@ components:
           format: int64
         recovery_codes_remaining:
           type: integer
+          format: int64
           description: Unused recovery codes left.
         policy:
           type: string
-          enum: [off, optional, required_for_elevated]
+          enum: ["off", optional, required_for_elevated]
           description: >
             What this deployment asks for. `off` refuses new enrolments and
             deliberately keeps enforcing a factor somebody already enabled, so
@@ -15505,17 +15820,18 @@ components:
             its hint. Absent from a server that still requires a message.
         totp_policy:
           type: string
-          enum: [off, optional, required_for_elevated]
+          enum: ["off", optional, required_for_elevated]
           description: >
             The deployment's second-factor policy. Optional in a PATCH body, so
             a client that predates it can change the join policy without
             silently resetting this. Always present in a response.
         call_transcription:
           type: string
-          enum: [off, on_request, always]
+          enum: ["off", on_request, always]
           description: Whether the server transcribes calls (decision 0113); `off` by default.
         call_transcript_retention_days:
           type: [integer, "null"]
+          format: int64
           description: Days a finished call transcript is kept; null keeps it forever. 30 by default.
         call_transcription_available:
           type: boolean
@@ -15528,7 +15844,7 @@ components:
           description: False when the speech listener is not configured, so voice transcripts cannot be turned on.
         debug_logging:
           type: string
-          enum: [off, compact, verbose]
+          enum: ["off", compact, verbose]
           description: >
             How much the server logs (decision 0129). `off` is the operator's
             `SLIMM_LOG` filter, `info` unless set. `compact` adds one debug
@@ -15593,7 +15909,7 @@ components:
           enum: [invite, open]
         totp_policy:
           type: string
-          enum: [off, optional, required_for_elevated]
+          enum: ["off", optional, required_for_elevated]
         description:
           type: string
           description: At most 280 characters, no control or invisible characters.
@@ -15628,13 +15944,14 @@ components:
             which `SpaceSettings.welcome_default_message` reports.
         call_transcription:
           type: string
-          enum: [off, on_request, always]
+          enum: ["off", on_request, always]
           description: >
             `on_request` and `always` need the call audio listener; a server
             without one answers 409. Ending a session is automatic when it is
             turned off.
         call_transcript_retention_days:
           type: [integer, "null"]
+          format: int64
           description: 1 to 3650, or null to keep transcripts forever.
         call_transcription_available:
           type: boolean
@@ -15652,7 +15969,7 @@ components:
           description: Read-only; ignored when sent. See `SpaceSettings`.
         debug_logging:
           type: string
-          enum: [off, compact, verbose]
+          enum: ["off", compact, verbose]
           description: >
             Switches the server log mode at once, with no restart. Any other
             value is a 400.
@@ -15695,14 +16012,18 @@ components:
       properties:
         total_messages:
           type: integer
+          format: int64
           description: All-time count of live (non-deleted) messages, Space-wide.
         member_count:
           type: integer
+          format: int64
         channel_count:
           type: integer
+          format: int64
           description: Live, non-DM, non-thread channels.
         attachment_bytes:
           type: integer
+          format: int64
           description: Current total bytes stored across every attachment.
         messages_by_day:
           type: array
@@ -15717,6 +16038,7 @@ components:
             window, summed over every author.
           items:
             type: integer
+            format: int64
           minItems: 24
           maxItems: 24
         memory_samples:
@@ -15735,15 +16057,18 @@ components:
           description: "`YYYY-MM-DD`, UTC."
         count:
           type: integer
+          format: int64
     SpaceAnalyticsMemorySample:
       type: object
       required: [sampled_at, rss_bytes]
       properties:
         sampled_at:
           type: integer
+          format: int64
           description: Unix milliseconds.
         rss_bytes:
           type: integer
+          format: int64
     SpaceAnalyticsMemberStorage:
       type: object
       required: [user_id, attachment_bytes]
@@ -15753,6 +16078,7 @@ components:
           format: uuid
         attachment_bytes:
           type: integer
+          format: int64
           description: >
             Every attachment this member has personally uploaded, by content
             hash. Two members who each uploaded identical bytes are each
@@ -15791,6 +16117,7 @@ components:
           type: string
         attachment_bytes:
           type: integer
+          format: int64
     SpaceSweepStatus:
       type: object
       required: [name, last_run_at, last_reclaimed]
@@ -15803,9 +16130,11 @@ components:
             `call_transcripts`.
         last_run_at:
           type: integer
+          format: int64
           description: Unix milliseconds of the sweep's most recent pass.
         last_reclaimed:
           type: integer
+          format: int64
           description: >
             What that pass reclaimed, in whatever unit that sweep counts
             (rows removed, files freed): sweep-specific, not always bytes.
@@ -15877,12 +16206,15 @@ components:
           $ref: "#/components/schemas/SpaceBackupStatus"
         database_bytes:
           type: integer
+          format: int64
           description: The database file's logical size, from SQLite's page count.
         database_reclaimable_bytes:
           type: integer
+          format: int64
           description: How much of that a `VACUUM` could reclaim.
         attachment_bytes:
           type: integer
+          format: int64
           description: Current total bytes stored across every attachment.
         top_channels:
           type: array
@@ -15911,9 +16243,11 @@ components:
           description: What the newest run failed with, when `state` is `failed`.
         verified_at:
           type: [integer, "null"]
+          format: int64
           description: Epoch milliseconds of the last backup that passed its restore drill.
         verified_bytes:
           type: [integer, "null"]
+          format: int64
           description: Size of the database snapshot in that backup.
         stale:
           type: boolean
@@ -15935,9 +16269,11 @@ components:
           type: string
         raised_at:
           type: integer
+          format: int64
           description: Epoch milliseconds.
         resolved_at:
           type: [integer, "null"]
+          format: int64
           description: Epoch milliseconds it recovered, or null while it lasts.
     AdminAlerts:
       type: object
@@ -16038,6 +16374,7 @@ components:
       properties:
         retention_days:
           type: integer
+          format: int64
           description: >
             Days a message is kept before the sweep prunes it. `0` means
             disabled - keep forever - and is the default.
@@ -16081,6 +16418,7 @@ components:
       properties:
         object_cap:
           type: integer
+          format: int64
           description: >
             Most live objects one channel's canvas may hold before a placement
             is refused. Applies to every client. Settable range is 100 to
@@ -16091,9 +16429,11 @@ components:
       properties:
         max_bytes:
           type: integer
+          format: int64
           description: The admin's limit in bytes, or 0 for none.
         server_max_bytes:
           type: integer
+          format: int64
           description: The operator's ceiling, which max_bytes may not exceed.
     SpaceMediaCompression:
       type: object
@@ -16137,6 +16477,7 @@ components:
           description: Original filename, sanitized as uploadAttachment's is.
         size:
           type: integer
+          format: int64
           description: The whole file's size in bytes.
         channel_id:
           type: string
@@ -16152,15 +16493,19 @@ components:
           type: string
         size:
           type: integer
+          format: int64
           description: The whole file's declared size in bytes.
         offset:
           type: integer
+          format: int64
           description: Bytes received so far; the next part starts here.
         part_max_bytes:
           type: integer
+          format: int64
           description: The largest part the server accepts.
         expires_at:
           type: integer
+          format: int64
           description: When an unfinished session is dropped, in epoch milliseconds.
     SpaceScreenShareCap:
       type: object
@@ -16168,6 +16513,7 @@ components:
       properties:
         max_height:
           type: integer
+          format: int64
           description: >
             The tallest resolution a screen share may publish at.
             Client-advertised: a client reads this and caps its own capture
@@ -16227,18 +16573,23 @@ components:
       properties:
         cores:
           type: integer
+          format: int64
           description: Cores this process may use, counting a container quota.
         memory_total_bytes:
           type: [integer, "null"]
+          format: int64
           description: The host's RAM, or null when it could not be read.
         memory_limit_bytes:
           type: [integer, "null"]
+          format: int64
           description: The cgroup memory limit, or null when the server is not limited.
         disk_free_bytes:
           type: [integer, "null"]
+          format: int64
           description: Space an unprivileged process may still use on the uploads volume.
         disk_total_bytes:
           type: [integer, "null"]
+          format: int64
           description: Size of the uploads volume.
         voice_configured:
           type: boolean
@@ -16255,18 +16606,23 @@ components:
           description: The first thing to run out.
         connection_limit:
           type: integer
+          format: int64
           description: Simultaneous connections this machine is planned to hold.
         members_min:
           type: integer
+          format: int64
           description: Low end of the range of people connected at once.
         members_max:
           type: integer
+          format: int64
           description: High end of the range of people connected at once.
         voice_min:
           type: [integer, "null"]
+          format: int64
           description: Low end of people in one call, if LiveKit shares this machine.
         voice_max:
           type: [integer, "null"]
+          format: int64
           description: High end of people in one call, if LiveKit shares this machine.
     DockIndexEntry:
       type: object
@@ -16330,12 +16686,15 @@ components:
       properties:
         memory_mb:
           type: integer
+          format: int64
           nullable: true
         wall_ms:
           type: integer
+          format: int64
           nullable: true
         fuel:
           type: integer
+          format: int64
           nullable: true
     DockRuntime:
       type: object
@@ -16483,9 +16842,11 @@ components:
               description: One of the module's own permission keys a member needs to start a session.
         addon_api:
           type: integer
+          format: int64
           description: The add-on API version it declares; absent when it uses none.
         addon_api_max:
           type: integer
+          format: int64
           description: The newest add-on API version it declares it works with; absent when it names none.
         provider:
           type: string
@@ -16555,8 +16916,10 @@ components:
         default: {}
         min:
           type: integer
+          format: int64
         max:
           type: integer
+          format: int64
         choices:
           type: array
           items:
@@ -16609,6 +16972,7 @@ components:
             type: string
         priority:
           type: integer
+          format: int64
           description: Lower runs first within a phase.
         fail_closed:
           type: boolean
@@ -16618,8 +16982,10 @@ components:
           description: Whether it is in the chain now.
         runs:
           type: integer
+          format: int64
         failures:
           type: integer
+          format: int64
         last_error:
           type: string
           nullable: true
@@ -16647,6 +17013,7 @@ components:
           type: string
         priority:
           type: integer
+          format: int64
         fail_closed:
           type: boolean
     ModuleSlot:
@@ -16847,6 +17214,7 @@ components:
           description: One of the module's own command extension points.
         every_minutes:
           type: integer
+          format: int64
           description: The interval, 5 minutes to a week.
     InstallDockModuleRequest:
       type: object
@@ -16988,9 +17356,11 @@ components:
             $ref: "#/components/schemas/DockSchedule"
         addon_api:
           type: integer
+          format: int64
           description: The add-on API version it declares; absent when it uses none.
         addon_api_max:
           type: integer
+          format: int64
           description: The newest add-on API version it declares it works with; absent when it names none.
         subscriptions:
           type: array
@@ -17060,6 +17430,7 @@ components:
           type: boolean
         installed_at:
           type: integer
+          format: int64
         run_stats:
           type: array
           description: >
@@ -17423,6 +17794,7 @@ components:
           enum: [slimm-theme]
         version:
           type: integer
+          format: int64
           enum: [1]
         name:
           type: string
@@ -18188,12 +18560,15 @@ components:
           properties:
             memory_mib:
               type: integer
+              format: int64
             cpus:
               type: number
             pids:
               type: integer
+              format: int64
             volume_mib:
               type: integer
+              format: int64
               minimum: 1
               description: >
                 The data volume's ceiling in MiB (default 256). The supervisor
@@ -18234,6 +18609,7 @@ components:
               enum: [running, stopped, crashed, disabled_after_crashes, refused, starting, runtime_unavailable]
             exit_code:
               type: integer
+              format: int64
             oom_killed:
               type: boolean
             started_at:
@@ -18242,12 +18618,14 @@ components:
               type: string
             restarts:
               type: integer
+              format: int64
               description: Crashes in the last 10 minutes.
             last_error:
               type: string
               description: Why it is not running, for the admin.
             volume_bytes:
               type: integer
+              format: int64
               description: The data volume's size at the supervisor's last measurement.
     ConnectorHostRunLogs:
       type: object
@@ -18505,11 +18883,13 @@ components:
             $ref: "#/components/schemas/SelectOption"
         min_values:
           type: integer
+          format: int32
           description: >-
             How few options a choice may hold, 0 up to `max_values`. Absent
             means 1.
         max_values:
           type: integer
+          format: int32
           description: >-
             How many options a choice may hold, 1 up to the number of options.
             Absent means 1.
@@ -18610,6 +18990,7 @@ components:
           description: Absent means false.
         max_length:
           type: integer
+          format: int64
           description: 1 to 1000. Absent means 200.
     SubmitBotFormRequest:
       type: object
@@ -19894,7 +20275,7 @@ components:
 
     CanvasObject:
       type: object
-      required: [id, kind, z_index, x, y, w, h, props, seq, created_at]
+      required: [id, kind, z_index, x, "y", w, h, props, seq, created_at]
       properties:
         id:
           type: string
@@ -19912,7 +20293,7 @@ components:
         x:
           type: number
           format: double
-        y:
+        "y":
           type: number
           format: double
         w:
@@ -19961,7 +20342,7 @@ components:
             $ref: "#/components/schemas/CanvasObject"
     CanvasObjectPlacement:
       type: object
-      required: [id, kind, x, y, w, h, props]
+      required: [id, kind, x, "y", w, h, props]
       properties:
         id:
           type: string
@@ -19981,7 +20362,7 @@ components:
         x:
           type: number
           format: double
-        y:
+        "y":
           type: number
           format: double
         w:
@@ -20108,7 +20489,7 @@ components:
           type: number
           format: double
           description: A `move`'s new top-left corner.
-        y:
+        "y":
           type: number
           format: double
         w:
@@ -20215,7 +20596,7 @@ components:
           type: number
           format: double
           description: Required for `move`. The object's new top-left corner.
-        y:
+        "y":
           type: number
           format: double
           description: Required for `move`.
@@ -20277,7 +20658,7 @@ components:
 
     CanvasMediaSlot:
       type: object
-      required: [kind, user_id, x, y, w, h, locked, sent_to_back, updated_at]
+      required: [kind, user_id, x, "y", w, h, locked, sent_to_back, updated_at]
       properties:
         kind:
           type: string
@@ -20289,7 +20670,7 @@ components:
         x:
           type: number
           format: double
-        y:
+        "y":
           type: number
           format: double
         w:
@@ -20318,12 +20699,12 @@ components:
 
     CanvasMediaSlotUpdate:
       type: object
-      required: [x, y, w, h, locked, sent_to_back]
+      required: [x, "y", w, h, locked, sent_to_back]
       properties:
         x:
           type: number
           format: double
-        y:
+        "y":
           type: number
           format: double
         w:
@@ -20719,9 +21100,11 @@ components:
           type: string
         width:
           type: integer
+          format: int64
           description: Pixels; 0 when unknown.
         height:
           type: integer
+          format: int64
         available:
           type: boolean
           description: >
@@ -20863,6 +21246,7 @@ components:
           type: array
           items:
             type: integer
+            format: int32
           description: >-
             A voice message's loudness in 64 buckets from 0 to 255, so a player
             can draw it without decoding the audio.
@@ -20896,11 +21280,13 @@ components:
           description: The provider's own description of the result, which may be empty.
         width:
           type: integer
+          format: int64
           description: >
             The full-resolution image's width, or 0 when the provider's
             response does not carry dimensions.
         height:
           type: integer
+          format: int64
           description: Paired with width; see that field's own description.
 
     LinkPreview:
@@ -20956,6 +21342,7 @@ components:
             Null for YouTube and for an ordinary link.
         video_start_ms:
           type: [integer, "null"]
+          format: int64
           description: >
             Where a YouTube link asked playback to begin, in milliseconds
             (whole seconds), from its t= or start= parameter (90, 90s or
@@ -20963,6 +21350,7 @@ components:
             one past 100 hours, and always null for Spotify.
         duration_ms:
           type: [integer, "null"]
+          format: int64
           description: >
             The linked track's or episode's length in milliseconds, from the
             page's music:duration tag, when it declared a plausible one (one
@@ -21506,6 +21894,7 @@ components:
           type: [string, "null"]
         color:
           type: [integer, "null"]
+          format: int64
           description: >-
             A 24-bit RGB integer (Discord's own shape). Out of that range is
             dropped, not refused: see the `Embed` schema's `accent` for what
@@ -21625,6 +22014,7 @@ components:
           description: When the first counted line began, in ms since the epoch.
         calls:
           type: integer
+          format: int64
           description: Calls the caller spoke in.
         talk_ms:
           type: integer
@@ -21654,6 +22044,7 @@ components:
           $ref: "#/components/schemas/CallStatsBuckets"
         retention_days:
           type: [integer, "null"]
+          format: int64
           description: How long the Space keeps transcripts, null when it keeps them without limit.
 
     CallStatsFillers:
@@ -21965,7 +22356,7 @@ components:
       properties:
         joins:
           type: string
-          enum: [off, first, every]
+          enum: ["off", first, every]
         streams:
           type: boolean
 
@@ -21978,7 +22369,7 @@ components:
           format: uuid
         joins:
           type: string
-          enum: [off, first, every]
+          enum: ["off", first, every]
         streams:
           type: boolean
 
@@ -22465,7 +22856,7 @@ components:
 
     ClientCanvasCursor:
       type: object
-      required: [type, channel_id, x, y]
+      required: [type, channel_id, x, "y"]
       description: >
         A pointer position on a channel's canvas: ephemeral, relayed to the
         other viewers but never persisted. Send `left: true` when the pointer
@@ -22484,7 +22875,7 @@ components:
         x:
           type: number
           format: double
-        y:
+        "y":
           type: number
           format: double
         left:
@@ -22547,7 +22938,7 @@ components:
 
     ClientCanvasView:
       type: object
-      required: [type, channel_id, x, y, w, h]
+      required: [type, channel_id, x, "y", w, h]
       description: >
         The world rectangle of the shared board this client is looking at, so
         others can follow it or be summoned to it. Ephemeral and never
@@ -22563,7 +22954,7 @@ components:
         x:
           type: number
           format: double
-        y:
+        "y":
           type: number
           format: double
         w:
@@ -22656,7 +23047,7 @@ components:
 
     ClientCanvasMediaSlotPreview:
       type: object
-      required: [type, channel_id, kind, user_id, x, y, w, h]
+      required: [type, channel_id, kind, user_id, x, "y", w, h]
       description: >
         The box of a camera or screen-share tile this client is dragging or
         resizing, so others see it move before the slot commits. Ephemeral
@@ -22681,7 +23072,7 @@ components:
         x:
           type: number
           format: double
-        y:
+        "y":
           type: number
           format: double
         w:
@@ -22696,7 +23087,7 @@ components:
 
     ClientCanvasObjectPreview:
       type: object
-      required: [type, channel_id, object_id, x, y, w, h]
+      required: [type, channel_id, object_id, x, "y", w, h]
       description: >
         The box of an object this client is dragging or resizing, so others
         can follow it before the move commits. Ephemeral and never persisted;
@@ -22715,7 +23106,7 @@ components:
         x:
           type: number
           format: double
-        y:
+        "y":
           type: number
           format: double
         w:
@@ -22956,7 +23347,7 @@ components:
 
     CanvasCursorMoved:
       type: object
-      required: [type, channel_id, user_id, x, y]
+      required: [type, channel_id, user_id, x, "y"]
       description: >-
         A live pointer position on a channel's canvas, gated the same way
         `canvas.object.placed` is. Carries no `seq`: it is a this-instant
@@ -22975,7 +23366,7 @@ components:
         x:
           type: number
           format: double
-        y:
+        "y":
           type: number
           format: double
         left:
@@ -23031,7 +23422,7 @@ components:
 
     CanvasViewUpdated:
       type: object
-      required: [type, channel_id, user_id, x, y, w, h, summon]
+      required: [type, channel_id, user_id, x, "y", w, h, summon]
       description: >-
         The world rectangle a member is looking at, gated the same way
         `canvas.cursor.moved` is. Carries no `seq`.
@@ -23048,7 +23439,7 @@ components:
         x:
           type: number
           format: double
-        y:
+        "y":
           type: number
           format: double
         w:
@@ -23070,7 +23461,7 @@ components:
 
     CanvasMediaSlotPreviewUpdated:
       type: object
-      required: [type, channel_id, user_id, kind, slot_user_id, x, y, w, h, ended]
+      required: [type, channel_id, user_id, kind, slot_user_id, x, "y", w, h, ended]
       description: >-
         A camera or screen-share tile mid-drag on a channel's canvas, gated
         the same way `canvas.media_slot.changed` is. Carries no `seq`; the
@@ -23097,7 +23488,7 @@ components:
         x:
           type: number
           format: double
-        y:
+        "y":
           type: number
           format: double
         w:
@@ -23182,7 +23573,7 @@ components:
 
     CanvasObjectPreviewUpdated:
       type: object
-      required: [type, channel_id, user_id, object_id, x, y, w, h, ended]
+      required: [type, channel_id, user_id, object_id, x, "y", w, h, ended]
       description: >-
         An object mid-drag or mid-resize on a channel's canvas, gated the
         same way `canvas.object.placed` is. Carries no `seq`; the committed
@@ -23203,7 +23594,7 @@ components:
         x:
           type: number
           format: double
-        y:
+        "y":
           type: number
           format: double
         w:
@@ -23218,7 +23609,7 @@ components:
 
     CanvasObjectMoved:
       type: object
-      required: [type, channel_id, seq, op_id, object_id, x, y, w, h]
+      required: [type, channel_id, seq, op_id, object_id, x, "y", w, h]
       description: >-
         A placed object was repositioned, gated the same way
         `canvas.object.placed` is. Carries the whole new box, so a receiver
@@ -23247,7 +23638,7 @@ components:
         x:
           type: number
           format: double
-        y:
+        "y":
           type: number
           format: double
         w:
@@ -23427,7 +23818,7 @@ components:
           $ref: "#/components/schemas/ModuleInfo"
     CanvasMediaSlotChanged:
       type: object
-      required: [type, channel_id, kind, user_id, x, y, w, h, locked, sent_to_back]
+      required: [type, channel_id, kind, user_id, x, "y", w, h, locked, sent_to_back]
       description: >-
         A participant's camera or screen-share tile was moved, resized,
         locked, or sent to the back or front, gated the same way
@@ -23455,7 +23846,7 @@ components:
         x:
           type: number
           format: double
-        y:
+        "y":
           type: number
           format: double
         w:
@@ -24659,7 +25050,7 @@ components:
           $ref: "#/components/schemas/CallAudioSession"
         transcription:
           type: string
-          enum: [off, on_request, always]
+          enum: ["off", on_request, always]
           description: The Space's transcription mode. Present on `GET`.
         transcribable:
           type: boolean
