@@ -138,7 +138,7 @@ async fn set_visibility(
     }
     // Refresh the cache before announcing, so the fan-out reads the new choice.
     state.hub.presence().set_visibility(ctx.user_id, visibility);
-    state.hub.publish(Event::presence_changed(ctx.user_id));
+    state.hub.publish(Event::visibility_switched(ctx.user_id));
 
     Ok(Json(VisibilityDto {
         visibility: visibility.as_str().to_owned(),
@@ -171,7 +171,7 @@ async fn clear_activity(
 }
 
 /// Fans out through [`Event::PresenceChanged`], so each viewer's frame is
-/// resolved by the same rule as their status and a hidden user stays silent.
+/// resolved by the same rule as their status; a hidden user's changes are withheld from everyone else.
 fn announce_if_changed(state: &AppState, user_id: UserId, activity: Option<Activity>) {
     let changed = state.hub.presence().set_client_activity(user_id, activity);
     if changed && !state.hub.presence().is_hidden(user_id) {

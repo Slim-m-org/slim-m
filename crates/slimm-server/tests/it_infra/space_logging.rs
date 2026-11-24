@@ -239,3 +239,24 @@ async fn verbose_never_writes_a_password_a_token_or_what_someone_wrote() {
         );
     }
 }
+
+#[tokio::test]
+async fn a_manage_server_holder_who_is_not_an_administrator_cannot_download_the_logs() {
+    let (store, _guard) = support::new_store("slimm-log-download-gate").await;
+    let (_, _admin) = register_id_token(&store, "root").await;
+    let (_, member) = register_id_token(&store, "nia").await;
+    let role = store
+        .create_role(
+            "managers",
+            slimm_server::permissions::Permissions::MANAGE_SERVER,
+            false,
+        )
+        .await
+        .unwrap();
+    let user = store.authenticate(&member).await.unwrap().unwrap().user_id;
+    store.assign_role(user, role).await.unwrap();
+    let (dir, _dir_guard) = support::TestDirGuard::new("slimm-log-download-gate-files");
+
+    let app = router(store).layer(Extension(ServerLogsDir(Some(dir))));
+    assert_eq!(download(&app, &member).await.0, StatusCode::FORBIDDEN);
+}

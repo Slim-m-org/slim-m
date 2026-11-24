@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT deleted_at IS NOT NULL AS \"deleted!: bool\" FROM messages WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "deleted!: bool",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "514696bc38cae108f333e06d6b152d9c5a37bcea0120b1a7bee22b271ead2c3d"
+}

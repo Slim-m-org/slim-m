@@ -316,6 +316,7 @@ async fn edit(
     let mut dto: MessageDto = updated.into();
     dto.forwarded = forwarded.map(Into::into);
     dto.link_previews_removed = state.store.link_previews_suppressed(message_id).await?;
-    dto.embeds = embeds::after_edit(&state, channel_id, message_id, replacement).await?;
+    dto.embeds =
+        embeds::after_edit(&state, channel_id, message_id, ctx.user_id, replacement).await?;
     Ok(Json(dto))
 }

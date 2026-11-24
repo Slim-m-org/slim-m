@@ -22,6 +22,16 @@ pub use voice::{
 
 use crate::{hub, media, store};
 
+/// A cutoff for [`run_audit_log_sweep_pass`]; no background sweep runs it until the owner decides a retention.
+pub const AUDIT_LOG_RETENTION_MS: i64 = 730 * 24 * 60 * 60 * 1000;
+
+/// Deletes audit rows past [`AUDIT_LOG_RETENTION_MS`]; answers how many went.
+pub async fn run_audit_log_sweep_pass(store: &store::Store) -> anyhow::Result<u64> {
+    store
+        .prune_audit_logs(store::now_ms() - AUDIT_LOG_RETENTION_MS)
+        .await
+}
+
 /// The sweeps that record a run in `sweep_status`, with how often each one ticks.
 ///
 /// Lives beside the intervals so the admin alerts, which read a missed run as a failing sweep,

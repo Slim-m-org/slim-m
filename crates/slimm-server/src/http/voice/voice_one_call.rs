@@ -44,7 +44,6 @@ pub(super) async fn end_older_calls(
             Some(asked) if asked == joined => end_call(state, user_id, channel_id).await,
             Some(_) => return end_call(state, user_id, joined).await,
             None => tracing::info!(
-                %user_id,
                 %channel_id,
                 "left a member on two calls: no token on record says which they chose"
             ),
@@ -152,7 +151,6 @@ async fn end_call(state: &AppState, user_id: UserId, channel_id: ChannelId) {
     match state.voice.remove_participant(channel_id, user_id).await {
         Ok(()) => {
             tracing::info!(
-                %user_id,
                 %channel_id,
                 "ended a member's older call after they joined another"
             );

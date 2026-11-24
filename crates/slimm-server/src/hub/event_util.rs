@@ -28,6 +28,11 @@ impl Event {
         Event::PresenceChanged(super::PresenceChange::of(user_id))
     }
 
+    /// `user_id` chose a new visibility; unlike [`Event::presence_changed`] it still reaches viewers when the new choice is hidden.
+    pub fn visibility_switched(user_id: UserId) -> Event {
+        Event::PresenceChanged(super::PresenceChange::switch(user_id))
+    }
+
     /// The event without any moderation stamp.
     pub fn into_inner(self) -> Event {
         match self {

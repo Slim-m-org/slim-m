@@ -45,7 +45,7 @@ use super::messages::{parse_uuid, validate_content};
 use super::module_hooks::{Draft, Field, HookPoint, guard_write};
 use super::post_commit::{after_commit, run_to_completion};
 use crate::hub::{Event, MessageEvent};
-use crate::ids::{ChannelId, MessageId, WebhookId};
+use crate::ids::{ChannelId, MessageId, UserId, WebhookId};
 use crate::ratelimit::Class;
 use crate::store::{DM_CHANNEL_KIND, NewMessage};
 
@@ -70,10 +70,9 @@ pub fn routes() -> Router<AppState> {
 /// gets ordinary at-least-once behaviour (a duplicate on a retry).
 const IDEMPOTENCY_KEY_HEADER: &str = "idempotency-key";
 
-/// A Discord-shaped incoming-webhook body. Only `content`, `username` and
-/// `embeds` are read; every other field Discord defines (`avatar_url`,
-/// `tts`, `flags`, `components`, `thread_name`, `poll`, `attachments`,
-/// `allowed_mentions`) - and anything neither this shape nor Discord's ever
+/// A Discord-shaped incoming-webhook body. Only `content`, `username`, `embeds` and
+/// `allowed_mentions` are read; every other field Discord defines (`avatar_url`,
+/// `tts`, `flags`, `components`, `thread_name`, `poll`, `attachments`) - and anything neither this shape nor Discord's ever
 /// named - is accepted and silently discarded, never a 400. See this file's
 /// own doc for why no `deny_unknown_fields` is the whole mechanism.
 #[derive(Deserialize)]
@@ -90,6 +89,33 @@ struct DeliverRequest {
     /// Structured content; caps are shared with the ordinary send route.
     #[serde(default, deserialize_with = "embeds::null_as_empty")]
     embeds: Vec<embeds::WebhookEmbed>,
+    /// Narrows which mentions resolve; never widens them.
+    #[serde(default)]
+    allowed_mentions: Option<serde_json::Value>,
+}
+
+/// The only members a mention may reach, or `None` when `parse` still allows every user.
+/// A shape that cannot be read narrows nothing, and a user that cannot be read is skipped.
+fn only_mentioned(allowed: &serde_json::Value) -> Option<Vec<UserId>> {
+    let strings = |field: &str| -> Vec<String> {
+        let items = allowed.get(field).and_then(serde_json::Value::as_array);
+        items.into_iter().flatten().map(string_or_number).collect()
+    };
+    allowed.as_object()?;
+    if strings("parse").iter().any(|kind| kind == "users") {
+        return None;
+    }
+    let listed = strings("users")
+        .into_iter()
+        .filter_map(|id| Uuid::parse_str(&id).ok());
+    Some(listed.map(UserId).collect())
+}
+
+fn string_or_number(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(text) => text.clone(),
+        other => other.to_string(),
+    }
 }
 
 #[derive(Deserialize)]
@@ -192,6 +218,15 @@ async fn deliver(
     let id = idempotent_message_id(&parts, webhook_id);
     let channel_id = context.channel_id;
     let stored_already = state.store.message_including_deleted(id).await?.is_some();
+    if stored_already {
+        // A retry completes what the first attempt never wrote and leaves what it did.
+        if !state.store.embeds_for_messages(&[id]).await?.is_empty() {
+            embeds.clear();
+        }
+        if state.store.webhook_message_username(id).await?.is_some() {
+            username = None;
+        }
+    }
     let slow_mode_window_ms = match stored_already {
         true => None,
         false => enforce_slow_mode(&state, channel_id, context.principal_id).await?,
@@ -206,16 +241,12 @@ async fn deliver(
         carries_more,
         own_module: None,
     };
-    // A retry stores nothing new: its embeds and label are written only by a fresh delivery.
-    let mut fields = Vec::new();
-    if !stored_already {
-        fields = embeds::text_fields(&mut embeds);
-        fields.extend(
-            username
-                .as_mut()
-                .map(|name| Field::new(name, USERNAME_MAX_CHARS)),
-        );
-    }
+    let mut fields = embeds::text_fields(&mut embeds);
+    fields.extend(
+        username
+            .as_mut()
+            .map(|name| Field::new(name, USERNAME_MAX_CHARS)),
+    );
     let intercepted = guard_write(&state, &draft, &mut fields).await?;
     let sent = state
         .store
@@ -233,32 +264,34 @@ async fn deliver(
         intercepted.save_annotations(&state, id).await;
     }
 
-    if sent.fresh {
-        if let Some(username) = username.as_deref() {
-            after_commit(
-                "its username",
-                state
-                    .store
-                    .set_webhook_message_username(sent.message.id, username)
-                    .await,
-            );
-        }
-        let stored_embeds = after_commit(
-            "its embeds",
-            embeds::store_and_reload(&state, sent.message.id, true, &embeds).await,
-        );
+    if let Some(username) = username.as_deref() {
         after_commit(
-            "its mentions",
-            super::message_mentions::resolve_and_store(
-                &state,
-                channel_id,
-                context.principal_id,
-                sent.message.id,
-                &sent.message.content,
-                None,
-            )
-            .await,
+            "its username",
+            state
+                .store
+                .set_webhook_message_username(sent.message.id, username)
+                .await,
         );
+    }
+    let stored_embeds = after_commit(
+        "its embeds",
+        embeds::store_and_reload(&state, sent.message.id, sent.fresh, &embeds).await,
+    );
+    let mention_only = body.allowed_mentions.as_ref().and_then(only_mentioned);
+    after_commit(
+        "its mentions",
+        super::message_mentions::resolve_and_store_under(
+            &state,
+            channel_id,
+            (context.principal_id, Some(context.principal_id)),
+            sent.message.id,
+            &sent.message.content,
+            (None, &[]),
+            mention_only.as_deref(),
+        )
+        .await,
+    );
+    if sent.fresh {
         state.hub.publish(Event::Message(MessageEvent::Created {
             message: std::sync::Arc::new(sent.message.clone()),
             attachments: std::sync::Arc::new(Vec::new()),
@@ -282,6 +315,7 @@ async fn deliver(
                 presence: state.hub.presence(),
                 reply_ping: None,
                 mass_authority: Some(context.principal_id),
+                mention_only,
             },
         );
         super::threads::notify_reply(&state, channel_id).await;

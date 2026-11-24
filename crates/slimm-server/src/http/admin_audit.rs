@@ -7,6 +7,7 @@
 //! mutating route is neither audited nor listed as exempt.
 
 use axum::Router;
+use axum::body::Bytes;
 use axum::body::{Body, HttpBody, to_bytes};
 use axum::extract::{FromRequestParts, MatchedPath, Query, RawPathParams, Request, State};
 use axum::http::request::Parts;
@@ -14,6 +15,7 @@ use axum::http::{Method, header};
 use axum::middleware::Next;
 use axum::response::Response;
 use axum::routing::get;
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -24,6 +26,8 @@ use crate::ratelimit::Class;
 use crate::store::AdminAuditEntry;
 
 mod audited_routes;
+mod redaction;
+mod replay;
 
 pub use audited_routes::{AUDITED_ROUTES, AuditedRoute};
 
@@ -31,6 +35,9 @@ pub use audited_routes::{AUDITED_ROUTES, AuditedRoute};
 const MAX_INSPECTED_BODY: usize = 64 * 1024;
 const MAX_FIELDS: usize = 32;
 const MAX_NAME_CHARS: usize = 100;
+/// Well under the 4096 characters the table's CHECK allows, so a row is never refused for its detail.
+const MAX_DETAIL_CHARS: usize = 3500;
+const RECORD_ATTEMPTS: u32 = 3;
 const PAGE_DEFAULT: i64 = 50;
 const PAGE_MAX: i64 = 200;
 
@@ -57,7 +64,7 @@ pub async fn record(State(state): State<AppState>, request: Request, next: Next)
     let (mut parts, body) = request.into_parts();
     let actor = Authed::from_request_parts(&mut parts, &state).await.ok();
     let params = path_params(&mut parts, &state).await;
-    let (body, request_json) = inspect_json(&parts.headers, body).await;
+    let (body, request_json, uninspected) = inspect_json(&parts.headers, body).await;
     let response = next.run(Request::from_parts(parts, body)).await;
     let Some(Authed(ctx)) = actor else {
         return response;
@@ -72,15 +79,80 @@ pub async fn record(State(state): State<AppState>, request: Request, next: Next)
         ),
         None => created_id(response).await,
     };
-    let detail = detail(route, params, request_json.as_ref());
-    if let Err(error) = state
-        .store
-        .record_admin_change(ctx.user_id, route.action, target.as_deref(), &detail)
-        .await
-    {
-        tracing::warn!(%error, action = route.action, "could not record an admin change");
+    let mut detail = detail(route, params, request_json.as_ref());
+    if uninspected {
+        detail = with_uninspected(&detail);
     }
+    let body = request_json
+        .as_ref()
+        .map(Value::to_string)
+        .unwrap_or_default();
+    let attempt = Attempt {
+        actor: ctx.user_id,
+        target: target.as_deref(),
+        detail: &detail,
+        body: (!uninspected).then_some(body.as_str()),
+    };
+    write_row(&state, route, &attempt).await;
     response
+}
+
+/// Whether a repeat of this write inside the replay window is the same change, as for an idempotent PUT or DELETE.
+fn is_replayable(method: &Method) -> bool {
+    method == Method::PUT || method == Method::DELETE
+}
+
+struct Attempt<'a> {
+    actor: crate::ids::UserId,
+    target: Option<&'a str>,
+    detail: &'a str,
+    /// The request values, when they were read; a write whose values are unknown is never a replay.
+    body: Option<&'a str>,
+}
+
+/// Retries a failed insert, then falls back to an empty detail so the action and actor are always kept.
+async fn write_row(state: &AppState, route: &AuditedRoute, attempt: &Attempt<'_>) {
+    let actor = attempt.actor.to_string();
+    let identity = replay::Write {
+        actor: &actor,
+        path: route.path,
+        action: route.action,
+        target: attempt.target,
+        detail: attempt.detail,
+        body: attempt.body.unwrap_or_default(),
+    };
+    if is_replayable(&route.method) && attempt.body.is_some() && identity.is_replay() {
+        return;
+    }
+    let mut last_error = None;
+    for tries in 0..RECORD_ATTEMPTS {
+        let detail = if tries + 1 == RECORD_ATTEMPTS {
+            "{}"
+        } else {
+            attempt.detail
+        };
+        match state
+            .store
+            .record_admin_change(attempt.actor, route.action, attempt.target, detail)
+            .await
+        {
+            Ok(()) => return,
+            Err(error) => last_error = Some(error),
+        }
+    }
+    identity.forget();
+    if let Some(error) = last_error {
+        tracing::error!(%error, action = route.action, "could not record an admin change");
+    }
+}
+
+fn with_uninspected(detail: &str) -> String {
+    let mut object = match serde_json::from_str(detail) {
+        Ok(Value::Object(object)) => object,
+        _ => Map::new(),
+    };
+    object.insert("uninspected".into(), Value::Bool(true));
+    Value::Object(object).to_string()
 }
 
 async fn path_params(parts: &mut Parts, state: &AppState) -> Map<String, Value> {
@@ -99,23 +171,39 @@ fn is_json(headers: &axum::http::HeaderMap) -> bool {
         .is_some_and(|value| value.starts_with("application/json"))
 }
 
-/// Reads a small JSON body so its field names can be logged, and hands back
-/// an equivalent body for the handler. Anything else passes through untouched.
-async fn inspect_json(headers: &axum::http::HeaderMap, body: Body) -> (Body, Option<Value>) {
+/// Reads a small JSON body so its field names can be logged, and hands back an equivalent body for
+/// the handler, with whether the body was left unread. A body without a length is buffered up to the
+/// cap, so leaving out Content-Length hides nothing from the log.
+async fn inspect_json(headers: &axum::http::HeaderMap, body: Body) -> (Body, Option<Value>, bool) {
+    if !is_json(headers) {
+        return (body, None, false);
+    }
     let declared = headers
         .get(header::CONTENT_LENGTH)
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<usize>().ok());
-    if !is_json(headers) || declared.is_none_or(|length| length > MAX_INSPECTED_BODY) {
-        return (body, None);
+    if declared.is_some_and(|length| length > MAX_INSPECTED_BODY) {
+        return (body, None, true);
     }
-    match to_bytes(body, MAX_INSPECTED_BODY).await {
-        Ok(bytes) => {
-            let json = serde_json::from_slice(&bytes).ok();
-            (Body::from(bytes), json)
+    buffer_up_to_cap(body).await
+}
+
+/// Buffers a body up to the inspection cap; past it the buffered part is chained back onto the rest.
+async fn buffer_up_to_cap(body: Body) -> (Body, Option<Value>, bool) {
+    let mut stream = body.into_data_stream();
+    let mut buffered = Vec::new();
+    while let Some(chunk) = stream.next().await {
+        let Ok(chunk) = chunk else {
+            return (Body::empty(), None, false);
+        };
+        buffered.extend_from_slice(&chunk);
+        if buffered.len() > MAX_INSPECTED_BODY {
+            let head = futures_util::stream::iter([Ok(Bytes::from(buffered))]);
+            return (Body::from_stream(head.chain(stream)), None, true);
         }
-        Err(_) => (Body::empty(), None),
     }
+    let json = serde_json::from_slice(&buffered).ok();
+    (Body::from(buffered), json, false)
 }
 
 /// Whether the body is known to fit the inspection cap; one that may not is passed through whole.
@@ -149,32 +237,62 @@ fn detail(route: &AuditedRoute, mut params: Map<String, Value>, body: Option<&Va
         params.remove(target);
     }
     if !params.is_empty() {
+        let params = params
+            .into_iter()
+            .map(|(key, value)| (clip(&key), clip_value(value)))
+            .collect();
         detail.insert("params".into(), Value::Object(params));
     }
     if let Some(Value::Object(fields)) = body {
         let names: Vec<Value> = fields
             .keys()
             .take(MAX_FIELDS)
-            .cloned()
-            .map(Value::from)
+            .map(|name| Value::from(clip(name)))
             .collect();
         if !names.is_empty() {
             detail.insert("fields".into(), Value::Array(names));
         }
         if let Some(Value::String(name)) = fields.get("name") {
-            let name: String = name.chars().take(MAX_NAME_CHARS).collect();
-            detail.insert("name".into(), Value::from(name));
+            detail.insert("name".into(), Value::from(clip(name)));
         }
         if route.action == "bot.prefix"
             && let Some(Value::String(prefix)) = fields.get("prefix")
         {
-            detail.insert("prefix".into(), Value::from(prefix.trim()));
+            detail.insert("prefix".into(), Value::from(clip(prefix.trim())));
         }
         if route.action == "module.install" || route.action == "module.install_file" {
             insert_approvals(&mut detail, fields);
         }
     }
-    Value::Object(detail).to_string()
+    bounded(detail)
+}
+
+fn clip(text: &str) -> String {
+    text.chars().take(MAX_NAME_CHARS).collect()
+}
+
+fn clip_value(value: Value) -> Value {
+    match value {
+        Value::String(text) => Value::from(clip(&text)),
+        other => other,
+    }
+}
+
+/// Drops the least important keys until the serialized detail fits, so the insert can never fail its CHECK.
+fn bounded(mut detail: Map<String, Value>) -> String {
+    for key in ["fields", "params", "approved", "prefix", "name"] {
+        let text = Value::Object(detail.clone()).to_string();
+        if text.chars().count() <= MAX_DETAIL_CHARS {
+            return text;
+        }
+        detail.remove(key);
+    }
+    let text = Value::Object(detail).to_string();
+    if text.chars().count() <= MAX_DETAIL_CHARS {
+        text
+    } else {
+        "{}".to_owned()
+    }
 }
 
 /// Which host capabilities an install approved, and whether it also approved local network access,
@@ -185,7 +303,7 @@ fn insert_approvals(detail: &mut Map<String, Value>, body: &Map<String, Value>) 
             .iter()
             .filter_map(Value::as_str)
             .take(MAX_FIELDS)
-            .map(|name| Value::from(name.chars().take(MAX_NAME_CHARS).collect::<String>()))
+            .map(|name| Value::from(clip(name)))
             .collect();
         detail.insert("approved".into(), Value::Array(names));
     }
@@ -247,7 +365,9 @@ async fn list(
     require_manage_server(&state, ctx.user_id).await?;
     let limit = query.limit.unwrap_or(PAGE_DEFAULT).clamp(1, PAGE_MAX);
     let entries = state.store.admin_changes(query.before, limit).await?;
-    Ok(Json(entries.into_iter().map(Into::into).collect()))
+    let mut changes: Vec<AdminChangeDto> = entries.into_iter().map(Into::into).collect();
+    redaction::redact_hidden(&state, ctx.user_id, &mut changes).await?;
+    Ok(Json(changes))
 }
 
 #[cfg(test)]

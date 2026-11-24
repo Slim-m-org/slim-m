@@ -18,6 +18,7 @@ mod dock_host_run;
 mod dock_install;
 mod dock_package;
 mod fetch;
+mod index_cache;
 pub(super) mod keywords;
 pub(super) mod manifest;
 mod module_data;
@@ -90,6 +91,8 @@ pub struct Dock {
     host_run: Option<super::connector_host::HostRun>,
     /// Members' runs waiting on connectors; see `connector_runs`.
     connector_runs: Arc<super::connector_runs::ConnectorRuns>,
+    /// Held across an install or an enable, so the id and keyword checks and the write cannot interleave.
+    changes: Arc<tokio::sync::Mutex<()>>,
 }
 
 struct Enabled {
@@ -123,6 +126,11 @@ impl Dock {
     /// The rooms modules keep shared state in.
     pub(crate) fn rooms(&self) -> &super::module_rooms::Rooms {
         &self.rooms
+    }
+
+    /// Serializes installs and enables; admin actions are rare, so one lock for all modules is enough.
+    pub(super) async fn lock_changes(&self) -> tokio::sync::MutexGuard<'_, ()> {
+        self.changes.lock().await
     }
 
     /// The runs waiting on a connector's answer.
@@ -226,6 +234,7 @@ impl Dock {
             hooks: Arc::default(),
             rooms: Arc::default(),
             connector_runs: Arc::default(),
+            changes: Arc::default(),
             module_data: Arc::default(),
             event_queues: new_event_queues(&queue_depths),
             queue_depths,
@@ -252,6 +261,7 @@ impl Dock {
             hooks: Arc::default(),
             rooms: Arc::default(),
             connector_runs: Arc::default(),
+            changes: Arc::default(),
             module_data: Arc::default(),
             event_queues: new_event_queues(&queue_depths),
             queue_depths,

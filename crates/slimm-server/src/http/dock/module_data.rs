@@ -39,6 +39,9 @@ pub(super) async fn check(
 }
 
 /// Creates the missing tables, columns and indexes once the install is committed.
+///
+/// A failure is the server's own (disk full, database busy), so it answers `Internal`; the module
+/// is already installed and installing the same version again re-applies the schema.
 pub(super) async fn apply(
     state: &AppState,
     manifest: &Manifest,
@@ -50,7 +53,10 @@ pub(super) async fn apply(
     files(state)
         .apply_schema(&manifest.id, schema)
         .await
-        .map_err(ApiError::UpstreamInvalid)
+        .map_err(|err| {
+            tracing::error!(module = %manifest.id, %err, "could not apply a module's data schema");
+            ApiError::Internal
+        })
 }
 
 /// Deletes every module's rows about a member whose account is gone, and clears the pending

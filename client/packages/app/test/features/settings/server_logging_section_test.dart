@@ -12,6 +12,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/permissions.dart';
+import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_file_io.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/server_logging_section.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -48,6 +50,7 @@ class _Server {
 Future<_Server> _open(
   WidgetTester tester, {
   Size size = const Size(1000, 900),
+  int permissions = Perm.administrator,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -80,6 +83,7 @@ Future<_Server> _open(
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+      myPermissionsProvider.overrideWithValue(permissions),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       apiProvider.overrideWith((ref) {
         final built = api.SlimmApi(
@@ -152,6 +156,16 @@ void main() {
     expect(server.saved.values.single, 'the call dropped here\n');
     expect(server.saved.keys.single, startsWith('server-log-'));
   });
+
+  testWidgets(
+    'a manage-server holder who is not an administrator sees no download',
+    (tester) async {
+      await _open(tester, permissions: Perm.manageServer);
+
+      expect(find.bySemanticsLabel('Download server logs'), findsNothing);
+      expect(find.text('Server logging'), findsOneWidget);
+    },
+  );
 
   testWidgets('a server without log files says so instead of saving', (
     tester,

@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use super::session::{Consumer, Session, Status, TIME_LIMIT_MS};
 use crate::ids::UserId;
+use crate::presence::Visibility;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CallAudioView {
@@ -46,6 +47,7 @@ pub const SERVER_CONSUMER: &str = "server";
 impl CallAudioView {
     /// Drops everyone whose presence is hidden from `viewer`, except `viewer`,
     /// so a session never names someone the call roster would not.
+    /// A failed visibility read counts as hidden.
     pub async fn hide_hidden(
         &mut self,
         store: &crate::store::Store,
@@ -54,24 +56,35 @@ impl CallAudioView {
     ) {
         let me = viewer.to_string();
         let mut hidden = std::collections::HashSet::new();
-        for id in self
+        let named = self
             .included
             .iter()
             .chain(&self.pending)
-            .filter(|id| **id != me)
-        {
+            .chain(self.asked_by.as_ref())
+            .filter(|id| **id != me);
+        for id in named {
+            if hidden.contains(id) {
+                continue;
+            }
             let Ok(uuid) = id.parse() else { continue };
             let target = UserId(uuid);
-            let visibility = match hub.presence().visibility(target) {
-                Some(cached) => Some(cached),
-                None => store.presence_visibility(target).await.ok().flatten(),
+            let shown = match hub.presence().visibility(target) {
+                Some(cached) => cached != Visibility::Hidden,
+                None => match store.presence_visibility(target).await {
+                    Ok(visibility) => visibility != Some(Visibility::Hidden),
+                    Err(_) => false,
+                },
             };
-            if matches!(visibility, Some(crate::presence::Visibility::Hidden)) {
+            if !shown {
                 hidden.insert(id.clone());
             }
         }
         self.included.retain(|id| !hidden.contains(id));
         self.pending.retain(|id| !hidden.contains(id));
+        // Empty rather than null: a null asker reads as the always-on mode on a module session.
+        if self.asked_by.as_ref().is_some_and(|id| hidden.contains(id)) {
+            self.asked_by = Some(String::new());
+        }
     }
 
     pub fn of(session: &Session) -> Self {

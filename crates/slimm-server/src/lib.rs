@@ -66,9 +66,9 @@ pub use attachment_text::WORKER_ARG as PDF_WORKER_ARG;
 pub use attachment_text::{Limit, PdfParse, PdfWorker, TextExtractor, run_pdf_worker};
 pub mod voice_transcripts;
 pub use sweeps::{
-    run_attachment_sweep_pass, run_message_retention_sweep_pass, run_token_sweep_pass,
-    run_transcript_retention_sweep_pass, sweep_stale_call_rings, sweep_stale_call_rings_at,
-    sweep_stale_voice_calls, sweep_stale_voice_calls_at,
+    run_attachment_sweep_pass, run_audit_log_sweep_pass, run_message_retention_sweep_pass,
+    run_token_sweep_pass, run_transcript_retention_sweep_pass, sweep_stale_call_rings,
+    sweep_stale_call_rings_at, sweep_stale_voice_calls, sweep_stale_voice_calls_at,
 };
 pub use voice_session_sweeps::{close_stale_sessions, reconcile_on_startup};
 

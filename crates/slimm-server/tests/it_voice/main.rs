@@ -20,6 +20,7 @@ mod call_transcripts_live;
 mod call_transcripts_migration;
 mod call_transcripts_read;
 mod delete_channel_ends_call;
+mod hidden_presence_read_errors;
 mod hold_music_account;
 mod incoming_rings;
 mod member_moderation_evicts_dm_calls;

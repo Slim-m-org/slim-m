@@ -6,6 +6,7 @@ mod support;
 
 mod attachment_text_plan;
 mod attachments;
+mod blocked_mentions;
 mod dm_activity;
 mod dm_canvas;
 mod dm_channels_rebuild;
@@ -49,6 +50,7 @@ mod message_ops;
 mod message_replies;
 mod message_retention;
 mod message_retention_batch;
+mod message_scrub;
 mod message_search;
 mod messages_rowid_alias;
 mod pins;

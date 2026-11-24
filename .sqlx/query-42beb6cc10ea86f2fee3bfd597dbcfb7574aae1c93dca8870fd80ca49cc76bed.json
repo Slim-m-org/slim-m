@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE reports SET snapshot = NULL\n             WHERE snapshot IS NOT NULL AND resolved_at IS NOT NULL AND resolved_at < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "42beb6cc10ea86f2fee3bfd597dbcfb7574aae1c93dca8870fd80ca49cc76bed"
+}

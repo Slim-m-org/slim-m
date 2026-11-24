@@ -107,6 +107,22 @@ pub(super) async fn hard_delete(
     raise_swept_watermark(tx, &swept).await
 }
 
+/// Hard-deletes `(channel, object)` pairs, one transaction-wide call per channel.
+async fn hard_delete_by_channel(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    due: impl IntoIterator<Item = (ChannelId, CanvasObjectId)>,
+) -> Result<(), sqlx::Error> {
+    let mut by_channel: std::collections::HashMap<ChannelId, Vec<CanvasObjectId>> =
+        std::collections::HashMap::new();
+    for (channel_id, id) in due {
+        by_channel.entry(channel_id).or_default().push(id);
+    }
+    for (channel_id, ids) in by_channel {
+        hard_delete(tx, channel_id, &ids).await?;
+    }
+    Ok(())
+}
+
 impl Store {
     /// Permanently removes one erased object and returns the row it held, so
     /// the deleter can undo. The caller erases a live object first so every
@@ -130,6 +146,35 @@ impl Store {
         hard_delete(&mut tx, channel_id, &[object_id]).await?;
         tx.commit().await?;
         Ok(object)
+    }
+
+    /// Deletes every canvas object of a deleted channel, erased or live, so its
+    /// image bytes lose their last holder; `only` limits it to one channel.
+    pub(in crate::store) async fn purge_deleted_channel_canvas(
+        &self,
+        only: Option<ChannelId>,
+    ) -> anyhow::Result<u64> {
+        let mut purged = 0u64;
+        for _ in 0..PURGE_BATCHES_PER_TICK {
+            let mut tx = self.begin_write().await?;
+            let due = sqlx::query!(
+                r#"SELECT o.id AS "id!: CanvasObjectId", o.channel_id AS "channel_id!: ChannelId"
+                   FROM channels c CROSS JOIN canvas_objects o ON o.channel_id = c.id
+                   WHERE c.deleted_at IS NOT NULL AND (?1 IS NULL OR c.id = ?1)
+                   LIMIT ?2"#,
+                only,
+                PURGE_BATCH as i64
+            )
+            .fetch_all(&mut *tx)
+            .await?;
+            if due.is_empty() {
+                break;
+            }
+            hard_delete_by_channel(&mut tx, due.iter().map(|r| (r.channel_id, r.id))).await?;
+            tx.commit().await?;
+            purged += due.len() as u64;
+        }
+        Ok(purged)
     }
 
     /// Deletes objects erased before their channel's retention window; returns how many.
@@ -159,14 +204,7 @@ impl Store {
             if due.is_empty() {
                 break;
             }
-            let mut by_channel: std::collections::HashMap<ChannelId, Vec<CanvasObjectId>> =
-                std::collections::HashMap::new();
-            for row in &due {
-                by_channel.entry(row.channel_id).or_default().push(row.id);
-            }
-            for (channel_id, ids) in by_channel {
-                hard_delete(&mut tx, channel_id, &ids).await?;
-            }
+            hard_delete_by_channel(&mut tx, due.iter().map(|r| (r.channel_id, r.id))).await?;
             tx.commit().await?;
             purged += due.len() as u64;
         }

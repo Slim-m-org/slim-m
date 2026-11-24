@@ -10,6 +10,9 @@ use super::super::error::ApiError;
 use super::super::link_preview::LinkPreviews;
 use crate::store::{NewEmbed, NewEmbedField};
 
+/// Epoch milliseconds from 1970 through the end of year 9999, the window `rfc3339::parse_ms` keeps.
+const TIMESTAMP_RANGE_MS: std::ops::RangeInclusive<i64> = 0..=253_402_300_799_999;
+
 /// Most embeds one message may carry - Discord's own limit.
 pub const MAX_EMBEDS_PER_MESSAGE: usize = 10;
 /// Longest an embed's title may be.
@@ -229,6 +232,7 @@ pub(crate) fn build_embeds(
         }
 
         // Out of range is dropped rather than refused; a decorative field must never block the message.
+        let timestamp = embed.timestamp.filter(|ms| TIMESTAMP_RANGE_MS.contains(ms));
         let color = embed.color.filter(|c| (0..=0xFF_FFFF).contains(c));
         let image_url = embed
             .image
@@ -250,7 +254,7 @@ pub(crate) fn build_embeds(
             author_name,
             author_url,
             footer_text,
-            timestamp: embed.timestamp,
+            timestamp,
             image_url,
             thumbnail_url,
             fields,

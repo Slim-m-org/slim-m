@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE reports SET snapshot = NULL\n         WHERE snapshot IS NOT NULL AND resolved_at IS NOT NULL\n           AND (snapshot_author_id = ?1\n                OR subject_id IN (SELECT id FROM messages WHERE author_id = ?1))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "478d84fde2a93316bad9bbbe17cb46d9be9c0bb682da8911c5b08454b5fe9f2b"
+}

@@ -15,7 +15,7 @@ use crate::store::{Store, now_ms};
 
 use super::attention::{SkipReason, SkipSummary, narrow_with_reasons};
 use super::debounce::Debounce;
-use super::recipients::message_audience;
+use super::recipients::{MentionReach, message_audience};
 use super::{Enabled, SentMessage, dispatch, envelope};
 
 /// How long a device's `foreground` report counts as still current, the same
@@ -110,6 +110,7 @@ async fn deliver_inner(
         presence,
         reply_ping,
         mass_authority,
+        mention_only,
     } = sent;
     let (recipients, mentioned) = match message_audience(
         &store,
@@ -117,8 +118,11 @@ async fn deliver_inner(
         author_id,
         &content,
         &presence,
-        reply_ping,
-        mass_authority,
+        MentionReach {
+            reply_ping,
+            mass_authority,
+            only: mention_only,
+        },
     )
     .await
     {

@@ -134,6 +134,10 @@ pub(super) async fn send(
         )
         .await?;
 
+    if !sent.fresh && state.store.message_is_deleted(id).await? {
+        return Ok(Json(sent.message.into()));
+    }
+
     if sent.fresh {
         intercepted.save_annotations(&state, id).await;
     }
@@ -210,6 +214,7 @@ pub(super) async fn send(
                 presence: state.hub.presence(),
                 reply_ping,
                 mass_authority: Some(ctx.user_id),
+                mention_only: None,
             },
         );
         // A no-op for an ordinary channel; see `threads::notify_reply`.

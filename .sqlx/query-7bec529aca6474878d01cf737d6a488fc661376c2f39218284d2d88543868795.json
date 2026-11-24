@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS(SELECT 1 FROM messages m\n                         LEFT JOIN message_forwards f ON f.message_id = m.id\n                         WHERE m.id = ?1 AND m.deleted_at IS NULL AND f.origin_removed_at IS NULL)\n              AND EXISTS(SELECT 1 FROM messages WHERE id = ?2 AND deleted_at IS NULL)\n              AS \"live!: bool\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "live!: bool",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7bec529aca6474878d01cf737d6a488fc661376c2f39218284d2d88543868795"
+}

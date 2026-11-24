@@ -11093,7 +11093,13 @@ paths:
         none gets ordinary at-least-once delivery: a genuine retry of a
         request whose response never arrived can post a duplicate, which is
         treated as the honest case it is rather than something to silently
-        deduplicate by content.
+        deduplicate by content. A retry of a delivery whose first attempt
+        stored only part of it completes the missing embeds, label and
+        mentions.
+
+
+        The body must be JSON. A missing body or any other
+        content type answers 400 with the usual error shape.
       requestBody:
         required: false
         content:
@@ -12089,7 +12095,7 @@ paths:
       tags: [space]
       summary: Download the newest server log lines.
       description: >
-        Gated on MANAGE_SERVER and audited. Streams the newest 16 MiB of the
+        Gated on ADMINISTRATOR and audited. Streams the newest 16 MiB of the
         rotating log files on the data volume (decision 0129) as plain text,
         oldest line first, so lines from before the last restart are
         included. When older lines exist the text starts with a line saying
@@ -16653,6 +16659,14 @@ components:
           description: >
             True when another source already owns this id, so it cannot be
             installed from the source being listed.
+        withdrawn:
+          type: array
+          items:
+            type: string
+          description: Versions the registry withdrew, for example after a security fix.
+        withdrawn_reason:
+          type: string
+          description: The registry's reason for withdrawing those versions.
     DockSource:
       type: object
       required: [id, repo, official]
@@ -17477,6 +17491,11 @@ components:
           description: >
             The fuel one run may burn, which `last_fuel_used` and
             `max_fuel_used` on its run stats are read against.
+        withdrawn_reason:
+          type: string
+          description: >
+            Why the registry withdrew the installed version. Only the
+            installed listing carries it, and only for the official source.
     DockRunStat:
       type: object
       required:
@@ -18284,10 +18303,16 @@ components:
             - voice_move
             - owner_handoff
             - owner_timeout_ended
+            - message_pin_changed
+            - message_preview_removed
+            - webhook_rename
           description: >
             `owner_handoff` means ownership passed to the subject, and
             `owner_timeout_ended` that the subject's timeout ended because
-            they became the owner.
+            they became the owner. `message_pin_changed` and
+            `message_preview_removed` are a moderator's act on another
+            member's message, which is the subject; `webhook_rename`'s
+            reason is the new label.
         reason:
           type: [string, "null"]
         until:
@@ -19435,7 +19460,7 @@ components:
         A Discord incoming-webhook body. The promise is acceptance, not
         fidelity: an unrecognised field never refuses the request, since the
         caller here is somebody else's program and a loud refusal would hide
-        their bug rather than ours. Only `content`, `username` and `embeds`
+        their bug rather than ours. Only `content`, `username`, `embeds` and `allowed_mentions`
         are honoured; every other property below is accepted and silently
         discarded, field by field, rather than refused.
       properties:
@@ -19487,7 +19512,8 @@ components:
             A string that does not parse, or any other type, drops the
             timestamp and the delivery still posts. A null `embeds` or a null
             embed `fields` reads as empty. `SendMessageRequest.embeds` is
-            unchanged and still refuses a string timestamp with 400.
+            unchanged and still refuses a string timestamp with 400. An
+            integer timestamp outside 1970 through 9999 is dropped.
         avatar_url:
           description: >-
             Accepted and discarded, permanently. Honouring it would mean
@@ -19514,9 +19540,11 @@ components:
             unauthenticated writer.
         allowed_mentions:
           description: >-
-            Accepted and discarded in this build. Intended to later narrow,
-            never widen, which of a message's mentions resolve; not yet
-            wired in.
+            Honoured as a restriction only: it narrows which mentions
+            resolve and never widens them. Without `users` in `parse`, no
+            member is mentioned except those listed in `users`, so
+            `{"parse": []}` mentions nobody. `everyone` and `roles` in
+            `parse` grant nothing a webhook does not already have.
     DeliveredWebhookMessage:
       type: object
       description: >-

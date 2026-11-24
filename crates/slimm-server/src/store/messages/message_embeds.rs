@@ -2,9 +2,10 @@
 //! Embeds: a side table, never a column on [`super::super::Message`]. See
 //! `docs/decisions/0030-incoming-webhooks.md`.
 
-use crate::ids::MessageId;
+use crate::ids::{ChannelId, MessageId, UserId};
 
-use super::super::Store;
+use super::super::{Store, now_ms};
+use super::message_ops::insert_message_op;
 
 /// One field on an embed - Discord's own `name`/`value`/`inline` shape.
 #[derive(Debug, Clone)]
@@ -152,13 +153,27 @@ impl Store {
     }
 
     /// Replaces every embed on `message_id` with `embeds`, in one
-    /// transaction; an empty list clears them.
+    /// transaction; an empty list clears them. Files an `edit` op in the same
+    /// transaction so a client that missed the live frame learns of it from
+    /// `/sync`. A message that is gone is left alone.
     pub async fn replace_message_embeds(
         &self,
         message_id: MessageId,
+        actor_id: UserId,
         embeds: &[NewEmbed],
     ) -> anyhow::Result<()> {
         let mut tx = self.begin_write().await?;
+        let live = sqlx::query_scalar!(
+            r#"SELECT channel_id AS "channel_id!: ChannelId"
+               FROM messages WHERE id = ? AND deleted_at IS NULL"#,
+            message_id
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+        let Some(channel_id) = live else {
+            tx.commit().await?;
+            return Ok(());
+        };
         sqlx::query!(
             "DELETE FROM message_embed_fields WHERE message_id = ?",
             message_id
@@ -172,6 +187,15 @@ impl Store {
         .execute(&mut *tx)
         .await?;
         insert_embeds(&mut tx, message_id, embeds).await?;
+        insert_message_op(
+            &mut tx,
+            channel_id,
+            message_id,
+            "edit",
+            Some(actor_id),
+            now_ms(),
+        )
+        .await?;
         tx.commit().await?;
         Ok(())
     }

@@ -464,6 +464,7 @@ impl ChannelPoster {
             id,
             &message.content,
             (None, tokened),
+            None,
         )
         .await
         {
@@ -493,6 +494,7 @@ impl ChannelPoster {
                 presence: state.hub.presence(),
                 reply_ping: None,
                 mass_authority,
+                mention_only: None,
             },
         );
         super::threads::notify_reply(state, message.channel_id).await;

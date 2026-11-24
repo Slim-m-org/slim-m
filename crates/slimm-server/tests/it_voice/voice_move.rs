@@ -392,3 +392,48 @@ async fn frames(ws: &mut Client) -> Vec<Value> {
     }
     found
 }
+
+#[tokio::test]
+async fn a_moderator_who_cannot_see_a_call_reads_a_placeholder_instead_of_its_name() {
+    let w = world().await;
+    let readers = w
+        .state
+        .store
+        .create_role("readers", Permissions::MANAGE_MESSAGES, false)
+        .await
+        .unwrap();
+    let reader = support::app::register_id_token(&w.state.store, "reader").await;
+    w.state.store.assign_role(reader.0, readers).await.unwrap();
+    w.state
+        .store
+        .set_member_overwrite(
+            w.games,
+            reader.0,
+            Permissions::NONE,
+            Permissions::VIEW_CHANNEL,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        w.move_to(&w.mover.1, w.lobby, w.bob.0, w.games).await,
+        StatusCode::NO_CONTENT
+    );
+
+    let response = http::router(w.state.clone())
+        .oneshot(support::app::request(
+            "GET",
+            "/reports/history?limit=20",
+            Some(&reader.1),
+            None,
+        ))
+        .await
+        .unwrap();
+    let history = json_body(response).await;
+    let entry = history
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["action"] == "voice_move")
+        .unwrap_or_else(|| panic!("no voice_move in {history}"));
+    assert_eq!(entry["reason"], "lobby to a private channel");
+}

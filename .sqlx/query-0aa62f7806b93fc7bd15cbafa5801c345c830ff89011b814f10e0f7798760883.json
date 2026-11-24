@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM message_ops WHERE (channel_id, seq) IN (\n                           SELECT channel_id, seq FROM message_ops\n                           WHERE channel_id = ?1 AND created_at < ?2\n                           LIMIT ?3\n                       )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "0aa62f7806b93fc7bd15cbafa5801c345c830ff89011b814f10e0f7798760883"
+}
