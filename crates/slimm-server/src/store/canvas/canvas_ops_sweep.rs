@@ -123,7 +123,8 @@ impl Store {
                 break;
             }
         }
-        swept.purged = self.purge_erased_canvas_objects().await?;
+        swept.purged = self.purge_erased_canvas_objects().await?
+            + self.purge_deleted_channel_canvas(None).await?;
         Ok(swept)
     }
 

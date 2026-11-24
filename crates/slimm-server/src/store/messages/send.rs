@@ -2,6 +2,7 @@
 //! The send half of the message write paths: idempotent insert, attachment linking, and the
 //! in-transaction slow-mode check. Edit and delete live in [`super`].
 
+use super::message_forwards::ForwardSource;
 use super::row::{IdProbe, NewRow, insert_message_row, probe_id};
 use super::{ModuleStamp, NewMessage, SendError, Sent};
 use crate::ids::ChannelId;
@@ -100,7 +101,16 @@ impl Store {
         match probe_id(&mut tx, channel_id, author_id, id).await? {
             IdProbe::Free => {}
             IdProbe::Replay(message) => {
+                let deleted = sqlx::query_scalar!(
+                    r#"SELECT deleted_at IS NOT NULL AS "deleted!: bool" FROM messages WHERE id = ?"#,
+                    id
+                )
+                .fetch_one(&mut *tx)
+                .await?;
                 tx.commit().await?;
+                if deleted {
+                    return Err(SendError::Deleted);
+                }
                 return Ok(Sent {
                     message,
                     fresh: false,
@@ -137,6 +147,14 @@ impl Store {
                 tx.commit().await?;
                 return Err(SendError::InvalidReplyTarget);
             }
+        }
+
+        // The handler resolved the source before this lock; a delete that landed in between must not leave a copy.
+        if let Some(source) = &forward
+            && !forward_source_is_live(&mut tx, source).await?
+        {
+            tx.commit().await?;
+            return Err(SendError::ForwardSourceGone);
         }
 
         let message = insert_message_row(
@@ -191,4 +209,21 @@ impl Store {
             fresh: true,
         })
     }
+}
+
+async fn forward_source_is_live(
+    tx: &mut sqlx::SqliteConnection,
+    source: &ForwardSource,
+) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar!(
+        r#"SELECT EXISTS(SELECT 1 FROM messages m
+                         LEFT JOIN message_forwards f ON f.message_id = m.id
+                         WHERE m.id = ?1 AND m.deleted_at IS NULL AND f.origin_removed_at IS NULL)
+              AND EXISTS(SELECT 1 FROM messages WHERE id = ?2 AND deleted_at IS NULL)
+              AS "live!: bool""#,
+        source.named,
+        source.origin.message_id
+    )
+    .fetch_one(tx)
+    .await
 }

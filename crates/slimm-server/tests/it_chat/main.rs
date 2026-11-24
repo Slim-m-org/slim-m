@@ -49,6 +49,7 @@ mod message_ops;
 mod message_replies;
 mod message_retention;
 mod message_retention_batch;
+mod message_scrub;
 mod message_search;
 mod messages_rowid_alias;
 mod pins;
