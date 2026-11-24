@@ -107,6 +107,12 @@ String? _colourOf(Object? raw) =>
 /// The least contrast ratio an automatic note ink keeps against what is behind it.
 const double minNoteContrast = 4.5;
 
+Color _betterOn(Color behind, Color a, Color b) =>
+    _contrast(a, behind) >= _contrast(b, behind) ? a : b;
+
+const Color _black = Color(0xFF000000);
+const Color _white = Color(0xFFFFFFFF);
+
 double _contrast(Color a, Color b) {
   final hi = math.max(a.computeLuminance(), b.computeLuminance());
   final lo = math.min(a.computeLuminance(), b.computeLuminance());
@@ -133,7 +139,7 @@ class NotePalette {
   /// What a translucent note sits on.
   final Color boardBackground;
 
-  /// What "auto" falls back on when [textInk] cannot be read on a fill.
+  /// What "auto" falls back on when [textInk] cannot be read on a fill, then pure black or white when neither can.
   final Color darkInk;
   final Color lightInk;
 
@@ -156,9 +162,9 @@ class NotePalette {
     }
     final behindFill = behind(style, fallbackFill);
     if (_contrast(textInk, behindFill) >= minNoteContrast) return textInk;
-    return _contrast(darkInk, behindFill) >= _contrast(lightInk, behindFill)
-        ? darkInk
-        : lightInk;
+    final flipped = _betterOn(behindFill, darkInk, lightInk);
+    if (_contrast(flipped, behindFill) >= minNoteContrast) return flipped;
+    return _betterOn(behindFill, _black, _white);
   }
 
   @override

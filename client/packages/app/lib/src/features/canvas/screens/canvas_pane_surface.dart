@@ -156,7 +156,6 @@ class CanvasPaneSurface extends StatelessWidget {
           edgeInk: tokens.textSecondary,
           edgeLabelFill: tokens.surfaceRaised,
           shapeColor: AppCanvasColors.shape,
-          noteTextInk: tokens.textPrimary,
           notePalette: canvasNotePalette(tokens),
           noteSpans: noteSpans,
           noteSpansRevision: noteSpansRevision,

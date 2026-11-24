@@ -21,7 +21,6 @@ class ObjectPainter {
   ObjectPainter({
     required this.ink,
     required this.inkColors,
-    required this.textInk,
     required this.textFontFamily,
     required this.noteSpans,
     required this.noteSpansRevision,
@@ -31,7 +30,6 @@ class ObjectPainter {
 
   final Color ink;
   final Map<String, Color> inkColors;
-  final Color textInk;
   final String? textFontFamily;
   final NoteSpanBuilder? noteSpans;
   final int noteSpansRevision;
@@ -195,7 +193,7 @@ class ObjectPainter {
             fontFamily: textFontFamily,
             fontSize: fontSize,
             color: stroke.colorKey == canvasDefaultTextColor
-                ? textInk
+                ? palette.textInk
                 : resolveCanvasInk(inkColors, stroke.colorKey, ink),
             height: canvasTextLineHeight,
           ),

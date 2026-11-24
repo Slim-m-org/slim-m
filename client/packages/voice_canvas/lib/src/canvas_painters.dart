@@ -122,7 +122,6 @@ class StrokePainter extends CustomPainter {
     this.inkColors = const {},
     this.noteColor,
     this.shapeColor,
-    this.textInk = const Color(0xFF1A1A1A),
     this.textFontFamily,
     this.noteSpans,
     this.noteSpansRevision = 0,
@@ -151,11 +150,6 @@ class StrokePainter extends CustomPainter {
   final Color? noteColor;
   final Color? shapeColor;
 
-  /// A note's own text colour. Deliberately not derived from [noteColor]:
-  /// the note's fill is a translucent tint of its own accent hue, and text
-  /// legible against every theme needs a colour of its own rather than
-  /// riding whatever the accent happens to be.
-  final Color textInk;
   final String? textFontFamily;
 
   /// How a note's text becomes spans; null paints it as plain text.
@@ -179,14 +173,13 @@ class StrokePainter extends CustomPainter {
   /// choice `CanvasSurface.selectionOutline` already makes.
   final List<BoxShadow> elevationShadow;
 
-  /// The colours a note is drawn with; its `textInk` is [textInk].
+  /// The colours a note and a text box are drawn with, their default text ink included.
   final NotePalette notePalette;
 
   late final ObjectPainter _objects = ObjectPainter(
     palette: notePalette,
     ink: ink,
     inkColors: inkColors,
-    textInk: textInk,
     textFontFamily: textFontFamily,
     noteSpans: noteSpans,
     noteSpansRevision: noteSpansRevision,

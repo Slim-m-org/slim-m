@@ -192,7 +192,7 @@ void main() {
       final painter = StrokePainter(
         document: document,
         ink: const Color(0xFFE86A5C),
-        textInk: textInk,
+        notePalette: const NotePalette(textInk: textInk),
       );
       addTearDown(painter.dispose);
       expect(
