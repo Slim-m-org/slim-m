@@ -61,6 +61,12 @@ class CallForegroundKeeper {
     _push();
   }
 
+  /// Sends the state again, for a call that just became this account's own.
+  void takeOver() {
+    _service.forgetLast();
+    _push();
+  }
+
   /// Gets the capture consent and starts the share service ahead of
   /// `getDisplayMedia`; false means the share must not go ahead.
   Future<bool> beforeShare() async {

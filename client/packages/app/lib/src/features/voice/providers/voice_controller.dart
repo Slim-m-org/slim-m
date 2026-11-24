@@ -19,6 +19,8 @@ import '../../../audio/sound_session_release.dart';
 import '../../../push/providers/push_channel_providers.dart';
 import 'call_foreground_keeper.dart';
 import 'call_owner.dart';
+import '../../accounts/providers/account_providers.dart'
+    show accountHostProvider;
 import 'call_recap.dart';
 import 'join_timings_provider.dart';
 import 'level_display.dart';
@@ -119,6 +121,7 @@ class VoiceController extends StateNotifier<VoiceState> {
       log: _log,
     );
     addListener((s) => _foreground.rejoining(s.rejoining));
+    _watchCallOwnership();
     _endCallRequests = _callLifecycle.endCallRequests.listen((_) {
       if (state.channelId != null) unawaited(leave());
     });
@@ -193,6 +196,7 @@ class VoiceController extends StateNotifier<VoiceState> {
   late final VoiceReconnectDisplay _reconnectDisplay;
 
   final CallLifecycleChannel _callLifecycle;
+  void Function()? _stopWatchingOwnership;
   final CallForegroundKeeper _foreground;
   final VoiceCallHeartbeat _heartbeat;
   final VoiceAutoRejoin _autoRejoin;
@@ -483,8 +487,23 @@ class VoiceController extends StateNotifier<VoiceState> {
     api.LogLevel level = api.LogLevel.warning,
   }) => api.AppLog.at(level, api.LogTag.voice, message, error: detail);
 
+  void _watchCallOwnership() {
+    final host = _ref.read(accountHostProvider);
+    if (host == null) return;
+    var blocked = otherAccountInCall(_ref);
+    void changed() {
+      final was = blocked;
+      blocked = otherAccountInCall(_ref);
+      if (was && !blocked && state.channelId != null) _foreground.takeOver();
+    }
+
+    host.addListener(changed);
+    _stopWatchingOwnership = () => host.removeListener(changed);
+  }
+
   @override
   void dispose() {
+    _stopWatchingOwnership?.call();
     share.cancelBroadcastDeadline();
     volumes.dispose();
     _heartbeat.stop();
