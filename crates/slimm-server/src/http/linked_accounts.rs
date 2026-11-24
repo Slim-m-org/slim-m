@@ -337,6 +337,7 @@ async fn callback(
 /// none. A file that cannot be written leaves the link without a picture.
 pub(super) async fn store_avatar(state: &AppState, user_id: UserId, avatar: Option<Vec<u8>>) {
     let owner = user_id.to_string();
+    let _guard = state.media.profile_guard().await;
     let written = match avatar {
         Some(bytes) => {
             state
