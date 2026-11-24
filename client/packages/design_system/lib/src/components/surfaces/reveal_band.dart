@@ -58,9 +58,8 @@ class MaybeAnimatedSize extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (AppMotion.isReduced(context)) return child;
     return AnimatedSize(
-      duration: duration,
+      duration: AppMotion.reducedSize(context, duration),
       curve: curve,
       alignment: alignment,
       child: child,

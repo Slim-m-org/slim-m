@@ -89,7 +89,7 @@ class _DebugLogEntryState extends ConsumerState<DebugLogEntry> {
             vertical: AppSpacing.s4,
           ),
           child: _sized(
-            reduced,
+            context,
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -105,13 +105,11 @@ class _DebugLogEntryState extends ConsumerState<DebugLogEntry> {
     );
   }
 
-  Widget _sized(bool reduced, Widget child) => reduced
-      ? child
-      : AnimatedSize(
-          duration: AppMotion.fast,
-          alignment: Alignment.topCenter,
-          child: child,
-        );
+  Widget _sized(BuildContext context, Widget child) => AnimatedSize(
+    duration: AppMotion.reducedSize(context, AppMotion.fast),
+    alignment: Alignment.topCenter,
+    child: child,
+  );
 
   int? _messageMaxLines(bool compact) {
     if (_open) return null;
