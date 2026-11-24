@@ -222,7 +222,7 @@ async fn remove_member(
         .remove_from_space(target, ctx.user_id, reason.as_deref())
         .await
     {
-        Ok(_) => {}
+        Ok(revoked) => super::session_revocation::sessions_revoked_by_id(&state, revoked),
         Err(RemoveMemberError::UserNotFound) => return Err(ApiError::NotFound("no such member")),
         Err(RemoveMemberError::LastAdministrator) => {
             return Err(ApiError::Conflict(

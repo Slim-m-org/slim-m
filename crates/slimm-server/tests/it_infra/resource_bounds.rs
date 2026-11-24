@@ -338,13 +338,17 @@ async fn a_dead_reset_code_is_refused_before_the_password_is_hashed() {
     store.bootstrap_deployment(admin.id).await.unwrap();
 
     assert!(
-        !store.reset_code_is_live("never-issued").await.unwrap(),
+        store
+            .reset_code_issuer("never-issued")
+            .await
+            .unwrap()
+            .is_none(),
         "a code that was never issued is not live"
     );
 
     let (code, _expires) = store.issue_reset_code(admin.id, admin.id).await.unwrap();
     assert!(
-        store.reset_code_is_live(&code).await.unwrap(),
+        store.reset_code_issuer(&code).await.unwrap().is_some(),
         "a freshly issued code is live"
     );
 
@@ -376,7 +380,7 @@ async fn a_dead_reset_code_is_refused_before_the_password_is_hashed() {
     );
     assert_eq!(reset(code.clone()).await, StatusCode::NO_CONTENT);
     assert!(
-        !store.reset_code_is_live(&code).await.unwrap(),
+        store.reset_code_issuer(&code).await.unwrap().is_none(),
         "a spent code is no longer live"
     );
     assert_eq!(reset(code).await, StatusCode::BAD_REQUEST);

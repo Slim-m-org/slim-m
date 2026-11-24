@@ -109,7 +109,7 @@ async fn an_expired_code_is_refused_like_an_unknown_one_and_changes_nothing() {
     );
     assert_eq!(login(&app, NEW_PASSWORD).await, StatusCode::UNAUTHORIZED);
 
-    assert!(!store.reset_code_is_live(&code).await.unwrap());
+    assert!(store.reset_code_issuer(&code).await.unwrap().is_none());
     let consumed = store.consume_reset_code(&code, "not-a-real-hash").await;
     assert!(matches!(consumed, Err(ConsumeResetError::Unusable)));
     assert_eq!(

@@ -95,14 +95,16 @@ impl Store {
         .execute(&mut *tx)
         .await?;
         sqlx::query!(
-            "INSERT INTO webhooks (id, user_id, channel_id, token_hash, label, created_at, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO webhooks
+               (id, user_id, channel_id, token_hash, label, created_at, created_by, token_issued_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             webhook_id,
             user_id,
             channel_id,
             token_hash,
             label,
             now,
+            created_by,
             created_by
         )
         .execute(&mut *tx)
@@ -342,7 +344,8 @@ impl Store {
     /// Replaces a webhook's token in place and returns the new one, the only
     /// time it is legible. The row, and so the principal, is kept, so what
     /// the webhook already posted stays attributed to it; the old token stops
-    /// resolving in the same transaction. `None` if no such webhook exists.
+    /// resolving in the same transaction, and the new one is counted as
+    /// `rotated_by`'s for a later removal. `None` if no such webhook exists.
     pub async fn rotate_webhook(
         &self,
         webhook_id: WebhookId,
@@ -352,9 +355,10 @@ impl Store {
         let token_hash = hash_secret(&token);
         let mut tx = self.begin_write().await?;
         let user_id = sqlx::query_scalar!(
-            r#"UPDATE webhooks SET token_hash = ? WHERE id = ?
+            r#"UPDATE webhooks SET token_hash = ?, token_issued_by = ? WHERE id = ?
                RETURNING user_id AS "user_id!: UserId""#,
             token_hash,
+            rotated_by,
             webhook_id
         )
         .fetch_optional(&mut *tx)

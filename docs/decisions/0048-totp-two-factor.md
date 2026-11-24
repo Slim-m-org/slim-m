@@ -217,3 +217,9 @@ Someone holding moderator bits without ADMINISTRATOR is not asked either.
 
 - Passkeys. Still "later", as the research said.
 - A second factor on the WebSocket or on refresh. Neither needs one: a refresh token is already device-bound and single-use per rotation, and a connect ticket is minted from an access token that a factor already gated.
+
+## Amended 2026-11-23: a new password retires what the old one proved
+
+A password change or a spent reset code now also drops the account's pending sign-in challenges and spends its other live reset codes, in the same transaction that revokes the sessions.
+Before, a challenge minted against the old password could still be completed inside its five minutes, which undid the eviction this record promises.
+A reset code is also only as good as its issuer's standing: one whose issuer has since been removed, deleted or lost ADMINISTRATOR is refused like a spent one, and a bot or webhook cannot be issued a code at all, since its token is its only credential.

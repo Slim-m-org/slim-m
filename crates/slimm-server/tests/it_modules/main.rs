@@ -14,6 +14,7 @@ mod bot_buttons;
 mod bot_command_discovery;
 mod bot_command_options;
 mod bot_commands;
+mod bot_minting_reauth;
 mod bot_names_and_deletion;
 mod bot_permissioning;
 mod bot_prefix;

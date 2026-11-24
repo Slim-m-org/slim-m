@@ -193,3 +193,16 @@ What changed:
   Managed roles that grant something are kept.
 
 The earlier "managed role" sections above still hold for a bot that has one.
+
+## Amended 2026-11-23: a token outlives nobody it was shown to
+
+Two gaps let a bot credential outlast the person who held it.
+
+- **Removal revokes what the member was shown.** Removing a member also revokes every live bot token whose `created_by` is them (the token row records who minted or last reissued it), and deletes every webhook whose current URL they were shown (`webhooks.token_issued_by`, migration `0214`, which follows rotation).
+  The bots themselves stay, with their roles and authorship, so an administrator reissues a token rather than rebuilding the integration.
+  A token somebody else reissued since, a webhook somebody else rotated since, a host-run connector's token (it never left the host) and a removed bot's own token are left alone.
+  Restoring the member does not bring the revoked tokens back.
+  Deleting an account still leaves them working, as decision 0030 records for webhooks: a voluntary departure is not a lockout.
+- **An ADMINISTRATOR token asks for the password.** Creating a bot that will hold ADMINISTRATOR, raising one to it, reissuing one that holds it, and approving or reissuing a connector with it all need the caller's own password, as issuing a reset code does (decision 0048).
+  Such a token survives every session and password change, so a stolen session alone must not be able to mint one.
+  Bots without ADMINISTRATOR need nothing new.

@@ -62,6 +62,7 @@ mod owner_roles;
 mod permissions;
 mod permissions_in_channels_dms;
 mod permissions_overwrite_targets;
+mod removal_minted_credentials;
 mod report_idempotency;
 mod report_metadata;
 mod report_own_status;
