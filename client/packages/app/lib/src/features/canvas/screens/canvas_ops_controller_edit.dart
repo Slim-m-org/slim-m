@@ -130,6 +130,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
         ),
       );
     } on api.ApiException catch (error) {
+      if (document.isDisposed) return null;
       if (document.noteStyleOf(objectId) == style) {
         document
           ..setNoteStyle(objectId, before)
@@ -191,6 +192,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
         ),
       );
     } on api.ApiException catch (error) {
+      if (document.isDisposed) return null;
       if (document.noteTextOf(objectId) == text) {
         document.setNoteText(objectId, before);
         document.refresh();
