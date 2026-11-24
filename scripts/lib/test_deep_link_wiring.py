@@ -2,13 +2,33 @@
 """slimm:// links reach the app only through app_links, never through Flutter's own deep linking."""
 
 import plistlib
+import re
+import sys
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from dart_source import strip_block_comments  # noqa: E402
+
 APP = Path(__file__).resolve().parents[2] / "client/packages/app"
 ANDROID_NS = "{http://schemas.android.com/apk/res/android}"
-CALLBACK_HOSTS = {"join", "message", "spotify-callback", "discord-link", "steam-link"}
+MINIMUM_HOSTS = {"join", "message", "spotify-callback", "discord-link", "steam-link"}
+HOST_CONSTANT = re.compile(r"\bconst\s+\w*Host\s*=\s*'([a-z][a-z-]*)'")
+HOST_COMPARISON = re.compile(r"\buri\.host\s*==\s*'([a-z][a-z-]*)'")
+
+
+def dart_hosts(source: str) -> set[str]:
+    code = strip_block_comments(source)
+    return set(HOST_CONSTANT.findall(code)) | set(HOST_COMPARISON.findall(code))
+
+
+def callback_hosts() -> set[str]:
+    found = set()
+    for path in (APP / "lib").rglob("*.dart"):
+        found |= dart_hosts(path.read_text())
+    return MINIMUM_HOSTS | found
 
 
 def _main_activity():
@@ -34,7 +54,14 @@ class AndroidDeepLinking(unittest.TestCase):
             for d in f.findall("data")
             if d.get(ANDROID_NS + "scheme") == "slimm"
         }
-        self.assertTrue(CALLBACK_HOSTS <= hosts, CALLBACK_HOSTS - hosts)
+        wanted = callback_hosts()
+        self.assertTrue(wanted <= hosts, wanted - hosts)
+
+    def test_hosts_are_read_from_the_dart_constants(self):
+        found = set().union(*(dart_hosts(p.read_text()) for p in (APP / "lib").rglob("*.dart")))
+        self.assertTrue({"steam-link", "discord-link", "spotify-callback"} <= found, found)
+        self.assertEqual(dart_hosts("const newLinkHost = 'new-link';"), {"new-link"})
+        self.assertEqual(dart_hosts("// const oldLinkHost = 'old-link';"), set())
 
 
 class IosDeepLinking(unittest.TestCase):
