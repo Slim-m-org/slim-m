@@ -180,7 +180,7 @@ void main() {
     );
   });
 
-  test('the vacuum builds its copy on disk and puts the setting back',
+  test('the vacuum never moves temp storage off memory (decision 0042)',
       () async {
     final dir = await Directory.systemTemp.createTemp('slimm-vacuum-pragma');
     addTearDown(() => dir.delete(recursive: true));
@@ -196,18 +196,12 @@ void main() {
       await db.customStatement('INSERT INTO junk VALUES (?)', ['x' * 4000]);
     }
     await db.customStatement('DROP TABLE junk');
+    statements.clear();
 
     await reclaimFreedPages(db);
 
-    final order = statements
-        .where((s) => s == 'VACUUM' || s.startsWith('PRAGMA temp_store ='))
-        .skip(1)
-        .toList();
-    expect(order, [
-      'PRAGMA temp_store = FILE',
-      'VACUUM',
-      'PRAGMA temp_store = 2',
-    ]);
+    expect(statements, contains('VACUUM'));
+    expect(statements.where((s) => s.contains('temp_store')), isEmpty);
   });
 }
 
