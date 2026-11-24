@@ -64,20 +64,21 @@ impl Store {
             return Ok(result);
         }
 
-        let mut builder = QueryBuilder::new(
-            "SELECT id, presence_visibility FROM users WHERE deleted_at IS NULL AND id IN (",
-        );
-        let mut separated = builder.separated(", ");
-        for id in ids {
-            separated.push_bind(*id);
-        }
-        builder.push(")");
+        for chunk in ids.chunks(crate::store::MAX_IDS_PER_QUERY) {
+            let mut builder = QueryBuilder::new(
+                "SELECT id, presence_visibility FROM users WHERE deleted_at IS NULL AND id IN (",
+            );
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(")");
 
-        let rows = builder.build().fetch_all(&self.pool).await?;
-        for row in rows {
-            let id: UserId = row.try_get("id")?;
-            let raw: String = row.try_get("presence_visibility")?;
-            result.insert(id, Visibility::parse(&raw).unwrap_or_default());
+            for row in builder.build().fetch_all(&self.pool).await? {
+                let id: UserId = row.try_get("id")?;
+                let raw: String = row.try_get("presence_visibility")?;
+                result.insert(id, Visibility::parse(&raw).unwrap_or_default());
+            }
         }
         Ok(result)
     }

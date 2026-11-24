@@ -436,16 +436,20 @@ impl Store {
         if users.is_empty() {
             return Ok(HashSet::new());
         }
-        let mut builder = QueryBuilder::new("SELECT id FROM users WHERE is_bot = 1 AND id IN (");
-        let mut separated = builder.separated(", ");
-        for user in users {
-            separated.push_bind(*user);
+        let mut bots = HashSet::new();
+        for chunk in users.chunks(crate::store::MAX_IDS_PER_QUERY) {
+            let mut builder =
+                QueryBuilder::new("SELECT id FROM users WHERE is_bot = 1 AND id IN (");
+            let mut separated = builder.separated(", ");
+            for user in chunk {
+                separated.push_bind(*user);
+            }
+            builder.push(")");
+            for row in builder.build().fetch_all(&self.pool).await? {
+                bots.insert(row.try_get::<UserId, _>("id")?);
+            }
         }
-        builder.push(")");
-        let rows = builder.build().fetch_all(&self.pool).await?;
-        rows.iter()
-            .map(|row| Ok(row.try_get::<UserId, _>("id")?))
-            .collect()
+        Ok(bots)
     }
 
     /// Whether this user is a bot or a webhook, i.e. posts on its own rather

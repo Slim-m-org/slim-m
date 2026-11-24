@@ -194,22 +194,24 @@ impl Store {
             return Ok(HashMap::new());
         }
         let now = now_ms();
-        // Built, not `query!`: the id list is variable and SQLite has no arrays.
-        let mut builder =
-            sqlx::QueryBuilder::new("SELECT user_id, until FROM member_timeouts WHERE until > ");
-        builder.push_bind(now);
-        builder.push(" AND user_id IN (");
-        let mut separated = builder.separated(", ");
-        for id in candidates {
-            separated.push_bind(*id);
-        }
-        builder.push(")");
-
         use sqlx::Row;
-        let rows = builder.build().fetch_all(&self.pool).await?;
         let mut out = HashMap::new();
-        for row in rows {
-            out.insert(row.try_get("user_id")?, row.try_get("until")?);
+        for chunk in candidates.chunks(crate::store::MAX_IDS_PER_QUERY) {
+            // Built, not `query!`: the id list is variable and SQLite has no arrays.
+            let mut builder = sqlx::QueryBuilder::new(
+                "SELECT user_id, until FROM member_timeouts WHERE until > ",
+            );
+            builder.push_bind(now);
+            builder.push(" AND user_id IN (");
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(")");
+
+            for row in builder.build().fetch_all(&self.pool).await? {
+                out.insert(row.try_get("user_id")?, row.try_get("until")?);
+            }
         }
         Ok(out)
     }
