@@ -172,7 +172,7 @@ impl Iterator for MetaTags<'_> {
                 || lower.starts_with("meta\n")
                 || lower.starts_with("meta>");
             if is_meta {
-                let close = after.find('>')?;
+                let close = tag_end(after)?;
                 let inner = &after[4..close];
                 self.rest = &after[close + 1..];
                 if let Some(tag) = parse_meta(inner) {
@@ -185,6 +185,20 @@ impl Iterator for MetaTags<'_> {
             self.rest = after;
         }
     }
+}
+
+/// The offset of the `>` that ends the tag text in [after], skipping any inside a quoted value.
+fn tag_end(after: &str) -> Option<usize> {
+    let mut quote = None;
+    for (at, byte) in after.bytes().enumerate() {
+        match (quote, byte) {
+            (None, b'>') => return Some(at),
+            (None, b'"' | b'\'') => quote = Some(byte),
+            (Some(open), _) if open == byte => quote = None,
+            _ => {}
+        }
+    }
+    None
 }
 
 fn parse_meta(inner: &str) -> Option<Tag> {
@@ -290,6 +304,14 @@ fn numeric_entity(name: &str) -> Option<char> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_raw_angle_bracket_inside_a_quoted_value_stays_in_the_value() {
+        let html = r#"<meta property="og:title" content="A -> B"><meta content='x > y' property='og:description'>"#;
+        let p = extract(html).unwrap();
+        assert_eq!(p.title.as_deref(), Some("A -> B"));
+        assert_eq!(p.description.as_deref(), Some("x > y"));
+    }
 
     #[test]
     fn reads_opengraph_in_either_attribute_order_and_quote_style() {

@@ -46,10 +46,12 @@ mod video;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
 
 use axum::Router;
 use axum::body::Bytes;
 use axum::extract::{Path, State};
+use axum::http::request::Parts;
 use axum::http::{HeaderValue, header};
 use axum::response::Response;
 use axum::routing::get;
@@ -57,9 +59,10 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{ASSET, AuthedLimited, LINK_PREVIEW, Query};
+use super::extract::{ASSET, AuthedLimited, LINK_PREVIEW, Query, enforce};
 use crate::config::Config;
 use crate::media;
+use crate::ratelimit::Class;
 
 use cache::{Cache, CachedPreview};
 use fetch::{FetchError, build_client, fetch_image, fetch_preview};
@@ -248,7 +251,7 @@ impl From<FetchError> for ApiError {
 }
 
 async fn preview(
-    AuthedLimited(_ctx): AuthedLimited<LINK_PREVIEW>,
+    AuthedLimited(ctx): AuthedLimited<LINK_PREVIEW>,
     State(state): State<AppState>,
     Query(params): Query<PreviewParams>,
 ) -> Result<axum::Json<LinkPreviewDto>, ApiError> {
@@ -260,10 +263,14 @@ async fn preview(
     // Every share of one Spotify item is one fetch and one cache entry, and the sharer's ?si= never leaves.
     let target = spotify::fetch_target(&params.url);
     let key = cache::cache_key(&target);
+    let member = ctx.user_id.to_string();
+    let started = Instant::now();
     if let Some(cached) = service.cache.preview(&key) {
+        replay_fetch_time(&service.cache, &member, &key, started, cached.fetch_ms).await;
         return Ok(axum::Json(to_dto(&params.url, cached)));
     }
-    if service.cache.recently_missing(&key) {
+    if let Some(fetch_ms) = service.cache.recently_missing(&key) {
+        replay_fetch_time(&service.cache, &member, &key, started, fetch_ms).await;
         return Err(ApiError::NotFound("no preview available"));
     }
     let fetched_here = std::sync::atomic::AtomicBool::new(false);
@@ -272,10 +279,14 @@ async fn preview(
         .cell()
         .get_or_init(|| async {
             fetched_here.store(true, Ordering::Relaxed);
-            match fetch_preview(&service.client, &target, service.allow_private).await {
-                Ok(Some(preview)) => cache::Outcome::Found(service.cache.insert(&key, preview)),
+            let result = fetch_preview(&service.client, &target, service.allow_private).await;
+            let fetch_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+            match result {
+                Ok(Some(preview)) => {
+                    cache::Outcome::Found(Box::new(service.cache.insert(&key, preview, fetch_ms)))
+                }
                 Ok(None) | Err(FetchError::Unavailable) => {
-                    service.cache.record_miss(&key);
+                    service.cache.record_miss(&key, fetch_ms);
                     cache::Outcome::Missing
                 }
                 Err(FetchError::Refused) => cache::Outcome::Refused,
@@ -284,8 +295,10 @@ async fn preview(
         .await
         .clone();
     drop(flight);
+    service.cache.mark_seen(&member, &key);
     match outcome {
         cache::Outcome::Found(cached) => {
+            let cached = *cached;
             if fetched_here.load(Ordering::Relaxed) {
                 warm_image(&state.link_previews, cached.image_token.clone());
             }
@@ -296,12 +309,30 @@ async fn preview(
     }
 }
 
+/// Holds a member's first answer from the cache back to the time the fetch originally took.
+async fn replay_fetch_time(
+    cache: &Cache,
+    member: &str,
+    key: &str,
+    started: Instant,
+    fetch_ms: u64,
+) {
+    if cache.mark_seen(member, key) {
+        return;
+    }
+    tokio::time::sleep_until((started + Duration::from_millis(fetch_ms)).into()).await;
+}
+
 async fn image(
-    AuthedLimited(_ctx): AuthedLimited<ASSET>,
+    AuthedLimited(ctx): AuthedLimited<ASSET>,
+    parts: Parts,
     State(state): State<AppState>,
     Path(token): Path<String>,
 ) -> Result<Response, ApiError> {
     let service = state.link_previews.enabled()?;
+    if service.cache.image_bytes(&token).is_none() {
+        enforce(&state, &parts, Some(&ctx), Class::LinkPreview)?;
+    }
     serve_image(load_image(service, &token).await?)
 }
 
@@ -314,7 +345,7 @@ async fn load_image(service: &Enabled, token: &str) -> Result<Bytes, ApiError> {
     let url = service.cache.image_url(token).ok_or(ApiError::NotFound(
         "that preview image is no longer available",
     ))?;
-    if service.cache.recently_missing(token) {
+    if service.cache.recently_missing(token).is_some() {
         return Err(ApiError::NotFound("no preview available"));
     }
     let flight = service.cache.image_in_flight(token);
@@ -329,7 +360,7 @@ async fn load_image(service: &Enabled, token: &str) -> Result<Bytes, ApiError> {
                 }
                 Err(err) => {
                     if err == FetchError::Unavailable {
-                        service.cache.record_miss(token);
+                        service.cache.record_miss(token, 0);
                     }
                     Err(err)
                 }

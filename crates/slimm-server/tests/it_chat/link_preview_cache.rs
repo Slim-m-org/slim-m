@@ -115,3 +115,26 @@ async fn concurrent_asks_share_one_fetch() {
     }
     assert_eq!(hits.load(Ordering::SeqCst), 1);
 }
+
+#[tokio::test]
+async fn a_cached_url_costs_a_new_reader_what_the_fetch_cost() {
+    let (store, _guard) = support::overwrite_harness::new_store("slimm-preview-replay").await;
+    let (alice, _) = support::overwrite_harness::register(&store, "alice").await;
+    let (bob, _) = support::overwrite_harness::register(&store, "bob").await;
+    let app = app(store);
+    let (host, hits) = counting_upstream().await;
+    let url = format!("http://{host}/page");
+    assert_eq!(ask(&app, &alice, &url).await, StatusCode::OK);
+
+    let started = std::time::Instant::now();
+    assert_eq!(ask(&app, &bob, &url).await, StatusCode::OK);
+    assert!(
+        started.elapsed() >= Duration::from_millis(140),
+        "a first look at a cached URL waits as long as the fetch did"
+    );
+
+    let started = std::time::Instant::now();
+    assert_eq!(ask(&app, &bob, &url).await, StatusCode::OK);
+    assert!(started.elapsed() < Duration::from_millis(100));
+    assert_eq!(hits.load(Ordering::SeqCst), 1, "still one upstream fetch");
+}

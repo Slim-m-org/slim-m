@@ -24,6 +24,15 @@ use super::video::VideoInfo;
 const CACHE_TTL_MS: i64 = 30 * 60 * 1000;
 const MAX_ENTRIES: usize = 5_000;
 
+/// Longest URL held as a cache key or minted into an image token; longer ones are served uncached.
+const MAX_URL_CHARS: usize = 2_048;
+
+/// Most (member, URL) sightings remembered; a forgotten one only costs that member one extra delay.
+const MAX_SIGHTINGS: usize = 50_000;
+
+/// The longest a first-time reader of a cached URL is held back, matching the fetch timeout.
+const MAX_REPLAY_MS: u64 = 5_000;
+
 /// Total image bytes held at once; the count bound alone allowed 5 MiB x 5000.
 const MAX_IMAGE_BYTES: usize = 64 * 1024 * 1024;
 
@@ -35,7 +44,7 @@ const MISS_TTL_MS: i64 = 60 * 1000;
 /// the same URL while it was in flight.
 #[derive(Clone)]
 pub(super) enum Outcome {
-    Found(CachedPreview),
+    Found(Box<CachedPreview>),
     Missing,
     Refused,
 }
@@ -67,7 +76,13 @@ pub(super) struct CachedPreview {
     pub author_name: Option<String>,
     pub author_url: Option<String>,
     pub duration_s: Option<u32>,
+    pub fetch_ms: u64,
     inserted_at: i64,
+}
+
+struct Miss {
+    at: i64,
+    fetch_ms: u64,
 }
 
 struct CachedImage {
@@ -78,7 +93,8 @@ struct CachedImage {
 pub(super) struct Cache {
     key: [u8; 32],
     previews: Mutex<HashMap<String, CachedPreview>>,
-    misses: Mutex<HashMap<String, i64>>,
+    misses: Mutex<HashMap<String, Miss>>,
+    sightings: Mutex<HashMap<String, i64>>,
     in_flight: Flights<Outcome>,
     images: Mutex<HashMap<String, CachedImage>>,
     image_in_flight: Flights<Result<Bytes, FetchError>>,
@@ -90,24 +106,42 @@ impl Cache {
             key,
             previews: Mutex::new(HashMap::new()),
             misses: Mutex::new(HashMap::new()),
+            sightings: Mutex::new(HashMap::new()),
             in_flight: Flights::new(),
             images: Mutex::new(HashMap::new()),
             image_in_flight: Flights::new(),
         }
     }
 
-    /// Whether [key] yielded no preview within the last [`MISS_TTL_MS`].
-    pub(super) fn recently_missing(&self, key: &str) -> bool {
+    /// How long the fetch that found nothing for [key] took, if it was within the last [`MISS_TTL_MS`].
+    pub(super) fn recently_missing(&self, key: &str) -> Option<u64> {
         lock(&self.misses)
             .get(key)
-            .is_some_and(|at| now_ms() - at < MISS_TTL_MS)
+            .filter(|miss| now_ms() - miss.at < MISS_TTL_MS)
+            .map(|miss| miss.fetch_ms)
     }
 
-    pub(super) fn record_miss(&self, key: &str) {
+    pub(super) fn record_miss(&self, key: &str, fetch_ms: u64) {
         let now = now_ms();
         let mut misses = lock(&self.misses);
-        misses.retain(|_, at| now - *at < MISS_TTL_MS);
-        misses.insert(key.to_owned(), now);
+        misses.retain(|_, miss| now - miss.at < MISS_TTL_MS);
+        misses.insert(
+            key.to_owned(),
+            Miss {
+                at: now,
+                fetch_ms: fetch_ms.min(MAX_REPLAY_MS),
+            },
+        );
+    }
+
+    /// Notes that [member] has now been answered for [key], returning whether they already had been.
+    /// A first answer from the cache is held back by the original fetch time, so a reader cannot
+    /// tell a URL someone else previewed from one nobody has.
+    pub(super) fn mark_seen(&self, member: &str, key: &str) -> bool {
+        let now = now_ms();
+        let mut sightings = lock(&self.sightings);
+        sweep(&mut sightings, |at| *at, now, MAX_SIGHTINGS);
+        sightings.insert(format!("{member}\n{key}"), now).is_some()
     }
 
     /// The fetch every concurrent request for [key] shares.
@@ -136,11 +170,12 @@ impl Cache {
 
     /// Caches [preview] under [url], minting an image token for its image (if
     /// any) and returning the cached shape the handler serves.
-    pub(super) fn insert(&self, url: &str, preview: Preview) -> CachedPreview {
+    pub(super) fn insert(&self, url: &str, preview: Preview, fetch_ms: u64) -> CachedPreview {
         let now = now_ms();
         let image_token = preview
             .image
             .as_ref()
+            .filter(|image_url| image_url.chars().count() <= MAX_URL_CHARS)
             .map(|image_url| self.image_token_for(image_url));
         let cached = CachedPreview {
             title: preview.title,
@@ -151,11 +186,14 @@ impl Cache {
             author_name: preview.author_name,
             author_url: preview.author_url,
             duration_s: preview.duration_s,
+            fetch_ms: fetch_ms.min(MAX_REPLAY_MS),
             inserted_at: now,
         };
-        let mut previews = lock(&self.previews);
-        sweep(&mut previews, |c| c.inserted_at, now);
-        previews.insert(url.to_owned(), cached.clone());
+        if url.chars().count() <= MAX_URL_CHARS {
+            let mut previews = lock(&self.previews);
+            sweep(&mut previews, |c| c.inserted_at, now, MAX_ENTRIES);
+            previews.insert(url.to_owned(), cached.clone());
+        }
         cached
     }
 
@@ -180,7 +218,7 @@ impl Cache {
         }
         let now = now_ms();
         let mut images = lock(&self.images);
-        sweep(&mut images, |c| c.inserted_at, now);
+        sweep(&mut images, |c| c.inserted_at, now, MAX_ENTRIES);
         images.insert(
             token.to_owned(),
             CachedImage {
@@ -214,9 +252,9 @@ fn evict_over_byte_budget(images: &mut HashMap<String, CachedImage>) {
 
 /// Drops expired entries, then, if still over the cap, the oldest half in one
 /// pass - the same bounded eviction `gifs::cache` uses.
-fn sweep<V>(map: &mut HashMap<String, V>, age_of: impl Fn(&V) -> i64, now: i64) {
+fn sweep<V>(map: &mut HashMap<String, V>, age_of: impl Fn(&V) -> i64, now: i64, cap: usize) {
     map.retain(|_, v| now - age_of(v) < CACHE_TTL_MS);
-    if map.len() >= MAX_ENTRIES {
+    if map.len() >= cap {
         let mut by_age: Vec<(String, i64)> =
             map.iter().map(|(k, v)| (k.clone(), age_of(v))).collect();
         by_age.sort_by_key(|(_, at)| *at);
@@ -250,7 +288,7 @@ mod tests {
     #[test]
     fn round_trips_a_preview_and_mints_an_image_token() {
         let cache = Cache::new([7; 32]);
-        let cached = cache.insert("https://example.com", preview_with_image());
+        let cached = cache.insert("https://example.com", preview_with_image(), 0);
         let token = cached.image_token.clone().expect("an image mints a token");
         assert_eq!(
             cache
@@ -267,6 +305,37 @@ mod tests {
     }
 
     #[test]
+    fn an_image_url_past_the_cap_mints_no_token() {
+        let cache = Cache::new([7; 32]);
+        let long = format!("https://cdn.example.com/{}", "a".repeat(MAX_URL_CHARS));
+        let cached = cache.insert(
+            "https://example.com",
+            Preview {
+                image: Some(long),
+                ..Preview::default()
+            },
+            0,
+        );
+        assert!(cached.image_token.is_none());
+    }
+
+    #[test]
+    fn a_url_past_the_cap_is_served_but_not_cached() {
+        let cache = Cache::new([7; 32]);
+        let long = format!("https://example.com/{}", "a".repeat(MAX_URL_CHARS));
+        cache.insert(&long, preview_with_image(), 0);
+        assert!(cache.preview(&long).is_none());
+    }
+
+    #[test]
+    fn a_member_is_unseen_until_answered_once() {
+        let cache = Cache::new([7; 32]);
+        assert!(!cache.mark_seen("ada", "https://example.com"));
+        assert!(cache.mark_seen("ada", "https://example.com"));
+        assert!(!cache.mark_seen("bob", "https://example.com"));
+    }
+
+    #[test]
     fn an_imageless_preview_has_no_token() {
         let cache = Cache::new([7; 32]);
         let cached = cache.insert(
@@ -275,6 +344,7 @@ mod tests {
                 title: Some("T".to_owned()),
                 ..Preview::default()
             },
+            0,
         );
         assert!(cached.image_token.is_none());
     }
@@ -282,7 +352,7 @@ mod tests {
     #[test]
     fn stores_and_serves_image_bytes() {
         let cache = Cache::new([7; 32]);
-        let cached = cache.insert("https://example.com", preview_with_image());
+        let cached = cache.insert("https://example.com", preview_with_image(), 0);
         let token = cached.image_token.unwrap();
         assert!(cache.image_bytes(&token).is_none());
         cache.store_image_bytes(&token, Bytes::from_static(&[1, 2, 3]));
@@ -329,6 +399,7 @@ mod tests {
                 author_url: Some("https://example.com/@achannel".to_owned()),
                 ..Preview::default()
             },
+            0,
         );
         assert_eq!(cached.author_name.as_deref(), Some("A Channel"));
         assert_eq!(
@@ -354,6 +425,7 @@ mod tests {
                 }),
                 ..Preview::default()
             },
+            0,
         );
         let video = cached.video.expect("a video was set");
         assert_eq!(video.provider, VideoProvider::Youtube);

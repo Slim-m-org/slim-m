@@ -62,6 +62,17 @@ async fn upstream() -> Upstream {
             }),
         )
         .route(
+            "/p/{n}",
+            get(
+                |axum::extract::Path(n): axum::extract::Path<u32>| async move {
+                    axum::response::Html(format!(
+                        "<meta property=\"og:title\" content=\"Hello\">\
+                     <meta property=\"og:image\" content=\"/dead.png?n={n}\">"
+                    ))
+                },
+            ),
+        )
+        .route(
             "/card.png",
             get(move || {
                 image_count.fetch_add(1, Ordering::SeqCst);
@@ -186,4 +197,25 @@ async fn a_dead_image_is_fetched_once_for_many_readers() {
         assert_eq!(status, StatusCode::NOT_FOUND);
     }
     assert_eq!(up.dead_hits.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn images_that_are_not_cached_are_fetched_at_the_preview_rate() {
+    let (app, token, _guard) = world("slimm-image-throttled").await;
+    let up = upstream().await;
+    let mut tokens = Vec::new();
+    for n in 0..8 {
+        tokens.push(image_token(&app, &token, format!("http://{}/p/{n}", up.host)).await);
+    }
+    wait_for(&up.dead_hits, 8).await;
+    // Lets the failed fetches be recorded; nothing observable marks them.
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let mut refused = 0;
+    for _ in 0..3 {
+        for image in &tokens {
+            let (status, _) = get_path(&app, &token, format!("/link-preview/image/{image}")).await;
+            refused += usize::from(status == StatusCode::TOO_MANY_REQUESTS);
+        }
+    }
+    assert!(refused > 0, "uncached image asks drain the preview bucket");
 }
