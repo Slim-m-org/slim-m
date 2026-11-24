@@ -95,9 +95,7 @@ Future<MessageSearchResult> searchMessages(
       ),
     };
     return MessageSearchHits(
-      hits
-          .where((message) => !blocks.contains(message.authorId))
-          .toList(growable: false),
+      hits.where((message) => !blocks.hides(message)).toList(growable: false),
       fetched: hits.length,
       lastId: hits.lastOrNull?.id,
     );
