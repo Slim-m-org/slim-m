@@ -181,7 +181,13 @@ class _AppSliderState extends State<AppSlider> {
     );
   }
 
-  void _handleFocusChange() => setState(() => _focused = _focusNode.hasFocus);
+  void _handleFocusChange() {
+    if (!_focusNode.hasFocus && _commitOnKeyUp) {
+      _commitOnKeyUp = false;
+      widget.onChangeEnd?.call(widget.value);
+    }
+    setState(() => _focused = _focusNode.hasFocus);
+  }
 
   void _onHighlightModeChange(FocusHighlightMode _) {
     if (mounted) setState(() {});

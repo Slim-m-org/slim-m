@@ -123,6 +123,7 @@ class ThreadReplySummary extends ConsumerWidget {
       container: true,
       button: enabled,
       label: enabled ? '$described. Open thread.' : described,
+      onTap: onTap,
       child: ExcludeSemantics(
         // The focus ring's reserved margin would inset the chip from the message text above it.
         child: Transform.translate(

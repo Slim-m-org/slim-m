@@ -255,6 +255,7 @@ class _FullscreenImageViewerState extends ConsumerState<FullscreenImageViewer> {
                         itemCount: widget.images.length,
                         onPageChanged: (index) => setState(() {
                           _current = index;
+                          _zoomed = false;
                           _exportFailure = null;
                         }),
                         itemBuilder: (_, index) => _page(index),

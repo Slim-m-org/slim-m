@@ -28,6 +28,7 @@ import '../../../format.dart';
 import 'attachment_image_states.dart';
 import 'attachment_reveal.dart';
 import 'attachment_spoiler.dart';
+import 'attachment_tap_target.dart';
 import 'attachment_types.dart';
 import 'attachment_video_player.dart';
 import 'voice_message_player.dart';
@@ -456,15 +457,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     required VoidCallback onTap,
     required Widget child,
   }) {
-    return Semantics(
-      button: true,
-      label: label,
-      onTap: onTap,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(onTap: onTap, child: child),
-      ),
-    );
+    return AttachmentTapTarget(label: label, onTap: onTap, child: child);
   }
 }
 

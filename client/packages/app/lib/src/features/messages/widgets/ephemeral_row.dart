@@ -22,9 +22,6 @@ const String ephemeralNotice = 'Only you can see this';
 /// How long a private answer stays on screen before it goes on its own.
 const ephemeralLifetime = Duration(minutes: 2);
 
-/// The least time an answer shows, so one sent while the channel was away still flashes up.
-const _ephemeralMinShown = Duration(seconds: 10);
-
 class EphemeralRow extends StatelessWidget {
   const EphemeralRow({
     super.key,
@@ -64,7 +61,6 @@ class EphemeralRow extends StatelessWidget {
     final asMessage = _asMessage;
     final gutter = paneGutterOf(context);
     return _LapseAfter(
-      createdAtMs: message.createdAt,
       onLapse: onDismiss,
       child: Semantics(
         container: true,
@@ -234,15 +230,10 @@ class _FooterLink extends StatelessWidget {
   }
 }
 
-/// Calls [onLapse] once [ephemeralLifetime] has passed since [createdAtMs].
+/// Calls [onLapse] once [ephemeralLifetime] has passed since it mounted, never from the server clock.
 class _LapseAfter extends StatefulWidget {
-  const _LapseAfter({
-    required this.createdAtMs,
-    required this.onLapse,
-    required this.child,
-  });
+  const _LapseAfter({required this.onLapse, required this.child});
 
-  final int createdAtMs;
   final VoidCallback onLapse;
   final Widget child;
 
@@ -256,11 +247,7 @@ class _LapseAfterState extends State<_LapseAfter> {
   @override
   void initState() {
     super.initState();
-    final age = DateTime.now().difference(
-      DateTime.fromMillisecondsSinceEpoch(widget.createdAtMs),
-    );
-    final left = ephemeralLifetime - age;
-    _timer = Timer(left < _ephemeralMinShown ? _ephemeralMinShown : left, () {
+    _timer = Timer(ephemeralLifetime, () {
       if (mounted) widget.onLapse();
     });
   }

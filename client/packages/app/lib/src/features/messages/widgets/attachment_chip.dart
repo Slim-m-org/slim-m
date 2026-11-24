@@ -16,6 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../downloads/downloads_controller.dart';
 import '../../../format.dart';
 import '../../../widgets/run_guarded.dart';
+import 'attachment_tap_target.dart';
 
 class AttachmentChip extends ConsumerStatefulWidget {
   const AttachmentChip({super.key, required this.attachment});
@@ -50,55 +51,48 @@ class _AttachmentChipState extends ConsumerState<AttachmentChip>
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Semantics(
-          button: true,
+        AttachmentTapTarget(
           label: 'Save ${attachment.filename}',
           onTap: _save,
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: _save,
-              child: SelectionContainer.disabled(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.s12,
-                    vertical: AppSpacing.s8,
+          child: SelectionContainer.disabled(
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s12,
+                vertical: AppSpacing.s8,
+              ),
+              decoration: BoxDecoration(
+                color: tokens.surfaceRaised,
+                border: Border.all(color: tokens.borderSubtle),
+                borderRadius: BorderRadius.circular(AppRadii.control),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Flexible, not a bare Text: a long real filename would otherwise overflow the row.
+                  Flexible(
+                    child: Text(
+                      attachment.filename,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.ui.copyWith(color: tokens.textPrimary),
+                    ),
                   ),
-                  decoration: BoxDecoration(
-                    color: tokens.surfaceRaised,
-                    border: Border.all(color: tokens.borderSubtle),
-                    borderRadius: BorderRadius.circular(AppRadii.control),
+                  const SizedBox(width: AppSpacing.s8),
+                  Text(
+                    formatByteSize(attachment.size),
+                    style: AppText.caption.copyWith(
+                      color: tokens.textSecondary,
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Flexible, not a bare Text: a long real filename would otherwise overflow the row.
-                      Flexible(
-                        child: Text(
-                          attachment.filename,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.ui.copyWith(color: tokens.textPrimary),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.s8),
-                      Text(
-                        formatByteSize(attachment.size),
-                        style: AppText.caption.copyWith(
+                  const SizedBox(width: AppSpacing.s8),
+                  saving
+                      ? const AppSpinner(size: AppSpinnerSize.sm)
+                      : Icon(
+                          AppIcons.download,
+                          size: AppSizes.icon16,
                           color: tokens.textSecondary,
                         ),
-                      ),
-                      const SizedBox(width: AppSpacing.s8),
-                      saving
-                          ? const AppSpinner(size: AppSpinnerSize.sm)
-                          : Icon(
-                              AppIcons.download,
-                              size: AppSizes.icon16,
-                              color: tokens.textSecondary,
-                            ),
-                    ],
-                  ),
-                ),
+                ],
               ),
             ),
           ),

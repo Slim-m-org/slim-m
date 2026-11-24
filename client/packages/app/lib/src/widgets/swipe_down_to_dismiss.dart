@@ -59,12 +59,21 @@ class _SwipeDownToDismissState extends State<SwipeDownToDismiss> {
     setState(() => _dragged = 0);
   }
 
+  void _onDragCancel() => setState(() => _dragged = 0);
+
+  @override
+  void didUpdateWidget(SwipeDownToDismiss oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.enabled && _dragged != 0) _dragged = 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onVerticalDragUpdate: widget.enabled ? _onDragUpdate : null,
       onVerticalDragEnd: widget.enabled ? _onDragEnd : null,
+      onVerticalDragCancel: widget.enabled ? _onDragCancel : null,
       child: Transform.translate(
         offset: Offset(0, _dragged),
         child: widget.child,

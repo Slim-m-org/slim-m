@@ -59,8 +59,8 @@ const List<String> _monthNames = [
 String formatMessageDay(int epochMs, {DateTime? now}) {
   final dt = DateTime.fromMillisecondsSinceEpoch(epochMs);
   final today = now ?? DateTime.now();
-  final thatDay = DateTime(dt.year, dt.month, dt.day);
-  final todayDay = DateTime(today.year, today.month, today.day);
+  final thatDay = DateTime.utc(dt.year, dt.month, dt.day);
+  final todayDay = DateTime.utc(today.year, today.month, today.day);
   final daysApart = todayDay.difference(thatDay).inDays;
   if (daysApart == 0) return 'Today';
   if (daysApart == 1) return 'Yesterday';

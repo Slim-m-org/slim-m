@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../routing/modal_page.dart' show kScrimColor;
+import 'attachment_tap_target.dart';
 import 'cover_resize_image.dart';
 import 'message_row_parts.dart' show AttachmentPlaceholder;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -99,39 +100,30 @@ class AttachmentRevealTile extends StatelessWidget {
             ),
           );
 
-    return Semantics(
-      button: true,
+    return AttachmentTapTarget(
       label: line ?? 'Play $caption',
       onTap: onReveal,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: onReveal,
-          child: SelectionContainer.disabled(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: tokens.borderSubtle),
-                    borderRadius: radius,
-                  ),
-                  child: body,
-                ),
-                if (tile == null) ...[
-                  const SizedBox(height: AppSpacing.s4),
-                  Text(
-                    caption,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.caption.copyWith(
-                      color: tokens.textSecondary,
-                    ),
-                  ),
-                ],
-              ],
+      child: SelectionContainer.disabled(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: tokens.borderSubtle),
+                borderRadius: radius,
+              ),
+              child: body,
             ),
-          ),
+            if (tile == null) ...[
+              const SizedBox(height: AppSpacing.s4),
+              Text(
+                caption,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.caption.copyWith(color: tokens.textSecondary),
+              ),
+            ],
+          ],
         ),
       ),
     );
