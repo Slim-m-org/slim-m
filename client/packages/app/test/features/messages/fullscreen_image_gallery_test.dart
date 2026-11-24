@@ -347,4 +347,32 @@ void main() {
 
     expect(find.text('3 of 3'), findsOneWidget);
   });
+
+  testWidgets('a keyboard step off a zoomed page leaves swipe paging free', (
+    tester,
+  ) async {
+    await _openAt(tester, _images[1], _images, [_servesPng()]);
+    final centre = tester.getCenter(
+      find.byWidgetPredicate((w) => w is InteractiveViewer).hitTestable(),
+    );
+    final left = await tester.startGesture(centre - const Offset(20, 0));
+    final right = await tester.startGesture(centre + const Offset(20, 0));
+    await tester.pump();
+    await left.moveBy(const Offset(-80, 0));
+    await right.moveBy(const Offset(80, 0));
+    await tester.pump();
+    await left.up();
+    await right.up();
+    await tester.pump(const Duration(seconds: 1));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('3 of 3'), findsOneWidget);
+
+    await tester.flingFrom(centre, const Offset(300, 0), 1500);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('2 of 3'), findsOneWidget);
+  });
 }

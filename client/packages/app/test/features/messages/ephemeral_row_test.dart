@@ -291,4 +291,21 @@ void main() {
       lessThanOrEqualTo(tester.view.physicalSize.height),
     );
   });
+
+  testWidgets('a private answer is timed from arrival, not the server clock', (
+    tester,
+  ) async {
+    final h = await _pump(tester, const []);
+    final longAgo = DateTime.now()
+        .subtract(const Duration(hours: 1))
+        .millisecondsSinceEpoch;
+    h.send('e1', longAgo, 'secret');
+    await tester.pump();
+
+    await tester.pump(const Duration(seconds: 30));
+    expect(find.text('secret'), findsOneWidget);
+    await tester.pump(ephemeralLifetime);
+    await tester.pump();
+    expect(find.text('secret'), findsNothing);
+  });
 }

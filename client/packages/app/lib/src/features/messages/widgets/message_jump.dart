@@ -81,6 +81,7 @@ class MessageJumpHighlight extends StatefulWidget {
 class _MessageJumpHighlightState extends State<MessageJumpHighlight> {
   bool _lit = true;
   bool _started = false;
+  bool _arrived = false;
 
   /// How long the tint stays fully lit before easing back out.
   static const _hold = Duration(milliseconds: 700);
@@ -113,7 +114,23 @@ class _MessageJumpHighlightState extends State<MessageJumpHighlight> {
     if (mounted) setState(() => _lit = false);
     // Let the fade actually play first, or consuming this now unmounts the wrapper mid-fade rather than letting the tint finish.
     if (!reduced) await Future<void>.delayed(_fadeOut);
-    widget.onArrived();
+    _reportArrived();
+  }
+
+  bool _claimArrival() {
+    if (_arrived) return false;
+    return _arrived = true;
+  }
+
+  void _reportArrived() {
+    if (_claimArrival()) widget.onArrived();
+  }
+
+  @override
+  void dispose() {
+    // Deferred: the controller's state must not change while the tree unmounts.
+    if (_claimArrival()) scheduleMicrotask(widget.onArrived);
+    super.dispose();
   }
 
   @override
