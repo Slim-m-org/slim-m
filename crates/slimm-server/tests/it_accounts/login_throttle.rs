@@ -306,3 +306,66 @@ async fn the_owner_signs_in_after_the_account_delay_and_that_ends_the_guessing()
         "the correct password reset the count"
     );
 }
+
+/// Signs in carrying an install id from one address.
+async fn login_install(router: &Router, ip: usize, install: &str) -> StatusCode {
+    let mut req = request(
+        "POST",
+        "/auth/login",
+        None,
+        Some(json!({
+            "username": "alice",
+            "password": PASSWORD,
+            "device_name": "cli",
+            "install_id": install,
+        })),
+    );
+    req.headers_mut().insert(
+        "x-forwarded-for",
+        format!("198.51.100.{}", ip % 250 + 1).parse().unwrap(),
+    );
+    let proxy: std::net::SocketAddr = "127.0.0.1:4000".parse().unwrap();
+    req.extensions_mut()
+        .insert(axum::extract::ConnectInfo(proxy));
+    router.clone().oneshot(req).await.unwrap().status()
+}
+
+const OWNER_INSTALL: &str = "0192b7a0-0000-7000-8000-0000000000aa";
+
+#[tokio::test]
+async fn strangers_arming_the_account_delay_cannot_keep_a_known_install_out() {
+    let (store, auth, _guard) = new_store("slimm-login-throttle-known-install").await;
+    let router = app(store.clone(), auth.clone());
+    member(&store, &auth, "alice").await;
+    let alice = store
+        .live_user_id_by_username("alice")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        login_install(&router, 1, OWNER_INSTALL).await,
+        StatusCode::OK
+    );
+
+    for i in 0..=ACCOUNT_FREE_FAILURES * 2 {
+        let source = format!("ip:203.0.113.{}", i % 250);
+        store.record_login_failure(alice, &source).await.unwrap();
+    }
+    assert!(
+        store
+            .login_throttled(alice, "ip:198.51.100.9")
+            .await
+            .unwrap()
+    );
+
+    assert_eq!(
+        login_install(&router, 10, "0192b7a0-0000-7000-8000-0000000000bb").await,
+        StatusCode::UNAUTHORIZED,
+        "an install the account never signed in from still shares the account delay"
+    );
+    assert_eq!(
+        login_install(&router, 9, OWNER_INSTALL).await,
+        StatusCode::OK,
+        "the owner's own device was refused by strangers' guesses"
+    );
+}

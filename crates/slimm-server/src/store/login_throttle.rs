@@ -75,23 +75,70 @@ impl Store {
         Ok(locked.is_some())
     }
 
-    /// Milliseconds until password checks for this account from this caller stop being refused,
-    /// zero when they are not being refused.
-    pub async fn login_delay_remaining_ms(
+    /// Whether this caller's own row refuses password checks, ignoring the account-wide row.
+    ///
+    /// For a caller that already proved a device of this account: an install it signed in from
+    /// before, or a live session. Distributed guessing by strangers cannot then keep the owner
+    /// out, while the caller's own failures still slow the caller.
+    pub async fn login_throttled_own_source(
         &self,
         user_id: UserId,
         source: &str,
-    ) -> anyhow::Result<i64> {
-        let locked_until = sqlx::query_scalar!(
-            "SELECT MAX(locked_until) AS \"locked_until: i64\" FROM login_throttle
-             WHERE user_id = ? AND source IN (?, ?)",
+    ) -> anyhow::Result<bool> {
+        let locked = sqlx::query_scalar!(
+            "SELECT 1 AS \"one!: i64\" FROM login_throttle
+             WHERE user_id = ? AND source = ? AND locked_until > ?",
             user_id,
             source,
-            ACCOUNT_SOURCE
+            now_ms()
         )
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await?;
-        Ok(locked_until.map_or(0, |until| (until - now_ms()).max(0)))
+        Ok(locked.is_some())
+    }
+
+    /// Whether `install_id` is the install this account has already signed in from.
+    pub async fn is_known_install(
+        &self,
+        user_id: UserId,
+        install_id: &str,
+    ) -> anyhow::Result<bool> {
+        let device_id = super::sessions::install_device_id(user_id, install_id);
+        Ok(sqlx::query_scalar!(
+            r#"SELECT 1 AS "one!: i64" FROM devices WHERE id = ? AND user_id = ?"#,
+            device_id,
+            user_id
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .is_some())
+    }
+
+    /// Takes one password attempt for a signed-in caller before the password is checked, so a
+    /// burst of parallel guesses is counted one by one instead of all passing the same check.
+    /// Answers the milliseconds to wait when the caller's own row is refusing; the right password
+    /// then clears the count with [`Store::clear_login_throttle`].
+    pub async fn reserve_password_attempt(
+        &self,
+        user_id: UserId,
+        source: &str,
+    ) -> anyhow::Result<Option<i64>> {
+        let now = now_ms();
+        let mut tx = self.begin_write().await?;
+        let locked_until = sqlx::query_scalar!(
+            "SELECT locked_until FROM login_throttle WHERE user_id = ? AND source = ?",
+            user_id,
+            source
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+        if let Some(until) = locked_until.filter(|until| *until > now) {
+            return Ok(Some(until - now));
+        }
+        bump(&mut tx, user_id, source, now, delay_ms).await?;
+        bump(&mut tx, user_id, ACCOUNT_SOURCE, now, account_delay_ms).await?;
+        tx.commit().await?;
+        Ok(None)
     }
 
     /// Counts a wrong password against the account from this caller and sets the next delay.

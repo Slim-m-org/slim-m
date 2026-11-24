@@ -12,7 +12,7 @@
 //! every key a flood presents.
 
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use super::{Bucket, Class};
 
@@ -20,18 +20,9 @@ use super::{Bucket, Class};
 /// ones have filled [`super::MAX_BUCKETS`]; still a hard bound on memory.
 pub(super) const MEMBER_HEADROOM: usize = 10_000;
 
-/// Drops idle buckets and ones that have refilled to their burst: neither
-/// remembers anything a fresh bucket would not.
-pub(super) fn reclaim(
-    buckets: &mut HashMap<(Class, String), Bucket>,
-    now: Instant,
-    idle_ttl: Duration,
-) {
-    buckets.retain(|(class, _), bucket| {
-        let elapsed = now.duration_since(bucket.last);
-        let (burst, refill) = class.budget();
-        elapsed < idle_ttl && bucket.tokens + elapsed.as_secs_f64() * refill < burst
-    });
+/// Drops buckets that have refilled to their burst: they remember nothing a fresh bucket would not.
+pub(super) fn reclaim(buckets: &mut HashMap<(Class, String), Bucket>, now: Instant) {
+    buckets.retain(|(class, _), bucket| !bucket.has_refilled(*class, now));
 }
 
 /// A key the caller chose by choosing where to connect from.

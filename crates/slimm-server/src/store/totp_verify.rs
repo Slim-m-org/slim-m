@@ -63,8 +63,11 @@ pub enum ChallengeError {
     /// gone. One variant for all four, so this cannot be used to mine which
     /// challenges are live.
     Unusable,
-    /// The presented code was wrong, replayed, or out of window.
-    BadCode,
+    /// The presented code was wrong, replayed, or out of window. Carries the account when this
+    /// wrong code is the one that locked its factor, so the caller can tell its owner.
+    BadCode {
+        locked: Option<UserId>,
+    },
     Locked {
         until: i64,
     },
@@ -194,9 +197,10 @@ impl Store {
         {
             Some(proof) => proof,
             None => {
-                record_failure(&mut tx, pending.user_id, pending.failed_attempts, now).await?;
+                let locked =
+                    record_failure(&mut tx, pending.user_id, pending.failed_attempts, now).await?;
                 tx.commit().await?;
-                return Err(ChallengeError::BadCode);
+                return Err(ChallengeError::BadCode { locked });
             }
         };
 
@@ -279,9 +283,9 @@ impl Store {
                 Ok(proof)
             }
             None => {
-                record_failure(&mut tx, user_id, factor.failed_attempts, now).await?;
+                let locked = record_failure(&mut tx, user_id, factor.failed_attempts, now).await?;
                 tx.commit().await?;
-                Err(TotpError::BadCode)
+                Err(TotpError::BadCode { locked })
             }
         }
     }
@@ -357,31 +361,28 @@ async fn spend_code(
     Ok(Some(TotpProof::RecoveryCode))
 }
 
-/// Counts one failed attempt and locks the factor once the run reaches
-/// [`totp::MAX_FAILURES`].
+/// Counts one failed attempt and locks the factor each time the cumulative count reaches a
+/// multiple of [`totp::MAX_FAILURES`], for longer every time (see [`totp::lockout_ms`]).
 ///
-/// Persistent rather than in-process, unlike [`crate::ratelimit`], which is the
-/// point: the limiter bounds request rate per caller and resets when the process
-/// does, and neither property is enough for a six-digit secret. This bounds
-/// total guesses against one account no matter who is asking or how many times
-/// the server has restarted.
+/// Persistent rather than in-process, unlike [`crate::ratelimit`]: the count survives a restart
+/// and is not zeroed when a lock starts, so only a correct code resets it and a patient grind
+/// meets ever longer locks. Answers the account when this failure started a lock.
 pub(super) async fn record_failure(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     user_id: UserId,
     failed_attempts: i64,
     now: i64,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Option<UserId>> {
     let attempts = failed_attempts + 1;
-    let locked_until = (attempts >= totp::MAX_FAILURES).then(|| now + totp::LOCKOUT_MS);
-    // Zeroed as the lock goes on, so it lifts into a fresh run rather than one attempt before locking again.
-    let stored = if locked_until.is_some() { 0 } else { attempts };
+    let locks = attempts % totp::MAX_FAILURES == 0;
+    let locked_until = locks.then(|| now + totp::lockout_ms(attempts));
     sqlx::query!(
         "UPDATE user_totp_factors SET failed_attempts = ?, locked_until = ? WHERE user_id = ?",
-        stored,
+        attempts,
         locked_until,
         user_id
     )
     .execute(&mut **tx)
     .await?;
-    Ok(())
+    Ok(locks.then_some(user_id))
 }

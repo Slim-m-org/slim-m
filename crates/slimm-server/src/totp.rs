@@ -108,12 +108,18 @@ pub fn normalize_recovery_code(code: &str) -> String {
         .collect()
 }
 
-/// How long the factor stays locked once [`MAX_FAILURES`] is reached.
+/// How long each successive lock holds, indexed by how many locks came before it.
 ///
-/// Long enough that grinding six digits is hopeless (five tries per fifteen
-/// minutes against a million codes), short enough that somebody who fat-
-/// fingered their own code five times is not locked out for the evening.
-pub const LOCKOUT_MS: i64 = 15 * 60 * 1000;
+/// The first is short so somebody who fat-fingered their own code is not locked out for the
+/// evening; the later ones make a long grind against six digits hopeless. A correct code or
+/// recovery code resets the count.
+const LOCKOUT_LADDER_MS: [i64; 4] = [15 * 60_000, 60 * 60_000, 4 * 60 * 60_000, 24 * 60 * 60_000];
+
+/// How long the factor locks after `failures` cumulative wrong codes, a multiple of [`MAX_FAILURES`].
+pub fn lockout_ms(failures: i64) -> i64 {
+    let completed_runs = (failures / MAX_FAILURES - 1).clamp(0, LOCKOUT_LADDER_MS.len() as i64 - 1);
+    LOCKOUT_LADDER_MS[completed_runs as usize]
+}
 
 /// A freshly minted secret, base32 as an authenticator app expects it.
 ///
@@ -139,7 +145,9 @@ pub fn step_at(at_ms: i64) -> i64 {
 /// The `otpauth://` URI an authenticator app scans, naming `issuer` so the
 /// entry is identifiable among a person's other accounts.
 pub fn provisioning_uri(secret: &str, issuer: &str, account: &str) -> anyhow::Result<String> {
-    Ok(build(secret, issuer, account)?.get_url())
+    // The otpauth label separates issuer and account with a colon, so a colon in the issuer is not representable.
+    let issuer = issuer.replace(':', " ");
+    Ok(build(secret, &issuer, account)?.get_url())
 }
 
 /// Whether `code` is valid for `secret` at `at_ms`, and if so which step it

@@ -22,6 +22,7 @@ use super::reauth::require_password;
 use crate::hub::Event;
 use crate::ids::UserId;
 use crate::permissions::Permissions;
+use crate::push::AdminAlertPush;
 use crate::store::{ChallengeError, TotpError, TotpProof};
 
 const BODY_LIMIT: usize = 4 * 1024;
@@ -158,11 +159,11 @@ async fn confirm(
     Json(body): Json<ConfirmRequest>,
 ) -> Result<Json<RecoveryCodesResponse>, ApiError> {
     require_password(&state, ctx.user_id, body.password.as_deref()).await?;
-    let recovery_codes = state
+    let confirmed = state
         .store
         .confirm_totp_enrolment(ctx.user_id, body.code.trim())
-        .await
-        .map_err(factor_error)?;
+        .await;
+    let recovery_codes = factor_result(&state, confirmed).await?;
     Ok(Json(RecoveryCodesResponse { recovery_codes }))
 }
 
@@ -174,11 +175,11 @@ async fn reissue_recovery_codes(
     State(state): State<AppState>,
     Json(body): Json<CodeRequest>,
 ) -> Result<Json<RecoveryCodesResponse>, ApiError> {
-    state
+    let verified = state
         .store
         .verify_totp_for_change(ctx.user_id, body.code.trim())
-        .await
-        .map_err(factor_error)?;
+        .await;
+    factor_result(&state, verified).await?;
     let recovery_codes = state
         .store
         .regenerate_totp_recovery_codes(ctx.user_id)
@@ -197,11 +198,11 @@ async fn disable(
     State(state): State<AppState>,
     Json(body): Json<CodeRequest>,
 ) -> Result<StatusCode, ApiError> {
-    state
+    let verified = state
         .store
         .verify_totp_for_change(ctx.user_id, body.code.trim())
-        .await
-        .map_err(factor_error)?;
+        .await;
+    factor_result(&state, verified).await?;
     state
         .store
         .remove_totp_factor(ctx.user_id)
@@ -222,11 +223,17 @@ async fn verify(
     Json(body): Json<VerifyRequest>,
 ) -> Result<Json<super::auth::TokenResponse>, ApiError> {
     let install_id = super::auth::parse_install_id(body.install_id.as_deref())?;
-    let signed_in = state
+    let completed = state
         .store
         .complete_totp_challenge(&body.challenge, body.code.trim(), install_id.as_deref())
-        .await
-        .map_err(challenge_error)?;
+        .await;
+    if let Err(ChallengeError::BadCode {
+        locked: Some(user_id),
+    }) = &completed
+    {
+        alert_lockout(&state, *user_id);
+    }
+    let signed_in = completed.map_err(challenge_error)?;
 
     super::sign_in_alert::announce(
         &state,
@@ -254,7 +261,7 @@ async fn verify(
 /// 0048 records why collapsing the two would make the factor worth no more than
 /// one administrator's say-so. It revokes every session and writes a
 /// `totp_cleared` audit entry, so the act leaves a trace that outlives it.
-/// Like a reset code, it reaches only an account ranking below the caller.
+/// Like a reset code, it reaches only an account ranking below the caller, never the caller's own.
 async fn admin_clear(
     AuthedLimited(ctx): AuthedLimited<PASSWORD>,
     Path(user_id): Path<String>,
@@ -265,6 +272,11 @@ async fn admin_clear(
         .await?;
     super::reauth::require_admin_password(&state, ctx.user_id, &body).await?;
     let user_id = UserId(parse_uuid(&user_id)?);
+    if user_id == ctx.user_id {
+        return Err(ApiError::ForbiddenBecause(
+            "turn off your own two-factor sign-in with your current code instead",
+        ));
+    }
     super::role_ladder::Ladder::of(&state, ctx.user_id)
         .await?
         .reach_other(&state, user_id)
@@ -305,6 +317,32 @@ fn enrolment_error(err: TotpError) -> ApiError {
 /// attacker learns anyway by being locked out themselves. Hiding it instead
 /// means a member who mistyped five codes sees "that code is not valid" for a
 /// correct code and concludes their authenticator is broken.
+pub(super) async fn factor_result<T>(
+    state: &AppState,
+    result: Result<T, TotpError>,
+) -> Result<T, ApiError> {
+    if let Err(TotpError::BadCode {
+        locked: Some(user_id),
+    }) = &result
+    {
+        alert_lockout(state, *user_id);
+    }
+    result.map_err(factor_error)
+}
+
+/// Tells the account's own devices that its second factor just locked, since only the owner can say whether they were the one guessing.
+fn alert_lockout(state: &AppState, user_id: UserId) {
+    tracing::warn!(%user_id, "two-factor sign-in locked after repeated wrong codes");
+    state.push.notify_admin_alert(
+        state.store.clone(),
+        vec![user_id],
+        AdminAlertPush {
+            title: "Two-factor sign-in locked".to_owned(),
+            body: "Several wrong codes were entered for your account. If that was not you, change your password.".to_owned(),
+        },
+    );
+}
+
 pub(super) fn factor_error(err: TotpError) -> ApiError {
     match err {
         TotpError::NotEnrolled | TotpError::NotConfirmed => {
@@ -314,7 +352,7 @@ pub(super) fn factor_error(err: TotpError) -> ApiError {
         TotpError::PolicyForbids => {
             ApiError::ForbiddenBecause("this server does not accept new two-factor enrolments")
         }
-        TotpError::BadCode => ApiError::BadRequest(BAD_CODE),
+        TotpError::BadCode { .. } => ApiError::BadRequest(BAD_CODE),
         TotpError::Locked { .. } => ApiError::TooManyRequests,
         TotpError::Internal(err) => err.into(),
     }
@@ -324,7 +362,7 @@ fn challenge_error(err: ChallengeError) -> ApiError {
     match err {
         // One answer for unknown, expired, spent and factor-gone, so this cannot mine which challenges are live.
         ChallengeError::Unusable => ApiError::Unauthorized,
-        ChallengeError::BadCode => ApiError::BadRequest(BAD_CODE),
+        ChallengeError::BadCode { .. } => ApiError::BadRequest(BAD_CODE),
         ChallengeError::Locked { .. } => ApiError::TooManyRequests,
         ChallengeError::Open(open) => open.into(),
         ChallengeError::Internal(err) => err.into(),
