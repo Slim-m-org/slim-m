@@ -166,7 +166,7 @@ async fn a_callee_whose_device_dropped_without_leaving_is_rung() {
     let (channel_id, bob_id) = ids(&channel, &bob);
     rig.heartbeat(&channel, &bob).await;
     let live_state = rig.state.voice.live_state();
-    live_state.mark_joined(channel_id, bob_id, "PA_bob");
+    live_state.mark_joined(channel_id, bob_id, "PA_bob", None);
     live_state.mark_left(channel_id, bob_id, "PA_bob");
     rig.heartbeat(&channel, &alice).await;
 

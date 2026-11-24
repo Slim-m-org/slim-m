@@ -3,7 +3,6 @@
 
 use super::AppState;
 use super::error::ApiError;
-use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
 
 /// Advances `user_id`'s marker in `channel_id` and fans the result out to that
@@ -17,15 +16,8 @@ pub(super) async fn advance_and_announce(
     channel_id: ChannelId,
     seq: i64,
 ) -> Result<(), ApiError> {
-    let moved = state.store.mark_read(user_id, channel_id, seq).await?;
-    if let Some(last_read_seq) = moved {
-        state.hub.publish(Event::ReadStateChanged {
-            user_id,
-            channel_id,
-            last_read_seq,
-            manually_unread: false,
-        });
-    }
+    crate::read_announce::advance_and_announce(&state.store, &state.hub, user_id, channel_id, seq)
+        .await?;
     Ok(())
 }
 
