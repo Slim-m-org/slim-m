@@ -79,10 +79,12 @@ async fn four_people_in_turn_get_text_inside_five_seconds() {
                         identity: format!("speaker{who}"),
                         start_ms: utterance.start_ms,
                         end_ms: utterance.end_ms,
+                        generation: 0,
                     },
                     pcm: utterance.pcm,
                     language: Some("en".into()),
                     reply: reply.clone(),
+                    cancel: None,
                 });
             }
             let finished = done.recv().await.unwrap();

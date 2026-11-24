@@ -3,6 +3,9 @@
 //! are decoded here ([`crate::clip`]), run through the same engine pool the
 //! calls use, and dropped; nothing is written or kept.
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use axum::Json;
 use axum::body::Bytes;
 use axum::extract::{Query, Request, State};
@@ -43,11 +46,24 @@ pub async fn require_secret(
     next.run(request).await
 }
 
+/// Stops the clip's job once the request is gone, however it went.
+struct CancelOnDrop(Arc<AtomicBool>);
+
+impl Drop for CancelOnDrop {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::Release);
+    }
+}
+
 pub async fn handler(
     State(control): State<Control>,
     Query(params): Query<Params>,
     body: Bytes,
 ) -> Result<Json<Reply>, StatusCode> {
+    let _turn = control
+        .clip_turn()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let pcm = tokio::task::spawn_blocking(move || clip::decode(&body))
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
@@ -57,18 +73,22 @@ pub async fn handler(
         })?;
     let duration_ms = (pcm.len() * 1000 / SAMPLE_RATE) as i64;
     let (reply, mut done) = tokio::sync::mpsc::unbounded_channel();
+    let cancel = Arc::new(AtomicBool::new(false));
+    let _abandoned = CancelOnDrop(Arc::clone(&cancel));
     control.pool().submit(Work {
         meta: Meta {
             session: "clip".into(),
             identity: String::new(),
             start_ms: 0,
             end_ms: duration_ms,
+            generation: 0,
         },
         pcm,
         language: params
             .language
             .or_else(|| control.config().language.clone()),
         reply,
+        cancel: Some(cancel),
     });
     let finished = done.recv().await.ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
     let transcript = finished.result.map_err(|why| {
@@ -90,6 +110,7 @@ pub async fn handler(
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     use axum::body::{Body, to_bytes};
     use axum::http::Request;
@@ -228,6 +249,87 @@ mod tests {
     async fn a_body_over_the_limit_is_refused() {
         let (status, _) = post(SECRET, &vec![0; MAX_BODY_BYTES + 1]).await;
         assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
+    /// Runs until cancelled, counting how many clips it started and how many it was told to stop.
+    #[derive(Default)]
+    struct Hanging {
+        started: std::sync::atomic::AtomicUsize,
+        stopped: std::sync::atomic::AtomicUsize,
+    }
+
+    impl Transcriber for Hanging {
+        fn transcribe(&self, _: &[i16], _: Option<&str>) -> anyhow::Result<Transcript> {
+            unreachable!("the pool asks for the cancellable form")
+        }
+
+        fn transcribe_until(
+            &self,
+            _: &[i16],
+            _: Option<&str>,
+            cancel: &AtomicBool,
+        ) -> anyhow::Result<Transcript> {
+            self.started.fetch_add(1, Ordering::SeqCst);
+            while !cancel.load(Ordering::Acquire) {
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            self.stopped.fetch_add(1, Ordering::SeqCst);
+            anyhow::bail!("cancelled")
+        }
+
+        fn model(&self) -> String {
+            "hanging".into()
+        }
+    }
+
+    async fn until(what: &str, mut ready: impl FnMut() -> bool) {
+        for _ in 0..200 {
+            if ready() {
+                return;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        panic!("timed out waiting for {what}");
+    }
+
+    #[tokio::test]
+    async fn a_clip_whose_request_is_dropped_stops_and_the_next_one_waits_its_turn() {
+        let engine = Arc::new(Hanging::default());
+        let router = router_hearing(engine.clone());
+        let request = |router: axum::Router| {
+            let request = Request::post("/v1/transcribe")
+                .header("authorization", format!("Bearer {SECRET}"))
+                .body(Body::from(OGG.to_vec()))
+                .unwrap();
+            tokio::spawn(async move { router.oneshot(request).await })
+        };
+        let first = request(router.clone());
+        until("the first clip to start", || {
+            engine.started.load(Ordering::SeqCst) == 1
+        })
+        .await;
+        let second = request(router);
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        assert_eq!(
+            engine.started.load(Ordering::SeqCst),
+            1,
+            "one clip at a time"
+        );
+
+        first.abort();
+        until("the abandoned clip to stop", || {
+            engine.stopped.load(Ordering::SeqCst) == 1
+        })
+        .await;
+        until("the second clip to take its turn", || {
+            engine.started.load(Ordering::SeqCst) == 2
+        })
+        .await;
+        second.abort();
+        until("the second clip to stop", || {
+            engine.stopped.load(Ordering::SeqCst) == 2
+        })
+        .await;
     }
 
     #[tokio::test]
