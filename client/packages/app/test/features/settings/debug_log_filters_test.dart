@@ -31,13 +31,17 @@ DebugLog _log() {
 Future<ProviderContainer> _open(
   WidgetTester tester, {
   double width = 900,
+  DebugLogFilter? filter,
 }) async {
   tester.view.physicalSize = Size(width, 2400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final log = _log();
   final container = ProviderContainer(
-    overrides: [debugLogProvider.overrideWith((ref) => log)],
+    overrides: [
+      debugLogProvider.overrideWith((ref) => log),
+      if (filter != null) debugLogFilterProvider.overrideWith((ref) => filter),
+    ],
   );
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -98,6 +102,22 @@ void main() {
     await tester.enterText(find.byType(EditableText).first, 'zzz');
     await tester.pumpAndSettle();
     expect(find.text('Nothing matches this filter.'), findsOneWidget);
+  });
+
+  testWidgets('a kept query shows in the search box on reopen', (tester) async {
+    await _open(tester, filter: const DebugLogFilter(query: 'joined'));
+    expect(find.text('joined'), findsOneWidget);
+    expect(find.text('sync dropped'), findsNothing);
+  });
+
+  testWidgets('a kept area keeps its chip row so it can be cleared', (
+    tester,
+  ) async {
+    await _open(tester, filter: const DebugLogFilter(tag: 'gone'));
+    expect(find.byKey(const ValueKey('area-All')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('area-All')));
+    await tester.pumpAndSettle();
+    expect(find.text('sync dropped'), findsOneWidget);
   });
 
   testWidgets('copy exports only what is shown, with secrets redacted', (
