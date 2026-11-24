@@ -14,6 +14,7 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.util.concurrent.Callable
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -31,7 +32,7 @@ import java.util.concurrent.Future
 class ShareIntakeChannel(private val context: Context) : MethodChannel.MethodCallHandler {
   private val copier: ExecutorService = Executors.newSingleThreadExecutor()
   private var channel: MethodChannel? = null
-  private var pending: Future<Map<String, Any?>>? = null
+  private val pending = ConcurrentLinkedQueue<Future<Map<String, Any?>>>()
 
   fun attach(messenger: BinaryMessenger) {
     channel = MethodChannel(messenger, NAME).also { it.setMethodCallHandler(this) }
@@ -45,7 +46,7 @@ class ShareIntakeChannel(private val context: Context) : MethodChannel.MethodCal
     if (action != Intent.ACTION_SEND && action != Intent.ACTION_SEND_MULTIPLE) return
     val uris = sharedUris(intent)
     val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
-    pending = copier.submit(Callable { copyAll(uris, text) })
+    pending.add(copier.submit(Callable { copyAll(uris, text) }))
     if (warm) channel?.invokeMethod("arrived", null)
   }
 
@@ -56,18 +57,17 @@ class ShareIntakeChannel(private val context: Context) : MethodChannel.MethodCal
     }
   }
 
-  /** Hands over the waiting share once, off the main thread so a large copy never blocks the UI. */
+  /** Hands over every waiting share once, merged, off the main thread so a large copy never blocks the UI. */
   private fun take(result: MethodChannel.Result) {
-    val waiting = pending
-    pending = null
-    if (waiting == null) {
+    val waiting = generateSequence { pending.poll() }.toList()
+    if (waiting.isEmpty()) {
       result.success(null)
       return
     }
     val main = Handler(Looper.getMainLooper())
     Thread {
       try {
-        val share = waiting.get()
+        val share = ShareIntakeRules.mergeShares(waiting.map { it.get() })
         main.post { result.success(share) }
       } catch (e: Exception) {
         main.post { result.error("copy_failed", "The shared items could not be read.", null) }
@@ -92,11 +92,25 @@ class ShareIntakeChannel(private val context: Context) : MethodChannel.MethodCal
     purgeOldBatches(batch)
     val files = ArrayList<Map<String, Any?>>()
     var unreadable = 0
+    var tooLarge = 0
+    var copiedBytes = 0L
     for ((index, uri) in uris.withIndex()) {
-      val copied = if (isUnsafeSource(uri)) null else copyOne(uri, File(batch, index.toString()))
-      if (copied == null) unreadable++ else files.add(copied)
+      if (isUnsafeSource(uri)) {
+        unreadable++
+        continue
+      }
+      val room = ShareIntakeRules.allowedBytes(copiedBytes, context.cacheDir.usableSpace)
+      val copied = copyOne(uri, File(batch, index.toString()), room)
+      when {
+        copied == null -> unreadable++
+        copied === TOO_LARGE -> tooLarge++
+        else -> {
+          files.add(copied)
+          copiedBytes += (copied["length"] as Long)
+        }
+      }
     }
-    return mapOf("files" to files, "text" to text, "unreadable" to unreadable)
+    return mapOf("files" to files, "text" to text, "unreadable" to unreadable, "tooLarge" to tooLarge)
   }
 
   /**
@@ -107,24 +121,37 @@ class ShareIntakeChannel(private val context: Context) : MethodChannel.MethodCal
   private fun isUnsafeSource(uri: Uri): Boolean =
     uri.scheme != "content" || ShareIntakeRules.namesOwnProvider(uri.authority, context.packageName)
 
-  private fun copyOne(uri: Uri, dir: File): Map<String, Any?>? {
+  private fun copyOne(uri: Uri, dir: File, room: Long): Map<String, Any?>? {
     return try {
       val resolver = context.contentResolver
+      if (declaredSize(uri) > room) return TOO_LARGE
       val mimeType = resolver.getType(uri)
       val name = displayName(uri, mimeType)
       dir.mkdirs()
       val target = File(dir, name)
       val input = resolver.openInputStream(uri) ?: return null
-      try {
-        input.use { source -> target.outputStream().use { source.copyTo(it) } }
+      val fits = try {
+        input.use { source -> target.outputStream().use { ShareIntakeRules.copyCapped(source, it, room) } }
       } catch (e: Exception) {
         target.delete()
         throw e
+      }
+      if (!fits) {
+        target.delete()
+        return TOO_LARGE
       }
       mapOf("path" to target.path, "name" to name, "mimeType" to mimeType, "length" to target.length())
     } catch (e: Exception) {
       null
     }
+  }
+
+  private fun declaredSize(uri: Uri): Long {
+    var size = -1L
+    context.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use {
+      if (it.moveToFirst() && !it.isNull(0)) size = it.getLong(0)
+    }
+    return size
   }
 
   private fun displayName(uri: Uri, mimeType: String?): String {
@@ -151,6 +178,7 @@ class ShareIntakeChannel(private val context: Context) : MethodChannel.MethodCal
 
   companion object {
     const val NAME = "top.npcserver.slimm/share_intake"
+    private val TOO_LARGE: Map<String, Any?> = emptyMap()
     private const val INTAKE_DIR = "shared_intake"
     private const val KEEP_MILLIS = 24L * 60 * 60 * 1000
   }
