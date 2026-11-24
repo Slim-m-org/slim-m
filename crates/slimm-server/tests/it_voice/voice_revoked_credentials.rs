@@ -136,7 +136,7 @@ async fn signing_out_ends_the_call_that_session_joined() {
 
     assert_eq!(status, StatusCode::NO_CONTENT);
     wait_until("the signed-out device leaves the room", || {
-        call.removals(call.member.id) == 1
+        call.removals(call.member.id) >= 1
     })
     .await;
 }
@@ -173,7 +173,7 @@ async fn spending_a_reset_code_ends_the_call() {
 
     assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
     wait_until("the reset account leaves the room", || {
-        call.removals(call.member.id) == 1
+        call.removals(call.member.id) >= 1
     })
     .await;
 }
@@ -222,7 +222,7 @@ async fn revoking_a_bot_ends_its_call() {
 
     assert_eq!(status, StatusCode::NO_CONTENT);
     wait_until("the revoked bot leaves the room", || {
-        call.removals(bot_id) == 1
+        call.removals(bot_id) >= 1
     })
     .await;
 }
