@@ -35,6 +35,7 @@ MIRRORED_NAMES = {
 NOT_BACKED_UP_NAMES = {
     ("attachments_dir", 'format!(".tmp-{}", Uuid::now_v7())'): "an upload still being written",
     ("attachments_dir", "name"): "remove_temp_file, which only deletes a .tmp- leftover",
+    ("avatars_dir", "name"): "remove_profile_file, which only deletes an orphan the sweep found",
 }
 
 # Each `Media::write_*`, so a new one is noticed even when it reuses a known path builder.
