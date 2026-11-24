@@ -23,13 +23,6 @@ import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../../support/fake_voice.dart';
 
-const _tokens = TokenPair(
-  userId: 'user-1',
-  accessToken: 'access',
-  refreshToken: 'refresh',
-  accessExpiresAt: 0,
-);
-
 /// Puts the call in [flags], the way the controller would as a call moves.
 void _setFlags(ProviderContainer container, VoiceFlags flags) =>
     (container.read(voiceControllerProvider.notifier) as FakeVoiceController)
@@ -97,13 +90,23 @@ ProviderContainer _container(
   String? elsewhere,
   bool onScreen = true,
   bool noticeDue = false,
+  String userId = 'user-1',
   List<CallToRestore>? rejoins,
   VoiceController Function(Ref ref) voice = FakeVoiceController.new,
 }) {
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-      sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+      sessionProvider.overrideWithValue(
+        SessionStore(
+          tokens: TokenPair(
+            userId: userId,
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            accessExpiresAt: 0,
+          ),
+        ),
+      ),
       preferencesProvider.overrideWith((ref) async => prefs),
       voiceControllerProvider.overrideWith(voice),
       restorableChannelProvider.overrideWithValue((_) async => channelName),
@@ -163,10 +166,24 @@ void main() {
       final restore = CallRestore(prefs, now: () => now);
       await restore.markRestart();
       // The call torn down on the way out must not wipe it.
-      await restore.forget();
+      await restore.forget('user-1');
 
       expect((await restore.take('user-1'))?.restart, isTrue);
     });
+
+    test(
+      "forgetting one account's call leaves another account's record",
+      () async {
+        final prefs = await _prefs({
+          callRestoreKey: _record(user: 'user-2', at: now),
+        });
+        await CallRestore(prefs, now: () => now).forget('user-1');
+        expect(prefs.getString(callRestoreKey), isNotNull);
+
+        await CallRestore(prefs, now: () => now).forget('user-2');
+        expect(prefs.getString(callRestoreKey), isNull);
+      },
+    );
 
     test('a relaunch that fails gives the call back to this run', () async {
       final prefs = await _prefs({callRestoreKey: _record(at: now)});
@@ -175,7 +192,7 @@ void main() {
         restore.relaunchKeepingCall(() async => throw StateError('no spawn')),
         throwsStateError,
       );
-      await restore.forget();
+      await restore.forget('user-1');
       expect(
         prefs.getString(callRestoreKey),
         isNull,
@@ -330,6 +347,44 @@ void main() {
       _setFlags(container, const VoiceFlags());
       await pumpEventQueue();
       expect(prefs.getString(callRestoreKey), isNull);
+    });
+
+    test(
+      "one account leaving does not delete the call another account holds",
+      () async {
+        final prefs = await _prefs();
+        final first = _container(prefs);
+        final second = _container(prefs, userId: 'user-2');
+        first.read(callRestoreWatchProvider);
+        second.read(callRestoreWatchProvider);
+        _setFlags(first, _connected);
+        await pumpEventQueue();
+        _setFlags(second, _connected);
+        await pumpEventQueue();
+        expect(_stored(prefs, 'user'), 'user-2');
+
+        _setFlags(first, const VoiceFlags());
+        await pumpEventQueue();
+
+        expect(_stored(prefs, 'user'), 'user-2');
+      },
+    );
+
+    test('a join that never connected forgets nothing', () async {
+      final prefs = await _prefs({callRestoreKey: _record(at: now)});
+      final other = _container(prefs, userId: 'user-2');
+      other.read(callRestoreWatchProvider);
+      _setFlags(
+        other,
+        const VoiceFlags(
+          channelId: 'voice-2',
+          state: VoiceSessionState.connecting,
+        ),
+      );
+      _setFlags(other, const VoiceFlags());
+      await pumpEventQueue();
+
+      expect(prefs.getString(callRestoreKey), isNotNull);
     });
 
     test('deafening alone rewrites the record', () async {

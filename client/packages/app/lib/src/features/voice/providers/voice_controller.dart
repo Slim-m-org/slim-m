@@ -18,6 +18,7 @@ import '../../../audio/call_start_yields.dart';
 import '../../../audio/sound_session_release.dart';
 import '../../../push/providers/push_channel_providers.dart';
 import 'call_foreground_keeper.dart';
+import 'call_owner.dart';
 import 'call_recap.dart';
 import 'join_timings_provider.dart';
 import 'level_display.dart';
@@ -67,6 +68,7 @@ class VoiceController extends StateNotifier<VoiceState> {
              requestNotifications: () async {
                await _ref.read(localNotificationsProvider).requestPermission();
              },
+             mayUpdate: () => !otherAccountInCall(_ref),
            ),
        _heartbeat = VoiceCallHeartbeat(
          _ref,
@@ -118,7 +120,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     );
     addListener((s) => _foreground.rejoining(s.rejoining));
     _endCallRequests = _callLifecycle.endCallRequests.listen((_) {
-      unawaited(leave());
+      if (state.channelId != null) unawaited(leave());
     });
     _session.audioSessionReader = _callLifecycle.audioSessionLine;
     _callSystemEvents = _callLifecycle.systemEvents.listen(
