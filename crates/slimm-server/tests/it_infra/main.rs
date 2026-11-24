@@ -27,6 +27,7 @@ mod direct_route;
 mod enum_column_validation;
 mod fts_update_trigger;
 mod healthcheck_cli;
+mod identity_proof;
 mod inflight_cap;
 mod list_routes_rate_limited;
 mod malformed_requests;
