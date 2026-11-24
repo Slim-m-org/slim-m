@@ -339,7 +339,7 @@ async fn a_reaction_must_be_an_emoji_a_shortcode_or_a_custom_emoji_id() {
         "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}",
         "\u{1F1E8}\u{1F1E6}",
         "1\u{FE0F}\u{20E3}",
-        ":party_parrot:",
+        ":smile:",
         &uuid::Uuid::now_v7().to_string(),
     ];
     for emoji in accepted {
