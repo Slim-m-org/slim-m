@@ -50,6 +50,7 @@ mod openapi_429_coverage;
 mod openapi_contract;
 mod openapi_integer_formats;
 mod panic_guard;
+mod panic_guard_contained;
 mod participant_guard_coverage;
 mod permissions_batch_cost;
 mod permissions_webhook_batch;

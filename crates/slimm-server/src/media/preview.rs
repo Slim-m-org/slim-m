@@ -21,6 +21,7 @@ use super::image_header::ImageHeader;
 use super::memory_budget::MemoryBudget;
 pub use super::preview_derive::Variant;
 use super::preview_derive::{decode_estimate, derive_many, derive_one, probe_header, variant_of};
+use crate::http::panic_guard::{Panicked, spawn_blocking_contained};
 
 /// Longest-side widths a preview may be asked for. Bucketing bounds the files kept per attachment.
 pub const BUCKETS: [u32; 3] = [320, 640, 1280];
@@ -167,14 +168,21 @@ impl Previews {
         };
         let original = original.to_path_buf();
         let target = path.clone();
-        tokio::task::spawn_blocking(move || {
+        let recorded = target.clone();
+        match spawn_blocking_contained(move || {
             let _permit = (permit, memory);
             let derived = derive(&original, bucket)?;
             durable::write_atomic(&target, derived.as_deref().unwrap_or_default())?;
             Ok(derived.map_or(Preview::Original, |_| Preview::Derived(target)))
         })
         .await
-        .unwrap_or_else(|e| Err(io::Error::other(e)))
+        {
+            Ok(done) => done,
+            Err(Panicked) => {
+                record_undecodable(vec![recorded]).await;
+                Ok(Preview::Original)
+            }
+        }
     }
 
     /// Derives every bucket of a just-uploaded picture from one decode, in the background.
@@ -219,7 +227,8 @@ impl Previews {
             .into_iter()
             .map(|bucket| (bucket, self.path(hex, variant, bucket)))
             .collect();
-        tokio::task::spawn_blocking(move || {
+        let recorded: Vec<PathBuf> = targets.iter().map(|(_, target)| target.clone()).collect();
+        match spawn_blocking_contained(move || {
             let _permit = (permit, memory);
             let buckets: Vec<u32> = targets.iter().map(|(bucket, _)| *bucket).collect();
             let derived = derive_many(&original, variant, &buckets)?;
@@ -229,7 +238,13 @@ impl Previews {
             Ok(())
         })
         .await
-        .unwrap_or_else(|e| Err(io::Error::other(e)))
+        {
+            Ok(done) => done,
+            Err(Panicked) => {
+                record_undecodable(recorded).await;
+                Ok(())
+            }
+        }
     }
 
     /// Removes every preview of `hex`, by name: the directory holds every attachment's previews, so it is never listed here.
@@ -299,6 +314,20 @@ async fn existing(path: &Path) -> io::Result<Option<Preview>> {
     }
 }
 
+/// Writes the empty file that makes the original the answer, so a picture whose decode
+/// panicked is not decoded again by the next request.
+async fn record_undecodable(targets: Vec<PathBuf>) {
+    let written = tokio::task::spawn_blocking(move || {
+        targets
+            .iter()
+            .try_for_each(|target| durable::write_atomic(target, &[]))
+    })
+    .await;
+    if !matches!(written, Ok(Ok(()))) {
+        tracing::warn!("could not record that a picture cannot be previewed");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -354,6 +383,32 @@ mod tests {
                 .await
                 .expect("the gate frees once the decode ends")
                 .unwrap();
+        std::fs::remove_dir_all(&previews.dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_decoder_panic_answers_the_original_and_is_not_decoded_again() {
+        crate::http::panic_guard::install_hook();
+        let previews = Previews::new(
+            std::env::temp_dir().join(format!("slimm-preview-{}", uuid::Uuid::now_v7())),
+            MemoryBudget::for_limit(None),
+        );
+        std::fs::create_dir_all(&previews.dir).unwrap();
+        let derive = |_: &Path, _| -> io::Result<Option<Vec<u8>>> { panic!("decoder bug") };
+
+        let first = previews
+            .resolve_with("ee", Path::new("x"), 320, Variant::Preview, derive)
+            .await
+            .unwrap();
+        let again = previews
+            .resolve_with("ee", Path::new("x"), 320, Variant::Preview, |_, _| {
+                Err(io::Error::other("decoded a second time"))
+            })
+            .await
+            .unwrap();
+
+        assert!(matches!(first, Preview::Original));
+        assert!(matches!(again, Preview::Original));
         std::fs::remove_dir_all(&previews.dir).unwrap();
     }
 
