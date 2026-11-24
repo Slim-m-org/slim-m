@@ -6,7 +6,7 @@
 # With a revision range argument (base...head) it checks that range instead of the index, which is how hygiene.yml runs it on a pull request.
 set -uo pipefail
 
-if [ $# -gt 0 ]; then
+if [[ $# -gt 0 ]]; then
   diff_args=("$1")
   blob_prefix="${1##*.}"
 else
@@ -35,11 +35,11 @@ if grep -Eq -e "$secret_pattern" <<<"$added"; then
   status=1
 fi
 
-if [ "${SLIMM_ALLOW_LARGE:-0}" != 1 ]; then
+if [[ "${SLIMM_ALLOW_LARGE:-0}" != 1 ]]; then
   while IFS=$'\t' read -r added _ f; do
-    [ "$added" = "-" ] || continue
+    [[ "$added" = "-" ]] || continue
     size=$(git cat-file -s "${blob_prefix}:$f" 2>/dev/null || echo 0)
-    if [ "$size" -gt "$limit" ]; then
+    if [[ "$size" -gt "$limit" ]]; then
       echo "::error file=$f::binary file of $((size / 1024)) KiB staged; the limit is $((limit / 1024)) KiB"
       status=1
     fi

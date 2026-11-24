@@ -103,13 +103,7 @@ def check_against_producer(path: Path, digest: str, expected: dict[str, dict]) -
         raise ManifestError(f"{path.name} differs from the digest its producer recorded")
 
 
-def build_manifest(
-    tag: str, directory: Path, repo: str, require: list[str], expected: dict[str, dict] | None = None
-) -> dict:
-    if not tag.startswith("client-v"):
-        raise ManifestError(f"tag must look like client-vX.Y.Z, got {tag!r}")
-    version = tag.removeprefix("client-v")
-    version_tuple(version)
+def _collect_artifacts(directory: Path, repo: str, tag: str, expected: dict[str, dict] | None) -> dict:
     artifacts = {}
     for path in sorted(directory.iterdir()):
         for platform, pattern in PLATFORMS.items():
@@ -125,6 +119,17 @@ def build_manifest(
                 "sha256": digest,
                 "size": path.stat().st_size,
             }
+    return artifacts
+
+
+def build_manifest(
+    tag: str, directory: Path, repo: str, require: list[str], expected: dict[str, dict] | None = None
+) -> dict:
+    if not tag.startswith("client-v"):
+        raise ManifestError(f"tag must look like client-vX.Y.Z, got {tag!r}")
+    version = tag.removeprefix("client-v")
+    version_tuple(version)
+    artifacts = _collect_artifacts(directory, repo, tag, expected)
     alias, target = ANDROID_ALIAS
     if alias not in artifacts and target in artifacts:
         artifacts[alias] = dict(artifacts[target])

@@ -110,8 +110,16 @@ def _opens_function(text: str, brace: int) -> bool | None:
             if depth == 0:
                 break
         i -= 1
-    word = re.search(r"(\w+)\s*$", before[:i])
-    return (word.group(1) if word else "") not in CONTROL_KEYWORDS
+    return _last_word(before[:i]) not in CONTROL_KEYWORDS
+
+
+def _last_word(text: str) -> str:
+    """The identifier that ends `text`, ignoring trailing whitespace, or an empty string."""
+    end = len(text.rstrip())
+    start = end
+    while start > 0 and (text[start - 1].isalnum() or text[start - 1] == "_"):
+        start -= 1
+    return text[start:end]
 
 
 def _ends_by_leaving(body: str) -> bool:

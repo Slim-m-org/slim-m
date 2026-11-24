@@ -218,6 +218,33 @@ def _report_gaps(plan, restored):
         print(f"  MALFORMED   {reason}", file=sys.stderr)
 
 
+def _report_kept_and_gaps(plan):
+    if plan.kept:
+        print("not in the backup, so the copy already in the data directory was kept: "
+              + ", ".join(plan.kept))
+    if plan.gaps:
+        print(f"{plan.gaps} file(s) the database references are in neither the backup nor "
+              "the data directory:", file=sys.stderr)
+        _report_gaps(plan, restored=True)
+
+
+def _report_owner(owner, owned, data_dir):
+    if owned:
+        print(f"owner set to {owner[0]}:{owner[1]}")
+        return
+    warning = _ownership_warning(owner, data_dir)
+    if warning:
+        print(f"warning: {warning}", file=sys.stderr)
+
+
+def _report_sessions(revoked, dead_bots):
+    if revoked:
+        print("every session was revoked: members sign in again")
+    if dead_bots:
+        print("these bots' tokens ended with their sessions and need new tokens in each bot's "
+              "environment: " + ", ".join(dead_bots))
+
+
 def run(args):
     backup_root, data_dir = Path(args.backup_root), Path(args.data_dir)
     if args.list:
@@ -257,27 +284,13 @@ def run(args):
     print(f"restored {snapshot.name} to {database} ({version})")
     print(f"media files: {media} copied, {plan.in_place} already in place; "
           f"module data files: {modules} copied")
-    if plan.kept:
-        print("not in the backup, so the copy already in the data directory was kept: "
-              + ", ".join(plan.kept))
-    if plan.gaps:
-        print(f"{plan.gaps} file(s) the database references are in neither the backup nor "
-              "the data directory:", file=sys.stderr)
-        _report_gaps(plan, restored=True)
+    _report_kept_and_gaps(plan)
     if moved:
         print(f"the database that was here is kept as {', '.join(moved)}")
     if moved_modules:
         print(f"module data files that were here are kept in modules/ as {', '.join(moved_modules)}")
-    if owned:
-        print(f"owner set to {args.owner[0]}:{args.owner[1]}")
-    warning = None if owned else _ownership_warning(args.owner, data_dir)
-    if warning:
-        print(f"warning: {warning}", file=sys.stderr)
-    if revoke:
-        print("every session was revoked: members sign in again")
-    if dead_bots:
-        print("these bots' tokens ended with their sessions and need new tokens in each bot's "
-              "environment: " + ", ".join(dead_bots))
+    _report_owner(args.owner, owned, data_dir)
+    _report_sessions(revoke, dead_bots)
     print("the database is as of the snapshot: re-run any account deletions and password "
           "changes made since it was taken")
     if not args.data_key_file and not (data_dir / KEY_FILE).is_file():

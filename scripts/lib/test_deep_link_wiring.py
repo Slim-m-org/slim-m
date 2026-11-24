@@ -55,11 +55,11 @@ class AndroidDeepLinking(unittest.TestCase):
             if d.get(ANDROID_NS + "scheme") == "slimm"
         }
         wanted = callback_hosts()
-        self.assertTrue(wanted <= hosts, wanted - hosts)
+        self.assertLessEqual(wanted, hosts)
 
     def test_hosts_are_read_from_the_dart_constants(self):
         found = set().union(*(dart_hosts(p.read_text()) for p in (APP / "lib").rglob("*.dart")))
-        self.assertTrue({"steam-link", "discord-link", "spotify-callback"} <= found, found)
+        self.assertLessEqual({"steam-link", "discord-link", "spotify-callback"}, found)
         self.assertEqual(dart_hosts("const newLinkHost = 'new-link';"), {"new-link"})
         self.assertEqual(dart_hosts("// const oldLinkHost = 'old-link';"), set())
 
