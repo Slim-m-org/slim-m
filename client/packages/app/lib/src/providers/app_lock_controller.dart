@@ -68,6 +68,21 @@ class AppLockController extends StateNotifier<bool>
   /// identical shadowing.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _applyLifecycle(state);
+    if (state == AppLifecycleState.resumed) _releaseShieldAfterFrame();
+  }
+
+  /// The iOS cover stays up across a resume until the frame that shows the
+  /// lock screen, or the unlocked app, has been drawn.
+  void _releaseShieldAfterFrame() {
+    final binding = WidgetsBinding.instance;
+    binding.addPostFrameCallback((_) {
+      unawaited(_ref.read(appLockWindowChannelProvider).releasePrivacyShield());
+    });
+    binding.scheduleFrame();
+  }
+
+  void _applyLifecycle(AppLifecycleState state) {
     if (!_enabled || !_signedIn) return;
     // Matches PushController's own iOS `inactive` reasoning: a visible-but-unfocused app is not backgrounded.
     final backgrounded =

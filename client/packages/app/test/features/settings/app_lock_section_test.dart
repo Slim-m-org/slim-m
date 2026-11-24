@@ -22,6 +22,9 @@ import 'package:slimm_platform/testing.dart';
 class _NoopAppLockWindowChannel implements AppLockWindowChannel {
   @override
   Future<void> setPrivacyShield(bool enabled) async {}
+
+  @override
+  Future<void> releasePrivacyShield() async {}
 }
 
 Future<ProviderContainer> _pump(WidgetTester tester, {bool? supported}) async {

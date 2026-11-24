@@ -43,4 +43,16 @@ class AppLockWindowChannel {
           'Could not hide the window contents for the app lock', error, stack);
     }
   }
+
+  /// Lifts the iOS cover kept up across a resume, once the frame that shows
+  /// the lock screen or the unlocked app has been drawn.
+  Future<void> releasePrivacyShield() async {
+    if (!_supported) return;
+    try {
+      await _channel.invokeMethod<void>('releasePrivacyShield');
+    } catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.auth, 'Could not lift the app lock cover', error, stack);
+    }
+  }
 }
