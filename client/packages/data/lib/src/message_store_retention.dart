@@ -66,8 +66,17 @@ Future<void> reclaimFreedPages(SlimmDatabase db) async {
   final row = await db.customSelect('PRAGMA freelist_count').getSingle();
   final freePages = row.data.values.first as int? ?? 0;
   if (freePages < vacuumFreePageFloor) return;
-  // Must run outside a transaction; the prune's own transaction has committed.
-  await db.customStatement('VACUUM');
+  // The key setup keeps temp tables in memory; VACUUM's rebuilt copy must not be.
+  final stored = await db.customSelect('PRAGMA temp_store').getSingle();
+  await db.customStatement('PRAGMA temp_store = FILE');
+  try {
+    // Must run outside a transaction; the prune's own transaction has committed.
+    await db.customStatement('VACUUM');
+  } finally {
+    await db.customStatement(
+      'PRAGMA temp_store = ${stored.data.values.first as int}',
+    );
+  }
 }
 
 /// [MessageStore.reachableMessageIds]'s body: every message id already held

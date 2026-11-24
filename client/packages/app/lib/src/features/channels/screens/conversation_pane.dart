@@ -72,7 +72,7 @@ class ConversationPane extends ConsumerWidget {
           padding: const EdgeInsets.all(AppSpacing.s16),
           child: AppErrorState(
             message: localStoreErrorMessage(e),
-            onRetry: () => ref.invalidate(storeProvider),
+            onRetry: () => ref.invalidate(databaseProvider),
           ),
         ),
       ),

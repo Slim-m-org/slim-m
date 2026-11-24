@@ -14,7 +14,7 @@ import 'package:sqlite3/sqlite3.dart';
 
 import 'database_key.dart';
 
-const _plainHeader = 'SQLite format 3\u0000';
+const plaintextDatabaseHeader = 'SQLite format 3\u0000';
 const _sqliteNotADatabase = 26;
 const _sqliteCorrupt = 11;
 final _keyPattern = RegExp(r'^[0-9a-f]{64}$');
@@ -199,8 +199,11 @@ _FileState _stateOf(File file) {
   if (!file.existsSync() || file.lengthSync() == 0) return _FileState.missing;
   final raf = file.openSync();
   try {
-    final head = String.fromCharCodes(raf.readSync(_plainHeader.length));
-    return head == _plainHeader ? _FileState.plaintext : _FileState.opaque;
+    final head =
+        String.fromCharCodes(raf.readSync(plaintextDatabaseHeader.length));
+    return head == plaintextDatabaseHeader
+        ? _FileState.plaintext
+        : _FileState.opaque;
   } finally {
     raf.closeSync();
   }

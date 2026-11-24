@@ -318,13 +318,20 @@ final databaseProvider = FutureProvider<SlimmDatabase>((ref) async {
   return db;
 });
 
+/// Says whether this tab may sweep abandoned sends; see `claimSoleTab`.
+final soleTabClaimProvider = Provider<Future<bool> Function()>(
+  (ref) => claimSoleTab,
+);
+
 /// The local store, once the database is open.
 final storeProvider = FutureProvider<MessageStore>((ref) async {
   final db = await ref.watch(databaseProvider.future);
   final store = MessageStore(db);
   try {
-    // Any row still pending belongs to a run that ended; see failInterruptedSends.
-    await failInterruptedSends(store);
+    // A pending row belongs to a dead run only if no other tab shares the database.
+    if (await ref.watch(soleTabClaimProvider)()) {
+      await failInterruptedSends(store);
+    }
   } catch (error, stack) {
     // The isolate wraps the real cause in a DriftRemoteException that names nothing.
     AppLog.error(
