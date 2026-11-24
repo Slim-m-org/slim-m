@@ -269,7 +269,7 @@ async fn retrying_a_deleted_send_is_not_a_500() {
         .unwrap();
     assert_eq!(
         retry.status(),
-        StatusCode::OK,
-        "a retry of a deleted message returns it, not a 500"
+        StatusCode::CONFLICT,
+        "a retry of a deleted message is refused, not a 500"
     );
 }
