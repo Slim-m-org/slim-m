@@ -212,20 +212,6 @@ pub(in crate::store) fn principal_username(module_id: &str, id: UserId) -> Strin
     format!("module-{stem}-{tail}")
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_principal_username_fits_and_keeps_the_module_id_readable() {
-        let id = UserId::generate();
-        let short = principal_username("homelab", id);
-        assert!(short.starts_with("module-homelab-"), "{short}");
-        let long = principal_username(&"x".repeat(64), id);
-        assert_eq!(long.chars().count(), MAX_USERNAME_CHARS);
-    }
-}
-
 /// How [`Store::move_module_schedule_channel`] ended.
 #[derive(Debug, PartialEq, Eq)]
 pub enum ScheduleMove {
@@ -251,4 +237,18 @@ async fn member_overwrite(
     .fetch_optional(&mut **tx)
     .await?;
     Ok(row.map(|r| (r.allow, r.deny)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_principal_username_fits_and_keeps_the_module_id_readable() {
+        let id = UserId::generate();
+        let short = principal_username("homelab", id);
+        assert!(short.starts_with("module-homelab-"), "{short}");
+        let long = principal_username(&"x".repeat(64), id);
+        assert_eq!(long.chars().count(), MAX_USERNAME_CHARS);
+    }
 }

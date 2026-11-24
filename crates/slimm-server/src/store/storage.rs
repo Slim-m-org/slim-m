@@ -195,7 +195,9 @@ impl Store {
                 .fetch_one(&self.pool)
                 .await
                 .context("find the database file")?;
-        Ok(std::fs::metadata(format!("{file}-wal")).map_or(0, |meta| meta.len()))
+        Ok(tokio::fs::metadata(format!("{file}-wal"))
+            .await
+            .map_or(0, |meta| meta.len()))
     }
 
     /// Every sweep that has recorded at least one run, in no particular

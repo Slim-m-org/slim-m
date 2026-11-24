@@ -34,7 +34,7 @@ pub enum GroupDmError {
     BadSize,
     /// The group already holds [`GROUP_DM_MAX_PARTICIPANTS`].
     Full,
-    /// One of the people involved is already in [`GROUP_DM_MAX_PER_ACCOUNT`] groups.
+    /// One of the people involved is already in [`super::GROUP_DM_MAX_PER_ACCOUNT`] groups.
     TooManyGroups,
     /// The client-chosen channel id belongs to something that is not the caller's group.
     IdTaken,
