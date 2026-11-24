@@ -19,23 +19,9 @@ import 'voice_state.dart';
 class VoiceJoinMuted {
   bool _restoreOn = false;
 
-  /// Whether [channelId] asks members to join with the mic off. Waits for the
-  /// local store to open; false when it fails or does not know the channel.
-  Future<bool> asksFor(Ref ref, String channelId) async {
-    try {
-      final store = await ref.read(storeProvider.future);
-      final row = await store.channelRow(channelId);
-      return row?.joinMuted ?? false;
-    } on Object catch (error, stack) {
-      AppLog.swallowed(
-        LogTag.voice,
-        'Could not read the join muted setting',
-        error,
-        stack,
-      );
-      return false;
-    }
-  }
+  /// Whether [channelId] asks members to join with the mic off.
+  Future<bool> asksFor(Ref ref, String channelId) =>
+      ref.read(channelJoinMutedProvider)(channelId);
 
   /// The mic preference a join starts from, undoing the previous call's mute.
   bool preferenceAtJoin(bool current) => _take() || current;
@@ -56,3 +42,26 @@ class VoiceJoinMuted {
     return restore;
   }
 }
+
+/// Waits for the local store to open, then reads the channel's flag; false when it fails or does not know the channel.
+Future<bool> joinMutedFromStore(Ref ref, String channelId) async {
+  try {
+    final store = await ref.read(storeProvider.future);
+    final row = await store.channelRow(channelId);
+    return row?.joinMuted ?? false;
+  } on Object catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.voice,
+      'Could not read the join muted setting',
+      error,
+      stack,
+    );
+    return false;
+  }
+}
+
+/// Replaced in tests that join under a fake clock, which cannot open a database.
+final channelJoinMutedProvider = Provider<Future<bool> Function(String)>(
+  (ref) =>
+      (channelId) => joinMutedFromStore(ref, channelId),
+);

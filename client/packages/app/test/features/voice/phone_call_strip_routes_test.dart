@@ -10,6 +10,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_call_summary.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -41,6 +42,7 @@ Future<({int strips, int summaries, String subtitle})> _walk(
 }) async {
   final fixture = await fixtureContainer(
     extraOverrides: [
+      channelJoinMutedProvider.overrideWithValue((_) async => false),
       voiceControllerProvider.overrideWith(
         (ref) => FixedVoiceController(ref, voice),
       ),

@@ -10,17 +10,16 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
-import 'package:slimm_data/data.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/call_foreground_keeper.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_auto_rejoin.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -172,12 +171,7 @@ class VoiceHarness {
     final container = ProviderContainer(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-        // A join reads the channel's join-muted flag, which waits for the store to open.
-        storeProvider.overrideWith((ref) async {
-          final store = MessageStore(SlimmDatabase(NativeDatabase.memory()));
-          ref.onDispose(() => unawaited(store.db.close()));
-          return store;
-        }),
+        channelJoinMutedProvider.overrideWithValue((_) async => false),
         sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
         apiProvider.overrideWith((ref) {
           final api = SlimmApi(

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -56,6 +57,7 @@ Future<void> _capture(WidgetTester tester, Size size, String name) async {
   final fixture = CanvasPaneFixture();
   final container = fixture.container(
     extraOverrides: [
+      channelJoinMutedProvider.overrideWithValue((_) async => false),
       voiceControllerProvider.overrideWith(
         (ref) => FixedVoiceController(ref, _call),
       ),

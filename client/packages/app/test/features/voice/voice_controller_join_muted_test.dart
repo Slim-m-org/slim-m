@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_data/data.dart';
 
 import 'voice_controller_harness.dart';
@@ -43,7 +44,13 @@ void main() {
     final controller = harness.controllerWith(
       session,
       voiceApi(),
-      extraOverrides: [storeProvider.overrideWith((ref) async => store)],
+      extraOverrides: [
+        storeProvider.overrideWith((ref) async => store),
+        channelJoinMutedProvider.overrideWith(
+          (ref) =>
+              (channelId) => joinMutedFromStore(ref, channelId),
+        ),
+      ],
     );
     await harness.container.read(storeProvider.future);
     return (session, controller);
@@ -116,7 +123,13 @@ void main() {
     final controller = harness.controllerWith(
       session,
       voiceApi(),
-      extraOverrides: [storeProvider.overrideWith((ref) => opening.future)],
+      extraOverrides: [
+        storeProvider.overrideWith((ref) => opening.future),
+        channelJoinMutedProvider.overrideWith(
+          (ref) =>
+              (channelId) => joinMutedFromStore(ref, channelId),
+        ),
+      ],
     );
 
     final joining = controller.join('stage');

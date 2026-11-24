@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_participant_drag.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_voice_participants.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
@@ -124,6 +125,7 @@ Future<void> _pump(
         if (ladder != null) roleLadderProvider.overrideWithValue(ladder),
         if (me != null) meProvider.overrideWith((ref) async => me),
         liveEventsProvider.overrideWithValue(const Stream.empty()),
+        channelJoinMutedProvider.overrideWithValue((_) async => false),
         voiceControllerProvider.overrideWith(
           (ref) => VoiceController(ref, session: FakeSession()),
         ),
@@ -334,6 +336,7 @@ void main() {
             headers: {'content-type': 'application/json'},
           );
         }),
+        channelJoinMutedProvider.overrideWithValue((_) async => false),
         voiceControllerProvider.overrideWith(
           (ref) => VoiceController(ref, session: session),
         ),
@@ -370,6 +373,7 @@ void main() {
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         liveEventsProvider.overrideWithValue(events.stream),
         mockApiOverride((_) async => http.Response('{}', 404)),
+        channelJoinMutedProvider.overrideWithValue((_) async => false),
         voiceControllerProvider.overrideWith(
           (ref) => VoiceController(ref, session: FakeSession()),
         ),
