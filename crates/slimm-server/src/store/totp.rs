@@ -94,9 +94,12 @@ pub enum TotpError {
     AlreadyEnabled,
     /// This deployment does not accept new enrolments.
     PolicyForbids,
-    /// The presented code was wrong, replayed, or out of window.
-    BadCode,
-    /// Too many recent failures; see [`crate::totp::LOCKOUT_MS`]. Carries when
+    /// The presented code was wrong, replayed, or out of window. Carries the account when this
+    /// wrong code is the one that locked its factor, so the caller can tell its owner.
+    BadCode {
+        locked: Option<UserId>,
+    },
+    /// Too many recent failures; see [`crate::totp::lockout_ms`]. Carries when
     /// the lock lifts, so a person is told to wait rather than told they are
     /// wrong.
     Locked {
@@ -319,10 +322,11 @@ impl Store {
         let step = totp::matching_step(&secret, code, now)?
             .filter(|step| factor.last_step.is_none_or(|last| *step > last));
         let Some(step) = step else {
-            super::totp_verify::record_failure(&mut tx, user_id, factor.failed_attempts, now)
-                .await?;
+            let locked =
+                super::totp_verify::record_failure(&mut tx, user_id, factor.failed_attempts, now)
+                    .await?;
             tx.commit().await?;
-            return Err(TotpError::BadCode);
+            return Err(TotpError::BadCode { locked });
         };
 
         sqlx::query!(

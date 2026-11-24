@@ -9,13 +9,13 @@
 
 use super::AppState;
 use super::error::ApiError;
-use super::totp::factor_error;
+use super::totp::factor_result;
 use crate::ids::UserId;
 
 /// Refuses unless `password` is the account's current password.
 ///
-/// Wrong guesses feed the sign-in throttle under the caller's own `u:` key, so a stolen token
-/// cannot grind the password here faster than it could through `/auth/login`.
+/// Each attempt is counted under the caller's own `u:` key before the password is checked, so a
+/// stolen token cannot grind the password here, in parallel or not, faster than `/auth/login`.
 pub(super) async fn require_password(
     state: &AppState,
     user_id: UserId,
@@ -30,11 +30,11 @@ pub(super) async fn require_password(
         ));
     };
     let source = format!("u:{user_id}");
-    let wait_ms = state
+    if let Some(wait_ms) = state
         .store
-        .login_delay_remaining_ms(user_id, &source)
-        .await?;
-    if wait_ms > 0 {
+        .reserve_password_attempt(user_id, &source)
+        .await?
+    {
         return Err(ApiError::RateLimited {
             retry_after_seconds: (wait_ms as u64).div_ceil(1000),
         });
@@ -47,7 +47,6 @@ pub(super) async fn require_password(
         state.store.clear_login_throttle(user_id, &source).await?;
         Ok(())
     } else {
-        state.store.record_login_failure(user_id, &source).await?;
         Err(ApiError::ForbiddenBecause("that password is not correct"))
     }
 }
@@ -94,10 +93,7 @@ pub(super) async fn require_current_code(
             "a current two-factor code is required",
         ));
     };
-    state
-        .store
-        .verify_totp_for_change(user_id, code)
-        .await
-        .map_err(factor_error)?;
+    let verified = state.store.verify_totp_for_change(user_id, code).await;
+    factor_result(state, verified).await?;
     Ok(())
 }

@@ -69,6 +69,7 @@ mod totp;
 mod totp_admin;
 mod totp_elevated_policy;
 mod totp_lifecycle;
+mod totp_lockout_escalation;
 mod totp_reauth;
 mod totp_secret_at_rest;
 mod user_notes;

@@ -46,6 +46,31 @@ async fn login(state: &AppState, name: &str, device: &str, kind: &str) -> String
     login_as_device(state, name, device, kind).await.0
 }
 
+/// Signs in carrying an install id, which is what makes a device recognisable on its next sign-in.
+async fn login_install(state: &AppState, name: &str, device: &str, kind: &str, install: &str) {
+    let response = http::router(state.clone())
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/auth/login")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "username": name,
+                        "password": PASSWORD,
+                        "device_name": device,
+                        "client_kind": kind,
+                        "install_id": install,
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
 /// Signs in over REST and returns the new device's ws ticket and id.
 async fn login_as_device(
     state: &AppState,
@@ -163,21 +188,33 @@ async fn a_device_does_not_hear_an_alert_naming_itself() {
 }
 
 #[tokio::test]
-async fn a_relogin_of_a_known_device_and_the_first_device_stay_quiet() {
+async fn a_relogin_of_a_known_install_stays_quiet() {
     let (state, _guard) = setup().await;
     account(&state, "alice").await;
-    account(&state, "bob").await;
-    let first = login(&state, "alice", "Pixel", "android").await;
+    let install = "0192b7a0-0000-7000-8000-000000000001";
+    login_install(&state, "alice", "Pixel", "android", install).await;
+    let first = login(&state, "alice", "Laptop", "desktop").await;
+    let addr = serve(state.clone()).await;
+    let mut laptop = connect(addr, &first).await;
+
+    login_install(&state, "alice", "Pixel", "android", install).await;
+
+    assert!(alerts(&mut laptop).await.is_empty());
+}
+
+/// The name and kind a client reports are chosen by whoever signs in, so matching an old row
+/// by them must not silence the alert.
+#[tokio::test]
+async fn a_sign_in_reusing_a_known_name_and_kind_without_an_install_still_alerts() {
+    let (state, _guard) = setup().await;
+    account(&state, "alice").await;
+    let first = login(&state, "alice", "iPhone", "ios").await;
     let addr = serve(state.clone()).await;
     let mut phone = connect(addr, &first).await;
-    let bob_ticket = login(&state, "bob", "Pixel", "android").await;
-    let mut bob = connect(addr, &bob_ticket).await;
 
-    login(&state, "alice", "Pixel", "android").await;
-    login(&state, "bob", "Pixel", "android").await;
+    login(&state, "alice", "iPhone", "ios").await;
 
-    assert!(alerts(&mut phone).await.is_empty());
-    assert!(alerts(&mut bob).await.is_empty());
+    assert_eq!(alerts(&mut phone).await.len(), 1);
 }
 
 #[tokio::test]
