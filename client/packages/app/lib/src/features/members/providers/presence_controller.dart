@@ -75,7 +75,8 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
     _ref.invalidate(meProvider);
     try {
       await _ref.read(meProvider.future);
-    } on Object {
+    } on api.ApiException catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'refresh own visibility', error, stack);
       return;
     }
     if (mounted) _ref.invalidate(presenceVisibilityDisplayProvider);
@@ -83,10 +84,7 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
 
   /// Asks again about everyone this session has asked about, for a socket that
   /// just went live: changes before it was subscribed never arrive as events.
-  Future<void> resync() {
-    unawaited(refreshOwnVisibility());
-    return refresh(_askedAt.keys.toList(growable: false));
-  }
+  Future<void> resync() => refresh(_askedAt.keys.toList(growable: false));
 
   /// [refresh] for whichever of [userIds] this connection has not asked about.
   Future<void> seed(Iterable<String> userIds) =>
