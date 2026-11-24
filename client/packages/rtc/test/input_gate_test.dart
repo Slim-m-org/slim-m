@@ -6,6 +6,7 @@ library;
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_rtc/rtc.dart';
+import 'dart:async';
 
 class _FakeGate {
   final calls = <(String, Object?)>[];
@@ -241,13 +242,13 @@ void main() {
     });
   });
 
-  test('a platform error stops polling instead of retrying forever', () {
+  test('repeated platform errors stop polling instead of retrying forever', () {
     fakeAsync((async) {
       final fake = _FakeGate()..fail = true;
       final gate = InputGateMonitor(invoke: fake.invoke, supported: true);
       gate.start(() {});
       async.elapse(const Duration(milliseconds: 500));
-      expect(fake.calls.length, 1);
+      expect(fake.calls.length, 3);
       expect(gate.running, isFalse);
     });
   });
@@ -344,6 +345,57 @@ void main() {
         ),
         isFalse,
       );
+    });
+  });
+
+  test('one failed read does not end monitoring', () {
+    fakeAsync((async) {
+      final fake = _FakeGate();
+      final gate = InputGateMonitor(invoke: fake.invoke, supported: true);
+      gate.start(() {});
+      async.elapse(const Duration(milliseconds: 100));
+      fake.fail = true;
+      async.elapse(const Duration(milliseconds: 60));
+      fake.fail = false;
+      async.elapse(const Duration(milliseconds: 500));
+      expect(gate.running, isTrue);
+      expect(fake.calls.length, greaterThan(5));
+      gate.stop();
+    });
+  });
+
+  test('giving up after repeated failures clears a voice state that was on',
+      () {
+    fakeAsync((async) {
+      final fake = _FakeGate()..voice = true;
+      var flips = 0;
+      final gate = InputGateMonitor(invoke: fake.invoke, supported: true);
+      gate.start(() => flips++);
+      async.elapse(const Duration(milliseconds: 100));
+      expect(gate.voice, isTrue);
+      final before = flips;
+      fake.fail = true;
+      async.elapse(const Duration(milliseconds: 500));
+      expect(gate.running, isFalse);
+      expect(gate.voice, isFalse);
+      expect(flips, before + 1, reason: 'the ring is told it went quiet');
+    });
+  });
+
+  test('a read that never completes times out and polling goes on', () {
+    fakeAsync((async) {
+      var reads = 0;
+      final gate = InputGateMonitor(
+        invoke: (method, [args]) {
+          reads++;
+          return Completer<Object?>().future;
+        },
+        supported: true,
+      );
+      gate.start(() {});
+      async.elapse(const Duration(seconds: 30));
+      expect(reads, greaterThan(1));
+      gate.stop();
     });
   });
 }

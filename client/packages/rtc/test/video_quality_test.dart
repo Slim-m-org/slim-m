@@ -297,4 +297,48 @@ void main() {
       }
     });
   });
+
+  group('applyReceiveVideoQuality failures', () {
+    RemoteVideoQualityRef failing(String sid, List<lk.VideoQuality> asked) => (
+          sid: sid,
+          key: 'camera:$sid',
+          source: lk.TrackSource.camera,
+          subscribed: true,
+          setQuality: (q) async {
+            asked.add(q);
+            throw StateError('participant left');
+          },
+        );
+
+    test('a throwing publication is skipped, not marked, and the rest run',
+        () async {
+      final asked = <lk.VideoQuality>[];
+      final later = <lk.VideoQuality>[];
+      final lowered = <String>{};
+      await applyReceiveVideoQuality(
+        [
+          failing('TR_1', asked),
+          _pub(lk.TrackSource.camera, later, sid: 'TR_2')
+        ],
+        ReceiveVideoQuality.dataSaver,
+        lowered,
+      );
+      expect(asked, [lk.VideoQuality.LOW]);
+      expect(later, [lk.VideoQuality.LOW]);
+      expect(lowered, {'TR_2'}, reason: 'TR_1 was never lowered');
+    });
+
+    test('a failed restore stays lowered so the next pass retries it',
+        () async {
+      final asked = <lk.VideoQuality>[];
+      final lowered = <String>{'TR_1'};
+      await applyReceiveVideoQuality(
+        [failing('TR_1', asked)],
+        ReceiveVideoQuality.max,
+        lowered,
+      );
+      expect(lowered, {'TR_1'});
+      expect(asked, [lk.VideoQuality.HIGH]);
+    });
+  });
 }

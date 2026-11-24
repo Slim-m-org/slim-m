@@ -140,4 +140,26 @@ void main() {
       expect(built.escalations, isEmpty);
     });
   });
+
+  test('a cancel while the offer is being read leaves no watch behind', () {
+    fakeAsync((async) {
+      final built = build(offer: () => 'offer-1');
+      unawaited(built.watch.watch());
+      built.watch.cancel();
+      async.elapse(grace * 3);
+      async.flushMicrotasks();
+      expect(built.escalations, isEmpty);
+    });
+  });
+
+  test('a second watch while the first is reading escalates once', () {
+    fakeAsync((async) {
+      final built = build(offer: () => 'offer-1');
+      unawaited(built.watch.watch());
+      unawaited(built.watch.watch());
+      async.elapse(grace * 3);
+      async.flushMicrotasks();
+      expect(built.escalations, ['restart']);
+    });
+  });
 }

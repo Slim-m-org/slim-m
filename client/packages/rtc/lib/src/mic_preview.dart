@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'input_gate.dart' show kInputFloorDb;
+import 'read_timeout.dart';
 
 enum MicPreviewStatus {
   /// Nothing is capturing.
@@ -177,7 +178,7 @@ class MicPreview {
     if (_polling) return;
     _polling = true;
     try {
-      final read = await _source.read();
+      final read = await _source.read().timeout(kPollReadTimeout);
       if (mine != _generation) return;
       if (read == null) {
         if (++_misses >= maxMisses) {

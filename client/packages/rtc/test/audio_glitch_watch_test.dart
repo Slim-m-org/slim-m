@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' show LogLevel;
 import 'package:slimm_rtc/src/audio_glitch_watch.dart';
 import 'package:slimm_rtc/src/voice_health.dart';
+import 'dart:async';
+import 'package:fake_async/fake_async.dart';
 
 AudioReceiveSample _s({
   num concealed = 0,
@@ -121,5 +123,45 @@ void main() {
 
     expect(notes.single, startsWith('[voice-health] last 60s'));
     expect(lines, isEmpty);
+  });
+
+  test('a stats read that never completes does not stall later samples', () {
+    fakeAsync((async) {
+      var reads = 0;
+      final watch = AudioGlitchWatch(
+        sources: () => {
+          'Ann': () {
+            reads++;
+            return Completer<AudioReceiveSample?>().future;
+          },
+        },
+        log: (m, {LogLevel level = LogLevel.info}) {},
+        interval: const Duration(seconds: 1),
+      )..start();
+
+      async.elapse(const Duration(seconds: 20));
+      expect(reads, greaterThan(1), reason: 'the hung read timed out');
+      watch.stop();
+    });
+  });
+
+  test('a sample started while one is still reading is skipped', () {
+    fakeAsync((async) {
+      var reads = 0;
+      final watch = AudioGlitchWatch(
+        sources: () => {
+          'Ann': () {
+            reads++;
+            return Completer<AudioReceiveSample?>().future;
+          },
+        },
+        log: (m, {LogLevel level = LogLevel.info}) {},
+      );
+
+      unawaited(watch.sample());
+      unawaited(watch.sample());
+      async.flushMicrotasks();
+      expect(reads, 1);
+    });
   });
 }

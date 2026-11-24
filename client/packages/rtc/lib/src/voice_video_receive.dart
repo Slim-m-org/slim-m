@@ -10,6 +10,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show LogLevel;
 
 import 'remote_video_publication.dart';
+import 'share_audio_gate.dart';
 import 'video_quality.dart';
 import 'video_subscription_culler.dart';
 
@@ -85,12 +86,21 @@ class VoiceVideoReceive {
   }
 
   /// Applies the receive quality to every remote video in [room].
-  Future<void> applyQuality(lk.Room room) => applyReceiveVideoQuality(
+  Future<void> applyQuality(lk.Room room) async {
+    try {
+      await applyReceiveVideoQuality(
         remoteVideoQualityRefs(room),
         _quality,
         _loweredSids,
         enlarged: _enlarged.keys,
       );
+    } on Object catch (error) {
+      _host.diag(
+        'Could not apply the receive quality: $error',
+        level: LogLevel.warning,
+      );
+    }
+  }
 
   /// Every remote video publication in the room, as the plain records
   /// `mapVideoSubscriptionRefs` turns into the tile keys the canvas's own
@@ -129,6 +139,13 @@ class VoiceVideoReceive {
     _host.syncStall();
   }
 
+  late final _shareAudio = ShareAudioGate(
+    onError: (error) => _host.diag(
+      'Could not change screen share audio: $error',
+      level: LogLevel.warning,
+    ),
+  );
+
   /// A share's audio is its own publication, which the culler never sees, so a blocked share's is unsubscribed here and only here.
   void _applyShareAudioBlock(lk.Room room) {
     for (final participant in room.remoteParticipants.values) {
@@ -140,14 +157,12 @@ class VoiceVideoReceive {
       );
       for (final pub in participant.audioTrackPublications) {
         if (pub.source != lk.TrackSource.screenShareAudio) continue;
-        if (blocked == !pub.subscribed) continue;
-        unawaited(
-          (blocked ? pub.unsubscribe() : pub.subscribe()).catchError(
-            (Object e) => _host.diag(
-              'Could not change screen share audio: $e',
-              level: LogLevel.warning,
-            ),
-          ),
+        _shareAudio.apply(
+          sid: pub.sid,
+          blocked: blocked,
+          subscribed: pub.subscribed,
+          subscribe: pub.subscribe,
+          unsubscribe: pub.unsubscribe,
         );
       }
     }

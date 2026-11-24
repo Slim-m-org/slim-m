@@ -79,4 +79,25 @@ void main() {
       expect(track.platformCalls, calls);
     });
   });
+
+  group('a pass that throws', () {
+    Iterable<LocalAudioRef> throwing() sync* {
+      throw StateError('participant torn down');
+    }
+
+    test('completes the caller instead of leaving it hanging', () async {
+      final state = LocalAudioState();
+      final result = await state.applyToRefs(throwing()).timeout(
+            const Duration(seconds: 1),
+          );
+      expect(result, isA<StateError>());
+    });
+
+    test('completes a queued waiter too', () async {
+      final state = LocalAudioState();
+      final first = state.applyToRefs(throwing());
+      final second = state.applyToRefs(throwing());
+      await Future.wait([first, second]).timeout(const Duration(seconds: 1));
+    });
+  });
 }

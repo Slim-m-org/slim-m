@@ -5,6 +5,7 @@ import 'package:slimm_rtc/src/call_stats.dart';
 import 'package:slimm_rtc/src/screen_share_liveness.dart';
 import 'package:slimm_rtc/src/screen_share_local.dart';
 import 'package:slimm_rtc/src/screen_share_recovery.dart';
+import 'dart:async';
 
 const _tick = Duration(seconds: 2);
 
@@ -199,6 +200,42 @@ void main() {
         out({'kind': 'audio'})
       ]);
       expect(reading.framesSent, isNull);
+    });
+  });
+
+  group('ShareRecovery reads', () {
+    test('a read that never completes times out and polling goes on', () {
+      fakeAsync((async) {
+        var reads = 0;
+        final recovery = ShareRecovery(
+          read: () {
+            reads++;
+            return Completer<ShareReading?>().future;
+          },
+          pause: (_) async {},
+          restart: () async {},
+        )..start(windowShare: true);
+        async.elapse(const Duration(seconds: 30));
+        expect(reads, greaterThan(1));
+        recovery.stop();
+      });
+    });
+
+    test('a throwing read is caught and the next poll still runs', () {
+      fakeAsync((async) {
+        var reads = 0;
+        final recovery = ShareRecovery(
+          read: () async {
+            reads++;
+            throw StateError('capture torn down');
+          },
+          pause: (_) async {},
+          restart: () async {},
+        )..start(windowShare: true);
+        async.elapse(const Duration(seconds: 7));
+        expect(reads, 3);
+        recovery.stop();
+      });
     });
   });
 }
