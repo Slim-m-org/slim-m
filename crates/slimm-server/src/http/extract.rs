@@ -58,6 +58,11 @@ impl FromRequestParts<AppState> for Authed {
     }
 }
 
+/// The limiter key an authenticated caller is charged under.
+pub(crate) fn user_limit_key(user_id: crate::ids::UserId) -> String {
+    format!("u:{user_id}")
+}
+
 /// The caller's identity for rate-limiting purposes: the authenticated user when
 /// there is one, otherwise the peer address. Authenticated callers are keyed by
 /// user so a limit follows the account across devices and networks, rather than
@@ -83,7 +88,7 @@ pub(crate) fn limit_key(
     limiter: &RateLimiter,
 ) -> String {
     if let Some(ctx) = ctx {
-        return format!("u:{}", ctx.user_id);
+        return user_limit_key(ctx.user_id);
     }
     let trusted_hops = limiter.trusted_hops();
     let peer = parts

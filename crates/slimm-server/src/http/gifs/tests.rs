@@ -5,6 +5,7 @@
 //! provider lives in `tests/it_chat/gif_picker.rs` instead, since that needs a real
 //! router and a real fake HTTP server neither of which belongs in a unit test.
 
+use super::egress::url_fetchable;
 use super::filename::{extension_for, slug_filename};
 use super::*;
 
@@ -153,4 +154,30 @@ fn slug_filename_caps_word_separated_titles() {
         "len {}",
         slug.len()
     );
+}
+
+#[test]
+fn only_gif_webp_and_mp4_are_gif_content_types() {
+    for allowed in ["image/gif", "image/webp", "video/mp4"] {
+        assert!(filename::is_gif_content_type(allowed), "{allowed}");
+    }
+    for refused in ["image/png", "image/jpeg", "application/pdf", "text/plain"] {
+        assert!(!filename::is_gif_content_type(refused), "{refused}");
+    }
+    assert_eq!(extension_for("video/mp4"), "mp4");
+}
+
+#[test]
+fn a_fetch_is_https_to_a_named_host_unless_a_test_allows_private() {
+    for refused in [
+        "http://cdn.example/a.gif",
+        "https://127.0.0.1/a.gif",
+        "https://10.0.0.5/a.gif",
+        "https://[::1]/a.gif",
+        "not a url",
+    ] {
+        assert!(!url_fetchable(refused, false), "{refused}");
+    }
+    assert!(url_fetchable("https://cdn.example/a.gif", false));
+    assert!(url_fetchable("http://127.0.0.1:1/a.gif", true));
 }

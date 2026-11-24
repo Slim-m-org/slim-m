@@ -9,6 +9,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use uuid::Uuid;
 
+use crate::ids::UserId;
 use crate::store::now_ms;
 
 use super::provider;
@@ -25,10 +26,15 @@ const CACHE_TTL_MS: i64 = 15 * 60 * 1000;
 /// become the flood's cost.
 const MAX_CACHE_ENTRIES: usize = 5_000;
 
+/// Most live tokens one member holds, five full result pages. Past it that
+/// member's own oldest tokens go first, so a flood ages out only the flooder's.
+const MAX_ENTRIES_PER_OWNER: usize = 250;
+
 /// Handed a search hit's own [`provider::ProviderGif`], picks a fresh opaque
 /// token, caches the two real URLs behind it, and returns the wire shape a
 /// client sees.
 struct CachedGif {
+    owner: UserId,
     preview_url: String,
     full_url: String,
     stamp_url: String,
@@ -67,11 +73,12 @@ impl Cache {
     /// Mints and caches a fresh token for `gif`, sweeping expired entries
     /// first and, only if the map is still over [`MAX_CACHE_ENTRIES`] after
     /// that, evicting the oldest half in one pass.
-    pub(super) fn insert(&self, gif: &provider::ProviderGif) -> String {
+    pub(super) fn insert(&self, owner: UserId, gif: &provider::ProviderGif) -> String {
         let token = Uuid::now_v7().to_string();
         let now = now_ms();
         let mut guard = self.lock();
         guard.retain(|_, cached| now - cached.inserted_at < CACHE_TTL_MS);
+        evict_owner_overflow(&mut guard, owner);
         if guard.len() >= MAX_CACHE_ENTRIES {
             let mut by_age: Vec<(String, i64)> = guard
                 .iter()
@@ -85,6 +92,7 @@ impl Cache {
         guard.insert(
             token.clone(),
             CachedGif {
+                owner,
                 preview_url: gif.preview_url.clone(),
                 full_url: gif.full_url.clone(),
                 stamp_url: gif.stamp_url.clone(),
@@ -98,23 +106,19 @@ impl Cache {
     }
 
     pub(super) fn preview_url(&self, token: &str) -> Option<String> {
-        self.lock()
-            .get(token)
-            .map(|cached| cached.preview_url.clone())
+        self.live(token, |cached| cached.preview_url.clone())
     }
 
     pub(super) fn full_url(&self, token: &str) -> Option<String> {
-        self.lock().get(token).map(|cached| cached.full_url.clone())
+        self.live(token, |cached| cached.full_url.clone())
     }
 
     pub(super) fn stamp_url(&self, token: &str) -> Option<String> {
-        self.lock()
-            .get(token)
-            .map(|cached| cached.stamp_url.clone())
+        self.live(token, |cached| cached.stamp_url.clone())
     }
 
     pub(super) fn snapshot(&self, token: &str) -> Option<GifSnapshot> {
-        self.lock().get(token).map(|cached| GifSnapshot {
+        self.live(token, |cached| GifSnapshot {
             title: cached.title.clone(),
             preview_url: cached.preview_url.clone(),
             full_url: cached.full_url.clone(),
@@ -124,7 +128,16 @@ impl Cache {
     }
 
     pub(super) fn title(&self, token: &str) -> Option<String> {
-        self.lock().get(token).map(|cached| cached.title.clone())
+        self.live(token, |cached| cached.title.clone())
+    }
+
+    /// The one lookup: an entry past its TTL reads as absent until an insert sweeps it.
+    fn live<T>(&self, token: &str, read: impl FnOnce(&CachedGif) -> T) -> Option<T> {
+        let now = now_ms();
+        self.lock()
+            .get(token)
+            .filter(|cached| now - cached.inserted_at < CACHE_TTL_MS)
+            .map(read)
     }
 
     fn lock(&self) -> MutexGuard<'_, HashMap<String, CachedGif>> {
@@ -135,12 +148,30 @@ impl Cache {
     }
 }
 
+/// Drops the oldest of `owner`'s tokens so one more still fits under their cap.
+fn evict_owner_overflow(entries: &mut HashMap<String, CachedGif>, owner: UserId) {
+    let mut held: Vec<(String, i64)> = entries
+        .iter()
+        .filter(|(_, cached)| cached.owner == owner)
+        .map(|(key, cached)| (key.clone(), cached.inserted_at))
+        .collect();
+    let Some(excess) = (held.len() + 1).checked_sub(MAX_ENTRIES_PER_OWNER) else {
+        return;
+    };
+    // Tokens are UUIDv7, so the key breaks a tie within one millisecond in mint order.
+    held.sort_by(|a, b| (a.1, &a.0).cmp(&(b.1, &b.0)));
+    for (key, _) in held.into_iter().take(excess) {
+        entries.remove(&key);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn fixture(preview: &str, full: &str, ago_ms: i64) -> CachedGif {
         CachedGif {
+            owner: UserId::generate(),
             preview_url: preview.to_owned(),
             full_url: full.to_owned(),
             stamp_url: full.to_owned(),
@@ -165,7 +196,7 @@ mod tests {
     #[test]
     fn a_fresh_token_resolves_both_urls() {
         let cache = Cache::new();
-        let token = cache.insert(&hit("https://p", "https://f"));
+        let token = cache.insert(UserId::generate(), &hit("https://p", "https://f"));
         assert_eq!(cache.preview_url(&token).as_deref(), Some("https://p"));
         assert_eq!(cache.full_url(&token).as_deref(), Some("https://f"));
     }
@@ -187,7 +218,7 @@ mod tests {
             "stale".to_owned(),
             fixture("https://p", "https://f", CACHE_TTL_MS + 1),
         );
-        cache.insert(&hit("https://p2", "https://f2"));
+        cache.insert(UserId::generate(), &hit("https://p2", "https://f2"));
         assert_eq!(cache.preview_url("stale"), None);
     }
 
@@ -208,11 +239,50 @@ mod tests {
                 );
             }
         }
-        cache.insert(&hit("https://newest-p", "https://newest-f"));
+        cache.insert(
+            UserId::generate(),
+            &hit("https://newest-p", "https://newest-f"),
+        );
         let guard = cache.entries.lock().unwrap();
         assert!(guard.len() <= MAX_CACHE_ENTRIES);
         // The oldest planted entry is gone; the freshest of the old batch survives.
         assert!(!guard.contains_key("old-0"));
         assert!(guard.contains_key(&format!("old-{}", MAX_CACHE_ENTRIES - 1)));
+    }
+
+    #[test]
+    fn an_expired_token_does_not_redeem_before_a_sweep() {
+        let cache = Cache::new();
+        cache.entries.lock().unwrap().insert(
+            "stale".to_owned(),
+            fixture("https://p", "https://f", CACHE_TTL_MS + 1),
+        );
+        assert_eq!(cache.preview_url("stale"), None);
+        assert_eq!(cache.full_url("stale"), None);
+        assert_eq!(cache.stamp_url("stale"), None);
+        assert_eq!(cache.title("stale"), None);
+        assert!(cache.snapshot("stale").is_none());
+    }
+
+    #[test]
+    fn one_members_flood_only_ages_out_their_own_tokens() {
+        let cache = Cache::new();
+        let bystander = UserId::generate();
+        let flooder = UserId::generate();
+        let kept = cache.insert(bystander, &hit("https://p", "https://f"));
+        let first = cache.insert(flooder, &hit("https://p", "https://f"));
+        for _ in 0..MAX_ENTRIES_PER_OWNER {
+            cache.insert(flooder, &hit("https://p", "https://f"));
+        }
+        assert!(cache.preview_url(&kept).is_some());
+        assert!(cache.preview_url(&first).is_none());
+        let held = cache
+            .entries
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|cached| cached.owner == flooder)
+            .count();
+        assert_eq!(held, MAX_ENTRIES_PER_OWNER);
     }
 }

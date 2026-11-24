@@ -24,6 +24,7 @@ impl Class {
             Class::CanvasView => "canvas_view",
             Class::Asset => "asset",
             Class::Gif => "gif",
+            Class::GifSelect => "gif_select",
             Class::LinkPreview => "link_preview",
             Class::Ring => "ring",
             Class::Soundboard => "soundboard",

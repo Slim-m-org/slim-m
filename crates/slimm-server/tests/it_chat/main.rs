@@ -19,6 +19,7 @@ mod emoji_import;
 mod emoji_refusal;
 mod ephemeral_messages;
 mod forward_backfill;
+mod gif_hardening;
 mod gif_picker;
 mod gif_stamp;
 mod group_dms;

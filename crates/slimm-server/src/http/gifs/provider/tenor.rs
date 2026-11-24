@@ -4,13 +4,14 @@
 
 use serde::Deserialize;
 
-use super::{ProviderGif, Rendition, stamp_rendition};
+use super::{MAX_RESPONSE_BYTES, ProviderGif, Rendition, stamp_rendition};
+use crate::net_guard;
 
 pub(super) const BASE_URL: &str = "https://tenor.googleapis.com";
 
 #[derive(Deserialize)]
 struct Response {
-    results: Vec<SearchResult>,
+    results: Vec<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -51,6 +52,10 @@ impl Media {
 /// attachment; either standing in for the other when only one is present
 /// keeps a result usable rather than dropping it outright, and a result
 /// carrying neither is dropped, since there is nothing to show or store.
+fn parse_result(raw: serde_json::Value) -> Option<ProviderGif> {
+    result_into_gif(serde_json::from_value(raw).ok()?)
+}
+
 fn result_into_gif(result: SearchResult) -> Option<ProviderGif> {
     let preview = result
         .media_formats
@@ -102,11 +107,14 @@ async fn request(
         .send()
         .await?
         .error_for_status()?;
-    let parsed: Response = response.json().await?;
+    let body = net_guard::read_capped(response, MAX_RESPONSE_BYTES)
+        .await
+        .map_err(|_| anyhow::anyhow!("tenor answered with an unreadable or oversized body"))?;
+    let parsed: Response = serde_json::from_slice(&body)?;
     Ok(parsed
         .results
         .into_iter()
-        .filter_map(result_into_gif)
+        .filter_map(parse_result)
         .collect())
 }
 
@@ -162,7 +170,7 @@ mod tests {
         let gifs: Vec<ProviderGif> = parsed
             .results
             .into_iter()
-            .filter_map(result_into_gif)
+            .filter_map(parse_result)
             .collect();
         assert_eq!(gifs.len(), 1);
         assert_eq!(gifs[0].title, "a cat waving");
@@ -187,11 +195,7 @@ mod tests {
             }]
         }"#;
         let parsed: Response = serde_json::from_str(raw).unwrap();
-        let gif = parsed
-            .results
-            .into_iter()
-            .find_map(result_into_gif)
-            .unwrap();
+        let gif = parsed.results.into_iter().find_map(parse_result).unwrap();
         assert_eq!(gif.full_url, "https://tenor.example/full.gif");
         assert_eq!(gif.stamp_url, "https://tenor.example/medium.gif");
     }
@@ -211,7 +215,7 @@ mod tests {
         let gifs: Vec<ProviderGif> = parsed
             .results
             .into_iter()
-            .filter_map(result_into_gif)
+            .filter_map(parse_result)
             .collect();
         assert!(gifs.is_empty());
     }
