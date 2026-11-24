@@ -143,16 +143,19 @@ void main() {
         null,
       ),
     );
-    second.read(testCallProvider.notifier).state = connectedCall;
-    await pumpEventQueueTimes();
-    final idle = CallForegroundKeeper(
+    final keeper = CallForegroundKeeper(
       service: CallService(isAndroid: true),
       mayUpdate: () => !first.read(_otherInCall)(),
     );
+    keeper.sessionState(VoiceSessionState.connected);
+    await pumpEventQueueTimes();
+    expect(sent, hasLength(1));
 
-    idle.sessionState(VoiceSessionState.idle);
+    second.read(testCallProvider.notifier).state = connectedCall;
+    await pumpEventQueueTimes();
+    keeper.sessionState(VoiceSessionState.idle);
     await pumpEventQueueTimes();
 
-    expect(sent, isEmpty);
+    expect(sent, hasLength(1));
   });
 }
