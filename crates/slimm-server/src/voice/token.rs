@@ -8,6 +8,7 @@ use hmac::{Hmac, Mac};
 use serde::Serialize;
 use sha2::Sha256;
 
+use super::VoiceService;
 use crate::ids::{ChannelId, DeviceId};
 
 /// The LiveKit JWT claim set. Field names are LiveKit's, not ours.
@@ -77,6 +78,29 @@ pub(super) fn device_tag(secret: &str, channel_id: ChannelId, device: &VoiceDevi
         mac.update(b"tab");
         mac.update(tab.as_bytes());
     }
+    crate::media::to_hex(&mac.finalize().into_bytes()[..16])
+}
+
+/// The participant attribute carrying the [`VoiceService::holder_tag`] of the device whose session minted the token.
+pub const HOLDER_ATTRIBUTE: &str = "slimm.holder";
+
+impl VoiceService {
+    /// What a token minted on `device_id`'s session carries in `channel_id`, so a join can be traced
+    /// back to whether that device is still signed in. None when voice is off.
+    pub fn holder_tag(&self, channel_id: ChannelId, device_id: DeviceId) -> Option<String> {
+        let enabled = self.inner.as_ref()?;
+        Some(holder_tag(&enabled.api_secret, channel_id, device_id))
+    }
+}
+
+/// A keyed hash of the channel and the device alone, so the server can tell which device's
+/// credential a participant joined with whatever tab it came from.
+pub(super) fn holder_tag(secret: &str, channel_id: ChannelId, device_id: DeviceId) -> String {
+    let mut mac =
+        <Hmac<Sha256>>::new_from_slice(secret.as_bytes()).expect("HMAC takes a key of any length");
+    mac.update(b"slimm-voice-holder-v1");
+    mac.update(channel_id.0.as_bytes());
+    mac.update(device_id.0.as_bytes());
     crate::media::to_hex(&mac.finalize().into_bytes()[..16])
 }
 

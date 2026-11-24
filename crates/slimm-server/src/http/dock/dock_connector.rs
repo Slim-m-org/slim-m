@@ -18,7 +18,6 @@ use super::wire::InstalledModuleDto;
 use crate::http::AppState;
 use crate::http::error::ApiError;
 use crate::http::extract::{Authed, Json, enforce, require_human, require_manage_server};
-use crate::hub::Event;
 use crate::ids::{SessionId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -178,9 +177,7 @@ pub(super) async fn reissue_token(
 
 /// Closes the sockets a revoked token held.
 pub(super) fn close_sessions(state: &AppState, revoked: Vec<SessionId>) {
-    for session_id in revoked {
-        state.hub.publish(Event::SessionRevoked(session_id));
-    }
+    crate::http::session_revocation::sessions_revoked_by_id(state, revoked);
 }
 
 /// The core permissions a connector manifest asks for, as the Dock shows them before install.

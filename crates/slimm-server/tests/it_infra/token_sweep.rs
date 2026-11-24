@@ -135,7 +135,7 @@ async fn a_spent_refresh_token_survives_long_enough_to_still_catch_reuse() {
     assert!(
         matches!(
             store.rotate_refresh(&original.refresh_token).await.unwrap(),
-            RefreshOutcome::Reused
+            RefreshOutcome::Reused(_)
         ),
         "replaying the spent token must still be detected as reuse, not merely denied"
     );

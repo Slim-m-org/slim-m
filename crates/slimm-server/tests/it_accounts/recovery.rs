@@ -285,7 +285,8 @@ async fn consuming_revokes_sessions_across_multiple_devices_and_returns_their_id
     let revoked = store
         .consume_reset_code(&code, &hash)
         .await
-        .expect("a live code spends");
+        .expect("a live code spends")
+        .revoked;
 
     let revoked_set: HashSet<_> = revoked.into_iter().collect();
     let expected: HashSet<_> = [laptop_session, phone.session_id].into_iter().collect();
@@ -337,7 +338,8 @@ async fn consuming_succeeds_with_no_live_sessions_to_revoke() {
     let revoked = store
         .consume_reset_code(&code, &hash)
         .await
-        .expect("a reset with nothing live to revoke still succeeds");
+        .expect("a reset with nothing live to revoke still succeeds")
+        .revoked;
     assert!(revoked.is_empty(), "there was nothing live to revoke");
 
     let new_password_login = app

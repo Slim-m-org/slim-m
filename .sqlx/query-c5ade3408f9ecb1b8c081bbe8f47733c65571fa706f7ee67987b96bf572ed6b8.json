@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DISTINCT device_id AS \"device_id!: DeviceId\" FROM sessions\n               WHERE user_id = ? AND revoked_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "device_id!: DeviceId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "sessions",
+            "name": "device_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c5ade3408f9ecb1b8c081bbe8f47733c65571fa706f7ee67987b96bf572ed6b8"
+}

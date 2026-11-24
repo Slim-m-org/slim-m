@@ -63,6 +63,7 @@ mod refresh_dropped;
 mod register_display_name_optional;
 mod registration_gate;
 mod saved_messages;
+mod session_cap;
 mod steam_link;
 mod steam_presence;
 mod totp;

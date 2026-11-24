@@ -19,7 +19,6 @@ use super::error::ApiError;
 use super::extract::{AuthedLimited, Bytes, Json, PASSWORD, RateLimited, TOTP, WRITE};
 use super::messages::parse_uuid;
 use super::reauth::require_password;
-use crate::hub::Event;
 use crate::ids::UserId;
 use crate::permissions::Permissions;
 use crate::push::AdminAlertPush;
@@ -234,6 +233,8 @@ async fn verify(
         alert_lockout(&state, *user_id);
     }
     let signed_in = completed.map_err(challenge_error)?;
+    let tokens = &signed_in.tokens;
+    super::session_revocation::sessions_revoked(&state, tokens.user_id, &tokens.replaced);
 
     super::sign_in_alert::announce(
         &state,
@@ -281,7 +282,7 @@ async fn admin_clear(
         .await?
         .reach_other(&state, user_id)
         .await?;
-    let revoked = state
+    state
         .store
         .clear_totp_factor(Some(ctx.user_id), user_id)
         .await
@@ -291,9 +292,7 @@ async fn admin_clear(
             }
             other => factor_error(other),
         })?;
-    for session_id in revoked {
-        state.hub.publish(Event::SessionRevoked(session_id));
-    }
+    super::session_revocation::account_sessions_revoked(&state, user_id, None);
     Ok(StatusCode::NO_CONTENT)
 }
 

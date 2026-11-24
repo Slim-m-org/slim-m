@@ -25,7 +25,7 @@ async fn store() -> (Store, SqlitePool, support::TestDbGuard) {
 async fn denial(store: &Store, refresh_token: &str) -> Option<RefreshDenial> {
     match store.rotate_refresh(refresh_token).await.unwrap() {
         RefreshOutcome::Denied(denial) => Some(denial),
-        RefreshOutcome::Rotated(_) | RefreshOutcome::Reused => None,
+        RefreshOutcome::Rotated(_) | RefreshOutcome::Reused(_) => None,
     }
 }
 
