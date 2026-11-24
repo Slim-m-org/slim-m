@@ -295,6 +295,7 @@ class SelfUpdateController {
         'previous version.',
       );
     }
+    target.markStarted();
     await Future<void>.delayed(settle);
     target.confirmCleanStart();
     await _noteOutdatedLauncher(resolvedExecutable, os);

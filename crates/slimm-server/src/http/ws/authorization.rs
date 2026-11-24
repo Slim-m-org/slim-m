@@ -8,9 +8,10 @@
 
 use std::time::Instant;
 
-use super::frames::{ReactionCountDto, ServerFrame};
+use super::frames::ServerFrame;
 use super::permission_cache::PermissionCache;
 use super::signals;
+use super::tally_frames::ReactionCountDto;
 use crate::http::link_preview::LinkPreviews;
 use crate::hub::{Event, Hub, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
@@ -217,7 +218,7 @@ async fn channel_frame(
     {
         view.hide_hidden(store, hub, ctx.user_id).await;
     }
-    let event = match super::channel_frames::to_frame(link_previews, event) {
+    let event = match super::channel_frames::to_frame(link_previews, ctx.user_id, event) {
         Ok(Some(frame)) => return Authorization::Deliver(Box::new(frame)),
         Ok(None) => return Authorization::Withhold,
         Err(event) => *event,
@@ -248,8 +249,12 @@ async fn channel_frame(
             channel_id,
             message_id,
             reactors,
+            version,
             ..
-        }) => reactions_frame(store, hub, ctx, cache, (channel_id, message_id), &reactors).await,
+        }) => {
+            let ids = (channel_id, message_id, version);
+            reactions_frame(store, hub, ctx, cache, ids, &reactors).await
+        }
         _ => unreachable!("channel_frames::to_frame answers every other event"),
     };
     match frame {
@@ -258,37 +263,39 @@ async fn channel_frame(
     }
 }
 
-/// The reaction counts this viewer sees: blocked reactors left out, ordered by this viewer's own first reaction per emoji.
+/// The reaction counts this viewer sees and which are theirs: blocked reactors left out, ordered by this viewer's own first reaction per emoji.
 async fn reactions_frame(
     store: &Store,
     hub: &Hub,
     ctx: &SessionContext,
     cache: &mut PermissionCache,
-    (channel_id, message_id): (ChannelId, MessageId),
+    (channel_id, message_id, version): (ChannelId, MessageId, i64),
     reactors: &[(String, Vec<(UserId, i64)>)],
 ) -> Result<ServerFrame, ()> {
     let blocked = viewer_blocks(store, hub, ctx, cache).await?;
     // This viewer's own `first_at` per emoji, reduced only from unblocked reactors - same as the old `reactions_for_messages` query did.
-    let mut visible: Vec<(String, i64, i64)> = reactors
+    let mut visible: Vec<(ReactionCountDto, i64)> = reactors
         .iter()
         .filter_map(|(emoji, entries)| {
-            let unblocked_at: Vec<i64> = entries
+            let unblocked: Vec<&(UserId, i64)> = entries
                 .iter()
                 .filter(|(id, _)| !blocked.contains(id))
-                .map(|(_, created_at)| *created_at)
                 .collect();
-            let first_at = unblocked_at.iter().copied().min()?;
-            Some((emoji.clone(), unblocked_at.len() as i64, first_at))
+            let first_at = unblocked.iter().map(|(_, at)| *at).min()?;
+            let row = ReactionCountDto {
+                emoji: emoji.clone(),
+                count: unblocked.len() as i64,
+                reacted: unblocked.iter().any(|(id, _)| *id == ctx.user_id),
+            };
+            Some((row, first_at))
         })
         .collect();
-    visible.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.0.cmp(&b.0)));
+    visible.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.emoji.cmp(&b.0.emoji)));
     Ok(ServerFrame::ReactionsChanged {
         channel_id: channel_id.to_string(),
         message_id: message_id.to_string(),
-        reactions: visible
-            .into_iter()
-            .map(|(emoji, count, _)| ReactionCountDto { emoji, count })
-            .collect(),
+        reactions: visible.into_iter().map(|(row, _)| row).collect(),
+        version,
     })
 }
 

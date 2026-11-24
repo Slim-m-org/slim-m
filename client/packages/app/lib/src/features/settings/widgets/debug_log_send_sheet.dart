@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/labeled_field.dart';
@@ -127,7 +128,7 @@ class _DebugLogSendSheetState extends ConsumerState<DebugLogSendSheet> {
       child: AppInput(
         key: const ValueKey('debug-log-note-field'),
         controller: _note,
-        maxLength: debugLogNoteMaxChars,
+        maxLength: api.InputLimits.debugLogNote,
         maxLines: 3,
         semanticLabel: 'Note for the admins',
       ),

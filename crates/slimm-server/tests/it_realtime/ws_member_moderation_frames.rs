@@ -57,7 +57,10 @@ async fn a_timeout_a_removal_and_a_restore_each_reach_a_connected_client() {
         "a lifted timeout is announced as null: {frame}"
     );
 
-    state.hub.publish(Event::MemberRemoved(alice));
+    state.hub.publish(Event::MemberRemoved {
+        user_id: alice,
+        deleted: false,
+    });
     let frame = next_frame(&mut bob_ws).await;
     assert_eq!(frame["type"], "member.removed");
     assert_eq!(frame["user_id"], alice.to_string());

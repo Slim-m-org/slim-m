@@ -120,6 +120,9 @@ class EmojiHarness {
         if (request.method == 'POST' && request.url.path == '/emoji') {
           return onSingle!(request);
         }
+        if (request.method == 'GET' && request.url.path == '/emoji') {
+          return emojiJson(const []);
+        }
         return emojiJson(const {});
       }, session: api.SessionStore(tokens: emojiTestTokens));
       ref.onDispose(client.close);

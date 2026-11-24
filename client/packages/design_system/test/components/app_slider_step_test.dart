@@ -111,4 +111,22 @@ void main() {
     expect(node.label, 'Volume');
     handle.dispose();
   });
+
+  testWidgets('losing focus mid-hold commits the value once', (tester) async {
+    final commits = <double>[];
+    final changes = <double>[];
+    await _pump(tester, changes, commits);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+    expect(commits, [105]);
+
+    FocusManager.instance.primaryFocus!.unfocus();
+    await tester.pump();
+    expect(commits, [105, changes.last]);
+
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowRight);
+    expect(commits, [105, changes.last],
+        reason: 'no stray commit on a later key-up');
+  });
 }

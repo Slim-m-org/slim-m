@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::error::ApiError;
 use super::escalation::escalation_guard;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{Authed, Bytes, Json, enforce};
 use super::messages::parse_uuid;
 use super::role_ladder::Ladder;
 use super::safety::validate_reason;
@@ -80,7 +80,7 @@ struct TimeoutDto {
     until: i64,
 }
 
-#[derive(Deserialize)]
+#[derive(Default, Deserialize)]
 struct RemovalRequest {
     reason: Option<String>,
 }
@@ -199,6 +199,14 @@ async fn lift_timeout(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// An empty body means no reason; anything else must be a `RemovalRequest`.
+fn removal_request(body: &[u8]) -> Result<RemovalRequest, ApiError> {
+    if body.iter().all(u8::is_ascii_whitespace) {
+        return Ok(RemovalRequest::default());
+    }
+    serde_json::from_slice(body).map_err(|_| ApiError::BadRequest("the body must be a JSON object"))
+}
+
 /// Removes a member from the Space. Requires BAN_MEMBERS.
 ///
 /// Everything they wrote stays and stays attributed to them; this revokes
@@ -210,9 +218,10 @@ async fn remove_member(
     parts: Parts,
     Path(user_id): Path<String>,
     State(state): State<AppState>,
-    Json(req): Json<RemovalRequest>,
+    Bytes(body): Bytes,
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    let req = removal_request(&body)?;
     let target = UserId(parse_uuid(&user_id)?);
     authorize(&state, ctx.user_id, target, Permissions::BAN_MEMBERS).await?;
 
@@ -233,14 +242,17 @@ async fn remove_member(
     }
 
     super::session_revocation::account_sessions_revoked(&state, target, None);
-    announce_member_gone(&state, target).await;
+    announce_member_gone(&state, target, false).await;
     Ok(StatusCode::NO_CONTENT)
 }
 
 /// What every way of a member leaving owes the rest of the deployment: a live
-/// `MemberRemoved`, and eviction from voice, since a LiveKit token cannot be revoked.
-pub(in crate::http) async fn announce_member_gone(state: &AppState, target: UserId) {
-    state.hub.publish(Event::MemberRemoved(target));
+/// `MemberRemoved` (`deleted` for an account deletion), and eviction from voice.
+pub(in crate::http) async fn announce_member_gone(state: &AppState, target: UserId, deleted: bool) {
+    state.hub.publish(Event::MemberRemoved {
+        user_id: target,
+        deleted,
+    });
     evict_from_voice(state, target).await;
 }
 

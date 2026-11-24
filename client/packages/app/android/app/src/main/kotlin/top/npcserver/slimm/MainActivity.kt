@@ -2,7 +2,6 @@
 package top.npcserver.slimm
 
 import android.content.Intent
-import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.WindowManager
@@ -19,6 +18,7 @@ import io.flutter.plugin.common.MethodChannel
  */
 class MainActivity : FlutterFragmentActivity() {
     private val pictureInPicture = PictureInPictureBridge(this)
+    private var videoFullscreen = false
     private val shareIntake by lazy { ShareIntakeChannel(applicationContext) }
 
     /**
@@ -46,11 +46,7 @@ class MainActivity : FlutterFragmentActivity() {
             }
         })
         super.onCreate(savedInstanceState)
-        requestedOrientation = if (resources.getBoolean(R.bool.slimm_portrait_only)) {
-            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        } else {
-            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
+        applyOrientationLock()
         // A recreated activity keeps its launch intent; only the first creation is a new share.
         if (savedInstanceState == null) shareIntake.onIntent(intent, warm = false)
     }
@@ -98,12 +94,39 @@ class MainActivity : FlutterFragmentActivity() {
      */
     private fun allowLandscape(allowed: Boolean): Boolean {
         if (!resources.getBoolean(R.bool.slimm_portrait_only)) return false
-        requestedOrientation = if (allowed) {
-            ActivityInfo.SCREEN_ORIENTATION_SENSOR
-        } else {
-            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        }
+        videoFullscreen = allowed
+        applyOrientationLock()
         return true
+    }
+
+    private fun applyOrientationLock() {
+        requestedOrientation = WindowRules.orientation(
+            portraitOnly = resources.getBoolean(R.bool.slimm_portrait_only),
+            videoFullscreen = videoFullscreen,
+        )
+    }
+
+    /** A fold, unfold or window resize changes the width class without recreating the activity. */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        applyOrientationLock()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        pictureInPicture.onResumed()
+    }
+
+    override fun startActivity(intent: Intent, options: Bundle?) {
+        pictureInPicture.onOwnLaunch()
+        super.startActivity(intent, options)
+    }
+
+    @Deprecated("Plugins launch pickers through this overload.")
+    override fun startActivityForResult(intent: Intent, requestCode: Int, options: Bundle?) {
+        pictureInPicture.onOwnLaunch()
+        @Suppress("DEPRECATION")
+        super.startActivityForResult(intent, requestCode, options)
     }
 
     override fun onUserLeaveHint() {

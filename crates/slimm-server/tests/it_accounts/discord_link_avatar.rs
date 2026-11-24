@@ -71,6 +71,7 @@ async fn fake_discord(picture: Picture) -> String {
 struct World {
     app: Router,
     store: Store,
+    media: Media,
     media_root: std::path::PathBuf,
     ada: slimm_server::ids::UserId,
     ada_token: String,
@@ -95,11 +96,16 @@ async fn world(picture: Picture) -> World {
     let bob_token = store.open_session(bob.id, "y").await.unwrap().access_token;
     let api = fake_discord(picture).await;
     let discord = DiscordLinks::with_api("client-1", "secret-1", REDIRECT, &api).unwrap();
-    let app = http::router(support::app::builder(store.clone()).media(media).build())
-        .layer(Extension(discord));
+    let app = http::router(
+        support::app::builder(store.clone())
+            .media(media.clone())
+            .build(),
+    )
+    .layer(Extension(discord));
     World {
         app,
         store,
+        media,
         media_root: root,
         ada: ada.id,
         ada_token,
@@ -195,6 +201,24 @@ async fn the_picture_is_stored_when_the_link_finishes_and_served_to_others() {
         .await
         .unwrap();
     assert_eq!(body.as_ref(), picture.as_slice());
+}
+
+#[tokio::test]
+async fn finishing_a_link_waits_for_a_profile_picture_write_in_flight() {
+    let w = world(Picture::Served("image/png", support::images::small_png())).await;
+    let guard = w.media.profile_guard().await;
+    let linking = w.link();
+    tokio::pin!(linking);
+
+    tokio::select! {
+        () = &mut linking => panic!("the picture was stored under the profile guard"),
+        () = tokio::time::sleep(std::time::Duration::from_millis(300)) => {}
+    }
+    assert!(!w.stored_file().exists());
+
+    drop(guard);
+    linking.await;
+    assert!(w.stored_file().exists());
 }
 
 #[tokio::test]

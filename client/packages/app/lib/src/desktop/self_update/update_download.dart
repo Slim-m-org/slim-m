@@ -78,11 +78,14 @@ Future<File> downloadArtifact({
     );
   }
   final name = p.basename(artifact.url.path);
-  final part = File(p.join(stagingDir.path, '$name.part'));
+  final finalFile = File(p.join(stagingDir.path, name));
+  if (await _alreadyVerified(artifact, finalFile)) return finalFile;
+  final part = File(p.join(stagingDir.path, partFileName(artifact)));
+  await _discardForeignParts(stagingDir, part);
   await _fillPart(artifact, part, client, stall);
   await _verifyOrDiscard(artifact, part);
   try {
-    return await part.rename(p.join(stagingDir.path, name));
+    return await part.rename(finalFile.path);
   } on FileSystemException catch (error) {
     throw SelfUpdateFailure(
       SelfUpdateFailureKind.downloadFailed,
@@ -90,6 +93,45 @@ Future<File> downloadArtifact({
       detail: '$error',
     );
   }
+}
+
+/// The partial file's name, keyed by the artifact's checksum so bytes of one
+/// build are never resumed into another that shares its file name.
+String partFileName(UpdateArtifact artifact) {
+  final name = p.basename(artifact.url.path);
+  return '$name.${artifact.sha256.substring(0, 16)}.part';
+}
+
+/// A leftover partial that belongs to another build is deleted, not resumed.
+Future<void> _discardForeignParts(Directory stagingDir, File keep) async {
+  await for (final entry in stagingDir.list(followLinks: false)) {
+    if (entry is File &&
+        entry.path.endsWith('.part') &&
+        !p.equals(entry.path, keep.path)) {
+      await entry.delete();
+    }
+  }
+}
+
+/// Whether [file] is already this artifact in full, so a retry after the
+/// install-permission round trip installs it without downloading again.
+Future<bool> _alreadyVerified(UpdateArtifact artifact, File file) async {
+  if (!await file.exists() || await file.length() != artifact.size) {
+    return false;
+  }
+  if (await _sha256Hex(file) == artifact.sha256) return true;
+  await file.delete();
+  return false;
+}
+
+Future<String> _sha256Hex(File file) async {
+  final sink = Sha256().newHashSink();
+  await for (final chunk in file.openRead()) {
+    sink.add(chunk);
+  }
+  sink.close();
+  final digest = (await sink.hash()).bytes;
+  return digest.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 }
 
 Future<void> _fillPart(
@@ -167,13 +209,7 @@ Future<void> _verifyOrDiscard(UpdateArtifact artifact, File part) async {
       detail: 'expected ${artifact.size} bytes, got $length',
     );
   }
-  final sink = Sha256().newHashSink();
-  await for (final chunk in part.openRead()) {
-    sink.add(chunk);
-  }
-  sink.close();
-  final digest = (await sink.hash()).bytes;
-  final hex = digest.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  final hex = await _sha256Hex(part);
   if (hex != artifact.sha256) {
     await part.delete();
     throw SelfUpdateFailure(

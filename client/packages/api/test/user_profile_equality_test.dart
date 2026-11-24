@@ -97,5 +97,32 @@ void main() {
       expect(coloured(3), isNot(equals(coloured(4))));
       expect(coloured(3), isNot(equals(coloured(null))));
     });
+
+    test(
+        'each of accountDisplayName, isBot and isWebhook breaks equality alone',
+        () {
+      UserProfile with_(
+              {String? account, bool bot = false, bool hook = false}) =>
+          UserProfile(
+            id: 'user-1',
+            username: 'nick',
+            displayName: 'Nick',
+            accountDisplayName: account,
+            createdAt: 1000,
+            isBot: bot,
+            isWebhook: hook,
+          );
+
+      final base = with_(account: 'Nicholas');
+      expect(base, equals(with_(account: 'Nicholas')));
+      for (final changed in [
+        with_(account: 'Nick C'),
+        with_(account: 'Nicholas', bot: true),
+        with_(account: 'Nicholas', hook: true),
+      ]) {
+        expect(base, isNot(equals(changed)));
+        expect(base.hashCode, isNot(equals(changed.hashCode)));
+      }
+    });
   });
 }

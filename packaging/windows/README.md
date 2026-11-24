@@ -22,6 +22,8 @@ The zip is the second choice.
 Extract it anywhere and double-click `install.cmd`.
 That copies the app to `%LOCALAPPDATA%\slim-m\app-<version>\`, puts the `slim-m.exe` launcher beside it, and adds a Start menu shortcut.
 Nothing outside your profile is touched and there is no elevation prompt.
+It also leaves `uninstall.ps1` in `%LOCALAPPDATA%\slim-m`; run it from PowerShell to remove the app folders, launcher, Start menu shortcut, `slimm://` scheme, notification identity and start-on-login entry.
+Add `-RemoveData` to delete the data in `%APPDATA%\top.npcserver\slim-m` too; without it that data stays.
 
 Windows cannot replace a running exe, so each version lives in its own folder.
 `slim-m.exe` reads the `current` file, which holds a version number, and starts that version from the `app` folder beside it.
@@ -35,7 +37,7 @@ So the app claims `top.npcserver.slimm` before it opens a window, the setup give
 The toasts use the same id.
 At each start the app also gives that id to any Start menu, desktop or taskbar shortcut into the install that lacks it, because an in-app update never runs the setup and `install.cmd` and "Install for automatic updates" cannot set it.
 A pin made by 0.132.0 or earlier points at `app-<version>\slimm_app.exe` or `app\slimm_app.exe`, and the same repair points it at `slim-m.exe`.
-If the new version fails to start three times in a row, the launcher moves `current` back to `previous` and the app says so in a banner.
+If the new version fails to start three times in a row (a start counts only when the app never wrote its `pending.started` marker), the launcher moves `current` back to `previous` and the app says so in a banner.
 
 A copy run straight from the extracted folder, a machine-wide copy under `Program Files` and a packaged MSIX are never modified by the updater.
 For the extracted folder, Settings > About offers "Install for automatic updates", which copies that folder into the layout, adds the Start menu shortcut and restarts through the launcher.

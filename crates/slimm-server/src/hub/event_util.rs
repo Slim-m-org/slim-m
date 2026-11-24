@@ -15,6 +15,13 @@ pub struct ReactionMoved {
     pub added: bool,
 }
 
+/// One voter's ballot after a `PollVoted`: their positions, best first (one on an ordinary poll).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CastBallot {
+    pub user_id: UserId,
+    pub ranking: Vec<i64>,
+}
+
 impl Event {
     /// `user_id`'s presence moved; every connection resolves what its own user may be told.
     pub fn presence_changed(user_id: UserId) -> Event {

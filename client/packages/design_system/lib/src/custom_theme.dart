@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' show Brightness;
 
+import 'package:flutter/material.dart' show ThemeData;
 import 'package:flutter/painting.dart';
 
 import 'app_tokens.dart';
@@ -91,9 +92,17 @@ class ThemeDocument {
   final AppBackdrop? effect;
   final ThemePicture? picture;
 
+  /// Code and status colours come from the preset, or the plain one of this file's brightness when the base is the other kind.
+  AppTokens get _palette {
+    final p = themeBases[base]!;
+    final baseBrightness = ThemeData.estimateBrightnessForColor(p.surfaceBase);
+    if (baseBrightness == brightness) return p;
+    return brightness == Brightness.light ? AppTokens.light : AppTokens.dark;
+  }
+
   /// The preset's tokens with this file's colours and backdrop effect.
   AppTokens get tokens {
-    final p = themeBases[base]!;
+    final p = _palette;
     Color c(String key) => colours[key]!;
     return AppTokens(
       surfaceSunken: c('surfaceSunken'),

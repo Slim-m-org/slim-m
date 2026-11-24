@@ -239,6 +239,7 @@ class _NotificationScheduleSectionState
     final activeWeekdays =
         shown?.days.map((d) => d.weekday).toSet() ?? const {};
 
+    final noDayOn = activeWeekdays.isEmpty;
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final touch = AppTouchTargets.of(context);
     Widget day(int weekday) => _DayToggle(
@@ -305,8 +306,13 @@ class _NotificationScheduleSectionState
                 ),
               ],
             ),
-            onTap: () => _pickHours(current, start, end),
+            onTap: noDayOn ? null : () => _pickHours(current, start, end),
           ),
+          if (noDayOn)
+            const SettingsInfoLine(
+              'Turn on a day to set its hours.',
+              tinted: true,
+            ),
           SettingsSelectRow<api.OffHoursMode>(
             sub: true,
             label: 'Outside these hours',

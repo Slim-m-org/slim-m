@@ -19,10 +19,13 @@ impl Store {
         let Some(ranked) = ranked else {
             return Ok(None);
         };
-        let tally = fetch_tally(&self.pool, message_id).await?;
+        // Under the write lock like a vote, so versions rise in commit order and a vote in flight cannot lose to this frame.
+        let mut tx = self.begin_write().await?;
+        let version = super::super::next_tally_version();
+        let tally = fetch_tally(&mut *tx, message_id).await?;
         let runoff = if ranked {
-            let positions = option_positions(&self.pool, message_id).await?;
-            let ballots: Vec<Vec<i64>> = fetch_ballots(&self.pool, &[message_id])
+            let positions = option_positions(&mut *tx, message_id).await?;
+            let ballots: Vec<Vec<i64>> = fetch_ballots(&mut *tx, &[message_id])
                 .await?
                 .into_iter()
                 .map(|(_, _, ballot)| ballot)
@@ -31,7 +34,12 @@ impl Store {
         } else {
             None
         };
-        Ok(Some(VoteOutcome { tally, runoff }))
+        tx.commit().await?;
+        Ok(Some(VoteOutcome {
+            tally,
+            runoff,
+            version,
+        }))
     }
 
     /// A single message's poll, from one viewer's point of view. `None` if the

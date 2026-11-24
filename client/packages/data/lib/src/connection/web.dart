@@ -12,7 +12,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/wasm.dart';
 
 import 'database_key.dart';
-import 'package:slimm_api/api.dart' show AppLog, LogTag;
+import 'package:slimm_api/api.dart' show AppLog, LogTag, versionedWebAssetUrl;
 
 /// The IndexedDB/OPFS database name. Changing it orphans every existing
 /// browser's cache rather than migrating it.
@@ -45,8 +45,8 @@ Future<QueryExecutor> openSlimmDatabase({
 }) async {
   final result = await WasmDatabase.open(
     databaseName: webDatabaseName(fileName),
-    sqlite3Uri: Uri.parse('sqlite3.wasm'),
-    driftWorkerUri: Uri.parse('drift_worker.js'),
+    sqlite3Uri: Uri.parse(versionedWebAssetUrl('sqlite3.wasm')),
+    driftWorkerUri: Uri.parse(versionedWebAssetUrl('drift_worker.js')),
   );
   if (result.chosenImplementation == WasmStorageImplementation.inMemory) {
     // Said out loud because the symptom otherwise reads as a sync bug: every

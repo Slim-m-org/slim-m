@@ -70,6 +70,7 @@ Future<void> installWindowsUpdate({
     }
     File(layout.path(LayoutNames.pending)).writeAsStringSync(update.version);
     safeDelete(File(layout.path(LayoutNames.pendingTries)));
+    safeDelete(File(layout.path(LayoutNames.pendingStarted)));
     writeWindowsPointer(layout, LayoutNames.current, update.version);
     safeDelete(update.file);
   } on FileSystemException catch (error) {
@@ -137,6 +138,7 @@ void writeWindowsPointer(
 void confirmWindowsCleanStart(WindowsInstallLayout layout) {
   safeDelete(File(layout.path(LayoutNames.pending)));
   safeDelete(File(layout.path(LayoutNames.pendingTries)));
+  safeDelete(File(layout.path(LayoutNames.pendingStarted)));
   final keep = {
     layout.pointedVersion(LayoutNames.current),
     layout.pointedVersion(LayoutNames.previous),

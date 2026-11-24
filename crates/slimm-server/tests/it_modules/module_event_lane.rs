@@ -60,7 +60,10 @@ fn join() -> Event {
 }
 
 fn leave() -> Event {
-    Event::MemberRemoved(UserId::generate())
+    Event::MemberRemoved {
+        user_id: UserId::generate(),
+        deleted: false,
+    }
 }
 
 #[tokio::test]

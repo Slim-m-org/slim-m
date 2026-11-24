@@ -52,10 +52,10 @@ class _TestDmCallRingController extends DmCallRingController {
   }
 }
 
-GoRouter _router() => GoRouter(
+GoRouter _router(Widget home) => GoRouter(
   initialLocation: '/channels',
   routes: [
-    GoRoute(path: '/channels', builder: (_, __) => const Placeholder()),
+    GoRoute(path: '/channels', builder: (_, __) => home),
     GoRoute(
       path: Routes.channelPattern,
       builder: (_, __) => const Placeholder(),
@@ -79,12 +79,13 @@ Future<_Setup> _pump(
   WidgetTester tester, {
   double width = 1200,
   DesktopWindowShell? shell,
+  Widget home = const Placeholder(),
 }) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 
-  final router = _router();
+  final router = _router(home);
   final events = StreamController<api.ServerEvent>.broadcast();
   addTearDown(events.close);
   late _TestDmCallRingController ringController;
@@ -252,6 +253,35 @@ void main() {
     expect(field.hasPrimaryFocus, isTrue);
     await tester.enterText(find.byKey(const Key('palette-search')), 'squad');
     expect(find.text('squad'), findsOneWidget);
+  });
+
+  testWidgets('a ring leaves the keyboard with someone typing a message', (
+    tester,
+  ) async {
+    final composer = FocusNode(debugLabel: 'composer');
+    addTearDown(composer.dispose);
+    final s = await _pump(
+      tester,
+      home: Material(
+        child: TextField(
+          key: const Key('composer'),
+          focusNode: composer,
+          autofocus: true,
+        ),
+      ),
+    );
+    await _frames(tester);
+    expect(composer.hasPrimaryFocus, isTrue, reason: 'sanity: typing there');
+
+    _emitRing(s);
+    await _frames(tester);
+    expect(find.text('Incoming call'), findsOneWidget);
+    expect(composer.hasPrimaryFocus, isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _frames(tester);
+    expect(s.ring.declineCalls, 0, reason: 'Escape was meant for the field');
+    expect(find.text('Incoming call'), findsOneWidget);
   });
 
   testWidgets('a second ring replaces the card and is the one accepted', (

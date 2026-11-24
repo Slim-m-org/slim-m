@@ -20,11 +20,16 @@ import 'package:slimm_api/api.dart' as api;
 /// Mirrors `notification_schedule::OffHoursState` on the server.
 enum OffHoursState { onHours, offMentionsAndDms, offNothing }
 
+/// An end of 23:59 reads as "until midnight", so it covers its own last minute.
+bool _runsToMidnight(api.NotificationScheduleDay window, int minute) =>
+    window.endMinute == 1439 && minute == window.endMinute;
+
 /// Whether `weekday`'s window (0 = Monday .. 6 = Sunday) starts today and
 /// still covers `minute` - `DayWindow::covers_from_start`'s own Dart twin.
 bool _coversFromStart(api.NotificationScheduleDay window, int minute) {
   if (window.startMinute < window.endMinute) {
-    return minute >= window.startMinute && minute < window.endMinute;
+    return minute >= window.startMinute &&
+        (minute < window.endMinute || _runsToMidnight(window, minute));
   }
   return minute >= window.startMinute;
 }

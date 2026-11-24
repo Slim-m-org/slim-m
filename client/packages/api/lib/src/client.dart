@@ -44,6 +44,7 @@ export 'client_identity_proof.dart'
     show IdentityProof, SlimmApiIdentityProof, identityProofContext;
 export 'client_link_preview.dart' show SlimmApiLinkPreview;
 export 'client_messages.dart' show SlimmApiMessages;
+export 'message_page.dart' show MessagePage, parseMessagePage;
 export 'client_metrics.dart'
     show
         DbPoolStats,

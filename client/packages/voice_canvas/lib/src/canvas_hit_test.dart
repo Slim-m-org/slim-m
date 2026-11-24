@@ -28,11 +28,13 @@ const double defaultHitSlopPx = 4;
 /// [defaultHitSlopPx] for a finger.
 const double touchHitSlopPx = 12;
 
-/// The topmost live object of any kind [world] lands on that [allowed] accepts, so select, erase and the context menu agree; [touch] widens the reach and [accepts] narrows the kinds.
+/// The topmost live object of any kind [world] lands on, so select, erase and the context menu agree.
+/// [touch] widens the reach and [accepts] narrows the kinds. When [allowed] rejects the topmost hit the answer is null, unless [fallThrough] lets the walk carry on to the next one down.
 String? hitTestTopmost(
   CanvasDocument document,
   Offset world, {
   bool touch = false,
+  bool fallThrough = false,
   CullResult? scratch,
   bool Function(CanvasStroke stroke)? allowed,
   bool Function(CanvasStroke stroke)? accepts,
@@ -43,7 +45,8 @@ String? hitTestTopmost(
       strokeSlopPx: touch ? touchHitSlopPx : defaultHitSlopPx,
       boxSlopPx: touch ? touchHitSlopPx : 0,
       scratch: scratch,
-      allowed: allowed,
+      allowed: fallThrough ? allowed : null,
+      gate: fallThrough ? null : allowed,
       accepts: accepts,
     );
 
@@ -54,6 +57,7 @@ String? _topmost(
   required double boxSlopPx,
   required CullResult? scratch,
   required bool Function(CanvasStroke stroke)? allowed,
+  required bool Function(CanvasStroke stroke)? gate,
   required bool Function(CanvasStroke stroke)? accepts,
 }) {
   if (!document.acceptsPlacementAt(world)) return null;
@@ -68,32 +72,34 @@ String? _topmost(
     out,
   );
 
-  final candidates = <int>[];
+  int? best;
   for (final slot in out.slots) {
-    if (document.strokeIfAlive(slot) != null) candidates.add(slot);
-  }
-  candidates.sort((a, b) => document.comparePaintOrder(b, a));
-
-  for (final slot in candidates) {
-    final stroke = document.strokeAt(slot);
+    final stroke = document.strokeIfAlive(slot);
+    if (stroke == null) continue;
+    if (best != null && document.comparePaintOrder(slot, best) <= 0) continue;
     if (accepts != null && !accepts(stroke)) continue;
     if (allowed != null && !allowed(stroke)) continue;
     if (_hits(stroke, world, strokeSlopPx / zoom, boxSlopPx / zoom)) {
-      return stroke.id;
+      best = slot;
     }
   }
-  return null;
+  if (best == null) return null;
+  final stroke = document.strokeAt(best);
+  if (gate != null && !gate(stroke)) return null;
+  return stroke.id;
 }
 
 bool _hits(CanvasStroke stroke, Offset world, double lineSlop, double boxSlop) {
   switch (stroke.kind) {
     case CanvasObjectKind.stroke:
-      return _withinTolerance(
-        stroke.points,
-        world.dx,
-        world.dy,
-        stroke.width / 2 + lineSlop,
-      );
+      final reach = stroke.width / 2 + lineSlop;
+      if (world.dx < stroke.x - reach ||
+          world.dx > stroke.x + stroke.w + reach ||
+          world.dy < stroke.y - reach ||
+          world.dy > stroke.y + stroke.h + reach) {
+        return false;
+      }
+      return _withinTolerance(stroke.points, world.dx, world.dy, reach);
     case CanvasObjectKind.shape:
       return _shapeOutlineDistance(stroke, world) <=
           math.max(stroke.width, 1) / 2 + lineSlop;
@@ -151,20 +157,65 @@ double _rectBorderDistance(Offset p, double w, double h) {
   );
 }
 
-/// First-order distance to an ellipse of semi-axes [a] and [b]; exact enough
-/// for a few pixels of reach.
+/// Distance to an ellipse of semi-axes [a] and [b], by bisection on the closest point's root.
 double _ellipseDistance(Offset local, double a, double b) {
   if (a <= 0 || b <= 0) {
     return math.sqrt(local.dx * local.dx + local.dy * local.dy);
   }
-  final x = local.dx - a;
-  final y = local.dy - b;
-  final g = (x * x) / (a * a) + (y * y) / (b * b) - 1;
-  final gx = 2 * x / (a * a);
-  final gy = 2 * y / (b * b);
-  final slope = math.sqrt(gx * gx + gy * gy);
-  if (slope == 0) return math.min(a, b);
-  return g.abs() / slope;
+  final px = (local.dx - a).abs();
+  final py = (local.dy - b).abs();
+  return a >= b
+      ? _quadrantDistance(a, b, px, py)
+      : _quadrantDistance(b, a, py, px);
+}
+
+/// Distance from (y0, y1) in the first quadrant to the ellipse with semi-axes e0 >= e1 > 0.
+double _quadrantDistance(double e0, double e1, double y0, double y1) {
+  if (y1 > 0) {
+    if (y0 > 0) {
+      final z0 = y0 / e0;
+      final z1 = y1 / e1;
+      final g = z0 * z0 + z1 * z1 - 1;
+      if (g == 0) return 0;
+      final r0 = (e0 / e1) * (e0 / e1);
+      final sbar = _ellipseRoot(r0, z0, z1, g);
+      final x0 = r0 * y0 / (sbar + r0);
+      final x1 = y1 / (sbar + 1);
+      return math.sqrt((x0 - y0) * (x0 - y0) + (x1 - y1) * (x1 - y1));
+    }
+    return (y1 - e1).abs();
+  }
+  final numer = e0 * y0;
+  final denom = e0 * e0 - e1 * e1;
+  if (numer < denom) {
+    final xde = numer / denom;
+    final x0 = e0 * xde;
+    final x1 = e1 * math.sqrt(1 - xde * xde);
+    return math.sqrt((x0 - y0) * (x0 - y0) + x1 * x1);
+  }
+  return (y0 - e0).abs();
+}
+
+double _ellipseRoot(double r0, double z0, double z1, double g) {
+  final n0 = r0 * z0;
+  var s0 = z1 - 1;
+  var s1 = g < 0 ? 0.0 : math.sqrt(n0 * n0 + z1 * z1) - 1;
+  var s = 0.0;
+  for (var i = 0; i < 100; i++) {
+    s = (s0 + s1) / 2;
+    if (s == s0 || s == s1) break;
+    final r = n0 / (s + r0);
+    final q = z1 / (s + 1);
+    final value = r * r + q * q - 1;
+    if (value > 0) {
+      s0 = s;
+    } else if (value < 0) {
+      s1 = s;
+    } else {
+      break;
+    }
+  }
+  return s;
 }
 
 bool _withinTolerance(

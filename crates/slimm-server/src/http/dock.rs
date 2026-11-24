@@ -32,7 +32,7 @@ pub(super) use module_data::purge_member as purge_module_member_data;
 use std::sync::Arc;
 
 use axum::Router;
-use axum::extract::{DefaultBodyLimit, Path, Query, State};
+use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::request::Parts;
 use axum::routing::{get, post};
 use url::Url;
@@ -45,7 +45,7 @@ use self::dock_sources::{add_source, list_sources, remove_source};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::require_manage_server;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{Authed, Json, Query, enforce};
 use crate::config::Config;
 use crate::ratelimit::Class;
 

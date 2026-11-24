@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import hashlib
+import os
 import http.client
 import shutil
 import tempfile
@@ -66,6 +67,20 @@ class Cache(unittest.TestCase):
         fetcher, _ = self._fetcher(b"different")
         with self.assertRaises(SystemExit):
             fetcher.path(self.part)
+
+    def test_an_interrupted_download_leaves_no_file_in_the_cache(self):
+        part = {"url": "https://upload.wikimedia.org/b.wav"}
+        fetcher, _ = self._fetcher(b"partial")
+        with mock.patch.object(fetch.os, "replace", side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                fetcher.path(part)
+        self.assertFalse(any(not n.endswith(".part") for n in os.listdir(self.dir)))
+
+    def test_a_mismatched_download_leaves_no_partial_file(self):
+        fetcher, _ = self._fetcher(b"different")
+        with self.assertRaises(SystemExit):
+            fetcher.path(self.part)
+        self.assertEqual(os.listdir(self.dir), [])
 
     def test_a_cached_file_with_a_wrong_hash_is_fetched_again(self):
         fetcher, opened = self._fetcher(self.good)

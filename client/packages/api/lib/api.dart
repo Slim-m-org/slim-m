@@ -12,6 +12,7 @@
 library;
 
 export 'src/logging/app_log.dart';
+export 'src/web_asset_url.dart';
 export 'src/logging/failure.dart';
 export 'src/logging/log_redaction.dart'
     show redactText, redactContext, redactedMark;
@@ -81,6 +82,7 @@ export 'src/client.dart'
         SlimmApiLinkPreview,
         SlimmApiMemberModeration,
         SlimmApiMessages,
+        MessagePage,
         SlimmApiMetrics,
         SlimmApiModeration,
         SlimmApiModuleCommands,

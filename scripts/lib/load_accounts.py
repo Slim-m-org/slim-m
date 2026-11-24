@@ -52,9 +52,15 @@ def _cache_path(directory, base_url):
 def _load_cache(path):
     try:
         with open(path, encoding="utf-8") as handle:
-            return json.load(handle)
+            rows = json.load(handle)
     except (OSError, ValueError):
         return None
+    required = ("username", "display_name", "token")
+    if not isinstance(rows, list) or not all(
+            isinstance(r, dict) and all(isinstance(r.get(k), str) and r[k] for k in required)
+            for r in rows):
+        return None
+    return rows
 
 
 def _entry(account):
@@ -100,7 +106,7 @@ def _revive(base_url, entry):
     try:
         api.me()
         return api, entry.get("refresh")
-    except urllib.error.URLError:
+    except OSError:
         pass
     if not entry.get("refresh"):
         return None, None
@@ -110,7 +116,7 @@ def _revive(base_url, entry):
                 "POST", "/auth/refresh",
                 {"refresh_token": entry["refresh"]}),
             max_attempts=10, base_delay=2.0, max_delay=30.0)
-    except urllib.error.URLError:
+    except OSError:
         return None, None
     api.token = got["access_token"]
     return api, got["refresh_token"]

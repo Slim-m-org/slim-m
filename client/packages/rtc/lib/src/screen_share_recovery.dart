@@ -108,6 +108,7 @@ class ShareRecovery {
       );
       return;
     }
+    if (_timer == null) return;
     _watch.reset();
     await pause(true);
   }

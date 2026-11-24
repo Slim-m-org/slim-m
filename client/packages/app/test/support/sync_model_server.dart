@@ -61,6 +61,9 @@ class SyncModelServer {
   final bool reportsHead;
 
   final messages = <ModelMessage>[];
+
+  /// Seqs a page sends in a shape the client cannot parse.
+  final unreadableSeqs = <int>{};
   final _ops = <_ModelOp>[];
   int _clock = 1000;
 
@@ -106,7 +109,9 @@ class SyncModelServer {
             .toList()
             .reversed
             .take(limit ?? newestPage))
-      m.toJson(channelId),
+      unreadableSeqs.contains(m.seq)
+          ? {...m.toJson(channelId), 'poll': 'not a poll'}
+          : m.toJson(channelId),
   ];
 
   /// One `/sync` body answered against the state as it stands now.

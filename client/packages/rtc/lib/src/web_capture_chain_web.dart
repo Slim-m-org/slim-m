@@ -10,15 +10,15 @@ import 'dart:js_interop_unsafe';
 import 'package:dart_webrtc/dart_webrtc.dart' show MediaStreamTrackWeb;
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
-import 'package:slimm_api/api.dart' show AppLog, LogTag;
+import 'package:slimm_api/api.dart' show AppLog, LogTag, versionedWebAssetUrl;
 import 'package:web/web.dart' as web;
 
 import 'web_capture_chain_processor.dart';
 import 'web_capture_chain_settings.dart';
 
 /// Both files sit next to index.html; tool/fetch_web_assets.sh copies them from the fork.
-const _workletUrl = 'capture_chain_worklet.js';
-const _wasmUrl = 'capture_chain.wasm';
+const _workletFile = 'capture_chain_worklet.js';
+const _wasmFile = 'capture_chain.wasm';
 const _processorName = 'slimm-capture-chain';
 
 /// A worklet that has not answered by then is suspended; the poll skips a beat.
@@ -103,9 +103,12 @@ class _Chain {
           latencyHint: 'interactive'.toJS,
         ),
       );
-      await context.audioWorklet.addModule(_workletUrl).toDart;
-      final response = await web.window.fetch(_wasmUrl.toJS).toDart;
-      if (!response.ok) throw StateError('$_wasmUrl: HTTP ${response.status}');
+      await context.audioWorklet
+          .addModule(versionedWebAssetUrl(_workletFile))
+          .toDart;
+      final response =
+          await web.window.fetch(versionedWebAssetUrl(_wasmFile).toJS).toDart;
+      if (!response.ok) throw StateError('$_wasmFile: HTTP ${response.status}');
       final wasm = await response.arrayBuffer().toDart;
       final options = JSObject()..['wasm'] = wasm;
       final node = web.AudioWorkletNode(

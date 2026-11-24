@@ -6,13 +6,11 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
-/// Directives start a line, so a commented-out import never matches.
-final _directive = RegExp(r"^(?:import|export) '([^']+)'", multiLine: true);
-
-List<String> _featureImports(File file) => [
-  for (final match in _directive.allMatches(file.readAsStringSync()))
-    if (match.group(1)!.contains('features/')) match.group(1)!,
+List<String> _featureImports(String source) => [
+  for (final uri in directiveUris(source))
+    if (uri.contains('features/')) uri,
 ];
 
 void main() {
@@ -26,8 +24,20 @@ void main() {
     ];
     final found = {
       for (final file in files)
-        if (_featureImports(file).isNotEmpty) file.path: _featureImports(file),
+        if (_featureImports(file.readAsStringSync()).isNotEmpty)
+          file.path: _featureImports(file.readAsStringSync()),
     };
     expect(found, isEmpty, reason: 'move the file into its feature instead');
+  });
+
+  test('a double-quoted or conditional feature import is seen', () {
+    expect(_featureImports('import "../features/a/b.dart";'), hasLength(1));
+    expect(
+      _featureImports(
+        "import 'a.dart' if (dart.library.io) '../features/a/b.dart';",
+      ),
+      hasLength(1),
+    );
+    expect(_featureImports("// import '../features/a/b.dart';"), isEmpty);
   });
 }

@@ -13,6 +13,8 @@ import 'package:slimm_app/src/diagnostics/debug_log_filter.dart';
 import 'package:slimm_app/src/features/settings/screens/debug_log_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
+
 DebugLog _log() {
   LogRecord at(LogLevel level, String tag, String message) => LogRecord(
     at: DateTime(2026, 10, 18),
@@ -31,13 +33,18 @@ DebugLog _log() {
 Future<ProviderContainer> _open(
   WidgetTester tester, {
   double width = 900,
+  DebugLogFilter? filter,
+  DebugLog? log,
 }) async {
   tester.view.physicalSize = Size(width, 2400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final log = _log();
+  log ??= _log();
   final container = ProviderContainer(
-    overrides: [debugLogProvider.overrideWith((ref) => log)],
+    overrides: [
+      debugLogProvider.overrideWith((ref) => log!),
+      if (filter != null) debugLogFilterProvider.overrideWith((ref) => filter),
+    ],
   );
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -98,6 +105,36 @@ void main() {
     await tester.enterText(find.byType(EditableText).first, 'zzz');
     await tester.pumpAndSettle();
     expect(find.text('Nothing matches this filter.'), findsOneWidget);
+  });
+
+  testWidgets('a kept query shows in the search box on reopen', (tester) async {
+    await _open(tester, filter: const DebugLogFilter(query: 'joined'));
+    expect(find.text('joined'), findsOneWidget);
+    expect(find.text('sync dropped'), findsNothing);
+  });
+
+  testWidgets('a kept area keeps its chip row so it can be cleared', (
+    tester,
+  ) async {
+    final single = DebugLog()
+      ..write(
+        LogRecord(
+          at: DateTime(2026, 10, 18),
+          level: LogLevel.info,
+          tag: LogTag.voice,
+          message: 'voice joined',
+          context: const {},
+        ),
+      );
+    await _open(
+      tester,
+      filter: const DebugLogFilter(tag: LogTag.sync),
+      log: single,
+    );
+    expect(find.byKey(const ValueKey('area-All')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('area-All')));
+    await pumpFrames(tester, frames: 20);
+    expect(find.text('voice joined'), findsOneWidget);
   });
 
   testWidgets('copy exports only what is shown, with secrets redacted', (

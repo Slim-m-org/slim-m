@@ -40,6 +40,17 @@ Future<DownloadTarget?> openDownloadTarget(String filename) =>
 /// browser would otherwise run out of memory on a multi-gigabyte file.
 const int kMemoryDownloadLimit = 256 * 1024 * 1024;
 
+/// The name a browser save uses: an extensionless name gets `.bin`, since a save has to end in one.
+String webSaveName(String filename) {
+  final name = filename.split(RegExp(r'[\\/]')).last;
+  if (name.isEmpty || name == '.' || name == '..') return 'download.bin';
+  final dot = name.lastIndexOf('.');
+  return dot > 0 && dot < name.length - 1 ? name : '$name.bin';
+}
+
+/// Hands finished bytes to the browser's download, under a name.
+typedef BrowserSave = void Function(Uint8List bytes, String filename);
+
 /// Buffers in memory, then gives the bytes to `file_picker`'s save flow,
 /// which on Android, iOS and web only accepts bytes.
 class MemoryDownloadTarget implements DownloadTarget {
@@ -47,6 +58,9 @@ class MemoryDownloadTarget implements DownloadTarget {
 
   final String filename;
   final BytesBuilder _bytes = BytesBuilder(copy: false);
+
+  /// Empties the buffer and returns what it held.
+  Uint8List takeBytes() => _bytes.takeBytes();
 
   @override
   int? get maxBytes => kMemoryDownloadLimit;
@@ -70,4 +84,18 @@ class MemoryDownloadTarget implements DownloadTarget {
 
   @override
   Future<void> discard() async => _bytes.clear();
+}
+
+/// Browser saves: the buffer goes out as a download of its own, which works for
+/// empty and extensionless files that the picker's save flow refuses.
+class BrowserDownloadTarget extends MemoryDownloadTarget {
+  BrowserDownloadTarget(super.filename, this._save);
+
+  final BrowserSave _save;
+
+  @override
+  Future<bool> finish() async {
+    _save(takeBytes(), webSaveName(filename));
+    return true;
+  }
 }

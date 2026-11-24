@@ -3,6 +3,9 @@ library;
 
 import 'client.dart';
 import 'client_transport.dart';
+import 'exceptions.dart';
+import 'list_equality.dart';
+import 'logging/app_log.dart';
 import 'models.dart';
 
 /// The soundboard: the Space's clips, and playing one into a call. The
@@ -28,13 +31,40 @@ extension SlimmApiSoundboard on SlimmApi {
     required String name,
     String? emoji,
   }) async {
-    final json = await send(
-      'POST',
-      '/soundboard',
-      bytes: bytes,
-      query: {'name': name, if (emoji != null) 'emoji': emoji},
-    );
-    return SoundClip.fromJson(json as Map<String, dynamic>);
+    try {
+      final json = await send(
+        'POST',
+        '/soundboard',
+        bytes: bytes,
+        query: {'name': name, if (emoji != null) 'emoji': emoji},
+      );
+      return SoundClip.fromJson(json as Map<String, dynamic>);
+    } on ConflictException {
+      final landed = await _ownClipWithSameAudio(bytes, name);
+      if (landed == null) rethrow;
+      return landed;
+    }
+  }
+
+  /// The caller's own clip named [name] holding exactly [bytes]: an earlier
+  /// attempt of this same upload whose reply was lost.
+  Future<SoundClip?> _ownClipWithSameAudio(List<int> bytes, String name) async {
+    try {
+      final me = session.tokens?.userId;
+      for (final clip in await listSoundClips()) {
+        if (clip.uploaderId != me || clip.name != name) continue;
+        final stored = await fetchSoundClipAudio(clip.id);
+        if (listEquals(stored.bytes, bytes)) return clip;
+      }
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.media,
+        'Could not check whether the clip upload already landed',
+        error,
+        stack,
+      );
+    }
+    return null;
   }
 
   /// Renames a clip, changes its emoji, or both. Requires MANAGE_SERVER.

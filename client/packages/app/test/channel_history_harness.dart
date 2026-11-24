@@ -167,6 +167,7 @@ class HistoryHarness {
 /// [attachmentSeqs] names the server-side messages that carry one attachment
 /// (see [attachmentFilename]); the seeded local rows never do, since the
 /// store keeps no attachments.
+/// [unreadableSeqs] names server-side messages sent in a shape this build cannot parse.
 /// [storeFactory] swaps in a [MessageStore] subclass, for a test that needs
 /// the store itself to misbehave rather than the network. [answerFirst] gets
 /// each request before the built-in routes and answers the ones it returns a
@@ -187,6 +188,7 @@ Future<HistoryHarness> mountChannel(
   int olderPageRateLimits = 0,
   int? rateLimitRetryAfter,
   List<int> attachmentSeqs = const [],
+  Set<int> unreadableSeqs = const {},
   List<Override> overrides = const [],
   Future<http.Response?> Function(http.Request request)? answerFirst,
 }) async {
@@ -221,6 +223,7 @@ Future<HistoryHarness> mountChannel(
     olderPageRateLimits: olderPageRateLimits,
     rateLimitRetryAfter: rateLimitRetryAfter,
     attachmentSeqs: attachmentSeqs.toSet(),
+    unreadableSeqs: unreadableSeqs,
     authorFor: authorFor ?? (_) => messageAuthorId,
     blockedUserIds: blockedUserIds,
     searchHits: searchHits,
@@ -293,6 +296,7 @@ class _FakeServer {
     required this.olderPageRateLimits,
     required this.rateLimitRetryAfter,
     required this.attachmentSeqs,
+    required this.unreadableSeqs,
     required this.authorFor,
     required this.blockedUserIds,
     required this.searchHits,
@@ -307,6 +311,7 @@ class _FakeServer {
   final int olderPageRateLimits;
   final int? rateLimitRetryAfter;
   final Set<int> attachmentSeqs;
+  final Set<int> unreadableSeqs;
   final String Function(int seq) authorFor;
   final List<String> blockedUserIds;
   final List<Map<String, dynamic>> searchHits;
@@ -366,9 +371,17 @@ class _FakeServer {
           headers: {'content-type': 'application/json'},
         );
       }
-      return _jsonBody(
-        _page(request.url, serverSeqs, authorFor, attachmentSeqs),
-      );
+      return _jsonBody([
+        for (final item in _page(
+          request.url,
+          serverSeqs,
+          authorFor,
+          attachmentSeqs,
+        ))
+          unreadableSeqs.contains(item['seq'])
+              ? {...item, 'poll': 'not a poll'}
+              : item,
+      ]);
     }
     if (request.method == 'GET' && path == '/me') return _jsonBody(_meJson());
     if (request.method == 'GET' && path == '/blocks') {

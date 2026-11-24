@@ -25,7 +25,7 @@ class RootFetchingHttpOverrides extends HttpOverrides {
 
   final AddTrustedRoots _addRoots;
 
-  /// One attempt per host and port for the process, shared by every client.
+  /// One attempt per host and port, shared by every client; a failed one is dropped so the next connect asks again.
   final _attempts = <String, Future<bool>>{};
 
   @override
@@ -35,8 +35,20 @@ class RootFetchingHttpOverrides extends HttpOverrides {
     return context == null ? RootFetchingHttpClient(inner, this) : inner;
   }
 
-  Future<bool> _rootsAddedFor(Uri url) =>
-      _attempts.putIfAbsent('${url.host}:${url.port}', () => _addRoots(url));
+  Future<bool> _rootsAddedFor(Uri url) {
+    final key = '${url.host}:${url.port}';
+    return _attempts.putIfAbsent(key, () => _attempt(key, url));
+  }
+
+  Future<bool> _attempt(String key, Uri url) async {
+    var added = false;
+    try {
+      added = await _addRoots(url);
+    } finally {
+      if (!added) _attempts.removeWhere((k, _) => k == key);
+    }
+    return added;
+  }
 }
 
 /// Delegates to the dart:io client and retries [openUrl] once after a missing

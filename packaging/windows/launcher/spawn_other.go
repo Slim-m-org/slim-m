@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"syscall"
 )
 
@@ -26,6 +27,16 @@ func start(exe, dir string, args []string) (int, error) {
 func osProcessAlive(pid int) bool {
 	process, err := os.FindProcess(pid)
 	return err == nil && process.Signal(syscall.Signal(0)) == nil
+}
+
+// osProcessIsApp reads /proc where it exists; elsewhere it cannot tell, and says yes.
+func osProcessIsApp(pid int) bool {
+	image, err := os.Readlink("/proc/" + strconv.Itoa(pid) + "/exe")
+	if err != nil {
+		_, procErr := os.Stat("/proc/self/exe")
+		return procErr != nil
+	}
+	return isAppImage(image)
 }
 
 func processRunningFrom(string) bool { return false }

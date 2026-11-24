@@ -144,7 +144,7 @@ async fn retire_principal(state: &AppState, module: &InstalledModule) {
                 .await;
         }
         Err(DeleteAccountError::UserNotFound) => {
-            super::super::members::announce_member_gone(state, bot).await;
+            super::super::members::announce_member_gone(state, bot, true).await;
         }
         Err(err) => {
             tracing::warn!(?err, module = %module.id, "could not remove a module's principal");

@@ -3,14 +3,17 @@
 //! for this viewer and that needs no store read to build.
 
 use super::ChannelDto;
-use super::frames::{PollOptionCountDto, ServerFrame};
+use super::frames::ServerFrame;
+use super::tally_frames::{OwnVoteDto, PollOptionCountDto};
 use crate::http::link_preview::LinkPreviews;
-use crate::hub::{CanvasEvent, Event, MessageEvent};
+use crate::hub::{CanvasEvent, CastBallot, Event, MessageEvent};
+use crate::ids::UserId;
 
 /// The frame for `event`, `None` for an event no channel frame carries, or the event
 /// back when its frame is built per viewer from the store.
 pub(super) fn to_frame(
     link_previews: &LinkPreviews,
+    viewer: UserId,
     event: Event,
 ) -> Result<Option<ServerFrame>, Box<Event>> {
     Ok(Some(match event {
@@ -93,6 +96,8 @@ pub(super) fn to_frame(
             message_id,
             options,
             runoff,
+            version,
+            cast,
         }) => ServerFrame::PollVoted {
             channel_id: channel_id.to_string(),
             message_id: message_id.to_string(),
@@ -100,7 +105,9 @@ pub(super) fn to_frame(
                 .into_iter()
                 .map(|(position, votes)| PollOptionCountDto { position, votes })
                 .collect(),
+            own_vote: own_vote(viewer, cast.as_deref(), runoff.is_some()),
             runoff: runoff.map(Into::into),
+            version,
         },
         Event::Message(MessageEvent::ComponentsChanged {
             channel_id,
@@ -305,7 +312,7 @@ pub(super) fn to_frame(
         | Event::PresenceChanged(_)
         | Event::MemberTimeoutChanged { .. }
         | Event::JoinGateChanged { .. }
-        | Event::MemberRemoved(_)
+        | Event::MemberRemoved { .. }
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)
         | Event::OwnerChanged(_)
@@ -335,4 +342,13 @@ pub(super) fn to_frame(
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => return Ok(None),
     }))
+}
+
+/// The viewer's own ballot, when it is the one that moved this poll.
+fn own_vote(viewer: UserId, cast: Option<&CastBallot>, ranked: bool) -> Option<OwnVoteDto> {
+    let cast = cast.filter(|cast| cast.user_id == viewer)?;
+    Some(OwnVoteDto {
+        voted_option: *cast.ranking.first()?,
+        voted_ranking: ranked.then(|| cast.ranking.clone()),
+    })
 }

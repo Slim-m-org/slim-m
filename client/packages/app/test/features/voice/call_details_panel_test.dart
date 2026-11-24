@@ -109,6 +109,13 @@ void main() {
       expectClearOfEdge(tester, _sheet, edge, reason: '$edge');
     }
     expect(tester.getRect(_sheet).width, 390);
+    final earlier = find.bySemanticsLabel(RegExp(r'^Call on'));
+    expect(earlier, findsWidgets);
+    expect(
+      tester.getRect(earlier.first).height,
+      greaterThanOrEqualTo(AppSizes.rowTouch),
+      reason: 'a phone row is a full touch target',
+    );
 
     await tester.binding.handlePopRoute();
     await pumpFrames(tester, frames: 30);

@@ -27,8 +27,8 @@ void declineRing(WidgetRef ref, IncomingDmCallRing ring) =>
 /// [FocusNode.requestFocus] call has no such deference, which is exactly
 /// what "steal focus" means here - with no tab stop needed to reach it first.
 ///
-/// Except from a dialog or the palette: someone typing there keeps the
-/// keyboard, and the card is still a click away.
+/// Except from a dialog, the palette or any text field such as the composer:
+/// someone typing there keeps the keyboard, and the card is still a click away.
 class RingShortcuts extends ConsumerStatefulWidget {
   const RingShortcuts({super.key, required this.ring, required this.child});
 
@@ -47,15 +47,15 @@ class _RingShortcutsState extends ConsumerState<RingShortcuts> {
     super.initState();
     // After the frame, once a card this one replaced has left the tree.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_aDialogHoldsFocus()) _focusNode.requestFocus();
+      if (mounted && !_someoneIsTyping()) _focusNode.requestFocus();
     });
   }
 
-  static bool _aDialogHoldsFocus() {
+  static bool _someoneIsTyping() {
     final focused = FocusManager.instance.primaryFocus?.context;
-    return focused != null &&
-        focused.mounted &&
-        ModalRoute.of(focused) is PopupRoute;
+    if (focused == null || !focused.mounted) return false;
+    return ModalRoute.of(focused) is PopupRoute ||
+        focused.findAncestorWidgetOfExactType<EditableText>() != null;
   }
 
   @override

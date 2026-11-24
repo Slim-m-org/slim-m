@@ -34,7 +34,9 @@ class DebugLogToolbar extends ConsumerStatefulWidget {
 }
 
 class _DebugLogToolbarState extends ConsumerState<DebugLogToolbar> {
-  final _search = TextEditingController();
+  late final _search = TextEditingController(
+    text: ref.read(debugLogFilterProvider).query,
+  );
 
   @override
   void dispose() {
@@ -49,7 +51,8 @@ class _DebugLogToolbarState extends ConsumerState<DebugLogToolbar> {
   Widget build(BuildContext context) {
     final all = ref.watch(debugLogProvider);
     final filter = ref.watch(debugLogFilterProvider);
-    final tags = ({for (final e in all) e.source}.toList()..sort());
+    final tags = ({for (final e in all) e.source, ?filter.tag}.toList()
+      ..sort());
 
     final search = AppInput(
       controller: _search,
@@ -90,7 +93,7 @@ class _DebugLogToolbarState extends ConsumerState<DebugLogToolbar> {
                   children: [search, levels],
                 ),
         ),
-        if (tags.length > 1)
+        if (tags.length > 1 || filter.tag != null)
           _AreaChips(
             tags: tags,
             selected: filter.tag,

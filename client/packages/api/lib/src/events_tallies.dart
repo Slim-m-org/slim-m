@@ -2,23 +2,24 @@
 /// Per-item tallies carried by live reaction and poll updates.
 library;
 
-/// One emoji and its current public count, as broadcast live.
+/// One emoji and its current count, as one viewer receives it live.
 ///
-/// Deliberately a different type from [ReactionSummary] (in models.dart),
-/// which is what a REST read of a message returns: that shape also carries
-/// `reacted`, this one never does, because who reacted is per-viewer and the
-/// server never broadcasts it. Keeping them distinct types means a caller
-/// cannot accidentally read `.reacted` off a live update as if it were a
-/// fetched one.
+/// A different type from [ReactionSummary] (in models.dart), the REST read's
+/// shape: [reacted] here is null from a server that predates it, so a caller
+/// has to decide what an unknown flag means rather than read a false one.
 class ReactionTally {
-  const ReactionTally({required this.emoji, required this.count});
+  const ReactionTally({required this.emoji, required this.count, this.reacted});
 
   final String emoji;
   final int count;
 
+  /// Whether the receiving user is among the reactors; null from an older server.
+  final bool? reacted;
+
   factory ReactionTally.fromJson(Map<String, dynamic> json) => ReactionTally(
         emoji: json['emoji'] as String,
         count: json['count'] as int,
+        reacted: json['reacted'] as bool?,
       );
 }
 

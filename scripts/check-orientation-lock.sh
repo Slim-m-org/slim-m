@@ -79,13 +79,21 @@ code=$(sed -e 's://.*::' "$kt" |
        awk '/\/\*/{c=1} !c{print} /\*\//{c=0}')
 for token in 'override fun onCreate' \
              'R.bool.slimm_portrait_only' \
-             'requestedOrientation' \
-             'SCREEN_ORIENTATION_PORTRAIT'; do
+             'requestedOrientation = WindowRules.orientation'; do
   grep -qF "$token" <<<"$code" || {
     echo "::error::$kt no longer applies the lock ($token is gone)"
     fail=1
   }
 done
+
+# MainActivity takes its orientation from WindowRules, so the portrait branch must survive there.
+rules=client/packages/app/android/app/src/main/kotlin/top/npcserver/slimm/WindowRules.kt
+rules_code=$(sed -e 's://.*::' "$rules" |
+             awk '/\/\*/{c=1} !c{print} /\*\//{c=0}')
+grep -qF 'SCREEN_ORIENTATION_PORTRAIT' <<<"$rules_code" || {
+  echo "::error::$rules no longer locks phones to portrait (SCREEN_ORIENTATION_PORTRAIT is gone)"
+  fail=1
+}
 
 manifest=client/packages/app/web/manifest.json
 if grep -qF '"orientation"' "$manifest"; then

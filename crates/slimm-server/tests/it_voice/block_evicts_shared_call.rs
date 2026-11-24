@@ -122,3 +122,81 @@ async fn blocking_with_no_shared_dm_evicts_nothing() {
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     assert!(recorder.removed.lock().unwrap().is_empty());
 }
+
+/// Bob calls Alice and the ring is still sounding when one of them blocks the
+/// other: the ring ends for everyone rather than ringing on unanswerably.
+async fn block_mid_ring_ends_the_ring(bob_blocks: bool) {
+    let recorder = RecordingRoomService::default();
+    let sfu_url = spawn_sfu(recorder.clone()).await;
+    let (store, _guard) = support::new_store("slimm-block-ends-ring-test").await;
+    let voice = VoiceService::for_test(&sfu_url, "key", "a-secret-at-least-32-chars-long!");
+    let hub = slimm_server::hub::Hub::new();
+    let app = support::app::builder(store.clone())
+        .hub(hub.clone())
+        .voice(voice.clone())
+        .router();
+
+    let (alice, alice_token) = register(&store, "alice").await;
+    let (bob, bob_token) = register(&store, "bob").await;
+    let dm = store.open_dm(alice, bob).await.unwrap();
+    for path in ["heartbeat", "ring"] {
+        let response = app
+            .clone()
+            .oneshot(request(
+                "POST",
+                &format!("/channels/{}/voice/{path}", dm.id),
+                &bob_token,
+            ))
+            .await
+            .unwrap();
+        assert!(
+            response.status().is_success(),
+            "{path}: {}",
+            response.status()
+        );
+    }
+    let now = std::time::Instant::now();
+    let [(_, ring_id, _, _)] = voice.rings().outstanding_for_at(alice, now)[..] else {
+        panic!("bob's ring must be outstanding for alice before the block");
+    };
+    let mut events = hub.subscribe();
+
+    let (blocker_token, target) = if bob_blocks {
+        (&bob_token, alice)
+    } else {
+        (&alice_token, bob)
+    };
+    let response = app
+        .clone()
+        .oneshot(request("POST", &format!("/blocks/{target}"), blocker_token))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
+    assert!(
+        voice.rings().outstanding_for_at(alice, now).is_empty(),
+        "the block must end the ring that was sounding"
+    );
+    let mut ended = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let slimm_server::hub::Event::CallRingEnded {
+            channel_id,
+            ring_id: ended_id,
+            ..
+        } = event
+        {
+            ended.push((channel_id, ended_id));
+        }
+    }
+    assert_eq!(ended, vec![(dm.id, ring_id)]);
+}
+
+#[tokio::test]
+async fn blocking_the_caller_mid_ring_ends_their_ring() {
+    block_mid_ring_ends_the_ring(false).await;
+}
+
+#[tokio::test]
+async fn blocking_the_callee_mid_ring_ends_the_ring_too() {
+    block_mid_ring_ends_the_ring(true).await;
+}

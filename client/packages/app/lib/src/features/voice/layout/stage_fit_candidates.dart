@@ -38,6 +38,18 @@ StageBlock? _better(StageBlock? a, StageBlock? b) {
   return a;
 }
 
+/// Memoises [bestContent] for one [fitStage] call, where many plans share a region.
+class ContentFits {
+  ContentFits(this.items, this.gap);
+
+  final List<StageItem> items;
+  final double gap;
+  final Map<Rect, StageBlock?> _byRegion = {};
+
+  StageBlock? best(Rect region) =>
+      _byRegion.putIfAbsent(region, () => bestContent(items, region, gap));
+}
+
 /// The best layout of [items] in [box]; the first item is the pinned one.
 StageBlock? bestContent(List<StageItem> items, Rect box, double gap) {
   if (items.isEmpty || box.width <= 0 || box.height <= 0) return null;

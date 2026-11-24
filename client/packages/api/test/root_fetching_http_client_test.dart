@@ -82,7 +82,7 @@ void main() {
 
   test(
       'when no root can be added the failure stands, and the host is asked '
-      'for once however many clients meet it', () async {
+      'again by the next connection', () async {
     final asked = <Uri>[];
     final overrides = RootFetchingHttpOverrides((url) async {
       asked.add(url);
@@ -97,7 +97,7 @@ void main() {
         ),
       );
     }
-    expect(asked, [_url]);
+    expect(asked, [_url, _url]);
   });
 
   test('a missing root is added and the same request opens again', () async {

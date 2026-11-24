@@ -39,8 +39,8 @@ class Backoff {
       );
     }
     if (jitter > Duration.zero) {
-      final draw = (random ?? Random()).nextInt(jitter.inMilliseconds);
-      wait += Duration(milliseconds: draw);
+      final draw = (random ?? Random()).nextInt(jitter.inMicroseconds);
+      wait += Duration(microseconds: draw);
     }
     return wait;
   }

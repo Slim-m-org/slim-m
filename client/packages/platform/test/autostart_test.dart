@@ -33,6 +33,13 @@ void main() {
     });
 
     test(
+        'the entry names the executable in TryExec so a removed install is skipped',
+        () {
+      final entry = XdgAutostart.desktopEntry('/opt/slim m/slimm_app');
+      expect(entry, contains('TryExec=/opt/slim m/slimm_app\n'));
+    });
+
+    test(
         'turning it on writes the entry and off removes it, read back each time',
         () async {
       final dir = Directory.systemTemp.createTempSync('slimm-autostart-');

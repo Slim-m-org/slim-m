@@ -11,6 +11,7 @@
 /// unusable app, which is worse than the problem the floor exists for.
 library;
 
+import 'dart:async';
 import 'dart:io' show exit;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -23,15 +24,20 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../desktop/relaunch.dart';
 import '../../../desktop/rpm_updater.dart';
+import '../../../desktop/self_update/android_apk_update.dart';
+import '../../../desktop/self_update/play_install.dart';
+import '../../../desktop/self_update/play_update.dart';
+import '../../../desktop/self_update/self_update_controller.dart';
+import '../../../desktop/self_update/self_update_failure.dart';
 import '../../../desktop/update_package_view.dart' show packageManagerCommand;
-import '../../../desktop/startup_screen.dart' show updateActionHint;
+import '../../accounts/providers/account_providers.dart';
 import '../providers/client_floor.dart';
+import 'client_too_old_actions.dart';
 import '../../../providers/providers.dart';
 import '../../../web_update/web_page.dart';
-import 'package:slimm_api/api.dart' show AppLog, LogTag;
+import 'package:slimm_api/api.dart' show AppLog, LogTag, reportFailure;
 
-/// Where a build that cannot self-update sends someone instead.
-const releasesUrl = 'https://github.com/Slim-m-org/slim-m/releases';
+export 'client_too_old_actions.dart' show releasesUrl;
 
 /// Renders [child] unless this client is below the server's floor.
 class ClientTooOldGate extends ConsumerWidget {
@@ -56,6 +62,8 @@ class ClientTooOldScreen extends ConsumerStatefulWidget {
     this.onReload,
     this.relaunch,
     this.canRelaunch,
+    this.fromPlay,
+    this.fromAppStore,
   });
 
   /// Injectable for tests; the real build reads its own install format.
@@ -69,6 +77,10 @@ class ClientTooOldScreen extends ConsumerStatefulWidget {
   /// Injectable; the real one starts a fresh copy and exits this one.
   final Future<void> Function()? relaunch;
   final bool? canRelaunch;
+
+  /// Injectable; the real build asks the installer package it came from.
+  final bool? fromPlay;
+  final bool? fromAppStore;
 
   @override
   ConsumerState<ClientTooOldScreen> createState() => _ClientTooOldScreenState();
@@ -99,95 +111,157 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
     await relaunch();
   }
 
-  Future<void> _openRelease() async {
-    final uri = Uri.parse(releasesUrl);
-    var opened = false;
+  Future<bool> _launch(String url, String what) async {
     try {
-      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } on PlatformException catch (error, stack) {
-      AppLog.swallowed(
-        LogTag.auth,
-        'Could not open the release page',
-        error,
-        stack,
-      );
-      opened = false;
-    }
-    if (!mounted || opened) return;
-    setState(() => _error = 'Could not open the release page.');
-  }
-
-  Future<void> _openTestFlight() async {
-    var opened = false;
-    try {
-      opened = await launchUrl(
-        Uri.parse('itms-beta://'),
+      return await launchUrl(
+        Uri.parse(url),
         mode: LaunchMode.externalApplication,
       );
     } on PlatformException catch (error, stack) {
-      AppLog.swallowed(LogTag.auth, 'Could not open TestFlight', error, stack);
-      opened = false;
+      AppLog.swallowed(LogTag.auth, 'Could not open $what', error, stack);
+      return false;
     }
+  }
+
+  Future<void> _open(String url, String what, {String? fallback}) async {
+    var opened = await _launch(url, what);
+    if (!opened && fallback != null) opened = await _launch(fallback, what);
     if (!mounted || opened) return;
-    setState(() => _error = 'Could not open TestFlight.');
+    setState(() => _error = 'Could not open $what.');
   }
 
-  String get _hint => widget.isWeb
-      ? 'Reload to load the newest version.'
-      : updateActionHint(_format);
+  Future<void> _openRelease() => _open(releasesUrl, 'the release page');
 
-  _TooOldAction get _action {
-    if (widget.isWeb) return _TooOldAction.reload;
-    return switch (_format) {
-      InstallFormat.rpm => _TooOldAction.dnf,
-      InstallFormat.flatpak || InstallFormat.deb => _TooOldAction.none,
-      InstallFormat.testFlight => _TooOldAction.testFlight,
-      _ => _TooOldAction.release,
-    };
+  TooOldAction get _action {
+    final info = ref.watch(appInfoProvider).valueOrNull;
+    return tooOldActionFor(
+      isWeb: widget.isWeb,
+      format: _format,
+      fromPlay: widget.fromPlay ?? (info != null && installedFromPlay(info)),
+      fromAppStore:
+          widget.fromAppStore ?? (info != null && installedFromAppStore(info)),
+      selfApplies: ref.watch(selfApplyAvailableProvider),
+    );
   }
 
-  /// dnf can finish the job from here, which is the whole point of asking on
-  /// this screen rather than only telling: an rpm user is one prompt away
-  /// from a client that works again.
-  Future<void> _update() async {
-    switch (_action) {
-      case _TooOldAction.reload:
+  Future<void> _update(TooOldAction action) async {
+    switch (action) {
+      case TooOldAction.reload:
         (widget.onReload ?? reloadPage)();
-        return;
-      case _TooOldAction.release:
+      case TooOldAction.release:
         await _openRelease();
-        return;
-      case _TooOldAction.testFlight:
-        await _openTestFlight();
-        return;
-      case _TooOldAction.none:
-        return;
-      case _TooOldAction.dnf:
+      case TooOldAction.testFlight:
+        await _open('itms-beta://', 'TestFlight');
+      case TooOldAction.appStore:
+        await _open(appStoreUrl, 'the App Store');
+      case TooOldAction.none:
         break;
+      case TooOldAction.play:
+        await _updateFromPlay();
+      case TooOldAction.dnf:
+        await _guarded(_updateWithDnf);
+      case TooOldAction.apk:
+        await _guarded(_updateApk);
+      case TooOldAction.selfUpdate:
+        await _guarded(_selfUpdate);
     }
+  }
 
+  Future<void> _guarded(Future<void> Function() step) async {
     setState(() {
       _busy = true;
       _error = null;
       _errorDetail = null;
     });
+    try {
+      await step();
+    } on SelfUpdateFailure catch (failure) {
+      _fail(failure.message, failure.detail);
+    } catch (error, stack) {
+      reportFailure(
+        LogTag.platform,
+        'update from the too-old screen',
+        error,
+        stack,
+      );
+      _fail('The update did not finish.', null);
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  void _fail(String line, String? detail) {
+    if (!mounted) return;
+    setState(() {
+      _error = line;
+      _errorDetail = detail;
+    });
+  }
+
+  /// Play's own flow when it has an update, its listing when it does not.
+  Future<void> _updateFromPlay() async {
+    final controller = ref.read(playUpdateProvider.notifier);
+    if (ref.read(playUpdateProvider) == PlayUpdateStage.none) {
+      setState(() => _busy = true);
+      await controller.refresh();
+      if (mounted) setState(() => _busy = false);
+    }
+    final stage = ref.read(playUpdateProvider);
+    if (stage == PlayUpdateStage.none) {
+      await _open(playListingUrl, 'Google Play', fallback: playListingWebUrl);
+      return;
+    }
+    runPlayUpdateAction(controller, stage);
+  }
+
+  Future<void> _updateApk() async {
+    final info = await ref.read(appInfoProvider.future);
+    final outcome = await ref.read(apkUpdateRunnerProvider)(info.version);
+    if (outcome == null) {
+      await _openRelease();
+    } else if (outcome == ApkInstallOutcome.needsPermission) {
+      _fail(
+        'Allow installs from slim-m in Android settings, then try again.',
+        null,
+      );
+    }
+  }
+
+  Future<void> _selfUpdate() async {
+    final info = await ref.read(appInfoProvider.future);
+    final version = await ref
+        .read(selfUpdateProvider)
+        .install(currentVersion: info.version);
+    if (!mounted) return;
+    if (version != null) {
+      setState(() => _installed = true);
+      return;
+    }
+    final failure = ref.read(selfUpdateFailureProvider);
+    _fail(failure?.message ?? 'The update did not finish.', failure?.detail);
+  }
+
+  /// dnf can finish the job from here, which is the whole point of asking on
+  /// this screen rather than only telling: an rpm user is one prompt away
+  /// from a client that works again.
+  Future<void> _updateWithDnf() async {
     final mine = ref.read(appInfoProvider).valueOrNull?.version;
     final result = await (widget.rpm ?? const RpmUpdater()).apply(
       currentVersion: mine,
     );
     if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _installed = result.ok;
-      _error = result.ok ? null : 'The install did not finish.';
-      _errorDetail = result.ok ? null : _firstLine(result.detail);
-    });
+    setState(() => _installed = result.ok);
+    if (!result.ok) {
+      _fail('The install did not finish.', _firstLine(result.detail));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final mine = ref.watch(appInfoProvider).valueOrNull?.version;
+    final action = _action;
+    final playStage = ref.watch(playUpdateProvider);
+    final host = ref.watch(accountHostProvider);
 
     return Scaffold(
       backgroundColor: tokens.surfaceBase,
@@ -237,7 +311,7 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
                                     ? 'Installed. Restart slim-m to finish.'
                                     : 'Installed. Close and reopen slim-m to '
                                           'finish.')
-                              : _hint,
+                              : tooOldHint(action, _format),
                           textAlign: TextAlign.center,
                           style: AppText.caption.copyWith(
                             color: tokens.textSecondary,
@@ -249,7 +323,7 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
                         _FailureNote(
                           line: line,
                           detail: _errorDetail,
-                          command: _action == _TooOldAction.dnf
+                          command: action == TooOldAction.dnf
                               ? packageManagerCommand(_format)
                               : null,
                         ),
@@ -264,28 +338,45 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
                           full: true,
                           onPressed: _restart,
                         )
-                      else if (!_installed && _action != _TooOldAction.none)
+                      else if (!_installed && action != TooOldAction.none)
                         AppButton(
-                          label: switch (_action) {
-                            _TooOldAction.dnf =>
-                              _error == null ? 'Update now' : 'Try again',
-                            _TooOldAction.reload => 'Reload',
-                            _TooOldAction.testFlight => 'Open TestFlight',
-                            _ => 'Open the release',
-                          },
+                          label: _label(
+                            action,
+                            playStage,
+                            retry: _error != null,
+                          ),
                           variant: AppButtonVariant.primary,
                           size: AppButtonSize.lg,
                           full: true,
-                          busy: _busy,
-                          onPressed: _update,
+                          busy:
+                              _busy || playStage == PlayUpdateStage.downloading,
+                          onPressed: () => _update(action),
                         ),
-                      if (_error != null && _action == _TooOldAction.dnf) ...[
+                      if (_error != null && _hasReleaseFallback(action)) ...[
                         const SizedBox(height: AppSpacing.s8),
                         AppButton(
                           label: 'Open the release page',
                           variant: AppButtonVariant.ghost,
                           full: true,
                           onPressed: _openRelease,
+                        ),
+                      ],
+                      if (host != null) ...[
+                        const SizedBox(height: AppSpacing.s24),
+                        AppButton(
+                          label: 'Use another Space',
+                          icon: AppIcons.serverSwitcher,
+                          variant: AppButtonVariant.secondary,
+                          full: true,
+                          onPressed: () => unawaited(useAnotherSpace(host)),
+                        ),
+                        const SizedBox(height: AppSpacing.s8),
+                        AppButton(
+                          label: 'Sign out of this Space',
+                          icon: AppIcons.signOut,
+                          variant: AppButtonVariant.ghost,
+                          full: true,
+                          onPressed: () => unawaited(signOutOfThisSpace(host)),
                         ),
                       ],
                     ],
@@ -353,4 +444,23 @@ class _FailureNote extends StatelessWidget {
   }
 }
 
-enum _TooOldAction { dnf, reload, release, testFlight, none }
+bool _hasReleaseFallback(TooOldAction action) => switch (action) {
+  TooOldAction.dnf || TooOldAction.apk || TooOldAction.selfUpdate => true,
+  _ => false,
+};
+
+String _label(
+  TooOldAction action,
+  PlayUpdateStage playStage, {
+  required bool retry,
+}) => switch (action) {
+  TooOldAction.dnf => retry ? 'Try again' : 'Update now',
+  TooOldAction.reload => 'Reload',
+  TooOldAction.testFlight => 'Open TestFlight',
+  TooOldAction.appStore => 'Open the App Store',
+  TooOldAction.play when playStage == PlayUpdateStage.downloaded => 'Restart',
+  TooOldAction.play => 'Update in Google Play',
+  TooOldAction.apk ||
+  TooOldAction.selfUpdate => retry ? 'Try again' : 'Update now',
+  _ => 'Open the release',
+};

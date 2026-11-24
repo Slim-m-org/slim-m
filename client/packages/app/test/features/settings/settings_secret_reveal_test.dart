@@ -67,6 +67,47 @@ void main() {
     expect(dismissed, isTrue);
   });
 
+  testWidgets('copying says Copied, and a refused copy says so in words', (
+    tester,
+  ) async {
+    var refuse = false;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData' && refuse) {
+          throw PlatformException(code: 'denied');
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await _pump(
+      tester,
+      SettingsSecretReveal(
+        warning: 'Shown once.',
+        value: 'slimbot_secret',
+        valueSemanticsLabel: 'Bot token',
+        copyLabel: 'Copy token',
+        onDismiss: () {},
+      ),
+    );
+    await tester.tap(find.widgetWithText(AppButton, 'Copy token'));
+    await tester.pump();
+    expect(find.widgetWithText(AppButton, 'Copied'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.widgetWithText(AppButton, 'Copy token'), findsOneWidget);
+
+    refuse = true;
+    await tester.tap(find.widgetWithText(AppButton, 'Copy token'));
+    await tester.pump();
+    expect(find.textContaining('Could not copy'), findsOneWidget);
+  });
+
   testWidgets('an info line is one inset sentence, warn tone on request', (
     tester,
   ) async {

@@ -407,10 +407,9 @@ async fn poll_creation_is_rate_limited() {
 
 // --- Fan-out privacy, over a real WebSocket ---
 
-/// The `poll.voted` fan-out event must carry only channel, message, and each
-/// option's public tally, exactly mirroring `ReactionsChanged`'s own
-/// deliberate omission of the per-viewer flag: nothing here may ever say
-/// which user cast which vote.
+/// The `poll.voted` frame another viewer gets carries only channel, message,
+/// each option's public tally and a version: nothing here may ever tell them
+/// which user cast which vote. Only the voter's own connections learn the choice.
 #[tokio::test]
 async fn poll_vote_event_never_reveals_the_voter() {
     let (store, _guard) = support::new_store("slimm-polls").await;
@@ -426,8 +425,10 @@ async fn poll_vote_event_never_reveals_the_voter() {
     let state = support::app::state(store.clone());
 
     let (alice_access, alice_ticket) = user_access_ticket(&store, "alice").await;
+    let (_bob_access, bob_ticket) = user_access_ticket(&store, "bob").await;
     let addr = serve(state.clone()).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
 
     let router = http::router(state.clone());
     let poll = create_poll(
@@ -446,14 +447,20 @@ async fn poll_vote_event_never_reveals_the_voter() {
     let status = vote(&router, &message_id, &alice_access, 0).await;
     assert_eq!(status, StatusCode::NO_CONTENT);
 
-    let frame = read_frame_of_type(&mut alice_ws, "poll.voted").await;
+    let own = read_frame_of_type(&mut alice_ws, "poll.voted").await;
+    assert_eq!(
+        own["voted_option"], 0,
+        "the voter's own frame carries her choice: {own}"
+    );
+
+    let frame = read_frame_of_type(&mut bob_ws, "poll.voted").await;
     assert_eq!(frame["options"][0]["votes"], 1);
     assert_eq!(frame["options"][1]["votes"], 0);
 
     let top_level_keys: std::collections::BTreeSet<String> =
         frame.as_object().unwrap().keys().cloned().collect();
     let expected: std::collections::BTreeSet<String> =
-        ["type", "channel_id", "message_id", "options"]
+        ["type", "channel_id", "message_id", "options", "version"]
             .iter()
             .map(std::string::ToString::to_string)
             .collect();

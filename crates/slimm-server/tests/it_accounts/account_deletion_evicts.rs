@@ -69,8 +69,8 @@ fn drain_member_removed(
             Event::Stamped { event, .. } => *event,
             other => other,
         };
-        if let Event::MemberRemoved(u) = ev {
-            seen |= u == id;
+        if let Event::MemberRemoved { user_id, .. } = ev {
+            seen |= user_id == id;
         }
     }
     seen

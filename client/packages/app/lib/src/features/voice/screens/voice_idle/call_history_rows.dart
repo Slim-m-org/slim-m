@@ -118,7 +118,11 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
           behavior: HitTestBehavior.opaque,
           onTap: widget.onTap,
           child: Container(
-            height: AppSpacing.s40,
+            constraints: BoxConstraints(
+              minHeight: AppTouchTargets.of(context)
+                  ? AppSizes.rowTouch
+                  : AppSpacing.s40,
+            ),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
             decoration: BoxDecoration(
               color: widget.selected || _hovered

@@ -325,16 +325,19 @@ impl Store {
         if viewer_ids.is_empty() {
             return Ok(HashMap::new());
         }
-        let mut builder = QueryBuilder::new(
-            "SELECT user_id, timezone, off_hours_mode, snooze_until FROM notification_schedules WHERE user_id IN (",
-        );
-        let mut separated = builder.separated(", ");
-        for id in viewer_ids {
-            separated.push_bind(*id);
-        }
-        builder.push(")");
         use sqlx::Row;
-        let rows = builder.build().fetch_all(&self.pool).await?;
+        let mut rows = Vec::new();
+        for chunk in viewer_ids.chunks(crate::store::MAX_IDS_PER_QUERY) {
+            let mut builder = QueryBuilder::new(
+                "SELECT user_id, timezone, off_hours_mode, snooze_until FROM notification_schedules WHERE user_id IN (",
+            );
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(")");
+            rows.extend(builder.build().fetch_all(&self.pool).await?);
+        }
         let mut headers = HashMap::new();
         for row in &rows {
             let id: UserId = row.try_get("user_id")?;
@@ -358,15 +361,19 @@ impl Store {
             return Ok(headers);
         }
 
-        let mut builder = QueryBuilder::new(
-            "SELECT user_id, weekday, start_minute, end_minute FROM notification_schedule_days WHERE user_id IN (",
-        );
-        let mut separated = builder.separated(", ");
-        for id in headers.keys() {
-            separated.push_bind(*id);
+        let header_ids: Vec<UserId> = headers.keys().copied().collect();
+        let mut day_rows = Vec::new();
+        for chunk in header_ids.chunks(crate::store::MAX_IDS_PER_QUERY) {
+            let mut builder = QueryBuilder::new(
+                "SELECT user_id, weekday, start_minute, end_minute FROM notification_schedule_days WHERE user_id IN (",
+            );
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(")");
+            day_rows.extend(builder.build().fetch_all(&self.pool).await?);
         }
-        builder.push(")");
-        let day_rows = builder.build().fetch_all(&self.pool).await?;
         for row in day_rows {
             let id: UserId = row.try_get("user_id")?;
             let weekday: i64 = row.try_get("weekday")?;
@@ -394,21 +401,24 @@ impl Store {
         if viewer_ids.is_empty() {
             return Ok(HashSet::new());
         }
-        let mut builder = QueryBuilder::new(
-            "SELECT user_id FROM notification_schedule_allowed_users WHERE allowed_user_id = ",
-        );
-        builder.push_bind(author_id);
-        builder.push(" AND user_id IN (");
-        let mut separated = builder.separated(", ");
-        for id in viewer_ids {
-            separated.push_bind(*id);
-        }
-        builder.push(")");
         use sqlx::Row;
-        let rows = builder.build().fetch_all(&self.pool).await?;
-        rows.into_iter()
-            .map(|row| row.try_get::<UserId, _>("user_id").map_err(Into::into))
-            .collect()
+        let mut allowing = HashSet::new();
+        for chunk in viewer_ids.chunks(crate::store::MAX_IDS_PER_QUERY) {
+            let mut builder = QueryBuilder::new(
+                "SELECT user_id FROM notification_schedule_allowed_users WHERE allowed_user_id = ",
+            );
+            builder.push_bind(author_id);
+            builder.push(" AND user_id IN (");
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(")");
+            for row in builder.build().fetch_all(&self.pool).await? {
+                allowing.insert(row.try_get::<UserId, _>("user_id")?);
+            }
+        }
+        Ok(allowing)
     }
 
     /// Which of `viewer_ids` allow-list `channel_id` off hours.
@@ -427,25 +437,28 @@ impl Store {
         if viewer_ids.is_empty() {
             return Ok(HashSet::new());
         }
-        let mut builder = QueryBuilder::new(
-            "SELECT user_id FROM notification_schedule_allowed_channels WHERE allowed_channel_id IN (",
-        );
-        builder.push_bind(channel_id);
-        if let Some(parent) = parent_channel_id {
-            builder.push(", ");
-            builder.push_bind(parent);
-        }
-        builder.push(")");
-        builder.push(" AND user_id IN (");
-        let mut separated = builder.separated(", ");
-        for id in viewer_ids {
-            separated.push_bind(*id);
-        }
-        builder.push(")");
         use sqlx::Row;
-        let rows = builder.build().fetch_all(&self.pool).await?;
-        rows.into_iter()
-            .map(|row| row.try_get::<UserId, _>("user_id").map_err(Into::into))
-            .collect()
+        let mut allowing = HashSet::new();
+        for chunk in viewer_ids.chunks(crate::store::MAX_IDS_PER_QUERY) {
+            let mut builder = QueryBuilder::new(
+                "SELECT user_id FROM notification_schedule_allowed_channels WHERE allowed_channel_id IN (",
+            );
+            builder.push_bind(channel_id);
+            if let Some(parent) = parent_channel_id {
+                builder.push(", ");
+                builder.push_bind(parent);
+            }
+            builder.push(")");
+            builder.push(" AND user_id IN (");
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(")");
+            for row in builder.build().fetch_all(&self.pool).await? {
+                allowing.insert(row.try_get::<UserId, _>("user_id")?);
+            }
+        }
+        Ok(allowing)
     }
 }

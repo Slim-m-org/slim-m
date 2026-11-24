@@ -65,7 +65,9 @@ void main() {
 
     expect(h.writes.single.method, 'POST');
     expect(h.writes.single.path, '/roles');
-    expect(h.writes.single.body, {'name': 'Crew', 'permissions': 0});
+    final body = h.writes.single.body! as Map<String, dynamic>;
+    expect(body['id'], isA<String>());
+    expect({...body}..remove('id'), {'name': 'Crew', 'permissions': 0});
   });
 
   testWidgets('dragging a role below another sends the new order', (

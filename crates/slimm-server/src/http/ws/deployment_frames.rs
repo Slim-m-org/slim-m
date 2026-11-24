@@ -99,7 +99,7 @@ fn connector_withholds(ctx: &SessionContext, event: &Event) -> bool {
         Event::PresenceChanged(_) => true,
         Event::MemberTimeoutChanged { .. }
         | Event::JoinGateChanged { .. }
-        | Event::MemberRemoved(_)
+        | Event::MemberRemoved { .. }
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)
         | Event::OwnerChanged(_)
@@ -150,9 +150,10 @@ fn broadcast_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
         Event::JoinGateChanged { user_id } => ServerFrame::JoinGateChanged {
             user_id: user_id.map(|id| id.to_string()),
         },
-        Event::MemberRemoved(user_id) => ServerFrame::MemberRemoved {
+        Event::MemberRemoved { user_id, deleted } => ServerFrame::MemberRemoved {
             seq: None,
             user_id: user_id.to_string(),
+            deleted,
         },
         Event::MemberRestored(user_id) => ServerFrame::MemberRestored {
             seq: None,

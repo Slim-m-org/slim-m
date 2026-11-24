@@ -8,7 +8,7 @@ library;
 
 abstract final class InputLimits {
   /// `limits::MAX_NAME_CHARS`: display names, nicknames, channel, category and
-  /// role names, webhook labels.
+  /// role names, webhook labels and the username a webhook post may carry.
   static const int name = 64;
 
   /// `limits::MAX_USERNAME_CHARS`.
@@ -70,6 +70,15 @@ abstract final class InputLimits {
 
   /// `attachments::MAX_ATTACHMENTS_PER_MESSAGE`: files one message carries.
   static const int attachmentsPerMessage = 10;
+
+  /// `voice_transcript_marks::MAX_NOTE_CHARS`: a note left on a call's transcript.
+  static const int callNote = 500;
+
+  /// `signals_screen_annotation::MAX_ANNOTATION_TEXT_CHARS`: a sticky note on a shared screen.
+  static const int screenNote = 80;
+
+  /// `debug_logs::MAX_NOTE_CHARS`: the note sent with a debug log.
+  static const int debugLogNote = 500;
 }
 
 /// What a username may hold, the server's own rule.

@@ -77,6 +77,10 @@ abstract final class AppMotion {
           reverseCurve: exit,
         );
 
+  /// A popup menu's own entrance, or none when the viewer has asked for less motion.
+  static AnimationStyle? popup(BuildContext context) =>
+      isReduced(context) ? AnimationStyle.noAnimation : null;
+
   /// [reduced], except an [AnimatedSize] must never actually receive the
   /// zero it returns.
   ///

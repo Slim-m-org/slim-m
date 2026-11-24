@@ -31,6 +31,7 @@ def _install(case: unittest.TestCase, with_desktop: bool = True) -> tuple[Path, 
     bundle = tmp / "slim-m-client-1.2.3"
     bundle.mkdir()
     shutil.copy(INSTALL, bundle / "install.sh")
+    shutil.copy(INSTALL.with_name("uninstall.sh"), bundle / "uninstall.sh")
     (bundle / "slim-m").write_text("#!/bin/sh\n")
     if with_desktop:
         shutil.copy(DESKTOP, bundle / DESKTOP.name)
@@ -80,3 +81,108 @@ class LinuxInstallScript(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+UNINSTALL = REPO / "packaging" / "linux" / "uninstall.sh"
+
+
+class LinuxUninstallScript(unittest.TestCase):
+    def _installed(self):
+        home, _, run = _install(self)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        autostart = home / ".config/autostart"
+        autostart.mkdir(parents=True)
+        (autostart / "top.npcserver.slimm.desktop").write_text("[Desktop Entry]\n")
+        data = home / ".local/share/top.npcserver.slimm"
+        data.mkdir()
+        (data / "settings").write_text("x")
+        return home
+
+    def _uninstall(self, home, *args):
+        env = {"HOME": str(home), "PATH": "/usr/bin:/bin"}
+        return subprocess.run(["sh", str(home / ".local/share/slim-m/uninstall.sh"), *args],
+                              env=env, capture_output=True, text=True, check=False)
+
+    def test_removes_the_install_entries_and_autostart_but_keeps_data(self):
+        home = self._installed()
+        run = self._uninstall(home)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertFalse((home / ".local/share/slim-m").exists())
+        self.assertFalse((home / ".local/bin/slim-m").is_symlink())
+        self.assertFalse((home / ".local/share/applications/top.npcserver.slimm.desktop").exists())
+        self.assertFalse((home / ".config/autostart/top.npcserver.slimm.desktop").exists())
+        self.assertTrue((home / ".local/share/top.npcserver.slimm/settings").exists())
+
+    def test_remove_data_deletes_the_app_data_too(self):
+        home = self._installed()
+        self.assertEqual(self._uninstall(home, "--remove-data").returncode, 0)
+        self.assertFalse((home / ".local/share/top.npcserver.slimm").exists())
+
+    def test_remove_data_leaves_other_files_in_the_shared_folder(self):
+        home = self._installed()
+        shared = home / ".local/share/top.npcserver"
+        (shared / "slim-m").mkdir(parents=True)
+        (shared / "other-app").mkdir()
+        self.assertEqual(self._uninstall(home, "--remove-data").returncode, 0)
+        self.assertTrue((shared / "other-app").is_dir())
+        self.assertFalse((shared / "slim-m").exists())
+
+    def test_remove_data_removes_the_shared_folder_once_empty(self):
+        home = self._installed()
+        shared = home / ".local/share/top.npcserver"
+        (shared / "slim-m").mkdir(parents=True)
+        self.assertEqual(self._uninstall(home, "--remove-data").returncode, 0)
+        self.assertFalse(shared.exists())
+
+    def test_a_launcher_link_that_is_not_ours_stays(self):
+        home = self._installed()
+        link = home / ".local/bin/slim-m"
+        link.unlink()
+        link.symlink_to("/usr/bin/true")
+        self.assertEqual(self._uninstall(home).returncode, 0)
+        self.assertTrue(link.is_symlink())
+
+
+LAUNCHER = REPO / "packaging" / "linux" / "slim-m"
+
+
+class LinuxLauncherCountsOnlyFailedStarts(unittest.TestCase):
+    """Each run of the real launcher either reaches the app (writes pending.started) or dies."""
+
+    def _layout(self):
+        tmp = Path(tempfile.mkdtemp(prefix="launcher-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        for version in ("0.88.0", "0.89.0"):
+            folder = tmp / version
+            folder.mkdir()
+            shutil.copy(LAUNCHER, folder / "slim-m")
+            app = folder / "slimm_app"
+            app.write_text(
+                f'#!/bin/sh\n[ -f "{tmp}/ready" ] && : > "{tmp}/pending.started"\n'
+                f'echo {version} > "{tmp}/ran"\n'
+            )
+            app.chmod(0o755)
+        (tmp / "current").symlink_to("0.89.0")
+        (tmp / "previous").symlink_to("0.88.0")
+        (tmp / "pending").write_text("0.89.0")
+        return tmp
+
+    def _start(self, root, ready):
+        flag = root / "ready"
+        flag.write_text("") if ready else flag.unlink(missing_ok=True)
+        subprocess.run([str(root / "current" / "slim-m")], env={"PATH": "/usr/bin:/bin"},
+                       capture_output=True, text=True, check=False)
+        return (root / "ran").read_text().strip()
+
+    def test_quick_quits_of_a_working_version_never_roll_back(self):
+        root = self._layout()
+        for _ in range(6):
+            self.assertEqual(self._start(root, ready=True), "0.89.0")
+        self.assertEqual(os.readlink(root / "current"), "0.89.0")
+
+    def test_three_starts_that_never_reach_the_app_roll_back(self):
+        root = self._layout()
+        self.assertEqual(self._start(root, ready=False), "0.89.0")
+        self.assertEqual(self._start(root, ready=False), "0.89.0")
+        self.assertEqual(self._start(root, ready=False), "0.88.0")
+        self.assertEqual(os.readlink(root / "current"), "0.88.0")

@@ -16,6 +16,7 @@ fn subscribers_share_a_large_payload_rather_than_copying_it() {
         message_id: crate::ids::MessageId::generate(),
         reactors: Arc::new(vec![("+1".to_owned(), vec![(UserId::generate(), 1)])]),
         moved: None,
+        version: 1,
     }));
     let reactors = |event| match event {
         Event::Message(MessageEvent::ReactionsChanged { reactors, .. }) => reactors,
@@ -61,7 +62,10 @@ fn a_clone_shares_the_same_counter() {
     let hub = Hub::new();
     let handle = hub.clone();
     let before = hub.permissions_epoch();
-    handle.publish(Event::MemberRemoved(UserId::generate()));
+    handle.publish(Event::MemberRemoved {
+        user_id: UserId::generate(),
+        deleted: false,
+    });
     assert!(hub.permissions_epoch() > before);
 }
 
@@ -143,7 +147,10 @@ fn every_permission_shaped_event_moves_it() {
             user_id: UserId::generate(),
             until: Some(1),
         },
-        Event::MemberRemoved(UserId::generate()),
+        Event::MemberRemoved {
+            user_id: UserId::generate(),
+            deleted: false,
+        },
         Event::ChannelDeleted {
             channel_id: ChannelId::generate(),
         },

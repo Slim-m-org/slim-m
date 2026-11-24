@@ -249,7 +249,7 @@ pub(super) async fn next_sibling_position(
     except: Option<ChannelCategoryId>,
 ) -> Result<i64, sqlx::Error> {
     sqlx::query_scalar!(
-        r#"SELECT COALESCE(MAX(position), -1) + 1 AS "next!: i64" FROM channel_categories
+        r#"SELECT MIN(COALESCE(MAX(position), -1), 1000000) + 1 AS "next!: i64" FROM channel_categories
            WHERE deleted_at IS NULL AND parent_id IS ? AND id IS NOT ?"#,
         parent,
         except

@@ -138,7 +138,7 @@ Future<void> runUpdateAction(
             )
           : await controller.install(currentVersion: info.version);
       if (version == null || !isMounted()) return;
-      if (_inACall(ref)) return;
+      if (inACall(ref)) return;
       await port.relaunch();
     case UpdateMenuAction.restartToUpdate:
       await restartKeepingCall(ref, port);
@@ -162,7 +162,7 @@ Future<void> restartKeepingCall(WidgetRef ref, DesktopWindowPort port) async {
 }
 
 /// Whether a call is open in any Space, on screen or not.
-bool _inACall(WidgetRef ref) {
+bool inACall(WidgetRef ref) {
   if (ref.read(voiceFlagsProvider).channelId != null) return true;
   final spaces = ref.read(accountHostProvider)?.accounts ?? const [];
   return spaces.any(

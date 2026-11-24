@@ -19,9 +19,8 @@ import '../../features/voice/providers/watch_room.dart';
 void resetEphemeralSessionState(Ref ref) {
   // No cursor over a rename to catch up from, so forget every cached name on a fresh connect.
   ref.read(batchProfilesControllerProvider.notifier).clear();
-  // A missed voice.activity frame while disconnected is otherwise unrecoverable.
-  ref.read(dmCallActivityProvider.notifier).clear();
-  ref.read(dmCallRingControllerProvider.notifier).clear();
+  // A ring is re-read once live; see DmCallRingController.holdForReconnect.
+  ref.read(dmCallRingControllerProvider.notifier).holdForReconnect();
   // Same: typing.stopped is ephemeral, so one missed frame sticks forever.
   ref.invalidate(typingControllerProvider);
   // A watch tick is ephemeral too: the session may have moved on or ended while offline.
@@ -38,6 +37,13 @@ void refreshRosterAfterReconnect(Ref ref) {
   }
   ref.invalidate(membersProvider);
   ref.invalidate(channelMembersProvider);
+}
+
+/// Re-reads DM call state once the socket is subscribed: neither a
+/// voice.activity nor a call.ringing frame missed while disconnected is replayed.
+void refreshDmCallsOnLive(Ref ref) {
+  ref.read(dmCallActivityProvider.notifier).resync();
+  unawaited(ref.read(dmCallRingControllerProvider.notifier).restoreAfterLive());
 }
 
 /// Re-asks for every presence already shown, once a socket is live: a member

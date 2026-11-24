@@ -382,7 +382,7 @@ fn republish(w: &HostWorld, edit: impl FnOnce(&mut Value)) {
 }
 
 #[tokio::test]
-async fn an_update_that_stops_asking_to_be_host_run_removes_the_container_and_keeps_the_volume() {
+async fn an_update_that_stops_asking_to_be_host_run_removes_the_container_and_the_volume() {
     let w = host_world("slimm-hostrun-update-forwarded", true, true).await;
     let run_id = w.running().await;
     let old_token = w.last_token();
@@ -397,7 +397,8 @@ async fn an_update_that_stops_asking_to_be_host_run_removes_the_container_and_ke
     let (removed, last) = removes.last().unwrap();
     assert_eq!(
         (removed.as_str(), last["keep_volume"].clone()),
-        (run_id.as_str(), json!(true))
+        (run_id.as_str(), json!(false)),
+        "the volume has no run id left to be found by, so it goes too"
     );
     assert_eq!(w.fake.state(&run_id), None, "the container is gone");
     assert!(w.store.host_run(ID).await.unwrap().is_none());

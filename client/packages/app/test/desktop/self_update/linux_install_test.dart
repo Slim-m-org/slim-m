@@ -467,6 +467,28 @@ void main() {
       );
       expect(Directory('${root.path}/0.80.0').existsSync(), isFalse);
     });
+
+    test('confirmStart marks the run as started before it settles', () async {
+      File('${root.path}/pending').writeAsStringSync('0.88.0');
+      final container = containerWith(
+        ({
+          required currentVersion,
+          required platformKey,
+          required stagingDir,
+          required client,
+        }) async => null,
+      );
+      final run = container
+          .read(selfUpdateProvider)
+          .confirmStart(
+            resolvedExecutable: '${root.path}/0.88.0/slimm_app',
+            settle: const Duration(milliseconds: 200),
+          );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(File('${root.path}/pending.started').existsSync(), isTrue);
+      await run;
+      expect(File('${root.path}/pending.started').existsSync(), isFalse);
+    });
   });
 
   test('detectLinuxLayout needs a version directory beside a current link', () {

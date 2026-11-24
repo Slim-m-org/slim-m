@@ -140,7 +140,10 @@ async fn each_event_kind_reaches_a_subscribed_module_with_its_documented_fields(
 
     let newcomer = UserId::generate();
     w.hub.publish(Event::MemberJoined(newcomer));
-    w.hub.publish(Event::MemberRemoved(newcomer));
+    w.hub.publish(Event::MemberRemoved {
+        user_id: newcomer,
+        deleted: false,
+    });
     let joined = &recorded_of(&w, "listener", "member.joined", 1).await[0];
     let left = &recorded_of(&w, "listener", "member.left", 1).await[0];
     assert_eq!(joined["data"], json!({ "user_id": newcomer.to_string() }));
@@ -300,7 +303,10 @@ async fn a_consumer_that_falls_behind_counts_what_it_missed_and_keeps_delivering
     .await;
 
     let leaver = UserId::generate();
-    w.hub.publish(Event::MemberRemoved(leaver));
+    w.hub.publish(Event::MemberRemoved {
+        user_id: leaver,
+        deleted: false,
+    });
     let left = &recorded_of(&w, "listener", "member.left", 1).await[0];
     assert_eq!(left["data"]["user_id"], json!(leaver.to_string()));
 }

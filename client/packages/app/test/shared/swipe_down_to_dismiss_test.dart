@@ -65,4 +65,27 @@ void main() {
 
     expect(dismissed, 0);
   });
+
+  testWidgets('a drag cut short by the swipe turning off puts the child back', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_harness(enabled: true, onDismiss: () {}));
+    final gesture = await tester.startGesture(const Offset(400, 300));
+    await gesture.moveBy(const Offset(0, 40));
+    await gesture.moveBy(const Offset(0, 20));
+    await tester.pump();
+    expect(
+      tester.widget<Transform>(_ownTransform()).transform.getTranslation().y,
+      greaterThan(0),
+    );
+
+    await tester.pumpWidget(_harness(enabled: false, onDismiss: () {}));
+    await gesture.up();
+    await tester.pump();
+
+    expect(
+      tester.widget<Transform>(_ownTransform()).transform.getTranslation().y,
+      0,
+    );
+  });
 }

@@ -134,12 +134,15 @@ class ChannelHistoryController extends StateNotifier<ChannelHistory> {
       final older = await _fetchPage(before: oldest, limit: pageSize);
       if (older == null) return;
       // Newest first is the server's own contract, so the last entry is oldest.
-      if (older.isNotEmpty) _oldest = older.last.seq;
-      final reach = await _windowReaching(older, state.window + older.length);
+      _oldest = older.minRawSeq ?? _oldest;
+      final reach = await _windowReaching(
+        older.messages,
+        state.window + older.rawCount,
+      );
       if (!mounted) return;
       state = state.copyWith(
         loading: false,
-        atStart: older.length < pageSize && reach <= channelWindowCeiling,
+        atStart: older.isShort(pageSize) && reach <= channelWindowCeiling,
         window: cappedChannelWindow(reach),
       );
     } catch (error, stack) {
@@ -167,21 +170,25 @@ class ChannelHistoryController extends StateNotifier<ChannelHistory> {
 
   /// One page into the store and the extras. Null once the session has ended,
   /// so a page landing after sign-out reaches neither for the next account.
-  Future<List<api.Message>?> _fetchPage({
-    int? before,
-    required int limit,
-  }) async {
+  Future<api.MessagePage?> _fetchPage({int? before, required int limit}) async {
     final page = await retryWhenRateLimited(
       () => _ref
           .read(apiProvider)
-          .listMessages(_channelId, before: before, limit: limit),
+          .listMessagePage(_channelId, before: before, limit: limit),
       wait: _ref.read(rateLimitWaitProvider),
     );
     if (!mounted) return null;
     final store = await _ref.read(storeProvider.future);
-    await store.applyMessages(page);
+    await store.applyMessages(page.messages);
     if (!mounted) return null;
-    _extras.applyPage(_channelId, page, before: before, limit: limit);
+    _extras.applyPage(
+      _channelId,
+      page.messages,
+      before: before,
+      limit: limit,
+      rawCount: page.rawCount,
+      minRawSeq: page.minRawSeq,
+    );
     return page;
   }
 

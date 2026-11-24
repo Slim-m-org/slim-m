@@ -46,6 +46,7 @@ pub mod originals;
 pub mod preview;
 mod preview_derive;
 mod preview_scale;
+mod profile_image;
 mod stream;
 mod upload_session;
 pub use admission::Reservation;
@@ -55,6 +56,7 @@ pub use image_header::{
     check_image, gif_file,
 };
 pub use names::{from_hex, rfc5987_encode, sanitize_display_filename, sanitize_filename, to_hex};
+pub use profile_image::{AVATAR_SIDE, BANNER_SIDE, fit_profile_image};
 pub use stream::{PendingAttachment, StreamError};
 pub use upload_session::{
     AppendError, FinishedUpload, MAX_OPEN_SESSIONS_PER_USER, UPLOAD_PART_MAX_BYTES,
@@ -103,6 +105,8 @@ pub struct Media {
     /// Held while bytes are placed with their row, or a row's absence is
     /// checked and its bytes unlinked; see `crate::blobs`.
     blobs: Arc<tokio::sync::Mutex<()>>,
+    /// Held across a profile picture's file and row changes, so a delete and an upload cannot interleave.
+    profile_pictures: Arc<tokio::sync::Mutex<()>>,
     memory: MemoryBudget,
     /// Set only by [`Media::for_tests`]; always `None` in a real deployment,
     /// whose media root outlives the process on purpose.
@@ -157,6 +161,7 @@ impl Media {
             admission: Arc::default(),
             reserved: Arc::default(),
             blobs: Arc::default(),
+            profile_pictures: Arc::default(),
             memory: memory.clone(),
             attachments_dir,
             avatars_dir,
@@ -279,25 +284,28 @@ impl Media {
         self.blobs.clone().lock_owned().await
     }
 
+    /// Serializes changing a profile picture's file with its row; see `crate::profile_sweep`.
+    pub async fn profile_guard(&self) -> tokio::sync::OwnedMutexGuard<()> {
+        self.profile_pictures.clone().lock_owned().await
+    }
+
+    /// Every file in the avatars directory with when it was last written.
+    pub async fn profile_files(&self) -> io::Result<Vec<(String, std::time::SystemTime)>> {
+        list_files(self.avatars_dir.clone()).await
+    }
+
+    /// Removes one file of the avatars directory by name.
+    pub async fn remove_profile_file(&self, name: &str) -> io::Result<()> {
+        if name.contains('/') || name.starts_with("..") {
+            return Err(io::Error::other("not a profile file name"));
+        }
+        remove(self.avatars_dir.join(name)).await
+    }
+
     /// Every file in the attachments directory with when it was last
     /// written, for the leak scan in `crate::blobs`.
     pub async fn attachment_files(&self) -> io::Result<Vec<(String, std::time::SystemTime)>> {
-        let dir = self.attachments_dir.clone();
-        tokio::task::spawn_blocking(move || {
-            let mut files = Vec::new();
-            for entry in std::fs::read_dir(dir)? {
-                let entry = entry?;
-                let meta = entry.metadata()?;
-                if meta.is_file()
-                    && let Some(name) = entry.file_name().to_str()
-                {
-                    files.push((name.to_owned(), meta.modified()?));
-                }
-            }
-            Ok(files)
-        })
-        .await
-        .unwrap_or_else(|e| Err(io::Error::other(e)))
+        list_files(self.attachments_dir.clone()).await
     }
 
     /// Removes a leftover temp file by name; anything else is refused.
@@ -436,6 +444,25 @@ impl Media {
     pub async fn delete_space_icon(&self) -> io::Result<()> {
         remove(self.avatar_path(SPACE_ICON_KEY)).await
     }
+}
+
+/// Every plain file of `dir` with when it was last written.
+async fn list_files(dir: PathBuf) -> io::Result<Vec<(String, std::time::SystemTime)>> {
+    tokio::task::spawn_blocking(move || {
+        let mut files = Vec::new();
+        for entry in std::fs::read_dir(dir)? {
+            let entry = entry?;
+            let meta = entry.metadata()?;
+            if meta.is_file()
+                && let Some(name) = entry.file_name().to_str()
+            {
+                files.push((name.to_owned(), meta.modified()?));
+            }
+        }
+        Ok(files)
+    })
+    .await
+    .unwrap_or_else(|e| Err(io::Error::other(e)))
 }
 
 /// [`durable::write_atomic`] on the blocking pool, so a concurrent reader of `path` never observes a partial write.

@@ -28,6 +28,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 /// Files allowed to reference an icon package directly, each with its own
 /// one-line why. Empty on purpose: a widget that needs a glyph belongs in
@@ -50,37 +51,41 @@ final _iconProviderReferences = [
   RegExp(r'\bIconData\('),
 ];
 
+Iterable<File> _clientSources() sync* {
+  for (final pkg in Directory('..').listSync().whereType<Directory>()) {
+    final lib = Directory('${pkg.path}/lib');
+    if (!lib.existsSync()) continue;
+    for (final file in lib.listSync(recursive: true).whereType<File>()) {
+      if (file.path.endsWith('.dart')) yield file;
+    }
+  }
+}
+
+/// One entry per raw icon-package reference in [source]'s code, never in a
+/// comment or string.
+List<String> _rawIconReferences(String source) {
+  final code = codeOnly(source);
+  return [
+    for (final pattern in [_lucideReference, ..._iconProviderReferences])
+      for (final match in pattern.allMatches(code)) match.group(0)!,
+  ];
+}
+
 void main() {
   test('nothing outside AppIcons references an icon package directly', () {
-    final designSystemLib = Directory('lib');
     expect(
-      designSystemLib.existsSync(),
+      Directory('lib').existsSync(),
       isTrue,
       reason: 'run this from the design_system package root',
     );
-    final appLib = Directory('../app/lib');
-    expect(
-      appLib.existsSync(),
-      isTrue,
-      reason: 'expected a sibling app package at ../app',
-    );
 
-    const appIconsFile = 'lib/src/app_icons.dart';
+    const appIconsFile = '../design_system/lib/src/app_icons.dart';
     final offenders = <String>[];
-    for (final dir in [designSystemLib, appLib]) {
-      for (final file in dir.listSync(recursive: true).whereType<File>()) {
-        if (!file.path.endsWith('.dart')) continue;
-        if (file.path == appIconsFile) continue;
-        if (_exceptions.contains(file.path)) continue;
-        final content = file.readAsStringSync();
-        for (final match in _lucideReference.allMatches(content)) {
-          offenders.add('${file.path}: ${match.group(0)}');
-        }
-        for (final pattern in _iconProviderReferences) {
-          for (final match in pattern.allMatches(content)) {
-            offenders.add('${file.path}: ${match.group(0)}');
-          }
-        }
+    for (final file in _clientSources()) {
+      if (file.path == appIconsFile) continue;
+      if (_exceptions.contains(file.path)) continue;
+      for (final reference in _rawIconReferences(file.readAsStringSync())) {
+        offenders.add('${file.path}: $reference');
       }
     }
 
@@ -91,6 +96,14 @@ void main() {
           'named entry to AppIcons and reference that instead:\n'
           '${offenders.join('\n')}',
     );
+  });
+
+  test('a comment or string naming an icon is not a reference', () {
+    expect(
+        _rawIconReferences('/// Uses Icons.close and LucideIcons.x.'), isEmpty);
+    expect(_rawIconReferences("final s = 'CupertinoIcons.heart';"), isEmpty);
+    expect(_rawIconReferences('Icon(Icons.close)'), ['Icons.close']);
+    expect(_rawIconReferences('Icon(LucideIcons.x)'), ['LucideIcons.x']);
   });
 
   /// The regex-level regression for the `CupertinoIcons` and `IconData`

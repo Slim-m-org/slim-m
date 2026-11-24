@@ -41,6 +41,7 @@ mod dock_official_fallback;
 mod dock_package;
 mod dock_sources;
 mod embed_caps_shared;
+mod member_permissions_in_channel;
 mod module_addon_api_range;
 mod module_artifact_cache;
 mod module_call_audio_events;

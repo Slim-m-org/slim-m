@@ -150,6 +150,18 @@ void main() {
     ]);
   });
 
+  testWidgets('the hours row waits for a day to be on and says so', (
+    tester,
+  ) async {
+    final server = _Server([]);
+    await _pump(tester, server);
+    expect(find.text('Turn on a day to set its hours.'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('Monday, off'));
+    await _settle(tester);
+    expect(find.text('Turn on a day to set its hours.'), findsNothing);
+  });
+
   testWidgets('a device that cannot name its time zone fails in words, not '
       'silently', (tester) async {
     final server = _Server([_day(0, 9, 17)]);

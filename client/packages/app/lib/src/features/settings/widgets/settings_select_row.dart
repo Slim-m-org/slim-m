@@ -167,6 +167,7 @@ class SettingsSelectRow<T> extends StatelessWidget {
     }
     return showMenu<T>(
       context: context,
+      popUpAnimationStyle: AppMotion.popup(context),
       position: position,
       color: tokens.surfaceRaised,
       surfaceTintColor: Colors.transparent,

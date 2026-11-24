@@ -26,7 +26,7 @@ use crate::store::{
     Device, EPHEMERAL_KIND, FiledReport, MAX_REASON_CHARS, ReportError, ReportSubject,
     SCREEN_STAMP_KIND,
 };
-use crate::voice::VoiceError;
+use crate::voice::{CallRingOutcome, VoiceError};
 
 const BODY_LIMIT: usize = 32 * 1024;
 
@@ -214,10 +214,23 @@ async fn block(
 /// their own remedy for an ongoing call (hang up), and a block is one
 /// person's choice about future contact, not grounds to end a call the other
 /// side may still want to be on.
+///
+/// A ring still sounding on that DM ends too, either way round: once blocked,
+/// nobody on it can answer, and it leaves no missed-call record.
 async fn evict_blocked_from_shared_call(state: &AppState, blocker: UserId, blocked: UserId) {
     let Ok(Some(channel_id)) = state.store.dm_channel_for_pair(blocker, blocked).await else {
         return;
     };
+    if let Some((ring_id, caller_id)) = state.voice.rings().take(channel_id) {
+        state.hub.publish(Event::CallRingEnded {
+            channel_id,
+            ring_id,
+            outcome: CallRingOutcome::Canceled,
+        });
+        state
+            .push
+            .notify_call_end(state.store.clone(), channel_id, ring_id, caller_id);
+    }
     match state.voice.remove_participant(channel_id, blocked).await {
         Ok(()) | Err(VoiceError::Unavailable) => {}
         Err(VoiceError::Internal(err)) => {

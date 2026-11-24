@@ -35,6 +35,7 @@ void afterSyncLive(
     _rereadOpenPins(ref);
   }
   refreshPresenceOnLive(ref);
+  refreshDmCallsOnLive(ref);
   refreshServerInfo(ref, reconnect: reconnect);
   ref.read(hasFailedSinceLiveProvider.notifier).state = false;
   ref.read(syncFailureProvider.notifier).state = null;

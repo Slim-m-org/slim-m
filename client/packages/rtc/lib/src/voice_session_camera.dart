@@ -39,6 +39,7 @@ class VoiceCamera {
   final CameraSwitching switching;
   final ValueListenable<lk.AdaptiveStreamPixelDensity> _density;
   final CameraJoin _join;
+  int _toggles = 0;
 
   /// How sharp the camera publishes. Read when the camera turns on, and a
   /// different one than it was published at republishes; the app cycles a live
@@ -81,6 +82,7 @@ class VoiceCamera {
   Future<bool> trySetEnabled(bool enabled) async {
     final room = _host.room();
     if (room == null) return false;
+    _toggles++;
     if (_connecting()) _askedWhileConnecting = enabled;
     final result = await _setEnabled(room, enabled);
     final error = result.error;
@@ -124,15 +126,24 @@ class VoiceCamera {
     required bool Function() current,
     required bool Function() held,
   }) =>
-      _join.open(
-        enable: () => _setEnabled(room, true),
-        current: current,
-        noteFailure: _host.noteError,
-        abandon: () async {
-          if (!held()) return;
-          await _setEnabled(room, false);
-        },
-      );
+      _openGuarded(room, current: current, held: held);
+
+  Future<void> _openGuarded(
+    lk.Room room, {
+    required bool Function() current,
+    required bool Function() held,
+  }) {
+    final toggles = _toggles;
+    return _join.open(
+      enable: () => _setEnabled(room, true),
+      current: current,
+      noteFailure: _host.noteError,
+      abandon: () async {
+        if (!held() || toggles != _toggles) return;
+        await _setEnabled(room, false);
+      },
+    );
+  }
 
   /// Drops a join-time open still in flight, and any toggle made while it connected.
   void cancelJoin() {

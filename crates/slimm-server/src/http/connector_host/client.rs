@@ -15,6 +15,8 @@ use tokio::net::UnixStream;
 use crate::store::EgressHost;
 
 const TIMEOUT: Duration = Duration::from_secs(120);
+/// Above the supervisor's 600 s image pull, which a create waits on.
+const CREATE_TIMEOUT: Duration = Duration::from_secs(660);
 const MAX_ANSWER: usize = 1024 * 1024;
 
 /// Why a supervisor call did not succeed.
@@ -163,9 +165,14 @@ impl SupervisorClient {
 
     pub async fn create(&self, id: &str, body: &CreateBody<'_>) -> Result<(), SupervisorError> {
         let body = serde_json::to_vec(body).unwrap_or_default();
-        self.call("POST", &format!("/v1/connectors/{id}/create"), Some(body))
-            .await
-            .map(drop)
+        self.call_within(
+            CREATE_TIMEOUT,
+            "POST",
+            &format!("/v1/connectors/{id}/create"),
+            Some(body),
+        )
+        .await
+        .map(drop)
     }
 
     pub async fn start(&self, id: &str) -> Result<(), SupervisorError> {
@@ -200,7 +207,17 @@ impl SupervisorClient {
         path: &str,
         body: Option<Vec<u8>>,
     ) -> Result<Value, SupervisorError> {
-        tokio::time::timeout(TIMEOUT, self.call_once(method, path, body))
+        self.call_within(TIMEOUT, method, path, body).await
+    }
+
+    async fn call_within(
+        &self,
+        timeout: Duration,
+        method: &str,
+        path: &str,
+        body: Option<Vec<u8>>,
+    ) -> Result<Value, SupervisorError> {
+        tokio::time::timeout(timeout, self.call_once(method, path, body))
             .await
             .map_err(|_| {
                 SupervisorError::Unavailable("the supervisor did not answer in time".into())
@@ -354,5 +371,53 @@ mod tests {
         assert_eq!(keys(&ours), keys(&fixture));
         assert_eq!(keys(&ours["limits"]), keys(&fixture["limits"]));
         assert_eq!(ours["egress"], fixture["egress"]);
+    }
+
+    async fn slow_supervisor(delay: Duration) -> (PathBuf, tokio::task::JoinHandle<()>) {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let socket = std::env::temp_dir().join(format!(
+            "slimm-slow-sup-{}.sock",
+            &uuid::Uuid::now_v7().simple().to_string()[16..]
+        ));
+        let listener = tokio::net::UnixListener::bind(&socket).unwrap();
+        let task = tokio::spawn(async move {
+            loop {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                tokio::spawn(async move {
+                    let mut buf = [0u8; 4096];
+                    let _ = stream.read(&mut buf).await;
+                    tokio::time::sleep(delay).await;
+                    let _ = stream
+                        .write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\n{}")
+                        .await;
+                });
+            }
+        });
+        (socket, task)
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_create_may_outwait_the_default_timeout_but_other_calls_may_not() {
+        let (socket, server) = slow_supervisor(Duration::from_secs(200)).await;
+        let client = SupervisorClient::new(&socket, "secret".into());
+        let body = CreateBody {
+            image: "img",
+            env: Default::default(),
+            limits: Limits::default(),
+            egress: &[],
+            egress_private: false,
+            volume: false,
+        };
+
+        let created = client.create("run", &body).await;
+        let started = client.start("run").await;
+
+        server.abort();
+        let _ = std::fs::remove_file(&socket);
+        assert_eq!(created, Ok(()));
+        assert!(
+            matches!(&started, Err(SupervisorError::Unavailable(d)) if d.contains("in time")),
+            "{started:?}"
+        );
     }
 }

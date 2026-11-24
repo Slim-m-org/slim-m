@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Desktop settings "Keybinds": the push-to-talk key, and the call keybinds
+/// Settings "Keybinds": the push-to-talk key (desktop only), and the call keybinds
 /// (mute, deafen, camera, share, leave, call overlay), off until switched on,
 /// then each remappable or clearable, with a reset to the defaults.
 library;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,34 +22,39 @@ import 'key_capture_row.dart';
 import 'push_to_talk_key_row.dart';
 
 class VoiceShortcutsSection extends ConsumerWidget {
-  const VoiceShortcutsSection({super.key});
+  const VoiceShortcutsSection({super.key, this.inBrowser = kIsWeb});
+
+  /// A browser has no push to talk and no system-wide keys, so it gets the call keybinds alone.
+  final bool inBrowser;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!isDesktopHost) return const SizedBox.shrink();
+    if (!isDesktopHost && !inBrowser) return const SizedBox.shrink();
     final settings = ref.watch(voiceSettingsControllerProvider);
     final keybinds = ref.watch(shortcutOverridesProvider);
     final voice = ref.read(voiceSettingsControllerProvider.notifier);
     final remap = ref.read(shortcutOverridesProvider.notifier);
     // Absent, never disabled, where this desktop cannot host the overlay window.
     final overlayHosted = ref.watch(screenOverlaySupportedProvider);
+    final pushToTalk = !inBrowser && settings.pushToTalkEnabled;
     final changed =
         keybinds.overrides.isNotEmpty ||
-        settings.pushToTalkKey != kDefaultPushToTalkKey;
+        (!inBrowser && settings.pushToTalkKey != kDefaultPushToTalkKey);
 
     return SettingsSectionCard(
       title: 'Keybinds',
       children: [
         SettingsRowGroup(
           children: [
-            SettingsToggleRow(
-              label: 'Hold a key to talk',
-              description: 'Your mic indicator stays on in calls.',
-              value: settings.pushToTalkEnabled,
-              semanticLabel: 'Push-to-talk',
-              onChanged: voice.setPushToTalkEnabled,
-            ),
-            if (settings.pushToTalkEnabled)
+            if (!inBrowser)
+              SettingsToggleRow(
+                label: 'Hold a key to talk',
+                description: 'Your mic indicator stays on in calls.',
+                value: settings.pushToTalkEnabled,
+                semanticLabel: 'Push-to-talk',
+                onChanged: voice.setPushToTalkEnabled,
+              ),
+            if (pushToTalk)
               PushToTalkKeyRow(
                 current: settings.pushToTalkKey,
                 conflictFor: pushToTalkConflict,
@@ -70,9 +76,9 @@ class VoiceShortcutsSection extends ConsumerWidget {
                     onChanged: (chord) => remap.set(action, chord),
                     onClear: () => remap.clear(action),
                   ),
-            if (keybinds.enabled || settings.pushToTalkEnabled)
+            if (!inBrowser && (keybinds.enabled || pushToTalk))
               const GlobalHotkeyStatusLine(),
-            if (changed && (keybinds.enabled || settings.pushToTalkEnabled))
+            if (changed && (keybinds.enabled || pushToTalk))
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.s16),
                 child: Align(
@@ -83,7 +89,9 @@ class VoiceShortcutsSection extends ConsumerWidget {
                     variant: AppButtonVariant.secondary,
                     onPressed: () {
                       remap.reset();
-                      voice.setPushToTalkKey(kDefaultPushToTalkKey);
+                      if (!inBrowser) {
+                        voice.setPushToTalkKey(kDefaultPushToTalkKey);
+                      }
                     },
                   ),
                 ),

@@ -142,7 +142,13 @@ async fn each_moderation_event_carries_an_increasing_seq() {
                 until: Some(1),
             },
         ),
-        ("member.removed", Event::MemberRemoved(UserId::generate())),
+        (
+            "member.removed",
+            Event::MemberRemoved {
+                user_id: UserId::generate(),
+                deleted: false,
+            },
+        ),
         ("member.restored", Event::MemberRestored(UserId::generate())),
         (
             "member.role_changed",

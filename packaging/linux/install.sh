@@ -25,6 +25,7 @@ mv "$root/.unpack-$version" "$root/$version"
 ln -sfn "$version" "$root/.current.new"
 mv -T "$root/.current.new" "$root/current"
 ln -sfn "$root/current/slim-m" "$bin/slim-m"
+cp "$here/uninstall.sh" "$root/uninstall.sh"
 
 data="${XDG_DATA_HOME:-$HOME/.local/share}"
 desktop_id="top.npcserver.slimm.desktop"
@@ -52,4 +53,4 @@ if [ -f "$here/$desktop_id" ]; then
   fi
 fi
 
-echo "installed slim-m $version in $root; start it with $bin/slim-m"
+echo "installed slim-m $version in $root; start it with $bin/slim-m, remove it with $root/uninstall.sh"

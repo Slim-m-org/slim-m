@@ -54,8 +54,11 @@ fn pcm_byte_rate(bytes: &[u8], body: usize, size: usize) -> Option<u32> {
         && (1..=8).contains(&channels)
         && (8_000..=192_000).contains(&sample_rate)
         && matches!(bits, 8 | 16 | 24 | 32);
-    let derived = sample_rate * channels * bits / 8;
-    (plausible && stated == derived).then_some(derived)
+    if !plausible {
+        return None;
+    }
+    let derived = sample_rate.checked_mul(channels)?.checked_mul(bits)? / 8;
+    (stated == derived).then_some(derived)
 }
 
 /// The RIFF chunk walk: byte rate from the one `fmt `, payload from every `data`.

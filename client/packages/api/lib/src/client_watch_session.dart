@@ -19,8 +19,9 @@ extension SlimmApiWatchSession on SlimmApi {
       final json = await send('GET', '/channels/$channelId/watch-session');
       return WatchSession.fromJson(json as Map<String, dynamic>);
     } on NotFoundException catch (error, stack) {
+      if (error.unexplained) rethrow;
       AppLog.swallowed(
-          LogTag.auth, 'Could not read the shared watch session', error, stack);
+          LogTag.sync, 'No shared watch session in this channel', error, stack);
       return null;
     }
   }

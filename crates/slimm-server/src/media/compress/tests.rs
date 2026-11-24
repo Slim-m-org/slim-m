@@ -340,6 +340,13 @@ fn a_drawing_is_told_from_a_photo() {
 }
 
 #[test]
+fn a_grayscale_photo_is_not_a_graphic() {
+    let gray =
+        image::DynamicImage::ImageLuma8(image::DynamicImage::ImageRgb8(photo(300, 200)).to_luma8());
+    assert!(!classify::is_graphic(&gray));
+}
+
+#[test]
 fn an_exif_entry_of_an_unknown_type_does_not_cost_the_photo_its_orientation() {
     let mut block = sample_exif(6);
     block[12..14].copy_from_slice(&129u16.to_le_bytes());

@@ -23,6 +23,8 @@ use crate::ratelimit::Class;
 use crate::store::{CategoryUpdate, CategoryWriteError, ChannelCategory};
 
 const CATEGORY_BODY_LIMIT: usize = 4 * 1024;
+/// The highest position a client may set; sibling positions only order a short list.
+const CATEGORY_POSITION_MAX: i64 = 100_000;
 const CATEGORY_NAME_MAX_CHARS: usize = crate::limits::MAX_NAME_CHARS;
 
 /// The category routes, mounted by [`super::router`].
@@ -197,6 +199,12 @@ async fn update(
         .transpose()?;
     if name.is_none() && req.position.is_none() && parent.is_none() {
         return Err(ApiError::BadRequest("nothing to update"));
+    }
+    if req
+        .position
+        .is_some_and(|position| !(0..=CATEGORY_POSITION_MAX).contains(&position))
+    {
+        return Err(ApiError::BadRequest("position is out of range"));
     }
     // Where the store would refuse a missing category, then a missing parent, in that order.
     let sight = CategorySight::of(&state, ctx.user_id).await?;

@@ -151,6 +151,23 @@ void main() {
         reason: 'the person was told it failed, so it must not go live');
   });
 
+  test('a camera the person turned on again stays on when the late open lands',
+      () async {
+    session = build(timeout: const Duration(milliseconds: 20));
+    await join();
+    await waitFor(
+      () => opens.isNotEmpty && opens.last.failure is CameraOpenTimedOut,
+    );
+
+    unawaited(session.setCameraEnabled(true));
+    await waitFor(() => cameraAsks.length == 2);
+    gate.complete();
+    await pumpEventQueue();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    expect(cameraAsks, [true, true]);
+  });
+
   test('a join with the camera off opens nothing', () async {
     await join(camera: false);
     await pumpEventQueue();

@@ -8,6 +8,7 @@ import 'dart:io';
 
 import 'package:slimm_platform/platform.dart' show InstallFormat, isDesktopHost;
 
+import 'install_fs.dart';
 import 'linux_install.dart' as linux;
 import 'linux_layout.dart';
 import 'macos_install.dart' as macos;
@@ -30,6 +31,9 @@ abstract interface class SelfUpdateTarget {
   /// [unpack] overrides how the verified artifact is extracted.
   Future<void> install(VerifiedUpdate update, {linux.Unpack? unpack});
   void confirmCleanStart();
+
+  /// Records that this run reached the app, for launchers that count failed starts.
+  void markStarted();
   String? takeRollbackNotice();
 
   /// The highest version ever rolled back from, which must never be offered
@@ -101,6 +105,9 @@ class _LinuxTarget implements SelfUpdateTarget {
   void confirmCleanStart() => linux.confirmCleanStart(layout);
 
   @override
+  void markStarted() => markStartedIn(layout.path);
+
+  @override
   String? takeRollbackNotice() => linux.takeRollbackNotice(layout);
   @override
   String? failedVersion() => failedVersionFloor(
@@ -136,6 +143,9 @@ class _WindowsTarget implements SelfUpdateTarget {
 
   @override
   void confirmCleanStart() => windows.confirmWindowsCleanStart(layout);
+
+  @override
+  void markStarted() => markStartedIn(layout.path);
 
   @override
   String? takeRollbackNotice() => windows.takeWindowsRollbackNotice(layout);
@@ -175,6 +185,9 @@ class _MacosTarget implements SelfUpdateTarget {
   void confirmCleanStart() => macos.confirmMacosCleanStart(layout);
 
   @override
+  void markStarted() {}
+
+  @override
   String? takeRollbackNotice() => macos.takeMacosRollbackNotice(layout);
   @override
   String? failedVersion() => failedVersionFloor(
@@ -195,3 +208,9 @@ String? recordedFailedVersion() {
     Platform.operatingSystem,
   )?.failedVersion();
 }
+
+/// Both launcher layouts keep the marker beside `pending` in the layout root.
+void markStartedIn(String Function(String name) path) => markStarted(
+  File(path(LayoutNames.pending)),
+  File(path(LayoutNames.pendingStarted)),
+);

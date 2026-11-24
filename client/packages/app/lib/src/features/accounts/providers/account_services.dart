@@ -31,6 +31,7 @@ import '../../voice/providers/voice_notice_controller.dart';
 import '../../voice/providers/voice_notification_controller.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../settings/providers/notification_schedule_controller.dart';
+import '../../settings/providers/notification_schedule_zone_sync.dart';
 import '../../settings/providers/notification_sound_controller.dart';
 import '../../voice/providers/hold_music_controller.dart';
 import '../../voice/providers/hold_music_sync.dart';
@@ -63,6 +64,7 @@ void startAccountServices(ProviderContainer container) {
   container.listen(voiceNotificationProvider, (_, _) {});
   container.listen(screenOverlayControllerProvider, (_, _) {});
   container.listen(notificationScheduleProvider, (_, _) {});
+  container.listen(notificationScheduleZoneSyncProvider, (_, _) {});
   container.listen(retentionSweepControllerProvider, (_, _) {});
   container.listen(callRestoreWatchProvider, (_, _) {});
   container.listen(debugLogDetailProvider, (_, _) {});

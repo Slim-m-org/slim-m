@@ -5,6 +5,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 )
 
@@ -132,7 +133,8 @@ func TestStartsBesideARunningInstanceAreNotCounted(t *testing.T) {
 	put(t, root, "pending", "0.89.0")
 	put(t, root, "running.pid", "4242")
 	processAlive = func(pid int) bool { return pid == 4242 }
-	t.Cleanup(func() { processAlive = osProcessAlive })
+	processIsApp = func(int) bool { return true }
+	t.Cleanup(func() { processAlive, processIsApp = osProcessAlive, osProcessIsApp })
 
 	for i := 0; i < 5; i++ {
 		dir, err := choose(root, false)
@@ -155,7 +157,8 @@ func TestAStartAfterTheInstanceIsGoneIsCountedAgain(t *testing.T) {
 	put(t, root, "pending", "0.89.0")
 	put(t, root, "running.pid", "4242")
 	processAlive = func(int) bool { return false }
-	t.Cleanup(func() { processAlive = osProcessAlive })
+	processIsApp = func(int) bool { return true }
+	t.Cleanup(func() { processAlive, processIsApp = osProcessAlive, osProcessIsApp })
 
 	if _, err := choose(root, false); err != nil {
 		t.Fatal(err)
@@ -172,7 +175,8 @@ func TestARelaunchIsCountedEvenWhileItsPredecessorExits(t *testing.T) {
 	put(t, root, "pending", "0.89.0")
 	put(t, root, "running.pid", "4242")
 	processAlive = func(pid int) bool { return pid == 4242 }
-	t.Cleanup(func() { processAlive = osProcessAlive })
+	processIsApp = func(int) bool { return true }
+	t.Cleanup(func() { processAlive, processIsApp = osProcessAlive, osProcessIsApp })
 
 	if _, err := choose(root, true); err != nil {
 		t.Fatal(err)
@@ -199,5 +203,91 @@ func TestOnlyARelaunchReplacesTheRecordedPidOfALiveInstance(t *testing.T) {
 func TestRecognisesTheRelaunchArgument(t *testing.T) {
 	if !isRelaunch([]string{"--relaunch"}) || isRelaunch([]string{"--other"}) || isRelaunch(nil) {
 		t.Fatal("relaunch detection is wrong")
+	}
+}
+
+func TestAPidNowOwnedByAnotherProgramIsNotTheApp(t *testing.T) {
+	root := layout(t, "0.88.0", "0.89.0")
+	put(t, root, "current", "0.89.0")
+	put(t, root, "previous", "0.88.0")
+	put(t, root, "pending", "0.89.0")
+	put(t, root, "running.pid", strconv.Itoa(os.Getpid()))
+	if instanceRunning(root) {
+		t.Fatal("this test binary is not slimm_app.exe")
+	}
+	if _, err := choose(root, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(root, "pending.tries"); got != "1" {
+		t.Fatalf("counted %q", got)
+	}
+}
+
+func TestRecognisesTheAppImageByName(t *testing.T) {
+	for path, want := range map[string]bool{
+		`C:\Users\a\AppData\Local\slim-m\app-1.0.0\slimm_app.exe`: true,
+		"/x/SLIMM_APP.EXE":       true,
+		`C:\Windows\notepad.exe`: false,
+		"":                       false,
+	} {
+		if isAppImage(path) != want {
+			t.Errorf("%q: want %v", path, want)
+		}
+	}
+}
+
+// quit is one launch of the pending version; ready says whether that run reached the app's started marker.
+func quit(t *testing.T, root string, ready bool) string {
+	t.Helper()
+	dir, err := choose(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ready {
+		put(t, root, pendingStarted, "")
+	}
+	return dir
+}
+
+func pendingLayout(t *testing.T) string {
+	root := layout(t, "0.88.0", "0.89.0")
+	put(t, root, "current", "0.89.0")
+	put(t, root, "previous", "0.88.0")
+	put(t, root, "pending", "0.89.0")
+	return root
+}
+
+func TestQuickQuitsOfAWorkingVersionNeverRollBack(t *testing.T) {
+	root := pendingLayout(t)
+	for i := 0; i < 6; i++ {
+		if dir := quit(t, root, true); dir != versionDir(root, "0.89.0") {
+			t.Fatalf("start %d went to %q", i+1, dir)
+		}
+	}
+	if read(root, "current") != "0.89.0" || read(root, "rolled-back") != "" {
+		t.Fatal("a version that reached ready was rolled back")
+	}
+}
+
+func TestCrashesBeforeReadyRollBackOnTheThirdStart(t *testing.T) {
+	root := pendingLayout(t)
+	quit(t, root, false)
+	quit(t, root, false)
+	if dir := quit(t, root, false); dir != versionDir(root, "0.88.0") {
+		t.Fatalf("third start went to %q", dir)
+	}
+	if read(root, "rolled-back") != "0.89.0" {
+		t.Fatal("no rollback marker")
+	}
+}
+
+func TestACrashBetweenReadyRunsDoesNotAccumulate(t *testing.T) {
+	root := pendingLayout(t)
+	quit(t, root, true)
+	quit(t, root, false)
+	quit(t, root, true)
+	quit(t, root, true)
+	if read(root, "current") != "0.89.0" {
+		t.Fatal("one early failure among ready runs rolled back")
 	}
 }

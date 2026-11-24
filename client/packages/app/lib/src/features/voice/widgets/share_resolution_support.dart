@@ -5,7 +5,8 @@
 /// only promises a sharpness that cannot arrive.
 library;
 
-import 'dart:ui' show PlatformDispatcher;
+import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/widgets.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -59,12 +60,31 @@ String? shareResolutionNote(int? maxHeight) =>
     ? 'Your largest display is ${maxHeight}p.'
     : null;
 
+List<int> _displayHeights() => [
+  for (final d in WidgetsBinding.instance.platformDispatcher.displays)
+    d.size.height.round(),
+];
+
+/// Rebuilds the display list when a monitor is plugged or unplugged.
+class _DisplayChanges with WidgetsBindingObserver {
+  _DisplayChanges(this._onChange);
+
+  final VoidCallback _onChange;
+
+  @override
+  void didChangeMetrics() => _onChange();
+}
+
 /// The heights of the screens the OS reports; a provider so a test can say what is plugged in.
-final shareDisplayHeightsProvider = Provider<List<int>>(
-  (ref) => [
-    for (final d in PlatformDispatcher.instance.displays) d.size.height.round(),
-  ],
-);
+final shareDisplayHeightsProvider = Provider<List<int>>((ref) {
+  final heights = _displayHeights();
+  final watcher = _DisplayChanges(() {
+    if (!listEquals(heights, _displayHeights())) ref.invalidateSelf();
+  });
+  WidgetsBinding.instance.addObserver(watcher);
+  ref.onDispose(() => WidgetsBinding.instance.removeObserver(watcher));
+  return heights;
+});
 
 /// What the screens and the live capture allow for [chosen].
 int? currentMaxShareHeight(WidgetRef ref, ScreenShareResolution chosen) =>

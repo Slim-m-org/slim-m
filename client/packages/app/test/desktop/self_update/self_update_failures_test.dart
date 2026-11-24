@@ -90,7 +90,7 @@ void main() {
   test('a download that goes silent fails instead of hanging', () async {
     final artifact = UpdateArtifact(
       url: Uri.parse('https://example.invalid/slim-m.tar.gz'),
-      sha256: '00',
+      sha256: '00' * 32,
       size: 10,
     );
     final silent = <StreamController<List<int>>>[];

@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use crate::components::ComponentRow;
-use crate::hub::event_util::{ReactionMoved, Reactors};
+use crate::hub::event_util::{CastBallot, ReactionMoved, Reactors};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::store::{
     AppSurface, AttachmentSummary, CallRecord, CodeRunSummary, Embed, ForwardSummary, Message, Poll,
@@ -70,13 +70,17 @@ pub enum MessageEvent {
     },
     /// A poll's votes changed. Carries the whole per-option tally rather than
     /// a delta, so a client that missed a frame cannot drift, exactly like
-    /// `ReactionsChanged`; who cast which vote is deliberately never present.
+    /// `ReactionsChanged`; who cast which vote never reaches anyone but that voter.
     PollVoted {
         channel_id: ChannelId,
         message_id: MessageId,
         options: Vec<(i64, i64)>,
         /// The instant-runoff count, on a ranked poll only.
         runoff: Option<crate::store::Runoff>,
+        /// Orders this tally against others for the same poll.
+        version: i64,
+        /// The ballot that moved it, told only to that voter's own connections.
+        cast: Option<Arc<CastBallot>>,
     },
     /// A bot replaced or cleared the buttons on its message. Carries the whole
     /// list, like `PollVoted`, so a client that missed a frame cannot drift.
@@ -143,15 +147,9 @@ pub enum MessageEvent {
     /// optional.
     ///
     /// The reactor snapshot is taken once, at publish time in
-    /// `http/reactions.rs`, not at delivery time per connection. Reactions
-    /// are eventually consistent by design (decision 0009: a live frame
-    /// overwrites the one row it names, and a reconnect clears and refetches
-    /// rather than reconciling), and this event carries no sequence number,
-    /// so two reactions on the same message published close together can
-    /// reach a connection out of order and leave a briefly wrong count on
-    /// screen; the next reaction on that message, or a reconnect, corrects
-    /// it. A strict fix would need a per-message reaction sequence number,
-    /// deliberately out of scope here.
+    /// `http/reactions.rs`, not at delivery time per connection. Two
+    /// reactions published close together can reach a connection out of
+    /// order, so `version` lets a client keep the newer tally.
     ReactionsChanged {
         channel_id: ChannelId,
         message_id: MessageId,
@@ -160,6 +158,8 @@ pub enum MessageEvent {
         /// request changed nothing. Carried rather than diffed from `reactors`,
         /// which cannot say who moved on a message nobody has seen before.
         moved: Option<Arc<ReactionMoved>>,
+        /// From [`crate::store::next_tally_version`], taken before `reactors` was read.
+        version: i64,
     },
     /// A fenced code block was run and its shared output changed. Carries the
     /// whole current result (the [`MessageEvent::ThreadUpdated`] shape), overwriting

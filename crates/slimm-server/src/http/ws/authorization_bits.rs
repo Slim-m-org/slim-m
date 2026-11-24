@@ -72,7 +72,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::PresenceChanged(_)
         | Event::MemberTimeoutChanged { .. }
         | Event::JoinGateChanged { .. }
-        | Event::MemberRemoved(_)
+        | Event::MemberRemoved { .. }
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)
         | Event::OwnerChanged(_)

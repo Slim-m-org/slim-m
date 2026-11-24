@@ -412,3 +412,36 @@ async fn a_deleted_category_cannot_be_created_into() {
         "a channel filed under a dead category would vanish from the rail"
     );
 }
+
+#[tokio::test]
+async fn a_huge_category_position_is_refused_and_creation_still_works() {
+    let (store, _guard) = support::new_store("slimm-categories-position").await;
+    let app = app(store.clone());
+    let token = register(&store, "alice").await;
+    let post = |name: &str| {
+        request(
+            "POST",
+            "/categories",
+            Some(&token),
+            Some(json!({ "name": name })),
+        )
+    };
+    let created = json_body(app.clone().oneshot(post("first")).await.unwrap()).await;
+    let id = created["id"].as_str().unwrap().to_owned();
+
+    for position in [i64::MAX, -1] {
+        let response = app
+            .clone()
+            .oneshot(request(
+                "PATCH",
+                &format!("/categories/{id}"),
+                Some(&token),
+                Some(json!({ "position": position })),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{position}");
+    }
+    let response = app.clone().oneshot(post("second")).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+}
