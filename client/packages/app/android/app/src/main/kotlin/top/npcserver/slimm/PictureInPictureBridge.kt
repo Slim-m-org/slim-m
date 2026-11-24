@@ -21,6 +21,7 @@ import io.flutter.plugin.common.MethodChannel
 class PictureInPictureBridge(private val activity: Activity) {
   private var channel: MethodChannel? = null
   private var eligible = false
+  private var launchingOwnActivity = false
 
   private val supported: Boolean
     get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
@@ -41,9 +42,18 @@ class PictureInPictureBridge(private val activity: Activity) {
   }
 
   fun onUserLeaveHint() {
-    if (!supported || !eligible || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return
+    if (launchingOwnActivity || !supported || !eligible || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return
     if (activity.isInPictureInPictureMode) return
     activity.enterPictureInPictureMode(params())
+  }
+
+  /** The app itself is starting a picker, browser or installer, so the leave hint is not a Home press. */
+  fun onOwnLaunch() {
+    launchingOwnActivity = true
+  }
+
+  fun onResumed() {
+    launchingOwnActivity = false
   }
 
   fun onModeChanged(inPictureInPicture: Boolean) {
