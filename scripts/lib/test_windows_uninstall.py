@@ -91,7 +91,7 @@ class TempFilesDoNotKeepTheFolder(unittest.TestCase):
 
 class DataStaysUnlessAsked(unittest.TestCase):
     def test_a_silent_uninstall_keeps_the_data(self):
-        self.assertRegex(routine("OfferToRemoveData"), r"if UninstallSilent or not DirExists\(Data\) then\s+exit;")
+        self.assertRegex(routine("OfferToRemoveData"), r"if UninstallSilent or not \(DirExists\(Data\) or DirExists\(Cache\)\) then\s+exit;")
 
     def test_keeping_is_the_default_answer(self):
         offer = routine("OfferToRemoveData")
@@ -103,6 +103,16 @@ class DataStaysUnlessAsked(unittest.TestCase):
         self.assertIn(r"'{userappdata}\top.npcserver\slim-m'", offer)
         self.assertRegex(offer, r"DelTree\(Data,")
         self.assertIn(r"RemoveDir(ExpandConstant('{userappdata}\top.npcserver'))", offer)
+
+    def test_the_image_caches_under_local_app_data_go_with_it(self):
+        offer = routine("OfferToRemoveData")
+        self.assertIn(r"'{localappdata}\top.npcserver\slim-m'", offer)
+        self.assertRegex(offer, r"DelTree\(Cache,")
+        self.assertIn(r"RemoveDir(ExpandConstant('{localappdata}\top.npcserver'))", offer)
+
+    def test_the_script_removes_both_roots_too(self):
+        script = (SETUP.parent / "uninstall.ps1").read_text()
+        self.assertIn("$env:APPDATA, $env:LOCALAPPDATA", script)
 
     def test_it_is_offered_after_the_app_is_gone(self):
         steps = routine("CurUninstallStepChanged")
