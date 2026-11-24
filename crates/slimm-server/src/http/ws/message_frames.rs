@@ -73,6 +73,10 @@ pub(super) async fn created_from_event(
         call: call.map(|c| (*c).clone()),
         components: (*components).clone(),
     };
+    let repost_author = store
+        .repost_author_for_viewer(viewer, facts.repost_author)
+        .await
+        .map_err(|_| ())?;
     Ok(created(
         link_previews,
         (*message).clone(),
@@ -81,7 +85,7 @@ pub(super) async fn created_from_event(
         (
             facts.webhook_username.clone(),
             facts.module_origin.clone(),
-            facts.repost_author,
+            repost_author,
         ),
     ))
 }
@@ -156,7 +160,11 @@ pub(super) async fn edited(
     let facts = lookups.get(store, message_id).await.map_err(|_| ())?;
     dto.webhook_username = facts.webhook_username.clone();
     dto.via_module = facts.module_origin.clone().map(ViaModuleDto::from);
-    dto.repost_of_author_id = facts.repost_author.map(|author| author.to_string());
+    dto.repost_of_author_id = store
+        .repost_author_for_viewer(viewer, facts.repost_author)
+        .await
+        .map_err(|_| ())?
+        .map(|author| author.to_string());
     dto.mentions_me = facts.mentioned.contains(&viewer);
     dto.link_previews_removed = lookups
         .previews_removed(store, message_id)

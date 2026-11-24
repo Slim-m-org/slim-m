@@ -20932,7 +20932,9 @@ components:
           description: >-
             The member whose words a bot re-posted in this message, or null on
             every other one. A viewer's blocks cover the message as they cover
-            that member's own, in the transcript and in push.
+            that member's own, in the transcript and in push. Null once that
+            member's account has been deleted, except to a viewer who had
+            blocked it, exactly as `author_id` is.
         via_module:
           type: [object, "null"]
           description: >-

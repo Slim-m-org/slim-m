@@ -137,17 +137,29 @@ class PruneMirrorTest(unittest.TestCase):
 
         self.assertEqual(self._mirror(), [self.keep.hex()])
 
-    def test_nothing_is_removed_when_the_newest_snapshot_does_not_verify(self):
+    def _prune_after_the_older_snapshot_is_gone(self):
         self._run_twice_with_a_deletion_between(prune=True)
         self._backup(prune=True)
         for snapshot in sorted((self.root / "bk" / "db").glob("slimm-*.db"))[:-1]:
             snapshot.unlink()
+
+    def test_a_dangling_row_does_not_stop_the_prune(self):
+        self._prune_after_the_older_snapshot_is_gone()
         (self.root / "bk" / "attachments" / self.keep.hex()).unlink()
         (self.media / "attachments" / self.keep.hex()).unlink()
-        code, _ = quiet(backup_lib.take_backup, self._args(prune=True))
 
-        self.assertNotEqual(code, 0)
+        quiet(backup_lib.take_backup, self._args(prune=True))
+
+        self.assertNotIn(self.gone.hex(), self._mirror())
+
+    def test_nothing_is_removed_when_the_newest_snapshot_fails_its_integrity_check(self):
+        self._prune_after_the_older_snapshot_is_gone()
+
+        with mock.patch("restore_drill_lib.check_integrity", return_value="bad"):
+            _, warnings = quiet(backup_lib.take_backup, self._args(prune=True))
+
         self.assertIn(self.gone.hex(), self._mirror())
+        self.assertTrue(any("not pruned" in w for w in warnings))
 
 
 if __name__ == "__main__":

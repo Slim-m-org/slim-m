@@ -250,8 +250,7 @@ def run(args):
     if args.data_key_file:
         _place_key(args.data_key_file, data_dir)
     revoke = args.force if args.revoke_sessions is None else args.revoke_sessions
-    if revoke:
-        restore_sessions.revoke_all(database)
+    dead_bots = restore_sessions.revoke_all(database) if revoke else []
     owned = _give_to(args.owner, data_dir)
 
     version = snapshot_info.describe(snapshot_info.schema_version(database))
@@ -276,6 +275,9 @@ def run(args):
         print(f"warning: {warning}", file=sys.stderr)
     if revoke:
         print("every session was revoked: members sign in again")
+    if dead_bots:
+        print("these bots' tokens ended with their sessions and need new tokens in each bot's "
+              "environment: " + ", ".join(dead_bots))
     print("the database is as of the snapshot: re-run any account deletions and password "
           "changes made since it was taken")
     if not args.data_key_file and not (data_dir / KEY_FILE).is_file():

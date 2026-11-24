@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The member a bot's message quotes or re-posts, so blocks cover the repost.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use sqlx::Row;
 
@@ -65,5 +65,58 @@ impl Store {
             }
         }
         Ok(authors)
+    }
+
+    /// Drops the reposted member from `authors` once their account is deleted, unless `viewer` blocked them.
+    /// Mirrors a message's own `author_id`: the id survives only where it keeps a block working.
+    pub async fn anonymize_deleted_repost_authors(
+        &self,
+        viewer: UserId,
+        authors: &mut HashMap<MessageId, UserId>,
+    ) -> anyhow::Result<()> {
+        let mut candidates: Vec<UserId> = authors.values().copied().collect();
+        candidates.sort_unstable();
+        candidates.dedup();
+        let gone = self.deleted_unblocked_among(viewer, &candidates).await?;
+        authors.retain(|_, author| !gone.contains(author));
+        Ok(())
+    }
+
+    /// [`Self::anonymize_deleted_repost_authors`] for the one message of a live frame.
+    pub async fn repost_author_for_viewer(
+        &self,
+        viewer: UserId,
+        author: Option<UserId>,
+    ) -> anyhow::Result<Option<UserId>> {
+        let Some(author) = author else {
+            return Ok(None);
+        };
+        let gone = self.deleted_unblocked_among(viewer, &[author]).await?;
+        Ok((!gone.contains(&author)).then_some(author))
+    }
+
+    async fn deleted_unblocked_among(
+        &self,
+        viewer: UserId,
+        candidates: &[UserId],
+    ) -> anyhow::Result<HashSet<UserId>> {
+        let mut gone = HashSet::new();
+        for chunk in candidates.chunks(MAX_IDS_PER_QUERY) {
+            let mut builder = sqlx::QueryBuilder::new(
+                "SELECT u.id FROM users u WHERE u.deleted_at IS NOT NULL \
+                 AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = ",
+            );
+            builder.push_bind(viewer);
+            builder.push(" AND b.blocked_id = u.id) AND u.id IN (");
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(")");
+            for row in builder.build().fetch_all(&self.pool).await? {
+                gone.insert(row.try_get::<UserId, _>("id")?);
+            }
+        }
+        Ok(gone)
     }
 }

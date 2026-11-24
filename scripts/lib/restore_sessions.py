@@ -13,10 +13,23 @@ _STATEMENTS = (
 )
 
 
+_LIVE_BOTS = (
+    "SELECT DISTINCT t.name FROM bot_tokens t JOIN sessions s ON s.id = t.session_id "
+    "WHERE t.revoked_at IS NULL AND s.revoked_at IS NULL ORDER BY t.name"
+)
+
+
 def revoke_all(database, now_ms=None):
+    """Revokes every session and returns the names of the bots whose token that ended."""
     now = now_ms if now_ms is not None else int(time.time() * 1000)
     conn = sqlite3.connect(str(database))
     try:
+        try:
+            bots = [row[0] for row in conn.execute(_LIVE_BOTS)]
+        except sqlite3.OperationalError as error:
+            if "no such table" not in str(error):
+                raise
+            bots = []
         for statement in _STATEMENTS:
             try:
                 conn.execute(statement, {"now": now})
@@ -24,5 +37,6 @@ def revoke_all(database, now_ms=None):
                 if "no such table" not in str(error):
                     raise
         conn.commit()
+        return bots
     finally:
         conn.close()

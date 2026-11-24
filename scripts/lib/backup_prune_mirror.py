@@ -3,8 +3,9 @@
 
 A deleted file stays in the mirror until the last snapshot that references it is pruned, so
 the snapshot window (--keep) is the delay before an erasure reaches the backup disk. Nothing
-is removed unless the newest snapshot checks out against the mirror and every retained
-snapshot can be read, since a half-verified mirror must never lose files.
+is removed unless the newest snapshot passes its integrity check and every retained
+snapshot can be read. A file the newest snapshot names but the mirror lacks does not block it,
+since pruning only removes files no retained snapshot names.
 """
 import sqlite3
 from pathlib import Path
@@ -24,17 +25,10 @@ def _referenced(snapshots):
     return names
 
 
-def _newest_verifies(snapshot, backup_root):
-    if restore_drill_lib.check_integrity(snapshot) != "ok":
-        return False
-    unusable, malformed = restore_plan._unusable_in_mirror(snapshot, backup_root)
-    return not unusable and not malformed
-
-
 def prune(backup_root, snapshots):
     """Removes the mirror files nothing in `snapshots` names; returns them, or None when it refused."""
     snapshots = sorted(snapshots)
-    if not snapshots or not _newest_verifies(snapshots[-1], backup_root):
+    if not snapshots or restore_drill_lib.check_integrity(snapshots[-1]) != "ok":
         return None
     try:
         keep = _referenced(snapshots)

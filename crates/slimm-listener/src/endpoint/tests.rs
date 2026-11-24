@@ -197,6 +197,21 @@ fn a_stretch_with_no_frames_re_anchors_later_timestamps_to_the_clock() {
 }
 
 #[test]
+fn a_burst_after_a_processing_stall_keeps_its_capture_times() {
+    let mut endpointer = Endpointer::new(0);
+    let mut found = endpointer.push_at(&hiss(1_000, 60.0), 1_000);
+    let mut burst = speech(1_500);
+    burst.extend(hiss(500, 60.0));
+    for chunk in burst.chunks(320) {
+        found.extend(endpointer.push_at(chunk, 3_000));
+    }
+    found.extend(endpointer.push_at(&hiss(1_000, 60.0), 4_000));
+    assert_eq!(found.len(), 1);
+    let start = found[0].start_ms;
+    assert!((start - 1_000).abs() <= 250, "{start}");
+}
+
+#[test]
 fn audio_that_keeps_up_with_the_clock_is_not_moved() {
     let mut endpointer = Endpointer::new(0);
     let mut found = Vec::new();

@@ -16,6 +16,8 @@ const MIN_UTTERANCE_MS: i64 = 400;
 pub const MAX_UTTERANCE_MS: i64 = 15_000;
 /// How far the delivered audio may trail the clock before the timeline is re-anchored.
 const RESYNC_GAP_MS: i64 = 500;
+/// How far delivered audio may run ahead of the clock before an earlier re-anchor is undone.
+const CATCH_UP_GAP_MS: i64 = 100;
 /// Audio kept from before the first loud frame, so a word is not clipped.
 const PRE_ROLL_FRAMES: usize = 5;
 /// Speech must be this many times the noise floor.
@@ -46,6 +48,8 @@ impl Utterance {
 pub struct Endpointer {
     /// When the first sample arrived, in milliseconds since the session started.
     origin_ms: i64,
+    /// How far re-anchoring has moved the origin and nothing has taken back yet.
+    advanced_ms: i64,
     pending: Vec<i16>,
     frames_seen: i64,
     floor: f32,
@@ -66,6 +70,7 @@ impl Endpointer {
     pub fn new(origin_ms: i64) -> Self {
         Self {
             origin_ms,
+            advanced_ms: 0,
             pending: Vec::new(),
             frames_seen: 0,
             floor: 100.0,
@@ -82,6 +87,7 @@ impl Endpointer {
 
     /// Feeds samples that arrived at `now_ms`, first re-anchoring the clock if the stream fell behind real time.
     /// An utterance in progress is ended at the gap, since the audio on either side is not contiguous.
+    /// A burst that follows a processing stall runs ahead of the clock, which takes the shift back.
     pub fn push_at(&mut self, samples: &[i16], now_ms: i64) -> Vec<Utterance> {
         let delivered = self.frames_seen * FRAME_MS + self.pending_ms();
         let behind = now_ms - self.origin_ms - delivered - samples_ms(samples.len());
@@ -91,6 +97,11 @@ impl Endpointer {
             self.pending.clear();
             self.pre_roll.clear();
             self.origin_ms += behind;
+            self.advanced_ms += behind;
+        } else if -behind > CATCH_UP_GAP_MS {
+            let undo = (-behind).min(self.advanced_ms);
+            self.origin_ms -= undo;
+            self.advanced_ms -= undo;
         }
         done.extend(self.push(samples));
         done

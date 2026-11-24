@@ -7,6 +7,7 @@ use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::config::Config;
 use slimm_server::db;
+use slimm_server::ids::UserId;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
 use tower::ServiceExt;
@@ -164,4 +165,46 @@ async fn a_bot_naming_no_real_member_is_a_400() {
             .unwrap();
         assert_eq!(sent.status(), StatusCode::BAD_REQUEST, "{bad}");
     }
+}
+
+async fn reposted_author_seen_by(h: &Harness, token: &str) -> Value {
+    let listed = h
+        .app
+        .clone()
+        .oneshot(request(
+            "GET",
+            &format!("/channels/{}/messages", h.channel_id),
+            token,
+            Value::Null,
+        ))
+        .await
+        .unwrap();
+    let body = json_body(listed).await;
+    let rows = body.as_array().or(body["messages"].as_array()).unwrap();
+    rows[0]["repost_of_author_id"].clone()
+}
+
+/// The id survives a deletion only where it keeps a block working, exactly as a message's own author does.
+#[tokio::test]
+async fn a_deleted_reposted_account_is_anonymized_except_to_its_blockers() {
+    let h = harness().await;
+    let (admin, _) = member(&h.store, "admin").await;
+    let (alice, alice_id) = member(&h.store, "alice").await;
+    let (_, carol) = member(&h.store, "carol").await;
+    let bot_token = bot(&h.app, &admin, "starbot").await;
+    let sent = h
+        .app
+        .clone()
+        .oneshot(send(&h.channel_id, &bot_token, &carol))
+        .await
+        .unwrap();
+    assert_eq!(sent.status(), StatusCode::OK);
+    let alice_uid = UserId(Uuid::parse_str(&alice_id).unwrap());
+    let carol_uid = UserId(Uuid::parse_str(&carol).unwrap());
+    h.store.block_user(alice_uid, carol_uid).await.unwrap();
+
+    h.store.delete_account(carol_uid).await.unwrap();
+
+    assert_eq!(reposted_author_seen_by(&h, &admin).await, Value::Null);
+    assert_eq!(reposted_author_seen_by(&h, &alice).await, carol);
 }

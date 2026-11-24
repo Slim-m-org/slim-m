@@ -264,6 +264,25 @@ class RestoreSessionsTest(RestoreTestCase):
         self.assertEqual(self._restored_rows("SELECT count(*) FROM dropped_refresh_tokens"), [(0,)])
         self.assertIn("re-run any account deletions", out)
 
+    def test_a_forced_restore_names_the_bots_whose_tokens_ended(self):
+        self._back_up_signed_in()
+        conn = sqlite3.connect(str(self.live / "slimm.db"))
+        session = conn.execute("SELECT id FROM sessions").fetchone()[0]
+        conn.execute("INSERT INTO bot_tokens (token_hash, bot_user_id, session_id, name, created_at) "
+                     "VALUES ('bt', ?, ?, 'greeter', 1)", (self.user, session))
+        conn.commit()
+        conn.close()
+        code, _ = quiet(backup_lib.run, backup_lib.parse_args([
+            "--database-path", str(self.live / "slimm.db"), "--media-dir", str(self.live / "media"),
+            "--backup-root", str(self.backup_root),
+        ]))
+        self.assertEqual(code, 0)
+
+        _, out = self._restore_over_existing()
+
+        self.assertIn("need new tokens", out)
+        self.assertIn("greeter", out)
+
     def test_opting_out_keeps_the_sessions(self):
         self._back_up_signed_in()
 

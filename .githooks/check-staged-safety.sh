@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 #
 # Rejects staged files that look like credentials or that are large binaries, before they reach history.
-# SLIMM_ALLOW_LARGE=1 lets a deliberate large asset through; there is no bypass for credentials except --no-verify.
+# SLIMM_ALLOW_LARGE=1 lets a deliberate large asset through (CI sets it from the large-asset PR label); there is no bypass for credentials except --no-verify.
 # With a revision range argument (base...head) it checks that range instead of the index, which is how hygiene.yml runs it on a pull request.
 set -uo pipefail
 

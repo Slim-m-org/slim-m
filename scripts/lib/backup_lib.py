@@ -221,13 +221,12 @@ def prune_snapshots(db_dir, keep):
 
 def _prune_mirror(args, backup_root, db_dir):
     if not getattr(args, "prune_mirror", False):
-        return []
+        return [], []
     pruned = backup_prune_mirror.prune(backup_root, db_dir.glob("slimm-*.db"))
     if pruned is None:
-        print("backup completed, but the mirror was not pruned: the newest snapshot did not "
-              "verify against it", file=sys.stderr)
-        return []
-    return pruned
+        return [], ["the mirror was not pruned: a snapshot failed its integrity check or could "
+                    "not be read"]
+    return pruned, []
 
 
 def take_backup(args):
@@ -270,7 +269,7 @@ def take_backup(args):
     modules_dir = getattr(args, "modules_dir", None) or str(source_db.parent / "modules")
     modules = backup_modules.backup_modules(modules_dir, backup_root)
     removed = prune_snapshots(db_dir, args.keep)
-    mirror_pruned = _prune_mirror(args, backup_root, db_dir)
+    mirror_pruned, prune_warnings = _prune_mirror(args, backup_root, db_dir)
 
     manifest = {
         "created_at": timestamp,
@@ -292,7 +291,7 @@ def take_backup(args):
     Path(str(dest_db) + ".manifest.json").write_text(json.dumps(manifest, indent=2))
     backup_report.print_report(dest_db, manifest, removed)
 
-    warnings = backup_report.warnings_for(attachments, avatars, side_files)
+    warnings = backup_report.warnings_for(attachments, avatars, side_files) + prune_warnings
     for warning in warnings:
         print(f"backup completed, but {warning}", file=sys.stderr)
     if modules["failed"]:

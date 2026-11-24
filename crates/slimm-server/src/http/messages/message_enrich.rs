@@ -70,6 +70,10 @@ pub(crate) async fn with_reactions(
     )?;
     let previews_removed = state.store.link_preview_suppressed_among(&ids).await?;
     let mut repost_authors = state.store.repost_authors_for_messages(&ids).await?;
+    state
+        .store
+        .anonymize_deleted_repost_authors(viewer, &mut repost_authors)
+        .await?;
 
     let mut dtos: Vec<MessageDto> = Vec::with_capacity(messages.len());
     for message in messages {
