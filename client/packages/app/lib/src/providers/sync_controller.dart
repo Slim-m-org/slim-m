@@ -9,10 +9,12 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../features/channels/providers/category_nesting.dart';
 import '../features/channels/providers/channel_refresher.dart';
 import '../features/channels/providers/last_text_channel.dart';
+import '../features/voice/providers/voice_flags.dart';
 import 'providers.dart';
 import 'app_lifecycle.dart';
 import '../sync/providers/reconnect_backoff.dart';
@@ -70,6 +72,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       generation: () => _generation,
       probe: () => _connection?.probe(),
       failConnect: _failConnect,
+      inCall: _inCall,
     );
     _catchUp = SyncCatchUp(_ref, (generation) => generation == _generation);
     _applier = SyncEventApplier(
@@ -417,6 +420,13 @@ class SyncController extends StateNotifier<SyncStatus> {
     final api = _ref.read(apiProvider);
     final store = await _ref.read(storeProvider.future);
     await _applier.apply(generation ?? _generation, api, store, event);
+  }
+
+  bool _inCall() {
+    final flags = _ref.read(voiceFlagsProvider);
+    return flags.rejoining ||
+        flags.state == VoiceSessionState.connected ||
+        flags.state == VoiceSessionState.connecting;
   }
 
   void _onDropped() {
