@@ -6,7 +6,9 @@ library;
 
 export 'core/avatar.dart';
 export 'core/avatar_shaped_image.dart';
+export 'core/avatar_badge.dart';
 export 'core/avatar_geometry.dart';
+export 'core/avatar_mark_slot.dart';
 export 'core/badge.dart';
 export 'core/brand_lattice.dart';
 export 'core/brand_mark.dart';

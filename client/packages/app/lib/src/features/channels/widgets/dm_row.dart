@@ -212,52 +212,73 @@ class DmRow extends ConsumerWidget {
         // AppListRow is already its own tab stop; see ContextMenuFocus.ownsFocusNode.
         ownsFocusNode: false,
         menuWidth: 240,
-        child: AppListRow(
-          label: channel.name,
-          selected: selected,
-          unread: indicator.unread,
-          mentioned: indicator.mentioned,
-          muted: muted || departure != null,
-          labelColor: departure == null ? null : tokens.textSecondary,
-          subtitle: departure?.label,
-          leading: channel.isGroupDm
-              ? GroupAvatarStack(
-                  memberIds: [
-                    for (final id in channel.groupMemberIds)
-                      if (id != ref.watch(sessionProvider).tokens?.userId) id,
-                  ],
-                )
-              : UserAvatar(
-                  name: channel.name,
-                  userId: channel.dmParticipantId,
-                  size: AppAvatarSize.s28,
-                  presence: true,
-                ),
-          trailing: inCall
-              ? Icon(
-                  AppIcons.startCall,
-                  size: AppSizes.icon16,
-                  color: tokens.accent,
-                )
-              : muted
-              ? Icon(
-                  AppIcons.notificationsOff,
-                  size: AppSizes.icon16,
-                  color: tokens.textSecondary,
-                )
-              : null,
-          stateDescription: inCall
-              ? 'call in progress'
-              : departure?.label.toLowerCase(),
-          onTap: () {
-            // Opens straight into the call pane, the same double action RailCallSummary uses.
-            if (inCall) {
-              ref.read(dmCallOpenProvider.notifier).state = channel.id;
-            }
-            context.go(Routes.channel(channel.id));
-          },
+        child: _departureTooltip(
+          departure,
+          AppListRow(
+            label: channel.name,
+            selected: selected,
+            unread: indicator.unread,
+            mentioned: indicator.mentioned,
+            muted: muted || departure != null,
+            labelColor: departure == null ? null : tokens.textSecondary,
+            leading: channel.isGroupDm
+                ? GroupAvatarStack(
+                    memberIds: [
+                      for (final id in channel.groupMemberIds)
+                        if (id != ref.watch(sessionProvider).tokens?.userId) id,
+                    ],
+                    badge: _badgeOf(departure),
+                  )
+                : UserAvatar(
+                    name: channel.name,
+                    userId: channel.dmParticipantId,
+                    size: AppAvatarSize.s28,
+                    presence: true,
+                    badge: _badgeOf(departure),
+                  ),
+            trailing: inCall
+                ? Icon(
+                    AppIcons.startCall,
+                    size: AppSizes.icon16,
+                    color: tokens.accent,
+                  )
+                : muted
+                ? Icon(
+                    AppIcons.notificationsOff,
+                    size: AppSizes.icon16,
+                    color: tokens.textSecondary,
+                  )
+                : null,
+            stateDescription: inCall
+                ? 'call in progress'
+                : departure?.label.toLowerCase(),
+            onTap: () {
+              // Opens straight into the call pane, the same double action RailCallSummary uses.
+              if (inCall) {
+                ref.read(dmCallOpenProvider.notifier).state = channel.id;
+              }
+              context.go(Routes.channel(channel.id));
+            },
+          ),
         ),
       ),
     );
   }
+}
+
+AppAvatarBadge? _badgeOf(DmDeparture? departure) => switch (departure) {
+  DmDeparture.left => AppAvatarBadge.left,
+  DmDeparture.deleted => AppAvatarBadge.deleted,
+  null => null,
+};
+
+/// Hover names the badge in words; the row's own state description stays the screen reader's cue.
+Widget _departureTooltip(DmDeparture? departure, Widget row) {
+  if (departure == null) return row;
+  return Tooltip(
+    message: departure.label,
+    excludeFromSemantics: true,
+    triggerMode: TooltipTriggerMode.manual,
+    child: row,
+  );
 }

@@ -37,6 +37,7 @@ class UserAvatar extends ConsumerWidget {
     this.size = AppAvatarSize.s36,
     this.shape = AppAvatarShape.circle,
     this.presence = false,
+    this.badge,
     this.speaking = false,
     this.ringColor,
     this.semanticLabel,
@@ -55,6 +56,7 @@ class UserAvatar extends ConsumerWidget {
     this.size = AppAvatarSize.s36,
     this.shape = AppAvatarShape.circle,
     this.presence = false,
+    this.badge,
     this.speaking = false,
     this.ringColor,
     this.semanticLabel,
@@ -72,6 +74,9 @@ class UserAvatar extends ConsumerWidget {
   final double size;
   final AppAvatarShape shape;
   final bool presence;
+
+  /// Drawn in the presence dot's place; [presence] is then not shown or looked up.
+  final AppAvatarBadge? badge;
   final bool speaking;
   final Color? ringColor;
   final String? semanticLabel;
@@ -138,10 +143,11 @@ class UserAvatar extends ConsumerWidget {
       image: picture,
       size: size,
       shape: shape,
-      status: presence && id != null
+      badge: badge,
+      status: presence && badge == null && id != null
           ? ref.watch(presenceForProvider(id))
           : null,
-      mobileOnly: presence && id != null
+      mobileOnly: presence && badge == null && id != null
           ? ref.watch(memberMobileOnlyProvider(id))
           : false,
       speaking: speaking,
