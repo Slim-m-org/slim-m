@@ -103,7 +103,10 @@ void main() {
   });
 
   group('settings', () {
-    Future<ProviderContainer> pump(WidgetTester tester) async {
+    Future<ProviderContainer> pump(
+      WidgetTester tester, {
+      bool inBrowser = false,
+    }) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       await tester.pumpWidget(
@@ -111,8 +114,10 @@ void main() {
           container: container,
           child: MaterialApp(
             theme: buildTheme(Brightness.dark, AppTokens.dark),
-            home: const Scaffold(
-              body: SingleChildScrollView(child: VoiceShortcutsSection()),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: VoiceShortcutsSection(inBrowser: inBrowser),
+              ),
             ),
           ),
         ),
@@ -120,6 +125,23 @@ void main() {
       await pumpFrames(tester);
       return container;
     }
+
+    testWidgets('a browser gets the call switch without push to talk', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final container = await pump(tester, inBrowser: true);
+      expect(find.text('Call keybinds'), findsOneWidget);
+      expect(find.text('Hold a key to talk'), findsNothing);
+      expect(find.text('Mute shortcut'), findsNothing);
+      await tester.tap(find.bySemanticsLabel('Call keybinds').last);
+      await pumpFrames(tester);
+      expect(find.text('Mute shortcut'), findsOneWidget);
+      expect(container.read(shortcutOverridesProvider).enabled, isTrue);
+      await tester.tap(find.bySemanticsLabel('Call keybinds').last);
+      await pumpFrames(tester);
+      expect(activatorFor(AppAction.toggleMuteCall), isNull);
+    });
 
     testWidgets('the chords show only once call keybinds are on', (
       tester,

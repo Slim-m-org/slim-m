@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Voice call preferences: microphone level, camera-on-join, screen share
-/// quality and input/output device choice. Call sounds live under Notifications, soundboard sounds under Speaker, shortcuts under Desktop.
+/// quality and input/output device choice. Call sounds live under Notifications, soundboard sounds under Speaker, shortcuts under Desktop, or here in a browser.
 ///
 /// The state these widgets read and write lives in
 /// `providers/voice_settings_controller.dart`, split out once the
 /// camera-on-join preference joined the other three.
 library;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -24,6 +25,7 @@ import '../../settings/widgets/settings_section_header.dart';
 import '../../settings/widgets/settings_slider_row.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
 import '../widgets/video_quality_sections.dart';
+import '../widgets/voice_shortcuts_section.dart';
 import '../widgets/noise_suppression_section.dart';
 import '../widgets/voice_processing_section.dart';
 
@@ -38,7 +40,12 @@ class VoiceSettingsBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Column(
-    children: [_MicrophoneSection(), _SpeakerSection(), VideoQualitySection()],
+    children: [
+      _MicrophoneSection(),
+      _SpeakerSection(),
+      VideoQualitySection(),
+      if (kIsWeb) VoiceShortcutsSection(),
+    ],
   );
 }
 

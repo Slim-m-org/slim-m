@@ -36,6 +36,22 @@ void main() {
   tearDown(() => userShortcutOverrides = const {});
 
   group('rules', () {
+    test('only Apple platforms name the meta key Cmd', () {
+      const chord = SingleActivator(LogicalKeyboardKey.keyM, meta: true);
+      expect(chordLabel(chord, platform: TargetPlatform.macOS), 'Cmd+M');
+      expect(chordLabel(chord, platform: TargetPlatform.windows), 'Win+M');
+      expect(chordLabel(chord, platform: TargetPlatform.linux), 'Super+M');
+      const bare = SingleActivator(LogicalKeyboardKey.keyU);
+      expect(
+        shortcutRuleViolation(bare, platform: TargetPlatform.linux),
+        'Hold Ctrl or Alt with the key, or use an F key.',
+      );
+      expect(
+        shortcutRuleViolation(bare, platform: TargetPlatform.macOS),
+        contains('Cmd'),
+      );
+    });
+
     test('a bare letter is refused, a modifier or an F key is not', () {
       expect(
         shortcutRuleViolation(const SingleActivator(LogicalKeyboardKey.keyU)),
@@ -239,7 +255,7 @@ void main() {
       await tester.pump();
       expect(find.text('Cancel'), findsOneWidget);
       await chord(tester, LogicalKeyboardKey.keyU);
-      expect(find.textContaining('Hold Ctrl, Alt or Cmd'), findsOneWidget);
+      expect(find.textContaining('Hold Ctrl or Alt'), findsOneWidget);
       expect(container.read(shortcutOverridesProvider).overrides, isEmpty);
     });
 
