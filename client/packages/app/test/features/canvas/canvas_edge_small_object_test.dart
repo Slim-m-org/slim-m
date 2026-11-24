@@ -63,7 +63,7 @@ Offset _screen(WidgetTester tester, CanvasDocument document, Offset world) {
     (world.dx - camera.x) * camera.zoom,
     (world.dy - camera.y) * camera.zoom,
   );
-  return tester.getTopLeft(find.byType(CanvasSurface)) + local;
+  return screenFor(tester, Offset.zero) + local;
 }
 
 Future<void> _dragCentre(
