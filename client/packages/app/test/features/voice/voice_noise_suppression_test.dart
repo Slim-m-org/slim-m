@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/features/voice/providers/noise_suppression.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -69,6 +70,7 @@ Future<FakeSettingsSession> _pump(
           ref.onDispose(api.close);
           return api;
         }),
+        channelJoinMutedProvider.overrideWithValue((_) async => false),
         voiceControllerProvider.overrideWith(
           (ref) => VoiceController(ref, session: session),
         ),

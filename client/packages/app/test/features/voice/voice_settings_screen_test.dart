@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/features/voice/providers/settled_double_writes.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -94,6 +95,7 @@ void main() {
             ref.onDispose(api.close);
             return api;
           }),
+          channelJoinMutedProvider.overrideWithValue((_) async => false),
           voiceControllerProvider.overrideWith(
             (ref) => VoiceController(ref, session: session),
           ),
@@ -212,6 +214,7 @@ void main() {
         wrap(
           const VoiceSettingsBody(),
           overrides: [
+            channelJoinMutedProvider.overrideWithValue((_) async => false),
             voiceControllerProvider.overrideWith(
               (ref) => VoiceController(ref, session: unsupported),
             ),
@@ -235,6 +238,7 @@ void main() {
         wrap(
           const VoiceSettingsBody(),
           overrides: [
+            channelJoinMutedProvider.overrideWithValue((_) async => false),
             voiceControllerProvider.overrideWith(
               (ref) => VoiceController(ref, session: supported),
             ),
@@ -258,6 +262,7 @@ void main() {
       wrap(
         const VoiceSettingsBody(),
         overrides: [
+          channelJoinMutedProvider.overrideWithValue((_) async => false),
           voiceControllerProvider.overrideWith(
             (ref) => VoiceController(ref, session: session),
           ),

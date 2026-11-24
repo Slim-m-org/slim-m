@@ -51,7 +51,9 @@ class CallAudioStartControl extends ConsumerWidget {
           },
           active: false,
           pending: model.busy,
-          onPressed: () => _choose(context, ref, startable, transcribable),
+          onPressed: model.busy
+              ? () {}
+              : () => _choose(context, ref, startable, transcribable),
         ),
         if (model.error case final message?)
           Padding(

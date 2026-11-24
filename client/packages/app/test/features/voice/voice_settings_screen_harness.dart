@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/mic_preview.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -254,6 +255,7 @@ class FakeSettingsSession extends DeadVoiceSession {
 /// A controller over a gateless [FakeSettingsSession], so the pane renders the same
 /// on every test host rather than following that host's own gate support.
 List<Override> ungatedSession() => [
+  channelJoinMutedProvider.overrideWithValue((_) async => false),
   voiceControllerProvider.overrideWith(
     (ref) => VoiceController(ref, session: FakeSettingsSession()),
   ),

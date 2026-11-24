@@ -24,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
@@ -175,6 +176,7 @@ Future<({ProviderContainer container})> _pumpInCall(
         }
         return http.Response('', 204);
       }),
+      channelJoinMutedProvider.overrideWithValue((_) async => false),
       voiceControllerProvider.overrideWith(
         (ref) => VoiceController(ref, session: session),
       ),

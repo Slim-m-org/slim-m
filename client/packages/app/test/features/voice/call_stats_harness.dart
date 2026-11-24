@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/screens/call_stats_screen.dart';
@@ -24,6 +25,7 @@ List<Override> _overrides(FakeSettingsSession session) => [
     ref.onDispose(api.close);
     return api;
   }),
+  channelJoinMutedProvider.overrideWithValue((_) async => false),
   voiceControllerProvider.overrideWith(
     (ref) => VoiceController(ref, session: session),
   ),

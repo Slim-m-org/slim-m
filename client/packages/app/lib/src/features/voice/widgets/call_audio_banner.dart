@@ -36,7 +36,7 @@ class CallAudioBanner extends ConsumerWidget {
     if (session.isOn && session.isServerTranscript && session.always) {
       return _ErrorOnly(message: model.error);
     }
-    final (text, actions) = _content(session, me, controller);
+    final (text, actions) = _content(session, me, controller, busy: model.busy);
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.s12),
       child: Column(
@@ -63,13 +63,15 @@ class CallAudioBanner extends ConsumerWidget {
   (String, List<Widget>) _content(
     api.CallAudioState session,
     String? me,
-    CallAudioController controller,
-  ) {
+    CallAudioController controller, {
+    required bool busy,
+  }) {
     final stop = AppButton(
       key: stopKey,
       label: 'Stop',
       size: AppButtonSize.sm,
       variant: AppButtonVariant.secondary,
+      disabled: busy,
       onPressed: controller.stop,
     );
     if (!session.isOn) {
@@ -87,6 +89,7 @@ class CallAudioBanner extends ConsumerWidget {
             label: 'Allow',
             size: AppButtonSize.sm,
             variant: AppButtonVariant.primary,
+            disabled: busy,
             onPressed: () => controller.answer(allow: true),
           ),
           const SizedBox(width: AppSpacing.s4),

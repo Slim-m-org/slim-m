@@ -39,6 +39,7 @@ class VoiceCallHeartbeat {
   final Duration interval;
   final DateTime Function() _now;
   Timer? _timer;
+  final Set<Future<void>> _inFlight = {};
 
   /// The call the server was last told is live, until it is told that call was left.
   String? _toldLive;
@@ -88,7 +89,13 @@ class VoiceCallHeartbeat {
     if (disown) _toldLive = null;
   }
 
-  Future<void> _send(String channelId) async {
+  Future<void> _send(String channelId) {
+    final sending = _post(channelId);
+    _inFlight.add(sending);
+    return sending.whenComplete(() => _inFlight.remove(sending));
+  }
+
+  Future<void> _post(String channelId) async {
     try {
       await _ref.read(apiProvider).sendVoiceHeartbeat(channelId);
       _lastSuccessAt = _now();
@@ -103,6 +110,8 @@ class VoiceCallHeartbeat {
   /// until the staleness window catches up on its own.
   Future<void> forget(String channelId) async {
     if (_toldLive == channelId) _toldLive = null;
+    // A beat still on the wire would otherwise be recorded after this and re-register the member.
+    await Future.wait(_inFlight.toList());
     try {
       await _ref.read(apiProvider).forgetVoiceHeartbeat(channelId);
     } catch (e) {

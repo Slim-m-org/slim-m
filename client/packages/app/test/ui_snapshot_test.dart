@@ -17,6 +17,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart'
     show spaceAnalyticsProvider;
 import 'package:slimm_app/src/features/messages/providers/ephemeral_messages.dart'
@@ -157,6 +158,7 @@ final _shellStateSurfaces =
         route: '/channels/c-general',
         viewports: const ['desktop-narrow', 'desktop'],
         overrides: () => [
+          channelJoinMutedProvider.overrideWithValue((_) async => false),
           voiceControllerProvider.overrideWith(
             (ref) => SnapshotVoiceController(
               ref,
@@ -170,6 +172,7 @@ final _shellStateSurfaces =
         viewports: const ['desktop-narrow', 'desktop'],
         overrides: () => [
           channelRailExpandedProvider.overrideWith((ref) => false),
+          channelJoinMutedProvider.overrideWithValue((_) async => false),
           voiceControllerProvider.overrideWith(
             (ref) => SnapshotVoiceController(
               ref,
@@ -182,6 +185,7 @@ final _shellStateSurfaces =
         route: '/channels',
         viewports: const ['phone-portrait'],
         overrides: () => [
+          channelJoinMutedProvider.overrideWithValue((_) async => false),
           voiceControllerProvider.overrideWith(
             (ref) => SnapshotVoiceController(
               ref,
@@ -247,6 +251,7 @@ final _shellStateSurfaces =
           'expanded-1000',
         ],
         overrides: () => [
+          channelJoinMutedProvider.overrideWithValue((_) async => false),
           voiceControllerProvider.overrideWith(
             (ref) => SnapshotVoiceController(ref, connectingState),
           ),
@@ -374,9 +379,12 @@ void main() {
                   (ref) => surface.value.channelId,
                 ),
                 if (surface.value.withVoice)
-                  voiceControllerProvider.overrideWith(
-                    (ref) => SnapshotVoiceController(ref, connectedCallState),
+                  channelJoinMutedProvider.overrideWithValue(
+                    (_) async => false,
                   ),
+                voiceControllerProvider.overrideWith(
+                  (ref) => SnapshotVoiceController(ref, connectedCallState),
+                ),
               ],
             );
           },
@@ -396,6 +404,7 @@ void main() {
               theme,
               '${surface.key}-$viewportName-$theme',
               overrides: [
+                channelJoinMutedProvider.overrideWithValue((_) async => false),
                 voiceControllerProvider.overrideWith(
                   (ref) => SnapshotVoiceController(ref, connectedCallState),
                 ),

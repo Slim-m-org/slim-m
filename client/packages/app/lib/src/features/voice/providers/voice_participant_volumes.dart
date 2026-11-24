@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_participant_volume_store.dart';
@@ -19,6 +20,7 @@ class VoiceParticipantVolumes {
 
   final Map<(String, LocalAudioChannel), TrailingThrottle<double>> _drags = {};
   final Set<(String, LocalAudioChannel)> _failing = {};
+  Future<void> _saves = Future.value();
 
   /// Whether this host can change one participant's volume at all; see
   /// `audio_gain.dart` in the rtc package.
@@ -83,9 +85,27 @@ class VoiceParticipantVolumes {
   ) async {
     final clamped = clampParticipantVolume(volume);
     _dragThrottle(identity, channel).cancel();
-    unawaited(saveParticipantVolume(_ref, identity, clamped, channel: channel));
+    unawaited(_save(identity, clamped, channel));
     await _applyVolume(identity, clamped, channel);
   }
+
+  /// One save at a time: each reads the whole saved map and writes it back.
+  Future<void> _save(
+    String identity,
+    double volume,
+    LocalAudioChannel channel,
+  ) => _saves = _saves.then((_) async {
+    try {
+      await saveParticipantVolume(_ref, identity, volume, channel: channel);
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'Could not save a participant volume',
+        error,
+        stack,
+      );
+    }
+  });
 
   Future<void> _applyVolume(
     String identity,

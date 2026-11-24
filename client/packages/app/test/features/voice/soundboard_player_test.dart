@@ -51,6 +51,7 @@ class _Rig {
         soundClipPlayerProvider.overrideWithValue(player),
         soundClipAudioProvider.overrideWith((ref, id) async {
           fetches++;
+          await fetchGate?.future;
           if (fetches <= failingFetches) {
             throw const api.TransportException('offline');
           }
@@ -72,6 +73,7 @@ class _Rig {
 
   final int failingFetches;
   var fetches = 0;
+  Completer<void>? fetchGate;
   final events = StreamController<api.ServerEvent>.broadcast();
   final player = _RecordingPlayer();
   final session = FakeSession();
@@ -151,6 +153,30 @@ void main() {
     rig.voice.update((s) => s.copyWith(deafened: false));
     await rig.hear();
     expect(rig.player.played, hasLength(1));
+  });
+
+  test('a clip fetched after leaving the call never plays', () async {
+    final rig = await _rig();
+    rig.fetchGate = Completer<void>();
+    await rig.hear();
+
+    rig.voice.hangUp();
+    rig.fetchGate!.complete();
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+
+    expect(rig.player.played, isEmpty);
+  });
+
+  test('a clip fetched after deafening never plays', () async {
+    final rig = await _rig();
+    rig.fetchGate = Completer<void>();
+    await rig.hear();
+
+    rig.voice.update((s) => s.copyWith(deafened: true));
+    rig.fetchGate!.complete();
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+
+    expect(rig.player.played, isEmpty);
   });
 
   test('the soundboard sounds switch off plays nothing', () async {
