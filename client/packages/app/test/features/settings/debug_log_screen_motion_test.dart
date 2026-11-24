@@ -43,6 +43,7 @@ void main() {
     await tester.pumpWidget(_harness(reduceMotion: true));
     await tester.tap(find.byType(DebugLogEntry));
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 2));
 
     final justAfterTap = tester.getSize(find.byType(DebugLogEntry)).height;
     await tester.pumpAndSettle();

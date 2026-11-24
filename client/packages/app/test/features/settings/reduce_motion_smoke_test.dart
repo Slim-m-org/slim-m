@@ -101,6 +101,8 @@ Future<void> _renderReduced(WidgetTester tester, String route) async {
   await tester.pump(const Duration(milliseconds: 5));
   // See the library doc's "one more zero-duration pump" paragraph.
   await tester.pump();
+  // A size change on that flush starts its own 1ms floor, so let it finish.
+  await tester.pump(const Duration(milliseconds: 5));
 
   expect(
     tester.hasRunningAnimations,
