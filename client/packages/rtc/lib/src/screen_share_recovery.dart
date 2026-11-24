@@ -8,6 +8,7 @@ import 'dart:async';
 
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
+import 'read_timeout.dart';
 import 'screen_share_liveness.dart';
 
 class ShareRecovery {
@@ -71,7 +72,7 @@ class ShareRecovery {
     if (_busy || _timer == null) return;
     _busy = true;
     try {
-      final reading = await read();
+      final reading = await read().timeout(kPollReadTimeout);
       if (reading == null || _timer == null) return;
       final now = _clock();
       switch (_watch.observe(reading, windowShare: _windowShare, now: now)) {
@@ -82,6 +83,13 @@ class ShareRecovery {
         case ShareLiveness.unknown || ShareLiveness.suspect:
           break;
       }
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'Could not check the screen share; will retry',
+        error,
+        stack,
+      );
     } finally {
       _busy = false;
     }

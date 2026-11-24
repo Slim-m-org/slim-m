@@ -262,7 +262,21 @@ void main() {
 
   testWidgets('a caller holding none of the gating bits gets a stated reason, '
       'not a blank page', (tester) async {
-    await _pump(tester, permissions: 0);
+    await _pump(
+      tester,
+      permissions: 0,
+      extraOverrides: [
+        meProvider.overrideWith(
+          (ref) async => const api.Me(
+            id: 'self',
+            username: 'self',
+            displayName: 'Self',
+            createdAt: 0,
+            permissions: 0,
+          ),
+        ),
+      ],
+    );
 
     expect(find.byType(SettingsNotice), findsOneWidget);
     final body = tester.getRect(find.byWidgetPredicate((w) => w is Scaffold));
@@ -285,6 +299,22 @@ void main() {
           'a stated absence that does not say what would change it is only '
           'half the fix',
     );
+  });
+
+  testWidgets('a failed profile load shows an error, not a no-access notice', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      permissions: 0,
+      extraOverrides: [
+        meProvider.overrideWith((ref) async => throw StateError('offline')),
+      ],
+    );
+
+    expect(find.byWidgetPredicate((w) => w is AppErrorState), findsOneWidget);
+    expect(find.byWidgetPredicate((w) => w is SettingsNotice), findsNothing);
+    expect(find.textContaining('None of your roles'), findsNothing);
   });
 
   testWidgets('the join-policy row still opens its picker, from Invites', (

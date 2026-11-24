@@ -7,10 +7,14 @@ import 'package:http/http.dart' as http;
 import 'upload_send_stream.dart';
 
 /// Sends [request] with [body], reporting progress through [onProgress].
+///
+/// An abortable [request] stops by its own trigger, so [abortTrigger] is only
+/// read on the web.
 Future<http.StreamedResponse> sendUpload(
   http.Client client,
   http.StreamedRequest request,
   Stream<List<int>> body, {
   void Function(int sent)? onProgress,
+  Future<void>? abortTrigger,
 }) =>
     sendStreamingUpload(client, request, body, onProgress: onProgress);

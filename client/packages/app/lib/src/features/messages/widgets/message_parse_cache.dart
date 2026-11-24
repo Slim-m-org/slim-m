@@ -56,3 +56,8 @@ List<MarkdownBlock> cachedMarkdownBlocks(String text) => _markdown.of(text);
 
 /// Cached [parseInline] with repeated mentions collapsed; the returned list is shared, never mutate it.
 List<InlineNode> cachedInline(String text) => _inline.of(text);
+
+final _previewUrls = ParseCache<List<String>>(extractLinkPreviewUrls);
+
+/// Cached [extractLinkPreviewUrls] of [content] at its default cap; the returned list is shared, never mutate it.
+List<String> cachedLinkPreviewUrls(String content) => _previewUrls.of(content);

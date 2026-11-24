@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_inline.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_parse_cache.dart';
 
 void main() {
   test('a message with no URL yields nothing', () {
@@ -86,6 +87,27 @@ void main() {
     expect(
       extractLinkPreviewUrls('before ||https://secret.example|| after'),
       isEmpty,
+    );
+  });
+
+  test('a URL inside a fenced code block gets no card', () {
+    const fenced =
+        'log:\n```\nfetch https://in.example/x\n```\nsee https://out.example';
+    expect(extractLinkPreviewUrls(fenced), ['https://out.example']);
+    expect(extractLinkPreviewUrls('```\nhttps://in.example\n```'), isEmpty);
+  });
+
+  test('an unclosed fence is plain text, so its URL still counts', () {
+    expect(extractLinkPreviewUrls('```\nhttps://a.example'), [
+      'https://a.example',
+    ]);
+  });
+
+  test('the cached lookup returns the one parsed list for a body', () {
+    const body = 'see https://cache.example/a';
+    expect(
+      identical(cachedLinkPreviewUrls(body), cachedLinkPreviewUrls(body)),
+      isTrue,
     );
   });
 }

@@ -39,6 +39,12 @@ const requestDeadline = Duration(seconds: 45);
 /// the hang it replaces.
 const transferDeadline = Duration(minutes: 3);
 
+/// How long a finished upload may wait for the server to answer.
+///
+/// The server may decode, re-encode and recompress an image, or hash the whole
+/// file, before it replies, so this outlasts [transferDeadline].
+const uploadAnswerDeadline = Duration(minutes: 10);
+
 /// Methods a repeat cannot double up: a POST might already have landed.
 const _replayable = {'GET', 'HEAD', 'PUT', 'DELETE'};
 
@@ -57,6 +63,8 @@ extension SlimmApiTransport on SlimmApi {
     void Function(Map<String, String> headers)? onHeaders,
     // One attempt only, never replayed or refreshed: a request timed as a sample of the path.
     bool once = false,
+    // For a JSON call whose body or work is large; defaults to the request or transfer deadline.
+    Duration? deadline,
   }) async {
     // Inline, not awaitTrust: a trusted server must not cost every request a turn.
     if (authenticated) {
@@ -74,7 +82,8 @@ extension SlimmApiTransport on SlimmApi {
             authenticated: authenticated,
           ),
           '$method $path',
-          deadline: bytes == null ? requestDeadline : transferDeadline,
+          deadline:
+              deadline ?? (bytes == null ? requestDeadline : transferDeadline),
           over: over,
           maxBytes: unvouched ? unvouchedReplyBytes : null,
         );
@@ -102,6 +111,7 @@ extension SlimmApiTransport on SlimmApi {
         onStatus: onStatus,
         over: over,
         onHeaders: onHeaders,
+        deadline: deadline,
         isRetry: true,
       );
     }

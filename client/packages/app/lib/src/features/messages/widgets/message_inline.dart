@@ -14,6 +14,7 @@
 /// nesting at all, which is why this is a parser rather than a bigger regex.
 library;
 
+import 'message_fences.dart';
 import 'message_inline_nodes.dart';
 
 export 'message_inline_nodes.dart';
@@ -391,6 +392,8 @@ _Token? _linkToken(String s, int i) {
 /// the same trailing-punctuation trim - even one nested inside `**bold**` or
 /// similar.
 ///
+/// Fenced code is skipped, as the body renders it as code and not as links.
+///
 /// A URL in angle brackets, `<https://...>`, is skipped too: it is how a
 /// person asks for the link with no card.
 ///
@@ -417,7 +420,9 @@ List<String> extractLinkPreviewUrls(String content, {int max = 2}) {
     }
   }
 
-  walk(parseInline(content));
+  for (final block in splitMessageBlocks(content)) {
+    if (block is TextBlock) walk(parseInline(block.text));
+  }
   return urls;
 }
 

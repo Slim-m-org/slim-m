@@ -22,6 +22,8 @@ import '../../features/accounts/providers/account_host.dart';
 import '../../features/accounts/providers/account_providers.dart';
 import '../../features/accounts/providers/notification_target.dart';
 import 'push_channel_providers.dart' show localNotificationsProvider;
+import '../../features/accounts/providers/account_slot.dart'
+    show accountActiveProvider;
 import '../../routing/routes.dart';
 import '../../providers/providers.dart' show storeProvider;
 import '../../routing/router.dart';
@@ -102,6 +104,8 @@ final notificationTapRouterProvider = Provider<void>((ref) {
   final channel = ref.watch(notificationTapChannelProvider);
 
   void go(String? channelId, {String? origin}) {
+    // The channel is shared by every account's container; only the one on screen acts on a tap.
+    if (!ref.read(accountActiveProvider)) return;
     final route = channelRouteForTap(channelId);
     if (route == null) return;
     final host = ref.read(accountHostProvider);

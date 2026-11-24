@@ -19,6 +19,8 @@ import '../../../providers/startup_restores.dart';
 import '../../emoji/providers/emoji_catalog_provider.dart';
 import '../../emoji/providers/emoji_image_cache.dart';
 import '../../messages/providers/attachment_preview_bytes.dart';
+import '../../../push/providers/notification_tap_router.dart';
+import '../../../push/providers/push_channel_providers.dart';
 import '../../voice/providers/shortcut_overrides.dart';
 import 'account_host.dart';
 import 'account_providers.dart';
@@ -55,6 +57,12 @@ AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
   final callKeybinds = CallKeybindsStore(optIn: isDesktopHost);
   // One per tab: each claims the tab's id, and a second claim in one tab reads as a duplicated tab.
   final crossTab = CrossTab();
+  // The native callbacks and handlers are process-wide, so they cannot belong to a container that gets disposed.
+  final apnsToken = ApnsTokenChannel();
+  final notificationTaps = NotificationTapChannel();
+  final notifications = LocalNotifications(
+    onActivated: (payload) => openNotificationTarget(shell, host, payload),
+  );
   host = AccountHost(
     store: accounts,
     createContainer: (slot) => ProviderContainer(
@@ -84,6 +92,9 @@ AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
         crossTabProvider.overrideWithValue(crossTab),
         officialServerProvider.overrideWithValue(official),
         desktopWindowShellProvider.overrideWithValue(shell),
+        apnsTokenChannelProvider.overrideWithValue(apnsToken),
+        notificationTapChannelProvider.overrideWithValue(notificationTaps),
+        localNotificationsProvider.overrideWithValue(notifications),
       ],
     ),
     startServices: (r) => AppLog.scoped(() => r.account?.origin, () async {

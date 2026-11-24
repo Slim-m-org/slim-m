@@ -62,6 +62,7 @@ mod resource_bounds;
 mod response_contract;
 mod role_hoist_backfill;
 mod safety;
+mod slow_body_timeout;
 mod space_logging;
 mod sqlite_build_flags;
 mod sqlite_planner_stats;

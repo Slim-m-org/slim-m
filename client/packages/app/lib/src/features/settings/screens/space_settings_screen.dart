@@ -13,8 +13,11 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/admin_providers.dart';
+import '../../../providers/effective_me.dart' show meProvider;
+import '../../../widgets/load_error_block.dart';
 import '../../../routing/routes.dart';
 import '../widgets/settings_notice.dart';
 import '../widgets/settings_panes.dart';
@@ -39,6 +42,21 @@ class SpaceSettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final permissions = ref.watch(myPermissionsProvider);
     if (!spaceSettingsReachable(permissions)) {
+      final me = ref.watch(meProvider);
+      if (me.valueOrNull == null) {
+        return SettingsScreenScaffold(
+          title: 'Space settings',
+          backTooltip: 'Back to channels',
+          backFallback: Routes.channels,
+          scrollable: false,
+          child: me.hasError && !me.isLoading
+              ? LoadErrorBlock(
+                  message: 'Could not load your permissions.',
+                  onRetry: () => ref.invalidate(meProvider),
+                )
+              : const Center(child: AppSpinner(size: AppSpinnerSize.lg)),
+        );
+      }
       return const SettingsScreenScaffold(
         title: 'Space settings',
         // Reached with go(), which replaces, so there is no stack to pop.

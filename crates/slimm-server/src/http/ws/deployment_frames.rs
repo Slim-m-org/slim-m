@@ -7,7 +7,10 @@
 
 use super::authorization::Authorization;
 use super::frames::ServerFrame;
+use super::permission_cache::PermissionCache;
 use super::signals;
+use std::time::Instant;
+
 use crate::hub::{CanvasEvent, Event, Hub, RoleChange};
 use crate::permissions::Permissions;
 use crate::store::{SessionContext, Store};
@@ -17,6 +20,7 @@ pub(super) async fn authorize(
     store: &Store,
     hub: &Hub,
     ctx: &SessionContext,
+    cache: &mut PermissionCache,
     event: Event,
 ) -> Result<Authorization, Box<Event>> {
     if connector_withholds(ctx, &event) {
@@ -68,8 +72,8 @@ pub(super) async fn authorize(
         } else {
             Authorization::Withhold
         }),
-        Event::ReportsChanged => Ok(reports_changed(store, ctx).await),
-        Event::AdminAlertsChanged => Ok(admin_alerts_changed(store, ctx).await),
+        Event::ReportsChanged => Ok(reports_changed(store, hub, ctx, cache).await),
+        Event::AdminAlertsChanged => Ok(admin_alerts_changed(store, hub, ctx, cache).await),
         Event::ChannelDeleted { channel_id } => {
             // Special-cased; see `Event::ChannelDeleted`'s doc comment for why.
             Ok(
@@ -112,13 +116,32 @@ fn connector_withholds(ctx: &SessionContext, event: &Event) -> bool {
     }
 }
 
+/// The connection's base permissions from the cache or the store; a store error is `None` and is never cached.
+async fn cached_base_permissions(
+    hub: &Hub,
+    cache: &mut PermissionCache,
+    load: impl std::future::Future<Output = anyhow::Result<Permissions>>,
+) -> Option<Permissions> {
+    // Read before the query, never after; see `PermissionCache::insert`.
+    let epoch = hub.permissions_epoch();
+    if let Some(cached) = cache.base(Instant::now(), epoch) {
+        return Some(cached);
+    }
+    let answer = load.await.ok()?;
+    cache.insert_base(answer, Instant::now(), epoch);
+    Some(answer)
+}
+
 /// A security boundary, not a visibility nicety; see `Event::ReportsChanged`'s own doc for why a failed permission read withholds rather than delivers.
-async fn reports_changed(store: &Store, ctx: &SessionContext) -> Authorization {
-    let is_moderator = matches!(
-        store.base_permissions(ctx.user_id).await,
-        Ok(permissions) if permissions.contains(Permissions::MANAGE_MESSAGES)
-    );
-    if is_moderator {
+async fn reports_changed(
+    store: &Store,
+    hub: &Hub,
+    ctx: &SessionContext,
+    cache: &mut PermissionCache,
+) -> Authorization {
+    let permissions =
+        cached_base_permissions(hub, cache, store.base_permissions(ctx.user_id)).await;
+    if permissions.is_some_and(|p| p.contains(Permissions::MANAGE_MESSAGES)) {
         Authorization::Deliver(Box::new(ServerFrame::ReportsChanged))
     } else {
         Authorization::Withhold
@@ -126,16 +149,21 @@ async fn reports_changed(store: &Store, ctx: &SessionContext) -> Authorization {
 }
 
 /// Same boundary as [`reports_changed`], one permission up, and a mute withholds it too.
-async fn admin_alerts_changed(store: &Store, ctx: &SessionContext) -> Authorization {
-    let holds_manage_server = matches!(
-        store.base_permissions(ctx.user_id).await,
-        Ok(permissions) if permissions.contains(Permissions::MANAGE_SERVER)
-    );
-    let muted = store.admin_alerts_muted(ctx.user_id).await.unwrap_or(true);
-    if holds_manage_server && !muted {
-        Authorization::Deliver(Box::new(ServerFrame::AdminAlertsChanged))
-    } else {
+async fn admin_alerts_changed(
+    store: &Store,
+    hub: &Hub,
+    ctx: &SessionContext,
+    cache: &mut PermissionCache,
+) -> Authorization {
+    let permissions =
+        cached_base_permissions(hub, cache, store.base_permissions(ctx.user_id)).await;
+    if !permissions.is_some_and(|p| p.contains(Permissions::MANAGE_SERVER)) {
+        return Authorization::Withhold;
+    }
+    if store.admin_alerts_muted(ctx.user_id).await.unwrap_or(true) {
         Authorization::Withhold
+    } else {
+        Authorization::Deliver(Box::new(ServerFrame::AdminAlertsChanged))
     }
 }
 
@@ -199,4 +227,37 @@ fn broadcast_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
         Event::SpaceThemesChanged => ServerFrame::SpaceThemesChanged,
         other => return Err(Box::new(other)),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[tokio::test]
+    async fn a_burst_of_events_reads_base_permissions_once_per_epoch() {
+        let hub = Hub::new();
+        let mut cache = PermissionCache::new();
+        let reads = AtomicUsize::new(0);
+        for _ in 0..30 {
+            let load = async {
+                reads.fetch_add(1, Ordering::Relaxed);
+                Ok(Permissions::MANAGE_MESSAGES)
+            };
+            let got = cached_base_permissions(&hub, &mut cache, load).await;
+            assert_eq!(got, Some(Permissions::MANAGE_MESSAGES));
+        }
+        assert_eq!(reads.load(Ordering::Relaxed), 1);
+    }
+
+    #[tokio::test]
+    async fn a_failed_read_is_not_cached_and_withholds() {
+        let hub = Hub::new();
+        let mut cache = PermissionCache::new();
+        let failed =
+            cached_base_permissions(&hub, &mut cache, async { Err(anyhow::anyhow!("busy")) });
+        assert_eq!(failed.await, None);
+        let again = cached_base_permissions(&hub, &mut cache, async { Ok(Permissions::NONE) });
+        assert_eq!(again.await, Some(Permissions::NONE));
+    }
 }

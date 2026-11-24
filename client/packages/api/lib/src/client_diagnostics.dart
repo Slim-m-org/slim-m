@@ -20,29 +20,62 @@ const _cloudflareRayHeader = 'cf-ray';
 extension SlimmApiDiagnostics on SlimmApi {
   /// One probe per route to measure: the server's own network when it
   /// advertised an address, and the internet. Each owns a connection the
-  /// caller closes through [ConnectionProbe.close].
-  List<(ConnectionRoute, ConnectionProbe)> connectionProbes() {
+  /// caller closes through [ConnectionProbe.close]. A transfer that moves
+  /// nothing for [stall] fails with a [TransportException].
+  List<(ConnectionRoute, ConnectionProbe)> connectionProbes({
+    Duration stall = _diagnosticsDeadline,
+  }) {
     final route = link.route;
     final lan = route?.pinnedClient(direct: true);
     final internet = route?.pinnedClient(direct: false);
     return [
-      if (lan != null) (ConnectionRoute.lan, _ApiProbe(this, lan)),
+      if (lan != null)
+        (ConnectionRoute.lan, _ApiProbe(this, lan, stall: stall)),
       (
         lan == null && isLocalHost(baseUrl.host)
             ? ConnectionRoute.lan
             : ConnectionRoute.internet,
-        _ApiProbe(this, internet ?? link.client, owns: internet != null),
+        _ApiProbe(
+          this,
+          internet ?? link.client,
+          owns: internet != null,
+          stall: stall,
+        ),
       ),
     ];
   }
 }
 
+/// [body] cut short with [UploadCancelled] when [cancel] trips, chunk or no chunk.
+Stream<List<int>> _stopOnCancel(
+  Stream<List<int>> body,
+  UploadCancelToken? cancel,
+) async* {
+  if (cancel == null) {
+    yield* body;
+    return;
+  }
+  final cancelled = cancel.whenCancelled.then<bool?>((_) => null);
+  final iterator = StreamIterator(body);
+  try {
+    while (true) {
+      final more = await Future.any<bool?>([iterator.moveNext(), cancelled]);
+      if (more == null) throw const UploadCancelled();
+      if (!more) return;
+      yield iterator.current;
+    }
+  } finally {
+    unawaited(iterator.cancel());
+  }
+}
+
 class _ApiProbe implements ConnectionProbe {
-  _ApiProbe(this._api, this._client, {this.owns = true});
+  _ApiProbe(this._api, this._client, {this.owns = true, required this.stall});
 
   final SlimmApi _api;
   final http.Client _client;
   final bool owns;
+  final Duration stall;
 
   @override
   bool viaCloudflare = false;
@@ -94,7 +127,10 @@ class _ApiProbe implements ConnectionProbe {
     var timed = 0;
     var received = 0;
     try {
-      await for (final chunk in response.stream) {
+      await for (final chunk in _stopOnCancel(
+        response.stream.timeout(stall),
+        cancel,
+      )) {
         cancel?.throwIfCancelled();
         received += chunk.length;
         // The first chunk starts the clock uncounted: what the socket buffered before it was never timed.
@@ -138,7 +174,12 @@ class _ApiProbe implements ConnectionProbe {
     if (response.headers.containsKey(_cloudflareRayHeader)) {
       viaCloudflare = true;
     }
-    final full = await http.Response.fromStream(response);
+    final http.Response full;
+    try {
+      full = await http.Response.fromStream(response).timeout(stall);
+    } on TimeoutException {
+      throw const TransportException('POST /diagnostics/upload got no answer');
+    }
     if (full.statusCode != 200) throw _api.errorFor(full);
     return _uploadTiming(full, bytes, clock.elapsed);
   }

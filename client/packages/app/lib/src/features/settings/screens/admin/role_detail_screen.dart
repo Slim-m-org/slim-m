@@ -18,16 +18,31 @@ import '../../../../routing/routes.dart';
 import '../settings_screen_scaffold.dart';
 import 'role_detail.dart';
 
-class RoleDetailScreen extends ConsumerWidget {
+class RoleDetailScreen extends ConsumerStatefulWidget {
   const RoleDetailScreen({super.key, required this.roleId});
 
   final String roleId;
 
+  @override
+  ConsumerState<RoleDetailScreen> createState() => _RoleDetailScreenState();
+}
+
+class _RoleDetailScreenState extends ConsumerState<RoleDetailScreen> {
+  bool _leaving = false;
+
   api.Role? _find(List<api.Role>? roles) =>
-      roles?.where((r) => r.id == roleId).firstOrNull;
+      roles?.where((r) => r.id == widget.roleId).firstOrNull;
+
+  void _leaveOnce() {
+    if (_leaving) return;
+    _leaving = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) closeToRoles(context);
+    });
+  }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final roles = ref.watch(rolesProvider);
 
     return SettingsScreenScaffold(
@@ -46,9 +61,7 @@ class RoleDetailScreen extends ConsumerWidget {
           final role = _find(list);
           if (role == null) {
             // Deleted from elsewhere while this screen was open; nothing left to show.
-            WidgetsBinding.instance.addPostFrameCallback(
-              (_) => closeToRoles(context),
-            );
+            _leaveOnce();
             return const SizedBox.shrink();
           }
           return RoleDetail(role: role);

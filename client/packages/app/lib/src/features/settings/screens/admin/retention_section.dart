@@ -13,6 +13,7 @@ import '../../../../preset_options.dart';
 import '../../../../providers/providers.dart';
 import '../../../../format.dart' show formatByteSize;
 import '../../../../widgets/confirm_dialog.dart';
+import '../../../../widgets/load_error_block.dart';
 import '../../../../widgets/optimistic_setting_state.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_save_feedback.dart';
@@ -155,8 +156,10 @@ class _RetentionSectionState extends ConsumerState<RetentionSection>
   Widget build(BuildContext context) {
     final retention = ref.watch(spaceRetentionProvider);
     ref.listen(spaceRetentionProvider, (_, next) => retireOptimistic(next));
-    final current = shown(retention.valueOrNull, 0);
-    final options = presetsIncluding(_retentionDayOptions, current, _daysLabel);
+    final current = optimistic ?? retention.valueOrNull;
+    final options = current == null
+        ? _retentionDayOptions
+        : presetsIncluding(_retentionDayOptions, current, _daysLabel);
     final stats = ref.watch(spaceAnalyticsProvider).valueOrNull?.stats;
 
     return Column(
@@ -170,13 +173,19 @@ class _RetentionSectionState extends ConsumerState<RetentionSection>
               semanticLabel: 'Message retention window',
               labels: [for (final option in options) option.$1],
               selectedIndex: options.indexWhere((o) => o.$2 == current),
-              disabled: saving,
-              onSelected: (i) => _setDays(options[i].$2, current: current),
+              disabled: saving || current == null,
+              onSelected: (i) => _setDays(options[i].$2, current: current!),
             ),
-            SettingsSubRow(
-              label: retentionConsequence(current, stats),
-              indented: false,
-            ),
+            if (current != null)
+              SettingsSubRow(
+                label: retentionConsequence(current, stats),
+                indented: false,
+              ),
+            if (retention.hasError && current == null)
+              LoadErrorBlock(
+                message: 'Could not load the current setting.',
+                onRetry: () => ref.invalidate(spaceRetentionProvider),
+              ),
           ],
         ),
         SettingsSaveFeedback(

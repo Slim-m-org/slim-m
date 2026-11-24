@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/screens/admin/call_transcripts_section.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
+import 'package:slimm_app/src/features/settings/providers/space_settings.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
@@ -117,6 +118,35 @@ void main() {
     expect(
       find.textContaining('Could not save the wake phrase'),
       findsOneWidget,
+    );
+  });
+
+  testWidgets('a cleared wake phrase stays empty when settings refresh', (
+    tester,
+  ) async {
+    await _pump(tester, mode: 'always', on: true);
+    await tester.enterText(find.byKey(voicePhraseFieldKey), '');
+    await tester.pump();
+
+    ProviderScope.containerOf(
+      tester.element(
+        find.byWidgetPredicate((w) => w is CallTranscriptsSection),
+      ),
+    ).invalidate(spaceSettingsProvider);
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<EditableText>(
+            find.descendant(
+              of: find.byKey(voicePhraseFieldKey),
+              matching: find.byWidgetPredicate((w) => w is EditableText),
+            ),
+          )
+          .controller
+          .text,
+      isEmpty,
     );
   });
 }
