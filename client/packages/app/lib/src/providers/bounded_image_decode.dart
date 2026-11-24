@@ -107,9 +107,39 @@ Future<ui.Image> decodeBoundedViaPostDecodeCheck(
   }
 }
 
-/// The most pixels a sender-chosen picture may declare before it is refused:
-/// a 100 MP bitmap is 400 MB, past it a phone is killed for memory.
-const int kMaxDeclaredPixels = 100 * 1000 * 1000;
+/// The most pixels a sender-chosen picture may declare before it is refused.
+///
+/// This is the server's own upload ceiling, and it holds for PNG and the other
+/// formats the engine can only decode at full size: 40 MP is a 160 MB bitmap.
+const int kMaxDeclaredPixels = 40 * 1000 * 1000;
+
+/// Animated GIFs hold a decoded frame at a time but cost far more to scrub.
+const int kMaxDeclaredGifPixels = 16 * 1000 * 1000;
+
+/// JPEG and WebP are downsampled while decoding, so a camera original that the
+/// server accepts (up to 160 MP) stays cheap at screen size.
+const int kMaxDeclaredScaledDecodePixels = 200 * 1000 * 1000;
+
+/// The declared-pixel ceiling that fits the format [bytes] starts as.
+int declaredPixelCeiling(Uint8List bytes) {
+  bool startsWith(List<int> magic, [int offset = 0]) {
+    if (bytes.length < offset + magic.length) return false;
+    for (var i = 0; i < magic.length; i++) {
+      if (bytes[offset + i] != magic[i]) return false;
+    }
+    return true;
+  }
+
+  if (startsWith(const [0xFF, 0xD8, 0xFF]) ||
+      (startsWith(const [0x52, 0x49, 0x46, 0x46]) &&
+          startsWith(const [0x57, 0x45, 0x42, 0x50], 8))) {
+    return kMaxDeclaredScaledDecodePixels;
+  }
+  if (startsWith(const [0x47, 0x49, 0x46, 0x38])) {
+    return kMaxDeclaredGifPixels;
+  }
+  return kMaxDeclaredPixels;
+}
 
 /// Throws [ImageTooLargeException] when [buffer] declares more than
 /// [maxPixels], before any pixel is allocated. The web engine cannot read a
@@ -126,8 +156,8 @@ Future<void> checkDeclaredSize(
   if (width * height > maxPixels) throw ImageTooLargeException(width, height);
 }
 
-/// A [MemoryImage] that refuses a picture declaring more than
-/// [kMaxDeclaredPixels], so it fails like any undecodable image does.
+/// A [MemoryImage] that refuses a picture declaring more pixels than its
+/// format allows ([declaredPixelCeiling]), so it fails like any undecodable image does.
 @immutable
 class BoundedMemoryImage extends MemoryImage {
   const BoundedMemoryImage(super.bytes);
@@ -138,7 +168,10 @@ class BoundedMemoryImage extends MemoryImage {
     ImageDecoderCallback decode,
   ) => super.loadImage(key, (buffer, {getTargetSize}) async {
     try {
-      await checkDeclaredSize(buffer);
+      await checkDeclaredSize(
+        buffer,
+        maxPixels: declaredPixelCeiling(key.bytes),
+      );
     } catch (_) {
       buffer.dispose();
       rethrow;

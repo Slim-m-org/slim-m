@@ -197,7 +197,10 @@ class _AttachmentFirstFrameState extends State<AttachmentFirstFrame> {
     try {
       final buffer = await ui.ImmutableBuffer.fromUint8List(widget.bytes);
       try {
-        await checkDeclaredSize(buffer);
+        await checkDeclaredSize(
+          buffer,
+          maxPixels: declaredPixelCeiling(widget.bytes),
+        );
       } catch (_) {
         buffer.dispose();
         rethrow;
