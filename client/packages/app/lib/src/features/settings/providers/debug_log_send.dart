@@ -12,9 +12,6 @@ import '../../../diagnostics/debug_log_submission.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/server_info.dart';
 
-/// The most a note may say; the server refuses more.
-const int debugLogNoteMaxChars = 500;
-
 /// What a submission carries besides the note.
 @immutable
 class DebugLogContents {

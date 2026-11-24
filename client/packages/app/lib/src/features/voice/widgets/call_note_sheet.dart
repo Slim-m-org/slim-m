@@ -6,13 +6,11 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../ids.dart';
 import '../providers/call_mark_actions.dart';
-
-/// The longest note the server keeps.
-const callNoteMaxChars = 500;
 
 const callNoteFieldKey = Key('call-note-field');
 const callNoteSaveKey = Key('call-note-save');
@@ -47,7 +45,7 @@ class _CallNoteSheetState extends ConsumerState<_CallNoteSheet> {
   bool get _canSave =>
       !_saving &&
       _note.isNotEmpty &&
-      _note.characters.length <= callNoteMaxChars;
+      _note.characters.length <= api.InputLimits.callNote;
 
   Future<void> _save() async {
     setState(() {
@@ -102,7 +100,7 @@ class _CallNoteSheetState extends ConsumerState<_CallNoteSheet> {
             autofocus: true,
             minLines: 2,
             maxLines: 5,
-            counterMax: callNoteMaxChars,
+            counterMax: api.InputLimits.callNote,
             onChanged: (_) => setState(() {}),
             semanticLabel: 'Note',
           ),
