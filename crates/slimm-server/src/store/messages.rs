@@ -73,6 +73,10 @@ pub enum SendError {
     /// different channel from this send. A parent that exists in this
     /// channel but is already soft-deleted is still a valid target.
     InvalidReplyTarget,
+    /// The id belongs to this author's earlier send, which has since been deleted.
+    Deleted,
+    /// The message being forwarded, or the original behind it, was deleted before the send committed.
+    ForwardSourceGone,
     /// The author's last send in this channel is still inside the slow-mode window.
     SlowMode {
         retry_after_seconds: i64,

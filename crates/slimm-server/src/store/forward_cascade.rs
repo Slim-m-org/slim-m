@@ -97,7 +97,7 @@ pub(super) async fn live_copies_of(
 /// Copies whose original is already gone but which were never dealt with,
 /// left over when a sweep tick hit its cap.
 pub(super) async fn orphaned_copies(
-    tx: &mut Transaction<'_, Sqlite>,
+    conn: &mut sqlx::SqliteConnection,
     limit: i64,
 ) -> Result<Vec<Copy>, sqlx::Error> {
     let mut query = QueryBuilder::new(COPY_COLUMNS);
@@ -109,11 +109,19 @@ pub(super) async fn orphaned_copies(
     query.push_bind(limit);
     query
         .build()
-        .fetch_all(&mut **tx)
+        .fetch_all(conn)
         .await?
         .iter()
         .map(copy_from)
         .collect()
+}
+
+impl Store {
+    /// Whether any copy's original is gone, read without the write lock so an idle tick never takes it.
+    pub(super) async fn has_orphaned_copies(&self) -> Result<bool, sqlx::Error> {
+        let mut conn = self.pool.acquire().await?;
+        Ok(!orphaned_copies(&mut conn, 1).await?.is_empty())
+    }
 }
 
 /// Blanks the snapshot on a copy that keeps its note, and writes the `edit`
@@ -220,6 +228,9 @@ impl Store {
     pub async fn backfill_orphaned_forwards(&self) -> anyhow::Result<ForwardCascade> {
         let mut total = ForwardCascade::default();
         loop {
+            if !self.has_orphaned_copies().await? {
+                return Ok(total);
+            }
             let mut tx = self.begin_write().await?;
             let copies = orphaned_copies(&mut tx, BACKFILL_BATCH).await?;
             let batch = apply_to_copies(&mut tx, &copies, None, now_ms()).await?;

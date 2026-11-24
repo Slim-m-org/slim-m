@@ -34,6 +34,7 @@ mod malformed_requests;
 mod memory_admission;
 mod message_retention_index_plan;
 mod message_store;
+mod message_writes_file_an_op;
 mod messages_bulk_window_index_plan;
 mod metrics;
 mod migration_backfills;

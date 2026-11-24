@@ -6,6 +6,7 @@ mod support;
 
 mod canvas_batch;
 mod canvas_cursor_live;
+mod canvas_deleted_channel;
 mod canvas_erased_reclaim;
 mod canvas_fuzz;
 mod canvas_gate_cost;

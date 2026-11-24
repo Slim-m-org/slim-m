@@ -130,6 +130,16 @@ fn distinct(
 /// Nulls the author of `user_id`'s messages, first recording each one for any
 /// member who blocked them, so the block keeps hiding it.
 async fn clear_message_authorship(store: &Store, user_id: UserId) -> anyhow::Result<()> {
+    // Before the authorship goes: this is how a resolved report's quote is tied back to the author.
+    sqlx::query!(
+        "UPDATE reports SET snapshot = NULL
+         WHERE snapshot IS NOT NULL AND resolved_at IS NOT NULL
+           AND (snapshot_author_id = ?1
+                OR subject_id IN (SELECT id FROM messages WHERE author_id = ?1))",
+        user_id
+    )
+    .execute(&store.pool)
+    .await?;
     loop {
         let mut tx = store.begin_write().await?;
         sqlx::query!(
