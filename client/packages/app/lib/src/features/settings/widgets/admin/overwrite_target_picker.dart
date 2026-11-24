@@ -76,6 +76,14 @@ class _State extends ConsumerState<OverwriteTargetPicker> {
       for (final m in shownMembers)
         if (m.isBot) m,
     ];
+    final rows = <Object>[
+      if (shownRoles.isNotEmpty) 'Roles',
+      ...shownRoles,
+      if (people.isNotEmpty) 'Members',
+      ...people,
+      if (bots.isNotEmpty) 'Bots',
+      ...bots,
+    ];
     return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -129,7 +137,7 @@ class _State extends ConsumerState<OverwriteTargetPicker> {
                   )
                 : ConstrainedBox(
                     constraints: BoxConstraints(maxHeight: maxHeight),
-                    child: ListView(
+                    child: ListView.builder(
                       key: const Key('target-picker-list'),
                       shrinkWrap: true,
                       padding: const EdgeInsets.fromLTRB(
@@ -138,14 +146,8 @@ class _State extends ConsumerState<OverwriteTargetPicker> {
                         AppSpacing.s8,
                         AppSpacing.s8,
                       ),
-                      children: [
-                        if (shownRoles.isNotEmpty) const AppMenuLabel('Roles'),
-                        for (final role in shownRoles) _roleRow(role),
-                        if (people.isNotEmpty) const AppMenuLabel('Members'),
-                        for (final m in people) _memberRow(m),
-                        if (bots.isNotEmpty) const AppMenuLabel('Bots'),
-                        for (final m in bots) _memberRow(m),
-                      ],
+                      itemCount: rows.length,
+                      itemBuilder: (context, i) => _row(rows[i]),
                     ),
                   ),
           ),
@@ -153,6 +155,13 @@ class _State extends ConsumerState<OverwriteTargetPicker> {
       ),
     );
   }
+
+  Widget _row(Object row) => switch (row) {
+    final String label => AppMenuLabel(label),
+    final api.Role role => _roleRow(role),
+    final api.UserProfile member => _memberRow(member),
+    _ => throw ArgumentError.value(row, 'row'),
+  };
 
   Widget _roleRow(api.Role role) => AppListRow(
     key: Key('target-picker-role-${role.id}'),

@@ -81,6 +81,26 @@ void main() {
       expect(buildMemberItems(members, '', 'self').length, 12);
     });
 
+    test('a limit keeps the first few and ends in a row for the rest', () {
+      final members = [for (var i = 0; i < 12; i++) _member('m$i')];
+      var opened = 0;
+      final items = buildMemberItems(
+        members,
+        '',
+        'self',
+        limit: paletteResultLimit,
+        showAll: () => opened++,
+      );
+      expect(items.length, paletteResultLimit + 1);
+      expect(items.last.label, 'Show all 12 people');
+      expect(items.last.showsAllOf, 12);
+    });
+
+    test('a limit with no show-all callback just stops', () {
+      final members = [for (var i = 0; i < 12; i++) _member('m$i')];
+      expect(buildMemberItems(members, '', 'self', limit: 5).length, 5);
+    });
+
     test('puts the people who are around ahead of those who are not', () {
       final members = [_member('asleep'), _member('here'), _member('off')];
       final items = buildMemberItems(members, '', 'me', around: {'here'});
