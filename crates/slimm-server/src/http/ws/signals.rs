@@ -42,7 +42,8 @@ impl PresenceGuard {
         if let Ok(Some(visibility)) = store.presence_visibility(user_id).await {
             hub.presence().load_visibility(user_id, visibility);
         }
-        if first && !hub.presence().is_hidden(user_id) {
+        // Published even when hidden: delivery withholds it from everyone but the account's own sockets.
+        if first {
             hub.publish(Event::presence_changed(user_id));
         }
         let idle_watch = tokio::spawn(watch_idle(hub.clone(), store, user_id)).abort_handle();
@@ -83,8 +84,7 @@ impl Drop for PresenceGuard {
             .presence()
             .viewing()
             .forget_connection(self.user_id, self.connection);
-        let hidden = self.hub.presence().is_hidden(self.user_id);
-        if self.hub.presence().disconnect_as(self.user_id, self.kind) && !hidden {
+        if self.hub.presence().disconnect_as(self.user_id, self.kind) {
             self.hub.publish(Event::presence_changed(self.user_id));
         }
     }
