@@ -23,6 +23,7 @@ class SyncReconnector {
     required this.generation,
     required this.probe,
     required this.failConnect,
+    required this.inCall,
   }) : _ref = ref;
 
   final Ref _ref;
@@ -36,14 +37,16 @@ class SyncReconnector {
   /// Null while no socket is held; otherwise whether it still answers.
   final Future<bool>? Function() probe;
   final void Function(Object error, StackTrace stack) failConnect;
+  final bool Function() inCall;
 
   Timer? _retry;
   int _overflowRestarts = 0;
 
-  /// A phone in the background gets its messages by push; retrying there only burns battery.
+  /// A phone in the background gets its messages by push, so retrying there only burns battery; a live call needs the socket for presence and rings.
   bool get _backgroundedOnPhone =>
       _ref.read(mobileLifecycleHostProvider) &&
-      _ref.read(appLifecycleProvider) != AppLifecycleState.resumed;
+      _ref.read(appLifecycleProvider) != AppLifecycleState.resumed &&
+      !inCall();
 
   /// Backs off, and jitters, so a server restart does not bring every client
   /// back in the same instant. See [ReconnectBackoff] for the delay itself;
