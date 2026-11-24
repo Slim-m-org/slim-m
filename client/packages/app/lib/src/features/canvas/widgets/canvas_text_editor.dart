@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A text box typed and styled where it sits: a raised panel over the box, or over the tapped point for a box not placed yet.
+/// A text box typed where it sits: the box itself is the field, with its colour and size on a bar beside it.
 ///
-/// Escape or Cancel keeps what was there; Save, Ctrl or Cmd plus Enter, or a click outside commits.
-/// Leaving the text empty cancels, since this panel has no way to delete a box.
+/// Escape keeps what was there; a press outside the box and its bar, or Ctrl or Cmd plus Enter, commits.
+/// Leaving the text empty cancels, since this field has no way to delete a box.
 library;
+
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,11 +13,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../../widgets/control_swatch_row.dart';
-import 'canvas_custom_colours.dart';
-import 'canvas_editor_layout.dart';
+import '../../../providers/dock_reservation.dart';
+import '../providers/canvas_pen_style.dart';
 import '../providers/canvas_text_props.dart';
+import 'canvas_selection_bar.dart';
 import 'canvas_text_content.dart';
+import 'canvas_text_style_options.dart';
+
+/// The tap region group the field, its selection menu and its bar share.
+const Object canvasTextTapGroup = EditableText;
 
 class CanvasTextEditor extends ConsumerStatefulWidget {
   const CanvasTextEditor({
@@ -55,6 +61,7 @@ class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
   @override
   void initState() {
     super.initState();
+    widget.document.editingObjectId.value = widget.objectId;
     // Asked for, not autofocus alone: the pane's own shortcut focus can still hold it.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focus.requestFocus();
@@ -63,19 +70,23 @@ class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
 
   @override
   void dispose() {
+    final document = widget.document;
+    if (!document.isDisposed &&
+        document.editingObjectId.value == widget.objectId) {
+      document.editingObjectId.value = null;
+    }
     _focus.dispose();
     _controller.dispose();
     super.dispose();
   }
 
+  CanvasTextProps get _props =>
+      CanvasTextProps(text: _controller.text, size: _size, colorKey: _colorKey);
+
   void _save() {
     if (_done) return;
     _done = true;
-    final next = CanvasTextProps(
-      text: _controller.text.trim(),
-      size: _size,
-      colorKey: _colorKey,
-    );
+    final next = _props.copyWith(text: _controller.text.trim());
     if (next.text.isEmpty || next == widget.initial) {
       widget.onCancel();
     } else {
@@ -93,247 +104,166 @@ class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
     if (!_full) setState(() => _full = true);
   }
 
+  /// The box the field fills, in world units: a placed box as it stands, grown to hold what is typed.
   Rect? _box() {
     final id = widget.objectId;
-    if (id == null) {
-      return Rect.fromLTWH(
-        widget.anchor.dx,
-        widget.anchor.dy,
-        defaultTextBoxWidth,
-        0,
-      );
-    }
-    final bounds = widget.document.objectBounds(id);
-    return bounds == null
-        ? null
-        : Rect.fromLTWH(bounds.x, bounds.y, bounds.w, bounds.h);
+    final bounds = id == null ? null : widget.document.objectBounds(id);
+    if (id != null && bounds == null) return null;
+    final x = bounds?.x ?? widget.anchor.dx;
+    final y = bounds?.y ?? widget.anchor.dy;
+    final width = bounds?.w ?? defaultTextBoxWidth;
+    final needed = textBoxFor(_props, width: width).height;
+    return Rect.fromLTWH(x, y, width, math.max(bounds?.h ?? 0, needed));
   }
 
   @override
   Widget build(BuildContext context) {
-    final inset = MediaQuery.viewInsetsOf(context).bottom;
-    return Stack(
-      children: [
-        Positioned.fill(
-          // Named, so the cover a screen reader meets over the board says what a tap on it does.
-          child: Semantics(
-            label: 'Save and close the text box',
-            button: true,
-            onTap: _save,
-            excludeSemantics: true,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _save,
-            ),
-          ),
-        ),
-        Positioned.fill(
-          child: AnimatedBuilder(
-            animation: widget.document,
-            builder: (context, _) {
-              final box = _box();
-              if (box == null) {
-                // The box was removed under the editor.
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) _cancel();
-                });
-                return const SizedBox.shrink();
-              }
-              final camera = widget.document.camera;
-              final board = widget.document.board;
-              return CustomSingleChildLayout(
-                delegate: CanvasEditorLayout(
-                  area: board == null
-                      ? null
-                      : Rect.fromLTWH(
-                          (board.left - camera.x) * camera.zoom,
-                          (board.top - camera.y) * camera.zoom,
-                          board.width * camera.zoom,
-                          board.height * camera.zoom,
-                        ),
-                  anchor: Offset(
-                    (box.left - camera.x) * camera.zoom,
-                    (box.top - camera.y) * camera.zoom,
-                  ),
-                  objectWidth: box.width * camera.zoom,
-                  keyboardInset: inset,
-                  bottomInset: widget.document.bottomInset,
-                ),
-                child: _panel(context),
-              );
-            },
-          ),
-        ),
-      ],
+    return ListenableBuilder(
+      listenable: Listenable.merge([widget.document, _controller]),
+      builder: (context, _) {
+        final box = _box();
+        if (box == null) {
+          // The box was removed under the editor.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _cancel();
+          });
+          return const SizedBox.shrink();
+        }
+        final camera = widget.document.camera;
+        final rect = Rect.fromLTWH(
+          (box.left - camera.x) * camera.zoom,
+          (box.top - camera.y) * camera.zoom,
+          box.width * camera.zoom,
+          box.height * camera.zoom,
+        );
+        return Stack(
+          children: [
+            Positioned.fromRect(rect: rect, child: _field(context, camera)),
+            if (_full) _fullNotice(context, rect),
+            Positioned.fill(child: _bar(context, rect)),
+          ],
+        );
+      },
     );
   }
 
-  /// A press anywhere else in the app saves, unless a dialog opened from the editor is what was pressed.
-  /// The field's menu and handles share the panel's tap group; another field is caught by [_onFocusChange].
+  Widget _field(BuildContext context, Camera camera) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final ink = resolveCanvasInk(
+      canvasPenInkByKey,
+      _colorKey,
+      AppCanvasColors.annotation,
+    );
+    return TextFieldTapRegion(
+      key: const ValueKey('canvas-text-editor-rect'),
+      groupId: canvasTextTapGroup,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: tokens.accentFill),
+          borderRadius: BorderRadius.circular(AppRadii.control),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(canvasTextPad * camera.zoom),
+          child: CallbackShortcuts(
+            bindings: {
+              const SingleActivator(LogicalKeyboardKey.enter, control: true):
+                  _save,
+              const SingleActivator(LogicalKeyboardKey.enter, meta: true):
+                  _save,
+              const SingleActivator(LogicalKeyboardKey.escape): _cancel,
+            },
+            child: Semantics(
+              label: 'Text box text',
+              child: TextField(
+                controller: _controller,
+                focusNode: _focus,
+                maxLines: null,
+                keyboardType: TextInputType.multiline,
+                inputFormatters: [TextBoxInputFormatter(onRefused: _markFull)],
+                style: TextStyle(
+                  fontFamily: AppFonts.sans,
+                  fontSize: canvasTextFontSizes[_size]! * camera.zoom,
+                  height: canvasTextLineHeight,
+                  color: ink,
+                ),
+                cursorColor: tokens.accent,
+                onTapOutside: (_) => _onTapOutside(context),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: 'Text',
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _fullNotice(BuildContext context, Rect rect) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Positioned(
+      left: rect.left,
+      top: rect.bottom + AppSpacing.s4,
+      child: Text(
+        'This text box is full.',
+        style: AppText.caption.copyWith(color: tokens.dangerText),
+      ),
+    );
+  }
+
+  Widget _bar(BuildContext context, Rect anchor) {
+    final dock =
+        ref.watch(bottomDockReservationProvider) +
+        AppSpacing.s12 +
+        AppSpacing.s8;
+    return CustomSingleChildLayout(
+      delegate: CanvasSelectionBarLayout(
+        anchor: anchor,
+        bottomInset: [
+          MediaQuery.viewInsetsOf(context).bottom,
+          widget.document.bottomInset,
+          dock,
+        ].reduce(math.max),
+      ),
+      child: Semantics(
+        container: true,
+        label: 'Text style',
+        child: CanvasSelectionBar(
+          entries: canvasTextStyleOptions(
+            context: context,
+            ref: ref,
+            size: _size,
+            colorKey: _colorKey,
+            onSize: (size) => _restyle(() => _size = size),
+            onColour: (colorKey) => _restyle(() => _colorKey = colorKey),
+          ),
+          groupId: canvasTextTapGroup,
+        ),
+      ),
+    );
+  }
+
+  void _restyle(VoidCallback change) {
+    setState(change);
+    _focus.requestFocus();
+  }
+
+  /// A press anywhere else in the app commits, unless a dialog opened from the editor is what was pressed.
   void _onTapOutside(BuildContext context) {
     if (ModalRoute.of(context)?.isCurrent ?? true) _save();
   }
 
+  /// Another text field taking focus commits too, since a press into it never reaches the region.
   void _onFocusChange() {
     if (_focus.hasFocus || _done || !mounted) return;
     final now = FocusManager.instance.primaryFocus?.context;
     if (now?.findAncestorWidgetOfExactType<EditableText>() == null) return;
     _onTapOutside(context);
-  }
-
-  Widget _panel(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return TapRegion(
-      groupId: EditableText,
-      onTapOutside: (_) => _onTapOutside(context),
-      child: _panelBody(context, tokens),
-    );
-  }
-
-  Widget _panelBody(BuildContext context, AppTokens tokens) {
-    return Material(
-      type: MaterialType.transparency,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.s8),
-        decoration: BoxDecoration(
-          color: tokens.surfaceRaised,
-          border: Border.all(color: tokens.accentFill),
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          boxShadow: AppShadows.menu,
-        ),
-        // Scrolls so a short window, or a keyboard, cannot overflow the panel.
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _field(tokens),
-              if (_full)
-                Text(
-                  'This text box is full.',
-                  style: AppText.caption.copyWith(color: tokens.dangerText),
-                ),
-              const SizedBox(height: AppSpacing.s4),
-              _styleRow(tokens),
-              const SizedBox(height: AppSpacing.s4),
-              Align(
-                alignment: Alignment.centerRight,
-                // Wraps: a sideways phone with its keyboard up leaves the panel narrower than both buttons.
-                child: Wrap(
-                  alignment: WrapAlignment.end,
-                  spacing: AppSpacing.s8,
-                  runSpacing: AppSpacing.s4,
-                  children: [
-                    AppButton(
-                      label: 'Cancel',
-                      variant: AppButtonVariant.ghost,
-                      size: AppButtonSize.sm,
-                      onPressed: _cancel,
-                    ),
-                    AppButton(
-                      label: 'Save',
-                      variant: AppButtonVariant.primary,
-                      size: AppButtonSize.sm,
-                      onPressed: _save,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _field(AppTokens tokens) {
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.enter, control: true): _save,
-        const SingleActivator(LogicalKeyboardKey.enter, meta: true): _save,
-        const SingleActivator(LogicalKeyboardKey.escape): _cancel,
-      },
-      child: Semantics(
-        label: 'Text box text',
-        child: TextField(
-          controller: _controller,
-          focusNode: _focus,
-          minLines: 1,
-          maxLines: 6,
-          keyboardType: TextInputType.multiline,
-          inputFormatters: [TextBoxInputFormatter(onRefused: _markFull)],
-          style: AppText.body.copyWith(color: tokens.textPrimary),
-          cursorColor: tokens.accent,
-          decoration: const InputDecoration(
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            filled: false,
-            isDense: true,
-            contentPadding: EdgeInsets.zero,
-            hintText: 'Text',
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Size and colour on one line, split by a hairline, so the panel stays a single compact strip.
-  Widget _styleRow(AppTokens tokens) {
-    final colours = _colourSwatches(tokens);
-    return Row(
-      children: [
-        Expanded(
-          flex: canvasTextSizeKeys.length,
-          child: ControlSwatchRow(
-            swatches: _sizeSwatches(tokens),
-            close: () {},
-          ),
-        ),
-        Container(
-          width: 1,
-          height: AppSpacing.s16,
-          margin: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
-          color: tokens.borderSubtle,
-        ),
-        Expanded(
-          flex: colours.length,
-          child: ControlSwatchRow(swatches: colours, close: () {}),
-        ),
-      ],
-    );
-  }
-
-  List<ControlSwatch> _sizeSwatches(AppTokens tokens) => [
-    for (final key in canvasTextSizeKeys)
-      ControlSwatch(
-        label: '${canvasTextSizeLabels[key]} text',
-        selected: _size == key,
-        onSelected: () => setState(() => _size = key),
-        mark: Text(
-          'A',
-          style: canvasTextSizeSample(key).copyWith(color: tokens.textPrimary),
-        ),
-      ),
-  ];
-
-  List<ControlSwatch> _colourSwatches(AppTokens tokens) {
-    void choose(String key) => setState(() => _colorKey = key);
-    return canvasColourRow(
-      context: context,
-      ref: ref,
-      defaults: [
-        ControlSwatch(
-          label: 'Default colour',
-          selected: _colorKey == canvasDefaultTextColor,
-          onSelected: () => choose(canvasDefaultTextColor),
-          color: tokens.textPrimary,
-        ),
-        ...canvasPenColourSwatches(selectedKey: _colorKey, onChoose: choose),
-      ],
-      selectedKey: _colorKey,
-      plainColour: tokens.textPrimary,
-      onChoose: choose,
-    );
   }
 }

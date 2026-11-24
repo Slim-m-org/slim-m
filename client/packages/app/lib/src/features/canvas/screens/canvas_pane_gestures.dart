@@ -204,11 +204,14 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     ref.read(meProvider).valueOrNull?.id,
   );
 
-  /// Whether the note [id] takes a style from this person: their own, or any with MANAGE_CANVAS.
+  /// Whether the note or text box [id] takes a style from this person: their own, or any with MANAGE_CANVAS.
   bool _mayRestyle(String id, bool manageCanvas, String? selfId) {
     final author = _document.authorIdOf(id);
     return !_spectating &&
-        _document.kindOf(id) == CanvasObjectKind.note &&
+        const {
+          CanvasObjectKind.note,
+          CanvasObjectKind.text,
+        }.contains(_document.kindOf(id)) &&
         (manageCanvas || (author != null && author == selfId));
   }
 

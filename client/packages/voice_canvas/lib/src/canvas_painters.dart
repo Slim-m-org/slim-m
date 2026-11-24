@@ -357,7 +357,12 @@ class StrokePainter extends CustomPainter {
           continue;
         case CanvasObjectKind.text:
           noteIds.add(stroke.id);
-          _objects.paintText(canvas, stroke, camera);
+          _objects.paintText(
+            canvas,
+            stroke,
+            camera,
+            editing: stroke.id == document.editingObjectId.value,
+          );
           continue;
         case CanvasObjectKind.tile:
           _paintTile(canvas, stroke, camera, elevated: isElevated);

@@ -65,6 +65,10 @@ The merged object is validated again and checked against the props size limit, a
 The edit result, the op log and `canvas.object.edited` all carry the merged props, so every receiver sees one truth.
 Text boxes stay a wholesale replace.
 
+A text box is edited the same way: the box is the field (outlined, in its own size and colour), with a bar of text size and text colour beside it, no Save or Cancel, and the board leaves its text out while it is typed.
+A selected text box shows the same bar, and one tap on it is one edit and one undo entry.
+The bar lists size first so it stays in view when a narrow bar scrolls.
+
 This is what keeps old clients safe.
 A shipped client edits a note with `{text, font_size}` and a bot such as the homelab one with `{text}`; without the merge either would erase the style.
 Validation checks only the known keys (types, colour keys or `#rrggbb`, opacity in range) and that `text` is a string.

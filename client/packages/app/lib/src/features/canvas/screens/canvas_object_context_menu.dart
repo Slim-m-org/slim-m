@@ -406,9 +406,7 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
             leading: AppIcons.edit,
             onTap: locked || !widget.canDraw ? null : _editNote,
           ),
-        if (isNote &&
-            widget.onStyleNote != null &&
-            widget.document.kindOf(id!) == CanvasObjectKind.note)
+        if (isNote && widget.onStyleNote != null)
           AppMenuItem(
             label: 'Style',
             leading: AppIcons.appearance,

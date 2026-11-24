@@ -116,6 +116,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
     document
       ..setNoteStyle(objectId, style)
       ..refresh();
+    final props = _noteProps(objectId, style: true);
     try {
       await _sendObjectOp(
         objectId,
@@ -124,7 +125,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
           id: id,
           kind: 'edit',
           objectId: objectId,
-          props: _noteProps(objectId, style: true),
+          props: props,
         ),
       );
     } on api.ApiException catch (error) {
@@ -168,6 +169,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
     if (before == null) return null;
     document.setNoteText(objectId, text);
     document.refresh();
+    final props = _noteProps(objectId);
     try {
       await _sendObjectOp(
         objectId,
@@ -176,7 +178,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
           id: id,
           kind: 'edit',
           objectId: objectId,
-          props: _noteProps(objectId),
+          props: props,
         ),
       );
     } on api.ApiException catch (error) {

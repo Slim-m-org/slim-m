@@ -209,6 +209,9 @@ class CanvasNoteEditing {
     required AppTokens tokens,
     required CanvasTool tool,
     required bool Function(String id) mayEdit,
+    required void Function(String id, {String? size, String? colorKey})
+    onTextStyle,
+    bool textEditing = false,
     Widget? textEditor,
   }) {
     final open = session;
@@ -221,6 +224,8 @@ class CanvasNoteEditing {
             session: open,
             mayEdit: (id) => !engine.ops.isLocked(id) && mayEdit(id),
             onStyle: restyle,
+            onTextStyle: onTextStyle,
+            textEditing: textEditing,
             focus: barFocus,
           ),
           if (open != null)

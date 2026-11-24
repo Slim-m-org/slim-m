@@ -2,6 +2,7 @@
 /// The canvas and its dock with a keyboard alone: tab order, Enter and Space on tools, undo and redo, and putting something on the board, selecting it or moving the camera.
 library;
 
+import 'package:flutter/foundation.dart' show ValueKey;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -184,10 +185,13 @@ void main() {
       await settle(tester);
 
       expect(
-        find.text('Add a note').evaluate().isNotEmpty ||
+        find
+                .byKey(const ValueKey('canvas-note-editor-rect'))
+                .evaluate()
+                .isNotEmpty ||
             rig.fixture.posted.isNotEmpty,
         isTrue,
-        reason: 'with the note tool armed no key opens the note sheet',
+        reason: 'with the note tool armed no key opens a note to type in',
       );
     });
 

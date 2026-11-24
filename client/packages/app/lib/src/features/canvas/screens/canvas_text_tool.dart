@@ -120,6 +120,19 @@ class CanvasTextTool {
     if (placed != null) onPlaced(placed.id, startedWith);
   }
 
+  /// Restyles the placed box [id] with one edit, keeping its text and whatever [size] or [colorKey] leaves alone.
+  void restyle(String id, {String? size, String? colorKey}) {
+    final box = document.textBoxOf(id);
+    if (box == null) return;
+    final next = CanvasTextProps(
+      text: box.text,
+      size: size ?? box.size,
+      colorKey: colorKey ?? box.colorKey,
+    );
+    _remember(next);
+    unawaited(engine.ops.editText(id, next).then((_) => changed()));
+  }
+
   Future<void> _saveEdit(
     String id,
     CanvasTextProps props,

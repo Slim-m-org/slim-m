@@ -171,12 +171,14 @@ class ObjectPainter {
   void paintText(
     Canvas canvas,
     CanvasStroke stroke,
-    Camera camera,
-  ) {
+    Camera camera, {
+    bool editing = false,
+  }) {
     final text = stroke.text;
     final fontSize = canvasTextFontSizes[stroke.textSize] ??
         canvasTextFontSizes[canvasDefaultTextSize]!;
-    if (text == null ||
+    if (editing ||
+        text == null ||
         text.isEmpty ||
         stroke.w <= canvasTextPad * 2 ||
         fontSize * camera.zoom < minNoteTextScreenPx) {

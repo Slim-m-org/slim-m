@@ -406,6 +406,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                 tokens: Theme.of(context).extension<AppTokens>()!,
                 tool: _tool,
                 mayEdit: (id) => _mayRestyle(id, manageCanvas, me?.id),
+                onTextStyle: _text.restyle,
+                textEditing: _editingNoteId != null || _text.draft != null,
                 textEditor: _textEditor(),
               ),
               onNotePlace: (world, [size]) => _notes.placeDraft(world, size),

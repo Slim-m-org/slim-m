@@ -69,4 +69,40 @@ void main() {
     document.editingObjectId.value = 'note';
     expect(labelLayouts(document), 0);
   });
+
+  test('the text of the text box being typed in is not painted', () {
+    final document = CanvasDocument()
+      ..setViewport(const Size(400, 400))
+      ..applyPlaced(
+        const CanvasStrokeInput(
+          id: 'box',
+          seq: 1,
+          zIndex: 1,
+          x: 0,
+          y: 0,
+          w: 200,
+          h: 40,
+          points: [],
+          width: 0,
+          colorKey: 'ink',
+          kind: CanvasObjectKind.text,
+          text: 'typed',
+          textSize: 'medium',
+        ),
+      )
+      ..refresh();
+    addTearDown(document.dispose);
+    int labelLayouts() {
+      debugResetNoteLabelLayoutCounts();
+      StrokePainter(document: document, ink: ink).paint(
+        RecordingCanvas(),
+        const Size(400, 400),
+      );
+      return debugNoteLabelLayoutCounts.values.fold(0, (a, b) => a + b);
+    }
+
+    expect(labelLayouts(), 1);
+    document.editingObjectId.value = 'box';
+    expect(labelLayouts(), 0);
+  });
 }
