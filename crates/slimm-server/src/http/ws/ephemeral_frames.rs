@@ -2,7 +2,7 @@
 //! Authorizing a bot's private message for one connection, split out of
 //! [`super::authorization::authorize`] to keep that file's match focused.
 
-use super::authorization::Authorization;
+use super::authorization::{Authorization, read_with_retry};
 use super::frames::ServerFrame;
 use crate::ephemeral::EphemeralMessage;
 use crate::http::ephemeral_messages::EphemeralMessageDto;
@@ -11,8 +11,8 @@ use crate::permissions::Permissions;
 use crate::store::{SessionContext, Store};
 
 /// Delivered to the recipient's own connections only, and only while they can
-/// still view the channel and have not blocked the sender. A store error is
-/// `Unknown`, never delivered: it has no catch-up path, so the connection resyncs.
+/// still view the channel and have not blocked the sender. It has no catch-up
+/// path, so each read is retried once; a read that still fails is `Unknown`.
 pub(super) async fn authorize(
     store: &Store,
     ctx: &SessionContext,
@@ -22,10 +22,11 @@ pub(super) async fn authorize(
     if recipient_id != ctx.user_id {
         return Authorization::Withhold;
     }
-    let can_view = store
-        .has_permission(ctx.user_id, message.channel_id, Permissions::VIEW_CHANNEL)
-        .await;
-    let blocked = store.has_blocked(ctx.user_id, message.author_id).await;
+    let can_view = read_with_retry(|| {
+        store.has_permission(ctx.user_id, message.channel_id, Permissions::VIEW_CHANNEL)
+    })
+    .await;
+    let blocked = read_with_retry(|| store.has_blocked(ctx.user_id, message.author_id)).await;
     match allowed(can_view, blocked) {
         Some(true) => {}
         Some(false) => return Authorization::Withhold,

@@ -49,6 +49,21 @@ pub(super) enum Authorization {
 /// outage still gives up promptly.
 const RESOLVE_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(25);
 
+/// Runs a store read, retrying once after [`RESOLVE_RETRY_DELAY`] when it fails.
+pub(super) async fn read_with_retry<T, F, Fut>(mut read: F) -> anyhow::Result<T>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = anyhow::Result<T>>,
+{
+    match read().await {
+        Ok(answer) => Ok(answer),
+        Err(_) => {
+            tokio::time::sleep(RESOLVE_RETRY_DELAY).await;
+            read().await
+        }
+    }
+}
+
 /// [`authorize_unstamped`], with a moderation event's number attached to the frame it delivers.
 pub(super) async fn authorize(
     store: &Store,
