@@ -118,7 +118,9 @@ gh workflow run update-manifest.yml --ref main -f tag=client-v<version> -f requi
 A release known to be short and already superseded is listed in `scripts/release-asset-exempt.txt` so the watchdog stops reporting it ([CHANGING-CI.md](CHANGING-CI.md)).
 The release-asset watchdog also reports a release whose `manifest.json` omits a platform whose archive is attached (client 0.88.0 omits `linux-x64`); the same command, from a ref with this change, re-signs it.
 
-It needs the `UPDATE_SIGNING_KEY` secret, which lives in the `release` environment only (deployment rules: `main` and `client-v*` tags), so a run from any other ref cannot read it.
+It needs the `UPDATE_SIGNING_KEY` secret, which is passed by both callers while it is still a repository secret.
+The owner's setup is to store it in the `release` environment, delete the repository secret, and set that environment's deployment rules to `main`, `client-v*` and `server-v*` tags, so a run from any other ref cannot read it.
+The rules must include `server-v*`, because `release.yml`'s server image jobs use the same environment.
 While the secret is unset the job passes with a warning and attaches nothing, so a green run with no `manifest.json` on the release means the secret is missing.
 
 ### Anything `release.yml` publishes

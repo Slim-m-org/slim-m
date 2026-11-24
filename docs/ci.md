@@ -400,7 +400,7 @@ Client 0.88.0 shipped a manifest without `linux-x64` because the only caller ran
 By hand it takes a `tag`, a `require` list and `defer`, which is how to backfill a release.
 Without `defer` a missing required platform fails the run.
 
-The secret is `UPDATE_SIGNING_KEY`, an ed25519 private key in PKCS8 PEM form, stored as a secret of the `release` environment, whose deployment rules allow `main` and `client-v*` tags only; `client-checksums` reads its GPG secrets from the same environment.
+The secret is `UPDATE_SIGNING_KEY`, an ed25519 private key in PKCS8 PEM form, passed by both callers while it is a repository secret; the required setup is to move it into the `release` environment and set that environment's deployment rules to `main`, `client-v*` and `server-v*` tags (the server image jobs use it too). `client-checksums` reads its GPG secrets from that environment.
 While it is unset the job fails, unlike `copr-publish` without `COPR_CONFIG`: a green run that attached no manifest is how 0.89.0 shipped with none, and every caller runs on a client tag.
 The owner's one-time key generation is in the decision record.
 `scripts/lib/test_update_manifest.py` covers build, sign and verify, tampering, wrong key, swapped artifacts and rollback against a throwaway key generated per run.

@@ -199,7 +199,8 @@ def verify_signature(data: bytes, signature: bytes, pubkey_b64: str) -> None:
 def client_keys(dart_source: str) -> list[str]:
     """The base64 keys of trustedUpdateKeys, the only keys an installed client accepts."""
     body = dart_source.split("trustedUpdateKeys", 1)[-1].split("];", 1)[0]
-    keys = DART_KEY.findall(re.sub(r"//[^\n]*", "", body))
+    code = re.sub(r"'[^'\n]*'|//[^\n]*", lambda m: m.group(0) if m.group(0)[0] == "'" else "", body)
+    keys = DART_KEY.findall(code)
     if not keys:
         raise ManifestError("no trusted update key found in the dart source")
     return keys

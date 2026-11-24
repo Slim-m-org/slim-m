@@ -184,6 +184,11 @@ class UpdateManifestTest(unittest.TestCase):
         self.assertTrue(keys)
         self.assertTrue(all(len(base64.b64decode(k)) == 32 for k in keys))
 
+    def test_a_key_containing_slashes_survives_comment_stripping(self):
+        key = "ab//" + "A" * 39 + "="
+        source = f"const trustedUpdateKeys = <String>[\n  // old key\n  '{key}', // current\n];\n"
+        self.assertEqual(update_manifest.client_keys(source), [key])
+
     def test_a_manifest_signed_with_a_client_key_verifies_against_the_dart_keys(self):
         self.signed()
         other = run("pubkey", key=new_key()).stdout.strip()

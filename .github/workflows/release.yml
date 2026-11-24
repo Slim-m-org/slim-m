@@ -368,6 +368,8 @@ jobs:
     with:
       tag: ${{ needs.release-please.outputs.client_tag }}
       defer: true
+    secrets:
+      UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
 
   # Submits the Fedora package to COPR. Inert without COPR_CONFIG or the spec,
   # and best effort: the .rpm is on the release, so a failure only warns.

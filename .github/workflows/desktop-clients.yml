@@ -227,6 +227,8 @@ jobs:
     with:
       tag: ${{ inputs.tag || github.ref_name }}
       defer: true
+    secrets:
+      UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
 
   # Rewrites SHA256SUMS to list the Windows downloads (and the macOS zip when it built); defers inside the workflow until the Linux tarball is attached, and release's own call then writes it.
   client-checksums:

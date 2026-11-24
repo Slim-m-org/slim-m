@@ -4,6 +4,10 @@ name: update-manifest
 # Signs a manifest of a client release's desktop artifacts; see docs/ci.md and decision 0041.
 on:
   workflow_call:
+    # Passed through until the key lives in the release environment; an environment secret then wins over a passed one.
+    secrets:
+      UPDATE_SIGNING_KEY:
+        required: false
     inputs:
       tag:
         type: string
@@ -50,7 +54,7 @@ jobs:
     name: sign update manifest
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    # The signing key lives in this environment only, with deployment rules for main and client-v* tags, so a workflow on any other ref cannot read it.
+    # Once the key is stored here, deployment rules for main, client-v* and server-v* keep every other ref from reading it.
     environment: release
     # write, not read: the last step attaches the manifest and signature to the github release. actions: read fetches the producers' digests.
     permissions:
@@ -96,7 +100,7 @@ jobs:
           mkdir -p expected
           for label in linux android windows macos; do
             id="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=digests-$TAG-$label&per_page=30" \
-              | jq -r --arg tag "$TAG" '[.artifacts[] | select(.expired == false and (.workflow_run.head_branch == "main" or .workflow_run.head_branch == $tag))][0].id // empty')"
+              | jq -r --arg tag "$TAG" '[.artifacts[] | select(.expired == false and .workflow_run.head_repository_id == .workflow_run.repository_id and (.workflow_run.head_branch == "main" or .workflow_run.head_branch == $tag))][0].id // empty')"
             [ -n "$id" ] || { echo "::notice::no digests recorded for $label"; continue; }
             gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/$label.zip"
             unzip -q -o "$RUNNER_TEMP/$label.zip" -d expected
