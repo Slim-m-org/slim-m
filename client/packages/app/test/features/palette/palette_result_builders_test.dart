@@ -96,9 +96,11 @@ void main() {
       expect(items.last.showsAllOf, 12);
     });
 
-    test('a limit with no show-all callback just stops', () {
+    test('a limit with no show-all callback ends in a narrow-down row', () {
       final members = [for (var i = 0; i < 12; i++) _member('m$i')];
-      expect(buildMemberItems(members, '', 'self', limit: 5).length, 5);
+      final items = buildMemberItems(members, '', 'self', limit: 5);
+      expect(items.length, 6);
+      expect(items.last.label, '7 more - type to narrow');
     });
 
     test('puts the people who are around ahead of those who are not', () {
