@@ -32,6 +32,7 @@ mod presses;
 mod security;
 mod selects_and_forms;
 mod sending;
+mod timeouts;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;

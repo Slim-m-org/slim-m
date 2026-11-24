@@ -21,6 +21,7 @@ use super::auth::validate_label;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
 use super::messages::parse_uuid;
+use super::participant::require_not_timed_out;
 use super::user_avatars::{delete_avatar, get_avatar, upload_avatar};
 use super::user_banners::{delete_banner, get_banner, upload_banner};
 use super::user_status::{
@@ -380,6 +381,8 @@ async fn update_me(
     Json(req): Json<UpdateMeRequest>,
 ) -> Result<Json<UserDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    // Not the join gate too: the welcome steps fill in a profile before the rules are read.
+    require_not_timed_out(&state, ctx.user_id).await?;
 
     let display_name = req.display_name.as_deref().map(str::trim);
     if let Some(display_name) = display_name {

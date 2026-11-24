@@ -771,6 +771,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is timed out (code `timed_out`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -980,6 +986,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is timed out (code `timed_out`) or has not accepted the rules yet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -1024,6 +1036,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is timed out (code `timed_out`) or has not accepted the rules yet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -1116,6 +1134,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is timed out (code `timed_out`) or has not accepted the rules yet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -6744,7 +6768,8 @@ paths:
       summary: Remove the caller's own reaction of one emoji from a message.
       description: >
         Idempotent: removing a reaction that is not there succeeds, since the
-        caller's intent already holds.
+        caller's intent already holds. Needs only sight of the message, not
+        `ADD_REACTIONS`, so a timeout or an overwrite never strands a reaction.
       responses:
         "204":
           description: The reaction was removed (or was already absent).
@@ -6784,7 +6809,9 @@ paths:
         (message, block) and broadcast, so everyone viewing the message sees
         the latest run inline without rerunning it. Requires being able to
         view the message's channel (a hidden message answers as a missing one)
-        as well as the permission the named command declares. A re-run
+        and to post in it (`SEND_MESSAGES`, so a block or a read-only channel
+        refuses the run), as well as the permission the named command
+        declares. A re-run
         replaces the block's stored result. A resource-limit or module error
         still answers 200 with `ok: false`, the same as runModuleCommand.
 
@@ -10255,6 +10282,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The calling bot is timed out (code `timed_out`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -10795,6 +10828,12 @@ paths:
                 $ref: "#/components/schemas/DeliveredWebhookMessage"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "403":
+          description: The account the webhook posts as is timed out (code `timed_out`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           $ref: "#/components/responses/NotFound"
         "429":
@@ -11130,6 +11169,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller has not accepted the rules yet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
         "429":

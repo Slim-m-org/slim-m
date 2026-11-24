@@ -16,8 +16,9 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::ephemeral_anchor::Anchor;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{Authed, INTERACTION, Json, enforce};
 use super::messages::parse_uuid;
+use super::participant::Participant;
 use crate::components::{self, INTERACTION_WINDOW_MS};
 use crate::hub::Event;
 use crate::ids::{ChannelId, InteractionId, MessageId, UserId};
@@ -61,13 +62,11 @@ pub(super) struct InteractionDto {
 /// the message, the bot or the button is the same 404, so the route is not an
 /// oracle for what a channel holds.
 async fn click(
-    Authed(ctx): Authed,
+    Participant(ctx): Participant<INTERACTION>,
     Path((channel_id, message_id)): Path<(String, String)>,
-    parts: Parts,
     State(state): State<AppState>,
     Json(req): Json<ClickRequest>,
 ) -> Result<Json<InteractionDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Interaction)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let message_id = MessageId(parse_uuid(&message_id)?);
     let id = InteractionId(parse_uuid(&req.id)?);

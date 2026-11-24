@@ -265,7 +265,8 @@ impl Store {
     /// ordinary check always answers "no channel" once this fires; a delete
     /// leaves roles and overwrites untouched, so evaluating them against the
     /// pre-delete row is exact, not a snapshot. A DM answers from its pair,
-    /// and `http::channels::delete` refuses to delete one either way.
+    /// and `http::channels::delete` refuses to delete one either way. The
+    /// timeout and the join gate are subtracted, as for a live channel.
     pub async fn viewed_channel_before_delete(
         &self,
         user_id: UserId,
@@ -274,9 +275,11 @@ impl Store {
         let Some(channel) = self.channel_including_deleted(channel_id).await? else {
             return Ok(false);
         };
+        let deny = self.member_deny(user_id, Some(channel_id)).await?;
         Ok(self
             .evaluate_channel_permissions(user_id, channel)
             .await?
+            .remove(deny)
             .contains(Permissions::VIEW_CHANNEL))
     }
 

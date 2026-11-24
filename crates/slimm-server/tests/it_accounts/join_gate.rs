@@ -335,3 +335,78 @@ async fn a_manager_cannot_name_a_rules_channel_they_cannot_see() {
         "saving the form again keeps what an admin chose"
     );
 }
+
+#[tokio::test]
+async fn a_pending_member_cannot_write_a_debug_log_or_an_activity_but_fills_in_a_profile() {
+    let (app, _store, _admin, _rules, _guard) = gated("slimm-join-gate-self-service").await;
+    let bob = joined_token(&app, "bob").await;
+    let log = json!({"log": "line", "app_version": "1.0.0", "platform": "linux"});
+    let activity = json!({"type": "listening", "title": "Song", "subtitle": "Artist"});
+
+    let (status, body) = call(&app, "POST", "/debug-logs", Some(&bob), Some(log.clone())).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    assert_eq!(body["error"], "accept the rules first");
+    let (status, _) = call(
+        &app,
+        "PUT",
+        "/presence/activity",
+        Some(&bob),
+        Some(activity),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let pronouns = json!({"pronouns": "they/them"});
+    let (status, _) = call(&app, "PATCH", "/me", Some(&bob), Some(pronouns)).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "the welcome steps run before the rules"
+    );
+
+    let (status, _) = call(&app, "POST", "/space/rules/accept", Some(&bob), None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, _) = call(&app, "POST", "/debug-logs", Some(&bob), Some(log)).await;
+    assert_eq!(status, StatusCode::CREATED);
+}
+
+#[tokio::test]
+async fn a_pending_member_is_not_told_a_hidden_channel_was_deleted() {
+    let (app, store, admin, rules, _guard) = gated("slimm-join-gate-deleted").await;
+    let (status, lounge) = call(
+        &app,
+        "POST",
+        "/channels",
+        Some(&admin),
+        Some(json!({"name": "lounge"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{lounge}");
+    let lounge = lounge["id"].as_str().unwrap().to_owned();
+    let (status, body) = join(&app, "bob").await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let bob = slimm_server::ids::UserId(body["user_id"].as_str().unwrap().parse().unwrap());
+
+    for channel in [&lounge, &rules] {
+        let (status, _) = call(
+            &app,
+            "DELETE",
+            &format!("/channels/{channel}"),
+            Some(&admin),
+            None,
+        )
+        .await;
+        assert!(status.is_success(), "{status}");
+    }
+    let viewed = |channel: &str| {
+        let id = slimm_server::ids::ChannelId(channel.parse().unwrap());
+        store.viewed_channel_before_delete(bob, id)
+    };
+    assert!(
+        !viewed(&lounge).await.unwrap(),
+        "the lounge was hidden from them"
+    );
+    assert!(
+        viewed(&rules).await.unwrap(),
+        "the rules channel was theirs to read"
+    );
+}
