@@ -60,6 +60,7 @@ async fn pushes_to_bob(reposts_carol: bool) -> usize {
             presence: Hub::new().presence(),
             reply_ping: None,
             mass_authority: None,
+            mention_only: None,
         },
     );
 
