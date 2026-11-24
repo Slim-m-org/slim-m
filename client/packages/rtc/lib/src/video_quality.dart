@@ -11,6 +11,7 @@ library;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'audio_publish_options.dart';
 import 'video_publish_options.dart';
@@ -152,14 +153,24 @@ Future<void> applyReceiveVideoQuality(
     final layer = enlarged.contains(pub.key)
         ? lk.VideoQuality.HIGH
         : quality.layerFor(screenShare: screenShare);
-    if (quality == ReceiveVideoQuality.max) {
-      lowered.remove(pub.sid);
-    } else if (layer == lk.VideoQuality.HIGH) {
-      if (!lowered.remove(pub.sid)) continue;
-    } else {
-      lowered.add(pub.sid);
+    final restoring = layer == lk.VideoQuality.HIGH;
+    if (restoring &&
+        quality != ReceiveVideoQuality.max &&
+        !lowered.contains(pub.sid)) {
+      continue;
     }
-    await pub.setQuality(layer);
+    try {
+      await pub.setQuality(layer);
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'Could not set the receive quality of a video track; skipping it',
+        error,
+        stack,
+      );
+      continue;
+    }
+    restoring ? lowered.remove(pub.sid) : lowered.add(pub.sid);
   }
 }
 

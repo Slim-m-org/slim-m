@@ -11,6 +11,7 @@ import 'dart:async';
 import 'package:slimm_api/api.dart' show AppLog, LogLevel, LogTag;
 
 import 'audio_stats.dart';
+import 'read_timeout.dart';
 import 'voice_health.dart';
 import 'voice_log.dart';
 
@@ -85,6 +86,7 @@ class AudioGlitchWatch {
   Timer? _timer;
   final _previous = <String, AudioReceiveSample>{};
   int _ticks = 0;
+  bool _sampling = false;
 
   static String _same(String identity) => identity;
   static String _localName() => 'local';
@@ -115,6 +117,16 @@ class AudioGlitchWatch {
   }
 
   Future<void> sample() async {
+    if (_sampling) return;
+    _sampling = true;
+    try {
+      await _sampleAll();
+    } finally {
+      _sampling = false;
+    }
+  }
+
+  Future<void> _sampleAll() async {
     final voices = sources();
     final shares = {
       for (final e in (shareSources?.call() ?? const {}).entries)
@@ -139,7 +151,7 @@ class AudioGlitchWatch {
 
   Future<void> _sampleRemote(String id, AudioStatsSource source) async {
     try {
-      final now = await source();
+      final now = await source().timeout(kPollReadTimeout);
       if (now == null) {
         _previous.remove(id);
         health.skip(id);
@@ -172,7 +184,7 @@ class AudioGlitchWatch {
     final source = local;
     if (source == null) return;
     try {
-      final now = await source();
+      final now = await source().timeout(kPollReadTimeout);
       if (now != null) health.observeLocal(localIdOf(), now);
     } on Object catch (error, stack) {
       AppLog.swallowed(
