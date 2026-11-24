@@ -448,7 +448,9 @@ paths:
         Unauthenticated, since the point is recovering an account that cannot
         currently sign in. Single-use, and revokes every live session on the
         account, since the account may be compromised rather than just
-        locked out.
+        locked out. Spending one also spends the account's other live codes
+        and drops its pending two-factor challenges. A code whose issuer has
+        since been removed, deleted or lost ADMINISTRATOR cannot be used.
       security: []
       requestBody:
         required: true
@@ -474,8 +476,9 @@ paths:
       description: >
         Needs the current password, and the current two-factor code or an
         unused recovery code while two-factor is on. Signs every other device
-        out and keeps the calling session. A wrong password or code is
-        refused and nothing changes.
+        out and keeps the calling session, spends any live reset code for the
+        account and drops its pending two-factor challenges. A wrong password
+        or code is refused and nothing changes.
       requestBody:
         required: true
         content:
@@ -730,6 +733,7 @@ paths:
         the moderation audit log as `reset_code_issue`. A person must send their
         own password in the body; a bot has none and sends no body.
         Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`. A caller's own account needs no rank.
+        A bot or webhook is refused with 409: its token is its only credential.
       requestBody:
         required: false
         content:
@@ -751,6 +755,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -4306,7 +4312,9 @@ paths:
       summary: Remove a member from the Space. Requires BAN_MEMBERS.
       description: >
         Revokes every live session, refuses future sign-in, revokes invites
-        they created, and drops them from the member list. Everything they
+        they created, the bot tokens they were last shown and the webhooks
+        whose URL they were last shown, and drops them from the member list.
+        The bots stay, for an administrator to reissue. Everything they
         wrote stays, still attributed to them: anonymizing content is what
         deleting an account does, and this is deliberately not that.
 
@@ -10016,6 +10024,13 @@ paths:
         bot, and for a bot that has been removed from the Space (restore it
         first). Recorded in the moderation history as `bot_token_reissue`.
         The caller must hold every bit the bot's roles grant and rank strictly above the bot on the role ladder, since its token acts with all of it; refused as a 403, with `code` `role_hierarchy` for the ladder.
+        For a bot that holds ADMINISTRATOR the caller must also send their own password.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordProofRequest"
       responses:
         "200":
           description: The bot, and its new token once.
@@ -12257,7 +12272,14 @@ paths:
       summary: Replace a connector's token. Requires MANAGE_SERVER, and a person.
       description: >
         Revokes the connector's token, closes its sockets and mints a new one,
-        shown only in this answer (decision 0090). A bot is refused.
+        shown only in this answer (decision 0090). A bot is refused. For a
+        connector that holds ADMINISTRATOR the caller must also send their own password.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordProofRequest"
       responses:
         "200":
           description: The new token.
@@ -16874,6 +16896,11 @@ components:
             one the manifest asks for and the admin holds. Required for a
             connector (400 without it, so an app that cannot show the ask
             cannot install one); ignored for a WASM module.
+        password:
+          type: string
+          description: >
+            The admin's own password, required only when the approval includes
+            ADMINISTRATOR: 400 without it, 403 when wrong.
         approved_host_run:
           type: object
           additionalProperties: false
@@ -18098,6 +18125,11 @@ components:
             no-escalation check a human-assigned role goes through; a bot may
             hold any bit a human role could, including ADMINISTRATOR. See
             docs/decisions/0028-bot-accounts.md.
+        password:
+          type: string
+          description: >-
+            The caller's own password. Required only when the bot will hold
+            ADMINISTRATOR, refused with 400 without it and 403 when wrong.
     SetBotPrefixRequest:
       type: object
       required: [prefix]
@@ -18116,6 +18148,11 @@ components:
           description: >-
             Replaces what the bot's managed role grants. Same guards as
             `CreateBotRequest.permissions`.
+        password:
+          type: string
+          description: >-
+            The caller's own password. Required only when the bot will hold
+            ADMINISTRATOR, refused with 400 without it and 403 when wrong.
     EgressHost:
       type: object
       required: [host, port]

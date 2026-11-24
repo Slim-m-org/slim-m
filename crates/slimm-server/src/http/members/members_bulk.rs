@@ -101,7 +101,7 @@ async fn bulk_remove(
         .bulk_remove_members(&targets, ctx.user_id, reason.as_deref())
         .await
     {
-        Ok(_) => {}
+        Ok(revoked) => session_revocation::sessions_revoked_by_id(&state, revoked),
         Err(RemoveMemberError::UserNotFound) => return Err(ApiError::NotFound("no such member")),
         Err(RemoveMemberError::LastAdministrator) => {
             return Err(ApiError::Conflict(

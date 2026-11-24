@@ -17,6 +17,7 @@ use crate::ids::{SessionId, UserId};
 
 use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::sessions::revoke_session_rows;
+use super::totp::discard_challenges;
 use super::{Store, now_ms};
 
 /// How long an issued code stays redeemable. Short, since it is meant to be
@@ -28,6 +29,8 @@ const RESET_CODE_TTL_MS: i64 = 15 * 60 * 1000;
 pub enum IssueResetError {
     /// No live account matches the given user id.
     NoSuchUser,
+    /// A bot or webhook, whose credential is its token, never a password.
+    NotAPerson,
     Internal(anyhow::Error),
 }
 
@@ -68,7 +71,7 @@ impl From<anyhow::Error> for ConsumeResetError {
 impl Store {
     /// Issues a one-time reset code for `user_id`. Returns the plaintext code
     /// (handed to the administrator once; only its hash is stored) and its
-    /// expiry.
+    /// expiry. A bot or webhook is refused: its token is its only credential.
     pub async fn issue_reset_code(
         &self,
         issued_by: UserId,
@@ -79,26 +82,29 @@ impl Store {
         let code = generate_secret();
         let hash = hash_secret(&code);
 
-        // The existence check rides inside the INSERT (as `Store::open_session`
-        // guards its device insert), leaving no gap for the account to vanish.
         let mut tx = self.begin_write().await?;
-        let inserted = sqlx::query!(
+        let target = sqlx::query!(
+            r#"SELECT is_bot AS "is_bot!: bool", is_webhook AS "is_webhook!: bool"
+               FROM users WHERE id = ? AND deleted_at IS NULL"#,
+            user_id
+        )
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or(IssueResetError::NoSuchUser)?;
+        if target.is_bot || target.is_webhook {
+            return Err(IssueResetError::NotAPerson);
+        }
+        sqlx::query!(
             "INSERT INTO password_reset_codes (code_hash, user_id, issued_by, issued_at, expires_at)
-             SELECT ?, ?, ?, ?, ?
-             WHERE EXISTS (SELECT 1 FROM users WHERE id = ? AND deleted_at IS NULL)",
+             VALUES (?, ?, ?, ?, ?)",
             hash,
             user_id,
             issued_by,
             now,
-            expires_at,
-            user_id
+            expires_at
         )
         .execute(&mut *tx)
-        .await?
-        .rows_affected();
-        if inserted == 0 {
-            return Err(IssueResetError::NoSuchUser);
-        }
+        .await?;
         record_moderation_audit(
             &mut tx,
             ModerationAudit {
@@ -115,26 +121,27 @@ impl Store {
         Ok((code, expires_at))
     }
 
-    /// Whether a reset code could currently be spent, without spending it.
+    /// Who issued a reset code that could currently be spent, without spending it.
     ///
-    /// One indexed lookup, for a caller that wants to refuse a doomed request
-    /// before paying for something expensive. Deliberately advisory: it is not
-    /// an authorization decision and races anything, which is why
-    /// [`Store::consume_reset_code`] re-checks the same conditions inside its
-    /// own transaction and remains the only thing that can spend a code. Same
-    /// two-layer shape `register` uses for the invite gate.
-    pub async fn reset_code_is_live(&self, code: &str) -> anyhow::Result<bool> {
+    /// `None` for an unknown, spent or expired code, and for one whose issuer
+    /// has since been deleted or removed. Advisory, like `register`'s invite
+    /// check: [`Store::consume_reset_code`] re-checks the same conditions in
+    /// its own transaction and alone spends a code. Whether the issuer still
+    /// holds ADMINISTRATOR is the caller's check, through the permission evaluator.
+    pub async fn reset_code_issuer(&self, code: &str) -> anyhow::Result<Option<UserId>> {
         let hash = hash_secret(code);
         let now = now_ms();
-        let found = sqlx::query_scalar!(
-            r#"SELECT 1 AS "one!: i64" FROM password_reset_codes
-               WHERE code_hash = ? AND used_at IS NULL AND expires_at > ?"#,
+        let issuer = sqlx::query_scalar!(
+            r#"SELECT c.issued_by AS "issued_by!: UserId" FROM password_reset_codes c
+               JOIN users i ON i.id = c.issued_by AND i.deleted_at IS NULL
+               WHERE c.code_hash = ? AND c.used_at IS NULL AND c.expires_at > ?
+                 AND NOT EXISTS (SELECT 1 FROM space_removals r WHERE r.user_id = c.issued_by)"#,
             hash,
             now
         )
         .fetch_optional(&self.pool)
         .await?;
-        Ok(found.is_some())
+        Ok(issuer)
     }
 
     /// Spends a reset code exactly once, setting a new password hash and
@@ -153,6 +160,10 @@ impl Store {
     /// transaction means a failure anywhere in the middle rolls the whole
     /// thing back: the code stays live and the caller can simply try again.
     ///
+    /// A code is only as good as its issuer's standing, so one whose issuer
+    /// was since deleted or removed is refused like a spent one. Spending a
+    /// code also spends every sibling and drops pending two-factor challenges.
+    ///
     /// The transaction opens with [`Store::begin_write`]. The claiming
     /// `UPDATE` is its first statement either way, so no read precedes the
     /// write lock.
@@ -168,6 +179,9 @@ impl Store {
         let claimed = sqlx::query!(
             r#"UPDATE password_reset_codes SET used_at = ?
                WHERE code_hash = ? AND used_at IS NULL AND expires_at > ?
+                 AND issued_by IN (SELECT id FROM users WHERE deleted_at IS NULL)
+                 AND NOT EXISTS (SELECT 1 FROM space_removals r WHERE r.user_id = issued_by)
+                 AND user_id IN (SELECT id FROM users WHERE is_bot = 0 AND is_webhook = 0)
                RETURNING user_id AS "user_id!: UserId""#,
             now,
             hash,
@@ -197,6 +211,8 @@ impl Store {
             });
         }
 
+        retire_password_proofs(&mut tx, claimed.user_id, now).await?;
+
         let live_sessions: Vec<SessionId> = sqlx::query!(
             r#"SELECT id AS "id!: SessionId" FROM sessions
                WHERE user_id = ? AND revoked_at IS NULL"#,
@@ -218,7 +234,8 @@ impl Store {
     }
 
     /// Sets a new password hash and revokes every live session except
-    /// `keep`, the one that made the change, in one transaction.
+    /// `keep`, the one that made the change, in one transaction. Pending
+    /// two-factor challenges and unspent reset codes go with the old password.
     ///
     /// Returns the revoked sessions so the caller can close their sockets.
     pub async fn change_password(
@@ -236,6 +253,7 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        retire_password_proofs(&mut tx, user_id, now).await?;
         let others: Vec<SessionId> = sqlx::query!(
             r#"SELECT id AS "id!: SessionId" FROM sessions
                WHERE user_id = ? AND revoked_at IS NULL AND id != ?"#,
@@ -253,4 +271,22 @@ impl Store {
         tx.commit().await?;
         Ok(others)
     }
+}
+
+/// Retires what was proven against the password being replaced: pending
+/// two-factor sign-ins and every reset code still unspent.
+async fn retire_password_proofs(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    user_id: UserId,
+    now: i64,
+) -> anyhow::Result<()> {
+    discard_challenges(tx, user_id).await?;
+    sqlx::query!(
+        "UPDATE password_reset_codes SET used_at = ? WHERE user_id = ? AND used_at IS NULL",
+        now,
+        user_id
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
 }

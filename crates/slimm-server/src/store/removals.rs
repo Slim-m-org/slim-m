@@ -61,7 +61,8 @@ impl From<anyhow::Error> for RemoveMemberError {
 
 impl Store {
     /// Removes a member and tears down their live access, returning the
-    /// sessions that were revoked so the caller can close those sockets.
+    /// sessions that were revoked so the caller can close those sockets: their
+    /// own, and those behind the bot tokens they were shown.
     ///
     /// Write-first under `BEGIN IMMEDIATE`, so a sign-in racing this
     /// serializes against it the same way one racing an account deletion
@@ -209,6 +210,69 @@ async fn unrevoke_live_bot_session(
     Ok(())
 }
 
+/// Revokes the live bot tokens `user_id` was shown when minting or reissuing
+/// them, and returns their sessions. The bots stay, for an administrator to re-key.
+///
+/// A host-run connector's token never left the host, and a bot's own token is
+/// left to the bot rule in [`Store::restore_to_space`].
+async fn revoke_bot_tokens_shown_to(
+    tx: &mut SqliteConnection,
+    user_id: UserId,
+    now: i64,
+) -> Result<Vec<SessionId>, RemoveMemberError> {
+    let sessions: Vec<SessionId> = sqlx::query_scalar!(
+        r#"UPDATE bot_tokens SET revoked_at = ?
+           WHERE created_by = ? AND revoked_at IS NULL AND bot_user_id != ?
+             AND NOT EXISTS (
+               SELECT 1 FROM installed_modules m
+               JOIN connector_host_runs h ON h.module_id = m.id
+               WHERE m.bot_user_id = bot_tokens.bot_user_id
+             )
+           RETURNING session_id AS "session_id!: SessionId""#,
+        now,
+        user_id,
+        user_id
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+    for session_id in &sessions {
+        revoke_session_rows(tx, *session_id, now).await?;
+    }
+    Ok(sessions)
+}
+
+/// Revokes the webhooks whose current URL `user_id` was shown, the way an
+/// administrator's revoke does, recording each as `removed_by`'s act.
+async fn revoke_webhooks_shown_to(
+    tx: &mut SqliteConnection,
+    user_id: UserId,
+    removed_by: UserId,
+    now: i64,
+) -> Result<(), RemoveMemberError> {
+    let principals: Vec<UserId> = sqlx::query_scalar!(
+        r#"DELETE FROM webhooks WHERE token_issued_by = ?
+           RETURNING user_id AS "user_id!: UserId""#,
+        user_id
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+    for principal in principals {
+        record_moderation_audit(
+            tx,
+            ModerationAudit {
+                actor_id: removed_by,
+                subject_id: principal,
+                action: ModerationAction::WebhookRevoke,
+                reason: Some("its URL was held by a removed member"),
+                until: None,
+                created_at: now,
+            },
+        )
+        .await?;
+    }
+    Ok(())
+}
+
 /// One removal, inside a transaction the caller owns.
 ///
 /// Split out so the bulk path in [`super::members_bulk`] runs exactly this and
@@ -255,7 +319,7 @@ pub(super) async fn remove_one(
         return Err(RemoveMemberError::LastAdministrator);
     }
 
-    let revoked: Vec<SessionId> = sqlx::query!(
+    let mut revoked: Vec<SessionId> = sqlx::query!(
         r#"SELECT id AS "id!: SessionId" FROM sessions
            WHERE user_id = ? AND revoked_at IS NULL"#,
         user_id
@@ -277,6 +341,8 @@ pub(super) async fn remove_one(
     )
     .execute(&mut *tx)
     .await?;
+    revoked.extend(revoke_bot_tokens_shown_to(tx, user_id, now).await?);
+    revoke_webhooks_shown_to(tx, user_id, removed_by, now).await?;
 
     record_moderation_audit(
         tx,

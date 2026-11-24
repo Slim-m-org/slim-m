@@ -84,6 +84,9 @@ async fn issue(
     match state.store.issue_reset_code(ctx.user_id, user_id).await {
         Ok((code, expires_at)) => Ok(Json(ResetCodeIssued { code, expires_at })),
         Err(IssueResetError::NoSuchUser) => Err(ApiError::NotFound("user not found")),
+        Err(IssueResetError::NotAPerson) => Err(ApiError::Conflict(
+            "a bot or webhook signs in with its token; reissue that instead",
+        )),
         Err(IssueResetError::Internal(e)) => Err(e.into()),
     }
 }
@@ -113,8 +116,7 @@ async fn reset(
 ) -> Result<StatusCode, ApiError> {
     validate_password(&req.new_password)?;
 
-    // Advisory and racy; consume_reset_code re-checks and alone spends a code.
-    if !state.store.reset_code_is_live(&req.code).await? {
+    if !issuer_still_stands(&state, &req.code).await? {
         return Err(ApiError::BadRequest("that reset code cannot be used"));
     }
 
@@ -132,6 +134,17 @@ async fn reset(
         }
         Err(ConsumeResetError::Internal(e)) => Err(e.into()),
     }
+}
+
+/// Whether `code` is live and its issuer still holds ADMINISTRATOR, the bit
+/// that let them issue it. Advisory and racy; `consume_reset_code` re-checks
+/// the code and its issuer's account, and alone spends a code.
+async fn issuer_still_stands(state: &AppState, code: &str) -> Result<bool, ApiError> {
+    let Some(issuer) = state.store.reset_code_issuer(code).await? else {
+        return Ok(false);
+    };
+    let held = state.store.base_permissions(issuer).await?;
+    Ok(held.contains(Permissions::ADMINISTRATOR))
 }
 
 /// Changes the caller's own password against the current one, and the current

@@ -491,7 +491,7 @@ async fn delete_recovery_codes(
 
 /// Drops any outstanding sign-in challenge, so a factor that has just been
 /// removed or re-keyed cannot be met by a challenge minted against the old one.
-async fn discard_challenges(
+pub(super) async fn discard_challenges(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     user_id: UserId,
 ) -> anyhow::Result<()> {

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Proof that the caller holds more than a session token, for the changes a
 //! stolen token must not be able to make (decision 0048): turning two-factor on,
-//! deleting the account, and an administrator issuing a reset code or clearing
-//! another member's two-factor.
+//! deleting the account, an administrator issuing a reset code or clearing
+//! another member's two-factor, and minting a token that holds ADMINISTRATOR.
 //!
 //! A wrong password is a 403, never a 401: a 401 reads to a client as "your
 //! session ended" and signs the member out for mistyping.
@@ -11,6 +11,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::totp::factor_result;
 use crate::ids::UserId;
+use crate::permissions::Permissions;
 
 /// Refuses unless `password` is the account's current password.
 ///
@@ -51,7 +52,7 @@ pub(super) async fn require_password(
     }
 }
 
-#[derive(serde::Deserialize, Default)]
+#[derive(serde::Deserialize)]
 struct PasswordBody {
     #[serde(default)]
     password: Option<String>,
@@ -70,12 +71,31 @@ pub(super) async fn require_admin_password(
     if state.store.is_bot(user_id).await? {
         return Ok(());
     }
-    let parsed: PasswordBody = if body.iter().all(u8::is_ascii_whitespace) {
-        PasswordBody::default()
-    } else {
-        serde_json::from_slice(body).map_err(|_| ApiError::BadRequest("invalid JSON body"))?
-    };
-    require_password(state, user_id, parsed.password.as_deref()).await
+    require_password(state, user_id, password_in_body(body)?.as_deref()).await
+}
+
+/// The optional `password` of a JSON body that may also be empty.
+pub(super) fn password_in_body(body: &[u8]) -> Result<Option<String>, ApiError> {
+    if body.iter().all(u8::is_ascii_whitespace) {
+        return Ok(None);
+    }
+    let parsed: PasswordBody =
+        serde_json::from_slice(body).map_err(|_| ApiError::BadRequest("invalid JSON body"))?;
+    Ok(parsed.password)
+}
+
+/// The password gate for a person minting, re-keying or raising a token that
+/// will hold ADMINISTRATOR, since that token outlives every session and password change.
+pub(super) async fn require_password_for_admin_token(
+    state: &AppState,
+    user_id: UserId,
+    grants: Permissions,
+    password: Option<&str>,
+) -> Result<(), ApiError> {
+    if !grants.contains(Permissions::ADMINISTRATOR) {
+        return Ok(());
+    }
+    require_password(state, user_id, password).await
 }
 
 /// Refuses unless a second factor is off, or `code` is a current code or an

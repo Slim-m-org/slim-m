@@ -67,6 +67,20 @@ pub async fn admin(store: &Store, username: &str) -> (UserId, String) {
     (account.id, token)
 }
 
+/// The password [`admin_with_password`] signs up with, which [`create_bot`] always sends.
+pub const PASSWORD: &str = "correct-horse-battery";
+
+/// [`admin`] with a real password, for a route that asks for it.
+pub async fn admin_with_password(store: &Store, username: &str) -> (UserId, String) {
+    let auth = slimm_server::auth::Auth::new(2).unwrap();
+    let hash = auth.hash_password(PASSWORD.to_owned()).await.unwrap();
+    let account = store.create_account(username, username, &hash).await;
+    let account = account.unwrap();
+    store.bootstrap_deployment(account.id).await.unwrap();
+    let session = store.open_session(account.id, "cli").await.unwrap();
+    (account.id, session.access_token)
+}
+
 /// Makes a member created for it the Space owner, who holds every permission, and ranks `caller`
 /// above the Bots role, so `caller` manages bots with only what their roles grant.
 pub async fn someone_else_owns(store: &Store, pool: &SqlitePool, caller: UserId) {
@@ -105,7 +119,7 @@ pub async fn create_bot(
             "POST",
             "/bots",
             token,
-            Some(json!({ "username": username, "permissions": permissions })),
+            Some(json!({ "username": username, "permissions": permissions, "password": PASSWORD })),
         ))
         .await
         .unwrap();

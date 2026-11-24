@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE webhooks SET token_issued_by = NULL WHERE token_issued_by = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "bde45c56731575d9dd2d4244674c911187f3da18a2e42ff495ef10b1e16d7093"
+}

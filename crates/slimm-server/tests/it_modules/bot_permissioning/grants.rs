@@ -9,7 +9,8 @@ use slimm_server::permissions::Permissions;
 use tower::ServiceExt;
 
 use crate::bot_permissioning::harness::{
-    admin, app, create_bot, harness, json_body, member, request, someone_else_owns,
+    admin, admin_with_password, app, create_bot, harness, json_body, member, request,
+    someone_else_owns,
 };
 
 /// An admin may grant a bot only bits they hold themselves.
@@ -61,7 +62,7 @@ async fn creating_a_bot_can_grant_a_permission_the_caller_holds() {
 #[tokio::test]
 async fn a_bot_can_be_created_with_administrator_when_the_caller_holds_it() {
     let (store, _pool, _guard) = harness("slimm-bot-perm-admin-create-ok").await;
-    let (_admin_id, root) = admin(&store, "root").await;
+    let (_admin_id, root) = admin_with_password(&store, "root").await;
     let app = app(store.clone());
 
     let (bot_id, _token, status) =
@@ -83,7 +84,7 @@ async fn a_bot_can_be_created_with_administrator_when_the_caller_holds_it() {
 #[tokio::test]
 async fn an_administrator_bot_can_issue_a_reset_code() {
     let (store, _pool, _guard) = harness("slimm-bot-perm-admin-parity-reset").await;
-    let (_admin_id, root) = admin(&store, "root").await;
+    let (_admin_id, root) = admin_with_password(&store, "root").await;
     let (target_id, _target_token) = member(&store, "victim").await;
     let app = app(store.clone());
 

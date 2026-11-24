@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT c.issued_by AS \"issued_by!: UserId\" FROM password_reset_codes c\n               JOIN users i ON i.id = c.issued_by AND i.deleted_at IS NULL\n               WHERE c.code_hash = ? AND c.used_at IS NULL AND c.expires_at > ?\n                 AND NOT EXISTS (SELECT 1 FROM space_removals r WHERE r.user_id = c.issued_by)",
+  "describe": {
+    "columns": [
+      {
+        "name": "issued_by!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "password_reset_codes",
+            "name": "issued_by"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "adac866d114ac4881802819a440702e465cc06a6dc38ce7e0c938fb1020cf587"
+}
