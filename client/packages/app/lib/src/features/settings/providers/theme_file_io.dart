@@ -43,8 +43,13 @@ Future<ThemeFilePick?> _pick() async {
 Future<bool> _save(String fileName, List<int> bytes) async {
   final target = await openDownloadTarget(fileName);
   if (target == null) return false;
-  await target.write(bytes);
-  return target.finish();
+  try {
+    await target.write(bytes);
+    return await target.finish();
+  } catch (_) {
+    await target.discard();
+    rethrow;
+  }
 }
 
 /// The name an exported theme is saved under.

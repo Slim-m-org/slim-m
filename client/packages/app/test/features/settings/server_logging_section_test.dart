@@ -4,6 +4,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,6 +40,7 @@ Future<void> _frames(WidgetTester tester) async {
 class _Server {
   String mode = 'off';
   bool filesEnabled = true;
+  bool saveThrows = false;
   final patches = <Map<String, dynamic>>[];
   final saved = <String, String>{};
 }
@@ -89,6 +91,7 @@ Future<_Server> _open(
         return built;
       }),
       themeFileSaverProvider.overrideWithValue((name, bytes) async {
+        if (server.saveThrows) throw const FileSystemException('read-only');
         server.saved[name] = utf8.decode(bytes);
         return true;
       }),
@@ -161,5 +164,21 @@ void main() {
 
     expect(server.saved, isEmpty);
     expect(find.text('This server keeps no log files.'), findsOneWidget);
+  });
+
+  testWidgets('a save that throws clears the spinner and shows an error', (
+    tester,
+  ) async {
+    final server = await _open(tester);
+    server.saveThrows = true;
+
+    await tester.tap(find.bySemanticsLabel('Download server logs'));
+    await _frames(tester);
+
+    expect(find.text('Could not save the server logs.'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate((w) => w is AppButton && w.busy),
+      findsNothing,
+    );
   });
 }
