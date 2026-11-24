@@ -16,7 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import '../../voice/providers/voice_notification_controller.dart';
 import '../../settings/providers/notification_schedule_controller.dart';
-import '../providers/dms.dart' show dmChannelKind;
+import '../providers/dms.dart' show dmChannelKind, hideDmConversation;
 import '../../../providers/providers.dart';
 import '../../../widgets/menu_outcome.dart';
 import '../../messages/widgets/mark_read_action.dart';
@@ -33,6 +33,18 @@ Future<void> _say(
   final failure = await runGuarded(whatFailed: whatFailed, action: action);
   if (failure != null && context.mounted) showMenuFailure(context, failure);
 }
+
+/// Hides the DM with [peerId], saying so on the row's context if it fails.
+Future<void> closeConversation(
+  BuildContext context,
+  ProviderContainer container,
+  String peerId,
+  String channelId,
+) => _say(
+  context,
+  'close the conversation',
+  () => hideDmConversation(container, peerId, channelId),
+);
 
 /// "Mark as read" while [channel] shows a badge, otherwise "Mark as unread" (only when the newest message is under an hour old); never both.
 AppMenuItem? markReadStateMenuItem(

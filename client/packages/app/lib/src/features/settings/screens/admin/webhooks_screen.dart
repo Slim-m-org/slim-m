@@ -57,7 +57,18 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
   ({api.NewWebhook created, Uri url})? _justCreated;
 
   @override
+  void initState() {
+    super.initState();
+    _label.addListener(_labelChanged);
+  }
+
+  void _labelChanged() => setState(() {});
+
+  bool get _ready => _channel != null && _label.text.trim().isNotEmpty;
+
+  @override
   void dispose() {
+    _label.removeListener(_labelChanged);
     _label.dispose();
     super.dispose();
   }
@@ -147,7 +158,7 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
                     maxLength: api.InputLimits.name,
                     controller: _label,
                     semanticLabel: 'Webhook label',
-                    onSubmitted: (_) => _busy ? null : _create(),
+                    onSubmitted: (_) => _busy || !_ready ? null : _create(),
                   ),
                 ),
                 Align(
@@ -155,7 +166,7 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
                   child: AppButton(
                     label: ActionLabels.createWebhook,
                     variant: AppButtonVariant.primary,
-                    onPressed: _busy ? null : _create,
+                    onPressed: _busy || !_ready ? null : _create,
                   ),
                 ),
                 if (actionError case final error?)

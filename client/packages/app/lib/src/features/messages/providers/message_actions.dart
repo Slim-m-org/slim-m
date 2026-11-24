@@ -429,6 +429,12 @@ Future<void> sendOptimistically(
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.ui, 'send the message', e, stack);
       await store.markFailed(id, reason: _sendFailureReason(e));
+    } on Object catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'send the message', e, stack);
+      await store.markFailed(
+        id,
+        reason: 'Could not send the message. Retry it.',
+      );
     }
   } finally {
     slot.release();

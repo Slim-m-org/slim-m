@@ -103,6 +103,7 @@ Future<FirstRunRig> pumpFirstRun(
   bool description = true,
   bool icon = false,
   Uint8List? banner,
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
@@ -129,6 +130,7 @@ Future<FirstRunRig> pumpFirstRun(
         (pattern, {required accountId, required base}) async => png,
       ),
       fakeMicPreview(FakeMicSource()),
+      ...overrides,
       sessionProvider.overrideWithValue(
         api.SessionStore(
           tokens: const api.TokenPair(

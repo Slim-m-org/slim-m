@@ -34,6 +34,8 @@ Future<String?> runGuarded({
     return null;
   } on api.ApiException catch (e, s) {
     return reportFailureSentence(api.LogTag.ui, whatFailed, e, s);
+  } on Object catch (e, s) {
+    return reportFailureSentence(api.LogTag.ui, whatFailed, e, s);
   }
 }
 

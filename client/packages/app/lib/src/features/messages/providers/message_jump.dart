@@ -99,6 +99,22 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
   Future<void> jumpTo(String channelId, String messageId) async {
     final token = ++_token;
     state = MessageJumpSeeking(channelId, messageId, token);
+    try {
+      await _seek(channelId, messageId, token);
+    } on Object catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'Could not jump to a message',
+        error,
+        stack,
+      );
+      if (mounted && _token == token) {
+        state = MessageJumpFailed(channelId, messageId, token);
+      }
+    }
+  }
+
+  Future<void> _seek(String channelId, String messageId, int token) async {
     final store = await _ref.read(storeProvider.future);
     final history = _ref.read(channelHistoryProvider(channelId).notifier);
     final maxPages = _maxPages;

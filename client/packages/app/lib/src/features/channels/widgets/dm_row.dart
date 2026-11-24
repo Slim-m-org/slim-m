@@ -40,7 +40,6 @@ import '../../members/providers/blocks_controller.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import '../../voice/providers/dm_call_activity.dart';
 import '../providers/dm_departure.dart';
-import '../providers/dms.dart';
 import '../../../providers/providers.dart' show sessionProvider;
 import 'group_avatar_stack.dart';
 import 'group_dm_members_sheet.dart';
@@ -119,8 +118,12 @@ class DmRow extends ConsumerWidget {
         AppMenuItem(
           label: 'Close DM',
           leading: AppIcons.dismiss,
-          onTap: () =>
-              run(() => hideDmConversation(container, peerId, channel.id)),
+          onTap: () {
+            close();
+            unawaited(
+              closeConversation(context, container, peerId, channel.id),
+            );
+          },
         ),
       if (markRead != null) ...[markRead, const AppMenuDivider()],
       notificationsMenuItem(
