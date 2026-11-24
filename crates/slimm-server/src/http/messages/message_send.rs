@@ -214,6 +214,7 @@ pub(super) async fn send(
                 presence: state.hub.presence(),
                 reply_ping,
                 mass_authority: Some(ctx.user_id),
+                mention_only: None,
             },
         );
         // A no-op for an ordinary channel; see `threads::notify_reply`.

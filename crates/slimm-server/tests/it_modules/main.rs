@@ -93,6 +93,7 @@ mod module_slot_lane;
 mod module_slots;
 mod module_timer_channels;
 mod module_timers;
+mod webhook_delivery_contract;
 mod webhook_embeds;
 mod webhook_never_authenticates;
 mod webhook_username_label;

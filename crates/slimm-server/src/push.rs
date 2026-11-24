@@ -323,6 +323,8 @@ pub struct SentMessage {
     /// Whose `MENTION_EVERYONE` decides how far `@everyone`, `@here` and role mentions reach.
     /// The author for what they wrote; `None` gives text they did not write no mass reach.
     pub mass_authority: Option<UserId>,
+    /// When set, only these members are pushed as mentioned.
+    pub mention_only: Option<Vec<UserId>>,
 }
 
 #[cfg(test)]

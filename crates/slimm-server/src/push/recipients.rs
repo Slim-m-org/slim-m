@@ -77,26 +77,36 @@ pub async fn message_recipients(
         author_id,
         content,
         presence,
-        None,
-        Some(author_id),
+        MentionReach {
+            mass_authority: Some(author_id),
+            ..MentionReach::default()
+        },
     )
     .await?;
     Ok(recipients)
 }
 
+/// How far a message's mentions reach beyond the names written in it.
+#[derive(Default)]
+pub(crate) struct MentionReach {
+    /// The replied-to author a reply chose to ping.
+    pub reply_ping: Option<UserId>,
+    /// Whose [`Permissions::MENTION_EVERYONE`] decides how far a mass or role mention goes: the
+    /// author for what they typed, someone else or `None` for text they did not.
+    pub mass_authority: Option<UserId>,
+    /// When set, only these members can end up mentioned; it narrows and never adds.
+    pub only: Option<Vec<UserId>>,
+}
+
 /// [`message_recipients`] plus who among everyone the message mentions, so a mention can be
 /// pushed as one.
-///
-/// `mass_authority` is whose [`Permissions::MENTION_EVERYONE`] decides how far a mass or role
-/// mention goes: the author for what they typed, someone else or `None` for text they did not.
 pub(crate) async fn message_audience(
     store: &Store,
     channel_id: ChannelId,
     author_id: UserId,
     content: &str,
     presence: &PresenceTracker,
-    reply_ping: Option<UserId>,
-    mass_authority: Option<UserId>,
+    reach: MentionReach,
 ) -> anyhow::Result<(Vec<UserId>, HashSet<UserId>)> {
     // A lobby's own chat is never on screen (decision 0065), so nothing in it wakes anyone.
     if store
@@ -117,14 +127,17 @@ pub(crate) async fn message_audience(
     let mut mentioned = resolved_mentions(
         store,
         channel_id,
-        mass_authority,
+        reach.mass_authority,
         content,
         &viewers,
         presence,
     )
     .await?;
     // A reply's ping was already checked against the channel at send; it still needs a device and no block.
-    mentioned.extend(reply_ping.filter(|pinged| viewers.contains(pinged)));
+    mentioned.extend(reach.reply_ping.filter(|pinged| viewers.contains(pinged)));
+    if let Some(only) = &reach.only {
+        mentioned.retain(|user| only.contains(user));
+    }
     // Resolved once: both steps below ask the same "is this a thread, and whose" question.
     let parent = store.thread_parent(channel_id).await?;
     let viewers =
