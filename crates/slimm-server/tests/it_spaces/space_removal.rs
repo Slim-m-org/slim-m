@@ -206,6 +206,11 @@ async fn a_removed_member_does_not_count_toward_member_count() {
 async fn their_unspent_invites_are_revoked() {
     let (s, _guard) = store().await;
     let (admin, member) = deployment(&s).await;
+    let inviters = s
+        .create_role("inviters", Permissions::CREATE_INVITE, false)
+        .await
+        .unwrap();
+    s.assign_role(member.id, inviters).await.unwrap();
 
     let invite = s.create_invite(member.id, None, None, None).await.unwrap();
     assert!(matches!(
