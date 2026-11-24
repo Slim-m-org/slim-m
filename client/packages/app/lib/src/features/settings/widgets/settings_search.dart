@@ -118,6 +118,7 @@ class _SettingsSearchAreaState extends State<SettingsSearchArea> {
   final _controller = TextEditingController();
   List<SettingsEntry> _results = const [];
   int _cursor = 0;
+  final _rowKeys = <int, GlobalKey>{};
 
   @override
   void dispose() {
@@ -129,6 +130,14 @@ class _SettingsSearchAreaState extends State<SettingsSearchArea> {
     _results = searchSettings(query, widget.entries);
     _cursor = 0;
   });
+
+  void _moveCursor(int step) {
+    setState(() => _cursor = (_cursor + step) % _results.length);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final row = _rowKeys[_cursor]?.currentContext;
+      if (row != null && row.mounted) unawaited(Scrollable.ensureVisible(row));
+    });
+  }
 
   void _clear() {
     _controller.clear();
@@ -151,9 +160,9 @@ class _SettingsSearchAreaState extends State<SettingsSearchArea> {
     }
     if (_results.isEmpty) return KeyEventResult.ignored;
     if (key == LogicalKeyboardKey.arrowDown) {
-      setState(() => _cursor = (_cursor + 1) % _results.length);
+      _moveCursor(1);
     } else if (key == LogicalKeyboardKey.arrowUp) {
-      setState(() => _cursor = (_cursor - 1) % _results.length);
+      _moveCursor(-1);
     } else if (key == LogicalKeyboardKey.enter) {
       _open(_results[_cursor]);
     } else {
@@ -196,32 +205,45 @@ class _SettingsSearchAreaState extends State<SettingsSearchArea> {
               : _results.isEmpty
               ? Padding(
                   padding: widget.padding,
-                  child: Text(
-                    'No settings match',
-                    style: AppText.caption.copyWith(
-                      color: tokens.textSecondary,
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      'No settings match',
+                      style: AppText.caption.copyWith(
+                        color: tokens.textSecondary,
+                      ),
                     ),
                   ),
                 )
-              : ListView(
-                  padding: widget.padding.copyWith(top: 0),
-                  children: [
-                    for (final (i, entry) in _results.indexed)
-                      AppListRow(
-                        key: ValueKey(
-                          'settings-result-${entry.pane}-${entry.label}',
-                        ),
-                        label: entry.label,
-                        subtitle: _where(entry),
-                        selected: i == _cursor,
-                        onTap: () => _open(entry),
-                      ),
-                  ],
-                ),
+              : _resultList(),
         ),
       ],
     );
   }
+
+  Widget _resultList() => ListView(
+    padding: widget.padding.copyWith(top: 0),
+    // Every row stays built so the cursor can scroll to one far below the fold.
+    cacheExtent: 100000,
+    children: [
+      Semantics(
+        liveRegion: true,
+        label: _results.length == 1 ? '1 result' : '${_results.length} results',
+        child: const SizedBox(width: 1, height: 1),
+      ),
+      for (final (i, entry) in _results.indexed)
+        KeyedSubtree(
+          key: _rowKeys.putIfAbsent(i, GlobalKey.new),
+          child: AppListRow(
+            key: ValueKey('settings-result-${entry.pane}-${entry.label}'),
+            label: entry.label,
+            subtitle: _where(entry),
+            selected: i == _cursor,
+            onTap: () => _open(entry),
+          ),
+        ),
+    ],
+  );
 
   String _where(SettingsEntry entry) {
     final section = widget.paneLabels[entry.pane] ?? entry.pane;

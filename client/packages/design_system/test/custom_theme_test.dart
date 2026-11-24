@@ -27,6 +27,28 @@ void main() {
     });
   }
 
+  test('a base of the other brightness keeps code and status legible', () {
+    final doc = ThemeDocument.of(
+      AppTokens.light,
+      name: 'Paper',
+      author: 'me',
+      base: 'dark',
+      brightness: Brightness.light,
+    );
+    expect(doc.tokens.code, AppTokens.light.code);
+    expect(doc.tokens.status, AppTokens.light.status);
+    expect(doc.tokens.surfaceBase, AppTokens.light.surfaceBase);
+
+    final same = ThemeDocument.of(
+      AppTokens.forest,
+      name: 'Pine',
+      author: 'me',
+      base: 'forest',
+      brightness: Brightness.dark,
+    );
+    expect(same.tokens.code, AppTokens.forest.code);
+  });
+
   test('a document round-trips, picture and effect included', () {
     final bytes = Uint8List.fromList([1, 2, 3]);
     final doc = ThemeDocument.of(

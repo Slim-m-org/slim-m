@@ -138,8 +138,11 @@ class _NameSheetState extends ConsumerState<_NameSheet>
     setState(() => _busy = true);
     final ok = await guard(whatFailed: whatFailed, action: action);
     if (!mounted) return;
+    if (ok) {
+      Navigator.of(context).pop(true);
+      return;
+    }
     setState(() => _busy = false);
-    if (ok) Navigator.of(context).pop(true);
   }
 
   Future<void> _save() {

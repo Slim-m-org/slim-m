@@ -51,6 +51,9 @@ class NameEntrySheet extends StatefulWidget {
 class _NameEntrySheetState extends State<NameEntrySheet> {
   final _name = TextEditingController();
   bool _submitting = false;
+
+  /// Stays set once the sheet is popping, so its exit animation cannot take a second submit.
+  bool _closing = false;
   String? _error;
 
   String get _label =>
@@ -80,6 +83,7 @@ class _NameEntrySheetState extends State<NameEntrySheet> {
     try {
       final afterClose = await widget.onCreate(_name.text.trim());
       if (!mounted) return;
+      _closing = true;
       Navigator.of(context).pop();
       afterClose?.call();
     } on api.ApiException catch (e, stack) {
@@ -94,7 +98,7 @@ class _NameEntrySheetState extends State<NameEntrySheet> {
       if (mounted) setState(() => _error = e.message);
     } finally {
       // Any escape, not just ApiException, must not wedge "Creating..." on.
-      if (mounted) setState(() => _submitting = false);
+      if (mounted && !_closing) setState(() => _submitting = false);
     }
   }
 

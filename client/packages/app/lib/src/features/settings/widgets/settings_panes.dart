@@ -86,9 +86,13 @@ class SettingsPanesScaffold extends StatefulWidget {
   State<SettingsPanesScaffold> createState() => _SettingsPanesScaffoldState();
 }
 
+/// Past the target's own fade, so only a highlight nobody consumed is cleared.
+const _highlightExpiryDelay = Duration(seconds: 3);
+
 class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
   late String? _selectedId = widget.initialPaneId;
   final _highlight = ValueNotifier<String?>(null);
+  Timer? _highlightExpiry;
   final _stacks = <String, SettingsSubPageStack>{};
   final _pageKeys = Expando<GlobalKey>();
 
@@ -104,6 +108,7 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
 
   @override
   void dispose() {
+    _highlightExpiry?.cancel();
     _highlight.dispose();
     for (final stack in _stacks.values) {
       stack.dispose();
@@ -201,9 +206,9 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
     _openPages(widget.initialPaneId, widget.initialPageId);
   }
 
-  /// Runs [then] once the open page and any pane draft let go; every stack is cleared first.
-  Future<void> _leave(VoidCallback then) async {
-    if (!await _stacksLetGo()) return;
+  /// Runs [then] once the open page and any pane draft let go, and says whether it ran; every stack is cleared first.
+  Future<bool> _leave(VoidCallback then) async {
+    if (!await _stacksLetGo()) return false;
     _quietly(() {
       for (final s in _stacks.values) {
         s.clear();
@@ -211,6 +216,25 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
     });
     _toldPage = null;
     then();
+    return true;
+  }
+
+  Future<void> _openFromSearch(
+    SettingsEntry entry,
+    Future<bool> Function(String id) select,
+  ) async {
+    _highlightExpiry?.cancel();
+    _highlight.value = entry.label;
+    final opened = await select(entry.pane);
+    if (!mounted) return;
+    if (!opened) {
+      _highlight.value = null;
+      return;
+    }
+    // A target that never mounted would otherwise light up whenever it is first built.
+    _highlightExpiry = Timer(_highlightExpiryDelay, () {
+      if (_highlight.value == entry.label) _highlight.value = null;
+    });
   }
 
   void _close() =>
@@ -302,17 +326,17 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
 
     if (!wide && selected != null) return _compactPane(selected, stack!);
 
-    void onSelect(String id) => unawaited(
-      _leave(() {
-        final pane = panes.where((p) => p.id == id).firstOrNull;
-        final route = pane?.compactRoute;
-        if (!wide && route != null) {
-          context.push(route);
-          return;
-        }
-        _select(id);
-      }),
-    );
+    Future<bool> select(String id) => _leave(() {
+      final pane = panes.where((p) => p.id == id).firstOrNull;
+      final route = pane?.compactRoute;
+      if (!wide && route != null) {
+        context.push(route);
+        return;
+      }
+      _select(id);
+    });
+
+    void onSelect(String id) => unawaited(select(id));
 
     final nav = SettingsPanesNav(
       groups: widget.groups,
@@ -325,10 +349,7 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
         for (final pane in panes) pane.id,
       }),
       onSelect: onSelect,
-      onSearchOpen: (entry) {
-        _highlight.value = entry.label;
-        onSelect(entry.pane);
-      },
+      onSearchOpen: (entry) => unawaited(_openFromSearch(entry, select)),
     );
 
     if (!wide) {
