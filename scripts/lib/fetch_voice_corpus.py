@@ -161,11 +161,14 @@ class Fetcher:
             else:
                 req = urllib.request.Request(checked_url(part["url"]), headers={"User-Agent": AGENT})
                 data = _retry(lambda req=req: urllib.request.urlopen(req, timeout=180).read())
-            with open(path, "wb") as fh:
+            partial = path + ".part"
+            with open(partial, "wb") as fh:
                 fh.write(data)
-            if not part.get("sha256") or sha256_file(path) == part["sha256"]:
+            if not part.get("sha256") or sha256_file(partial) == part["sha256"]:
+                os.replace(partial, path)
                 time.sleep(1.5)
                 return
+            os.remove(partial)
             time.sleep(10 * (attempt + 1))
         raise SystemExit(f"{part['url']}: the file no longer matches the manifest sha256")
 

@@ -163,3 +163,27 @@ class ObtainTest(CacheDirTest):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HardenedCacheTest(CacheDirTest):
+    def test_a_row_missing_a_field_discards_the_whole_cache(self):
+        bad = rows(2) + [{"username": "x", "display_name": "X"}]
+        self.path.write_text(json.dumps(bad))
+        self.assertIsNone(LA._load_cache(self.path))
+
+    def test_a_non_list_cache_is_discarded(self):
+        self.path.write_text(json.dumps({"a": 1}))
+        self.assertIsNone(LA._load_cache(self.path))
+
+    def test_a_socket_timeout_during_the_probe_falls_back_to_refresh(self):
+        class Probe:
+            token = "t"
+
+            def __init__(self, *a, **k):
+                pass
+
+            def me(self):
+                raise TimeoutError("timed out")
+
+        with mock.patch.object(LA.e2e_api, "Api", Probe):
+            self.assertEqual(LA._revive(URL, {"token": "t"}), (None, None))

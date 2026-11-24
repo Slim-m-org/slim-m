@@ -23,6 +23,7 @@ const MIX = [['history', 50], ['channels', 65], ['send', 85], ['react', 100]];
 const opMs = new Trend('op_ms', true);
 const limited = new Counter('rate_limited');
 const serverErrors = new Counter('server_errors');
+const clientErrors = new Counter('client_errors');
 
 http.setResponseCallback(http.expectedStatuses({ min: 200, max: 399 }, 429));
 
@@ -47,7 +48,7 @@ export const options = {
 
 // One p95 budget per rate step, so the first FAIL line is the knee.
 function stageThresholds() {
-  const thresholds = { server_errors: ['count==0'], dropped_iterations: ['count==0'] };
+  const thresholds = { server_errors: ['count==0'], client_errors: ['count==0'], dropped_iterations: ['count==0'] };
   ['channels', 'history', 'send', 'react'].forEach((op) => {
     thresholds[`op_ms{op:${op}}`] = [`p(95)<${P95_BUDGET_MS}`];
   });
@@ -77,6 +78,7 @@ function request(op, stage, call) {
   const res = call();
   if (res.status === 429) limited.add(1, { op });
   else if (res.status >= 500) serverErrors.add(1, { op });
+  else if (res.status < 200 || res.status >= 400) clientErrors.add(1, { op });
   else opMs.add(res.timings.duration, { op, stage: String(stage) });
   return res;
 }
@@ -104,7 +106,7 @@ export default function httpMix(world) {
 export function handleSummary(data) {
   const notes = [
     `users ${USERS}  channels ${CHANNELS}  rate steps ${STAGE_RATES.join(',')} req/s, ${STEP_SECONDS}s each after a ${RAMP_SECONDS}s ramp`,
-    'op_ms excludes 429s: a rate-limited request says nothing about the server, so it counts in rate_limited instead',
+    'op_ms excludes 429s and error statuses: they count in rate_limited, server_errors and client_errors instead',
     '',
     'per step (target req/s, achieved req/s, latency of the answered requests)',
     ...STAGE_RATES.map((rate, stage) => stageLine(data, rate, stage)),
