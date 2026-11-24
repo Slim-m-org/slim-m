@@ -376,4 +376,30 @@ void main() {
       expect(bar.width, greaterThan(100));
     });
   }
+
+  testWidgets('a label with hidden characters or too many scalars is cleaned', (
+    tester,
+  ) async {
+    final fixture = await _open(tester);
+    final document = surfaceDocument(tester);
+    final route = document.edges.routeOf(document.edges.liveEdge('e')!)!;
+    await tester.tapAt(_at(tester, route.midpoint));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    final family = '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}';
+    await tester.enterText(
+      find.byKey(canvasEdgeLabelFieldKey),
+      'a\u200Bb${family * 40}',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await waitUntil(
+      tester,
+      () => fixture.postedOps.any((o) => o['kind'] == 'edit'),
+    );
+    final label = (fixture.postedOps.single['props'] as Map)['label'] as String;
+    expect(label.startsWith('ab'), isTrue);
+    expect(label.runes.length, lessThanOrEqualTo(120));
+  });
 }

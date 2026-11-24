@@ -149,6 +149,10 @@ class CanvasSelectGesture {
       case NoteCheckTap(:final objectId, :final line):
         unawaited(_ops.toggleTask(objectId, line).then((_) => changed()));
       case NoteLinkTap(:final url):
+        // A tap that only selects the note must not leave the app.
+        if (hitTestTopmost(_document, world) != _selectedBeforeDown) {
+          return false;
+        }
         openNoteLink(ref.context, ref, url);
       case null:
         return false;

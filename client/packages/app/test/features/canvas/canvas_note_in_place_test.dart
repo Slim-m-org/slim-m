@@ -403,6 +403,58 @@ void main() {
     });
   });
 
+  group('links', () {
+    const text = 'https://example.com';
+    const launcher = MethodChannel('plugins.flutter.io/url_launcher');
+
+    Offset linkAt(WidgetTester tester) {
+      final bounds = surfaceDocument(tester).objectBounds('note')!;
+      final painter = layoutNoteText(
+        buildNoteSpans(text, const TextStyle(), _spanStyle),
+        fontSize: noteTextSizeOf(
+          noteFontSizeFor(bounds.w, bounds.h),
+          const CanvasNoteStyle(),
+        ),
+        width: bounds.w - noteWorldPad * 2,
+      );
+      final rect = painter
+          .getBoxesForSelection(
+            const TextSelection(baseOffset: 0, extentOffset: 5),
+          )
+          .first
+          .toRect();
+      return Offset(bounds.x + noteWorldPad, bounds.y + noteWorldPad) +
+          rect.center;
+    }
+
+    testWidgets('a first click selects the note and a click on it opens', (
+      tester,
+    ) async {
+      final launched = <MethodCall>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(launcher, (
+        call,
+      ) async {
+        launched.add(call);
+        return true;
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          launcher,
+          null,
+        ),
+      );
+      await _pane(tester, note: _note(text: text));
+
+      await _click(tester, linkAt(tester));
+      expect(surfaceDocument(tester).selectedObjectId.value, 'note');
+      expect(launched.where((c) => c.method == 'launch'), isEmpty);
+
+      await tester.pump(const Duration(seconds: 1));
+      await _click(tester, linkAt(tester));
+      expect(launched.where((c) => c.method == 'launch'), hasLength(1));
+    });
+  });
+
   group('task boxes', () {
     const text = '- [ ] one\n- [x] two';
 

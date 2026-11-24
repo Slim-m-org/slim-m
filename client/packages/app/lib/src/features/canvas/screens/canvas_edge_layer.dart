@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../../hidden_characters.dart';
 import '../../../widgets/control_menu_entries.dart';
 import '../../../widgets/control_swatch_row.dart';
 import '../../../providers/dock_reservation.dart';
@@ -97,11 +98,24 @@ class _CanvasEdgeLayerState extends ConsumerState<CanvasEdgeLayer> {
   void _commit() {
     final id = _editing;
     if (id == null) return;
-    final text = _label.text.trim();
+    final text = _cleanLabel(_label.text);
     _close();
     final held = _edges.liveEdge(id)?.spec.label;
     if (text == (held ?? '')) return;
     _ops.editEdge(id, {'label': text.isEmpty ? null : text});
+  }
+
+  /// What the server accepts: no hidden characters and at most [maxEdgeLabelChars] scalar values, which a grapheme count does not guarantee.
+  String _cleanLabel(String raw) {
+    var text = raw.trim();
+    if (hidesTextOutsideEmoji(text)) {
+      text = String.fromCharCodes(
+        text.runes.where((c) => !isHiddenCharacter(c)),
+      ).trim();
+    }
+    final runes = text.runes.toList();
+    if (runes.length <= maxEdgeLabelChars) return text;
+    return String.fromCharCodes(runes.take(maxEdgeLabelChars)).trim();
   }
 
   void _close() {
