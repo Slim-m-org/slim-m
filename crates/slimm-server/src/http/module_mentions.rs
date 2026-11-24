@@ -125,12 +125,12 @@ async fn resolve(
 }
 
 /// `name` with every `@` made the full-width `＠`, which the mention grammar does not read.
-fn inert(name: &str) -> String {
+pub(super) fn inert(name: &str) -> String {
     name.replace('@', "\u{FF20}")
 }
 
 /// The mention grammar drops a trailing `.` or `-`, so such a username cannot be written as one.
-fn mentionable(username: &str) -> bool {
+pub(super) fn mentionable(username: &str) -> bool {
     !username.ends_with(['.', '-'])
 }
 

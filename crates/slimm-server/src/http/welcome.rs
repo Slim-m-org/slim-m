@@ -7,16 +7,24 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use super::AppState;
-use super::message_mentions::resolve_and_store;
+use super::message_mentions::resolve_and_store_under;
+use super::module_mentions::{inert, mentionable};
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{MessageId, UserId};
 use crate::store::NewMessage;
 
-/// Fills `{user}` with an @mention and `{space}` with the deployment name.
-pub(super) fn render_welcome(template: &str, username: &str, space: &str) -> String {
-    template
-        .replace("{user}", &format!("@{username}"))
-        .replace("{space}", space)
+/// Fills `{user}` with how the joiner is named and `{space}` with the deployment name.
+pub(super) fn render_welcome(template: &str, who: &str, space: &str) -> String {
+    template.replace("{user}", who).replace("{space}", space)
+}
+
+/// An @mention, or the display name when the username ends in a character the mention grammar drops.
+fn joiner_text(username: &str, display_name: &str) -> String {
+    if mentionable(username) {
+        format!("@{username}")
+    } else {
+        inert(display_name)
+    }
 }
 
 pub(super) async fn post_welcome(state: &AppState, user_id: UserId) {
@@ -37,7 +45,11 @@ async fn try_post(state: &AppState, user_id: UserId) -> anyhow::Result<()> {
         return Ok(());
     }
     let space = state.store.deployment_name().await?;
-    let content = render_welcome(welcome.template(), &user.username, &space);
+    let content = render_welcome(
+        welcome.template(),
+        &joiner_text(&user.username, &user.display_name),
+        &space,
+    );
     let author = state.store.welcome_author().await?;
     // Derived from the joiner, so a retried join cannot welcome them twice.
     let id = MessageId(Uuid::new_v5(&user_id.0, b"slimm-welcome"));
@@ -49,13 +61,13 @@ async fn try_post(state: &AppState, user_id: UserId) -> anyhow::Result<()> {
     if !sent.fresh {
         return Ok(());
     }
-    if let Err(err) = resolve_and_store(
+    if let Err(err) = resolve_and_store_under(
         state,
         channel_id,
-        author,
+        (author, Some(author)),
         sent.message.id,
         &sent.message.content,
-        None,
+        (None, &[user_id]),
     )
     .await
     {
@@ -78,13 +90,19 @@ async fn try_post(state: &AppState, user_id: UserId) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::render_welcome;
+    use super::{joiner_text, render_welcome};
 
     #[test]
     fn fills_the_placeholders() {
         assert_eq!(
-            render_welcome("Hi {user}, welcome to {space}", "sam", "Home"),
+            render_welcome("Hi {user}, welcome to {space}", "@sam", "Home"),
             "Hi @sam, welcome to Home"
         );
+    }
+
+    #[test]
+    fn a_username_the_grammar_would_cut_is_named_not_mentioned() {
+        assert_eq!(joiner_text("sam", "Sam"), "@sam");
+        assert_eq!(joiner_text("sam.", "Sam D"), "Sam D");
     }
 }

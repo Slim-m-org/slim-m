@@ -19,8 +19,9 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::attachments::serve;
 use super::error::ApiError;
-use super::extract::{ASSET, AUTHED_READ, Authed, AuthedLimited, Bytes, Json, Query};
+use super::extract::{ASSET, AUTHED_READ, Authed, AuthedLimited, Bytes, Json, Query, UPLOAD};
 use super::extract::{enforce, require_manage_server};
+use super::manager_limited::ManagerLimited;
 use super::reaction_emoji::{self, ReactionEmoji};
 use crate::hub::Event;
 use crate::ids::{ChannelId, EmojiId, SoundClipId};
@@ -93,14 +94,11 @@ async fn list(
 }
 
 async fn upload(
-    Authed(ctx): Authed,
-    parts: Parts,
+    ManagerLimited(ctx): ManagerLimited<UPLOAD>,
     Query(params): Query<UploadParams>,
     State(state): State<AppState>,
     Bytes(body): Bytes,
 ) -> Result<(StatusCode, Json<SoundClipDto>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Upload)?;
-    require_manage_server(&state, ctx.user_id).await?;
     let emoji = params.emoji.as_deref().map(clip_emoji).transpose()?;
     super::storage_room::room_for(&state, body.len() as i64).await?;
     let clip = soundboard::add_clip(

@@ -16,6 +16,8 @@ use crate::media;
 pub const FORMAT: &str = "slimm-theme";
 pub const VERSION: u32 = 1;
 pub const MAX_NAME_CHARS: usize = 40;
+/// The stored document, which leaves the picture bytes out.
+pub const MAX_DOC_BYTES: usize = 8 * 1024;
 pub const MAX_PICTURE_BYTES: usize = 2 * 1024 * 1024;
 pub const MAX_PICTURE_SIDE: u32 = 4096;
 pub const MAX_STORE_THEMES: i64 = 50;
@@ -127,6 +129,10 @@ pub fn validate(raw: &Value) -> Result<ValidTheme, Vec<String>> {
         return Err(problems);
     }
     let mut stored = raw.clone();
+    stored["name"] = Value::String(doc.name.trim().to_owned());
+    if let Some(author) = &doc.author {
+        stored["author"] = Value::String(author.trim().to_owned());
+    }
     if let Some(p) = stored.pointer_mut("/backdrop/picture") {
         *p = json!({
             "present": true,
@@ -135,9 +141,15 @@ pub fn validate(raw: &Value) -> Result<ValidTheme, Vec<String>> {
             "blur": doc.backdrop.as_ref().and_then(|b| b.picture.as_ref()).map(|p| p.blur),
         });
     }
+    let stored = stored.to_string();
+    if stored.len() > MAX_DOC_BYTES {
+        return Err(vec![format!(
+            "theme must be at most {MAX_DOC_BYTES} bytes without its picture"
+        )]);
+    }
     Ok(ValidTheme {
         name: doc.name.trim().to_owned(),
-        doc: stored.to_string(),
+        doc: stored,
         picture,
     })
 }

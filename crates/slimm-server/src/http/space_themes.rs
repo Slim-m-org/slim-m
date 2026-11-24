@@ -19,8 +19,9 @@ use super::AppState;
 use super::attachments::serve;
 use super::error::ApiError;
 use super::extract::{
-    ASSET, AUTHED_READ, Authed, AuthedLimited, Json, enforce, require_manage_server,
+    ASSET, AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce, require_manage_server,
 };
+use super::participant::Participant;
 use crate::hub::Event;
 use crate::ids::{ThemeId, UserId};
 use crate::ratelimit::Class;
@@ -94,12 +95,10 @@ async fn list(
 }
 
 async fn publish(
-    Authed(ctx): Authed,
-    parts: Parts,
+    Participant(ctx): Participant<WRITE>,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> Result<(StatusCode, Json<SpaceThemeDto>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let valid = space_theme::validate(&body)
         .map_err(|problems| ApiError::BadRequestDetail(problems.join("; ")))?;
     let author_name = state
