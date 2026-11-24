@@ -224,7 +224,7 @@ class LocalNotifications {
   /// `_plugin`, and an initializer list cannot read a field it is still in the
   /// middle of assigning. Built lazily in requestPermission instead.
   final AndroidPermissionRequester? _permissionRequester;
-  bool _ready = false;
+  Future<void>? _ready;
 
   /// Creates every [LocalAlertChannel] and initializes the plugin. Every
   /// call here is idempotent on the native side, so calling this more than
@@ -241,7 +241,17 @@ class LocalNotifications {
   /// backgrounded notification. See [requestPermission] for where the ask
   /// actually belongs.
   Future<void> _ensureReady() async {
-    if (!_supported || _ready) return;
+    if (!_supported) return;
+    final ready = _ready ??= _initialize();
+    try {
+      await ready;
+    } catch (_) {
+      if (identical(_ready, ready)) _ready = null;
+      rethrow;
+    }
+  }
+
+  Future<void> _initialize() async {
     if (_isAndroid) {
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
@@ -272,7 +282,6 @@ class LocalNotifications {
         _onActivated?.call(response.payload) ?? Future<void>.value(),
       ),
     );
-    _ready = true;
   }
 
   /// Requests Android's runtime notification permission (Android 13+; a

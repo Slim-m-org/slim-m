@@ -34,12 +34,15 @@ class _SpyPlugin implements FlutterLocalNotificationsPlugin {
     DidReceiveBackgroundNotificationResponseCallback?
         onDidReceiveBackgroundNotificationResponse,
   }) async {
+    initializeCalls++;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
     initSettings = initializationSettings;
     onResponse = onDidReceiveNotificationResponse;
     return true;
   }
 
   InitializationSettings? initSettings;
+  int initializeCalls = 0;
   NotificationDetails? shownDetails;
   String? shownPayload;
 
@@ -199,6 +202,19 @@ void main() {
           'aumid': windowsAppUserModelId,
         },
       ]);
+    });
+
+    test('two concurrent first calls initialize the plugin once', () async {
+      final plugin = _SpyPlugin();
+      final notifications =
+          LocalNotifications(plugin: plugin, isAndroid: false, isLinux: true);
+
+      await Future.wait([
+        notifications.show('one', channel: LocalAlertChannel.messages),
+        notifications.show('two', channel: LocalAlertChannel.mentions),
+      ]);
+
+      expect(plugin.initializeCalls, 1);
     });
 
     test('Linux initializes and posts through the plugin, with no channels',
