@@ -14,6 +14,7 @@ export 'src/channel_group.dart' show GroupDmChannel;
 export 'src/channel_reposition.dart' show ChannelReposition;
 export 'src/channel_standing.dart' show StandingChannel;
 export 'src/connection/connection.dart' show openSlimmDatabase;
+export 'src/connection/sole_tab.dart' show claimSoleTab;
 export 'src/connection/database_key.dart'
     show
         DatabaseEncryptionUnavailable,

@@ -153,7 +153,7 @@ void main() {
       final prepared = await prepareOpenableDatabase(
         file: file,
         keys: keys,
-        host: host(probes: [_failure(14), _failure(14), null]),
+        host: host(probes: [_failure(26), null]),
       );
       expect(prepared.reset, DatabaseResetReason.unreadable);
       expect(File('${file.path}.unopenable').existsSync(), isTrue);
@@ -167,7 +167,7 @@ void main() {
           file: file,
           keys: keys,
           host: host(
-            probes: [_failure(14), _failure(14)],
+            probes: [_failure(26), _failure(26)],
             setAside: (f) => throw FileSystemException(
                 'in use', f.path, const OSError('sharing violation', 32)),
           ),
@@ -184,13 +184,47 @@ void main() {
           file: file,
           keys: keys,
           host: host(
-            probes: [_failure(14), _failure(14)],
+            probes: [_failure(26), _failure(26)],
             setAside: (f) => throw FileSystemException(
                 'denied', f.path, const OSError('access denied', 5)),
           ),
         ),
         throwsA(isA<DatabaseUnopenable>()),
       );
+    });
+
+    for (final code in [10, 14]) {
+      test('a storage fault ($code) that persists keeps the file in place',
+          () async {
+        await seedEncrypted();
+        final before = file.readAsBytesSync();
+        await expectLater(
+          prepareOpenableDatabase(
+            file: file,
+            keys: keys,
+            host: host(probes: [_failure(code), _failure(code)]),
+          ),
+          throwsA(isA<DatabaseUnopenable>()),
+        );
+        expect(file.readAsBytesSync(), before);
+        expect(File('${file.path}.unopenable').existsSync(), isFalse);
+      });
+    }
+
+    test('a plaintext file is deleted rather than set aside', () async {
+      file.writeAsBytesSync([...'SQLite format 3\u0000'.codeUnits, 1, 2, 3]);
+      File('${file.path}-wal').writeAsBytesSync([1]);
+      setDatabaseAside(file);
+      expect(file.existsSync(), isFalse);
+      expect(File('${file.path}.unopenable').existsSync(), isFalse);
+      expect(File('${file.path}-wal').existsSync(), isFalse);
+    });
+
+    test('an encrypted file is moved aside with its bytes intact', () async {
+      await seedEncrypted();
+      final before = file.readAsBytesSync();
+      setDatabaseAside(file);
+      expect(File('${file.path}.unopenable').readAsBytesSync(), before);
     });
 
     test('a fresh file that also fails to open is unopenable', () async {

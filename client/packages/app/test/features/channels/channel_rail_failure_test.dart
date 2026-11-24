@@ -410,4 +410,31 @@ void main() {
 
     await _teardown(tester, container);
   });
+
+  testWidgets('Retry after a transient open failure opens the database', (
+    tester,
+  ) async {
+    var opens = 0;
+    final container = await _pumpRail(
+      tester,
+      overrides: [
+        databaseProvider.overrideWith((ref) {
+          if (opens++ == 0) throw const DatabaseInUseElsewhere('busy');
+          final db = SlimmDatabase(NativeDatabase.memory());
+          ref.onDispose(db.close);
+          return db;
+        }),
+      ],
+    );
+    expect(find.text('Retry'), findsOneWidget);
+
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(opens, 2, reason: 'the retry must attempt the open again');
+    expect(find.text('Retry'), findsNothing);
+
+    await _teardown(tester, container);
+  });
 }
