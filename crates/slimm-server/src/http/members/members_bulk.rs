@@ -38,6 +38,7 @@ use super::super::extract::{Authed, Json, enforce};
 use super::super::messages::parse_uuid;
 use super::super::role_ladder::Ladder;
 use super::super::safety::validate_reason;
+use super::super::session_revocation;
 use super::{evict_from_rooms, require, voice_room_ids};
 use crate::hub::Event;
 use crate::ids::UserId;
@@ -51,10 +52,9 @@ const BODY_LIMIT: usize = 4 * 1024;
 ///
 /// Sized against the fan-out rather than against politeness, the way
 /// `MAX_BULK_DELETE_IDS` is. A removal publishes one `MemberRemoved` plus one
-/// `SessionRevoked` per live session of that member, and the hub's
+/// `AccountSessionsRevoked` per member, and the hub's
 /// `CHANNEL_CAPACITY` is 1024 - past which a lagging subscriber is dropped and
-/// has to resync. 64 targets leaves that headroom intact even for members
-/// signed in on several devices.
+/// has to resync. 64 targets leaves that headroom intact.
 ///
 /// It also bounds the voice eviction, which is the slow half: each target is
 /// swept out of every voice channel and every DM they are party to.
@@ -96,12 +96,12 @@ async fn bulk_remove(
     authorize_all(&state, ctx.user_id, &targets, Permissions::BAN_MEMBERS).await?;
 
     let reason = validate_reason(req.reason.as_deref(), false)?;
-    let revoked = match state
+    match state
         .store
         .bulk_remove_members(&targets, ctx.user_id, reason.as_deref())
         .await
     {
-        Ok(revoked) => revoked,
+        Ok(_) => {}
         Err(RemoveMemberError::UserNotFound) => return Err(ApiError::NotFound("no such member")),
         Err(RemoveMemberError::LastAdministrator) => {
             return Err(ApiError::Conflict(
@@ -109,12 +109,10 @@ async fn bulk_remove(
             ));
         }
         Err(RemoveMemberError::Internal(err)) => return Err(err.into()),
-    };
-
-    for session_id in revoked {
-        state.hub.publish(Event::SessionRevoked(session_id));
     }
+
     for target in &targets {
+        session_revocation::account_sessions_revoked(&state, *target, None);
         state.hub.publish(Event::MemberRemoved(*target));
     }
     evict_all_from_voice(&state, &targets).await;

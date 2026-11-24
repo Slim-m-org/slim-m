@@ -64,6 +64,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         }
         // Control events are handled in the loop; the rest already returned above.
         Event::SessionRevoked(_)
+        | Event::AccountSessionsRevoked { .. }
         | Event::PresenceChanged(_)
         | Event::MemberTimeoutChanged { .. }
         | Event::JoinGateChanged { .. }

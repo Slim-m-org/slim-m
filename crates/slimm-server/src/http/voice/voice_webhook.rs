@@ -42,7 +42,7 @@ async fn receive(
     let authorization = headers
         .get(header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok());
-    let event = match state.voice.verify_webhook(&body, authorization) {
+    let mut event = match state.voice.verify_webhook(&body, authorization) {
         Ok(event) => event,
         Err(WebhookError::Unavailable) => return StatusCode::NOT_IMPLEMENTED,
         Err(WebhookError::Malformed | WebhookError::BadSignature | WebhookError::Expired) => {
@@ -70,9 +70,13 @@ async fn receive(
     reconcile_roster(&state, &event).await;
     let published = event.participant.as_ref().is_some_and(|p| p.is_publisher);
     let joined_at_ms = event.participant_joined_at_ms();
+    let holder = event
+        .participant
+        .as_mut()
+        .and_then(|p| p.attributes.as_mut()?.remove(voice::HOLDER_ATTRIBUTE));
     let presence = apply(&state, event);
     if let Some((channel_id, user_id, true)) = presence {
-        settle_join(&state, channel_id, user_id, joined_at_ms);
+        settle_join(&state, channel_id, user_id, joined_at_ms, holder);
         if !published {
             announce_now(&state, channel_id, user_id);
         }
@@ -97,10 +101,13 @@ fn settle_join(
     channel_id: ChannelId,
     user_id: UserId,
     joined_at_ms: Option<i64>,
+    holder: Option<String>,
 ) {
     let state = state.clone();
     tokio::spawn(async move {
-        if super::voice_access::evict_join_without_access(&state, user_id, channel_id).await {
+        let holder = holder.as_deref();
+        if super::voice_access::evict_join_without_access(&state, user_id, channel_id, holder).await
+        {
             super::voice_one_call::end_older_calls(&state, user_id, channel_id, joined_at_ms).await;
         }
     });

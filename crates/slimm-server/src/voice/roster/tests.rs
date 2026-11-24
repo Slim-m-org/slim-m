@@ -117,6 +117,7 @@ async fn participants_are_mapped_back_to_the_user_id_that_joined() {
             has_video: false,
             joined_at_ms: None,
             device_id: None,
+            holder: None,
             is_active: false,
             is_muted: true,
             is_deafened: false,
@@ -182,6 +183,7 @@ async fn a_screen_share_track_sets_is_sharing_screen_and_has_video() {
             has_video: true,
             joined_at_ms: None,
             device_id: None,
+            holder: None,
             is_active: false,
             // An unmuted screen-share audio track counts, as it does for a client in the call.
             is_muted: false,

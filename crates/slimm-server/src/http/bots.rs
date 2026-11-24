@@ -265,9 +265,7 @@ async fn revoke(
     let Some(revoked) = state.store.revoke_bot(bot_id, ctx.user_id).await? else {
         return Err(ApiError::NotFound("no such bot"));
     };
-    for session_id in revoked {
-        state.hub.publish(Event::SessionRevoked(session_id));
-    }
+    super::session_revocation::sessions_revoked(&state, bot_id, &revoked);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -286,9 +284,7 @@ async fn reissue_token(
     guard_over_bot(&state, ctx.user_id, bot_id).await?;
     match state.store.reissue_bot_token(bot_id, ctx.user_id).await {
         Ok(reissued) => {
-            for session_id in reissued.revoked {
-                state.hub.publish(Event::SessionRevoked(session_id));
-            }
+            super::session_revocation::sessions_revoked(&state, bot_id, &reissued.revoked);
             Ok(Json(NewBotDto {
                 bot: bot_dto(&state, reissued.bot),
                 token: reissued.token,

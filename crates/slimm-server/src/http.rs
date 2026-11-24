@@ -160,6 +160,7 @@ mod scene_limits;
 mod search;
 mod search_dates;
 mod server_logs;
+mod session_revocation;
 mod sign_in_alert;
 mod space;
 mod space_banner;

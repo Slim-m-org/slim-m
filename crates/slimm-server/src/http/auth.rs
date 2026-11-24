@@ -20,6 +20,9 @@ use super::extract::{
     limit_key,
 };
 use super::invites::invite_code_key;
+use super::session_revocation::{
+    account_sessions_revoked, sessions_revoked, sessions_revoked_by_id,
+};
 use crate::hub::Event;
 use crate::ids::UserId;
 use crate::ratelimit::Class;
@@ -411,6 +414,7 @@ async fn login(
         )
         .await?;
     tracing::debug!(user_id = %tokens.user_id, device_id = %tokens.device_id, client = ?client_kind, "auth: signed in");
+    sessions_revoked(&state, tokens.user_id, &tokens.replaced);
     super::sign_in_alert::announce(&state, &tokens, &req.device_name, client_kind.as_deref()).await;
     Ok(LoginOutcome::Tokens(token_response(&tokens)))
 }
@@ -433,7 +437,11 @@ async fn refresh(
         }
         // A benign miss and a detected replay look identical to the client: the
         // only move either way is to log in again.
-        RefreshOutcome::Denied(_) | RefreshOutcome::Reused => Err(ApiError::Unauthorized),
+        RefreshOutcome::Denied(_) => Err(ApiError::Unauthorized),
+        RefreshOutcome::Reused(session_id) => {
+            sessions_revoked_by_id(&state, vec![session_id]);
+            Err(ApiError::Unauthorized)
+        }
     }
 }
 
@@ -452,9 +460,7 @@ async fn logout(
     State(state): State<AppState>,
 ) -> Result<StatusCode, ApiError> {
     state.store.revoke_session(ctx.session_id).await?;
-    // Drop any live WebSocket on this session at once, so revocation is instant
-    // over the socket too, not just for the next REST call.
-    state.hub.publish(Event::SessionRevoked(ctx.session_id));
+    sessions_revoked(&state, ctx.user_id, &[ctx.session_id]);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -479,9 +485,7 @@ async fn delete_account(
         Err(DeleteAccountError::UserNotFound) => return Err(ApiError::NotFound("no such account")),
         Err(DeleteAccountError::Internal(e)) => return Err(e.into()),
     };
-    for session_id in deleted.revoked {
-        state.hub.publish(Event::SessionRevoked(session_id));
-    }
+    account_sessions_revoked(&state, ctx.user_id, None);
     if let Err(err) = state.media.delete_avatar(&ctx.user_id.to_string()).await {
         tracing::warn!(error = %err, "failed to delete an account's avatar file");
     }

@@ -408,6 +408,11 @@ async fn serve(
                             break "session revoked";
                         }
                     }
+                    Ok(Event::AccountSessionsRevoked { user_id, kept }) => {
+                        if user_id == ctx.user_id && kept != Some(ctx.session_id) {
+                            break "session revoked";
+                        }
+                    }
                     Ok(event) => {
                         match authorize(&state.store, &state.hub, &state.link_previews, &ctx, &mut cache, event).await {
                             Authorization::Deliver(frame) => {
