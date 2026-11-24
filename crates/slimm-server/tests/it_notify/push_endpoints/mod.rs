@@ -23,6 +23,7 @@ mod missed_call;
 mod missed_call_preview;
 mod relay_resend;
 mod reply_ping;
+mod repost_blocks;
 mod ring_do_not_disturb;
 mod ring_refusals;
 mod skip_log;

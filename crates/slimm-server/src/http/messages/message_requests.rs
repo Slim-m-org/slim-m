@@ -43,6 +43,10 @@ pub(super) struct SendRequest {
     /// Buttons, honoured only from a bot; see decision 0039.
     #[serde(default)]
     pub(super) components: Vec<crate::components::ComponentRow>,
+    /// The member whose words a bot is re-posting, so a viewer who blocked them
+    /// does not see the repost. Honoured only from a bot; discarded otherwise.
+    #[serde(default)]
+    pub(super) repost_of_author_id: Option<String>,
 }
 
 #[derive(Deserialize)]

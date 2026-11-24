@@ -101,7 +101,7 @@ class PinsController extends StateNotifier<PinsState> {
   List<api.PinnedMessage> _unblocked(List<api.PinnedMessage> all) {
     final blocks = _ref.read(blocksProvider);
     return all
-        .where((pin) => !blocks.contains(pin.message.authorId))
+        .where((pin) => !blocks.hides(pin.message))
         .toList(growable: false);
   }
 

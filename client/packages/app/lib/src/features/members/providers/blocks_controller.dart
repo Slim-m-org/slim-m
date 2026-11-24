@@ -52,6 +52,10 @@ class BlocksState {
 
   /// Whether [userId] is blocked. Null (an anonymized author) never is.
   bool contains(String? userId) => userId != null && ids.contains(userId);
+
+  /// Whether [message] is by a blocked member, or is a bot's re-post of one.
+  bool hides(api.Message message) =>
+      contains(message.authorId) || contains(message.repostOfAuthorId);
 }
 
 class BlocksController extends StateNotifier<BlocksState> {
@@ -225,7 +229,11 @@ class VisibleTranscript {
 /// Filtering stays in one named place with the reasoning attached, which was
 /// the point: what it is not any more is something a new render site gets for
 /// free. A second transcript surface has to call this.
-VisibleTranscript visibleTranscript(List<Message> rows, Set<String> blocked) {
+VisibleTranscript visibleTranscript(
+  List<Message> rows,
+  Set<String> blocked, {
+  Set<String> hiddenReposts = const {},
+}) {
   var newestSeq = 0;
   for (final message in rows) {
     if (!message.pending && message.seq > newestSeq) {
@@ -234,7 +242,11 @@ VisibleTranscript visibleTranscript(List<Message> rows, Set<String> blocked) {
   }
   return VisibleTranscript(
     messages: rows
-        .where((message) => !blocked.contains(message.authorId))
+        .where(
+          (message) =>
+              !blocked.contains(message.authorId) &&
+              !hiddenReposts.contains(message.id),
+        )
         .toList(growable: false),
     newestSeq: newestSeq,
   );

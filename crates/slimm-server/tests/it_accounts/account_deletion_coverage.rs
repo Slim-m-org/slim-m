@@ -73,6 +73,13 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
         "author_id",
         OnDelete::Keep(KEPT_FOR_BLOCKERS),
     ),
+    (
+        "message_repost_authors",
+        "author_id",
+        OnDelete::Keep(
+            "an id with no profile, so a blocker's block keeps covering a bot's re-post of the account",
+        ),
+    ),
     ("attachment_uploaders", "uploaded_by", OnDelete::Purge),
     ("bot_command_registrations", "bot_user_id", OnDelete::Purge),
     ("bot_commands", "bot_user_id", OnDelete::Purge),

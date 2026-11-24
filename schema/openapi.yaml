@@ -20926,6 +20926,13 @@ components:
             A webhook post's own `username` label, or null on every other
             message. A label only: `author_display_name` stays the webhook's
             name and clients keep the Webhook badge beside it.
+        repost_of_author_id:
+          type: [string, "null"]
+          format: uuid
+          description: >-
+            The member whose words a bot re-posted in this message, or null on
+            every other one. A viewer's blocks cover the message as they cover
+            that member's own, in the transcript and in push.
         via_module:
           type: [object, "null"]
           description: >-
@@ -21885,6 +21892,15 @@ components:
             exists. See the `Embed` schema for what a caller gets back.
           items:
             $ref: "#/components/schemas/RequestEmbed"
+        repost_of_author_id:
+          type: string
+          format: uuid
+          description: >-
+            The member whose words a bot is re-posting, so a viewer who blocked
+            that member does not see or get pushed the repost. Honoured only
+            from a bot and ignored from a person; a bot naming anyone who is
+            not a live member gets a 400. Optional and additive: a server
+            without it ignores the field.
         components:
           type: array
           description: >-

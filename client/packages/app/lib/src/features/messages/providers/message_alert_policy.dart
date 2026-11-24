@@ -90,7 +90,7 @@ class MessageAlertPolicy {
     if (!messageEarnsASound(
       authorId: message.authorId,
       selfId: selfId,
-      authorBlocked: _ref.read(blocksProvider).contains(message.authorId),
+      authorBlocked: _ref.read(blocksProvider).hides(message),
     )) {
       return null;
     }
