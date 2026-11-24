@@ -6,15 +6,13 @@ import 'package:flutter/rendering.dart';
 import 'canvas_ink.dart';
 import 'ellipse_path.dart';
 import 'canvas_document.dart';
+import 'canvas_note_layout.dart';
 import 'canvas_text_box.dart';
 import 'note_label_cache.dart';
 
 /// The thinnest a stroke is ever painted, in screen pixels, so ink drawn while
 /// zoomed in stays visible to someone viewing the whole board.
 const double minInkScreenPx = 1.5;
-
-/// Styles a note's text: markdown, mentions and emoji as spans over [base].
-typedef NoteSpanBuilder = InlineSpan Function(String text, TextStyle base);
 
 /// Paints notes, text boxes and shapes for a [StrokePainter], which owns the
 /// colours and fonts and hands them in; the paints below are static so a
@@ -28,6 +26,7 @@ class ObjectPainter {
     required this.noteSpans,
     required this.noteSpansRevision,
     required this.elevationShadow,
+    this.palette = const NotePalette(),
   });
 
   final Color ink;
@@ -37,6 +36,9 @@ class ObjectPainter {
   final NoteSpanBuilder? noteSpans;
   final int noteSpansRevision;
   final List<BoxShadow> elevationShadow;
+
+  /// The colours a note's fill and text resolve through.
+  final NotePalette palette;
 
   final NoteLabelCache noteLabels = NoteLabelCache();
 
@@ -48,6 +50,10 @@ class ObjectPainter {
   static final Paint _noteStroke = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1.5;
+  static final Paint _checkTick = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round;
   static final Paint _shapeStroke = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 2
@@ -68,6 +74,7 @@ class ObjectPainter {
     Camera camera,
     Color color, {
     required bool elevated,
+    bool editing = false,
   }) {
     final box = Rect.fromLTWH(
       (stroke.x - camera.x) * camera.zoom,
@@ -76,35 +83,40 @@ class ObjectPainter {
       stroke.h * camera.zoom,
     );
     if (elevated) paintElevation(canvas, box);
+    final style = stroke.noteStyle;
+    final fill = palette.fillOf(style, color);
+    final opacity = style.fillOpacity ?? canvasNoteTintedOpacity;
     final rounded = RRect.fromRectAndRadius(box, const Radius.circular(6));
-    canvas.drawRRect(
-      rounded,
-      _noteFill..color = color.withValues(alpha: 0.18),
-    );
-    canvas.drawRRect(rounded.deflate(0.75), _noteStroke..color = color);
+    if (opacity > 0) {
+      canvas.drawRRect(
+          rounded, _noteFill..color = fill.withValues(alpha: opacity));
+    }
+    canvas.drawRRect(rounded.deflate(0.75), _noteStroke..color = fill);
     final text = stroke.text;
-    final fontSize = noteFontSizeFor(stroke.w, stroke.h);
-    if (text == null ||
+    final fontSize = noteTextSizeOf(noteFontSizeFor(stroke.w, stroke.h), style);
+    if (editing ||
+        text == null ||
         text.isEmpty ||
         stroke.w <= noteWorldPad * 2 ||
         stroke.h <= noteWorldPad * 2 ||
         fontSize * camera.zoom < minNoteTextScreenPx) {
       return;
     }
+    final ink = palette.inkOf(style, color);
     // Laid out in world units: the wrap and the line budget are the same on every viewer's screen, and a zoom only scales the result.
     final painter = noteLabels.painterFor(
       stroke.id,
-      (text, stroke.w, stroke.h, noteSpansRevision, fontSize),
-      () => TextPainter(
-        text: _noteSpan(text, fontSize, noteLineHeight),
-        textDirection: TextDirection.ltr,
+      (text, stroke.w, stroke.h, Object.hash(noteSpansRevision, ink), fontSize),
+      () => layoutNoteText(
+        _noteSpan(text, fontSize, noteLineHeight, ink),
+        fontSize: fontSize,
+        width: stroke.w - noteWorldPad * 2,
         maxLines: noteMaxLines(
           stroke.h,
           fontSize * noteLineHeight,
           pad: noteWorldPad,
         ),
-        ellipsis: '…',
-      )..layout(maxWidth: stroke.w - noteWorldPad * 2, minWidth: 0),
+      ),
     );
     canvas.save();
     canvas.translate(box.left, box.top);
@@ -118,7 +130,41 @@ class ObjectPainter {
       ),
     );
     painter.paint(canvas, const Offset(noteWorldPad, noteWorldPad));
+    _paintChecks(canvas, painter, ink, palette.behind(style, color));
     canvas.restore();
+  }
+
+  void _paintChecks(
+      Canvas canvas, TextPainter painter, Color ink, Color behind) {
+    for (final check in noteChecksOf(painter)) {
+      final rect = check.rect
+          .shift(const Offset(noteWorldPad, noteWorldPad))
+          .deflate(check.rect.width * 0.12);
+      final rounded =
+          RRect.fromRectAndRadius(rect, Radius.circular(rect.width * 0.2));
+      if (check.checked) {
+        canvas.drawRRect(rounded, _noteFill..color = ink);
+        canvas.drawPath(
+          Path()
+            ..moveTo(
+                rect.left + rect.width * 0.25, rect.top + rect.height * 0.52)
+            ..lineTo(
+                rect.left + rect.width * 0.43, rect.top + rect.height * 0.7)
+            ..lineTo(
+                rect.left + rect.width * 0.75, rect.top + rect.height * 0.32),
+          _checkTick
+            ..color = behind
+            ..strokeWidth = rect.width * 0.14,
+        );
+      } else {
+        canvas.drawRRect(
+            rounded,
+            _noteStroke
+              ..color = ink
+              ..strokeWidth = rect.width * 0.1);
+        _noteStroke.strokeWidth = 1.5;
+      }
+    }
   }
 
   /// A text box: glyphs only, in the box's own colour, wrapped at its width and clipped to its height.
@@ -164,11 +210,11 @@ class ObjectPainter {
     canvas.restore();
   }
 
-  InlineSpan _noteSpan(String text, double fontSize, double height) {
+  InlineSpan _noteSpan(String text, double fontSize, double height, Color ink) {
     final base = TextStyle(
       fontFamily: textFontFamily,
       fontSize: fontSize,
-      color: textInk,
+      color: ink,
       height: height,
     );
     return noteSpans?.call(text, base) ?? TextSpan(text: text, style: base);
@@ -265,10 +311,6 @@ class ObjectPainter {
   }
 }
 
-/// A note's padding, font size and line height, in world units.
-const double noteWorldPad = 8;
-const double noteWorldFontSize = 12;
-
 /// The box a note is placed in by default, and the text size that box carries.
 const double noteReferenceWidth = 330;
 const double noteReferenceHeight = 210;
@@ -283,7 +325,6 @@ double noteFontSizeFor(double w, double h) => math.min(
 /// The largest text size a note [w] wide can show, which a layout that must always fit plans for.
 double noteFontSizeForWidth(double w) =>
     w * noteReferenceFontSize / noteReferenceWidth;
-const double noteLineHeight = 1.3;
 
 /// Text smaller than this on screen is a smudge, so it is not laid out or drawn.
 const double minNoteTextScreenPx = 1.5;

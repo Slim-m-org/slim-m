@@ -18,6 +18,7 @@ import 'package:flutter/painting.dart';
 
 import 'canvas_board.dart';
 import 'canvas_external_pointers.dart';
+import 'canvas_note_style.dart';
 import 'canvas_paint_order.dart';
 import 'canvas_removed_ids.dart';
 import 'canvas_scene.dart';
@@ -28,6 +29,7 @@ import 'canvas_text_box.dart';
 import 'canvas_unsaved_ink.dart';
 import 'spatial_grid.dart' show CullResult;
 
+export 'canvas_note_style.dart';
 export 'canvas_stroke.dart';
 
 part 'canvas_document_board.dart';
@@ -44,6 +46,7 @@ class CanvasDocument extends ChangeNotifier {
   CanvasDocument() {
     // A drag that starts and ends between two frames must still invalidate the cached ink.
     elevatedObjectId.addListener(_changed);
+    editingObjectId.addListener(_changed);
   }
 
   final CanvasScene scene = CanvasScene();
@@ -109,15 +112,11 @@ class CanvasDocument extends ChangeNotifier {
   /// this whole package exists to keep.
   final ValueNotifier<String?> selectedObjectId = ValueNotifier<String?>(null);
 
-  /// The one object this client's own pointer is currently dragging or
-  /// resizing, or null - a narrower, shorter-lived thing than
-  /// [selectedObjectId], which stays set for as long as the Move tool holds
-  /// a selection. `StrokePainter` reads this to decide which image earns
-  /// the app layer's `AppShadows.float` treatment (named here only, this
-  /// package carries no design-system dependency, so the shadow itself
-  /// arrives as a plain value), a shadow only while an object is literally
-  /// off the plane rather than for as long as it merely sits selected.
+  /// The one object this client's own pointer is dragging or resizing, or null: the one that gets the elevation shadow.
   final ValueNotifier<String?> elevatedObjectId = ValueNotifier<String?>(null);
+
+  /// The note whose text is being typed in place, drawn without its text so the field is the only copy.
+  final ValueNotifier<String?> editingObjectId = ValueNotifier<String?>(null);
 
   /// Objects a remote preview is moving; the cached ink leaves them out and paints them live (see [holdLive]).
   final Set<String> _heldLive = <String>{};
@@ -285,6 +284,7 @@ class CanvasDocument extends ChangeNotifier {
         flipY: input.flipY,
         fontSize: input.fontSize,
         tileKey: input.tileKey,
+        noteStyle: input.noteStyle,
       ),
     );
     if (input.groupId case final group?) {
@@ -512,6 +512,7 @@ class CanvasDocument extends ChangeNotifier {
     outsideBoardCount.dispose();
     selectedObjectId.dispose();
     elevatedObjectId.dispose();
+    editingObjectId.dispose();
     snapGuides.dispose();
     snapToGrid.dispose();
     worldEdgeHit.dispose();

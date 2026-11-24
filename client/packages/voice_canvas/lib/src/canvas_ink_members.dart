@@ -29,13 +29,16 @@ class InkMember {
   int seq;
 }
 
-/// Whether [stroke] can be drawn into the texture: a dragged or previewed object paints live over it.
+/// Whether [stroke] can be drawn into the texture: a dragged, previewed or text-edited object paints live over it.
 bool inkHoldable(
   CanvasDocument document,
   CanvasStroke stroke,
   String? elevated,
 ) =>
-    stroke.alive && stroke.id != elevated && !document.isHeldLive(stroke.id);
+    stroke.alive &&
+    stroke.id != elevated &&
+    stroke.id != document.editingObjectId.value &&
+    !document.isHeldLive(stroke.id);
 
 /// The world box [stroke]'s pixels can reach at [zoom].
 ui.Rect inkReach(CanvasStroke stroke, double zoom) =>

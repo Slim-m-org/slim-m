@@ -13,6 +13,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+import 'canvas_note_style.dart';
+
 /// What a placed object is. `stroke` is pen ink; `image` is a pasted picture,
 /// decoded and painted by the app layer, which is the one place this package
 /// steps outside pure geometry; `note` carries typed text inside its own box;
@@ -152,6 +154,7 @@ class CanvasStrokeInput {
     this.flipY = false,
     this.fontSize,
     this.tileKey,
+    this.noteStyle = const CanvasNoteStyle(),
   });
 
   final String id;
@@ -211,6 +214,9 @@ class CanvasStrokeInput {
 
   /// What a [CanvasObjectKind.tile] holds, opaque to this package. Null for every other kind.
   final String? tileKey;
+
+  /// A [CanvasObjectKind.note]'s fill, text colour and text step; the default for every other kind.
+  final CanvasNoteStyle noteStyle;
 }
 
 /// The endpoints of a line or arrow inside a `w` by `h` box, from its tail to
@@ -255,6 +261,7 @@ class CanvasStroke {
     this.flipY = false,
     this.fontSize,
     this.tileKey,
+    this.noteStyle = const CanvasNoteStyle(),
   });
 
   final String id;
@@ -327,6 +334,9 @@ class CanvasStroke {
 
   /// See [CanvasStrokeInput.tileKey].
   final String? tileKey;
+
+  /// See [CanvasStrokeInput.noteStyle]. Mutable since a note can be restyled.
+  CanvasNoteStyle noteStyle;
 
   /// Every point in absolute world coordinates, for hit testing against a
   /// world-space pointer with no per-call offset arithmetic.

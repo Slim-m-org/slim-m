@@ -74,6 +74,7 @@ class CanvasSurfacePainters {
         o.noteColor != w.noteColor ||
         o.shapeColor != w.shapeColor ||
         o.noteTextInk != w.noteTextInk ||
+        o.notePalette != w.notePalette ||
         o.noteSpansRevision != w.noteSpansRevision ||
         o.cursorLabelFontFamily != w.cursorLabelFontFamily ||
         o.placeholderFill != w.placeholderFill ||
@@ -128,6 +129,7 @@ class CanvasSurfacePainters {
         noteColor: w.noteColor,
         shapeColor: w.shapeColor,
         textInk: w.noteTextInk,
+        notePalette: w.notePalette,
         textFontFamily: w.cursorLabelFontFamily,
         noteSpans: w.noteSpans,
         noteSpansRevision: w.noteSpansRevision,
