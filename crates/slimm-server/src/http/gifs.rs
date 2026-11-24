@@ -42,6 +42,7 @@
 //! requirement anywhere in this flow.
 
 mod cache;
+mod egress;
 mod filename;
 mod gif_select;
 mod provider;
@@ -49,7 +50,7 @@ mod provider;
 mod tests;
 
 use self::gif_select::select;
-pub(crate) use self::gif_select::store_gif;
+pub(crate) use self::gif_select::{charge_select, download_cap, store_gif};
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -65,9 +66,11 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::{ASSET, AuthedLimited, GIF, Json, Query};
 use crate::config::Config;
+use crate::ids::UserId;
 use crate::media;
 
 use cache::Cache;
+use egress::{build_client, fetch_capped, provider_urls_fetchable};
 use provider::Provider;
 
 /// A thumbnail is never stored, only relayed, so its cap is independent of
@@ -109,6 +112,8 @@ struct Enabled {
     base_url: Option<String>,
     api_key: String,
     cache: Cache,
+    /// Only a test's loopback fake sets this; see [`fetchable`].
+    allow_private: bool,
 }
 
 /// What went wrong asking the provider or the cache, kept distinct from
@@ -165,9 +170,7 @@ impl GifSearch {
                 "SLIMM_GIF_PROVIDER must be \"tenor\" or \"klipy\", got {provider_raw:?}"
             )
         })?;
-        let http = reqwest::Client::builder()
-            .timeout(PROVIDER_TIMEOUT)
-            .build()?;
+        let http = build_client(false);
         Ok(Self {
             inner: Some(Arc::new(Enabled {
                 http,
@@ -175,6 +178,7 @@ impl GifSearch {
                 base_url: None,
                 api_key: api_key.to_owned(),
                 cache: Cache::new(),
+                allow_private: false,
             })),
         })
     }
@@ -194,11 +198,12 @@ impl GifSearch {
         let provider = Provider::parse(provider).expect("a recognized provider name in tests");
         Self {
             inner: Some(Arc::new(Enabled {
-                http: reqwest::Client::new(),
+                http: build_client(true),
                 provider,
                 base_url: Some(base_url.to_owned()),
                 api_key: api_key.to_owned(),
                 cache: Cache::new(),
+                allow_private: true,
             })),
         }
     }
@@ -207,7 +212,12 @@ impl GifSearch {
         self.inner.is_some()
     }
 
-    async fn search(&self, query: &str, limit: u32) -> Result<Vec<GifResultDto>, GifError> {
+    async fn search(
+        &self,
+        owner: UserId,
+        query: &str,
+        limit: u32,
+    ) -> Result<Vec<GifResultDto>, GifError> {
         let enabled = self.inner.as_deref().ok_or(GifError::NotConfigured)?;
         let hits = provider::search(
             &enabled.http,
@@ -222,12 +232,12 @@ impl GifSearch {
             tracing::warn!(%err, "gif provider search failed");
             GifError::Unavailable
         })?;
-        Ok(mint_results(&enabled.cache, &hits))
+        Ok(mint_results(enabled, owner, &hits))
     }
 
     /// Same wire shape and token-minting as [`Self::search`], against the
     /// provider's own trending endpoint instead of a query.
-    async fn trending(&self, limit: u32) -> Result<Vec<GifResultDto>, GifError> {
+    async fn trending(&self, owner: UserId, limit: u32) -> Result<Vec<GifResultDto>, GifError> {
         let enabled = self.inner.as_deref().ok_or(GifError::NotConfigured)?;
         let hits = provider::trending(
             &enabled.http,
@@ -241,7 +251,7 @@ impl GifSearch {
             tracing::warn!(%err, "gif provider trending fetch failed");
             GifError::Unavailable
         })?;
-        Ok(mint_results(&enabled.cache, &hits))
+        Ok(mint_results(enabled, owner, &hits))
     }
 
     async fn preview_bytes(&self, token: &str) -> Result<Vec<u8>, GifError> {
@@ -250,7 +260,7 @@ impl GifSearch {
             .cache
             .preview_url(token)
             .ok_or(GifError::StaleToken)?;
-        fetch_capped(&enabled.http, &url, MAX_PREVIEW_BYTES).await
+        fetch_capped(enabled, &url, MAX_PREVIEW_BYTES).await
     }
 
     /// The real URLs behind a live search token, for a favorite to keep.
@@ -262,34 +272,47 @@ impl GifSearch {
     /// A thumbnail for a URL a favorite kept, fetched with the same cap as a search preview.
     pub(crate) async fn preview_bytes_from(&self, url: &str) -> Result<Vec<u8>, GifError> {
         let enabled = self.inner.as_deref().ok_or(GifError::NotConfigured)?;
-        fetch_capped(&enabled.http, url, MAX_PREVIEW_BYTES).await
+        fetch_capped(enabled, url, MAX_PREVIEW_BYTES).await
     }
 
-    /// The full image for a URL a favorite kept, with the same cap as a selected result.
-    pub(crate) async fn download_full_from(&self, url: &str) -> Result<Vec<u8>, GifError> {
+    /// The full image for a URL a favorite kept, refused past `max_bytes`.
+    pub(crate) async fn download_full_from(
+        &self,
+        url: &str,
+        max_bytes: u64,
+    ) -> Result<Vec<u8>, GifError> {
         let enabled = self.inner.as_deref().ok_or(GifError::NotConfigured)?;
-        fetch_capped(&enabled.http, url, MAX_DOWNLOAD_BYTES).await
+        fetch_capped(enabled, url, max_bytes).await
     }
 
-    async fn download_full(&self, token: &str) -> Result<(Vec<u8>, String), GifError> {
-        self.download(token, Cache::full_url).await
+    async fn download_full(
+        &self,
+        token: &str,
+        max_bytes: u64,
+    ) -> Result<(Vec<u8>, String), GifError> {
+        self.download(token, Cache::full_url, max_bytes).await
     }
 
     /// The rendition a screen stamp takes, sized to animate on a tile (decision 0121).
-    async fn download_for_stamp(&self, token: &str) -> Result<(Vec<u8>, String), GifError> {
-        self.download(token, Cache::stamp_url).await
+    async fn download_for_stamp(
+        &self,
+        token: &str,
+        max_bytes: u64,
+    ) -> Result<(Vec<u8>, String), GifError> {
+        self.download(token, Cache::stamp_url, max_bytes).await
     }
 
     async fn download(
         &self,
         token: &str,
         url_of: fn(&Cache, &str) -> Option<String>,
+        max_bytes: u64,
     ) -> Result<(Vec<u8>, String), GifError> {
         let enabled = self.inner.as_deref().ok_or(GifError::NotConfigured)?;
         let url = url_of(&enabled.cache, token).ok_or(GifError::StaleToken)?;
         // The title rides back with the bytes so `select` can name the stored file after it, from the same entry the url came from.
         let title = enabled.cache.title(token).unwrap_or_default();
-        let bytes = fetch_capped(&enabled.http, &url, MAX_DOWNLOAD_BYTES).await?;
+        let bytes = fetch_capped(enabled, &url, max_bytes).await?;
         Ok((bytes, title))
     }
 }
@@ -297,46 +320,20 @@ impl GifSearch {
 /// Mints a token per hit and turns it into the wire shape, shared by
 /// [`GifSearch::search`] and [`GifSearch::trending`] since only where the
 /// hits came from differs between them.
-fn mint_results(cache: &Cache, hits: &[provider::ProviderGif]) -> Vec<GifResultDto> {
+fn mint_results(
+    enabled: &Enabled,
+    owner: UserId,
+    hits: &[provider::ProviderGif],
+) -> Vec<GifResultDto> {
     hits.iter()
+        .filter(|gif| provider_urls_fetchable(gif, enabled.allow_private))
         .map(|gif| GifResultDto {
-            id: cache.insert(gif),
+            id: enabled.cache.insert(owner, gif),
             title: gif.title.clone(),
             width: gif.width,
             height: gif.height,
         })
         .collect()
-}
-
-/// Fetches `url` and refuses it past `max_bytes`, checked against
-/// `Content-Length` first (when a provider sends one, this refuses before
-/// downloading anything) and again while streaming the body (when it does not,
-/// or lied). This deployment's own configured provider is a trusted third
-/// party, not adversarial input the way an uploaded file is, so this is a
-/// sanity bound rather than the hardened boundary `media::sniff_content_type`
-/// is for a client-supplied body.
-async fn fetch_capped(
-    http: &reqwest::Client,
-    url: &str,
-    max_bytes: u64,
-) -> Result<Vec<u8>, GifError> {
-    let response = http.get(url).send().await.map_err(|err| {
-        tracing::warn!(%err, "could not reach a gif provider's cdn");
-        GifError::Unavailable
-    })?;
-    let response = response.error_for_status().map_err(|err| {
-        tracing::warn!(%err, "a gif provider's cdn answered with an error");
-        GifError::Unavailable
-    })?;
-    if response.content_length().is_some_and(|len| len > max_bytes) {
-        return Err(GifError::Unavailable);
-    }
-    crate::net_guard::read_capped(response, max_bytes as usize)
-        .await
-        .map_err(|err| {
-            tracing::warn!(?err, "could not read a gif provider's response body");
-            GifError::Unavailable
-        })
 }
 
 impl From<GifError> for ApiError {
@@ -419,7 +416,7 @@ async fn search(
         .limit
         .unwrap_or(DEFAULT_LIMIT)
         .clamp(1, provider::MAX_LIMIT);
-    let results = state.gifs.search(query, limit).await?;
+    let results = state.gifs.search(ctx.user_id, query, limit).await?;
     Ok(Json(GifResultsDto { results }))
 }
 
@@ -436,7 +433,7 @@ async fn trending(
         .limit
         .unwrap_or(DEFAULT_LIMIT)
         .clamp(1, provider::MAX_LIMIT);
-    let results = state.gifs.trending(limit).await?;
+    let results = state.gifs.trending(ctx.user_id, limit).await?;
     Ok(Json(GifResultsDto { results }))
 }
 
@@ -459,7 +456,9 @@ async fn preview(
     require_attach_files(&state, ctx.user_id, params.channel_id.as_deref()).await?;
     let bytes = state.gifs.preview_bytes(&token).await?;
     // Unsniffable is the provider's doing, never the caller's own token.
-    let content_type = media::sniff_content_type(&bytes).ok_or(ApiError::Unavailable)?;
+    let content_type = media::sniff_content_type(&bytes)
+        .filter(|content_type| filename::is_gif_content_type(content_type))
+        .ok_or(ApiError::Unavailable)?;
     let mut response = Response::new(axum::body::Body::from(bytes));
     response
         .headers_mut()

@@ -20,6 +20,7 @@ import '../../../../routing/routes.dart';
 import '../../../../widgets/labeled_field.dart';
 import '../../../members/widgets/bot_permission_toggles.dart';
 import '../../../../widgets/run_guarded.dart';
+import '../../widgets/admin_token_password.dart';
 import '../../widgets/bot_env_block.dart';
 import '../../widgets/settings_disclosure.dart';
 import '../../widgets/settings_empty.dart';
@@ -119,18 +120,31 @@ class _BotsPaneState extends ConsumerState<BotsPane>
     final prefix = _prefix.text.trim();
     setState(() => _busy = true);
     api.NewBot? created;
-    final ok = await guard(
+    final client = ref.read(apiProvider);
+    var done = false;
+    final guarded = await guard(
       whatFailed: 'create the bot',
       action: () async {
-        created = await ref
-            .read(apiProvider)
-            .createBot(
+        done = await runWithAdminPassword(
+          context,
+          needed: holdsAdministrator(_permissions),
+          title: 'Confirm with your password',
+          description:
+              'An Administrator bot keeps its power past any password change.',
+          submitLabel: ActionLabels.createBot,
+          whatFailed: 'create the bot',
+          run: (password) async {
+            created = await client.createBot(
               username,
               permissions: _permissions,
               prefix: prefix.isEmpty ? null : prefix,
+              password: password,
             );
+          },
+        );
       },
     );
+    final ok = guarded && done;
     if (!mounted) return;
     setState(() {
       _busy = false;

@@ -23,9 +23,12 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::{
     AUTHED_READ, Authed, AuthedLimited, INVITE_CHECK, Json, RateLimited, WRITE, enforce,
+    require_manage_roles,
 };
+use super::participant::Participant;
 use super::role_ladder::{Ladder, hand_assignable};
 use crate::hub::Event;
+use crate::ids::{RoleId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{GrantReach, Invite, InviteCheck, InviteScope, RedeemError, now_ms};
@@ -130,16 +133,9 @@ struct InviteCommunity {
 /// role below the caller's own on the role ladder, and its permissions already
 /// held by the caller. Without the bit check, CREATE_INVITE plus MANAGE_ROLES
 /// would mint an administrator account for somebody holding neither bit.
-async fn resolve_grant(
-    state: &AppState,
-    caller: crate::ids::UserId,
-    raw: &str,
-) -> Result<crate::ids::RoleId, ApiError> {
-    let permissions = state.store.base_permissions(caller).await?;
-    if !permissions.contains(Permissions::MANAGE_ROLES) {
-        return Err(ApiError::Forbidden);
-    }
-    let role_id = crate::ids::RoleId(
+async fn resolve_grant(state: &AppState, caller: UserId, raw: &str) -> Result<RoleId, ApiError> {
+    let permissions = require_manage_roles(state, caller).await?;
+    let role_id = RoleId(
         raw.parse::<uuid::Uuid>()
             .map_err(|_| ApiError::BadRequest("invalid role id"))?,
     );
@@ -165,7 +161,7 @@ enum InviteAccess {
 
 async fn invite_access(
     state: &AppState,
-    user: crate::ids::UserId,
+    user: UserId,
 ) -> Result<(InviteAccess, Permissions), ApiError> {
     let permissions = state.store.base_permissions(user).await?;
     if permissions.contains(Permissions::CREATE_INVITE) {
@@ -184,18 +180,28 @@ async fn invite_access(
     Err(ApiError::Forbidden)
 }
 
+/// The caller's base permissions when they may manage roles, two-factor policy included.
+async fn role_manager(state: &AppState, user: UserId) -> Result<Option<Permissions>, ApiError> {
+    match require_manage_roles(state, user).await {
+        Ok(permissions) => Ok(Some(permissions)),
+        Err(ApiError::Forbidden | ApiError::ForbiddenBecause(_)) => Ok(None),
+        Err(err) => Err(err),
+    }
+}
+
 /// Whose invites a caller sees and revokes: everyone's only with both CREATE_INVITE and MANAGE_ROLES, since another person's code is a credential.
 /// Your own stay manageable whatever the switch says, so turning it off never strands codes you made.
 /// Below the owner, another person's code that grants a role shows only to a manager who could grant that role by hand, as [`resolve_grant`] checks.
-async fn invite_scope(state: &AppState, user: crate::ids::UserId) -> Result<InviteScope, ApiError> {
-    let permissions = state.store.base_permissions(user).await?;
-    let sees_all = permissions.contains(Permissions::CREATE_INVITE)
-        && permissions.contains(Permissions::MANAGE_ROLES);
-    if !sees_all {
-        return Ok(InviteScope {
-            creator: Some(user),
-            grants: None,
-        });
+async fn invite_scope(state: &AppState, user: UserId) -> Result<InviteScope, ApiError> {
+    let own = InviteScope {
+        creator: Some(user),
+        grants: None,
+    };
+    let Some(permissions) = role_manager(state, user).await? else {
+        return Ok(own);
+    };
+    if !permissions.contains(Permissions::CREATE_INVITE) {
+        return Ok(own);
     }
     let ladder = Ladder::of(state, user).await?;
     let grants = (!ladder.exempt()).then(|| GrantReach {
@@ -209,6 +215,18 @@ async fn invite_scope(state: &AppState, user: crate::ids::UserId) -> Result<Invi
     })
 }
 
+/// Which registration codes a caller may read off a member row: none without MANAGE_ROLES,
+/// otherwise only those `GET /invites` would show them, since a code is redeemable for its role.
+pub(super) async fn code_reader_scope(
+    state: &AppState,
+    user: UserId,
+) -> Result<Option<InviteScope>, ApiError> {
+    if role_manager(state, user).await?.is_none() {
+        return Ok(None);
+    }
+    invite_scope(state, user).await.map(Some)
+}
+
 /// What a member without CREATE_INVITE gets when the request leaves it open,
 /// and the most they may ask for.
 const MEMBER_DEFAULT_USES: i64 = 1;
@@ -220,8 +238,9 @@ const MEMBER_LIVE_INVITE_CAP: i64 = 20;
 /// Creates an invite. Requires CREATE_INVITE, or any membership while the
 /// space allows members to invite, in which case it is single-use and
 /// short-lived unless the request asks for something within the member caps.
+/// A timed-out caller makes none, or a timeout could be sat out on a fresh account.
 async fn create(
-    AuthedLimited(ctx): AuthedLimited<WRITE>,
+    Participant(ctx): Participant<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<CreateRequest>,
 ) -> Result<Json<InviteDto>, ApiError> {
@@ -373,19 +392,9 @@ async fn check(
     }
 }
 
-/// A backstop for the sweep done when the switch goes off: a code whose maker
-/// can no longer invite is dead whatever its row says.
-async fn maker_lost_invite_rights(state: &AppState, code: &str) -> Result<bool, ApiError> {
-    let Some(maker) = state.store.invite_creator(code).await? else {
-        return Ok(false);
-    };
-    let rights = state.store.base_permissions(maker).await?;
-    Ok(!rights.contains(Permissions::CREATE_INVITE) && !state.store.members_can_invite().await?)
-}
-
 /// Spends an invite for the signed-in account. A fresh spend publishes
-/// `Event::MemberJoined`; the idempotent already-redeemed retry does not, so a
-/// greeter bot cannot be told the same join twice.
+/// `Event::MemberJoined`, and `Event::MemberRoleChanged` for a role it gave; the idempotent
+/// already-redeemed retry publishes neither, so a greeter bot cannot be told the same join twice.
 async fn redeem(
     Authed(ctx): Authed,
     parts: Parts,
@@ -397,13 +406,13 @@ async fn redeem(
     // server on the write lock while proving nothing.
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let code = invite_code_key(&code);
-    if maker_lost_invite_rights(&state, &code).await? {
-        return Err(ApiError::BadRequest("that invite cannot be used"));
-    }
     match state.store.redeem_invite(&code, ctx.user_id).await {
-        Ok(freshly_redeemed) => {
-            if freshly_redeemed {
+        Ok(redemption) => {
+            if redemption.fresh {
                 state.hub.publish(Event::MemberJoined(ctx.user_id));
+                if let Some(role_id) = redemption.granted {
+                    announce_role_granted(&state, ctx.user_id, role_id).await;
+                }
                 super::welcome::post_welcome(&state, ctx.user_id).await;
             }
             Ok(StatusCode::NO_CONTENT)
@@ -412,6 +421,24 @@ async fn redeem(
         Err(RedeemError::Unusable) => Err(ApiError::BadRequest("that invite cannot be used")),
         Err(RedeemError::Internal(e)) => Err(e.into()),
     }
+}
+
+/// Tells the member's other devices about the role, so they refetch the channels it opens.
+/// The redemption has committed, so a failed name lookup still announces, without the name.
+async fn announce_role_granted(state: &AppState, user_id: UserId, role_id: RoleId) {
+    let role_name = match state.store.role(role_id).await {
+        Ok(role) => role.map(|role| role.name),
+        Err(err) => {
+            tracing::warn!(error = %err, %role_id, "could not name the role an invite gave");
+            None
+        }
+    };
+    state.hub.publish(Event::MemberRoleChanged {
+        user_id,
+        role_id,
+        granted: true,
+        role_name,
+    });
 }
 
 /// Codes are generated lowercase and meant to be read aloud, so whatever case

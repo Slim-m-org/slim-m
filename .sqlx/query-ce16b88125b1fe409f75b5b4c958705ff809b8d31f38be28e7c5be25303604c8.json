@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "UPDATE password_reset_codes SET used_at = ?\n               WHERE code_hash = ? AND used_at IS NULL AND expires_at > ?\n               RETURNING user_id AS \"user_id!: UserId\"",
+  "query": "UPDATE webhooks SET token_hash = ?, token_issued_by = ? WHERE id = ?\n               RETURNING user_id AS \"user_id!: UserId\"",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Blob",
         "origin": {
           "Table": {
-            "table": "password_reset_codes",
+            "table": "webhooks",
             "name": "user_id"
           }
         }
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "02c8842aa06f1aef2fe2d2ee78e2f898eb24318b517eb0be5ad5088306dcda7d"
+  "hash": "ce16b88125b1fe409f75b5b4c958705ff809b8d31f38be28e7c5be25303604c8"
 }

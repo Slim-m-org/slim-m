@@ -16,8 +16,9 @@ use super::validate_module_id;
 use super::wire::InstalledModuleDto;
 use crate::http::AppState;
 use crate::http::error::ApiError;
-use crate::http::extract::{Json, WRITE, require_human, require_manage_server};
+use crate::http::extract::{Bytes, Json, WRITE, require_human, require_manage_server};
 use crate::http::participant::Participant;
+use crate::http::reauth::{password_in_body, require_password_for_admin_token};
 use crate::ids::{SessionId, UserId};
 use crate::permissions::Permissions;
 use crate::store::{
@@ -51,6 +52,7 @@ pub(super) async fn install(
             "a connector can only be approved permissions it asks for",
         ));
     }
+    require_password_for_admin_token(state, actor, approved, req.password.as_deref()).await?;
     let host_run = match &connector.host_run {
         Some(asked) => Some(super::dock_host_run::approve(
             state,
@@ -151,6 +153,7 @@ pub(super) async fn reissue_token(
     State(state): State<AppState>,
     Participant(ctx): Participant<WRITE>,
     Path(id): Path<String>,
+    Bytes(body): Bytes,
 ) -> Result<Json<ConnectorTokenDto>, ApiError> {
     require_manage_server(&state, ctx.user_id).await?;
     require_human(&state, ctx.user_id).await?;
@@ -162,6 +165,12 @@ pub(super) async fn reissue_token(
     }
     if let Some(connector) = state.store.installed_module(&id).await? {
         guard_over_connector(&state, ctx.user_id, &connector).await?;
+        if let Some(principal) = connector.bot_user_id {
+            let held = state.store.granted_base_permissions(principal).await?;
+            let password = password_in_body(&body)?;
+            require_password_for_admin_token(&state, ctx.user_id, held, password.as_deref())
+                .await?;
+        }
     }
     let (token, revoked) = state
         .store

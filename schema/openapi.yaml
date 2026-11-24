@@ -448,7 +448,9 @@ paths:
         Unauthenticated, since the point is recovering an account that cannot
         currently sign in. Single-use, and revokes every live session on the
         account, since the account may be compromised rather than just
-        locked out.
+        locked out. Spending one also spends the account's other live codes
+        and drops its pending two-factor challenges. A code whose issuer has
+        since been removed, deleted or lost ADMINISTRATOR cannot be used.
       security: []
       requestBody:
         required: true
@@ -474,8 +476,9 @@ paths:
       description: >
         Needs the current password, and the current two-factor code or an
         unused recovery code while two-factor is on. Signs every other device
-        out and keeps the calling session. A wrong password or code is
-        refused and nothing changes.
+        out and keeps the calling session, spends any live reset code for the
+        account and drops its pending two-factor challenges. A wrong password
+        or code is refused and nothing changes.
       requestBody:
         required: true
         content:
@@ -730,6 +733,7 @@ paths:
         the moderation audit log as `reset_code_issue`. A person must send their
         own password in the body; a bot has none and sends no body.
         Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`. A caller's own account needs no rank.
+        A bot or webhook is refused with 409: its token is its only credential.
       requestBody:
         required: false
         content:
@@ -751,6 +755,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -2184,8 +2190,9 @@ paths:
         invite defaults to one use and 24 hours, may not exceed 10 uses or
         7 days, and may not grant a role. With `reuse`, the caller's live invite
         of the same limits and no role is returned instead of a new one. A
-        `role_grant` is checked as `assignRole` checks a grant, the role ladder
-        and the bot-role lock included.
+        `role_grant` is checked as `assignRole` checks a grant, the role ladder,
+        the bot-role lock and the two-factor policy included. A timed-out
+        caller is refused (code `timed_out`).
       requestBody:
         required: true
         content:
@@ -2254,7 +2261,8 @@ paths:
         Unauthenticated, since the caller does not have an account yet, and
         rate limited because of that. An unusable code answers with exactly
         `{"usable": false}`, byte for byte identical whether the code is
-        expired, already spent, revoked, or was never issued at all: this
+        expired, already spent, revoked, made by someone who can no longer
+        invite, or was never issued at all: this
         cannot be used to mine valid codes. A usable code additionally
         discloses community metadata (name, member count, who invited the
         caller, uses remaining, and expiry). That is a deliberate, narrower
@@ -4304,7 +4312,9 @@ paths:
       summary: Remove a member from the Space. Requires BAN_MEMBERS.
       description: >
         Revokes every live session, refuses future sign-in, revokes invites
-        they created, and drops them from the member list. Everything they
+        they created, the bot tokens they were last shown and the webhooks
+        whose URL they were last shown, and drops them from the member list.
+        The bots stay, for an administrator to reissue. Everything they
         wrote stays, still attributed to them: anonymizing content is what
         deleting an account does, and this is deliberately not that.
 
@@ -4676,7 +4686,8 @@ paths:
         else edits a message, a member with MANAGE_MESSAGES or ADMINISTRATOR
         included: they can delete it instead. A caller who can see the
         channel but did not write the message gets a 403 with
-        `code: not_author`.
+        `code: not_author`. A call record, poll or app launch answers 400:
+        only a text message can be edited.
       requestBody:
         required: true
         content:
@@ -10013,6 +10024,13 @@ paths:
         bot, and for a bot that has been removed from the Space (restore it
         first). Recorded in the moderation history as `bot_token_reissue`.
         The caller must hold every bit the bot's roles grant and rank strictly above the bot on the role ladder, since its token acts with all of it; refused as a 403, with `code` `role_hierarchy` for the ladder.
+        For a bot that holds ADMINISTRATOR the caller must also send their own password.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordProofRequest"
       responses:
         "200":
           description: The bot, and its new token once.
@@ -12254,7 +12272,14 @@ paths:
       summary: Replace a connector's token. Requires MANAGE_SERVER, and a person.
       description: >
         Revokes the connector's token, closes its sockets and mints a new one,
-        shown only in this answer (decision 0090). A bot is refused.
+        shown only in this answer (decision 0090). A bot is refused. For a
+        connector that holds ADMINISTRATOR the caller must also send their own password.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordProofRequest"
       responses:
         "200":
           description: The new token.
@@ -15099,11 +15124,12 @@ components:
           type: [string, "null"]
           description: >
             The invite this member registered through, present only to
-            callers with MANAGE_ROLES - a moderation signal for spotting a
-            returning (ban-evading) account, never a public value. Absent
-            for any other caller, and for a member who registered without one.
-            MANAGE_ROLES, not BAN_MEMBERS: redeeming a code applies the role
-            it grants, so a caller who could not grant it must not read one.
+            callers with MANAGE_ROLES who would see that invite in
+            `listInvites` - a moderation signal for spotting a returning
+            (ban-evading) account, never a public value. Absent for any other
+            caller, and for a member who registered without one. Redeeming a
+            code applies the role it grants, so a caller who could not grant
+            that role by hand does not read it.
 
     MemberActivity:
       type: object
@@ -15143,7 +15169,8 @@ components:
           description: >
             The invite this member registered through, or null if they had
             none. Gated as `UserProfile.invite_code` is: the endpoint needs
-            BAN_MEMBERS, the code itself also needs MANAGE_ROLES.
+            BAN_MEMBERS, the code itself also needs MANAGE_ROLES and an invite
+            the caller would see in `listInvites`.
 
     Me:
       type: object
@@ -16869,6 +16896,11 @@ components:
             one the manifest asks for and the admin holds. Required for a
             connector (400 without it, so an app that cannot show the ask
             cannot install one); ignored for a WASM module.
+        password:
+          type: string
+          description: >
+            The admin's own password, required only when the approval includes
+            ADMINISTRATOR: 400 without it, 403 when wrong.
         approved_host_run:
           type: object
           additionalProperties: false
@@ -18093,6 +18125,11 @@ components:
             no-escalation check a human-assigned role goes through; a bot may
             hold any bit a human role could, including ADMINISTRATOR. See
             docs/decisions/0028-bot-accounts.md.
+        password:
+          type: string
+          description: >-
+            The caller's own password. Required only when the bot will hold
+            ADMINISTRATOR, refused with 400 without it and 403 when wrong.
     SetBotPrefixRequest:
       type: object
       required: [prefix]
@@ -18111,6 +18148,11 @@ components:
           description: >-
             Replaces what the bot's managed role grants. Same guards as
             `CreateBotRequest.permissions`.
+        password:
+          type: string
+          description: >-
+            The caller's own password. Required only when the bot will hold
+            ADMINISTRATOR, refused with 400 without it and 403 when wrong.
     EgressHost:
       type: object
       required: [host, port]

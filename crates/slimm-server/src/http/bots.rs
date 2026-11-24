@@ -16,9 +16,12 @@ use super::AppState;
 use super::auth::{validate_label, validate_username};
 use super::error::ApiError;
 use super::escalation::escalation_guard;
-use super::extract::{Authed, Json, Query, WRITE, enforce, require_human, require_manage_server};
+use super::extract::{
+    Authed, Bytes, Json, Query, WRITE, enforce, require_human, require_manage_server,
+};
 use super::messages::parse_uuid;
 use super::participant::Participant;
+use super::reauth::{password_in_body, require_password_for_admin_token};
 use super::role_ladder::Ladder;
 use super::roles::grantable;
 use crate::hub::Event;
@@ -52,6 +55,9 @@ struct CreateBotDto {
     permissions: i64,
     /// The prefix this bot answers to; a free one is picked when absent.
     prefix: Option<String>,
+    /// The caller's own password, needed only for a bot that will hold ADMINISTRATOR.
+    #[serde(default)]
+    password: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -62,6 +68,9 @@ struct SuggestedPrefixDto {
 #[derive(Deserialize)]
 struct SetBotPermissionsRequest {
     permissions: i64,
+    /// As on [`CreateBotDto`]: needed only when the bot will hold ADMINISTRATOR.
+    #[serde(default)]
+    password: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -214,10 +223,15 @@ async fn create(
     Ladder::of(&state, ctx.user_id)
         .await?
         .reach_role(shared.as_ref().map_or(0, |role| role.position.max(0)))?;
-    escalation_guard(
-        caller_granted(&state, ctx.user_id).await?,
-        shared.map_or(Permissions::NONE, |role| role.permissions),
-    )?;
+    let shared_grant = shared.map_or(Permissions::NONE, |role| role.permissions);
+    escalation_guard(caller_granted(&state, ctx.user_id).await?, shared_grant)?;
+    require_password_for_admin_token(
+        &state,
+        ctx.user_id,
+        permissions.union(shared_grant),
+        body.password.as_deref(),
+    )
+    .await?;
 
     let prefix = match body.prefix.as_deref().map(str::trim) {
         Some(prefix) => {
@@ -274,11 +288,15 @@ async fn reissue_token(
     State(state): State<AppState>,
     Participant(ctx): Participant<WRITE>,
     Path(bot_id): Path<String>,
+    Bytes(body): Bytes,
 ) -> Result<Json<NewBotDto>, ApiError> {
     require_manage_server(&state, ctx.user_id).await?;
     require_human(&state, ctx.user_id).await?;
     let bot_id = UserId(parse_uuid(&bot_id)?);
     guard_over_bot(&state, ctx.user_id, bot_id).await?;
+    let held = state.store.granted_base_permissions(bot_id).await?;
+    let password = password_in_body(&body)?;
+    require_password_for_admin_token(&state, ctx.user_id, held, password.as_deref()).await?;
     match state.store.reissue_bot_token(bot_id, ctx.user_id).await {
         Ok(reissued) => {
             super::session_revocation::sessions_revoked(&state, bot_id, &reissued.revoked);
@@ -315,6 +333,8 @@ async fn set_permissions(
 
     let caller_effective = state.store.base_permissions(ctx.user_id).await?;
     let permissions = grantable(caller_effective, req.permissions)?;
+    require_password_for_admin_token(&state, ctx.user_id, permissions, req.password.as_deref())
+        .await?;
 
     match state
         .store

@@ -11,6 +11,7 @@ import '../../../../providers/admin_providers.dart';
 import '../../../../providers/providers.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../../members/widgets/bot_permission_toggles.dart';
+import '../../widgets/admin_token_password.dart';
 
 /// Opens the permission editor for one bot's managed role.
 Future<void> showBotPermissionsSheet(BuildContext context, api.Bot bot) {
@@ -37,14 +38,30 @@ class _BotPermissionsSheetState extends ConsumerState<_BotPermissionsSheet>
   bool _submitting = false;
 
   Future<void> _submit() async {
+    var done = false;
     clearActionError();
     setState(() => _submitting = true);
-    final ok = await guard(
+    final client = ref.read(apiProvider);
+    final saved = await guard(
       whatFailed: "save ${widget.bot.displayName}'s permissions",
-      action: () => ref
-          .read(apiProvider)
-          .setBotPermissions(widget.bot.userId, _permissions),
+      action: () async {
+        done = await runWithAdminPassword(
+          context,
+          needed: holdsAdministrator(_permissions),
+          title: 'Confirm with your password',
+          description:
+              'An Administrator bot keeps its power past any password change.',
+          submitLabel: 'Save changes',
+          whatFailed: "save ${widget.bot.displayName}'s permissions",
+          run: (password) => client.setBotPermissions(
+            widget.bot.userId,
+            _permissions,
+            password: password,
+          ),
+        );
+      },
     );
+    final ok = saved && done;
     if (!mounted) return;
     if (!ok) {
       setState(() => _submitting = false);

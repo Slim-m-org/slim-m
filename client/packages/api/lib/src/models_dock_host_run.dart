@@ -100,9 +100,12 @@ class HostRunApproval {
 /// bits its token may use (a subset of what it asks for) and, for one the host
 /// runs, the sandbox it is given.
 class ConnectorApproval {
-  const ConnectorApproval({this.permissions, this.hostRun});
+  const ConnectorApproval({this.permissions, this.hostRun, this.password});
 
   final int? permissions;
+
+  /// The installer's own password, required when [permissions] hold ADMINISTRATOR.
+  final String? password;
   final HostRunApproval? hostRun;
 }
 

@@ -114,5 +114,8 @@ class MessageExtras {
     linkPreviewsRemoved: linkPreviewsRemoved ?? this.linkPreviewsRemoved,
   );
 
+  /// A poll, an app launch or a call record: its text is not what it is, so it is never edited.
+  bool get isCard => poll != null || appSurface != null || call != null;
+
   static const empty = MessageExtras();
 }

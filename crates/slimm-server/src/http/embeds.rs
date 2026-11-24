@@ -16,6 +16,7 @@ use serde::Serialize;
 use super::AppState;
 use super::error::ApiError;
 use super::link_preview::LinkPreviews;
+use super::module_hooks::Field;
 use crate::ephemeral::EphemeralEmbed;
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
@@ -170,6 +171,29 @@ impl From<EphemeralEmbed> for EmbedDto {
     fn from(e: EphemeralEmbed) -> Self {
         to_dto(e.embed, e.image_token, e.thumbnail_token)
     }
+}
+
+/// Every piece of text in `embeds` a reader sees, for the interceptor chain to read and rewrite.
+pub(crate) fn text_fields(embeds: &mut [NewEmbed]) -> Vec<Field<'_>> {
+    let mut fields = Vec::new();
+    for embed in embeds {
+        let headings = [
+            (&mut embed.title, build::TITLE_MAX),
+            (&mut embed.description, build::DESCRIPTION_MAX),
+            (&mut embed.author_name, build::AUTHOR_NAME_MAX),
+            (&mut embed.footer_text, build::FOOTER_MAX),
+        ];
+        for (text, max_chars) in headings {
+            if let Some(text) = text {
+                fields.push(Field::new(text, max_chars));
+            }
+        }
+        for field in &mut embed.fields {
+            fields.push(Field::new(&mut field.name, build::FIELD_NAME_MAX));
+            fields.push(Field::new(&mut field.value, build::FIELD_VALUE_MAX));
+        }
+    }
+    fields
 }
 
 /// `raw` built into embeds, only when `caller` is a bot.

@@ -176,7 +176,7 @@ crates/slimm-server/src/store/pins.rs 1
 crates/slimm-server/src/store/polls.rs 1
 crates/slimm-server/src/store/push.rs 1
 crates/slimm-server/src/store/reactions.rs 4
-crates/slimm-server/src/store/recovery.rs 2
+crates/slimm-server/src/store/recovery.rs 1
 crates/slimm-server/src/store/roles.rs 3
 crates/slimm-server/src/store/sessions.rs 1
 crates/slimm-server/src/store/sessions/registration.rs 4

@@ -172,7 +172,8 @@ Golden files should be regenerated in CI because engine/font rendering can diffe
 Server:
 
 ```bash
-cp .env.example .env
+cp .env.example .env.dev
+set -a; . ./.env.dev; set +a   # the server does not read dotenv files itself
 cargo run --bin slimm-server
 curl localhost:8080/healthz
 curl localhost:8080/version

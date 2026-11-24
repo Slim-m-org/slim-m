@@ -26,7 +26,7 @@ use super::AppState;
 use super::embeds;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
-use super::module_hooks::{Draft, HookPoint, intercept};
+use super::module_hooks::{Draft, HookPoint, guard_write};
 use super::post_commit::{after_commit, run_to_completion};
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId};
@@ -43,6 +43,7 @@ pub(super) mod message_enrich;
 pub(super) mod message_forwards;
 pub(super) mod message_get;
 pub(super) mod message_history;
+mod message_kind;
 pub(super) mod message_mentions;
 pub(super) mod message_requests;
 mod message_send;
@@ -240,6 +241,7 @@ async fn edit(
     }
     super::write_refusal::require(&state, ctx.user_id, channel_id, Permissions::SEND_MESSAGES)
         .await?;
+    self::message_kind::refuse_card_edit(&state, message_id, ctx.user_id).await?;
 
     // Read once and used three times: whether the note may be emptied, the live frame, and this response.
     let forwarded = state
@@ -252,22 +254,23 @@ async fn edit(
 
     // An edit carries no attachment list, so nothing stands in for cleared text - unless the message forwards something.
     let content = &*validate_content(&req.content, forwarded.is_some())?;
-    let intercepted = intercept(
-        &state,
-        &Draft {
-            point: HookPoint::PreEdit,
-            channel_id,
-            actor: ctx.user_id,
-            reply_to: None,
-            content,
-            carries_more: forwarded.is_some(),
-            own_module: None,
-        },
-    )
-    .await?;
-    let content = intercepted.text(content);
     // Built before the text changes, so a refused embed leaves the edit undone rather than half done.
-    let replacement = embeds::honored_for_edit(&state, ctx.user_id, req.embeds).await?;
+    let mut replacement = embeds::honored_for_edit(&state, ctx.user_id, req.embeds).await?;
+    let draft = Draft {
+        point: HookPoint::PreEdit,
+        channel_id,
+        actor: ctx.user_id,
+        reply_to: message.reply_to_id,
+        content: Some(content),
+        carries_more: forwarded.is_some(),
+        own_module: None,
+    };
+    let mut fields = replacement
+        .as_mut()
+        .map(|list| embeds::text_fields(list))
+        .unwrap_or_default();
+    let intercepted = guard_write(&state, &draft, &mut fields).await?;
+    let content = intercepted.text(content);
     let updated = match state
         .store
         .edit_message(message_id, content, ctx.user_id)

@@ -6,7 +6,14 @@
 
 use serde::Deserialize;
 
-use super::{ProviderGif, Rendition, stamp_rendition};
+use super::{MAX_RESPONSE_BYTES, ProviderGif, Rendition, stamp_rendition};
+use crate::net_guard;
+
+/// A provider's error page is read this far and no further.
+const MAX_ERROR_BODY_BYTES: usize = 4 * 1024;
+
+/// What of a provider's error sentence reaches the log.
+const MAX_ERROR_MESSAGE_CHARS: usize = 200;
 
 pub(super) const BASE_URL: &str = "https://api.klipy.com";
 
@@ -17,7 +24,7 @@ struct Response {
 
 #[derive(Deserialize)]
 struct Page {
-    data: Vec<Item>,
+    data: Vec<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -120,21 +127,47 @@ struct ErrorDetail {
 /// is invalid."]}}`), which `error_for_status` alone collapses into an opaque
 /// "404 Not Found" - confirmed live. An operator debugging a typo'd key
 /// deserves the provider's own sentence in the log, not a bare status code.
-async fn checked(response: reqwest::Response) -> anyhow::Result<reqwest::Response> {
+/// The first [`MAX_ERROR_BODY_BYTES`] of an error body; the rest is never read.
+async fn error_body_prefix(mut response: reqwest::Response) -> String {
+    let mut body = Vec::new();
+    while body.len() < MAX_ERROR_BODY_BYTES
+        && let Ok(Some(chunk)) = response.chunk().await
+    {
+        body.extend_from_slice(&chunk);
+    }
+    body.truncate(MAX_ERROR_BODY_BYTES);
+    String::from_utf8_lossy(&body).into_owned()
+}
+
+async fn checked(
+    response: reqwest::Response,
+    secrets: &[&str],
+) -> anyhow::Result<reqwest::Response> {
     if response.status().is_success() {
         return Ok(response);
     }
     let status = response.status();
-    let body = response.text().await.unwrap_or_default();
+    let body = error_body_prefix(response).await;
     let message = serde_json::from_str::<ErrorBody>(&body)
         .ok()
         .and_then(|err| err.errors.message.into_iter().next())
         .unwrap_or(body);
+    let message = secrets
+        .iter()
+        .filter(|secret| !secret.is_empty())
+        .fold(message, |text, secret| text.replace(secret, "[redacted]"));
+    let message: String = message.chars().take(MAX_ERROR_MESSAGE_CHARS).collect();
     anyhow::bail!("klipy answered {status}: {message}");
+}
+
+/// One item that does not parse is that item's loss, never the page's.
+fn parse_item(raw: serde_json::Value) -> Option<ProviderGif> {
+    item_into_gif(serde_json::from_value(raw).ok()?)
 }
 
 async fn request(
     http: &reqwest::Client,
+    api_key: &str,
     url: String,
     query: &str,
     per_page: &str,
@@ -144,13 +177,16 @@ async fn request(
         params.push(("q", query));
     }
     let response = http.get(url).query(&params).send().await?;
-    let response = checked(response).await?;
-    let parsed: Response = response.json().await?;
+    let response = checked(response, &[api_key, query]).await?;
+    let body = net_guard::read_capped(response, MAX_RESPONSE_BYTES)
+        .await
+        .map_err(|_| anyhow::anyhow!("klipy answered with an unreadable or oversized body"))?;
+    let parsed: Response = serde_json::from_slice(&body)?;
     Ok(parsed
         .data
         .data
         .into_iter()
-        .filter_map(item_into_gif)
+        .filter_map(parse_item)
         .collect())
 }
 
@@ -163,7 +199,7 @@ pub(super) async fn search(
 ) -> anyhow::Result<Vec<ProviderGif>> {
     let base = base_url.unwrap_or(BASE_URL);
     let url = format!("{base}/api/v1/{api_key}/gifs/search");
-    request(http, url, query, &limit.to_string()).await
+    request(http, api_key, url, query, &limit.to_string()).await
 }
 
 /// Klipy's own trending endpoint - confirmed live, same paginated
@@ -176,7 +212,7 @@ pub(super) async fn trending(
 ) -> anyhow::Result<Vec<ProviderGif>> {
     let base = base_url.unwrap_or(BASE_URL);
     let url = format!("{base}/api/v1/{api_key}/gifs/trending");
-    request(http, url, "", &limit.to_string()).await
+    request(http, api_key, url, "", &limit.to_string()).await
 }
 
 #[cfg(test)]
@@ -217,7 +253,7 @@ mod tests {
             .data
             .data
             .into_iter()
-            .filter_map(item_into_gif)
+            .filter_map(parse_item)
             .collect();
         assert_eq!(gifs.len(), 1);
         assert_eq!(gifs[0].title, "a dog nodding");
@@ -230,12 +266,7 @@ mod tests {
         let raw =
             json!({"result": true, "data": {"data": [{"id": 1, "title": "t", "file": tiers}]}});
         let parsed: Response = serde_json::from_value(raw).unwrap();
-        let gif = parsed
-            .data
-            .data
-            .into_iter()
-            .find_map(item_into_gif)
-            .unwrap();
+        let gif = parsed.data.data.into_iter().find_map(parse_item).unwrap();
         gif.stamp_url
     }
 
@@ -298,7 +329,7 @@ mod tests {
             .data
             .data
             .into_iter()
-            .filter_map(item_into_gif)
+            .filter_map(parse_item)
             .collect();
         assert_eq!(gifs.len(), 1);
         assert_eq!(gifs[0].preview_url, "https://klipy.example/xs.webp");
@@ -330,7 +361,7 @@ mod tests {
             .data
             .data
             .into_iter()
-            .filter_map(item_into_gif)
+            .filter_map(parse_item)
             .collect();
         assert_eq!(gifs.len(), 1);
         assert_eq!(gifs[0].preview_url, "https://klipy.example/hd.gif");
@@ -350,7 +381,7 @@ mod tests {
             .data
             .data
             .into_iter()
-            .filter_map(item_into_gif)
+            .filter_map(parse_item)
             .collect();
         assert!(gifs.is_empty());
     }

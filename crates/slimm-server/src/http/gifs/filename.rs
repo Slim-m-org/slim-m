@@ -37,12 +37,16 @@ pub(super) fn slug_filename(title: &str) -> String {
 /// cannot produce an unwieldy attachment name.
 pub(super) const GIF_SLUG_MAX_CHARS: usize = 48;
 
-/// A plain filename extension for the two content types a GIF ever sniffs
-/// to; unreachable for anything else because `sniff_content_type` already
-/// refused it above.
+/// The only types a provider-supplied GIF may sniff to; anything else is the provider's doing.
+pub(super) fn is_gif_content_type(content_type: &str) -> bool {
+    matches!(content_type, "image/gif" | "image/webp" | "video/mp4")
+}
+
+/// The filename extension for a type [`is_gif_content_type`] accepts.
 pub(super) fn extension_for(content_type: &str) -> &'static str {
     match content_type {
         "image/webp" => "webp",
+        "video/mp4" => "mp4",
         _ => "gif",
     }
 }

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT filename FROM attachment_uploaders\n               WHERE sha256 = ? AND uploaded_by = ? AND filename IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "filename",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "attachment_uploaders",
+            "name": "filename"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "274c99d5a7488e3d9cd92c878efd7364cb98b13ac328bc8ecf90e06778ef95ef"
+}

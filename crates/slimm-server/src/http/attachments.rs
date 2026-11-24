@@ -244,6 +244,9 @@ fn upload_stream_error(err: StreamError) -> ApiError {
     }
 }
 
+/// Served when the caller has no name of their own for the bytes.
+const NEUTRAL_FILENAME: &str = "attachment";
+
 /// Query for [`fetch`].
 #[derive(Deserialize)]
 struct FetchParams {
@@ -275,6 +278,7 @@ async fn fetch(
     let sha256 = media::from_hex(&attachment_id)
         .filter(|bytes| bytes.len() == 32)
         .ok_or(ApiError::BadRequest("invalid attachment id"))?;
+    let attachment_id = media::to_hex(&sha256);
 
     // The uploader may always fetch what they uploaded, even before it is on any message
     // (previewing a just-picked GIF needs it); everyone else needs VIEW_CHANNEL on a
@@ -299,13 +303,25 @@ async fn fetch(
         return Err(ApiError::NotFound("attachment not found"));
     }
 
-    let meta = state
+    let mut meta = state
         .store
         .attachment_summary(&sha256)
         .await?
         .ok_or(ApiError::NotFound("attachment not found"))?;
+    meta.filename = state
+        .store
+        .attachment_display_filename(ctx.user_id, &sha256)
+        .await?
+        .unwrap_or_else(|| NEUTRAL_FILENAME.to_owned());
     if params.original == Some(true) {
-        return super::attachment_original::serve(&state, &attachment_id, &sha256, &headers).await;
+        return super::attachment_original::serve(
+            &state,
+            &attachment_id,
+            &sha256,
+            &meta.filename,
+            &headers,
+        )
+        .await;
     }
     if let Some(width) = params.w
         && let Some(response) = super::attachment_preview::serve(

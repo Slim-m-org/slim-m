@@ -238,14 +238,16 @@ const EXEMPT: &[(&str, &[&str])] = &[
         ],
     ),
     (
+        "Spending an invite: a timeout and the join gate still subtract from any role it gives, and sign-in redeems one before the rules are accepted",
+        &["POST /invites/{code}/redeem"],
+    ),
+    (
         "Not yet decided: each needs its own policy and is left to a later change",
         &[
             "POST /connectors/me/runs/{runId}",
-            "POST /invites",
             "PUT /channels/{channelId}/watch-session/viewing",
             "POST /channels/{channelId}/watch-session/tick",
             "PUT /channels/{channelId}/watch-session",
-            "POST /invites/{code}/redeem",
             "POST /dms/{user_id}",
             "POST /dms/groups",
             "PATCH /dms/groups/{channel_id}",

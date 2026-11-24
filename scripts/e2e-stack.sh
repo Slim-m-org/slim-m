@@ -46,9 +46,9 @@ RTC_TCP_PORT="${E2E_RTC_TCP_PORT:-7881}"
 SFU_WAIT="${E2E_SFU_WAIT_SECONDS:-30}"
 TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/target}"
 PIDS="$WORK/pids"
-# LiveKit's dev-mode key pair for a throwaway container; overridable.
+# The key pair this throwaway LiveKit and the server share; the secret meets the server's 32-character minimum.
 export LIVEKIT_API_KEY="${LIVEKIT_API_KEY:-devkey}"
-export LIVEKIT_API_SECRET="${LIVEKIT_API_SECRET:-secret}"
+export LIVEKIT_API_SECRET="${LIVEKIT_API_SECRET:-e2e-livekit-secret-at-least-32-chars}"
 
 # What was actually built, since a stale tree passes and reads as thorough.
 say_commit() {
@@ -103,7 +103,8 @@ webhook: {api_key: $LIVEKIT_API_KEY, urls: ['http://host.docker.internal:$API_PO
   docker run -d --name "$LK_CONTAINER" --add-host=host.docker.internal:host-gateway \
     -p "127.0.0.1:$LK_PORT:7880" -p "127.0.0.1:$RTC_TCP_PORT:$RTC_TCP_PORT" \
     -p "127.0.0.1:$RTC_UDP_START-$RTC_UDP_END:$RTC_UDP_START-$RTC_UDP_END/udp" \
-    -e LIVEKIT_CONFIG="rtc: {port_range_start: $RTC_UDP_START, port_range_end: $RTC_UDP_END, tcp_port: $RTC_TCP_PORT}
+    -e LIVEKIT_CONFIG="keys: {$LIVEKIT_API_KEY: $LIVEKIT_API_SECRET}
+rtc: {port_range_start: $RTC_UDP_START, port_range_end: $RTC_UDP_END, tcp_port: $RTC_TCP_PORT}
 audio: {$LK_AUDIO}$webhook" \
     "livekit/livekit-server:$LIVEKIT_VERSION" --dev --bind 0.0.0.0 >/dev/null
   wait_for_url "http://localhost:$LK_PORT" "$SFU_WAIT" || {

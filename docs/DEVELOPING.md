@@ -24,7 +24,8 @@ From a fresh clone to the server, the client and the end-to-end harness running,
 ## Server
 
 ```bash
-cp .env.example .env
+cp .env.example .env.dev
+set -a; . ./.env.dev; set +a   # the server does not read dotenv files itself
 cargo run --bin slimm-server
 curl localhost:8080/healthz
 ```

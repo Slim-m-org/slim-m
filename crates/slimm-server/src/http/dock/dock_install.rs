@@ -67,6 +67,9 @@ pub(super) struct InstallRequest {
     /// The core permissions the admin approved for a connector's token; required for one.
     #[serde(default)]
     pub(super) approved_connector_permissions: Option<i64>,
+    /// The admin's own password, needed only to approve a connector ADMINISTRATOR.
+    #[serde(default)]
+    pub(super) password: Option<String>,
     /// What the admin approved of a host-run connector's ask; required for one (decision 0134).
     #[serde(default)]
     pub(super) approved_host_run: Option<super::dock_host_run::HostRunApproval>,

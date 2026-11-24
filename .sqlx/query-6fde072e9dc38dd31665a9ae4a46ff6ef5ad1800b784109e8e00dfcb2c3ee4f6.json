@@ -1,0 +1,40 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT i.created_by AS \"maker: UserId\",\n                  EXISTS (SELECT 1 FROM pending_members pm WHERE pm.user_id = i.created_by)\n                      AS \"pending!: bool\",\n                  COALESCE((SELECT s.members_can_invite FROM space_settings s WHERE s.id = 1), 0)\n                      AS \"members_invite!: bool\"\n           FROM invites i WHERE i.code = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "maker: UserId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "invites",
+            "name": "created_by"
+          }
+        }
+      },
+      {
+        "name": "pending!: bool",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "members_invite!: bool",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "6fde072e9dc38dd31665a9ae4a46ff6ef5ad1800b784109e8e00dfcb2c3ee4f6"
+}

@@ -20,6 +20,7 @@ mod avatar_failures;
 mod avatars;
 mod banners;
 mod bootstrap;
+mod credential_lifecycle;
 mod data_export_coverage;
 mod data_export_lifecycle;
 mod data_export_limits;

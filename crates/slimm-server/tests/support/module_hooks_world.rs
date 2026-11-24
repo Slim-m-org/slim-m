@@ -67,6 +67,50 @@ pub fn rewrites_to_its_input() -> Vec<u8> {
     wat::parse_str(&text).expect("rewrites-to-input wasm fixture must parse")
 }
 
+/// A module that answers `hit` when the input it is sent contains `needle`, and `miss` otherwise,
+/// the way a word filter decides.
+pub fn when_sent(needle: &str, hit: &Value, miss: &Value) -> Vec<u8> {
+    let wire = |reply: &Value| json!({ "ok": true, "output": reply.to_string() }).to_string();
+    let (hit, miss) = (wire(hit), wire(miss));
+    let escape = |text: &str| text.replace('\\', "\\\\").replace('"', "\\\"");
+    let text = format!(
+        r#"(module
+            (memory (export "memory") 1)
+            (data (i32.const 1024) "{hit_data}")
+            (data (i32.const 3072) "{miss_data}")
+            (data (i32.const 5120) "{needle_data}")
+            (func (export "alloc") (param $len i32) (result i32) (i32.const 8192))
+            (func $found (param $p i32) (param $n i32) (result i32)
+                (local $i i32) (local $j i32)
+                (block $absent
+                    (loop $outer
+                        (br_if $absent (i32.gt_u (i32.add (local.get $i) (i32.const {needle_len})) (local.get $n)))
+                        (local.set $j (i32.const 0))
+                        (block $mismatch
+                            (loop $inner
+                                (if (i32.ge_u (local.get $j) (i32.const {needle_len})) (then (return (i32.const 1))))
+                                (br_if $mismatch (i32.ne
+                                    (i32.load8_u (i32.add (local.get $p) (i32.add (local.get $i) (local.get $j))))
+                                    (i32.load8_u (i32.add (i32.const 5120) (local.get $j)))))
+                                (local.set $j (i32.add (local.get $j) (i32.const 1)))
+                                (br $inner)))
+                        (local.set $i (i32.add (local.get $i) (i32.const 1)))
+                        (br $outer)))
+                (i32.const 0))
+            (func (export "run") (param $in_ptr i32) (param $in_len i32) (result i64)
+                (if (result i64) (call $found (local.get $in_ptr) (local.get $in_len))
+                    (then (i64.or (i64.shl (i64.const 1024) (i64.const 32)) (i64.const {hit_len})))
+                    (else (i64.or (i64.shl (i64.const 3072) (i64.const 32)) (i64.const {miss_len}))))))"#,
+        hit_data = escape(&hit),
+        miss_data = escape(&miss),
+        needle_data = escape(needle),
+        needle_len = needle.len(),
+        hit_len = hit.len(),
+        miss_len = miss.len(),
+    );
+    wat::parse_str(&text).expect("when-sent wasm fixture must parse")
+}
+
 pub fn interceptor(hook: &str, phase: &str, reads: &[&str]) -> HookDecl {
     HookDecl {
         kind: HookKind::Interceptor,
@@ -154,10 +198,20 @@ impl World {
     }
 
     pub async fn call_json(&self, method: &str, uri: &str, body: Value) -> (u16, Value) {
+        self.call_json_as(&self.token, (method, uri), body).await
+    }
+
+    /// [`World::call_json`] with someone else's bearer `token`, a bot's say.
+    pub async fn call_json_as(
+        &self,
+        token: &str,
+        (method, uri): (&str, &str),
+        body: Value,
+    ) -> (u16, Value) {
         let request = Request::builder()
             .method(method)
             .uri(uri)
-            .header("authorization", format!("Bearer {}", self.token))
+            .header("authorization", format!("Bearer {token}"))
             .header("content-type", "application/json")
             .body(Body::from(body.to_string()))
             .unwrap();

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE bot_tokens SET revoked_at = ?\n           WHERE created_by = ? AND revoked_at IS NULL AND bot_user_id != ?\n             AND NOT EXISTS (\n               SELECT 1 FROM installed_modules m\n               JOIN connector_host_runs h ON h.module_id = m.id\n               WHERE m.bot_user_id = bot_tokens.bot_user_id\n             )\n           RETURNING session_id AS \"session_id!: SessionId\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "session_id!: SessionId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "bot_tokens",
+            "name": "session_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "fe5fcd314b8419c49bee3d064459e75cc1ecdc14c5009a515339a105ca34b803"
+}

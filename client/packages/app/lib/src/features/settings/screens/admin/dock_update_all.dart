@@ -18,6 +18,7 @@ import '../../../composer/providers/slash_command.dart';
 import '../../../modules/providers/app_launch.dart';
 import '../../../modules/providers/module_panels.dart';
 import '../../../modules/providers/code_block_runner.dart';
+import '../../widgets/admin_token_password.dart';
 import 'dock_host_access_card.dart';
 import 'dock_install_consent.dart';
 import 'dock_update_report.dart';
@@ -159,6 +160,7 @@ Future<_Turn?> _updateOne(
     final connector = manifest.isConnector
         ? (current.connectorPermissions ?? 0) & manifest.connectorPermissions!
         : null;
+    if (holdsAdministrator(connector)) return const _Turn(_Outcome.skipped);
     final installed = await _install(
       context,
       ref,

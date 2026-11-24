@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT is_bot AS \"is_bot!: bool\", is_webhook AS \"is_webhook!: bool\"\n               FROM users WHERE id = ? AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "is_bot!: bool",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "is_bot"
+          }
+        }
+      },
+      {
+        "name": "is_webhook!: bool",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "is_webhook"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "de9d897980e0a130621d3c2a2bef2205e1e83951037a79c3e45a26a666ce81eb"
+}

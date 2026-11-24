@@ -222,3 +222,11 @@ async fn the_bot_routes_refuse_a_connector_principal() {
         "the connector's own token still works"
     );
 }
+
+#[tokio::test]
+async fn approving_a_connector_administrator_needs_the_password() {
+    let w = world("slimm-conn-admin-reauth", &["administrator"]).await;
+    let (status, body) = w.install(Some(Permissions::ADMINISTRATOR.bits())).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert!(w.store.installed_module(ID).await.unwrap().is_none());
+}

@@ -204,3 +204,84 @@ async fn changing_the_policy_needs_the_admins_own_factor() {
         TotpPolicy::RequiredForElevated
     );
 }
+
+async fn get_json(router: &axum::Router, uri: &str, token: &str) -> serde_json::Value {
+    let response = router
+        .clone()
+        .oneshot(request("GET", uri, Some(token), None))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK, "{uri}");
+    json_body(response).await
+}
+
+/// What `token` reads: the codes `GET /invites` lists, and dave's registration code on `GET /members`.
+async fn codes_seen(router: &axum::Router, token: &str) -> (Vec<String>, Option<String>) {
+    let listed = get_json(router, "/invites", token).await;
+    let listed = listed
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["code"].as_str().unwrap().to_owned())
+        .collect();
+    let members = get_json(router, "/members", token).await;
+    let dave = members
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["username"] == "dave")
+        .unwrap()["invite_code"]
+        .as_str()
+        .map(str::to_owned);
+    (listed, dave)
+}
+
+/// A role granted through an invite, and everyone's codes, are role management under the policy too.
+#[tokio::test]
+async fn invite_role_grants_and_other_peoples_codes_need_the_factor() {
+    let (store, auth, _guard) = new_store("slimm-totp-elevated-invites").await;
+    let router = app(store.clone(), auth.clone());
+    let (admin_token, _) = member(&store, &auth, "alice").await;
+    let hash = auth.hash_password(PASSWORD.to_owned()).await.unwrap();
+    let carol = store.create_account("carol", "carol", &hash).await.unwrap();
+    let inviters = store
+        .create_role("inviters", Permissions::CREATE_INVITE, false)
+        .await
+        .unwrap();
+    store.assign_role(carol.id, inviters).await.unwrap();
+    let carol_code = store
+        .create_invite(carol.id, None, None, None)
+        .await
+        .unwrap()
+        .code;
+    store
+        .register_account("dave", "dave", &hash, Some(&carol_code))
+        .await
+        .unwrap();
+    let perk = store
+        .create_role("perk", Permissions::ATTACH_FILES, false)
+        .await
+        .unwrap();
+    store
+        .set_totp_policy(TotpPolicy::RequiredForElevated)
+        .await
+        .unwrap();
+    let grant = || Some(json!({ "role_grant": perk.to_string() }));
+
+    let (status, error) =
+        status_and_error(&router, "POST", "/invites", &admin_token, grant()).await;
+    assert_eq!(
+        (status, error.as_str()),
+        (StatusCode::FORBIDDEN, NEEDS_FACTOR)
+    );
+    let (listed, dave) = codes_seen(&router, &admin_token).await;
+    assert!(!listed.contains(&carol_code), "{listed:?}");
+    assert_eq!(dave, None);
+
+    enrol_and_confirm(&router, &admin_token).await;
+    let (status, _) = status_and_error(&router, "POST", "/invites", &admin_token, grant()).await;
+    assert_eq!(status, StatusCode::OK, "enrolled, the grant goes through");
+    let (listed, dave) = codes_seen(&router, &admin_token).await;
+    assert!(listed.contains(&carol_code), "{listed:?}");
+    assert_eq!(dave, Some(carol_code));
+}

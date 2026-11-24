@@ -193,3 +193,29 @@ async fn revoking_your_own_still_works() {
     assert_eq!(revoked.status(), StatusCode::NO_CONTENT);
     assert!(!store.invite_is_usable(&own_code).await.unwrap());
 }
+
+/// A timed-out member makes no invite, so a timeout cannot be sat out on a fresh account.
+#[tokio::test]
+async fn a_timed_out_member_makes_no_invite() {
+    let (store, app, _admin, member, _guard) = fixture().await;
+    grant_member(&store, Permissions::CREATE_INVITE).await;
+    let admin_id = store.find_credentials("admin").await.unwrap().unwrap().0;
+    let member_id = store.find_credentials("member").await.unwrap().unwrap().0;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
+    let until = now + 60 * 60 * 1000;
+    store
+        .set_member_timeout(member_id, until, None, admin_id)
+        .await
+        .unwrap();
+
+    let response = app
+        .clone()
+        .oneshot(request("POST", "/invites", &member, Some(json!({}))))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(json_body(response).await["code"], "timed_out");
+}

@@ -38,6 +38,7 @@ import '../../../../widgets/confirm_dialog.dart';
 import '../../../../routing/routes.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../settings_screen_scaffold.dart';
+import '../../widgets/admin_token_password.dart';
 import 'dock_module_view.dart';
 import 'dock_host_access_card.dart';
 import 'dock_connector_consent.dart';
@@ -215,25 +216,40 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     final tokenSlot = _tokenSlot;
     setState(() => _busy = true);
     String? token;
-    final ok = await guard(
+    final client = ref.read(apiProvider);
+    var done = false;
+    final guarded = await guard(
       whatFailed: wasInstalled
           ? 'update ${manifest.name}'
           : 'install ${manifest.name}',
-      action: () async => token =
-          (await ref
-                  .read(apiProvider)
-                  .installDockModule(
-                    moduleId: manifest.id,
-                    version: manifest.version,
-                    reviewedDigest: manifest.reviewDigest,
-                    source: widget.source,
-                    connector: api.ConnectorApproval(
-                      permissions: manifest.connectorPermissions,
-                      hostRun: dockApproveAll(manifest.hostRun),
-                    ),
-                  ))
-              .connectorToken,
+      action: () async {
+        done = await runWithAdminPassword(
+          context,
+          needed: holdsAdministrator(manifest.connectorPermissions),
+          title: 'Confirm with your password',
+          description:
+              'A connector with Administrator keeps its power past any password change.',
+          submitLabel: wasInstalled ? 'Update' : 'Install',
+          whatFailed: wasInstalled
+              ? 'update ${manifest.name}'
+              : 'install ${manifest.name}',
+          run: (password) async {
+            token = (await client.installDockModule(
+              moduleId: manifest.id,
+              version: manifest.version,
+              reviewedDigest: manifest.reviewDigest,
+              source: widget.source,
+              connector: api.ConnectorApproval(
+                permissions: manifest.connectorPermissions,
+                hostRun: dockApproveAll(manifest.hostRun),
+                password: password,
+              ),
+            )).connectorToken;
+          },
+        );
+      },
     );
+    final ok = guarded && done;
     if (token != null) tokenSlot.state = token;
     if (!mounted) return;
     setState(() => _busy = false);
@@ -253,11 +269,27 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     final tokenSlot = _tokenSlot;
     setState(() => _busy = true);
     String? token;
+    final client = ref.read(apiProvider);
+    final held = ref
+        .read(dockCatalogProvider)
+        .valueOrNull
+        ?.installedFor(widget.moduleId)
+        ?.connectorPermissions;
     await guard(
       whatFailed: 'make a new token for $name',
-      action: () async => token = await ref
-          .read(apiProvider)
-          .reissueConnectorToken(widget.moduleId),
+      action: () => runWithAdminPassword(
+        context,
+        needed: holdsAdministrator(held),
+        title: 'Confirm with your password',
+        description:
+            'A connector with Administrator keeps its power past any password change.',
+        submitLabel: 'New token',
+        whatFailed: 'make a new token for $name',
+        run: (password) async => token = await client.reissueConnectorToken(
+          widget.moduleId,
+          password: password,
+        ),
+      ),
     );
     if (token != null) tokenSlot.state = token;
     if (!mounted) return;

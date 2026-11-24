@@ -10,6 +10,8 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/messages/providers/message_extras.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/features/messages/providers/message_actions.dart';
 
@@ -38,6 +40,55 @@ void main() {
       );
     });
   });
+
+  group(
+    'canEditMessage: a poll, app launch or call record is never edited',
+    () {
+      final cards = <String, MessageExtras>{
+        'poll': const MessageExtras(
+          poll: api.Poll(
+            question: 'q',
+            options: [],
+            totalVotes: 0,
+            votedOption: null,
+            closeAt: null,
+            closed: false,
+          ),
+        ),
+        'app launch': const MessageExtras(
+          appSurface: api.AppSurface(moduleId: 'mod', command: 'cmd'),
+        ),
+        'call record': const MessageExtras(
+          call: api.CallRecord(
+            outcome: api.CallOutcome.answered,
+            durationMs: 5,
+          ),
+        ),
+      };
+      for (final card in cards.entries) {
+        test('own ${card.key} offers no edit', () {
+          expect(
+            canEditMessage(message(authorId: _me), _me, card.value),
+            isFalse,
+          );
+        });
+        test('Up skips an own ${card.key} for the text message before it', () {
+          final text = message(id: 'text', authorId: _me);
+          final newest = message(id: 'card', authorId: _me);
+          expect(
+            lastEditableOwnMessage([text, newest], _me, {'card': card.value}),
+            text,
+          );
+        });
+      }
+      test('a message with plain extras stays editable', () {
+        expect(
+          canEditMessage(message(authorId: _me), _me, MessageExtras.empty),
+          isTrue,
+        );
+      });
+    },
+  );
 
   group('canDeleteMessage: own, or MANAGE_MESSAGES', () {
     test('the author may delete their own with no permission', () {
