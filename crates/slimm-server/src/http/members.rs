@@ -233,14 +233,17 @@ async fn remove_member(
     }
 
     super::session_revocation::account_sessions_revoked(&state, target, None);
-    announce_member_gone(&state, target).await;
+    announce_member_gone(&state, target, false).await;
     Ok(StatusCode::NO_CONTENT)
 }
 
 /// What every way of a member leaving owes the rest of the deployment: a live
-/// `MemberRemoved`, and eviction from voice, since a LiveKit token cannot be revoked.
-pub(in crate::http) async fn announce_member_gone(state: &AppState, target: UserId) {
-    state.hub.publish(Event::MemberRemoved(target));
+/// `MemberRemoved` (`deleted` for an account deletion), and eviction from voice.
+pub(in crate::http) async fn announce_member_gone(state: &AppState, target: UserId, deleted: bool) {
+    state.hub.publish(Event::MemberRemoved {
+        user_id: target,
+        deleted,
+    });
     evict_from_voice(state, target).await;
 }
 

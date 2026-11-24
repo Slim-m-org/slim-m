@@ -43,7 +43,7 @@ pub(in crate::http) async fn finish_closed_account(
 }
 
 async fn announce_closed_account(state: &AppState, user_id: UserId, handoff: Option<Handoff>) {
-    super::announce_member_gone(state, user_id).await;
+    super::announce_member_gone(state, user_id, true).await;
     // An evicted profile re-resolves to the tombstone, so cached author labels stop naming them.
     state.hub.publish(Event::ProfileChanged(user_id));
     super::super::space_owner::announce_handoff(state, handoff);

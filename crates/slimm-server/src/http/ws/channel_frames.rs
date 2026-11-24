@@ -305,7 +305,7 @@ pub(super) fn to_frame(
         | Event::PresenceChanged(_)
         | Event::MemberTimeoutChanged { .. }
         | Event::JoinGateChanged { .. }
-        | Event::MemberRemoved(_)
+        | Event::MemberRemoved { .. }
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)
         | Event::OwnerChanged(_)

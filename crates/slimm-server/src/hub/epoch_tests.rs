@@ -61,7 +61,10 @@ fn a_clone_shares_the_same_counter() {
     let hub = Hub::new();
     let handle = hub.clone();
     let before = hub.permissions_epoch();
-    handle.publish(Event::MemberRemoved(UserId::generate()));
+    handle.publish(Event::MemberRemoved {
+        user_id: UserId::generate(),
+        deleted: false,
+    });
     assert!(hub.permissions_epoch() > before);
 }
 
@@ -143,7 +146,10 @@ fn every_permission_shaped_event_moves_it() {
             user_id: UserId::generate(),
             until: Some(1),
         },
-        Event::MemberRemoved(UserId::generate()),
+        Event::MemberRemoved {
+            user_id: UserId::generate(),
+            deleted: false,
+        },
         Event::ChannelDeleted {
             channel_id: ChannelId::generate(),
         },

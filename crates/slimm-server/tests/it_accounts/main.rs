@@ -11,6 +11,7 @@ mod account_anonymization;
 mod account_anonymization_authorship;
 mod account_deletion_batches;
 mod account_deletion_blocks;
+mod account_deletion_bot_frame;
 mod account_deletion_coverage;
 mod account_deletion_events;
 mod account_deletion_evicts;

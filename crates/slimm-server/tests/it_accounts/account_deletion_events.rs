@@ -226,7 +226,7 @@ async fn a_slow_clean_up_does_not_cost_the_deletion_its_follow_up() {
     .await;
     assert!(
         seen.iter()
-            .any(|e| matches!(e, Event::MemberRemoved(id) if *id == w.leaver))
+            .any(|e| matches!(e, Event::MemberRemoved { user_id, .. } if *user_id == w.leaver))
     );
     assert!(
         seen.iter()
