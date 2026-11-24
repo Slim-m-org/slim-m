@@ -39,6 +39,17 @@ class _SpyPlugin implements FlutterLocalNotificationsPlugin {
     return true;
   }
 
+  NotificationAppLaunchDetails? launchDetails;
+
+  @override
+  T? resolvePlatformSpecificImplementation<
+          T extends FlutterLocalNotificationsPlatform>() =>
+      null;
+
+  @override
+  Future<NotificationAppLaunchDetails?>
+      getNotificationAppLaunchDetails() async => launchDetails;
+
   InitializationSettings? initSettings;
   NotificationDetails? shownDetails;
   String? shownPayload;
@@ -168,6 +179,40 @@ void main() {
         plugin.shownDetails?.windows?.scenario,
         WindowsNotificationScenario.urgent,
         reason: 'a ring is the one alert allowed to break through',
+      );
+    });
+
+    test('Android reports the payload of the tap that launched the app',
+        () async {
+      final plugin = _SpyPlugin()
+        ..launchDetails = const NotificationAppLaunchDetails(
+          true,
+          notificationResponse: NotificationResponse(
+            notificationResponseType:
+                NotificationResponseType.selectedNotification,
+            payload: 'where',
+          ),
+        );
+      final notifications = LocalNotifications(plugin: plugin, isAndroid: true);
+
+      expect(await notifications.launchPayload(), 'where');
+      expect(plugin.initSettings, isNotNull);
+    });
+
+    test('an ordinary launch, or another platform, has no launch payload',
+        () async {
+      final plugin = _SpyPlugin()
+        ..launchDetails = const NotificationAppLaunchDetails(false);
+
+      expect(
+        await LocalNotifications(plugin: plugin, isAndroid: true)
+            .launchPayload(),
+        isNull,
+      );
+      expect(
+        await LocalNotifications(plugin: plugin, isAndroid: false)
+            .launchPayload(),
+        isNull,
       );
     });
 

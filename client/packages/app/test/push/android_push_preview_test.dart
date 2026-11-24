@@ -160,6 +160,48 @@ void main() {
     );
   });
 
+  group('showPush', () {
+    test('a message posts with the channel as its tap payload', () async {
+      final shown = _RecordingNotifications();
+      await showPush(
+        {'kind': 'message', 'payload': _payload(_envelope())},
+        keys: await _store(),
+        notifications: shown,
+        calls: _RecordingCalls(),
+      );
+
+      expect(
+        NotificationTarget.decode(shown.payload)?.channelId,
+        'c1',
+        reason: 'without it a tap only raises the app',
+      );
+    });
+
+    test('a ring shows the caller and the ring id', () async {
+      final calls = _RecordingCalls();
+      await showPush(
+        {
+          'kind': 'call',
+          'payload': _payload({
+            'domain': 'slim-m.push.v1',
+            'version': 1,
+            'kind': 'call',
+            'channel_id': 'dm1',
+            'ring_id': 'ring-7',
+            'caller_id': 'u1',
+            'caller_name': 'Ana',
+            'sent_at': _now.millisecondsSinceEpoch,
+          }),
+        },
+        keys: await _store(),
+        notifications: _RecordingNotifications(),
+        calls: calls,
+      );
+
+      expect(calls.shown, ('ring-7', 'Ana'));
+    });
+  });
+
   group('tapPayloadFor', () {
     test('a message envelope yields a channel-only target', () async {
       final envelope = await openPushPayload(
@@ -185,4 +227,33 @@ void main() {
       expect(tapPayloadFor(envelope), isNull);
     });
   });
+}
+
+class _RecordingNotifications implements LocalNotifications {
+  String? payload;
+
+  @override
+  Future<void> show(
+    String text, {
+    required LocalAlertChannel channel,
+    String? title,
+    String? payload,
+    int? id,
+  }) async => this.payload = payload;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
+class _RecordingCalls implements CallNotifications {
+  (String, String)? shown;
+
+  @override
+  Future<void> showIncomingCall({
+    required String callId,
+    required String callerName,
+  }) async => shown = (callId, callerName);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }

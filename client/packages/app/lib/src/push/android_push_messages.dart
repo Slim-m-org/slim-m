@@ -231,15 +231,29 @@ const previewNotificationIdBase = 1000;
 /// here, and `@pragma('vm:entry-point')` is what keeps the tree-shaker from
 /// removing a function nothing in this isolate visibly calls.
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  switch (actionFor(message.data)) {
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) {
+  return showPush(
+    message.data,
+    keys: createPersistentKeyStore(),
+    notifications: LocalNotifications(),
+    calls: CallNotifications(),
+  );
+}
+
+/// Posts what [data] asks for through [notifications] and [calls].
+Future<void> showPush(
+  Map<String, dynamic> data, {
+  required KeyStore keys,
+  required LocalNotifications notifications,
+  required CallNotifications calls,
+}) async {
+  switch (actionFor(data)) {
     case PushActionNone():
       return;
     case PushActionGenericAlert(:final text, :final channel):
-      final keys = createPersistentKeyStore();
-      final envelope = await _openEnvelope(message.data, keys);
+      final envelope = await _openEnvelope(data, keys);
       final preview = previewOf(envelope, DateTime.now());
-      await LocalNotifications().show(
+      await notifications.show(
         preview?.text.body ?? text,
         channel: channel,
         title: preview == null ? null : previewTitle(preview.text),
@@ -247,15 +261,12 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         payload: tapPayloadFor(envelope),
       );
     case PushActionIncomingCall():
-      final call = await incomingCallFor(
-        message.data,
-        createPersistentKeyStore(),
-      );
-      await CallNotifications().showIncomingCall(
+      final call = await incomingCallFor(data, keys);
+      await calls.showIncomingCall(
         callId: call.callId,
         callerName: call.callerName,
       );
     case PushActionEndCall():
-      await CallNotifications().endIncomingCalls();
+      await calls.endIncomingCalls();
   }
 }
