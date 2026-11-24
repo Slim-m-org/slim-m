@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use super::canvas_gate::{Frame, may_relay};
 use super::permission_cache::PermissionCache;
 use super::signals_canvas::valid_preview_color;
-use crate::hidden_chars::{draws_nothing, is_hidden_char};
+use crate::hidden_chars::{draws_nothing, hides_text_outside_emoji};
 use crate::http::AppState;
 use crate::hub::{CanvasEvent, Event, Hub, ScreenAnnotationEvent, ScreenAnnotationKind};
 use crate::ids::{ChannelId, UserId};
@@ -176,7 +176,7 @@ fn checked_annotation(
         });
     if text
         .as_deref()
-        .is_some_and(|t| t.chars().any(is_hidden_char) || draws_nothing(t))
+        .is_some_and(|t| hides_text_outside_emoji(t) || draws_nothing(t))
     {
         return None;
     }

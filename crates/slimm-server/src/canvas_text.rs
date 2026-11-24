@@ -3,7 +3,7 @@
 
 use serde_json::Value;
 
-use crate::hidden_chars::{is_hidden_char, is_hidden_in_prose};
+use crate::hidden_chars::{is_hidden_char, is_reading_rewrite_in_prose};
 
 /// Longest text box, in characters; the 4 KiB props ceiling bounds the bytes.
 pub const MAX_TEXT_CHARS: usize = 500;
@@ -24,14 +24,14 @@ pub fn is_colour(c: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
 }
 
-/// Refuses a `props.text` that holds a direction override or other hidden character, as a message's text cannot.
+/// Refuses a `props.text` that holds a control character or direction override, the set a message's text loses.
 ///
 /// Line breaks and tabs stay, and an absent or empty text passes: a note may be blank.
 pub fn check_prose_text(props: &Value) -> Result<(), &'static str> {
     let hidden = props
         .get("text")
         .and_then(Value::as_str)
-        .is_some_and(|text| text.chars().any(is_hidden_in_prose));
+        .is_some_and(|text| text.chars().any(is_reading_rewrite_in_prose));
     if hidden {
         return Err("props.text holds hidden characters");
     }
@@ -71,6 +71,20 @@ pub fn check_text_props(props: &Value) -> Result<(), &'static str> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn a_note_keeps_joiners_in_emoji_and_words_but_refuses_overrides() {
+        for ok in [
+            "done \u{1F937}\u{200D}\u{2640}\u{FE0F}",
+            "\u{0645}\u{06CC}\u{200C}\u{062E}\u{0648}\u{0627}\u{0647}\u{0645}",
+            "a\nb\tc",
+        ] {
+            assert!(check_prose_text(&json!({"text": ok})).is_ok(), "{ok:?}");
+        }
+        for bad in ["a\u{202E}b", "a\u{0007}b"] {
+            assert!(check_prose_text(&json!({"text": bad})).is_err(), "{bad:?}");
+        }
+    }
 
     fn text_with(color: Value) -> Result<(), &'static str> {
         check_text_props(&json!({"text": "hi", "color": color}))

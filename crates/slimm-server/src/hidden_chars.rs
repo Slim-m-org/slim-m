@@ -59,6 +59,11 @@ pub(crate) fn is_hidden_in_prose(c: char) -> bool {
     !matches!(c, '\t' | '\n' | '\r') && is_hidden_char(c)
 }
 
+/// A character a message would strip: a control other than a line break or tab, or a bidi override.
+pub(crate) fn is_reading_rewrite_in_prose(c: char) -> bool {
+    (c.is_control() && !matches!(c, '\t' | '\n' | '\r')) || matches!(c, '\u{202D}' | '\u{202E}')
+}
+
 /// What a member would read `name` as: compatibility-folded (fullwidth and look-alike
 /// forms), without ignorable characters, case-folded, and without a leading `@`.
 pub(crate) fn fold_name(name: &str) -> String {

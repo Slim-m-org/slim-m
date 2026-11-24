@@ -261,3 +261,54 @@ async fn the_store_refuses_a_prefix_flood_before_running_it() {
         .await;
     assert!(matches!(result, Err(SearchError::InvalidQuery)));
 }
+
+#[tokio::test]
+async fn a_deleted_message_keeps_no_poll_text_in_the_search_index() {
+    let (store, pool, _app, _token, channel, _guard) = world().await;
+    let author = store
+        .create_account("bot", "bot", "not-a-real-hash")
+        .await
+        .unwrap();
+    let id = MessageId::generate();
+    store
+        .send_message(NewMessage::plain(channel, author.id, id, ""))
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO polls (message_id, channel_id, question, created_at) VALUES (?, ?, 'favourite pangolin?', 1)")
+        .bind(id)
+        .bind(channel)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO poll_options (message_id, position, label) VALUES (?, 0, 'armadillo')",
+    )
+    .bind(id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let held = |pool: SqlitePool| async move {
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM message_extra_text WHERE message_id = ?")
+            .bind(id)
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+    };
+    assert_eq!(held(pool.clone()).await, 2);
+    sqlx::query("UPDATE messages SET deleted_at = 5 WHERE id = ?")
+        .bind(id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert_eq!(held(pool).await, 0);
+}
+
+#[tokio::test]
+async fn a_tone_marked_thai_query_is_one_word_not_its_fragments() {
+    let (_store, _pool, app, token, channel, _guard) = world().await;
+    let id = channel.to_string();
+    for text in ["ไม่ใช่ครับ", "ไม้ใช้ได้"] {
+        send(&app, &id, &token, text).await;
+    }
+    assert_eq!(contents(&app, &token, "ไม่ใช่").await, ["ไม่ใช่ครับ"]);
+}

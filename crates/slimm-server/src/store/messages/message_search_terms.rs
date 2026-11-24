@@ -16,6 +16,23 @@ pub(super) fn is_unsegmented(c: char) -> bool {
         | '\u{20000}'..='\u{2A6DF}')
 }
 
+/// A vowel sign, tone mark or coeng of an unsegmented script: not alphanumeric, yet part of its word.
+fn is_unsegmented_mark(c: char) -> bool {
+    matches!(c,
+        '\u{0E31}' | '\u{0E34}'..='\u{0E3A}' | '\u{0E47}'..='\u{0E4E}'
+        | '\u{0EB1}' | '\u{0EB4}'..='\u{0EBC}' | '\u{0EC8}'..='\u{0ECE}'
+        | '\u{102B}'..='\u{103E}' | '\u{1056}'..='\u{1059}' | '\u{105E}'..='\u{1060}'
+        | '\u{1062}'..='\u{1064}' | '\u{1067}'..='\u{106D}' | '\u{1071}'..='\u{1074}'
+        | '\u{1082}'..='\u{108D}' | '\u{108F}' | '\u{109A}'..='\u{109D}'
+        | '\u{17B6}'..='\u{17D3}' | '\u{17DD}')
+}
+
+/// The words of `q` for a substring match: unlike [`plain_words`] it keeps the marks inside an unsegmented word.
+pub(super) fn substring_words(q: &str) -> impl Iterator<Item = &str> {
+    q.split(|c: char| !(is_word_char(c) || is_unsegmented_mark(c)))
+        .filter(|w| !w.is_empty())
+}
+
 pub(super) fn has_unsegmented(word: &str) -> bool {
     word.chars().any(is_unsegmented)
 }

@@ -18,12 +18,12 @@ pub(super) fn render_welcome(template: &str, who: &str, space: &str) -> String {
     template.replace("{user}", who).replace("{space}", space)
 }
 
-/// An @mention, or the display name when the username ends in a character the mention grammar drops.
-fn joiner_text(username: &str, display_name: &str) -> String {
+/// An @mention, or the inert username when the username ends in a character the mention grammar drops.
+fn joiner_text(username: &str) -> String {
     if mentionable(username) {
         format!("@{username}")
     } else {
-        inert(display_name)
+        inert(&format!("@{username}"))
     }
 }
 
@@ -45,11 +45,7 @@ async fn try_post(state: &AppState, user_id: UserId) -> anyhow::Result<()> {
         return Ok(());
     }
     let space = state.store.deployment_name().await?;
-    let content = render_welcome(
-        welcome.template(),
-        &joiner_text(&user.username, &user.display_name),
-        &space,
-    );
+    let content = render_welcome(welcome.template(), &joiner_text(&user.username), &space);
     let author = state.store.welcome_author().await?;
     // Derived from the joiner, so a retried join cannot welcome them twice.
     let id = MessageId(Uuid::new_v5(&user_id.0, b"slimm-welcome"));
@@ -102,7 +98,7 @@ mod tests {
 
     #[test]
     fn a_username_the_grammar_would_cut_is_named_not_mentioned() {
-        assert_eq!(joiner_text("sam", "Sam"), "@sam");
-        assert_eq!(joiner_text("sam.", "Sam D"), "Sam D");
+        assert_eq!(joiner_text("sam"), "@sam");
+        assert_eq!(joiner_text("sam."), "\u{FF20}sam.");
     }
 }

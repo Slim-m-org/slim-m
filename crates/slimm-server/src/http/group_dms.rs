@@ -120,13 +120,7 @@ async fn create(
     require_member(&state, ctx.user_id).await?;
     let name = optional_name(req.name.as_deref())?;
     // A timeout takes away naming a group too, since the name reaches everyone in it.
-    if name.is_some()
-        && !state
-            .store
-            .base_permissions(ctx.user_id)
-            .await?
-            .contains(Permissions::SEND_MESSAGES)
-    {
+    if name.is_some() && state.store.timed_out_until(ctx.user_id).await?.is_some() {
         return Err(ApiError::ForbiddenBecause(
             "you cannot name a group right now",
         ));
@@ -220,6 +214,9 @@ async fn leave(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let outcome = state.store.leave_group_dm(ctx.user_id, channel_id).await?;
+    if outcome == LeftGroup::AlreadyOut {
+        return Ok(StatusCode::NO_CONTENT);
+    }
     // Best effort: the roster change has committed, so a leaver must not stay on the call.
     match state
         .voice

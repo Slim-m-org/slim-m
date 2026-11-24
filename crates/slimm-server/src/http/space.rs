@@ -235,6 +235,7 @@ async fn merged_welcome(
         return Ok(None);
     }
     let mut welcome = state.store.space_welcome().await?;
+    let stored_channel = welcome.channel_id;
     if let Some(enabled) = body.welcome_enabled {
         welcome.enabled = enabled;
     }
@@ -250,7 +251,9 @@ async fn merged_welcome(
     if let Some(raw) = body.welcome_message.as_deref() {
         welcome.message = validate_welcome_message(raw)?.to_owned();
     }
-    if let Some(id) = welcome.channel_id {
+    if let Some(id) = welcome.channel_id
+        && (welcome.enabled || Some(id) != stored_channel)
+    {
         welcome_channel(state, caller, id).await?;
     }
     if welcome.enabled && welcome.channel_id.is_none() {

@@ -18,7 +18,8 @@ use super::super::voice_transcripts::TRANSCRIPT_TEXT_SHOWN;
 use super::super::{Message, Store};
 use super::message_search_filters::MessageSearchFilters;
 use super::message_search_terms::{
-    has_unsegmented, literal_fts_query, phrase, plain_words, prefix_terms_allowed, uses_fts_syntax,
+    has_unsegmented, literal_fts_query, phrase, plain_words, prefix_terms_allowed, substring_words,
+    uses_fts_syntax,
 };
 use crate::ids::{ChannelId, MessageId, Seq, UserId};
 
@@ -67,6 +68,7 @@ pub struct FtsQuery {
 
 /// The words of a plain query written without spaces between words, which
 /// `unicode61` indexes as one token and so only a substring match can find.
+/// That match owns the message text then: the fragments `unicode61` splits it into would hit unrelated words.
 #[derive(Debug, Clone)]
 struct Unsegmented {
     words: Vec<String>,
@@ -91,8 +93,8 @@ impl FtsQuery {
         if expr.is_empty() {
             return None;
         }
-        let (words, others): (Vec<&str>, Vec<&str>) =
-            plain_words(q).partition(|w| has_unsegmented(w));
+        let words: Vec<&str> = substring_words(q).filter(|w| has_unsegmented(w)).collect();
+        let others: Vec<&str> = plain_words(q).filter(|w| !has_unsegmented(w)).collect();
         let unsegmented = (!words.is_empty()).then(|| Unsegmented {
             words: words.into_iter().map(str::to_owned).collect(),
             rest: others
@@ -303,8 +305,13 @@ impl Store {
                 builder.push("(");
             }
             // One IN over both id sets keeps the FTS-first plan; an OR with a correlated EXISTS walks the channel.
-            builder
-                .push("m.fts_rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ");
+            let content_branch = match query.unsegmented.is_some() {
+                true => {
+                    "m.fts_rowid IN (SELECT rowid FROM messages_fts WHERE 0 AND messages_fts MATCH "
+                }
+                false => "m.fts_rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ",
+            };
+            builder.push(content_branch);
             builder.push_bind(q.to_owned());
             builder.push(
                 " UNION ALL SELECT am.fts_rowid FROM attachment_text t \

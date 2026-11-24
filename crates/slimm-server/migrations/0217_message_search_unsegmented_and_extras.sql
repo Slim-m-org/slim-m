@@ -56,25 +56,30 @@ CREATE TRIGGER message_extra_text_ad AFTER DELETE ON message_extra_text BEGIN
 END;
 
 INSERT INTO message_extra_text (message_id, source, text)
-SELECT message_id, 'forward', origin_content FROM message_forwards WHERE origin_content <> '';
+SELECT f.message_id, 'forward', f.origin_content FROM message_forwards f
+JOIN messages m ON m.id = f.message_id AND m.deleted_at IS NULL WHERE f.origin_content <> '';
 
 INSERT INTO message_extra_text (message_id, source, text)
-SELECT message_id, 'poll', question FROM polls WHERE question <> '';
+SELECT p.message_id, 'poll', p.question FROM polls p
+JOIN messages m ON m.id = p.message_id AND m.deleted_at IS NULL WHERE p.question <> '';
 
 INSERT INTO message_extra_text (message_id, source, text)
-SELECT message_id, 'option:' || position, label FROM poll_options WHERE label <> '';
+SELECT o.message_id, 'option:' || o.position, o.label FROM poll_options o
+JOIN messages m ON m.id = o.message_id AND m.deleted_at IS NULL WHERE o.label <> '';
 
 INSERT INTO message_extra_text (message_id, source, text)
-SELECT message_id, 'embed:' || position,
-       trim(COALESCE(title, '') || ' ' || COALESCE(description, '') || ' '
-            || COALESCE(author_name, '') || ' ' || COALESCE(footer_text, ''))
-FROM message_embeds
-WHERE trim(COALESCE(title, '') || COALESCE(description, '') || COALESCE(author_name, '')
-           || COALESCE(footer_text, '')) <> '';
+SELECT e.message_id, 'embed:' || e.position,
+       trim(COALESCE(e.title, '') || ' ' || COALESCE(e.description, '') || ' '
+            || COALESCE(e.author_name, '') || ' ' || COALESCE(e.footer_text, ''))
+FROM message_embeds e
+JOIN messages m ON m.id = e.message_id AND m.deleted_at IS NULL
+WHERE trim(COALESCE(e.title, '') || COALESCE(e.description, '') || COALESCE(e.author_name, '')
+           || COALESCE(e.footer_text, '')) <> '';
 
 INSERT INTO message_extra_text (message_id, source, text)
-SELECT message_id, 'field:' || position || ':' || field_index, name || ' ' || value
-FROM message_embed_fields;
+SELECT f.message_id, 'field:' || f.position || ':' || f.field_index, f.name || ' ' || f.value
+FROM message_embed_fields f
+JOIN messages m ON m.id = f.message_id AND m.deleted_at IS NULL;
 
 CREATE TRIGGER message_forwards_search_ai AFTER INSERT ON message_forwards
 WHEN NEW.origin_content <> ''
@@ -125,4 +130,18 @@ END;
 CREATE TRIGGER message_embed_fields_search_ad AFTER DELETE ON message_embed_fields BEGIN
     DELETE FROM message_extra_text
     WHERE message_id = OLD.message_id AND source = 'field:' || OLD.position || ':' || OLD.field_index;
+END;
+
+CREATE TRIGGER message_extra_text_deleted AFTER UPDATE OF deleted_at ON messages
+WHEN NEW.deleted_at IS NOT NULL AND OLD.deleted_at IS NULL
+BEGIN
+    DELETE FROM message_extra_text WHERE message_id = NEW.id;
+END;
+
+CREATE TRIGGER polls_search_ad AFTER DELETE ON polls BEGIN
+    DELETE FROM message_extra_text WHERE message_id = OLD.message_id AND source = 'poll';
+END;
+
+CREATE TRIGGER poll_options_search_ad AFTER DELETE ON poll_options BEGIN
+    DELETE FROM message_extra_text WHERE message_id = OLD.message_id AND source = 'option:' || OLD.position;
 END;

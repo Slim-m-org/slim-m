@@ -215,3 +215,32 @@ async fn repeating_an_add_or_a_leave_succeeds() {
         assert_eq!(status, StatusCode::NO_CONTENT);
     }
 }
+
+#[tokio::test]
+async fn leaving_a_channel_that_is_not_your_group_announces_nothing() {
+    let h = harness().await;
+    let _admin = person(&h, "admin").await;
+    let (a, b, c) = (
+        person(&h, "alice").await,
+        person(&h, "bob").await,
+        person(&h, "carol").await,
+    );
+    let channel = group_of(&h, &a, &[&b, &c]).await;
+    let outsider = person(&h, "dave").await;
+    let mut events = h.hub.subscribe();
+    let (status, _) = call(
+        &h,
+        "POST",
+        &format!("/dms/groups/{channel}/leave"),
+        &outsider,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let announced = std::iter::from_fn(|| events.try_recv().ok())
+        .any(|e| matches!(e, slimm_server::hub::Event::DmLeft { .. }));
+    assert!(
+        !announced,
+        "a non-member's leave must not tell their devices"
+    );
+}
