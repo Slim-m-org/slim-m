@@ -83,7 +83,22 @@ jobs:
     uses: ./.github/workflows/verify-release-checks.yml
     with:
       ref: ${{ needs.release-please.outputs.server_tag }}
-      required_checks: "check|hygiene|cargo dependency licenses|breaking-change gate (additive-only, push to main)"
+      required_checks: "check|docker-tests|supervisor image (ubuntu-24.04)|supervisor image (ubuntu-24.04-arm)|hygiene|cargo dependency licenses|breaking-change gate (additive-only, push to main)"
+
+  # The web image ships the client bundle, so the client's own web suites must have passed on the server release commit too; schema/openapi.yaml is in client-ci's path filter and a server release bumps it.
+  verify-web-ci:
+    needs: [release-please]
+    if: >-
+      (needs.release-please.result == 'success' &&
+       needs.release-please.outputs.server_released == 'true') ||
+      startsWith(github.ref, 'refs/tags/server-v')
+    permissions:
+      checks: read
+      contents: read
+    uses: ./.github/workflows/verify-release-checks.yml
+    with:
+      ref: ${{ needs.release-please.outputs.server_tag }}
+      required_checks: "analyze, format check|test and web build|logic tests compiled to javascript (chrome)|breaking-change gate (additive-only, push to main)"
 
   # Requires client-ci, client-ios-ci, hygiene and the license gate to have
   # passed on this exact commit before any client publish job runs.
@@ -222,8 +237,8 @@ jobs:
 
   # The web bundle under the server's version, so SLIMM_VERSION pins both images (decision 0025); never moves latest.
   web-image:
-    needs: [release-please, server-image-merge]
-    if: needs.server-image-merge.result == 'success'
+    needs: [release-please, server-image-merge, verify-web-ci]
+    if: needs.server-image-merge.result == 'success' && needs.verify-web-ci.result == 'success'
     uses: ./.github/workflows/web-image.yml
     permissions: {contents: read, packages: write, id-token: write}
     with:
@@ -259,7 +274,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          sparse-checkout: scripts
+          sparse-checkout: |
+            scripts
+            .github/actions/release-server-assets
 
       - uses: ./.github/actions/release-server-assets
         with:
@@ -378,7 +395,7 @@ jobs:
     if: needs.verify-client-ci.result == 'success' && needs.linux-client.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    container: fedora:44
+    container: fedora:44@sha256:15da97ed9aa94dd3d92c3925eb89520f6c80e07ea7ee24cba848d1f8b6912b3e
     environment: release
     permissions:
       contents: read
@@ -403,6 +420,12 @@ jobs:
         with:
           ref: ${{ needs.release-please.outputs.client_ref }}
         if: steps.gate.outputs.ready == 'true'
+
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          name: slim-m-client-tarball
+          path: dist
 
       - uses: ./.github/actions/release-copr-submit
         if: steps.gate.outputs.ready == 'true'

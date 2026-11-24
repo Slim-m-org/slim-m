@@ -789,7 +789,10 @@ It reads the newest run of each required name per check suite, so a rerun replac
 It shipped three separate incidents before anything tested it: a cancelled check read as success, the release-please path verified `github.sha` instead of the commit it actually released, and a tag was passed to an endpoint that only accepts a SHA.
 All three are now regression tests, not just fixed code.
 
-`verify-server-ci` requires `check` (server-ci), `hygiene`, `cargo dependency licenses` (licenses) and `breaking-change gate (additive-only, push to main)` (schema-ci).
+`verify-server-ci` requires `check` (server-ci), `docker-tests` and the two `supervisor image` legs (supervisor-ci, whose paths a server release commit touches through the supervisor's version bump), `hygiene`, `cargo dependency licenses` (licenses) and `breaking-change gate (additive-only, push to main)` (schema-ci).
+`web-image` additionally waits on `verify-web-ci`, a second call on the same commit that requires client-ci's `analyze, format check`, `test and web build` and `logic tests compiled to javascript (chrome)` (a server release bumps `schema/openapi.yaml`, which is in client-ci's path filter), because the web bundle it signs is the client's.
+Release jobs restore no Actions cache: the apt, native-hook and layer caches carry a `cache` switch the release callers set to false, and the COPR job builds from the tarball `linux-client` uploaded as an artifact rather than downloading the release asset again.
+The `fedora` and `ubuntu` images in release paths and `visqol.Dockerfile` are pinned by digest (`test_release_images_are_pinned.py`), and `server-release-assets` lists the local action it uses in its sparse checkout (`test_sparse_checkout_lists_local_actions.py`).
 `verify-client-ci` requires `analyze, format check`, `test and web build`, `linux desktop compiles` and `linux desktop shell smoke (Xvfb)` (all client-ci), `ios unit tests (callkit invariant)` and `ios sources are registered in project.pbxproj` (client-ios-ci), `hygiene`, `pub dependency licenses` (licenses) and the same schema-ci gate.
 
 Every name in that list comes from `client-ci` or `client-ios-ci`, so both must run on the release commit itself, which is why neither path-excludes a release-please version bump the way `main-builds` does.
