@@ -25,6 +25,9 @@ import 'space_settings_section.dart';
 import 'settings_screen_scaffold.dart';
 import '../providers/settings_index.dart';
 
+const _title = 'Space settings';
+const _backTooltip = 'Back to channels';
+
 class SpaceSettingsScreen extends ConsumerWidget {
   const SpaceSettingsScreen({
     super.key,
@@ -45,8 +48,8 @@ class SpaceSettingsScreen extends ConsumerWidget {
       final me = ref.watch(meProvider);
       if (me.valueOrNull == null) {
         return SettingsScreenScaffold(
-          title: 'Space settings',
-          backTooltip: 'Back to channels',
+          title: _title,
+          backTooltip: _backTooltip,
           backFallback: Routes.channels,
           scrollable: false,
           child: me.hasError && !me.isLoading
@@ -58,9 +61,9 @@ class SpaceSettingsScreen extends ConsumerWidget {
         );
       }
       return const SettingsScreenScaffold(
-        title: 'Space settings',
+        title: _title,
         // Reached with go(), which replaces, so there is no stack to pop.
-        backTooltip: 'Back to channels',
+        backTooltip: _backTooltip,
         backFallback: Routes.channels,
         scrollable: false,
         child: SettingsNotice(
@@ -73,8 +76,8 @@ class SpaceSettingsScreen extends ConsumerWidget {
       searchEntries: spaceSettingsIndex,
       initialPaneId: initialPaneId,
       onPaneChanged: onPaneChanged,
-      title: 'Space settings',
-      backTooltip: 'Back to channels',
+      title: _title,
+      backTooltip: _backTooltip,
       backFallback: Routes.channels,
       groups: spaceSettingsPaneGroups(context, ref),
     );

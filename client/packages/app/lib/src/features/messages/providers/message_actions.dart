@@ -28,6 +28,8 @@ import '../../channels/providers/slow_mode_controller.dart';
 
 export 'reaction_actions.dart' show hasReacted, setReaction;
 
+const _sendAction = 'send the message';
+
 /// Casts (or changes) a vote, applied optimistically like a reaction, so the
 /// poll responds before the `poll.voted` frame confirms it.
 ///
@@ -435,12 +437,12 @@ Future<void> sendOptimistically(
         slowModeLastSentProvider.notifier,
       ).recordSent(channelId, DateTime.now());
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'send the message', e, stack);
+      api.reportFailure(api.LogTag.ui, _sendAction, e, stack);
       if (stillSender()) {
         await store.markFailed(id, reason: _sendFailureReason(e));
       }
     } on Object catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'send the message', e, stack);
+      api.reportFailure(api.LogTag.ui, _sendAction, e, stack);
       if (stillSender()) {
         await store.markFailed(
           id,
@@ -457,7 +459,7 @@ Future<void> sendOptimistically(
 /// dropped request leaves the socket up with no reconnect coming, so it points to Retry too.
 String _sendFailureReason(api.ApiException e) => e is api.TransportException
     ? 'Could not reach the server. Retry, or it is sent again when you reconnect.'
-    : describeApiFailure('send the message', e);
+    : describeApiFailure(_sendAction, e);
 
 /// Retries a local write that lost a lock race, then logs and goes on: the
 /// server copy is what counts, and sync fills the row in when the write

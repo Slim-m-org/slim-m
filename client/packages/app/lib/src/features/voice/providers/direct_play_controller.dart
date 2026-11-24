@@ -260,16 +260,8 @@ class DirectPlayController {
         return;
       }
       state = state.copyWith(phase: DirectPlayPhase.connecting, notice: null);
-      if (_canSeeItem != room.itemId) {
-        final canSee = await _env.client.canSee(
-          offer.baseUrl,
-          credential,
-          room.itemId,
-        );
-        if (stale()) return;
-        _canSee = canSee;
-        _canSeeItem = room.itemId;
-      }
+      await _refreshCanSee(offer, room, credential);
+      if (stale()) return;
       if (_canSee == false) {
         state = state.copyWith(
           phase: DirectPlayPhase.off,
@@ -289,6 +281,23 @@ class DirectPlayController {
     } finally {
       if (_beginningGeneration == generation) _beginningGeneration = null;
     }
+  }
+
+  Future<void> _refreshCanSee(
+    api.WatchDirectPlay offer,
+    WatchRoom room,
+    JellyfinSession credential,
+  ) async {
+    if (_canSeeItem == room.itemId) return;
+    final generation = _generation;
+    final canSee = await _env.client.canSee(
+      offer.baseUrl,
+      credential,
+      room.itemId,
+    );
+    if (_disposed || generation != _generation) return;
+    _canSee = canSee;
+    _canSeeItem = room.itemId;
   }
 
   Future<void> _play(

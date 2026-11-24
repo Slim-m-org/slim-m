@@ -149,19 +149,25 @@ class _DesktopMessageNotifier {
       if (alert.mentionsSelf) mentioned.add(message.channelId);
     }
     for (final MapEntry(key: channelId, value: held) in missed.entries) {
-      final latest = held.last;
-      final text = await _textFor(latest, isDm: !mentioned.contains(channelId));
+      final mentionsSelf = mentioned.contains(channelId);
+      final text = await _textFor(held.last, isDm: !mentionsSelf);
       if (disposed) return;
-      final summary = held.length == 1
-          ? text
-          : (
-              title: text.title,
-              body: mentioned.contains(channelId)
-                  ? '${held.length} new messages, with a mention'
-                  : '${held.length} new messages',
-            );
-      _present(summary, channelId, mentionsSelf: mentioned.contains(channelId));
+      _present(
+        _missedSummary(text, held.length, mentionsSelf: mentionsSelf),
+        channelId,
+        mentionsSelf: mentionsSelf,
+      );
     }
+  }
+
+  ({String? title, String body}) _missedSummary(
+    ({String? title, String body}) latest,
+    int count, {
+    required bool mentionsSelf,
+  }) {
+    if (count == 1) return latest;
+    final suffix = mentionsSelf ? ', with a mention' : '';
+    return (title: latest.title, body: '$count new messages$suffix');
   }
 
   Future<({String? title, String body})> _textFor(

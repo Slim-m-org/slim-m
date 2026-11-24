@@ -63,6 +63,23 @@ class _ManageSourcesSheetState extends ConsumerState<_ManageSourcesSheet>
     if (ok && mounted) ref.invalidate(dockCatalogProvider);
   }
 
+  Widget _sourceRow(api.DockSource source) {
+    return SettingsDetailRow(
+      icon: AppIcons.dock,
+      title: source.local ? 'Local dev directory' : source.repo,
+      trailing: source.local
+          ? null
+          : AppButton(
+              label: 'Remove',
+              icon: AppIcons.delete,
+              variant: AppButtonVariant.danger,
+              size: AppButtonSize.sm,
+              semanticLabel: 'Remove source ${source.repo}',
+              onPressed: _removing ? null : () => unawaited(_remove(source)),
+            ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final catalog = ref.watch(dockCatalogProvider);
@@ -98,25 +115,7 @@ class _ManageSourcesSheetState extends ConsumerState<_ManageSourcesSheet>
             isEmpty: (sources) => sources.isEmpty,
             emptyMessage: 'No community sources yet.',
             data: (context, sources) => SettingsSectionCard(
-              children: [
-                for (final source in sources)
-                  SettingsDetailRow(
-                    icon: AppIcons.dock,
-                    title: source.local ? 'Local dev directory' : source.repo,
-                    trailing: source.local
-                        ? null
-                        : AppButton(
-                            label: 'Remove',
-                            icon: AppIcons.delete,
-                            variant: AppButtonVariant.danger,
-                            size: AppButtonSize.sm,
-                            semanticLabel: 'Remove source ${source.repo}',
-                            onPressed: _removing
-                                ? null
-                                : () => unawaited(_remove(source)),
-                          ),
-                  ),
-              ],
+              children: [for (final source in sources) _sourceRow(source)],
             ),
           ),
           const SizedBox(height: AppSpacing.s16),

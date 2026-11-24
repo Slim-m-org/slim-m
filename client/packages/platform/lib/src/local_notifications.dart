@@ -26,6 +26,8 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'browser_attention.dart';
 import 'host_platform.dart';
 
+const _appName = 'slim-m';
+
 const messagesChannelId = 'messages_v1';
 const messagesChannelName = 'Messages';
 const mentionsChannelId = 'mentions_v1';
@@ -283,7 +285,7 @@ class LocalNotifications {
         android: AndroidInitializationSettings('@drawable/ic_stat_notify'),
         linux: LinuxInitializationSettings(defaultActionName: 'Open slim-m'),
         windows: WindowsInitializationSettings(
-          appName: 'slim-m',
+          appName: _appName,
           appUserModelId: windowsAppUserModelId,
           guid: _windowsActivationGuid,
         ),
@@ -335,7 +337,7 @@ class LocalNotifications {
     await _ensureReady();
     await _plugin.show(
       id ?? channel.notificationId,
-      title ?? 'slim-m',
+      title ?? _appName,
       text,
       NotificationDetails(
         android: AndroidNotificationDetails(
@@ -366,7 +368,7 @@ class LocalNotifications {
     required int id,
   }) async {
     (_browser ??= BrowserAttention()).notify(
-      title ?? 'slim-m',
+      title ?? _appName,
       text,
       tag: '$id',
       onClick: () =>

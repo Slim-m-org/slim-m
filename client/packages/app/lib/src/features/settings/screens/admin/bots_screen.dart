@@ -166,6 +166,40 @@ class _BotsPaneState extends ConsumerState<BotsPane>
     return count == 0 ? 'None granted' : '$count granted';
   }
 
+  List<Widget> _createFields() {
+    return [
+      LabeledField(
+        label: 'Username',
+        helper: 'Letters, digits, _ . and - only, up to 32 characters.',
+        child: AppInput(
+          maxLength: api.InputLimits.username,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(api.usernameCharacters),
+          ],
+          controller: _username,
+          autocorrect: false,
+          semanticLabel: 'Bot username',
+          onSubmitted: (_) => _busy ? null : _create(),
+        ),
+      ),
+      LabeledField(
+        label: 'Command prefix',
+        helper:
+            'Typed before a command. Bots can share one while '
+            'their commands differ.',
+        child: AppInput(
+          maxLength: api.InputLimits.botPrefix,
+          inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\s'))],
+          controller: _prefix,
+          autocorrect: false,
+          mono: true,
+          semanticLabel: 'Bot command prefix',
+          onSubmitted: (_) => _busy ? null : _create(),
+        ),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final bots = ref.watch(botsProvider);
@@ -201,40 +235,7 @@ class _BotsPaneState extends ConsumerState<BotsPane>
           children: [
             SettingsCardBlock(
               gap: AppSpacing.s12,
-              children: [
-                LabeledField(
-                  label: 'Username',
-                  helper:
-                      'Letters, digits, _ . and - only, up to 32 characters.',
-                  child: AppInput(
-                    maxLength: api.InputLimits.username,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(api.usernameCharacters),
-                    ],
-                    controller: _username,
-                    autocorrect: false,
-                    semanticLabel: 'Bot username',
-                    onSubmitted: (_) => _busy ? null : _create(),
-                  ),
-                ),
-                LabeledField(
-                  label: 'Command prefix',
-                  helper:
-                      'Typed before a command. Bots can share one while '
-                      'their commands differ.',
-                  child: AppInput(
-                    maxLength: api.InputLimits.botPrefix,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.deny(RegExp(r'\s')),
-                    ],
-                    controller: _prefix,
-                    autocorrect: false,
-                    mono: true,
-                    semanticLabel: 'Bot command prefix',
-                    onSubmitted: (_) => _busy ? null : _create(),
-                  ),
-                ),
-              ],
+              children: [..._createFields()],
             ),
             SettingsDisclosure(
               title: 'Permissions',
